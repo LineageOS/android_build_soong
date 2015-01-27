@@ -1,0 +1,4 @@
+subdirs = [
+    "build/blueprint",
+    "build/soong",
+]
