@@ -1,4 +1,7 @@
 subdirs = [
     "build/blueprint",
     "build/soong",
+    "bionic/*",
+    "external/*",
+    "system/core/*",
 ]

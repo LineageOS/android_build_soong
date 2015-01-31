@@ -50,6 +50,7 @@ rule g.bootstrap.link
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint
+# Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
 # Defined: build/blueprint/Blueprints:1:1
@@ -74,6 +75,7 @@ default .bootstrap/blueprint/pkg/blueprint.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint-bootstrap
+# Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
 # Defined: build/blueprint/Blueprints:55:1
@@ -96,6 +98,7 @@ default .bootstrap/blueprint-bootstrap/pkg/blueprint/bootstrap.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint-deptools
+# Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
 # Defined: build/blueprint/Blueprints:34:1
@@ -108,6 +111,7 @@ default .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint-parser
+# Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
 # Defined: build/blueprint/Blueprints:23:1
@@ -123,6 +127,7 @@ default .bootstrap/blueprint-parser/pkg/blueprint/parser.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint-pathtools
+# Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
 # Defined: build/blueprint/Blueprints:40:1
@@ -136,6 +141,7 @@ default .bootstrap/blueprint-pathtools/pkg/blueprint/pathtools.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint-proptools
+# Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
 # Defined: build/blueprint/Blueprints:49:1
@@ -148,6 +154,7 @@ default .bootstrap/blueprint-proptools/pkg/blueprint/proptools.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  bpfmt
+# Variant:
 # Type:    bootstrap_go_binary
 # Factory: blueprint/bootstrap.newGoBinaryModule
 # Defined: build/blueprint/Blueprints:81:1
@@ -170,6 +177,7 @@ default .bootstrap/bin/bpfmt
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  bpmodify
+# Variant:
 # Type:    bootstrap_go_binary
 # Factory: blueprint/bootstrap.newGoBinaryModule
 # Defined: build/blueprint/Blueprints:87:1
@@ -192,6 +200,7 @@ default .bootstrap/bin/bpmodify
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  minibp
+# Variant:
 # Type:    bootstrap_go_binary
 # Factory: blueprint/bootstrap.newGoBinaryModule
 # Defined: build/blueprint/Blueprints:72:1
@@ -218,13 +227,162 @@ build .bootstrap/bin/minibp: g.bootstrap.cp .bootstrap/minibp/obj/a.out
 default .bootstrap/bin/minibp
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  soong-cc
+# Variant:
+# Type:    bootstrap_go_package
+# Factory: blueprint/bootstrap.newGoPackageModule
+# Defined: build/soong/Blueprints:79:1
+
+build .bootstrap/soong-cc/pkg/android/soong/cc.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/cc/builder.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/cc.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/clang.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/toolchain.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/util.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/arm_device.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/arm64_device.go $
+        ${g.bootstrap.srcDir}/build/soong/cc/x86_linux_host.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/blueprint/parser.a $
+        .bootstrap/blueprint-proptools/pkg/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/blueprint.a $
+        .bootstrap/blueprint-pathtools/pkg/blueprint/pathtools.a $
+        .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap/pkg/blueprint/bootstrap.a $
+        .bootstrap/soong-glob/pkg/android/soong/glob.a $
+        .bootstrap/soong-common/pkg/android/soong/common.a $
+        .bootstrap/soong-config/pkg/android/soong/config.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-config/pkg
+    pkgPath = android/soong/cc
+default .bootstrap/soong-cc/pkg/android/soong/cc.a
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  soong-common
+# Variant:
+# Type:    bootstrap_go_package
+# Factory: blueprint/bootstrap.newGoPackageModule
+# Defined: build/soong/Blueprints:49:1
+
+build .bootstrap/soong-common/pkg/android/soong/common.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/common/arch.go $
+        ${g.bootstrap.srcDir}/build/soong/common/defs.go $
+        ${g.bootstrap.srcDir}/build/soong/common/glob.go $
+        ${g.bootstrap.srcDir}/build/soong/common/module.go $
+        ${g.bootstrap.srcDir}/build/soong/common/paths.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/blueprint/parser.a $
+        .bootstrap/blueprint-proptools/pkg/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/blueprint.a $
+        .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a $
+        .bootstrap/blueprint-pathtools/pkg/blueprint/pathtools.a $
+        .bootstrap/blueprint-bootstrap/pkg/blueprint/bootstrap.a $
+        .bootstrap/soong-glob/pkg/android/soong/glob.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-glob/pkg
+    pkgPath = android/soong/common
+default .bootstrap/soong-common/pkg/android/soong/common.a
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  soong-config
+# Variant:
+# Type:    bootstrap_go_package
+# Factory: blueprint/bootstrap.newGoPackageModule
+# Defined: build/soong/Blueprints:66:1
+
+build .bootstrap/soong-config/pkg/android/soong/config.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/config/config.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/blueprint/parser.a $
+        .bootstrap/blueprint-proptools/pkg/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/blueprint.a $
+        .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a $
+        .bootstrap/blueprint-pathtools/pkg/blueprint/pathtools.a $
+        .bootstrap/blueprint-bootstrap/pkg/blueprint/bootstrap.a $
+        .bootstrap/soong-glob/pkg/android/soong/glob.a $
+        .bootstrap/soong-common/pkg/android/soong/common.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg
+    pkgPath = android/soong/config
+default .bootstrap/soong-config/pkg/android/soong/config.a
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  soong-glob
+# Variant:
+# Type:    bootstrap_go_package
+# Factory: blueprint/bootstrap.newGoPackageModule
+# Defined: build/soong/Blueprints:38:1
+
+build .bootstrap/soong-glob/pkg/android/soong/glob.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/glob/glob.go | ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a
+    incFlags = -I .bootstrap/blueprint-deptools/pkg
+    pkgPath = android/soong/glob
+default .bootstrap/soong-glob/pkg/android/soong/glob.a
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  soong_build
+# Variant:
+# Type:    bootstrap_go_binary
+# Factory: blueprint/bootstrap.newGoBinaryModule
+# Defined: build/soong/Blueprints:13:1
+
+build .bootstrap/soong_build/obj/soong_build.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/cmd/soong_build/main.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/blueprint/parser.a $
+        .bootstrap/blueprint-proptools/pkg/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/blueprint.a $
+        .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a $
+        .bootstrap/blueprint-pathtools/pkg/blueprint/pathtools.a $
+        .bootstrap/blueprint-bootstrap/pkg/blueprint/bootstrap.a $
+        .bootstrap/soong-glob/pkg/android/soong/glob.a $
+        .bootstrap/soong-common/pkg/android/soong/common.a $
+        .bootstrap/soong-config/pkg/android/soong/config.a $
+        .bootstrap/soong-cc/pkg/android/soong/cc.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-config/pkg -I .bootstrap/soong-cc/pkg
+    pkgPath = soong_build
+default .bootstrap/soong_build/obj/soong_build.a
+
+build .bootstrap/soong_build/obj/a.out: g.bootstrap.link $
+        .bootstrap/soong_build/obj/soong_build.a | ${g.bootstrap.linkCmd}
+    libDirFlags = -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-bootstrap/pkg -L .bootstrap/soong-glob/pkg -L .bootstrap/soong-common/pkg -L .bootstrap/soong-config/pkg -L .bootstrap/soong-cc/pkg
+default .bootstrap/soong_build/obj/a.out
+
+build .bootstrap/bin/soong_build: g.bootstrap.cp $
+        .bootstrap/soong_build/obj/a.out
+default .bootstrap/bin/soong_build
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  soong_glob
+# Variant:
+# Type:    bootstrap_go_binary
+# Factory: blueprint/bootstrap.newGoBinaryModule
+# Defined: build/soong/Blueprints:28:1
+
+build .bootstrap/soong_glob/obj/soong_glob.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/cmd/soong_glob/soong_glob.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-deptools/pkg/blueprint/deptools.a $
+        .bootstrap/soong-glob/pkg/android/soong/glob.a
+    incFlags = -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/soong-glob/pkg
+    pkgPath = soong_glob
+default .bootstrap/soong_glob/obj/soong_glob.a
+
+build .bootstrap/soong_glob/obj/a.out: g.bootstrap.link $
+        .bootstrap/soong_glob/obj/soong_glob.a | ${g.bootstrap.linkCmd}
+    libDirFlags = -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/soong-glob/pkg
+default .bootstrap/soong_glob/obj/a.out
+
+build .bootstrap/bin/soong_glob: g.bootstrap.cp $
+        .bootstrap/soong_glob/obj/a.out
+default .bootstrap/bin/soong_glob
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Singleton: bootstrap
 # Factory:   blueprint/bootstrap.newSingleton
 
 rule s.bootstrap.bigbp
-    command = .bootstrap/bin/minibp -p -d .bootstrap/main.ninja.in.d -m ${g.bootstrap.bootstrapManifest} -o ${out} ${in}
+    command = .bootstrap/bin/soong_build  -d .bootstrap/main.ninja.in.d -m ${g.bootstrap.bootstrapManifest} -o ${out} ${in}
     depfile = .bootstrap/main.ninja.in.d
-    description = minibp ${out}
+    description = soong_build ${out}
 
 rule s.bootstrap.minibp
     command = .bootstrap/bin/minibp -c ${checkFile} -m ${g.bootstrap.bootstrapManifest} -d ${out}.d -o ${out} ${in}
@@ -234,7 +392,8 @@ rule s.bootstrap.minibp
 
 build .bootstrap/main.ninja.in: s.bootstrap.bigbp $
         ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/bpfmt $
-        .bootstrap/bin/bpmodify .bootstrap/bin/minibp
+        .bootstrap/bin/bpmodify .bootstrap/bin/minibp $
+        .bootstrap/bin/soong_build .bootstrap/bin/soong_glob
 default .bootstrap/main.ninja.in
 build .bootstrap/notAFile: phony
 default .bootstrap/notAFile

@@ -1,0 +1,112 @@
+//
+// WARNING: Modifying this file will NOT automatically regenerate build.ninja.in!
+//
+// Before modifying this file make sure minibp is up to date:
+//    1) "repo sync build/soong" to make sure you have the latest build.ninja.in
+//    2) build minibp, which builds automicatically through the normal build steps. For example:
+//
+// After modifying this file regenerate build.ninja.in and build your changes:
+//    1) In your build directory, execute "../bootstrap.bash -r" to regenerate build.ninja.in
+//    2) Build again
+//
+
+bootstrap_go_binary(
+    name = "soong_build",
+    deps = [
+        "blueprint",
+        "blueprint-bootstrap",
+        "soong-cc",
+        "soong-common",
+        "soong-config",
+    ],
+    srcs = [
+        "cmd/soong_build/main.go",
+    ],
+    primaryBuilder = true,
+)
+
+bootstrap_go_binary(
+    name = "soong_glob",
+    deps = [
+        "soong-glob",
+    ],
+    srcs = [
+        "cmd/soong_glob/soong_glob.go",
+    ],
+)
+
+bootstrap_go_package(
+    name = "soong-glob",
+    pkgPath = "android/soong/glob",
+    deps = [
+        "blueprint-deptools",
+    ],
+    srcs = [
+        "glob/glob.go",
+    ],
+)
+
+bootstrap_go_package(
+    name = "soong-common",
+    pkgPath = "android/soong/common",
+    deps = [
+        "blueprint",
+        "blueprint-bootstrap",
+        "soong-glob"
+    ],
+    srcs = [
+        "common/arch.go",
+        "common/defs.go",
+        "common/glob.go",
+        "common/module.go",
+        "common/paths.go",
+    ],
+)
+
+bootstrap_go_package(
+    name = "soong-config",
+    pkgPath = "android/soong/config",
+    deps = [
+        "blueprint",
+        "blueprint-bootstrap",
+        "soong-common",
+    ],
+    srcs = [
+        "config/config.go",
+    ],
+)
+
+bootstrap_go_package(
+    name = "soong-cc",
+    pkgPath = "android/soong/cc",
+    deps = [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong-common",
+        "soong-config",
+    ],
+    srcs = [
+        "cc/builder.go",
+        "cc/cc.go",
+        "cc/clang.go",
+        "cc/toolchain.go",
+        "cc/util.go",
+
+        "cc/arm_device.go",
+        "cc/arm64_device.go",
+
+        "cc/x86_linux_host.go",
+    ],
+)
+
+toolchain_library(
+    name = "libatomic",
+)
+
+toolchain_library(
+    name = "libgcc",
+)
+
+toolchain_library(
+    name = "libgcov",
+)
