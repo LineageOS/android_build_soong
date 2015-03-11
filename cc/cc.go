@@ -86,6 +86,8 @@ func init() {
 		strings.Join(clangFilterUnknownCflags(deviceGlobalCflags), " "))
 	pctx.StaticVariable("hostClangGlobalCflags",
 		strings.Join(clangFilterUnknownCflags(hostGlobalCflags), " "))
+	pctx.StaticVariable("commonClangGlobalCppflags",
+		strings.Join(clangFilterUnknownCflags(commonGlobalCppflags), " "))
 
 	// Everything in this list is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
@@ -387,6 +389,7 @@ func (c *ccBase) flags(ctx common.AndroidModuleContext, toolchain toolchain) ccF
 		}
 
 		if flags.clang {
+			flags.cppFlags = append(flags.cppFlags, "${commonClangGlobalCppflags}")
 			flags.globalFlags = []string{
 				"${commonGlobalIncludes}",
 				toolchain.IncludeFlags(),
@@ -395,6 +398,7 @@ func (c *ccBase) flags(ctx common.AndroidModuleContext, toolchain toolchain) ccF
 				fmt.Sprintf("${%sClangGlobalCflags}", arch.HostOrDevice),
 			}
 		} else {
+			flags.cppFlags = append(flags.cppFlags, "${commonGlobalCppflags}")
 			flags.globalFlags = []string{
 				"${commonGlobalIncludes}",
 				toolchain.IncludeFlags(),
