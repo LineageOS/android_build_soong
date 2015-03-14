@@ -49,6 +49,49 @@ rule g.bootstrap.link
     description = ${g.bootstrap.goChar}l ${out}
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  androidmk
+# Variant:
+# Type:    bootstrap_go_binary
+# Factory: blueprint/bootstrap.newGoBinaryModule
+# Defined: build/soong/Blueprints:106:1
+
+build .bootstrap/androidmk/obj/androidmk.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/android.go $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/androidmk.go $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/values.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a $
+        .bootstrap/blueprint-parser/pkg/blueprint/parser.a
+    incFlags = -I .bootstrap/androidmk-parser/pkg -I .bootstrap/blueprint-parser/pkg
+    pkgPath = androidmk
+default .bootstrap/androidmk/obj/androidmk.a
+
+build .bootstrap/androidmk/obj/a.out: g.bootstrap.link $
+        .bootstrap/androidmk/obj/androidmk.a | ${g.bootstrap.linkCmd}
+    libDirFlags = -L .bootstrap/androidmk-parser/pkg -L .bootstrap/blueprint-parser/pkg
+default .bootstrap/androidmk/obj/a.out
+
+build .bootstrap/bin/androidmk: g.bootstrap.cp .bootstrap/androidmk/obj/a.out
+default .bootstrap/bin/androidmk
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  androidmk-parser
+# Variant:
+# Type:    bootstrap_go_package
+# Factory: blueprint/bootstrap.newGoPackageModule
+# Defined: build/soong/Blueprints:119:1
+
+build .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a: $
+        g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/parser/make_strings.go $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/parser/makething.go $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/parser/parser.go $
+        ${g.bootstrap.srcDir}/build/soong/androidmk/parser/scope.go | $
+        ${g.bootstrap.gcCmd}
+    pkgPath = android/soong/androidmk/parser
+default .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint
 # Variant:
 # Type:    bootstrap_go_package
@@ -391,8 +434,8 @@ rule s.bootstrap.minibp
     generator = true
 
 build .bootstrap/main.ninja.in: s.bootstrap.bigbp $
-        ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/bpfmt $
-        .bootstrap/bin/bpmodify .bootstrap/bin/minibp $
+        ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/androidmk $
+        .bootstrap/bin/bpfmt .bootstrap/bin/bpmodify .bootstrap/bin/minibp $
         .bootstrap/bin/soong_build .bootstrap/bin/soong_glob
 default .bootstrap/main.ninja.in
 build .bootstrap/notAFile: phony

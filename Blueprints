@@ -99,6 +99,38 @@ bootstrap_go_package {
     ],
 }
 
+//
+// androidmk Android.mk to Blueprints translator
+//
+
+bootstrap_go_binary {
+    name: "androidmk",
+    srcs: [
+        "androidmk/cmd/androidmk/android.go",
+        "androidmk/cmd/androidmk/androidmk.go",
+        "androidmk/cmd/androidmk/values.go",
+    ],
+    deps: [
+        "androidmk-parser",
+        "blueprint-parser",
+    ],
+}
+
+bootstrap_go_package {
+    name: "androidmk-parser",
+    pkgPath: "android/soong/androidmk/parser",
+    srcs: [
+        "androidmk/parser/make_strings.go",
+        "androidmk/parser/makething.go",
+        "androidmk/parser/parser.go",
+        "androidmk/parser/scope.go",
+    ],
+}
+
+//
+// C static libraries extracted from the gcc toolchain
+//
+
 toolchain_library {
     name: "libatomic",
 }
