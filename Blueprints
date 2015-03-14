@@ -10,82 +10,82 @@
 //    2) Build again
 //
 
-bootstrap_go_binary(
-    name = "soong_build",
-    deps = [
+bootstrap_go_binary {
+    name: "soong_build",
+    deps: [
         "blueprint",
         "blueprint-bootstrap",
         "soong-cc",
         "soong-common",
         "soong-config",
     ],
-    srcs = [
+    srcs: [
         "cmd/soong_build/main.go",
     ],
-    primaryBuilder = true,
-)
+    primaryBuilder: true,
+}
 
-bootstrap_go_binary(
-    name = "soong_glob",
-    deps = [
+bootstrap_go_binary {
+    name: "soong_glob",
+    deps: [
         "soong-glob",
     ],
-    srcs = [
+    srcs: [
         "cmd/soong_glob/soong_glob.go",
     ],
-)
+}
 
-bootstrap_go_package(
-    name = "soong-glob",
-    pkgPath = "android/soong/glob",
-    deps = [
+bootstrap_go_package {
+    name: "soong-glob",
+    pkgPath: "android/soong/glob",
+    deps: [
         "blueprint-deptools",
     ],
-    srcs = [
+    srcs: [
         "glob/glob.go",
     ],
-)
+}
 
-bootstrap_go_package(
-    name = "soong-common",
-    pkgPath = "android/soong/common",
-    deps = [
+bootstrap_go_package {
+    name: "soong-common",
+    pkgPath: "android/soong/common",
+    deps: [
         "blueprint",
         "blueprint-bootstrap",
-        "soong-glob"
+        "soong-glob",
     ],
-    srcs = [
+    srcs: [
         "common/arch.go",
         "common/defs.go",
         "common/glob.go",
         "common/module.go",
         "common/paths.go",
     ],
-)
+}
 
-bootstrap_go_package(
-    name = "soong-config",
-    pkgPath = "android/soong/config",
-    deps = [
+bootstrap_go_package {
+    name: "soong-config",
+    pkgPath: "android/soong/config",
+    deps: [
         "blueprint",
         "blueprint-bootstrap",
         "soong-common",
     ],
-    srcs = [
+    srcs: [
         "config/config.go",
     ],
-)
+}
 
-bootstrap_go_package(
-    name = "soong-cc",
-    pkgPath = "android/soong/cc",
-    deps = [
+bootstrap_go_package {
+    name: "soong-cc",
+    pkgPath: "android/soong/cc",
+    deps: [
         "blueprint",
         "blueprint-pathtools",
         "soong-common",
         "soong-config",
     ],
-    srcs = [
+    srcs: [
         "cc/builder.go",
         "cc/cc.go",
         "cc/clang.go",
@@ -97,16 +97,16 @@ bootstrap_go_package(
 
         "cc/x86_linux_host.go",
     ],
-)
+}
 
-toolchain_library(
-    name = "libatomic",
-)
+toolchain_library {
+    name: "libatomic",
+}
 
-toolchain_library(
-    name = "libgcc",
-)
+toolchain_library {
+    name: "libgcc",
+}
 
-toolchain_library(
-    name = "libgcov",
-)
+toolchain_library {
+    name: "libgcov",
+}
