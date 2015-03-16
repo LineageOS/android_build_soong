@@ -824,13 +824,13 @@ func (c *ccLibrary) moduleTypeLdflags(ctx common.AndroidModuleContext, toolchain
 				"-nostdlib",
 				"-Wl,--gc-sections",
 				sharedFlag,
-				"-Wl,-soname," + libName,
+				"-Wl,-soname," + libName + sharedLibraryExtension,
 			}
 		} else {
 			return []string{
 				"-Wl,--gc-sections",
 				sharedFlag,
-				"-Wl,-soname," + libName,
+				"-Wl,-soname," + libName + sharedLibraryExtension,
 			}
 		}
 	} else {
