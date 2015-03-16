@@ -11,8 +11,7 @@ var (
 	armCflags = []string{
 		"-fno-exceptions", // from build/core/combo/select.mk
 		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-fno-strict-aliasing",
-		"-fstack-protector",
+		"-msoft-float",
 		"-ffunction-sections",
 		"-fdata-sections",
 		"-funwind-tables",
@@ -48,7 +47,7 @@ var (
 		"-Wl,--build-id=md5",
 		"-Wl,--warn-shared-textrel",
 		"-Wl,--fatal-warnings",
-		"-Wl,-icf=safe",
+		"-Wl,--icf=safe",
 		"-Wl,--hash-style=gnu",
 
 		// Disable transitive dependency library symbol resolving.
