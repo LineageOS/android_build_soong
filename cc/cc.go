@@ -355,6 +355,12 @@ func (c *ccBase) flags(ctx common.AndroidModuleContext, toolchain toolchain) ccF
 		flags.conlyFlags = clangFilterUnknownCflags(flags.conlyFlags)
 		flags.ldFlags = clangFilterUnknownCflags(flags.ldFlags)
 
+		flags.cFlags = append(flags.cFlags, "${clangExtraCflags}")
+		flags.conlyFlags = append(flags.conlyFlags, "${clangExtraConlyflags}")
+		if arch.HostOrDevice.Device() {
+			flags.cFlags = append(flags.cFlags, "${clangExtraTargetCflags}")
+		}
+
 		target := "-target " + toolchain.ClangTriple()
 		gccPrefix := "-B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 
