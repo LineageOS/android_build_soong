@@ -276,7 +276,7 @@ func (c *ccBase) findToolchain(ctx common.AndroidModuleContext) toolchain {
 }
 
 type ccDeps struct {
-	staticLibs, sharedLibs, wholeStaticLibs, objFiles, includeDirs []string
+	staticLibs, sharedLibs, lateStaticLibs, wholeStaticLibs, objFiles, includeDirs []string
 
 	crtBegin, crtEnd string
 }
@@ -641,7 +641,7 @@ func (c *ccDynamic) AndroidDynamicDependencies(ctx common.AndroidDynamicDepender
 		ctx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, c.systemSharedLibs()...)
 		ctx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}},
 			"libcompiler_rt-extras",
-			//"libgcov",
+			"libgcov",
 			"libatomic",
 			"libgcc")
 
@@ -659,8 +659,6 @@ func (c *ccDynamic) AndroidDynamicDependencies(ctx common.AndroidDynamicDepender
 	return deps
 }
 
-var implicitStaticLibs = []string{"libcompiler_rt-extras" /*"libgcov",*/, "libatomic", "libgcc"}
-
 func (c *ccDynamic) collectDeps(ctx common.AndroidModuleContext, flags ccFlags) (ccDeps, ccFlags) {
 	var newIncludeDirs []string
 
@@ -677,9 +675,15 @@ func (c *ccDynamic) collectDeps(ctx common.AndroidModuleContext, flags ccFlags) 
 
 	if ctx.Arch().HostOrDevice.Device() {
 		var staticLibs []string
-		staticLibNames := implicitStaticLibs
+		staticLibNames := []string{"libcompiler_rt-extras"}
 		_, staticLibs, newIncludeDirs = c.collectDepsFromList(ctx, staticLibNames)
 		deps.staticLibs = append(deps.staticLibs, staticLibs...)
+		deps.includeDirs = append(deps.includeDirs, newIncludeDirs...)
+
+		// libgcc and libatomic have to be last on the command line
+		staticLibNames = []string{"libgcov", "libatomic", "libgcc"}
+		_, staticLibs, newIncludeDirs = c.collectDepsFromList(ctx, staticLibNames)
+		deps.lateStaticLibs = append(deps.lateStaticLibs, staticLibs...)
 		deps.includeDirs = append(deps.includeDirs, newIncludeDirs...)
 	}
 
@@ -889,8 +893,9 @@ func (c *ccLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), ctx.ModuleName()+sharedLibraryExtension)
 
-	TransformObjToDynamicBinary(ctx, objFiles, deps.sharedLibs, deps.staticLibs, deps.wholeStaticLibs,
-		deps.crtBegin, deps.crtEnd, ccFlagsToBuilderFlags(flags), outputFile)
+	TransformObjToDynamicBinary(ctx, objFiles, deps.sharedLibs, deps.staticLibs,
+		deps.lateStaticLibs, deps.wholeStaticLibs, deps.crtBegin, deps.crtEnd,
+		ccFlagsToBuilderFlags(flags), outputFile)
 
 	c.out = outputFile
 	c.exportIncludeDirs = pathtools.PrefixPaths(c.properties.Export_include_dirs,
@@ -1059,8 +1064,9 @@ func (c *ccBinary) compileModule(ctx common.AndroidModuleContext,
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), c.getStem(ctx))
 
-	TransformObjToDynamicBinary(ctx, objFiles, deps.sharedLibs, deps.staticLibs, deps.wholeStaticLibs,
-		deps.crtBegin, deps.crtEnd, ccFlagsToBuilderFlags(flags), outputFile)
+	TransformObjToDynamicBinary(ctx, objFiles, deps.sharedLibs, deps.staticLibs,
+		deps.lateStaticLibs, deps.wholeStaticLibs, deps.crtBegin, deps.crtEnd,
+		ccFlagsToBuilderFlags(flags), outputFile)
 
 	ctx.InstallFile("bin", outputFile)
 }

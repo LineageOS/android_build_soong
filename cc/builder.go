@@ -184,8 +184,8 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles []string,
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
 // and shared libraires, to a shared library (.so) or dynamic executable
 func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
-	objFiles, sharedLibs, staticLibs, wholeStaticLibs []string, crtBegin, crtEnd string,
-	flags builderFlags, outputFile string) {
+	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs []string,
+	crtBegin, crtEnd string, flags builderFlags, outputFile string) {
 
 	var ldCmd string
 	if flags.clang {
@@ -217,6 +217,8 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 			"-l"+strings.TrimSuffix(strings.TrimPrefix(file, "lib"), sharedLibraryExtension))
 		ldDirs = append(ldDirs, dir)
 	}
+
+	libFlagsList = append(libFlagsList, lateStaticLibs...)
 
 	deps := []string{ldCmd}
 	deps = append(deps, sharedLibs...)
