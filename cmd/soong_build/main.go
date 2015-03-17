@@ -54,6 +54,7 @@ func main() {
 	ctx.RegisterEarlyMutator("link", cc.LinkageMutator)
 
 	// Singletons
+	ctx.RegisterSingletonType("checkbuild", common.CheckbuildSingleton)
 
 	configuration, err := config.New(srcDir)
 	if err != nil {

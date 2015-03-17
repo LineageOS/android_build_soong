@@ -212,18 +212,45 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	}
 
 	allInstalledFiles := []string{}
+	allCheckbuildFiles := []string{}
 	ctx.VisitAllModuleVariants(func(module blueprint.Module) {
 		if androidModule, ok := module.(AndroidModule); ok {
 			files := androidModule.base().installFiles
 			allInstalledFiles = append(allInstalledFiles, files...)
+			files = androidModule.base().checkbuildFiles
+			allCheckbuildFiles = append(allCheckbuildFiles, files...)
 		}
 	})
 
+	deps := []string{}
+
 	if len(allInstalledFiles) > 0 {
+		name := ctx.ModuleName() + "-install"
 		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:    blueprint.Phony,
-			Outputs: []string{ctx.ModuleName()},
-			Inputs:  allInstalledFiles,
+			Rule:      blueprint.Phony,
+			Outputs:   []string{name},
+			Implicits: allInstalledFiles,
+		})
+		deps = append(deps, name)
+	}
+
+	if len(allCheckbuildFiles) > 0 {
+		name := ctx.ModuleName() + "-checkbuild"
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{name},
+			Implicits: allCheckbuildFiles,
+			Optional:  true,
+		})
+		deps = append(deps, name)
+	}
+
+	if len(deps) > 0 {
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{ctx.ModuleName()},
+			Implicits: deps,
+			Optional:  true,
 		})
 	}
 }
@@ -262,6 +289,9 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	if ctx.Failed() {
 		return
 	}
+
+	a.installFiles = append(a.installFiles, androidCtx.installFiles...)
+	a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
 }
 
 type androidModuleContext struct {
@@ -300,7 +330,6 @@ func (a *androidModuleContext) InstallFile(installPath, srcPath string) {
 	})
 
 	a.installFiles = append(a.installFiles, fullInstallPath)
-	a.checkbuildFiles = append(a.checkbuildFiles, srcPath)
 }
 
 func (a *androidModuleContext) CheckbuildFile(srcPath string) {

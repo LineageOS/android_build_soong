@@ -53,7 +53,7 @@ rule g.bootstrap.link
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:106:1
+# Defined: build/soong/Blueprints:107:1
 
 build .bootstrap/androidmk/obj/androidmk.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/android.go $
@@ -79,7 +79,7 @@ default .bootstrap/bin/androidmk
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:119:1
+# Defined: build/soong/Blueprints:120:1
 
 build .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a: $
         g.bootstrap.gc $
@@ -274,7 +274,7 @@ default .bootstrap/bin/minibp
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:79:1
+# Defined: build/soong/Blueprints:80:1
 
 build .bootstrap/soong-cc/pkg/android/soong/cc.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/cc/builder.go $
@@ -308,6 +308,7 @@ default .bootstrap/soong-cc/pkg/android/soong/cc.a
 
 build .bootstrap/soong-common/pkg/android/soong/common.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/common/arch.go $
+        ${g.bootstrap.srcDir}/build/soong/common/checkbuild.go $
         ${g.bootstrap.srcDir}/build/soong/common/defs.go $
         ${g.bootstrap.srcDir}/build/soong/common/glob.go $
         ${g.bootstrap.srcDir}/build/soong/common/module.go $
@@ -329,7 +330,7 @@ default .bootstrap/soong-common/pkg/android/soong/common.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:66:1
+# Defined: build/soong/Blueprints:67:1
 
 build .bootstrap/soong-config/pkg/android/soong/config.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/config/config.go | $
