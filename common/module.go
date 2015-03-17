@@ -80,7 +80,14 @@ type hostAndDeviceProperties struct {
 	Device_supported bool
 }
 
-func InitAndroidModule(m AndroidModule, hod HostOrDeviceSupported, defaultMultilib string,
+type Multilib string
+
+const (
+	MultilibBoth  Multilib = "both"
+	MultilibFirst Multilib = "first"
+)
+
+func InitAndroidModule(m AndroidModule, hod HostOrDeviceSupported, defaultMultilib Multilib,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	base := m.base()

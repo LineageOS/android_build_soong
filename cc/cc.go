@@ -227,6 +227,52 @@ type ccModuleType interface {
 	outputFile() string
 }
 
+type ccDeps struct {
+	staticLibs, sharedLibs, lateStaticLibs, wholeStaticLibs, objFiles, includeDirs []string
+
+	crtBegin, crtEnd string
+}
+
+type ccFlags struct {
+	globalFlags []string
+	asFlags     []string
+	cFlags      []string
+	conlyFlags  []string
+	cppFlags    []string
+	ldFlags     []string
+	ldLibs      []string
+	includeDirs []string
+	nocrt       bool
+	toolchain   toolchain
+	clang       bool
+
+	extraStaticLibs []string
+	extraSharedLibs []string
+}
+
+// ccBase contains the properties and members used by all C/C++ module types, and implements
+// the blueprint.Module interface.  It expects to be embedded into an outer specialization struct,
+// and uses a ccModuleType interface to that struct to create the build steps.
+type ccBase struct {
+	common.AndroidModuleBase
+	module ccModuleType
+
+	properties ccProperties
+	unused     unusedProperties
+
+	installPath string
+}
+
+func newCCBase(base *ccBase, module ccModuleType, hod common.HostOrDeviceSupported,
+	multilib common.Multilib, props ...interface{}) (blueprint.Module, []interface{}) {
+
+	base.module = module
+
+	props = append(props, &base.properties, &base.unused)
+
+	return common.InitAndroidModule(module, hod, multilib, props...)
+}
+
 func (c *ccBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 	toolchain := c.findToolchain(ctx)
 	if ctx.Failed() {
@@ -273,40 +319,6 @@ func (c *ccBase) findToolchain(ctx common.AndroidModuleContext) toolchain {
 			arch.HostOrDevice.String(), arch.String()))
 	}
 	return factory(arch.ArchVariant, arch.CpuVariant)
-}
-
-type ccDeps struct {
-	staticLibs, sharedLibs, lateStaticLibs, wholeStaticLibs, objFiles, includeDirs []string
-
-	crtBegin, crtEnd string
-}
-
-type ccFlags struct {
-	globalFlags []string
-	asFlags     []string
-	cFlags      []string
-	conlyFlags  []string
-	cppFlags    []string
-	ldFlags     []string
-	ldLibs      []string
-	includeDirs []string
-	nocrt       bool
-	toolchain   toolchain
-	clang       bool
-
-	extraStaticLibs []string
-	extraSharedLibs []string
-}
-
-// ccBase contains the properties and members used by all C/C++ module types
-type ccBase struct {
-	common.AndroidModuleBase
-	module ccModuleType
-
-	properties ccProperties
-	unused     unusedProperties
-
-	installPath string
 }
 
 func (c *ccBase) moduleTypeCflags(ctx common.AndroidModuleContext, toolchain toolchain) []string {
@@ -617,6 +629,14 @@ type ccDynamic struct {
 	ccBase
 }
 
+func newCCDynamic(dynamic *ccDynamic, module ccModuleType, hod common.HostOrDeviceSupported,
+	multilib common.Multilib, props ...interface{}) (blueprint.Module, []interface{}) {
+
+	dynamic.properties.System_shared_libs = []string{defaultSystemSharedLibraries}
+
+	return newCCBase(&dynamic.ccBase, module, hod, multilib, props...)
+}
+
 const defaultSystemSharedLibraries = "__default__"
 
 func (c *ccDynamic) systemSharedLibs() []string {
@@ -750,15 +770,18 @@ type ccLibrary struct {
 	}
 }
 
+func newCCLibrary(library *ccLibrary, hod common.HostOrDeviceSupported) (blueprint.Module, []interface{}) {
+	return newCCDynamic(&library.ccDynamic, library, hod, common.MultilibBoth,
+		&library.libraryProperties)
+}
+
 func NewCCLibrary() (blueprint.Module, []interface{}) {
 	module := &ccLibrary{}
-	module.module = module
-	module.properties.System_shared_libs = []string{defaultSystemSharedLibraries}
+
 	module.libraryProperties.BuildShared = true
 	module.libraryProperties.BuildStatic = true
 
-	return common.InitAndroidModule(module, common.HostAndDeviceSupported, "both",
-		&module.properties, &module.unused, &module.libraryProperties)
+	return newCCLibrary(module, common.HostAndDeviceSupported)
 }
 
 func (c *ccLibrary) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
@@ -943,10 +966,8 @@ type ccObject struct {
 
 func NewCCObject() (blueprint.Module, []interface{}) {
 	module := &ccObject{}
-	module.module = module
 
-	return common.InitAndroidModule(module, common.DeviceSupported, "both",
-		&module.properties, &module.unused)
+	return newCCBase(&module.ccBase, module, common.DeviceSupported, common.MultilibBoth)
 }
 
 func (*ccObject) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
@@ -1030,11 +1051,9 @@ func (c *ccBinary) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerM
 
 func NewCCBinary() (blueprint.Module, []interface{}) {
 	module := &ccBinary{}
-	module.module = module
 
-	module.properties.System_shared_libs = []string{defaultSystemSharedLibraries}
-	return common.InitAndroidModule(module, common.HostAndDeviceSupported, "first", &module.properties,
-		&module.unused, &module.binaryProperties)
+	return newCCDynamic(&module.ccDynamic, module, common.HostAndDeviceSupported, common.MultilibFirst,
+		&module.binaryProperties)
 }
 
 func (c *ccBinary) moduleTypeCflags(ctx common.AndroidModuleContext, toolchain toolchain) []string {
@@ -1083,11 +1102,9 @@ func (c *ccBinary) compileModule(ctx common.AndroidModuleContext,
 
 func NewCCLibraryStatic() (blueprint.Module, []interface{}) {
 	module := &ccLibrary{}
-	module.module = module
 	module.libraryProperties.BuildStatic = true
 
-	return common.InitAndroidModule(module, common.HostAndDeviceSupported, "both",
-		&module.properties, &module.unused)
+	return newCCLibrary(module, common.HostAndDeviceSupported)
 }
 
 //
@@ -1096,12 +1113,9 @@ func NewCCLibraryStatic() (blueprint.Module, []interface{}) {
 
 func NewCCLibraryShared() (blueprint.Module, []interface{}) {
 	module := &ccLibrary{}
-	module.module = module
-	module.properties.System_shared_libs = []string{defaultSystemSharedLibraries}
 	module.libraryProperties.BuildShared = true
 
-	return common.InitAndroidModule(module, common.HostAndDeviceSupported, "both",
-		&module.properties, &module.unused)
+	return newCCLibrary(module, common.HostAndDeviceSupported)
 }
 
 //
@@ -1110,11 +1124,9 @@ func NewCCLibraryShared() (blueprint.Module, []interface{}) {
 
 func NewCCLibraryHostStatic() (blueprint.Module, []interface{}) {
 	module := &ccLibrary{}
-	module.module = module
 	module.libraryProperties.BuildStatic = true
 
-	return common.InitAndroidModule(module, common.HostSupported, "both",
-		&module.properties, &module.unused)
+	return newCCLibrary(module, common.HostSupported)
 }
 
 //
@@ -1123,11 +1135,9 @@ func NewCCLibraryHostStatic() (blueprint.Module, []interface{}) {
 
 func NewCCLibraryHostShared() (blueprint.Module, []interface{}) {
 	module := &ccLibrary{}
-	module.module = module
 	module.libraryProperties.BuildShared = true
 
-	return common.InitAndroidModule(module, common.HostSupported, "both",
-		&module.properties, &module.unused)
+	return newCCLibrary(module, common.HostSupported)
 }
 
 //
@@ -1136,10 +1146,8 @@ func NewCCLibraryHostShared() (blueprint.Module, []interface{}) {
 
 func NewCCBinaryHost() (blueprint.Module, []interface{}) {
 	module := &ccBinary{}
-	module.module = module
 
-	return common.InitAndroidModule(module, common.HostSupported, "first",
-		&module.properties, &module.unused)
+	return newCCDynamic(&module.ccDynamic, module, common.HostSupported, common.MultilibFirst)
 }
 
 //
@@ -1162,10 +1170,8 @@ func (*toolchainLibrary) collectDeps(ctx common.AndroidModuleContext, flags ccFl
 
 func NewToolchainLibrary() (blueprint.Module, []interface{}) {
 	module := &toolchainLibrary{}
-	module.module = module
-	module.libraryProperties.BuildStatic = true
 
-	return common.InitAndroidModule(module, common.DeviceSupported, "both")
+	return newCCBase(&module.ccBase, module, common.DeviceSupported, common.MultilibBoth)
 }
 
 func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,

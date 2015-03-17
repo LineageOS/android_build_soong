@@ -293,12 +293,12 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 	}
 }
 
-func InitArchModule(m AndroidModule, defaultMultilib string,
+func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	base := m.base()
 
-	base.commonProperties.Compile_multilib = defaultMultilib
+	base.commonProperties.Compile_multilib = string(defaultMultilib)
 
 	base.generalProperties = append(base.generalProperties,
 		&base.commonProperties)
