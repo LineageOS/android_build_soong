@@ -38,6 +38,7 @@ func (c *checkbuildSingleton) GenerateBuildActions(ctx blueprint.SingletonContex
 		Rule:      blueprint.Phony,
 		Outputs:   []string{"checkbuild"},
 		Implicits: deps,
-		Optional:  true,
+		// HACK: checkbuild should be an optional build, but force it enabled for now
+		//Optional:  true,
 	})
 }
