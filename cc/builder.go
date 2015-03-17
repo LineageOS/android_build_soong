@@ -223,6 +223,7 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 	deps := []string{ldCmd}
 	deps = append(deps, sharedLibs...)
 	deps = append(deps, staticLibs...)
+	deps = append(deps, lateStaticLibs...)
 	deps = append(deps, wholeStaticLibs...)
 	if crtBegin != "" {
 		deps = append(deps, crtBegin, crtEnd)
