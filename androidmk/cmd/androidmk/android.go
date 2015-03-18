@@ -56,6 +56,10 @@ var boolProperties = map[string]string{
 	"LOCAL_RTTI_FLAG":               "rtti",
 }
 
+var deleteProperties = map[string]struct{}{
+	"LOCAL_CPP_EXTENSION": struct{}{},
+}
+
 var propertySuffixes = []struct {
 	suffix string
 	class  string
