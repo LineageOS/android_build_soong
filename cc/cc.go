@@ -1,3 +1,4 @@
+// Copyright 2015 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +26,7 @@ import (
 	"strings"
 
 	"android/soong/common"
+	"android/soong/genrule"
 )
 
 type Config interface {
@@ -284,7 +286,7 @@ func newCCBase(base *ccBase, module ccModuleType, hod common.HostOrDeviceSupport
 
 	props = append(props, &base.properties, &base.unused)
 
-	return common.InitAndroidModule(module, hod, multilib, props...)
+	return common.InitAndroidArchModule(module, hod, multilib, props...)
 }
 
 func (c *ccBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
@@ -312,6 +314,13 @@ func (c *ccBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 	if ctx.Failed() {
 		return
 	}
+
+	generatedObjFiles := c.compileGeneratedObjs(ctx, flags, deps)
+	if ctx.Failed() {
+		return
+	}
+
+	objFiles = append(objFiles, generatedObjFiles...)
 
 	c.ccModuleType().compileModule(ctx, flags, deps, objFiles)
 	if ctx.Failed() {
@@ -576,6 +585,28 @@ func (c *ccBase) compileObjs(ctx common.AndroidModuleContext, flags ccFlags,
 	}
 
 	return c.customCompileObjs(ctx, flags, deps, "", c.properties.Srcs)
+}
+
+// Compile generated source files from dependencies
+func (c *ccBase) compileGeneratedObjs(ctx common.AndroidModuleContext, flags ccFlags,
+	deps ccDeps) []string {
+	var srcs []string
+
+	if c.properties.SkipCompileObjs {
+		return nil
+	}
+
+	ctx.VisitDirectDeps(func(module blueprint.Module) {
+		if gen, ok := module.(genrule.SourceFileGenerator); ok {
+			srcs = append(srcs, gen.GeneratedSourceFiles()...)
+		}
+	})
+
+	if len(srcs) == 0 {
+		return nil
+	}
+
+	return TransformSourceToObj(ctx, "", srcs, ccFlagsToBuilderFlags(flags))
 }
 
 func (c *ccBase) outputFile() string {

@@ -87,11 +87,23 @@ const (
 	MultilibFirst Multilib = "first"
 )
 
-func InitAndroidModule(m AndroidModule, hod HostOrDeviceSupported, defaultMultilib Multilib,
+func InitAndroidModule(m AndroidModule,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	base := m.base()
 	base.module = m
+
+	propertyStructs = append(propertyStructs, &base.commonProperties)
+
+	return m, propertyStructs
+}
+
+func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMultilib Multilib,
+	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
+
+	_, propertyStructs = InitAndroidModule(m, propertyStructs...)
+
+	base := m.base()
 	base.commonProperties.HostOrDeviceSupported = hod
 
 	if hod == HostAndDeviceSupported {

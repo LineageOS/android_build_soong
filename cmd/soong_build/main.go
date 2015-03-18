@@ -26,6 +26,7 @@ import (
 	"android/soong/cc"
 	"android/soong/common"
 	"android/soong/config"
+	"android/soong/genrule"
 )
 
 func main() {
@@ -49,6 +50,8 @@ func main() {
 	ctx.RegisterModuleType("cc_library_host_static", cc.NewCCLibraryHostStatic)
 	ctx.RegisterModuleType("cc_library_host_shared", cc.NewCCLibraryHostShared)
 	ctx.RegisterModuleType("cc_binary_host", cc.NewCCBinaryHost)
+
+	ctx.RegisterModuleType("gensrcs", genrule.NewGenSrcs)
 
 	// Mutators
 	ctx.RegisterEarlyMutator("arch", common.ArchMutator)

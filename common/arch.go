@@ -280,6 +280,10 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 		}
 	}
 
+	if len(arches) == 0 {
+		return
+	}
+
 	archNames := []string{}
 	for _, arch := range arches {
 		archNames = append(archNames, arch.String())
@@ -300,8 +304,6 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 
 	base.commonProperties.Compile_multilib = string(defaultMultilib)
 
-	base.generalProperties = append(base.generalProperties,
-		&base.commonProperties)
 	base.generalProperties = append(base.generalProperties,
 		propertyStructs...)
 
