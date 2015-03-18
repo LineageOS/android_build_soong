@@ -200,6 +200,13 @@ type ccProperties struct {
 
 	// Set for combined shared/static libraries to prevent compiling object files a second time
 	SkipCompileObjs bool `blueprint:"mutated"`
+
+	Debug struct {
+		Cflags []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+	Release struct {
+		Cflags []string `android:"arch_variant"`
+	} `android:"arch_variant"`
 }
 
 type unusedProperties struct {
@@ -370,6 +377,9 @@ func (c *ccBase) flags(ctx common.AndroidModuleContext, toolchain toolchain) ccF
 	if err != nil {
 		ctx.ModuleErrorf("%s", err)
 	}
+
+	// TODO: debug
+	flags.cFlags = append(flags.cFlags, c.properties.Release.Cflags...)
 
 	if arch.HostOrDevice.Host() {
 		// TODO: allow per-module clang disable for host
