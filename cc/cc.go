@@ -227,6 +227,9 @@ type ccModuleType interface {
 	// Compile objects into final module
 	compileModule(common.AndroidModuleContext, ccFlags, ccDeps, []string)
 
+	// Install the built module.
+	installModule(common.AndroidModuleContext, ccFlags)
+
 	// Return the output file (.o, .a or .so) for use by other modules
 	outputFile() string
 }
@@ -304,6 +307,11 @@ func (c *ccBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 	}
 
 	c.ccModuleType().compileModule(ctx, flags, deps, objFiles)
+	if ctx.Failed() {
+		return
+	}
+
+	c.ccModuleType().installModule(ctx, flags)
 	if ctx.Failed() {
 		return
 	}
@@ -940,13 +948,6 @@ func (c *ccLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 	c.out = outputFile
 	c.exportIncludeDirs = pathtools.PrefixPaths(c.properties.Export_include_dirs,
 		common.ModuleSrcDir(ctx))
-
-	installDir := "lib"
-	if flags.toolchain.Is64Bit() {
-		installDir = "lib64"
-	}
-
-	ctx.InstallFile(installDir, outputFile)
 }
 
 func (c *ccLibrary) compileModule(ctx common.AndroidModuleContext,
@@ -963,6 +964,27 @@ func (c *ccLibrary) compileModule(ctx common.AndroidModuleContext,
 		c.compileStaticLibrary(ctx, flags, deps, objFiles)
 	} else {
 		c.compileSharedLibrary(ctx, flags, deps, objFiles)
+	}
+}
+
+func (c *ccLibrary) installStaticLibrary(ctx common.AndroidModuleContext, flags ccFlags) {
+	// Static libraries do not get installed.
+}
+
+func (c *ccLibrary) installSharedLibrary(ctx common.AndroidModuleContext, flags ccFlags) {
+	installDir := "lib"
+	if flags.toolchain.Is64Bit() {
+		installDir = "lib64"
+	}
+
+	ctx.InstallFile(installDir, c.out)
+}
+
+func (c *ccLibrary) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
+	if c.libraryProperties.IsStatic {
+		c.installStaticLibrary(ctx, flags)
+	} else {
+		c.installSharedLibrary(ctx, flags)
 	}
 }
 
@@ -1017,6 +1039,10 @@ func (c *ccObject) compileModule(ctx common.AndroidModuleContext,
 	ctx.CheckbuildFile(outputFile)
 }
 
+func (c *ccObject) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
+	// Object files do not get installed.
+}
+
 func (c *ccObject) outputFile() string {
 	return c.out
 }
@@ -1027,6 +1053,7 @@ func (c *ccObject) outputFile() string {
 
 type ccBinary struct {
 	ccDynamic
+	out              string
 	binaryProperties binaryProperties
 }
 
@@ -1099,12 +1126,61 @@ func (c *ccBinary) compileModule(ctx common.AndroidModuleContext,
 	}
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), c.getStem(ctx))
+	c.out = outputFile
 
 	TransformObjToDynamicBinary(ctx, objFiles, deps.sharedLibs, deps.staticLibs,
 		deps.lateStaticLibs, deps.wholeStaticLibs, deps.crtBegin, deps.crtEnd,
 		ccFlagsToBuilderFlags(flags), outputFile)
+}
 
-	ctx.InstallFile("bin", outputFile)
+func (c *ccBinary) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
+	ctx.InstallFile("bin", c.out)
+}
+
+type ccTest struct {
+	ccBinary
+}
+
+var (
+	gtestLibs = []string{"libgtest", "libgtest_main"}
+)
+
+func (c *ccTest) collectDeps(ctx common.AndroidModuleContext, flags ccFlags) (ccDeps, ccFlags) {
+	deps, flags := c.ccBinary.collectDeps(ctx, flags)
+
+	flags.cFlags = append(flags.cFlags, "-DGTEST_HAS_STD_STRING")
+	if c.HostOrDevice().Host() {
+		flags.cFlags = append(flags.cFlags, "-O0", "-g")
+		flags.ldLibs = append(flags.ldLibs, "-lpthread")
+	}
+
+	// TODO(danalbert): Make gtest export its dependencies.
+	flags.includeDirs = append(flags.includeDirs, "external/gtest/include")
+
+	_, staticLibs, _ := c.collectDepsFromList(ctx, gtestLibs)
+	deps.staticLibs = append(deps.staticLibs, staticLibs...)
+
+	return deps, flags
+}
+
+func (c *ccTest) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
+	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, gtestLibs...)
+	deps := c.ccBinary.AndroidDynamicDependencies(ctx)
+	return append(deps, gtestLibs...)
+}
+
+func (c *ccTest) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
+	if c.HostOrDevice().Device() {
+		ctx.InstallFile("../data/nativetest/" + ctx.ModuleName(), c.out)
+	} else {
+		c.ccBinary.installModule(ctx, flags)
+	}
+}
+
+func NewCCTest() (blueprint.Module, []interface{}) {
+	module := &ccTest{}
+	return newCCDynamic(&module.ccDynamic, module, common.HostAndDeviceSupported,
+		common.MultilibFirst, &module.binaryProperties)
 }
 
 //
@@ -1196,6 +1272,10 @@ func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,
 	c.out = outputFile
 
 	ctx.CheckbuildFile(outputFile)
+}
+
+func (c *toolchainLibrary) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
+	// Toolchain libraries do not get installed.
 }
 
 func LinkageMutator(mctx blueprint.EarlyMutatorContext) {

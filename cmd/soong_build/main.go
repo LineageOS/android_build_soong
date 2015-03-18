@@ -42,6 +42,7 @@ func main() {
 	ctx.RegisterModuleType("cc_library", cc.NewCCLibrary)
 	ctx.RegisterModuleType("cc_object", cc.NewCCObject)
 	ctx.RegisterModuleType("cc_binary", cc.NewCCBinary)
+	ctx.RegisterModuleType("cc_test", cc.NewCCTest)
 
 	ctx.RegisterModuleType("toolchain_library", cc.NewToolchainLibrary)
 
