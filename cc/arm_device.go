@@ -149,7 +149,7 @@ func init() {
 
 	// Extended cflags
 
-	// ARM mode vs. Thumb mode
+	// ARM vs. Thumb instruction set flags
 	pctx.StaticVariable("armArmCflags", strings.Join(armArmCflags, " "))
 	pctx.StaticVariable("armThumbCflags", strings.Join(armThumbCflags, " "))
 
@@ -256,6 +256,17 @@ func (t *toolchainArm) IncludeFlags() string {
 	return "${armIncludeFlags}"
 }
 
+func (t *toolchainArm) InstructionSetFlags(isa string) (string, error) {
+	switch isa {
+	case "arm":
+		return "${armArmCflags}", nil
+	case "thumb", "":
+		return "${armThumbCflags}", nil
+	default:
+		return t.toolchainBase.InstructionSetFlags(isa)
+	}
+}
+
 func (t *toolchainArm) ClangTriple() string {
 	return "${armGccTriple}"
 }
@@ -277,7 +288,6 @@ func armToolchainFactory(archVariant string, cpuVariant string) toolchain {
 		cflags: strings.Join([]string{
 			"${armCflags}",
 			"${armIncludeFlags}",
-			"${armThumbCflags}",
 			armArchVariantCflagsVar[archVariant],
 			armCpuVariantCflagsVar[cpuVariant],
 		}, " "),
@@ -288,7 +298,6 @@ func armToolchainFactory(archVariant string, cpuVariant string) toolchain {
 		clangCflags: strings.Join([]string{
 			"${armClangCflags}",
 			"${armIncludeFlags}",
-			"${armThumbCflags}",
 			armClangArchVariantCflagsVar[archVariant],
 			armClangCpuVariantCflagsVar[cpuVariant],
 		}, " "),

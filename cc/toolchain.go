@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"fmt"
+
 	"android/soong/common"
 )
 
@@ -38,6 +40,7 @@ type toolchain interface {
 	Cppflags() string
 	Ldflags() string
 	IncludeFlags() string
+	InstructionSetFlags(string) (string, error)
 
 	ClangTriple() string
 	ClangCflags() string
@@ -47,7 +50,18 @@ type toolchain interface {
 	Is64Bit() bool
 }
 
+type toolchainBase struct {
+}
+
+func (toolchainBase) InstructionSetFlags(s string) (string, error) {
+	if s != "" {
+		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
+	}
+	return "", nil
+}
+
 type toolchain64Bit struct {
+	toolchainBase
 }
 
 func (toolchain64Bit) Is64Bit() bool {
@@ -55,6 +69,7 @@ func (toolchain64Bit) Is64Bit() bool {
 }
 
 type toolchain32Bit struct {
+	toolchainBase
 }
 
 func (toolchain32Bit) Is64Bit() bool {
