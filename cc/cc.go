@@ -146,7 +146,7 @@ type ccProperties struct {
 
 	// export_include_dirs: list of directories relative to the Blueprints file that will
 	// be added to the include path using -I for any module that links against this module
-	Export_include_dirs []string
+	Export_include_dirs []string `android:"arch_variant"`
 
 	// clang_cflags: list of module-specific flags that will be used for C and C++ compiles when
 	// compiling with clang
@@ -350,6 +350,23 @@ func (c *ccBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 	return factory(arch.ArchVariant, arch.CpuVariant)
 }
 
+func addNdkStlDepNames(ctx common.AndroidBaseContext, stl string, depNames CCDeps) CCDeps {
+	if stl == "ndk_system" {
+		// TODO: Make a system STL prebuilt for the NDK.
+		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
+		// its own includes. The includes are handled in ccBase.Flags().
+		return depNames
+	}
+
+	if strings.HasSuffix(stl, "_static") {
+		depNames.StaticLibs = append(depNames.StaticLibs, stl)
+	} else {
+		depNames.SharedLibs = append(depNames.SharedLibs, stl)
+	}
+
+	return depNames
+}
+
 func (c *ccBase) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.properties.Whole_static_libs...)
 	depNames.StaticLibs = append(depNames.StaticLibs, c.properties.Static_libs...)
@@ -369,6 +386,14 @@ func (c *ccBase) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps
 		depNames.SharedLibs = append(depNames.SharedLibs, "libstdc++", "libstlport")
 	case "stlport_static":
 		depNames.StaticLibs = append(depNames.StaticLibs, "libstdc++", "libstlport_static")
+	case "":
+		// None or error.
+	default:
+		if !strings.HasPrefix(stl, "ndk_") {
+			panic("unexpected case")
+		}
+
+		depNames = addNdkStlDepNames(ctx, stl, depNames)
 	}
 
 	return depNames
@@ -533,6 +558,14 @@ func (c *ccBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 }
 
 func (c *ccBase) stl(ctx common.AndroidBaseContext) string {
+	if c.properties.Sdk_version != "" {
+		stl := c.properties.Stl
+		if stl == "" {
+			return "ndk_system"
+		}
+		return "ndk_lib" + stl
+	}
+
 	switch c.properties.Stl {
 	case "libc++", "libc++_static",
 		"stlport", "stlport_static",
@@ -542,8 +575,6 @@ func (c *ccBase) stl(ctx common.AndroidBaseContext) string {
 		return ""
 	case "":
 		return "libc++" // TODO: mingw needs libstdc++
-	case "ndk":
-		panic("TODO: stl: ndk")
 	default:
 		ctx.ModuleErrorf("stl: %q is not a supported STL", c.properties.Stl)
 		return ""
@@ -572,8 +603,6 @@ func (c *ccBase) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 				"${SrcDir}/bionic/libstdc++/include",
 				"${SrcDir}/bionic")
 		}
-	case "ndk":
-		panic("TODO")
 	case "libstdc++":
 		// Using bionic's basic libstdc++. Not actually an STL. Only around until the
 		// tree is in good enough shape to not need it.
@@ -581,14 +610,19 @@ func (c *ccBase) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 		if ctx.Device() {
 			flags.IncludeDirs = append(flags.IncludeDirs, "${SrcDir}/bionic/libstdc++/include")
 		}
+	case "ndk_system":
+		ndkSrcRoot := ctx.Config().(Config).SrcDir() + "/prebuilts/ndk/current/sources/"
+		flags.IncludeDirs = append(flags.IncludeDirs, ndkSrcRoot + "cxx-stl/system/include")
+	case "ndk_c++_shared", "ndk_c++_static":
+		// TODO(danalbert): This really shouldn't be here...
+		flags.CppFlags = append(flags.CppFlags, "-std=c++11")
 	case "":
+		// None or error.
 		if ctx.Host() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
 			flags.LdLibs = append(flags.LdLibs, "-lc", "-lm")
 		}
-	default:
-		panic(fmt.Errorf("Unknown stl: %q", stl))
 	}
 
 	return flags
@@ -766,6 +800,17 @@ func (c *ccDynamic) systemSharedLibs(ctx common.AndroidBaseContext) []string {
 
 		if ctx.Host() {
 			return []string{}
+		} else if c.properties.Sdk_version != "" {
+			version := c.properties.Sdk_version
+			libs := []string{
+				"ndk_libc." + version,
+				"ndk_libm." + version,
+			}
+
+			if c.properties.Sdk_version != "" && c.stl(ctx) == "ndk_system" {
+				libs = append([]string{"libstdc++"}, libs...)
+			}
+			return libs
 		} else {
 			return []string{"libc", "libm"}
 		}
@@ -1293,6 +1338,131 @@ func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,
 
 func (c *toolchainLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	// Toolchain libraries do not get installed.
+}
+
+// NDK prebuilt libraries.
+//
+// These differ from regular prebuilts in that they aren't stripped and usually aren't installed
+// either (with the exception of the shared STLs, which are installed to the app's directory rather
+// than to the system image).
+
+func getNdkLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, version string) string {
+	return fmt.Sprintf("%s/prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/lib",
+		ctx.Config().(Config).SrcDir(), version, toolchain.Name())
+}
+
+type ndkPrebuiltLibrary struct {
+	CCLibrary
+}
+
+func (*ndkPrebuiltLibrary) AndroidDynamicDependencies(
+	ctx common.AndroidDynamicDependerModuleContext) []string {
+
+	// NDK libraries can't have any dependencies
+	return nil
+}
+
+func (*ndkPrebuiltLibrary) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+	// NDK libraries can't have any dependencies
+	return CCDeps{}
+}
+
+func NdkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
+	module := &ndkPrebuiltLibrary{}
+	module.LibraryProperties.BuildShared = true
+	return NewCCLibrary(&module.CCLibrary, module, common.DeviceSupported)
+}
+
+func (c *ndkPrebuiltLibrary) compileModule(ctx common.AndroidModuleContext, flags CCFlags,
+	deps CCDeps, objFiles []string) {
+	// A null build step, but it sets up the output path.
+	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
+		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
+	}
+
+	c.exportIncludeDirs = pathtools.PrefixPaths(c.properties.Export_include_dirs,
+		common.ModuleSrcDir(ctx))
+
+	// NDK prebuilt libraries are named like: ndk_LIBNAME.SDK_VERSION.
+	// We want to translate to just LIBNAME.
+	libName := strings.Split(strings.TrimPrefix(ctx.ModuleName(), "ndk_"), ".")[0]
+	libDir := getNdkLibDir(ctx, flags.Toolchain, c.properties.Sdk_version)
+	c.out = filepath.Join(libDir, libName + sharedLibraryExtension)
+}
+
+func (c *ndkPrebuiltLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
+	// Toolchain libraries do not get installed.
+}
+
+// The NDK STLs are slightly different from the prebuilt system libraries:
+//     * Are not specific to each platform version.
+//     * The libraries are not in a predictable location for each STL.
+
+type ndkPrebuiltStl struct {
+	ndkPrebuiltLibrary
+}
+
+type ndkPrebuiltStaticStl struct {
+	ndkPrebuiltStl
+}
+
+type ndkPrebuiltSharedStl struct {
+	ndkPrebuiltStl
+}
+
+func NdkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
+	module := &ndkPrebuiltSharedStl{}
+	module.LibraryProperties.BuildShared = true
+	return NewCCLibrary(&module.CCLibrary, module, common.DeviceSupported)
+}
+
+func NdkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
+	module := &ndkPrebuiltStaticStl{}
+	module.LibraryProperties.BuildStatic = true
+	return NewCCLibrary(&module.CCLibrary, module, common.DeviceSupported)
+}
+
+func getNdkStlLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, stl string) string {
+	gccVersion := toolchain.GccVersion()
+	var libDir string
+	switch stl {
+	case "libstlport":
+		libDir = "cxx-stl/stlport/libs"
+	case "libc++":
+		libDir = "cxx-stl/llvm-libc++/libs"
+	case "libgnustl":
+		libDir = fmt.Sprintf("cxx-stl/gnu-libstdc++/%s/libs", gccVersion)
+	}
+
+	if libDir != "" {
+		ndkSrcRoot := ctx.Config().(Config).SrcDir() + "/prebuilts/ndk/current/sources"
+		return fmt.Sprintf("%s/%s/%s", ndkSrcRoot, libDir, ctx.Arch().Abi)
+	}
+
+	ctx.ModuleErrorf("Unknown NDK STL: %s", stl)
+	return ""
+}
+
+func (c *ndkPrebuiltStl) compileModule(ctx common.AndroidModuleContext, flags CCFlags,
+	deps CCDeps, objFiles []string) {
+	// A null build step, but it sets up the output path.
+	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
+		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
+	}
+
+	c.exportIncludeDirs = pathtools.PrefixPaths(c.properties.Export_include_dirs,
+		common.ModuleSrcDir(ctx))
+
+	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
+	libExt := sharedLibraryExtension
+	if c.LibraryProperties.BuildStatic {
+		libExt = staticLibraryExtension
+	}
+
+	stlName := strings.TrimSuffix(libName, "_shared")
+	stlName = strings.TrimSuffix(stlName, "_static")
+	libDir := getNdkStlLibDir(ctx, flags.Toolchain, stlName)
+	c.out = libDir + "/" + libName + libExt
 }
 
 func LinkageMutator(mctx blueprint.EarlyMutatorContext) {

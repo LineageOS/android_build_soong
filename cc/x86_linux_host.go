@@ -148,12 +148,24 @@ type toolchainLinuxX8664 struct {
 	toolchainLinux
 }
 
+func (t *toolchainLinuxX86) Name() string {
+	return "x86"
+}
+
+func (t *toolchainLinuxX8664) Name() string {
+	return "x86_64"
+}
+
 func (t *toolchainLinux) GccRoot() string {
 	return "${linuxGccRoot}"
 }
 
 func (t *toolchainLinux) GccTriple() string {
 	return "${linuxGccTriple}"
+}
+
+func (t *toolchainLinux) GccVersion() string {
+	return "${linuxGccVersion}"
 }
 
 func (t *toolchainLinuxX86) Cflags() string {

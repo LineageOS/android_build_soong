@@ -34,8 +34,11 @@ func registerToolchainFactory(hod common.HostOrDevice, arch common.ArchType,
 }
 
 type Toolchain interface {
+	Name() string
+
 	GccRoot() string
 	GccTriple() string
+	GccVersion() string
 	Cflags() string
 	Cppflags() string
 	Ldflags() string

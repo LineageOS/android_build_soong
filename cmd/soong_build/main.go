@@ -47,6 +47,9 @@ func main() {
 	ctx.RegisterModuleType("cc_test", cc.CCTestFactory)
 
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_library", cc.NdkPrebuiltLibraryFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_static_stl", cc.NdkPrebuiltStaticStlFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
 
 	ctx.RegisterModuleType("cc_library_host_static", cc.CCLibraryHostStaticFactory)
 	ctx.RegisterModuleType("cc_library_host_shared", cc.CCLibraryHostSharedFactory)

@@ -232,12 +232,20 @@ type toolchainArm struct {
 	cflags, ldflags, clangCflags string
 }
 
+func (t *toolchainArm) Name() string {
+	return "arm"
+}
+
 func (t *toolchainArm) GccRoot() string {
 	return "${armGccRoot}"
 }
 
 func (t *toolchainArm) GccTriple() string {
 	return "${armGccTriple}"
+}
+
+func (t *toolchainArm) GccVersion() string {
+	return "${armGccVersion}"
 }
 
 func (t *toolchainArm) Cflags() string {

@@ -88,12 +88,20 @@ type toolchainArm64 struct {
 
 var toolchainArm64Singleton = &toolchainArm64{}
 
+func (t *toolchainArm64) Name() string {
+	return "arm64"
+}
+
 func (t *toolchainArm64) GccRoot() string {
 	return "${arm64GccRoot}"
 }
 
 func (t *toolchainArm64) GccTriple() string {
 	return "${arm64GccTriple}"
+}
+
+func (t *toolchainArm64) GccVersion() string {
+	return "${arm64GccVersion}"
 }
 
 func (t *toolchainArm64) Cflags() string {

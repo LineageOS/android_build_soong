@@ -117,6 +117,7 @@ type Arch struct {
 	ArchType     ArchType
 	ArchVariant  string
 	CpuVariant   string
+	Abi          string
 }
 
 func (a Arch) String() string {
@@ -234,12 +235,14 @@ var (
 		ArchType:     Arm,
 		ArchVariant:  "armv7-a-neon",
 		CpuVariant:   "cortex-a15",
+		Abi:          "armeabi-v7a",
 	}
 	arm64Arch = Arch{
 		HostOrDevice: Device,
 		ArchType:     Arm64,
 		ArchVariant:  "armv8-a",
 		CpuVariant:   "denver",
+		Abi:          "arm64-v8a",
 	}
 	hostArch = Arch{
 		HostOrDevice: Host,

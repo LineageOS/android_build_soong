@@ -5,5 +5,6 @@ subdirs = [
     "bionic/*",
     "external/*",
     "libnativehelper",
+    "prebuilts/ndk",
     "system/core/*",
 ]

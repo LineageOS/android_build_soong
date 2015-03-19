@@ -17,13 +17,15 @@ const (
 )
 
 var stringProperties = map[string]string{
-	"LOCAL_MODULE":        "name",
-	"LOCAL_MODULE_STEM":   "stem",
-	"LOCAL_MODULE_CLASS":  "class",
-	"LOCAL_CXX_STL":       "stl",
-	"LOCAL_STRIP_MODULE":  "strip",
-	"LOCAL_MULTILIB":      "compile_multilib",
-	"LOCAL_ARM_MODE_HACK": "instruction_set",
+	"LOCAL_MODULE":          "name",
+	"LOCAL_MODULE_STEM":     "stem",
+	"LOCAL_MODULE_CLASS":    "class",
+	"LOCAL_CXX_STL":         "stl",
+	"LOCAL_STRIP_MODULE":    "strip",
+	"LOCAL_MULTILIB":        "compile_multilib",
+	"LOCAL_ARM_MODE_HACK":   "instruction_set",
+	"LOCAL_SDK_VERSION":     "sdk_version",
+	"LOCAL_NDK_STL_VARIANT": "stl",
 }
 
 var listProperties = map[string]string{
