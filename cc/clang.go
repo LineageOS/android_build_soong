@@ -23,6 +23,7 @@ var clangUnknownCflags = []string{
 	"-Wno-unused-but-set-variable",
 	"-Wno-unused-but-set-parameter",
 	"-Wno-unused-local-typedefs",
+	"-Wunused-but-set-parameter",
 
 	// arm + arm64 + mips + mips64
 	"-fgcse-after-reload",

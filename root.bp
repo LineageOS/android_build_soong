@@ -1,7 +1,9 @@
 subdirs = [
+    "art",
     "build/blueprint",
     "build/soong",
     "bionic/*",
     "external/*",
+    "libnativehelper",
     "system/core/*",
 ]
