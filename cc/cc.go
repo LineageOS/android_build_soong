@@ -209,6 +209,9 @@ type ccProperties struct {
 	Release struct {
 		Cflags []string `android:"arch_variant"`
 	} `android:"arch_variant"`
+
+	// Minimum sdk version supported when compiling against the ndk
+	Sdk_version string
 }
 
 type unusedProperties struct {
@@ -437,6 +440,10 @@ func (c *ccBase) flags(ctx common.AndroidModuleContext, toolchain toolchain) ccF
 			common.ModuleOutDir(ctx),
 			common.ModuleGenDir(ctx),
 		}...)
+
+		if c.properties.Sdk_version == "" {
+			flags.includeDirs = append(flags.includeDirs, "${SrcDir}/libnativehelper/include/nativehelper")
+		}
 
 		if arch.HostOrDevice.Device() && !c.properties.Allow_undefined_symbols {
 			flags.ldFlags = append(flags.ldFlags, "-Wl,--no-undefined")
