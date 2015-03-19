@@ -56,6 +56,7 @@ func main() {
 	// Mutators
 	ctx.RegisterEarlyMutator("arch", common.ArchMutator)
 	ctx.RegisterEarlyMutator("link", cc.LinkageMutator)
+	ctx.RegisterEarlyMutator("test_per_src", cc.TestPerSrcMutator)
 
 	// Singletons
 	ctx.RegisterSingletonType("checkbuild", common.CheckbuildSingleton)

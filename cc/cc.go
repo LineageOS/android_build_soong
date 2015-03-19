@@ -1192,6 +1192,12 @@ func (c *ccBinary) installModule(ctx common.AndroidModuleContext, flags ccFlags)
 
 type ccTest struct {
 	ccBinary
+
+	testProperties struct {
+		// test_per_src: Create a separate test for each source file.  Useful when there is
+		// global state that can not be torn down and reset between each test suite.
+		Test_per_src bool
+	}
 }
 
 var (
@@ -1234,7 +1240,23 @@ func (c *ccTest) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
 func NewCCTest() (blueprint.Module, []interface{}) {
 	module := &ccTest{}
 	return newCCDynamic(&module.ccDynamic, module, common.HostAndDeviceSupported,
-		common.MultilibFirst, &module.binaryProperties)
+		common.MultilibFirst, &module.binaryProperties, &module.testProperties)
+}
+
+func TestPerSrcMutator(mctx blueprint.EarlyMutatorContext) {
+	if test, ok := mctx.Module().(*ccTest); ok {
+		if test.testProperties.Test_per_src {
+			testNames := make([]string, len(test.properties.Srcs))
+			for i, src := range test.properties.Srcs {
+				testNames[i] = strings.TrimSuffix(src, filepath.Ext(src))
+			}
+			tests := mctx.CreateLocalVariations(testNames...)
+			for i, src := range test.properties.Srcs {
+				tests[i].(*ccTest).properties.Srcs = []string{src}
+				tests[i].(*ccTest).binaryProperties.Stem = testNames[i]
+			}
+		}
+	}
 }
 
 //
