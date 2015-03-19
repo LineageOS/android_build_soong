@@ -20,7 +20,7 @@ var stringProperties = map[string]string{
 	"LOCAL_MODULE":       "name",
 	"LOCAL_MODULE_STEM":  "stem",
 	"LOCAL_MODULE_CLASS": "class",
-	"LOCAL_CXX_STL":      "cxx_stl",
+	"LOCAL_CXX_STL":      "stl",
 	"LOCAL_STRIP_MODULE": "strip",
 	"LOCAL_MULTILIB":     "compile_multilib",
 }
