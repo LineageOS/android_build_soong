@@ -1155,7 +1155,8 @@ func (c *ccTest) collectDeps(ctx common.AndroidModuleContext, flags ccFlags) (cc
 	}
 
 	// TODO(danalbert): Make gtest export its dependencies.
-	flags.includeDirs = append(flags.includeDirs, "external/gtest/include")
+	flags.includeDirs = append(flags.includeDirs,
+		filepath.Join(ctx.Config().(Config).SrcDir(), "external/gtest/include"))
 
 	_, staticLibs, _ := c.collectDepsFromList(ctx, gtestLibs)
 	deps.staticLibs = append(deps.staticLibs, staticLibs...)
@@ -1171,7 +1172,7 @@ func (c *ccTest) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerMod
 
 func (c *ccTest) installModule(ctx common.AndroidModuleContext, flags ccFlags) {
 	if c.HostOrDevice().Device() {
-		ctx.InstallFile("../data/nativetest/" + ctx.ModuleName(), c.out)
+		ctx.InstallFile("../data/nativetest/"+ctx.ModuleName(), c.out)
 	} else {
 		c.ccBinary.installModule(ctx, flags)
 	}
