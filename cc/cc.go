@@ -313,6 +313,8 @@ func (c *ccBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 		return
 	}
 
+	flags.includeDirs = append(flags.includeDirs, deps.includeDirs...)
+
 	objFiles := c.compileObjs(ctx, flags, deps)
 	if ctx.Failed() {
 		return
@@ -798,8 +800,6 @@ func (c *ccDynamic) collectDeps(ctx common.AndroidModuleContext, flags ccFlags) 
 		}
 	})
 
-	flags.includeDirs = append(flags.includeDirs, deps.includeDirs...)
-
 	return deps, flags
 }
 
@@ -876,6 +876,11 @@ func (c *ccLibrary) collectDeps(ctx common.AndroidModuleContext, flags ccFlags) 
 				ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
 			}
 		}
+
+		// Collect exported includes from shared lib dependencies
+		sharedLibNames := c.properties.Shared_libs
+		_, _, newIncludeDirs := c.collectDepsFromList(ctx, sharedLibNames)
+		deps.includeDirs = append(deps.includeDirs, newIncludeDirs...)
 
 		return deps, flags
 	} else if c.libraryProperties.IsShared {
