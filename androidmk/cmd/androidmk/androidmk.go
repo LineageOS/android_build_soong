@@ -246,6 +246,12 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 	} else {
 		if name == "LOCAL_PATH" {
 			// Nothing to do, except maybe avoid the "./" in paths?
+		} else if name == "LOCAL_ARM_MODE" {
+			// This is a hack to get the LOCAL_ARM_MODE value inside
+			// of an arch: { arm: {} } block.
+			armModeAssign := assignment
+			armModeAssign.Name = mkparser.SimpleMakeString("LOCAL_ARM_MODE_HACK_arm", assignment.Name.Pos)
+			handleAssignment(file, armModeAssign, c)
 		} else if strings.HasPrefix(name, "LOCAL_") {
 			//setVariable(file, assignment, name, bpparser.String, true)
 			switch name {
