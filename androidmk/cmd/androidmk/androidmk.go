@@ -31,14 +31,14 @@ func (f *bpFile) errorf(thing mkparser.MakeThing, s string, args ...interface{})
 	orig := thing.Dump()
 	s = fmt.Sprintf(s, args...)
 	f.comments = append(f.comments, bpparser.Comment{
-		Comment: fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s),
+		Comment: []string{fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s)},
 		Pos:     f.pos,
 	})
 	lines := strings.Split(orig, "\n")
 	for _, l := range lines {
 		f.incPos()
 		f.comments = append(f.comments, bpparser.Comment{
-			Comment: "// " + l,
+			Comment: []string{"// " + l},
 			Pos:     f.pos,
 		})
 	}
@@ -99,7 +99,7 @@ func main() {
 		if comment, ok := t.AsComment(); ok {
 			file.comments = append(file.comments, bpparser.Comment{
 				Pos:     file.pos,
-				Comment: "//" + comment.Comment,
+				Comment: []string{"//" + comment.Comment},
 			})
 		} else if assignment, ok := t.AsAssignment(); ok {
 			handleAssignment(file, assignment, cond)
