@@ -6,7 +6,7 @@ import (
 
 	mkparser "android/soong/androidmk/parser"
 
-	bpparser "blueprint/parser"
+	bpparser "github.com/google/blueprint/parser"
 )
 
 func stringToStringValue(s string) *bpparser.Value {

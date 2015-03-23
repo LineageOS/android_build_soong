@@ -15,7 +15,7 @@
 package common
 
 import (
-	"blueprint"
+	"github.com/google/blueprint"
 )
 
 var (

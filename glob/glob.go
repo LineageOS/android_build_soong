@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"blueprint/deptools"
+	"github.com/google/blueprint/deptools"
 )
 
 func IsGlob(glob string) bool {

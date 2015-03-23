@@ -17,8 +17,8 @@ package genrule
 import (
 	"path/filepath"
 
-	"blueprint"
-	"blueprint/pathtools"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 
 	"android/soong/common"
 )

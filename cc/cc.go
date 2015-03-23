@@ -19,8 +19,8 @@ package cc
 // is handled in builder.go
 
 import (
-	"blueprint"
-	"blueprint/pathtools"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 	"fmt"
 	"path/filepath"
 	"strings"

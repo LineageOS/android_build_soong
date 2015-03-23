@@ -21,8 +21,8 @@ package cc
 import (
 	"android/soong/common"
 
-	"blueprint"
-	"blueprint/pathtools"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 	"path/filepath"
 	"strings"
 )

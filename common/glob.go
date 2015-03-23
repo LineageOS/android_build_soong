@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"blueprint"
-	"blueprint/bootstrap"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/glob"
 )

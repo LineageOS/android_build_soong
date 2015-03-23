@@ -10,7 +10,7 @@ import (
 
 	mkparser "android/soong/androidmk/parser"
 
-	bpparser "blueprint/parser"
+	bpparser "github.com/google/blueprint/parser"
 )
 
 // TODO: non-expanded variables with expressions

@@ -17,7 +17,7 @@ package common
 import (
 	"path/filepath"
 
-	"blueprint"
+	"github.com/google/blueprint"
 )
 
 type Config interface {

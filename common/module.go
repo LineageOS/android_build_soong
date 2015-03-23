@@ -15,7 +15,7 @@
 package common
 
 import (
-	"blueprint"
+	"github.com/google/blueprint"
 	"path/filepath"
 )
 
@@ -135,7 +135,7 @@ func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMu
 //
 //     import (
 //         "android/soong/common"
-//         "blueprint"
+//         "github.com/google/blueprint"
 //     )
 //
 //     type myModule struct {

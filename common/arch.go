@@ -15,8 +15,8 @@
 package common
 
 import (
-	"blueprint"
-	"blueprint/proptools"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 	"fmt"
 	"reflect"
 	"runtime"
