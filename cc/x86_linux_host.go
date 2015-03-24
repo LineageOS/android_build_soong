@@ -212,14 +212,14 @@ func (t *toolchainLinuxX8664) ClangLdflags() string {
 	return "${linuxClangLdflags} ${linuxX8664ClangLdflags}"
 }
 
-var toolchainLinuxX86Singleton toolchain = &toolchainLinuxX86{}
-var toolchainLinuxX8664Singleton toolchain = &toolchainLinuxX8664{}
+var toolchainLinuxX86Singleton Toolchain = &toolchainLinuxX86{}
+var toolchainLinuxX8664Singleton Toolchain = &toolchainLinuxX8664{}
 
-func linuxX86ToolchainFactory(archVariant string, cpuVariant string) toolchain {
+func linuxX86ToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 	return toolchainLinuxX86Singleton
 }
 
-func linuxX8664ToolchainFactory(archVariant string, cpuVariant string) toolchain {
+func linuxX8664ToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 	return toolchainLinuxX8664Singleton
 }
 

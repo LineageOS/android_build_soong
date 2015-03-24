@@ -38,20 +38,20 @@ func main() {
 	ctx := blueprint.NewContext()
 
 	// Module types
-	ctx.RegisterModuleType("cc_library_static", cc.NewCCLibraryStatic)
-	ctx.RegisterModuleType("cc_library_shared", cc.NewCCLibraryShared)
-	ctx.RegisterModuleType("cc_library", cc.NewCCLibrary)
-	ctx.RegisterModuleType("cc_object", cc.NewCCObject)
-	ctx.RegisterModuleType("cc_binary", cc.NewCCBinary)
-	ctx.RegisterModuleType("cc_test", cc.NewCCTest)
+	ctx.RegisterModuleType("cc_library_static", cc.CCLibraryStaticFactory)
+	ctx.RegisterModuleType("cc_library_shared", cc.CCLibrarySharedFactory)
+	ctx.RegisterModuleType("cc_library", cc.CCLibraryFactory)
+	ctx.RegisterModuleType("cc_object", cc.CCObjectFactory)
+	ctx.RegisterModuleType("cc_binary", cc.CCBinaryFactory)
+	ctx.RegisterModuleType("cc_test", cc.CCTestFactory)
 
-	ctx.RegisterModuleType("toolchain_library", cc.NewToolchainLibrary)
+	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 
-	ctx.RegisterModuleType("cc_library_host_static", cc.NewCCLibraryHostStatic)
-	ctx.RegisterModuleType("cc_library_host_shared", cc.NewCCLibraryHostShared)
-	ctx.RegisterModuleType("cc_binary_host", cc.NewCCBinaryHost)
+	ctx.RegisterModuleType("cc_library_host_static", cc.CCLibraryHostStaticFactory)
+	ctx.RegisterModuleType("cc_library_host_shared", cc.CCLibraryHostSharedFactory)
+	ctx.RegisterModuleType("cc_binary_host", cc.CCBinaryHostFactory)
 
-	ctx.RegisterModuleType("gensrcs", genrule.NewGenSrcs)
+	ctx.RegisterModuleType("gensrcs", genrule.GenSrcsFactory)
 
 	// Mutators
 	ctx.RegisterEarlyMutator("arch", common.ArchMutator)

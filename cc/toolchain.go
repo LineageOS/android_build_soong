@@ -20,7 +20,7 @@ import (
 	"android/soong/common"
 )
 
-type toolchainFactory func(archVariant string, cpuVariant string) toolchain
+type toolchainFactory func(archVariant string, cpuVariant string) Toolchain
 
 var toolchainFactories = map[common.HostOrDevice]map[common.ArchType]toolchainFactory{
 	common.Host:   make(map[common.ArchType]toolchainFactory),
@@ -33,7 +33,7 @@ func registerToolchainFactory(hod common.HostOrDevice, arch common.ArchType,
 	toolchainFactories[hod][arch] = factory
 }
 
-type toolchain interface {
+type Toolchain interface {
 	GccRoot() string
 	GccTriple() string
 	Cflags() string

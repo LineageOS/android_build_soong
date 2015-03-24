@@ -53,7 +53,7 @@ type genSrcsProperties struct {
 	Output_extension string
 }
 
-func NewGenSrcs() (blueprint.Module, []interface{}) {
+func GenSrcsFactory() (blueprint.Module, []interface{}) {
 	module := &genSrcs{}
 
 	return common.InitAndroidModule(module, &module.properties)

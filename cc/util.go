@@ -79,18 +79,18 @@ func moduleToLibName(module string) (string, error) {
 	return matches[1], nil
 }
 
-func ccFlagsToBuilderFlags(in ccFlags) builderFlags {
+func ccFlagsToBuilderFlags(in CCFlags) builderFlags {
 	return builderFlags{
-		globalFlags: strings.Join(in.globalFlags, " "),
-		asFlags:     strings.Join(in.asFlags, " "),
-		cFlags:      strings.Join(in.cFlags, " "),
-		conlyFlags:  strings.Join(in.conlyFlags, " "),
-		cppFlags:    strings.Join(in.cppFlags, " "),
-		ldFlags:     strings.Join(in.ldFlags, " "),
-		ldLibs:      strings.Join(in.ldLibs, " "),
-		incFlags:    includeDirsToFlags(in.includeDirs),
-		nocrt:       in.nocrt,
-		toolchain:   in.toolchain,
-		clang:       in.clang,
+		globalFlags: strings.Join(in.GlobalFlags, " "),
+		asFlags:     strings.Join(in.AsFlags, " "),
+		cFlags:      strings.Join(in.CFlags, " "),
+		conlyFlags:  strings.Join(in.ConlyFlags, " "),
+		cppFlags:    strings.Join(in.CppFlags, " "),
+		ldFlags:     strings.Join(in.LdFlags, " "),
+		ldLibs:      strings.Join(in.LdLibs, " "),
+		incFlags:    includeDirsToFlags(in.IncludeDirs),
+		nocrt:       in.Nocrt,
+		toolchain:   in.Toolchain,
+		clang:       in.Clang,
 	}
 }

@@ -128,7 +128,7 @@ func (t *toolchainArm64) ClangLdflags() string {
 	return "${arm64Ldflags}"
 }
 
-func arm64ToolchainFactory(archVariant string, cpuVariant string) toolchain {
+func arm64ToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 	return toolchainArm64Singleton
 }
 

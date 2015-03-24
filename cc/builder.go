@@ -88,7 +88,7 @@ type builderFlags struct {
 	ldLibs      string
 	incFlags    string
 	nocrt       bool
-	toolchain   toolchain
+	toolchain   Toolchain
 	clang       bool
 }
 
@@ -283,6 +283,6 @@ func CopyGccLib(ctx common.AndroidModuleContext, libName string,
 	})
 }
 
-func gccCmd(toolchain toolchain, cmd string) string {
+func gccCmd(toolchain Toolchain, cmd string) string {
 	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
 }

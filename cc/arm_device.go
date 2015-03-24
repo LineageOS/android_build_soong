@@ -283,7 +283,7 @@ func (t *toolchainArm) ClangLdflags() string {
 	return t.ldflags
 }
 
-func armToolchainFactory(archVariant string, cpuVariant string) toolchain {
+func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 	return &toolchainArm{
 		cflags: strings.Join([]string{
 			"${armCflags}",
