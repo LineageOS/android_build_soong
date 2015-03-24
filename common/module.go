@@ -15,8 +15,9 @@
 package common
 
 import (
-	"github.com/google/blueprint"
 	"path/filepath"
+
+	"github.com/google/blueprint"
 )
 
 var (
@@ -28,10 +29,22 @@ var (
 	HostExecutable      = "host_executable"
 )
 
+type androidBaseContext interface {
+	Arch() Arch
+	Host() bool
+	Device() bool
+	Debug() bool
+}
+
+type AndroidBaseContext interface {
+	blueprint.BaseModuleContext
+	androidBaseContext
+}
+
 type AndroidModuleContext interface {
 	blueprint.ModuleContext
+	androidBaseContext
 
-	Arch() Arch
 	InstallFile(installPath, srcPath string)
 	CheckbuildFile(srcPath string)
 }
@@ -52,6 +65,7 @@ type AndroidDynamicDepender interface {
 
 type AndroidDynamicDependerModuleContext interface {
 	blueprint.DynamicDependerModuleContext
+	androidBaseContext
 }
 
 type commonProperties struct {
@@ -277,7 +291,9 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 func (a *AndroidModuleBase) DynamicDependencies(ctx blueprint.DynamicDependerModuleContext) []string {
 	actx := &androidDynamicDependerContext{
 		DynamicDependerModuleContext: ctx,
-		module: a,
+		androidBaseContextImpl: androidBaseContextImpl{
+			arch: a.commonProperties.CompileArch,
+		},
 	}
 
 	if dynamic, ok := a.module.(AndroidDynamicDepender); ok {
@@ -290,9 +306,11 @@ func (a *AndroidModuleBase) DynamicDependencies(ctx blueprint.DynamicDependerMod
 func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	androidCtx := &androidModuleContext{
 		ModuleContext: ctx,
-		installDeps:   a.computeInstallDeps(ctx),
-		installFiles:  a.installFiles,
-		arch:          a.commonProperties.CompileArch,
+		androidBaseContextImpl: androidBaseContextImpl{
+			arch: a.commonProperties.CompileArch,
+		},
+		installDeps:  a.computeInstallDeps(ctx),
+		installFiles: a.installFiles,
 	}
 
 	if a.commonProperties.Disabled {
@@ -313,9 +331,14 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
 }
 
+type androidBaseContextImpl struct {
+	arch  Arch
+	debug bool
+}
+
 type androidModuleContext struct {
 	blueprint.ModuleContext
-	arch            Arch
+	androidBaseContextImpl
 	installDeps     []string
 	installFiles    []string
 	checkbuildFiles []string
@@ -326,8 +349,20 @@ func (a *androidModuleContext) Build(pctx *blueprint.PackageContext, params blue
 	a.ModuleContext.Build(pctx, params)
 }
 
-func (a *androidModuleContext) Arch() Arch {
+func (a *androidBaseContextImpl) Arch() Arch {
 	return a.arch
+}
+
+func (a *androidBaseContextImpl) Host() bool {
+	return a.arch.HostOrDevice.Host()
+}
+
+func (a *androidBaseContextImpl) Device() bool {
+	return a.arch.HostOrDevice.Device()
+}
+
+func (a *androidBaseContextImpl) Debug() bool {
+	return a.debug
 }
 
 func (a *androidModuleContext) InstallFile(installPath, srcPath string) {
@@ -357,7 +392,7 @@ func (a *androidModuleContext) CheckbuildFile(srcPath string) {
 
 type androidDynamicDependerContext struct {
 	blueprint.DynamicDependerModuleContext
-	module *AndroidModuleBase
+	androidBaseContextImpl
 }
 
 type fileInstaller interface {

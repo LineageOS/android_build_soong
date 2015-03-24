@@ -15,12 +15,13 @@
 package common
 
 import (
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
