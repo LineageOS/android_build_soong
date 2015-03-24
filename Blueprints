@@ -15,6 +15,7 @@ bootstrap_go_binary {
     deps: [
         "blueprint",
         "blueprint-bootstrap",
+        "soong-art",
         "soong-cc",
         "soong-common",
         "soong-config",
