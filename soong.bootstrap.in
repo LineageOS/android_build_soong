@@ -1,0 +1,2 @@
+SRCDIR_IN=@@SrcDir@@
+PREBUILTOS=@@PrebuiltOS@@

@@ -27,8 +27,8 @@ fi
 if [[ $# -eq 0 ]]; then
     sed -e "s|@@SrcDir@@|${SRCDIR}|" \
         -e "s|@@PrebuiltOS@@|${PREBUILTOS}|" \
-        ${SRCDIR}/build/soong/soong.in > soong
-    chmod 0770 soong
+        ${SRCDIR}/build/soong/soong.bootstrap.in > .soong.bootstrap
+    ln -sf ${SRCDIR}/build/soong/soong.bash soong
 fi
 
 ${SRCDIR}/build/blueprint/bootstrap.bash "$@"
