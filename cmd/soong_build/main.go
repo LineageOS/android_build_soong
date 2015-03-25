@@ -64,6 +64,7 @@ func main() {
 
 	// Singletons
 	ctx.RegisterSingletonType("checkbuild", common.CheckbuildSingleton)
+	ctx.RegisterSingletonType("env", common.EnvSingleton)
 
 	configuration, err := config.New(srcDir)
 	if err != nil {

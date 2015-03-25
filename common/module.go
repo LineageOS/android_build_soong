@@ -20,6 +20,13 @@ import (
 	"github.com/google/blueprint"
 )
 
+type Config interface {
+	CpPreserveSymlinksFlags() string
+	SrcDir() string
+	Getenv(string) string
+	EnvDeps() map[string]string
+}
+
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"

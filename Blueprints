@@ -19,6 +19,7 @@ bootstrap_go_binary {
         "soong-cc",
         "soong-common",
         "soong-config",
+        "soong-env",
         "soong-genrule",
     ],
     srcs: [
@@ -26,6 +27,25 @@ bootstrap_go_binary {
     ],
     primaryBuilder: true,
 }
+
+bootstrap_go_binary {
+    name: "soong_env",
+    deps: [
+        "soong-env",
+    ],
+    srcs: [
+        "cmd/soong_env/soong_env.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-env",
+    pkgPath: "android/soong/env",
+    srcs: [
+        "env/env.go",
+    ],
+}
+
 
 bootstrap_go_binary {
     name: "soong_glob",
@@ -54,12 +74,14 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "blueprint-bootstrap",
+        "soong-env",
         "soong-glob",
     ],
     srcs: [
         "common/arch.go",
         "common/checkbuild.go",
         "common/defs.go",
+        "common/env.go",
         "common/glob.go",
         "common/module.go",
         "common/paths.go",

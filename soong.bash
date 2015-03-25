@@ -27,4 +27,21 @@ fi
 # can regenerate the build manifest.
 export BLUEPRINT_NINJA_HAS_MULTIPASS=1
 
+# Ninja can't depend on environment variables, so do a manual comparison
+# of the relevant environment variables from the last build using the
+# soong_env tool and trigger a build manifest regeneration if necessary
+ENVFILE=${BUILDDIR}/.soong.environment
+ENVTOOL=${BUILDDIR}/.bootstrap/bin/soong_env
+if [ -f ${ENVFILE} ]; then
+    if [ -x ${ENVTOOL} ]; then
+        if ! ${ENVTOOL} ${ENVFILE}; then
+            echo "forcing build manifest regeneration"
+            rm -f ${ENVFILE}
+        fi
+    else
+        echo "Missing soong_env tool, forcing build manifest regeneration"
+        rm -f ${ENVFILE}
+    fi
+fi
+
 ${SRCDIR}/prebuilts/ninja/${PREBUILTOS}/ninja -C ${BUILDDIR} "$@"

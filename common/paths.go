@@ -20,11 +20,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-type Config interface {
-	CpPreserveSymlinksFlags() string
-	SrcDir() string
-}
-
 // ModuleOutDir returns the path to the module-specific output directory.
 func ModuleOutDir(ctx AndroidModuleContext) string {
 	return filepath.Join(".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())

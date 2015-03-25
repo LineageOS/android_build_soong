@@ -41,7 +41,8 @@ func NewFileConfigurableOptions() FileConfigurableOptions {
 type Config struct {
 	FileConfigurableOptions
 
-	srcDir string // the path of the root source directory
+	srcDir  string // the path of the root source directory
+	envDeps map[string]string
 }
 
 // loads configuration options from a JSON file in the cwd.
@@ -103,7 +104,10 @@ func saveToConfigFile(config FileConfigurableOptions) error {
 // the root source directory. It also loads the config file, if found.
 func New(srcDir string) (*Config, error) {
 	// Make a config with default options
-	config := &Config{srcDir: srcDir}
+	config := &Config{
+		srcDir:  srcDir,
+		envDeps: make(map[string]string),
+	}
 
 	// Load any configurable options from the configuration file
 	err := loadFromConfigFile(config)
@@ -149,4 +153,18 @@ func (c *Config) CpPreserveSymlinksFlags() string {
 	default:
 		return ""
 	}
+}
+
+func (c *Config) Getenv(key string) string {
+	var val string
+	var exists bool
+	if val, exists = c.envDeps[key]; !exists {
+		val = os.Getenv(key)
+		c.envDeps[key] = val
+	}
+	return val
+}
+
+func (c *Config) EnvDeps() map[string]string {
+	return c.envDeps
 }
