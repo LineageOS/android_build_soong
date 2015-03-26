@@ -254,12 +254,9 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	allInstalledFiles := []string{}
 	allCheckbuildFiles := []string{}
 	ctx.VisitAllModuleVariants(func(module blueprint.Module) {
-		if androidModule, ok := module.(AndroidModule); ok {
-			files := androidModule.base().installFiles
-			allInstalledFiles = append(allInstalledFiles, files...)
-			files = androidModule.base().checkbuildFiles
-			allCheckbuildFiles = append(allCheckbuildFiles, files...)
-		}
+		a := module.(AndroidModule).base()
+		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
+		allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
 	})
 
 	deps := []string{}
@@ -329,13 +326,13 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		return
 	}
 
+	a.installFiles = append(a.installFiles, androidCtx.installFiles...)
+	a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
+
 	a.generateModuleTarget(ctx)
 	if ctx.Failed() {
 		return
 	}
-
-	a.installFiles = append(a.installFiles, androidCtx.installFiles...)
-	a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
 }
 
 type androidBaseContextImpl struct {
