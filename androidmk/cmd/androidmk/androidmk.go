@@ -166,6 +166,8 @@ func main() {
 				file.errorf(directive, "unsupported directive")
 				continue
 			}
+		} else {
+			file.errorf(t, "unsupported line")
 		}
 	}
 
