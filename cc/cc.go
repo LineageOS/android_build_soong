@@ -1271,6 +1271,12 @@ func (c *CCBinary) compileModule(ctx common.AndroidModuleContext,
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), c.getStem(ctx))
 	c.out = outputFile
+	if c.BinaryProperties.Prefix_symbols != "" {
+		afterPrefixSymbols := outputFile
+		outputFile = outputFile + ".intermediate"
+		TransformBinaryPrefixSymbols(ctx, c.BinaryProperties.Prefix_symbols, outputFile,
+			ccFlagsToBuilderFlags(flags), afterPrefixSymbols)
+	}
 
 	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, deps.CrtBegin, deps.CrtEnd, true,

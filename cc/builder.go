@@ -67,6 +67,13 @@ var (
 		},
 		"arCmd", "arFlags")
 
+	prefixSymbols = pctx.StaticRule("prefixSymbols",
+		blueprint.RuleParams{
+			Command:     "$objcopyCmd --prefix-symbols=${prefix} ${in} ${out}",
+			Description: "prefixSymbols $out",
+		},
+		"objcopyCmd", "prefix")
+
 	copyGccLibPath = pctx.StaticVariable("copyGccLibPath", "${SrcDir}/build/soong/copygcclib.sh")
 
 	copyGccLib = pctx.StaticRule("copyGccLib",
@@ -268,6 +275,24 @@ func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles []string,
 		Implicits: deps,
 		Args: map[string]string{
 			"ldCmd": ldCmd,
+		},
+	})
+}
+
+// Generate a rule for runing objcopy --prefix-symbols on a binary
+func TransformBinaryPrefixSymbols(ctx common.AndroidModuleContext, prefix string, inputFile string,
+	flags builderFlags, outputFile string) {
+
+	objcopyCmd := gccCmd(flags.toolchain, "objcopy")
+
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:      prefixSymbols,
+		Outputs:   []string{outputFile},
+		Inputs:    []string{inputFile},
+		Implicits: []string{objcopyCmd},
+		Args: map[string]string{
+			"objcopyCmd": objcopyCmd,
+			"prefix":     prefix,
 		},
 	})
 }
