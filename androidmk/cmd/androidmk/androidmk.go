@@ -111,7 +111,8 @@ func main() {
 				case build_shared_library, build_static_library,
 					build_executable, build_host_executable,
 					build_prebuilt, build_host_static_library,
-					build_host_shared_library, build_native_test:
+					build_host_shared_library, build_native_test,
+					build_host_native_test:
 
 					handleModuleConditionals(file, directive, cond)
 					makeModule(file, val)

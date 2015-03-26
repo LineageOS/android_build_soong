@@ -13,6 +13,7 @@ const (
 	build_executable          = "cc_binary"
 	build_host_executable     = "cc_binary_host"
 	build_native_test         = "cc_test"
+	build_host_native_test    = "cc_test_host"
 	build_prebuilt            = "prebuilt"
 )
 
@@ -105,6 +106,7 @@ func androidScope() parser.Scope {
 	globalScope.Set("BUILD_HOST_STATIC_LIBRARY", build_host_static_library)
 	globalScope.Set("BUILD_HOST_SHARED_LIBRARY", build_host_shared_library)
 	globalScope.Set("BUILD_NATIVE_TEST", build_native_test)
+	globalScope.Set("BUILD_HOST_NATIVE_TEST", build_host_native_test)
 	globalScope.Set("BUILD_EXECUTABLE", build_executable)
 	globalScope.Set("BUILD_PREBUILT", build_prebuilt)
 	globalScope.SetFunc("my-dir", mydir)
