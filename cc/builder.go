@@ -21,10 +21,11 @@ package cc
 import (
 	"android/soong/common"
 
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 )
 
 const (
@@ -185,7 +186,7 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles []string,
 // and shared libraires, to a shared library (.so) or dynamic executable
 func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs []string,
-	crtBegin, crtEnd string, flags builderFlags, outputFile string) {
+	crtBegin, crtEnd string, groupLate bool, flags builderFlags, outputFile string) {
 
 	var ldCmd string
 	if flags.clang {
@@ -218,7 +219,13 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 		ldDirs = append(ldDirs, dir)
 	}
 
+	if groupLate {
+		libFlagsList = append(libFlagsList, "-Wl,--start-group")
+	}
 	libFlagsList = append(libFlagsList, lateStaticLibs...)
+	if groupLate {
+		libFlagsList = append(libFlagsList, "-Wl,--end-group")
+	}
 
 	deps := []string{ldCmd}
 	deps = append(deps, sharedLibs...)

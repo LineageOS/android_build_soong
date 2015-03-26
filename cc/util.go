@@ -69,6 +69,18 @@ func inList(s string, list []string) bool {
 	return false
 }
 
+func filterList(list []string, filter []string) (remainder []string, filtered []string) {
+	for _, l := range list {
+		if inList(l, filter) {
+			filtered = append(filtered, l)
+		} else {
+			remainder = append(remainder, l)
+		}
+	}
+
+	return
+}
+
 var libNameRegexp = regexp.MustCompile(`^lib(.*)$`)
 
 func moduleToLibName(module string) (string, error) {
