@@ -125,9 +125,7 @@ func main() {
 			case "ifeq", "ifneq":
 				args := directive.Args.Dump()
 				eq := directive.Name == "ifeq"
-				switch args {
-				case "($(HOST_OS),windows)", "($(HOST_OS), windows)",
-					"($(HOST_OS),darwin)", "($(HOST_OS), darwin)":
+				if _, ok := conditionalTranslations[args]; ok {
 					newCond := conditional{args, eq}
 					conds = append(conds, &newCond)
 					if cond == nil {
@@ -135,7 +133,7 @@ func main() {
 					} else {
 						file.errorf(directive, "unsupported nested conditional")
 					}
-				default:
+				} else {
 					file.errorf(directive, "unsupported conditional")
 					conds = append(conds, nil)
 					continue
