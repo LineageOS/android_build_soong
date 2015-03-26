@@ -2,7 +2,7 @@ subdirs = [
     "art",
     "build/blueprint",
     "build/soong",
-    "bionic/*",
+    "bionic",
     "external/*",
     "libnativehelper",
     "prebuilts/ndk",
