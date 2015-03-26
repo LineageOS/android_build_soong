@@ -113,6 +113,7 @@ func InitAndroidModule(m AndroidModule,
 
 	base := m.base()
 	base.module = m
+	base.extendedProperties = make(map[string]struct{})
 
 	propertyStructs = append(propertyStructs, &base.commonProperties)
 
@@ -186,6 +187,7 @@ type AndroidModuleBase struct {
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
 	archProperties          []*archProperties
+	extendedProperties      map[string]struct{}
 
 	noAddressSanitizer bool
 	installFiles       []string
@@ -313,8 +315,9 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		androidBaseContextImpl: androidBaseContextImpl{
 			arch: a.commonProperties.CompileArch,
 		},
-		installDeps:  a.computeInstallDeps(ctx),
-		installFiles: a.installFiles,
+		installDeps:        a.computeInstallDeps(ctx),
+		installFiles:       a.installFiles,
+		extendedProperties: a.extendedProperties,
 	}
 
 	if a.commonProperties.Disabled {
@@ -343,14 +346,23 @@ type androidBaseContextImpl struct {
 type androidModuleContext struct {
 	blueprint.ModuleContext
 	androidBaseContextImpl
-	installDeps     []string
-	installFiles    []string
-	checkbuildFiles []string
+	installDeps        []string
+	installFiles       []string
+	checkbuildFiles    []string
+	extendedProperties map[string]struct{}
 }
 
 func (a *androidModuleContext) Build(pctx *blueprint.PackageContext, params blueprint.BuildParams) {
 	params.Optional = true
 	a.ModuleContext.Build(pctx, params)
+}
+
+func (a *androidModuleContext) ContainsProperty(property string) bool {
+	if a.ModuleContext.ContainsProperty(property) {
+		return true
+	}
+	_, ok := a.extendedProperties[property]
+	return ok
 }
 
 func (a *androidBaseContextImpl) Arch() Arch {

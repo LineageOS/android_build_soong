@@ -401,8 +401,7 @@ func (c *ccBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	// TODO: debug
 	flags.CFlags = append(flags.CFlags, c.properties.Release.Cflags...)
 
-	if ctx.Host() {
-		// TODO: allow per-module clang disable for host
+	if ctx.Host() && !ctx.ContainsProperty("clang") {
 		flags.Clang = true
 	}
 
@@ -684,19 +683,15 @@ type ccLinked struct {
 func newCCDynamic(dynamic *ccLinked, module CCModuleType, hod common.HostOrDeviceSupported,
 	multilib common.Multilib, props ...interface{}) (blueprint.Module, []interface{}) {
 
-	dynamic.properties.System_shared_libs = []string{defaultSystemSharedLibraries}
-
 	props = append(props, &dynamic.dynamicProperties)
 
 	return newCCBase(&dynamic.ccBase, module, hod, multilib, props...)
 }
 
-const defaultSystemSharedLibraries = "__default__"
-
 func (c *ccLinked) systemSharedLibs(ctx common.AndroidBaseContext) []string {
-	if len(c.properties.System_shared_libs) == 1 &&
-		c.properties.System_shared_libs[0] == defaultSystemSharedLibraries {
-
+	if ctx.ContainsProperty("system_shared_libs") {
+		return c.properties.System_shared_libs
+	} else {
 		if ctx.Host() {
 			return []string{}
 		} else if c.properties.Sdk_version != "" {
@@ -714,7 +709,6 @@ func (c *ccLinked) systemSharedLibs(ctx common.AndroidBaseContext) []string {
 			return []string{"libc", "libm"}
 		}
 	}
-	return c.properties.System_shared_libs
 }
 
 func (c *ccLinked) stl(ctx common.AndroidBaseContext) string {

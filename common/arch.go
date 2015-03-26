@@ -355,7 +355,7 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		//     },
 		// },
 		t := arch.ArchType
-		extendProperties(ctx, "arch", t.Name, generalPropsValue,
+		a.extendProperties(ctx, "arch", t.Name, generalPropsValue,
 			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(t.Field).Elem().Elem())
 
 		// Handle multilib-specific properties in the form:
@@ -364,7 +364,7 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		//         key: value,
 		//     },
 		// },
-		extendProperties(ctx, "multilib", t.Multilib, generalPropsValue,
+		a.extendProperties(ctx, "multilib", t.Multilib, generalPropsValue,
 			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(t.MultilibField).Elem().Elem())
 
 		// Handle host-or-device-specific properties in the form:
@@ -374,7 +374,7 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		//     },
 		// },
 		hod := arch.HostOrDevice
-		extendProperties(ctx, "target", hod.FieldLower(), generalPropsValue,
+		a.extendProperties(ctx, "target", hod.FieldLower(), generalPropsValue,
 			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hod.Field()).Elem().Elem())
 
 		// Handle host target properties in the form:
@@ -398,11 +398,11 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		if hod.Host() {
 			for _, v := range osList {
 				if v.goos == runtime.GOOS {
-					extendProperties(ctx, "target", v.goos, generalPropsValue,
+					a.extendProperties(ctx, "target", v.goos, generalPropsValue,
 						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field).Elem().Elem())
 				}
 			}
-			extendProperties(ctx, "target", "not_windows", generalPropsValue,
+			a.extendProperties(ctx, "target", "not_windows", generalPropsValue,
 				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Not_windows").Elem().Elem())
 		}
 
@@ -421,10 +421,10 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
 		if hod.Device() {
 			if true /* && target_is_64_bit */ {
-				extendProperties(ctx, "target", "android64", generalPropsValue,
+				a.extendProperties(ctx, "target", "android64", generalPropsValue,
 					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android64").Elem().Elem())
 			} else {
-				extendProperties(ctx, "target", "android32", generalPropsValue,
+				a.extendProperties(ctx, "target", "android32", generalPropsValue,
 					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android32").Elem().Elem())
 			}
 		}
@@ -450,12 +450,12 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 }
 
 // TODO: move this to proptools
-func extendProperties(ctx blueprint.EarlyMutatorContext, variationType, variationName string,
+func (a *AndroidModuleBase) extendProperties(ctx blueprint.EarlyMutatorContext, variationType, variationName string,
 	dstValue, srcValue reflect.Value) {
-	extendPropertiesRecursive(ctx, variationType, variationName, dstValue, srcValue, "")
+	a.extendPropertiesRecursive(ctx, variationType, variationName, dstValue, srcValue, "")
 }
 
-func extendPropertiesRecursive(ctx blueprint.EarlyMutatorContext, variationType, variationName string,
+func (a *AndroidModuleBase) extendPropertiesRecursive(ctx blueprint.EarlyMutatorContext, variationType, variationName string,
 	dstValue, srcValue reflect.Value, recursePrefix string) {
 
 	typ := dstValue.Type()
@@ -497,6 +497,11 @@ func extendPropertiesRecursive(ctx blueprint.EarlyMutatorContext, variationType,
 			continue
 		}
 
+		if !ctx.ContainsProperty(propertyName) {
+			continue
+		}
+		a.extendedProperties[localPropertyName] = struct{}{}
+
 		switch srcFieldValue.Kind() {
 		case reflect.Bool:
 			// Replace the original value.
@@ -508,7 +513,7 @@ func extendPropertiesRecursive(ctx blueprint.EarlyMutatorContext, variationType,
 		case reflect.Struct:
 			// Recursively extend the struct's fields.
 			newRecursePrefix := fmt.Sprintf("%s%s.", recursePrefix, strings.ToLower(field.Name))
-			extendPropertiesRecursive(ctx, variationType, variationName,
+			a.extendPropertiesRecursive(ctx, variationType, variationName,
 				dstFieldValue, srcFieldValue,
 				newRecursePrefix)
 		case reflect.Slice:
@@ -528,7 +533,7 @@ func extendPropertiesRecursive(ctx blueprint.EarlyMutatorContext, variationType,
 			}
 			if !dstFieldValue.IsNil() {
 				newRecursePrefix := fmt.Sprintf("%s.%s", recursePrefix, field.Name)
-				extendPropertiesRecursive(ctx, variationType, variationName,
+				a.extendPropertiesRecursive(ctx, variationType, variationName,
 					dstFieldValue.Elem(), srcFieldValue.Elem(),
 					newRecursePrefix)
 			}
