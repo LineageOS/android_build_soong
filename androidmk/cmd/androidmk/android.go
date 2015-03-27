@@ -93,6 +93,10 @@ var conditionalTranslations = map[string]struct {
 	"($(HOST_OS), windows)": {"target", "windows"},
 	"($(HOST_OS),linux)":    {"target", "linux"},
 	"($(HOST_OS), linux)":   {"target", "linux"},
+	"($(BUILD_OS),darwin)":  {"target", "darwin"},
+	"($(BUILD_OS), darwin)": {"target", "darwin"},
+	"($(BUILD_OS),linux)":   {"target", "linux"},
+	"($(BUILD_OS), linux)":  {"target", "linux"},
 }
 
 func mydir(args []string) string {
