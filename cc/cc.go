@@ -691,28 +691,15 @@ func newCCDynamic(dynamic *ccLinked, module CCModuleType, hod common.HostOrDevic
 func (c *ccLinked) systemSharedLibs(ctx common.AndroidBaseContext) []string {
 	if ctx.ContainsProperty("system_shared_libs") {
 		return c.properties.System_shared_libs
+	} else if ctx.Device() && c.properties.Sdk_version == "" {
+		return []string{"libc", "libm"}
 	} else {
-		if ctx.Host() {
-			return []string{}
-		} else if c.properties.Sdk_version != "" {
-			version := c.properties.Sdk_version
-			libs := []string{
-				"ndk_libc." + version,
-				"ndk_libm." + version,
-			}
-
-			if c.properties.Sdk_version != "" && c.stl(ctx) == "ndk_system" {
-				libs = append([]string{"libstdc++"}, libs...)
-			}
-			return libs
-		} else {
-			return []string{"libc", "libm"}
-		}
+		return nil
 	}
 }
 
 func (c *ccLinked) stl(ctx common.AndroidBaseContext) string {
-	if c.properties.Sdk_version != "" {
+	if c.properties.Sdk_version != "" && ctx.Device() {
 		switch c.properties.Stl {
 		case "":
 			return "ndk_system"
@@ -823,6 +810,7 @@ func (c *ccLinked) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 		// TODO: Make a system STL prebuilt for the NDK.
 		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
 		// its own includes. The includes are handled in ccBase.Flags().
+		depNames.SharedLibs = append([]string{"libstdc++"}, depNames.SharedLibs...)
 	case "ndk_libc++_shared", "ndk_libstlport_shared":
 		depNames.SharedLibs = append(depNames.SharedLibs, stl)
 	case "ndk_libc++_static", "ndk_libstlport_static", "ndk_libgnustl_static":
@@ -840,6 +828,14 @@ func (c *ccLinked) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 
 		if c.shared() {
 			depNames.SharedLibs = append(depNames.SharedLibs, c.systemSharedLibs(ctx)...)
+		}
+
+		if c.properties.Sdk_version != "" {
+			version := c.properties.Sdk_version
+			depNames.SharedLibs = append(depNames.SharedLibs,
+				"ndk_libc."+version,
+				"ndk_libm."+version,
+			)
 		}
 	}
 
