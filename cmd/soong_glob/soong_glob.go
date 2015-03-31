@@ -28,7 +28,28 @@ import (
 
 var (
 	out = flag.String("o", "", "file to write list of files that match glob")
+
+	excludes multiArg
 )
+
+func init() {
+	flag.Var(&excludes, "e", "pattern to exclude from results")
+}
+
+type multiArg []string
+
+func (m *multiArg) String() string {
+	return `""`
+}
+
+func (m *multiArg) Set(s string) error {
+	*m = append(*m, s)
+	return nil
+}
+
+func (m *multiArg) Get() interface{} {
+	return m
+}
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: soong_glob -o out glob\n")
@@ -48,7 +69,7 @@ func main() {
 		usage()
 	}
 
-	_, err := glob.GlobWithDepFile(flag.Arg(0), *out, *out+".d")
+	_, err := glob.GlobWithDepFile(flag.Arg(0), *out, *out+".d", excludes)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 		os.Exit(1)

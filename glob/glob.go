@@ -35,7 +35,7 @@ func IsGlob(glob string) bool {
 // for a recursive glob.
 //
 // Returns a list of file paths, and an error.
-func GlobWithDepFile(glob, fileListFile, depFile string) (files []string, err error) {
+func GlobWithDepFile(glob, fileListFile, depFile string, excludes []string) (files []string, err error) {
 	globPattern := filepath.Base(glob)
 	globDir := filepath.Dir(glob)
 	recursive := false
@@ -64,6 +64,15 @@ func GlobWithDepFile(glob, fileListFile, depFile string) (files []string, err er
 					return err
 				}
 				if match {
+					for _, e := range excludes {
+						excludeMatch, err := filepath.Match(e, info.Name())
+						if err != nil {
+							return err
+						}
+						if excludeMatch {
+							return nil
+						}
+					}
 					files = append(files, path)
 				}
 			}
@@ -71,7 +80,7 @@ func GlobWithDepFile(glob, fileListFile, depFile string) (files []string, err er
 			return nil
 		})
 
-	fileList := strings.Join(files, "\n")
+	fileList := strings.Join(files, "\n") + "\n"
 
 	writeFileIfChanged(fileListFile, []byte(fileList), 0666)
 	deptools.WriteDepFile(depFile, fileListFile, dirs)

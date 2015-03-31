@@ -17,6 +17,7 @@ package common
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -46,7 +47,7 @@ var (
 	// and writes it to $out if it has changed, and writes the directories to $out.d
 	globRule = pctx.StaticRule("globRule",
 		blueprint.RuleParams{
-			Command:     fmt.Sprintf(`%s -o $out "$glob"`, globCmd),
+			Command:     fmt.Sprintf(`%s -o $out $excludes "$glob"`, globCmd),
 			Description: "glob $glob",
 
 			Restat:    true,
@@ -54,7 +55,7 @@ var (
 			Deps:      blueprint.DepsGCC,
 			Depfile:   "$out.d",
 		},
-		"glob")
+		"glob", "excludes")
 )
 
 func hasGlob(in []string) bool {
@@ -88,11 +89,28 @@ func Glob(ctx AndroidModuleContext, globPattern string) []string {
 	fileListFile := filepath.Join(ModuleOutDir(ctx), "glob", globToString(globPattern))
 	depFile := fileListFile + ".d"
 
+	var excludes []string
+
 	// Get a globbed file list, and write out fileListFile and depFile
-	files, err := glob.GlobWithDepFile(globPattern, fileListFile, depFile)
+	files, err := glob.GlobWithDepFile(globPattern, fileListFile, depFile, excludes)
 	if err != nil {
 		ctx.ModuleErrorf("glob: %s", err.Error())
 		return []string{globPattern}
+	}
+
+	GlobRule(ctx, globPattern, excludes, fileListFile, depFile)
+
+	// Make build.ninja depend on the fileListFile
+	ctx.AddNinjaFileDeps(fileListFile)
+
+	return files
+}
+
+func GlobRule(ctx AndroidModuleContext, globPattern string, excludes []string,
+	fileListFile, depFile string) {
+	var excludeArgs []string
+	for _, e := range excludes {
+		excludeArgs = append(excludeArgs, "-e "+e)
 	}
 
 	// Create a rule to rebuild fileListFile if a directory in depFile changes.  fileListFile
@@ -102,7 +120,8 @@ func Glob(ctx AndroidModuleContext, globPattern string) []string {
 		Outputs:   []string{fileListFile},
 		Implicits: []string{globCmd},
 		Args: map[string]string{
-			"glob": globPattern,
+			"glob":     globPattern,
+			"excludes": strings.Join(excludeArgs, " "),
 		},
 	})
 
@@ -111,11 +130,6 @@ func Glob(ctx AndroidModuleContext, globPattern string) []string {
 		Rule:    blueprint.Phony,
 		Outputs: []string{depFile},
 	})
-
-	// Make build.ninja depend on the fileListFile
-	ctx.AddNinjaFileDeps(fileListFile)
-
-	return files
 }
 
 func globToString(glob string) string {
