@@ -107,16 +107,11 @@ func main() {
 			switch directive.Name {
 			case "include":
 				val := directive.Args.Value(file.scope)
-				switch val {
-				case build_shared_library, build_static_library,
-					build_executable, build_host_executable,
-					build_prebuilt, build_host_static_library,
-					build_host_shared_library, build_native_test,
-					build_host_native_test:
-
+				switch {
+				case soongModuleTypes[val]:
 					handleModuleConditionals(file, directive, cond)
 					makeModule(file, val)
-				case clear_vars:
+				case val == clear_vars:
 					resetModule(file)
 				default:
 					file.errorf(directive, "unsupported include")

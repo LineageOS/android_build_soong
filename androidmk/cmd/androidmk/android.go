@@ -5,16 +5,7 @@ import (
 )
 
 const (
-	clear_vars                = "__android_mk_clear_vars"
-	build_shared_library      = "cc_library_shared"
-	build_static_library      = "cc_library_static"
-	build_host_static_library = "cc_library_host_static"
-	build_host_shared_library = "cc_library_host_shared"
-	build_executable          = "cc_binary"
-	build_host_executable     = "cc_binary_host"
-	build_native_test         = "cc_test"
-	build_host_native_test    = "cc_test_host"
-	build_prebuilt            = "prebuilt"
+	clear_vars = "__android_mk_clear_vars"
 )
 
 var stringProperties = map[string]string{
@@ -103,28 +94,29 @@ func mydir(args []string) string {
 	return "."
 }
 
+var moduleTypes = map[string]string{
+	"BUILD_SHARED_LIBRARY":      "cc_library_shared",
+	"BUILD_STATIC_LIBRARY":      "cc_library_static",
+	"BUILD_HOST_SHARED_LIBRARY": "cc_library_host_shared",
+	"BUILD_HOST_STATIC_LIBRARY": "cc_library_host_static",
+	"BUILD_EXECUTABLE":          "cc_binary",
+	"BUILD_HOST_EXECUTABLE":     "cc_binary_host",
+	"BUILD_NATIVE_TEST":         "cc_test",
+	"BUILD_HOST_NATIVE_TEST":    "cc_test_host",
+	"BUILD_PREBUILT":            "prebuilt",
+}
+
+var soongModuleTypes = map[string]bool{}
+
 func androidScope() parser.Scope {
 	globalScope := parser.NewScope(nil)
 	globalScope.Set("CLEAR_VARS", clear_vars)
-	globalScope.Set("BUILD_HOST_EXECUTABLE", build_host_executable)
-	globalScope.Set("BUILD_SHARED_LIBRARY", build_shared_library)
-	globalScope.Set("BUILD_STATIC_LIBRARY", build_static_library)
-	globalScope.Set("BUILD_HOST_STATIC_LIBRARY", build_host_static_library)
-	globalScope.Set("BUILD_HOST_SHARED_LIBRARY", build_host_shared_library)
-	globalScope.Set("BUILD_NATIVE_TEST", build_native_test)
-	globalScope.Set("BUILD_HOST_NATIVE_TEST", build_host_native_test)
-	globalScope.Set("BUILD_EXECUTABLE", build_executable)
-	globalScope.Set("BUILD_PREBUILT", build_prebuilt)
 	globalScope.SetFunc("my-dir", mydir)
 
-	globalScope.Set("lib32", "lib32")
-	globalScope.Set("lib64", "lib64")
-	globalScope.Set("arm", "arm")
-	globalScope.Set("arm64", "arm64")
-	globalScope.Set("mips", "mips")
-	globalScope.Set("mips64", "mips64")
-	globalScope.Set("x86", "x86")
-	globalScope.Set("x86_64", "x86_64")
+	for k, v := range moduleTypes {
+		globalScope.Set(k, v)
+		soongModuleTypes[v] = true
+	}
 
 	return globalScope
 }
