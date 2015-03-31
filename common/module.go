@@ -107,8 +107,9 @@ type hostAndDeviceProperties struct {
 type Multilib string
 
 const (
-	MultilibBoth  Multilib = "both"
-	MultilibFirst Multilib = "first"
+	MultilibBoth   Multilib = "both"
+	MultilibFirst  Multilib = "first"
+	MultilibCommon Multilib = "common"
 )
 
 func InitAndroidModule(m AndroidModule,

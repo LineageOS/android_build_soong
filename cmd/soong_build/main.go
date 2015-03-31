@@ -28,6 +28,7 @@ import (
 	"android/soong/common"
 	"android/soong/config"
 	"android/soong/genrule"
+	"android/soong/java"
 )
 
 func main() {
@@ -60,6 +61,13 @@ func main() {
 
 	ctx.RegisterModuleType("art_cc_library", art.ArtCCLibraryFactory)
 	ctx.RegisterModuleType("art_cc_binary", art.ArtCCBinaryFactory)
+
+	ctx.RegisterModuleType("java_library", java.JavaLibraryFactory)
+	ctx.RegisterModuleType("java_library_static", java.JavaLibraryFactory)
+	ctx.RegisterModuleType("java_library_host", java.JavaLibraryHostFactory)
+	ctx.RegisterModuleType("java_binary", java.JavaBinaryFactory)
+	ctx.RegisterModuleType("java_binary_host", java.JavaBinaryHostFactory)
+	ctx.RegisterModuleType("prebuilt_java_library", java.JavaPrebuiltFactory)
 
 	// Mutators
 	ctx.RegisterEarlyMutator("arch", common.ArchMutator)

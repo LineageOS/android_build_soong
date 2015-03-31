@@ -31,6 +31,10 @@ var (
 	Mips64 = newArch64("Mips64")
 	X86    = newArch32("X86")
 	X86_64 = newArch64("X86_64")
+
+	Common = ArchType{
+		Name: "common",
+	}
 )
 
 /*
@@ -254,6 +258,14 @@ var (
 		HostOrDevice: Host,
 		ArchType:     X86_64,
 	}
+	commonDevice = Arch{
+		HostOrDevice: Device,
+		ArchType:     Common,
+	}
+	commonHost = Arch{
+		HostOrDevice: Host,
+		ArchType:     Common,
+	}
 )
 
 func ArchMutator(mctx blueprint.EarlyMutatorContext) {
@@ -269,11 +281,18 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 	arches := []Arch{}
 
 	if module.base().HostSupported() {
-		arches = append(arches, host64Arch)
+		switch module.base().commonProperties.Compile_multilib {
+		case "common":
+			arches = append(arches, commonHost)
+		default:
+			arches = append(arches, host64Arch)
+		}
 	}
 
 	if module.base().DeviceSupported() {
 		switch module.base().commonProperties.Compile_multilib {
+		case "common":
+			arches = append(arches, commonDevice)
 		case "both":
 			arches = append(arches, arm64Arch, armArch)
 		case "first", "64":
@@ -345,6 +364,10 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 
 // Rewrite the module's properties structs to contain arch-specific values.
 func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext, arch Arch) {
+	if arch.ArchType == Common {
+		return
+	}
+
 	for i := range a.generalProperties {
 		generalPropsValue := reflect.ValueOf(a.generalProperties[i]).Elem()
 

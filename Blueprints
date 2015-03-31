@@ -21,6 +21,7 @@ bootstrap_go_binary {
         "soong-config",
         "soong-env",
         "soong-genrule",
+        "soong-java",
     ],
     srcs: [
         "cmd/soong_build/main.go",
@@ -138,6 +139,30 @@ bootstrap_go_package {
         "genrule/genrule.go",
     ],
 }
+
+bootstrap_go_binary {
+    name: "soong_jar",
+    srcs: [
+        "cmd/soong_jar/soong_jar.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-java",
+    pkgPath: "android/soong/java",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong-common",
+        "soong-config",
+    ],
+    srcs: [
+        "java/builder.go",
+        "java/java.go",
+        "java/resources.go",
+    ],
+}
+
 //
 // androidmk Android.mk to Blueprints translator
 //

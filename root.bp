@@ -3,8 +3,11 @@ subdirs = [
     "build/blueprint",
     "build/soong",
     "bionic",
+    "dalvik",
     "external/*",
+    "libcore",
     "libnativehelper",
     "prebuilts/ndk",
+    "prebuilts/sdk",
     "system/core/*",
 ]

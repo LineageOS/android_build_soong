@@ -18,6 +18,7 @@ var stringProperties = map[string]string{
 	"LOCAL_ARM_MODE_HACK":   "instruction_set",
 	"LOCAL_SDK_VERSION":     "sdk_version",
 	"LOCAL_NDK_STL_VARIANT": "stl",
+	"LOCAL_JAR_MANIFEST":    "manifest",
 }
 
 var listProperties = map[string]string{
@@ -38,6 +39,12 @@ var listProperties = map[string]string{
 	"LOCAL_MODULE_TAGS":             "tags",
 	"LOCAL_LDLIBS":                  "host_ldlibs",
 	"LOCAL_CLANG_CFLAGS":            "clang_cflags",
+
+	"LOCAL_JAVA_RESOURCE_DIRS":    "resource_dirs",
+	"LOCAL_JAVACFLAGS":            "javacflags",
+	"LOCAL_DX_FLAGS":              "dxflags",
+	"LOCAL_JAVA_LIBRARIES":        "java_libs",
+	"LOCAL_STATIC_JAVA_LIBRARIES": "java_static_libs",
 }
 
 var boolProperties = map[string]string{
@@ -49,6 +56,8 @@ var boolProperties = map[string]string{
 	"LOCAL_NO_CRT":                  "nocrt",
 	"LOCAL_ALLOW_UNDEFINED_SYMBOLS": "allow_undefined_symbols",
 	"LOCAL_RTTI_FLAG":               "rtti",
+
+	"LOCAL_NO_STANDARD_LIBRARIES": "no_standard_libraries",
 }
 
 var deleteProperties = map[string]struct{}{
@@ -103,7 +112,13 @@ var moduleTypes = map[string]string{
 	"BUILD_HOST_EXECUTABLE":     "cc_binary_host",
 	"BUILD_NATIVE_TEST":         "cc_test",
 	"BUILD_HOST_NATIVE_TEST":    "cc_test_host",
-	"BUILD_PREBUILT":            "prebuilt",
+
+	"BUILD_JAVA_LIBRARY":             "java_library",
+	"BUILD_STATIC_JAVA_LIBRARY":      "java_library_static",
+	"BUILD_HOST_JAVA_LIBRARY":        "java_library_host",
+	"BUILD_HOST_DALVIK_JAVA_LIBRARY": "java_library_host_dalvik",
+
+	"BUILD_PREBUILT": "prebuilt",
 }
 
 var soongModuleTypes = map[string]bool{}
