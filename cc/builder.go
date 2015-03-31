@@ -47,9 +47,11 @@ var (
 
 	ld = pctx.StaticRule("ld",
 		blueprint.RuleParams{
-			Command: "$ldCmd ${ldDirFlags} ${crtBegin} ${in} " +
+			Command: "$ldCmd ${ldDirFlags} ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${ldLibs}",
-			Description: "ld $out",
+			Description:    "ld $out",
+			Rspfile:        "${out}.rsp",
+			RspfileContent: "${in}",
 		},
 		"ldCmd", "ldDirFlags", "crtBegin", "libFlags", "crtEnd", "ldFlags", "ldLibs")
 
@@ -62,8 +64,10 @@ var (
 
 	ar = pctx.StaticRule("ar",
 		blueprint.RuleParams{
-			Command:     "rm -f ${out} && $arCmd $arFlags $out $in",
-			Description: "ar $out",
+			Command:        "rm -f ${out} && $arCmd $arFlags $out @${out}.rsp",
+			Description:    "ar $out",
+			Rspfile:        "${out}.rsp",
+			RspfileContent: "${in}",
 		},
 		"arCmd", "arFlags")
 
