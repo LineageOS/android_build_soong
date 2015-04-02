@@ -76,9 +76,9 @@ type AndroidDynamicDependerModuleContext interface {
 }
 
 type commonProperties struct {
-	Name         string
-	Deps         []string
-	ResourceDirs []string
+	Name string
+	Deps []string
+	Tags []string
 
 	// disabled: don't emit any build rules for this module
 	Disabled bool `android:"arch_variant"`
@@ -242,10 +242,6 @@ func (a *AndroidModuleBase) filesToInstall() []string {
 
 func (p *AndroidModuleBase) NoAddressSanitizer() bool {
 	return p.noAddressSanitizer
-}
-
-func (p *AndroidModuleBase) resourceDirs() []string {
-	return p.commonProperties.ResourceDirs
 }
 
 func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
