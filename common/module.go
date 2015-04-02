@@ -25,6 +25,8 @@ type Config interface {
 	SrcDir() string
 	Getenv(string) string
 	EnvDeps() map[string]string
+	DeviceOut() string
+	HostOut() string
 }
 
 var (
@@ -52,7 +54,8 @@ type AndroidModuleContext interface {
 	blueprint.ModuleContext
 	androidBaseContext
 
-	InstallFile(installPath, srcPath string)
+	InstallFile(installPath, srcPath string, deps ...string) string
+	InstallFileName(installPath, name, srcPath string, deps ...string) string
 	CheckbuildFile(srcPath string)
 }
 
@@ -377,25 +380,34 @@ func (a *androidBaseContextImpl) Debug() bool {
 	return a.debug
 }
 
-func (a *androidModuleContext) InstallFile(installPath, srcPath string) {
+func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string,
+	deps ...string) string {
+
+	config := a.Config().(Config)
 	var fullInstallPath string
 	if a.arch.HostOrDevice.Device() {
 		// TODO: replace unset with a device name once we have device targeting
-		fullInstallPath = filepath.Join("out/target/product/unset/system", installPath,
-			filepath.Base(srcPath))
+		fullInstallPath = filepath.Join(config.DeviceOut(), "system",
+			installPath, name)
 	} else {
-		// TODO: replace unset with a host name
-		fullInstallPath = filepath.Join("out/host/unset/", installPath, filepath.Base(srcPath))
+		fullInstallPath = filepath.Join(config.HostOut(), installPath, name)
 	}
+
+	deps = append(deps, a.installDeps...)
 
 	a.ModuleContext.Build(pctx, blueprint.BuildParams{
 		Rule:      Cp,
 		Outputs:   []string{fullInstallPath},
 		Inputs:    []string{srcPath},
-		OrderOnly: a.installDeps,
+		OrderOnly: deps,
 	})
 
 	a.installFiles = append(a.installFiles, fullInstallPath)
+	return fullInstallPath
+}
+
+func (a *androidModuleContext) InstallFile(installPath, srcPath string, deps ...string) string {
+	return a.InstallFileName(installPath, filepath.Base(srcPath), srcPath, deps...)
 }
 
 func (a *androidModuleContext) CheckbuildFile(srcPath string) {

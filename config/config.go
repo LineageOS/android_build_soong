@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -167,4 +168,30 @@ func (c *Config) Getenv(key string) string {
 
 func (c *Config) EnvDeps() map[string]string {
 	return c.envDeps
+}
+
+// DeviceName returns the name of the current device target
+// TODO: take an AndroidModuleContext to select the device name for multi-device builds
+func (c *Config) DeviceName() string {
+	return "unset"
+}
+
+// DeviceOut returns the path to out directory for device targets
+func (c *Config) DeviceOut() string {
+	return filepath.Join("target/product", c.DeviceName())
+}
+
+// HostOut returns the path to out directory for host targets
+func (c *Config) HostOut() string {
+	return filepath.Join("host", c.PrebuiltOS())
+}
+
+// HostBin returns the path to bin directory for host targets
+func (c *Config) HostBin() string {
+	return filepath.Join(c.HostOut(), "bin")
+}
+
+// HostBinTool returns the path to a host tool in the bin directory for host targets
+func (c *Config) HostBinTool(tool string) (string, error) {
+	return filepath.Join(c.HostBin(), tool), nil
 }
