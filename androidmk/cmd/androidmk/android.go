@@ -21,6 +21,7 @@ var stringProperties = map[string]string{
 	"LOCAL_SDK_VERSION":     "sdk_version",
 	"LOCAL_NDK_STL_VARIANT": "stl",
 	"LOCAL_JAR_MANIFEST":    "manifest",
+	"LOCAL_JARJAR_RULES":    "jarjar_rules",
 }
 
 var listProperties = map[string]string{

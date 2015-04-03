@@ -195,3 +195,13 @@ func (c *Config) HostBin() string {
 func (c *Config) HostBinTool(tool string) (string, error) {
 	return filepath.Join(c.HostBin(), tool), nil
 }
+
+// HostJavaDir returns the path to framework directory for host targets
+func (c *Config) HostJavaDir() string {
+	return filepath.Join(c.HostOut(), "framework")
+}
+
+// HostJavaTool returns the path to a host tool in the frameworks directory for host targets
+func (c *Config) HostJavaTool(tool string) (string, error) {
+	return filepath.Join(c.HostJavaDir(), tool), nil
+}

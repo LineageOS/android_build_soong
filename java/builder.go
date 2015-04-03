@@ -62,6 +62,13 @@ var (
 		},
 		"outDir", "dxFlags")
 
+	jarjar = pctx.StaticRule("jarjar",
+		blueprint.RuleParams{
+			Command:     "java -jar $jarjarCmd process $rulesFile $in $out",
+			Description: "jarjar $out",
+		},
+		"rulesFile")
+
 	extractPrebuilt = pctx.StaticRule("extractPrebuilt",
 		blueprint.RuleParams{
 			Command: `rm -rf $outDir && unzip -qo $in -d $outDir && ` +
@@ -79,6 +86,9 @@ func init() {
 	pctx.StaticVariable("jarCmd", filepath.Join(bootstrap.BinDir, "soong_jar"))
 	pctx.VariableFunc("dxCmd", func(c interface{}) (string, error) {
 		return c.(Config).HostBinTool("dx")
+	})
+	pctx.VariableFunc("jarjarCmd", func(c interface{}) (string, error) {
+		return c.(Config).HostJavaTool("jarjar.jar")
 	})
 }
 
@@ -192,6 +202,21 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 		Implicits: deps,
 		Args: map[string]string{
 			"jarArgs": strings.Join(jarArgs, " "),
+		},
+	})
+
+	return outputFile
+}
+
+func TransformJarJar(ctx common.AndroidModuleContext, classesJar string, rulesFile string) string {
+	outputFile := filepath.Join(common.ModuleOutDir(ctx), "classes-jarjar.jar")
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:      jarjar,
+		Outputs:   []string{outputFile},
+		Inputs:    []string{classesJar},
+		Implicits: []string{"$jarjarCmd"},
+		Args: map[string]string{
+			"rulesFile": rulesFile,
 		},
 	})
 

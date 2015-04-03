@@ -33,6 +33,7 @@ type Config interface {
 	SrcDir() string
 	PrebuiltOS() string
 	HostBinTool(string) (string, error)
+	HostJavaTool(string) (string, error)
 	Getenv(string) string
 }
 
@@ -90,6 +91,9 @@ type javaBase struct {
 		// Set for device java libraries, and for host versions of device java libraries
 		// built for testing
 		Dex bool `blueprint:"mutated"`
+
+		// jarjar_rules: if not blank, run jarjar using the specified rules file
+		Jarjar_rules string
 	}
 
 	// output file suitable for inserting into the classpath of another compile
@@ -235,8 +239,19 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 	if ctx.Failed() {
 		return
 	}
+
 	j.classJarSpecs = classJarSpecs
 	j.resourceJarSpecs = resourceJarSpecs
+
+	if j.properties.Jarjar_rules != "" {
+		jarjar_rules := filepath.Join(common.ModuleSrcDir(ctx), j.properties.Jarjar_rules)
+		// Transform classes-full-debug.jar into classes-jarjar.jar
+		outputFile = TransformJarJar(ctx, outputFile, jarjar_rules)
+		if ctx.Failed() {
+			return
+		}
+	}
+
 	j.classpathFile = outputFile
 
 	if j.properties.Dex {
