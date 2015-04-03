@@ -58,7 +58,7 @@ func init() {
 	builtinScope["__builtin_dollar"] = "$"
 }
 
-func (v Variable) Value(scope Scope) string {
+func (v Variable) EvalFunction(scope Scope) (string, bool) {
 	f := v.Name.SplitN(" \t", 2)
 	if len(f) > 1 && f[0].Const() {
 		fname := f[0].Value(nil)
@@ -70,13 +70,20 @@ func (v Variable) Value(scope Scope) string {
 			}
 
 			if fname == "call" {
-				return scope.Call(argVals[0], argVals[1:])
+				return scope.Call(argVals[0], argVals[1:]), true
 			} else {
-				return "__builtin_func:" + fname + " " + strings.Join(argVals, " ")
+				return "__builtin_func:" + fname + " " + strings.Join(argVals, " "), true
 			}
 		}
 	}
 
+	return "", false
+}
+
+func (v Variable) Value(scope Scope) string {
+	if ret, ok := v.EvalFunction(scope); ok {
+		return ret
+	}
 	return scope.Get(v.Name.Value(scope))
 }
 

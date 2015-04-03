@@ -17,6 +17,10 @@ func stringToStringValue(s string) *bpparser.Value {
 }
 
 func addValues(val1, val2 *bpparser.Value) (*bpparser.Value, error) {
+	if val1 == nil {
+		return val2, nil
+	}
+
 	if val1.Type == bpparser.String && val2.Type == bpparser.List {
 		val1 = &bpparser.Value{
 			Type:      bpparser.List,
@@ -40,7 +44,7 @@ func addValues(val1, val2 *bpparser.Value) (*bpparser.Value, error) {
 	}, nil
 }
 
-func makeToStringExpression(ms *mkparser.MakeString) (*bpparser.Value, error) {
+func makeToStringExpression(ms *mkparser.MakeString, scope mkparser.Scope) (*bpparser.Value, error) {
 	var val *bpparser.Value
 	var err error
 
@@ -49,22 +53,22 @@ func makeToStringExpression(ms *mkparser.MakeString) (*bpparser.Value, error) {
 	}
 
 	for i, s := range ms.Strings[1:] {
-		name := ms.Variables[i].Name
-		if !name.Const() {
-			return nil, fmt.Errorf("Unsupported non-const variable name %s", name.Dump())
-		}
-		tmp := &bpparser.Value{
-			Type:     bpparser.String,
-			Variable: name.Value(nil),
-		}
+		if ret, ok := ms.Variables[i].EvalFunction(scope); ok {
+			val, err = addValues(val, stringToStringValue(ret))
+		} else {
+			name := ms.Variables[i].Name
+			if !name.Const() {
+				return nil, fmt.Errorf("Unsupported non-const variable name %s", name.Dump())
+			}
+			tmp := &bpparser.Value{
+				Type:     bpparser.String,
+				Variable: name.Value(nil),
+			}
 
-		if val != nil {
 			val, err = addValues(val, tmp)
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			val = tmp
 		}
 
 		if s != "" {
@@ -95,7 +99,7 @@ func stringToListValue(s string) *bpparser.Value {
 
 }
 
-func makeToListExpression(ms *mkparser.MakeString) (*bpparser.Value, error) {
+func makeToListExpression(ms *mkparser.MakeString, scope mkparser.Scope) (*bpparser.Value, error) {
 	fields := ms.Split(" \t")
 
 	var listOfListValues []*bpparser.Value
@@ -106,22 +110,29 @@ func makeToListExpression(ms *mkparser.MakeString) (*bpparser.Value, error) {
 
 	for _, f := range fields {
 		if len(f.Variables) == 1 && f.Strings[0] == "" && f.Strings[1] == "" {
-			// Variable by itself, variable is probably a list
-			if !f.Variables[0].Name.Const() {
-				return nil, fmt.Errorf("unsupported non-const variable name")
-			}
-			if len(listValue.ListValue) > 0 {
-				listOfListValues = append(listOfListValues, listValue)
-			}
-			listOfListValues = append(listOfListValues, &bpparser.Value{
-				Type:     bpparser.List,
-				Variable: f.Variables[0].Name.Value(nil),
-			})
-			listValue = &bpparser.Value{
-				Type: bpparser.List,
+			if ret, ok := f.Variables[0].EvalFunction(scope); ok {
+				listValue.ListValue = append(listValue.ListValue, bpparser.Value{
+					Type:        bpparser.String,
+					StringValue: ret,
+				})
+			} else {
+				// Variable by itself, variable is probably a list
+				if !f.Variables[0].Name.Const() {
+					return nil, fmt.Errorf("unsupported non-const variable name")
+				}
+				if len(listValue.ListValue) > 0 {
+					listOfListValues = append(listOfListValues, listValue)
+				}
+				listOfListValues = append(listOfListValues, &bpparser.Value{
+					Type:     bpparser.List,
+					Variable: f.Variables[0].Name.Value(nil),
+				})
+				listValue = &bpparser.Value{
+					Type: bpparser.List,
+				}
 			}
 		} else {
-			s, err := makeToStringExpression(f)
+			s, err := makeToStringExpression(f, scope)
 			if err != nil {
 				return nil, err
 			}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"android/soong/androidmk/parser"
+	"fmt"
+	"strings"
 )
 
 const (
@@ -103,6 +105,15 @@ func mydir(args []string) string {
 	return "."
 }
 
+func allJavaFilesUnder(args []string) string {
+	dir := ""
+	if len(args) > 0 {
+		dir = strings.TrimSpace(args[0])
+	}
+
+	return fmt.Sprintf("%s/**/*.java", dir)
+}
+
 var moduleTypes = map[string]string{
 	"BUILD_SHARED_LIBRARY":      "cc_library_shared",
 	"BUILD_STATIC_LIBRARY":      "cc_library_static",
@@ -127,6 +138,7 @@ func androidScope() parser.Scope {
 	globalScope := parser.NewScope(nil)
 	globalScope.Set("CLEAR_VARS", clear_vars)
 	globalScope.SetFunc("my-dir", mydir)
+	globalScope.SetFunc("all-java-files-under", allJavaFilesUnder)
 
 	for k, v := range moduleTypes {
 		globalScope.Set(k, v)

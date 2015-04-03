@@ -343,9 +343,9 @@ func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name s
 	var err error
 	switch typ {
 	case bpparser.List:
-		exp, err = makeToListExpression(val)
+		exp, err = makeToListExpression(val, file.scope)
 	case bpparser.String:
-		exp, err = makeToStringExpression(val)
+		exp, err = makeToStringExpression(val, file.scope)
 	case bpparser.Bool:
 		exp, err = makeToBoolExpression(val)
 	default:
