@@ -361,7 +361,8 @@ type JavaPrebuilt struct {
 		Srcs []string
 	}
 
-	classpathFile string
+	classpathFile                   string
+	classJarSpecs, resourceJarSpecs []jarSpec
 }
 
 func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
@@ -369,7 +370,15 @@ func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx common.AndroidModuleConte
 		ctx.ModuleErrorf("expected exactly one jar in srcs")
 		return
 	}
-	j.classpathFile = filepath.Join(common.ModuleSrcDir(ctx), j.properties.Srcs[0])
+	prebuilt := filepath.Join(common.ModuleSrcDir(ctx), j.properties.Srcs[0])
+
+	classJarSpec, resourceJarSpec := TransformPrebuiltJarToClasses(ctx, prebuilt)
+
+	j.classpathFile = prebuilt
+	j.classJarSpecs = []jarSpec{classJarSpec}
+	j.resourceJarSpecs = []jarSpec{resourceJarSpec}
+
+	ctx.InstallFileName("framework", ctx.ModuleName()+".jar", j.classpathFile)
 }
 
 var _ JavaDependency = (*JavaPrebuilt)(nil)
@@ -379,11 +388,11 @@ func (j *JavaPrebuilt) ClasspathFile() string {
 }
 
 func (j *JavaPrebuilt) ClassJarSpecs() []jarSpec {
-	return nil
+	return j.classJarSpecs
 }
 
 func (j *JavaPrebuilt) ResourceJarSpecs() []jarSpec {
-	return nil
+	return j.resourceJarSpecs
 }
 
 func JavaPrebuiltFactory() (blueprint.Module, []interface{}) {

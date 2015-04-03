@@ -61,6 +61,16 @@ var (
 			Description: "dex $out",
 		},
 		"outDir", "dxFlags")
+
+	extractPrebuilt = pctx.StaticRule("extractPrebuilt",
+		blueprint.RuleParams{
+			Command: `rm -rf $outDir && unzip -qo $in -d $outDir && ` +
+				`find $outDir -name "*.class" > $classFile && ` +
+				`find $outDir -type f -a \! -name "*.class" -a \! -name "MANIFEST.MF" > $resourceFile || ` +
+				`(rm -rf $outDir; exit 42)`,
+			Description: "extract java prebuilt $outDir",
+		},
+		"outDir", "classFile", "resourceFile")
 )
 
 func init() {
@@ -186,4 +196,25 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 	})
 
 	return outputFile
+}
+
+func TransformPrebuiltJarToClasses(ctx common.AndroidModuleContext,
+	prebuilt string) (classJarSpec, resourceJarSpec jarSpec) {
+
+	classDir := filepath.Join(common.ModuleOutDir(ctx), "classes")
+	classFileList := filepath.Join(classDir, "classes.list")
+	resourceFileList := filepath.Join(classDir, "resources.list")
+
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:    extractPrebuilt,
+		Outputs: []string{classFileList, resourceFileList},
+		Inputs:  []string{prebuilt},
+		Args: map[string]string{
+			"outDir":       classDir,
+			"classFile":    classFileList,
+			"resourceFile": resourceFileList,
+		},
+	})
+
+	return jarSpec{classFileList, classDir}, jarSpec{resourceFileList, classDir}
 }
