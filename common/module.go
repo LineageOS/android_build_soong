@@ -23,6 +23,7 @@ import (
 type Config interface {
 	CpPreserveSymlinksFlags() string
 	SrcDir() string
+	IntermediatesDir() string
 	Getenv(string) string
 	EnvDeps() map[string]string
 	DeviceOut() string

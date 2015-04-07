@@ -123,6 +123,10 @@ func (c *Config) SrcDir() string {
 	return c.srcDir
 }
 
+func (c *Config) IntermediatesDir() string {
+	return ".intermediates"
+}
+
 // HostGoOS returns the OS of the system that the Go toolchain is being run on.
 func (c *Config) HostGoOS() string {
 	return runtime.GOOS

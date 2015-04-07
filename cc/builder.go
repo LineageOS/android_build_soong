@@ -99,6 +99,7 @@ type builderFlags struct {
 	ldFlags     string
 	ldLibs      string
 	incFlags    string
+	yaccFlags   string
 	nocrt       bool
 	toolchain   Toolchain
 	clang       bool
@@ -106,7 +107,10 @@ type builderFlags struct {
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
 func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFiles []string,
-	flags builderFlags) (objFiles []string) {
+	flags builderFlags, deps []string) (objFiles []string) {
+
+	srcRoot := ctx.Config().(Config).SrcDir()
+	intermediatesRoot := ctx.Config().(Config).IntermediatesDir()
 
 	objFiles = make([]string, len(srcFiles))
 	objDir := common.ModuleObjDir(ctx)
@@ -119,8 +123,18 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 	asflags := flags.globalFlags + " " + flags.asFlags
 
 	for i, srcFile := range srcFiles {
-		objFile := strings.TrimPrefix(srcFile, common.ModuleSrcDir(ctx))
-		objFile = filepath.Join(objDir, objFile)
+		var objFile string
+		if strings.HasPrefix(srcFile, srcRoot) {
+			objFile = strings.TrimPrefix(srcFile, srcRoot)
+			objFile = filepath.Join(objDir, objFile)
+		} else if strings.HasPrefix(srcFile, intermediatesRoot) {
+			objFile = strings.TrimPrefix(srcFile, intermediatesRoot)
+			objFile = filepath.Join(objDir, "gen", objFile)
+		} else {
+			ctx.ModuleErrorf("source file %q is not in source directory %q", srcFile, srcRoot)
+			continue
+		}
+
 		objFile = pathtools.ReplaceExtension(objFile, "o")
 
 		objFiles[i] = objFile
@@ -158,11 +172,13 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			ccCmd = gccCmd(flags.toolchain, ccCmd)
 		}
 
+		deps = append([]string{ccCmd}, deps...)
+
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      cc,
 			Outputs:   []string{objFile},
 			Inputs:    []string{srcFile},
-			Implicits: []string{ccCmd},
+			Implicits: deps,
 			Args: map[string]string{
 				"cFlags":   moduleCflags,
 				"incFlags": flags.incFlags,

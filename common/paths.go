@@ -22,7 +22,8 @@ import (
 
 // ModuleOutDir returns the path to the module-specific output directory.
 func ModuleOutDir(ctx AndroidModuleContext) string {
-	return filepath.Join(".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
+	config := ctx.Config().(Config)
+	return filepath.Join(config.IntermediatesDir(), ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
 }
 
 // ModuleSrcDir returns the path of the directory that all source file paths are

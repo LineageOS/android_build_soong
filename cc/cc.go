@@ -32,6 +32,7 @@ import (
 
 type Config interface {
 	SrcDir() string
+	IntermediatesDir() string
 	PrebuiltOS() string
 }
 
@@ -125,6 +126,9 @@ type ccProperties struct {
 
 	// asflags: list of module-specific flags that will be used for .S compiles
 	Asflags []string `android:"arch_variant"`
+
+	// yaccflags: list of module-specific flags that will be used for .y and .yy compiles
+	Yaccflags []string
 
 	// ldflags: list of module-specific flags that will be used for all link steps
 	Ldflags []string `android:"arch_variant"`
@@ -257,6 +261,7 @@ type CCFlags struct {
 	CFlags      []string
 	ConlyFlags  []string
 	CppFlags    []string
+	YaccFlags   []string
 	LdFlags     []string
 	LdLibs      []string
 	IncludeDirs []string
@@ -311,12 +316,12 @@ func (c *ccBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 
 	flags.IncludeDirs = append(flags.IncludeDirs, deps.IncludeDirs...)
 
-	objFiles := c.compileObjs(ctx, flags, deps)
+	objFiles := c.compileObjs(ctx, flags)
 	if ctx.Failed() {
 		return
 	}
 
-	generatedObjFiles := c.compileGeneratedObjs(ctx, flags, deps)
+	generatedObjFiles := c.compileGeneratedObjs(ctx, flags)
 	if ctx.Failed() {
 		return
 	}
@@ -388,6 +393,7 @@ func (c *ccBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		ConlyFlags: c.properties.Conlyflags,
 		LdFlags:    c.properties.Ldflags,
 		AsFlags:    c.properties.Asflags,
+		YaccFlags:  c.properties.Yaccflags,
 		Nocrt:      c.properties.Nocrt,
 		Toolchain:  toolchain,
 		Clang:      c.properties.Clang,
@@ -521,28 +527,29 @@ func (c *ccBase) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 
 // Compile a list of source files into objects a specified subdirectory
 func (c *ccBase) customCompileObjs(ctx common.AndroidModuleContext, flags CCFlags,
-	deps CCDeps, subdir string, srcFiles []string) []string {
+	subdir string, srcFiles []string) []string {
+
+	buildFlags := ccFlagsToBuilderFlags(flags)
 
 	srcFiles = pathtools.PrefixPaths(srcFiles, common.ModuleSrcDir(ctx))
 	srcFiles = common.ExpandGlobs(ctx, srcFiles)
+	srcFiles, deps := genSources(ctx, srcFiles, buildFlags)
 
-	return TransformSourceToObj(ctx, subdir, srcFiles, ccFlagsToBuilderFlags(flags))
+	return TransformSourceToObj(ctx, subdir, srcFiles, buildFlags, deps)
 }
 
 // Compile files listed in c.properties.Srcs into objects
-func (c *ccBase) compileObjs(ctx common.AndroidModuleContext, flags CCFlags,
-	deps CCDeps) []string {
+func (c *ccBase) compileObjs(ctx common.AndroidModuleContext, flags CCFlags) []string {
 
 	if c.properties.SkipCompileObjs {
 		return nil
 	}
 
-	return c.customCompileObjs(ctx, flags, deps, "", c.properties.Srcs)
+	return c.customCompileObjs(ctx, flags, "", c.properties.Srcs)
 }
 
 // Compile generated source files from dependencies
-func (c *ccBase) compileGeneratedObjs(ctx common.AndroidModuleContext, flags CCFlags,
-	deps CCDeps) []string {
+func (c *ccBase) compileGeneratedObjs(ctx common.AndroidModuleContext, flags CCFlags) []string {
 	var srcs []string
 
 	if c.properties.SkipCompileObjs {
@@ -559,7 +566,7 @@ func (c *ccBase) compileGeneratedObjs(ctx common.AndroidModuleContext, flags CCF
 		return nil
 	}
 
-	return TransformSourceToObj(ctx, "", srcs, ccFlagsToBuilderFlags(flags))
+	return TransformSourceToObj(ctx, "", srcs, ccFlagsToBuilderFlags(flags), nil)
 }
 
 func (c *ccBase) outputFile() string {
@@ -1013,7 +1020,7 @@ func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
 
 	staticFlags := flags
 	staticFlags.CFlags = append(staticFlags.CFlags, c.LibraryProperties.Static.Cflags...)
-	objFilesStatic := c.customCompileObjs(ctx, staticFlags, deps, common.DeviceStaticLibrary,
+	objFilesStatic := c.customCompileObjs(ctx, staticFlags, common.DeviceStaticLibrary,
 		c.LibraryProperties.Static.Srcs)
 
 	objFiles = append(objFiles, objFilesStatic...)
@@ -1036,7 +1043,7 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 
 	sharedFlags := flags
 	sharedFlags.CFlags = append(sharedFlags.CFlags, c.LibraryProperties.Shared.Cflags...)
-	objFilesShared := c.customCompileObjs(ctx, sharedFlags, deps, common.DeviceSharedLibrary,
+	objFilesShared := c.customCompileObjs(ctx, sharedFlags, common.DeviceSharedLibrary,
 		c.LibraryProperties.Shared.Srcs)
 
 	objFiles = append(objFiles, objFilesShared...)
