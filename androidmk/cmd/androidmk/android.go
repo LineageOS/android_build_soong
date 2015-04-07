@@ -74,7 +74,7 @@ var standardProperties = map[string]struct {
 }
 
 var rewriteProperties = map[string]struct {
-	f func(file *bpFile, value *mkparser.MakeString, append bool, class, suffix string) error
+	f func(file *bpFile, prefix string, value *mkparser.MakeString, append bool) error
 }{
 	"LOCAL_C_INCLUDES":            {localIncludeDirs},
 	"LOCAL_EXPORT_C_INCLUDE_DIRS": {exportIncludeDirs},
@@ -191,8 +191,7 @@ func splitLocalGlobal(file *bpFile, val *bpparser.Value) (local, global *bpparse
 	return local, global, nil
 }
 
-func localIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable bool,
-	class, suffix string) error {
+func localIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
 	val, err := makeVariableToBlueprint(file, value, bpparser.List)
 	if err != nil {
 		return err
@@ -204,14 +203,14 @@ func localIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable b
 	}
 
 	if len(global.ListValue) > 0 || global.Expression != nil || global.Variable != "" {
-		err = setVariable(file, appendVariable, "include_dirs", global, true, class, suffix)
+		err = setVariable(file, appendVariable, prefix, "include_dirs", global, true)
 		if err != nil {
 			return err
 		}
 	}
 
 	if len(local.ListValue) > 0 || local.Expression != nil || local.Variable != "" {
-		err = setVariable(file, appendVariable, "local_include_dirs", local, true, class, suffix)
+		err = setVariable(file, appendVariable, prefix, "local_include_dirs", local, true)
 		if err != nil {
 			return err
 		}
@@ -220,9 +219,7 @@ func localIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable b
 	return nil
 }
 
-func exportIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable bool,
-	class, suffix string) error {
-
+func exportIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
 	val, err := makeVariableToBlueprint(file, value, bpparser.List)
 	if err != nil {
 		return err
@@ -234,7 +231,7 @@ func exportIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable 
 	}
 
 	if len(local.ListValue) > 0 || local.Expression != nil || local.Variable != "" {
-		err = setVariable(file, appendVariable, "export_include_dirs", local, true, class, suffix)
+		err = setVariable(file, appendVariable, prefix, "export_include_dirs", local, true)
 		if err != nil {
 			return err
 		}
@@ -244,7 +241,7 @@ func exportIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable 
 	// Add any paths that could not be converted to local relative paths to export_include_dirs
 	// anyways, they will cause an error if they don't exist and can be fixed manually.
 	if len(global.ListValue) > 0 || global.Expression != nil || global.Variable != "" {
-		err = setVariable(file, appendVariable, "export_include_dirs", global, true, class, suffix)
+		err = setVariable(file, appendVariable, prefix, "export_include_dirs", global, true)
 		if err != nil {
 			return err
 		}
@@ -253,7 +250,7 @@ func exportIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable 
 	return nil
 }
 
-func stem(file *bpFile, value *mkparser.MakeString, appendVariable bool, class, suffix string) error {
+func stem(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
 	val, err := makeVariableToBlueprint(file, value, bpparser.String)
 	if err != nil {
 		return err
@@ -266,47 +263,58 @@ func stem(file *bpFile, value *mkparser.MakeString, appendVariable bool, class, 
 		val = &val.Expression.Args[1]
 	}
 
-	return setVariable(file, appendVariable, varName, val, true, class, suffix)
+	return setVariable(file, appendVariable, prefix, varName, val, true)
 }
 
 var deleteProperties = map[string]struct{}{
 	"LOCAL_CPP_EXTENSION": struct{}{},
 }
 
-var propertySuffixes = []struct {
-	suffix string
-	class  string
-}{
-	{"arm", "arch"},
-	{"arm64", "arch"},
-	{"mips", "arch"},
-	{"mips64", "arch"},
-	{"x86", "arch"},
-	{"x86_64", "arch"},
-	{"32", "multilib"},
-	{"64", "multilib"},
+var propertyPrefixes = map[string]string{
+	"arm":    "arch.arm",
+	"arm64":  "arm.arm64",
+	"mips":   "arch.mips",
+	"mips64": "arch.mips64",
+	"x86":    "arch.x86",
+	"x86_64": "arch.x86_64",
+	"32":     "multilib.lib32",
+	"64":     "multilib.lib64",
 }
 
-var propertySuffixTranslations = map[string]string{
-	"32": "lib32",
-	"64": "lib64",
-}
-
-var conditionalTranslations = map[string]struct {
-	class  string
-	suffix string
-}{
-	"($(HOST_OS),darwin)":   {"target", "darwin"},
-	"($(HOST_OS), darwin)":  {"target", "darwin"},
-	"($(HOST_OS),windows)":  {"target", "windows"},
-	"($(HOST_OS), windows)": {"target", "windows"},
-	"($(HOST_OS),linux)":    {"target", "linux"},
-	"($(HOST_OS), linux)":   {"target", "linux"},
-	"($(BUILD_OS),darwin)":  {"target", "darwin"},
-	"($(BUILD_OS), darwin)": {"target", "darwin"},
-	"($(BUILD_OS),linux)":   {"target", "linux"},
-	"($(BUILD_OS), linux)":  {"target", "linux"},
-	"USE_MINGW":             {"target", "windows"},
+var conditionalTranslations = map[string]map[bool]string{
+	"($(HOST_OS),darwin)": {
+		true:  "target.darwin",
+		false: "target.not_darwin"},
+	"($(HOST_OS), darwin)": {
+		true:  "target.darwin",
+		false: "target.not_darwin"},
+	"($(HOST_OS),windows)": {
+		true:  "target.windows",
+		false: "target.not_windows"},
+	"($(HOST_OS), windows)": {
+		true:  "target.windows",
+		false: "target.not_windows"},
+	"($(HOST_OS),linux)": {
+		true:  "target.linux",
+		false: "target.not_linux"},
+	"($(HOST_OS), linux)": {
+		true:  "target.linux",
+		false: "target.not_linux"},
+	"($(BUILD_OS),darwin)": {
+		true:  "target.darwin",
+		false: "target.not_darwin"},
+	"($(BUILD_OS), darwin)": {
+		true:  "target.darwin",
+		false: "target.not_darwin"},
+	"($(BUILD_OS),linux)": {
+		true:  "target.linux",
+		false: "target.not_linux"},
+	"($(BUILD_OS), linux)": {
+		true:  "target.linux",
+		false: "target.not_linux"},
+	"USE_MINGW": {
+		true:  "target.windows",
+		false: "target.not_windows"},
 }
 
 func mydir(args []string) string {

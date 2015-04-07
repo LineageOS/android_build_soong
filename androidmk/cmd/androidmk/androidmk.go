@@ -188,34 +188,23 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 	}
 
 	name := assignment.Name.Value(nil)
-	suffix := ""
-	class := ""
+	prefix := ""
 
 	if strings.HasPrefix(name, "LOCAL_") {
-		for _, v := range propertySuffixes {
-			s, c := v.suffix, v.class
-			if strings.HasSuffix(name, "_"+s) {
-				name = strings.TrimSuffix(name, "_"+s)
-				suffix = s
-				if s, ok := propertySuffixTranslations[s]; ok {
-					suffix = s
-				}
-				class = c
+		for k, v := range propertyPrefixes {
+			if strings.HasSuffix(name, "_"+k) {
+				name = strings.TrimSuffix(name, "_"+k)
+				prefix = v
 				break
 			}
 		}
 
 		if c != nil {
-			if class != "" {
-				file.errorf(assignment, "suffix assignment inside conditional, skipping conditional")
+			if prefix != "" {
+				file.errorf(assignment, "prefix assignment inside conditional, skipping conditional")
 			} else {
-				if v, ok := conditionalTranslations[c.cond]; ok {
-					class = v.class
-					suffix = v.suffix
-					if !c.eq {
-						suffix = "not_" + suffix
-					}
-				} else {
+				var ok bool
+				if prefix, ok = conditionalTranslations[c.cond][c.eq]; !ok {
 					panic("unknown conditional")
 				}
 			}
@@ -237,10 +226,10 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 		var val *bpparser.Value
 		val, err = makeVariableToBlueprint(file, assignment.Value, prop.ValueType)
 		if err == nil {
-			err = setVariable(file, appendVariable, prop.string, val, true, class, suffix)
+			err = setVariable(file, appendVariable, prefix, prop.string, val, true)
 		}
 	} else if prop, ok := rewriteProperties[name]; ok {
-		err = prop.f(file, assignment.Value, appendVariable, class, suffix)
+		err = prop.f(file, prefix, assignment.Value, appendVariable)
 	} else if _, ok := deleteProperties[name]; ok {
 		return
 	} else {
@@ -261,7 +250,7 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 		default:
 			var val *bpparser.Value
 			val, err = makeVariableToBlueprint(file, assignment.Value, bpparser.List)
-			err = setVariable(file, appendVariable, name, val, false, class, suffix)
+			err = setVariable(file, appendVariable, prefix, name, val, false)
 		}
 	}
 	if err != nil {
@@ -274,38 +263,38 @@ func handleModuleConditionals(file *bpFile, directive mkparser.Directive, c *con
 		return
 	}
 
-	if v, ok := conditionalTranslations[c.cond]; ok {
-		class := v.class
-		suffix := v.suffix
-		disabledSuffix := v.suffix
-		if !c.eq {
-			suffix = "not_" + suffix
-		} else {
-			disabledSuffix = "not_" + disabledSuffix
-		}
+	if _, ok := conditionalTranslations[c.cond]; !ok {
+		panic("unknown conditional " + c.cond)
+	}
 
-		// Hoist all properties inside the condtional up to the top level
-		file.module.Properties = file.localAssignments[class+"___"+suffix].Value.MapValue
-		file.module.Properties = append(file.module.Properties, file.localAssignments[class])
-		file.localAssignments[class+"___"+suffix].Value.MapValue = nil
-		for i := range file.localAssignments[class].Value.MapValue {
-			if file.localAssignments[class].Value.MapValue[i].Name.Name == suffix {
-				file.localAssignments[class].Value.MapValue =
-					append(file.localAssignments[class].Value.MapValue[:i],
-						file.localAssignments[class].Value.MapValue[i+1:]...)
-			}
-		}
+	prefix := conditionalTranslations[c.cond][c.eq]
+	disabledPrefix := conditionalTranslations[c.cond][!c.eq]
 
-		// Create a fake assignment with enabled = false
-		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("true", file.pos), bpparser.Bool)
-		if err == nil {
-			err = setVariable(file, false, "disabled", val, true, class, disabledSuffix)
+	names := strings.Split(prefix, ".")
+	if len(names) != 2 {
+		panic("expected class.type")
+	}
+	class := names[0]
+	typ := names[1]
+	classProp := file.localAssignments[class]
+
+	// Hoist all properties inside the condtional up to the top level
+	file.module.Properties = file.localAssignments[prefix].Value.MapValue
+	file.module.Properties = append(file.module.Properties, classProp)
+	file.localAssignments[prefix].Value.MapValue = nil
+	for i := range classProp.Value.MapValue {
+		if classProp.Value.MapValue[i].Name.Name == typ {
+			classProp.Value.MapValue = append(classProp.Value.MapValue[:i], classProp.Value.MapValue[i+1:]...)
 		}
-		if err != nil {
-			file.errorf(directive, err.Error())
-		}
-	} else {
-		panic("unknown conditional")
+	}
+
+	// Create a fake assignment with enabled = false
+	val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("true", file.pos), bpparser.Bool)
+	if err == nil {
+		err = setVariable(file, false, disabledPrefix, "disabled", val, true)
+	}
+	if err != nil {
+		file.errorf(directive, err.Error())
 	}
 }
 
@@ -347,19 +336,17 @@ func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
 	return exp, nil
 }
 
-func setVariable(file *bpFile, plusequals bool, name string, value *bpparser.Value, local bool,
-	class string, suffix string) error {
+func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bpparser.Value, local bool) error {
+
+	if prefix != "" {
+		name = prefix + "." + name
+	}
 
 	pos := file.pos
 
 	var oldValue *bpparser.Value
 	if local {
-		var oldProp *bpparser.Property
-		if class != "" {
-			oldProp = file.localAssignments[name+"___"+class+"___"+suffix]
-		} else {
-			oldProp = file.localAssignments[name]
-		}
+		oldProp := file.localAssignments[name]
 		if oldProp != nil {
 			oldValue = &oldProp.Value
 		}
@@ -375,50 +362,35 @@ func setVariable(file *bpFile, plusequals bool, name string, value *bpparser.Val
 			}
 			val.Expression.Pos = pos
 			*oldValue = *val
-		} else if class == "" {
+		} else {
+			names := strings.Split(name, ".")
+			container := &file.module.Properties
+
+			for i, n := range names[:len(names)-1] {
+				fqn := strings.Join(names[0:i+1], ".")
+				prop := file.localAssignments[fqn]
+				if prop == nil {
+					prop = &bpparser.Property{
+						Name: bpparser.Ident{Name: n, Pos: pos},
+						Pos:  pos,
+						Value: bpparser.Value{
+							Type:     bpparser.Map,
+							MapValue: []*bpparser.Property{},
+						},
+					}
+					file.localAssignments[fqn] = prop
+					*container = append(*container, prop)
+				}
+				container = &prop.Value.MapValue
+			}
+
 			prop := &bpparser.Property{
-				Name:  bpparser.Ident{Name: name, Pos: pos},
+				Name:  bpparser.Ident{Name: names[len(names)-1], Pos: pos},
 				Pos:   pos,
 				Value: *value,
 			}
 			file.localAssignments[name] = prop
-			file.module.Properties = append(file.module.Properties, prop)
-		} else {
-			classProp := file.localAssignments[class]
-			if classProp == nil {
-				classProp = &bpparser.Property{
-					Name: bpparser.Ident{Name: class, Pos: pos},
-					Pos:  pos,
-					Value: bpparser.Value{
-						Type:     bpparser.Map,
-						MapValue: []*bpparser.Property{},
-					},
-				}
-				file.localAssignments[class] = classProp
-				file.module.Properties = append(file.module.Properties, classProp)
-			}
-
-			suffixProp := file.localAssignments[class+"___"+suffix]
-			if suffixProp == nil {
-				suffixProp = &bpparser.Property{
-					Name: bpparser.Ident{Name: suffix, Pos: pos},
-					Pos:  pos,
-					Value: bpparser.Value{
-						Type:     bpparser.Map,
-						MapValue: []*bpparser.Property{},
-					},
-				}
-				file.localAssignments[class+"___"+suffix] = suffixProp
-				classProp.Value.MapValue = append(classProp.Value.MapValue, suffixProp)
-			}
-
-			prop := &bpparser.Property{
-				Name:  bpparser.Ident{Name: name, Pos: pos},
-				Pos:   pos,
-				Value: *value,
-			}
-			file.localAssignments[class+"___"+suffix+"___"+name] = prop
-			suffixProp.Value.MapValue = append(suffixProp.Value.MapValue, prop)
+			*container = append(*container, prop)
 		}
 	} else {
 		if oldValue != nil && plusequals {
