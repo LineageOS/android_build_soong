@@ -8,12 +8,12 @@ BOOTSTRAP=${BUILDDIR}/.soong.bootstrap
 # The source directory path and operating system will get written to
 # .soong.bootstrap by the bootstrap script.
 
-if [ ! -f ${BUILDDIR}/${BOOTSTRAP} ]; then
+if [ ! -f ${BOOTSTRAP} ]; then
     echo "Error: soong script must be located in a directory created by bootstrap.bash"
     exit 1
 fi
 
-source ${BUILDDIR}/.soong.bootstrap
+source ${BOOTSTRAP}
 
 if [[ ${SRCDIR_IN:0:1} == '/' ]]; then
     # SRCDIR_IN is an absolute path
