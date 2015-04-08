@@ -162,14 +162,14 @@ func (j *javaBase) collectDeps(ctx common.AndroidModuleContext) (classpath []str
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		otherName := ctx.OtherModuleName(module)
 		if javaDep, ok := module.(JavaDependency); ok {
-			if inList(otherName, j.properties.Java_libs) {
+			if otherName == j.BootClasspath(ctx) {
+				bootClasspath = javaDep.ClasspathFile()
+			} else if inList(otherName, j.properties.Java_libs) {
 				classpath = append(classpath, javaDep.ClasspathFile())
 			} else if inList(otherName, j.properties.Java_static_libs) {
 				classpath = append(classpath, javaDep.ClasspathFile())
 				classJarSpecs = append(classJarSpecs, javaDep.ClassJarSpecs()...)
 				resourceJarSpecs = append(resourceJarSpecs, javaDep.ResourceJarSpecs()...)
-			} else if otherName == j.BootClasspath(ctx) {
-				bootClasspath = javaDep.ClasspathFile()
 			} else {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
