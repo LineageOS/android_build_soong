@@ -109,8 +109,8 @@ type builderFlags struct {
 func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFiles []string,
 	flags builderFlags, deps []string) (objFiles []string) {
 
-	srcRoot := ctx.Config().(Config).SrcDir()
-	intermediatesRoot := ctx.Config().(Config).IntermediatesDir()
+	srcRoot := ctx.AConfig().SrcDir()
+	intermediatesRoot := ctx.AConfig().IntermediatesDir()
 
 	objFiles = make([]string, len(srcFiles))
 	objDir := common.ModuleObjDir(ctx)

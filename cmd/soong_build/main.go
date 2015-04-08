@@ -26,7 +26,6 @@ import (
 	"android/soong/art"
 	"android/soong/cc"
 	"android/soong/common"
-	"android/soong/config"
 	"android/soong/genrule"
 	"android/soong/java"
 )
@@ -78,7 +77,7 @@ func main() {
 	ctx.RegisterSingletonType("checkbuild", common.CheckbuildSingleton)
 	ctx.RegisterSingletonType("env", common.EnvSingleton)
 
-	configuration, err := config.New(srcDir)
+	configuration, err := common.NewConfig(srcDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -87,5 +86,5 @@ func main() {
 	// Temporary hack
 	//ctx.SetIgnoreUnknownModuleTypes(true)
 
-	bootstrap.Main(ctx, configuration, config.ConfigFileName)
+	bootstrap.Main(ctx, configuration, common.ConfigFileName)
 }

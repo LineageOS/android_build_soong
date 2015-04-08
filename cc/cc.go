@@ -30,15 +30,9 @@ import (
 	"android/soong/genrule"
 )
 
-type Config interface {
-	SrcDir() string
-	IntermediatesDir() string
-	PrebuiltOS() string
-}
-
 var (
-	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", Config.PrebuiltOS)
-	SrcDir          = pctx.VariableConfigMethod("SrcDir", Config.SrcDir)
+	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", common.Config.PrebuiltOS)
+	SrcDir          = pctx.VariableConfigMethod("SrcDir", common.Config.SrcDir)
 
 	LibcRoot = pctx.StaticVariable("LibcRoot", "${SrcDir}/bionic/libc")
 	LibmRoot = pctx.StaticVariable("LibmRoot", "${SrcDir}/bionic/libm")
@@ -443,7 +437,7 @@ func (c *ccBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}
 	}
 
-	flags.IncludeDirs = pathtools.PrefixPaths(c.properties.Include_dirs, ctx.Config().(Config).SrcDir())
+	flags.IncludeDirs = pathtools.PrefixPaths(c.properties.Include_dirs, ctx.AConfig().SrcDir())
 	localIncludeDirs := pathtools.PrefixPaths(c.properties.Local_include_dirs, common.ModuleSrcDir(ctx))
 	flags.IncludeDirs = append(flags.IncludeDirs, localIncludeDirs...)
 
@@ -769,7 +763,7 @@ func (c *ccLinked) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 			flags.IncludeDirs = append(flags.IncludeDirs, "${SrcDir}/bionic/libstdc++/include")
 		}
 	case "ndk_system":
-		ndkSrcRoot := ctx.Config().(Config).SrcDir() + "/prebuilts/ndk/current/sources/"
+		ndkSrcRoot := ctx.AConfig().SrcDir() + "/prebuilts/ndk/current/sources/"
 		flags.IncludeDirs = append(flags.IncludeDirs, ndkSrcRoot+"cxx-stl/system/include")
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		// TODO(danalbert): This really shouldn't be here...
@@ -1311,7 +1305,7 @@ func (c *ccTest) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 
 	// TODO(danalbert): Make gtest export its dependencies.
 	flags.IncludeDirs = append(flags.IncludeDirs,
-		filepath.Join(ctx.Config().(Config).SrcDir(), "external/gtest/include"))
+		filepath.Join(ctx.AConfig().SrcDir(), "external/gtest/include"))
 
 	return flags
 }
@@ -1468,7 +1462,7 @@ func (c *toolchainLibrary) installModule(ctx common.AndroidModuleContext, flags 
 
 func getNdkLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, version string) string {
 	return fmt.Sprintf("%s/prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/lib",
-		ctx.Config().(Config).SrcDir(), version, toolchain.Name())
+		ctx.AConfig().SrcDir(), version, toolchain.Name())
 }
 
 type ndkPrebuiltLibrary struct {
@@ -1555,7 +1549,7 @@ func getNdkStlLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, stl s
 	}
 
 	if libDir != "" {
-		ndkSrcRoot := ctx.Config().(Config).SrcDir() + "/prebuilts/ndk/current/sources"
+		ndkSrcRoot := ctx.AConfig().SrcDir() + "/prebuilts/ndk/current/sources"
 		return fmt.Sprintf("%s/%s/%s", ndkSrcRoot, libDir, ctx.Arch().Abi)
 	}
 

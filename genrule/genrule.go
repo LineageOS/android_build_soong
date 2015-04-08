@@ -23,16 +23,12 @@ import (
 	"android/soong/common"
 )
 
-type Config interface {
-	SrcDir() string
-}
-
 var (
 	pctx = blueprint.NewPackageContext("android/soong/genrule")
 )
 
 func init() {
-	pctx.VariableConfigMethod("srcDir", Config.SrcDir)
+	pctx.VariableConfigMethod("srcDir", common.Config.SrcDir)
 }
 
 type SourceFileGenerator interface {

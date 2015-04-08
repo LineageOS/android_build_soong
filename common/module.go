@@ -20,16 +20,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-type Config interface {
-	CpPreserveSymlinksFlags() string
-	SrcDir() string
-	IntermediatesDir() string
-	Getenv(string) string
-	EnvDeps() map[string]string
-	DeviceOut() string
-	HostOut() string
-}
-
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"
@@ -44,6 +34,7 @@ type androidBaseContext interface {
 	Host() bool
 	Device() bool
 	Debug() bool
+	AConfig() Config
 }
 
 type AndroidBaseContext interface {
@@ -299,7 +290,8 @@ func (a *AndroidModuleBase) DynamicDependencies(ctx blueprint.DynamicDependerMod
 	actx := &androidDynamicDependerContext{
 		DynamicDependerModuleContext: ctx,
 		androidBaseContextImpl: androidBaseContextImpl{
-			arch: a.commonProperties.CompileArch,
+			arch:   a.commonProperties.CompileArch,
+			config: ctx.Config().(Config),
 		},
 	}
 
@@ -314,7 +306,8 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	androidCtx := &androidModuleContext{
 		ModuleContext: ctx,
 		androidBaseContextImpl: androidBaseContextImpl{
-			arch: a.commonProperties.CompileArch,
+			arch:   a.commonProperties.CompileArch,
+			config: ctx.Config().(Config),
 		},
 		installDeps:        a.computeInstallDeps(ctx),
 		installFiles:       a.installFiles,
@@ -340,8 +333,9 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 }
 
 type androidBaseContextImpl struct {
-	arch  Arch
-	debug bool
+	arch   Arch
+	debug  bool
+	config Config
 }
 
 type androidModuleContext struct {
@@ -382,10 +376,14 @@ func (a *androidBaseContextImpl) Debug() bool {
 	return a.debug
 }
 
+func (a *androidBaseContextImpl) AConfig() Config {
+	return a.config
+}
+
 func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string,
 	deps ...string) string {
 
-	config := a.Config().(Config)
+	config := a.AConfig()
 	var fullInstallPath string
 	if a.arch.HostOrDevice.Device() {
 		// TODO: replace unset with a device name once we have device targeting

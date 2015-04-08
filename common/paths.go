@@ -16,21 +16,18 @@ package common
 
 import (
 	"path/filepath"
-
-	"github.com/google/blueprint"
 )
 
 // ModuleOutDir returns the path to the module-specific output directory.
 func ModuleOutDir(ctx AndroidModuleContext) string {
-	config := ctx.Config().(Config)
-	return filepath.Join(config.IntermediatesDir(), ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
+	return filepath.Join(ctx.AConfig().IntermediatesDir(),
+		ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
 }
 
 // ModuleSrcDir returns the path of the directory that all source file paths are
 // specified relative to.
-func ModuleSrcDir(ctx blueprint.ModuleContext) string {
-	config := ctx.Config().(Config)
-	return filepath.Join(config.SrcDir(), ctx.ModuleDir())
+func ModuleSrcDir(ctx AndroidModuleContext) string {
+	return filepath.Join(ctx.AConfig().SrcDir(), ctx.ModuleDir())
 }
 
 // ModuleBinDir returns the path to the module- and architecture-specific binary

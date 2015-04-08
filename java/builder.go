@@ -85,10 +85,10 @@ func init() {
 	pctx.StaticVariable("javacCmd", "javac -J-Xmx1024M $commonJdkFlags")
 	pctx.StaticVariable("jarCmd", filepath.Join(bootstrap.BinDir, "soong_jar"))
 	pctx.VariableFunc("dxCmd", func(c interface{}) (string, error) {
-		return c.(Config).HostBinTool("dx")
+		return c.(common.Config).HostBinTool("dx")
 	})
 	pctx.VariableFunc("jarjarCmd", func(c interface{}) (string, error) {
-		return c.(Config).HostJavaTool("jarjar.jar")
+		return c.(common.Config).HostJavaTool("jarjar.jar")
 	})
 }
 

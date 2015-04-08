@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package common
 
 import (
-	"android/soong/common"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -23,7 +22,18 @@ import (
 	"runtime"
 )
 
-var _ common.Config = (*Config)(nil)
+type Config interface {
+	CpPreserveSymlinksFlags() string
+	SrcDir() string
+	IntermediatesDir() string
+	Getenv(string) string
+	EnvDeps() map[string]string
+	DeviceOut() string
+	HostOut() string
+	PrebuiltOS() string
+	HostBinTool(string) (string, error)
+	HostJavaTool(string) (string, error)
+}
 
 // The configuration file name
 const ConfigFileName = "soong.config"
@@ -39,7 +49,7 @@ func NewFileConfigurableOptions() FileConfigurableOptions {
 }
 
 // A Config object represents the entire build configuration for Blue.
-type Config struct {
+type config struct {
 	FileConfigurableOptions
 
 	srcDir  string // the path of the root source directory
@@ -47,7 +57,7 @@ type Config struct {
 }
 
 // loads configuration options from a JSON file in the cwd.
-func loadFromConfigFile(config *Config) error {
+func loadFromConfigFile(config *config) error {
 	// Make a proxy config
 	var configProxy FileConfigurableOptions
 
@@ -103,9 +113,9 @@ func saveToConfigFile(config FileConfigurableOptions) error {
 
 // New creates a new Config object.  The srcDir argument specifies the path to
 // the root source directory. It also loads the config file, if found.
-func New(srcDir string) (*Config, error) {
+func NewConfig(srcDir string) (Config, error) {
 	// Make a config with default options
-	config := &Config{
+	config := &config{
 		srcDir:  srcDir,
 		envDeps: make(map[string]string),
 	}
@@ -119,21 +129,21 @@ func New(srcDir string) (*Config, error) {
 	return config, nil
 }
 
-func (c *Config) SrcDir() string {
+func (c *config) SrcDir() string {
 	return c.srcDir
 }
 
-func (c *Config) IntermediatesDir() string {
+func (c *config) IntermediatesDir() string {
 	return ".intermediates"
 }
 
 // HostGoOS returns the OS of the system that the Go toolchain is being run on.
-func (c *Config) HostGoOS() string {
+func (c *config) HostGoOS() string {
 	return runtime.GOOS
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories
-func (c *Config) PrebuiltOS() string {
+func (c *config) PrebuiltOS() string {
 	switch runtime.GOOS {
 	case "linux":
 		return "linux-x86"
@@ -145,11 +155,11 @@ func (c *Config) PrebuiltOS() string {
 }
 
 // GoRoot returns the path to the root directory of the Go toolchain.
-func (c *Config) GoRoot() string {
+func (c *config) GoRoot() string {
 	return fmt.Sprintf("%s/prebuilts/go/%s", c.srcDir, c.PrebuiltOS())
 }
 
-func (c *Config) CpPreserveSymlinksFlags() string {
+func (c *config) CpPreserveSymlinksFlags() string {
 	switch c.HostGoOS() {
 	case "darwin":
 		return "-R"
@@ -160,7 +170,7 @@ func (c *Config) CpPreserveSymlinksFlags() string {
 	}
 }
 
-func (c *Config) Getenv(key string) string {
+func (c *config) Getenv(key string) string {
 	var val string
 	var exists bool
 	if val, exists = c.envDeps[key]; !exists {
@@ -170,42 +180,42 @@ func (c *Config) Getenv(key string) string {
 	return val
 }
 
-func (c *Config) EnvDeps() map[string]string {
+func (c *config) EnvDeps() map[string]string {
 	return c.envDeps
 }
 
 // DeviceName returns the name of the current device target
 // TODO: take an AndroidModuleContext to select the device name for multi-device builds
-func (c *Config) DeviceName() string {
+func (c *config) DeviceName() string {
 	return "unset"
 }
 
 // DeviceOut returns the path to out directory for device targets
-func (c *Config) DeviceOut() string {
+func (c *config) DeviceOut() string {
 	return filepath.Join("target/product", c.DeviceName())
 }
 
 // HostOut returns the path to out directory for host targets
-func (c *Config) HostOut() string {
+func (c *config) HostOut() string {
 	return filepath.Join("host", c.PrebuiltOS())
 }
 
 // HostBin returns the path to bin directory for host targets
-func (c *Config) HostBin() string {
+func (c *config) HostBin() string {
 	return filepath.Join(c.HostOut(), "bin")
 }
 
 // HostBinTool returns the path to a host tool in the bin directory for host targets
-func (c *Config) HostBinTool(tool string) (string, error) {
+func (c *config) HostBinTool(tool string) (string, error) {
 	return filepath.Join(c.HostBin(), tool), nil
 }
 
 // HostJavaDir returns the path to framework directory for host targets
-func (c *Config) HostJavaDir() string {
+func (c *config) HostJavaDir() string {
 	return filepath.Join(c.HostOut(), "framework")
 }
 
 // HostJavaTool returns the path to a host tool in the frameworks directory for host targets
-func (c *Config) HostJavaTool(tool string) (string, error) {
+func (c *config) HostJavaTool(tool string) (string, error) {
 	return filepath.Join(c.HostJavaDir(), tool), nil
 }
