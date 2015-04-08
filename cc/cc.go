@@ -525,8 +525,7 @@ func (c *ccBase) customCompileObjs(ctx common.AndroidModuleContext, flags CCFlag
 
 	buildFlags := ccFlagsToBuilderFlags(flags)
 
-	srcFiles = pathtools.PrefixPaths(srcFiles, common.ModuleSrcDir(ctx))
-	srcFiles = common.ExpandGlobs(ctx, srcFiles)
+	srcFiles = common.ExpandSources(ctx, srcFiles)
 	srcFiles, deps := genSources(ctx, srcFiles, buildFlags)
 
 	return TransformSourceToObj(ctx, subdir, srcFiles, buildFlags, deps)

@@ -68,16 +68,23 @@ func hasGlob(in []string) bool {
 	return false
 }
 
-func ExpandGlobs(ctx AndroidModuleContext, in []string) []string {
+func expandGlobs(ctx AndroidModuleContext, in []string) []string {
 	if !hasGlob(in) {
 		return in
+	}
+
+	var excludes []string
+	for _, s := range in {
+		if s[0] == '-' {
+			excludes = append(excludes, s[1:])
+		}
 	}
 
 	out := make([]string, 0, len(in))
 	for _, s := range in {
 		if glob.IsGlob(s) {
-			out = append(out, Glob(ctx, s)...)
-		} else {
+			out = append(out, Glob(ctx, s, excludes)...)
+		} else if s[0] != '-' {
 			out = append(out, s)
 		}
 	}
@@ -85,11 +92,9 @@ func ExpandGlobs(ctx AndroidModuleContext, in []string) []string {
 	return out
 }
 
-func Glob(ctx AndroidModuleContext, globPattern string) []string {
+func Glob(ctx AndroidModuleContext, globPattern string, excludes []string) []string {
 	fileListFile := filepath.Join(ModuleOutDir(ctx), "glob", globToString(globPattern))
 	depFile := fileListFile + ".d"
-
-	var excludes []string
 
 	// Get a globbed file list, and write out fileListFile and depFile
 	files, err := glob.GlobWithDepFile(globPattern, fileListFile, depFile, excludes)

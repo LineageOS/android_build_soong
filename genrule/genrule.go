@@ -67,9 +67,7 @@ func (g *genSrcs) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 		Command: g.properties.Cmd,
 	})
 
-	srcFiles := g.properties.Srcs
-	srcFiles = pathtools.PrefixPaths(srcFiles, common.ModuleSrcDir(ctx))
-	srcFiles = common.ExpandGlobs(ctx, srcFiles)
+	srcFiles := common.ExpandSources(ctx, g.properties.Srcs)
 
 	g.outputFiles = make([]string, 0, len(srcFiles))
 

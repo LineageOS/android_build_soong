@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 
 	"android/soong/common"
 )
@@ -193,9 +192,7 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 
 	var javacDeps []string
 
-	srcFiles := j.properties.Srcs
-	srcFiles = pathtools.PrefixPaths(srcFiles, common.ModuleSrcDir(ctx))
-	srcFiles = common.ExpandGlobs(ctx, srcFiles)
+	srcFiles := common.ExpandSources(ctx, j.properties.Srcs)
 
 	classpath, bootClasspath, classJarSpecs, resourceJarSpecs := j.collectDeps(ctx)
 

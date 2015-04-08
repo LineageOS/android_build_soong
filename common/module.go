@@ -432,3 +432,17 @@ func isAndroidModule(m blueprint.Module) bool {
 	_, ok := m.(AndroidModule)
 	return ok
 }
+
+func ExpandSources(ctx AndroidModuleContext, srcFiles []string) []string {
+	prefix := ModuleSrcDir(ctx)
+	for i, srcFile := range srcFiles {
+		if srcFile[0] == '-' {
+			srcFiles[i] = "-" + filepath.Join(prefix, srcFile[1:])
+		} else {
+			srcFiles[i] = filepath.Join(prefix, srcFile)
+		}
+	}
+
+	srcFiles = expandGlobs(ctx, srcFiles)
+	return srcFiles
+}

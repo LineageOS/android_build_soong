@@ -65,7 +65,12 @@ func GlobWithDepFile(glob, fileListFile, depFile string, excludes []string) (fil
 				}
 				if match {
 					for _, e := range excludes {
-						excludeMatch, err := filepath.Match(e, info.Name())
+						var excludeMatch bool
+						if filepath.Base(e) == e {
+							excludeMatch, err = filepath.Match(e, info.Name())
+						} else {
+							excludeMatch, err = filepath.Match(e, path)
+						}
 						if err != nil {
 							return err
 						}
