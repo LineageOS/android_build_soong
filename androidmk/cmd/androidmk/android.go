@@ -49,6 +49,7 @@ var listProperties = map[string]string{
 	"LOCAL_DX_FLAGS":              "dxflags",
 	"LOCAL_JAVA_LIBRARIES":        "java_libs",
 	"LOCAL_STATIC_JAVA_LIBRARIES": "java_static_libs",
+	"LOCAL_AIDL_INCLUDES":         "aidl_includes",
 }
 
 var boolProperties = map[string]string{

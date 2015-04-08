@@ -97,6 +97,7 @@ type javaBuilderFlags struct {
 	dxFlags       string
 	bootClasspath string
 	classpath     string
+	aidlFlags     string
 }
 
 type jarSpec struct {

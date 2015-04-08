@@ -18,45 +18,22 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"android/soong/common"
 )
 
 // Efficiently converts a list of include directories to a single string
 // of cflags with -I prepended to each directory.
 func includeDirsToFlags(dirs []string) string {
-	return joinWithPrefix(dirs, "-I")
+	return common.JoinWithPrefix(dirs, "-I")
 }
 
 func ldDirsToFlags(dirs []string) string {
-	return joinWithPrefix(dirs, "-L")
+	return common.JoinWithPrefix(dirs, "-L")
 }
 
 func libNamesToFlags(names []string) string {
-	return joinWithPrefix(names, "-l")
-}
-
-func joinWithPrefix(strs []string, prefix string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-
-	if len(strs) == 1 {
-		return prefix + strs[0]
-	}
-
-	n := len(" ") * (len(strs) - 1)
-	for _, s := range strs {
-		n += len(prefix) + len(s)
-	}
-
-	ret := make([]byte, 0, n)
-	for i, s := range strs {
-		if i != 0 {
-			ret = append(ret, ' ')
-		}
-		ret = append(ret, prefix...)
-		ret = append(ret, s...)
-	}
-	return string(ret)
+	return common.JoinWithPrefix(names, "-l")
 }
 
 func inList(s string, list []string) bool {

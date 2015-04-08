@@ -10,4 +10,5 @@ subdirs = [
     "prebuilts/ndk",
     "prebuilts/sdk",
     "system/core/*",
+    "frameworks/base/tools/aidl",
 ]
