@@ -17,7 +17,6 @@ package common
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -113,10 +112,6 @@ func Glob(ctx AndroidModuleContext, globPattern string, excludes []string) []str
 
 func GlobRule(ctx AndroidModuleContext, globPattern string, excludes []string,
 	fileListFile, depFile string) {
-	var excludeArgs []string
-	for _, e := range excludes {
-		excludeArgs = append(excludeArgs, "-e "+e)
-	}
 
 	// Create a rule to rebuild fileListFile if a directory in depFile changes.  fileListFile
 	// will only be rewritten if it has changed, preventing unnecesary build.ninja regenerations.
@@ -126,7 +121,7 @@ func GlobRule(ctx AndroidModuleContext, globPattern string, excludes []string,
 		Implicits: []string{globCmd},
 		Args: map[string]string{
 			"glob":     globPattern,
-			"excludes": strings.Join(excludeArgs, " "),
+			"excludes": JoinWithPrefixAndQuote(excludes, "-e "),
 		},
 	})
 

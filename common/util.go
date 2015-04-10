@@ -38,3 +38,30 @@ func JoinWithPrefix(strs []string, prefix string) string {
 	}
 	return string(ret)
 }
+
+func JoinWithPrefixAndQuote(strs []string, prefix string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+
+	if len(strs) == 1 {
+		return prefix + `"` + strs[0] + `"`
+	}
+
+	n := len(" ") * (len(strs) - 1)
+	for _, s := range strs {
+		n += len(prefix) + len(s) + len(`""`)
+	}
+
+	ret := make([]byte, 0, n)
+	for i, s := range strs {
+		if i != 0 {
+			ret = append(ret, ' ')
+		}
+		ret = append(ret, prefix...)
+		ret = append(ret, '"')
+		ret = append(ret, s...)
+		ret = append(ret, '"')
+	}
+	return string(ret)
+}
