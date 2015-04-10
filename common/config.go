@@ -22,19 +22,6 @@ import (
 	"runtime"
 )
 
-type Config interface {
-	CpPreserveSymlinksFlags() string
-	SrcDir() string
-	IntermediatesDir() string
-	Getenv(string) string
-	EnvDeps() map[string]string
-	DeviceOut() string
-	HostOut() string
-	PrebuiltOS() string
-	HostBinTool(string) (string, error)
-	HostJavaTool(string) (string, error)
-}
-
 // The configuration file name
 const ConfigFileName = "soong.config"
 
@@ -48,7 +35,11 @@ func NewFileConfigurableOptions() FileConfigurableOptions {
 	return f
 }
 
-// A Config object represents the entire build configuration for Blue.
+type Config struct {
+	*config
+}
+
+// A config object represents the entire build configuration for Blue.
 type config struct {
 	FileConfigurableOptions
 
@@ -115,15 +106,17 @@ func saveToConfigFile(config FileConfigurableOptions) error {
 // the root source directory. It also loads the config file, if found.
 func NewConfig(srcDir string) (Config, error) {
 	// Make a config with default options
-	config := &config{
-		srcDir:  srcDir,
-		envDeps: make(map[string]string),
+	config := Config{
+		config: &config{
+			srcDir:  srcDir,
+			envDeps: make(map[string]string),
+		},
 	}
 
 	// Load any configurable options from the configuration file
-	err := loadFromConfigFile(config)
+	err := loadFromConfigFile(config.config)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 
 	return config, nil
