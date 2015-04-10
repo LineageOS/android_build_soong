@@ -257,14 +257,17 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 
 	srcFiles = genSources(ctx, srcFiles, flags)
 
-	// Compile java sources into .class files
-	classes := TransformJavaToClasses(ctx, srcFiles, flags, javacDeps)
-	if ctx.Failed() {
-		return
+	if len(srcFiles) > 0 {
+		// Compile java sources into .class files
+		classes := TransformJavaToClasses(ctx, srcFiles, flags, javacDeps)
+		if ctx.Failed() {
+			return
+		}
+
+		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
 	}
 
 	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs), resourceJarSpecs...)
-	classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
 
 	manifest := j.properties.Manifest
 	if manifest != "" {
@@ -294,7 +297,7 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 
 	j.classpathFile = outputFile
 
-	if j.properties.Dex {
+	if j.properties.Dex && len(srcFiles) > 0 {
 		dxFlags := j.properties.Dxflags
 		if false /* emma enabled */ {
 			// If you instrument class files that have local variable debug information in

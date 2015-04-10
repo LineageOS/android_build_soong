@@ -37,10 +37,11 @@ var (
 	// this, all java rules write into separate directories and then a post-processing step lists
 	// the files in the the directory into a list file that later rules depend on (and sometimes
 	// read from directly using @<listfile>)
-	cc = pctx.StaticRule("javac",
+	javac = pctx.StaticRule("javac",
 		blueprint.RuleParams{
-			Command: `$javacCmd -encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
-				`-extdirs "" -d $outDir @$out.rsp || ( rm -rf $outDir; exit 41 ) && ` +
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+				`$javacCmd -encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
+				`-extdirs "" -d $outDir @$out.rsp || ( rm -rf "$outDir"; exit 41 ) && ` +
 				`find $outDir -name "*.class" > $out`,
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
@@ -112,10 +113,10 @@ func TransformJavaToClasses(ctx common.AndroidModuleContext, srcFiles []string,
 	flags javaBuilderFlags, deps []string) jarSpec {
 
 	classDir := filepath.Join(common.ModuleOutDir(ctx), "classes")
-	classFileList := filepath.Join(classDir, "classes.list")
+	classFileList := filepath.Join(common.ModuleOutDir(ctx), "classes.list")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      cc,
+		Rule:      javac,
 		Outputs:   []string{classFileList},
 		Inputs:    srcFiles,
 		Implicits: deps,
