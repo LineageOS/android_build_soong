@@ -106,6 +106,8 @@ type javaBase struct {
 
 	exportAidlIncludeDirs []string
 
+	logtagsSrcs []string
+
 	// installed file for binary dependency
 	installFile string
 }
@@ -255,7 +257,7 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 
 	srcFiles := common.ExpandSources(ctx, j.properties.Srcs)
 
-	srcFiles = genSources(ctx, srcFiles, flags)
+	srcFiles = j.genSources(ctx, srcFiles, flags)
 
 	if len(srcFiles) > 0 {
 		// Compile java sources into .class files
@@ -358,6 +360,12 @@ func (j *javaBase) AidlIncludeDirs() []string {
 
 func (j *javaBase) AidlPreprocessed() string {
 	return ""
+}
+
+var _ logtagsProducer = (*javaBase)(nil)
+
+func (j *javaBase) logtags() []string {
+	return j.logtagsSrcs
 }
 
 //

@@ -76,6 +76,7 @@ func main() {
 	// Singletons
 	ctx.RegisterSingletonType("checkbuild", common.CheckbuildSingleton)
 	ctx.RegisterSingletonType("env", common.EnvSingleton)
+	ctx.RegisterSingletonType("logtags", java.LogtagsSingleton)
 
 	configuration, err := common.NewConfig(srcDir)
 	if err != nil {
