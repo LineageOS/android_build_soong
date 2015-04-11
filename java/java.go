@@ -283,9 +283,6 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		return
 	}
 
-	j.classJarSpecs = classJarSpecs
-	j.resourceJarSpecs = resourceJarSpecs
-
 	if j.properties.Jarjar_rules != "" {
 		jarjar_rules := filepath.Join(common.ModuleSrcDir(ctx), j.properties.Jarjar_rules)
 		// Transform classes-full-debug.jar into classes-jarjar.jar
@@ -293,8 +290,13 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		if ctx.Failed() {
 			return
 		}
+
+		classes, _ := TransformPrebuiltJarToClasses(ctx, outputFile)
+		classJarSpecs = []jarSpec{classes}
 	}
 
+	j.resourceJarSpecs = resourceJarSpecs
+	j.classJarSpecs = classJarSpecs
 	j.classpathFile = outputFile
 
 	if j.properties.Dex && len(srcFiles) > 0 {
