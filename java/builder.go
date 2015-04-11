@@ -58,7 +58,9 @@ var (
 
 	dx = pctx.StaticRule("dx",
 		blueprint.RuleParams{
-			Command:     "$dxCmd --dex --output=$out $dxFlags $in",
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+				`$dxCmd --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
+				`find "$outDir" -name "classes*.dex" > $out`,
 			Description: "dex $out",
 		},
 		"outDir", "dxFlags")
@@ -164,9 +166,10 @@ func TransformClassesToJar(ctx common.AndroidModuleContext, classes []jarSpec,
 }
 
 func TransformClassesJarToDex(ctx common.AndroidModuleContext, classesJar string,
-	flags javaBuilderFlags) string {
+	flags javaBuilderFlags) jarSpec {
 
-	outputFile := filepath.Join(common.ModuleOutDir(ctx), "classes.dex")
+	outDir := filepath.Join(common.ModuleOutDir(ctx), "dex")
+	outputFile := filepath.Join(common.ModuleOutDir(ctx), "dex.filelist")
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      dx,
@@ -175,14 +178,15 @@ func TransformClassesJarToDex(ctx common.AndroidModuleContext, classesJar string
 		Implicits: []string{"$dxCmd"},
 		Args: map[string]string{
 			"dxFlags": flags.dxFlags,
+			"outDir":  outDir,
 		},
 	})
 
-	return outputFile
+	return jarSpec{outputFile, outDir}
 }
 
 func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
-	dexFile string) string {
+	dexJarSpec jarSpec) string {
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "javalib.jar")
 	var deps []string
@@ -193,10 +197,8 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 		jarArgs = append(jarArgs, j.soongJarArgs())
 	}
 
-	dexDir, _ := filepath.Split(dexFile)
-	jarArgs = append(jarArgs, "-C "+dexDir+" -f "+dexFile)
-
-	deps = append(deps, "$jarCmd", dexFile)
+	deps = append(deps, dexJarSpec.fileList)
+	jarArgs = append(jarArgs, dexJarSpec.soongJarArgs())
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      jar,

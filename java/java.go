@@ -326,13 +326,13 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		flags.dxFlags = strings.Join(dxFlags, " ")
 
 		// Compile classes.jar into classes.dex
-		dexFile := TransformClassesJarToDex(ctx, outputFile, flags)
+		dexJarSpec := TransformClassesJarToDex(ctx, outputFile, flags)
 		if ctx.Failed() {
 			return
 		}
 
 		// Combine classes.dex + resources into javalib.jar
-		outputFile = TransformDexToJavaLib(ctx, resourceJarSpecs, dexFile)
+		outputFile = TransformDexToJavaLib(ctx, resourceJarSpecs, dexJarSpec)
 	}
 
 	j.installFile = ctx.InstallFileName("framework", ctx.ModuleName()+".jar", outputFile)
