@@ -171,7 +171,7 @@ func (j *javaBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerM
 }
 
 func (j *javaBase) aidlFlags(ctx common.AndroidModuleContext, aidlPreprocess string,
-	aidlIncludeDirs []string) string {
+	aidlIncludeDirs []string) []string {
 
 	localAidlIncludes := pathtools.PrefixPaths(j.properties.Aidl_includes, common.ModuleSrcDir(ctx))
 
@@ -187,7 +187,7 @@ func (j *javaBase) aidlFlags(ctx common.AndroidModuleContext, aidlPreprocess str
 	flags = append(flags, "-I"+common.ModuleSrcDir(ctx))
 	flags = append(flags, "-I"+filepath.Join(common.ModuleSrcDir(ctx), "src"))
 
-	return strings.Join(flags, " ")
+	return flags
 }
 
 func (j *javaBase) collectDeps(ctx common.AndroidModuleContext) (classpath []string,
@@ -239,9 +239,18 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 	classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
 		aidlIncludeDirs := j.collectDeps(ctx)
 
-	flags := javaBuilderFlags{
-		javacFlags: strings.Join(j.properties.Javacflags, " "),
-		aidlFlags:  j.aidlFlags(ctx, aidlPreprocess, aidlIncludeDirs),
+	var flags javaBuilderFlags
+
+	javacFlags := j.properties.Javacflags
+	if len(javacFlags) > 0 {
+		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
+		flags.javacFlags = "$javacFlags"
+	}
+
+	aidlFlags := j.aidlFlags(ctx, aidlPreprocess, aidlIncludeDirs)
+	if len(aidlFlags) > 0 {
+		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
+		flags.aidlFlags = "$aidlFlags"
 	}
 
 	var javacDeps []string
