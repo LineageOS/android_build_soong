@@ -22,6 +22,8 @@ var stringProperties = map[string]string{
 	"LOCAL_NDK_STL_VARIANT": "stl",
 	"LOCAL_JAR_MANIFEST":    "manifest",
 	"LOCAL_JARJAR_RULES":    "jarjar_rules",
+	"LOCAL_CERTIFICATE":     "certificate",
+	"LOCAL_PACKAGE_NAME":    "name",
 }
 
 var listProperties = map[string]string{
@@ -50,6 +52,8 @@ var listProperties = map[string]string{
 	"LOCAL_JAVA_LIBRARIES":        "java_libs",
 	"LOCAL_STATIC_JAVA_LIBRARIES": "java_static_libs",
 	"LOCAL_AIDL_INCLUDES":         "aidl_includes",
+	"LOCAL_AAPT_FLAGS":            "aaptflags",
+	"LOCAL_PACKAGE_SPLITS":        "package_splits",
 }
 
 var boolProperties = map[string]string{
@@ -63,6 +67,8 @@ var boolProperties = map[string]string{
 	"LOCAL_RTTI_FLAG":               "rtti",
 
 	"LOCAL_NO_STANDARD_LIBRARIES": "no_standard_libraries",
+
+	"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
 }
 
 var deleteProperties = map[string]struct{}{
@@ -136,6 +142,7 @@ var moduleTypes = map[string]string{
 	"BUILD_STATIC_JAVA_LIBRARY":      "java_library_static",
 	"BUILD_HOST_JAVA_LIBRARY":        "java_library_host",
 	"BUILD_HOST_DALVIK_JAVA_LIBRARY": "java_library_host_dalvik",
+	"BUILD_PACKAGE":                  "android_app",
 
 	"BUILD_PREBUILT": "prebuilt",
 }

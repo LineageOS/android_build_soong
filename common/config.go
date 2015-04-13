@@ -44,7 +44,7 @@ type Config struct {
 type config struct {
 	FileConfigurableOptions
 
-	srcDir  string // the path of the root source directory
+	srcDir string // the path of the root source directory
 
 	envLock sync.Mutex
 	envDeps map[string]string
@@ -216,4 +216,40 @@ func (c *config) HostJavaDir() string {
 // HostJavaTool returns the path to a host tool in the frameworks directory for host targets
 func (c *config) HostJavaTool(tool string) (string, error) {
 	return filepath.Join(c.HostJavaDir(), tool), nil
+}
+
+func (c *config) ResourceOverlays() []string {
+	return nil
+}
+
+func (c *config) PlatformVersion() string {
+	return "M"
+}
+
+func (c *config) PlatformSdkVersion() string {
+	return "22"
+}
+
+func (c *config) BuildNumber() string {
+	return "000000"
+}
+
+func (c *config) ProductAaptConfig() []string {
+	return []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"}
+}
+
+func (c *config) ProductAaptPreferredConfig() string {
+	return "xhdpi"
+}
+
+func (c *config) ProductAaptCharacteristics() string {
+	return "nosdcard"
+}
+
+func (c *config) DefaultAppCertificateDir() string {
+	return filepath.Join(c.SrcDir(), "build/target/product/security")
+}
+
+func (c *config) DefaultAppCertificate() string {
+	return filepath.Join(c.DefaultAppCertificateDir(), "testkey")
 }

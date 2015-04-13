@@ -68,6 +68,7 @@ func main() {
 	ctx.RegisterModuleType("java_binary_host", java.JavaBinaryHostFactory)
 	ctx.RegisterModuleType("prebuilt_java_library", java.JavaPrebuiltFactory)
 	ctx.RegisterModuleType("prebuilt_sdk", java.SdkPrebuiltFactory)
+	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
 
 	// Mutators
 	ctx.RegisterEarlyMutator("arch", common.ArchMutator)

@@ -53,7 +53,7 @@ rule g.bootstrap.link
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:157:1
+# Defined: build/soong/Blueprints:159:1
 
 build .bootstrap/androidmk/obj/androidmk.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/android.go $
@@ -79,7 +79,7 @@ default .bootstrap/bin/androidmk
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:170:1
+# Defined: build/soong/Blueprints:172:1
 
 build .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a: $
         g.bootstrap.gc $
@@ -424,6 +424,8 @@ default .bootstrap/soong-glob/pkg/android/soong/glob.a
 # Defined: build/soong/Blueprints:137:1
 
 build .bootstrap/soong-java/pkg/android/soong/java.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/java/app_builder.go $
+        ${g.bootstrap.srcDir}/build/soong/java/app.go $
         ${g.bootstrap.srcDir}/build/soong/java/builder.go $
         ${g.bootstrap.srcDir}/build/soong/java/gen.go $
         ${g.bootstrap.srcDir}/build/soong/java/java.go $
