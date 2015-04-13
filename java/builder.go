@@ -111,11 +111,15 @@ func (j jarSpec) soongJarArgs() string {
 	return "-C " + j.dir + " -l " + j.fileList
 }
 
-func TransformJavaToClasses(ctx common.AndroidModuleContext, srcFiles []string,
+func TransformJavaToClasses(ctx common.AndroidModuleContext, srcFiles []string, srcFileLists []string,
 	flags javaBuilderFlags, deps []string) jarSpec {
 
 	classDir := filepath.Join(common.ModuleOutDir(ctx), "classes")
 	classFileList := filepath.Join(common.ModuleOutDir(ctx), "classes.list")
+
+	javacFlags := flags.javacFlags + common.JoinWithPrefix(srcFileLists, "@")
+
+	deps = append(deps, srcFileLists...)
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      javac,
@@ -123,7 +127,7 @@ func TransformJavaToClasses(ctx common.AndroidModuleContext, srcFiles []string,
 		Inputs:    srcFiles,
 		Implicits: deps,
 		Args: map[string]string{
-			"javacFlags":    flags.javacFlags,
+			"javacFlags":    javacFlags,
 			"bootClasspath": flags.bootClasspath,
 			"classpath":     flags.classpath,
 			"outDir":        classDir,
