@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
 // The configuration file name
@@ -44,6 +45,8 @@ type config struct {
 	FileConfigurableOptions
 
 	srcDir  string // the path of the root source directory
+
+	envLock sync.Mutex
 	envDeps map[string]string
 }
 
@@ -166,10 +169,12 @@ func (c *config) CpPreserveSymlinksFlags() string {
 func (c *config) Getenv(key string) string {
 	var val string
 	var exists bool
+	c.envLock.Lock()
 	if val, exists = c.envDeps[key]; !exists {
 		val = os.Getenv(key)
 		c.envDeps[key] = val
 	}
+	c.envLock.Unlock()
 	return val
 }
 
