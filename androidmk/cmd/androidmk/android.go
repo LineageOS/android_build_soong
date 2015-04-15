@@ -117,6 +117,10 @@ func allJavaFilesUnder(args []string) string {
 	return fmt.Sprintf("%s/**/*.java", dir)
 }
 
+func allSubdirJavaFiles(args []string) string {
+	return "**/*.java"
+}
+
 var moduleTypes = map[string]string{
 	"BUILD_SHARED_LIBRARY":      "cc_library_shared",
 	"BUILD_STATIC_LIBRARY":      "cc_library_static",
@@ -142,6 +146,7 @@ func androidScope() parser.Scope {
 	globalScope.Set("CLEAR_VARS", clear_vars)
 	globalScope.SetFunc("my-dir", mydir)
 	globalScope.SetFunc("all-java-files-under", allJavaFilesUnder)
+	globalScope.SetFunc("all-subdir-java-files", allSubdirJavaFiles)
 
 	for k, v := range moduleTypes {
 		globalScope.Set(k, v)
