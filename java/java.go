@@ -154,6 +154,8 @@ func (j *javaBase) BootClasspath(ctx common.AndroidBaseContext) string {
 	}
 }
 
+var defaultJavaLibraries = []string{"core-libart", "core-junit", "ext", "framework"}
+
 func (j *javaBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
 	var deps []string
 
@@ -161,6 +163,9 @@ func (j *javaBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerM
 		bootClasspath := j.BootClasspath(ctx)
 		if bootClasspath != "" {
 			deps = append(deps, bootClasspath)
+		}
+		if ctx.Device() && j.properties.Sdk_version == "" {
+			deps = append(deps, defaultJavaLibraries...)
 		}
 	}
 	deps = append(deps, j.properties.Java_libs...)
