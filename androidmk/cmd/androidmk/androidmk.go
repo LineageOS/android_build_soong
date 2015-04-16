@@ -117,9 +117,9 @@ func main() {
 					file.errorf(directive, "unsupported include")
 					continue
 				}
-			case "ifeq", "ifneq":
+			case "ifeq", "ifneq", "ifdef", "ifndef":
 				args := directive.Args.Dump()
-				eq := directive.Name == "ifeq"
+				eq := directive.Name == "ifeq" || directive.Name == "ifdef"
 				if _, ok := conditionalTranslations[args]; ok {
 					newCond := conditional{args, eq}
 					conds = append(conds, &newCond)
