@@ -55,8 +55,8 @@ type javaBase struct {
 		// or .aidl files.
 		Srcs []string `android:"arch_variant,arch_subtract"`
 
-		// resource_dirs: list of directories containing resources
-		Resource_dirs []string `android:"arch_variant"`
+		// java_resource_dirs: list of directories containing Java resources
+		Java_resource_dirs []string `android:"arch_variant"`
 
 		// no_standard_libraries: don't build against the default libraries (core-libart, core-junit,
 		// ext, and framework for device targets)
@@ -279,7 +279,8 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
 	}
 
-	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs), resourceJarSpecs...)
+	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs),
+		resourceJarSpecs...)
 
 	manifest := j.properties.Manifest
 	if manifest != "" {

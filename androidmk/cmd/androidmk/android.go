@@ -44,7 +44,7 @@ var listProperties = map[string]string{
 	"LOCAL_CLANG_CFLAGS":            "clang_cflags",
 	"LOCAL_YACCFLAGS":               "yaccflags",
 
-	"LOCAL_JAVA_RESOURCE_DIRS":    "resource_dirs",
+	"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
 	"LOCAL_JAVACFLAGS":            "javacflags",
 	"LOCAL_DX_FLAGS":              "dxflags",
 	"LOCAL_JAVA_LIBRARIES":        "java_libs",
