@@ -105,7 +105,7 @@ func (t *toolchainArm64) GccVersion() string {
 }
 
 func (t *toolchainArm64) Cflags() string {
-	return "${arm64Cflags} ${arm64IncludeFlags}"
+	return "${arm64Cflags}"
 }
 
 func (t *toolchainArm64) Cppflags() string {

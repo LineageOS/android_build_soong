@@ -77,8 +77,6 @@ func ccFlagsToBuilderFlags(in CCFlags) builderFlags {
 		cppFlags:    strings.Join(in.CppFlags, " "),
 		yaccFlags:   strings.Join(in.YaccFlags, " "),
 		ldFlags:     strings.Join(in.LdFlags, " "),
-		ldLibs:      strings.Join(in.LdLibs, " "),
-		incFlags:    includeDirsToFlags(in.IncludeDirs),
 		nocrt:       in.Nocrt,
 		toolchain:   in.Toolchain,
 		clang:       in.Clang,

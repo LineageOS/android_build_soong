@@ -40,20 +40,20 @@ var (
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Command:     "$ccCmd $incFlags -c $cFlags -MD -MF ${out}.d -o $out $in",
+			Command:     "$ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
 			Description: "cc $out",
 		},
-		"ccCmd", "incFlags", "cFlags")
+		"ccCmd", "cFlags")
 
 	ld = pctx.StaticRule("ld",
 		blueprint.RuleParams{
 			Command: "$ldCmd ${ldDirFlags} ${crtBegin} @${out}.rsp " +
-				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${ldLibs}",
+				"${libFlags} ${crtEnd} -o ${out} ${ldFlags}",
 			Description:    "ld $out",
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
 		},
-		"ldCmd", "ldDirFlags", "crtBegin", "libFlags", "crtEnd", "ldFlags", "ldLibs")
+		"ldCmd", "ldDirFlags", "crtBegin", "libFlags", "crtEnd", "ldFlags")
 
 	partialLd = pctx.StaticRule("partialLd",
 		blueprint.RuleParams{
@@ -97,8 +97,6 @@ type builderFlags struct {
 	conlyFlags  string
 	cppFlags    string
 	ldFlags     string
-	ldLibs      string
-	incFlags    string
 	yaccFlags   string
 	nocrt       bool
 	toolchain   Toolchain
@@ -180,9 +178,8 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			Inputs:    []string{srcFile},
 			Implicits: deps,
 			Args: map[string]string{
-				"cFlags":   moduleCflags,
-				"incFlags": flags.incFlags,
-				"ccCmd":    ccCmd,
+				"cFlags": moduleCflags,
+				"ccCmd":  ccCmd,
 			},
 		})
 	}
@@ -275,7 +272,6 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 			"libFlags":   strings.Join(libFlagsList, " "),
 			"ldFlags":    flags.ldFlags,
 			"crtEnd":     crtEnd,
-			"ldLibs":     flags.ldLibs,
 		},
 	})
 }

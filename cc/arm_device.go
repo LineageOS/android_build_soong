@@ -295,7 +295,6 @@ func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 	return &toolchainArm{
 		cflags: strings.Join([]string{
 			"${armCflags}",
-			"${armIncludeFlags}",
 			armArchVariantCflagsVar[archVariant],
 			armCpuVariantCflagsVar[cpuVariant],
 		}, " "),
@@ -305,7 +304,6 @@ func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 		}, " "),
 		clangCflags: strings.Join([]string{
 			"${armClangCflags}",
-			"${armIncludeFlags}",
 			armClangArchVariantCflagsVar[archVariant],
 			armClangCpuVariantCflagsVar[cpuVariant],
 		}, " "),
