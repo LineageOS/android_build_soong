@@ -451,7 +451,7 @@ func (c *ccBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 			common.ModuleGenDir(ctx),
 		}...)
 
-		if c.properties.Sdk_version == "" {
+		if c.properties.Sdk_version == "" || ctx.Host() {
 			flags.IncludeDirs = append(flags.IncludeDirs, "${SrcDir}/libnativehelper/include/nativehelper")
 		}
 
@@ -459,26 +459,26 @@ func (c *ccBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 		}
 
+		if ctx.Host() || c.properties.Sdk_version == "" {
+			flags.GlobalFlags = append(flags.GlobalFlags,
+				"${commonGlobalIncludes}",
+				toolchain.IncludeFlags())
+		}
+
+		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
+
 		if flags.Clang {
 			flags.CppFlags = append(flags.CppFlags, "${commonClangGlobalCppflags}")
-			flags.GlobalFlags = []string{
-				"${commonGlobalIncludes}",
-				toolchain.IncludeFlags(),
-				instructionSetFlags,
+			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.ClangCflags(),
 				"${commonClangGlobalCflags}",
-				fmt.Sprintf("${%sClangGlobalCflags}", ctx.Arch().HostOrDevice),
-			}
+				fmt.Sprintf("${%sClangGlobalCflags}", ctx.Arch().HostOrDevice))
 		} else {
 			flags.CppFlags = append(flags.CppFlags, "${commonGlobalCppflags}")
-			flags.GlobalFlags = []string{
-				"${commonGlobalIncludes}",
-				toolchain.IncludeFlags(),
-				instructionSetFlags,
+			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.Cflags(),
 				"${commonGlobalCflags}",
-				fmt.Sprintf("${%sGlobalCflags}", ctx.Arch().HostOrDevice),
-			}
+				fmt.Sprintf("${%sGlobalCflags}", ctx.Arch().HostOrDevice))
 		}
 
 		if ctx.Host() {
