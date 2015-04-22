@@ -211,6 +211,9 @@ type ccProperties struct {
 
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version string
+
+	// relative_install_path: install to a subdirectory of the default install path for the module
+	Relative_install_path string
 }
 
 type unusedProperties struct {
@@ -1079,7 +1082,7 @@ func (c *CCLibrary) installSharedLibrary(ctx common.AndroidModuleContext, flags 
 		installDir = "lib64"
 	}
 
-	ctx.InstallFile(installDir, c.out)
+	ctx.InstallFile(filepath.Join(installDir, c.properties.Relative_install_path), c.out)
 }
 
 func (c *CCLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
@@ -1280,7 +1283,7 @@ func (c *CCBinary) compileModule(ctx common.AndroidModuleContext,
 }
 
 func (c *CCBinary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	ctx.InstallFile("bin", c.out)
+	ctx.InstallFile(filepath.Join("bin", c.properties.Relative_install_path), c.out)
 }
 
 type ccTest struct {
