@@ -69,10 +69,12 @@ func usage() {
 	os.Exit(2)
 }
 
-type zipInfo struct {
+type zipWriter struct {
 	time        time.Time
 	createdDirs map[string]bool
 	directories bool
+
+	w *zip.Writer
 }
 
 func main() {
@@ -83,21 +85,21 @@ func main() {
 		usage()
 	}
 
-	info := zipInfo{
+	w := &zipWriter{
 		time:        time.Now(),
 		createdDirs: make(map[string]bool),
 		directories: *directories,
 	}
 
 	// TODO: Go's zip implementation doesn't support increasing the compression level yet
-	err := writeZipFile(*out, listFiles, *manifest, info)
+	err := w.write(*out, listFiles, *manifest)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
 
-func writeZipFile(out string, listFiles fileArgs, manifest string, info zipInfo) error {
+func (z *zipWriter) write(out string, listFiles fileArgs, manifest string) error {
 	f, err := os.Create(out)
 	if err != nil {
 		return err
@@ -110,25 +112,25 @@ func writeZipFile(out string, listFiles fileArgs, manifest string, info zipInfo)
 		}
 	}()
 
-	zipFile := zip.NewWriter(f)
-	defer zipFile.Close()
+	z.w = zip.NewWriter(f)
+	defer z.w.Close()
 
 	for _, listFile := range listFiles {
-		err = writeListFile(zipFile, listFile, info)
+		err = z.writeListFile(listFile)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, file := range files {
-		err = writeRelFile(zipFile, file.relativeRoot, file.file, info)
+		err = z.writeRelFile(file.relativeRoot, file.file)
 		if err != nil {
 			return err
 		}
 	}
 
 	if manifest != "" {
-		err = writeFile(zipFile, "META-INF/MANIFEST.MF", manifest, info)
+		err = z.writeFile("META-INF/MANIFEST.MF", manifest)
 		if err != nil {
 			return err
 		}
@@ -137,7 +139,7 @@ func writeZipFile(out string, listFiles fileArgs, manifest string, info zipInfo)
 	return nil
 }
 
-func writeListFile(zipFile *zip.Writer, listFile fileArg, info zipInfo) error {
+func (z *zipWriter) writeListFile(listFile fileArg) error {
 	list, err := ioutil.ReadFile(listFile.file)
 	if err != nil {
 		return err
@@ -150,7 +152,7 @@ func writeListFile(zipFile *zip.Writer, listFile fileArg, info zipInfo) error {
 		if file == "" {
 			continue
 		}
-		err = writeRelFile(zipFile, listFile.relativeRoot, file, info)
+		err = z.writeRelFile(listFile.relativeRoot, file)
 		if err != nil {
 			return err
 		}
@@ -159,13 +161,13 @@ func writeListFile(zipFile *zip.Writer, listFile fileArg, info zipInfo) error {
 	return nil
 }
 
-func writeRelFile(zipFile *zip.Writer, root, file string, info zipInfo) error {
+func (z *zipWriter) writeRelFile(root, file string) error {
 	rel, err := filepath.Rel(root, file)
 	if err != nil {
 		return err
 	}
 
-	err = writeFile(zipFile, rel, file, info)
+	err = z.writeFile(rel, file)
 	if err != nil {
 		return err
 	}
@@ -173,24 +175,12 @@ func writeRelFile(zipFile *zip.Writer, root, file string, info zipInfo) error {
 	return nil
 }
 
-func writeFile(zipFile *zip.Writer, rel, file string, info zipInfo) error {
-	if info.directories {
+func (z *zipWriter) writeFile(rel, file string) error {
+	if z.directories {
 		dir, _ := filepath.Split(rel)
-		for dir != "" && !info.createdDirs[dir] {
-			info.createdDirs[dir] = true
-
-			dirHeader := &zip.FileHeader{
-				Name: dir,
-			}
-			dirHeader.SetMode(os.ModeDir)
-			dirHeader.SetModTime(info.time)
-
-			_, err := zipFile.CreateHeader(dirHeader)
-			if err != nil {
-				return err
-			}
-
-			dir, _ = filepath.Split(dir)
+		err := z.writeDirectory(dir)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -198,9 +188,9 @@ func writeFile(zipFile *zip.Writer, rel, file string, info zipInfo) error {
 		Name:   rel,
 		Method: zip.Deflate,
 	}
-	fileHeader.SetModTime(info.time)
+	fileHeader.SetModTime(z.time)
 
-	out, err := zipFile.CreateHeader(fileHeader)
+	out, err := z.w.CreateHeader(fileHeader)
 	if err != nil {
 		return err
 	}
@@ -214,6 +204,27 @@ func writeFile(zipFile *zip.Writer, rel, file string, info zipInfo) error {
 	_, err = io.Copy(out, in)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (z *zipWriter) writeDirectory(dir string) error {
+	for dir != "" && !z.createdDirs[dir] {
+		z.createdDirs[dir] = true
+
+		dirHeader := &zip.FileHeader{
+			Name: dir,
+		}
+		dirHeader.SetMode(os.ModeDir)
+		dirHeader.SetModTime(z.time)
+
+		_, err := z.w.CreateHeader(dirHeader)
+		if err != nil {
+			return err
+		}
+
+		dir, _ = filepath.Split(dir)
 	}
 
 	return nil
