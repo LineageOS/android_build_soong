@@ -176,6 +176,13 @@ func (z *zipWriter) writeRelFile(root, file string) error {
 }
 
 func (z *zipWriter) writeFile(rel, file string) error {
+	if s, _ := os.Stat(file); s.IsDir() {
+		if z.directories {
+			return z.writeDirectory(file)
+		}
+		return nil
+	}
+
 	if z.directories {
 		dir, _ := filepath.Split(rel)
 		err := z.writeDirectory(dir)
