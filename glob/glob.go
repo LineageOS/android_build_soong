@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint/deptools"
+	"github.com/google/blueprint/pathtools"
 )
 
 func IsGlob(glob string) bool {
@@ -36,54 +37,10 @@ func IsGlob(glob string) bool {
 //
 // Returns a list of file paths, and an error.
 func GlobWithDepFile(glob, fileListFile, depFile string, excludes []string) (files []string, err error) {
-	globPattern := filepath.Base(glob)
-	globDir := filepath.Dir(glob)
-	recursive := false
-
-	if filepath.Base(globDir) == "**" {
-		recursive = true
-		globDir = filepath.Dir(globDir)
+	files, dirs, err := pathtools.GlobWithExcludes(glob, excludes)
+	if err != nil {
+		return nil, err
 	}
-
-	var dirs []string
-
-	err = filepath.Walk(globDir,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if info.Mode().IsDir() {
-				dirs = append(dirs, path)
-				if !recursive && path != globDir {
-					return filepath.SkipDir
-				}
-			} else if info.Mode().IsRegular() {
-				match, err := filepath.Match(globPattern, info.Name())
-				if err != nil {
-					return err
-				}
-				if match {
-					for _, e := range excludes {
-						var excludeMatch bool
-						if filepath.Base(e) == e {
-							excludeMatch, err = filepath.Match(e, info.Name())
-						} else {
-							excludeMatch, err = filepath.Match(e, path)
-						}
-						if err != nil {
-							return err
-						}
-						if excludeMatch {
-							return nil
-						}
-					}
-					files = append(files, path)
-				}
-			}
-
-			return nil
-		})
 
 	fileList := strings.Join(files, "\n") + "\n"
 

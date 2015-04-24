@@ -62,6 +62,7 @@ bootstrap_go_package {
     pkgPath: "android/soong/glob",
     deps: [
         "blueprint-deptools",
+        "blueprint-pathtools",
     ],
     srcs: [
         "glob/glob.go",
