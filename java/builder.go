@@ -234,9 +234,10 @@ func TransformJarJar(ctx common.AndroidModuleContext, classesJar string, rulesFi
 func TransformPrebuiltJarToClasses(ctx common.AndroidModuleContext,
 	prebuilt string) (classJarSpec, resourceJarSpec jarSpec) {
 
-	classDir := filepath.Join(common.ModuleOutDir(ctx), "classes")
-	classFileList := filepath.Join(classDir, "classes.list")
-	resourceFileList := filepath.Join(classDir, "resources.list")
+	extractedDir := filepath.Join(common.ModuleOutDir(ctx), "extracted")
+	classDir := filepath.Join(extractedDir, "classes")
+	classFileList := filepath.Join(extractedDir, "classes.list")
+	resourceFileList := filepath.Join(extractedDir, "resources.list")
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:    extractPrebuilt,
