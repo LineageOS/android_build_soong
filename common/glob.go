@@ -49,10 +49,9 @@ var (
 			Command:     fmt.Sprintf(`%s -o $out $excludes "$glob"`, globCmd),
 			Description: "glob $glob",
 
-			Restat:    true,
-			Generator: true,
-			Deps:      blueprint.DepsGCC,
-			Depfile:   "$out.d",
+			Restat:  true,
+			Deps:    blueprint.DepsGCC,
+			Depfile: "$out.d",
 		},
 		"glob", "excludes")
 )
@@ -81,9 +80,11 @@ func expandGlobs(ctx AndroidModuleContext, in []string) []string {
 
 	out := make([]string, 0, len(in))
 	for _, s := range in {
-		if glob.IsGlob(s) {
+		if s[0] == '-' {
+			continue
+		} else if glob.IsGlob(s) {
 			out = append(out, Glob(ctx, s, excludes)...)
-		} else if s[0] != '-' {
+		} else {
 			out = append(out, s)
 		}
 	}
