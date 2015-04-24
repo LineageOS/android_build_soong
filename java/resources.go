@@ -21,24 +21,41 @@ import (
 )
 
 var resourceExcludes = []string{
-	"*.java",
-	"package.html",
-	"overview.html",
-	".*.swp",
-	".DS_Store",
-	"*~",
+	"**/*.java",
+	"**/package.html",
+	"**/overview.html",
+	"**/.*.swp",
+	"**/.DS_Store",
+	"**/*~",
 }
 
-func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, dirs []string) []jarSpec {
-	jarSpecs := make([]jarSpec, len(dirs))
+func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs []string) []jarSpec {
+	var excludes []string
 
-	for i, dir := range dirs {
-		fileListFile := filepath.Join(common.ModuleOutDir(ctx), "res", dir, "resources.list")
-		depFile := fileListFile + ".d"
-		dir := filepath.Join(common.ModuleSrcDir(ctx), dir)
-		glob := filepath.Join(dir, "**/*")
-		common.GlobRule(ctx, glob, resourceExcludes, fileListFile, depFile)
-		jarSpecs[i] = jarSpec{fileListFile, dir}
+	for _, resourceDir := range resourceDirs {
+		if resourceDir[0] == '-' {
+			excludes = append(excludes, filepath.Join(common.ModuleSrcDir(ctx), resourceDir[1:], "**/*"))
+		}
+	}
+
+	excludes = append(excludes, resourceExcludes...)
+
+	var jarSpecs []jarSpec
+
+	for _, resourceDir := range resourceDirs {
+		if resourceDir[0] == '-' {
+			continue
+		}
+		resourceDir := filepath.Join(common.ModuleSrcDir(ctx), resourceDir)
+		dirs := common.Glob(ctx, resourceDir, nil)
+		for _, dir := range dirs {
+			fileListFile := filepath.Join(common.ModuleOutDir(ctx), "res", dir, "resources.list")
+			depFile := fileListFile + ".d"
+
+			glob := filepath.Join(dir, "**/*")
+			common.GlobRule(ctx, glob, excludes, fileListFile, depFile)
+			jarSpecs = append(jarSpecs, jarSpec{fileListFile, dir})
+		}
 	}
 
 	return jarSpecs
