@@ -1294,17 +1294,17 @@ func (c *CCBinary) installModule(ctx common.AndroidModuleContext, flags CCFlags)
 	ctx.InstallFile(filepath.Join("bin", c.Properties.Relative_install_path), c.out)
 }
 
-type ccTest struct {
+type CCTest struct {
 	CCBinary
 
-	testProperties struct {
+	TestProperties struct {
 		// test_per_src: Create a separate test for each source file.  Useful when there is
 		// global state that can not be torn down and reset between each test suite.
 		Test_per_src bool
 	}
 }
 
-func (c *ccTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
+func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	flags = c.CCBinary.flags(ctx, flags)
 
 	flags.CFlags = append(flags.CFlags, "-DGTEST_HAS_STD_STRING")
@@ -1320,13 +1320,13 @@ func (c *ccTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	return flags
 }
 
-func (c *ccTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (c *CCTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCBinary.depNames(ctx, depNames)
 	depNames.StaticLibs = append(depNames.StaticLibs, "libgtest", "libgtest_main")
 	return depNames
 }
 
-func (c *ccTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
+func (c *CCTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	if ctx.Device() {
 		ctx.InstallFile("../data/nativetest/"+ctx.ModuleName(), c.out)
 	} else {
@@ -1334,23 +1334,46 @@ func (c *ccTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	}
 }
 
-func CCTestFactory() (blueprint.Module, []interface{}) {
-	module := &ccTest{}
-	return NewCCBinary(&module.CCBinary, module, common.HostAndDeviceSupported,
-		&module.testProperties)
+func (c *CCTest) testPerSrc() bool {
+	return c.TestProperties.Test_per_src
 }
 
+func (c *CCTest) test() *CCTest {
+	return c
+}
+
+func NewCCTest(test *CCTest, module CCModuleType,
+	hod common.HostOrDeviceSupported, props ...interface{}) (blueprint.Module, []interface{}) {
+
+	props = append(props, &test.TestProperties)
+
+	return NewCCBinary(&test.CCBinary, module, hod, props...)
+}
+
+func CCTestFactory() (blueprint.Module, []interface{}) {
+	module := &CCTest{}
+
+	return NewCCTest(module, module, common.HostAndDeviceSupported)
+}
+
+type testPerSrc interface {
+	test() *CCTest
+	testPerSrc() bool
+}
+
+var _ testPerSrc = (*CCTest)(nil)
+
 func TestPerSrcMutator(mctx blueprint.EarlyMutatorContext) {
-	if test, ok := mctx.Module().(*ccTest); ok {
-		if test.testProperties.Test_per_src {
-			testNames := make([]string, len(test.Properties.Srcs))
-			for i, src := range test.Properties.Srcs {
+	if test, ok := mctx.Module().(testPerSrc); ok {
+		if test.testPerSrc() {
+			testNames := make([]string, len(test.test().Properties.Srcs))
+			for i, src := range test.test().Properties.Srcs {
 				testNames[i] = strings.TrimSuffix(src, filepath.Ext(src))
 			}
 			tests := mctx.CreateLocalVariations(testNames...)
-			for i, src := range test.Properties.Srcs {
-				tests[i].(*ccTest).Properties.Srcs = []string{src}
-				tests[i].(*ccTest).BinaryProperties.Stem = testNames[i]
+			for i, src := range test.test().Properties.Srcs {
+				tests[i].(testPerSrc).test().Properties.Srcs = []string{src}
+				tests[i].(testPerSrc).test().BinaryProperties.Stem = testNames[i]
 			}
 		}
 	}
@@ -1415,9 +1438,9 @@ func CCBinaryHostFactory() (blueprint.Module, []interface{}) {
 //
 
 func CCTestHostFactory() (blueprint.Module, []interface{}) {
-	module := &ccTest{}
+	module := &CCTest{}
 	return NewCCBinary(&module.CCBinary, module, common.HostSupported,
-		&module.testProperties)
+		&module.TestProperties)
 }
 
 //
