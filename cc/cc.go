@@ -113,10 +113,10 @@ type CCModuleType interface {
 	ModifyProperties(common.AndroidBaseContext)
 
 	// Modify the ccFlags
-	Flags(common.AndroidModuleContext, CCFlags) CCFlags
+	flags(common.AndroidModuleContext, CCFlags) CCFlags
 
 	// Return list of dependency names for use in AndroidDynamicDependencies and in depsToPaths
-	DepNames(common.AndroidBaseContext, CCDeps) CCDeps
+	depNames(common.AndroidBaseContext, CCDeps) CCDeps
 
 	// Compile objects into final module
 	compileModule(common.AndroidModuleContext, CCFlags, CCDeps, []string)
@@ -301,7 +301,7 @@ func (c *CCBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 		return
 	}
 
-	depNames := c.module.DepNames(ctx, CCDeps{})
+	depNames := c.module.depNames(ctx, CCDeps{})
 	if ctx.Failed() {
 		return
 	}
@@ -367,7 +367,7 @@ func (c *CCBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerMod
 	c.module.ModifyProperties(ctx)
 
 	depNames := CCDeps{}
-	depNames = c.module.DepNames(ctx, depNames)
+	depNames = c.module.depNames(ctx, depNames)
 	staticLibs := depNames.WholeStaticLibs
 	staticLibs = append(staticLibs, depNames.StaticLibs...)
 	staticLibs = append(staticLibs, depNames.LateStaticLibs...)
@@ -512,7 +512,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}
 	}
 
-	flags = c.ccModuleType().Flags(ctx, flags)
+	flags = c.ccModuleType().flags(ctx, flags)
 
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
@@ -526,7 +526,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	return flags
 }
 
-func (c *CCBase) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
+func (c *CCBase) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	return flags
 }
 
@@ -957,7 +957,7 @@ func CCLibraryFactory() (blueprint.Module, []interface{}) {
 	return NewCCLibrary(module, module, common.HostAndDeviceSupported)
 }
 
-func (c *CCLibrary) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCLinked.DepNames(ctx, depNames)
 	if c.shared() {
 		if ctx.Device() {
@@ -993,7 +993,7 @@ func (c *CCLibrary) exportedFlags() []string {
 	return c.exportFlags
 }
 
-func (c *CCLibrary) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
+func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	flags = c.CCLinked.Flags(ctx, flags)
 
 	flags.CFlags = append(flags.CFlags, "-fPIC")
@@ -1121,7 +1121,7 @@ func (*ccObject) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerMod
 	return nil
 }
 
-func (*ccObject) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (*ccObject) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	// object files can't have any dynamic dependencies
 	return CCDeps{}
 }
@@ -1191,7 +1191,7 @@ func (c *CCBinary) getStem(ctx common.AndroidModuleContext) string {
 	return stem + c.BinaryProperties.Suffix
 }
 
-func (c *CCBinary) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCLinked.DepNames(ctx, depNames)
 	if ctx.Device() {
 		if c.BinaryProperties.Static_executable {
@@ -1228,7 +1228,7 @@ func CCBinaryFactory() (blueprint.Module, []interface{}) {
 	return NewCCBinary(module, module, common.HostAndDeviceSupported)
 }
 
-func (c *CCBinary) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
+func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	flags = c.CCLinked.Flags(ctx, flags)
 
 	flags.CFlags = append(flags.CFlags, "-fpie")
@@ -1304,8 +1304,8 @@ type ccTest struct {
 	}
 }
 
-func (c *ccTest) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	flags = c.CCBinary.Flags(ctx, flags)
+func (c *ccTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
+	flags = c.CCBinary.flags(ctx, flags)
 
 	flags.CFlags = append(flags.CFlags, "-DGTEST_HAS_STD_STRING")
 	if ctx.Host() {
@@ -1320,8 +1320,8 @@ func (c *ccTest) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	return flags
 }
 
-func (c *ccTest) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCBinary.DepNames(ctx, depNames)
+func (c *ccTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+	depNames = c.CCBinary.depNames(ctx, depNames)
 	depNames.StaticLibs = append(depNames.StaticLibs, "libgtest", "libgtest_main")
 	return depNames
 }
@@ -1433,7 +1433,7 @@ func (*toolchainLibrary) AndroidDynamicDependencies(ctx common.AndroidDynamicDep
 	return nil
 }
 
-func (*toolchainLibrary) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (*toolchainLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	// toolchain libraries can't have any dependencies
 	return CCDeps{}
 }
@@ -1486,7 +1486,7 @@ func (*ndkPrebuiltLibrary) AndroidDynamicDependencies(
 	return nil
 }
 
-func (*ndkPrebuiltLibrary) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (*ndkPrebuiltLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	// NDK libraries can't have any dependencies
 	return CCDeps{}
 }
