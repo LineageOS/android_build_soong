@@ -743,6 +743,11 @@ func (c *CCLinked) stl(ctx common.AndroidBaseContext) string {
 	}
 }
 
+var (
+	hostDynamicGccLibs = []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"}
+	hostStaticGccLibs  = []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"}
+)
+
 func (c *CCLinked) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	stl := c.stl(ctx)
 	if ctx.Failed() {
@@ -756,7 +761,12 @@ func (c *CCLinked) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 		if ctx.Host() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			flags.LdFlags = append(flags.LdFlags, "-lc", "-lm", "-lpthread")
+			flags.LdFlags = append(flags.LdFlags, "-lm", "-lpthread")
+			if c.shared() {
+				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
+			} else {
+				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs...)
+			}
 		}
 	case "stlport", "stlport_static":
 		if ctx.Device() {
@@ -785,7 +795,11 @@ func (c *CCLinked) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 		if ctx.Host() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			flags.LdFlags = append(flags.LdFlags, "-lc", "-lm")
+			if c.shared() {
+				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
+			} else {
+				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs...)
+			}
 		}
 	default:
 		panic(fmt.Errorf("Unknown stl in CCLinked.Flags: %q", stl))
