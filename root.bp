@@ -15,4 +15,6 @@ subdirs = [
     "system/core/*",
     "packages/apps/HTMLViewer",
     "build/tools/*",
+    "system/security/*",
+    "system/keymaster",
 ]
