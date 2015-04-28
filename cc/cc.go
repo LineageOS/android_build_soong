@@ -355,7 +355,7 @@ func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 func (c *CCBase) ModifyProperties(ctx common.AndroidBaseContext) {
 }
 
-func (c *CCBase) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (c *CCBase) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.Properties.Whole_static_libs...)
 	depNames.StaticLibs = append(depNames.StaticLibs, c.Properties.Static_libs...)
 	depNames.SharedLibs = append(depNames.SharedLibs, c.Properties.Shared_libs...)
@@ -748,7 +748,7 @@ var (
 	hostStaticGccLibs  = []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"}
 )
 
-func (c *CCLinked) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
+func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	stl := c.stl(ctx)
 	if ctx.Failed() {
 		return flags
@@ -808,8 +808,8 @@ func (c *CCLinked) Flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 	return flags
 }
 
-func (c *CCLinked) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCBase.DepNames(ctx, depNames)
+func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+	depNames = c.CCBase.depNames(ctx, depNames)
 
 	stl := c.stl(ctx)
 	if ctx.Failed() {
@@ -841,7 +841,7 @@ func (c *CCLinked) DepNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 	case "ndk_libc++_static", "ndk_libstlport_static", "ndk_libgnustl_static":
 		depNames.StaticLibs = append(depNames.StaticLibs, stl)
 	default:
-		panic(fmt.Errorf("Unknown stl in CCLinked.DepNames: %q", stl))
+		panic(fmt.Errorf("Unknown stl in CCLinked.depNames: %q", stl))
 	}
 
 	if ctx.Device() {
@@ -972,7 +972,7 @@ func CCLibraryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCLinked.DepNames(ctx, depNames)
+	depNames = c.CCLinked.depNames(ctx, depNames)
 	if c.shared() {
 		if ctx.Device() {
 			depNames.CrtBegin = "crtbegin_so"
@@ -1008,7 +1008,7 @@ func (c *CCLibrary) exportedFlags() []string {
 }
 
 func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	flags = c.CCLinked.Flags(ctx, flags)
+	flags = c.CCLinked.flags(ctx, flags)
 
 	flags.CFlags = append(flags.CFlags, "-fPIC")
 
@@ -1206,7 +1206,7 @@ func (c *CCBinary) getStem(ctx common.AndroidModuleContext) string {
 }
 
 func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCLinked.DepNames(ctx, depNames)
+	depNames = c.CCLinked.depNames(ctx, depNames)
 	if ctx.Device() {
 		if c.BinaryProperties.Static_executable {
 			depNames.CrtBegin = "crtbegin_static"
@@ -1243,7 +1243,7 @@ func CCBinaryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	flags = c.CCLinked.Flags(ctx, flags)
+	flags = c.CCLinked.flags(ctx, flags)
 
 	flags.CFlags = append(flags.CFlags, "-fpie")
 
