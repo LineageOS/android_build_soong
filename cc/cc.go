@@ -1355,14 +1355,14 @@ func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 }
 
 func (c *CCTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCBinary.depNames(ctx, depNames)
 	depNames.StaticLibs = append(depNames.StaticLibs, "libgtest", "libgtest_main")
+	depNames = c.CCBinary.depNames(ctx, depNames)
 	return depNames
 }
 
 func (c *CCTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	if ctx.Device() {
-		ctx.InstallFile("../data/nativetest/"+ctx.ModuleName(), c.out)
+		ctx.InstallFile("../data/nativetest"+ctx.Arch().ArchType.Multilib[3:]+"/"+ctx.ModuleName(), c.out)
 	} else {
 		c.CCBinary.installModule(ctx, flags)
 	}
