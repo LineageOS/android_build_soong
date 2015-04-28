@@ -53,7 +53,7 @@ rule g.bootstrap.link
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:159:1
+# Defined: build/soong/Blueprints:160:1
 
 build .bootstrap/androidmk/obj/androidmk.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/android.go $
@@ -79,7 +79,7 @@ default .bootstrap/bin/androidmk
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:172:1
+# Defined: build/soong/Blueprints:173:1
 
 build .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a: $
         g.bootstrap.gc $
@@ -439,8 +439,9 @@ build .bootstrap/soong-java/pkg/android/soong/java.a: g.bootstrap.gc $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
-        .bootstrap/soong-common/pkg/android/soong/common.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg
+        .bootstrap/soong-common/pkg/android/soong/common.a $
+        .bootstrap/soong-genrule/pkg/android/soong/genrule.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
     pkgPath = android/soong/java
 default .bootstrap/soong-java/pkg/android/soong/java.a
 

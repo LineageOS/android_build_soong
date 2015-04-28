@@ -27,6 +27,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/common"
+	"android/soong/genrule"
 )
 
 // TODO:
@@ -243,8 +244,6 @@ func (j *javaBase) collectDeps(ctx common.AndroidModuleContext) (classpath []str
 					}
 				}
 			}
-		} else {
-			ctx.ModuleErrorf("unknown dependency module type for %q", otherName)
 		}
 	})
 
@@ -293,6 +292,12 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 	srcFiles := common.ExpandSources(ctx, j.properties.Srcs)
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
+
+	ctx.VisitDirectDeps(func(module blueprint.Module) {
+		if gen, ok := module.(genrule.SourceFileGenerator); ok {
+			srcFiles = append(srcFiles, gen.GeneratedSourceFiles()...)
+		}
+	})
 
 	srcFileLists = append(srcFileLists, j.ExtraSrcLists...)
 

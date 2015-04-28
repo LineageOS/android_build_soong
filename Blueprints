@@ -141,6 +141,7 @@ bootstrap_go_package {
         "blueprint",
         "blueprint-pathtools",
         "soong-common",
+        "soong-genrule",
     ],
     srcs: [
         "java/app_builder.go",
