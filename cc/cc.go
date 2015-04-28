@@ -920,12 +920,18 @@ type CCLibrary struct {
 		BuildStatic bool `blueprint:"mutated"`
 		BuildShared bool `blueprint:"mutated"`
 		Static      struct {
-			Srcs   []string `android:"arch_variant"`
-			Cflags []string `android:"arch_variant"`
+			Srcs              []string `android:"arch_variant"`
+			Cflags            []string `android:"arch_variant"`
+			Whole_static_libs []string `android:"arch_variant"`
+			Static_libs       []string `android:"arch_variant"`
+			Shared_libs       []string `android:"arch_variant"`
 		} `android:"arch_variant"`
 		Shared struct {
-			Srcs   []string `android:"arch_variant"`
-			Cflags []string `android:"arch_variant"`
+			Srcs              []string `android:"arch_variant"`
+			Cflags            []string `android:"arch_variant"`
+			Whole_static_libs []string `android:"arch_variant"`
+			Static_libs       []string `android:"arch_variant"`
+			Shared_libs       []string `android:"arch_variant"`
 		} `android:"arch_variant"`
 	}
 }
@@ -971,11 +977,18 @@ func CCLibraryFactory() (blueprint.Module, []interface{}) {
 
 func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCLinked.depNames(ctx, depNames)
-	if !c.static() {
+	if c.static() {
+		depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.LibraryProperties.Static.Whole_static_libs...)
+		depNames.StaticLibs = append(depNames.StaticLibs, c.LibraryProperties.Static.Static_libs...)
+		depNames.SharedLibs = append(depNames.SharedLibs, c.LibraryProperties.Static.Shared_libs...)
+	} else {
 		if ctx.Device() {
 			depNames.CrtBegin = "crtbegin_so"
 			depNames.CrtEnd = "crtend_so"
 		}
+		depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.LibraryProperties.Shared.Whole_static_libs...)
+		depNames.StaticLibs = append(depNames.StaticLibs, c.LibraryProperties.Shared.Static_libs...)
+		depNames.SharedLibs = append(depNames.SharedLibs, c.LibraryProperties.Shared.Shared_libs...)
 	}
 
 	return depNames
@@ -1082,7 +1095,10 @@ func (c *CCLibrary) compileModule(ctx common.AndroidModuleContext,
 	if c.getReuseFrom().ccLibrary() == c {
 		c.reuseObjFiles = objFiles
 	} else {
-		objFiles = append([]string(nil), c.getReuseFrom().getReuseObjFiles()...)
+		if c.getReuseFrom().ccLibrary().LibraryProperties.Static.Cflags == nil &&
+			c.LibraryProperties.Shared.Cflags == nil {
+			objFiles = append([]string(nil), c.getReuseFrom().getReuseObjFiles()...)
+		}
 	}
 
 	if c.static() {
