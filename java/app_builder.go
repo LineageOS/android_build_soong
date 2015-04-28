@@ -40,7 +40,7 @@ var (
 
 	aaptCreateAssetsPackage = pctx.StaticRule("aaptCreateAssetsPackage",
 		blueprint.RuleParams{
-			Command:     `$aaptCmd package $aaptFlags -F $out`,
+			Command:     `rm -f $out && $aaptCmd package $aaptFlags -F $out`,
 			Description: "aapt export package $out",
 		},
 		"aaptFlags", "publicResourcesFile", "proguardOptionsFile", "javaDir", "javaFileList")
