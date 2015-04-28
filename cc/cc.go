@@ -278,6 +278,8 @@ type CCBase struct {
 	}
 
 	installPath string
+
+	savedDepNames CCDeps
 }
 
 func newCCBase(base *CCBase, module CCModuleType, hod common.HostOrDeviceSupported,
@@ -301,12 +303,7 @@ func (c *CCBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 		return
 	}
 
-	depNames := c.module.depNames(ctx, CCDeps{})
-	if ctx.Failed() {
-		return
-	}
-
-	deps := c.depsToPaths(ctx, depNames)
+	deps := c.depsToPaths(ctx, c.savedDepNames)
 	if ctx.Failed() {
 		return
 	}
@@ -366,21 +363,24 @@ func (c *CCBase) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps
 func (c *CCBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
 	c.module.ModifyProperties(ctx)
 
-	depNames := CCDeps{}
-	depNames = c.module.depNames(ctx, depNames)
-	staticLibs := depNames.WholeStaticLibs
-	staticLibs = append(staticLibs, depNames.StaticLibs...)
-	staticLibs = append(staticLibs, depNames.LateStaticLibs...)
+	c.savedDepNames = c.module.depNames(ctx, CCDeps{})
+	c.savedDepNames.WholeStaticLibs = lastUniqueElements(c.savedDepNames.WholeStaticLibs)
+	c.savedDepNames.StaticLibs = lastUniqueElements(c.savedDepNames.StaticLibs)
+	c.savedDepNames.SharedLibs = lastUniqueElements(c.savedDepNames.SharedLibs)
+
+	staticLibs := c.savedDepNames.WholeStaticLibs
+	staticLibs = append(staticLibs, c.savedDepNames.StaticLibs...)
+	staticLibs = append(staticLibs, c.savedDepNames.LateStaticLibs...)
 	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, staticLibs...)
 
-	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, depNames.SharedLibs...)
+	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, c.savedDepNames.SharedLibs...)
 
-	ret := append([]string(nil), depNames.ObjFiles...)
-	if depNames.CrtBegin != "" {
-		ret = append(ret, depNames.CrtBegin)
+	ret := append([]string(nil), c.savedDepNames.ObjFiles...)
+	if c.savedDepNames.CrtBegin != "" {
+		ret = append(ret, c.savedDepNames.CrtBegin)
 	}
-	if depNames.CrtEnd != "" {
-		ret = append(ret, depNames.CrtEnd)
+	if c.savedDepNames.CrtEnd != "" {
+		ret = append(ret, c.savedDepNames.CrtEnd)
 	}
 
 	return ret
@@ -818,14 +818,26 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 	}
 
 	switch stl {
-	case "libc++":
-		depNames.SharedLibs = append(depNames.SharedLibs, stl)
 	case "libstdc++":
 		if ctx.Device() {
 			depNames.SharedLibs = append(depNames.SharedLibs, stl)
 		}
-	case "libc++_static":
-		depNames.StaticLibs = append(depNames.StaticLibs, stl)
+	case "libc++", "libc++_static":
+		if stl == "libc++" {
+			depNames.SharedLibs = append(depNames.SharedLibs, stl)
+		} else {
+			depNames.StaticLibs = append(depNames.StaticLibs, stl)
+		}
+		if ctx.Device() {
+			if ctx.Arch().ArchType == common.Arm {
+				depNames.StaticLibs = append(depNames.StaticLibs, "libunwind_llvm")
+			}
+			if c.staticBinary() {
+				depNames.StaticLibs = append(depNames.StaticLibs, "libdl")
+			} else {
+				depNames.SharedLibs = append(depNames.SharedLibs, "libdl")
+			}
+		}
 	case "stlport":
 		depNames.SharedLibs = append(depNames.SharedLibs, "libstdc++", "libstlport")
 	case "stlport_static":
@@ -845,10 +857,11 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 		panic(fmt.Errorf("Unknown stl in CCLinked.depNames: %q", stl))
 	}
 
+	if ctx.ModuleName() != "libcompiler_rt-extras" {
+		depNames.StaticLibs = append(depNames.StaticLibs, "libcompiler_rt-extras")
+	}
+
 	if ctx.Device() {
-		if ctx.ModuleName() != "libcompiler_rt-extras" {
-			depNames.StaticLibs = append(depNames.StaticLibs, "libcompiler_rt-extras")
-		}
 		// libgcc and libatomic have to be last on the command line
 		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic", "libgcc")
 
@@ -1259,6 +1272,9 @@ func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 		}
 
 		if c.BinaryProperties.Static_executable {
+			if c.stl(ctx) == "libc++_static" {
+				depNames.StaticLibs = append(depNames.StaticLibs, "libm", "libc", "libdl")
+			}
 			// static libraries libcompiler_rt, libc and libc_nomalloc need to be linked with
 			// --start-group/--end-group along with libgcc.  If they are in deps.StaticLibs,
 			// move them to the beginning of deps.LateStaticLibs
@@ -1750,4 +1766,22 @@ func LinkageMutator(mctx blueprint.EarlyMutatorContext) {
 			}
 		}
 	}
+}
+
+// lastUniqueElements returns all unique elements of a slice, keeping the last copy of each
+// modifies the slice contents in place, and returns a subslice of the original slice
+func lastUniqueElements(list []string) []string {
+	totalSkip := 0
+	for i := len(list) - 1; i >= totalSkip; i-- {
+		skip := 0
+		for j := i - 1; j >= totalSkip; j-- {
+			if list[i] == list[j] {
+				skip++
+			} else {
+				list[j+skip] = list[j]
+			}
+		}
+		totalSkip += skip
+	}
+	return list[totalSkip:]
 }
