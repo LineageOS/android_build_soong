@@ -58,6 +58,7 @@ func main() {
 	ctx.RegisterModuleType("cc_test_host", cc.CCTestHostFactory)
 
 	ctx.RegisterModuleType("gensrcs", genrule.GenSrcsFactory)
+	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
 
 	ctx.RegisterModuleType("art_cc_library", art.ArtCCLibraryFactory)
 	ctx.RegisterModuleType("art_cc_binary", art.ArtCCBinaryFactory)
