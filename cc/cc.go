@@ -686,8 +686,9 @@ type CCLinked struct {
 	CCBase
 
 	dynamicProperties struct {
-		VariantIsShared bool `blueprint:"mutated"`
-		VariantIsStatic bool `blueprint:"mutated"`
+		VariantIsShared       bool `blueprint:"mutated"`
+		VariantIsStatic       bool `blueprint:"mutated"`
+		VariantIsStaticBinary bool `blueprint:"mutated"`
 	}
 }
 
@@ -732,10 +733,10 @@ func (c *CCLinked) stl(ctx common.AndroidBaseContext) string {
 	case "none":
 		return ""
 	case "":
-		if c.shared() {
-			return "libc++" // TODO: mingw needs libstdc++
-		} else {
+		if c.static() {
 			return "libc++_static"
+		} else {
+			return "libc++" // TODO: mingw needs libstdc++
 		}
 	default:
 		ctx.ModuleErrorf("stl: %q is not a supported STL", c.Properties.Stl)
@@ -762,10 +763,10 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
 			flags.LdFlags = append(flags.LdFlags, "-lm", "-lpthread")
-			if c.shared() {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
-			} else {
+			if c.staticBinary() {
 				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs...)
+			} else {
+				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
 			}
 		}
 	case "stlport", "stlport_static":
@@ -795,10 +796,10 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 		if ctx.Host() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			if c.shared() {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
-			} else {
+			if c.staticBinary() {
 				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs...)
+			} else {
+				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
 			}
 		}
 	default:
@@ -851,7 +852,7 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 		// libgcc and libatomic have to be last on the command line
 		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic", "libgcc")
 
-		if c.shared() {
+		if !c.static() {
 			depNames.SharedLibs = append(depNames.SharedLibs, c.systemSharedLibs(ctx)...)
 		}
 
@@ -874,12 +875,13 @@ type ccLinkedInterface interface {
 	buildShared() bool
 
 	// Sets whether a specific variant is static or shared
-	setStatic()
-	setShared()
+	setStatic(bool)
 
-	// Returns whether a specific variant is static or shared
+	// Returns whether a specific variant is a static library or binary
 	static() bool
-	shared() bool
+
+	// Returns whether a module is a static binary
+	staticBinary() bool
 }
 
 var _ ccLinkedInterface = (*CCLibrary)(nil)
@@ -889,16 +891,12 @@ func (c *CCLinked) static() bool {
 	return c.dynamicProperties.VariantIsStatic
 }
 
-func (c *CCLinked) shared() bool {
-	return c.dynamicProperties.VariantIsShared
+func (c *CCLinked) staticBinary() bool {
+	return c.dynamicProperties.VariantIsStaticBinary
 }
 
-func (c *CCLinked) setStatic() {
-	c.dynamicProperties.VariantIsStatic = true
-}
-
-func (c *CCLinked) setShared() {
-	c.dynamicProperties.VariantIsShared = true
+func (c *CCLinked) setStatic(static bool) {
+	c.dynamicProperties.VariantIsStatic = static
 }
 
 type ccExportedFlagsProducer interface {
@@ -973,7 +971,7 @@ func CCLibraryFactory() (blueprint.Module, []interface{}) {
 
 func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCLinked.depNames(ctx, depNames)
-	if c.shared() {
+	if !c.static() {
 		if ctx.Device() {
 			depNames.CrtBegin = "crtbegin_so"
 			depNames.CrtEnd = "crtend_so"
@@ -1012,7 +1010,7 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 
 	flags.CFlags = append(flags.CFlags, "-fPIC")
 
-	if c.shared() {
+	if !c.static() {
 		libName := ctx.ModuleName()
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
 		sharedFlag := "-Wl,-shared"
@@ -1240,6 +1238,12 @@ func CCBinaryFactory() (blueprint.Module, []interface{}) {
 	module := &CCBinary{}
 
 	return NewCCBinary(module, module, common.HostAndDeviceSupported)
+}
+
+func (c *CCBinary) ModifyProperties(ctx common.AndroidBaseContext) {
+	if c.BinaryProperties.Static_executable {
+		c.dynamicProperties.VariantIsStaticBinary = true
+	}
 }
 
 func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
@@ -1631,14 +1635,14 @@ func LinkageMutator(mctx blueprint.EarlyMutatorContext) {
 		var modules []blueprint.Module
 		if c.buildStatic() && c.buildShared() {
 			modules = mctx.CreateLocalVariations("static", "shared")
-			modules[0].(ccLinkedInterface).setStatic()
-			modules[1].(ccLinkedInterface).setShared()
+			modules[0].(ccLinkedInterface).setStatic(true)
+			modules[1].(ccLinkedInterface).setStatic(false)
 		} else if c.buildStatic() {
 			modules = mctx.CreateLocalVariations("static")
-			modules[0].(ccLinkedInterface).setStatic()
+			modules[0].(ccLinkedInterface).setStatic(true)
 		} else if c.buildShared() {
 			modules = mctx.CreateLocalVariations("shared")
-			modules[0].(ccLinkedInterface).setShared()
+			modules[0].(ccLinkedInterface).setStatic(false)
 		} else {
 			panic(fmt.Errorf("ccLibrary %q not static or shared", mctx.ModuleName()))
 		}
