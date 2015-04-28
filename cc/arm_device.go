@@ -88,12 +88,6 @@ var (
 		},
 	}
 
-	armArchVariantLdflags = map[string][]string{
-		"armv7-a": []string{
-			"-Wl,--fix-cortex-a8",
-		},
-	}
-
 	armCpuVariantCflags = map[string][]string{
 		"cortex-a7": []string{
 			"-mcpu=cortex-a7",
@@ -158,9 +152,6 @@ func init() {
 	pctx.StaticVariable("armArmv7ACflags", strings.Join(armArchVariantCflags["armv7-a"], " "))
 	pctx.StaticVariable("armArmv7ANeonCflags", strings.Join(armArchVariantCflags["armv7-a-neon"], " "))
 
-	// Architecture variant ldflags
-	pctx.StaticVariable("armArmv7ALdflags", strings.Join(armArchVariantLdflags["armv7-a"], " "))
-
 	// Cpu variant cflags
 	pctx.StaticVariable("armCortexA7Cflags", strings.Join(armCpuVariantCflags["cortex-a7"], " "))
 	pctx.StaticVariable("armCortexA8Cflags", strings.Join(armCpuVariantCflags["cortex-a8"], " "))
@@ -195,11 +186,6 @@ var (
 		"armv5te":      "${armArmv5TECflags}",
 		"armv7-a":      "${armArmv7ACflags}",
 		"armv7-a-neon": "${armArmv7ANeonCflags}",
-	}
-
-	armArchVariantLdflagsVar = map[string]string{
-		"armv7-a":      "${armArmv7ALdflags}",
-		"armv7-a-neon": "${armArmv7ALdflags}",
 	}
 
 	armCpuVariantCflagsVar = map[string]string{
@@ -292,6 +278,15 @@ func (t *toolchainArm) ClangLdflags() string {
 }
 
 func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
+	var fixCortexA8 string
+	switch cpuVariant {
+	case "cortex-a8", "":
+		// Generic ARM might be a Cortex A8 -- better safe than sorry
+		fixCortexA8 = "-Wl,--fix-cortex-a8"
+	default:
+		fixCortexA8 = "-Wl,--no-fix-cortex-a8"
+	}
+
 	return &toolchainArm{
 		cflags: strings.Join([]string{
 			"${armCflags}",
@@ -300,7 +295,7 @@ func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 		}, " "),
 		ldflags: strings.Join([]string{
 			"${armLdflags}",
-			armArchVariantLdflagsVar[archVariant],
+			fixCortexA8,
 		}, " "),
 		clangCflags: strings.Join([]string{
 			"${armClangCflags}",
