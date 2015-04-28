@@ -204,6 +204,8 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 	deps = append(deps, dexJarSpec.fileList)
 	jarArgs = append(jarArgs, dexJarSpec.soongJarArgs())
 
+	deps = append(deps, "$jarCmd")
+
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      jar,
 		Outputs:   []string{outputFile},

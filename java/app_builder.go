@@ -96,6 +96,8 @@ func CreateResourceJavaFiles(ctx common.AndroidModuleContext, flags []string,
 	publicResourcesFile := filepath.Join(common.ModuleOutDir(ctx), "public_resources.xml")
 	proguardOptionsFile := filepath.Join(common.ModuleOutDir(ctx), "proguard.options")
 
+	deps = append([]string{"$aaptCmd"}, deps...)
+
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      aaptCreateResourceJavaFile,
 		Outputs:   []string{publicResourcesFile, proguardOptionsFile, javaFileList},
@@ -115,6 +117,8 @@ func CreateResourceJavaFiles(ctx common.AndroidModuleContext, flags []string,
 func CreateExportPackage(ctx common.AndroidModuleContext, flags []string, deps []string) string {
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "package-export.apk")
 
+	deps = append([]string{"$aaptCmd"}, deps...)
+
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      aaptCreateAssetsPackage,
 		Outputs:   []string{outputFile},
@@ -133,9 +137,10 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 	resourceApk := filepath.Join(common.ModuleOutDir(ctx), "resources.apk")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    aaptAddResources,
-		Outputs: []string{resourceApk},
-		Inputs:  []string{jarFile},
+		Rule:      aaptAddResources,
+		Outputs:   []string{resourceApk},
+		Inputs:    []string{jarFile},
+		Implicits: []string{"$aaptCmd"},
 		Args: map[string]string{
 			"aaptFlags": strings.Join(flags, " "),
 		},
@@ -149,9 +154,10 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 	}
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    signapk,
-		Outputs: []string{signedApk},
-		Inputs:  []string{resourceApk},
+		Rule:      signapk,
+		Outputs:   []string{signedApk},
+		Inputs:    []string{resourceApk},
+		Implicits: []string{"$signapkCmd"},
 		Args: map[string]string{
 			"certificates": strings.Join(certificateArgs, " "),
 		},
@@ -160,9 +166,10 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "package.apk")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    zipalign,
-		Outputs: []string{outputFile},
-		Inputs:  []string{signedApk},
+		Rule:      zipalign,
+		Outputs:   []string{outputFile},
+		Inputs:    []string{signedApk},
+		Implicits: []string{"$zipalignCmd"},
 		Args: map[string]string{
 			"zipalignFlags": "",
 		},
