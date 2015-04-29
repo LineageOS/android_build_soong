@@ -48,6 +48,7 @@ func main() {
 
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_library", cc.NdkPrebuiltLibraryFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_object", cc.NdkPrebuiltObjectFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_static_stl", cc.NdkPrebuiltStaticStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
 

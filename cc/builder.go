@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	objectExtension        = ".o"
 	sharedLibraryExtension = ".so"
 	staticLibraryExtension = ".a"
 )

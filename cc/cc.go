@@ -662,18 +662,18 @@ func (c *CCBase) depsToPaths(ctx common.AndroidModuleContext, depNames CCDeps) C
 	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
 
 	ctx.VisitDirectDeps(func(m blueprint.Module) {
-		if obj, ok := m.(*ccObject); ok {
+		if obj, ok := m.(ccObjectProvider); ok {
 			otherName := ctx.OtherModuleName(m)
 			if otherName == depNames.CrtBegin {
 				if !c.Properties.Nocrt {
-					depPaths.CrtBegin = obj.outputFile()
+					depPaths.CrtBegin = obj.object().outputFile()
 				}
 			} else if otherName == depNames.CrtEnd {
 				if !c.Properties.Nocrt {
-					depPaths.CrtEnd = obj.outputFile()
+					depPaths.CrtEnd = obj.object().outputFile()
 				}
 			} else {
-				depPaths.ObjFiles = append(depPaths.ObjFiles, obj.outputFile())
+				depPaths.ObjFiles = append(depPaths.ObjFiles, obj.object().outputFile())
 			}
 		}
 	})
@@ -983,8 +983,13 @@ func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCD
 		depNames.SharedLibs = append(depNames.SharedLibs, c.LibraryProperties.Static.Shared_libs...)
 	} else {
 		if ctx.Device() {
-			depNames.CrtBegin = "crtbegin_so"
-			depNames.CrtEnd = "crtend_so"
+			if c.Properties.Sdk_version == "" {
+				depNames.CrtBegin = "crtbegin_so"
+				depNames.CrtEnd = "crtend_so"
+			} else {
+				depNames.CrtBegin = "ndk_crtbegin_so." + c.Properties.Sdk_version
+				depNames.CrtEnd = "ndk_crtend_so." + c.Properties.Sdk_version
+			}
 		}
 		depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.LibraryProperties.Shared.Whole_static_libs...)
 		depNames.StaticLibs = append(depNames.StaticLibs, c.LibraryProperties.Shared.Static_libs...)
@@ -1133,9 +1138,17 @@ func (c *CCLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags
 // Objects (for crt*.o)
 //
 
+type ccObjectProvider interface {
+	object() *ccObject
+}
+
 type ccObject struct {
 	CCBase
 	out string
+}
+
+func (c *ccObject) object() *ccObject {
+	return c
 }
 
 func CCObjectFactory() (blueprint.Module, []interface{}) {
@@ -1163,7 +1176,7 @@ func (c *ccObject) compileModule(ctx common.AndroidModuleContext,
 	if len(objFiles) == 1 {
 		outputFile = objFiles[0]
 	} else {
-		outputFile = filepath.Join(common.ModuleOutDir(ctx), ctx.ModuleName()+".o")
+		outputFile = filepath.Join(common.ModuleOutDir(ctx), ctx.ModuleName()+objectExtension)
 		TransformObjsToObj(ctx, objFiles, ccFlagsToBuilderFlags(flags), outputFile)
 	}
 
@@ -1179,6 +1192,8 @@ func (c *ccObject) installModule(ctx common.AndroidModuleContext, flags CCFlags)
 func (c *ccObject) outputFile() string {
 	return c.out
 }
+
+var _ ccObjectProvider = (*ccObject)(nil)
 
 //
 // Executables
@@ -1222,12 +1237,21 @@ func (c *CCBinary) getStem(ctx common.AndroidModuleContext) string {
 func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCLinked.depNames(ctx, depNames)
 	if ctx.Device() {
-		if c.BinaryProperties.Static_executable {
-			depNames.CrtBegin = "crtbegin_static"
+		if c.Properties.Sdk_version == "" {
+			if c.BinaryProperties.Static_executable {
+				depNames.CrtBegin = "crtbegin_static"
+			} else {
+				depNames.CrtBegin = "crtbegin_dynamic"
+			}
+			depNames.CrtEnd = "crtend_android"
 		} else {
-			depNames.CrtBegin = "crtbegin_dynamic"
+			if c.BinaryProperties.Static_executable {
+				depNames.CrtBegin = "ndk_crtbegin_static." + c.Properties.Sdk_version
+			} else {
+				depNames.CrtBegin = "ndk_crtbegin_dynamic." + c.Properties.Sdk_version
+			}
+			depNames.CrtEnd = "ndk_crtend_android." + c.Properties.Sdk_version
 		}
-		depNames.CrtEnd = "crtend_android"
 
 		if c.BinaryProperties.Static_executable {
 			// static libraries libcompiler_rt, libc and libc_nomalloc need to be linked with
@@ -1532,6 +1556,53 @@ func getNdkLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, version 
 		ctx.AConfig().SrcDir(), version, toolchain.Name())
 }
 
+func ndkPrebuiltModuleToPath(ctx common.AndroidModuleContext, toolchain Toolchain,
+	ext string, version string) string {
+
+	// NDK prebuilts are named like: ndk_NAME.EXT.SDK_VERSION.
+	// We want to translate to just NAME.EXT
+	name := strings.Split(strings.TrimPrefix(ctx.ModuleName(), "ndk_"), ".")[0]
+	dir := getNdkLibDir(ctx, toolchain, version)
+	return filepath.Join(dir, name+ext)
+}
+
+type ndkPrebuiltObject struct {
+	ccObject
+}
+
+func (*ndkPrebuiltObject) AndroidDynamicDependencies(
+	ctx common.AndroidDynamicDependerModuleContext) []string {
+
+	// NDK objects can't have any dependencies
+	return nil
+}
+
+func (*ndkPrebuiltObject) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+	// NDK objects can't have any dependencies
+	return CCDeps{}
+}
+
+func NdkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
+	module := &ndkPrebuiltObject{}
+	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth)
+}
+
+func (c *ndkPrebuiltObject) compileModule(ctx common.AndroidModuleContext, flags CCFlags,
+	deps CCDeps, objFiles []string) {
+	// A null build step, but it sets up the output path.
+	if !strings.HasPrefix(ctx.ModuleName(), "ndk_crt") {
+		ctx.ModuleErrorf("NDK prebuilts must have an ndk_crt prefixed name")
+	}
+
+	c.out = ndkPrebuiltModuleToPath(ctx, flags.Toolchain, objectExtension, c.Properties.Sdk_version)
+}
+
+func (c *ndkPrebuiltObject) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
+	// Objects do not get installed.
+}
+
+var _ ccObjectProvider = (*ndkPrebuiltObject)(nil)
+
 type ndkPrebuiltLibrary struct {
 	CCLibrary
 }
@@ -1564,15 +1635,12 @@ func (c *ndkPrebuiltLibrary) compileModule(ctx common.AndroidModuleContext, flag
 	includeDirs := pathtools.PrefixPaths(c.Properties.Export_include_dirs, common.ModuleSrcDir(ctx))
 	c.exportFlags = []string{common.JoinWithPrefix(includeDirs, "-isystem ")}
 
-	// NDK prebuilt libraries are named like: ndk_LIBNAME.SDK_VERSION.
-	// We want to translate to just LIBNAME.
-	libName := strings.Split(strings.TrimPrefix(ctx.ModuleName(), "ndk_"), ".")[0]
-	libDir := getNdkLibDir(ctx, flags.Toolchain, c.Properties.Sdk_version)
-	c.out = filepath.Join(libDir, libName+sharedLibraryExtension)
+	c.out = ndkPrebuiltModuleToPath(ctx, flags.Toolchain, sharedLibraryExtension,
+		c.Properties.Sdk_version)
 }
 
 func (c *ndkPrebuiltLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	// Toolchain libraries do not get installed.
+	// NDK prebuilt libraries do not get installed.
 }
 
 // The NDK STLs are slightly different from the prebuilt system libraries:
