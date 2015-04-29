@@ -1028,6 +1028,12 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 
 	flags.CFlags = append(flags.CFlags, "-fPIC")
 
+	if c.static() {
+		flags.CFlags = append(flags.CFlags, c.LibraryProperties.Static.Cflags...)
+	} else {
+		flags.CFlags = append(flags.CFlags, c.LibraryProperties.Shared.Cflags...)
+	}
+
 	if !c.static() {
 		libName := ctx.ModuleName()
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
@@ -1053,7 +1059,6 @@ func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
 	flags CCFlags, deps CCDeps, objFiles []string) {
 
 	staticFlags := flags
-	staticFlags.CFlags = append(staticFlags.CFlags, c.LibraryProperties.Static.Cflags...)
 	objFilesStatic := c.customCompileObjs(ctx, staticFlags, common.DeviceStaticLibrary,
 		c.LibraryProperties.Static.Srcs)
 
@@ -1076,7 +1081,6 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 	flags CCFlags, deps CCDeps, objFiles []string) {
 
 	sharedFlags := flags
-	sharedFlags.CFlags = append(sharedFlags.CFlags, c.LibraryProperties.Shared.Cflags...)
 	objFilesShared := c.customCompileObjs(ctx, sharedFlags, common.DeviceSharedLibrary,
 		c.LibraryProperties.Shared.Srcs)
 
