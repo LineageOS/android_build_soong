@@ -182,6 +182,17 @@ bootstrap_go_package {
     ],
 }
 
+bootstrap_go_binary {
+    name: "androidbp",
+    srcs: [
+        "androidbp/cmd/androidbp.go",
+        "androidbp/cmd/soong.go",
+    ],
+    deps: [
+        "blueprint-parser",
+    ],
+}
+
 //
 // C static libraries extracted from the gcc toolchain
 //

@@ -49,6 +49,30 @@ rule g.bootstrap.link
     description = ${g.bootstrap.goChar}l ${out}
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  androidbp
+# Variant:
+# Type:    bootstrap_go_binary
+# Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
+# Defined: build/soong/Blueprints:183:1
+
+build .bootstrap/androidbp/obj/androidbp.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp.go $
+        ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/soong.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg
+    pkgPath = androidbp
+default .bootstrap/androidbp/obj/androidbp.a
+
+build .bootstrap/androidbp/obj/a.out: g.bootstrap.link $
+        .bootstrap/androidbp/obj/androidbp.a | ${g.bootstrap.linkCmd}
+    libDirFlags = -L .bootstrap/blueprint-parser/pkg
+default .bootstrap/androidbp/obj/a.out
+
+build .bootstrap/bin/androidbp: g.bootstrap.cp .bootstrap/androidbp/obj/a.out
+default .bootstrap/bin/androidbp
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  androidmk
 # Variant:
 # Type:    bootstrap_go_binary
@@ -565,10 +589,11 @@ rule s.bootstrap.minibp
     generator = true
 
 build .bootstrap/main.ninja.in: s.bootstrap.bigbp $
-        ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/androidmk $
-        .bootstrap/bin/bpfmt .bootstrap/bin/bpmodify .bootstrap/bin/minibp $
-        .bootstrap/bin/soong_build .bootstrap/bin/soong_env $
-        .bootstrap/bin/soong_glob .bootstrap/bin/soong_jar
+        ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/androidbp $
+        .bootstrap/bin/androidmk .bootstrap/bin/bpfmt .bootstrap/bin/bpmodify $
+        .bootstrap/bin/minibp .bootstrap/bin/soong_build $
+        .bootstrap/bin/soong_env .bootstrap/bin/soong_glob $
+        .bootstrap/bin/soong_jar
 default .bootstrap/main.ninja.in
 build .bootstrap/notAFile: phony
 default .bootstrap/notAFile
