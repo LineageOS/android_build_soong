@@ -19,6 +19,7 @@ var standardProperties = map[string]struct {
 	"manifest":     {"LOCAL_JAR_MANIFEST", bpparser.String},
 	"jarjar_rules": {"LOCAL_JARJAR_RULES", bpparser.String},
 	"certificate":  {"LOCAL_CERTIFICATE", bpparser.String},
+	"suffix":       {"LOCAL_MODULE_SUFFIX", bpparser.String},
 	//"name":             "LOCAL_PACKAGE_NAME", TODO
 
 	// ==== LIST PROPERTIES ====
@@ -62,7 +63,7 @@ var standardProperties = map[string]struct {
 	"export_package_resources": {"LOCAL_EXPORT_PACKAGE_RESOURCES", bpparser.Bool},
 }
 
-var moduleTypes = map[string]string{
+var moduleTypeToRule = map[string]string{
 	"cc_library_shared":        "BUILD_SHARED_LIBRARY",
 	"cc_library_static":        "BUILD_STATIC_LIBRARY",
 	"cc_library_host_shared":   "BUILD_HOST_SHARED_LIBRARY",
@@ -79,4 +80,51 @@ var moduleTypes = map[string]string{
 	"java_library_host_dalvik": "BUILD_HOST_DALVIK_JAVA_LIBRARY",
 	"android_app":              "BUILD_PACKAGE",
 	"prebuilt":                 "BUILD_PREBUILT",
+}
+
+var suffixProperties = map[string]map[string]string{
+	"multilib": {"lib32": "32", "lib64": "64"},
+	"arch": {"arm": "arm", "arm64": "arm64", "mips": "mips", "mips64": "mips64",
+		"x86": "x86", "x86_64": "x86_64"},
+}
+
+var hostScopedPropertyConditionals = map[string]string{
+	"darwin":      "ifeq ($(HOST_OS), darwin)",
+	"not_darwin":  "ifneq($(HOST_OS), darwin)",
+	"windows":     "ifeq ($(HOST_OS), windows)",
+	"not_windows": "ifneq($(HOST_OS), windows)",
+	"linux":       "ifeq ($(HOST_OS), linux)",
+	"not_linux":   "ifneq($(HOST_OS), linux)",
+}
+
+// TODO: host target?
+var targetScopedPropertyConditionals = map[string]string{
+	"android32":     "ifeq($(TARGET_IS_64_BIT), false)",
+	"not_android32": "ifeq($(TARGET_IS_64_BIT), true)",
+	"android64":     "ifeq($(TARGET_IS_64_BIT), true)",
+	"not_android64": "ifeq($(TARGET_IS_64_BIT), false)",
+}
+
+var disabledHostConditionals = map[string]string{
+	"darwin":      "ifneq ($(HOST_OS), darwin)",
+	"not_darwin":  "ifeq($(HOST_OS), darwin)",
+	"windows":     "ifneq ($(HOST_OS), windows)",
+	"not_windows": "ifeq($(HOST_OS), windows)",
+	"linux":       "ifneq ($(HOST_OS), linux)",
+	"not_linux":   "ifeq($(HOST_OS), linux)",
+}
+
+var disabledTargetConditionals = map[string]string{
+	"android32":     "ifeq($(TARGET_IS_64_BIT), true)",
+	"not_android32": "ifeq($(TARGET_IS_64_BIT), false)",
+	"android64":     "ifeq($(TARGET_IS_64_BIT), false)",
+	"not_android64": "ifeq($(TARGET_IS_64_BIT), true)",
+}
+
+var targetToHostModuleRule = map[string]string{
+	"BUILD_SHARED_LIBRARY": "BUILD_HOST_SHARED_LIBRARY",
+	"BUILD_STATIC_LIBRARY": "BUILD_HOST_STATIC_LIBRARY",
+	"BUILD_EXECUTABLE":     "BUILD_HOST_EXECUTABLE",
+	"BUILD_NATIVE_TEST":    "BUILD_HOST_NATIVE_TEST",
+	"BUILD_JAVA_LIBRARY":   "BUILD_HOST_JAVA_LIBRARY",
 }
