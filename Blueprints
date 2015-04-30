@@ -111,6 +111,7 @@ bootstrap_go_package {
         "cc/arm_device.go",
         "cc/arm64_device.go",
 
+        "cc/x86_darwin_host.go",
         "cc/x86_linux_host.go",
     ],
 }

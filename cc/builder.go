@@ -20,6 +20,9 @@ package cc
 
 import (
 	"android/soong/common"
+	"fmt"
+	"runtime"
+	"strconv"
 
 	"path/filepath"
 	"strings"
@@ -71,6 +74,20 @@ var (
 			RspfileContent: "${in}",
 		},
 		"arCmd", "arFlags")
+
+	darwinAr = pctx.StaticRule("darwinAr",
+		blueprint.RuleParams{
+			Command:     "rm -f ${out} && $arCmd $arFlags $out $in",
+			Description: "ar $out",
+		},
+		"arCmd", "arFlags")
+
+	darwinAppendAr = pctx.StaticRule("darwinAppendAr",
+		blueprint.RuleParams{
+			Command:     "cp -f ${inAr} ${out}.tmp && $arCmd $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
+			Description: "ar $out",
+		},
+		"arCmd", "arFlags", "inAr")
 
 	prefixSymbols = pctx.StaticRule("prefixSymbols",
 		blueprint.RuleParams{
@@ -207,6 +224,56 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles []string,
 	})
 }
 
+// Generate a rule for compiling multiple .o files to a static library (.a) on
+// darwin.  The darwin ar tool doesn't support @file for list files, and has a
+// very small command line length limit, so we have to split the ar into multiple
+// steps, each appending to the previous one.
+func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles []string,
+	flags builderFlags, outputFile string) {
+
+	arCmd := "ar"
+	arFlags := "cqs"
+
+	// ARG_MAX on darwin is 262144, use half that to be safe
+	objFilesLists, err := splitListForSize(objFiles, 131072)
+	if err != nil {
+		ctx.ModuleErrorf("%s", err.Error())
+	}
+
+	var in, out string
+	for i, l := range objFilesLists {
+		in = out
+		out = outputFile
+		if i != len(objFilesLists)-1 {
+			out += "." + strconv.Itoa(i)
+		}
+
+		if in == "" {
+			ctx.Build(pctx, blueprint.BuildParams{
+				Rule:    darwinAr,
+				Outputs: []string{out},
+				Inputs:  l,
+				Args: map[string]string{
+					"arFlags": arFlags,
+					"arCmd":   arCmd,
+				},
+			})
+		} else {
+			ctx.Build(pctx, blueprint.BuildParams{
+				Rule:      darwinAppendAr,
+				Outputs:   []string{out},
+				Inputs:    l,
+				Implicits: []string{in},
+				Args: map[string]string{
+					"arFlags": arFlags,
+					"arCmd":   arCmd,
+					"inAr":    in,
+				},
+			})
+		}
+	}
+}
+
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
 // and shared libraires, to a shared library (.so) or dynamic executable
 func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
@@ -224,9 +291,13 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 	var libFlagsList []string
 
 	if len(wholeStaticLibs) > 0 {
-		libFlagsList = append(libFlagsList, "-Wl,--whole-archive ")
-		libFlagsList = append(libFlagsList, wholeStaticLibs...)
-		libFlagsList = append(libFlagsList, "-Wl,--no-whole-archive ")
+		if ctx.Host() && runtime.GOOS == "darwin" {
+			libFlagsList = append(libFlagsList, common.JoinWithPrefix(wholeStaticLibs, "-force_load "))
+		} else {
+			libFlagsList = append(libFlagsList, "-Wl,--whole-archive ")
+			libFlagsList = append(libFlagsList, wholeStaticLibs...)
+			libFlagsList = append(libFlagsList, "-Wl,--no-whole-archive ")
+		}
 	}
 
 	libFlagsList = append(libFlagsList, staticLibs...)
@@ -244,11 +315,11 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 		ldDirs = append(ldDirs, dir)
 	}
 
-	if groupLate {
+	if groupLate && len(lateStaticLibs) > 0 {
 		libFlagsList = append(libFlagsList, "-Wl,--start-group")
 	}
 	libFlagsList = append(libFlagsList, lateStaticLibs...)
-	if groupLate {
+	if groupLate && len(lateStaticLibs) > 0 {
 		libFlagsList = append(libFlagsList, "-Wl,--end-group")
 	}
 
@@ -334,4 +405,34 @@ func CopyGccLib(ctx common.AndroidModuleContext, libName string,
 
 func gccCmd(toolchain Toolchain, cmd string) string {
 	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
+}
+
+func splitListForSize(list []string, limit int) (lists [][]string, err error) {
+	var i int
+
+	start := 0
+	bytes := 0
+	for i = range list {
+		l := len(list[i])
+		if l > limit {
+			return nil, fmt.Errorf("list element greater than size limit (%d)", limit)
+		}
+		if bytes+l > limit {
+			lists = append(lists, list[start:i])
+			start = i
+			bytes = 0
+		}
+		bytes += l + 1 // count a space between each list element
+	}
+
+	lists = append(lists, list[start:])
+
+	totalLen := 0
+	for _, l := range lists {
+		totalLen += len(l)
+	}
+	if totalLen != len(list) {
+		panic(fmt.Errorf("Failed breaking up list, %d != %d", len(list), totalLen))
+	}
+	return lists, nil
 }

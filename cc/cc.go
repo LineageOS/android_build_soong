@@ -21,6 +21,7 @@ package cc
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -456,16 +457,6 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.CFlags = append(flags.CFlags, target, gccPrefix)
 		flags.AsFlags = append(flags.AsFlags, target, gccPrefix)
 		flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
-
-		if ctx.Host() {
-			gccToolchain := "--gcc-toolchain=" + toolchain.GccRoot()
-			sysroot := "--sysroot=" + filepath.Join(toolchain.GccRoot(), "sysroot")
-
-			// TODO: also need more -B, -L flags to make host builds hermetic
-			flags.CFlags = append(flags.CFlags, gccToolchain, sysroot)
-			flags.AsFlags = append(flags.AsFlags, gccToolchain, sysroot)
-			flags.LdFlags = append(flags.LdFlags, gccToolchain, sysroot)
-		}
 	}
 
 	if !c.Properties.No_default_compiler_flags {
@@ -744,10 +735,17 @@ func (c *CCLinked) stl(ctx common.AndroidBaseContext) string {
 	}
 }
 
-var (
-	hostDynamicGccLibs = []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"}
-	hostStaticGccLibs  = []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"}
-)
+var hostDynamicGccLibs, hostStaticGccLibs []string
+
+func init() {
+	if runtime.GOOS == "darwin" {
+		hostDynamicGccLibs = []string{"-lc", "-lSystem"}
+		hostStaticGccLibs = []string{"NO_STATIC_HOST_BINARIES_ON_DARWIN"}
+	} else {
+		hostDynamicGccLibs = []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"}
+		hostStaticGccLibs = []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"}
+	}
+}
 
 func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	stl := c.stl(ctx)
@@ -1058,11 +1056,20 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 			flags.LdFlags = append(flags.LdFlags, "-nostdlib")
 		}
 
-		flags.LdFlags = append(flags.LdFlags,
-			"-Wl,--gc-sections",
-			sharedFlag,
-			"-Wl,-soname,"+libName+sharedLibraryExtension,
-		)
+		if ctx.Darwin() {
+			flags.LdFlags = append(flags.LdFlags,
+				"-dynamiclib",
+				"-single_module",
+				//"-read_only_relocs suppress",
+				"-install_name @rpath/"+libName+sharedLibraryExtension,
+			)
+		} else {
+			flags.LdFlags = append(flags.LdFlags,
+				"-Wl,--gc-sections",
+				sharedFlag,
+				"-Wl,-soname,"+libName+sharedLibraryExtension,
+			)
+		}
 	}
 
 	return flags
@@ -1080,7 +1087,11 @@ func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), ctx.ModuleName()+staticLibraryExtension)
 
-	TransformObjToStaticLib(ctx, objFiles, ccFlagsToBuilderFlags(flags), outputFile)
+	if ctx.Darwin() {
+		TransformDarwinObjToStaticLib(ctx, objFiles, ccFlagsToBuilderFlags(flags), outputFile)
+	} else {
+		TransformObjToStaticLib(ctx, objFiles, ccFlagsToBuilderFlags(flags), outputFile)
+	}
 
 	c.objFiles = objFiles
 	c.out = outputFile
@@ -1302,6 +1313,9 @@ func CCBinaryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (c *CCBinary) ModifyProperties(ctx common.AndroidBaseContext) {
+	if ctx.Darwin() {
+		c.BinaryProperties.Static_executable = false
+	}
 	if c.BinaryProperties.Static_executable {
 		c.dynamicProperties.VariantIsStaticBinary = true
 	}
@@ -1342,6 +1356,8 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 				"-Wl,-z,nocopyreloc",
 			)
 		}
+	} else if ctx.Darwin() {
+		flags.LdFlags = append(flags.LdFlags, "-Wl,-headerpad_max_install_names")
 	}
 
 	return flags

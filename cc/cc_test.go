@@ -54,3 +54,101 @@ func TestLastUniqueElements(t *testing.T) {
 		}
 	}
 }
+
+var (
+	str11 = "01234567891"
+	str10 = str11[:10]
+	str9  = str11[:9]
+	str5  = str11[:5]
+	str4  = str11[:4]
+)
+
+var splitListForSizeTestCases = []struct {
+	in   []string
+	out  [][]string
+	size int
+}{
+	{
+		in:   []string{str10},
+		out:  [][]string{{str10}},
+		size: 10,
+	},
+	{
+		in:   []string{str9},
+		out:  [][]string{{str9}},
+		size: 10,
+	},
+	{
+		in:   []string{str5},
+		out:  [][]string{{str5}},
+		size: 10,
+	},
+	{
+		in:   []string{str11},
+		out:  nil,
+		size: 10,
+	},
+	{
+		in:   []string{str10, str10},
+		out:  [][]string{{str10}, {str10}},
+		size: 10,
+	},
+	{
+		in:   []string{str9, str10},
+		out:  [][]string{{str9}, {str10}},
+		size: 10,
+	},
+	{
+		in:   []string{str10, str9},
+		out:  [][]string{{str10}, {str9}},
+		size: 10,
+	},
+	{
+		in:   []string{str5, str4},
+		out:  [][]string{{str5, str4}},
+		size: 10,
+	},
+	{
+		in:   []string{str5, str4, str5},
+		out:  [][]string{{str5, str4}, {str5}},
+		size: 10,
+	},
+	{
+		in:   []string{str5, str4, str5, str4},
+		out:  [][]string{{str5, str4}, {str5, str4}},
+		size: 10,
+	},
+	{
+		in:   []string{str5, str4, str5, str5},
+		out:  [][]string{{str5, str4}, {str5}, {str5}},
+		size: 10,
+	},
+	{
+		in:   []string{str5, str5, str5, str4},
+		out:  [][]string{{str5}, {str5}, {str5, str4}},
+		size: 10,
+	},
+	{
+		in:   []string{str9, str11},
+		out:  nil,
+		size: 10,
+	},
+	{
+		in:   []string{str11, str9},
+		out:  nil,
+		size: 10,
+	},
+}
+
+func TestSplitListForSize(t *testing.T) {
+	for _, testCase := range splitListForSizeTestCases {
+		out, _ := splitListForSize(testCase.in, testCase.size)
+		if !reflect.DeepEqual(out, testCase.out) {
+			t.Errorf("incorrect output:")
+			t.Errorf("     input: %#v", testCase.in)
+			t.Errorf("      size: %d", testCase.size)
+			t.Errorf("  expected: %#v", testCase.out)
+			t.Errorf("       got: %#v", out)
+		}
+	}
+}

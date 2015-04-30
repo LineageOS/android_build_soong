@@ -16,6 +16,7 @@ package common
 
 import (
 	"path/filepath"
+	"runtime"
 
 	"github.com/google/blueprint"
 )
@@ -33,6 +34,7 @@ type androidBaseContext interface {
 	Arch() Arch
 	Host() bool
 	Device() bool
+	Darwin() bool
 	Debug() bool
 	AConfig() Config
 }
@@ -370,6 +372,10 @@ func (a *androidBaseContextImpl) Host() bool {
 
 func (a *androidBaseContextImpl) Device() bool {
 	return a.arch.HostOrDevice.Device()
+}
+
+func (a *androidBaseContextImpl) Darwin() bool {
+	return a.arch.HostOrDevice.Host() && runtime.GOOS == "darwin"
 }
 
 func (a *androidBaseContextImpl) Debug() bool {
