@@ -49,9 +49,6 @@ var (
 		"-Wl,--fatal-warnings",
 		"-Wl,--icf=safe",
 		"-Wl,--hash-style=gnu",
-
-		// Disable transitive dependency library symbol resolving.
-		"-Wl,--allow-shlib-undefined",
 	}
 
 	armArmCflags = []string{
