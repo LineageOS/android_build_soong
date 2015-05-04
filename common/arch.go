@@ -106,14 +106,24 @@ type archProperties struct {
 		Lib64 interface{}
 	}
 	Target struct {
-		Host        interface{}
-		Android     interface{}
-		Android64   interface{}
-		Android32   interface{}
-		Linux       interface{}
-		Darwin      interface{}
-		Windows     interface{}
-		Not_windows interface{}
+		Host           interface{}
+		Android        interface{}
+		Android_arm    interface{}
+		Android_arm64  interface{}
+		Android_mips   interface{}
+		Android_mips64 interface{}
+		Android_x86    interface{}
+		Android_x86_64 interface{}
+		Android64      interface{}
+		Android32      interface{}
+		Linux          interface{}
+		Linux_x86      interface{}
+		Linux_x86_64   interface{}
+		Darwin         interface{}
+		Darwin_x86     interface{}
+		Darwin_x86_64  interface{}
+		Windows        interface{}
+		Not_windows    interface{}
 	}
 }
 
@@ -372,8 +382,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		generalPropsValue := reflect.ValueOf(a.generalProperties[i]).Elem()
 
 		// Handle arch-specific properties in the form:
-		// arch {
-		//     arm64 {
+		// arch: {
+		//     arm64: {
 		//         key: value,
 		//     },
 		// },
@@ -382,8 +392,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(t.Field).Elem().Elem())
 
 		// Handle multilib-specific properties in the form:
-		// multilib {
-		//     lib32 {
+		// multilib: {
+		//     lib32: {
 		//         key: value,
 		//     },
 		// },
@@ -391,8 +401,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(t.MultilibField).Elem().Elem())
 
 		// Handle host-or-device-specific properties in the form:
-		// target {
-		//     host {
+		// target: {
+		//     host: {
 		//         key: value,
 		//     },
 		// },
@@ -401,11 +411,17 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hod.Field()).Elem().Elem())
 
 		// Handle host target properties in the form:
-		// target {
-		//     linux {
+		// target: {
+		//     linux: {
 		//         key: value,
 		//     },
-		//     not_windows {
+		//     not_windows: {
+		//         key: value,
+		//     },
+		//     linux_x86: {
+		//         key: value,
+		//     },
+		//     linux_arm: {
 		//         key: value,
 		//     },
 		// },
@@ -423,6 +439,9 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 				if v.goos == runtime.GOOS {
 					a.extendProperties(ctx, "target", v.goos, generalPropsValue,
 						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field).Elem().Elem())
+					t := arch.ArchType
+					a.extendProperties(ctx, "target", v.goos+"_"+t.Name, generalPropsValue,
+						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field+"_"+t.Name).Elem().Elem())
 				}
 			}
 			a.extendProperties(ctx, "target", "not_windows", generalPropsValue,
@@ -451,6 +470,22 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android32").Elem().Elem())
 			}
 		}
+
+		// Handle device architecture properties in the form:
+		// target {
+		//     android_arm {
+		//         key: value,
+		//     },
+		//     android_x86 {
+		//         key: value,
+		//     },
+		// },
+		if hod.Device() {
+			t := arch.ArchType
+			a.extendProperties(ctx, "target", "android_"+t.Name, generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android_"+t.Name).Elem().Elem())
+		}
+
 		if ctx.Failed() {
 			return
 		}
