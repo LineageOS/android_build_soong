@@ -15,15 +15,18 @@ var clangUnknownCflags = []string{
 	"-funswitch-loops",
 	"-Wmaybe-uninitialized",
 	"-Wno-error=maybe-uninitialized",
+	"-Wno-error=unused-but-set-parameter",
+	"-Wno-error=unused-but-set-variable",
 	"-Wno-free-nonheap-object",
 	"-Wno-literal-suffix",
 	"-Wno-maybe-uninitialized",
 	"-Wno-old-style-declaration",
 	"-Wno-psabi",
-	"-Wno-unused-but-set-variable",
 	"-Wno-unused-but-set-parameter",
+	"-Wno-unused-but-set-variable",
 	"-Wno-unused-local-typedefs",
 	"-Wunused-but-set-parameter",
+	"-Wunused-but-set-variable",
 
 	// arm + arm64 + mips + mips64
 	"-fgcse-after-reload",
@@ -64,6 +67,14 @@ func init() {
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=int-conversion",
+
+		// Disable overly aggressive warning for macros defined with a leading underscore
+		// This happens in AndroidConfig.h, which is included nearly everywhere.
+		"-Wno-reserved-id-macro",
+
+		// Disable overly aggressive warning for format strings.
+		// Bug: 20148343
+		"-Wno-format-pedantic",
 
 		// Workaround for ccache with clang.
 		// See http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html.

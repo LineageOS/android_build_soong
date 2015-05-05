@@ -65,6 +65,9 @@ type javaBase struct {
 		// javacflags: list of module-specific flags that will be used for javac compiles
 		Javacflags []string `android:"arch_variant"`
 
+		// jack_flags: list of module-specific flags that will be used for jack compiles
+		Jack_flags []string `android:"arch_variant"`
+
 		// dxflags: list of module-specific flags that will be used for dex compiles
 		Dxflags []string `android:"arch_variant"`
 

@@ -18,9 +18,10 @@ var (
 		"-no-canonical-prefixes",
 		"-include ${SrcDir}/build/core/combo/include/arch/linux-x86/AndroidConfig.h",
 
-		// Disable new longjmp in glibc 2.11 and later. See bug 2967937. Same for 2.15?
+		// TODO: Set _FORTIFY_SOURCE=2. Bug 20558757.
 		"-U_FORTIFY_SOURCE",
 		"-D_FORTIFY_SOURCE=0",
+		"-fstack-protector",
 
 		// Workaround differences in inttypes.h between host and target.
 		//See bug 12708004.
