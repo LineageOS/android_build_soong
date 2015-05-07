@@ -138,6 +138,8 @@ var moduleTypes = map[string]string{
 	"BUILD_HOST_EXECUTABLE":     "cc_binary_host",
 	"BUILD_NATIVE_TEST":         "cc_test",
 	"BUILD_HOST_NATIVE_TEST":    "cc_test_host",
+	"BUILD_NATIVE_BENCHMARK":         "cc_benchmark",
+	"BUILD_HOST_NATIVE_BENCHMARK":    "cc_benchmark_host",
 
 	"BUILD_JAVA_LIBRARY":             "java_library",
 	"BUILD_STATIC_JAVA_LIBRARY":      "java_library_static",

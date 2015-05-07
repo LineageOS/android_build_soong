@@ -1481,6 +1481,36 @@ func TestPerSrcMutator(mctx blueprint.EarlyMutatorContext) {
 	}
 }
 
+type CCBenchmark struct {
+	CCBinary
+}
+
+func (c *CCBenchmark) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+	depNames = c.CCBinary.depNames(ctx, depNames)
+	depNames.StaticLibs = append(depNames.StaticLibs, "libbenchmark")
+	return depNames
+}
+
+func (c *CCBenchmark) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
+	if ctx.Device() {
+		ctx.InstallFile("../data/nativetest"+ctx.Arch().ArchType.Multilib[3:]+"/"+ctx.ModuleName(), c.out)
+	} else {
+		c.CCBinary.installModule(ctx, flags)
+	}
+}
+
+func NewCCBenchmark(test *CCBenchmark, module CCModuleType,
+	hod common.HostOrDeviceSupported, props ...interface{}) (blueprint.Module, []interface{}) {
+
+	return NewCCBinary(&test.CCBinary, module, hod, props...)
+}
+
+func CCBenchmarkFactory() (blueprint.Module, []interface{}) {
+	module := &CCBenchmark{}
+
+	return NewCCBenchmark(module, module, common.HostAndDeviceSupported)
+}
+
 //
 // Static library
 //
@@ -1543,6 +1573,15 @@ func CCTestHostFactory() (blueprint.Module, []interface{}) {
 	module := &CCTest{}
 	return NewCCBinary(&module.CCBinary, module, common.HostSupported,
 		&module.TestProperties)
+}
+
+//
+// Host Benchmarks
+//
+
+func CCBenchmarkHostFactory() (blueprint.Module, []interface{}) {
+	module := &CCBenchmark{}
+	return NewCCBinary(&module.CCBinary, module, common.HostSupported)
 }
 
 //

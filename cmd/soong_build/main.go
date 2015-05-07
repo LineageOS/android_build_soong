@@ -45,6 +45,7 @@ func main() {
 	ctx.RegisterModuleType("cc_object", cc.CCObjectFactory)
 	ctx.RegisterModuleType("cc_binary", cc.CCBinaryFactory)
 	ctx.RegisterModuleType("cc_test", cc.CCTestFactory)
+	ctx.RegisterModuleType("cc_benchmark", cc.CCBenchmarkFactory)
 
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_library", cc.NdkPrebuiltLibraryFactory)
@@ -56,6 +57,7 @@ func main() {
 	ctx.RegisterModuleType("cc_library_host_shared", cc.CCLibraryHostSharedFactory)
 	ctx.RegisterModuleType("cc_binary_host", cc.CCBinaryHostFactory)
 	ctx.RegisterModuleType("cc_test_host", cc.CCTestHostFactory)
+	ctx.RegisterModuleType("cc_benchmark_host", cc.CCBenchmarkHostFactory)
 
 	ctx.RegisterModuleType("gensrcs", genrule.GenSrcsFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
