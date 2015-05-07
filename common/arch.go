@@ -129,15 +129,14 @@ type archProperties struct {
 
 // An Arch indicates a single CPU architecture.
 type Arch struct {
-	HostOrDevice HostOrDevice
-	ArchType     ArchType
-	ArchVariant  string
-	CpuVariant   string
-	Abi          string
+	ArchType    ArchType
+	ArchVariant string
+	CpuVariant  string
+	Abi         string
 }
 
 func (a Arch) String() string {
-	s := a.HostOrDevice.String() + "_" + a.ArchType.String()
+	s := a.ArchType.String()
 	if a.ArchVariant != "" {
 		s += "_" + a.ArchVariant
 	}
@@ -247,36 +246,59 @@ var hostOrDeviceName = map[HostOrDevice]string{
 
 var (
 	armArch = Arch{
-		HostOrDevice: Device,
-		ArchType:     Arm,
-		ArchVariant:  "armv7-a-neon",
-		CpuVariant:   "cortex-a15",
-		Abi:          "armeabi-v7a",
+		ArchType:    Arm,
+		ArchVariant: "armv7-a-neon",
+		CpuVariant:  "cortex-a15",
+		Abi:         "armeabi-v7a",
 	}
 	arm64Arch = Arch{
-		HostOrDevice: Device,
-		ArchType:     Arm64,
-		ArchVariant:  "armv8-a",
-		CpuVariant:   "denver",
-		Abi:          "arm64-v8a",
+		ArchType:    Arm64,
+		ArchVariant: "armv8-a",
+		CpuVariant:  "denver",
+		Abi:         "arm64-v8a",
 	}
-	hostArch = Arch{
-		HostOrDevice: Host,
-		ArchType:     X86,
+	x86Arch = Arch{
+		ArchType: X86,
 	}
-	host64Arch = Arch{
-		HostOrDevice: Host,
-		ArchType:     X86_64,
+	x8664Arch = Arch{
+		ArchType: X86_64,
 	}
-	commonDevice = Arch{
-		HostOrDevice: Device,
-		ArchType:     Common,
-	}
-	commonHost = Arch{
-		HostOrDevice: Host,
-		ArchType:     Common,
+	commonArch = Arch{
+		ArchType: Common,
 	}
 )
+
+func HostOrDeviceMutator(mctx blueprint.EarlyMutatorContext) {
+	var module AndroidModule
+	var ok bool
+	if module, ok = mctx.Module().(AndroidModule); !ok {
+		return
+	}
+
+	hods := []HostOrDevice{}
+
+	if module.base().HostSupported() {
+		hods = append(hods, Host)
+	}
+
+	if module.base().DeviceSupported() {
+		hods = append(hods, Device)
+	}
+
+	if len(hods) == 0 {
+		return
+	}
+
+	hodNames := []string{}
+	for _, hod := range hods {
+		hodNames = append(hodNames, hod.String())
+	}
+
+	modules := mctx.CreateVariations(hodNames...)
+	for i, m := range modules {
+		m.(AndroidModule).base().SetHostOrDevice(hods[i])
+	}
+}
 
 func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 	var module AndroidModule
@@ -290,19 +312,19 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 
 	arches := []Arch{}
 
-	if module.base().HostSupported() {
+	if module.base().HostSupported() && module.base().HostOrDevice().Host() {
 		switch module.base().commonProperties.Compile_multilib {
 		case "common":
-			arches = append(arches, commonHost)
+			arches = append(arches, commonArch)
 		default:
-			arches = append(arches, host64Arch)
+			arches = append(arches, x8664Arch)
 		}
 	}
 
-	if module.base().DeviceSupported() {
+	if module.base().DeviceSupported() && module.base().HostOrDevice().Device() {
 		switch module.base().commonProperties.Compile_multilib {
 		case "common":
-			arches = append(arches, commonDevice)
+			arches = append(arches, commonArch)
 		case "both":
 			arches = append(arches, arm64Arch, armArch)
 		case "first", "64":
@@ -328,7 +350,7 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 
 	for i, m := range modules {
 		m.(AndroidModule).base().SetArch(arches[i])
-		m.(AndroidModule).base().setArchProperties(mctx, arches[i])
+		m.(AndroidModule).base().setArchProperties(mctx)
 	}
 }
 
@@ -373,7 +395,10 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 }
 
 // Rewrite the module's properties structs to contain arch-specific values.
-func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext, arch Arch) {
+func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext) {
+	arch := a.commonProperties.CompileArch
+	hod := a.commonProperties.CompileHostOrDevice
+
 	if arch.ArchType == Common {
 		return
 	}
@@ -406,7 +431,6 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext,
 		//         key: value,
 		//     },
 		// },
-		hod := arch.HostOrDevice
 		a.extendProperties(ctx, "target", hod.FieldLower(), generalPropsValue,
 			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hod.Field()).Elem().Elem())
 

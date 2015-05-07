@@ -75,6 +75,7 @@ func main() {
 	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
 
 	// Mutators
+	ctx.RegisterEarlyMutator("host_or_device", common.HostOrDeviceMutator)
 	ctx.RegisterEarlyMutator("arch", common.ArchMutator)
 	ctx.RegisterEarlyMutator("link", cc.LinkageMutator)
 	ctx.RegisterEarlyMutator("test_per_src", cc.TestPerSrcMutator)

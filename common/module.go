@@ -32,6 +32,7 @@ var (
 
 type androidBaseContext interface {
 	Arch() Arch
+	HostOrDevice() HostOrDevice
 	Host() bool
 	Device() bool
 	Darwin() bool
@@ -85,6 +86,9 @@ type commonProperties struct {
 	// architectures), or "first" (compile for 64-bit on a 64-bit platform, and 32-bit on a 32-bit
 	// platform
 	Compile_multilib string
+
+	// Set by HostOrDeviceMutator
+	CompileHostOrDevice HostOrDevice `blueprint:"mutated"`
 
 	// Set by ArchMutator
 	CompileArch Arch `blueprint:"mutated"`
@@ -196,12 +200,16 @@ func (a *AndroidModuleBase) base() *AndroidModuleBase {
 	return a
 }
 
+func (a *AndroidModuleBase) SetHostOrDevice(hod HostOrDevice) {
+	a.commonProperties.CompileHostOrDevice = hod
+}
+
 func (a *AndroidModuleBase) SetArch(arch Arch) {
 	a.commonProperties.CompileArch = arch
 }
 
 func (a *AndroidModuleBase) HostOrDevice() HostOrDevice {
-	return a.commonProperties.CompileArch.HostOrDevice
+	return a.commonProperties.CompileHostOrDevice
 }
 
 func (a *AndroidModuleBase) HostSupported() bool {
@@ -293,6 +301,7 @@ func (a *AndroidModuleBase) DynamicDependencies(ctx blueprint.DynamicDependerMod
 		DynamicDependerModuleContext: ctx,
 		androidBaseContextImpl: androidBaseContextImpl{
 			arch:   a.commonProperties.CompileArch,
+			hod:    a.commonProperties.CompileHostOrDevice,
 			config: ctx.Config().(Config),
 		},
 	}
@@ -309,6 +318,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		ModuleContext: ctx,
 		androidBaseContextImpl: androidBaseContextImpl{
 			arch:   a.commonProperties.CompileArch,
+			hod:    a.commonProperties.CompileHostOrDevice,
 			config: ctx.Config().(Config),
 		},
 		installDeps:        a.computeInstallDeps(ctx),
@@ -336,6 +346,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 
 type androidBaseContextImpl struct {
 	arch   Arch
+	hod    HostOrDevice
 	debug  bool
 	config Config
 }
@@ -366,16 +377,20 @@ func (a *androidBaseContextImpl) Arch() Arch {
 	return a.arch
 }
 
+func (a *androidBaseContextImpl) HostOrDevice() HostOrDevice {
+	return a.hod
+}
+
 func (a *androidBaseContextImpl) Host() bool {
-	return a.arch.HostOrDevice.Host()
+	return a.hod.Host()
 }
 
 func (a *androidBaseContextImpl) Device() bool {
-	return a.arch.HostOrDevice.Device()
+	return a.hod.Device()
 }
 
 func (a *androidBaseContextImpl) Darwin() bool {
-	return a.arch.HostOrDevice.Host() && runtime.GOOS == "darwin"
+	return a.hod.Host() && runtime.GOOS == "darwin"
 }
 
 func (a *androidBaseContextImpl) Debug() bool {
@@ -391,7 +406,7 @@ func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string
 
 	config := a.AConfig()
 	var fullInstallPath string
-	if a.arch.HostOrDevice.Device() {
+	if a.hod.Device() {
 		// TODO: replace unset with a device name once we have device targeting
 		fullInstallPath = filepath.Join(config.DeviceOut(), "system",
 			installPath, name)

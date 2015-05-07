@@ -342,10 +342,11 @@ var _ common.AndroidDynamicDepender = (*CCBase)(nil)
 
 func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 	arch := ctx.Arch()
-	factory := toolchainFactories[arch.HostOrDevice][arch.ArchType]
+	hod := ctx.HostOrDevice()
+	factory := toolchainFactories[hod][arch.ArchType]
 	if factory == nil {
 		panic(fmt.Sprintf("Toolchain not found for %s arch %q",
-			arch.HostOrDevice.String(), arch.String()))
+			hod.String(), arch.String()))
 	}
 	return factory(arch.ArchVariant, arch.CpuVariant)
 }
@@ -471,13 +472,13 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.ClangCflags(),
 				"${commonClangGlobalCflags}",
-				fmt.Sprintf("${%sClangGlobalCflags}", ctx.Arch().HostOrDevice))
+				fmt.Sprintf("${%sClangGlobalCflags}", ctx.HostOrDevice()))
 		} else {
 			flags.CppFlags = append(flags.CppFlags, "${commonGlobalCppflags}")
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.Cflags(),
 				"${commonGlobalCflags}",
-				fmt.Sprintf("${%sGlobalCflags}", ctx.Arch().HostOrDevice))
+				fmt.Sprintf("${%sGlobalCflags}", ctx.HostOrDevice()))
 		}
 
 		if ctx.Device() {
@@ -588,7 +589,7 @@ func (c *CCBase) depsToPathsFromList(ctx common.AndroidModuleContext,
 					// of host and device.  Ignore the disabled one.
 					return
 				}
-				if a.HostOrDevice() != ctx.Arch().HostOrDevice {
+				if a.HostOrDevice() != ctx.HostOrDevice() {
 					ctx.ModuleErrorf("host/device mismatch between %q and %q", ctx.ModuleName(),
 						otherName)
 					return
