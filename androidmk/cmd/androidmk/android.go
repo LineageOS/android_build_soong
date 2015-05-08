@@ -38,8 +38,6 @@ var standardProperties = map[string]struct {
 	"LOCAL_STATIC_LIBRARIES":        {"static_libs", bpparser.List},
 	"LOCAL_WHOLE_STATIC_LIBRARIES":  {"whole_static_libs", bpparser.List},
 	"LOCAL_SYSTEM_SHARED_LIBRARIES": {"system_shared_libs", bpparser.List},
-	"LOCAL_C_INCLUDES":              {"include_dirs", bpparser.List},
-	"LOCAL_EXPORT_C_INCLUDE_DIRS":   {"export_include_dirs", bpparser.List},
 	"LOCAL_ASFLAGS":                 {"asflags", bpparser.List},
 	"LOCAL_CLANG_ASFLAGS":           {"clang_asflags", bpparser.List},
 	"LOCAL_CFLAGS":                  {"cflags", bpparser.List},
@@ -74,6 +72,185 @@ var standardProperties = map[string]struct {
 	"LOCAL_NO_STANDARD_LIBRARIES": {"no_standard_libraries", bpparser.Bool},
 
 	"LOCAL_EXPORT_PACKAGE_RESOURCES": {"export_package_resources", bpparser.Bool},
+}
+
+var rewriteProperties = map[string]struct {
+	f func(file *bpFile, value *mkparser.MakeString, append bool, class, suffix string) error
+}{
+	"LOCAL_C_INCLUDES":            {localIncludeDirs},
+	"LOCAL_EXPORT_C_INCLUDE_DIRS": {exportIncludeDirs},
+}
+
+func localAbsPath(value bpparser.Value) (*bpparser.Value, error) {
+	if value.Type != bpparser.String {
+		return nil, fmt.Errorf("isLocalAbsPath expected a string, got %d", value.Type)
+	}
+
+	if value.Expression == nil {
+		if value.Variable == "LOCAL_PATH" {
+			return &bpparser.Value{
+				Type:        bpparser.String,
+				StringValue: ".",
+			}, nil
+		}
+		return nil, nil
+	}
+
+	if value.Expression.Operator != '+' {
+		return nil, nil
+	}
+
+	firstOperand := value.Expression.Args[0]
+	secondOperand := value.Expression.Args[1]
+	if firstOperand.Type != bpparser.String {
+		return nil, nil
+	}
+
+	if firstOperand.Expression != nil {
+		return nil, nil
+	}
+
+	if firstOperand.Variable != "LOCAL_PATH" {
+		return nil, nil
+	}
+
+	if secondOperand.Expression == nil && secondOperand.Variable == "" {
+		if strings.HasPrefix(secondOperand.StringValue, "/") {
+			secondOperand.StringValue = secondOperand.StringValue[1:]
+		}
+	}
+	return &secondOperand, nil
+}
+
+func emptyList(value *bpparser.Value) bool {
+	return value.Type == bpparser.List && value.Expression == nil && value.Variable == "" &&
+		len(value.ListValue) == 0
+}
+
+func splitLocalGlobal(file *bpFile, val *bpparser.Value) (local, global *bpparser.Value, err error) {
+	local = &bpparser.Value{
+		Type: bpparser.List,
+	}
+	global = &bpparser.Value{
+		Type: bpparser.List,
+	}
+
+	if val.Expression != nil {
+		localA, globalA, err := splitLocalGlobal(file, &val.Expression.Args[0])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		localB, globalB, err := splitLocalGlobal(file, &val.Expression.Args[1])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if emptyList(localA) {
+			local = localB
+		} else if emptyList(localB) {
+			local = localA
+		} else {
+			localExpression := *val.Expression
+			local.Expression = &localExpression
+			local.Expression.Args = [2]bpparser.Value{*localA, *localB}
+		}
+
+		if emptyList(globalA) {
+			global = globalB
+		} else if emptyList(globalB) {
+			global = globalA
+		} else {
+			globalExpression := *val.Expression
+			global.Expression = &globalExpression
+			global.Expression.Args = [2]bpparser.Value{*globalA, *globalB}
+		}
+	} else if val.Variable != "" {
+		if val.Variable == "LOCAL_PATH" {
+			local.ListValue = append(local.ListValue, bpparser.Value{
+				Type:        bpparser.String,
+				StringValue: ".",
+			})
+		} else {
+			global.Variable = val.Variable
+		}
+	} else {
+		for _, v := range val.ListValue {
+			localPath, err := localAbsPath(v)
+			if err != nil {
+				return nil, nil, err
+			}
+			if localPath != nil {
+				local.ListValue = append(local.ListValue, *localPath)
+			} else {
+				global.ListValue = append(global.ListValue, v)
+			}
+		}
+	}
+
+	return local, global, nil
+}
+
+func localIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable bool,
+	class, suffix string) error {
+	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	if err != nil {
+		return err
+	}
+
+	local, global, err := splitLocalGlobal(file, val)
+	if err != nil {
+		return err
+	}
+
+	if len(global.ListValue) > 0 || global.Expression != nil || global.Variable != "" {
+		err = setVariable(file, appendVariable, "include_dirs", global, true, class, suffix)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(local.ListValue) > 0 || local.Expression != nil || local.Variable != "" {
+		err = setVariable(file, appendVariable, "local_include_dirs", local, true, class, suffix)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func exportIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable bool,
+	class, suffix string) error {
+
+	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	if err != nil {
+		return err
+	}
+
+	local, global, err := splitLocalGlobal(file, val)
+	if err != nil {
+		return err
+	}
+
+	if len(local.ListValue) > 0 || local.Expression != nil || local.Variable != "" {
+		err = setVariable(file, appendVariable, "export_include_dirs", local, true, class, suffix)
+		if err != nil {
+			return err
+		}
+		appendVariable = true
+	}
+
+	// Add any paths that could not be converted to local relative paths to export_include_dirs
+	// anyways, they will cause an error if they don't exist and can be fixed manually.
+	if len(global.ListValue) > 0 || global.Expression != nil || global.Variable != "" {
+		err = setVariable(file, appendVariable, "export_include_dirs", global, true, class, suffix)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var deleteProperties = map[string]struct{}{

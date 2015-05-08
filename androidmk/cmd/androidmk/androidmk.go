@@ -230,9 +230,17 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 		}
 	}
 
+	appendVariable := assignment.Type == "+="
+
 	var err error
 	if prop, ok := standardProperties[name]; ok {
-		err = setVariable(file, assignment.Value, assignment.Type == "+=", prop.string, prop.ValueType, true, class, suffix)
+		var val *bpparser.Value
+		val, err = makeVariableToBlueprint(file, assignment.Value, prop.ValueType)
+		if err == nil {
+			err = setVariable(file, appendVariable, prop.string, val, true, class, suffix)
+		}
+	} else if prop, ok := rewriteProperties[name]; ok {
+		err = prop.f(file, assignment.Value, appendVariable, class, suffix)
 	} else if _, ok := deleteProperties[name]; ok {
 		return
 	} else {
@@ -251,7 +259,9 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 			file.errorf(assignment, "unsupported assignment to %s", name)
 			return
 		default:
-			err = setVariable(file, assignment.Value, assignment.Type == "+=", name, bpparser.List, false, class, suffix)
+			var val *bpparser.Value
+			val, err = makeVariableToBlueprint(file, assignment.Value, bpparser.List)
+			err = setVariable(file, appendVariable, name, val, false, class, suffix)
 		}
 	}
 	if err != nil {
@@ -287,8 +297,10 @@ func handleModuleConditionals(file *bpFile, directive mkparser.Directive, c *con
 		}
 
 		// Create a fake assignment with enabled = false
-		err := setVariable(file, mkparser.SimpleMakeString("true", file.pos), false,
-			"disabled", bpparser.Bool, true, class, disabledSuffix)
+		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("true", file.pos), bpparser.Bool)
+		if err == nil {
+			err = setVariable(file, false, "disabled", val, true, class, disabledSuffix)
+		}
 		if err != nil {
 			file.errorf(directive, err.Error())
 		}
@@ -312,8 +324,31 @@ func resetModule(file *bpFile) {
 	file.localAssignments = make(map[string]*bpparser.Property)
 }
 
-func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name string,
-	typ bpparser.ValueType, local bool, class string, suffix string) error {
+func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
+	typ bpparser.ValueType) (*bpparser.Value, error) {
+
+	var exp *bpparser.Value
+	var err error
+	switch typ {
+	case bpparser.List:
+		exp, err = makeToListExpression(val, file.scope)
+	case bpparser.String:
+		exp, err = makeToStringExpression(val, file.scope)
+	case bpparser.Bool:
+		exp, err = makeToBoolExpression(val)
+	default:
+		panic("unknown type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return exp, nil
+}
+
+func setVariable(file *bpFile, plusequals bool, name string, value *bpparser.Value, local bool,
+	class string, suffix string) error {
 
 	pos := file.pos
 
@@ -332,26 +367,9 @@ func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name s
 		oldValue = file.globalAssignments[name]
 	}
 
-	var exp *bpparser.Value
-	var err error
-	switch typ {
-	case bpparser.List:
-		exp, err = makeToListExpression(val, file.scope)
-	case bpparser.String:
-		exp, err = makeToStringExpression(val, file.scope)
-	case bpparser.Bool:
-		exp, err = makeToBoolExpression(val)
-	default:
-		panic("unknown type")
-	}
-
-	if err != nil {
-		return err
-	}
-
 	if local {
 		if oldValue != nil && plusequals {
-			val, err := addValues(oldValue, exp)
+			val, err := addValues(oldValue, value)
 			if err != nil {
 				return fmt.Errorf("unsupported addition: %s", err.Error())
 			}
@@ -361,7 +379,7 @@ func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name s
 			prop := &bpparser.Property{
 				Name:  bpparser.Ident{Name: name, Pos: pos},
 				Pos:   pos,
-				Value: *exp,
+				Value: *value,
 			}
 			file.localAssignments[name] = prop
 			file.module.Properties = append(file.module.Properties, prop)
@@ -397,7 +415,7 @@ func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name s
 			prop := &bpparser.Property{
 				Name:  bpparser.Ident{Name: name, Pos: pos},
 				Pos:   pos,
-				Value: *exp,
+				Value: *value,
 			}
 			file.localAssignments[class+"___"+suffix+"___"+name] = prop
 			suffixProp.Value.MapValue = append(suffixProp.Value.MapValue, prop)
@@ -409,8 +427,8 @@ func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name s
 					Name: name,
 					Pos:  pos,
 				},
-				Value:     *exp,
-				OrigValue: *exp,
+				Value:     *value,
+				OrigValue: *value,
 				Pos:       pos,
 				Assigner:  "+=",
 			}
@@ -421,8 +439,8 @@ func setVariable(file *bpFile, val *mkparser.MakeString, plusequals bool, name s
 					Name: name,
 					Pos:  pos,
 				},
-				Value:     *exp,
-				OrigValue: *exp,
+				Value:     *value,
+				OrigValue: *value,
 				Pos:       pos,
 				Assigner:  "=",
 			}
