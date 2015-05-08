@@ -231,12 +231,8 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 	}
 
 	var err error
-	if prop, ok := stringProperties[name]; ok {
-		err = setVariable(file, assignment.Value, assignment.Type == "+=", prop, bpparser.String, true, class, suffix)
-	} else if prop, ok := listProperties[name]; ok {
-		err = setVariable(file, assignment.Value, assignment.Type == "+=", prop, bpparser.List, true, class, suffix)
-	} else if prop, ok := boolProperties[name]; ok {
-		err = setVariable(file, assignment.Value, assignment.Type == "+=", prop, bpparser.Bool, true, class, suffix)
+	if prop, ok := standardProperties[name]; ok {
+		err = setVariable(file, assignment.Value, assignment.Type == "+=", prop.string, prop.ValueType, true, class, suffix)
 	} else if _, ok := deleteProperties[name]; ok {
 		return
 	} else {
