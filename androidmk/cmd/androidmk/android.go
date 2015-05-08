@@ -18,7 +18,6 @@ var standardProperties = map[string]struct {
 }{
 	// String properties
 	"LOCAL_MODULE":               {"name", bpparser.String},
-	"LOCAL_MODULE_STEM":          {"stem", bpparser.String},
 	"LOCAL_MODULE_CLASS":         {"class", bpparser.String},
 	"LOCAL_CXX_STL":              {"stl", bpparser.String},
 	"LOCAL_STRIP_MODULE":         {"strip", bpparser.String},
@@ -79,6 +78,7 @@ var rewriteProperties = map[string]struct {
 }{
 	"LOCAL_C_INCLUDES":            {localIncludeDirs},
 	"LOCAL_EXPORT_C_INCLUDE_DIRS": {exportIncludeDirs},
+	"LOCAL_MODULE_STEM":           {stem},
 }
 
 func localAbsPath(value bpparser.Value) (*bpparser.Value, error) {
@@ -251,6 +251,22 @@ func exportIncludeDirs(file *bpFile, value *mkparser.MakeString, appendVariable 
 	}
 
 	return nil
+}
+
+func stem(file *bpFile, value *mkparser.MakeString, appendVariable bool, class, suffix string) error {
+	val, err := makeVariableToBlueprint(file, value, bpparser.String)
+	if err != nil {
+		return err
+	}
+	varName := "stem"
+
+	if val.Expression != nil && val.Expression.Operator == '+' &&
+		val.Expression.Args[0].Variable == "LOCAL_MODULE" {
+		varName = "suffix"
+		val = &val.Expression.Args[1]
+	}
+
+	return setVariable(file, appendVariable, varName, val, true, class, suffix)
 }
 
 var deleteProperties = map[string]struct{}{
