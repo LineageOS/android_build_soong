@@ -40,21 +40,23 @@ type HostToolProvider interface {
 	HostToolPath() string
 }
 
+type generatorProperties struct {
+	// command to run on one or more input files.  Available variables for substitution:
+	// $in: one or more input files
+	// $out: a single output file
+	// $srcDir: the root directory of the source tree
+	// The host bin directory will be in the path
+	Cmd string
+
+	// name of the module (if any) that produces the host executable.   Leave empty for
+	// prebuilts or scripts that do not need a module to build them.
+	Tool string
+}
+
 type generator struct {
 	common.AndroidModuleBase
 
-	properties struct {
-		// cmd: command to run on one or more input files.  Available variables for substitution:
-		// $in: one or more input files
-		// $out: a single output file
-		// $srcDir: the root directory of the source tree
-		// The host bin directory will be in the path
-		Cmd string
-
-		// tool: name of the module (if any) that produces the host executable.   Leave empty for
-		// prebuilts or scripts that do not need a module to build them.
-		Tool string
-	}
+	properties generatorProperties
 
 	tasks taskFunc
 
@@ -146,10 +148,10 @@ func GenSrcsFactory() (blueprint.Module, []interface{}) {
 }
 
 type genSrcsProperties struct {
-	// srcs: list of input files
+	// list of input files
 	Srcs []string
 
-	// output_extension: extension that will be substituted for each output file
+	// extension that will be substituted for each output file
 	Output_extension string
 }
 
@@ -169,9 +171,9 @@ func GenRuleFactory() (blueprint.Module, []interface{}) {
 }
 
 type genRuleProperties struct {
-	// srcs: list of input files
+	// list of input files
 	Srcs []string
 
-	// out: name of the output file that will be generated
+	// name of the output file that will be generated
 	Out string
 }

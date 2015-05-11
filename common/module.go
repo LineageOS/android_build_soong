@@ -85,10 +85,10 @@ type commonProperties struct {
 	Deps []string
 	Tags []string
 
-	// disabled: don't emit any build rules for this module
+	// don't emit any build rules for this module
 	Disabled bool `android:"arch_variant"`
 
-	// multilib: control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
+	// control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
 	// are "32" (compile for 32-bit only), "64" (compile for 64-bit only), "both" (compile for both
 	// architectures), or "first" (compile for 64-bit on a 64-bit platform, and 32-bit on a 32-bit
 	// platform

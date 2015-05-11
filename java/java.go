@@ -44,59 +44,61 @@ import (
 // DroidDoc
 // Findbugs
 
+type javaBaseProperties struct {
+	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
+	// or .aidl files.
+	Srcs []string `android:"arch_variant,arch_subtract"`
+
+	// list of directories containing Java resources
+	Java_resource_dirs []string `android:"arch_variant"`
+
+	// don't build against the default libraries (core-libart, core-junit,
+	// ext, and framework for device targets)
+	No_standard_libraries bool
+
+	// list of module-specific flags that will be used for javac compiles
+	Javacflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for jack compiles
+	Jack_flags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for dex compiles
+	Dxflags []string `android:"arch_variant"`
+
+	// list of of java libraries that will be in the classpath
+	Java_libs []string `android:"arch_variant"`
+
+	// list of java libraries that will be compiled into the resulting jar
+	Java_static_libs []string `android:"arch_variant"`
+
+	// manifest file to be included in resulting jar
+	Manifest string
+
+	// if not blank, set to the version of the sdk to compile against
+	Sdk_version string
+
+	// Set for device java libraries, and for host versions of device java libraries
+	// built for testing
+	Dex bool `blueprint:"mutated"`
+
+	// if not blank, run jarjar using the specified rules file
+	Jarjar_rules string
+
+	// directories to pass to aidl tool
+	Aidl_includes []string
+
+	// directories that should be added as include directories
+	// for any aidl sources of modules that depend on this module
+	Export_aidl_include_dirs []string
+}
+
 // javaBase contains the properties and members used by all java module types, and implements
 // the blueprint.Module interface.
 type javaBase struct {
 	common.AndroidModuleBase
 	module JavaModuleType
 
-	properties struct {
-		// srcs: list of source files used to compile the Java module.  May be .java, .logtags, .proto,
-		// or .aidl files.
-		Srcs []string `android:"arch_variant,arch_subtract"`
-
-		// java_resource_dirs: list of directories containing Java resources
-		Java_resource_dirs []string `android:"arch_variant"`
-
-		// no_standard_libraries: don't build against the default libraries (core-libart, core-junit,
-		// ext, and framework for device targets)
-		No_standard_libraries bool
-
-		// javacflags: list of module-specific flags that will be used for javac compiles
-		Javacflags []string `android:"arch_variant"`
-
-		// jack_flags: list of module-specific flags that will be used for jack compiles
-		Jack_flags []string `android:"arch_variant"`
-
-		// dxflags: list of module-specific flags that will be used for dex compiles
-		Dxflags []string `android:"arch_variant"`
-
-		// java_libs: list of of java libraries that will be in the classpath
-		Java_libs []string `android:"arch_variant"`
-
-		// java_static_libs: list of java libraries that will be compiled into the resulting jar
-		Java_static_libs []string `android:"arch_variant"`
-
-		// manifest: manifest file to be included in resulting jar
-		Manifest string
-
-		// sdk_version: if not blank, set to the version of the sdk to compile against
-		Sdk_version string
-
-		// Set for device java libraries, and for host versions of device java libraries
-		// built for testing
-		Dex bool `blueprint:"mutated"`
-
-		// jarjar_rules: if not blank, run jarjar using the specified rules file
-		Jarjar_rules string
-
-		// aidl_includes: directories to pass to aidl tool
-		Aidl_includes []string
-
-		// aidl_export_include_dirs: directories that should be added as include directories
-		// for any aidl sources of modules that depend on this module
-		Export_aidl_include_dirs []string
-	}
+	properties javaBaseProperties
 
 	// output file suitable for inserting into the classpath of another compile
 	classpathFile string
@@ -442,13 +444,15 @@ func JavaLibraryHostFactory() (blueprint.Module, []interface{}) {
 // Java Binaries (.jar file plus wrapper script)
 //
 
+type javaBinaryProperties struct {
+	// installable script to execute the resulting jar
+	Wrapper string
+}
+
 type JavaBinary struct {
 	JavaLibrary
 
-	binaryProperties struct {
-		// wrapper: installable script to execute the resulting jar
-		Wrapper string
-	}
+	binaryProperties javaBinaryProperties
 }
 
 func (j *JavaBinary) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
@@ -478,12 +482,14 @@ func JavaBinaryHostFactory() (blueprint.Module, []interface{}) {
 // Java prebuilts
 //
 
+type javaPrebuiltProperties struct {
+	Srcs []string
+}
+
 type JavaPrebuilt struct {
 	common.AndroidModuleBase
 
-	properties struct {
-		Srcs []string
-	}
+	properties javaPrebuiltProperties
 
 	classpathFile                   string
 	classJarSpecs, resourceJarSpecs []jarSpec
@@ -540,12 +546,14 @@ type sdkDependency interface {
 
 var _ sdkDependency = (*sdkPrebuilt)(nil)
 
+type sdkPrebuiltProperties struct {
+	Aidl_preprocessed string
+}
+
 type sdkPrebuilt struct {
 	JavaPrebuilt
 
-	sdkProperties struct {
-		Aidl_preprocessed string
-	}
+	sdkProperties sdkPrebuiltProperties
 
 	aidlPreprocessed string
 }

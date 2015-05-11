@@ -31,35 +31,37 @@ import (
 // AndroidManifest.xml merging
 // package splits
 
+type androidAppProperties struct {
+	// path to a certificate, or the name of a certificate in the default
+	// certificate directory, or blank to use the default product certificate
+	Certificate string
+
+	// paths to extra certificates to sign the apk with
+	Additional_certificates []string
+
+	// If set, create package-export.apk, which other packages can
+	// use to get PRODUCT-agnostic resource data like IDs and type definitions.
+	Export_package_resources bool
+
+	// flags passed to aapt when creating the apk
+	Aaptflags []string
+
+	// list of resource labels to generate individual resource packages
+	Package_splits []string
+
+	// list of directories relative to the Blueprints file containing assets.
+	// Defaults to "assets"
+	Asset_dirs []string
+
+	// list of directories relative to the Blueprints file containing
+	// Java resources
+	Android_resource_dirs []string
+}
+
 type AndroidApp struct {
 	javaBase
 
-	appProperties struct {
-		// certificate: path to a certificate, or the name of a certificate in the default
-		// certificate directory, or blank to use the default product certificate
-		Certificate string
-
-		// additional_certificates: paths to extra certificates to sign the apk with
-		Additional_certificates []string
-
-		// export_package_resources: If set, create package-export.apk, which other packages can
-		// use to get PRODUCT-agnostic resource data like IDs and type definitions.
-		Export_package_resources bool
-
-		// aaptflags: flags passed to aapt when creating the apk
-		Aaptflags []string
-
-		// package_splits: list of resource labels to generate individual resource packages
-		Package_splits []string
-
-		// asset_dirs: list of directories relative to the Blueprints file containing assets.
-		// Defaults to "assets"
-		Asset_dirs []string
-
-		// android_resource_dirs: list of directories relative to the Blueprints file containing
-		// Java resources
-		Android_resource_dirs []string
-	}
+	appProperties androidAppProperties
 
 	aaptJavaFileList string
 	exportPackage    string

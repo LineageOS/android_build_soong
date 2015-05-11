@@ -92,38 +92,68 @@ module {
     },
 }
 */
+
 type archProperties struct {
+	// Properties to vary by target architecture
 	Arch struct {
-		Arm    interface{}
-		Arm64  interface{}
-		Mips   interface{}
-		Mips64 interface{}
-		X86    interface{}
-		X86_64 interface{}
+		// Properties for module variants being built to run on arm (host or device)
+		Arm interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on arm64 (host or device)
+		Arm64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on mips (host or device)
+		Mips interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on mips64 (host or device)
+		Mips64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on x86 (host or device)
+		X86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on x86_64 (host or device)
+		X86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 	}
+	// Properties to vary by 32-bit or 64-bit
 	Multilib struct {
-		Lib32 interface{}
-		Lib64 interface{}
+		// Properties for module variants being built to run on 32-bit devices
+		Lib32 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on 64-bit devices
+		Lib64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 	}
+	// Properties to vary by build target (host or device, os, os+archictecture)
 	Target struct {
-		Host           interface{}
-		Android        interface{}
-		Android_arm    interface{}
-		Android_arm64  interface{}
-		Android_mips   interface{}
-		Android_mips64 interface{}
-		Android_x86    interface{}
-		Android_x86_64 interface{}
-		Android64      interface{}
-		Android32      interface{}
-		Linux          interface{}
-		Linux_x86      interface{}
-		Linux_x86_64   interface{}
-		Darwin         interface{}
-		Darwin_x86     interface{}
-		Darwin_x86_64  interface{}
-		Windows        interface{}
-		Not_windows    interface{}
+		// Properties for module variants being built to run on the host
+		Host interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on the device
+		Android interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on arm devices
+		Android_arm interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on arm64 devices
+		Android_arm64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on mips devices
+		Android_mips interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on mips64 devices
+		Android_mips64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on x86 devices
+		Android_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on x86_64 devices
+		Android_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on devices that support 64-bit
+		Android64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on devices that do not support 64-bit
+		Android32 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on linux hosts
+		Linux interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on linux x86 hosts
+		Linux_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on linux x86_64 hosts
+		Linux_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on darwin hosts
+		Darwin interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on darwin x86 hosts
+		Darwin_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on darwin x86_64 hosts
+		Darwin_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on windows hosts
+		Windows interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on linux or darwin hosts
+		Not_windows interface{} `blueprint:"filter(android:\"arch_variant\")"`
 	}
 }
 

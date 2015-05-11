@@ -151,6 +151,117 @@ type CCFlags struct {
 	Clang     bool
 }
 
+// Properties used to compile all C or C++ modules
+type CCBaseProperties struct {
+	// list of source files used to compile the C/C++ module.  May be .c, .cpp, or .S files.
+	Srcs []string `android:"arch_variant,arch_subtract"`
+
+	// list of module-specific flags that will be used for C and C++ compiles.
+	Cflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for C++ compiles
+	Cppflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for C compiles
+	Conlyflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for .S compiles
+	Asflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for .y and .yy compiles
+	Yaccflags []string
+
+	// list of module-specific flags that will be used for all link steps
+	Ldflags []string `android:"arch_variant"`
+
+	// the instruction set architecture to use to compile the C/C++
+	// module.
+	Instruction_set string `android:"arch_variant"`
+
+	// list of directories relative to the root of the source tree that will
+	// be added to the include path using -I.
+	// If possible, don't use this.  If adding paths from the current directory use
+	// local_include_dirs, if adding paths from other modules use export_include_dirs in
+	// that module.
+	Include_dirs []string `android:"arch_variant"`
+
+	// list of directories relative to the Blueprints file that will
+	// be added to the include path using -I
+	Local_include_dirs []string `android:"arch_variant"`
+
+	// list of directories relative to the Blueprints file that will
+	// be added to the include path using -I for any module that links against this module
+	Export_include_dirs []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for C and C++ compiles when
+	// compiling with clang
+	Clang_cflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for .S compiles when
+	// compiling with clang
+	Clang_asflags []string `android:"arch_variant"`
+
+	// list of system libraries that will be dynamically linked to
+	// shared library and executable modules.  If unset, generally defaults to libc
+	// and libm.  Set to [] to prevent linking against libc and libm.
+	System_shared_libs []string
+
+	// list of modules whose object files should be linked into this module
+	// in their entirety.  For static library modules, all of the .o files from the intermediate
+	// directory of the dependency will be linked into this modules .a file.  For a shared library,
+	// the dependency's .a file will be linked into this module using -Wl,--whole-archive.
+	Whole_static_libs []string `android:"arch_variant"`
+
+	// list of modules that should be statically linked into this module.
+	Static_libs []string `android:"arch_variant"`
+
+	// list of modules that should be dynamically linked into this module.
+	Shared_libs []string `android:"arch_variant"`
+
+	// allow the module to contain undefined symbols.  By default,
+	// modules cannot contain undefined symbols that are not satisified by their immediate
+	// dependencies.  Set this flag to true to remove --no-undefined from the linker flags.
+	// This flag should only be necessary for compiling low-level libraries like libc.
+	Allow_undefined_symbols bool
+
+	// don't link in crt_begin and crt_end.  This flag should only be necessary for
+	// compiling crt or libc.
+	Nocrt bool `android:"arch_variant"`
+
+	// don't insert default compiler flags into asflags, cflags,
+	// cppflags, conlyflags, ldflags, or include_dirs
+	No_default_compiler_flags bool
+
+	// compile module with clang instead of gcc
+	Clang bool `android:"arch_variant"`
+
+	// pass -frtti instead of -fno-rtti
+	Rtti bool
+
+	// -l arguments to pass to linker for host-provided shared libraries
+	Host_ldlibs []string `android:"arch_variant"`
+
+	// select the STL library to use.  Possible values are "libc++", "libc++_static",
+	// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
+	// default
+	Stl string
+
+	// Set for combined shared/static libraries to prevent compiling object files a second time
+	SkipCompileObjs bool `blueprint:"mutated"`
+
+	Debug, Release struct {
+		// list of module-specific flags that will be used for C and C++ compiles in debug or
+		// release builds
+		Cflags []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+
+	// Minimum sdk version supported when compiling against the ndk
+	Sdk_version string
+
+	// install to a subdirectory of the default install path for the module
+	Relative_install_path string
+}
+
 // CCBase contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It expects to be embedded into an outer specialization struct,
 // and uses a ccModuleType interface to that struct to create the build steps.
@@ -158,117 +269,7 @@ type CCBase struct {
 	common.AndroidModuleBase
 	module CCModuleType
 
-	// Properties used to compile all C or C++ modules
-	Properties struct {
-		// srcs: list of source files used to compile the C/C++ module.  May be .c, .cpp, or .S files.
-		Srcs []string `android:"arch_variant,arch_subtract"`
-
-		// cflags: list of module-specific flags that will be used for C and C++ compiles.
-		Cflags []string `android:"arch_variant"`
-
-		// cppflags: list of module-specific flags that will be used for C++ compiles
-		Cppflags []string `android:"arch_variant"`
-
-		// conlyflags: list of module-specific flags that will be used for C compiles
-		Conlyflags []string `android:"arch_variant"`
-
-		// asflags: list of module-specific flags that will be used for .S compiles
-		Asflags []string `android:"arch_variant"`
-
-		// yaccflags: list of module-specific flags that will be used for .y and .yy compiles
-		Yaccflags []string
-
-		// ldflags: list of module-specific flags that will be used for all link steps
-		Ldflags []string `android:"arch_variant"`
-
-		// instruction_set: the instruction set architecture to use to compile the C/C++
-		// module.
-		Instruction_set string `android:"arch_variant"`
-
-		// include_dirs: list of directories relative to the root of the source tree that will
-		// be added to the include path using -I.
-		// If possible, don't use this.  If adding paths from the current directory use
-		// local_include_dirs, if adding paths from other modules use export_include_dirs in
-		// that module.
-		Include_dirs []string `android:"arch_variant"`
-
-		// local_include_dirs: list of directories relative to the Blueprints file that will
-		// be added to the include path using -I
-		Local_include_dirs []string `android:"arch_variant"`
-
-		// export_include_dirs: list of directories relative to the Blueprints file that will
-		// be added to the include path using -I for any module that links against this module
-		Export_include_dirs []string `android:"arch_variant"`
-
-		// clang_cflags: list of module-specific flags that will be used for C and C++ compiles when
-		// compiling with clang
-		Clang_cflags []string `android:"arch_variant"`
-
-		// clang_asflags: list of module-specific flags that will be used for .S compiles when
-		// compiling with clang
-		Clang_asflags []string `android:"arch_variant"`
-
-		// system_shared_libs: list of system libraries that will be dynamically linked to
-		// shared library and executable modules.  If unset, generally defaults to libc
-		// and libm.  Set to [] to prevent linking against libc and libm.
-		System_shared_libs []string
-
-		// whole_static_libs: list of modules whose object files should be linked into this module
-		// in their entirety.  For static library modules, all of the .o files from the intermediate
-		// directory of the dependency will be linked into this modules .a file.  For a shared library,
-		// the dependency's .a file will be linked into this module using -Wl,--whole-archive.
-		Whole_static_libs []string `android:"arch_variant"`
-
-		// static_libs: list of modules that should be statically linked into this module.
-		Static_libs []string `android:"arch_variant"`
-
-		// shared_libs: list of modules that should be dynamically linked into this module.
-		Shared_libs []string `android:"arch_variant"`
-
-		// allow_undefined_symbols: allow the module to contain undefined symbols.  By default,
-		// modules cannot contain undefined symbols that are not satisified by their immediate
-		// dependencies.  Set this flag to true to remove --no-undefined from the linker flags.
-		// This flag should only be necessary for compiling low-level libraries like libc.
-		Allow_undefined_symbols bool
-
-		// nocrt: don't link in crt_begin and crt_end.  This flag should only be necessary for
-		// compiling crt or libc.
-		Nocrt bool `android:"arch_variant"`
-
-		// no_default_compiler_flags: don't insert default compiler flags into asflags, cflags,
-		// cppflags, conlyflags, ldflags, or include_dirs
-		No_default_compiler_flags bool
-
-		// clang: compile module with clang instead of gcc
-		Clang bool `android:"arch_variant"`
-
-		// rtti: pass -frtti instead of -fno-rtti
-		Rtti bool
-
-		// host_ldlibs: -l arguments to pass to linker for host-provided shared libraries
-		Host_ldlibs []string `android:"arch_variant"`
-
-		// stl: select the STL library to use.  Possible values are "libc++", "libc++_static",
-		// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
-		// default
-		Stl string
-
-		// Set for combined shared/static libraries to prevent compiling object files a second time
-		SkipCompileObjs bool `blueprint:"mutated"`
-
-		Debug struct {
-			Cflags []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-		Release struct {
-			Cflags []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-
-		// Minimum sdk version supported when compiling against the ndk
-		Sdk_version string
-
-		// relative_install_path: install to a subdirectory of the default install path for the module
-		Relative_install_path string
-	}
+	Properties CCBaseProperties
 
 	unused struct {
 		Asan            bool
@@ -676,15 +677,16 @@ func (c *CCBase) depsToPaths(ctx common.AndroidModuleContext, depNames CCDeps) C
 	return depPaths
 }
 
+type ccLinkedProperties struct {
+	VariantIsShared       bool `blueprint:"mutated"`
+	VariantIsStatic       bool `blueprint:"mutated"`
+	VariantIsStaticBinary bool `blueprint:"mutated"`
+}
+
 // CCLinked contains the properties and members used by libraries and executables
 type CCLinked struct {
 	CCBase
-
-	dynamicProperties struct {
-		VariantIsShared       bool `blueprint:"mutated"`
-		VariantIsStatic       bool `blueprint:"mutated"`
-		VariantIsStaticBinary bool `blueprint:"mutated"`
-	}
+	dynamicProperties ccLinkedProperties
 }
 
 func newCCDynamic(dynamic *CCLinked, module CCModuleType, hod common.HostOrDeviceSupported,
@@ -922,6 +924,25 @@ type ccExportedFlagsProducer interface {
 // Combined static+shared libraries
 //
 
+type CCLibraryProperties struct {
+	BuildStatic bool `blueprint:"mutated"`
+	BuildShared bool `blueprint:"mutated"`
+	Static      struct {
+		Srcs              []string `android:"arch_variant"`
+		Cflags            []string `android:"arch_variant"`
+		Whole_static_libs []string `android:"arch_variant"`
+		Static_libs       []string `android:"arch_variant"`
+		Shared_libs       []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+	Shared struct {
+		Srcs              []string `android:"arch_variant"`
+		Cflags            []string `android:"arch_variant"`
+		Whole_static_libs []string `android:"arch_variant"`
+		Static_libs       []string `android:"arch_variant"`
+		Shared_libs       []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+}
+
 type CCLibrary struct {
 	CCLinked
 
@@ -931,24 +952,7 @@ type CCLibrary struct {
 	exportFlags   []string
 	out           string
 
-	LibraryProperties struct {
-		BuildStatic bool `blueprint:"mutated"`
-		BuildShared bool `blueprint:"mutated"`
-		Static      struct {
-			Srcs              []string `android:"arch_variant"`
-			Cflags            []string `android:"arch_variant"`
-			Whole_static_libs []string `android:"arch_variant"`
-			Static_libs       []string `android:"arch_variant"`
-			Shared_libs       []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-		Shared struct {
-			Srcs              []string `android:"arch_variant"`
-			Cflags            []string `android:"arch_variant"`
-			Whole_static_libs []string `android:"arch_variant"`
-			Static_libs       []string `android:"arch_variant"`
-			Shared_libs       []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-	}
+	LibraryProperties CCLibraryProperties
 }
 
 func (c *CCLibrary) buildStatic() bool {
@@ -1233,23 +1237,25 @@ var _ ccObjectProvider = (*ccObject)(nil)
 // Executables
 //
 
+type CCBinaryProperties struct {
+	// compile executable with -static
+	Static_executable bool
+
+	// set the name of the output
+	Stem string `android:"arch_variant"`
+
+	// append to the name of the output
+	Suffix string `android:"arch_variant"`
+
+	// if set, add an extra objcopy --prefix-symbols= step
+	Prefix_symbols string
+}
+
 type CCBinary struct {
 	CCLinked
 	out              string
 	installFile      string
-	BinaryProperties struct {
-		// static_executable: compile executable with -static
-		Static_executable bool
-
-		// stem: set the name of the output
-		Stem string `android:"arch_variant"`
-
-		// suffix: append to the name of the output
-		Suffix string `android:"arch_variant"`
-
-		// prefix_symbols: if set, add an extra objcopy --prefix-symbols= step
-		Prefix_symbols string
-	}
+	BinaryProperties CCBinaryProperties
 }
 
 func (c *CCBinary) buildStatic() bool {
@@ -1402,14 +1408,16 @@ func (c *CCBinary) HostToolPath() string {
 	return ""
 }
 
+type CCTestProperties struct {
+	// Create a separate test for each source file.  Useful when there is
+	// global state that can not be torn down and reset between each test suite.
+	Test_per_src bool
+}
+
 type CCTest struct {
 	CCBinary
 
-	TestProperties struct {
-		// test_per_src: Create a separate test for each source file.  Useful when there is
-		// global state that can not be torn down and reset between each test suite.
-		Test_per_src bool
-	}
+	TestProperties CCTestProperties
 }
 
 func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
