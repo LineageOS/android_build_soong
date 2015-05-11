@@ -77,7 +77,8 @@ func (g *generator) GeneratedSourceFiles() []string {
 
 func (g *generator) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
 	if g.properties.Tool != "" {
-		return []string{g.properties.Tool}
+		ctx.AddFarVariationDependencies([]blueprint.Variation{{"hostordevice", common.Host.String()}},
+			g.properties.Tool)
 	}
 	return nil
 }
