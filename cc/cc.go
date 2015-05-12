@@ -404,6 +404,9 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	}
 
 	// Include dir cflags
+	common.CheckSrcDirsExist(ctx, c.Properties.Include_dirs, "include_dirs")
+	common.CheckModuleSrcDirsExist(ctx, c.Properties.Local_include_dirs, "local_include_dirs")
+
 	rootIncludeDirs := pathtools.PrefixPaths(c.Properties.Include_dirs, ctx.AConfig().SrcDir())
 	localIncludeDirs := pathtools.PrefixPaths(c.Properties.Local_include_dirs, common.ModuleSrcDir(ctx))
 	flags.GlobalFlags = append(flags.GlobalFlags,
@@ -1096,6 +1099,8 @@ func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
 
 	c.objFiles = objFiles
 	c.out = outputFile
+
+	common.CheckModuleSrcDirsExist(ctx, c.Properties.Export_include_dirs, "export_include_dirs")
 	includeDirs := pathtools.PrefixPaths(c.Properties.Export_include_dirs, common.ModuleSrcDir(ctx))
 	c.exportFlags = []string{includeDirsToFlags(includeDirs)}
 

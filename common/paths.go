@@ -16,6 +16,7 @@ package common
 
 import (
 	"path/filepath"
+	"os"
 )
 
 // ModuleOutDir returns the path to the module-specific output directory.
@@ -73,4 +74,34 @@ func ModuleProtoDir(ctx AndroidModuleContext) string {
 
 func ModuleJSCompiledDir(ctx AndroidModuleContext) string {
 	return filepath.Join(ModuleOutDir(ctx), "js")
+}
+
+// CheckModuleSrcDirsExist logs an error on a property if any of the directories relative to the
+// Blueprints file don't exist.
+func CheckModuleSrcDirsExist(ctx AndroidModuleContext, dirs []string, prop string) {
+	for _, dir := range dirs {
+		fullDir := filepath.Join(ModuleSrcDir(ctx), dir)
+		if _, err := os.Stat(fullDir); err != nil {
+			if os.IsNotExist(err) {
+				ctx.PropertyErrorf(prop, "module source directory %q does not exist", dir)
+			} else {
+				ctx.PropertyErrorf(prop, "%s", err.Error())
+			}
+		}
+	}
+}
+
+// CheckModuleSrcDirsExist logs an error on a property if any of the directories relative to the
+// top of the source tree don't exist.
+func CheckSrcDirsExist(ctx AndroidModuleContext, dirs []string, prop string) {
+	for _, dir := range dirs {
+		fullDir := filepath.Join(ctx.AConfig().SrcDir(), dir)
+		if _, err := os.Stat(fullDir); err != nil {
+			if os.IsNotExist(err) {
+				ctx.PropertyErrorf(prop, "top-level source directory %q does not exist", dir)
+			} else {
+				ctx.PropertyErrorf(prop, "%s", err.Error())
+			}
+		}
+	}
 }
