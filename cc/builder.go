@@ -188,13 +188,13 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			ccCmd = gccCmd(flags.toolchain, ccCmd)
 		}
 
-		deps = append([]string{ccCmd}, deps...)
+		objDeps := append([]string{ccCmd}, deps...)
 
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      cc,
 			Outputs:   []string{objFile},
 			Inputs:    []string{srcFile},
-			Implicits: deps,
+			Implicits: objDeps,
 			Args: map[string]string{
 				"cFlags": moduleCflags,
 				"ccCmd":  ccCmd,
