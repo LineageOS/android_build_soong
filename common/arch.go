@@ -377,8 +377,7 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 
 		archProperties := &archProperties{}
 		forEachInterface(reflect.ValueOf(archProperties), func(v reflect.Value) {
-			newValue := proptools.CloneProperties(propertiesValue)
-			proptools.ZeroProperties(newValue.Elem())
+			newValue := proptools.CloneEmptyProperties(propertiesValue)
 			v.Set(newValue)
 		})
 
