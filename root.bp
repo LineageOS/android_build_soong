@@ -1,3 +1,5 @@
+subname = "Android.bp"
+
 subdirs = [
     "art",
     "build/blueprint",

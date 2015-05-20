@@ -53,7 +53,7 @@ rule g.bootstrap.link
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:186:1
+# Defined: build/soong/Android.bp:186:1
 
 build .bootstrap/androidbp/obj/androidbp.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp.go $
@@ -77,7 +77,7 @@ default .bootstrap/bin/androidbp
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:162:1
+# Defined: build/soong/Android.bp:162:1
 
 build .bootstrap/androidmk/obj/androidmk.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidmk/cmd/androidmk/android.go $
@@ -103,7 +103,7 @@ default .bootstrap/bin/androidmk
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:175:1
+# Defined: build/soong/Android.bp:175:1
 
 build .bootstrap/androidmk-parser/pkg/android/soong/androidmk/parser.a: $
         g.bootstrap.gc $
@@ -310,7 +310,7 @@ default .bootstrap/bin/minibp
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: art/build/Blueprints:13:1
+# Defined: art/build/Android.bp:13:1
 
 build .bootstrap/soong-art/pkg/android/soong/art.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/art/build/art.go | ${g.bootstrap.gcCmd} $
@@ -334,7 +334,7 @@ default .bootstrap/soong-art/pkg/android/soong/art.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:94:1
+# Defined: build/soong/Android.bp:94:1
 
 build .bootstrap/soong-cc/pkg/android/soong/cc.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/cc/builder.go $
@@ -367,7 +367,7 @@ default .bootstrap/soong-cc/pkg/android/soong/cc.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:72:1
+# Defined: build/soong/Android.bp:72:1
 
 build .bootstrap/soong-common/pkg/android/soong/common.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/common/arch.go $
@@ -397,7 +397,7 @@ default .bootstrap/soong-common/pkg/android/soong/common.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:41:1
+# Defined: build/soong/Android.bp:41:1
 
 build .bootstrap/soong-env/pkg/android/soong/env.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/env/env.go | ${g.bootstrap.gcCmd}
@@ -409,7 +409,7 @@ default .bootstrap/soong-env/pkg/android/soong/env.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:119:1
+# Defined: build/soong/Android.bp:119:1
 
 build .bootstrap/soong-genrule/pkg/android/soong/genrule.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/genrule/genrule.go | $
@@ -432,7 +432,7 @@ default .bootstrap/soong-genrule/pkg/android/soong/genrule.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:60:1
+# Defined: build/soong/Android.bp:60:1
 
 build .bootstrap/soong-glob/pkg/android/soong/glob.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/glob/glob.go | ${g.bootstrap.gcCmd} $
@@ -447,7 +447,7 @@ default .bootstrap/soong-glob/pkg/android/soong/glob.a
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModule
-# Defined: build/soong/Blueprints:139:1
+# Defined: build/soong/Android.bp:139:1
 
 build .bootstrap/soong-java/pkg/android/soong/java.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/java/app_builder.go $
@@ -476,7 +476,7 @@ default .bootstrap/soong-java/pkg/android/soong/java.a
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:13:1
+# Defined: build/soong/Android.bp:13:1
 
 build .bootstrap/soong_build/obj/soong_build.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/cmd/soong_build/main.go | $
@@ -512,7 +512,7 @@ default .bootstrap/bin/soong_build
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:31:1
+# Defined: build/soong/Android.bp:31:1
 
 build .bootstrap/soong_env/obj/soong_env.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/cmd/soong_env/soong_env.go | $
@@ -534,7 +534,7 @@ default .bootstrap/bin/soong_env
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:50:1
+# Defined: build/soong/Android.bp:50:1
 
 build .bootstrap/soong_glob/obj/soong_glob.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/cmd/soong_glob/soong_glob.go | $
@@ -560,7 +560,7 @@ default .bootstrap/bin/soong_glob
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.newGoBinaryModule
-# Defined: build/soong/Blueprints:132:1
+# Defined: build/soong/Android.bp:132:1
 
 build .bootstrap/soong_jar/obj/soong_jar.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/cmd/soong_jar/soong_jar.go | $
@@ -590,7 +590,7 @@ rule s.bootstrap.minibp
     generator = true
 
 build .bootstrap/main.ninja.in: s.bootstrap.bigbp $
-        ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/androidbp $
+        ${g.bootstrap.srcDir}/Android.bp | .bootstrap/bin/androidbp $
         .bootstrap/bin/androidmk .bootstrap/bin/bpfmt .bootstrap/bin/bpmodify $
         .bootstrap/bin/minibp .bootstrap/bin/soong_build $
         .bootstrap/bin/soong_env .bootstrap/bin/soong_glob $
@@ -603,7 +603,7 @@ build build.ninja: g.bootstrap.bootstrap .bootstrap/main.ninja.in | $
         .bootstrap/bootstrap.ninja.in
 default build.ninja
 build .bootstrap/bootstrap.ninja.in: s.bootstrap.minibp $
-        ${g.bootstrap.srcDir}/Blueprints | .bootstrap/bin/minibp
+        ${g.bootstrap.srcDir}/Android.bp | .bootstrap/bin/minibp
     checkFile = ${g.bootstrap.bootstrapManifest}
 default .bootstrap/bootstrap.ninja.in
 
