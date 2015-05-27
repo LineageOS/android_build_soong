@@ -2,14 +2,18 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	bpparser "github.com/google/blueprint/parser"
 )
+
+var recursiveSubdirRegex *regexp.Regexp = regexp.MustCompile("(.+)/\\*\\*/(.+)")
 
 type androidMkWriter struct {
 	*bufio.Writer
@@ -39,14 +43,34 @@ func valueToString(value bpparser.Value) string {
 	}
 }
 
+func getTopOfAndroidTree(wd string) (string, error) {
+	if !filepath.IsAbs(wd) {
+		return "", errors.New("path must be absolute: " + wd)
+	}
+
+	topfile := "build/soong/bootstrap.bash"
+
+	for "/" != wd {
+		expected := filepath.Join(wd, topfile)
+
+		if _, err := os.Stat(expected); err == nil {
+			// Found the top
+			return wd, nil
+		}
+
+		wd = filepath.Join(wd, "..")
+	}
+
+	return "", errors.New("couldn't find top of tree from " + wd)
+}
+
 // TODO: handle non-recursive wildcards?
 func processWildcards(s string) string {
-	re := regexp.MustCompile("(.*)/\\*\\*/(.*)")
-	submatches := re.FindAllStringSubmatch(s, -1)
-	if submatches != nil && len(submatches[0]) > 2 {
+	submatches := recursiveSubdirRegex.FindStringSubmatch(s)
+	if len(submatches) > 2 {
 		// Found a wildcard rule
 		return fmt.Sprintf("$(call find-files-in-subdirs, $(LOCAL_PATH), %s, %s)",
-			submatches[0][2], submatches[0][1])
+			submatches[2], submatches[1])
 	}
 
 	return s
@@ -194,14 +218,11 @@ func (w *androidMkWriter) handleModule(module *bpparser.Module) {
 }
 
 func (w *androidMkWriter) handleSubdirs(value bpparser.Value) {
-	switch value.Type {
-	case bpparser.String:
-		fmt.Fprintf(w, "$(call all-makefiles-under, %s)\n", value.StringValue)
-	case bpparser.List:
-		for _, tok := range value.ListValue {
-			fmt.Fprintf(w, "$(call all-makefiles-under, %s)\n", tok.StringValue)
-		}
+	subdirs := make([]string, 0, len(value.ListValue))
+	for _, tok := range value.ListValue {
+		subdirs = append(subdirs, tok.StringValue)
 	}
+	fmt.Fprintf(w, "include $(wildcard $(addsuffix %s, Android.mk))\n", strings.Join(subdirs, " "))
 }
 
 func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) {
@@ -262,6 +283,26 @@ func (w *androidMkWriter) iter() <-chan interface{} {
 	return ch
 }
 
+func (w *androidMkWriter) handleLocalPath() error {
+	androidMkDir, err := filepath.Abs(w.path)
+	if err != nil {
+		return err
+	}
+
+	top, err := getTopOfAndroidTree(androidMkDir)
+	if err != nil {
+		return err
+	}
+
+	rel, err := filepath.Rel(top, androidMkDir)
+	if err != nil {
+		return err
+	}
+
+	w.WriteString("LOCAL_PATH := " + rel + "\n")
+	return nil
+}
+
 func (w *androidMkWriter) write() {
 	outFilePath := fmt.Sprintf("%s/Androidbp.mk", w.path)
 	fmt.Printf("Writing %s\n", outFilePath)
@@ -275,7 +316,10 @@ func (w *androidMkWriter) write() {
 
 	w.Writer = bufio.NewWriter(f)
 
-	w.WriteString("LOCAL_PATH := $(call my-dir)\n")
+	if err := w.handleLocalPath(); err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 	for block := range w.iter() {
 		switch block := block.(type) {
