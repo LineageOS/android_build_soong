@@ -30,9 +30,9 @@ func valueToString(value bpparser.Value) string {
 	} else {
 		switch value.Type {
 		case bpparser.Bool:
-			return fmt.Sprintf(`"%t"`, value.BoolValue)
+			return fmt.Sprintf("%t", value.BoolValue)
 		case bpparser.String:
-			return fmt.Sprintf(`"%s"`, processWildcards(value.StringValue))
+			return fmt.Sprintf("%s", processWildcards(value.StringValue))
 		case bpparser.List:
 			return fmt.Sprintf("\\\n%s\n", listToMkString(value.ListValue))
 		case bpparser.Map:
@@ -80,7 +80,7 @@ func listToMkString(list []bpparser.Value) string {
 	lines := make([]string, 0, len(list))
 	for _, tok := range list {
 		if tok.Type == bpparser.String {
-			lines = append(lines, fmt.Sprintf("\t\"%s\"", processWildcards(tok.StringValue)))
+			lines = append(lines, fmt.Sprintf("    %s", processWildcards(tok.StringValue)))
 		} else {
 			lines = append(lines, fmt.Sprintf("# ERROR: unsupported type %s in list",
 				tok.Type.String()))
@@ -222,7 +222,9 @@ func (w *androidMkWriter) handleSubdirs(value bpparser.Value) {
 	for _, tok := range value.ListValue {
 		subdirs = append(subdirs, tok.StringValue)
 	}
-	fmt.Fprintf(w, "include $(wildcard $(addsuffix %s, Android.mk))\n", strings.Join(subdirs, " "))
+	// The current makefile may be generated to outside the source tree (such as the out directory), with a different structure.
+	fmt.Fprintf(w, "# Uncomment the following line if you really want to include subdir Android.mks.\n")
+	fmt.Fprintf(w, "# include $(wildcard $(addsuffix $(LOCAL_PATH)/%s/, Android.mk))\n", strings.Join(subdirs, " "))
 }
 
 func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) {
@@ -284,17 +286,17 @@ func (w *androidMkWriter) iter() <-chan interface{} {
 }
 
 func (w *androidMkWriter) handleLocalPath() error {
-	androidMkDir, err := filepath.Abs(w.path)
+	localPath, err := filepath.Abs(w.path)
 	if err != nil {
 		return err
 	}
 
-	top, err := getTopOfAndroidTree(androidMkDir)
+	top, err := getTopOfAndroidTree(localPath)
 	if err != nil {
 		return err
 	}
 
-	rel, err := filepath.Rel(top, androidMkDir)
+	rel, err := filepath.Rel(top, localPath)
 	if err != nil {
 		return err
 	}
@@ -303,11 +305,10 @@ func (w *androidMkWriter) handleLocalPath() error {
 	return nil
 }
 
-func (w *androidMkWriter) write() {
-	outFilePath := fmt.Sprintf("%s/Androidbp.mk", w.path)
-	fmt.Printf("Writing %s\n", outFilePath)
+func (w *androidMkWriter) write(androidMk string) error {
+	fmt.Printf("Writing %s\n", androidMk)
 
-	f, err := os.Create(outFilePath)
+	f, err := os.Create(androidMk)
 	if err != nil {
 		panic(err)
 	}
@@ -317,8 +318,7 @@ func (w *androidMkWriter) write() {
 	w.Writer = bufio.NewWriter(f)
 
 	if err := w.handleLocalPath(); err != nil {
-		fmt.Println(err.Error())
-		return
+		return err
 	}
 
 	for block := range w.iter() {
@@ -335,33 +335,46 @@ func (w *androidMkWriter) write() {
 	if err = w.Flush(); err != nil {
 		panic(err)
 	}
+	return nil
 }
 
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("No filename supplied")
-		return
+		os.Exit(1)
 	}
 
-	reader, err := os.Open(os.Args[1])
+	androidBp := os.Args[1]
+	var androidMk string
+	if len(os.Args) >= 3 {
+		androidMk = os.Args[2]
+	} else {
+		androidMk = androidBp + ".mk"
+	}
+
+	reader, err := os.Open(androidBp)
 	if err != nil {
 		fmt.Println(err.Error())
-		return
+		os.Exit(1)
 	}
 
 	scope := bpparser.NewScope(nil)
-	blueprint, errs := bpparser.Parse(os.Args[1], reader, scope)
+	blueprint, errs := bpparser.Parse(androidBp, reader, scope)
 	if len(errs) > 0 {
-		fmt.Println("%d errors parsing %s", len(errs), os.Args[1])
+		fmt.Println("%d errors parsing %s", len(errs), androidBp)
 		fmt.Println(errs)
-		return
+		os.Exit(1)
 	}
 
 	writer := &androidMkWriter{
 		blueprint: blueprint,
-		path:      path.Dir(os.Args[1]),
+		path:      path.Dir(androidBp),
 		mapScope:  make(map[string][]*bpparser.Property),
 	}
 
-	writer.write()
+	err = writer.write(androidMk)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }
