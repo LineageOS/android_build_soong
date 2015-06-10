@@ -113,6 +113,8 @@ func translateTargetConditionals(props []*bpparser.Property,
 			if mkProp, ok := standardProperties[targetScopedProp.Name.Name]; ok {
 				scopedProps = append(scopedProps, fmt.Sprintf("%s += %s",
 					mkProp.string, valueToString(targetScopedProp.Value)))
+			} else if rwProp, ok := rewriteProperties[targetScopedProp.Name.Name]; ok {
+				scopedProps = append(scopedProps, rwProp.f(rwProp.string, targetScopedProp, nil)...)
 			} else if "disabled" == targetScopedProp.Name.Name {
 				if targetScopedProp.Value.BoolValue {
 					disabledBuilds[target.Name.Name] = true
@@ -139,6 +141,8 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 			for _, stdProp := range suffixProp.Value.MapValue {
 				if mkProp, ok := standardProperties[stdProp.Name.Name]; ok {
 					computedProps = append(computedProps, fmt.Sprintf("%s_%s := %s", mkProp.string, suffix, valueToString(stdProp.Value)))
+				} else if rwProp, ok := rewriteProperties[stdProp.Name.Name]; ok {
+					computedProps = append(computedProps, rwProp.f(rwProp.string, stdProp, &suffix)...)
 				} else {
 					computedProps = append(computedProps, fmt.Sprintf("# ERROR: unsupported property %s", stdProp.Name.Name))
 				}
@@ -146,6 +150,22 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 		}
 	}
 	return
+}
+
+func prependLocalPath(name string, prop *bpparser.Property, suffix *string) (computedProps []string) {
+	includes := make([]string, 0, len(prop.Value.ListValue))
+	for _, tok := range prop.Value.ListValue {
+		if tok.Type == bpparser.String {
+			includes = append(includes, fmt.Sprintf("    $(LOCAL_PATH)/%s", tok.StringValue))
+		} else {
+			includes = append(includes, fmt.Sprintf("# ERROR: unsupported type %s in list",
+				tok.Type.String()))
+		}
+	}
+	if suffix != nil {
+		name += "_" + *suffix
+	}
+	return append(computedProps, fmt.Sprintf("%s := \\\n%s\n", name, strings.Join(includes, " \\\n")))
 }
 
 func (w *androidMkWriter) lookupMap(parent bpparser.Value) (mapValue []*bpparser.Property) {
@@ -194,6 +214,8 @@ func (w *androidMkWriter) handleModule(module *bpparser.Module) {
 	for _, prop := range module.Properties {
 		if mkProp, ok := standardProperties[prop.Name.Name]; ok {
 			standardProps = append(standardProps, fmt.Sprintf("%s := %s", mkProp.string, valueToString(prop.Value)))
+		} else if rwProp, ok := rewriteProperties[prop.Name.Name]; ok {
+			standardProps = append(standardProps, rwProp.f(rwProp.string, prop, nil)...)
 		} else if suffixMap, ok := suffixProperties[prop.Name.Name]; ok {
 			suffixProps := w.lookupMap(prop.Value)
 			standardProps = append(standardProps, translateSuffixProperties(suffixProps, suffixMap)...)

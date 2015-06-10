@@ -23,32 +23,31 @@ var standardProperties = map[string]struct {
 	//"name":             "LOCAL_PACKAGE_NAME", TODO
 
 	// ==== LIST PROPERTIES ====
-	"srcs":                {"LOCAL_SRC_FILES", bpparser.List},
-	"shared_libs":         {"LOCAL_SHARED_LIBRARIES", bpparser.List},
-	"static_libs":         {"LOCAL_STATIC_LIBRARIES", bpparser.List},
-	"whole_static_libs":   {"LOCAL_WHOLE_STATIC_LIBRARIES", bpparser.List},
-	"system_shared_libs":  {"LOCAL_SYSTEM_SHARED_LIBRARIES", bpparser.List},
-	"include_dirs":        {"LOCAL_C_INCLUDES", bpparser.List},
-	"export_include_dirs": {"LOCAL_EXPORT_C_INCLUDE_DIRS", bpparser.List},
-	"asflags":             {"LOCAL_ASFLAGS", bpparser.List},
-	"clang_asflags":       {"LOCAL_CLANG_ASFLAGS", bpparser.List},
-	"cflags":              {"LOCAL_CFLAGS", bpparser.List},
-	"conlyflags":          {"LOCAL_CONLYFLAGS", bpparser.List},
-	"cppflags":            {"LOCAL_CPPFLAGS", bpparser.List},
-	"ldflags":             {"LOCAL_LDFLAGS", bpparser.List},
-	"required":            {"LOCAL_REQUIRED_MODULES", bpparser.List},
-	"tags":                {"LOCAL_MODULE_TAGS", bpparser.List},
-	"host_ldlibs":         {"LOCAL_LDLIBS", bpparser.List},
-	"clang_cflags":        {"LOCAL_CLANG_CFLAGS", bpparser.List},
-	"yaccflags":           {"LOCAL_YACCFLAGS", bpparser.List},
-	"java_resource_dirs":  {"LOCAL_JAVA_RESOURCE_DIRS", bpparser.List},
-	"javacflags":          {"LOCAL_JAVACFLAGS", bpparser.List},
-	"dxflags":             {"LOCAL_DX_FLAGS", bpparser.List},
-	"java_libs":           {"LOCAL_JAVA_LIBRARIES", bpparser.List},
-	"java_static_libs":    {"LOCAL_STATIC_JAVA_LIBRARIES", bpparser.List},
-	"aidl_includes":       {"LOCAL_AIDL_INCLUDES", bpparser.List},
-	"aaptflags":           {"LOCAL_AAPT_FLAGS", bpparser.List},
-	"package_splits":      {"LOCAL_PACKAGE_SPLITS", bpparser.List},
+	"srcs":               {"LOCAL_SRC_FILES", bpparser.List},
+	"shared_libs":        {"LOCAL_SHARED_LIBRARIES", bpparser.List},
+	"static_libs":        {"LOCAL_STATIC_LIBRARIES", bpparser.List},
+	"whole_static_libs":  {"LOCAL_WHOLE_STATIC_LIBRARIES", bpparser.List},
+	"system_shared_libs": {"LOCAL_SYSTEM_SHARED_LIBRARIES", bpparser.List},
+	"include_dirs":       {"LOCAL_C_INCLUDES", bpparser.List},
+	"asflags":            {"LOCAL_ASFLAGS", bpparser.List},
+	"clang_asflags":      {"LOCAL_CLANG_ASFLAGS", bpparser.List},
+	"cflags":             {"LOCAL_CFLAGS", bpparser.List},
+	"conlyflags":         {"LOCAL_CONLYFLAGS", bpparser.List},
+	"cppflags":           {"LOCAL_CPPFLAGS", bpparser.List},
+	"ldflags":            {"LOCAL_LDFLAGS", bpparser.List},
+	"required":           {"LOCAL_REQUIRED_MODULES", bpparser.List},
+	"tags":               {"LOCAL_MODULE_TAGS", bpparser.List},
+	"host_ldlibs":        {"LOCAL_LDLIBS", bpparser.List},
+	"clang_cflags":       {"LOCAL_CLANG_CFLAGS", bpparser.List},
+	"yaccflags":          {"LOCAL_YACCFLAGS", bpparser.List},
+	"java_resource_dirs": {"LOCAL_JAVA_RESOURCE_DIRS", bpparser.List},
+	"javacflags":         {"LOCAL_JAVACFLAGS", bpparser.List},
+	"dxflags":            {"LOCAL_DX_FLAGS", bpparser.List},
+	"java_libs":          {"LOCAL_JAVA_LIBRARIES", bpparser.List},
+	"java_static_libs":   {"LOCAL_STATIC_JAVA_LIBRARIES", bpparser.List},
+	"aidl_includes":      {"LOCAL_AIDL_INCLUDES", bpparser.List},
+	"aaptflags":          {"LOCAL_AAPT_FLAGS", bpparser.List},
+	"package_splits":     {"LOCAL_PACKAGE_SPLITS", bpparser.List},
 
 	// ==== BOOL PROPERTIES ====
 	"host":                    {"LOCAL_IS_HOST_MODULE", bpparser.Bool},
@@ -61,6 +60,14 @@ var standardProperties = map[string]struct {
 	"rtti":                     {"LOCAL_RTTI_FLAG", bpparser.Bool},
 	"no_standard_libraries":    {"LOCAL_NO_STANDARD_LIBRARIES", bpparser.Bool},
 	"export_package_resources": {"LOCAL_EXPORT_PACKAGE_RESOURCES", bpparser.Bool},
+}
+
+var rewriteProperties = map[string]struct {
+	string
+	f func(name string, prop *bpparser.Property, suffix *string) (computedProps []string)
+}{
+	"local_include_dirs":  {"LOCAL_C_INCLUDES", prependLocalPath},
+	"export_include_dirs": {"LOCAL_EXPORT_C_INCLUDE_DIRS", prependLocalPath},
 }
 
 var moduleTypeToRule = map[string]string{
