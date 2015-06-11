@@ -106,6 +106,7 @@ var hostScopedPropertyConditionals = map[string]string{
 
 // TODO: host target?
 var targetScopedPropertyConditionals = map[string]string{
+	"android":       "",
 	"android32":     "ifneq($(TARGET_IS_64_BIT), true)",
 	"not_android32": "ifeq($(TARGET_IS_64_BIT), true)",
 	"android64":     "ifeq($(TARGET_IS_64_BIT), true)",

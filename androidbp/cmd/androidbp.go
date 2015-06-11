@@ -96,16 +96,22 @@ func translateTargetConditionals(props []*bpparser.Property,
 	disabledBuilds map[string]bool, isHostRule bool) (computedProps []string) {
 	for _, target := range props {
 		conditionals := targetScopedPropertyConditionals
+		altConditionals := hostScopedPropertyConditionals
 		if isHostRule {
-			conditionals = hostScopedPropertyConditionals
+			conditionals, altConditionals = altConditionals, conditionals
 		}
 
 		conditional, ok := conditionals[target.Name.Name]
 		if !ok {
-			// not found
-			conditional = fmt.Sprintf(
-				"ifeq(true, true) # ERROR: unsupported conditional host [%s]",
-				target.Name.Name)
+			if _, ok := altConditionals[target.Name.Name]; ok {
+				// This is only for the other build type
+				continue
+			} else {
+				// not found
+				conditional = fmt.Sprintf(
+					"ifeq(true, true) # ERROR: unsupported conditional [%s]",
+					target.Name.Name)
+			}
 		}
 
 		var scopedProps []string
@@ -125,9 +131,13 @@ func translateTargetConditionals(props []*bpparser.Property,
 		}
 
 		if len(scopedProps) > 0 {
-			computedProps = append(computedProps, conditional)
-			computedProps = append(computedProps, scopedProps...)
-			computedProps = append(computedProps, "endif")
+			if conditional != "" {
+				computedProps = append(computedProps, conditional)
+				computedProps = append(computedProps, scopedProps...)
+				computedProps = append(computedProps, "endif")
+			} else {
+				computedProps = append(computedProps, scopedProps...)
+			}
 		}
 	}
 
@@ -201,14 +211,7 @@ func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	fmt.Fprintf(w, "include $(%s)\n\n", moduleRule)
 }
 
-func (w *androidMkWriter) handleModule(module *bpparser.Module) {
-	moduleRule := fmt.Sprintf(module.Type.Name)
-	if translation, ok := moduleTypeToRule[module.Type.Name]; ok {
-		moduleRule = translation
-	}
-
-	isHostRule := strings.Contains(moduleRule, "HOST")
-	hostSupported := false
+func (w *androidMkWriter) parsePropsAndWriteModule(moduleRule string, isHostRule bool, module *bpparser.Module) (hostSupported bool) {
 	standardProps := make([]string, 0, len(module.Properties))
 	disabledBuilds := make(map[string]bool)
 	for _, prop := range module.Properties {
@@ -231,13 +234,25 @@ func (w *androidMkWriter) handleModule(module *bpparser.Module) {
 
 	// write out target build
 	w.writeModule(moduleRule, standardProps, disabledBuilds, isHostRule)
-	if hostSupported {
+	return
+}
+
+func (w *androidMkWriter) handleModule(module *bpparser.Module) {
+	moduleRule := fmt.Sprintf(module.Type.Name)
+	if translation, ok := moduleTypeToRule[module.Type.Name]; ok {
+		moduleRule = translation
+	}
+
+	isHostRule := strings.Contains(moduleRule, "HOST")
+	hostSupported := w.parsePropsAndWriteModule(moduleRule, isHostRule, module)
+
+	if !isHostRule && hostSupported {
 		hostModuleRule := "NO CORRESPONDING HOST RULE" + moduleRule
 		if trans, ok := targetToHostModuleRule[moduleRule]; ok {
 			hostModuleRule = trans
 		}
-		w.writeModule(hostModuleRule, standardProps,
-			disabledBuilds, true)
+
+		w.parsePropsAndWriteModule(hostModuleRule, true, module)
 	}
 }
 
