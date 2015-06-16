@@ -14,6 +14,8 @@
 
 package common
 
+import "sort"
+
 func JoinWithPrefix(strs []string, prefix string) string {
 	if len(strs) == 0 {
 		return ""
@@ -64,4 +66,13 @@ func JoinWithPrefixAndQuote(strs []string, prefix string) string {
 		ret = append(ret, '"')
 	}
 	return string(ret)
+}
+
+func sortedKeys(m map[string][]string) []string {
+	s := make([]string, 0, len(m))
+	for k := range m {
+		s = append(s, k)
+	}
+	sort.Strings(s)
+	return s
 }

@@ -194,6 +194,12 @@ type AndroidModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       []string
 	checkbuildFiles    []string
+
+	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
+	// Only set on the final variant of each module
+	installTarget    string
+	checkbuildTarget string
+	blueprintDir     string
 }
 
 func (a *AndroidModuleBase) base() *AndroidModuleBase {
@@ -273,6 +279,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 			Implicits: allInstalledFiles,
 		})
 		deps = append(deps, name)
+		a.installTarget = name
 	}
 
 	if len(allCheckbuildFiles) > 0 {
@@ -284,6 +291,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 			Optional:  true,
 		})
 		deps = append(deps, name)
+		a.checkbuildTarget = name
 	}
 
 	if len(deps) > 0 {
@@ -293,6 +301,8 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 			Implicits: deps,
 			Optional:  true,
 		})
+
+		a.blueprintDir = ctx.ModuleDir()
 	}
 }
 
@@ -424,6 +434,7 @@ func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string
 	})
 
 	a.installFiles = append(a.installFiles, fullInstallPath)
+	a.checkbuildFiles = append(a.checkbuildFiles, srcPath)
 	return fullInstallPath
 }
 
@@ -466,4 +477,53 @@ func ExpandSources(ctx AndroidModuleContext, srcFiles []string) []string {
 
 	srcFiles = expandGlobs(ctx, srcFiles)
 	return srcFiles
+}
+
+func BuildTargetSingleton() blueprint.Singleton {
+	return &buildTargetSingleton{}
+}
+
+type buildTargetSingleton struct{}
+
+func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
+	checkbuildDeps := []string{}
+
+	dirModules := make(map[string][]string)
+
+	ctx.VisitAllModules(func(module blueprint.Module) {
+		if a, ok := module.(AndroidModule); ok {
+			blueprintDir := a.base().blueprintDir
+			installTarget := a.base().installTarget
+			checkbuildTarget := a.base().checkbuildTarget
+
+			if checkbuildTarget != "" {
+				checkbuildDeps = append(checkbuildDeps, checkbuildTarget)
+				dirModules[blueprintDir] = append(dirModules[blueprintDir], checkbuildTarget)
+			}
+
+			if installTarget != "" {
+				dirModules[blueprintDir] = append(dirModules[blueprintDir], installTarget)
+			}
+		}
+	})
+
+	// Create a top-level checkbuild target that depends on all modules
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:      blueprint.Phony,
+		Outputs:   []string{"checkbuild"},
+		Implicits: checkbuildDeps,
+		// HACK: checkbuild should be an optional build, but force it enabled for now
+		//Optional:  true,
+	})
+
+	// Create a mm/<directory> target that depends on all modules in a directory
+	dirs := sortedKeys(dirModules)
+	for _, dir := range dirs {
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{filepath.Join("mm", dir)},
+			Implicits: dirModules[dir],
+			Optional:  true,
+		})
+	}
 }

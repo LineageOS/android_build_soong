@@ -80,7 +80,6 @@ bootstrap_go_package {
     ],
     srcs: [
         "common/arch.go",
-        "common/checkbuild.go",
         "common/config.go",
         "common/defs.go",
         "common/env.go",
