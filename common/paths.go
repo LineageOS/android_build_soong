@@ -15,8 +15,8 @@
 package common
 
 import (
-	"path/filepath"
 	"os"
+	"path/filepath"
 )
 
 // ModuleOutDir returns the path to the module-specific output directory.
