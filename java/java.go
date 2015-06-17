@@ -292,7 +292,7 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		javacDeps = append(javacDeps, classpath...)
 	}
 
-	srcFiles := common.ExpandSources(ctx, j.properties.Srcs)
+	srcFiles := ctx.ExpandSources(j.properties.Srcs)
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
 

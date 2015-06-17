@@ -531,7 +531,7 @@ func (c *CCBase) customCompileObjs(ctx common.AndroidModuleContext, flags CCFlag
 
 	buildFlags := ccFlagsToBuilderFlags(flags)
 
-	srcFiles = common.ExpandSources(ctx, srcFiles)
+	srcFiles = ctx.ExpandSources(srcFiles)
 	srcFiles, deps := genSources(ctx, srcFiles, buildFlags)
 
 	return TransformSourceToObj(ctx, subdir, srcFiles, buildFlags, deps)

@@ -244,14 +244,14 @@ func (a *AndroidApp) aaptFlags(ctx common.AndroidModuleContext) ([]string, []str
 	var aaptDeps []string
 	var hasResources bool
 	for _, d := range resourceDirs {
-		newDeps := common.Glob(ctx, filepath.Join(d, "**/*"), aaptIgnoreFilenames)
+		newDeps := ctx.Glob(filepath.Join(d, "**/*"), aaptIgnoreFilenames)
 		aaptDeps = append(aaptDeps, newDeps...)
 		if len(newDeps) > 0 {
 			hasResources = true
 		}
 	}
 	for _, d := range assetDirs {
-		newDeps := common.Glob(ctx, filepath.Join(d, "**/*"), aaptIgnoreFilenames)
+		newDeps := ctx.Glob(filepath.Join(d, "**/*"), aaptIgnoreFilenames)
 		aaptDeps = append(aaptDeps, newDeps...)
 	}
 

@@ -66,41 +66,20 @@ func hasGlob(in []string) bool {
 	return false
 }
 
-func expandGlobs(ctx AndroidModuleContext, in []string) []string {
-	if !hasGlob(in) {
-		return in
-	}
-
-	var excludes []string
-	for _, s := range in {
-		if s[0] == '-' {
-			excludes = append(excludes, s[1:])
-		}
-	}
-
-	out := make([]string, 0, len(in))
-	for _, s := range in {
-		if s[0] == '-' {
-			continue
-		} else if glob.IsGlob(s) {
-			out = append(out, Glob(ctx, s, excludes)...)
-		} else {
-			out = append(out, s)
-		}
-	}
-
-	return out
+// The subset of ModuleContext and SingletonContext needed by Glob
+type globContext interface {
+	Build(pctx *blueprint.PackageContext, params blueprint.BuildParams)
+	AddNinjaFileDeps(deps ...string)
 }
 
-func Glob(ctx AndroidModuleContext, globPattern string, excludes []string) []string {
-	fileListFile := filepath.Join(ModuleOutDir(ctx), "glob", globToString(globPattern))
+func Glob(ctx globContext, outDir string, globPattern string, excludes []string) ([]string, error) {
+	fileListFile := filepath.Join(outDir, "glob", globToString(globPattern))
 	depFile := fileListFile + ".d"
 
 	// Get a globbed file list, and write out fileListFile and depFile
 	files, err := glob.GlobWithDepFile(globPattern, fileListFile, depFile, excludes)
 	if err != nil {
-		ctx.ModuleErrorf("glob: %s", err.Error())
-		return []string{globPattern}
+		return nil, err
 	}
 
 	GlobRule(ctx, globPattern, excludes, fileListFile, depFile)
@@ -108,10 +87,10 @@ func Glob(ctx AndroidModuleContext, globPattern string, excludes []string) []str
 	// Make build.ninja depend on the fileListFile
 	ctx.AddNinjaFileDeps(fileListFile)
 
-	return files
+	return files, nil
 }
 
-func GlobRule(ctx AndroidModuleContext, globPattern string, excludes []string,
+func GlobRule(ctx globContext, globPattern string, excludes []string,
 	fileListFile, depFile string) {
 
 	// Create a rule to rebuild fileListFile if a directory in depFile changes.  fileListFile

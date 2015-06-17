@@ -132,7 +132,7 @@ func GenSrcsFactory() (blueprint.Module, []interface{}) {
 	properties := &genSrcsProperties{}
 
 	tasks := func(ctx common.AndroidModuleContext) []generateTask {
-		srcFiles := common.ExpandSources(ctx, properties.Srcs)
+		srcFiles := ctx.ExpandSources(properties.Srcs)
 		tasks := make([]generateTask, 0, len(srcFiles))
 		for _, in := range srcFiles {
 			out := pathtools.ReplaceExtension(in, properties.Output_extension)
@@ -159,7 +159,7 @@ func GenRuleFactory() (blueprint.Module, []interface{}) {
 	tasks := func(ctx common.AndroidModuleContext) []generateTask {
 		return []generateTask{
 			{
-				in:  common.ExpandSources(ctx, properties.Srcs),
+				in:  ctx.ExpandSources(properties.Srcs),
 				out: filepath.Join(common.ModuleGenDir(ctx), properties.Out),
 			},
 		}

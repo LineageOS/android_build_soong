@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"android/soong/glob"
+
 	"github.com/google/blueprint"
 )
 
@@ -48,6 +50,9 @@ type AndroidBaseContext interface {
 type AndroidModuleContext interface {
 	blueprint.ModuleContext
 	androidBaseContext
+
+	ExpandSources(srcFiles []string) []string
+	Glob(globPattern string, excludes []string) []string
 
 	InstallFile(installPath, srcPath string, deps ...string) string
 	InstallFileName(installPath, name, srcPath string, deps ...string) string
@@ -465,7 +470,7 @@ func isAndroidModule(m blueprint.Module) bool {
 	return ok
 }
 
-func ExpandSources(ctx AndroidModuleContext, srcFiles []string) []string {
+func (ctx *androidModuleContext) ExpandSources(srcFiles []string) []string {
 	prefix := ModuleSrcDir(ctx)
 	for i, srcFile := range srcFiles {
 		if srcFile[0] == '-' {
@@ -475,8 +480,37 @@ func ExpandSources(ctx AndroidModuleContext, srcFiles []string) []string {
 		}
 	}
 
-	srcFiles = expandGlobs(ctx, srcFiles)
-	return srcFiles
+	if !hasGlob(srcFiles) {
+		return srcFiles
+	}
+
+	var excludes []string
+	for _, s := range srcFiles {
+		if s[0] == '-' {
+			excludes = append(excludes, s[1:])
+		}
+	}
+
+	globbedSrcFiles := make([]string, 0, len(srcFiles))
+	for _, s := range srcFiles {
+		if s[0] == '-' {
+			continue
+		} else if glob.IsGlob(s) {
+			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob(s, excludes)...)
+		} else {
+			globbedSrcFiles = append(globbedSrcFiles, s)
+		}
+	}
+
+	return globbedSrcFiles
+}
+
+func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) []string {
+	ret, err := Glob(ctx, ModuleOutDir(ctx), globPattern, excludes)
+	if err != nil {
+		ctx.ModuleErrorf("glob: %s", err.Error())
+	}
+	return ret
 }
 
 func BuildTargetSingleton() blueprint.Singleton {
