@@ -20,9 +20,16 @@ import (
 	"runtime"
 	"strings"
 
+	"android/soong"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
+
+func init() {
+	soong.RegisterEarlyMutator("host_or_device", HostOrDeviceMutator)
+	soong.RegisterEarlyMutator("arch", ArchMutator)
+}
 
 var (
 	Arm    = newArch("arm", "lib32")

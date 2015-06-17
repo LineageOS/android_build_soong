@@ -15,6 +15,7 @@ bootstrap_go_binary {
     deps: [
         "blueprint",
         "blueprint-bootstrap",
+        "soong",
         "soong-art",
         "soong-cc",
         "soong-common",
@@ -70,11 +71,24 @@ bootstrap_go_package {
 }
 
 bootstrap_go_package {
+    name: "soong",
+    pkgPath: "android/soong",
+    deps: [
+        "blueprint",
+    ],
+    srcs: [
+        "doc.go",
+        "register.go",
+    ],
+}
+
+bootstrap_go_package {
     name: "soong-common",
     pkgPath: "android/soong/common",
     deps: [
         "blueprint",
         "blueprint-bootstrap",
+        "soong",
         "soong-env",
         "soong-glob",
     ],
@@ -96,6 +110,7 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "blueprint-pathtools",
+        "soong",
         "soong-common",
         "soong-genrule",
     ],
@@ -124,6 +139,7 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "blueprint-pathtools",
+        "soong",
         "soong-common",
     ],
     srcs: [
@@ -144,6 +160,7 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "blueprint-pathtools",
+        "soong",
         "soong-common",
         "soong-genrule",
     ],

@@ -27,9 +27,38 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 
+	"android/soong"
 	"android/soong/common"
 	"android/soong/genrule"
 )
+
+func init() {
+	soong.RegisterModuleType("cc_library_static", CCLibraryStaticFactory)
+	soong.RegisterModuleType("cc_library_shared", CCLibrarySharedFactory)
+	soong.RegisterModuleType("cc_library", CCLibraryFactory)
+	soong.RegisterModuleType("cc_object", CCObjectFactory)
+	soong.RegisterModuleType("cc_binary", CCBinaryFactory)
+	soong.RegisterModuleType("cc_test", CCTestFactory)
+	soong.RegisterModuleType("cc_benchmark", CCBenchmarkFactory)
+
+	soong.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
+	soong.RegisterModuleType("ndk_prebuilt_library", NdkPrebuiltLibraryFactory)
+	soong.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
+	soong.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
+	soong.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
+
+	soong.RegisterModuleType("cc_library_host_static", CCLibraryHostStaticFactory)
+	soong.RegisterModuleType("cc_library_host_shared", CCLibraryHostSharedFactory)
+	soong.RegisterModuleType("cc_binary_host", CCBinaryHostFactory)
+	soong.RegisterModuleType("cc_test_host", CCTestHostFactory)
+	soong.RegisterModuleType("cc_benchmark_host", CCBenchmarkHostFactory)
+
+	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
+	// the Go initialization order because this package depends on common, so common's init
+	// functions will run first.
+	soong.RegisterEarlyMutator("link", LinkageMutator)
+	soong.RegisterEarlyMutator("test_per_src", TestPerSrcMutator)
+}
 
 var (
 	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", common.Config.PrebuiltOS)

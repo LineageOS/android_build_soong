@@ -20,8 +20,14 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 
+	"android/soong"
 	"android/soong/common"
 )
+
+func init() {
+	soong.RegisterModuleType("gensrcs", GenSrcsFactory)
+	soong.RegisterModuleType("genrule", GenRuleFactory)
+}
 
 var (
 	pctx = blueprint.NewPackageContext("android/soong/genrule")

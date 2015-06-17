@@ -15,6 +15,7 @@
 package common
 
 import (
+	"android/soong"
 	"android/soong/env"
 
 	"github.com/google/blueprint"
@@ -26,6 +27,10 @@ import (
 // The next time the top-level build script is run, it uses the soong_env executable to
 // compare the contents of the environment variables, rewriting the file if necessary to cause
 // a manifest regeneration.
+
+func init() {
+	soong.RegisterSingletonType("env", EnvSingleton)
+}
 
 func EnvSingleton() blueprint.Singleton {
 	return &envSingleton{}

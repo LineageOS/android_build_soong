@@ -15,6 +15,7 @@
 package common
 
 import (
+	"android/soong"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -518,6 +519,10 @@ func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) []s
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}
 	return ret
+}
+
+func init() {
+	soong.RegisterSingletonType("buildtarget", BuildTargetSingleton)
 }
 
 func BuildTargetSingleton() blueprint.Singleton {
