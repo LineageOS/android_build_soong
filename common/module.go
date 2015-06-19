@@ -588,6 +588,9 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 
 		// Existing Android.mk file, use that instead
 		if len(files) > 0 {
+			for _, file := range files {
+				ctx.AddNinjaFileDeps(file)
+			}
 			continue
 		}
 
