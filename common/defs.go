@@ -15,7 +15,10 @@
 package common
 
 import (
+	"path/filepath"
+
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 )
 
 var (
@@ -23,6 +26,13 @@ var (
 
 	cpPreserveSymlinks = pctx.VariableConfigMethod("cpPreserveSymlinks",
 		Config.CpPreserveSymlinksFlags)
+
+	androidbpCmd = filepath.Join(bootstrap.BinDir, "androidbp")
+	androidbp    = pctx.StaticRule("androidbp",
+		blueprint.RuleParams{
+			Command:     androidbpCmd + " $in $out",
+			Description: "androidbp $out",
+		})
 
 	// A phony rule that is not the built-in Ninja phony rule.  The built-in
 	// phony rule has special behavior that is sometimes not desired.  See the
