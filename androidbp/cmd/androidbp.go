@@ -21,6 +21,8 @@ type androidMkWriter struct {
 	blueprint *bpparser.File
 	path      string
 
+	printedLocalPath bool
+
 	mapScope map[string][]*bpparser.Property
 }
 
@@ -286,6 +288,11 @@ func (w *androidMkWriter) iter() <-chan interface{} {
 }
 
 func (w *androidMkWriter) handleLocalPath() error {
+	if w.printedLocalPath {
+		return nil
+	}
+	w.printedLocalPath = true
+
 	localPath, err := filepath.Abs(w.path)
 	if err != nil {
 		return err
@@ -317,15 +324,17 @@ func (w *androidMkWriter) write(androidMk string) error {
 
 	w.Writer = bufio.NewWriter(f)
 
-	if err := w.handleLocalPath(); err != nil {
-		return err
-	}
-
 	for block := range w.iter() {
 		switch block := block.(type) {
 		case *bpparser.Module:
+			if err := w.handleLocalPath(); err != nil {
+				return err
+			}
 			w.handleModule(block)
 		case *bpparser.Assignment:
+			if err := w.handleLocalPath(); err != nil {
+				return err
+			}
 			w.handleAssignment(block)
 		case bpparser.Comment:
 			w.handleComment(&block)
