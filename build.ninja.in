@@ -254,17 +254,40 @@ build $
         ${g.bootstrap.srcDir}/build/blueprint/bootstrap/cleanup.go $
         ${g.bootstrap.srcDir}/build/blueprint/bootstrap/command.go $
         ${g.bootstrap.srcDir}/build/blueprint/bootstrap/config.go $
-        ${g.bootstrap.srcDir}/build/blueprint/bootstrap/doc.go | $
+        ${g.bootstrap.srcDir}/build/blueprint/bootstrap/doc.go $
+        ${g.bootstrap.srcDir}/build/blueprint/bootstrap/writedocs.go | $
         ${g.bootstrap.gcCmd} $
         .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a $
         .bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
-        .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg
+        .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg
     pkgPath = github.com/google/blueprint/bootstrap
 default $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Module:  blueprint-bootstrap-bpdoc
+# Variant:
+# Type:    bootstrap_go_package
+# Factory: github.com/google/blueprint/bootstrap.func·002
+# Defined: build/blueprint/Blueprints:89:1
+
+build $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
+        : g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/blueprint/bootstrap/bpdoc/bpdoc.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a $
+        .bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a $
+        .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/github.com/google/blueprint.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg
+    pkgPath = github.com/google/blueprint/bootstrap/bpdoc
+default $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Module:  blueprint-deptools
@@ -407,7 +430,7 @@ default $
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.func·003
-# Defined: build/blueprint/Blueprints:96:1
+# Defined: build/blueprint/Blueprints:110:1
 
 build .bootstrap/bpfmt/obj/bpfmt.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/blueprint/bpfmt/bpfmt.go | $
@@ -430,7 +453,7 @@ default .bootstrap/bin/bpfmt
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.func·003
-# Defined: build/blueprint/Blueprints:102:1
+# Defined: build/blueprint/Blueprints:116:1
 
 build .bootstrap/bpmodify/obj/bpmodify.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/blueprint/bpmodify/bpmodify.go | $
@@ -453,7 +476,7 @@ default .bootstrap/bin/bpmodify
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.func·003
-# Defined: build/blueprint/Blueprints:108:1
+# Defined: build/blueprint/Blueprints:122:1
 
 build .bootstrap/gotestmain/obj/gotestmain.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/blueprint/gotestmain/gotestmain.go | $
@@ -473,7 +496,7 @@ default .bootstrap/bin/gotestmain
 # Variant:
 # Type:    bootstrap_go_binary
 # Factory: github.com/google/blueprint/bootstrap.func·003
-# Defined: build/blueprint/Blueprints:87:1
+# Defined: build/blueprint/Blueprints:101:1
 
 build .bootstrap/minibp/obj/minibp.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/blueprint/bootstrap/minibp/main.go | $
@@ -483,14 +506,15 @@ build .bootstrap/minibp/obj/minibp.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg
     pkgPath = minibp
 default .bootstrap/minibp/obj/minibp.a
 
 build .bootstrap/minibp/obj/a.out: g.bootstrap.link $
         .bootstrap/minibp/obj/minibp.a | ${g.bootstrap.linkCmd}
-    libDirFlags = -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-bootstrap/pkg
+    libDirFlags = -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-bootstrap-bpdoc/pkg -L .bootstrap/blueprint-bootstrap/pkg
 default .bootstrap/minibp/obj/a.out
 
 build .bootstrap/bin/minibp: g.bootstrap.cp .bootstrap/minibp/obj/a.out
@@ -510,13 +534,14 @@ build .bootstrap/soong-art/pkg/android/soong/art.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
         .bootstrap/soong-common/pkg/android/soong/common.a $
         .bootstrap/soong-genrule/pkg/android/soong/genrule.a $
         .bootstrap/soong-cc/pkg/android/soong/cc.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg -I .bootstrap/soong-cc/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg -I .bootstrap/soong-cc/pkg
     pkgPath = android/soong/art
 default .bootstrap/soong-art/pkg/android/soong/art.a
 
@@ -544,12 +569,13 @@ build .bootstrap/soong-cc/test/android/soong/cc.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
         .bootstrap/soong-common/pkg/android/soong/common.a $
         .bootstrap/soong-genrule/pkg/android/soong/genrule.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
     pkgPath = android/soong/cc
 default .bootstrap/soong-cc/test/android/soong/cc.a
 
@@ -568,7 +594,7 @@ default .bootstrap/soong-cc/test/test.a
 
 build .bootstrap/soong-cc/test/test: g.bootstrap.link $
         .bootstrap/soong-cc/test/test.a | ${g.bootstrap.linkCmd}
-    libDirFlags = -L .bootstrap/soong-cc/test -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-bootstrap/pkg -L .bootstrap/soong-env/pkg -L .bootstrap/soong-glob/pkg -L .bootstrap/soong-common/pkg -L .bootstrap/soong-genrule/pkg
+    libDirFlags = -L .bootstrap/soong-cc/test -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-bootstrap-bpdoc/pkg -L .bootstrap/blueprint-bootstrap/pkg -L .bootstrap/soong-env/pkg -L .bootstrap/soong-glob/pkg -L .bootstrap/soong-common/pkg -L .bootstrap/soong-genrule/pkg
 default .bootstrap/soong-cc/test/test
 
 build .bootstrap/soong-cc/test/test.passed: g.bootstrap.test $
@@ -594,13 +620,14 @@ build .bootstrap/soong-cc/pkg/android/soong/cc.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
         .bootstrap/soong-common/pkg/android/soong/common.a $
         .bootstrap/soong-genrule/pkg/android/soong/genrule.a || $
         .bootstrap/soong-cc/test/test.passed
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
     pkgPath = android/soong/cc
 default .bootstrap/soong-cc/pkg/android/soong/cc.a
 
@@ -626,10 +653,11 @@ build .bootstrap/soong-common/pkg/android/soong/common.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg
     pkgPath = android/soong/common
 default .bootstrap/soong-common/pkg/android/soong/common.a
 
@@ -660,11 +688,12 @@ build .bootstrap/soong-genrule/pkg/android/soong/genrule.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
         .bootstrap/soong-common/pkg/android/soong/common.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg
     pkgPath = android/soong/genrule
 default .bootstrap/soong-genrule/pkg/android/soong/genrule.a
 
@@ -703,12 +732,13 @@ build .bootstrap/soong-java/pkg/android/soong/java.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
         .bootstrap/soong-common/pkg/android/soong/common.a $
         .bootstrap/soong-genrule/pkg/android/soong/genrule.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg
     pkgPath = android/soong/java
 default .bootstrap/soong-java/pkg/android/soong/java.a
 
@@ -727,6 +757,7 @@ build .bootstrap/soong_build/obj/soong_build.a: g.bootstrap.gc $
         .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
         .bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         .bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
+        .bootstrap/blueprint-bootstrap-bpdoc/pkg/github.com/google/blueprint/bootstrap/bpdoc.a $
         .bootstrap/blueprint-bootstrap/pkg/github.com/google/blueprint/bootstrap.a $
         .bootstrap/soong-env/pkg/android/soong/env.a $
         .bootstrap/soong-glob/pkg/android/soong/glob.a $
@@ -735,13 +766,13 @@ build .bootstrap/soong_build/obj/soong_build.a: g.bootstrap.gc $
         .bootstrap/soong-cc/pkg/android/soong/cc.a $
         .bootstrap/soong-art/pkg/android/soong/art.a $
         .bootstrap/soong-java/pkg/android/soong/java.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg -I .bootstrap/soong-cc/pkg -I .bootstrap/soong-art/pkg -I .bootstrap/soong-java/pkg
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg -I .bootstrap/blueprint-deptools/pkg -I .bootstrap/blueprint-bootstrap-bpdoc/pkg -I .bootstrap/blueprint-bootstrap/pkg -I .bootstrap/soong-env/pkg -I .bootstrap/soong-glob/pkg -I .bootstrap/soong-common/pkg -I .bootstrap/soong-genrule/pkg -I .bootstrap/soong-cc/pkg -I .bootstrap/soong-art/pkg -I .bootstrap/soong-java/pkg
     pkgPath = soong_build
 default .bootstrap/soong_build/obj/soong_build.a
 
 build .bootstrap/soong_build/obj/a.out: g.bootstrap.link $
         .bootstrap/soong_build/obj/soong_build.a | ${g.bootstrap.linkCmd}
-    libDirFlags = -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-bootstrap/pkg -L .bootstrap/soong-env/pkg -L .bootstrap/soong-glob/pkg -L .bootstrap/soong-common/pkg -L .bootstrap/soong-genrule/pkg -L .bootstrap/soong-cc/pkg -L .bootstrap/soong-art/pkg -L .bootstrap/soong-java/pkg
+    libDirFlags = -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg -L .bootstrap/blueprint-deptools/pkg -L .bootstrap/blueprint-bootstrap-bpdoc/pkg -L .bootstrap/blueprint-bootstrap/pkg -L .bootstrap/soong-env/pkg -L .bootstrap/soong-glob/pkg -L .bootstrap/soong-common/pkg -L .bootstrap/soong-genrule/pkg -L .bootstrap/soong-cc/pkg -L .bootstrap/soong-art/pkg -L .bootstrap/soong-java/pkg
 default .bootstrap/soong_build/obj/a.out
 
 build .bootstrap/bin/soong_build: g.bootstrap.cp $
@@ -819,6 +850,10 @@ default .bootstrap/bin/soong_jar
 # Singleton: bootstrap
 # Factory:   github.com/google/blueprint/bootstrap.func·008
 
+rule s.bootstrap.bigbpDocs
+    command = .bootstrap/bin/soong_build  -t --docs ${out} ${g.bootstrap.srcDir}/Android.bp
+    description = soong_build docs ${out}
+
 rule s.bootstrap.bigbp
     command = .bootstrap/bin/soong_build  -t -d .bootstrap/main.ninja.in.d -m ${g.bootstrap.bootstrapManifest} -o ${out} ${in}
     depfile = .bootstrap/main.ninja.in.d
@@ -830,12 +865,16 @@ rule s.bootstrap.minibp
     description = minibp ${out}
     generator = true
 
+build .bootstrap/docs/soong_build.html: s.bootstrap.bigbpDocs | $
+        .bootstrap/bin/soong_build
+default .bootstrap/docs/soong_build.html
 build .bootstrap/main.ninja.in: s.bootstrap.bigbp $
         ${g.bootstrap.srcDir}/Android.bp | .bootstrap/bin/androidbp $
         .bootstrap/bin/androidmk .bootstrap/bin/bpfmt .bootstrap/bin/bpmodify $
         .bootstrap/bin/gotestmain .bootstrap/bin/minibp $
         .bootstrap/bin/soong_build .bootstrap/bin/soong_env $
-        .bootstrap/bin/soong_glob .bootstrap/bin/soong_jar
+        .bootstrap/bin/soong_glob .bootstrap/bin/soong_jar $
+        .bootstrap/docs/soong_build.html
 default .bootstrap/main.ninja.in
 build .bootstrap/notAFile: phony
 default .bootstrap/notAFile
