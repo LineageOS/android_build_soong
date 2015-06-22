@@ -29,6 +29,13 @@ type androidMkWriter struct {
 func valueToString(value bpparser.Value) string {
 	if value.Variable != "" {
 		return fmt.Sprintf("$(%s)", value.Variable)
+	} else if value.Expression != nil {
+		if value.Expression.Operator != '+' {
+			panic(fmt.Errorf("unexpected operator '%c'", value.Expression.Operator))
+		}
+		return fmt.Sprintf("%s %s",
+			valueToString(value.Expression.Args[0]),
+			valueToString(value.Expression.Args[1]))
 	} else {
 		switch value.Type {
 		case bpparser.Bool:
@@ -36,7 +43,7 @@ func valueToString(value bpparser.Value) string {
 		case bpparser.String:
 			return fmt.Sprintf("%s", processWildcards(value.StringValue))
 		case bpparser.List:
-			return fmt.Sprintf("\\\n%s\n", listToMkString(value.ListValue))
+			return fmt.Sprintf("\\\n%s", listToMkString(value.ListValue))
 		case bpparser.Map:
 			return fmt.Sprintf("ERROR can't convert map to string")
 		default:
@@ -163,19 +170,12 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 }
 
 func prependLocalPath(name string, prop *bpparser.Property, suffix *string) (computedProps []string) {
-	includes := make([]string, 0, len(prop.Value.ListValue))
-	for _, tok := range prop.Value.ListValue {
-		if tok.Type == bpparser.String {
-			includes = append(includes, fmt.Sprintf("    $(LOCAL_PATH)/%s", tok.StringValue))
-		} else {
-			includes = append(includes, fmt.Sprintf("# ERROR: unsupported type %s in list",
-				tok.Type.String()))
-		}
-	}
 	if suffix != nil {
 		name += "_" + *suffix
 	}
-	return append(computedProps, fmt.Sprintf("%s := \\\n%s\n", name, strings.Join(includes, " \\\n")))
+	return []string{
+		fmt.Sprintf("%s := $(addprefix $(LOCAL_PATH)/,%s)\n", name, valueToString(prop.Value)),
+	}
 }
 
 func (w *androidMkWriter) lookupMap(parent bpparser.Value) (mapValue []*bpparser.Property) {
