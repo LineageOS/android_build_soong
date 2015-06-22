@@ -178,6 +178,15 @@ func prependLocalPath(name string, prop *bpparser.Property, suffix *string) (com
 	}
 }
 
+func prependLocalModule(name string, prop *bpparser.Property, suffix *string) (computedProps []string) {
+	if suffix != nil {
+		name += "_" + *suffix
+	}
+	return []string {
+		fmt.Sprintf("%s := $(LOCAL_MODULE)%s\n", name, valueToString(prop)),
+	}
+}
+
 func (w *androidMkWriter) lookupMap(parent bpparser.Value) (mapValue []*bpparser.Property) {
 	if parent.Variable != "" {
 		mapValue = w.mapScope[parent.Variable]

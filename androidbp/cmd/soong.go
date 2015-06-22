@@ -19,7 +19,6 @@ var standardProperties = map[string]struct {
 	"manifest":     {"LOCAL_JAR_MANIFEST", bpparser.String},
 	"jarjar_rules": {"LOCAL_JARJAR_RULES", bpparser.String},
 	"certificate":  {"LOCAL_CERTIFICATE", bpparser.String},
-	"suffix":       {"LOCAL_MODULE_SUFFIX", bpparser.String},
 	//"name":             "LOCAL_PACKAGE_NAME", TODO
 
 	// ==== LIST PROPERTIES ====
@@ -60,6 +59,7 @@ var standardProperties = map[string]struct {
 	"rtti":                     {"LOCAL_RTTI_FLAG", bpparser.Bool},
 	"no_standard_libraries":    {"LOCAL_NO_STANDARD_LIBRARIES", bpparser.Bool},
 	"export_package_resources": {"LOCAL_EXPORT_PACKAGE_RESOURCES", bpparser.Bool},
+	"static_executable":        {"LOCAL_FORCE_STATIC_EXECUTABLE", bpparser.Bool},
 }
 
 var rewriteProperties = map[string]struct {
@@ -68,6 +68,7 @@ var rewriteProperties = map[string]struct {
 }{
 	"local_include_dirs":  {"LOCAL_C_INCLUDES", prependLocalPath},
 	"export_include_dirs": {"LOCAL_EXPORT_C_INCLUDE_DIRS", prependLocalPath},
+	"suffix":              {"LOCAL_MODULE_STEM", prependLocalModule},
 }
 
 var moduleTypeToRule = map[string]string{
