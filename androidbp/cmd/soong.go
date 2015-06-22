@@ -98,36 +98,36 @@ var suffixProperties = map[string]map[string]string{
 
 var hostScopedPropertyConditionals = map[string]string{
 	"darwin":      "ifeq ($(HOST_OS), darwin)",
-	"not_darwin":  "ifneq($(HOST_OS), darwin)",
+	"not_darwin":  "ifneq ($(HOST_OS), darwin)",
 	"windows":     "ifeq ($(HOST_OS), windows)",
-	"not_windows": "ifneq($(HOST_OS), windows)",
+	"not_windows": "ifneq ($(HOST_OS), windows)",
 	"linux":       "ifeq ($(HOST_OS), linux)",
-	"not_linux":   "ifneq($(HOST_OS), linux)",
+	"not_linux":   "ifneq ($(HOST_OS), linux)",
 }
 
 // TODO: host target?
 var targetScopedPropertyConditionals = map[string]string{
 	"android":       "",
-	"android32":     "ifneq($(TARGET_IS_64_BIT), true)",
-	"not_android32": "ifeq($(TARGET_IS_64_BIT), true)",
-	"android64":     "ifeq($(TARGET_IS_64_BIT), true)",
-	"not_android64": "ifneq($(TARGET_IS_64_BIT), true)",
+	"android32":     "ifneq ($(TARGET_IS_64_BIT), true)",
+	"not_android32": "ifeq ($(TARGET_IS_64_BIT), true)",
+	"android64":     "ifeq ($(TARGET_IS_64_BIT), true)",
+	"not_android64": "ifneq ($(TARGET_IS_64_BIT), true)",
 }
 
 var disabledHostConditionals = map[string]string{
 	"darwin":      "ifneq ($(HOST_OS), darwin)",
-	"not_darwin":  "ifeq($(HOST_OS), darwin)",
+	"not_darwin":  "ifeq ($(HOST_OS), darwin)",
 	"windows":     "ifneq ($(HOST_OS), windows)",
-	"not_windows": "ifeq($(HOST_OS), windows)",
+	"not_windows": "ifeq ($(HOST_OS), windows)",
 	"linux":       "ifneq ($(HOST_OS), linux)",
-	"not_linux":   "ifeq($(HOST_OS), linux)",
+	"not_linux":   "ifeq ($(HOST_OS), linux)",
 }
 
 var disabledTargetConditionals = map[string]string{
-	"android32":     "ifeq($(TARGET_IS_64_BIT), true)",
-	"not_android32": "ifeq($(TARGET_IS_64_BIT), false)",
-	"android64":     "ifeq($(TARGET_IS_64_BIT), false)",
-	"not_android64": "ifeq($(TARGET_IS_64_BIT), true)",
+	"android32":     "ifeq ($(TARGET_IS_64_BIT), true)",
+	"not_android32": "ifeq ($(TARGET_IS_64_BIT), false)",
+	"android64":     "ifeq ($(TARGET_IS_64_BIT), false)",
+	"not_android64": "ifeq ($(TARGET_IS_64_BIT), true)",
 }
 
 var targetToHostModuleRule = map[string]string{
