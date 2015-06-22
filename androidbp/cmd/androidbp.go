@@ -183,7 +183,7 @@ func prependLocalModule(name string, prop *bpparser.Property, suffix *string) (c
 		name += "_" + *suffix
 	}
 	return []string {
-		fmt.Sprintf("%s := $(LOCAL_MODULE)%s\n", name, valueToString(prop)),
+		fmt.Sprintf("%s := $(LOCAL_MODULE)%s\n", name, valueToString(prop.Value)),
 	}
 }
 
