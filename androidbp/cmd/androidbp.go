@@ -33,7 +33,7 @@ func valueToString(value bpparser.Value) string {
 		if value.Expression.Operator != '+' {
 			panic(fmt.Errorf("unexpected operator '%c'", value.Expression.Operator))
 		}
-		return fmt.Sprintf("%s %s",
+		return fmt.Sprintf("%s%s",
 			valueToString(value.Expression.Args[0]),
 			valueToString(value.Expression.Args[1]))
 	} else {
@@ -88,12 +88,7 @@ func processWildcards(s string) string {
 func listToMkString(list []bpparser.Value) string {
 	lines := make([]string, 0, len(list))
 	for _, tok := range list {
-		if tok.Type == bpparser.String {
-			lines = append(lines, fmt.Sprintf("    %s", processWildcards(tok.StringValue)))
-		} else {
-			lines = append(lines, fmt.Sprintf("# ERROR: unsupported type %s in list",
-				tok.Type.String()))
-		}
+		lines = append(lines, fmt.Sprintf("    %s", valueToString(tok)))
 	}
 
 	return strings.Join(lines, " \\\n")

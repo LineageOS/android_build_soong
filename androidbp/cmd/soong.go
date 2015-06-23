@@ -51,15 +51,15 @@ var standardProperties = map[string]struct {
 	// ==== BOOL PROPERTIES ====
 	"host":                    {"LOCAL_IS_HOST_MODULE", bpparser.Bool},
 	"clang":                   {"LOCAL_CLANG", bpparser.Bool},
-	"static":                  {"LOCAL_FORCE_STATIC_EXECUTABLE", bpparser.Bool},
+	"static_executable":       {"LOCAL_FORCE_STATIC_EXECUTABLE", bpparser.Bool},
 	"asan":                    {"LOCAL_ADDRESS_SANITIZER", bpparser.Bool},
 	"native_coverage":         {"LOCAL_NATIVE_COVERAGE", bpparser.Bool},
 	"nocrt":                   {"LOCAL_NO_CRT", bpparser.Bool},
 	"allow_undefined_symbols": {"LOCAL_ALLOW_UNDEFINED_SYMBOLS", bpparser.Bool},
-	"rtti":                     {"LOCAL_RTTI_FLAG", bpparser.Bool},
-	"no_standard_libraries":    {"LOCAL_NO_STANDARD_LIBRARIES", bpparser.Bool},
-	"export_package_resources": {"LOCAL_EXPORT_PACKAGE_RESOURCES", bpparser.Bool},
-	"static_executable":        {"LOCAL_FORCE_STATIC_EXECUTABLE", bpparser.Bool},
+	"rtti":                      {"LOCAL_RTTI_FLAG", bpparser.Bool},
+	"no_standard_libraries":     {"LOCAL_NO_STANDARD_LIBRARIES", bpparser.Bool},
+	"export_package_resources":  {"LOCAL_EXPORT_PACKAGE_RESOURCES", bpparser.Bool},
+	"no_default_compiler_flags": {"LOCAL_NO_DEFAULT_COMPILER_FLAGS", bpparser.Bool},
 }
 
 var rewriteProperties = map[string]struct {
