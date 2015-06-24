@@ -15,6 +15,39 @@ import (
 
 var recursiveSubdirRegex *regexp.Regexp = regexp.MustCompile("(.+)/\\*\\*/(.+)")
 
+type Module struct {
+	bpmod      *bpparser.Module
+	bpname     string
+	mkname     string
+	isHostRule bool
+}
+
+func newModule(mod *bpparser.Module) *Module {
+	return &Module{
+		bpmod:  mod,
+		bpname: mod.Type.Name,
+	}
+}
+
+func (m *Module) translateRuleName() {
+	name := fmt.Sprintf(m.bpname)
+	if translation, ok := moduleTypeToRule[m.bpname]; ok {
+		name = translation
+	}
+
+	if m.isHostRule {
+		if trans, ok := targetToHostModuleRule[name]; ok {
+			name = trans
+		} else {
+			name = "NO CORRESPONDING HOST RULE" + name
+		}
+	} else {
+		m.isHostRule = strings.Contains(name, "HOST")
+	}
+
+	m.mkname = name
+}
+
 type androidMkWriter struct {
 	*bufio.Writer
 
@@ -182,6 +215,15 @@ func prependLocalModule(name string, prop *bpparser.Property, suffix *string) (c
 	}
 }
 
+func modulePropBool(module *bpparser.Module, name string) bool {
+	for _, prop := range module.Properties {
+		if name == prop.Name.Name {
+			return prop.Value.BoolValue
+		}
+	}
+	return false
+}
+
 func (w *androidMkWriter) lookupMap(parent bpparser.Value) (mapValue []*bpparser.Property) {
 	if parent.Variable != "" {
 		mapValue = w.mapScope[parent.Variable]
@@ -215,10 +257,10 @@ func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	fmt.Fprintf(w, "include $(%s)\n\n", moduleRule)
 }
 
-func (w *androidMkWriter) parsePropsAndWriteModule(moduleRule string, isHostRule bool, module *bpparser.Module) (hostSupported bool) {
-	standardProps := make([]string, 0, len(module.Properties))
+func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) {
+	standardProps := make([]string, 0, len(module.bpmod.Properties))
 	disabledBuilds := make(map[string]bool)
-	for _, prop := range module.Properties {
+	for _, prop := range module.bpmod.Properties {
 		if mkProp, ok := standardProperties[prop.Name.Name]; ok {
 			standardProps = append(standardProps, fmt.Sprintf("%s := %s", mkProp.string, valueToString(prop.Value)))
 		} else if rwProp, ok := rewriteProperties[prop.Name.Name]; ok {
@@ -228,67 +270,51 @@ func (w *androidMkWriter) parsePropsAndWriteModule(moduleRule string, isHostRule
 			standardProps = append(standardProps, translateSuffixProperties(suffixProps, suffixMap)...)
 		} else if "target" == prop.Name.Name {
 			props := w.lookupMap(prop.Value)
-			standardProps = append(standardProps, translateTargetConditionals(props, disabledBuilds, isHostRule)...)
+			standardProps = append(standardProps, translateTargetConditionals(props, disabledBuilds, module.isHostRule)...)
 		} else if "host_supported" == prop.Name.Name {
-			hostSupported = prop.Value.BoolValue
 		} else {
 			standardProps = append(standardProps, fmt.Sprintf("# ERROR: Unsupported property %s", prop.Name.Name))
 		}
 	}
 
-	// write out target build
-	w.writeModule(moduleRule, standardProps, disabledBuilds, isHostRule)
-	return
+	w.writeModule(module.mkname, standardProps, disabledBuilds, module.isHostRule)
 }
 
-func (w *androidMkWriter) mutateModule(module *bpparser.Module) (modules []*bpparser.Module) {
-	if module.Type.Name == "cc_library" {
-		modules = append(modules, &bpparser.Module{
-			Type: bpparser.Ident{
-				Name: "cc_library_shared",
-				Pos:  module.Type.Pos,
-			},
-			Properties: module.Properties,
-			LbracePos:  module.LbracePos,
-			RbracePos:  module.RbracePos,
-		})
+func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module) {
+	modules = []*Module{module}
 
-		modules = append(modules, &bpparser.Module{
-			Type: bpparser.Ident{
-				Name: "cc_library_static",
-				Pos:  module.Type.Pos,
-			},
-			Properties: module.Properties,
-			LbracePos:  module.LbracePos,
-			RbracePos:  module.RbracePos,
-		})
-	} else {
-		modules = []*bpparser.Module{module}
+	if module.bpname == "cc_library" {
+		modules = []*Module{
+			newModule(module.bpmod),
+			newModule(module.bpmod),
+		}
+		modules[0].bpname = "cc_library_shared"
+		modules[1].bpname = "cc_library_static"
+	}
+
+	for _, mod := range modules {
+		mod.translateRuleName()
+		if mod.isHostRule || !modulePropBool(mod.bpmod, "host_supported") {
+			continue
+		}
+
+		m := &Module{
+			bpmod:      mod.bpmod,
+			bpname:     mod.bpname,
+			isHostRule: true,
+		}
+		m.translateRuleName()
+		modules = append(modules, m)
 	}
 
 	return
 }
 
 func (w *androidMkWriter) handleModule(inputModule *bpparser.Module) {
-	modules := w.mutateModule(inputModule)
+	modules := w.mutateModule(newModule(inputModule))
 
 	for _, module := range modules {
-		moduleRule := fmt.Sprintf(module.Type.Name)
-		if translation, ok := moduleTypeToRule[module.Type.Name]; ok {
-			moduleRule = translation
-		}
-
-		isHostRule := strings.Contains(moduleRule, "HOST")
-		hostSupported := w.parsePropsAndWriteModule(moduleRule, isHostRule, module)
-
-		if !isHostRule && hostSupported {
-			hostModuleRule := "NO CORRESPONDING HOST RULE" + moduleRule
-			if trans, ok := targetToHostModuleRule[moduleRule]; ok {
-				hostModuleRule = trans
-			}
-
-			w.parsePropsAndWriteModule(hostModuleRule, true, module)
-		}
+		w.parsePropsAndWriteModule(module)
 	}
 }
 
