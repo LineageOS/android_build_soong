@@ -4,6 +4,7 @@ export BOOTSTRAP="${BASH_SOURCE[0]}"
 export SRCDIR=$(dirname "${BASH_SOURCE[0]}")
 export TOPNAME="Android.bp"
 export BOOTSTRAP_MANIFEST="${SRCDIR}/build/soong/build.ninja.in"
+export RUN_TESTS="-t"
 
 case $(uname) in
     Linux)
