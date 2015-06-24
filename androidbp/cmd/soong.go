@@ -71,6 +71,10 @@ var rewriteProperties = map[string]struct {
 	"suffix":              {"LOCAL_MODULE_STEM", prependLocalModule},
 }
 
+var ignoredProperties = map[string]bool{
+	"host_supported": true,
+}
+
 var moduleTypeToRule = map[string]string{
 	"cc_library_shared":        "BUILD_SHARED_LIBRARY",
 	"cc_library_static":        "BUILD_STATIC_LIBRARY",
@@ -97,6 +101,7 @@ var suffixProperties = map[string]map[string]string{
 }
 
 var hostScopedPropertyConditionals = map[string]string{
+	"host":        "",
 	"darwin":      "ifeq ($(HOST_OS), darwin)",
 	"not_darwin":  "ifneq ($(HOST_OS), darwin)",
 	"windows":     "ifeq ($(HOST_OS), windows)",

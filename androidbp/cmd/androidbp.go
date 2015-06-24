@@ -271,7 +271,7 @@ func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) {
 		} else if "target" == prop.Name.Name {
 			props := w.lookupMap(prop.Value)
 			standardProps = append(standardProps, translateTargetConditionals(props, disabledBuilds, module.isHostRule)...)
-		} else if "host_supported" == prop.Name.Name {
+		} else if _, ok := ignoredProperties[prop.Name.Name]; ok {
 		} else {
 			standardProps = append(standardProps, fmt.Sprintf("# ERROR: Unsupported property %s", prop.Name.Name))
 		}
