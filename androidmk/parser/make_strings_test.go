@@ -3,6 +3,7 @@ package parser
 import (
 	"strings"
 	"testing"
+	"text/scanner"
 )
 
 var splitNTestCases = []struct {
@@ -13,61 +14,61 @@ var splitNTestCases = []struct {
 }{
 	{
 		in: &MakeString{
-			strings: []string{
+			Strings: []string{
 				"a b c",
 				"d e f",
 				" h i j",
 			},
-			variables: []Variable{
-				variable{name: SimpleMakeString("var1")},
-				variable{name: SimpleMakeString("var2")},
+			Variables: []Variable{
+				Variable{Name: SimpleMakeString("var1", scanner.Position{})},
+				Variable{Name: SimpleMakeString("var2", scanner.Position{})},
 			},
 		},
 		sep: " ",
 		n:   -1,
 		expected: []*MakeString{
-			SimpleMakeString("a"),
-			SimpleMakeString("b"),
+			SimpleMakeString("a", scanner.Position{}),
+			SimpleMakeString("b", scanner.Position{}),
 			&MakeString{
-				strings: []string{"c", "d"},
-				variables: []Variable{
-					variable{name: SimpleMakeString("var1")},
+				Strings: []string{"c", "d"},
+				Variables: []Variable{
+					Variable{Name: SimpleMakeString("var1", scanner.Position{})},
 				},
 			},
-			SimpleMakeString("e"),
+			SimpleMakeString("e", scanner.Position{}),
 			&MakeString{
-				strings: []string{"f", ""},
-				variables: []Variable{
-					variable{name: SimpleMakeString("var2")},
+				Strings: []string{"f", ""},
+				Variables: []Variable{
+					Variable{Name: SimpleMakeString("var2", scanner.Position{})},
 				},
 			},
-			SimpleMakeString("h"),
-			SimpleMakeString("i"),
-			SimpleMakeString("j"),
+			SimpleMakeString("h", scanner.Position{}),
+			SimpleMakeString("i", scanner.Position{}),
+			SimpleMakeString("j", scanner.Position{}),
 		},
 	},
 	{
 		in: &MakeString{
-			strings: []string{
+			Strings: []string{
 				"a b c",
 				"d e f",
 				" h i j",
 			},
-			variables: []Variable{
-				variable{name: SimpleMakeString("var1")},
-				variable{name: SimpleMakeString("var2")},
+			Variables: []Variable{
+				Variable{Name: SimpleMakeString("var1", scanner.Position{})},
+				Variable{Name: SimpleMakeString("var2", scanner.Position{})},
 			},
 		},
 		sep: " ",
 		n:   3,
 		expected: []*MakeString{
-			SimpleMakeString("a"),
-			SimpleMakeString("b"),
+			SimpleMakeString("a", scanner.Position{}),
+			SimpleMakeString("b", scanner.Position{}),
 			&MakeString{
-				strings: []string{"c", "d e f", " h i j"},
-				variables: []Variable{
-					variable{name: SimpleMakeString("var1")},
-					variable{name: SimpleMakeString("var2")},
+				Strings: []string{"c", "d e f", " h i j"},
+				Variables: []Variable{
+					Variable{Name: SimpleMakeString("var1", scanner.Position{})},
+					Variable{Name: SimpleMakeString("var2", scanner.Position{})},
 				},
 			},
 		},
