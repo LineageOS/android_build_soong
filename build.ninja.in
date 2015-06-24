@@ -65,11 +65,46 @@ rule g.bootstrap.test
 # Factory: github.com/google/blueprint/bootstrap.func·003
 # Defined: build/soong/Android.bp:191:1
 
+build .bootstrap/androidbp/test/androidbp.a: g.bootstrap.gc $
+        ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp.go $
+        ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/soong.go $
+        ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp_test.go | $
+        ${g.bootstrap.gcCmd} $
+        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg
+    pkgPath = androidbp
+default .bootstrap/androidbp/test/androidbp.a
+
+build .bootstrap/androidbp/test/test.go: g.bootstrap.gotestmain $
+        ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp_test.go | $
+        ${g.bootstrap.goTestMainCmd}
+    pkg = androidbp
+default .bootstrap/androidbp/test/test.go
+
+build .bootstrap/androidbp/test/test.a: g.bootstrap.gc $
+        .bootstrap/androidbp/test/test.go | $
+        .bootstrap/androidbp/test/androidbp.a
+    incFlags = -I .bootstrap/androidbp/test
+    pkgPath = main
+default .bootstrap/androidbp/test/test.a
+
+build .bootstrap/androidbp/test/test: g.bootstrap.link $
+        .bootstrap/androidbp/test/test.a | ${g.bootstrap.linkCmd}
+    libDirFlags = -L .bootstrap/androidbp/test -L .bootstrap/blueprint-parser/pkg
+default .bootstrap/androidbp/test/test
+
+build .bootstrap/androidbp/test/test.passed: g.bootstrap.test $
+        .bootstrap/androidbp/test/test
+    pkg = androidbp
+    pkgSrcDir = ${g.bootstrap.srcDir}/build/soong/androidbp/cmd
+default .bootstrap/androidbp/test/test.passed
+
 build .bootstrap/androidbp/obj/androidbp.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp.go $
         ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/soong.go | $
         ${g.bootstrap.gcCmd} $
-        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a
+        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a $
+        || .bootstrap/androidbp/test/test.passed
     incFlags = -I .bootstrap/blueprint-parser/pkg
     pkgPath = androidbp
 default .bootstrap/androidbp/obj/androidbp.a
