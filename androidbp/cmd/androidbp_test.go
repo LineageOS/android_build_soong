@@ -85,6 +85,17 @@ var moduleTestCases = []struct {
 			    LOCAL_MODULE := test
 			    include $(BUILD_HOST_SHARED_LIBRARY)`,
 	},
+	// Static and Shared
+	{
+		blueprint: `cc_library { name: "test", }`,
+		androidmk: `include $(CLEAR_VARS)
+			    LOCAL_MODULE := test
+			    include $(BUILD_SHARED_LIBRARY)
+
+			    include $(CLEAR_VARS)
+			    LOCAL_MODULE := test
+			    include $(BUILD_STATIC_LIBRARY)`,
+	},
 }
 
 func TestModules(t *testing.T) {

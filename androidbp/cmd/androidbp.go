@@ -241,22 +241,54 @@ func (w *androidMkWriter) parsePropsAndWriteModule(moduleRule string, isHostRule
 	return
 }
 
-func (w *androidMkWriter) handleModule(module *bpparser.Module) {
-	moduleRule := fmt.Sprintf(module.Type.Name)
-	if translation, ok := moduleTypeToRule[module.Type.Name]; ok {
-		moduleRule = translation
+func (w *androidMkWriter) mutateModule(module *bpparser.Module) (modules []*bpparser.Module) {
+	if module.Type.Name == "cc_library" {
+		modules = append(modules, &bpparser.Module{
+			Type: bpparser.Ident{
+				Name: "cc_library_shared",
+				Pos:  module.Type.Pos,
+			},
+			Properties: module.Properties,
+			LbracePos:  module.LbracePos,
+			RbracePos:  module.RbracePos,
+		})
+
+		modules = append(modules, &bpparser.Module{
+			Type: bpparser.Ident{
+				Name: "cc_library_static",
+				Pos:  module.Type.Pos,
+			},
+			Properties: module.Properties,
+			LbracePos:  module.LbracePos,
+			RbracePos:  module.RbracePos,
+		})
+	} else {
+		modules = []*bpparser.Module{module}
 	}
 
-	isHostRule := strings.Contains(moduleRule, "HOST")
-	hostSupported := w.parsePropsAndWriteModule(moduleRule, isHostRule, module)
+	return
+}
 
-	if !isHostRule && hostSupported {
-		hostModuleRule := "NO CORRESPONDING HOST RULE" + moduleRule
-		if trans, ok := targetToHostModuleRule[moduleRule]; ok {
-			hostModuleRule = trans
+func (w *androidMkWriter) handleModule(inputModule *bpparser.Module) {
+	modules := w.mutateModule(inputModule)
+
+	for _, module := range modules {
+		moduleRule := fmt.Sprintf(module.Type.Name)
+		if translation, ok := moduleTypeToRule[module.Type.Name]; ok {
+			moduleRule = translation
 		}
 
-		w.parsePropsAndWriteModule(hostModuleRule, true, module)
+		isHostRule := strings.Contains(moduleRule, "HOST")
+		hostSupported := w.parsePropsAndWriteModule(moduleRule, isHostRule, module)
+
+		if !isHostRule && hostSupported {
+			hostModuleRule := "NO CORRESPONDING HOST RULE" + moduleRule
+			if trans, ok := targetToHostModuleRule[moduleRule]; ok {
+				hostModuleRule = trans
+			}
+
+			w.parsePropsAndWriteModule(hostModuleRule, true, module)
+		}
 	}
 }
 
