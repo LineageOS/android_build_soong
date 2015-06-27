@@ -104,6 +104,33 @@ var moduleTestCases = []struct {
 			    LOCAL_MODULE := test
 			    include $(BUILD_HOST_STATIC_LIBRARY)`,
 	},
+	// Static and Shared properties
+	{
+		blueprint: `cc_library {
+				name: "test",
+				srcs: ["a"],
+				static: { srcs: ["c"], static_libs: ["l"], },
+				shared: { srcs: ["b"], },
+				multilib: { lib32: { shared: { cflags: ["f"], }, }, },
+			    }`,
+		androidmk: `include $(CLEAR_VARS)
+			    LOCAL_MODULE := test
+			    LOCAL_SRC_FILES := \
+			        a \
+			        b
+			    LOCAL_CFLAGS_32 := \
+			        f
+			    include $(BUILD_SHARED_LIBRARY)
+
+			    include $(CLEAR_VARS)
+			    LOCAL_MODULE := test
+			    LOCAL_SRC_FILES := \
+			        a \
+			        c
+			    LOCAL_STATIC_LIBRARIES := \
+			        l
+			    include $(BUILD_STATIC_LIBRARY)`,
+	},
 	// Manual translation
 	{
 		blueprint: `/* Android.mk:start

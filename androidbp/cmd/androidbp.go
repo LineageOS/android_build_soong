@@ -18,43 +18,6 @@ import (
 
 var recursiveSubdirRegex *regexp.Regexp = regexp.MustCompile("(.+)/\\*\\*/(.+)")
 
-type Module struct {
-	bpmod      *bpparser.Module
-	bpname     string
-	mkname     string
-	isHostRule bool
-}
-
-func newModule(mod *bpparser.Module) *Module {
-	return &Module{
-		bpmod:  mod,
-		bpname: mod.Type.Name,
-	}
-}
-
-func (m *Module) translateRuleName() error {
-	var name string
-	if translation, ok := moduleTypeToRule[m.bpname]; ok {
-		name = translation
-	} else {
-		return fmt.Errorf("Unknown module type %q", m.bpname)
-	}
-
-	if m.isHostRule {
-		if trans, ok := targetToHostModuleRule[name]; ok {
-			name = trans
-		} else {
-			return fmt.Errorf("No corresponding host rule for %q", name)
-		}
-	} else {
-		m.isHostRule = strings.Contains(name, "HOST")
-	}
-
-	m.mkname = name
-
-	return nil
-}
-
 type androidMkWriter struct {
 	io.Writer
 
@@ -82,6 +45,22 @@ func valueToString(value bpparser.Value) (string, error) {
 		return "", fmt.Errorf("Can't convert map to string")
 	default:
 		return "", fmt.Errorf("ERROR: unsupported type %d", value.Type)
+	}
+}
+
+func appendValueToValue(dest bpparser.Value, src bpparser.Value) (bpparser.Value, error) {
+	if src.Type != dest.Type {
+		return bpparser.Value{}, fmt.Errorf("ERROR: source and destination types don't match")
+	}
+	switch dest.Type {
+	case bpparser.List:
+		dest.ListValue = append(dest.ListValue, src.ListValue...)
+		return dest, nil
+	case bpparser.String:
+		dest.StringValue += src.StringValue
+		return dest, nil
+	default:
+		return bpparser.Value{}, fmt.Errorf("ERROR: unsupported append with type %s", dest.Type.String())
 	}
 }
 
@@ -257,15 +236,6 @@ func prependLocalModule(name string, prop *bpparser.Property, suffix *string) ([
 	}, nil
 }
 
-func modulePropBool(module *bpparser.Module, name string) bool {
-	for _, prop := range module.Properties {
-		if name == prop.Name.Name {
-			return prop.Value.BoolValue
-		}
-	}
-	return false
-}
-
 func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	disabledBuilds map[string]bool, isHostRule bool) {
 	disabledConditionals := disabledTargetConditionals
@@ -331,8 +301,41 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err e
 			newModule(module.bpmod),
 			newModule(module.bpmod),
 		}
+
+		ccLinkageCopy := func(props Properties, prop *bpparser.Property) error {
+			for _, p := range prop.Value.MapValue {
+				err := props.AppendToProp(p.Name.Name, p)
+				if err != nil {
+					return err
+				}
+			}
+			props.DeleteProp(prop.Name.Name)
+			return nil
+		}
+		ccLinkageDelete := func(props Properties, prop *bpparser.Property) error {
+			props.DeleteProp(prop.Name.Name)
+			return nil
+		}
+
 		modules[0].bpname = "cc_library_shared"
+		err := modules[0].IterateArchPropertiesWithName("shared", ccLinkageCopy)
+		if err != nil {
+			return nil, err
+		}
+		err = modules[0].IterateArchPropertiesWithName("static", ccLinkageDelete)
+		if err != nil {
+			return nil, err
+		}
+
 		modules[1].bpname = "cc_library_static"
+		err = modules[1].IterateArchPropertiesWithName("shared", ccLinkageDelete)
+		if err != nil {
+			return nil, err
+		}
+		err = modules[1].IterateArchPropertiesWithName("static", ccLinkageCopy)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, mod := range modules {
@@ -340,7 +343,7 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err e
 		if err != nil {
 			return nil, err
 		}
-		if mod.isHostRule || !modulePropBool(mod.bpmod, "host_supported") {
+		if mod.isHostRule || !mod.PropBool("host_supported") {
 			continue
 		}
 

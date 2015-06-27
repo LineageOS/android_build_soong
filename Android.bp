@@ -193,6 +193,7 @@ bootstrap_go_binary {
     srcs: [
         "androidbp/cmd/androidbp.go",
         "androidbp/cmd/soong.go",
+        "androidbp/cmd/module.go",
     ],
     testSrcs: [
         "androidbp/cmd/androidbp_test.go",
