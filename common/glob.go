@@ -104,12 +104,6 @@ func GlobRule(ctx globContext, globPattern string, excludes []string,
 			"excludes": JoinWithPrefixAndQuote(excludes, "-e "),
 		},
 	})
-
-	// Phony rule so the cleanup phase doesn't delete the depFile
-	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    blueprint.Phony,
-		Outputs: []string{depFile},
-	})
 }
 
 func globToString(glob string) string {
