@@ -233,12 +233,6 @@ func (w *androidMkWriter) lookupMap(parent bpparser.Value) (mapValue []*bpparser
 	return
 }
 
-func (w *androidMkWriter) handleComment(comment *bpparser.Comment) {
-	for _, c := range comment.Comment {
-		fmt.Fprintf(w, "#%s\n", c)
-	}
-}
-
 func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	disabledBuilds map[string]bool, isHostRule bool) {
 	disabledConditionals := disabledTargetConditionals
@@ -345,47 +339,6 @@ func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) {
 	}
 }
 
-func (w *androidMkWriter) iter() <-chan interface{} {
-	ch := make(chan interface{}, len(w.blueprint.Comments)+len(w.blueprint.Defs))
-	go func() {
-		commIdx := 0
-		defsIdx := 0
-		for defsIdx < len(w.blueprint.Defs) || commIdx < len(w.blueprint.Comments) {
-			if defsIdx == len(w.blueprint.Defs) {
-				ch <- w.blueprint.Comments[commIdx]
-				commIdx++
-			} else if commIdx == len(w.blueprint.Comments) {
-				ch <- w.blueprint.Defs[defsIdx]
-				defsIdx++
-			} else {
-				commentsPos := 0
-				defsPos := 0
-
-				def := w.blueprint.Defs[defsIdx]
-				switch def := def.(type) {
-				case *bpparser.Module:
-					defsPos = def.LbracePos.Line
-				case *bpparser.Assignment:
-					defsPos = def.Pos.Line
-				}
-
-				comment := w.blueprint.Comments[commIdx]
-				commentsPos = comment.Pos.Line
-
-				if commentsPos < defsPos {
-					commIdx++
-					ch <- comment
-				} else {
-					defsIdx++
-					ch <- def
-				}
-			}
-		}
-		close(ch)
-	}()
-	return ch
-}
-
 func (w *androidMkWriter) handleLocalPath() error {
 	if w.printedLocalPath {
 		return nil
@@ -424,20 +377,16 @@ func (w *androidMkWriter) write(androidMk string) error {
 
 	w.Writer = bufio.NewWriter(f)
 
-	for block := range w.iter() {
+	if err := w.handleLocalPath(); err != nil {
+		return err
+	}
+
+	for _, block := range w.blueprint.Defs {
 		switch block := block.(type) {
 		case *bpparser.Module:
-			if err := w.handleLocalPath(); err != nil {
-				return err
-			}
 			w.handleModule(block)
 		case *bpparser.Assignment:
-			if err := w.handleLocalPath(); err != nil {
-				return err
-			}
 			w.handleAssignment(block)
-		case bpparser.Comment:
-			w.handleComment(&block)
 		}
 	}
 
