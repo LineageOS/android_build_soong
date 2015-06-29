@@ -1,9 +1,10 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,27 +30,31 @@ func newModule(mod *bpparser.Module) *Module {
 	}
 }
 
-func (m *Module) translateRuleName() {
-	name := fmt.Sprintf(m.bpname)
+func (m *Module) translateRuleName() error {
+	var name string
 	if translation, ok := moduleTypeToRule[m.bpname]; ok {
 		name = translation
+	} else {
+		return fmt.Errorf("Unknown module type %q", m.bpname)
 	}
 
 	if m.isHostRule {
 		if trans, ok := targetToHostModuleRule[name]; ok {
 			name = trans
 		} else {
-			name = "NO CORRESPONDING HOST RULE" + name
+			return fmt.Errorf("No corresponding host rule for %q", name)
 		}
 	} else {
 		m.isHostRule = strings.Contains(name, "HOST")
 	}
 
 	m.mkname = name
+
+	return nil
 }
 
 type androidMkWriter struct {
-	*bufio.Writer
+	io.Writer
 
 	blueprint *bpparser.File
 	path      string
@@ -59,28 +64,42 @@ type androidMkWriter struct {
 	mapScope map[string][]*bpparser.Property
 }
 
-func valueToString(value bpparser.Value) string {
+func (w *androidMkWriter) WriteString(s string) (int, error) {
+	return io.WriteString(w.Writer, s)
+}
+
+func valueToString(value bpparser.Value) (string, error) {
 	if value.Variable != "" {
-		return fmt.Sprintf("$(%s)", value.Variable)
+		return fmt.Sprintf("$(%s)", value.Variable), nil
 	} else if value.Expression != nil {
 		if value.Expression.Operator != '+' {
-			panic(fmt.Errorf("unexpected operator '%c'", value.Expression.Operator))
+			return "", fmt.Errorf("unexpected operator '%c'", value.Expression.Operator)
 		}
-		return fmt.Sprintf("%s%s",
-			valueToString(value.Expression.Args[0]),
-			valueToString(value.Expression.Args[1]))
+		val1, err := valueToString(value.Expression.Args[0])
+		if err != nil {
+			return "", err
+		}
+		val2, err := valueToString(value.Expression.Args[1])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%s%s", val1, val2), nil
 	} else {
 		switch value.Type {
 		case bpparser.Bool:
-			return fmt.Sprintf("%t", value.BoolValue)
+			return fmt.Sprintf("%t", value.BoolValue), nil
 		case bpparser.String:
-			return fmt.Sprintf("%s", processWildcards(value.StringValue))
+			return fmt.Sprintf("%s", processWildcards(value.StringValue)), nil
 		case bpparser.List:
-			return fmt.Sprintf("\\\n%s", listToMkString(value.ListValue))
+			val, err := listToMkString(value.ListValue)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("\\\n%s", val), nil
 		case bpparser.Map:
-			return fmt.Sprintf("ERROR can't convert map to string")
+			return "", fmt.Errorf("Can't convert map to string")
 		default:
-			return fmt.Sprintf("ERROR: unsupported type %d", value.Type)
+			return "", fmt.Errorf("ERROR: unsupported type %d", value.Type)
 		}
 	}
 }
@@ -118,17 +137,21 @@ func processWildcards(s string) string {
 	return s
 }
 
-func listToMkString(list []bpparser.Value) string {
+func listToMkString(list []bpparser.Value) (string, error) {
 	lines := make([]string, 0, len(list))
 	for _, tok := range list {
-		lines = append(lines, fmt.Sprintf("    %s", valueToString(tok)))
+		val, err := valueToString(tok)
+		if err != nil {
+			return "", err
+		}
+		lines = append(lines, fmt.Sprintf("    %s", val))
 	}
 
-	return strings.Join(lines, " \\\n")
+	return strings.Join(lines, " \\\n"), nil
 }
 
 func translateTargetConditionals(props []*bpparser.Property,
-	disabledBuilds map[string]bool, isHostRule bool) (computedProps []string) {
+	disabledBuilds map[string]bool, isHostRule bool) (computedProps []string, err error) {
 	for _, target := range props {
 		conditionals := targetScopedPropertyConditionals
 		altConditionals := hostScopedPropertyConditionals
@@ -142,26 +165,33 @@ func translateTargetConditionals(props []*bpparser.Property,
 				// This is only for the other build type
 				continue
 			} else {
-				// not found
-				conditional = fmt.Sprintf(
-					"ifeq(true, true) # ERROR: unsupported conditional [%s]",
-					target.Name.Name)
+				return nil, fmt.Errorf("Unsupported conditional %q", target.Name.Name)
 			}
 		}
 
 		var scopedProps []string
 		for _, targetScopedProp := range target.Value.MapValue {
 			if mkProp, ok := standardProperties[targetScopedProp.Name.Name]; ok {
+				val, err := valueToString(targetScopedProp.Value)
+				if err != nil {
+					return nil, err
+				}
 				scopedProps = append(scopedProps, fmt.Sprintf("%s += %s",
-					mkProp.string, valueToString(targetScopedProp.Value)))
+					mkProp.string, val))
 			} else if rwProp, ok := rewriteProperties[targetScopedProp.Name.Name]; ok {
-				scopedProps = append(scopedProps, rwProp.f(rwProp.string, targetScopedProp, nil)...)
+				props, err := rwProp.f(rwProp.string, targetScopedProp, nil)
+				if err != nil {
+					return nil, err
+				}
+				scopedProps = append(scopedProps, props...)
 			} else if "disabled" == targetScopedProp.Name.Name {
 				if targetScopedProp.Value.BoolValue {
 					disabledBuilds[target.Name.Name] = true
 				} else {
 					delete(disabledBuilds, target.Name.Name)
 				}
+			} else {
+				return nil, fmt.Errorf("Unsupported target property %q", targetScopedProp.Name.Name)
 			}
 		}
 
@@ -180,39 +210,57 @@ func translateTargetConditionals(props []*bpparser.Property,
 }
 
 func translateSuffixProperties(suffixProps []*bpparser.Property,
-	suffixMap map[string]string) (computedProps []string) {
+	suffixMap map[string]string) (computedProps []string, err error) {
 	for _, suffixProp := range suffixProps {
 		if suffix, ok := suffixMap[suffixProp.Name.Name]; ok {
 			for _, stdProp := range suffixProp.Value.MapValue {
 				if mkProp, ok := standardProperties[stdProp.Name.Name]; ok {
-					computedProps = append(computedProps, fmt.Sprintf("%s_%s := %s", mkProp.string, suffix, valueToString(stdProp.Value)))
+					val, err := valueToString(stdProp.Value)
+					if err != nil {
+						return nil, err
+					}
+					computedProps = append(computedProps, fmt.Sprintf("%s_%s := %s", mkProp.string, suffix, val))
 				} else if rwProp, ok := rewriteProperties[stdProp.Name.Name]; ok {
-					computedProps = append(computedProps, rwProp.f(rwProp.string, stdProp, &suffix)...)
+					props, err := rwProp.f(rwProp.string, stdProp, &suffix)
+					if err != nil {
+						return nil, err
+					}
+					computedProps = append(computedProps, props...)
 				} else {
-					computedProps = append(computedProps, fmt.Sprintf("# ERROR: unsupported property %s", stdProp.Name.Name))
+					return nil, fmt.Errorf("Unsupported property %q", stdProp.Name.Name)
 				}
 			}
+		} else {
+			return nil, fmt.Errorf("Unsupported suffix property %q", suffixProp.Name.Name)
 		}
 	}
 	return
 }
 
-func prependLocalPath(name string, prop *bpparser.Property, suffix *string) (computedProps []string) {
+func prependLocalPath(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
 	if suffix != nil {
 		name += "_" + *suffix
+	}
+	val, err := valueToString(prop.Value)
+	if err != nil {
+		return nil, err
 	}
 	return []string{
-		fmt.Sprintf("%s := $(addprefix $(LOCAL_PATH)/,%s)\n", name, valueToString(prop.Value)),
-	}
+		fmt.Sprintf("%s := $(addprefix $(LOCAL_PATH)/,%s)\n", name, val),
+	}, nil
 }
 
-func prependLocalModule(name string, prop *bpparser.Property, suffix *string) (computedProps []string) {
+func prependLocalModule(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
 	if suffix != nil {
 		name += "_" + *suffix
 	}
-	return []string {
-		fmt.Sprintf("%s := $(LOCAL_MODULE)%s\n", name, valueToString(prop.Value)),
+	val, err := valueToString(prop.Value)
+	if err != nil {
+		return nil, err
 	}
+	return []string{
+		fmt.Sprintf("%s := $(LOCAL_MODULE)%s\n", name, val),
+	}, nil
 }
 
 func modulePropBool(module *bpparser.Module, name string) bool {
@@ -251,30 +299,48 @@ func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	fmt.Fprintf(w, "include $(%s)\n\n", moduleRule)
 }
 
-func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) {
+func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) error {
 	standardProps := make([]string, 0, len(module.bpmod.Properties))
 	disabledBuilds := make(map[string]bool)
 	for _, prop := range module.bpmod.Properties {
 		if mkProp, ok := standardProperties[prop.Name.Name]; ok {
-			standardProps = append(standardProps, fmt.Sprintf("%s := %s", mkProp.string, valueToString(prop.Value)))
+			val, err := valueToString(prop.Value)
+			if err != nil {
+				return err
+			}
+			standardProps = append(standardProps, fmt.Sprintf("%s := %s", mkProp.string, val))
 		} else if rwProp, ok := rewriteProperties[prop.Name.Name]; ok {
-			standardProps = append(standardProps, rwProp.f(rwProp.string, prop, nil)...)
+			props, err := rwProp.f(rwProp.string, prop, nil)
+			if err != nil {
+				return err
+			}
+			standardProps = append(standardProps, props...)
 		} else if suffixMap, ok := suffixProperties[prop.Name.Name]; ok {
 			suffixProps := w.lookupMap(prop.Value)
-			standardProps = append(standardProps, translateSuffixProperties(suffixProps, suffixMap)...)
+			props, err := translateSuffixProperties(suffixProps, suffixMap)
+			if err != nil {
+				return err
+			}
+			standardProps = append(standardProps, props...)
 		} else if "target" == prop.Name.Name {
-			props := w.lookupMap(prop.Value)
-			standardProps = append(standardProps, translateTargetConditionals(props, disabledBuilds, module.isHostRule)...)
+			suffixProps := w.lookupMap(prop.Value)
+			props, err := translateTargetConditionals(suffixProps, disabledBuilds, module.isHostRule)
+			if err != nil {
+				return err
+			}
+			standardProps = append(standardProps, props...)
 		} else if _, ok := ignoredProperties[prop.Name.Name]; ok {
 		} else {
-			standardProps = append(standardProps, fmt.Sprintf("# ERROR: Unsupported property %s", prop.Name.Name))
+			return fmt.Errorf("Unsupported property %q", prop.Name.Name)
 		}
 	}
 
 	w.writeModule(module.mkname, standardProps, disabledBuilds, module.isHostRule)
+
+	return nil
 }
 
-func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module) {
+func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err error) {
 	modules = []*Module{module}
 
 	if module.bpname == "cc_library" {
@@ -287,7 +353,10 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module) {
 	}
 
 	for _, mod := range modules {
-		mod.translateRuleName()
+		err := mod.translateRuleName()
+		if err != nil {
+			return nil, err
+		}
 		if mod.isHostRule || !modulePropBool(mod.bpmod, "host_supported") {
 			continue
 		}
@@ -297,19 +366,30 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module) {
 			bpname:     mod.bpname,
 			isHostRule: true,
 		}
-		m.translateRuleName()
+		err = m.translateRuleName()
+		if err != nil {
+			return nil, err
+		}
 		modules = append(modules, m)
 	}
 
 	return
 }
 
-func (w *androidMkWriter) handleModule(inputModule *bpparser.Module) {
-	modules := w.mutateModule(newModule(inputModule))
+func (w *androidMkWriter) handleModule(inputModule *bpparser.Module) error {
+	modules, err := w.mutateModule(newModule(inputModule))
+	if err != nil {
+		return err
+	}
 
 	for _, module := range modules {
-		w.parsePropsAndWriteModule(module)
+		err := w.parsePropsAndWriteModule(module)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (w *androidMkWriter) handleSubdirs(value bpparser.Value) {
@@ -322,7 +402,7 @@ func (w *androidMkWriter) handleSubdirs(value bpparser.Value) {
 	fmt.Fprintf(w, "# include $(wildcard $(addsuffix $(LOCAL_PATH)/%s/, Android.mk))\n", strings.Join(subdirs, " "))
 }
 
-func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) {
+func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) error {
 	if "subdirs" == assignment.Name.Name {
 		w.handleSubdirs(assignment.OrigValue)
 	} else if assignment.OrigValue.Type == bpparser.Map {
@@ -334,9 +414,14 @@ func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) {
 		if assignment.Assigner != "=" {
 			assigner = assignment.Assigner
 		}
-		fmt.Fprintf(w, "%s %s %s\n", assignment.Name.Name, assigner,
-			valueToString(assignment.OrigValue))
+		val, err := valueToString(assignment.OrigValue)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "%s %s %s\n", assignment.Name.Name, assigner, val)
 	}
+
+	return nil
 }
 
 func (w *androidMkWriter) handleLocalPath() error {
@@ -365,63 +450,40 @@ func (w *androidMkWriter) handleLocalPath() error {
 	return nil
 }
 
-func (w *androidMkWriter) write(androidMk string) error {
-	fmt.Printf("Writing %s\n", androidMk)
+func (w *androidMkWriter) write(writer io.Writer) (err error) {
+	w.Writer = writer
 
-	f, err := os.Create(androidMk)
-	if err != nil {
-		panic(err)
-	}
-
-	defer f.Close()
-
-	w.Writer = bufio.NewWriter(f)
-
-	if err := w.handleLocalPath(); err != nil {
+	if err = w.handleLocalPath(); err != nil {
 		return err
 	}
 
 	for _, block := range w.blueprint.Defs {
 		switch block := block.(type) {
 		case *bpparser.Module:
-			w.handleModule(block)
+			err = w.handleModule(block)
 		case *bpparser.Assignment:
-			w.handleAssignment(block)
+			err = w.handleAssignment(block)
+		default:
+			return fmt.Errorf("Unhandled def %v", block)
+		}
+		if err != nil {
+			return err
 		}
 	}
 
-	if err = w.Flush(); err != nil {
-		panic(err)
-	}
 	return nil
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("No filename supplied")
-		os.Exit(1)
-	}
-
-	androidBp := os.Args[1]
-	var androidMk string
-	if len(os.Args) >= 3 {
-		androidMk = os.Args[2]
-	} else {
-		androidMk = androidBp + ".mk"
-	}
-
+func translate(androidBp, androidMk string) error {
 	reader, err := os.Open(androidBp)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	scope := bpparser.NewScope(nil)
 	blueprint, errs := bpparser.Parse(androidBp, reader, scope)
 	if len(errs) > 0 {
-		fmt.Println("%d errors parsing %s", len(errs), androidBp)
-		fmt.Println(errs)
-		os.Exit(1)
+		return errs[0]
 	}
 
 	writer := &androidMkWriter{
@@ -430,9 +492,38 @@ func main() {
 		mapScope:  make(map[string][]*bpparser.Property),
 	}
 
-	err = writer.write(androidMk)
+	buf := &bytes.Buffer{}
+
+	err = writer.write(buf)
 	if err != nil {
-		fmt.Println(err.Error())
+		os.Remove(androidMk)
+		return err
+	}
+
+	f, err := os.Create(androidMk)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.Write(buf.Bytes())
+
+	return err
+}
+
+func main() {
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "Expected input and output filename arguments")
+		os.Exit(1)
+	}
+
+	androidBp := os.Args[1]
+	androidMk := os.Args[2]
+
+	err := translate(androidBp, androidMk)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error translating %s: %s\n", androidBp, err.Error())
 		os.Exit(1)
 	}
 }

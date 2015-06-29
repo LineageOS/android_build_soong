@@ -64,7 +64,7 @@ var standardProperties = map[string]struct {
 
 var rewriteProperties = map[string]struct {
 	string
-	f func(name string, prop *bpparser.Property, suffix *string) (computedProps []string)
+	f func(name string, prop *bpparser.Property, suffix *string) ([]string, error)
 }{
 	"local_include_dirs":  {"LOCAL_C_INCLUDES", prependLocalPath},
 	"export_include_dirs": {"LOCAL_EXPORT_C_INCLUDE_DIRS", prependLocalPath},

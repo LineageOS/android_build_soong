@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"strings"
 	"testing"
@@ -51,7 +50,10 @@ func TestValueToString(t *testing.T) {
 			t.Errorf("Failed to read blueprint: %q", errs)
 		}
 
-		str := valueToString(blueprint.Defs[0].(*bpparser.Assignment).Value)
+		str, err := valueToString(blueprint.Defs[0].(*bpparser.Assignment).Value)
+		if err != nil {
+			t.Error(err.Error())
+		}
 		expect(t, testCase.blueprint, testCase.expected, str)
 	}
 }
@@ -129,12 +131,14 @@ func TestModules(t *testing.T) {
 			blueprint: blueprint,
 			path:      "",
 			mapScope:  make(map[string][]*bpparser.Property),
-			Writer:    bufio.NewWriter(buf),
+			Writer:    buf,
 		}
 
 		module := blueprint.Defs[0].(*bpparser.Module)
-		writer.handleModule(module)
-		writer.Flush()
+		err := writer.handleModule(module)
+		if err != nil {
+			t.Errorf("Unexpected error %s", err.Error())
+		}
 
 		expect(t, testCase.blueprint, testCase.androidmk, buf.String())
 	}
