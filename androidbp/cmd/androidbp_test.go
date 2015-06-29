@@ -117,6 +117,20 @@ var moduleTestCases = []struct {
 			    LOCAL_MODULE := test
 			    include $(BUILD_HOST_STATIC_LIBRARY)`,
 	},
+	// Manual translation
+	{
+		blueprint: `/* Android.mk:start
+					# Manual translation
+					Android.mk:end */
+					cc_library { name: "test", host_supported: true, }`,
+		androidmk: `# Manual translation`,
+	},
+	// Ignored translation
+	{
+		blueprint: `/* Android.mk:ignore */
+					cc_library { name: "test", host_supported: true, }`,
+		androidmk: ``,
+	},
 }
 
 func TestModules(t *testing.T) {

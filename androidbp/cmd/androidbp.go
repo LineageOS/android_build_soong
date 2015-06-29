@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/scanner"
 
 	bpparser "github.com/google/blueprint/parser"
 )
@@ -377,6 +378,14 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err e
 }
 
 func (w *androidMkWriter) handleModule(inputModule *bpparser.Module) error {
+	comment := w.getCommentBlock(inputModule.Type.Pos)
+	if translation, translated, err := getCommentTranslation(comment); err != nil {
+		return err
+	} else if translated {
+		w.WriteString(translation)
+		return nil
+	}
+
 	modules, err := w.mutateModule(newModule(inputModule))
 	if err != nil {
 		return err
@@ -403,6 +412,14 @@ func (w *androidMkWriter) handleSubdirs(value bpparser.Value) {
 }
 
 func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) error {
+	comment := w.getCommentBlock(assignment.Name.Pos)
+	if translation, translated, err := getCommentTranslation(comment); err != nil {
+		return err
+	} else if translated {
+		w.WriteString(translation)
+		return nil
+	}
+
 	if "subdirs" == assignment.Name.Name {
 		w.handleSubdirs(assignment.OrigValue)
 	} else if assignment.OrigValue.Type == bpparser.Map {
@@ -448,6 +465,91 @@ func (w *androidMkWriter) handleLocalPath() error {
 	w.WriteString("LOCAL_PATH := " + rel + "\n")
 	w.WriteString("LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))\n\n")
 	return nil
+}
+
+// Returns any block comment on the line preceding pos as a string
+func (w *androidMkWriter) getCommentBlock(pos scanner.Position) string {
+	var buf []byte
+
+	comments := w.blueprint.Comments
+	for i, c := range comments {
+		if c.EndLine() == pos.Line-1 {
+			line := pos.Line
+			for j := i; j >= 0; j-- {
+				c = comments[j]
+				if c.EndLine() == line-1 {
+					buf = append([]byte(c.Text()), buf...)
+					line = c.Pos.Line
+				} else {
+					break
+				}
+			}
+		}
+	}
+
+	return string(buf)
+}
+
+func getCommentTranslation(comment string) (string, bool, error) {
+	lines := strings.Split(comment, "\n")
+
+	if directive, i, err := getCommentDirective(lines); err != nil {
+		return "", false, err
+	} else if directive != "" {
+		switch directive {
+		case "ignore":
+			return "", true, nil
+		case "start":
+			return getCommentTranslationBlock(lines[i+1:])
+		case "end":
+			return "", false, fmt.Errorf("Unexpected Android.mk:end translation directive")
+		default:
+			return "", false, fmt.Errorf("Unknown Android.mk module translation directive %q", directive)
+		}
+	}
+
+	return "", false, nil
+}
+
+func getCommentTranslationBlock(lines []string) (string, bool, error) {
+	var buf []byte
+
+	for _, line := range lines {
+		if directive := getLineCommentDirective(line); directive != "" {
+			switch directive {
+			case "end":
+				return string(buf), true, nil
+			default:
+				return "", false, fmt.Errorf("Unexpected Android.mk translation directive %q inside start", directive)
+			}
+		} else {
+			buf = append(buf, line...)
+			buf = append(buf, '\n')
+		}
+	}
+
+	return "", false, fmt.Errorf("Missing Android.mk:end translation directive")
+}
+
+func getCommentDirective(lines []string) (directive string, n int, err error) {
+	for i, line := range lines {
+		if directive := getLineCommentDirective(line); directive != "" {
+			return strings.ToLower(directive), i, nil
+		}
+	}
+
+	return "", -1, nil
+}
+
+func getLineCommentDirective(line string) string {
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "Android.mk:") {
+		line = strings.TrimPrefix(line, "Android.mk:")
+		line = strings.TrimSpace(line)
+		return line
+	}
+
+	return ""
 }
 
 func (w *androidMkWriter) write(writer io.Writer) (err error) {
