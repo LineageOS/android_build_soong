@@ -386,6 +386,10 @@ func (w *androidMkWriter) handleModule(inputModule *bpparser.Module) error {
 		return nil
 	}
 
+	if ignoredModuleType[inputModule.Type.Name] {
+		return nil
+	}
+
 	modules, err := w.mutateModule(newModule(inputModule))
 	if err != nil {
 		return err

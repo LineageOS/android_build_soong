@@ -94,6 +94,12 @@ var moduleTypeToRule = map[string]string{
 	"prebuilt":                 "BUILD_PREBUILT",
 }
 
+var ignoredModuleType = map[string]bool{
+	"bootstrap_go_binary":  true,
+	"bootstrap_go_package": true,
+	"toolchain_library":    true,
+}
+
 var suffixProperties = map[string]map[string]string{
 	"multilib": {"lib32": "32", "lib64": "64"},
 	"arch": {"arm": "arm", "arm64": "arm64", "mips": "mips", "mips64": "mips64",
