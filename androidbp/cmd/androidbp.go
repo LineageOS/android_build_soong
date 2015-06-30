@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/scanner"
 
+	"github.com/google/blueprint"
 	bpparser "github.com/google/blueprint/parser"
 )
 
@@ -59,10 +60,6 @@ type androidMkWriter struct {
 
 	blueprint *bpparser.File
 	path      string
-
-	printedLocalPath bool
-
-	mapScope map[string][]*bpparser.Property
 }
 
 func (w *androidMkWriter) WriteString(s string) (int, error) {
@@ -70,38 +67,21 @@ func (w *androidMkWriter) WriteString(s string) (int, error) {
 }
 
 func valueToString(value bpparser.Value) (string, error) {
-	if value.Variable != "" {
-		return fmt.Sprintf("$(%s)", value.Variable), nil
-	} else if value.Expression != nil {
-		if value.Expression.Operator != '+' {
-			return "", fmt.Errorf("unexpected operator '%c'", value.Expression.Operator)
-		}
-		val1, err := valueToString(value.Expression.Args[0])
+	switch value.Type {
+	case bpparser.Bool:
+		return fmt.Sprintf("%t", value.BoolValue), nil
+	case bpparser.String:
+		return fmt.Sprintf("%s", processWildcards(value.StringValue)), nil
+	case bpparser.List:
+		val, err := listToMkString(value.ListValue)
 		if err != nil {
 			return "", err
 		}
-		val2, err := valueToString(value.Expression.Args[1])
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%s%s", val1, val2), nil
-	} else {
-		switch value.Type {
-		case bpparser.Bool:
-			return fmt.Sprintf("%t", value.BoolValue), nil
-		case bpparser.String:
-			return fmt.Sprintf("%s", processWildcards(value.StringValue)), nil
-		case bpparser.List:
-			val, err := listToMkString(value.ListValue)
-			if err != nil {
-				return "", err
-			}
-			return fmt.Sprintf("\\\n%s", val), nil
-		case bpparser.Map:
-			return "", fmt.Errorf("Can't convert map to string")
-		default:
-			return "", fmt.Errorf("ERROR: unsupported type %d", value.Type)
-		}
+		return fmt.Sprintf("\\\n%s", val), nil
+	case bpparser.Map:
+		return "", fmt.Errorf("Can't convert map to string")
+	default:
+		return "", fmt.Errorf("ERROR: unsupported type %d", value.Type)
 	}
 }
 
@@ -273,15 +253,6 @@ func modulePropBool(module *bpparser.Module, name string) bool {
 	return false
 }
 
-func (w *androidMkWriter) lookupMap(parent bpparser.Value) (mapValue []*bpparser.Property) {
-	if parent.Variable != "" {
-		mapValue = w.mapScope[parent.Variable]
-	} else {
-		mapValue = parent.MapValue
-	}
-	return
-}
-
 func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	disabledBuilds map[string]bool, isHostRule bool) {
 	disabledConditionals := disabledTargetConditionals
@@ -317,15 +288,13 @@ func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) error {
 			}
 			standardProps = append(standardProps, props...)
 		} else if suffixMap, ok := suffixProperties[prop.Name.Name]; ok {
-			suffixProps := w.lookupMap(prop.Value)
-			props, err := translateSuffixProperties(suffixProps, suffixMap)
+			props, err := translateSuffixProperties(prop.Value.MapValue, suffixMap)
 			if err != nil {
 				return err
 			}
 			standardProps = append(standardProps, props...)
 		} else if "target" == prop.Name.Name {
-			suffixProps := w.lookupMap(prop.Value)
-			props, err := translateTargetConditionals(suffixProps, disabledBuilds, module.isHostRule)
+			props, err := translateTargetConditionals(prop.Value.MapValue, disabledBuilds, module.isHostRule)
 			if err != nil {
 				return err
 			}
@@ -415,58 +384,8 @@ func (w *androidMkWriter) handleSubdirs(value bpparser.Value) {
 	fmt.Fprintf(w, "# include $(wildcard $(addsuffix $(LOCAL_PATH)/%s/, Android.mk))\n", strings.Join(subdirs, " "))
 }
 
-func (w *androidMkWriter) handleAssignment(assignment *bpparser.Assignment) error {
-	comment := w.getCommentBlock(assignment.Name.Pos)
-	if translation, translated, err := getCommentTranslation(comment); err != nil {
-		return err
-	} else if translated {
-		w.WriteString(translation)
-		return nil
-	}
-
-	if "subdirs" == assignment.Name.Name {
-		w.handleSubdirs(assignment.OrigValue)
-	} else if assignment.OrigValue.Type == bpparser.Map {
-		// maps may be assigned in Soong, but can only be translated to .mk
-		// in the context of the module
-		w.mapScope[assignment.Name.Name] = assignment.OrigValue.MapValue
-	} else {
-		assigner := ":="
-		if assignment.Assigner != "=" {
-			assigner = assignment.Assigner
-		}
-		val, err := valueToString(assignment.OrigValue)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(w, "%s %s %s\n", assignment.Name.Name, assigner, val)
-	}
-
-	return nil
-}
-
 func (w *androidMkWriter) handleLocalPath() error {
-	if w.printedLocalPath {
-		return nil
-	}
-	w.printedLocalPath = true
-
-	localPath, err := filepath.Abs(w.path)
-	if err != nil {
-		return err
-	}
-
-	top, err := getTopOfAndroidTree(localPath)
-	if err != nil {
-		return err
-	}
-
-	rel, err := filepath.Rel(top, localPath)
-	if err != nil {
-		return err
-	}
-
-	w.WriteString("LOCAL_PATH := " + rel + "\n")
+	w.WriteString("LOCAL_PATH := " + w.path + "\n")
 	w.WriteString("LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))\n\n")
 	return nil
 }
@@ -568,7 +487,7 @@ func (w *androidMkWriter) write(writer io.Writer) (err error) {
 		case *bpparser.Module:
 			err = w.handleModule(block)
 		case *bpparser.Assignment:
-			err = w.handleAssignment(block)
+			// Nothing
 		default:
 			return fmt.Errorf("Unhandled def %v", block)
 		}
@@ -580,27 +499,33 @@ func (w *androidMkWriter) write(writer io.Writer) (err error) {
 	return nil
 }
 
-func translate(androidBp, androidMk string) error {
-	reader, err := os.Open(androidBp)
-	if err != nil {
-		return err
-	}
+func translate(rootFile, androidBp, androidMk string) error {
 
-	scope := bpparser.NewScope(nil)
-	blueprint, errs := bpparser.Parse(androidBp, reader, scope)
+	ctx := blueprint.NewContext()
+
+	var blueprintFile *bpparser.File
+
+	_, errs := ctx.WalkBlueprintsFiles(rootFile, func(file *bpparser.File) {
+		if file.Name == androidBp {
+			blueprintFile = file
+		}
+	})
 	if len(errs) > 0 {
 		return errs[0]
 	}
 
+	if blueprintFile == nil {
+		return fmt.Errorf("File %q wasn't parsed from %q", androidBp, rootFile)
+	}
+
 	writer := &androidMkWriter{
-		blueprint: blueprint,
+		blueprint: blueprintFile,
 		path:      path.Dir(androidBp),
-		mapScope:  make(map[string][]*bpparser.Property),
 	}
 
 	buf := &bytes.Buffer{}
 
-	err = writer.write(buf)
+	err := writer.write(buf)
 	if err != nil {
 		os.Remove(androidMk)
 		return err
@@ -618,16 +543,21 @@ func translate(androidBp, androidMk string) error {
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "Expected input and output filename arguments")
+	if len(os.Args) < 4 {
+		fmt.Fprintln(os.Stderr, "Expected root Android.bp, input and output filename arguments")
 		os.Exit(1)
 	}
 
-	androidBp := os.Args[1]
-	androidMk := os.Args[2]
+	rootFile := os.Args[1]
+	androidBp, err := filepath.Rel(filepath.Dir(rootFile), os.Args[2])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Android.bp file %q is not relative to %q: %s\n",
+			os.Args[2], rootFile, err.Error())
+		os.Exit(1)
+	}
+	androidMk := os.Args[3]
 
-	err := translate(androidBp, androidMk)
-
+	err = translate(rootFile, androidBp, androidMk)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error translating %s: %s\n", androidBp, err.Error())
 		os.Exit(1)

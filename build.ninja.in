@@ -70,8 +70,11 @@ build .bootstrap/androidbp/test/androidbp.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/soong.go $
         ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/androidbp_test.go | $
         ${g.bootstrap.gcCmd} $
-        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a
-    incFlags = -I .bootstrap/blueprint-parser/pkg
+        .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a $
+        .bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a $
+        .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/github.com/google/blueprint.a
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg
     pkgPath = androidbp
 default .bootstrap/androidbp/test/androidbp.a
 
@@ -90,7 +93,7 @@ default .bootstrap/androidbp/test/test.a
 
 build .bootstrap/androidbp/test/test: g.bootstrap.link $
         .bootstrap/androidbp/test/test.a | ${g.bootstrap.linkCmd}
-    libDirFlags = -L .bootstrap/androidbp/test -L .bootstrap/blueprint-parser/pkg
+    libDirFlags = -L .bootstrap/androidbp/test -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg
 default .bootstrap/androidbp/test/test
 
 build .bootstrap/androidbp/test/test.passed: g.bootstrap.test $
@@ -104,14 +107,17 @@ build .bootstrap/androidbp/obj/androidbp.a: g.bootstrap.gc $
         ${g.bootstrap.srcDir}/build/soong/androidbp/cmd/soong.go | $
         ${g.bootstrap.gcCmd} $
         .bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a $
-        || .bootstrap/androidbp/test/test.passed
-    incFlags = -I .bootstrap/blueprint-parser/pkg
+        .bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a $
+        .bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
+        .bootstrap/blueprint/pkg/github.com/google/blueprint.a || $
+        .bootstrap/androidbp/test/test.passed
+    incFlags = -I .bootstrap/blueprint-parser/pkg -I .bootstrap/blueprint-pathtools/pkg -I .bootstrap/blueprint-proptools/pkg -I .bootstrap/blueprint/pkg
     pkgPath = androidbp
 default .bootstrap/androidbp/obj/androidbp.a
 
 build .bootstrap/androidbp/obj/a.out: g.bootstrap.link $
         .bootstrap/androidbp/obj/androidbp.a | ${g.bootstrap.linkCmd}
-    libDirFlags = -L .bootstrap/blueprint-parser/pkg
+    libDirFlags = -L .bootstrap/blueprint-parser/pkg -L .bootstrap/blueprint-pathtools/pkg -L .bootstrap/blueprint-proptools/pkg -L .bootstrap/blueprint/pkg
 default .bootstrap/androidbp/obj/a.out
 
 build .bootstrap/bin/androidbp: g.bootstrap.cp .bootstrap/androidbp/obj/a.out

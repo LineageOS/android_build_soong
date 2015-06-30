@@ -198,6 +198,7 @@ bootstrap_go_binary {
         "androidbp/cmd/androidbp_test.go",
     ],
     deps: [
+        "blueprint",
         "blueprint-parser",
     ],
 }

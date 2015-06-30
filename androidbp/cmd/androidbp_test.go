@@ -18,28 +18,15 @@ var valueTestCases = []struct {
 		expected:  `false`,
 	},
 	{
-		blueprint: `test = Variable`,
-		expected:  `$(Variable)`,
-	},
-	{
 		blueprint: `test = "string"`,
 		expected:  `string`,
 	},
 	{
 		blueprint: `test = ["a", "b"]`,
 		expected: `\
-			   a \
-			   b`,
-	},
-	{
-		blueprint: `test = Var + "b"`,
-		expected:  `$(Var)b`,
-	},
-	{
-		blueprint: `test = ["a"] + ["b"]`,
-		expected: `\
-			   a\
-			   b`,
+		           a \
+		           b
+		           `,
 	},
 }
 
@@ -144,7 +131,6 @@ func TestModules(t *testing.T) {
 		writer := &androidMkWriter{
 			blueprint: blueprint,
 			path:      "",
-			mapScope:  make(map[string][]*bpparser.Property),
 			Writer:    buf,
 		}
 

@@ -27,10 +27,12 @@ var (
 	cpPreserveSymlinks = pctx.VariableConfigMethod("cpPreserveSymlinks",
 		Config.CpPreserveSymlinksFlags)
 
+	srcDir = pctx.VariableConfigMethod("srcDir", Config.SrcDir)
+
 	androidbpCmd = filepath.Join(bootstrap.BinDir, "androidbp")
 	androidbp    = pctx.StaticRule("androidbp",
 		blueprint.RuleParams{
-			Command:     androidbpCmd + " $in $out",
+			Command:     androidbpCmd + " ${srcDir}/Android.bp $in $out",
 			Description: "androidbp $out",
 		})
 
