@@ -27,7 +27,6 @@ var standardProperties = map[string]struct {
 	"static_libs":        {"LOCAL_STATIC_LIBRARIES", bpparser.List},
 	"whole_static_libs":  {"LOCAL_WHOLE_STATIC_LIBRARIES", bpparser.List},
 	"system_shared_libs": {"LOCAL_SYSTEM_SHARED_LIBRARIES", bpparser.List},
-	"include_dirs":       {"LOCAL_C_INCLUDES", bpparser.List},
 	"asflags":            {"LOCAL_ASFLAGS", bpparser.List},
 	"clang_asflags":      {"LOCAL_CLANG_ASFLAGS", bpparser.List},
 	"cflags":             {"LOCAL_CFLAGS", bpparser.List},
@@ -66,6 +65,7 @@ var rewriteProperties = map[string]struct {
 	string
 	f func(name string, prop *bpparser.Property, suffix *string) ([]string, error)
 }{
+	"include_dirs":        {"LOCAL_C_INCLUDES", appendAssign},
 	"local_include_dirs":  {"LOCAL_C_INCLUDES", prependLocalPath},
 	"export_include_dirs": {"LOCAL_EXPORT_C_INCLUDE_DIRS", prependLocalPath},
 	"suffix":              {"LOCAL_MODULE_STEM", prependLocalModule},

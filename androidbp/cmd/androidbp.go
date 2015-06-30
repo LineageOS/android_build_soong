@@ -218,6 +218,19 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 	return
 }
 
+func appendAssign(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
+	if suffix != nil {
+		name += "_" + *suffix
+	}
+	val, err := valueToString(prop.Value)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		fmt.Sprintf("%s += %s", name, val),
+	}, nil
+}
+
 func prependLocalPath(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
 	if suffix != nil {
 		name += "_" + *suffix
@@ -227,7 +240,7 @@ func prependLocalPath(name string, prop *bpparser.Property, suffix *string) ([]s
 		return nil, err
 	}
 	return []string{
-		fmt.Sprintf("%s := $(addprefix $(LOCAL_PATH)/,%s)\n", name, val),
+		fmt.Sprintf("%s += $(addprefix $(LOCAL_PATH)/,%s)", name, val),
 	}, nil
 }
 
