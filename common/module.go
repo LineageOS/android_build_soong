@@ -53,7 +53,7 @@ type AndroidModuleContext interface {
 	blueprint.ModuleContext
 	androidBaseContext
 
-	ExpandSources(srcFiles []string) []string
+	ExpandSources(srcFiles, excludes []string) []string
 	Glob(globPattern string, excludes []string) []string
 
 	InstallFile(installPath, srcPath string, deps ...string) string
@@ -472,32 +472,37 @@ func isAndroidModule(m blueprint.Module) bool {
 	return ok
 }
 
-func (ctx *androidModuleContext) ExpandSources(srcFiles []string) []string {
-	prefix := ModuleSrcDir(ctx)
-	for i, srcFile := range srcFiles {
-		if srcFile[0] == '-' {
-			srcFiles[i] = "-" + filepath.Join(prefix, srcFile[1:])
-		} else {
-			srcFiles[i] = filepath.Join(prefix, srcFile)
+func findStringInSlice(str string, slice []string) int {
+	for i, s := range slice {
+		if s == str {
+			return i
 		}
+	}
+	return -1
+}
+
+func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) []string {
+	prefix := ModuleSrcDir(ctx)
+	for i, e := range excludes {
+		j := findStringInSlice(e, srcFiles)
+		if j != -1 {
+			srcFiles = append(srcFiles[:j], srcFiles[j+1:]...)
+		}
+
+		excludes[i] = filepath.Join(prefix, e)
+	}
+
+	for i, srcFile := range srcFiles {
+		srcFiles[i] = filepath.Join(prefix, srcFile)
 	}
 
 	if !hasGlob(srcFiles) {
 		return srcFiles
 	}
 
-	var excludes []string
-	for _, s := range srcFiles {
-		if s[0] == '-' {
-			excludes = append(excludes, s[1:])
-		}
-	}
-
 	globbedSrcFiles := make([]string, 0, len(srcFiles))
 	for _, s := range srcFiles {
-		if s[0] == '-' {
-			continue
-		} else if glob.IsGlob(s) {
+		if glob.IsGlob(s) {
 			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob(s, excludes)...)
 		} else {
 			globbedSrcFiles = append(globbedSrcFiles, s)

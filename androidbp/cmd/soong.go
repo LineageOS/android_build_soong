@@ -23,6 +23,7 @@ var standardProperties = map[string]struct {
 
 	// ==== LIST PROPERTIES ====
 	"srcs":               {"LOCAL_SRC_FILES", bpparser.List},
+	"exclude_srcs":       {"LOCAL_SRC_FILES_EXCLUDE", bpparser.List},
 	"shared_libs":        {"LOCAL_SHARED_LIBRARIES", bpparser.List},
 	"static_libs":        {"LOCAL_STATIC_LIBRARIES", bpparser.List},
 	"whole_static_libs":  {"LOCAL_WHOLE_STATIC_LIBRARIES", bpparser.List},

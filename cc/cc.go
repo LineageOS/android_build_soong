@@ -154,7 +154,11 @@ type CCFlags struct {
 // Properties used to compile all C or C++ modules
 type CCBaseProperties struct {
 	// list of source files used to compile the C/C++ module.  May be .c, .cpp, or .S files.
-	Srcs []string `android:"arch_variant,arch_subtract"`
+	Srcs []string `android:"arch_variant"`
+
+	// list of source files that should not be used to build the C/C++ module.
+	// This is most useful in the arch/multilib variants to remove non-common files
+	Exclude_srcs []string `android:"arch_variant"`
 
 	// list of module-specific flags that will be used for C and C++ compiles.
 	Cflags []string `android:"arch_variant"`
@@ -528,11 +532,11 @@ func (c *CCBase) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 
 // Compile a list of source files into objects a specified subdirectory
 func (c *CCBase) customCompileObjs(ctx common.AndroidModuleContext, flags CCFlags,
-	subdir string, srcFiles []string) []string {
+	subdir string, srcFiles, excludes []string) []string {
 
 	buildFlags := ccFlagsToBuilderFlags(flags)
 
-	srcFiles = ctx.ExpandSources(srcFiles)
+	srcFiles = ctx.ExpandSources(srcFiles, excludes)
 	srcFiles, deps := genSources(ctx, srcFiles, buildFlags)
 
 	return TransformSourceToObj(ctx, subdir, srcFiles, buildFlags, deps)
@@ -545,7 +549,7 @@ func (c *CCBase) compileObjs(ctx common.AndroidModuleContext, flags CCFlags) []s
 		return nil
 	}
 
-	return c.customCompileObjs(ctx, flags, "", c.Properties.Srcs)
+	return c.customCompileObjs(ctx, flags, "", c.Properties.Srcs, c.Properties.Exclude_srcs)
 }
 
 // Compile generated source files from dependencies
@@ -929,6 +933,7 @@ type CCLibraryProperties struct {
 	BuildShared bool `blueprint:"mutated"`
 	Static      struct {
 		Srcs              []string `android:"arch_variant"`
+		Exclude_srcs      []string `android:"arch_variant"`
 		Cflags            []string `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
 		Static_libs       []string `android:"arch_variant"`
@@ -936,6 +941,7 @@ type CCLibraryProperties struct {
 	} `android:"arch_variant"`
 	Shared struct {
 		Srcs              []string `android:"arch_variant"`
+		Exclude_srcs      []string `android:"arch_variant"`
 		Cflags            []string `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
 		Static_libs       []string `android:"arch_variant"`
@@ -1088,7 +1094,7 @@ func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
 
 	staticFlags := flags
 	objFilesStatic := c.customCompileObjs(ctx, staticFlags, common.DeviceStaticLibrary,
-		c.LibraryProperties.Static.Srcs)
+		c.LibraryProperties.Static.Srcs, c.LibraryProperties.Static.Exclude_srcs)
 
 	objFiles = append(objFiles, objFilesStatic...)
 	objFiles = append(objFiles, deps.WholeStaticLibObjFiles...)
@@ -1116,7 +1122,7 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 
 	sharedFlags := flags
 	objFilesShared := c.customCompileObjs(ctx, sharedFlags, common.DeviceSharedLibrary,
-		c.LibraryProperties.Shared.Srcs)
+		c.LibraryProperties.Shared.Srcs, c.LibraryProperties.Shared.Exclude_srcs)
 
 	objFiles = append(objFiles, objFilesShared...)
 

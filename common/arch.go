@@ -628,12 +628,7 @@ func (a *AndroidModuleBase) extendPropertiesRecursive(ctx blueprint.EarlyMutator
 				dstFieldValue, srcFieldValue,
 				newRecursePrefix)
 		case reflect.Slice:
-			val, err := archCombineSlices(dstFieldValue, srcFieldValue, tags["arch_subtract"])
-			if err != nil {
-				ctx.PropertyErrorf(propertyName, err.Error())
-				continue
-			}
-			dstFieldValue.Set(val)
+			dstFieldValue.Set(reflect.AppendSlice(dstFieldValue, srcFieldValue))
 		case reflect.Ptr, reflect.Interface:
 			// Recursively extend the pointed-to struct's fields.
 			if dstFieldValue.IsNil() != srcFieldValue.IsNil() {
@@ -653,39 +648,4 @@ func (a *AndroidModuleBase) extendPropertiesRecursive(ctx blueprint.EarlyMutator
 				field.Name, srcFieldValue.Kind()))
 		}
 	}
-}
-
-func archCombineSlices(general, arch reflect.Value, canSubtract bool) (reflect.Value, error) {
-	if !canSubtract {
-		// Append the extension slice.
-		return reflect.AppendSlice(general, arch), nil
-	}
-
-	// Support -val in arch list to subtract a value from original list
-	l := general.Interface().([]string)
-	for archIndex := 0; archIndex < arch.Len(); archIndex++ {
-		archString := arch.Index(archIndex).String()
-		if strings.HasPrefix(archString, "-") {
-			generalIndex := findStringInSlice(archString[1:], l)
-			if generalIndex == -1 {
-				return reflect.Value{},
-					fmt.Errorf("can't find %q to subtract from general properties", archString[1:])
-			}
-			l = append(l[:generalIndex], l[generalIndex+1:]...)
-		} else {
-			l = append(l, archString)
-		}
-	}
-
-	return reflect.ValueOf(l), nil
-}
-
-func findStringInSlice(str string, slice []string) int {
-	for i, s := range slice {
-		if s == str {
-			return i
-		}
-	}
-
-	return -1
 }

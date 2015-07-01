@@ -29,13 +29,20 @@ var resourceExcludes = []string{
 	"**/*~",
 }
 
-func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs []string) []jarSpec {
+func isStringInSlice(str string, slice []string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
+func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs, excludeDirs []string) []jarSpec {
 	var excludes []string
 
-	for _, resourceDir := range resourceDirs {
-		if resourceDir[0] == '-' {
-			excludes = append(excludes, filepath.Join(common.ModuleSrcDir(ctx), resourceDir[1:], "**/*"))
-		}
+	for _, exclude := range excludeDirs {
+		excludes = append(excludes, filepath.Join(common.ModuleSrcDir(ctx), exclude, "**/*"))
 	}
 
 	excludes = append(excludes, resourceExcludes...)
@@ -43,7 +50,7 @@ func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs []stri
 	var jarSpecs []jarSpec
 
 	for _, resourceDir := range resourceDirs {
-		if resourceDir[0] == '-' {
+		if isStringInSlice(resourceDir, excludeDirs) {
 			continue
 		}
 		resourceDir := filepath.Join(common.ModuleSrcDir(ctx), resourceDir)

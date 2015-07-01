@@ -47,10 +47,17 @@ import (
 type javaBaseProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
 	// or .aidl files.
-	Srcs []string `android:"arch_variant,arch_subtract"`
+	Srcs []string `android:"arch_variant"`
+
+	// list of source files that should not be used to build the Java module.
+	// This is most useful in the arch/multilib variants to remove non-common files
+	Exclude_srcs []string `android:"arch_variant"`
 
 	// list of directories containing Java resources
 	Java_resource_dirs []string `android:"arch_variant"`
+
+	// list of directories that should be excluded from java_resource_dirs
+	Exclude_java_resource_dirs []string `android:"arch_variant"`
 
 	// don't build against the default libraries (core-libart, core-junit,
 	// ext, and framework for device targets)
@@ -294,7 +301,7 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		javacDeps = append(javacDeps, classpath...)
 	}
 
-	srcFiles := ctx.ExpandSources(j.properties.Srcs)
+	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
 
@@ -316,7 +323,7 @@ func (j *javaBase) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
 	}
 
-	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs),
+	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs),
 		resourceJarSpecs...)
 
 	manifest := j.properties.Manifest
