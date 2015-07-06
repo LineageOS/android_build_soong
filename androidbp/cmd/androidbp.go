@@ -293,6 +293,37 @@ func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) error {
 	return nil
 }
 
+func canUseWholeStaticLibrary(m *Module) (bool, error) {
+	ret := true
+
+	isCompatible := func(props Properties, prop *bpparser.Property) error {
+		for _, p := range prop.Value.MapValue {
+			if p.Name.Name == "cflags" {
+				ret = false
+				return nil
+			}
+			if prop.Name.Name == "static" {
+				if p.Name.Name == "srcs" {
+					ret = false
+					return nil
+				}
+			}
+		}
+		return nil
+	}
+
+	err := m.IterateArchPropertiesWithName("shared", isCompatible)
+	if err != nil {
+		return false, err
+	}
+	err = m.IterateArchPropertiesWithName("static", isCompatible)
+	if err != nil {
+		return false, err
+	}
+
+	return ret, nil
+}
+
 func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err error) {
 	modules = []*Module{module}
 
@@ -312,9 +343,31 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err e
 			props.DeleteProp(prop.Name.Name)
 			return nil
 		}
-		ccLinkageDelete := func(props Properties, prop *bpparser.Property) error {
+		deleteProp := func(props Properties, prop *bpparser.Property) error {
 			props.DeleteProp(prop.Name.Name)
 			return nil
+		}
+
+		if ok, err := canUseWholeStaticLibrary(module); err != nil {
+			return nil, err
+		} else if ok {
+			err = modules[0].IterateArchPropertiesWithName("srcs", deleteProp)
+			if err != nil {
+				return nil, err
+			}
+
+			if nameProp, ok := modules[0].Properties().Prop("name"); !ok {
+				return nil, fmt.Errorf("Can't find name property")
+			} else {
+				modules[0].Properties().AppendToProp("whole_static_libs", &bpparser.Property{
+					Value: bpparser.Value{
+						Type: bpparser.List,
+						ListValue: []bpparser.Value{
+							nameProp.Value.Copy(),
+						},
+					},
+				})
+			}
 		}
 
 		modules[0].bpname = "cc_library_shared"
@@ -322,13 +375,13 @@ func (w *androidMkWriter) mutateModule(module *Module) (modules []*Module, err e
 		if err != nil {
 			return nil, err
 		}
-		err = modules[0].IterateArchPropertiesWithName("static", ccLinkageDelete)
+		err = modules[0].IterateArchPropertiesWithName("static", deleteProp)
 		if err != nil {
 			return nil, err
 		}
 
 		modules[1].bpname = "cc_library_static"
-		err = modules[1].IterateArchPropertiesWithName("shared", ccLinkageDelete)
+		err = modules[1].IterateArchPropertiesWithName("shared", deleteProp)
 		if err != nil {
 			return nil, err
 		}

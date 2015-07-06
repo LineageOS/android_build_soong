@@ -76,13 +76,17 @@ var moduleTestCases = []struct {
 	},
 	// Static and Shared
 	{
-		blueprint: `cc_library { name: "test", }`,
+		blueprint: `cc_library { name: "test", srcs: ["a"], }`,
 		androidmk: `include $(CLEAR_VARS)
 			    LOCAL_MODULE := test
+			    LOCAL_WHOLE_STATIC_LIBRARIES := \
+				test
 			    include $(BUILD_SHARED_LIBRARY)
 
 			    include $(CLEAR_VARS)
 			    LOCAL_MODULE := test
+			    LOCAL_SRC_FILES := \
+				a
 			    include $(BUILD_STATIC_LIBRARY)`,
 	},
 	// Static and Shared / Target and Host
@@ -90,6 +94,8 @@ var moduleTestCases = []struct {
 		blueprint: `cc_library { name: "test", host_supported: true, }`,
 		androidmk: `include $(CLEAR_VARS)
 			    LOCAL_MODULE := test
+			    LOCAL_WHOLE_STATIC_LIBRARIES := \
+				test
 			    include $(BUILD_SHARED_LIBRARY)
 
 			    include $(CLEAR_VARS)
@@ -98,6 +104,8 @@ var moduleTestCases = []struct {
 
 			    include $(CLEAR_VARS)
 			    LOCAL_MODULE := test
+			    LOCAL_WHOLE_STATIC_LIBRARIES := \
+				test
 			    include $(BUILD_HOST_SHARED_LIBRARY)
 
 			    include $(CLEAR_VARS)
@@ -129,6 +137,27 @@ var moduleTestCases = []struct {
 			        c
 			    LOCAL_STATIC_LIBRARIES := \
 			        l
+			    include $(BUILD_STATIC_LIBRARY)`,
+	},
+	// Static and Shared properties, use whole static lib, but add extra shared srcs
+	{
+		blueprint: `cc_library {
+				name: "test",
+				srcs: ["a"],
+				shared: { srcs: ["b"], },
+			    }`,
+		androidmk: `include $(CLEAR_VARS)
+			    LOCAL_MODULE := test
+			    LOCAL_WHOLE_STATIC_LIBRARIES := \
+				test
+			    LOCAL_SRC_FILES := \
+			        b
+			    include $(BUILD_SHARED_LIBRARY)
+
+			    include $(CLEAR_VARS)
+			    LOCAL_MODULE := test
+			    LOCAL_SRC_FILES := \
+			        a
 			    include $(BUILD_STATIC_LIBRARY)`,
 	},
 	// Manual translation
