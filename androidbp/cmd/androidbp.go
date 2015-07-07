@@ -25,6 +25,21 @@ type androidMkWriter struct {
 	path      string
 }
 
+type propAssignment struct {
+	name, assigner, value string
+}
+
+func (a propAssignment) assignmentWithSuffix(suffix string) string {
+	if suffix != "" {
+		a.name = a.name + "_" + suffix
+	}
+	return a.name + " " + a.assigner + " " + a.value
+}
+
+func (a propAssignment) assignment() string {
+	return a.assignmentWithSuffix("")
+}
+
 func (w *androidMkWriter) WriteString(s string) (int, error) {
 	return io.WriteString(w.Writer, s)
 }
@@ -131,19 +146,10 @@ func translateTargetConditionals(props []*bpparser.Property,
 
 		var scopedProps []string
 		for _, targetScopedProp := range target.Value.MapValue {
-			if mkProp, ok := standardProperties[targetScopedProp.Name.Name]; ok {
-				val, err := valueToString(targetScopedProp.Value)
-				if err != nil {
-					return nil, err
-				}
-				scopedProps = append(scopedProps, fmt.Sprintf("%s += %s",
-					mkProp.string, val))
-			} else if rwProp, ok := rewriteProperties[targetScopedProp.Name.Name]; ok {
-				props, err := rwProp.f(rwProp.string, targetScopedProp, nil)
-				if err != nil {
-					return nil, err
-				}
-				scopedProps = append(scopedProps, props...)
+			if assignment, ok, err := translateSingleProperty(targetScopedProp); err != nil {
+				return nil, err
+			} else if ok {
+				scopedProps = append(scopedProps, assignment.assignment())
 			} else if "disabled" == targetScopedProp.Name.Name {
 				if targetScopedProp.Value.BoolValue {
 					disabledBuilds[target.Name.Name] = true
@@ -174,18 +180,10 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 	for _, suffixProp := range suffixProps {
 		if suffix, ok := suffixMap[suffixProp.Name.Name]; ok {
 			for _, stdProp := range suffixProp.Value.MapValue {
-				if mkProp, ok := standardProperties[stdProp.Name.Name]; ok {
-					val, err := valueToString(stdProp.Value)
-					if err != nil {
-						return nil, err
-					}
-					computedProps = append(computedProps, fmt.Sprintf("%s_%s := %s", mkProp.string, suffix, val))
-				} else if rwProp, ok := rewriteProperties[stdProp.Name.Name]; ok {
-					props, err := rwProp.f(rwProp.string, stdProp, &suffix)
-					if err != nil {
-						return nil, err
-					}
-					computedProps = append(computedProps, props...)
+				if assignment, ok, err := translateSingleProperty(stdProp); err != nil {
+					return nil, err
+				} else if ok {
+					computedProps = append(computedProps, assignment.assignmentWithSuffix(suffix))
 				} else {
 					return nil, fmt.Errorf("Unsupported property %q", stdProp.Name.Name)
 				}
@@ -197,56 +195,45 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 	return
 }
 
-func appendAssign(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
-	if suffix != nil {
-		name += "_" + *suffix
+func translateSingleProperty(prop *bpparser.Property) (propAssignment, bool, error) {
+	var assignment propAssignment
+	if mkProp, ok := standardProperties[prop.Name.Name]; ok {
+		name := mkProp.string
+		val, err := valueToString(prop.Value)
+		if err != nil {
+			return propAssignment{}, false, err
+		}
+		assignment = propAssignment{name, ":=", val}
+	} else if rwProp, ok := rewriteProperties[prop.Name.Name]; ok {
+		val, err := valueToString(prop.Value)
+		if err != nil {
+			return propAssignment{}, false, err
+		}
+		assignment, err = rwProp.f(rwProp.string, prop, val)
+		if err != nil {
+			return propAssignment{}, false, err
+		}
+	} else {
+		// Unhandled, return false with no error to tell the caller to handle it
+		return propAssignment{}, false, nil
 	}
-	val, err := valueToString(prop.Value)
-	if err != nil {
-		return nil, err
-	}
-	return []string{
-		fmt.Sprintf("%s += %s", name, val),
-	}, nil
+	return assignment, true, nil
 }
 
-func prependLocalPath(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
-	if suffix != nil {
-		name += "_" + *suffix
-	}
-	val, err := valueToString(prop.Value)
-	if err != nil {
-		return nil, err
-	}
-	return []string{
-		fmt.Sprintf("%s += $(addprefix $(LOCAL_PATH)/,%s)", name, val),
-	}, nil
+func appendAssign(name string, prop *bpparser.Property, val string) (propAssignment, error) {
+	return propAssignment{name, "+=", val}, nil
 }
 
-func prependLocalModule(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
-	if suffix != nil {
-		name += "_" + *suffix
-	}
-	val, err := valueToString(prop.Value)
-	if err != nil {
-		return nil, err
-	}
-	return []string{
-		fmt.Sprintf("%s := $(LOCAL_MODULE)%s\n", name, val),
-	}, nil
+func prependLocalPath(name string, prop *bpparser.Property, val string) (propAssignment, error) {
+	return propAssignment{name, "+=", fmt.Sprintf("$(addprefix $(LOCAL_PATH)/,%s)", val)}, nil
 }
 
-func versionScript(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
-	if suffix != nil {
-		name += "_" + *suffix
-	}
-	val, err := valueToString(prop.Value)
-	if err != nil {
-		return nil, err
-	}
-	return []string{
-		fmt.Sprintf("%s += -Wl,--version-script,$(LOCAL_PATH)/%s\n", name, val),
-	}, nil
+func prependLocalModule(name string, prop *bpparser.Property, val string) (propAssignment, error) {
+	return propAssignment{name, ":=", "$(LOCAL_MODULE)" + val}, nil
+}
+
+func versionScript(name string, prop *bpparser.Property, val string) (propAssignment, error) {
+	return propAssignment{name, "+=", "-Wl,--version-script,$(LOCAL_PATH)/" + val}, nil
 }
 
 func (w *androidMkWriter) writeModule(moduleRule string, props []string,
@@ -271,18 +258,10 @@ func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) error {
 	standardProps := make([]string, 0, len(module.bpmod.Properties))
 	disabledBuilds := make(map[string]bool)
 	for _, prop := range module.bpmod.Properties {
-		if mkProp, ok := standardProperties[prop.Name.Name]; ok {
-			val, err := valueToString(prop.Value)
-			if err != nil {
-				return err
-			}
-			standardProps = append(standardProps, fmt.Sprintf("%s := %s", mkProp.string, val))
-		} else if rwProp, ok := rewriteProperties[prop.Name.Name]; ok {
-			props, err := rwProp.f(rwProp.string, prop, nil)
-			if err != nil {
-				return err
-			}
-			standardProps = append(standardProps, props...)
+		if assignment, ok, err := translateSingleProperty(prop); err != nil {
+			return err
+		} else if ok {
+			standardProps = append(standardProps, assignment.assignment())
 		} else if suffixMap, ok := suffixProperties[prop.Name.Name]; ok {
 			props, err := translateSuffixProperties(prop.Value.MapValue, suffixMap)
 			if err != nil {

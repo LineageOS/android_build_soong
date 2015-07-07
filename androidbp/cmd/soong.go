@@ -64,7 +64,7 @@ var standardProperties = map[string]struct {
 
 var rewriteProperties = map[string]struct {
 	string
-	f func(name string, prop *bpparser.Property, suffix *string) ([]string, error)
+	f func(name string, prop *bpparser.Property, val string) (propAssignment, error)
 }{
 	"include_dirs":        {"LOCAL_C_INCLUDES", appendAssign},
 	"local_include_dirs":  {"LOCAL_C_INCLUDES", prependLocalPath},
