@@ -236,6 +236,19 @@ func prependLocalModule(name string, prop *bpparser.Property, suffix *string) ([
 	}, nil
 }
 
+func versionScript(name string, prop *bpparser.Property, suffix *string) ([]string, error) {
+	if suffix != nil {
+		name += "_" + *suffix
+	}
+	val, err := valueToString(prop.Value)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		fmt.Sprintf("%s += -Wl,--version-script,$(LOCAL_PATH)/%s\n", name, val),
+	}, nil
+}
+
 func (w *androidMkWriter) writeModule(moduleRule string, props []string,
 	disabledBuilds map[string]bool, isHostRule bool) {
 	disabledConditionals := disabledTargetConditionals

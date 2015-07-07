@@ -70,6 +70,7 @@ var rewriteProperties = map[string]struct {
 	"local_include_dirs":  {"LOCAL_C_INCLUDES", prependLocalPath},
 	"export_include_dirs": {"LOCAL_EXPORT_C_INCLUDE_DIRS", prependLocalPath},
 	"suffix":              {"LOCAL_MODULE_STEM", prependLocalModule},
+	"version_script":      {"LOCAL_LDFLAGS", versionScript},
 }
 
 var ignoredProperties = map[string]bool{

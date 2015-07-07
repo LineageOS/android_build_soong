@@ -947,6 +947,9 @@ type CCLibraryProperties struct {
 		Static_libs       []string `android:"arch_variant"`
 		Shared_libs       []string `android:"arch_variant"`
 	} `android:"arch_variant"`
+
+	// local file name to pass to the linker as --version_script
+	Version_script string `android:"arch_variant"`
 }
 
 type CCLibrary struct {
@@ -1128,8 +1131,16 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), ctx.ModuleName()+sharedLibraryExtension)
 
+	var linkerDeps []string
+
+	if c.LibraryProperties.Version_script != "" {
+		versionScript := filepath.Join(common.ModuleSrcDir(ctx), c.LibraryProperties.Version_script)
+		sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,--version-script,"+versionScript)
+		linkerDeps = append(linkerDeps, versionScript)
+	}
+
 	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
-		deps.LateStaticLibs, deps.WholeStaticLibs, deps.CrtBegin, deps.CrtEnd, false,
+		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, false,
 		ccFlagsToBuilderFlags(flags), outputFile)
 
 	c.out = outputFile
@@ -1398,8 +1409,10 @@ func (c *CCBinary) compileModule(ctx common.AndroidModuleContext,
 			ccFlagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
+	var linkerDeps []string
+
 	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
-		deps.LateStaticLibs, deps.WholeStaticLibs, deps.CrtBegin, deps.CrtEnd, true,
+		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
 		ccFlagsToBuilderFlags(flags), outputFile)
 }
 
