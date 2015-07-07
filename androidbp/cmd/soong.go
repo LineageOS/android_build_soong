@@ -108,6 +108,26 @@ var suffixProperties = map[string]map[string]string{
 		"x86": "x86", "x86_64": "x86_64"},
 }
 
+var cpuVariantConditionals = map[string]struct {
+	conditional string
+	suffix      string
+	secondArch  bool
+}{
+	"armv5te":      {"ifeq ($(TARGET_ARCH_VARIANT),armv5te)", "$(TARGET_ARCH)", true},
+	"armv7_a":      {"ifeq ($(TARGET_ARCH_VARIANT),armv7-a)", "$(TARGET_ARCH)", true},
+	"armv7_a_neon": {"ifeq ($(TARGET_ARCH_VARIANT),armv7-a-neon)", "$(TARGET_ARCH)", true},
+	"cortex_a7":    {"ifeq ($(TARGET_CPU_VARIANT),cortex-a7)", "$(TARGET_ARCH)", true},
+	"cortex_a8":    {"ifeq ($(TARGET_CPU_VARIANT),cortex-a8)", "$(TARGET_ARCH)", true},
+	"cortex_a9":    {"ifeq ($(TARGET_CPU_VARIANT),cortex-a9)", "$(TARGET_ARCH)", true},
+	"cortex_a15":   {"ifeq ($(TARGET_CPU_VARIANT),cortex-a15)", "$(TARGET_ARCH)", true},
+	"krait":        {"ifeq ($(TARGET_CPU_VARIANT),krait)", "$(TARGET_ARCH)", true},
+	"denver":       {"ifeq ($(TARGET_CPU_VARIANT),denver)", "$(TARGET_ARCH)", true},
+	"denver64":     {"ifeq ($(TARGET_CPU_VARIANT),denver64)", "$(TARGET_ARCH)", true},
+	"mips_rev6":    {"ifdef ARCH_MIPS_REV6", "mips", false},
+	"atom":         {"ifeq ($(TARGET_ARCH_VARIANT),atom)", "$(TARGET_ARCH)", true},
+	"silvermont":   {"ifeq ($(TARGET_ARCH_VARIANT),silvermont)", "$(TARGET_ARCH)", true},
+}
+
 var hostScopedPropertyConditionals = map[string]string{
 	"host":        "",
 	"darwin":      "ifeq ($(HOST_OS), darwin)",

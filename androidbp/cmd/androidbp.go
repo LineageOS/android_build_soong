@@ -175,6 +175,8 @@ func translateTargetConditionals(props []*bpparser.Property,
 	return
 }
 
+var secondTargetReplacer = strings.NewReplacer("TARGET_", "TARGET_2ND_")
+
 func translateSuffixProperties(suffixProps []*bpparser.Property,
 	suffixMap map[string]string) (computedProps []string, err error) {
 	for _, suffixProp := range suffixProps {
@@ -187,6 +189,33 @@ func translateSuffixProperties(suffixProps []*bpparser.Property,
 				} else {
 					return nil, fmt.Errorf("Unsupported property %q", stdProp.Name.Name)
 				}
+			}
+		} else if variant, ok := cpuVariantConditionals[suffixProp.Name.Name]; ok {
+			var conditionalProps []propAssignment
+			for _, stdProp := range suffixProp.Value.MapValue {
+				if assignment, ok, err := translateSingleProperty(stdProp); err != nil {
+					return nil, err
+				} else if ok {
+					conditionalProps = append(conditionalProps, assignment)
+				} else {
+					return nil, fmt.Errorf("Unsupported property %q", stdProp.Name.Name)
+				}
+			}
+
+			appendComputedProps := func() {
+				computedProps = append(computedProps, variant.conditional)
+				for _, prop := range conditionalProps {
+					prop.assigner = "+="
+					computedProps = append(computedProps, prop.assignmentWithSuffix(variant.suffix))
+				}
+				computedProps = append(computedProps, "endif")
+			}
+
+			appendComputedProps()
+			if variant.secondArch {
+				variant.conditional = secondTargetReplacer.Replace(variant.conditional)
+				variant.suffix = secondTargetReplacer.Replace(variant.suffix)
+				appendComputedProps()
 			}
 		} else {
 			return nil, fmt.Errorf("Unsupported suffix property %q", suffixProp.Name.Name)

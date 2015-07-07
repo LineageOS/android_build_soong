@@ -25,12 +25,12 @@ import (
 )
 
 var (
-	Arm    = newArch32("Arm")
-	Arm64  = newArch64("Arm64")
-	Mips   = newArch32("Mips")
-	Mips64 = newArch64("Mips64")
-	X86    = newArch32("X86")
-	X86_64 = newArch64("X86_64")
+	Arm    = newArch("arm", "lib32")
+	Arm64  = newArch("arm64", "lib64")
+	Mips   = newArch("mips", "lib32")
+	Mips64 = newArch("mips64", "lib64")
+	X86    = newArch("x86", "lib32")
+	X86_64 = newArch("x86_64", "lib64")
 
 	Common = ArchType{
 		Name: "common",
@@ -108,7 +108,31 @@ type archProperties struct {
 		X86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		// Properties for module variants being built to run on x86_64 (host or device)
 		X86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+		// Arm arch variants
+		Armv5te      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Armv7_a      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Armv7_a_neon interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+		// Arm cpu variants
+		Cortex_a7  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a8  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a9  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a15 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Krait      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Denver     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+		// Arm64 cpu variants
+		Denver64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+		// Mips arch variants
+		Mips_rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+		// X86 cpu variants
+		Atom       interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Silvermont interface{} `blueprint:"filter(android:\"arch_variant\")"`
 	}
+
 	// Properties to vary by 32-bit or 64-bit
 	Multilib struct {
 		// Properties for module variants being built to run on 32-bit devices
@@ -177,27 +201,14 @@ func (a Arch) String() string {
 }
 
 type ArchType struct {
-	Name          string
-	Field         string
-	Multilib      string
-	MultilibField string
+	Name     string
+	Multilib string
 }
 
-func newArch32(field string) ArchType {
+func newArch(name, multilib string) ArchType {
 	return ArchType{
-		Name:          strings.ToLower(field),
-		Field:         field,
-		Multilib:      "lib32",
-		MultilibField: "Lib32",
-	}
-}
-
-func newArch64(field string) ArchType {
-	return ArchType{
-		Name:          strings.ToLower(field),
-		Field:         field,
-		Multilib:      "lib64",
-		MultilibField: "Lib64",
+		Name:     name,
+		Multilib: multilib,
 	}
 }
 
@@ -233,23 +244,12 @@ func (hod HostOrDevice) String() string {
 	}
 }
 
-func (hod HostOrDevice) FieldLower() string {
+func (hod HostOrDevice) Property() string {
 	switch hod {
 	case Device:
 		return "android"
 	case Host:
 		return "host"
-	default:
-		panic(fmt.Sprintf("unexpected HostOrDevice value %d", hod))
-	}
-}
-
-func (hod HostOrDevice) Field() string {
-	switch hod {
-	case Device:
-		return "Android"
-	case Host:
-		return "Host"
 	default:
 		panic(fmt.Sprintf("unexpected HostOrDevice value %d", hod))
 	}
@@ -282,10 +282,9 @@ var (
 		Abi:         "armeabi-v7a",
 	}
 	arm64Arch = Arch{
-		ArchType:    Arm64,
-		ArchVariant: "armv8-a",
-		CpuVariant:  "denver",
-		Abi:         "arm64-v8a",
+		ArchType:   Arm64,
+		CpuVariant: "denver64",
+		Abi:        "arm64-v8a",
 	}
 	x86Arch = Arch{
 		ArchType: X86,
@@ -423,6 +422,8 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 	return m, allProperties
 }
 
+var dashToUnderscoreReplacer = strings.NewReplacer("-", "_")
+
 // Rewrite the module's properties structs to contain arch-specific values.
 func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext) {
 	arch := a.commonProperties.CompileArch
@@ -442,8 +443,35 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//     },
 		// },
 		t := arch.ArchType
+		field := proptools.FieldNameForProperty(t.Name)
 		a.extendProperties(ctx, "arch", t.Name, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(t.Field).Elem().Elem())
+			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem())
+
+		// Handle arch-variant-specific properties in the form:
+		// arch: {
+		//     variant: {
+		//         key: value,
+		//     },
+		// },
+		v := dashToUnderscoreReplacer.Replace(arch.ArchVariant)
+		if v != "" {
+			field := proptools.FieldNameForProperty(v)
+			a.extendProperties(ctx, "arch", v, generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem())
+		}
+
+		// Handle cpu-variant-specific properties in the form:
+		// arch: {
+		//     variant: {
+		//         key: value,
+		//     },
+		// },
+		c := dashToUnderscoreReplacer.Replace(arch.CpuVariant)
+		if c != "" {
+			field := proptools.FieldNameForProperty(c)
+			a.extendProperties(ctx, "arch", c, generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem())
+		}
 
 		// Handle multilib-specific properties in the form:
 		// multilib: {
@@ -451,8 +479,9 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//         key: value,
 		//     },
 		// },
+		multilibField := proptools.FieldNameForProperty(t.Multilib)
 		a.extendProperties(ctx, "multilib", t.Multilib, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(t.MultilibField).Elem().Elem())
+			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(multilibField).Elem().Elem())
 
 		// Handle host-or-device-specific properties in the form:
 		// target: {
@@ -460,8 +489,10 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//         key: value,
 		//     },
 		// },
-		a.extendProperties(ctx, "target", hod.FieldLower(), generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hod.Field()).Elem().Elem())
+		hodProperty := hod.Property()
+		hodField := proptools.FieldNameForProperty(hodProperty)
+		a.extendProperties(ctx, "target", hodProperty, generalPropsValue,
+			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hodField).Elem().Elem())
 
 		// Handle host target properties in the form:
 		// target: {
