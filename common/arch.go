@@ -345,6 +345,12 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 		switch module.base().commonProperties.Compile_multilib {
 		case "common":
 			arches = append(arches, commonArch)
+		case "both":
+			arches = append(arches, x8664Arch, x86Arch)
+		case "first", "64":
+			arches = append(arches, x8664Arch)
+		case "32":
+			arches = append(arches, x86Arch)
 		default:
 			arches = append(arches, x8664Arch)
 		}
