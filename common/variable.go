@@ -1,0 +1,141 @@
+// Copyright 2015 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package common
+
+import (
+	"fmt"
+	"reflect"
+	"strings"
+
+	"android/soong"
+
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
+)
+
+func init() {
+	soong.RegisterEarlyMutator("variable", VariableMutator)
+}
+
+type variableProperties struct {
+	Product_variables struct {
+		Device_uses_logd struct {
+			Cflags []string
+			Srcs   []string
+		}
+		Device_uses_dlmalloc struct {
+			Cflags []string
+			Srcs   []string
+		}
+		Device_uses_jemalloc struct {
+			Cflags            []string
+			Srcs              []string
+			Whole_static_libs []string
+			Include_dirs      []string
+		}
+		Dlmalloc_alignment struct {
+			Cflags []string
+		}
+	}
+}
+
+var zeroProductVariables variableProperties
+
+// TODO: replace hardcoded test values with per-product values
+var productVariables = map[string]interface{}{
+	"device_uses_logd":     true,
+	"device_uses_jemalloc": true,
+}
+
+func VariableMutator(mctx blueprint.EarlyMutatorContext) {
+	var module AndroidModule
+	var ok bool
+	if module, ok = mctx.Module().(AndroidModule); !ok {
+		return
+	}
+
+	// TODO: depend on config variable, create variants, propagate variants up tree
+	a := module.base()
+	variableValues := reflect.ValueOf(a.variableProperties.Product_variables)
+	zeroValues := reflect.ValueOf(zeroProductVariables.Product_variables)
+
+	for i := 0; i < variableValues.NumField(); i++ {
+		variableValue := variableValues.Field(i)
+		zeroValue := zeroValues.Field(i)
+		if reflect.DeepEqual(variableValue, zeroValue) {
+			continue
+		}
+
+		name := proptools.PropertyNameForField(variableValues.Type().Field(i).Name)
+		property := "product_variables." + name
+		val := productVariables[name]
+
+		if mctx.ContainsProperty(property) && val != nil {
+			a.setVariableProperties(mctx, property, variableValue, val)
+		}
+	}
+}
+
+func (a *AndroidModuleBase) setVariableProperties(ctx blueprint.EarlyMutatorContext,
+	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
+
+	generalPropertyValues := make([]reflect.Value, len(a.generalProperties))
+	for i := range a.generalProperties {
+		generalPropertyValues[i] = reflect.ValueOf(a.generalProperties[i]).Elem()
+	}
+
+	if variableValue != nil {
+		printfIntoProperties(productVariablePropertyValue, variableValue)
+	}
+
+	extendProperties(ctx, "", prefix, generalPropertyValues, productVariablePropertyValue, nil)
+}
+
+func printfIntoProperties(productVariablePropertyValue reflect.Value, variableValue interface{}) {
+	for i := 0; i < productVariablePropertyValue.NumField(); i++ {
+		propertyValue := productVariablePropertyValue.Field(i)
+		switch propertyValue.Kind() {
+		case reflect.String:
+			printfIntoProperty(propertyValue, variableValue)
+		case reflect.Slice:
+			for j := 0; j < propertyValue.Len(); j++ {
+				printfIntoProperty(propertyValue.Index(j), variableValue)
+			}
+		case reflect.Struct:
+			printfIntoProperties(propertyValue, variableValue)
+		default:
+			panic(fmt.Errorf("unsupported field kind %q", propertyValue.Kind()))
+		}
+	}
+}
+
+func printfIntoProperty(propertyValue reflect.Value, variableValue interface{}) {
+	s := propertyValue.String()
+	// For now, we only support int formats
+	var i int
+	if strings.Contains(s, "%d") {
+		switch v := variableValue.(type) {
+		case int:
+			i = v
+		case bool:
+			if v {
+				i = 1
+			}
+		default:
+			panic(fmt.Errorf("unsupported type %T", variableValue))
+		}
+		propertyValue.Set(reflect.ValueOf(fmt.Sprintf(s, i)))
+	}
+}
