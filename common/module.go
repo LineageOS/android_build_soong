@@ -105,9 +105,10 @@ type hostAndDeviceProperties struct {
 type Multilib string
 
 const (
-	MultilibBoth   Multilib = "both"
-	MultilibFirst  Multilib = "first"
-	MultilibCommon Multilib = "common"
+	MultilibBoth    Multilib = "both"
+	MultilibFirst   Multilib = "first"
+	MultilibCommon  Multilib = "common"
+	MultilibDefault Multilib = ""
 )
 
 func InitAndroidModule(m AndroidModule,
@@ -130,10 +131,13 @@ func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMu
 	base.commonProperties.HostOrDeviceSupported = hod
 	base.commonProperties.Compile_multilib = string(defaultMultilib)
 
-	if hod == HostAndDeviceSupported {
+	switch hod {
+	case HostAndDeviceSupported:
 		// Default to module to device supported, host not supported, can override in module
 		// properties
 		base.hostAndDeviceProperties.Device_supported = true
+		fallthrough
+	case HostAndDeviceDefault:
 		propertyStructs = append(propertyStructs, &base.hostAndDeviceProperties)
 	}
 
@@ -312,7 +316,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	if len(deps) > 0 {
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{ctx.ModuleName()},
+			Outputs:   []string{ctx.ModuleName() + "-soong"},
 			Implicits: deps,
 			Optional:  true,
 		})
@@ -525,15 +529,12 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 	checkbuildDeps := []string{}
 
 	dirModules := make(map[string][]string)
-	hasBPFile := make(map[string]bool)
-	bpFiles := []string{}
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if a, ok := module.(AndroidModule); ok {
 			blueprintDir := a.base().blueprintDir
 			installTarget := a.base().installTarget
 			checkbuildTarget := a.base().checkbuildTarget
-			bpFile := ctx.BlueprintFile(module)
 
 			if checkbuildTarget != "" {
 				checkbuildDeps = append(checkbuildDeps, checkbuildTarget)
@@ -543,21 +544,15 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			if installTarget != "" {
 				dirModules[blueprintDir] = append(dirModules[blueprintDir], installTarget)
 			}
-
-			if !hasBPFile[bpFile] {
-				hasBPFile[bpFile] = true
-				bpFiles = append(bpFiles, bpFile)
-			}
 		}
 	})
 
 	// Create a top-level checkbuild target that depends on all modules
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      blueprint.Phony,
-		Outputs:   []string{"checkbuild"},
+		Outputs:   []string{"checkbuild-soong"},
 		Implicits: checkbuildDeps,
-		// HACK: checkbuild should be an optional build, but force it enabled for now
-		//Optional:  true,
+		Optional:  true,
 	})
 
 	// Create a mm/<directory> target that depends on all modules in a directory

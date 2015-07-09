@@ -38,15 +38,20 @@ func (f *FileConfigurableOptions) SetDefaultConfig() {
 
 type Config struct {
 	*config
+
+	dontCreateNinjaFile bool
 }
 
-// A config object represents the entire build configuration for Blue.
+// A config object represents the entire build configuration for Android.
 type config struct {
 	FileConfigurableOptions
 	ProductVariables productVariables
 
 	ConfigFileName           string
 	ProductVariablesFileName string
+
+	DeviceArches []Arch
+	HostArches   map[HostType][]Arch
 
 	srcDir   string // the path of the root source directory
 	buildDir string // the path of the build output directory
@@ -143,6 +148,14 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		return Config{}, err
 	}
 
+	hostArches, deviceArches, err := decodeArchProductVariables(config.ProductVariables)
+	if err != nil {
+		return Config{}, err
+	}
+
+	config.HostArches = hostArches
+	config.DeviceArches = deviceArches
+
 	return config, nil
 }
 
@@ -156,6 +169,10 @@ func (c *config) BuildDir() string {
 
 func (c *config) IntermediatesDir() string {
 	return filepath.Join(c.BuildDir(), ".intermediates")
+}
+
+func (c *config) RemoveAbandonedFiles() bool {
+	return false
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories

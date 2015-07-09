@@ -1078,6 +1078,7 @@ type CCLibrary struct {
 	objFiles      []string
 	exportFlags   []string
 	out           string
+	systemLibs    []string
 
 	LibraryProperties CCLibraryProperties
 }
@@ -1141,6 +1142,8 @@ func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCD
 		depNames.StaticLibs = append(depNames.StaticLibs, c.LibraryProperties.Shared.Static_libs...)
 		depNames.SharedLibs = append(depNames.SharedLibs, c.LibraryProperties.Shared.Shared_libs...)
 	}
+
+	c.systemLibs = c.systemSharedLibs(ctx)
 
 	return depNames
 }
@@ -1764,8 +1767,8 @@ func CCDefaultsFactory() (blueprint.Module, []interface{}) {
 		&CCUnusedProperties{},
 	}
 
-	_, propertyStructs = common.InitAndroidArchModule(module, common.HostOrDeviceSupported(0),
-		common.Multilib(""), propertyStructs...)
+	_, propertyStructs = common.InitAndroidArchModule(module, common.HostAndDeviceDefault,
+		common.MultilibDefault, propertyStructs...)
 
 	return common.InitDefaultsModule(module, module, propertyStructs...)
 }
