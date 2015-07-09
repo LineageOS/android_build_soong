@@ -210,12 +210,27 @@ bootstrap_go_binary {
 
 toolchain_library {
     name: "libatomic",
+    arch: {
+        arm: {
+            instruction_set: "arm",
+        },
+    },
 }
 
 toolchain_library {
     name: "libgcc",
+    arch: {
+        arm: {
+            instruction_set: "arm",
+        },
+    },
 }
 
 toolchain_library {
     name: "libgcov",
+    arch: {
+        arm: {
+            instruction_set: "arm",
+        },
+    },
 }
