@@ -302,6 +302,14 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 
 	libFlagsList = append(libFlagsList, staticLibs...)
 
+	if groupLate && len(lateStaticLibs) > 0 {
+		libFlagsList = append(libFlagsList, "-Wl,--start-group")
+	}
+	libFlagsList = append(libFlagsList, lateStaticLibs...)
+	if groupLate && len(lateStaticLibs) > 0 {
+		libFlagsList = append(libFlagsList, "-Wl,--end-group")
+	}
+
 	for _, lib := range sharedLibs {
 		dir, file := filepath.Split(lib)
 		if !strings.HasPrefix(file, "lib") {
@@ -313,14 +321,6 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 		libFlagsList = append(libFlagsList,
 			"-l"+strings.TrimSuffix(strings.TrimPrefix(file, "lib"), sharedLibraryExtension))
 		ldDirs = append(ldDirs, dir)
-	}
-
-	if groupLate && len(lateStaticLibs) > 0 {
-		libFlagsList = append(libFlagsList, "-Wl,--start-group")
-	}
-	libFlagsList = append(libFlagsList, lateStaticLibs...)
-	if groupLate && len(lateStaticLibs) > 0 {
-		libFlagsList = append(libFlagsList, "-Wl,--end-group")
 	}
 
 	deps = append(deps, ldCmd)
