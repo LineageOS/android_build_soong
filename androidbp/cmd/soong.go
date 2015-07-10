@@ -126,6 +126,8 @@ var cpuVariantConditionals = map[string]struct {
 	"mips_rev6":    {"ifdef ARCH_MIPS_REV6", "mips", false},
 	"atom":         {"ifeq ($(TARGET_ARCH_VARIANT),atom)", "$(TARGET_ARCH)", true},
 	"silvermont":   {"ifeq ($(TARGET_ARCH_VARIANT),silvermont)", "$(TARGET_ARCH)", true},
+	"x86_sse3":     {"ifeq ($(ARCH_X86_HAVE_SSE3),true)", "x86", true},
+	"x86_sse4":     {"ifeq ($(ARCH_X86_HAVE_SSE4),true)", "x86", true},
 }
 
 var hostScopedPropertyConditionals = map[string]string{

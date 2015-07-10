@@ -135,6 +135,10 @@ type archProperties struct {
 		// Mips arch variants
 		Mips_rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
+		// X86 arch variants
+		X86_sse3 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		X86_sse4 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
 		// X86 cpu variants
 		Atom       interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		Silvermont interface{} `blueprint:"filter(android:\"arch_variant\")"`
