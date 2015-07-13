@@ -27,6 +27,8 @@ var (
 		"-fno-builtin-sin",
 		"-fno-strict-volatile-bitfields",
 
+		"-mthumb-interwork",
+
 		// TARGET_RELEASE_CFLAGS
 		"-DNDEBUG",
 		"-g",
@@ -100,9 +102,21 @@ var (
 		},
 	}
 
-	armClangCpuVariantCflags  = armCpuVariantCflags
-	armClangArchVariantCflags = armArchVariantCflags
+	armClangCpuVariantCflags  = copyVariantFlags(armCpuVariantCflags)
+	armClangArchVariantCflags = copyVariantFlags(armArchVariantCflags)
 )
+
+func copyVariantFlags(m map[string][]string) map[string][]string {
+	ret := make(map[string][]string, len(m))
+	for k, v := range m {
+		l := make([]string, len(m[k]))
+		for i := range m[k] {
+			l[i] = v[i]
+		}
+		ret[k] = l
+	}
+	return ret
+}
 
 func init() {
 	replaceFirst := func(slice []string, from, to string) {
@@ -114,7 +128,6 @@ func init() {
 	}
 
 	replaceFirst(armClangArchVariantCflags["armv5te"], "-march=armv5te", "-march=armv5t")
-	replaceFirst(armClangCpuVariantCflags["cortex-a15"], "-mcpu=cortex-a15", "-march=armv7-a")
 	armClangCpuVariantCflags["krait"] = []string{
 		"-mcpu=krait",
 	}
