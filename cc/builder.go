@@ -140,12 +140,14 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 
 	for i, srcFile := range srcFiles {
 		var objFile string
-		if strings.HasPrefix(srcFile, srcRoot) {
-			objFile = strings.TrimPrefix(srcFile, srcRoot)
-			objFile = filepath.Join(objDir, objFile)
-		} else if strings.HasPrefix(srcFile, intermediatesRoot) {
+		if strings.HasPrefix(srcFile, intermediatesRoot) {
 			objFile = strings.TrimPrefix(srcFile, intermediatesRoot)
 			objFile = filepath.Join(objDir, "gen", objFile)
+		} else if strings.HasPrefix(srcFile, srcRoot) {
+			srcFile, _ = filepath.Rel(srcRoot, srcFile)
+			objFile = filepath.Join(objDir, srcFile)
+		} else if srcRoot == "." && srcFile[0] != '/' {
+			objFile = filepath.Join(objDir, srcFile)
 		} else {
 			ctx.ModuleErrorf("source file %q is not in source directory %q", srcFile, srcRoot)
 			continue

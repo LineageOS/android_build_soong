@@ -64,8 +64,8 @@ var (
 	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", common.Config.PrebuiltOS)
 	SrcDir          = pctx.VariableConfigMethod("SrcDir", common.Config.SrcDir)
 
-	LibcRoot = pctx.StaticVariable("LibcRoot", "${SrcDir}/bionic/libc")
-	LibmRoot = pctx.StaticVariable("LibmRoot", "${SrcDir}/bionic/libm")
+	LibcRoot = pctx.StaticVariable("LibcRoot", "bionic/libc")
+	LibmRoot = pctx.StaticVariable("LibmRoot", "bionic/libm")
 )
 
 // Flags used by lots of devices.  Putting them in package static variables will save bytes in
