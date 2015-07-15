@@ -55,7 +55,7 @@ type AndroidModuleContext interface {
 	androidBaseContext
 
 	ExpandSources(srcFiles, excludes []string) []string
-	Glob(globPattern string, excludes []string) []string
+	Glob(outDir, globPattern string, excludes []string) []string
 
 	InstallFile(installPath, srcPath string, deps ...string) string
 	InstallFileName(installPath, name, srcPath string, deps ...string) string
@@ -504,7 +504,7 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) []st
 	globbedSrcFiles := make([]string, 0, len(srcFiles))
 	for _, s := range srcFiles {
 		if glob.IsGlob(s) {
-			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob(s, excludes)...)
+			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob("src_glob", s, excludes)...)
 		} else {
 			globbedSrcFiles = append(globbedSrcFiles, s)
 		}
@@ -513,8 +513,8 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) []st
 	return globbedSrcFiles
 }
 
-func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) []string {
-	ret, err := Glob(ctx, ModuleOutDir(ctx), globPattern, excludes)
+func (ctx *androidModuleContext) Glob(outDir, globPattern string, excludes []string) []string {
+	ret, err := Glob(ctx, filepath.Join(ModuleOutDir(ctx), outDir), globPattern, excludes)
 	if err != nil {
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}

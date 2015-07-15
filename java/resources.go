@@ -54,7 +54,7 @@ func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs, exclu
 			continue
 		}
 		resourceDir := filepath.Join(common.ModuleSrcDir(ctx), resourceDir)
-		dirs := ctx.Glob(resourceDir, nil)
+		dirs := ctx.Glob("java_resources", resourceDir, nil)
 		for _, dir := range dirs {
 			fileListFile := filepath.Join(common.ModuleOutDir(ctx), "res", dir, "resources.list")
 			depFile := fileListFile + ".d"
