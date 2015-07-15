@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/bootstrap"
+	_ "github.com/google/blueprint/bootstrap"
 )
 
 var (
@@ -29,7 +29,7 @@ var (
 
 	srcDir = pctx.VariableConfigMethod("srcDir", Config.SrcDir)
 
-	androidbpCmd = filepath.Join(bootstrap.BinDir, "androidbp")
+	androidbpCmd = filepath.Join("${bootstrap.BinDir}", "androidbp")
 	androidbp    = pctx.StaticRule("androidbp",
 		blueprint.RuleParams{
 			Command:     androidbpCmd + " ${srcDir}/Android.bp $in $out",
@@ -71,3 +71,7 @@ var (
 		},
 		"fromPath")
 )
+
+func init() {
+	pctx.Import("github.com/google/blueprint/bootstrap")
+}
