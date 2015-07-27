@@ -24,12 +24,7 @@ import (
 
 	"android/soong"
 
-	// These imports cause the modules to register their ModuleTypes, etc. with the soong package
-	_ "android/soong/art"
-	_ "android/soong/cc"
 	"android/soong/common"
-	_ "android/soong/genrule"
-	_ "android/soong/java"
 )
 
 func main() {
