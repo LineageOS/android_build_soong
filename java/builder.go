@@ -25,7 +25,7 @@ import (
 	"android/soong/common"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/bootstrap"
+	_ "github.com/google/blueprint/bootstrap"
 )
 
 var (
@@ -84,9 +84,10 @@ var (
 )
 
 func init() {
+	pctx.Import("github.com/google/blueprint/bootstrap")
 	pctx.StaticVariable("commonJdkFlags", "-source 1.7 -target 1.7 -Xmaxerrs 9999999")
 	pctx.StaticVariable("javacCmd", "javac -J-Xmx1024M $commonJdkFlags")
-	pctx.StaticVariable("jarCmd", filepath.Join(bootstrap.BinDir, "soong_jar"))
+	pctx.StaticVariable("jarCmd", filepath.Join("${bootstrap.BinDir}", "soong_jar"))
 	pctx.VariableFunc("dxCmd", func(c interface{}) (string, error) {
 		return c.(common.Config).HostBinTool("dx")
 	})
