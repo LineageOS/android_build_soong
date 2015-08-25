@@ -15,6 +15,7 @@
 package common
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -104,4 +105,16 @@ func CheckSrcDirsExist(ctx AndroidModuleContext, dirs []string, prop string) {
 			}
 		}
 	}
+}
+
+// Returns a path relative to the top level source directory.  Panics if path is not inside the
+// top level source directory.
+func SrcDirRelPath(ctx AndroidModuleContext, path string) string {
+	srcDir := ctx.AConfig().SrcDir()
+	relPath, err := filepath.Rel(srcDir, path)
+	if err != nil {
+		panic(fmt.Errorf("%q is not inside %q: %s", path, srcDir, err.Error()))
+	}
+
+	return relPath
 }

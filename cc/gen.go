@@ -20,7 +20,6 @@ package cc
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
@@ -51,7 +50,7 @@ var (
 )
 
 func genYacc(ctx common.AndroidModuleContext, yaccFile, yaccFlags string) (cppFile, headerFile string) {
-	cppFile = strings.TrimPrefix(yaccFile, common.ModuleSrcDir(ctx))
+	cppFile = common.SrcDirRelPath(ctx, yaccFile)
 	cppFile = filepath.Join(common.ModuleGenDir(ctx), cppFile)
 	cppFile = pathtools.ReplaceExtension(cppFile, "cpp")
 	hppFile := pathtools.ReplaceExtension(cppFile, "hpp")
@@ -74,7 +73,7 @@ func genYacc(ctx common.AndroidModuleContext, yaccFile, yaccFlags string) (cppFi
 }
 
 func genLex(ctx common.AndroidModuleContext, lexFile string) (cppFile string) {
-	cppFile = strings.TrimPrefix(lexFile, common.ModuleSrcDir(ctx))
+	cppFile = common.SrcDirRelPath(ctx, lexFile)
 	cppFile = filepath.Join(common.ModuleGenDir(ctx), cppFile)
 	cppFile = pathtools.ReplaceExtension(cppFile, "cpp")
 

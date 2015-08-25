@@ -20,7 +20,6 @@ package java
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
@@ -63,7 +62,7 @@ var (
 )
 
 func genAidl(ctx common.AndroidModuleContext, aidlFile, aidlFlags string) string {
-	javaFile := strings.TrimPrefix(aidlFile, common.ModuleSrcDir(ctx))
+	javaFile := common.SrcDirRelPath(ctx, aidlFile)
 	javaFile = filepath.Join(common.ModuleGenDir(ctx), javaFile)
 	javaFile = pathtools.ReplaceExtension(javaFile, "java")
 	depFile := javaFile + ".d"
@@ -83,7 +82,7 @@ func genAidl(ctx common.AndroidModuleContext, aidlFile, aidlFlags string) string
 }
 
 func genLogtags(ctx common.AndroidModuleContext, logtagsFile string) string {
-	javaFile := strings.TrimPrefix(logtagsFile, common.ModuleSrcDir(ctx))
+	javaFile := common.SrcDirRelPath(ctx, logtagsFile)
 	javaFile = filepath.Join(common.ModuleGenDir(ctx), javaFile)
 	javaFile = pathtools.ReplaceExtension(javaFile, "java")
 
