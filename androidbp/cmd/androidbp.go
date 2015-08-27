@@ -175,6 +175,44 @@ func translateTargetConditionals(props []*bpparser.Property,
 	return
 }
 
+func translateProductVariableConditionals(props []*bpparser.Property) (computedProps []string, err error) {
+	for _, productVariable := range props {
+		v, ok := productVariableConditionals[productVariable.Name.Name]
+		if !ok {
+			return nil, fmt.Errorf("Unsupported product variable %q", productVariable.Name.Name)
+		}
+
+		var scopedProps []string
+		for _, conditionalScopedProp := range productVariable.Value.MapValue {
+			if assignment, ok, err := translateSingleProperty(conditionalScopedProp); err != nil {
+				return nil, err
+			} else if ok {
+				assignment.assigner = "+="
+				a := assignment.assignment()
+				if v.value != "" && strings.Contains(a, "%d") {
+					a = strings.Replace(a, "%d", v.value, 1)
+				}
+				scopedProps = append(scopedProps, a)
+			} else {
+				return nil, fmt.Errorf("Unsupported product variable property %q",
+					conditionalScopedProp.Name.Name)
+			}
+		}
+
+		if len(scopedProps) > 0 {
+			if v.conditional != "" {
+				computedProps = append(computedProps, v.conditional)
+				computedProps = append(computedProps, scopedProps...)
+				computedProps = append(computedProps, "endif")
+			} else {
+				computedProps = append(computedProps, scopedProps...)
+			}
+		}
+	}
+
+	return computedProps, nil
+}
+
 var secondTargetReplacer = strings.NewReplacer("TARGET_", "TARGET_2ND_")
 
 func translateSuffixProperties(suffixProps []*bpparser.Property,
@@ -299,6 +337,12 @@ func (w *androidMkWriter) parsePropsAndWriteModule(module *Module) error {
 			standardProps = append(standardProps, props...)
 		} else if "target" == prop.Name.Name {
 			props, err := translateTargetConditionals(prop.Value.MapValue, disabledBuilds, module.isHostRule)
+			if err != nil {
+				return err
+			}
+			standardProps = append(standardProps, props...)
+		} else if "product_variables" == prop.Name.Name {
+			props, err := translateProductVariableConditionals(prop.Value.MapValue)
 			if err != nil {
 				return err
 			}

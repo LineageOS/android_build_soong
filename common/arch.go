@@ -450,8 +450,12 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		return
 	}
 
+	callback := func(srcPropertyName, dstPropertyName string) {
+		a.extendedProperties[dstPropertyName] = struct{}{}
+	}
+
 	for i := range a.generalProperties {
-		generalPropsValue := reflect.ValueOf(a.generalProperties[i]).Elem()
+		generalPropsValue := []reflect.Value{reflect.ValueOf(a.generalProperties[i]).Elem()}
 
 		// Handle arch-specific properties in the form:
 		// arch: {
@@ -461,8 +465,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		// },
 		t := arch.ArchType
 		field := proptools.FieldNameForProperty(t.Name)
-		a.extendProperties(ctx, "arch", t.Name, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem())
+		extendProperties(ctx, "arch_variant", "arch."+t.Name, generalPropsValue,
+			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem(), callback)
 
 		// Handle arch-variant-specific properties in the form:
 		// arch: {
@@ -473,8 +477,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		v := dashToUnderscoreReplacer.Replace(arch.ArchVariant)
 		if v != "" {
 			field := proptools.FieldNameForProperty(v)
-			a.extendProperties(ctx, "arch", v, generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem())
+			extendProperties(ctx, "arch_variant", "arch."+v, generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem(), callback)
 		}
 
 		// Handle cpu-variant-specific properties in the form:
@@ -486,8 +490,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		c := dashToUnderscoreReplacer.Replace(arch.CpuVariant)
 		if c != "" {
 			field := proptools.FieldNameForProperty(c)
-			a.extendProperties(ctx, "arch", c, generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem())
+			extendProperties(ctx, "arch_variant", "arch."+c, generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem(), callback)
 		}
 
 		// Handle multilib-specific properties in the form:
@@ -497,8 +501,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//     },
 		// },
 		multilibField := proptools.FieldNameForProperty(t.Multilib)
-		a.extendProperties(ctx, "multilib", t.Multilib, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(multilibField).Elem().Elem())
+		extendProperties(ctx, "arch_variant", "multilib."+t.Multilib, generalPropsValue,
+			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(multilibField).Elem().Elem(), callback)
 
 		// Handle host-or-device-specific properties in the form:
 		// target: {
@@ -508,8 +512,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		// },
 		hodProperty := hod.Property()
 		hodField := proptools.FieldNameForProperty(hodProperty)
-		a.extendProperties(ctx, "target", hodProperty, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hodField).Elem().Elem())
+		extendProperties(ctx, "arch_variant", "target."+hodProperty, generalPropsValue,
+			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hodField).Elem().Elem(), callback)
 
 		// Handle host target properties in the form:
 		// target: {
@@ -538,15 +542,15 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		if hod.Host() {
 			for _, v := range osList {
 				if v.goos == runtime.GOOS {
-					a.extendProperties(ctx, "target", v.goos, generalPropsValue,
-						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field).Elem().Elem())
+					extendProperties(ctx, "arch_variant", "target."+v.goos, generalPropsValue,
+						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field).Elem().Elem(), callback)
 					t := arch.ArchType
-					a.extendProperties(ctx, "target", v.goos+"_"+t.Name, generalPropsValue,
-						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field+"_"+t.Name).Elem().Elem())
+					extendProperties(ctx, "arch_variant", "target."+v.goos+"_"+t.Name, generalPropsValue,
+						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field+"_"+t.Name).Elem().Elem(), callback)
 				}
 			}
-			a.extendProperties(ctx, "target", "not_windows", generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Not_windows").Elem().Elem())
+			extendProperties(ctx, "arch_variant", "target.not_windows", generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Not_windows").Elem().Elem(), callback)
 		}
 
 		// Handle 64-bit device properties in the form:
@@ -564,11 +568,11 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
 		if hod.Device() {
 			if true /* && target_is_64_bit */ {
-				a.extendProperties(ctx, "target", "android64", generalPropsValue,
-					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android64").Elem().Elem())
+				extendProperties(ctx, "arch_variant", "target.android64", generalPropsValue,
+					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android64").Elem().Elem(), callback)
 			} else {
-				a.extendProperties(ctx, "target", "android32", generalPropsValue,
-					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android32").Elem().Elem())
+				extendProperties(ctx, "arch_variant", "target.android32", generalPropsValue,
+					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android32").Elem().Elem(), callback)
 			}
 		}
 
@@ -583,8 +587,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		// },
 		if hod.Device() {
 			t := arch.ArchType
-			a.extendProperties(ctx, "target", "android_"+t.Name, generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android_"+t.Name).Elem().Elem())
+			extendProperties(ctx, "arch_variant", "target.android_"+t.Name, generalPropsValue,
+				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android_"+t.Name).Elem().Elem(), callback)
 		}
 
 		if ctx.Failed() {
@@ -605,95 +609,5 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 		forEachInterface(v.Elem(), f)
 	default:
 		panic(fmt.Errorf("Unsupported kind %s", v.Kind()))
-	}
-}
-
-// TODO: move this to proptools
-func (a *AndroidModuleBase) extendProperties(ctx blueprint.EarlyMutatorContext, variationType, variationName string,
-	dstValue, srcValue reflect.Value) {
-	a.extendPropertiesRecursive(ctx, variationType, variationName, dstValue, srcValue, "")
-}
-
-func (a *AndroidModuleBase) extendPropertiesRecursive(ctx blueprint.EarlyMutatorContext, variationType, variationName string,
-	dstValue, srcValue reflect.Value, recursePrefix string) {
-
-	typ := dstValue.Type()
-	if srcValue.Type() != typ {
-		panic(fmt.Errorf("can't extend mismatching types (%s <- %s)",
-			dstValue.Kind(), srcValue.Kind()))
-	}
-
-	for i := 0; i < srcValue.NumField(); i++ {
-		field := typ.Field(i)
-		if field.PkgPath != "" {
-			// The field is not exported so just skip it.
-			continue
-		}
-
-		srcFieldValue := srcValue.Field(i)
-		dstFieldValue := dstValue.Field(i)
-
-		localPropertyName := proptools.PropertyNameForField(field.Name)
-		propertyName := fmt.Sprintf("%s.%s.%s%s", variationType, variationName,
-			recursePrefix, localPropertyName)
-		propertyPresentInVariation := ctx.ContainsProperty(propertyName)
-
-		if !propertyPresentInVariation {
-			continue
-		}
-
-		tag := field.Tag.Get("android")
-		tags := map[string]bool{}
-		for _, entry := range strings.Split(tag, ",") {
-			if entry != "" {
-				tags[entry] = true
-			}
-		}
-
-		if !tags["arch_variant"] {
-			ctx.PropertyErrorf(propertyName, "property %q can't be specific to a build variant",
-				recursePrefix+proptools.PropertyNameForField(field.Name))
-			continue
-		}
-
-		if !ctx.ContainsProperty(propertyName) {
-			continue
-		}
-		a.extendedProperties[localPropertyName] = struct{}{}
-
-		switch srcFieldValue.Kind() {
-		case reflect.Bool:
-			// Replace the original value.
-			dstFieldValue.Set(srcFieldValue)
-		case reflect.String:
-			// Append the extension string.
-			dstFieldValue.SetString(dstFieldValue.String() +
-				srcFieldValue.String())
-		case reflect.Struct:
-			// Recursively extend the struct's fields.
-			newRecursePrefix := fmt.Sprintf("%s%s.", recursePrefix, strings.ToLower(field.Name))
-			a.extendPropertiesRecursive(ctx, variationType, variationName,
-				dstFieldValue, srcFieldValue,
-				newRecursePrefix)
-		case reflect.Slice:
-			dstFieldValue.Set(reflect.AppendSlice(dstFieldValue, srcFieldValue))
-		case reflect.Ptr, reflect.Interface:
-			// Recursively extend the pointed-to struct's fields.
-			if dstFieldValue.IsNil() != srcFieldValue.IsNil() {
-				panic(fmt.Errorf("can't extend field %q: nilitude mismatch"))
-			}
-			if dstFieldValue.Type() != srcFieldValue.Type() {
-				panic(fmt.Errorf("can't extend field %q: type mismatch"))
-			}
-			if !dstFieldValue.IsNil() {
-				newRecursePrefix := fmt.Sprintf("%s.%s", recursePrefix, field.Name)
-				a.extendPropertiesRecursive(ctx, variationType, variationName,
-					dstFieldValue.Elem(), srcFieldValue.Elem(),
-					newRecursePrefix)
-			}
-		default:
-			panic(fmt.Errorf("unexpected kind for property struct field %q: %s",
-				field.Name, srcFieldValue.Kind()))
-		}
 	}
 }

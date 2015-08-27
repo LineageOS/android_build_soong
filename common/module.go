@@ -125,7 +125,7 @@ func InitAndroidModule(m AndroidModule,
 	base.module = m
 	base.extendedProperties = make(map[string]struct{})
 
-	propertyStructs = append(propertyStructs, &base.commonProperties)
+	propertyStructs = append(propertyStructs, &base.commonProperties, &base.variableProperties)
 
 	return m, propertyStructs
 }
@@ -194,6 +194,7 @@ type AndroidModuleBase struct {
 	module AndroidModule
 
 	commonProperties        commonProperties
+	variableProperties      variableProperties
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
 	archProperties          []*archProperties
