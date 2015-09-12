@@ -1575,7 +1575,7 @@ type CCBenchmark struct {
 
 func (c *CCBenchmark) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	depNames = c.CCBinary.depNames(ctx, depNames)
-	depNames.StaticLibs = append(depNames.StaticLibs, "libbenchmark")
+	depNames.StaticLibs = append(depNames.StaticLibs, "libbenchmark", "libbase")
 	return depNames
 }
 
