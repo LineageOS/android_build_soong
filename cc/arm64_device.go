@@ -21,7 +21,6 @@ var (
 		"-fno-short-enums",
 		"-no-canonical-prefixes",
 		"-fno-canonical-system-headers",
-		"-include ${SrcDir}/build/core/combo/include/arch/linux-arm64/AndroidConfig.h",
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=pointer-to-int-cast",
@@ -47,6 +46,7 @@ var (
 		"-Wl,--fatal-warnings",
 		"-Wl,-maarch64linux",
 		"-Wl,--hash-style=gnu",
+		"-Wl,--fix-cortex-a53-843419",
 
 		// Disable transitive dependency library symbol resolving.
 		"-Wl,--allow-shlib-undefined",
