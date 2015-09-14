@@ -49,5 +49,5 @@ func main() {
 	// Temporary hack
 	//ctx.SetIgnoreUnknownModuleTypes(true)
 
-	bootstrap.Main(ctx, configuration, common.ConfigFileName)
+	bootstrap.Main(ctx, configuration, common.ConfigFileName, common.ProductVariablesFileName)
 }

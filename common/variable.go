@@ -53,10 +53,19 @@ type variableProperties struct {
 
 var zeroProductVariables variableProperties
 
-// TODO: replace hardcoded test values with per-product values
-var productVariables = map[string]interface{}{
-	"device_uses_logd":     true,
-	"device_uses_jemalloc": true,
+type productVariables struct {
+	Device_uses_logd     bool
+	Device_uses_jemalloc bool
+	Device_uses_dlmalloc bool
+	Dlmalloc_alignment   int
+}
+
+func (productVariables) DefaultConfig() jsonConfigurable {
+	v := productVariables{
+		Device_uses_logd:     true,
+		Device_uses_jemalloc: true,
+	}
+	return v
 }
 
 func VariableMutator(mctx blueprint.EarlyMutatorContext) {
@@ -78,12 +87,13 @@ func VariableMutator(mctx blueprint.EarlyMutatorContext) {
 			continue
 		}
 
-		name := proptools.PropertyNameForField(variableValues.Type().Field(i).Name)
-		property := "product_variables." + name
-		val := productVariables[name]
+		name := variableValues.Type().Field(i).Name
+		property := "product_variables." + proptools.PropertyNameForField(name)
 
-		if mctx.ContainsProperty(property) && val != nil {
-			a.setVariableProperties(mctx, property, variableValue, val)
+		val := reflect.ValueOf(mctx.Config().(Config).ProductVariables).FieldByName(name)
+
+		if mctx.ContainsProperty(property) && val.IsValid() {
+			a.setVariableProperties(mctx, property, variableValue, val.Interface())
 		}
 	}
 }

@@ -173,7 +173,7 @@ var targetToHostModuleRule = map[string]string{
 	"BUILD_JAVA_LIBRARY":   "BUILD_HOST_JAVA_LIBRARY",
 }
 
-var productVariableConditionals = map[string]struct{conditional, value string}{
+var productVariableConditionals = map[string]struct{ conditional, value string }{
 	"device_uses_jemalloc": {"ifneq ($(MALLOC_IMPL),dlmalloc)", ""},
 	"device_uses_dlmalloc": {"ifeq ($(MALLOC_IMPL),dlmalloc)", ""},
 	"device_uses_logd":     {"ifneq ($(TARGET_USES_LOGD),false)", ""},

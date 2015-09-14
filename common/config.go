@@ -25,13 +25,14 @@ import (
 
 // The configuration file name
 const ConfigFileName = "soong.config"
+const ProductVariablesFileName = "soong.variables"
 
 // A FileConfigurableOptions contains options which can be configured by the
 // config file. These will be included in the config struct.
 type FileConfigurableOptions struct {
 }
 
-func NewFileConfigurableOptions() FileConfigurableOptions {
+func (FileConfigurableOptions) DefaultConfig() jsonConfigurable {
 	f := FileConfigurableOptions{}
 	return f
 }
@@ -43,6 +44,7 @@ type Config struct {
 // A config object represents the entire build configuration for Blue.
 type config struct {
 	FileConfigurableOptions
+	ProductVariables productVariables
 
 	srcDir string // the path of the root source directory
 
@@ -50,56 +52,66 @@ type config struct {
 	envDeps map[string]string
 }
 
-// loads configuration options from a JSON file in the cwd.
-func loadFromConfigFile(config *config) error {
-	// Make a proxy config
-	var configProxy FileConfigurableOptions
+type jsonConfigurable interface {
+	DefaultConfig() jsonConfigurable
+}
 
+func loadConfig(config *config) error {
+	err := loadFromConfigFile(&config.FileConfigurableOptions, ConfigFileName)
+	if err != nil {
+		return err
+	}
+
+	return loadFromConfigFile(&config.ProductVariables, ProductVariablesFileName)
+}
+
+// loads configuration options from a JSON file in the cwd.
+func loadFromConfigFile(configurable jsonConfigurable, filename string) error {
 	// Try to open the file
-	configFileReader, err := os.Open(ConfigFileName)
+	configFileReader, err := os.Open(filename)
 	defer configFileReader.Close()
 	if os.IsNotExist(err) {
 		// Need to create a file, so that blueprint & ninja don't get in
 		// a dependency tracking loop.
 		// Make a file-configurable-options with defaults, write it out using
 		// a json writer.
-		configProxy = NewFileConfigurableOptions()
-		err = saveToConfigFile(configProxy)
+		err = saveToConfigFile(configurable.DefaultConfig(), filename)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Make a decoder for it
 		jsonDecoder := json.NewDecoder(configFileReader)
-		err = jsonDecoder.Decode(&configProxy)
+		err = jsonDecoder.Decode(configurable)
 		if err != nil {
-			return fmt.Errorf("config file: %s did not parse correctly: "+err.Error(), ConfigFileName)
+			return fmt.Errorf("config file: %s did not parse correctly: "+err.Error(), filename)
 		}
 	}
-
-	// Copy the configurable options out of the config_proxy into the config,
-	// and we're done!
-	config.FileConfigurableOptions = configProxy
 
 	// No error
 	return nil
 }
 
-func saveToConfigFile(config FileConfigurableOptions) error {
+func saveToConfigFile(config jsonConfigurable, filename string) error {
 	data, err := json.MarshalIndent(&config, "", "    ")
 	if err != nil {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
 	}
 
-	configFileWriter, err := os.Create(ConfigFileName)
+	configFileWriter, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("cannot create empty config file %s: %s\n", ConfigFileName, err.Error())
+		return fmt.Errorf("cannot create empty config file %s: %s\n", filename, err.Error())
 	}
 	defer configFileWriter.Close()
 
 	_, err = configFileWriter.Write(data)
 	if err != nil {
-		return fmt.Errorf("default config file: %s could not be written: %s", ConfigFileName, err.Error())
+		return fmt.Errorf("default config file: %s could not be written: %s", filename, err.Error())
+	}
+
+	_, err = configFileWriter.WriteString("\n")
+	if err != nil {
+		return fmt.Errorf("default config file: %s could not be written: %s", filename, err.Error())
 	}
 
 	return nil
@@ -117,7 +129,7 @@ func NewConfig(srcDir string) (Config, error) {
 	}
 
 	// Load any configurable options from the configuration file
-	err := loadFromConfigFile(config.config)
+	err := loadConfig(config.config)
 	if err != nil {
 		return Config{}, err
 	}
@@ -131,11 +143,6 @@ func (c *config) SrcDir() string {
 
 func (c *config) IntermediatesDir() string {
 	return ".intermediates"
-}
-
-// HostGoOS returns the OS of the system that the Go toolchain is being run on.
-func (c *config) HostGoOS() string {
-	return runtime.GOOS
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories
@@ -156,7 +163,7 @@ func (c *config) GoRoot() string {
 }
 
 func (c *config) CpPreserveSymlinksFlags() string {
-	switch c.HostGoOS() {
+	switch runtime.GOOS {
 	case "darwin":
 		return "-R"
 	case "linux":
