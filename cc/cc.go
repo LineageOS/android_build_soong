@@ -218,9 +218,19 @@ type CCBaseProperties struct {
 	// that module.
 	Include_dirs []string `android:"arch_variant"`
 
+	// list of files relative to the root of the source tree that will be included
+	// using -include.
+	// If possible, don't use this.
+	Include_files []string `android:"arch_variant"`
+
 	// list of directories relative to the Blueprints file that will
 	// be added to the include path using -I
 	Local_include_dirs []string `android:"arch_variant"`
+
+	// list of files relative to the Blueprints file that will be included
+	// using -include.
+	// If possible, don't use this.
+	Local_include_files []string `android:"arch_variant"`
 
 	// list of directories relative to the Blueprints file that will
 	// be added to the include path using -I for any module that links against this module
@@ -446,6 +456,13 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	flags.GlobalFlags = append(flags.GlobalFlags,
 		includeDirsToFlags(rootIncludeDirs),
 		includeDirsToFlags(localIncludeDirs))
+
+	rootIncludeFiles := pathtools.PrefixPaths(c.Properties.Include_files, ctx.AConfig().SrcDir())
+	localIncludeFiles := pathtools.PrefixPaths(c.Properties.Local_include_files, common.ModuleSrcDir(ctx))
+
+	flags.GlobalFlags = append(flags.GlobalFlags,
+		includeFilesToFlags(rootIncludeFiles),
+		includeFilesToFlags(localIncludeFiles))
 
 	if !c.Properties.No_default_compiler_flags {
 		if c.Properties.Sdk_version == "" || ctx.Host() {
