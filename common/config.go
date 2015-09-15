@@ -48,8 +48,9 @@ type config struct {
 
 	srcDir string // the path of the root source directory
 
-	envLock sync.Mutex
-	envDeps map[string]string
+	envLock   sync.Mutex
+	envDeps   map[string]string
+	envFrozen bool
 }
 
 type jsonConfigurable interface {
@@ -178,6 +179,9 @@ func (c *config) Getenv(key string) string {
 	var exists bool
 	c.envLock.Lock()
 	if val, exists = c.envDeps[key]; !exists {
+		if c.envFrozen {
+			panic("Cannot access new environment variables after envdeps are frozen")
+		}
 		val = os.Getenv(key)
 		c.envDeps[key] = val
 	}
@@ -186,6 +190,9 @@ func (c *config) Getenv(key string) string {
 }
 
 func (c *config) EnvDeps() map[string]string {
+	c.envLock.Lock()
+	c.envFrozen = true
+	c.envLock.Unlock()
 	return c.envDeps
 }
 
