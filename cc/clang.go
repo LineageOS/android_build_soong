@@ -10,10 +10,13 @@ var clangUnknownCflags = []string{
 	"-finline-functions",
 	"-finline-limit=64",
 	"-fno-canonical-system-headers",
+	"-Wno-clobbered",
+	"-fno-devirtualize",
 	"-fno-tree-sra",
 	"-fprefetch-loop-arrays",
 	"-funswitch-loops",
 	"-Wmaybe-uninitialized",
+	"-Wno-error=clobbered",
 	"-Wno-error=maybe-uninitialized",
 	"-Wno-error=unused-but-set-parameter",
 	"-Wno-error=unused-but-set-variable",
@@ -50,6 +53,7 @@ var clangUnknownCflags = []string{
 
 	// mips + mips64
 	"-msynci",
+	"-mno-synci",
 	"-mno-fused-madd",
 
 	// x86 + x86_64
@@ -70,6 +74,7 @@ func init() {
 
 		// Disable overly aggressive warning for macros defined with a leading underscore
 		// This happens in AndroidConfig.h, which is included nearly everywhere.
+		// TODO: can we remove this now?
 		"-Wno-reserved-id-macro",
 
 		// Disable overly aggressive warning for format strings.

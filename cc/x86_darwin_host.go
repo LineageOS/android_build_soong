@@ -14,7 +14,6 @@ var (
 
 		"-fPIC",
 		"-funwind-tables",
-		"-include ${SrcDir}/build/core/combo/include/arch/darwin-x86/AndroidConfig.h",
 
 		// Workaround differences in inttypes.h between host and target.
 		//See bug 12708004.
@@ -52,11 +51,13 @@ var (
 	darwinX86Ldflags = []string{
 		"-m32",
 		"-Wl,-rpath,@loader_path/../lib",
+		"-Wl,-rpath,@loader_path/lib",
 	}
 
 	darwinX8664Ldflags = []string{
 		"-m64",
 		"-Wl,-rpath,@loader_path/../lib64",
+		"-Wl,-rpath,@loader_path/lib64",
 	}
 
 	darwinClangCflags = append([]string{

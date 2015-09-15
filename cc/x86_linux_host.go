@@ -16,11 +16,9 @@ var (
 
 		"-fPIC",
 		"-no-canonical-prefixes",
-		"-include ${SrcDir}/build/core/combo/include/arch/linux-x86/AndroidConfig.h",
 
-		// TODO: Set _FORTIFY_SOURCE=2. Bug 20558757.
 		"-U_FORTIFY_SOURCE",
-		"-D_FORTIFY_SOURCE=0",
+		"-D_FORTIFY_SOURCE=2",
 		"-fstack-protector",
 
 		// Workaround differences in inttypes.h between host and target.
@@ -46,6 +44,8 @@ var (
 		"-mfpmath=sse",
 		"-m32",
 		"-march=prescott",
+		"-D_FILE_OFFSET_BITS=64",
+		"-D_LARGEFILE_SOURCE=1",
 	}
 
 	linuxX8664Cflags = []string{
@@ -55,11 +55,13 @@ var (
 	linuxX86Ldflags = []string{
 		"-m32",
 		`-Wl,-rpath,\$$ORIGIN/../lib`,
+		`-Wl,-rpath,\$$ORIGIN/lib`,
 	}
 
 	linuxX8664Ldflags = []string{
 		"-m64",
 		`-Wl,-rpath,\$$ORIGIN/../lib64`,
+		`-Wl,-rpath,\$$ORIGIN/lib64`,
 	}
 
 	linuxClangCflags = append([]string{

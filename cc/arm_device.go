@@ -22,7 +22,6 @@ var (
 		"-fno-short-enums",
 		"-no-canonical-prefixes",
 		"-fno-canonical-system-headers",
-		"-include ${SrcDir}/build/core/combo/include/arch/linux-arm/AndroidConfig.h",
 
 		"-fno-builtin-sin",
 		"-fno-strict-volatile-bitfields",
@@ -130,6 +129,7 @@ func init() {
 	replaceFirst(armClangArchVariantCflags["armv5te"], "-march=armv5te", "-march=armv5t")
 	armClangCpuVariantCflags["krait"] = []string{
 		"-mcpu=krait",
+		"-mfpu=neon-vfpv4",
 	}
 
 	pctx.StaticVariable("armGccVersion", "4.9")

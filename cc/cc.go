@@ -97,7 +97,10 @@ var (
 
 	commonGlobalCppflags = []string{
 		"-Wsign-promo",
-		"-std=gnu++11",
+	}
+
+	illegalFlags = []string{
+		"-w",
 	}
 )
 
@@ -560,6 +563,20 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 
 	flags = c.ccModuleType().flags(ctx, flags)
 
+	if c.Properties.Sdk_version == "" {
+		if ctx.Host() && !flags.Clang {
+			// The host GCC doesn't support C++14 (and is deprecated, so likely
+			// never will). Build these modules with C++11.
+			flags.CppFlags = append(flags.CppFlags, "-std=gnu++11")
+		} else {
+			flags.CppFlags = append(flags.CppFlags, "-std=gnu++14")
+		}
+	}
+
+	flags.CFlags, _ = filterList(flags.CFlags, illegalFlags)
+	flags.CppFlags, _ = filterList(flags.CppFlags, illegalFlags)
+	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, illegalFlags)
+
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
 	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))
@@ -821,6 +838,10 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs...)
 			} else {
 				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs...)
+			}
+		} else {
+			if ctx.Arch().ArchType == common.Arm {
+				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
 			}
 		}
 	case "stlport", "stlport_static":
