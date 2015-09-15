@@ -130,7 +130,8 @@ type archProperties struct {
 		Denver     interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 		// Arm64 cpu variants
-		Denver64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a53 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Denver64   interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 		// Mips arch variants
 		Mips_rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
