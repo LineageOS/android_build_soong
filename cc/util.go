@@ -28,6 +28,10 @@ func includeDirsToFlags(dirs []string) string {
 	return common.JoinWithPrefix(dirs, "-I")
 }
 
+func includeFilesToFlags(dirs []string) string {
+	return common.JoinWithPrefix(dirs, "-include ")
+}
+
 func ldDirsToFlags(dirs []string) string {
 	return common.JoinWithPrefix(dirs, "-L")
 }
