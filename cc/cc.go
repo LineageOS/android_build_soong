@@ -791,7 +791,6 @@ func (c *CCLinked) stl(ctx common.AndroidBaseContext) string {
 
 	switch c.Properties.Stl {
 	case "libc++", "libc++_static",
-		"stlport", "stlport_static",
 		"libstdc++":
 		return c.Properties.Stl
 	case "none":
@@ -843,13 +842,6 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 			if ctx.Arch().ArchType == common.Arm {
 				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
 			}
-		}
-	case "stlport", "stlport_static":
-		if ctx.Device() {
-			flags.CFlags = append(flags.CFlags,
-				"-I${SrcDir}/external/stlport/stlport",
-				"-I${SrcDir}/bionic/libstdc++/include",
-				"-I${SrcDir}/bionic")
 		}
 	case "libstdc++":
 		// Using bionic's basic libstdc++. Not actually an STL. Only around until the
@@ -913,10 +905,6 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 				depNames.SharedLibs = append(depNames.SharedLibs, "libdl")
 			}
 		}
-	case "stlport":
-		depNames.SharedLibs = append(depNames.SharedLibs, "libstdc++", "libstlport")
-	case "stlport_static":
-		depNames.StaticLibs = append(depNames.StaticLibs, "libstdc++", "libstlport_static")
 	case "":
 		// None or error.
 	case "ndk_system":
