@@ -31,10 +31,6 @@ func init() {
 
 type variableProperties struct {
 	Product_variables struct {
-		Device_uses_logd struct {
-			Cflags []string
-			Srcs   []string
-		}
 		Device_uses_dlmalloc struct {
 			Cflags []string
 			Srcs   []string
@@ -54,16 +50,18 @@ type variableProperties struct {
 var zeroProductVariables variableProperties
 
 type productVariables struct {
-	Device_uses_logd     bool
-	Device_uses_jemalloc bool
-	Device_uses_dlmalloc bool
-	Dlmalloc_alignment   int
+	Device_uses_jemalloc *bool `json:",omitempty"`
+	Device_uses_dlmalloc *bool `json:",omitempty"`
+	Dlmalloc_alignment   *int  `json:",omitempty"`
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 func (productVariables) DefaultConfig() jsonConfigurable {
 	v := productVariables{
-		Device_uses_logd:     true,
-		Device_uses_jemalloc: true,
+		Device_uses_jemalloc: boolPtr(true),
 	}
 	return v
 }
@@ -83,18 +81,28 @@ func VariableMutator(mctx blueprint.EarlyMutatorContext) {
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
 		zeroValue := zeroValues.Field(i)
-		if reflect.DeepEqual(variableValue, zeroValue) {
-			continue
-		}
-
 		name := variableValues.Type().Field(i).Name
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
+		// Check that the variable was set for the product
 		val := reflect.ValueOf(mctx.Config().(Config).ProductVariables).FieldByName(name)
-
-		if mctx.ContainsProperty(property) && val.IsValid() {
-			a.setVariableProperties(mctx, property, variableValue, val.Interface())
+		if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
+			continue
 		}
+
+		val = val.Elem()
+
+		// For bools, check that the value is true
+		if val.Kind() == reflect.Bool && val.Bool() == false {
+			continue
+		}
+
+		// Check if any properties were set for the module
+		if reflect.DeepEqual(variableValue.Interface(), zeroValue.Interface()) {
+			continue
+		}
+
+		a.setVariableProperties(mctx, property, variableValue, val.Interface())
 	}
 }
 
