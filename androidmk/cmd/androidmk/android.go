@@ -48,6 +48,8 @@ var standardProperties = map[string]struct {
 	"LOCAL_LDLIBS":                  {"host_ldlibs", bpparser.List},
 	"LOCAL_CLANG_CFLAGS":            {"clang_cflags", bpparser.List},
 	"LOCAL_YACCFLAGS":               {"yaccflags", bpparser.List},
+	"LOCAL_SANITIZE":                {"sanitize", bpparser.List},
+	"LOCAL_SANITIZE_RECOVER":        {"sanitize_recover", bpparser.List},
 
 	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.List},
 	"LOCAL_JAVACFLAGS":            {"javacflags", bpparser.List},
@@ -62,7 +64,6 @@ var standardProperties = map[string]struct {
 	"LOCAL_IS_HOST_MODULE":          {"host", bpparser.Bool},
 	"LOCAL_CLANG":                   {"clang", bpparser.Bool},
 	"LOCAL_FORCE_STATIC_EXECUTABLE": {"static", bpparser.Bool},
-	"LOCAL_ADDRESS_SANITIZER":       {"asan", bpparser.Bool},
 	"LOCAL_NATIVE_COVERAGE":         {"native_coverage", bpparser.Bool},
 	"LOCAL_NO_CRT":                  {"nocrt", bpparser.Bool},
 	"LOCAL_ALLOW_UNDEFINED_SYMBOLS": {"allow_undefined_symbols", bpparser.Bool},
