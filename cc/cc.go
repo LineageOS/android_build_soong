@@ -274,6 +274,9 @@ type CCBaseProperties struct {
 	// compiling crt or libc.
 	Nocrt bool `android:"arch_variant"`
 
+	// don't link in libgcc.a
+	No_libgcc bool
+
 	// don't insert default compiler flags into asflags, cflags,
 	// cppflags, conlyflags, ldflags, or include_dirs
 	No_default_compiler_flags bool
@@ -927,7 +930,10 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 
 	if ctx.Device() {
 		// libgcc and libatomic have to be last on the command line
-		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic", "libgcc")
+		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic")
+		if !c.Properties.No_libgcc {
+			depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcc")
+		}
 
 		if !c.static() {
 			depNames.SharedLibs = append(depNames.SharedLibs, c.systemSharedLibs(ctx)...)
