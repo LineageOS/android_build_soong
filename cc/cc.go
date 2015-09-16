@@ -323,7 +323,7 @@ type CCBase struct {
 	unused struct {
 		Native_coverage  bool
 		Required         []string
-		Sanitize         []string
+		Sanitize         []string `android:"arch_variant"`
 		Sanitize_recover []string
 		Strip            string
 		Tags             []string
