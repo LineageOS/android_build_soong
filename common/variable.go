@@ -44,6 +44,9 @@ type variableProperties struct {
 		Dlmalloc_alignment struct {
 			Cflags []string
 		}
+		Platform_sdk_version struct {
+			Asflags []string
+		}
 	}
 }
 
@@ -53,15 +56,21 @@ type productVariables struct {
 	Device_uses_jemalloc *bool `json:",omitempty"`
 	Device_uses_dlmalloc *bool `json:",omitempty"`
 	Dlmalloc_alignment   *int  `json:",omitempty"`
+	Platform_sdk_version *int
 }
 
 func boolPtr(v bool) *bool {
 	return &v
 }
 
+func intPtr(v int) *int {
+	return &v
+}
+
 func (productVariables) DefaultConfig() jsonConfigurable {
 	v := productVariables{
 		Device_uses_jemalloc: boolPtr(true),
+		Platform_sdk_version: intPtr(22),
 	}
 	return v
 }
