@@ -1328,6 +1328,10 @@ type CCBinaryProperties struct {
 
 	// if set, add an extra objcopy --prefix-symbols= step
 	Prefix_symbols string
+
+	// Create a separate binary for each source file.  Useful when there is
+	// global state that can not be torn down and reset between each test suite.
+	Test_per_src bool
 }
 
 type CCBinary struct {
@@ -1489,16 +1493,39 @@ func (c *CCBinary) HostToolPath() string {
 	return ""
 }
 
-type CCTestProperties struct {
-	// Create a separate test for each source file.  Useful when there is
-	// global state that can not be torn down and reset between each test suite.
-	Test_per_src bool
+func (c *CCBinary) testPerSrc() bool {
+	return c.BinaryProperties.Test_per_src
+}
+
+func (c *CCBinary) binary() *CCBinary {
+	return c
+}
+
+type testPerSrc interface {
+	binary() *CCBinary
+	testPerSrc() bool
+}
+
+var _ testPerSrc = (*CCBinary)(nil)
+
+func TestPerSrcMutator(mctx blueprint.EarlyMutatorContext) {
+	if test, ok := mctx.Module().(testPerSrc); ok {
+		if test.testPerSrc() {
+			testNames := make([]string, len(test.binary().Properties.Srcs))
+			for i, src := range test.binary().Properties.Srcs {
+				testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
+			}
+			tests := mctx.CreateLocalVariations(testNames...)
+			for i, src := range test.binary().Properties.Srcs {
+				tests[i].(testPerSrc).binary().Properties.Srcs = []string{src}
+				tests[i].(testPerSrc).binary().BinaryProperties.Stem = mctx.ModuleName() + "_" + testNames[i]
+			}
+		}
+	}
 }
 
 type CCTest struct {
 	CCBinary
-
-	TestProperties CCTestProperties
 }
 
 func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
@@ -1531,18 +1558,8 @@ func (c *CCTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	}
 }
 
-func (c *CCTest) testPerSrc() bool {
-	return c.TestProperties.Test_per_src
-}
-
-func (c *CCTest) test() *CCTest {
-	return c
-}
-
 func NewCCTest(test *CCTest, module CCModuleType,
 	hod common.HostOrDeviceSupported, props ...interface{}) (blueprint.Module, []interface{}) {
-
-	props = append(props, &test.TestProperties)
 
 	return NewCCBinary(&test.CCBinary, module, hod, props...)
 }
@@ -1551,29 +1568,6 @@ func CCTestFactory() (blueprint.Module, []interface{}) {
 	module := &CCTest{}
 
 	return NewCCTest(module, module, common.HostAndDeviceSupported)
-}
-
-type testPerSrc interface {
-	test() *CCTest
-	testPerSrc() bool
-}
-
-var _ testPerSrc = (*CCTest)(nil)
-
-func TestPerSrcMutator(mctx blueprint.EarlyMutatorContext) {
-	if test, ok := mctx.Module().(testPerSrc); ok {
-		if test.testPerSrc() {
-			testNames := make([]string, len(test.test().Properties.Srcs))
-			for i, src := range test.test().Properties.Srcs {
-				testNames[i] = strings.TrimSuffix(src, filepath.Ext(src))
-			}
-			tests := mctx.CreateLocalVariations(testNames...)
-			for i, src := range test.test().Properties.Srcs {
-				tests[i].(testPerSrc).test().Properties.Srcs = []string{src}
-				tests[i].(testPerSrc).test().BinaryProperties.Stem = testNames[i]
-			}
-		}
-	}
 }
 
 type CCBenchmark struct {
@@ -1666,8 +1660,7 @@ func CCBinaryHostFactory() (blueprint.Module, []interface{}) {
 
 func CCTestHostFactory() (blueprint.Module, []interface{}) {
 	module := &CCTest{}
-	return NewCCBinary(&module.CCBinary, module, common.HostSupported,
-		&module.TestProperties)
+	return NewCCBinary(&module.CCBinary, module, common.HostSupported)
 }
 
 //
