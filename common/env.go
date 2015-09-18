@@ -15,6 +15,8 @@
 package common
 
 import (
+	"path/filepath"
+
 	"android/soong"
 	"android/soong/env"
 
@@ -41,7 +43,7 @@ type envSingleton struct{}
 func (c *envSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	envDeps := ctx.Config().(Config).EnvDeps()
 
-	envFile := ".soong.environment"
+	envFile := filepath.Join(ctx.Config().(Config).BuildDir(), ".soong.environment")
 
 	err := env.WriteEnvFile(envFile, envDeps)
 	if err != nil {

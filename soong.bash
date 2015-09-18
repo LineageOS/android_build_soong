@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# Determine the build directory location based on the location of this script.
-BPBUILD="${BASH_SOURCE[0]}"
-BUILDDIR=`dirname "${BASH_SOURCE[0]}"`
-BOOTSTRAP="${BUILDDIR}/.soong.bootstrap"
+set -e
+
+# Switch to the build directory
+cd $(dirname "${BASH_SOURCE[0]}")
 
 # The source directory path and operating system will get written to
 # .soong.bootstrap by the bootstrap script.
 
+BOOTSTRAP=".soong.bootstrap"
 if [ ! -f "${BOOTSTRAP}" ]; then
     echo "Error: soong script must be located in a directory created by bootstrap.bash"
     exit 1
@@ -15,13 +16,9 @@ fi
 
 source "${BOOTSTRAP}"
 
-if [[ ${SRCDIR_IN:0:1} == '/' ]]; then
-    # SRCDIR_IN is an absolute path
-    SRCDIR="${SRCDIR_IN}"
-else
-    # SRCDIR_IN is a relative path
-    SRCDIR="${BUILDDIR}/${SRCDIR_IN}"
-fi
+# Now switch to the source directory so that all the relative paths from
+# $BOOTSTRAP are correct
+cd ${SRCDIR_FROM_BUILDDIR}
 
 # Let Blueprint know that the Ninja we're using performs multiple passes that
 # can regenerate the build manifest.
@@ -44,4 +41,4 @@ if [ -f "${ENVFILE}" ]; then
     fi
 fi
 
-"${SRCDIR}/prebuilts/ninja/${PREBUILTOS}/ninja" -C "${BUILDDIR}" "$@"
+"prebuilts/ninja/${PREBUILTOS}/ninja" -f "${BUILDDIR}/build.ninja" "$@"
