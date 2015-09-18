@@ -44,6 +44,15 @@ var (
 	}
 )
 
+var archTypeMap = map[string]ArchType{
+	"arm":    Arm,
+	"arm64":  Arm64,
+	"mips":   Mips,
+	"misp64": Mips64,
+	"x86":    X86,
+	"x86_64": X86_64,
+}
+
 /*
 Example blueprints file containing all variant property groups, with comment listing what type
 of variants get properties in that group:
@@ -198,7 +207,7 @@ type Arch struct {
 	ArchType    ArchType
 	ArchVariant string
 	CpuVariant  string
-	Abi         string
+	Abi         []string
 }
 
 func (a Arch) String() string {
@@ -287,23 +296,6 @@ var hostOrDeviceName = map[HostOrDevice]string{
 }
 
 var (
-	armArch = Arch{
-		ArchType:    Arm,
-		ArchVariant: "armv7-a-neon",
-		CpuVariant:  "cortex-a15",
-		Abi:         "armeabi-v7a",
-	}
-	arm64Arch = Arch{
-		ArchType:   Arm64,
-		CpuVariant: "denver64",
-		Abi:        "arm64-v8a",
-	}
-	x86Arch = Arch{
-		ArchType: X86,
-	}
-	x8664Arch = Arch{
-		ArchType: X86_64,
-	}
 	commonArch = Arch{
 		ArchType: Common,
 	}
@@ -348,55 +340,45 @@ func ArchMutator(mctx blueprint.EarlyMutatorContext) {
 		return
 	}
 
-	// TODO: this is all hardcoded for arm64 primary, arm secondary for now
-	// Replace with a configuration file written by lunch or bootstrap
+	hostArches, deviceArches, err := decodeArchProductVariables(mctx.Config().(Config).ProductVariables)
+	if err != nil {
+		mctx.ModuleErrorf("%s", err.Error())
+	}
 
-	arches := []Arch{}
+	moduleArches := []Arch{}
+	multilib := module.base().commonProperties.Compile_multilib
 
 	if module.base().HostSupported() && module.base().HostOrDevice().Host() {
-		switch module.base().commonProperties.Compile_multilib {
-		case "common":
-			arches = append(arches, commonArch)
-		case "both":
-			arches = append(arches, x8664Arch, x86Arch)
-		case "first", "64":
-			arches = append(arches, x8664Arch)
-		case "32":
-			arches = append(arches, x86Arch)
-		default:
-			arches = append(arches, x8664Arch)
+		hostModuleArches, err := decodeMultilib(multilib, hostArches)
+		if err != nil {
+			mctx.ModuleErrorf("%s", err.Error())
 		}
+
+		moduleArches = append(moduleArches, hostModuleArches...)
 	}
 
 	if module.base().DeviceSupported() && module.base().HostOrDevice().Device() {
-		switch module.base().commonProperties.Compile_multilib {
-		case "common":
-			arches = append(arches, commonArch)
-		case "both":
-			arches = append(arches, arm64Arch, armArch)
-		case "first", "64":
-			arches = append(arches, arm64Arch)
-		case "32":
-			arches = append(arches, armArch)
-		default:
-			mctx.ModuleErrorf(`compile_multilib must be "both", "first", "32", or "64", found %q`,
-				module.base().commonProperties.Compile_multilib)
+		deviceModuleArches, err := decodeMultilib(multilib, deviceArches)
+		if err != nil {
+			mctx.ModuleErrorf("%s", err.Error())
 		}
+
+		moduleArches = append(moduleArches, deviceModuleArches...)
 	}
 
-	if len(arches) == 0 {
+	if len(moduleArches) == 0 {
 		return
 	}
 
 	archNames := []string{}
-	for _, arch := range arches {
+	for _, arch := range moduleArches {
 		archNames = append(archNames, arch.String())
 	}
 
 	modules := mctx.CreateVariations(archNames...)
 
 	for i, m := range modules {
-		m.(AndroidModule).base().SetArch(arches[i])
+		m.(AndroidModule).base().SetArch(moduleArches[i])
 		m.(AndroidModule).base().setArchProperties(mctx)
 	}
 }
@@ -611,4 +593,107 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 	default:
 		panic(fmt.Errorf("Unsupported kind %s", v.Kind()))
 	}
+}
+
+// Convert the arch product variables into a list of host and device Arch structs
+func decodeArchProductVariables(variables productVariables) ([]Arch, []Arch, error) {
+	if variables.HostArch == nil {
+		return nil, nil, fmt.Errorf("No host primary architecture set")
+	}
+
+	hostArch, err := decodeArch(*variables.HostArch, nil, nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	hostArches := []Arch{hostArch}
+
+	if variables.HostSecondaryArch != nil {
+		hostSecondaryArch, err := decodeArch(*variables.HostSecondaryArch, nil, nil, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		hostArches = append(hostArches, hostSecondaryArch)
+	}
+
+	if variables.DeviceArch == nil {
+		return nil, nil, fmt.Errorf("No device primary architecture set")
+	}
+
+	deviceArch, err := decodeArch(*variables.DeviceArch, variables.DeviceArchVariant,
+		variables.DeviceCpuVariant, variables.DeviceAbi)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	deviceArches := []Arch{deviceArch}
+
+	if variables.DeviceSecondaryArch != nil {
+		deviceSecondaryArch, err := decodeArch(*variables.DeviceSecondaryArch,
+			variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
+			variables.DeviceSecondaryAbi)
+		if err != nil {
+			return nil, nil, err
+		}
+		deviceArches = append(deviceArches, deviceSecondaryArch)
+	}
+
+	return hostArches, deviceArches, nil
+}
+
+// Convert a set of strings from product variables into a single Arch struct
+func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Arch, error) {
+	stringPtr := func(p *string) string {
+		if p != nil {
+			return *p
+		}
+		return ""
+	}
+
+	slicePtr := func(p *[]string) []string {
+		if p != nil {
+			return *p
+		}
+		return nil
+	}
+
+	archType := archTypeMap[arch]
+
+	return Arch{
+		ArchType:    archType,
+		ArchVariant: stringPtr(archVariant),
+		CpuVariant:  stringPtr(cpuVariant),
+		Abi:         slicePtr(abi),
+	}, nil
+}
+
+// Use the module multilib setting to select one or more arches from an arch list
+func decodeMultilib(multilib string, arches []Arch) ([]Arch, error) {
+	buildArches := []Arch{}
+	switch multilib {
+	case "common":
+		buildArches = append(buildArches, commonArch)
+	case "both":
+		buildArches = append(buildArches, arches...)
+	case "first":
+		buildArches = append(buildArches, arches[0])
+	case "32":
+		for _, a := range arches {
+			if a.ArchType.Multilib == "lib32" {
+				buildArches = append(buildArches, a)
+			}
+		}
+	case "64":
+		for _, a := range arches {
+			if a.ArchType.Multilib == "lib64" {
+				buildArches = append(buildArches, a)
+			}
+		}
+	default:
+		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", or "64", found %q`,
+			multilib)
+		//buildArches = append(buildArches, arches[0])
+	}
+
+	return buildArches, nil
 }
