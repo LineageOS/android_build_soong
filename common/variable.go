@@ -57,6 +57,19 @@ type productVariables struct {
 	Device_uses_dlmalloc *bool `json:",omitempty"`
 	Dlmalloc_alignment   *int  `json:",omitempty"`
 	Platform_sdk_version *int
+
+	DeviceArch        *string   `json:",omitempty"`
+	DeviceArchVariant *string   `json:",omitempty"`
+	DeviceCpuVariant  *string   `json:",omitempty"`
+	DeviceAbi         *[]string `json:",omitempty"`
+
+	DeviceSecondaryArch        *string   `json:",omitempty"`
+	DeviceSecondaryArchVariant *string   `json:",omitempty"`
+	DeviceSecondaryCpuVariant  *string   `json:",omitempty"`
+	DeviceSecondaryAbi         *[]string `json:",omitempty"`
+
+	HostArch          *string `json:",omitempty"`
+	HostSecondaryArch *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -67,10 +80,23 @@ func intPtr(v int) *int {
 	return &v
 }
 
+func stringPtr(v string) *string {
+	return &v
+}
+
 func (productVariables) DefaultConfig() jsonConfigurable {
 	v := productVariables{
-		Device_uses_jemalloc: boolPtr(true),
-		Platform_sdk_version: intPtr(22),
+		Device_uses_jemalloc:       boolPtr(true),
+		Platform_sdk_version:       intPtr(22),
+		HostArch:                   stringPtr("x86_64"),
+		HostSecondaryArch:          stringPtr("x86"),
+		DeviceArch:                 stringPtr("arm64"),
+		DeviceCpuVariant:           stringPtr("denver64"),
+		DeviceAbi:                  &[]string{"arm64-v8a"},
+		DeviceSecondaryArch:        stringPtr("arm"),
+		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
+		DeviceSecondaryCpuVariant:  stringPtr("cortex-a15"),
+		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
 	}
 	return v
 }
