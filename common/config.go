@@ -32,9 +32,8 @@ const productVariablesFileName = "soong.variables"
 type FileConfigurableOptions struct {
 }
 
-func (FileConfigurableOptions) DefaultConfig() jsonConfigurable {
-	f := FileConfigurableOptions{}
-	return f
+func (f *FileConfigurableOptions) SetDefaultConfig() {
+	*f = FileConfigurableOptions{}
 }
 
 type Config struct {
@@ -58,7 +57,7 @@ type config struct {
 }
 
 type jsonConfigurable interface {
-	DefaultConfig() jsonConfigurable
+	SetDefaultConfig()
 }
 
 func loadConfig(config *config) error {
@@ -80,7 +79,8 @@ func loadFromConfigFile(configurable jsonConfigurable, filename string) error {
 		// a dependency tracking loop.
 		// Make a file-configurable-options with defaults, write it out using
 		// a json writer.
-		err = saveToConfigFile(configurable.DefaultConfig(), filename)
+		configurable.SetDefaultConfig()
+		err = saveToConfigFile(configurable, filename)
 		if err != nil {
 			return err
 		}

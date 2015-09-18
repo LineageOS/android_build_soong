@@ -84,8 +84,8 @@ func stringPtr(v string) *string {
 	return &v
 }
 
-func (productVariables) DefaultConfig() jsonConfigurable {
-	v := productVariables{
+func (v *productVariables) SetDefaultConfig() {
+	*v = productVariables{
 		Device_uses_jemalloc:       boolPtr(true),
 		Platform_sdk_version:       intPtr(22),
 		HostArch:                   stringPtr("x86_64"),
@@ -98,7 +98,6 @@ func (productVariables) DefaultConfig() jsonConfigurable {
 		DeviceSecondaryCpuVariant:  stringPtr("cortex-a15"),
 		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
 	}
-	return v
 }
 
 func VariableMutator(mctx blueprint.EarlyMutatorContext) {
