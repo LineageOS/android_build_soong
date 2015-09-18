@@ -1,7 +1,27 @@
 #!/bin/bash
 
-export BOOTSTRAP="${BASH_SOURCE[0]}"
-export SRCDIR=$(dirname "${BASH_SOURCE[0]}")
+set -e
+
+ORIG_SRCDIR=$(dirname "${BASH_SOURCE[0]}")
+if [[ "$ORIG_SRCDIR" != "." ]]; then
+  if [[ ! -z "$BUILDDIR" ]]; then
+    echo "error: To use BUILDDIR, run from the source directory"
+    exit 1
+  fi
+  if [[ ${ORIG_SRCDIR:0:1} == '/' ]]; then
+    export BUILDDIR=$PWD
+  else
+    export BUILDDIR=$(python -c "import os; print os.path.relpath('.', '$ORIG_SRCDIR')")
+  fi
+  cd $ORIG_SRCDIR
+fi
+if [[ -z "$BUILDDIR" ]]; then
+  echo "error: Run ${BASH_SOURCE[0]} from the build output directory"
+  exit 1
+fi
+export SRCDIR="."
+export BOOTSTRAP="${SRCDIR}/bootstrap.bash"
+
 export TOPNAME="Android.bp"
 export BOOTSTRAP_MANIFEST="${SRCDIR}/build/soong/build.ninja.in"
 export RUN_TESTS="-t"
@@ -21,16 +41,25 @@ export GOROOT="${SRCDIR}/prebuilts/go/$PREBUILTOS/"
 export GOARCH="amd64"
 export GOCHAR="6"
 
-if [[ $(find . -maxdepth 1 -name $(basename "${BOOTSTRAP}")) ]]; then
-  echo "FAILED: Tried to run "$(basename "${BOOTSTRAP}")" from "$(pwd)""
-  exit 1
-fi
-
 if [[ $# -eq 0 ]]; then
-    sed -e "s|@@SrcDir@@|${SRCDIR}|" \
+    mkdir -p $BUILDDIR
+
+    if [[ $(find $BUILDDIR -maxdepth 1 -name Android.bp) ]]; then
+      echo "FAILED: The build directory must not be a source directory"
+      exit 1
+    fi
+
+    if [[ ${BUILDDIR:0:1} == '/' ]]; then
+      export SRCDIR_FROM_BUILDDIR=$PWD
+    else
+      export SRCDIR_FROM_BUILDDIR=$(python -c "import os; print os.path.relpath('.', '$BUILDDIR')")
+    fi
+
+    sed -e "s|@@BuildDir@@|${BUILDDIR}|" \
+        -e "s|@@SrcDirFromBuildDir@@|${SRCDIR_FROM_BUILDDIR}|" \
         -e "s|@@PrebuiltOS@@|${PREBUILTOS}|" \
-        "${SRCDIR}/build/soong/soong.bootstrap.in" > .soong.bootstrap
-    ln -sf "${SRCDIR}/build/soong/soong.bash" soong
+        "$SRCDIR/build/soong/soong.bootstrap.in" > $BUILDDIR/.soong.bootstrap
+    ln -sf "${SRCDIR_FROM_BUILDDIR}/build/soong/soong.bash" $BUILDDIR/soong
 fi
 
-"${SRCDIR}/build/blueprint/bootstrap.bash" "$@"
+"$SRCDIR/build/blueprint/bootstrap.bash" "$@"

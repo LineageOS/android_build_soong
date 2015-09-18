@@ -24,8 +24,8 @@ import (
 )
 
 // The configuration file name
-const ConfigFileName = "soong.config"
-const ProductVariablesFileName = "soong.variables"
+const configFileName = "soong.config"
+const productVariablesFileName = "soong.variables"
 
 // A FileConfigurableOptions contains options which can be configured by the
 // config file. These will be included in the config struct.
@@ -46,7 +46,11 @@ type config struct {
 	FileConfigurableOptions
 	ProductVariables productVariables
 
-	srcDir string // the path of the root source directory
+	ConfigFileName           string
+	ProductVariablesFileName string
+
+	srcDir   string // the path of the root source directory
+	buildDir string // the path of the build output directory
 
 	envLock   sync.Mutex
 	envDeps   map[string]string
@@ -58,12 +62,12 @@ type jsonConfigurable interface {
 }
 
 func loadConfig(config *config) error {
-	err := loadFromConfigFile(&config.FileConfigurableOptions, ConfigFileName)
+	err := loadFromConfigFile(&config.FileConfigurableOptions, config.ConfigFileName)
 	if err != nil {
 		return err
 	}
 
-	return loadFromConfigFile(&config.ProductVariables, ProductVariablesFileName)
+	return loadFromConfigFile(&config.ProductVariables, config.ProductVariablesFileName)
 }
 
 // loads configuration options from a JSON file in the cwd.
@@ -120,12 +124,16 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 
 // New creates a new Config object.  The srcDir argument specifies the path to
 // the root source directory. It also loads the config file, if found.
-func NewConfig(srcDir string) (Config, error) {
+func NewConfig(srcDir, buildDir string) (Config, error) {
 	// Make a config with default options
 	config := Config{
 		config: &config{
-			srcDir:  srcDir,
-			envDeps: make(map[string]string),
+			ConfigFileName:           filepath.Join(buildDir, configFileName),
+			ProductVariablesFileName: filepath.Join(buildDir, productVariablesFileName),
+
+			srcDir:   srcDir,
+			buildDir: buildDir,
+			envDeps:  make(map[string]string),
 		},
 	}
 
@@ -142,8 +150,12 @@ func (c *config) SrcDir() string {
 	return c.srcDir
 }
 
+func (c *config) BuildDir() string {
+	return c.buildDir
+}
+
 func (c *config) IntermediatesDir() string {
-	return ".intermediates"
+	return filepath.Join(c.BuildDir(), ".intermediates")
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories
@@ -204,12 +216,12 @@ func (c *config) DeviceName() string {
 
 // DeviceOut returns the path to out directory for device targets
 func (c *config) DeviceOut() string {
-	return filepath.Join("target/product", c.DeviceName())
+	return filepath.Join(c.BuildDir(), "target/product", c.DeviceName())
 }
 
 // HostOut returns the path to out directory for host targets
 func (c *config) HostOut() string {
-	return filepath.Join("host", c.PrebuiltOS())
+	return filepath.Join(c.BuildDir(), "host", c.PrebuiltOS())
 }
 
 // HostBin returns the path to bin directory for host targets

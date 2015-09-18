@@ -1,2 +1,3 @@
-SRCDIR_IN="@@SrcDir@@"
+BUILDDIR="@@BuildDir@@"
+SRCDIR_FROM_BUILDDIR="@@SrcDirFromBuildDir@@"
 PREBUILTOS="@@PrebuiltOS@@"
