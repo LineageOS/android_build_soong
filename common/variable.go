@@ -56,8 +56,9 @@ type productVariables struct {
 	Device_uses_jemalloc *bool `json:",omitempty"`
 	Device_uses_dlmalloc *bool `json:",omitempty"`
 	Dlmalloc_alignment   *int  `json:",omitempty"`
-	Platform_sdk_version *int
+	Platform_sdk_version *int  `json:",omitempty"`
 
+	DeviceName        *string   `json:",omitempty"`
 	DeviceArch        *string   `json:",omitempty"`
 	DeviceArchVariant *string   `json:",omitempty"`
 	DeviceCpuVariant  *string   `json:",omitempty"`
@@ -86,16 +87,17 @@ func stringPtr(v string) *string {
 
 func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
-		Device_uses_jemalloc:       boolPtr(true),
+		Device_uses_dlmalloc:       boolPtr(true),
 		Platform_sdk_version:       intPtr(22),
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),
+		DeviceName:                 stringPtr("flounder"),
 		DeviceArch:                 stringPtr("arm64"),
 		DeviceCpuVariant:           stringPtr("denver64"),
 		DeviceAbi:                  &[]string{"arm64-v8a"},
 		DeviceSecondaryArch:        stringPtr("arm"),
 		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
-		DeviceSecondaryCpuVariant:  stringPtr("cortex-a15"),
+		DeviceSecondaryCpuVariant:  stringPtr("denver"),
 		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
 	}
 }
