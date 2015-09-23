@@ -461,8 +461,8 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	rootIncludeDirs := pathtools.PrefixPaths(c.Properties.Include_dirs, ctx.AConfig().SrcDir())
 	localIncludeDirs := pathtools.PrefixPaths(c.Properties.Local_include_dirs, common.ModuleSrcDir(ctx))
 	flags.GlobalFlags = append(flags.GlobalFlags,
-		includeDirsToFlags(rootIncludeDirs),
-		includeDirsToFlags(localIncludeDirs))
+		includeDirsToFlags(localIncludeDirs),
+		includeDirsToFlags(rootIncludeDirs))
 
 	rootIncludeFiles := pathtools.PrefixPaths(c.Properties.Include_files, ctx.AConfig().SrcDir())
 	localIncludeFiles := pathtools.PrefixPaths(c.Properties.Local_include_files, common.ModuleSrcDir(ctx))
