@@ -19,18 +19,15 @@ package cc
 // functions.
 
 import (
-	"path/filepath"
-
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 
 	"android/soong/common"
 )
 
 func init() {
-	pctx.StaticVariable("lexCmd", "${SrcDir}/prebuilts/misc/${HostPrebuiltTag}/flex/flex-2.5.39")
-	pctx.StaticVariable("yaccCmd", "${SrcDir}/prebuilts/misc/${HostPrebuiltTag}/bison/bison")
-	pctx.StaticVariable("yaccDataDir", "${SrcDir}/external/bison/data")
+	pctx.SourcePathVariable("lexCmd", "prebuilts/misc/${HostPrebuiltTag}/flex/flex-2.5.39")
+	pctx.SourcePathVariable("yaccCmd", "prebuilts/misc/${HostPrebuiltTag}/bison/bison")
+	pctx.SourcePathVariable("yaccDataDir", "external/bison/data")
 }
 
 var (
@@ -51,49 +48,45 @@ var (
 		})
 )
 
-func genYacc(ctx common.AndroidModuleContext, yaccFile, yaccFlags string) (cppFile, headerFile string) {
-	cppFile = common.SrcDirRelPath(ctx, yaccFile)
-	cppFile = filepath.Join(common.ModuleGenDir(ctx), cppFile)
-	cppFile = pathtools.ReplaceExtension(cppFile, "cpp")
-	hppFile := pathtools.ReplaceExtension(cppFile, "hpp")
-	headerFile = pathtools.ReplaceExtension(cppFile, "h")
+func genYacc(ctx common.AndroidModuleContext, yaccFile common.Path, yaccFlags string) (cppFile, headerFile common.ModuleGenPath) {
+	cppFile = common.GenPathWithExt(ctx, yaccFile, "cpp")
+	hppFile := common.GenPathWithExt(ctx, yaccFile, "hpp")
+	headerFile = common.GenPathWithExt(ctx, yaccFile, "h")
 
-	ctx.Build(pctx, blueprint.BuildParams{
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
 		Rule:    yacc,
-		Outputs: []string{cppFile, headerFile},
-		Inputs:  []string{yaccFile},
+		Outputs: common.WritablePaths{cppFile, headerFile},
+		Input:   yaccFile,
 		Args: map[string]string{
 			"yaccFlags": yaccFlags,
-			"cppFile":   cppFile,
-			"hppFile":   hppFile,
-			"hFile":     headerFile,
+			"cppFile":   cppFile.String(),
+			"hppFile":   hppFile.String(),
+			"hFile":     headerFile.String(),
 		},
 	})
 
 	return cppFile, headerFile
 }
 
-func genLex(ctx common.AndroidModuleContext, lexFile string) (cppFile string) {
-	cppFile = common.SrcDirRelPath(ctx, lexFile)
-	cppFile = filepath.Join(common.ModuleGenDir(ctx), cppFile)
-	cppFile = pathtools.ReplaceExtension(cppFile, "cpp")
+func genLex(ctx common.AndroidModuleContext, lexFile common.Path) (cppFile common.ModuleGenPath) {
+	cppFile = common.GenPathWithExt(ctx, lexFile, "cpp")
 
-	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    lex,
-		Outputs: []string{cppFile},
-		Inputs:  []string{lexFile},
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		Rule:   lex,
+		Output: cppFile,
+		Input:  lexFile,
 	})
 
 	return cppFile
 }
 
-func genSources(ctx common.AndroidModuleContext, srcFiles []string,
-	buildFlags builderFlags) ([]string, []string) {
+func genSources(ctx common.AndroidModuleContext, srcFiles common.Paths,
+	buildFlags builderFlags) (common.Paths, common.Paths) {
 
-	var deps []string
+	var deps common.Paths
 
 	for i, srcFile := range srcFiles {
-		switch filepath.Ext(srcFile) {
+		switch srcFile.Ext() {
 		case ".y", ".yy":
 			cppFile, headerFile := genYacc(ctx, srcFile, buildFlags.yaccFlags)
 			srcFiles[i] = cppFile

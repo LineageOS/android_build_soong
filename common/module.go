@@ -32,6 +32,19 @@ var (
 	HostExecutable      = "host_executable"
 )
 
+type ModuleBuildParams struct {
+	Rule      blueprint.Rule
+	Output    WritablePath
+	Outputs   WritablePaths
+	Input     Path
+	Inputs    Paths
+	Implicit  Path
+	Implicits Paths
+	OrderOnly Paths
+	Default   bool
+	Args      map[string]string
+}
+
 type androidBaseContext interface {
 	Arch() Arch
 	HostOrDevice() HostOrDevice
@@ -52,12 +65,16 @@ type AndroidModuleContext interface {
 	blueprint.ModuleContext
 	androidBaseContext
 
-	ExpandSources(srcFiles, excludes []string) []string
-	Glob(outDir, globPattern string, excludes []string) []string
+	// Similar to Build, but takes Paths instead of []string,
+	// and performs more verification.
+	ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams)
 
-	InstallFile(installPath, srcPath string, deps ...string) string
-	InstallFileName(installPath, name, srcPath string, deps ...string) string
-	CheckbuildFile(srcPath string)
+	ExpandSources(srcFiles, excludes []string) Paths
+	Glob(outDir, globPattern string, excludes []string) Paths
+
+	InstallFile(installPath string, srcPath Path, deps ...Path) Path
+	InstallFileName(installPath, name string, srcPath Path, deps ...Path) Path
+	CheckbuildFile(srcPath Path)
 }
 
 type AndroidModule interface {
@@ -196,8 +213,8 @@ type AndroidModuleBase struct {
 	archProperties          []*archProperties
 
 	noAddressSanitizer bool
-	installFiles       []string
-	checkbuildFiles    []string
+	installFiles       Paths
+	checkbuildFiles    Paths
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -254,9 +271,9 @@ func (a *AndroidModuleBase) Enabled() bool {
 }
 
 func (a *AndroidModuleBase) computeInstallDeps(
-	ctx blueprint.ModuleContext) []string {
+	ctx blueprint.ModuleContext) Paths {
 
-	result := []string{}
+	result := Paths{}
 	ctx.VisitDepsDepthFirstIf(isFileInstaller,
 		func(m blueprint.Module) {
 			fileInstaller := m.(fileInstaller)
@@ -267,7 +284,7 @@ func (a *AndroidModuleBase) computeInstallDeps(
 	return result
 }
 
-func (a *AndroidModuleBase) filesToInstall() []string {
+func (a *AndroidModuleBase) filesToInstall() Paths {
 	return a.installFiles
 }
 
@@ -280,8 +297,8 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 		return
 	}
 
-	allInstalledFiles := []string{}
-	allCheckbuildFiles := []string{}
+	allInstalledFiles := Paths{}
+	allCheckbuildFiles := Paths{}
 	ctx.VisitAllModuleVariants(func(module blueprint.Module) {
 		a := module.(AndroidModule).base()
 		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
@@ -295,7 +312,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
 			Outputs:   []string{name},
-			Implicits: allInstalledFiles,
+			Implicits: allInstalledFiles.Strings(),
 		})
 		deps = append(deps, name)
 		a.installTarget = name
@@ -306,7 +323,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
 			Outputs:   []string{name},
-			Implicits: allCheckbuildFiles,
+			Implicits: allCheckbuildFiles.Strings(),
 			Optional:  true,
 		})
 		deps = append(deps, name)
@@ -371,14 +388,38 @@ type androidBaseContextImpl struct {
 type androidModuleContext struct {
 	blueprint.ModuleContext
 	androidBaseContextImpl
-	installDeps     []string
-	installFiles    []string
-	checkbuildFiles []string
+	installDeps     Paths
+	installFiles    Paths
+	checkbuildFiles Paths
 }
 
 func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
 	params.Optional = true
 	a.ModuleContext.Build(pctx, params)
+}
+
+func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+	bparams := blueprint.BuildParams{
+		Rule:      params.Rule,
+		Outputs:   params.Outputs.Strings(),
+		Inputs:    params.Inputs.Strings(),
+		Implicits: params.Implicits.Strings(),
+		OrderOnly: params.OrderOnly.Strings(),
+		Args:      params.Args,
+		Optional:  !params.Default,
+	}
+
+	if params.Output != nil {
+		bparams.Outputs = append(bparams.Outputs, params.Output.String())
+	}
+	if params.Input != nil {
+		bparams.Inputs = append(bparams.Inputs, params.Input.String())
+	}
+	if params.Implicit != nil {
+		bparams.Implicits = append(bparams.Implicits, params.Implicit.String())
+	}
+
+	a.ModuleContext.Build(pctx, bparams)
 }
 
 func (a *androidBaseContextImpl) Arch() Arch {
@@ -413,31 +454,19 @@ func (a *androidBaseContextImpl) AConfig() Config {
 	return a.config
 }
 
-func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string,
-	deps ...string) string {
+func (a *androidModuleContext) InstallFileName(installPath, name string, srcPath Path,
+	deps ...Path) Path {
 
-	config := a.AConfig()
-	var fullInstallPath string
-	if a.hod.Device() {
-		// TODO: replace unset with a device name once we have device targeting
-		fullInstallPath = filepath.Join(config.DeviceOut(), "system",
-			installPath, name)
-	} else {
-		// TODO
-		if a.ht == Windows {
-			fullInstallPath = filepath.Join(config.BuildDir(), "host", "windows-x86", installPath, name)
-		} else {
-			fullInstallPath = filepath.Join(config.HostOut(), installPath, name)
-		}
-	}
+	fullInstallPath := PathForModuleInstall(a, installPath, name)
 
 	deps = append(deps, a.installDeps...)
 
-	a.ModuleContext.Build(pctx, blueprint.BuildParams{
+	a.ModuleBuild(pctx, ModuleBuildParams{
 		Rule:      Cp,
-		Outputs:   []string{fullInstallPath},
-		Inputs:    []string{srcPath},
-		OrderOnly: deps,
+		Output:    fullInstallPath,
+		Input:     srcPath,
+		OrderOnly: Paths(deps),
+		Default:   true,
 	})
 
 	a.installFiles = append(a.installFiles, fullInstallPath)
@@ -445,16 +474,16 @@ func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string
 	return fullInstallPath
 }
 
-func (a *androidModuleContext) InstallFile(installPath, srcPath string, deps ...string) string {
-	return a.InstallFileName(installPath, filepath.Base(srcPath), srcPath, deps...)
+func (a *androidModuleContext) InstallFile(installPath string, srcPath Path, deps ...Path) Path {
+	return a.InstallFileName(installPath, filepath.Base(srcPath.String()), srcPath, deps...)
 }
 
-func (a *androidModuleContext) CheckbuildFile(srcPath string) {
+func (a *androidModuleContext) CheckbuildFile(srcPath Path) {
 	a.checkbuildFiles = append(a.checkbuildFiles, srcPath)
 }
 
 type fileInstaller interface {
-	filesToInstall() []string
+	filesToInstall() Paths
 }
 
 func isFileInstaller(m blueprint.Module) bool {
@@ -476,8 +505,8 @@ func findStringInSlice(str string, slice []string) int {
 	return -1
 }
 
-func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) []string {
-	prefix := ModuleSrcDir(ctx)
+func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
+	prefix := PathForModuleSrc(ctx).String()
 	for i, e := range excludes {
 		j := findStringInSlice(e, srcFiles)
 		if j != -1 {
@@ -487,32 +516,24 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) []st
 		excludes[i] = filepath.Join(prefix, e)
 	}
 
-	for i, srcFile := range srcFiles {
-		srcFiles[i] = filepath.Join(prefix, srcFile)
-	}
-
-	if !hasGlob(srcFiles) {
-		return srcFiles
-	}
-
-	globbedSrcFiles := make([]string, 0, len(srcFiles))
+	globbedSrcFiles := make(Paths, 0, len(srcFiles))
 	for _, s := range srcFiles {
 		if glob.IsGlob(s) {
-			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob("src_glob", s, excludes)...)
+			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob("src_glob", filepath.Join(prefix, s), excludes)...)
 		} else {
-			globbedSrcFiles = append(globbedSrcFiles, s)
+			globbedSrcFiles = append(globbedSrcFiles, PathForModuleSrc(ctx, s))
 		}
 	}
 
 	return globbedSrcFiles
 }
 
-func (ctx *androidModuleContext) Glob(outDir, globPattern string, excludes []string) []string {
-	ret, err := Glob(ctx, filepath.Join(ModuleOutDir(ctx), outDir), globPattern, excludes)
+func (ctx *androidModuleContext) Glob(outDir, globPattern string, excludes []string) Paths {
+	ret, err := Glob(ctx, PathForModuleOut(ctx, outDir).String(), globPattern, excludes)
 	if err != nil {
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}
-	return ret
+	return pathsForModuleSrcFromFullPath(ctx, ret)
 }
 
 func init() {

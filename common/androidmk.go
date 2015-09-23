@@ -37,11 +37,11 @@ type AndroidMkDataProvider interface {
 
 type AndroidMkData struct {
 	Class      string
-	OutputFile string
+	OutputFile OptionalPath
 
 	Custom func(w io.Writer, name, prefix string)
 
-	Extra func(name, prefix, outputFile string, arch Arch) []string
+	Extra func(name, prefix string, outputFile Path, arch Arch) []string
 }
 
 func AndroidMkSingleton() blueprint.Singleton {
@@ -55,7 +55,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 	hasBPDir := make(map[string]bool)
 	bpDirs := []string{}
 
-	ctx.SetNinjaBuildDir(pctx, filepath.Join(ctx.Config().(Config).BuildDir(), ".."))
+	ctx.SetNinjaBuildDir(pctx, filepath.Join(ctx.Config().(Config).buildDir, ".."))
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if _, ok := module.(AndroidModule); ok {
@@ -72,28 +72,13 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 
 	// Gather list of eligible Android modules for translation
 	androidMkModules := make(map[blueprint.Module]bool)
-	srcDir := ctx.Config().(Config).SrcDir()
-	intermediatesDir := filepath.Join(ctx.Config().(Config).IntermediatesDir(), "androidmk")
 	sort.Strings(bpDirs)
 	for _, bpDir := range bpDirs {
-		mkFile := filepath.Join(srcDir, bpDir, "Android.mk")
-
-		files, err := Glob(ctx, intermediatesDir, mkFile, nil)
-		if err != nil {
-			ctx.Errorf("glob: %s", err.Error())
-			continue
-		}
-
-		// Existing Android.mk file, use that instead
-		if len(files) > 0 {
-			for _, file := range files {
-				ctx.AddNinjaFileDeps(file)
+		mkFile := OptionalPathForSource(ctx, "androidmk", bpDir, "Android.mk")
+		if !mkFile.Valid() {
+			for _, mod := range dirModules[bpDir] {
+				androidMkModules[mod] = true
 			}
-			continue
-		}
-
-		for _, mod := range dirModules[bpDir] {
-			androidMkModules[mod] = true
 		}
 	}
 
@@ -110,16 +95,19 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 		}
 	}
 
-	transMk := filepath.Join(ctx.Config().(Config).BuildDir(), "Android.mk")
+	transMk := PathForOutput(ctx, "Android.mk")
+	if ctx.Failed() {
+		return
+	}
 
-	err := translateAndroidMk(ctx, transMk, androidMkModulesList)
+	err := translateAndroidMk(ctx, transMk.String(), androidMkModulesList)
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:     blueprint.Phony,
-		Outputs:  []string{transMk},
+		Outputs:  []string{transMk.String()},
 		Optional: true,
 	})
 }
@@ -177,7 +165,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 
 	type archSrc struct {
 		arch  Arch
-		src   string
+		src   Path
 		extra []string
 	}
 
@@ -211,6 +199,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 			return
 		}
 
+		if !data.OutputFile.Valid() {
+			return
+		}
+
 		hC := hostClass{
 			host:     amod.HostOrDevice() == Host,
 			class:    data.Class,
@@ -219,7 +211,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 
 		src := archSrc{
 			arch: arch,
-			src:  data.OutputFile,
+			src:  data.OutputFile.Path(),
 		}
 
 		if data.Extra != nil {
@@ -242,7 +234,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 
 		printed := make(map[string]bool)
 		for _, src := range archSrcs {
-			io.WriteString(w, "LOCAL_SRC_FILES_"+src.arch.ArchType.String()+" := "+src.src+"\n")
+			io.WriteString(w, "LOCAL_SRC_FILES_"+src.arch.ArchType.String()+" := "+src.src.String()+"\n")
 
 			for _, extra := range src.extra {
 				if !printed[extra] {

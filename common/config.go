@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 )
 
@@ -38,8 +39,6 @@ func (f *FileConfigurableOptions) SetDefaultConfig() {
 
 type Config struct {
 	*config
-
-	dontCreateNinjaFile bool
 }
 
 // A config object represents the entire build configuration for Android.
@@ -142,8 +141,24 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		},
 	}
 
+	// Sanity check the build and source directories. This won't catch strange
+	// configurations with symlinks, but at least checks the obvious cases.
+	absBuildDir, err := filepath.Abs(buildDir)
+	if err != nil {
+		return Config{}, err
+	}
+
+	absSrcDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		return Config{}, err
+	}
+
+	if strings.HasPrefix(absSrcDir, absBuildDir) {
+		return Config{}, fmt.Errorf("Build dir must not contain source directory")
+	}
+
 	// Load any configurable options from the configuration file
-	err := loadConfig(config.config)
+	err = loadConfig(config.config)
 	if err != nil {
 		return Config{}, err
 	}
@@ -157,18 +172,6 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	config.DeviceArches = deviceArches
 
 	return config, nil
-}
-
-func (c *config) SrcDir() string {
-	return c.srcDir
-}
-
-func (c *config) BuildDir() string {
-	return c.buildDir
-}
-
-func (c *config) IntermediatesDir() string {
-	return filepath.Join(c.BuildDir(), ".intermediates")
 }
 
 func (c *config) RemoveAbandonedFiles() bool {
@@ -238,37 +241,7 @@ func (c *config) DeviceUsesClang() bool {
 	return false
 }
 
-// DeviceOut returns the path to out directory for device targets
-func (c *config) DeviceOut() string {
-	return filepath.Join(c.BuildDir(), "target/product", c.DeviceName())
-}
-
-// HostOut returns the path to out directory for host targets
-func (c *config) HostOut() string {
-	return filepath.Join(c.BuildDir(), "host", c.PrebuiltOS())
-}
-
-// HostBin returns the path to bin directory for host targets
-func (c *config) HostBin() string {
-	return filepath.Join(c.HostOut(), "bin")
-}
-
-// HostBinTool returns the path to a host tool in the bin directory for host targets
-func (c *config) HostBinTool(tool string) (string, error) {
-	return filepath.Join(c.HostBin(), tool), nil
-}
-
-// HostJavaDir returns the path to framework directory for host targets
-func (c *config) HostJavaDir() string {
-	return filepath.Join(c.HostOut(), "framework")
-}
-
-// HostJavaTool returns the path to a host tool in the frameworks directory for host targets
-func (c *config) HostJavaTool(tool string) (string, error) {
-	return filepath.Join(c.HostJavaDir(), tool), nil
-}
-
-func (c *config) ResourceOverlays() []string {
+func (c *config) ResourceOverlays() []SourcePath {
 	return nil
 }
 
@@ -296,10 +269,10 @@ func (c *config) ProductAaptCharacteristics() string {
 	return "nosdcard"
 }
 
-func (c *config) DefaultAppCertificateDir() string {
-	return filepath.Join(c.SrcDir(), "build/target/product/security")
+func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
+	return PathForSource(ctx, "build/target/product/security")
 }
 
-func (c *config) DefaultAppCertificate() string {
-	return filepath.Join(c.DefaultAppCertificateDir(), "testkey")
+func (c *config) DefaultAppCertificate(ctx PathContext) SourcePath {
+	return c.DefaultAppCertificateDir(ctx).Join(ctx, "testkey")
 }

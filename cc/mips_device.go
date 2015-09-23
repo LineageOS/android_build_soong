@@ -121,7 +121,7 @@ func init() {
 
 	pctx.StaticVariable("mipsGccVersion", mipsGccVersion)
 
-	pctx.StaticVariable("mipsGccRoot",
+	pctx.SourcePathVariable("mipsGccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/mips/mips64el-linux-android-${mipsGccVersion}")
 
 	pctx.StaticVariable("mipsGccTriple", "mips64el-linux-android")

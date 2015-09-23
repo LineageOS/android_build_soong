@@ -16,7 +16,6 @@ package cc
 
 import (
 	"io"
-	"path/filepath"
 	"strings"
 
 	"android/soong/common"
@@ -29,7 +28,7 @@ func (c *CCLibrary) AndroidMk() (ret common.AndroidMkData) {
 		ret.Class = "SHARED_LIBRARIES"
 	}
 	ret.OutputFile = c.outputFile()
-	ret.Extra = func(name, prefix, outputFile string, arch common.Arch) (ret []string) {
+	ret.Extra = func(name, prefix string, outputFile common.Path, arch common.Arch) (ret []string) {
 		exportedIncludes := c.exportedFlags()
 		for i := range exportedIncludes {
 			exportedIncludes[i] = strings.TrimPrefix(exportedIncludes[i], "-I")
@@ -38,7 +37,7 @@ func (c *CCLibrary) AndroidMk() (ret common.AndroidMkData) {
 			ret = append(ret, "LOCAL_EXPORT_C_INCLUDE_DIRS := "+strings.Join(exportedIncludes, " "))
 		}
 
-		ret = append(ret, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(outputFile))
+		ret = append(ret, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 		ret = append(ret, "LOCAL_SHARED_LIBRARIES_"+arch.ArchType.String()+" := "+strings.Join(c.savedDepNames.SharedLibs, " "))
 
 		if c.Properties.Relative_install_path != "" {
@@ -57,9 +56,9 @@ func (c *CCLibrary) AndroidMk() (ret common.AndroidMkData) {
 func (c *ccObject) AndroidMk() (ret common.AndroidMkData) {
 	ret.OutputFile = c.outputFile()
 	ret.Custom = func(w io.Writer, name, prefix string) {
-		out := c.outputFile()
+		out := c.outputFile().Path()
 
-		io.WriteString(w, "$("+prefix+"TARGET_OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+": "+out+" | $(ACP)\n")
+		io.WriteString(w, "$("+prefix+"TARGET_OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+": "+out.String()+" | $(ACP)\n")
 		io.WriteString(w, "\t$(copy-file-to-target)\n")
 	}
 	return
@@ -67,7 +66,7 @@ func (c *ccObject) AndroidMk() (ret common.AndroidMkData) {
 
 func (c *CCBinary) AndroidMk() (ret common.AndroidMkData) {
 	ret.Class = "EXECUTABLES"
-	ret.Extra = func(name, prefix, outputFile string, arch common.Arch) []string {
+	ret.Extra = func(name, prefix string, outputFile common.Path, arch common.Arch) []string {
 		ret := []string{
 			"LOCAL_CXX_STL := none",
 			"LOCAL_SYSTEM_SHARED_LIBRARIES :=",

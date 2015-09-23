@@ -83,8 +83,8 @@ func init() {
 	pctx.StaticVariable("macSdkRoot", "${macSdkPath}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk")
 
 	pctx.StaticVariable("darwinGccVersion", darwinGccVersion)
-	pctx.StaticVariable("darwinGccRoot",
-		"${SrcDir}/prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${darwinGccVersion}")
+	pctx.SourcePathVariable("darwinGccRoot",
+		"prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${darwinGccVersion}")
 
 	pctx.StaticVariable("darwinGccTriple", "i686-apple-darwin11")
 

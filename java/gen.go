@@ -19,25 +19,17 @@ package java
 // functions.
 
 import (
-	"path/filepath"
-
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 
 	"android/soong/common"
 )
 
 func init() {
-	pctx.VariableFunc("aidlCmd", func(c interface{}) (string, error) {
-		return c.(common.Config).HostBinTool("aidl")
-	})
-	pctx.StaticVariable("logtagsCmd", "${srcDir}/build/tools/java-event-log-tags.py")
-	pctx.StaticVariable("mergeLogtagsCmd", "${srcDir}/build/tools/merge-event-log-tags.py")
-	pctx.VariableConfigMethod("srcDir", common.Config.SrcDir)
+	pctx.HostBinToolVariable("aidlCmd", "aidl")
+	pctx.SourcePathVariable("logtagsCmd", "build/tools/java-event-log-tags.py")
+	pctx.SourcePathVariable("mergeLogtagsCmd", "build/tools/merge-event-log-tags.py")
 
-	pctx.VariableFunc("allLogtagsFile", func(c interface{}) (string, error) {
-		return filepath.Join(c.(common.Config).IntermediatesDir(), "all-event-log-tags.txt"), nil
-	})
+	pctx.IntermediatesPathVariable("allLogtagsFile", "all-event-log-tags.txt")
 }
 
 var (
@@ -64,16 +56,14 @@ var (
 		})
 )
 
-func genAidl(ctx common.AndroidModuleContext, aidlFile, aidlFlags string) string {
-	javaFile := common.SrcDirRelPath(ctx, aidlFile)
-	javaFile = filepath.Join(common.ModuleGenDir(ctx), javaFile)
-	javaFile = pathtools.ReplaceExtension(javaFile, "java")
-	depFile := javaFile + ".d"
+func genAidl(ctx common.AndroidModuleContext, aidlFile common.Path, aidlFlags string) common.Path {
+	javaFile := common.GenPathWithExt(ctx, aidlFile, "java")
+	depFile := javaFile.String() + ".d"
 
-	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    aidl,
-		Outputs: []string{javaFile},
-		Inputs:  []string{aidlFile},
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		Rule:   aidl,
+		Output: javaFile,
+		Input:  aidlFile,
 		Args: map[string]string{
 			"depFile":   depFile,
 			"aidlFlags": aidlFlags,
@@ -83,25 +73,23 @@ func genAidl(ctx common.AndroidModuleContext, aidlFile, aidlFlags string) string
 	return javaFile
 }
 
-func genLogtags(ctx common.AndroidModuleContext, logtagsFile string) string {
-	javaFile := common.SrcDirRelPath(ctx, logtagsFile)
-	javaFile = filepath.Join(common.ModuleGenDir(ctx), javaFile)
-	javaFile = pathtools.ReplaceExtension(javaFile, "java")
+func genLogtags(ctx common.AndroidModuleContext, logtagsFile common.Path) common.Path {
+	javaFile := common.GenPathWithExt(ctx, logtagsFile, "java")
 
-	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    logtags,
-		Outputs: []string{javaFile},
-		Inputs:  []string{logtagsFile},
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		Rule:   logtags,
+		Output: javaFile,
+		Input:  logtagsFile,
 	})
 
 	return javaFile
 }
 
-func (j *javaBase) genSources(ctx common.AndroidModuleContext, srcFiles []string,
-	flags javaBuilderFlags) []string {
+func (j *javaBase) genSources(ctx common.AndroidModuleContext, srcFiles common.Paths,
+	flags javaBuilderFlags) common.Paths {
 
 	for i, srcFile := range srcFiles {
-		switch filepath.Ext(srcFile) {
+		switch srcFile.Ext() {
 		case ".aidl":
 			javaFile := genAidl(ctx, srcFile, flags.aidlFlags)
 			srcFiles[i] = javaFile
@@ -120,13 +108,13 @@ func LogtagsSingleton() blueprint.Singleton {
 }
 
 type logtagsProducer interface {
-	logtags() []string
+	logtags() common.Paths
 }
 
 type logtagsSingleton struct{}
 
 func (l *logtagsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	var allLogtags []string
+	var allLogtags common.Paths
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if logtags, ok := module.(logtagsProducer); ok {
 			allLogtags = append(allLogtags, logtags.logtags()...)
@@ -136,6 +124,6 @@ func (l *logtagsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:    mergeLogtags,
 		Outputs: []string{"$allLogtagsFile"},
-		Inputs:  allLogtags,
+		Inputs:  allLogtags.Strings(),
 	})
 }

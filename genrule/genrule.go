@@ -15,10 +15,7 @@
 package genrule
 
 import (
-	"path/filepath"
-
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 
 	"android/soong"
 	"android/soong/common"
@@ -32,20 +29,20 @@ func init() {
 }
 
 var (
-	pctx = blueprint.NewPackageContext("android/soong/genrule")
+	pctx = common.NewPackageContext("android/soong/genrule")
 )
 
 func init() {
-	pctx.VariableConfigMethod("srcDir", common.Config.SrcDir)
-	pctx.VariableConfigMethod("hostBin", common.Config.HostBin)
+	pctx.SourcePathVariable("srcDir", "")
+	pctx.HostBinToolVariable("hostBin", "")
 }
 
 type SourceFileGenerator interface {
-	GeneratedSourceFiles() []string
+	GeneratedSourceFiles() common.Paths
 }
 
 type HostToolProvider interface {
-	HostToolPath() string
+	HostToolPath() common.OptionalPath
 }
 
 type generatorProperties struct {
@@ -68,20 +65,20 @@ type generator struct {
 
 	tasks taskFunc
 
-	deps []string
+	deps common.Paths
 	rule blueprint.Rule
 
-	outputFiles []string
+	outputFiles common.Paths
 }
 
 type taskFunc func(ctx common.AndroidModuleContext) []generateTask
 
 type generateTask struct {
-	in  []string
-	out string
+	in  common.Paths
+	out common.ModuleGenPath
 }
 
-func (g *generator) GeneratedSourceFiles() []string {
+func (g *generator) GeneratedSourceFiles() common.Paths {
 	return g.outputFiles
 }
 
@@ -104,8 +101,8 @@ func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext)
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		if t, ok := module.(HostToolProvider); ok {
 			p := t.HostToolPath()
-			if p != "" {
-				g.deps = append(g.deps, p)
+			if p.Valid() {
+				g.deps = append(g.deps, p.Path())
 			} else {
 				ctx.ModuleErrorf("host tool %q missing output file", ctx.OtherModuleName(module))
 			}
@@ -120,12 +117,11 @@ func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext)
 }
 
 func (g *generator) generateSourceFile(ctx common.AndroidModuleContext, task generateTask) {
-
-	ctx.Build(pctx, blueprint.BuildParams{
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
 		Rule:      g.rule,
+		Output:    task.out,
 		Inputs:    task.in,
 		Implicits: g.deps,
-		Outputs:   []string{task.out},
 	})
 
 	g.outputFiles = append(g.outputFiles, task.out)
@@ -148,9 +144,10 @@ func GenSrcsFactory() (blueprint.Module, []interface{}) {
 		srcFiles := ctx.ExpandSources(properties.Srcs, nil)
 		tasks := make([]generateTask, 0, len(srcFiles))
 		for _, in := range srcFiles {
-			out := pathtools.ReplaceExtension(in, properties.Output_extension)
-			out = filepath.Join(common.ModuleGenDir(ctx), out)
-			tasks = append(tasks, generateTask{[]string{in}, out})
+			tasks = append(tasks, generateTask{
+				in:  common.Paths{in},
+				out: common.GenPathWithExt(ctx, in, properties.Output_extension),
+			})
 		}
 		return tasks
 	}
@@ -173,7 +170,7 @@ func GenRuleFactory() (blueprint.Module, []interface{}) {
 		return []generateTask{
 			{
 				in:  ctx.ExpandSources(properties.Srcs, nil),
-				out: filepath.Join(common.ModuleGenDir(ctx), properties.Out),
+				out: properties.Out,
 			},
 		}
 	}
@@ -186,5 +183,5 @@ type genRuleProperties struct {
 	Srcs []string
 
 	// name of the output file that will be generated
-	Out string
+	Out common.ModuleGenPath
 }

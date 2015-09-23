@@ -98,9 +98,13 @@ bootstrap_go_package {
         "common/glob.go",
         "common/module.go",
         "common/mutator.go",
+        "common/package_ctx.go",
         "common/paths.go",
         "common/util.go",
         "common/variable.go",
+    ],
+    testSrcs: [
+        "common/paths_test.go",
     ],
 }
 

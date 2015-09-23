@@ -42,7 +42,7 @@ func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs, exclu
 	var excludes []string
 
 	for _, exclude := range excludeDirs {
-		excludes = append(excludes, filepath.Join(common.ModuleSrcDir(ctx), exclude, "**/*"))
+		excludes = append(excludes, common.PathForModuleSrc(ctx, exclude, "**/*").String())
 	}
 
 	excludes = append(excludes, resourceExcludes...)
@@ -53,15 +53,14 @@ func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs, exclu
 		if isStringInSlice(resourceDir, excludeDirs) {
 			continue
 		}
-		resourceDir := filepath.Join(common.ModuleSrcDir(ctx), resourceDir)
-		dirs := ctx.Glob("java_resources", resourceDir, nil)
+		resourceDir := common.PathForModuleSrc(ctx, resourceDir)
+		dirs := ctx.Glob("java_resources", resourceDir.String(), nil)
 		for _, dir := range dirs {
-			relDir := common.SrcDirRelPath(ctx, dir)
-			fileListFile := filepath.Join(common.ModuleOutDir(ctx), "res", relDir, "resources.list")
-			depFile := fileListFile + ".d"
+			fileListFile := common.ResPathWithName(ctx, dir, "resources.list")
+			depFile := fileListFile.String() + ".d"
 
-			glob := filepath.Join(dir, "**/*")
-			common.GlobRule(ctx, glob, excludes, fileListFile, depFile)
+			glob := filepath.Join(dir.String(), "**/*")
+			common.GlobRule(ctx, glob, excludes, fileListFile.String(), depFile)
 			jarSpecs = append(jarSpecs, jarSpec{fileListFile, dir})
 		}
 	}

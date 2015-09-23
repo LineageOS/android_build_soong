@@ -24,12 +24,12 @@ import (
 
 // Efficiently converts a list of include directories to a single string
 // of cflags with -I prepended to each directory.
-func includeDirsToFlags(dirs []string) string {
-	return common.JoinWithPrefix(dirs, "-I")
+func includeDirsToFlags(dirs common.Paths) string {
+	return common.JoinWithPrefix(dirs.Strings(), "-I")
 }
 
-func includeFilesToFlags(dirs []string) string {
-	return common.JoinWithPrefix(dirs, "-include ")
+func includeFilesToFlags(files common.Paths) string {
+	return common.JoinWithPrefix(files.Strings(), "-include ")
 }
 
 func ldDirsToFlags(dirs []string) string {
