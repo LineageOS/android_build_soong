@@ -211,7 +211,7 @@ func (c *config) EnvDeps() map[string]string {
 // DeviceName returns the name of the current device target
 // TODO: take an AndroidModuleContext to select the device name for multi-device builds
 func (c *config) DeviceName() string {
-	return "unset"
+	return *c.ProductVariables.DeviceName
 }
 
 // DeviceOut returns the path to out directory for device targets
