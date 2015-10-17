@@ -131,16 +131,18 @@ type archProperties struct {
 		Armv7_a_neon interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 		// Arm cpu variants
-		Cortex_a7  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a8  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a9  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a15 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Krait      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Denver     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a7      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a8      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a9      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a15     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a53     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a53_a57 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Krait          interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Denver         interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 		// Arm64 cpu variants
-		Cortex_a53 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Denver64   interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Cortex_a53_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Denver64      interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 		// Mips arch variants
 		Mips_rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
