@@ -495,8 +495,14 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	// TODO: debug
 	flags.CFlags = append(flags.CFlags, c.Properties.Release.Cflags...)
 
-	if ctx.Host() && !ctx.ContainsProperty("clang") {
-		flags.Clang = true
+	if !ctx.ContainsProperty("clang") {
+		if ctx.Host() {
+			flags.Clang = true
+		}
+
+		if ctx.Device() && ctx.AConfig().DeviceUsesClang() {
+			flags.Clang = true
+		}
 	}
 
 	if flags.Clang {
@@ -1128,7 +1134,7 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 		libName := ctx.ModuleName()
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
 		sharedFlag := "-Wl,-shared"
-		if c.Properties.Clang || ctx.Host() {
+		if flags.Clang || ctx.Host() {
 			sharedFlag = "-shared"
 		}
 		if ctx.Device() {

@@ -63,6 +63,7 @@ type productVariables struct {
 	DeviceArchVariant *string   `json:",omitempty"`
 	DeviceCpuVariant  *string   `json:",omitempty"`
 	DeviceAbi         *[]string `json:",omitempty"`
+	DeviceUsesClang   *bool     `json:",omitempty"`
 
 	DeviceSecondaryArch        *string   `json:",omitempty"`
 	DeviceSecondaryArchVariant *string   `json:",omitempty"`
@@ -95,6 +96,7 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceArch:                 stringPtr("arm64"),
 		DeviceCpuVariant:           stringPtr("denver64"),
 		DeviceAbi:                  &[]string{"arm64-v8a"},
+		DeviceUsesClang:            boolPtr(true),
 		DeviceSecondaryArch:        stringPtr("arm"),
 		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
 		DeviceSecondaryCpuVariant:  stringPtr("denver"),

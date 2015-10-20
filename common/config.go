@@ -214,6 +214,13 @@ func (c *config) DeviceName() string {
 	return *c.ProductVariables.DeviceName
 }
 
+func (c *config) DeviceUsesClang() bool {
+	if c.ProductVariables.DeviceUsesClang != nil {
+		return *c.ProductVariables.DeviceUsesClang
+	}
+	return false
+}
+
 // DeviceOut returns the path to out directory for device targets
 func (c *config) DeviceOut() string {
 	return filepath.Join(c.BuildDir(), "target/product", c.DeviceName())
