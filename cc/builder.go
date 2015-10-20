@@ -44,10 +44,10 @@ var (
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Command:     "$ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
+			Command:     "$relPwd $ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
 			Description: "cc $out",
 		},
-		"ccCmd", "cFlags")
+		"relPwd", "ccCmd", "cFlags")
 
 	ld = pctx.StaticRule("ld",
 		blueprint.RuleParams{
@@ -128,6 +128,15 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 	srcRoot := ctx.AConfig().SrcDir()
 	intermediatesRoot := ctx.AConfig().IntermediatesDir()
 
+	// We run gcc/clang with PWD=/proc/self/cwd to remove $TOP from the
+	// debug output. That way two builds in two different directories will
+	// create the same output.
+	relPwd := "PWD=/proc/self/cwd"
+	if ctx.Darwin() {
+		// /proc doesn't exist on Darwin
+		relPwd = ""
+	}
+
 	objFiles = make([]string, len(srcFiles))
 	objDir := common.ModuleObjDir(ctx)
 	if subdir != "" {
@@ -200,6 +209,7 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			Args: map[string]string{
 				"cFlags": moduleCflags,
 				"ccCmd":  ccCmd,
+				"relPwd": relPwd,
 			},
 		})
 	}

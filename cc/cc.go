@@ -79,6 +79,8 @@ var (
 		"-Wno-unused",
 		"-Winit-self",
 		"-Wpointer-arith",
+		"-fdiagnostics-color",
+		"-fdebug-prefix-map=/proc/self/cwd=",
 
 		// COMMON_RELEASE_CFLAGS
 		"-DNDEBUG",
@@ -838,7 +840,6 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 	switch stl {
 	case "libc++", "libc++_static":
 		flags.CFlags = append(flags.CFlags, "-D_USING_LIBCXX")
-		flags.CFlags = append(flags.CFlags, "-I${SrcDir}/external/libcxx/include")
 		if ctx.Host() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
@@ -1551,7 +1552,7 @@ func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 }
 
 func (c *CCTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames.StaticLibs = append(depNames.StaticLibs, "libgtest", "libgtest_main")
+	depNames.StaticLibs = append(depNames.StaticLibs, "libgtest_main", "libgtest")
 	depNames = c.CCBinary.depNames(ctx, depNames)
 	return depNames
 }

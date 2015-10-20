@@ -6,7 +6,7 @@ import (
 )
 
 // Cflags that should be filtered out when compiling with clang
-var clangUnknownCflags = []string{
+var clangUnknownCflags = sorted([]string{
 	"-finline-functions",
 	"-finline-limit=64",
 	"-fno-canonical-system-headers",
@@ -30,6 +30,8 @@ var clangUnknownCflags = []string{
 	"-Wno-unused-local-typedefs",
 	"-Wunused-but-set-parameter",
 	"-Wunused-but-set-variable",
+	"-fdiagnostics-color",
+	"-fdebug-prefix-map=/proc/self/cwd=",
 
 	// arm + arm64 + mips + mips64
 	"-fgcse-after-reload",
@@ -61,11 +63,9 @@ var clangUnknownCflags = []string{
 	"-fno-inline-functions-called-once",
 	"-mfpmath=sse",
 	"-mbionic",
-}
+})
 
 func init() {
-	sort.Strings(clangUnknownCflags)
-
 	pctx.StaticVariable("clangExtraCflags", strings.Join([]string{
 		"-D__compiler_offsetof=__builtin_offsetof",
 
@@ -88,6 +88,10 @@ func init() {
 		// Disable -Winconsistent-missing-override until we can clean up the existing
 		// codebase for it.
 		"-Wno-inconsistent-missing-override",
+
+		// Force clang to always output color diagnostics. Ninja will strip the ANSI
+		// color codes if it is not running in a terminal.
+		"-fcolor-diagnostics",
 	}, " "))
 
 	pctx.StaticVariable("clangExtraConlyflags", strings.Join([]string{
@@ -119,4 +123,9 @@ func inListSorted(s string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func sorted(list []string) []string {
+	sort.Strings(list)
+	return list
 }

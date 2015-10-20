@@ -199,12 +199,14 @@ var (
 	}
 
 	armCpuVariantCflagsVar = map[string]string{
-		"":           "",
-		"cortex-a7":  "${armCortexA7Cflags}",
-		"cortex-a8":  "${armCortexA8Cflags}",
-		"cortex-a15": "${armCortexA15Cflags}",
-		"krait":      "${armCortexA15Cflags}",
-		"denver":     "${armCortexA15Cflags}",
+		"":               "",
+		"cortex-a7":      "${armCortexA7Cflags}",
+		"cortex-a8":      "${armCortexA8Cflags}",
+		"cortex-a15":     "${armCortexA15Cflags}",
+		"cortex-a53":     "${armCortexA7Cflags}",
+		"cortex-a53.a57": "${armCortexA7Cflags}",
+		"krait":          "${armCortexA15Cflags}",
+		"denver":         "${armCortexA15Cflags}",
 	}
 
 	armClangArchVariantCflagsVar = map[string]string{
@@ -214,12 +216,14 @@ var (
 	}
 
 	armClangCpuVariantCflagsVar = map[string]string{
-		"":           "",
-		"cortex-a7":  "${armClangCortexA7Cflags}",
-		"cortex-a8":  "${armClangCortexA8Cflags}",
-		"cortex-a15": "${armClangCortexA15Cflags}",
-		"krait":      "${armClangKraitCflags}",
-		"denver":     "${armClangCortexA15Cflags}",
+		"":               "",
+		"cortex-a7":      "${armClangCortexA7Cflags}",
+		"cortex-a8":      "${armClangCortexA8Cflags}",
+		"cortex-a15":     "${armClangCortexA15Cflags}",
+		"cortex-a53":     "${armClangCortexA7Cflags}",
+		"cortex-a53.a57": "${armClangCortexA7Cflags}",
+		"krait":          "${armClangKraitCflags}",
+		"denver":         "${armClangCortexA15Cflags}",
 	}
 )
 
