@@ -149,7 +149,7 @@ type archProperties struct {
 
 		// X86 arch variants
 		X86_ssse3 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		X86_sse4 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		X86_sse4  interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 		// X86 cpu variants
 		Atom       interface{} `blueprint:"filter(android:\"arch_variant\")"`
