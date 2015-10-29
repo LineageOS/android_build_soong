@@ -19,14 +19,11 @@ import (
 	"reflect"
 	"strings"
 
-	"android/soong"
-
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
 func init() {
-	soong.RegisterEarlyMutator("variable", VariableMutator)
+	RegisterBottomUpMutator("variable", variableMutator)
 }
 
 type variableProperties struct {
@@ -104,7 +101,7 @@ func (v *productVariables) SetDefaultConfig() {
 	}
 }
 
-func VariableMutator(mctx blueprint.EarlyMutatorContext) {
+func variableMutator(mctx AndroidBottomUpMutatorContext) {
 	var module AndroidModule
 	var ok bool
 	if module, ok = mctx.Module().(AndroidModule); !ok {
@@ -144,7 +141,7 @@ func VariableMutator(mctx blueprint.EarlyMutatorContext) {
 	}
 }
 
-func (a *AndroidModuleBase) setVariableProperties(ctx blueprint.EarlyMutatorContext,
+func (a *AndroidModuleBase) setVariableProperties(ctx AndroidBottomUpMutatorContext,
 	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
 
 	if variableValue != nil {

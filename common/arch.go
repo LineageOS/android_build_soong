@@ -20,15 +20,13 @@ import (
 	"runtime"
 	"strings"
 
-	"android/soong"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
 func init() {
-	soong.RegisterEarlyMutator("host_or_device", HostOrDeviceMutator)
-	soong.RegisterEarlyMutator("arch", ArchMutator)
+	RegisterBottomUpMutator("host_or_device", HostOrDeviceMutator)
+	RegisterBottomUpMutator("arch", ArchMutator)
 }
 
 var (
@@ -303,7 +301,7 @@ var (
 	}
 )
 
-func HostOrDeviceMutator(mctx blueprint.EarlyMutatorContext) {
+func HostOrDeviceMutator(mctx AndroidBottomUpMutatorContext) {
 	var module AndroidModule
 	var ok bool
 	if module, ok = mctx.Module().(AndroidModule); !ok {
@@ -335,7 +333,7 @@ func HostOrDeviceMutator(mctx blueprint.EarlyMutatorContext) {
 	}
 }
 
-func ArchMutator(mctx blueprint.EarlyMutatorContext) {
+func ArchMutator(mctx AndroidBottomUpMutatorContext) {
 	var module AndroidModule
 	var ok bool
 	if module, ok = mctx.Module().(AndroidModule); !ok {
@@ -426,7 +424,7 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 
 var dashToUnderscoreReplacer = strings.NewReplacer("-", "_")
 
-func (a *AndroidModuleBase) appendProperties(ctx blueprint.EarlyMutatorContext,
+func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
 	dst, src interface{}, field, srcPrefix string) {
 
 	src = reflect.ValueOf(src).FieldByName(field).Elem().Interface()
@@ -459,7 +457,7 @@ func (a *AndroidModuleBase) appendProperties(ctx blueprint.EarlyMutatorContext,
 }
 
 // Rewrite the module's properties structs to contain arch-specific values.
-func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext) {
+func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext) {
 	arch := a.commonProperties.CompileArch
 	hod := a.commonProperties.CompileHostOrDevice
 

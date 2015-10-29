@@ -72,15 +72,6 @@ type AndroidModule interface {
 	HostOrDevice() HostOrDevice
 }
 
-type AndroidDynamicDepender interface {
-	AndroidDynamicDependencies(ctx AndroidDynamicDependerModuleContext) []string
-}
-
-type AndroidDynamicDependerModuleContext interface {
-	blueprint.DynamicDependerModuleContext
-	androidBaseContext
-}
-
 type commonProperties struct {
 	Name string
 	Deps []string
@@ -313,33 +304,20 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	}
 }
 
-func (a *AndroidModuleBase) DynamicDependencies(ctx blueprint.DynamicDependerModuleContext) []string {
-	actx := &androidDynamicDependerContext{
-		DynamicDependerModuleContext: ctx,
-		androidBaseContextImpl: androidBaseContextImpl{
-			arch:   a.commonProperties.CompileArch,
-			hod:    a.commonProperties.CompileHostOrDevice,
-			config: ctx.Config().(Config),
-		},
+func (a *AndroidModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
+	return androidBaseContextImpl{
+		arch:   a.commonProperties.CompileArch,
+		hod:    a.commonProperties.CompileHostOrDevice,
+		config: ctx.Config().(Config),
 	}
-
-	if dynamic, ok := a.module.(AndroidDynamicDepender); ok {
-		return dynamic.AndroidDynamicDependencies(actx)
-	}
-
-	return nil
 }
 
 func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	androidCtx := &androidModuleContext{
-		ModuleContext: ctx,
-		androidBaseContextImpl: androidBaseContextImpl{
-			arch:   a.commonProperties.CompileArch,
-			hod:    a.commonProperties.CompileHostOrDevice,
-			config: ctx.Config().(Config),
-		},
-		installDeps:  a.computeInstallDeps(ctx),
-		installFiles: a.installFiles,
+		ModuleContext:          ctx,
+		androidBaseContextImpl: a.androidBaseContextFactory(ctx),
+		installDeps:            a.computeInstallDeps(ctx),
+		installFiles:           a.installFiles,
 	}
 
 	if a.commonProperties.Disabled {
@@ -441,11 +419,6 @@ func (a *androidModuleContext) InstallFile(installPath, srcPath string, deps ...
 
 func (a *androidModuleContext) CheckbuildFile(srcPath string) {
 	a.checkbuildFiles = append(a.checkbuildFiles, srcPath)
-}
-
-type androidDynamicDependerContext struct {
-	blueprint.DynamicDependerModuleContext
-	androidBaseContextImpl
 }
 
 type fileInstaller interface {

@@ -27,6 +27,8 @@ import (
 func init() {
 	soong.RegisterModuleType("gensrcs", GenSrcsFactory)
 	soong.RegisterModuleType("genrule", GenRuleFactory)
+
+	common.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator)
 }
 
 var (
@@ -83,12 +85,13 @@ func (g *generator) GeneratedSourceFiles() []string {
 	return g.outputFiles
 }
 
-func (g *generator) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
-	if g.properties.Tool != "" {
-		ctx.AddFarVariationDependencies([]blueprint.Variation{{"hostordevice", common.Host.String()}},
-			g.properties.Tool)
+func genruleDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
+	if g, ok := ctx.Module().(*generator); ok {
+		if g.properties.Tool != "" {
+			ctx.AddFarVariationDependencies([]blueprint.Variation{{"hostordevice", common.Host.String()}},
+				g.properties.Tool)
+		}
 	}
-	return nil
 }
 
 func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {

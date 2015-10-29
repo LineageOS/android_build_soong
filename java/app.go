@@ -67,8 +67,8 @@ type AndroidApp struct {
 	exportPackage    string
 }
 
-func (a *AndroidApp) JavaDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
-	deps := a.javaBase.JavaDynamicDependencies(ctx)
+func (a *AndroidApp) JavaDependencies(ctx AndroidJavaModuleContext) []string {
+	deps := a.javaBase.JavaDependencies(ctx)
 
 	if !a.properties.No_standard_libraries {
 		switch a.properties.Sdk_version { // TODO: Res_sdk_version?

@@ -57,8 +57,9 @@ func init() {
 	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
 	// the Go initialization order because this package depends on common, so common's init
 	// functions will run first.
-	soong.RegisterEarlyMutator("link", LinkageMutator)
-	soong.RegisterEarlyMutator("test_per_src", TestPerSrcMutator)
+	common.RegisterBottomUpMutator("link", linkageMutator)
+	common.RegisterBottomUpMutator("test_per_src", testPerSrcMutator)
+	common.RegisterBottomUpMutator("deps", depsMutator)
 }
 
 var (
@@ -140,19 +141,24 @@ func init() {
 	pctx.StaticVariable("clangPath", "${SrcDir}/prebuilts/clang/${HostPrebuiltTag}/host/3.6/bin/")
 }
 
+type CCModuleContext common.AndroidBaseContext
+
 // Building C/C++ code is handled by objects that satisfy this interface via composition
 type CCModuleType interface {
 	common.AndroidModule
 
 	// Modify property values after parsing Blueprints file but before starting dependency
 	// resolution or build rule generation
-	ModifyProperties(common.AndroidBaseContext)
+	ModifyProperties(CCModuleContext)
 
 	// Modify the ccFlags
 	flags(common.AndroidModuleContext, CCFlags) CCFlags
 
-	// Return list of dependency names for use in AndroidDynamicDependencies and in depsToPaths
+	// Return list of dependency names for use in depsMutator
 	depNames(common.AndroidBaseContext, CCDeps) CCDeps
+
+	// Add dynamic dependencies
+	depsMutator(common.AndroidBottomUpMutatorContext)
 
 	// Compile objects into final module
 	compileModule(common.AndroidModuleContext, CCFlags, CCDeps, []string)
@@ -392,8 +398,6 @@ func (c *CCBase) ccModuleType() CCModuleType {
 	return c.module
 }
 
-var _ common.AndroidDynamicDepender = (*CCBase)(nil)
-
 func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 	arch := ctx.Arch()
 	hod := ctx.HostOrDevice()
@@ -405,7 +409,7 @@ func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 	return factory(arch.ArchVariant, arch.CpuVariant)
 }
 
-func (c *CCBase) ModifyProperties(ctx common.AndroidBaseContext) {
+func (c *CCBase) ModifyProperties(ctx CCModuleContext) {
 }
 
 func (c *CCBase) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
@@ -416,9 +420,7 @@ func (c *CCBase) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps
 	return depNames
 }
 
-func (c *CCBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
-	c.module.ModifyProperties(ctx)
-
+func (c *CCBase) depsMutator(ctx common.AndroidBottomUpMutatorContext) {
 	c.savedDepNames = c.module.depNames(ctx, CCDeps{})
 	c.savedDepNames.WholeStaticLibs = lastUniqueElements(c.savedDepNames.WholeStaticLibs)
 	c.savedDepNames.StaticLibs = lastUniqueElements(c.savedDepNames.StaticLibs)
@@ -431,15 +433,20 @@ func (c *CCBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerMod
 
 	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, c.savedDepNames.SharedLibs...)
 
-	ret := append([]string(nil), c.savedDepNames.ObjFiles...)
+	ctx.AddDependency(ctx.Module(), c.savedDepNames.ObjFiles...)
 	if c.savedDepNames.CrtBegin != "" {
-		ret = append(ret, c.savedDepNames.CrtBegin)
+		ctx.AddDependency(ctx.Module(), c.savedDepNames.CrtBegin)
 	}
 	if c.savedDepNames.CrtEnd != "" {
-		ret = append(ret, c.savedDepNames.CrtEnd)
+		ctx.AddDependency(ctx.Module(), c.savedDepNames.CrtEnd)
 	}
+}
 
-	return ret
+func depsMutator(ctx common.AndroidBottomUpMutatorContext) {
+	if c, ok := ctx.Module().(CCModuleType); ok {
+		c.ModifyProperties(ctx)
+		c.depsMutator(ctx)
+	}
 }
 
 // Create a ccFlags struct that collects the compile flags from global values,
@@ -1285,11 +1292,6 @@ func CCObjectFactory() (blueprint.Module, []interface{}) {
 	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth)
 }
 
-func (*ccObject) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
-	// object files can't have any dynamic dependencies
-	return nil
-}
-
 func (*ccObject) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	// object files can't have any dynamic dependencies
 	return CCDeps{}
@@ -1418,7 +1420,7 @@ func CCBinaryFactory() (blueprint.Module, []interface{}) {
 	return NewCCBinary(module, module, common.HostAndDeviceSupported)
 }
 
-func (c *CCBinary) ModifyProperties(ctx common.AndroidBaseContext) {
+func (c *CCBinary) ModifyProperties(ctx CCModuleContext) {
 	if ctx.Darwin() {
 		c.BinaryProperties.Static_executable = proptools.BoolPtr(false)
 	}
@@ -1519,7 +1521,7 @@ type testPerSrc interface {
 
 var _ testPerSrc = (*CCBinary)(nil)
 
-func TestPerSrcMutator(mctx blueprint.EarlyMutatorContext) {
+func testPerSrcMutator(mctx common.AndroidBottomUpMutatorContext) {
 	if test, ok := mctx.Module().(testPerSrc); ok {
 		if test.testPerSrc() {
 			testNames := make([]string, len(test.binary().Properties.Srcs))
@@ -1691,11 +1693,6 @@ type toolchainLibrary struct {
 	CCLibrary
 }
 
-func (*toolchainLibrary) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
-	// toolchain libraries can't have any dependencies
-	return nil
-}
-
 func (*toolchainLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	// toolchain libraries can't have any dependencies
 	return CCDeps{}
@@ -1752,13 +1749,6 @@ type ndkPrebuiltObject struct {
 	ccObject
 }
 
-func (*ndkPrebuiltObject) AndroidDynamicDependencies(
-	ctx common.AndroidDynamicDependerModuleContext) []string {
-
-	// NDK objects can't have any dependencies
-	return nil
-}
-
 func (*ndkPrebuiltObject) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
 	// NDK objects can't have any dependencies
 	return CCDeps{}
@@ -1787,13 +1777,6 @@ var _ ccObjectProvider = (*ndkPrebuiltObject)(nil)
 
 type ndkPrebuiltLibrary struct {
 	CCLibrary
-}
-
-func (*ndkPrebuiltLibrary) AndroidDynamicDependencies(
-	ctx common.AndroidDynamicDependerModuleContext) []string {
-
-	// NDK libraries can't have any dependencies
-	return nil
 }
 
 func (*ndkPrebuiltLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
@@ -1896,7 +1879,7 @@ func (c *ndkPrebuiltStl) compileModule(ctx common.AndroidModuleContext, flags CC
 	c.out = libDir + "/" + libName + libExt
 }
 
-func LinkageMutator(mctx blueprint.EarlyMutatorContext) {
+func linkageMutator(mctx common.AndroidBottomUpMutatorContext) {
 	if c, ok := mctx.Module().(ccLinkedInterface); ok {
 		var modules []blueprint.Module
 		if c.buildStatic() && c.buildShared() {

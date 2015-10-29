@@ -145,9 +145,11 @@ type javaBase struct {
 	installFile string
 }
 
+type AndroidJavaModuleContext common.AndroidBaseContext
+
 type JavaModuleType interface {
 	GenerateJavaBuildActions(ctx common.AndroidModuleContext)
-	JavaDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string
+	JavaDependencies(ctx AndroidJavaModuleContext) []string
 }
 
 type JavaDependency interface {
@@ -191,11 +193,13 @@ func (j *javaBase) BootClasspath(ctx common.AndroidBaseContext) string {
 
 var defaultJavaLibraries = []string{"core-libart", "core-junit", "ext", "framework"}
 
-func (j *javaBase) AndroidDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
-	return j.module.JavaDynamicDependencies(ctx)
+func javaDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
+	if j, ok := ctx.Module().(JavaModuleType); ok {
+		ctx.AddDependency(ctx.Module(), j.JavaDependencies(ctx)...)
+	}
 }
 
-func (j *javaBase) JavaDynamicDependencies(ctx common.AndroidDynamicDependerModuleContext) []string {
+func (j *javaBase) JavaDependencies(ctx AndroidJavaModuleContext) []string {
 	var deps []string
 
 	if !j.properties.No_standard_libraries {

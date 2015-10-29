@@ -30,12 +30,13 @@ type singleton struct {
 
 var singletons []singleton
 
-type earlyMutator struct {
-	name    string
-	mutator blueprint.EarlyMutator
+type mutator struct {
+	name            string
+	bottomUpMutator blueprint.BottomUpMutator
+	topDownMutator  blueprint.TopDownMutator
 }
 
-var earlyMutators []earlyMutator
+var mutators []mutator
 
 func RegisterModuleType(name string, factory blueprint.ModuleFactory) {
 	moduleTypes = append(moduleTypes, moduleType{name, factory})
@@ -45,8 +46,12 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
-func RegisterEarlyMutator(name string, mutator blueprint.EarlyMutator) {
-	earlyMutators = append(earlyMutators, earlyMutator{name, mutator})
+func RegisterBottomUpMutator(name string, m blueprint.BottomUpMutator) {
+	mutators = append(mutators, mutator{name: name, bottomUpMutator: m})
+}
+
+func RegisterTopDownMutator(name string, m blueprint.TopDownMutator) {
+	mutators = append(mutators, mutator{name: name, topDownMutator: m})
 }
 
 func NewContext() *blueprint.Context {
@@ -60,8 +65,13 @@ func NewContext() *blueprint.Context {
 		ctx.RegisterSingletonType(t.name, t.factory)
 	}
 
-	for _, t := range earlyMutators {
-		ctx.RegisterEarlyMutator(t.name, t.mutator)
+	for _, t := range mutators {
+		if t.bottomUpMutator != nil {
+			ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
+		}
+		if t.topDownMutator != nil {
+			ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
+		}
 	}
 
 	return ctx

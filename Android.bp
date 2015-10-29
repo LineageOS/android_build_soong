@@ -95,6 +95,7 @@ bootstrap_go_package {
         "common/env.go",
         "common/glob.go",
         "common/module.go",
+        "common/mutator.go",
         "common/paths.go",
         "common/util.go",
         "common/variable.go",
