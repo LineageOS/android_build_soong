@@ -426,6 +426,38 @@ func InitArchModule(m AndroidModule, defaultMultilib Multilib,
 
 var dashToUnderscoreReplacer = strings.NewReplacer("-", "_")
 
+func (a *AndroidModuleBase) appendProperties(ctx blueprint.EarlyMutatorContext,
+	dst, src interface{}, field, srcPrefix string) {
+
+	src = reflect.ValueOf(src).FieldByName(field).Elem().Interface()
+
+	filter := func(property string,
+		dstField, srcField reflect.StructField,
+		dstValue, srcValue interface{}) (bool, error) {
+
+		srcProperty := srcPrefix + "." + property
+
+		if !proptools.HasTag(dstField, "android", "arch_variant") {
+			if ctx.ContainsProperty(srcProperty) {
+				return false, fmt.Errorf("can't be specific to a build variant")
+			} else {
+				return false, nil
+			}
+		}
+
+		return true, nil
+	}
+
+	err := proptools.AppendProperties(dst, src, filter)
+	if err != nil {
+		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+			ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+		} else {
+			panic(err)
+		}
+	}
+}
+
 // Rewrite the module's properties structs to contain arch-specific values.
 func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext) {
 	arch := a.commonProperties.CompileArch
@@ -435,13 +467,9 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		return
 	}
 
-	callback := func(srcPropertyName, dstPropertyName string) {
-		a.extendedProperties[dstPropertyName] = struct{}{}
-	}
-
 	for i := range a.generalProperties {
-		generalPropsValue := []reflect.Value{reflect.ValueOf(a.generalProperties[i]).Elem()}
-
+		genProps := a.generalProperties[i]
+		archProps := a.archProperties[i]
 		// Handle arch-specific properties in the form:
 		// arch: {
 		//     arm64: {
@@ -449,9 +477,10 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//     },
 		// },
 		t := arch.ArchType
+
 		field := proptools.FieldNameForProperty(t.Name)
-		extendProperties(ctx, "arch_variant", "arch."+t.Name, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem(), callback)
+		prefix := "arch." + t.Name
+		a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
 
 		// Handle arch-variant-specific properties in the form:
 		// arch: {
@@ -462,8 +491,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		v := dashToUnderscoreReplacer.Replace(arch.ArchVariant)
 		if v != "" {
 			field := proptools.FieldNameForProperty(v)
-			extendProperties(ctx, "arch_variant", "arch."+v, generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem(), callback)
+			prefix := "arch." + v
+			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
 		}
 
 		// Handle cpu-variant-specific properties in the form:
@@ -475,8 +504,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		c := dashToUnderscoreReplacer.Replace(arch.CpuVariant)
 		if c != "" {
 			field := proptools.FieldNameForProperty(c)
-			extendProperties(ctx, "arch_variant", "arch."+c, generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Arch).FieldByName(field).Elem().Elem(), callback)
+			prefix := "arch." + c
+			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
 		}
 
 		// Handle multilib-specific properties in the form:
@@ -485,9 +514,9 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//         key: value,
 		//     },
 		// },
-		multilibField := proptools.FieldNameForProperty(t.Multilib)
-		extendProperties(ctx, "arch_variant", "multilib."+t.Multilib, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Multilib).FieldByName(multilibField).Elem().Elem(), callback)
+		field = proptools.FieldNameForProperty(t.Multilib)
+		prefix = "multilib." + t.Multilib
+		a.appendProperties(ctx, genProps, archProps.Multilib, field, prefix)
 
 		// Handle host-or-device-specific properties in the form:
 		// target: {
@@ -496,9 +525,9 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		//     },
 		// },
 		hodProperty := hod.Property()
-		hodField := proptools.FieldNameForProperty(hodProperty)
-		extendProperties(ctx, "arch_variant", "target."+hodProperty, generalPropsValue,
-			reflect.ValueOf(a.archProperties[i].Target).FieldByName(hodField).Elem().Elem(), callback)
+		field = proptools.FieldNameForProperty(hodProperty)
+		prefix = "target." + hodProperty
+		a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 
 		// Handle host target properties in the form:
 		// target: {
@@ -527,15 +556,18 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		if hod.Host() {
 			for _, v := range osList {
 				if v.goos == runtime.GOOS {
-					extendProperties(ctx, "arch_variant", "target."+v.goos, generalPropsValue,
-						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field).Elem().Elem(), callback)
+					field := v.field
+					prefix := "target." + v.goos
+					a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 					t := arch.ArchType
-					extendProperties(ctx, "arch_variant", "target."+v.goos+"_"+t.Name, generalPropsValue,
-						reflect.ValueOf(a.archProperties[i].Target).FieldByName(v.field+"_"+t.Name).Elem().Elem(), callback)
+					field = v.field + "_" + t.Name
+					prefix = "target." + v.goos + "_" + t.Name
+					a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 				}
 			}
-			extendProperties(ctx, "arch_variant", "target.not_windows", generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Not_windows").Elem().Elem(), callback)
+			field := "Not_windows"
+			prefix := "target.not_windows"
+			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 		}
 
 		// Handle 64-bit device properties in the form:
@@ -553,11 +585,13 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
 		if hod.Device() {
 			if true /* && target_is_64_bit */ {
-				extendProperties(ctx, "arch_variant", "target.android64", generalPropsValue,
-					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android64").Elem().Elem(), callback)
+				field := "Android64"
+				prefix := "target.android64"
+				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 			} else {
-				extendProperties(ctx, "arch_variant", "target.android32", generalPropsValue,
-					reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android32").Elem().Elem(), callback)
+				field := "Android32"
+				prefix := "target.android32"
+				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 			}
 		}
 
@@ -572,8 +606,9 @@ func (a *AndroidModuleBase) setArchProperties(ctx blueprint.EarlyMutatorContext)
 		// },
 		if hod.Device() {
 			t := arch.ArchType
-			extendProperties(ctx, "arch_variant", "target.android_"+t.Name, generalPropsValue,
-				reflect.ValueOf(a.archProperties[i].Target).FieldByName("Android_"+t.Name).Elem().Elem(), callback)
+			field := "Android_" + t.Name
+			prefix := "target.android_" + t.Name
+			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 		}
 
 		if ctx.Failed() {

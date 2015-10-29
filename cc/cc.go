@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong"
 	"android/soong/common"
@@ -270,24 +271,24 @@ type CCBaseProperties struct {
 	// modules cannot contain undefined symbols that are not satisified by their immediate
 	// dependencies.  Set this flag to true to remove --no-undefined from the linker flags.
 	// This flag should only be necessary for compiling low-level libraries like libc.
-	Allow_undefined_symbols bool
+	Allow_undefined_symbols *bool
 
 	// don't link in crt_begin and crt_end.  This flag should only be necessary for
 	// compiling crt or libc.
-	Nocrt bool `android:"arch_variant"`
+	Nocrt *bool `android:"arch_variant"`
 
 	// don't link in libgcc.a
-	No_libgcc bool
+	No_libgcc *bool
 
 	// don't insert default compiler flags into asflags, cflags,
 	// cppflags, conlyflags, ldflags, or include_dirs
-	No_default_compiler_flags bool
+	No_default_compiler_flags *bool
 
 	// compile module with clang instead of gcc
-	Clang bool `android:"arch_variant"`
+	Clang *bool `android:"arch_variant"`
 
 	// pass -frtti instead of -fno-rtti
-	Rtti bool
+	Rtti *bool
 
 	// -l arguments to pass to linker for host-provided shared libraries
 	Host_ldlibs []string `android:"arch_variant"`
@@ -323,7 +324,7 @@ type CCBase struct {
 	Properties CCBaseProperties
 
 	unused struct {
-		Native_coverage  bool
+		Native_coverage  *bool
 		Required         []string
 		Sanitize         []string `android:"arch_variant"`
 		Sanitize_recover []string
@@ -451,9 +452,9 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		LdFlags:    c.Properties.Ldflags,
 		AsFlags:    c.Properties.Asflags,
 		YaccFlags:  c.Properties.Yaccflags,
-		Nocrt:      c.Properties.Nocrt,
+		Nocrt:      Bool(c.Properties.Nocrt),
 		Toolchain:  toolchain,
-		Clang:      c.Properties.Clang,
+		Clang:      Bool(c.Properties.Clang),
 	}
 
 	// Include dir cflags
@@ -473,7 +474,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		includeFilesToFlags(rootIncludeFiles),
 		includeFilesToFlags(localIncludeFiles))
 
-	if !c.Properties.No_default_compiler_flags {
+	if !Bool(c.Properties.No_default_compiler_flags) {
 		if c.Properties.Sdk_version == "" || ctx.Host() {
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				"${commonGlobalIncludes}",
@@ -488,7 +489,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}...)
 	}
 
-	if !ctx.ContainsProperty("clang") {
+	if c.Properties.Clang == nil {
 		if ctx.Host() {
 			flags.Clang = true
 		}
@@ -532,8 +533,8 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
 	}
 
-	if !c.Properties.No_default_compiler_flags {
-		if ctx.Device() && !c.Properties.Allow_undefined_symbols {
+	if !Bool(c.Properties.No_default_compiler_flags) {
+		if ctx.Device() && !Bool(c.Properties.Allow_undefined_symbols) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 		}
 
@@ -554,7 +555,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}
 
 		if ctx.Device() {
-			if c.Properties.Rtti {
+			if Bool(c.Properties.Rtti) {
 				flags.CppFlags = append(flags.CppFlags, "-frtti")
 			} else {
 				flags.CppFlags = append(flags.CppFlags, "-fno-rtti")
@@ -743,11 +744,11 @@ func (c *CCBase) depsToPaths(ctx common.AndroidModuleContext, depNames CCDeps) C
 		if obj, ok := m.(ccObjectProvider); ok {
 			otherName := ctx.OtherModuleName(m)
 			if otherName == depNames.CrtBegin {
-				if !c.Properties.Nocrt {
+				if !Bool(c.Properties.Nocrt) {
 					depPaths.CrtBegin = obj.object().outputFile()
 				}
 			} else if otherName == depNames.CrtEnd {
-				if !c.Properties.Nocrt {
+				if !Bool(c.Properties.Nocrt) {
 					depPaths.CrtEnd = obj.object().outputFile()
 				}
 			} else {
@@ -780,7 +781,7 @@ func newCCDynamic(dynamic *CCLinked, module CCModuleType, hod common.HostOrDevic
 }
 
 func (c *CCLinked) systemSharedLibs(ctx common.AndroidBaseContext) []string {
-	if ctx.ContainsProperty("system_shared_libs") {
+	if c.Properties.System_shared_libs != nil {
 		return c.Properties.System_shared_libs
 	} else if ctx.Device() && c.Properties.Sdk_version == "" {
 		return []string{"libc", "libm"}
@@ -941,7 +942,7 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 	if ctx.Device() {
 		// libgcc and libatomic have to be last on the command line
 		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic")
-		if !c.Properties.No_libgcc {
+		if !Bool(c.Properties.No_libgcc) {
 			depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcc")
 		}
 
@@ -1328,7 +1329,7 @@ var _ ccObjectProvider = (*ccObject)(nil)
 
 type CCBinaryProperties struct {
 	// compile executable with -static
-	Static_executable bool
+	Static_executable *bool
 
 	// set the name of the output
 	Stem string `android:"arch_variant"`
@@ -1341,7 +1342,7 @@ type CCBinaryProperties struct {
 
 	// Create a separate binary for each source file.  Useful when there is
 	// global state that can not be torn down and reset between each test suite.
-	Test_per_src bool
+	Test_per_src *bool
 }
 
 type CCBinary struct {
@@ -1352,11 +1353,11 @@ type CCBinary struct {
 }
 
 func (c *CCBinary) buildStatic() bool {
-	return c.BinaryProperties.Static_executable
+	return Bool(c.BinaryProperties.Static_executable)
 }
 
 func (c *CCBinary) buildShared() bool {
-	return !c.BinaryProperties.Static_executable
+	return !Bool(c.BinaryProperties.Static_executable)
 }
 
 func (c *CCBinary) getStem(ctx common.AndroidModuleContext) string {
@@ -1372,14 +1373,14 @@ func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 	depNames = c.CCLinked.depNames(ctx, depNames)
 	if ctx.Device() {
 		if c.Properties.Sdk_version == "" {
-			if c.BinaryProperties.Static_executable {
+			if Bool(c.BinaryProperties.Static_executable) {
 				depNames.CrtBegin = "crtbegin_static"
 			} else {
 				depNames.CrtBegin = "crtbegin_dynamic"
 			}
 			depNames.CrtEnd = "crtend_android"
 		} else {
-			if c.BinaryProperties.Static_executable {
+			if Bool(c.BinaryProperties.Static_executable) {
 				depNames.CrtBegin = "ndk_crtbegin_static." + c.Properties.Sdk_version
 			} else {
 				depNames.CrtBegin = "ndk_crtbegin_dynamic." + c.Properties.Sdk_version
@@ -1387,7 +1388,7 @@ func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 			depNames.CrtEnd = "ndk_crtend_android." + c.Properties.Sdk_version
 		}
 
-		if c.BinaryProperties.Static_executable {
+		if Bool(c.BinaryProperties.Static_executable) {
 			if c.stl(ctx) == "libc++_static" {
 				depNames.StaticLibs = append(depNames.StaticLibs, "libm", "libc", "libdl")
 			}
@@ -1419,9 +1420,9 @@ func CCBinaryFactory() (blueprint.Module, []interface{}) {
 
 func (c *CCBinary) ModifyProperties(ctx common.AndroidBaseContext) {
 	if ctx.Darwin() {
-		c.BinaryProperties.Static_executable = false
+		c.BinaryProperties.Static_executable = proptools.BoolPtr(false)
 	}
-	if c.BinaryProperties.Static_executable {
+	if Bool(c.BinaryProperties.Static_executable) {
 		c.dynamicProperties.VariantIsStaticBinary = true
 	}
 }
@@ -1432,7 +1433,7 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 	flags.CFlags = append(flags.CFlags, "-fpie")
 
 	if ctx.Device() {
-		if c.BinaryProperties.Static_executable {
+		if Bool(c.BinaryProperties.Static_executable) {
 			// Clang driver needs -static to create static executable.
 			// However, bionic/linker uses -shared to overwrite.
 			// Linker for x86 targets does not allow coexistance of -static and -shared,
@@ -1471,7 +1472,7 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 func (c *CCBinary) compileModule(ctx common.AndroidModuleContext,
 	flags CCFlags, deps CCDeps, objFiles []string) {
 
-	if !c.BinaryProperties.Static_executable && inList("libc", c.Properties.Static_libs) {
+	if !Bool(c.BinaryProperties.Static_executable) && inList("libc", c.Properties.Static_libs) {
 		ctx.ModuleErrorf("statically linking libc to dynamic executable, please remove libc\n" +
 			"from static libs or set static_executable: true")
 	}
@@ -1504,7 +1505,7 @@ func (c *CCBinary) HostToolPath() string {
 }
 
 func (c *CCBinary) testPerSrc() bool {
-	return c.BinaryProperties.Test_per_src
+	return Bool(c.BinaryProperties.Test_per_src)
 }
 
 func (c *CCBinary) binary() *CCBinary {
@@ -1938,3 +1939,5 @@ func lastUniqueElements(list []string) []string {
 	}
 	return list[totalSkip:]
 }
+
+var Bool = proptools.Bool

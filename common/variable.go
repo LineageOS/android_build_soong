@@ -113,7 +113,7 @@ func VariableMutator(mctx blueprint.EarlyMutatorContext) {
 
 	// TODO: depend on config variable, create variants, propagate variants up tree
 	a := module.base()
-	variableValues := reflect.ValueOf(a.variableProperties.Product_variables)
+	variableValues := reflect.ValueOf(&a.variableProperties.Product_variables).Elem()
 	zeroValues := reflect.ValueOf(zeroProductVariables.Product_variables)
 
 	for i := 0; i < variableValues.NumField(); i++ {
@@ -147,16 +147,19 @@ func VariableMutator(mctx blueprint.EarlyMutatorContext) {
 func (a *AndroidModuleBase) setVariableProperties(ctx blueprint.EarlyMutatorContext,
 	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
 
-	generalPropertyValues := make([]reflect.Value, len(a.generalProperties))
-	for i := range a.generalProperties {
-		generalPropertyValues[i] = reflect.ValueOf(a.generalProperties[i]).Elem()
-	}
-
 	if variableValue != nil {
 		printfIntoProperties(productVariablePropertyValue, variableValue)
 	}
 
-	extendProperties(ctx, "", prefix, generalPropertyValues, productVariablePropertyValue, nil)
+	err := proptools.AppendMatchingProperties(a.generalProperties,
+		productVariablePropertyValue.Addr().Interface(), nil)
+	if err != nil {
+		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+			ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+		} else {
+			panic(err)
+		}
+	}
 }
 
 func printfIntoProperties(productVariablePropertyValue reflect.Value, variableValue interface{}) {

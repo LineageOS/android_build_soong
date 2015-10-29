@@ -93,7 +93,6 @@ bootstrap_go_package {
         "common/config.go",
         "common/defs.go",
         "common/env.go",
-        "common/extend.go",
         "common/glob.go",
         "common/module.go",
         "common/paths.go",
