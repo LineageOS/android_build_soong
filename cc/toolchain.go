@@ -49,6 +49,7 @@ type Toolchain interface {
 	ClangCflags() string
 	ClangCppflags() string
 	ClangLdflags() string
+	ClangInstructionSetFlags(string) (string, error)
 
 	Is64Bit() bool
 }
@@ -57,6 +58,13 @@ type toolchainBase struct {
 }
 
 func (toolchainBase) InstructionSetFlags(s string) (string, error) {
+	if s != "" {
+		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
+	}
+	return "", nil
+}
+
+func (toolchainBase) ClangInstructionSetFlags(s string) (string, error) {
 	if s != "" {
 		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
 	}

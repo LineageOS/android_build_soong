@@ -172,6 +172,10 @@ func init() {
 	pctx.StaticVariable("armClangLdflags", strings.Join(clangFilterUnknownCflags(armLdflags), " "))
 	pctx.StaticVariable("armClangCppflags", strings.Join(clangFilterUnknownCflags(armCppflags), " "))
 
+	// Clang ARM vs. Thumb instruction set cflags
+	pctx.StaticVariable("armClangArmCflags", strings.Join(clangFilterUnknownCflags(armArmCflags), " "))
+	pctx.StaticVariable("armClangThumbCflags", strings.Join(clangFilterUnknownCflags(armThumbCflags), " "))
+
 	// Clang cpu variant cflags
 	pctx.StaticVariable("armClangArmv5TECflags",
 		strings.Join(armClangArchVariantCflags["armv5te"], " "))
@@ -289,6 +293,17 @@ func (t *toolchainArm) ClangCppflags() string {
 
 func (t *toolchainArm) ClangLdflags() string {
 	return t.ldflags
+}
+
+func (t *toolchainArm) ClangInstructionSetFlags(isa string) (string, error) {
+	switch isa {
+	case "arm":
+		return "${armClangArmCflags}", nil
+	case "thumb", "":
+		return "${armClangThumbCflags}", nil
+	default:
+		return t.toolchainBase.ClangInstructionSetFlags(isa)
+	}
 }
 
 func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {

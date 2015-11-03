@@ -488,15 +488,6 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}...)
 	}
 
-	instructionSet := c.Properties.Instruction_set
-	instructionSetFlags, err := toolchain.InstructionSetFlags(instructionSet)
-	if err != nil {
-		ctx.ModuleErrorf("%s", err)
-	}
-
-	// TODO: debug
-	flags.CFlags = append(flags.CFlags, c.Properties.Release.Cflags...)
-
 	if !ctx.ContainsProperty("clang") {
 		if ctx.Host() {
 			flags.Clang = true
@@ -506,6 +497,18 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 			flags.Clang = true
 		}
 	}
+
+	instructionSet := c.Properties.Instruction_set
+	instructionSetFlags, err := toolchain.InstructionSetFlags(instructionSet)
+	if flags.Clang {
+		instructionSetFlags, err = toolchain.ClangInstructionSetFlags(instructionSet)
+	}
+	if err != nil {
+		ctx.ModuleErrorf("%s", err)
+	}
+
+	// TODO: debug
+	flags.CFlags = append(flags.CFlags, c.Properties.Release.Cflags...)
 
 	if flags.Clang {
 		flags.CFlags = clangFilterUnknownCflags(flags.CFlags)
