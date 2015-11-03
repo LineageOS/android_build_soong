@@ -25,6 +25,9 @@ import (
 )
 
 func init() {
+	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator)
+	RegisterTopDownMutator("defaults", defaultsMutator)
+
 	RegisterBottomUpMutator("host_or_device", HostOrDeviceMutator)
 	RegisterBottomUpMutator("arch", ArchMutator)
 }
@@ -383,12 +386,10 @@ func ArchMutator(mctx AndroidBottomUpMutatorContext) {
 	}
 }
 
-func InitArchModule(m AndroidModule, defaultMultilib Multilib,
+func InitArchModule(m AndroidModule,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	base := m.base()
-
-	base.commonProperties.Compile_multilib = string(defaultMultilib)
 
 	base.generalProperties = append(base.generalProperties,
 		propertyStructs...)

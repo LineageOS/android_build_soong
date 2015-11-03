@@ -91,6 +91,7 @@ bootstrap_go_package {
     srcs: [
         "common/arch.go",
         "common/config.go",
+        "common/defaults.go",
         "common/defs.go",
         "common/env.go",
         "common/glob.go",

@@ -41,6 +41,7 @@ func init() {
 	soong.RegisterModuleType("cc_binary", CCBinaryFactory)
 	soong.RegisterModuleType("cc_test", CCTestFactory)
 	soong.RegisterModuleType("cc_benchmark", CCBenchmarkFactory)
+	soong.RegisterModuleType("cc_defaults", CCDefaultsFactory)
 
 	soong.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	soong.RegisterModuleType("ndk_prebuilt_library", NdkPrebuiltLibraryFactory)
@@ -320,23 +321,26 @@ type CCBaseProperties struct {
 	Relative_install_path string
 }
 
+type CCUnusedProperties struct {
+	Native_coverage  *bool
+	Required         []string
+	Sanitize         []string `android:"arch_variant"`
+	Sanitize_recover []string
+	Strip            string
+	Tags             []string
+}
+
 // CCBase contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It expects to be embedded into an outer specialization struct,
 // and uses a ccModuleType interface to that struct to create the build steps.
 type CCBase struct {
 	common.AndroidModuleBase
+	common.DefaultableModule
 	module CCModuleType
 
 	Properties CCBaseProperties
 
-	unused struct {
-		Native_coverage  *bool
-		Required         []string
-		Sanitize         []string `android:"arch_variant"`
-		Sanitize_recover []string
-		Strip            string
-		Tags             []string
-	}
+	unused CCUnusedProperties
 
 	installPath string
 
@@ -350,7 +354,9 @@ func newCCBase(base *CCBase, module CCModuleType, hod common.HostOrDeviceSupport
 
 	props = append(props, &base.Properties, &base.unused)
 
-	return common.InitAndroidArchModule(module, hod, multilib, props...)
+	_, props = common.InitAndroidArchModule(module, hod, multilib, props...)
+
+	return common.InitDefaultableModule(module, base, props...)
 }
 
 func (c *CCBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
@@ -1683,6 +1689,33 @@ func CCTestHostFactory() (blueprint.Module, []interface{}) {
 func CCBenchmarkHostFactory() (blueprint.Module, []interface{}) {
 	module := &CCBenchmark{}
 	return NewCCBinary(&module.CCBinary, module, common.HostSupported)
+}
+
+//
+// Defaults
+//
+type CCDefaults struct {
+	common.AndroidModuleBase
+	common.DefaultsModule
+}
+
+func (*CCDefaults) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
+}
+
+func CCDefaultsFactory() (blueprint.Module, []interface{}) {
+	module := &CCDefaults{}
+
+	propertyStructs := []interface{}{
+		&CCBaseProperties{},
+		&CCLibraryProperties{},
+		&CCBinaryProperties{},
+		&CCUnusedProperties{},
+	}
+
+	_, propertyStructs = common.InitAndroidArchModule(module, common.HostOrDeviceSupported(0),
+		common.Multilib(""), propertyStructs...)
+
+	return common.InitDefaultsModule(module, module, propertyStructs...)
 }
 
 //

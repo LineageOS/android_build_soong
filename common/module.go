@@ -127,6 +127,7 @@ func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMu
 
 	base := m.base()
 	base.commonProperties.HostOrDeviceSupported = hod
+	base.commonProperties.Compile_multilib = string(defaultMultilib)
 
 	if hod == HostAndDeviceSupported {
 		// Default to module to device supported, host not supported, can override in module
@@ -135,7 +136,7 @@ func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMu
 		propertyStructs = append(propertyStructs, &base.hostAndDeviceProperties)
 	}
 
-	return InitArchModule(m, defaultMultilib, propertyStructs...)
+	return InitArchModule(m, propertyStructs...)
 }
 
 // A AndroidModuleBase object contains the properties that are common to all Android
