@@ -18,8 +18,6 @@ import (
 	"android/soong"
 	"path/filepath"
 	"runtime"
-	"sort"
-	"strings"
 
 	"android/soong/glob"
 
@@ -544,45 +542,4 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			Optional:  true,
 		})
 	}
-
-	// Create Android.bp->mk translation rules
-	androidMks := []string{}
-	srcDir := ctx.Config().(Config).SrcDir()
-	intermediatesDir := filepath.Join(ctx.Config().(Config).IntermediatesDir(), "androidmk")
-	sort.Strings(bpFiles)
-	for _, origBp := range bpFiles {
-		bpFile := filepath.Join(srcDir, origBp)
-		mkFile := filepath.Join(srcDir, filepath.Dir(origBp), "Android.mk")
-
-		files, err := Glob(ctx, intermediatesDir, mkFile, nil)
-		if err != nil {
-			ctx.Errorf("glob: %s", err.Error())
-			continue
-		}
-
-		// Existing Android.mk file, use that instead
-		if len(files) > 0 {
-			for _, file := range files {
-				ctx.AddNinjaFileDeps(file)
-			}
-			continue
-		}
-
-		transMk := filepath.Join("androidmk", "Android_"+strings.Replace(filepath.Dir(origBp), "/", "_", -1)+".mk")
-		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:     androidbp,
-			Outputs:  []string{transMk},
-			Inputs:   []string{bpFile},
-			Optional: true,
-		})
-
-		androidMks = append(androidMks, transMk)
-	}
-
-	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      blueprint.Phony,
-		Outputs:   []string{"androidmk"},
-		Implicits: androidMks,
-		Optional:  true,
-	})
 }
