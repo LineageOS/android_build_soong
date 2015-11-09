@@ -24,6 +24,7 @@ import (
 	"android/soong/glob"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -78,7 +79,7 @@ type commonProperties struct {
 	Tags []string
 
 	// don't emit any build rules for this module
-	Disabled bool `android:"arch_variant"`
+	Disabled *bool `android:"arch_variant"`
 
 	// control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
 	// are "32" (compile for 32-bit only), "64" (compile for 64-bit only), "both" (compile for both
@@ -230,7 +231,7 @@ func (a *AndroidModuleBase) DeviceSupported() bool {
 }
 
 func (a *AndroidModuleBase) Disabled() bool {
-	return a.commonProperties.Disabled
+	return proptools.Bool(a.commonProperties.Disabled)
 }
 
 func (a *AndroidModuleBase) computeInstallDeps(
@@ -321,7 +322,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		installFiles:           a.installFiles,
 	}
 
-	if a.commonProperties.Disabled {
+	if proptools.Bool(a.commonProperties.Disabled) {
 		return
 	}
 
