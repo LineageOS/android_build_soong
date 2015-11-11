@@ -141,6 +141,9 @@ type archProperties struct {
 		Krait          interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		Denver         interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
+		// Arm64 arch variants
+		Armv8_a interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
 		// Arm64 cpu variants
 		Cortex_a53_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		Denver64      interface{} `blueprint:"filter(android:\"arch_variant\")"`
