@@ -45,6 +45,7 @@ var (
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
 			Command:     "$relPwd $ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
+			CommandDeps: []string{"$ccCmd"},
 			Description: "cc $out",
 		},
 		"ccCmd", "cFlags")
@@ -53,6 +54,7 @@ var (
 		blueprint.RuleParams{
 			Command: "$ldCmd ${ldDirFlags} ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags}",
+			CommandDeps:    []string{"$ldCmd"},
 			Description:    "ld $out",
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
@@ -62,6 +64,7 @@ var (
 	partialLd = pctx.StaticRule("partialLd",
 		blueprint.RuleParams{
 			Command:     "$ldCmd -r ${in} -o ${out}",
+			CommandDeps: []string{"$ldCmd"},
 			Description: "partialLd $out",
 		},
 		"ldCmd")
@@ -69,6 +72,7 @@ var (
 	ar = pctx.StaticRule("ar",
 		blueprint.RuleParams{
 			Command:        "rm -f ${out} && $arCmd $arFlags $out @${out}.rsp",
+			CommandDeps:    []string{"$arCmd"},
 			Description:    "ar $out",
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
@@ -78,6 +82,7 @@ var (
 	darwinAr = pctx.StaticRule("darwinAr",
 		blueprint.RuleParams{
 			Command:     "rm -f ${out} && $arCmd $arFlags $out $in",
+			CommandDeps: []string{"$arCmd"},
 			Description: "ar $out",
 		},
 		"arCmd", "arFlags")
@@ -85,6 +90,7 @@ var (
 	darwinAppendAr = pctx.StaticRule("darwinAppendAr",
 		blueprint.RuleParams{
 			Command:     "cp -f ${inAr} ${out}.tmp && $arCmd $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
+			CommandDeps: []string{"$arCmd"},
 			Description: "ar $out",
 		},
 		"arCmd", "arFlags", "inAr")
@@ -92,6 +98,7 @@ var (
 	prefixSymbols = pctx.StaticRule("prefixSymbols",
 		blueprint.RuleParams{
 			Command:     "$objcopyCmd --prefix-symbols=${prefix} ${in} ${out}",
+			CommandDeps: []string{"$objcopyCmd"},
 			Description: "prefixSymbols $out",
 		},
 		"objcopyCmd", "prefix")
@@ -103,6 +110,7 @@ var (
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
 			Command:     "$copyGccLibPath $out $ccCmd $cFlags -print-file-name=${libName}",
+			CommandDeps: []string{"$copyGccLibPath", "$ccCmd"},
 			Description: "copy gcc $out",
 		},
 		"ccCmd", "cFlags", "libName")
@@ -202,13 +210,11 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			ccCmd = gccCmd(flags.toolchain, ccCmd)
 		}
 
-		objDeps := append([]string{ccCmd}, deps...)
-
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      cc,
 			Outputs:   []string{objFile},
 			Inputs:    []string{srcFile},
-			Implicits: objDeps,
+			Implicits: deps,
 			Args: map[string]string{
 				"cFlags": moduleCflags,
 				"ccCmd":  ccCmd,
@@ -227,10 +233,9 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles []string,
 	arFlags := "crsPD"
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      ar,
-		Outputs:   []string{outputFile},
-		Inputs:    objFiles,
-		Implicits: []string{arCmd},
+		Rule:    ar,
+		Outputs: []string{outputFile},
+		Inputs:  objFiles,
 		Args: map[string]string{
 			"arFlags": arFlags,
 			"arCmd":   arCmd,
@@ -337,7 +342,6 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 		ldDirs = append(ldDirs, dir)
 	}
 
-	deps = append(deps, ldCmd)
 	deps = append(deps, sharedLibs...)
 	deps = append(deps, staticLibs...)
 	deps = append(deps, lateStaticLibs...)
@@ -368,13 +372,10 @@ func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles []string,
 
 	ldCmd := gccCmd(flags.toolchain, "ld")
 
-	deps := []string{ldCmd}
-
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      partialLd,
-		Outputs:   []string{outputFile},
-		Inputs:    objFiles,
-		Implicits: deps,
+		Rule:    partialLd,
+		Outputs: []string{outputFile},
+		Inputs:  objFiles,
 		Args: map[string]string{
 			"ldCmd": ldCmd,
 		},
@@ -388,10 +389,9 @@ func TransformBinaryPrefixSymbols(ctx common.AndroidModuleContext, prefix string
 	objcopyCmd := gccCmd(flags.toolchain, "objcopy")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      prefixSymbols,
-		Outputs:   []string{outputFile},
-		Inputs:    []string{inputFile},
-		Implicits: []string{objcopyCmd},
+		Rule:    prefixSymbols,
+		Outputs: []string{outputFile},
+		Inputs:  []string{inputFile},
 		Args: map[string]string{
 			"objcopyCmd": objcopyCmd,
 			"prefix":     prefix,
@@ -405,10 +405,6 @@ func CopyGccLib(ctx common.AndroidModuleContext, libName string,
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:    copyGccLib,
 		Outputs: []string{outputFile},
-		Implicits: []string{
-			"$copyGccLibPath",
-			gccCmd(flags.toolchain, "gcc"),
-		},
 		Args: map[string]string{
 			"ccCmd":   gccCmd(flags.toolchain, "gcc"),
 			"cFlags":  flags.globalFlags,

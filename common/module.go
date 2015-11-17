@@ -570,11 +570,10 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 
 		transMk := filepath.Join("androidmk", "Android_"+strings.Replace(filepath.Dir(origBp), "/", "_", -1)+".mk")
 		ctx.Build(pctx, blueprint.BuildParams{
-			Rule:      androidbp,
-			Outputs:   []string{transMk},
-			Inputs:    []string{bpFile},
-			Implicits: []string{androidbpCmd},
-			Optional:  true,
+			Rule:     androidbp,
+			Outputs:  []string{transMk},
+			Inputs:   []string{bpFile},
+			Optional: true,
 		})
 
 		androidMks = append(androidMks, transMk)

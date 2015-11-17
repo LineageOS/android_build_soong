@@ -46,6 +46,7 @@ var (
 	globRule = pctx.StaticRule("globRule",
 		blueprint.RuleParams{
 			Command:     fmt.Sprintf(`%s -o $out $excludes "$glob"`, globCmd),
+			CommandDeps: []string{globCmd},
 			Description: "glob $glob",
 
 			Restat:  true,
@@ -95,9 +96,8 @@ func GlobRule(ctx globContext, globPattern string, excludes []string,
 	// Create a rule to rebuild fileListFile if a directory in depFile changes.  fileListFile
 	// will only be rewritten if it has changed, preventing unnecesary build.ninja regenerations.
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      globRule,
-		Outputs:   []string{fileListFile},
-		Implicits: []string{globCmd},
+		Rule:    globRule,
+		Outputs: []string{fileListFile},
 		Args: map[string]string{
 			"glob":     globPattern,
 			"excludes": JoinWithPrefixAndQuote(excludes, "-e "),

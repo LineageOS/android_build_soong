@@ -52,6 +52,7 @@ var (
 	jar = pctx.StaticRule("jar",
 		blueprint.RuleParams{
 			Command:     `$jarCmd -o $out $jarArgs`,
+			CommandDeps: []string{"$jarCmd"},
 			Description: "jar $out",
 		},
 		"jarCmd", "jarArgs")
@@ -61,6 +62,7 @@ var (
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 				`$dxCmd --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
 				`find "$outDir" -name "classes*.dex" > $out`,
+			CommandDeps: []string{"$dxCmd"},
 			Description: "dex $out",
 		},
 		"outDir", "dxFlags")
@@ -68,6 +70,7 @@ var (
 	jarjar = pctx.StaticRule("jarjar",
 		blueprint.RuleParams{
 			Command:     "java -jar $jarjarCmd process $rulesFile $in $out",
+			CommandDeps: []string{"$jarjarCmd", "$rulesFile"},
 			Description: "jarjar $out",
 		},
 		"rulesFile")
@@ -156,8 +159,6 @@ func TransformClassesToJar(ctx common.AndroidModuleContext, classes []jarSpec,
 		jarArgs = append(jarArgs, "-m "+manifest)
 	}
 
-	deps = append(deps, "$jarCmd")
-
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      jar,
 		Outputs:   []string{outputFile},
@@ -177,10 +178,9 @@ func TransformClassesJarToDex(ctx common.AndroidModuleContext, classesJar string
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "dex.filelist")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      dx,
-		Outputs:   []string{outputFile},
-		Inputs:    []string{classesJar},
-		Implicits: []string{"$dxCmd"},
+		Rule:    dx,
+		Outputs: []string{outputFile},
+		Inputs:  []string{classesJar},
 		Args: map[string]string{
 			"dxFlags": flags.dxFlags,
 			"outDir":  outDir,
@@ -205,8 +205,6 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 	deps = append(deps, dexJarSpec.fileList)
 	jarArgs = append(jarArgs, dexJarSpec.soongJarArgs())
 
-	deps = append(deps, "$jarCmd")
-
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      jar,
 		Outputs:   []string{outputFile},
@@ -222,10 +220,9 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 func TransformJarJar(ctx common.AndroidModuleContext, classesJar string, rulesFile string) string {
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "classes-jarjar.jar")
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      jarjar,
-		Outputs:   []string{outputFile},
-		Inputs:    []string{classesJar},
-		Implicits: []string{"$jarjarCmd"},
+		Rule:    jarjar,
+		Outputs: []string{outputFile},
+		Inputs:  []string{classesJar},
 		Args: map[string]string{
 			"rulesFile": rulesFile,
 		},

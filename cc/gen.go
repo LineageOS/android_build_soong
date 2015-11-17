@@ -38,6 +38,7 @@ var (
 		blueprint.RuleParams{
 			Command: "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags -o $cppFile $in && " +
 				"cp -f $hppFile $hFile",
+			CommandDeps: []string{"$yaccCmd"},
 			Description: "yacc $out",
 		},
 		"yaccFlags", "cppFile", "hppFile", "hFile")
@@ -45,6 +46,7 @@ var (
 	lex = pctx.StaticRule("lex",
 		blueprint.RuleParams{
 			Command:     "$lexCmd -o$out $in",
+			CommandDeps: []string{"$lexCmd"},
 			Description: "lex $out",
 		})
 )
@@ -57,10 +59,9 @@ func genYacc(ctx common.AndroidModuleContext, yaccFile, yaccFlags string) (cppFi
 	headerFile = pathtools.ReplaceExtension(cppFile, "h")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      yacc,
-		Outputs:   []string{cppFile, headerFile},
-		Inputs:    []string{yaccFile},
-		Implicits: []string{"$yaccCmd"},
+		Rule:    yacc,
+		Outputs: []string{cppFile, headerFile},
+		Inputs:  []string{yaccFile},
 		Args: map[string]string{
 			"yaccFlags": yaccFlags,
 			"cppFile":   cppFile,
@@ -78,10 +79,9 @@ func genLex(ctx common.AndroidModuleContext, lexFile string) (cppFile string) {
 	cppFile = pathtools.ReplaceExtension(cppFile, "cpp")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      lex,
-		Outputs:   []string{cppFile},
-		Inputs:    []string{lexFile},
-		Implicits: []string{"$lexCmd"},
+		Rule:    lex,
+		Outputs: []string{cppFile},
+		Inputs:  []string{lexFile},
 	})
 
 	return cppFile

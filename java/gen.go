@@ -44,6 +44,7 @@ var (
 	aidl = pctx.StaticRule("aidl",
 		blueprint.RuleParams{
 			Command:     "$aidlCmd -d$depFile $aidlFlags $in $out",
+			CommandDeps: []string{"$aidlCmd"},
 			Description: "aidl $out",
 		},
 		"depFile", "aidlFlags")
@@ -51,12 +52,14 @@ var (
 	logtags = pctx.StaticRule("logtags",
 		blueprint.RuleParams{
 			Command:     "$logtagsCmd -o $out $in $allLogtagsFile",
+			CommandDeps: []string{"$logtagsCmd"},
 			Description: "logtags $out",
 		})
 
 	mergeLogtags = pctx.StaticRule("mergeLogtags",
 		blueprint.RuleParams{
 			Command:     "$mergeLogtagsCmd -o $out $in",
+			CommandDeps: []string{"$mergeLogtagsCmd"},
 			Description: "merge logtags $out",
 		})
 )
@@ -68,10 +71,9 @@ func genAidl(ctx common.AndroidModuleContext, aidlFile, aidlFlags string) string
 	depFile := javaFile + ".d"
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      aidl,
-		Outputs:   []string{javaFile},
-		Inputs:    []string{aidlFile},
-		Implicits: []string{"$aidlCmd"},
+		Rule:    aidl,
+		Outputs: []string{javaFile},
+		Inputs:  []string{aidlFile},
 		Args: map[string]string{
 			"depFile":   depFile,
 			"aidlFlags": aidlFlags,
@@ -87,10 +89,9 @@ func genLogtags(ctx common.AndroidModuleContext, logtagsFile string) string {
 	javaFile = pathtools.ReplaceExtension(javaFile, "java")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      logtags,
-		Outputs:   []string{javaFile},
-		Inputs:    []string{logtagsFile},
-		Implicits: []string{"$logtagsCmd"},
+		Rule:    logtags,
+		Outputs: []string{javaFile},
+		Inputs:  []string{logtagsFile},
 	})
 
 	return javaFile

@@ -34,6 +34,7 @@ var (
 				`$aaptCmd package -m $aaptFlags -P $publicResourcesFile -G $proguardOptionsFile ` +
 				`-J $javaDir || ( rm -rf "$javaDir/*"; exit 41 ) && ` +
 				`find $javaDir -name "*.java" > $javaFileList`,
+			CommandDeps: []string{"$aaptCmd"},
 			Description: "aapt create R.java $out",
 		},
 		"aaptFlags", "publicResourcesFile", "proguardOptionsFile", "javaDir", "javaFileList")
@@ -41,6 +42,7 @@ var (
 	aaptCreateAssetsPackage = pctx.StaticRule("aaptCreateAssetsPackage",
 		blueprint.RuleParams{
 			Command:     `rm -f $out && $aaptCmd package $aaptFlags -F $out`,
+			CommandDeps: []string{"$aaptCmd"},
 			Description: "aapt export package $out",
 		},
 		"aaptFlags", "publicResourcesFile", "proguardOptionsFile", "javaDir", "javaFileList")
@@ -49,6 +51,7 @@ var (
 		blueprint.RuleParams{
 			// TODO: add-jni-shared-libs-to-package
 			Command:     `cp -f $in $out.tmp && $aaptCmd package -u $aaptFlags -F $out.tmp && mv $out.tmp $out`,
+			CommandDeps: []string{"$aaptCmd"},
 			Description: "aapt package $out",
 		},
 		"aaptFlags")
@@ -56,6 +59,7 @@ var (
 	zipalign = pctx.StaticRule("zipalign",
 		blueprint.RuleParams{
 			Command:     `$zipalignCmd -f $zipalignFlags 4 $in $out`,
+			CommandDeps: []string{"$zipalignCmd"},
 			Description: "zipalign $out",
 		},
 		"zipalignFlags")
@@ -63,6 +67,7 @@ var (
 	signapk = pctx.StaticRule("signapk",
 		blueprint.RuleParams{
 			Command:     `java -jar $signapkCmd $certificates $in $out`,
+			CommandDeps: []string{"$signapkCmd"},
 			Description: "signapk $out",
 		},
 		"certificates")
@@ -71,6 +76,7 @@ var (
 		blueprint.RuleParams{
 			Command: "java -classpath $androidManifestMergerCmd com.android.manifmerger.Main merge " +
 				"--main $in --libs $libsManifests --out $out",
+			CommandDeps: []string{"$androidManifestMergerCmd"},
 			Description: "merge manifest files $out",
 		},
 		"libsManifests")
@@ -96,8 +102,6 @@ func CreateResourceJavaFiles(ctx common.AndroidModuleContext, flags []string,
 	publicResourcesFile := filepath.Join(common.ModuleOutDir(ctx), "public_resources.xml")
 	proguardOptionsFile := filepath.Join(common.ModuleOutDir(ctx), "proguard.options")
 
-	deps = append([]string{"$aaptCmd"}, deps...)
-
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      aaptCreateResourceJavaFile,
 		Outputs:   []string{publicResourcesFile, proguardOptionsFile, javaFileList},
@@ -117,8 +121,6 @@ func CreateResourceJavaFiles(ctx common.AndroidModuleContext, flags []string,
 func CreateExportPackage(ctx common.AndroidModuleContext, flags []string, deps []string) string {
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "package-export.apk")
 
-	deps = append([]string{"$aaptCmd"}, deps...)
-
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      aaptCreateAssetsPackage,
 		Outputs:   []string{outputFile},
@@ -137,10 +139,9 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 	resourceApk := filepath.Join(common.ModuleOutDir(ctx), "resources.apk")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      aaptAddResources,
-		Outputs:   []string{resourceApk},
-		Inputs:    []string{jarFile},
-		Implicits: []string{"$aaptCmd"},
+		Rule:    aaptAddResources,
+		Outputs: []string{resourceApk},
+		Inputs:  []string{jarFile},
 		Args: map[string]string{
 			"aaptFlags": strings.Join(flags, " "),
 		},
@@ -154,10 +155,9 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 	}
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      signapk,
-		Outputs:   []string{signedApk},
-		Inputs:    []string{resourceApk},
-		Implicits: []string{"$signapkCmd"},
+		Rule:    signapk,
+		Outputs: []string{signedApk},
+		Inputs:  []string{resourceApk},
 		Args: map[string]string{
 			"certificates": strings.Join(certificateArgs, " "),
 		},
@@ -166,10 +166,9 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 	outputFile := filepath.Join(common.ModuleOutDir(ctx), "package.apk")
 
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:      zipalign,
-		Outputs:   []string{outputFile},
-		Inputs:    []string{signedApk},
-		Implicits: []string{"$zipalignCmd"},
+		Rule:    zipalign,
+		Outputs: []string{outputFile},
+		Inputs:  []string{signedApk},
 		Args: map[string]string{
 			"zipalignFlags": "",
 		},

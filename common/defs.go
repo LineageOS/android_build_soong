@@ -33,6 +33,7 @@ var (
 	androidbp    = pctx.StaticRule("androidbp",
 		blueprint.RuleParams{
 			Command:     androidbpCmd + " ${srcDir}/Android.bp $in $out",
+			CommandDeps: []string{androidbpCmd},
 			Description: "androidbp $out",
 		})
 
