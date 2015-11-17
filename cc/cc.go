@@ -172,7 +172,7 @@ type CCModuleType interface {
 }
 
 type CCDeps struct {
-	StaticLibs, SharedLibs, LateStaticLibs, WholeStaticLibs, ObjFiles, Cflags []string
+	StaticLibs, SharedLibs, LateStaticLibs, WholeStaticLibs, ObjFiles, Cflags, ReexportedCflags []string
 
 	WholeStaticLibObjFiles []string
 
@@ -734,6 +734,7 @@ func (c *CCBase) depsToPaths(ctx common.AndroidModuleContext, depNames CCDeps) C
 	wholeStaticLibModules, depPaths.WholeStaticLibs, newCflags =
 		c.depsToPathsFromList(ctx, depNames.WholeStaticLibs)
 	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
+	depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, newCflags...)
 
 	for _, m := range wholeStaticLibModules {
 		if staticLib, ok := m.(ccLibraryInterface); ok && staticLib.static() {
@@ -1202,6 +1203,7 @@ func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
 	common.CheckModuleSrcDirsExist(ctx, c.Properties.Export_include_dirs, "export_include_dirs")
 	includeDirs := pathtools.PrefixPaths(c.Properties.Export_include_dirs, common.ModuleSrcDir(ctx))
 	c.exportFlags = []string{includeDirsToFlags(includeDirs)}
+	c.exportFlags = append(c.exportFlags, deps.ReexportedCflags...)
 
 	ctx.CheckbuildFile(outputFile)
 }
@@ -1232,6 +1234,7 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 	c.out = outputFile
 	includeDirs := pathtools.PrefixPaths(c.Properties.Export_include_dirs, common.ModuleSrcDir(ctx))
 	c.exportFlags = []string{includeDirsToFlags(includeDirs)}
+	c.exportFlags = append(c.exportFlags, deps.ReexportedCflags...)
 }
 
 func (c *CCLibrary) compileModule(ctx common.AndroidModuleContext,
