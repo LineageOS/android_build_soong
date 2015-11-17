@@ -47,7 +47,7 @@ var (
 			Command:     "$relPwd $ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
 			Description: "cc $out",
 		},
-		"relPwd", "ccCmd", "cFlags")
+		"ccCmd", "cFlags")
 
 	ld = pctx.StaticRule("ld",
 		blueprint.RuleParams{
@@ -108,6 +108,18 @@ var (
 		"ccCmd", "cFlags", "libName")
 )
 
+func init() {
+	// We run gcc/clang with PWD=/proc/self/cwd to remove $TOP from the
+	// debug output. That way two builds in two different directories will
+	// create the same output.
+	if runtime.GOOS != "darwin" {
+		pctx.StaticVariable("relPwd", "PWD=/proc/self/cwd")
+	} else {
+		// Darwin doesn't have /proc
+		pctx.StaticVariable("relPwd", "")
+	}
+}
+
 type builderFlags struct {
 	globalFlags string
 	asFlags     string
@@ -127,15 +139,6 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 
 	srcRoot := ctx.AConfig().SrcDir()
 	intermediatesRoot := ctx.AConfig().IntermediatesDir()
-
-	// We run gcc/clang with PWD=/proc/self/cwd to remove $TOP from the
-	// debug output. That way two builds in two different directories will
-	// create the same output.
-	relPwd := "PWD=/proc/self/cwd"
-	if ctx.Darwin() {
-		// /proc doesn't exist on Darwin
-		relPwd = ""
-	}
 
 	objFiles = make([]string, len(srcFiles))
 	objDir := common.ModuleObjDir(ctx)
@@ -209,7 +212,6 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			Args: map[string]string{
 				"cFlags": moduleCflags,
 				"ccCmd":  ccCmd,
-				"relPwd": relPwd,
 			},
 		})
 	}
