@@ -412,7 +412,7 @@ func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 		ctx.ModuleErrorf("Toolchain not found for %s arch %q", hod.String(), arch.String())
 		return nil
 	}
-	return factory(arch.ArchVariant, arch.CpuVariant)
+	return factory(arch)
 }
 
 func (c *CCBase) ModifyProperties(ctx CCModuleContext) {

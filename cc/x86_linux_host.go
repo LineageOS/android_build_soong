@@ -224,11 +224,11 @@ func (t *toolchainLinuxX8664) ClangLdflags() string {
 var toolchainLinuxX86Singleton Toolchain = &toolchainLinuxX86{}
 var toolchainLinuxX8664Singleton Toolchain = &toolchainLinuxX8664{}
 
-func linuxX86ToolchainFactory(archVariant string, cpuVariant string) Toolchain {
+func linuxX86ToolchainFactory(arch common.Arch) Toolchain {
 	return toolchainLinuxX86Singleton
 }
 
-func linuxX8664ToolchainFactory(archVariant string, cpuVariant string) Toolchain {
+func linuxX8664ToolchainFactory(arch common.Arch) Toolchain {
 	return toolchainLinuxX8664Singleton
 }
 

@@ -306,9 +306,9 @@ func (t *toolchainArm) ClangInstructionSetFlags(isa string) (string, error) {
 	}
 }
 
-func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
+func armToolchainFactory(arch common.Arch) Toolchain {
 	var fixCortexA8 string
-	switch cpuVariant {
+	switch arch.CpuVariant {
 	case "cortex-a8", "":
 		// Generic ARM might be a Cortex A8 -- better safe than sorry
 		fixCortexA8 = "-Wl,--fix-cortex-a8"
@@ -319,8 +319,8 @@ func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 	return &toolchainArm{
 		cflags: strings.Join([]string{
 			"${armCflags}",
-			armArchVariantCflagsVar[archVariant],
-			armCpuVariantCflagsVar[cpuVariant],
+			armArchVariantCflagsVar[arch.ArchVariant],
+			armCpuVariantCflagsVar[arch.CpuVariant],
 		}, " "),
 		ldflags: strings.Join([]string{
 			"${armLdflags}",
@@ -328,8 +328,8 @@ func armToolchainFactory(archVariant string, cpuVariant string) Toolchain {
 		}, " "),
 		clangCflags: strings.Join([]string{
 			"${armClangCflags}",
-			armClangArchVariantCflagsVar[archVariant],
-			armClangCpuVariantCflagsVar[cpuVariant],
+			armClangArchVariantCflagsVar[arch.ArchVariant],
+			armClangCpuVariantCflagsVar[arch.CpuVariant],
 		}, " "),
 	}
 }

@@ -20,7 +20,7 @@ import (
 	"android/soong/common"
 )
 
-type toolchainFactory func(archVariant string, cpuVariant string) Toolchain
+type toolchainFactory func(arch common.Arch) Toolchain
 
 var toolchainFactories = map[common.HostOrDevice]map[common.ArchType]toolchainFactory{
 	common.Host:   make(map[common.ArchType]toolchainFactory),

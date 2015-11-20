@@ -208,12 +208,34 @@ type archProperties struct {
 	}
 }
 
+var archFeatureMap = map[ArchType]map[string][]string{}
+
+func RegisterArchFeatures(arch ArchType, variant string, features ...string) {
+	field := proptools.FieldNameForProperty(variant)
+	if variant != "" {
+		if !reflect.ValueOf(archProperties{}.Arch).FieldByName(field).IsValid() {
+			panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
+		}
+	}
+	for _, feature := range features {
+		field := proptools.FieldNameForProperty(feature)
+		if !reflect.ValueOf(archProperties{}.Arch).FieldByName(field).IsValid() {
+			panic(fmt.Errorf("Invalid feature %q for arch %q variant %q", feature, arch, variant))
+		}
+	}
+	if archFeatureMap[arch] == nil {
+		archFeatureMap[arch] = make(map[string][]string)
+	}
+	archFeatureMap[arch][variant] = features
+}
+
 // An Arch indicates a single CPU architecture.
 type Arch struct {
-	ArchType    ArchType
-	ArchVariant string
-	CpuVariant  string
-	Abi         []string
+	ArchType     ArchType
+	ArchVariant  string
+	CpuVariant   string
+	Abi          []string
+	ArchFeatures []string
 }
 
 func (a Arch) String() string {
@@ -516,6 +538,18 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
 		}
 
+		// Handle arch-feature-specific properties in the form:
+		// arch: {
+		//     feature: {
+		//         key: value,
+		//     },
+		// },
+		for _, feature := range arch.ArchFeatures {
+			field := proptools.FieldNameForProperty(feature)
+			prefix := "arch." + feature
+			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
+		}
+
 		// Handle multilib-specific properties in the form:
 		// multilib: {
 		//     lib32: {
@@ -727,6 +761,10 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 			a.Abi = append(a.Abi[:i], a.Abi[i+1:]...)
 			i--
 		}
+	}
+
+	if featureMap, ok := archFeatureMap[archType]; ok {
+		a.ArchFeatures = featureMap[stringPtr(archVariant)]
 	}
 
 	return a, nil
