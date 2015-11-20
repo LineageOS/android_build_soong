@@ -168,12 +168,21 @@ type archProperties struct {
 			Embed `blueprint:"filter(android:\"arch_variant\")"`
 
 			// X86 arch variants
-			Atom       interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Silvermont interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Atom        interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Haswell     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Ivybridge   interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Sandybridge interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Silvermont  interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 			// X86 arch features
-			Ssse3 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Ssse3  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Sse4   interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Sse4_1 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Sse4_2 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Aes_ni interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Avx    interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Popcnt interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Movbe  interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		}
 
 		// Properties for module variants being built to run on x86_64 (host or device)
