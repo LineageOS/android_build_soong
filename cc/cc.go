@@ -409,8 +409,8 @@ func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
 	hod := ctx.HostOrDevice()
 	factory := toolchainFactories[hod][arch.ArchType]
 	if factory == nil {
-		panic(fmt.Sprintf("Toolchain not found for %s arch %q",
-			hod.String(), arch.String()))
+		ctx.ModuleErrorf("Toolchain not found for %s arch %q", hod.String(), arch.String())
+		return nil
 	}
 	return factory(arch.ArchVariant, arch.CpuVariant)
 }

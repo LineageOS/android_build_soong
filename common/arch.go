@@ -431,7 +431,13 @@ var dashToUnderscoreReplacer = strings.NewReplacer("-", "_")
 func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
 	dst, src interface{}, field, srcPrefix string) {
 
-	src = reflect.ValueOf(src).FieldByName(field).Elem().Interface()
+	srcField := reflect.ValueOf(src).FieldByName(field)
+	if !srcField.IsValid() {
+		ctx.ModuleErrorf("field %q does not exist", srcPrefix)
+		return
+	}
+
+	src = srcField.Elem().Interface()
 
 	filter := func(property string,
 		dstField, srcField reflect.StructField,
@@ -647,7 +653,7 @@ func decodeArchProductVariables(variables productVariables) ([]Arch, []Arch, err
 
 	hostArches := []Arch{hostArch}
 
-	if variables.HostSecondaryArch != nil {
+	if variables.HostSecondaryArch != nil && *variables.HostSecondaryArch != "" {
 		hostSecondaryArch, err := decodeArch(*variables.HostSecondaryArch, nil, nil, nil)
 		if err != nil {
 			return nil, nil, err
@@ -667,7 +673,7 @@ func decodeArchProductVariables(variables productVariables) ([]Arch, []Arch, err
 
 	deviceArches := []Arch{deviceArch}
 
-	if variables.DeviceSecondaryArch != nil {
+	if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
 		deviceSecondaryArch, err := decodeArch(*variables.DeviceSecondaryArch,
 			variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
 			variables.DeviceSecondaryAbi)
@@ -696,14 +702,34 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 		return nil
 	}
 
-	archType := archTypeMap[arch]
+	archType, ok := archTypeMap[arch]
+	if !ok {
+		return Arch{}, fmt.Errorf("unknown arch %q", arch)
+	}
 
-	return Arch{
+	a := Arch{
 		ArchType:    archType,
 		ArchVariant: stringPtr(archVariant),
 		CpuVariant:  stringPtr(cpuVariant),
 		Abi:         slicePtr(abi),
-	}, nil
+	}
+
+	if a.ArchVariant == a.ArchType.Name || a.ArchVariant == "generic" {
+		a.ArchVariant = ""
+	}
+
+	if a.CpuVariant == a.ArchType.Name || a.CpuVariant == "generic" {
+		a.CpuVariant = ""
+	}
+
+	for i := 0; i < len(a.Abi); i++ {
+		if a.Abi[i] == "" {
+			a.Abi = append(a.Abi[:i], a.Abi[i+1:]...)
+			i--
+		}
+	}
+
+	return a, nil
 }
 
 // Use the module multilib setting to select one or more arches from an arch list
