@@ -63,11 +63,11 @@ var (
 
 	partialLd = pctx.StaticRule("partialLd",
 		blueprint.RuleParams{
-			Command:     "$ldCmd -r ${in} -o ${out}",
+			Command:     "$ldCmd -nostdlib -Wl,-r ${in} -o ${out} ${ldFlags}",
 			CommandDeps: []string{"$ldCmd"},
 			Description: "partialLd $out",
 		},
-		"ldCmd")
+		"ldCmd", "ldFlags")
 
 	ar = pctx.StaticRule("ar",
 		blueprint.RuleParams{
@@ -370,7 +370,12 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles []string,
 	flags builderFlags, outputFile string) {
 
-	ldCmd := gccCmd(flags.toolchain, "ld")
+	var ldCmd string
+	if flags.clang {
+		ldCmd = "${clangPath}clang++"
+	} else {
+		ldCmd = gccCmd(flags.toolchain, "g++")
+	}
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:    partialLd,
@@ -378,6 +383,7 @@ func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles []string,
 		Inputs:  objFiles,
 		Args: map[string]string{
 			"ldCmd": ldCmd,
+			"ldFlags": flags.ldFlags,
 		},
 	})
 }
