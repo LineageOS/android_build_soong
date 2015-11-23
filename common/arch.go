@@ -110,54 +110,76 @@ module {
 }
 */
 
+type Embed interface{}
+
 type archProperties struct {
 	// Properties to vary by target architecture
 	Arch struct {
 		// Properties for module variants being built to run on arm (host or device)
-		Arm interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Arm struct {
+			Embed `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Arm arch variants
+			Armv5te      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Armv7_a      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Armv7_a_neon interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Arm cpu variants
+			Cortex_a7      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Cortex_a8      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Cortex_a9      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Cortex_a15     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Cortex_a53     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Cortex_a53_a57 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Krait          interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Denver         interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		}
+
 		// Properties for module variants being built to run on arm64 (host or device)
-		Arm64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Arm64 struct {
+			Embed `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Arm64 arch variants
+			Armv8_a interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Arm64 cpu variants
+			Cortex_a53 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Denver64   interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		}
+
 		// Properties for module variants being built to run on mips (host or device)
-		Mips interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Mips struct {
+			Embed `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Mips arch variants
+			Rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		}
+
 		// Properties for module variants being built to run on mips64 (host or device)
-		Mips64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		Mips64 struct {
+			Embed `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Mips64 arch variants
+			Rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		}
+
 		// Properties for module variants being built to run on x86 (host or device)
-		X86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		X86 struct {
+			Embed `blueprint:"filter(android:\"arch_variant\")"`
+
+			// X86 arch variants
+			Atom       interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Silvermont interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+			// X86 arch features
+			Ssse3 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Sse4  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		}
+
 		// Properties for module variants being built to run on x86_64 (host or device)
-		X86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// Arm arch variants
-		Armv5te      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Armv7_a      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Armv7_a_neon interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// Arm cpu variants
-		Cortex_a7      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a8      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a9      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a15     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a53     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Cortex_a53_a57 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Krait          interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Denver         interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// Arm64 arch variants
-		Armv8_a interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// Arm64 cpu variants
-		Cortex_a53_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Denver64      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// Mips arch variants
-		Mips_rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// X86 arch variants
-		X86_ssse3 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		X86_sse4  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-		// X86 cpu variants
-		Atom       interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		Silvermont interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		X86_64 struct {
+			Embed `blueprint:"filter(android:\"arch_variant\")"`
+		}
 	}
 
 	// Properties to vary by 32-bit or 64-bit
@@ -211,15 +233,17 @@ type archProperties struct {
 var archFeatureMap = map[ArchType]map[string][]string{}
 
 func RegisterArchFeatures(arch ArchType, variant string, features ...string) {
-	field := proptools.FieldNameForProperty(variant)
+	archField := proptools.FieldNameForProperty(arch.Name)
+	variantField := proptools.FieldNameForProperty(variant)
+	archStruct := reflect.ValueOf(archProperties{}.Arch).FieldByName(archField)
 	if variant != "" {
-		if !reflect.ValueOf(archProperties{}.Arch).FieldByName(field).IsValid() {
+		if !archStruct.FieldByName(variantField).IsValid() {
 			panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
 		}
 	}
 	for _, feature := range features {
 		field := proptools.FieldNameForProperty(feature)
-		if !reflect.ValueOf(archProperties{}.Arch).FieldByName(field).IsValid() {
+		if !archStruct.FieldByName(field).IsValid() {
 			panic(fmt.Errorf("Invalid feature %q for arch %q variant %q", feature, arch, variant))
 		}
 	}
@@ -451,12 +475,18 @@ func InitArchModule(m AndroidModule,
 var dashToUnderscoreReplacer = strings.NewReplacer("-", "_")
 
 func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
-	dst, src interface{}, field, srcPrefix string) {
+	dst, src interface{}, field, srcPrefix string) interface{} {
 
 	srcField := reflect.ValueOf(src).FieldByName(field)
 	if !srcField.IsValid() {
 		ctx.ModuleErrorf("field %q does not exist", srcPrefix)
-		return
+		return nil
+	}
+
+	ret := srcField
+
+	if srcField.Kind() == reflect.Struct {
+		srcField = srcField.FieldByName("Embed")
 	}
 
 	src = srcField.Elem().Interface()
@@ -486,6 +516,8 @@ func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
 			panic(err)
 		}
 	}
+
+	return ret.Interface()
 }
 
 // Rewrite the module's properties structs to contain arch-specific values.
@@ -510,7 +542,7 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 
 		field := proptools.FieldNameForProperty(t.Name)
 		prefix := "arch." + t.Name
-		a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
+		archStruct := a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
 
 		// Handle arch-variant-specific properties in the form:
 		// arch: {
@@ -521,8 +553,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 		v := dashToUnderscoreReplacer.Replace(arch.ArchVariant)
 		if v != "" {
 			field := proptools.FieldNameForProperty(v)
-			prefix := "arch." + v
-			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
+			prefix := "arch." + t.Name + "." + v
+			a.appendProperties(ctx, genProps, archStruct, field, prefix)
 		}
 
 		// Handle cpu-variant-specific properties in the form:
@@ -534,8 +566,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 		c := dashToUnderscoreReplacer.Replace(arch.CpuVariant)
 		if c != "" {
 			field := proptools.FieldNameForProperty(c)
-			prefix := "arch." + c
-			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
+			prefix := "arch." + t.Name + "." + c
+			a.appendProperties(ctx, genProps, archStruct, field, prefix)
 		}
 
 		// Handle arch-feature-specific properties in the form:
@@ -546,8 +578,8 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 		// },
 		for _, feature := range arch.ArchFeatures {
 			field := proptools.FieldNameForProperty(feature)
-			prefix := "arch." + feature
-			a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
+			prefix := "arch." + t.Name + "." + feature
+			a.appendProperties(ctx, genProps, archStruct, field, prefix)
 		}
 
 		// Handle multilib-specific properties in the form:
