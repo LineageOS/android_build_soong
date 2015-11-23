@@ -433,6 +433,7 @@ build ${g.bootstrap.buildDir}/.bootstrap/choosestage/obj/a.out: $
         ${g.bootstrap.buildDir}/.bootstrap/choosestage/obj/choosestage.a | $
         ${g.bootstrap.linkCmd}
 default ${g.bootstrap.buildDir}/.bootstrap/choosestage/obj/a.out
+
 build ${g.bootstrap.BinDir}/choosestage: g.bootstrap.cp $
         ${g.bootstrap.buildDir}/.bootstrap/choosestage/obj/a.out
 default ${g.bootstrap.BinDir}/choosestage
@@ -456,6 +457,7 @@ build ${g.bootstrap.buildDir}/.bootstrap/gotestmain/obj/a.out: $
         ${g.bootstrap.buildDir}/.bootstrap/gotestmain/obj/gotestmain.a | $
         ${g.bootstrap.linkCmd}
 default ${g.bootstrap.buildDir}/.bootstrap/gotestmain/obj/a.out
+
 build ${g.bootstrap.BinDir}/gotestmain: g.bootstrap.cp $
         ${g.bootstrap.buildDir}/.bootstrap/gotestmain/obj/a.out
 default ${g.bootstrap.BinDir}/gotestmain
@@ -479,6 +481,7 @@ build ${g.bootstrap.buildDir}/.bootstrap/gotestrunner/obj/a.out: $
         ${g.bootstrap.buildDir}/.bootstrap/gotestrunner/obj/gotestrunner.a | $
         ${g.bootstrap.linkCmd}
 default ${g.bootstrap.buildDir}/.bootstrap/gotestrunner/obj/a.out
+
 build ${g.bootstrap.BinDir}/gotestrunner: g.bootstrap.cp $
         ${g.bootstrap.buildDir}/.bootstrap/gotestrunner/obj/a.out
 default ${g.bootstrap.BinDir}/gotestrunner
@@ -555,6 +558,7 @@ default ${g.bootstrap.buildDir}/.bootstrap/bootstrap.ninja.in
 
 build ${g.bootstrap.buildDir}/.bootstrap/notAFile: phony
 default ${g.bootstrap.buildDir}/.bootstrap/notAFile
+
 build ${g.bootstrap.buildDir}/.bootstrap/build.ninja.in: $
         g.bootstrap.chooseStage $
         ${g.bootstrap.buildDir}/.bootstrap/bootstrap.ninja.in $
