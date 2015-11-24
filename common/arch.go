@@ -49,7 +49,7 @@ var archTypeMap = map[string]ArchType{
 	"arm":    Arm,
 	"arm64":  Arm64,
 	"mips":   Mips,
-	"misp64": Mips64,
+	"mips64": Mips64,
 	"x86":    X86,
 	"x86_64": X86_64,
 }
@@ -168,6 +168,10 @@ type archProperties struct {
 			Embed `blueprint:"filter(android:\"arch_variant\")"`
 
 			// Mips64 arch variants
+			Mips64r2 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Mips64r6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Mips64 arch features
 			Rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		}
 
