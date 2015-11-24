@@ -39,6 +39,8 @@ type Toolchain interface {
 	GccRoot() string
 	GccTriple() string
 	GccVersion() string
+	ToolchainCflags() string
+	ToolchainLdflags() string
 	Cflags() string
 	Cppflags() string
 	Ldflags() string
@@ -46,6 +48,7 @@ type Toolchain interface {
 	InstructionSetFlags(string) (string, error)
 
 	ClangTriple() string
+	ToolchainClangCflags() string
 	ClangCflags() string
 	ClangCppflags() string
 	ClangLdflags() string
@@ -69,6 +72,18 @@ func (toolchainBase) ClangInstructionSetFlags(s string) (string, error) {
 		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
 	}
 	return "", nil
+}
+
+func (toolchainBase) ToolchainCflags() string {
+	return ""
+}
+
+func (toolchainBase) ToolchainLdflags() string {
+	return ""
+}
+
+func (toolchainBase) ToolchainClangCflags() string {
+	return ""
 }
 
 type toolchain64Bit struct {

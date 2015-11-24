@@ -8,6 +8,10 @@ import (
 )
 
 var (
+	armToolchainCflags = []string{
+		"-mthumb-interwork",
+	}
+
 	armCflags = []string{
 		"-fno-exceptions", // from build/core/combo/select.mk
 		"-Wno-multichar",  // from build/core/combo/select.mk
@@ -25,8 +29,6 @@ var (
 
 		"-fno-builtin-sin",
 		"-fno-strict-volatile-bitfields",
-
-		"-mthumb-interwork",
 
 		// TARGET_RELEASE_CFLAGS
 		"-DNDEBUG",
@@ -139,6 +141,7 @@ func init() {
 
 	pctx.StaticVariable("armGccTriple", "arm-linux-androideabi")
 
+	pctx.StaticVariable("armToolchainCflags", strings.Join(armToolchainCflags, " "))
 	pctx.StaticVariable("armCflags", strings.Join(armCflags, " "))
 	pctx.StaticVariable("armLdflags", strings.Join(armLdflags, " "))
 	pctx.StaticVariable("armCppflags", strings.Join(armCppflags, " "))
@@ -168,6 +171,7 @@ func init() {
 	pctx.StaticVariable("armCortexA15Cflags", strings.Join(armCpuVariantCflags["cortex-a15"], " "))
 
 	// Clang cflags
+	pctx.StaticVariable("armToolchainClangCflags", strings.Join(clangFilterUnknownCflags(armToolchainCflags), " "))
 	pctx.StaticVariable("armClangCflags", strings.Join(clangFilterUnknownCflags(armCflags), " "))
 	pctx.StaticVariable("armClangLdflags", strings.Join(clangFilterUnknownCflags(armLdflags), " "))
 	pctx.StaticVariable("armClangCppflags", strings.Join(clangFilterUnknownCflags(armCppflags), " "))
@@ -233,7 +237,8 @@ var (
 
 type toolchainArm struct {
 	toolchain32Bit
-	cflags, ldflags, clangCflags string
+	ldflags                               string
+	toolchainCflags, toolchainClangCflags string
 }
 
 func (t *toolchainArm) Name() string {
@@ -252,8 +257,12 @@ func (t *toolchainArm) GccVersion() string {
 	return "${armGccVersion}"
 }
 
+func (t *toolchainArm) ToolchainCflags() string {
+	return t.toolchainCflags
+}
+
 func (t *toolchainArm) Cflags() string {
-	return t.cflags
+	return "${armCflags}"
 }
 
 func (t *toolchainArm) Cppflags() string {
@@ -283,8 +292,12 @@ func (t *toolchainArm) ClangTriple() string {
 	return "${armGccTriple}"
 }
 
+func (t *toolchainArm) ToolchainClangCflags() string {
+	return t.toolchainClangCflags
+}
+
 func (t *toolchainArm) ClangCflags() string {
-	return t.clangCflags
+	return "${armClangCflags}"
 }
 
 func (t *toolchainArm) ClangCppflags() string {
@@ -317,8 +330,8 @@ func armToolchainFactory(arch common.Arch) Toolchain {
 	}
 
 	return &toolchainArm{
-		cflags: strings.Join([]string{
-			"${armCflags}",
+		toolchainCflags: strings.Join([]string{
+			"${armToolchainCflags}",
 			armArchVariantCflagsVar[arch.ArchVariant],
 			armCpuVariantCflagsVar[arch.CpuVariant],
 		}, " "),
@@ -326,8 +339,8 @@ func armToolchainFactory(arch common.Arch) Toolchain {
 			"${armLdflags}",
 			fixCortexA8,
 		}, " "),
-		clangCflags: strings.Join([]string{
-			"${armClangCflags}",
+		toolchainClangCflags: strings.Join([]string{
+			"${armToolchainClangCflags}",
 			armClangArchVariantCflagsVar[arch.ArchVariant],
 			armClangCpuVariantCflagsVar[arch.CpuVariant],
 		}, " "),

@@ -590,6 +590,13 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}
 	}
 
+	if flags.Clang {
+		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainClangCflags())
+	} else {
+		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainCflags())
+		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
+	}
+
 	flags = c.ccModuleType().flags(ctx, flags)
 
 	if c.Properties.Sdk_version == "" {
