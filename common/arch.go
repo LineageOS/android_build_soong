@@ -152,6 +152,14 @@ type archProperties struct {
 			Embed `blueprint:"filter(android:\"arch_variant\")"`
 
 			// Mips arch variants
+			Mips32_fp          interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Mips32r2_fp        interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Mips32r2_fp_xburst interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Mips32r2dsp_fp     interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Mips32r2dspr2_fp   interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			Mips32r6           interface{} `blueprint:"filter(android:\"arch_variant\")"`
+
+			// Mips arch features
 			Rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		}
 
