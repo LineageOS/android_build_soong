@@ -139,7 +139,7 @@ func init() {
 		"-isystem ${SrcDir}/frameworks/base/include",
 	}, " "))
 
-	pctx.StaticVariable("clangPath", "${SrcDir}/prebuilts/clang/${HostPrebuiltTag}/host/3.6/bin/")
+	pctx.StaticVariable("clangPath", "${SrcDir}/prebuilts/clang/host/${HostPrebuiltTag}/3.8/bin/")
 }
 
 type CCModuleContext common.AndroidBaseContext
