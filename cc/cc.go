@@ -1229,7 +1229,7 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 
 	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, false,
-		ccFlagsToBuilderFlags(flags), outputFile)
+		ccFlagsToBuilderFlags(sharedFlags), outputFile)
 
 	c.out = outputFile
 	includeDirs := pathtools.PrefixPaths(c.Properties.Export_include_dirs, common.ModuleSrcDir(ctx))
