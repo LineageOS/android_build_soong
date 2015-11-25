@@ -258,5 +258,5 @@ func x86ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(common.Device, common.X86, x86ToolchainFactory)
+	registerDeviceToolchainFactory(common.X86, x86ToolchainFactory)
 }

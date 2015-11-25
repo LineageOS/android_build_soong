@@ -22,15 +22,23 @@ import (
 
 type toolchainFactory func(arch common.Arch) Toolchain
 
-var toolchainFactories = map[common.HostOrDevice]map[common.ArchType]toolchainFactory{
-	common.Host:   make(map[common.ArchType]toolchainFactory),
-	common.Device: make(map[common.ArchType]toolchainFactory),
+var toolchainFactories = map[common.HostOrDevice]map[common.HostType]map[common.ArchType]toolchainFactory{
+	common.Host: map[common.HostType]map[common.ArchType]toolchainFactory{
+		common.Linux:   make(map[common.ArchType]toolchainFactory),
+		common.Darwin:  make(map[common.ArchType]toolchainFactory),
+		common.Windows: make(map[common.ArchType]toolchainFactory),
+	},
+	common.Device: map[common.HostType]map[common.ArchType]toolchainFactory{
+		common.NoHostType: make(map[common.ArchType]toolchainFactory),
+	},
 }
 
-func registerToolchainFactory(hod common.HostOrDevice, arch common.ArchType,
-	factory toolchainFactory) {
+func registerDeviceToolchainFactory(arch common.ArchType, factory toolchainFactory) {
+	toolchainFactories[common.Device][common.NoHostType][arch] = factory
+}
 
-	toolchainFactories[hod][arch] = factory
+func registerHostToolchainFactory(ht common.HostType, arch common.ArchType, factory toolchainFactory) {
+	toolchainFactories[common.Host][ht][arch] = factory
 }
 
 type Toolchain interface {
@@ -47,6 +55,7 @@ type Toolchain interface {
 	IncludeFlags() string
 	InstructionSetFlags(string) (string, error)
 
+	ClangSupported() bool
 	ClangTriple() string
 	ToolchainClangCflags() string
 	ClangCflags() string
@@ -55,6 +64,9 @@ type Toolchain interface {
 	ClangInstructionSetFlags(string) (string, error)
 
 	Is64Bit() bool
+
+	ShlibSuffix() string
+	ExecutableSuffix() string
 }
 
 type toolchainBase struct {
@@ -83,6 +95,18 @@ func (toolchainBase) ToolchainLdflags() string {
 }
 
 func (toolchainBase) ToolchainClangCflags() string {
+	return ""
+}
+
+func (toolchainBase) ClangSupported() bool {
+	return true
+}
+
+func (toolchainBase) ShlibSuffix() string {
+	return ".so"
+}
+
+func (toolchainBase) ExecutableSuffix() string {
 	return ""
 }
 

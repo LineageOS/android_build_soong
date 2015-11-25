@@ -17,7 +17,6 @@ package common
 import (
 	"android/soong"
 	"path/filepath"
-	"runtime"
 
 	"android/soong/glob"
 
@@ -37,6 +36,7 @@ var (
 type androidBaseContext interface {
 	Arch() Arch
 	HostOrDevice() HostOrDevice
+	HostType() HostType
 	Host() bool
 	Device() bool
 	Darwin() bool
@@ -87,6 +87,9 @@ type commonProperties struct {
 
 	// Set by HostOrDeviceMutator
 	CompileHostOrDevice HostOrDevice `blueprint:"mutated"`
+
+	// Set by HostTypeMutator
+	CompileHostType HostType `blueprint:"mutated"`
 
 	// Set by ArchMutator
 	CompileArch Arch `blueprint:"mutated"`
@@ -208,12 +211,20 @@ func (a *AndroidModuleBase) SetHostOrDevice(hod HostOrDevice) {
 	a.commonProperties.CompileHostOrDevice = hod
 }
 
+func (a *AndroidModuleBase) SetHostType(ht HostType) {
+	a.commonProperties.CompileHostType = ht
+}
+
 func (a *AndroidModuleBase) SetArch(arch Arch) {
 	a.commonProperties.CompileArch = arch
 }
 
 func (a *AndroidModuleBase) HostOrDevice() HostOrDevice {
 	return a.commonProperties.CompileHostOrDevice
+}
+
+func (a *AndroidModuleBase) HostType() HostType {
+	return a.commonProperties.CompileHostType
 }
 
 func (a *AndroidModuleBase) HostSupported() bool {
@@ -229,6 +240,12 @@ func (a *AndroidModuleBase) DeviceSupported() bool {
 }
 
 func (a *AndroidModuleBase) Disabled() bool {
+	if a.commonProperties.CompileHostOrDevice == Host &&
+		a.commonProperties.CompileHostType == Windows &&
+		a.commonProperties.Disabled == nil {
+
+		return true
+	}
 	return proptools.Bool(a.commonProperties.Disabled)
 }
 
@@ -308,6 +325,7 @@ func (a *AndroidModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleCo
 	return androidBaseContextImpl{
 		arch:   a.commonProperties.CompileArch,
 		hod:    a.commonProperties.CompileHostOrDevice,
+		ht:     a.commonProperties.CompileHostType,
 		config: ctx.Config().(Config),
 	}
 }
@@ -320,7 +338,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		installFiles:           a.installFiles,
 	}
 
-	if proptools.Bool(a.commonProperties.Disabled) {
+	if a.Disabled() {
 		return
 	}
 
@@ -341,6 +359,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 type androidBaseContextImpl struct {
 	arch   Arch
 	hod    HostOrDevice
+	ht     HostType
 	debug  bool
 	config Config
 }
@@ -366,6 +385,10 @@ func (a *androidBaseContextImpl) HostOrDevice() HostOrDevice {
 	return a.hod
 }
 
+func (a *androidBaseContextImpl) HostType() HostType {
+	return a.ht
+}
+
 func (a *androidBaseContextImpl) Host() bool {
 	return a.hod.Host()
 }
@@ -375,7 +398,7 @@ func (a *androidBaseContextImpl) Device() bool {
 }
 
 func (a *androidBaseContextImpl) Darwin() bool {
-	return a.hod.Host() && runtime.GOOS == "darwin"
+	return a.hod.Host() && a.ht == Darwin
 }
 
 func (a *androidBaseContextImpl) Debug() bool {
@@ -396,7 +419,12 @@ func (a *androidModuleContext) InstallFileName(installPath, name, srcPath string
 		fullInstallPath = filepath.Join(config.DeviceOut(), "system",
 			installPath, name)
 	} else {
-		fullInstallPath = filepath.Join(config.HostOut(), installPath, name)
+		// TODO
+		if a.ht == Windows {
+			fullInstallPath = filepath.Join(config.BuildDir(), "host", "windows-x86", installPath, name)
+		} else {
+			fullInstallPath = filepath.Join(config.HostOut(), installPath, name)
+		}
 	}
 
 	deps = append(deps, a.installDeps...)

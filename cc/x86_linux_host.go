@@ -1,7 +1,6 @@
 package cc
 
 import (
-	"runtime"
 	"strings"
 
 	"android/soong/common"
@@ -11,6 +10,8 @@ var (
 	linuxCflags = []string{
 		"-fno-exceptions", // from build/core/combo/select.mk
 		"-Wno-multichar",  // from build/core/combo/select.mk
+
+		"-fdiagnostics-color",
 
 		"-Wa,--noexecstack",
 
@@ -233,8 +234,6 @@ func linuxX8664ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	if runtime.GOOS == "linux" {
-		registerToolchainFactory(common.Host, common.X86, linuxX86ToolchainFactory)
-		registerToolchainFactory(common.Host, common.X86_64, linuxX8664ToolchainFactory)
-	}
+	registerHostToolchainFactory(common.Linux, common.X86, linuxX86ToolchainFactory)
+	registerHostToolchainFactory(common.Linux, common.X86_64, linuxX8664ToolchainFactory)
 }

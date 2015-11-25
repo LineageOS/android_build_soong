@@ -130,6 +130,7 @@ bootstrap_go_package {
 
         "cc/x86_darwin_host.go",
         "cc/x86_linux_host.go",
+        "cc/x86_windows_host.go",
     ],
     testSrcs: [
         "cc/cc_test.go",

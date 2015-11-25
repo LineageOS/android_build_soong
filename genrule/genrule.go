@@ -88,8 +88,10 @@ func (g *generator) GeneratedSourceFiles() []string {
 func genruleDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*generator); ok {
 		if g.properties.Tool != "" {
-			ctx.AddFarVariationDependencies([]blueprint.Variation{{"hostordevice", common.Host.String()}},
-				g.properties.Tool)
+			ctx.AddFarVariationDependencies([]blueprint.Variation{
+					{"host_or_device", common.Host.String()},
+					{"host_type", common.CurrentHostType().String()},
+				}, g.properties.Tool)
 		}
 	}
 }

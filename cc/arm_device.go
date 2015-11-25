@@ -362,5 +362,5 @@ func armToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(common.Device, common.Arm, armToolchainFactory)
+	registerDeviceToolchainFactory(common.Arm, armToolchainFactory)
 }

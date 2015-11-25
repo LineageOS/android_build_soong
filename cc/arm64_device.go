@@ -155,5 +155,5 @@ func arm64ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(common.Device, common.Arm64, arm64ToolchainFactory)
+	registerDeviceToolchainFactory(common.Arm64, arm64ToolchainFactory)
 }

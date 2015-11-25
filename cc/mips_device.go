@@ -227,5 +227,5 @@ func mipsToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(common.Device, common.Mips, mipsToolchainFactory)
+	registerDeviceToolchainFactory(common.Mips, mipsToolchainFactory)
 }

@@ -17,6 +17,7 @@ package common
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -69,6 +70,10 @@ type productVariables struct {
 
 	HostArch          *string `json:",omitempty"`
 	HostSecondaryArch *string `json:",omitempty"`
+
+	CrossHost              *string `json:",omitempty"`
+	CrossHostArch          *string `json:",omitempty"`
+	CrossHostSecondaryArch *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -98,6 +103,11 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
 		DeviceSecondaryCpuVariant:  stringPtr("denver"),
 		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
+	}
+
+	if runtime.GOOS == "linux" {
+		v.CrossHost = stringPtr("windows")
+		v.CrossHostArch = stringPtr("x86")
 	}
 }
 

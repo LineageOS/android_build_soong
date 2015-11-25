@@ -195,5 +195,5 @@ func mips64ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(common.Device, common.Mips64, mips64ToolchainFactory)
+	registerDeviceToolchainFactory(common.Mips64, mips64ToolchainFactory)
 }

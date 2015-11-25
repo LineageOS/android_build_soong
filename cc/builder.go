@@ -33,7 +33,6 @@ import (
 
 const (
 	objectExtension        = ".o"
-	sharedLibraryExtension = ".so"
 	staticLibraryExtension = ".a"
 )
 
@@ -310,7 +309,7 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 	var libFlagsList []string
 
 	if len(wholeStaticLibs) > 0 {
-		if ctx.Host() && runtime.GOOS == "darwin" {
+		if ctx.Host() && ctx.Darwin() {
 			libFlagsList = append(libFlagsList, common.JoinWithPrefix(wholeStaticLibs, "-force_load "))
 		} else {
 			libFlagsList = append(libFlagsList, "-Wl,--whole-archive ")
@@ -334,11 +333,11 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 		if !strings.HasPrefix(file, "lib") {
 			panic("shared library " + lib + " does not start with lib")
 		}
-		if !strings.HasSuffix(file, sharedLibraryExtension) {
-			panic("shared library " + lib + " does not end with " + sharedLibraryExtension)
+		if !strings.HasSuffix(file, flags.toolchain.ShlibSuffix()) {
+			panic("shared library " + lib + " does not end with " + flags.toolchain.ShlibSuffix())
 		}
 		libFlagsList = append(libFlagsList,
-			"-l"+strings.TrimSuffix(strings.TrimPrefix(file, "lib"), sharedLibraryExtension))
+			"-l"+strings.TrimSuffix(strings.TrimPrefix(file, "lib"), flags.toolchain.ShlibSuffix()))
 		ldDirs = append(ldDirs, dir)
 	}
 
