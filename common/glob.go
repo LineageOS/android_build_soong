@@ -68,7 +68,7 @@ func hasGlob(in []string) bool {
 
 // The subset of ModuleContext and SingletonContext needed by Glob
 type globContext interface {
-	Build(pctx *blueprint.PackageContext, params blueprint.BuildParams)
+	Build(pctx blueprint.PackageContext, params blueprint.BuildParams)
 	AddNinjaFileDeps(deps ...string)
 }
 
