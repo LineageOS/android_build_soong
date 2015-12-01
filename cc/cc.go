@@ -1514,6 +1514,7 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 			}
 
 			flags.LdFlags = append(flags.LdFlags,
+				"-pie",
 				"-nostdlib",
 				"-Bdynamic",
 				fmt.Sprintf("-Wl,-dynamic-linker,%s", linker),
