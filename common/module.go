@@ -15,13 +15,12 @@
 package common
 
 import (
-	"android/soong"
 	"path/filepath"
 
+	"android/soong"
 	"android/soong/glob"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -67,7 +66,7 @@ type AndroidModule interface {
 	GenerateAndroidBuildActions(AndroidModuleContext)
 
 	base() *AndroidModuleBase
-	Disabled() bool
+	Enabled() bool
 	HostOrDevice() HostOrDevice
 }
 
@@ -76,8 +75,8 @@ type commonProperties struct {
 	Deps []string
 	Tags []string
 
-	// don't emit any build rules for this module
-	Disabled *bool `android:"arch_variant"`
+	// emit build rules for this module
+	Enabled *bool `android:"arch_variant"`
 
 	// control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
 	// are "32" (compile for 32-bit only), "64" (compile for 64-bit only), "both" (compile for both
@@ -239,14 +238,15 @@ func (a *AndroidModuleBase) DeviceSupported() bool {
 			a.hostAndDeviceProperties.Device_supported
 }
 
-func (a *AndroidModuleBase) Disabled() bool {
-	if a.commonProperties.CompileHostOrDevice == Host &&
-		a.commonProperties.CompileHostType == Windows &&
-		a.commonProperties.Disabled == nil {
-
-		return true
+func (a *AndroidModuleBase) Enabled() bool {
+	if a.commonProperties.Enabled == nil {
+		if a.HostSupported() && a.HostOrDevice().Host() && a.HostType() == Windows {
+			return false
+		} else {
+			return true
+		}
 	}
-	return proptools.Bool(a.commonProperties.Disabled)
+	return *a.commonProperties.Enabled
 }
 
 func (a *AndroidModuleBase) computeInstallDeps(
@@ -338,7 +338,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		installFiles:           a.installFiles,
 	}
 
-	if a.Disabled() {
+	if !a.Enabled() {
 		return
 	}
 

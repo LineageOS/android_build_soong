@@ -694,7 +694,7 @@ func (c *CCBase) depsToPathsFromList(ctx common.AndroidModuleContext,
 			}
 
 			if a, ok := m.(CCModuleType); ok {
-				if a.Disabled() {
+				if !a.Enabled() {
 					// If a cc_library host+device module depends on a library that exists as both
 					// cc_library_shared and cc_library_host_shared, it will end up with two
 					// dependencies with the same name, one of which is marked disabled for each
