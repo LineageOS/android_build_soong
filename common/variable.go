@@ -163,9 +163,7 @@ func variableMutator(mctx AndroidBottomUpMutatorContext) {
 func (a *AndroidModuleBase) setVariableProperties(ctx AndroidBottomUpMutatorContext,
 	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
 
-	if variableValue != nil {
-		printfIntoProperties(productVariablePropertyValue, variableValue)
-	}
+	printfIntoProperties(productVariablePropertyValue, variableValue)
 
 	err := proptools.AppendMatchingProperties(a.generalProperties,
 		productVariablePropertyValue.Addr().Interface(), nil)
@@ -181,6 +179,13 @@ func (a *AndroidModuleBase) setVariableProperties(ctx AndroidBottomUpMutatorCont
 func printfIntoProperties(productVariablePropertyValue reflect.Value, variableValue interface{}) {
 	for i := 0; i < productVariablePropertyValue.NumField(); i++ {
 		propertyValue := productVariablePropertyValue.Field(i)
+		kind := propertyValue.Kind()
+		if kind == reflect.Ptr {
+			if propertyValue.IsNil() {
+				continue
+			}
+			propertyValue = propertyValue.Elem()
+		}
 		switch propertyValue.Kind() {
 		case reflect.String:
 			printfIntoProperty(propertyValue, variableValue)
@@ -188,6 +193,8 @@ func printfIntoProperties(productVariablePropertyValue reflect.Value, variableVa
 			for j := 0; j < propertyValue.Len(); j++ {
 				printfIntoProperty(propertyValue.Index(j), variableValue)
 			}
+		case reflect.Bool:
+			// Nothing
 		case reflect.Struct:
 			printfIntoProperties(propertyValue, variableValue)
 		default:
