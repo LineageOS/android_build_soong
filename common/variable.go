@@ -45,7 +45,13 @@ type variableProperties struct {
 		Platform_sdk_version struct {
 			Asflags []string
 		}
-	}
+
+		// unbundled_build is a catch-all property to annotate modules that don't build in one or
+		// more unbundled branches, usually due to dependencies missing from the manifest.
+		Unbundled_build struct {
+			Enabled *bool `android:"arch_variant"`
+		} `android:"arch_variant"`
+	} `android:"arch_variant"`
 }
 
 var zeroProductVariables variableProperties
@@ -74,6 +80,8 @@ type productVariables struct {
 	CrossHost              *string `json:",omitempty"`
 	CrossHostArch          *string `json:",omitempty"`
 	CrossHostSecondaryArch *string `json:",omitempty"`
+
+	Unbundled_build *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
