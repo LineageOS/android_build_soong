@@ -316,6 +316,9 @@ var conditionalTranslations = map[string]map[bool]string{
 	"USE_MINGW": {
 		true:  "target.windows",
 		false: "target.not_windows"},
+	"(,$(TARGET_BUILD_APPS))": {
+		false: "product_variables.unbundled_build",
+	},
 }
 
 func mydir(args []string) string {

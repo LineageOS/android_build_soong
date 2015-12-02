@@ -25,6 +25,8 @@ type bpFile struct {
 
 	pos            scanner.Position
 	prevLine, line int
+
+	inModule bool
 }
 
 func (f *bpFile) errorf(thing mkparser.MakeThing, s string, args ...interface{}) {
@@ -91,7 +93,7 @@ func main() {
 	}
 
 	var conds []*conditional
-	var cond *conditional
+	var assignmentCond *conditional
 
 	for _, t := range things {
 		file.setPos(t.Pos(), t.EndPos())
@@ -102,14 +104,14 @@ func main() {
 				Comment: []string{"//" + comment.Comment},
 			})
 		} else if assignment, ok := t.AsAssignment(); ok {
-			handleAssignment(file, assignment, cond)
+			handleAssignment(file, assignment, assignmentCond)
 		} else if directive, ok := t.AsDirective(); ok {
 			switch directive.Name {
 			case "include":
 				val := directive.Args.Value(file.scope)
 				switch {
 				case soongModuleTypes[val]:
-					handleModuleConditionals(file, directive, cond)
+					handleModuleConditionals(file, directive, conds)
 					makeModule(file, val)
 				case val == clear_vars:
 					resetModule(file)
@@ -123,10 +125,12 @@ func main() {
 				if _, ok := conditionalTranslations[args]; ok {
 					newCond := conditional{args, eq}
 					conds = append(conds, &newCond)
-					if cond == nil {
-						cond = &newCond
-					} else {
-						file.errorf(directive, "unsupported nested conditional")
+					if file.inModule {
+						if assignmentCond == nil {
+							assignmentCond = &newCond
+						} else {
+							file.errorf(directive, "unsupported nested conditional in module")
+						}
 					}
 				} else {
 					file.errorf(directive, "unsupported conditional")
@@ -141,7 +145,7 @@ func main() {
 					file.errorf(directive, "else from unsupported contitional")
 					continue
 				}
-				cond.eq = !cond.eq
+				conds[len(conds)-1].eq = !conds[len(conds)-1].eq
 			case "endif":
 				if len(conds) == 0 {
 					file.errorf(directive, "missing if before endif")
@@ -150,8 +154,8 @@ func main() {
 					file.errorf(directive, "endif from unsupported contitional")
 					conds = conds[:len(conds)-1]
 				} else {
-					if cond == conds[len(conds)-1] {
-						cond = nil
+					if assignmentCond == conds[len(conds)-1] {
+						assignmentCond = nil
 					}
 					conds = conds[:len(conds)-1]
 				}
@@ -258,43 +262,26 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 	}
 }
 
-func handleModuleConditionals(file *bpFile, directive mkparser.Directive, c *conditional) {
-	if c == nil {
-		return
-	}
-
-	if _, ok := conditionalTranslations[c.cond]; !ok {
-		panic("unknown conditional " + c.cond)
-	}
-
-	prefix := conditionalTranslations[c.cond][c.eq]
-	disabledPrefix := conditionalTranslations[c.cond][!c.eq]
-
-	names := strings.Split(prefix, ".")
-	if len(names) != 2 {
-		panic("expected class.type")
-	}
-	class := names[0]
-	typ := names[1]
-	classProp := file.localAssignments[class]
-
-	// Hoist all properties inside the condtional up to the top level
-	file.module.Properties = file.localAssignments[prefix].Value.MapValue
-	file.module.Properties = append(file.module.Properties, classProp)
-	file.localAssignments[prefix].Value.MapValue = nil
-	for i := range classProp.Value.MapValue {
-		if classProp.Value.MapValue[i].Name.Name == typ {
-			classProp.Value.MapValue = append(classProp.Value.MapValue[:i], classProp.Value.MapValue[i+1:]...)
+func handleModuleConditionals(file *bpFile, directive mkparser.Directive, conds []*conditional) {
+	for _, c := range conds {
+		if c == nil {
+			continue
 		}
-	}
 
-	// Create a fake assignment with enabled = false
-	val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("true", file.pos), bpparser.Bool)
-	if err == nil {
-		err = setVariable(file, false, disabledPrefix, "disabled", val, true)
-	}
-	if err != nil {
-		file.errorf(directive, err.Error())
+		if _, ok := conditionalTranslations[c.cond]; !ok {
+			panic("unknown conditional " + c.cond)
+		}
+
+		disabledPrefix := conditionalTranslations[c.cond][!c.eq]
+
+		// Create a fake assignment with enabled = false
+		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", file.pos), bpparser.Bool)
+		if err == nil {
+			err = setVariable(file, false, disabledPrefix, "enabled", val, true)
+		}
+		if err != nil {
+			file.errorf(directive, err.Error())
+		}
 	}
 }
 
@@ -305,12 +292,14 @@ func makeModule(file *bpFile, t string) {
 	}
 	file.module.RbracePos = file.pos
 	file.defs = append(file.defs, file.module)
+	file.inModule = false
 }
 
 func resetModule(file *bpFile) {
 	file.module = &bpparser.Module{}
 	file.module.LbracePos = file.pos
 	file.localAssignments = make(map[string]*bpparser.Property)
+	file.inModule = true
 }
 
 func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
