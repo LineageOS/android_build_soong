@@ -1068,6 +1068,12 @@ type CCLibraryProperties struct {
 
 	// local file name to pass to the linker as --version_script
 	Version_script string `android:"arch_variant"`
+	// local file name to pass to the linker as -unexported_symbols_list
+	Unexported_symbols_list string `android:"arch_variant"`
+	// local file name to pass to the linker as -force_symbols_not_weak_list
+	Force_symbols_not_weak_list string `android:"arch_variant"`
+	// local file name to pass to the linker as -force_symbols_weak_list
+	Force_symbols_weak_list string `android:"arch_variant"`
 }
 
 type CCLibrary struct {
@@ -1260,10 +1266,40 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 
 	var linkerDeps []string
 
-	if c.LibraryProperties.Version_script != "" {
-		versionScript := filepath.Join(common.ModuleSrcDir(ctx), c.LibraryProperties.Version_script)
-		sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,--version-script,"+versionScript)
-		linkerDeps = append(linkerDeps, versionScript)
+	if !ctx.Darwin() {
+		if c.LibraryProperties.Version_script != "" {
+			versionScript := filepath.Join(common.ModuleSrcDir(ctx), c.LibraryProperties.Version_script)
+			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,--version-script,"+versionScript)
+			linkerDeps = append(linkerDeps, versionScript)
+		}
+		if c.LibraryProperties.Unexported_symbols_list != "" {
+			ctx.PropertyErrorf("unexported_symbols_list", "Only supported on Darwin")
+		}
+		if c.LibraryProperties.Force_symbols_not_weak_list != "" {
+			ctx.PropertyErrorf("force_symbols_not_weak_list", "Only supported on Darwin")
+		}
+		if c.LibraryProperties.Force_symbols_weak_list != "" {
+			ctx.PropertyErrorf("force_symbols_weak_list", "Only supported on Darwin")
+		}
+	} else {
+		if c.LibraryProperties.Version_script != "" {
+			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
+		}
+		if c.LibraryProperties.Unexported_symbols_list != "" {
+			localFile := filepath.Join(common.ModuleSrcDir(ctx), c.LibraryProperties.Unexported_symbols_list)
+			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,-unexported_symbols_list,"+localFile)
+			linkerDeps = append(linkerDeps, localFile)
+		}
+		if c.LibraryProperties.Force_symbols_not_weak_list != "" {
+			localFile := filepath.Join(common.ModuleSrcDir(ctx), c.LibraryProperties.Force_symbols_not_weak_list)
+			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,-force_symbols_not_weak_list,"+localFile)
+			linkerDeps = append(linkerDeps, localFile)
+		}
+		if c.LibraryProperties.Force_symbols_weak_list != "" {
+			localFile := filepath.Join(common.ModuleSrcDir(ctx), c.LibraryProperties.Force_symbols_weak_list)
+			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,-force_symbols_weak_list,"+localFile)
+			linkerDeps = append(linkerDeps, localFile)
+		}
 	}
 
 	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
