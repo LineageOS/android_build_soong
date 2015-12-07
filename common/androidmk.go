@@ -51,33 +51,32 @@ func AndroidMkSingleton() blueprint.Singleton {
 type androidMkSingleton struct{}
 
 func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	fileModules := make(map[string][]blueprint.Module)
-	hasBPFile := make(map[string]bool)
-	bpFiles := []string{}
+	dirModules := make(map[string][]blueprint.Module)
+	hasBPDir := make(map[string]bool)
+	bpDirs := []string{}
 
 	ctx.SetNinjaBuildDir(pctx, filepath.Join(ctx.Config().(Config).BuildDir(), ".."))
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if _, ok := module.(AndroidModule); ok {
-			bpFile := ctx.BlueprintFile(module)
+			bpDir := filepath.Dir(ctx.BlueprintFile(module))
 
-			if !hasBPFile[bpFile] {
-				hasBPFile[bpFile] = true
-				bpFiles = append(bpFiles, bpFile)
+			if !hasBPDir[bpDir] {
+				hasBPDir[bpDir] = true
+				bpDirs = append(bpDirs, bpDir)
 			}
 
-			fileModules[bpFile] = append(fileModules[bpFile], module)
+			dirModules[bpDir] = append(dirModules[bpDir], module)
 		}
 	})
 
 	// Gather list of eligible Android modules for translation
 	androidMkModules := make(map[blueprint.Module]bool)
-	var validBpFiles []string
 	srcDir := ctx.Config().(Config).SrcDir()
 	intermediatesDir := filepath.Join(ctx.Config().(Config).IntermediatesDir(), "androidmk")
-	sort.Strings(bpFiles)
-	for _, origBp := range bpFiles {
-		mkFile := filepath.Join(srcDir, filepath.Dir(origBp), "Android.mk")
+	sort.Strings(bpDirs)
+	for _, bpDir := range bpDirs {
+		mkFile := filepath.Join(srcDir, bpDir, "Android.mk")
 
 		files, err := Glob(ctx, intermediatesDir, mkFile, nil)
 		if err != nil {
@@ -93,9 +92,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 			continue
 		}
 
-		validBpFiles = append(validBpFiles, origBp)
-
-		for _, mod := range fileModules[origBp] {
+		for _, mod := range dirModules[bpDir] {
 			androidMkModules[mod] = true
 		}
 	}
