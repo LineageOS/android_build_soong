@@ -111,14 +111,18 @@ var (
 	}
 )
 
+const (
+	mipsGccVersion = "4.9"
+)
+
 func init() {
 	common.RegisterArchFeatures(common.Mips, "mips32r6",
 		"rev6")
 
-	pctx.StaticVariable("mipsGccVersion", "4.9")
+	pctx.StaticVariable("mipsGccVersion", mipsGccVersion)
 
 	pctx.StaticVariable("mipsGccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/mips/mips64el-linux-android-${armGccVersion}")
+		"prebuilts/gcc/${HostPrebuiltTag}/mips/mips64el-linux-android-${mipsGccVersion}")
 
 	pctx.StaticVariable("mipsGccTriple", "mips64el-linux-android")
 
@@ -170,7 +174,7 @@ func (t *toolchainMips) GccTriple() string {
 }
 
 func (t *toolchainMips) GccVersion() string {
-	return "${mipsGccVersion}"
+	return mipsGccVersion
 }
 
 func (t *toolchainMips) ToolchainLdflags() string {

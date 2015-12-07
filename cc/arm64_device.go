@@ -71,8 +71,12 @@ var (
 	}
 )
 
+const (
+	arm64GccVersion = "4.9"
+)
+
 func init() {
-	pctx.StaticVariable("arm64GccVersion", "4.9")
+	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
 	pctx.StaticVariable("arm64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/aarch64/aarch64-linux-android-${arm64GccVersion}")
@@ -115,7 +119,7 @@ func (t *toolchainArm64) GccTriple() string {
 }
 
 func (t *toolchainArm64) GccVersion() string {
-	return "${arm64GccVersion}"
+	return arm64GccVersion
 }
 
 func (t *toolchainArm64) Cflags() string {
