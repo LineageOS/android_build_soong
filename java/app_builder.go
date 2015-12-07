@@ -56,14 +56,6 @@ var (
 		},
 		"aaptFlags")
 
-	zipalign = pctx.StaticRule("zipalign",
-		blueprint.RuleParams{
-			Command:     `$zipalignCmd -f $zipalignFlags 4 $in $out`,
-			CommandDeps: []string{"$zipalignCmd"},
-			Description: "zipalign $out",
-		},
-		"zipalignFlags")
-
 	signapk = pctx.StaticRule("signapk",
 		blueprint.RuleParams{
 			Command:     `java -jar $signapkCmd $certificates $in $out`,
@@ -86,9 +78,6 @@ func init() {
 	pctx.StaticVariable("androidManifestMergerCmd", "${srcDir}/prebuilts/devtools/tools/lib/manifest-merger.jar")
 	pctx.VariableFunc("aaptCmd", func(c interface{}) (string, error) {
 		return c.(common.Config).HostBinTool("aapt")
-	})
-	pctx.VariableFunc("zipalignCmd", func(c interface{}) (string, error) {
-		return c.(common.Config).HostBinTool("zipalign")
 	})
 	pctx.VariableFunc("signapkCmd", func(c interface{}) (string, error) {
 		return c.(common.Config).HostJavaTool("signapk.jar")
@@ -147,7 +136,7 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 		},
 	})
 
-	signedApk := filepath.Join(common.ModuleOutDir(ctx), "signed.apk")
+	outputFile := filepath.Join(common.ModuleOutDir(ctx), "package.apk")
 
 	var certificateArgs []string
 	for _, c := range certificates {
@@ -156,21 +145,10 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile s
 
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:    signapk,
-		Outputs: []string{signedApk},
+		Outputs: []string{outputFile},
 		Inputs:  []string{resourceApk},
 		Args: map[string]string{
 			"certificates": strings.Join(certificateArgs, " "),
-		},
-	})
-
-	outputFile := filepath.Join(common.ModuleOutDir(ctx), "package.apk")
-
-	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:    zipalign,
-		Outputs: []string{outputFile},
-		Inputs:  []string{signedApk},
-		Args: map[string]string{
-			"zipalignFlags": "",
 		},
 	})
 
