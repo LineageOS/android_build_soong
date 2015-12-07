@@ -74,11 +74,15 @@ var (
 	darwinClangCppflags = clangFilterUnknownCflags(darwinCppflags)
 )
 
+const (
+	darwinGccVersion = "4.2.1"
+)
+
 func init() {
 	pctx.StaticVariable("macSdkPath", "/Applications/Xcode.app/Contents/Developer")
 	pctx.StaticVariable("macSdkRoot", "${macSdkPath}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk")
 
-	pctx.StaticVariable("darwinGccVersion", "4.2.1")
+	pctx.StaticVariable("darwinGccVersion", darwinGccVersion)
 	pctx.StaticVariable("darwinGccRoot",
 		"${SrcDir}/prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${darwinGccVersion}")
 
@@ -137,7 +141,7 @@ func (t *toolchainDarwin) GccTriple() string {
 }
 
 func (t *toolchainDarwin) GccVersion() string {
-	return "${darwinGccVersion}"
+	return darwinGccVersion
 }
 
 func (t *toolchainDarwin) Cflags() string {

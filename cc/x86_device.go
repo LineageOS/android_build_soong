@@ -95,6 +95,10 @@ var (
 	}
 )
 
+const (
+	x86GccVersion = "4.9"
+)
+
 func init() {
 	common.RegisterArchFeatures(common.X86, "atom",
 		"ssse3",
@@ -133,10 +137,10 @@ func init() {
 		"popcnt",
 		"movbe")
 
-	pctx.StaticVariable("x86GccVersion", "4.9")
+	pctx.StaticVariable("x86GccVersion", x86GccVersion)
 
 	pctx.StaticVariable("x86GccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${armGccVersion}")
+		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${x86GccVersion}")
 
 	pctx.StaticVariable("x86GccTriple", "x86_64-linux-android")
 
@@ -188,7 +192,7 @@ func (t *toolchainX86) GccTriple() string {
 }
 
 func (t *toolchainX86) GccVersion() string {
-	return "${x86GccVersion}"
+	return x86GccVersion
 }
 
 func (t *toolchainX86) ToolchainLdflags() string {

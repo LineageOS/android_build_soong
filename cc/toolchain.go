@@ -46,7 +46,9 @@ type Toolchain interface {
 
 	GccRoot() string
 	GccTriple() string
+	// GccVersion should return a real value, not a ninja reference
 	GccVersion() string
+
 	ToolchainCflags() string
 	ToolchainLdflags() string
 	Cflags() string

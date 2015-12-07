@@ -121,6 +121,10 @@ var (
 	armClangArchVariantCflags = copyVariantFlags(armArchVariantCflags)
 )
 
+const (
+	armGccVersion = "4.9"
+)
+
 func copyVariantFlags(m map[string][]string) map[string][]string {
 	ret := make(map[string][]string, len(m))
 	for k, v := range m {
@@ -148,7 +152,7 @@ func init() {
 		"-mfpu=neon-vfpv4",
 	}
 
-	pctx.StaticVariable("armGccVersion", "4.9")
+	pctx.StaticVariable("armGccVersion", armGccVersion)
 
 	pctx.StaticVariable("armGccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/arm/arm-linux-androideabi-${armGccVersion}")
@@ -268,7 +272,7 @@ func (t *toolchainArm) GccTriple() string {
 }
 
 func (t *toolchainArm) GccVersion() string {
-	return "${armGccVersion}"
+	return armGccVersion
 }
 
 func (t *toolchainArm) ToolchainCflags() string {

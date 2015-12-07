@@ -61,8 +61,12 @@ var (
 	}
 )
 
+const (
+	windowsGccVersion = "4.8"
+)
+
 func init() {
-	pctx.StaticVariable("windowsGccVersion", "4.8")
+	pctx.StaticVariable("windowsGccVersion", windowsGccVersion)
 
 	pctx.StaticVariable("windowsGccRoot",
 		"${SrcDir}/prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-w64-mingw32-${windowsGccVersion}")
@@ -92,7 +96,7 @@ func (t *toolchainWindows) GccTriple() string {
 }
 
 func (t *toolchainWindows) GccVersion() string {
-	return "${windowsGccVersion}"
+	return windowsGccVersion
 }
 
 func (t *toolchainWindows) Cflags() string {

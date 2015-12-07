@@ -101,8 +101,12 @@ var (
 	}
 )
 
+const (
+	linuxGccVersion = "4.8"
+)
+
 func init() {
-	pctx.StaticVariable("linuxGccVersion", "4.8")
+	pctx.StaticVariable("linuxGccVersion", linuxGccVersion)
 
 	pctx.StaticVariable("linuxGccRoot",
 		"${SrcDir}/prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-linux-glibc2.15-${linuxGccVersion}")
@@ -163,7 +167,7 @@ func (t *toolchainLinux) GccTriple() string {
 }
 
 func (t *toolchainLinux) GccVersion() string {
-	return "${linuxGccVersion}"
+	return linuxGccVersion
 }
 
 func (t *toolchainLinuxX86) Cflags() string {
