@@ -62,6 +62,7 @@ var (
 		"-Wl,--fatal-warnings",
 		"-Wl,--gc-sections",
 		"-Wl,--hash-style=gnu",
+		"-Wl,--no-undefined-version",
 	}
 
 	x86_64ArchVariantCflags = map[string][]string{

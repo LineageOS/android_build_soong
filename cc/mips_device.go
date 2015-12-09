@@ -61,6 +61,7 @@ var (
 		"-Wl,--warn-shared-textrel",
 		"-Wl,--fatal-warnings",
 		"-Wl,--allow-shlib-undefined",
+		"-Wl,--no-undefined-version",
 	}
 
 	mipsToolchainLdflags = []string{

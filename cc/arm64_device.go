@@ -61,6 +61,7 @@ var (
 		"-Wl,-maarch64linux",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--fix-cortex-a53-843419",
+		"-Wl,--no-undefined-version",
 
 		// Disable transitive dependency library symbol resolving.
 		"-Wl,--allow-shlib-undefined",

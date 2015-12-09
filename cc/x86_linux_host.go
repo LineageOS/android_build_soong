@@ -37,6 +37,7 @@ var (
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
+		"-Wl,--no-undefined-version",
 	}
 
 	// Extended cflags
