@@ -20,9 +20,8 @@ source "${BOOTSTRAP}"
 # $BOOTSTRAP are correct
 cd ${SRCDIR_FROM_BUILDDIR}
 
-# Let Blueprint know that the Ninja we're using performs multiple passes that
-# can regenerate the build manifest.
-export BLUEPRINT_NINJA_HAS_MULTIPASS=1
+# Run the blueprint wrapper
+BUILDDIR="${BUILDDIR}" SKIP_NINJA=true build/blueprint/blueprint.bash
 
 # Ninja can't depend on environment variables, so do a manual comparison
 # of the relevant environment variables from the last build using the
