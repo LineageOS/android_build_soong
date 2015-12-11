@@ -58,6 +58,8 @@ type config struct {
 	envLock   sync.Mutex
 	envDeps   map[string]string
 	envFrozen bool
+
+	inMake bool
 }
 
 type jsonConfigurable interface {
@@ -163,6 +165,11 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		return Config{}, err
 	}
 
+	inMakeFile := filepath.Join(buildDir, ".soong.in_make")
+	if _, err := os.Stat(inMakeFile); err == nil {
+		config.inMake = true
+	}
+
 	hostArches, deviceArches, err := decodeArchProductVariables(config.ProductVariables)
 	if err != nil {
 		return Config{}, err
@@ -226,6 +233,10 @@ func (c *config) EnvDeps() map[string]string {
 	c.envFrozen = true
 	c.envLock.Unlock()
 	return c.envDeps
+}
+
+func (c *config) EmbeddedInMake() bool {
+	return c.inMake
 }
 
 // DeviceName returns the name of the current device target

@@ -331,9 +331,14 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	}
 
 	if len(deps) > 0 {
+		suffix := ""
+		if ctx.Config().(Config).EmbeddedInMake() {
+			suffix = "-soong"
+		}
+
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{ctx.ModuleName() + "-soong"},
+			Outputs:   []string{ctx.ModuleName() + suffix},
 			Implicits: deps,
 			Optional:  true,
 		})
@@ -568,10 +573,15 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		}
 	})
 
+	suffix := ""
+	if ctx.Config().(Config).EmbeddedInMake() {
+		suffix = "-soong"
+	}
+
 	// Create a top-level checkbuild target that depends on all modules
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      blueprint.Phony,
-		Outputs:   []string{"checkbuild-soong"},
+		Outputs:   []string{"checkbuild" + suffix},
 		Implicits: checkbuildDeps,
 		Optional:  true,
 	})
@@ -583,7 +593,9 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			Rule:      blueprint.Phony,
 			Outputs:   []string{filepath.Join("mm", dir)},
 			Implicits: dirModules[dir],
-			Optional:  true,
+			// HACK: checkbuild should be an optional build, but force it
+			// enabled for now in standalone builds
+			Optional:  ctx.Config().(Config).EmbeddedInMake(),
 		})
 	}
 }

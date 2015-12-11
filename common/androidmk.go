@@ -55,6 +55,10 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 	hasBPDir := make(map[string]bool)
 	bpDirs := []string{}
 
+	if !ctx.Config().(Config).EmbeddedInMake() {
+		return
+	}
+
 	ctx.SetNinjaBuildDir(pctx, filepath.Join(ctx.Config().(Config).buildDir, ".."))
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
