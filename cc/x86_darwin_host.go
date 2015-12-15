@@ -1,6 +1,8 @@
 package cc
 
 import (
+	"fmt"
+	"os/exec"
 	"strings"
 
 	"android/soong/common"
@@ -26,18 +28,18 @@ var (
 		"-g",  // from build/core/combo/select.mk
 		"-fno-strict-aliasing", // from build/core/combo/select.mk
 		"-isysroot ${macSdkRoot}",
-		"-mmacosx-version-min=10.9",
-		"-DMACOSX_DEPLOYMENT_TARGET=10.9",
+		"-mmacosx-version-min=${macSdkVersion}",
+		"-DMACOSX_DEPLOYMENT_TARGET=${macSdkVersion}",
 	}
 
 	darwinCppflags = []string{
-		"-isystem ${macSdkPath}/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1",
+		"-isystem ${macToolchainRoot}/usr/include/c++/v1",
 	}
 
 	darwinLdflags = []string{
 		"-isysroot ${macSdkRoot}",
 		"-Wl,-syslibroot,${macSdkRoot}",
-		"-mmacosx-version-min=10.9",
+		"-mmacosx-version-min=${macSdkVersion}",
 	}
 
 	// Extended cflags
@@ -72,6 +74,13 @@ var (
 	darwinX8664ClangLdflags = clangFilterUnknownCflags(darwinX8664Ldflags)
 
 	darwinClangCppflags = clangFilterUnknownCflags(darwinCppflags)
+
+	darwinSupportedSdkVersions = []string{
+		"macosx10.8",
+		"macosx10.9",
+		"macosx10.10",
+		"macosx10.11",
+	}
 )
 
 const (
@@ -79,8 +88,21 @@ const (
 )
 
 func init() {
-	pctx.StaticVariable("macSdkPath", "/Applications/Xcode.app/Contents/Developer")
-	pctx.StaticVariable("macSdkRoot", "${macSdkPath}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk")
+	pctx.VariableFunc("macSdkPath", func(config interface{}) (string, error) {
+		bytes, err := exec.Command("xcode-select", "--print-path").Output()
+		return strings.TrimSpace(string(bytes)), err
+	})
+	pctx.StaticVariable("macToolchainRoot", "${macSdkPath}/Toolchains/XcodeDefault.xctoolchain")
+	pctx.VariableFunc("macSdkRoot", func(config interface{}) (string, error) {
+		return xcrunSdk(config.(common.Config), "--show-sdk-path")
+	})
+	pctx.VariableFunc("macSdkVersion", func(config interface{}) (string, error) {
+		return xcrunSdk(config.(common.Config), "--show-sdk-version")
+	})
+	pctx.VariableFunc("macArPath", func(config interface{}) (string, error) {
+		bytes, err := exec.Command("xcrun", "--find", "ar").Output()
+		return strings.TrimSpace(string(bytes)), err
+	})
 
 	pctx.StaticVariable("darwinGccVersion", darwinGccVersion)
 	pctx.SourcePathVariable("darwinGccRoot",
@@ -108,6 +130,28 @@ func init() {
 		strings.Join(clangFilterUnknownCflags(darwinX8664Cflags), " "))
 	pctx.StaticVariable("darwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
 	pctx.StaticVariable("darwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
+}
+
+func xcrunSdk(config common.Config, arg string) (string, error) {
+	if selected := config.Getenv("MAC_SDK_VERSION"); selected != "" {
+		if !inList("macosx"+selected, darwinSupportedSdkVersions) {
+			return "", fmt.Errorf("MAC_SDK_VERSION %s isn't supported: %q", selected, darwinSupportedSdkVersions)
+		}
+
+		bytes, err := exec.Command("xcrun", "--sdk", "macosx"+selected, arg).Output()
+		if err == nil {
+			return strings.TrimSpace(string(bytes)), err
+		}
+		return "", fmt.Errorf("MAC_SDK_VERSION %s is not installed", selected)
+	}
+
+	for _, sdk := range darwinSupportedSdkVersions {
+		bytes, err := exec.Command("xcrun", "--sdk", sdk, arg).Output()
+		if err == nil {
+			return strings.TrimSpace(string(bytes)), err
+		}
+	}
+	return "", fmt.Errorf("Could not find a supported mac sdk: %q", darwinSupportedSdkVersions)
 }
 
 type toolchainDarwin struct {

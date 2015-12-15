@@ -227,7 +227,7 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Pa
 func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Paths,
 	flags builderFlags, outputPath common.ModuleOutPath) {
 
-	arCmd := "ar"
+	arCmd := "${macArPath}"
 	arFlags := "cqs"
 
 	// ARG_MAX on darwin is 262144, use half that to be safe
