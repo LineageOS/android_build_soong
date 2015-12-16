@@ -185,6 +185,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		amod := m.(AndroidModule).base()
 		data := provider.AndroidMk()
 
+		if !amod.Enabled() {
+			return
+		}
+
 		arch := amod.commonProperties.CompileArch
 
 		prefix := ""
