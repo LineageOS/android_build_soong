@@ -80,6 +80,7 @@ var rewriteProperties = map[string]struct {
 	"LOCAL_C_INCLUDES":            {localIncludeDirs},
 	"LOCAL_EXPORT_C_INCLUDE_DIRS": {exportIncludeDirs},
 	"LOCAL_MODULE_STEM":           {stem},
+	"LOCAL_MODULE_HOST_OS":        {hostOs},
 }
 
 func localAbsPath(value bpparser.Value) (*bpparser.Value, error) {
@@ -265,6 +266,46 @@ func stem(file *bpFile, prefix string, value *mkparser.MakeString, appendVariabl
 	}
 
 	return setVariable(file, appendVariable, prefix, varName, val, true)
+}
+
+func hostOs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
+	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	if err != nil {
+		return err
+	}
+
+	inList := func(s string) bool {
+		for _, v := range val.ListValue {
+			if v.StringValue == s {
+				return true
+			}
+		}
+		return false
+	}
+
+	falseValue := &bpparser.Value{
+		Type:      bpparser.Bool,
+		BoolValue: false,
+	}
+
+	trueValue := &bpparser.Value{
+		Type:      bpparser.Bool,
+		BoolValue: true,
+	}
+
+	if inList("windows") {
+		err = setVariable(file, appendVariable, "target.windows", "enabled", trueValue, true)
+	}
+
+	if !inList("linux") && err == nil {
+		err = setVariable(file, appendVariable, "target.linux", "enabled", falseValue, true)
+	}
+
+	if !inList("darwin") && err == nil {
+		err = setVariable(file, appendVariable, "target.darwin", "enabled", falseValue, true)
+	}
+
+	return err
 }
 
 var deleteProperties = map[string]struct{}{
