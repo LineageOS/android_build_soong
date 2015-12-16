@@ -82,6 +82,7 @@ type productVariables struct {
 	CrossHostSecondaryArch *string `json:",omitempty"`
 
 	Unbundled_build *bool `json:",omitempty"`
+	Brillo          *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

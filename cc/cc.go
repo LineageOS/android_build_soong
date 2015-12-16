@@ -581,6 +581,10 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 				fmt.Sprintf("${%sGlobalCflags}", ctx.HostOrDevice()))
 		}
 
+		if Bool(ctx.AConfig().ProductVariables.Brillo) {
+			flags.GlobalFlags = append(flags.GlobalFlags, "-D__BRILLO__")
+		}
+
 		if ctx.Device() {
 			if Bool(c.Properties.Rtti) {
 				flags.CppFlags = append(flags.CppFlags, "-frtti")
