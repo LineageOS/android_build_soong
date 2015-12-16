@@ -581,7 +581,7 @@ func InitArchModule(m AndroidModule,
 	return m, allProperties
 }
 
-var dashToUnderscoreReplacer = strings.NewReplacer("-", "_")
+var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
 
 func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
 	dst, src interface{}, field, srcPrefix string) interface{} {
@@ -660,7 +660,7 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 		//         key: value,
 		//     },
 		// },
-		v := dashToUnderscoreReplacer.Replace(arch.ArchVariant)
+		v := variantReplacer.Replace(arch.ArchVariant)
 		if v != "" {
 			field := proptools.FieldNameForProperty(v)
 			prefix := "arch." + t.Name + "." + v
@@ -673,7 +673,7 @@ func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext)
 		//         key: value,
 		//     },
 		// },
-		c := dashToUnderscoreReplacer.Replace(arch.CpuVariant)
+		c := variantReplacer.Replace(arch.CpuVariant)
 		if c != "" {
 			field := proptools.FieldNameForProperty(c)
 			prefix := "arch." + t.Name + "." + c
