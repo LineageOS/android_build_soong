@@ -595,7 +595,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			Implicits: dirModules[dir],
 			// HACK: checkbuild should be an optional build, but force it
 			// enabled for now in standalone builds
-			Optional:  ctx.Config().(Config).EmbeddedInMake(),
+			Optional: ctx.Config().(Config).EmbeddedInMake(),
 		})
 	}
 }
