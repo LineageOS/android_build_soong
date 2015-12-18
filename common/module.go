@@ -313,6 +313,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 			Rule:      blueprint.Phony,
 			Outputs:   []string{name},
 			Implicits: allInstalledFiles.Strings(),
+			Optional:  ctx.Config().(Config).EmbeddedInMake(),
 		})
 		deps = append(deps, name)
 		a.installTarget = name
@@ -471,7 +472,7 @@ func (a *androidModuleContext) InstallFileName(installPath, name string, srcPath
 		Output:    fullInstallPath,
 		Input:     srcPath,
 		OrderOnly: Paths(deps),
-		Default:   true,
+		Default:   !a.AConfig().EmbeddedInMake(),
 	})
 
 	a.installFiles = append(a.installFiles, fullInstallPath)
