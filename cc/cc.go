@@ -125,7 +125,7 @@ func init() {
 
 	// Everything in this list is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
-	pctx.PrefixedPathsForSourceVariable("commonGlobalIncludes", "-isystem ",
+	pctx.PrefixedPathsForOptionalSourceVariable("commonGlobalIncludes", "-isystem ",
 		[]string{
 			"system/core/include",
 			"hardware/libhardware/include",

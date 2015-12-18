@@ -37,6 +37,7 @@ func NewPackageContext(pkgPath string) AndroidPackageContext {
 // The most common use here will be with VariableFunc, where only a config is
 // provided, and an error should be returned.
 type configErrorWrapper struct {
+	pctx   AndroidPackageContext
 	config Config
 	errors []error
 }
@@ -50,6 +51,9 @@ func (e *configErrorWrapper) Config() interface{} {
 func (e *configErrorWrapper) Errorf(format string, args ...interface{}) {
 	e.errors = append(e.errors, fmt.Errorf(format, args...))
 }
+func (e *configErrorWrapper) AddNinjaFileDeps(deps ...string) {
+	e.pctx.AddNinjaFileDeps(deps...)
+}
 
 // SourcePathVariable returns a Variable whose value is the source directory
 // appended with the supplied path. It may only be called during a Go package's
@@ -57,7 +61,7 @@ func (e *configErrorWrapper) Errorf(format string, args ...interface{}) {
 // package-scoped variable's initialization.
 func (p AndroidPackageContext) SourcePathVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
-		ctx := &configErrorWrapper{config.(Config), []error{}}
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
 		p := safePathForSource(ctx, path)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
@@ -72,7 +76,7 @@ func (p AndroidPackageContext) SourcePathVariable(name, path string) blueprint.V
 // package-scoped variable's initialization.
 func (p AndroidPackageContext) HostBinToolVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
-		ctx := &configErrorWrapper{config.(Config), []error{}}
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
 		p := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "bin", path)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
@@ -87,7 +91,7 @@ func (p AndroidPackageContext) HostBinToolVariable(name, path string) blueprint.
 // part of a package-scoped variable's initialization.
 func (p AndroidPackageContext) HostJavaToolVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
-		ctx := &configErrorWrapper{config.(Config), []error{}}
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
 		p := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "framework", path)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
@@ -102,7 +106,7 @@ func (p AndroidPackageContext) HostJavaToolVariable(name, path string) blueprint
 // package-scoped variable's initialization.
 func (p AndroidPackageContext) IntermediatesPathVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
-		ctx := &configErrorWrapper{config.(Config), []error{}}
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
 		p := PathForIntermediates(ctx, path)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
@@ -111,14 +115,16 @@ func (p AndroidPackageContext) IntermediatesPathVariable(name, path string) blue
 	})
 }
 
-// PrefixedPathsForSourceVariable returns a Variable whose value is the
-// list of source paths prefixed with the supplied prefix. It may only be
-// called during a Go package's initialization - either from the init()
+// PrefixedPathsForOptionalSourceVariable returns a Variable whose value is the
+// list of present source paths prefixed with the supplied prefix. It may only
+// be called during a Go package's initialization - either from the init()
 // function or as part of a package-scoped variable's initialization.
-func (p AndroidPackageContext) PrefixedPathsForSourceVariable(name, prefix string, paths []string) blueprint.Variable {
+func (p AndroidPackageContext) PrefixedPathsForOptionalSourceVariable(
+	name, prefix string, paths []string) blueprint.Variable {
+
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
-		ctx := &configErrorWrapper{config.(Config), []error{}}
-		paths := PathsForSource(ctx, paths)
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
+		paths := PathsForOptionalSource(ctx, "", paths)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
 		}
