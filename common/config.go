@@ -22,7 +22,11 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/google/blueprint/proptools"
 )
+
+var Bool = proptools.Bool
 
 // The configuration file name
 const configFileName = "soong.config"
@@ -286,4 +290,8 @@ func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
 
 func (c *config) DefaultAppCertificate(ctx PathContext) SourcePath {
 	return c.DefaultAppCertificateDir(ctx).Join(ctx, "testkey")
+}
+
+func (c *config) AllowMissingDependencies() bool {
+	return Bool(c.ProductVariables.Unbundled_build)
 }

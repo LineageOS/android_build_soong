@@ -59,6 +59,13 @@ var (
 			Description: "symlink $out",
 		},
 		"fromPath")
+
+	ErrorRule = pctx.StaticRule("Error",
+		blueprint.RuleParams{
+			Command:     `echo "$error" && false`,
+			Description: "error building $out",
+		},
+		"error")
 )
 
 func init() {

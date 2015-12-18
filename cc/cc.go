@@ -740,7 +740,7 @@ func (c *CCBase) depsToPathsFromList(ctx common.AndroidModuleContext,
 				return
 			}
 		})
-		if !found {
+		if !found && !inList(n, ctx.GetMissingDependencies()) {
 			ctx.ModuleErrorf("unsatisified dependency on %q", n)
 		}
 	}

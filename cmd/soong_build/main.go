@@ -44,5 +44,7 @@ func main() {
 	// Temporary hack
 	//ctx.SetIgnoreUnknownModuleTypes(true)
 
+	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
+
 	bootstrap.Main(ctx, configuration, configuration.ConfigFileName, configuration.ProductVariablesFileName)
 }

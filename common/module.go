@@ -15,7 +15,9 @@
 package common
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 
 	"android/soong"
 	"android/soong/glob"
@@ -363,6 +365,7 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		androidBaseContextImpl: a.androidBaseContextFactory(ctx),
 		installDeps:            a.computeInstallDeps(ctx),
 		installFiles:           a.installFiles,
+		missingDeps:            ctx.GetMissingDependencies(),
 	}
 
 	if !a.Enabled() {
@@ -397,9 +400,28 @@ type androidModuleContext struct {
 	installDeps     Paths
 	installFiles    Paths
 	checkbuildFiles Paths
+	missingDeps     []string
+}
+
+func (a *androidModuleContext) ninjaError(outputs []string, err error) {
+	a.ModuleContext.Build(pctx, blueprint.BuildParams{
+		Rule:     ErrorRule,
+		Outputs:  outputs,
+		Optional: true,
+		Args: map[string]string{
+			"error": err.Error(),
+		},
+	})
+	return
 }
 
 func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
+	if a.missingDeps != nil {
+		a.ninjaError(params.Outputs, fmt.Errorf("module %s missing dependencies: %s\n",
+			a.ModuleName(), strings.Join(a.missingDeps, ", ")))
+		return
+	}
+
 	params.Optional = true
 	a.ModuleContext.Build(pctx, params)
 }
@@ -425,7 +447,17 @@ func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params
 		bparams.Implicits = append(bparams.Implicits, params.Implicit.String())
 	}
 
+	if a.missingDeps != nil {
+		a.ninjaError(bparams.Outputs, fmt.Errorf("module %s missing dependencies: %s\n",
+			a.ModuleName(), strings.Join(a.missingDeps, ", ")))
+		return
+	}
+
 	a.ModuleContext.Build(pctx, bparams)
+}
+
+func (a *androidModuleContext) GetMissingDependencies() []string {
+	return a.missingDeps
 }
 
 func (a *androidBaseContextImpl) Arch() Arch {
