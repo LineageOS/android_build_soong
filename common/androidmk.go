@@ -99,6 +99,8 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 		}
 	}
 
+	sort.Sort(AndroidModulesByName{androidMkModulesList, ctx})
+
 	transMk := PathForOutput(ctx, "Android.mk")
 	if ctx.Failed() {
 		return

@@ -632,3 +632,24 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		})
 	}
 }
+
+type AndroidModulesByName struct {
+	slice []AndroidModule
+	ctx   interface {
+		ModuleName(blueprint.Module) string
+		ModuleSubDir(blueprint.Module) string
+	}
+}
+
+func (s AndroidModulesByName) Len() int { return len(s.slice) }
+func (s AndroidModulesByName) Less(i, j int) bool {
+	mi, mj := s.slice[i], s.slice[j]
+	ni, nj := s.ctx.ModuleName(mi), s.ctx.ModuleName(mj)
+
+	if ni != nj {
+		return ni < nj
+	} else {
+		return s.ctx.ModuleSubDir(mi) < s.ctx.ModuleSubDir(mj)
+	}
+}
+func (s AndroidModulesByName) Swap(i, j int) { s.slice[i], s.slice[j] = s.slice[j], s.slice[i] }
