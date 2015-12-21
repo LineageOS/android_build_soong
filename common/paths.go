@@ -620,21 +620,24 @@ func PathForModuleInstall(ctx AndroidModuleContext, paths ...string) OutputPath 
 }
 
 // validateSafePath validates a path that we trust (may contain ninja variables).
-// Ensures that it does not attempt to leave the containing directory.
+// Ensures that each path component does not attempt to leave its component.
 func validateSafePath(ctx PathContext, paths ...string) string {
+	for _, path := range paths {
+		path := filepath.Clean(path)
+		if path == ".." || strings.HasPrefix(path, "../") || strings.HasPrefix(path, "/") {
+			reportPathError(ctx, "Path is outside directory: %s", path)
+			return ""
+		}
+	}
 	// TODO: filepath.Join isn't necessarily correct with embedded ninja
 	// variables. '..' may remove the entire ninja variable, even if it
 	// will be expanded to multiple nested directories.
-	p := filepath.Join(paths...)
-	if p == ".." || strings.HasPrefix(p, "../") || strings.HasPrefix(p, "/") {
-		reportPathError(ctx, "Path is outside directory: %s", p)
-		return ""
-	}
-	return p
+	return filepath.Join(paths...)
 }
 
-// validatePath validates that a path does not include ninja variables, and does
-// not attempt to leave the containing directory.
+// validatePath validates that a path does not include ninja variables, and that
+// each path component does not attempt to leave its component. Returns a joined
+// version of each path component.
 func validatePath(ctx PathContext, paths ...string) string {
 	for _, path := range paths {
 		if strings.Contains(path, "$") {
