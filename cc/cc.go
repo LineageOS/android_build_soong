@@ -1359,7 +1359,7 @@ func (c *CCLibrary) installSharedLibrary(ctx common.AndroidModuleContext, flags 
 		installDir = "lib64"
 	}
 
-	ctx.InstallFile(filepath.Join(installDir, c.Properties.Relative_install_path), c.out)
+	ctx.InstallFile(common.PathForModuleInstall(ctx, installDir, c.Properties.Relative_install_path), c.out)
 }
 
 func (c *CCLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
@@ -1611,7 +1611,7 @@ func (c *CCBinary) compileModule(ctx common.AndroidModuleContext,
 }
 
 func (c *CCBinary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	c.installFile = ctx.InstallFile(filepath.Join("bin", c.Properties.Relative_install_path), c.out)
+	c.installFile = ctx.InstallFile(common.PathForModuleInstall(ctx, "bin", c.Properties.Relative_install_path), c.out)
 }
 
 func (c *CCBinary) HostToolPath() common.OptionalPath {
@@ -1678,9 +1678,17 @@ func (c *CCTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps
 	return depNames
 }
 
+func (c *CCTest) InstallInData() bool {
+	return true
+}
+
 func (c *CCTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	if ctx.Device() {
-		ctx.InstallFile("../data/nativetest"+ctx.Arch().ArchType.Multilib[3:]+"/"+ctx.ModuleName(), c.out)
+		installDir := "nativetest"
+		if flags.Toolchain.Is64Bit() {
+			installDir = "nativetest64"
+		}
+		ctx.InstallFile(common.PathForModuleInstall(ctx, installDir, ctx.ModuleName()), c.out)
 	} else {
 		c.CCBinary.installModule(ctx, flags)
 	}
@@ -1708,9 +1716,17 @@ func (c *CCBenchmark) depNames(ctx common.AndroidBaseContext, depNames CCDeps) C
 	return depNames
 }
 
+func (c *CCBenchmark) InstallInData() bool {
+	return true
+}
+
 func (c *CCBenchmark) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
 	if ctx.Device() {
-		ctx.InstallFile("../data/nativetest"+ctx.Arch().ArchType.Multilib[3:]+"/"+ctx.ModuleName(), c.out)
+		installDir := "nativetest"
+		if flags.Toolchain.Is64Bit() {
+			installDir = "nativetest64"
+		}
+		ctx.InstallFile(common.PathForModuleInstall(ctx, installDir, ctx.ModuleName()), c.out)
 	} else {
 		c.CCBinary.installModule(ctx, flags)
 	}

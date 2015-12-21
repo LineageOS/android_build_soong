@@ -152,7 +152,7 @@ func (a *AndroidApp) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 	}
 
 	a.outputFile = CreateAppPackage(ctx, aaptPackageFlags, a.outputFile, certificates)
-	ctx.InstallFileName("app", ctx.ModuleName()+".apk", a.outputFile)
+	ctx.InstallFileName(common.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
 }
 
 var aaptIgnoreFilenames = []string{

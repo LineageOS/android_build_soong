@@ -601,9 +601,19 @@ func PathForModuleRes(ctx AndroidModuleContext, paths ...string) ModuleResPath {
 func PathForModuleInstall(ctx AndroidModuleContext, paths ...string) OutputPath {
 	var outPaths []string
 	if ctx.Device() {
-		outPaths = []string{"target", "product", ctx.AConfig().DeviceName(), "system"}
+		partition := "system"
+		if ctx.Proprietary() {
+			partition = "vendor"
+		}
+		if ctx.InstallInData() {
+			partition = "data"
+		}
+		outPaths = []string{"target", "product", ctx.AConfig().DeviceName(), partition}
 	} else {
 		outPaths = []string{"host", ctx.HostType().String() + "-x86"}
+	}
+	if ctx.Debug() {
+		outPaths = append([]string{"debug"}, outPaths...)
 	}
 	outPaths = append(outPaths, paths...)
 	return PathForOutput(ctx, outPaths...)

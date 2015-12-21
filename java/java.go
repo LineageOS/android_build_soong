@@ -442,7 +442,7 @@ type JavaLibrary struct {
 func (j *JavaLibrary) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 	j.javaBase.GenerateJavaBuildActions(ctx)
 
-	j.installFile = ctx.InstallFileName("framework", ctx.ModuleName()+".jar", j.outputFile)
+	j.installFile = ctx.InstallFileName(common.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.outputFile)
 }
 
 func JavaLibraryFactory() (blueprint.Module, []interface{}) {
@@ -479,7 +479,7 @@ func (j *JavaBinary) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
-	ctx.InstallFile("bin", common.PathForModuleSrc(ctx, j.binaryProperties.Wrapper),
+	ctx.InstallFile(common.PathForModuleInstall(ctx, "bin"), common.PathForModuleSrc(ctx, j.binaryProperties.Wrapper),
 		j.installFile)
 }
 
@@ -526,7 +526,7 @@ func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx common.AndroidModuleConte
 	j.classpathFile = prebuilt
 	j.classJarSpecs = []jarSpec{classJarSpec}
 	j.resourceJarSpecs = []jarSpec{resourceJarSpec}
-	ctx.InstallFileName("framework", ctx.ModuleName()+".jar", j.classpathFile)
+	ctx.InstallFileName(common.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.classpathFile)
 }
 
 var _ JavaDependency = (*JavaPrebuilt)(nil)

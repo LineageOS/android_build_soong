@@ -56,6 +56,8 @@ type androidBaseContext interface {
 	Darwin() bool
 	Debug() bool
 	AConfig() Config
+	Proprietary() bool
+	InstallInData() bool
 }
 
 type AndroidBaseContext interface {
@@ -74,8 +76,8 @@ type AndroidModuleContext interface {
 	ExpandSources(srcFiles, excludes []string) Paths
 	Glob(outDir, globPattern string, excludes []string) Paths
 
-	InstallFile(installPath string, srcPath Path, deps ...Path) Path
-	InstallFileName(installPath, name string, srcPath Path, deps ...Path) Path
+	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) Path
+	InstallFileName(installPath OutputPath, name string, srcPath Path, deps ...Path) Path
 	CheckbuildFile(srcPath Path)
 }
 
@@ -87,6 +89,7 @@ type AndroidModule interface {
 	base() *AndroidModuleBase
 	Enabled() bool
 	HostOrDevice() HostOrDevice
+	InstallInData() bool
 }
 
 type commonProperties struct {
@@ -102,6 +105,9 @@ type commonProperties struct {
 	// architectures), or "first" (compile for 64-bit on a 64-bit platform, and 32-bit on a 32-bit
 	// platform
 	Compile_multilib string
+
+	// whether this is a proprietary vendor module, and should be installed into /vendor
+	Proprietary bool
 
 	// Set by HostOrDeviceMutator
 	CompileHostOrDevice HostOrDevice `blueprint:"mutated"`
@@ -294,6 +300,10 @@ func (p *AndroidModuleBase) NoAddressSanitizer() bool {
 	return p.noAddressSanitizer
 }
 
+func (p *AndroidModuleBase) InstallInData() bool {
+	return false
+}
+
 func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	if a != ctx.FinalModule().(AndroidModule).base() {
 		return
@@ -352,10 +362,12 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 
 func (a *AndroidModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
 	return androidBaseContextImpl{
-		arch:   a.commonProperties.CompileArch,
-		hod:    a.commonProperties.CompileHostOrDevice,
-		ht:     a.commonProperties.CompileHostType,
-		config: ctx.Config().(Config),
+		arch:          a.commonProperties.CompileArch,
+		hod:           a.commonProperties.CompileHostOrDevice,
+		ht:            a.commonProperties.CompileHostType,
+		proprietary:   a.commonProperties.Proprietary,
+		config:        ctx.Config().(Config),
+		installInData: a.module.InstallInData(),
 	}
 }
 
@@ -387,11 +399,13 @@ func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 }
 
 type androidBaseContextImpl struct {
-	arch   Arch
-	hod    HostOrDevice
-	ht     HostType
-	debug  bool
-	config Config
+	arch          Arch
+	hod           HostOrDevice
+	ht            HostType
+	debug         bool
+	config        Config
+	proprietary   bool
+	installInData bool
 }
 
 type androidModuleContext struct {
@@ -492,10 +506,18 @@ func (a *androidBaseContextImpl) AConfig() Config {
 	return a.config
 }
 
-func (a *androidModuleContext) InstallFileName(installPath, name string, srcPath Path,
+func (a *androidBaseContextImpl) Proprietary() bool {
+	return a.proprietary
+}
+
+func (a *androidBaseContextImpl) InstallInData() bool {
+	return a.installInData
+}
+
+func (a *androidModuleContext) InstallFileName(installPath OutputPath, name string, srcPath Path,
 	deps ...Path) Path {
 
-	fullInstallPath := PathForModuleInstall(a, installPath, name)
+	fullInstallPath := installPath.Join(a, name)
 
 	deps = append(deps, a.installDeps...)
 
@@ -512,7 +534,7 @@ func (a *androidModuleContext) InstallFileName(installPath, name string, srcPath
 	return fullInstallPath
 }
 
-func (a *androidModuleContext) InstallFile(installPath string, srcPath Path, deps ...Path) Path {
+func (a *androidModuleContext) InstallFile(installPath OutputPath, srcPath Path, deps ...Path) Path {
 	return a.InstallFileName(installPath, filepath.Base(srcPath.String()), srcPath, deps...)
 }
 
