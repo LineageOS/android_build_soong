@@ -557,12 +557,14 @@ func InitArchModule(m AndroidModule,
 	for _, properties := range base.generalProperties {
 		propertiesValue := reflect.ValueOf(properties)
 		if propertiesValue.Kind() != reflect.Ptr {
-			panic("properties must be a pointer to a struct")
+			panic(fmt.Errorf("properties must be a pointer to a struct, got %T",
+				propertiesValue.Interface()))
 		}
 
 		propertiesValue = propertiesValue.Elem()
 		if propertiesValue.Kind() != reflect.Struct {
-			panic("properties must be a pointer to a struct")
+			panic(fmt.Errorf("properties must be a pointer to a struct, got %T",
+				propertiesValue.Interface()))
 		}
 
 		archProperties := &archProperties{}

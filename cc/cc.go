@@ -32,26 +32,26 @@ import (
 )
 
 func init() {
-	soong.RegisterModuleType("cc_library_static", CCLibraryStaticFactory)
-	soong.RegisterModuleType("cc_library_shared", CCLibrarySharedFactory)
-	soong.RegisterModuleType("cc_library", CCLibraryFactory)
-	soong.RegisterModuleType("cc_object", CCObjectFactory)
-	soong.RegisterModuleType("cc_binary", CCBinaryFactory)
-	soong.RegisterModuleType("cc_test", CCTestFactory)
-	soong.RegisterModuleType("cc_benchmark", CCBenchmarkFactory)
-	soong.RegisterModuleType("cc_defaults", CCDefaultsFactory)
+	soong.RegisterModuleType("cc_library_static", libraryStaticFactory)
+	soong.RegisterModuleType("cc_library_shared", librarySharedFactory)
+	soong.RegisterModuleType("cc_library", libraryFactory)
+	soong.RegisterModuleType("cc_object", objectFactory)
+	soong.RegisterModuleType("cc_binary", binaryFactory)
+	soong.RegisterModuleType("cc_test", testFactory)
+	soong.RegisterModuleType("cc_benchmark", benchmarkFactory)
+	soong.RegisterModuleType("cc_defaults", defaultsFactory)
 
-	soong.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
-	soong.RegisterModuleType("ndk_prebuilt_library", NdkPrebuiltLibraryFactory)
-	soong.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
-	soong.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
-	soong.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
+	soong.RegisterModuleType("toolchain_library", toolchainLibraryFactory)
+	soong.RegisterModuleType("ndk_prebuilt_library", ndkPrebuiltLibraryFactory)
+	soong.RegisterModuleType("ndk_prebuilt_object", ndkPrebuiltObjectFactory)
+	soong.RegisterModuleType("ndk_prebuilt_static_stl", ndkPrebuiltStaticStlFactory)
+	soong.RegisterModuleType("ndk_prebuilt_shared_stl", ndkPrebuiltSharedStlFactory)
 
-	soong.RegisterModuleType("cc_library_host_static", CCLibraryHostStaticFactory)
-	soong.RegisterModuleType("cc_library_host_shared", CCLibraryHostSharedFactory)
-	soong.RegisterModuleType("cc_binary_host", CCBinaryHostFactory)
-	soong.RegisterModuleType("cc_test_host", CCTestHostFactory)
-	soong.RegisterModuleType("cc_benchmark_host", CCBenchmarkHostFactory)
+	soong.RegisterModuleType("cc_library_host_static", libraryHostStaticFactory)
+	soong.RegisterModuleType("cc_library_host_shared", libraryHostSharedFactory)
+	soong.RegisterModuleType("cc_binary_host", binaryHostFactory)
+	soong.RegisterModuleType("cc_test_host", testHostFactory)
+	soong.RegisterModuleType("cc_benchmark_host", benchmarkHostFactory)
 
 	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
 	// the Go initialization order because this package depends on common, so common's init
@@ -169,37 +169,9 @@ func init() {
 	pctx.StaticVariable("clangPath", "${clangBase}/${HostPrebuiltTag}/${clangVersion}/bin")
 }
 
-type CCModuleContext common.AndroidBaseContext
-
-// Building C/C++ code is handled by objects that satisfy this interface via composition
-type CCModuleType interface {
-	common.AndroidModule
-
-	// Modify property values after parsing Blueprints file but before starting dependency
-	// resolution or build rule generation
-	ModifyProperties(CCModuleContext)
-
-	// Modify the ccFlags
-	flags(common.AndroidModuleContext, CCFlags) CCFlags
-
-	// Return list of dependency names for use in depsMutator
-	depNames(common.AndroidBaseContext, CCDeps) CCDeps
-
-	// Add dynamic dependencies
-	depsMutator(common.AndroidBottomUpMutatorContext)
-
-	// Compile objects into final module
-	compileModule(common.AndroidModuleContext, CCFlags, CCPathDeps, common.Paths)
-
-	// Install the built module.
-	installModule(common.AndroidModuleContext, CCFlags)
-
-	// Return the output file (.o, .a or .so) for use by other modules
-	outputFile() common.OptionalPath
-}
-
-type CCDeps struct {
-	StaticLibs, SharedLibs, LateStaticLibs, WholeStaticLibs []string
+type Deps struct {
+	SharedLibs, LateSharedLibs                  []string
+	StaticLibs, LateStaticLibs, WholeStaticLibs []string
 
 	ObjFiles common.Paths
 
@@ -208,8 +180,9 @@ type CCDeps struct {
 	CrtBegin, CrtEnd string
 }
 
-type CCPathDeps struct {
-	StaticLibs, SharedLibs, LateStaticLibs, WholeStaticLibs common.Paths
+type PathDeps struct {
+	SharedLibs, LateSharedLibs                  common.Paths
+	StaticLibs, LateStaticLibs, WholeStaticLibs common.Paths
 
 	ObjFiles               common.Paths
 	WholeStaticLibObjFiles common.Paths
@@ -219,7 +192,7 @@ type CCPathDeps struct {
 	CrtBegin, CrtEnd common.OptionalPath
 }
 
-type CCFlags struct {
+type Flags struct {
 	GlobalFlags []string // Flags that apply to C, C++, and assembly source files
 	AsFlags     []string // Flags that apply to assembly source files
 	CFlags      []string // Flags that apply to C and C++ source files
@@ -231,10 +204,11 @@ type CCFlags struct {
 	Nocrt     bool
 	Toolchain Toolchain
 	Clang     bool
+
+	RequiredInstructionSet string
 }
 
-// Properties used to compile all C or C++ modules
-type CCBaseProperties struct {
+type BaseCompilerProperties struct {
 	// list of source files used to compile the C/C++ module.  May be .c, .cpp, or .S files.
 	Srcs []string `android:"arch_variant"`
 
@@ -254,11 +228,16 @@ type CCBaseProperties struct {
 	// list of module-specific flags that will be used for .S compiles
 	Asflags []string `android:"arch_variant"`
 
+	// list of module-specific flags that will be used for C and C++ compiles when
+	// compiling with clang
+	Clang_cflags []string `android:"arch_variant"`
+
+	// list of module-specific flags that will be used for .S compiles when
+	// compiling with clang
+	Clang_asflags []string `android:"arch_variant"`
+
 	// list of module-specific flags that will be used for .y and .yy compiles
 	Yaccflags []string
-
-	// list of module-specific flags that will be used for all link steps
-	Ldflags []string `android:"arch_variant"`
 
 	// the instruction set architecture to use to compile the C/C++
 	// module.
@@ -285,23 +264,17 @@ type CCBaseProperties struct {
 	// If possible, don't use this.
 	Local_include_files []string `android:"arch_variant"`
 
-	// list of directories relative to the Blueprints file that will
-	// be added to the include path using -I for any module that links against this module
-	Export_include_dirs []string `android:"arch_variant"`
+	// pass -frtti instead of -fno-rtti
+	Rtti *bool
 
-	// list of module-specific flags that will be used for C and C++ compiles when
-	// compiling with clang
-	Clang_cflags []string `android:"arch_variant"`
+	Debug, Release struct {
+		// list of module-specific flags that will be used for C and C++ compiles in debug or
+		// release builds
+		Cflags []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+}
 
-	// list of module-specific flags that will be used for .S compiles when
-	// compiling with clang
-	Clang_asflags []string `android:"arch_variant"`
-
-	// list of system libraries that will be dynamically linked to
-	// shared library and executable modules.  If unset, generally defaults to libc
-	// and libm.  Set to [] to prevent linking against libc and libm.
-	System_shared_libs []string
-
+type BaseLinkerProperties struct {
 	// list of modules whose object files should be linked into this module
 	// in their entirety.  For static library modules, all of the .o files from the intermediate
 	// directory of the dependency will be linked into this modules .a file.  For a shared library,
@@ -314,54 +287,116 @@ type CCBaseProperties struct {
 	// list of modules that should be dynamically linked into this module.
 	Shared_libs []string `android:"arch_variant"`
 
+	// list of module-specific flags that will be used for all link steps
+	Ldflags []string `android:"arch_variant"`
+
+	// don't insert default compiler flags into asflags, cflags,
+	// cppflags, conlyflags, ldflags, or include_dirs
+	No_default_compiler_flags *bool
+
+	// list of system libraries that will be dynamically linked to
+	// shared library and executable modules.  If unset, generally defaults to libc
+	// and libm.  Set to [] to prevent linking against libc and libm.
+	System_shared_libs []string
+
 	// allow the module to contain undefined symbols.  By default,
 	// modules cannot contain undefined symbols that are not satisified by their immediate
 	// dependencies.  Set this flag to true to remove --no-undefined from the linker flags.
 	// This flag should only be necessary for compiling low-level libraries like libc.
 	Allow_undefined_symbols *bool
 
-	// don't link in crt_begin and crt_end.  This flag should only be necessary for
-	// compiling crt or libc.
-	Nocrt *bool `android:"arch_variant"`
-
 	// don't link in libgcc.a
 	No_libgcc *bool
 
-	// don't insert default compiler flags into asflags, cflags,
-	// cppflags, conlyflags, ldflags, or include_dirs
-	No_default_compiler_flags *bool
-
-	// compile module with clang instead of gcc
-	Clang *bool `android:"arch_variant"`
-
-	// pass -frtti instead of -fno-rtti
-	Rtti *bool
-
 	// -l arguments to pass to linker for host-provided shared libraries
 	Host_ldlibs []string `android:"arch_variant"`
+}
 
-	// select the STL library to use.  Possible values are "libc++", "libc++_static",
-	// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
-	// default
-	Stl string
-
-	// Set for combined shared/static libraries to prevent compiling object files a second time
-	SkipCompileObjs bool `blueprint:"mutated"`
-
-	Debug, Release struct {
-		// list of module-specific flags that will be used for C and C++ compiles in debug or
-		// release builds
-		Cflags []string `android:"arch_variant"`
+type LibraryCompilerProperties struct {
+	Static struct {
+		Srcs         []string `android:"arch_variant"`
+		Exclude_srcs []string `android:"arch_variant"`
+		Cflags       []string `android:"arch_variant"`
 	} `android:"arch_variant"`
+	Shared struct {
+		Srcs         []string `android:"arch_variant"`
+		Exclude_srcs []string `android:"arch_variant"`
+		Cflags       []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+}
+
+type LibraryLinkerProperties struct {
+	Static struct {
+		Whole_static_libs []string `android:"arch_variant"`
+		Static_libs       []string `android:"arch_variant"`
+		Shared_libs       []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+	Shared struct {
+		Whole_static_libs []string `android:"arch_variant"`
+		Static_libs       []string `android:"arch_variant"`
+		Shared_libs       []string `android:"arch_variant"`
+	} `android:"arch_variant"`
+
+	// local file name to pass to the linker as --version_script
+	Version_script *string `android:"arch_variant"`
+	// local file name to pass to the linker as -unexported_symbols_list
+	Unexported_symbols_list *string `android:"arch_variant"`
+	// local file name to pass to the linker as -force_symbols_not_weak_list
+	Force_symbols_not_weak_list *string `android:"arch_variant"`
+	// local file name to pass to the linker as -force_symbols_weak_list
+	Force_symbols_weak_list *string `android:"arch_variant"`
+
+	// list of directories relative to the Blueprints file that will
+	// be added to the include path using -I for any module that links against this module
+	Export_include_dirs []string `android:"arch_variant"`
+
+	// don't link in crt_begin and crt_end.  This flag should only be necessary for
+	// compiling crt or libc.
+	Nocrt *bool `android:"arch_variant"`
+}
+
+type BinaryLinkerProperties struct {
+	// compile executable with -static
+	Static_executable *bool
+
+	// set the name of the output
+	Stem string `android:"arch_variant"`
+
+	// append to the name of the output
+	Suffix string `android:"arch_variant"`
+
+	// if set, add an extra objcopy --prefix-symbols= step
+	Prefix_symbols string
+}
+
+type TestLinkerProperties struct {
+	// if set, build against the gtest library. Defaults to true.
+	Gtest bool
+
+	// Create a separate binary for each source file.  Useful when there is
+	// global state that can not be torn down and reset between each test suite.
+	Test_per_src *bool
+}
+
+// Properties used to compile all C or C++ modules
+type BaseProperties struct {
+	// compile module with clang instead of gcc
+	Clang *bool `android:"arch_variant"`
 
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version string
 
+	// don't insert default compiler flags into asflags, cflags,
+	// cppflags, conlyflags, ldflags, or include_dirs
+	No_default_compiler_flags *bool
+}
+
+type InstallerProperties struct {
 	// install to a subdirectory of the default install path for the module
 	Relative_install_path string
 }
 
-type CCUnusedProperties struct {
+type UnusedProperties struct {
 	Native_coverage  *bool
 	Required         []string
 	Sanitize         []string `android:"arch_variant"`
@@ -370,163 +405,522 @@ type CCUnusedProperties struct {
 	Tags             []string
 }
 
-// CCBase contains the properties and members used by all C/C++ module types, and implements
-// the blueprint.Module interface.  It expects to be embedded into an outer specialization struct,
-// and uses a ccModuleType interface to that struct to create the build steps.
-type CCBase struct {
+type ModuleContextIntf interface {
+	module() *Module
+	static() bool
+	staticBinary() bool
+	clang() bool
+	toolchain() Toolchain
+	noDefaultCompilerFlags() bool
+	sdk() bool
+	sdkVersion() string
+}
+
+type ModuleContext interface {
+	common.AndroidModuleContext
+	ModuleContextIntf
+}
+
+type BaseModuleContext interface {
+	common.AndroidBaseContext
+	ModuleContextIntf
+}
+
+type Customizer interface {
+	CustomizeProperties(BaseModuleContext)
+	Properties() []interface{}
+}
+
+type feature interface {
+	begin(ctx BaseModuleContext)
+	deps(ctx BaseModuleContext, deps Deps) Deps
+	flags(ctx ModuleContext, flags Flags) Flags
+	props() []interface{}
+}
+
+type compiler interface {
+	feature
+	compile(ctx ModuleContext, flags Flags) common.Paths
+}
+
+type linker interface {
+	feature
+	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles common.Paths) common.Path
+}
+
+type installer interface {
+	props() []interface{}
+	install(ctx ModuleContext, path common.Path)
+	inData() bool
+}
+
+// Module contains the properties and members used by all C/C++ module types, and implements
+// the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
+// to construct the output file.  Behavior can be customized with a Customizer interface
+type Module struct {
 	common.AndroidModuleBase
 	common.DefaultableModule
-	module CCModuleType
 
-	Properties CCBaseProperties
+	Properties BaseProperties
+	unused     UnusedProperties
 
-	unused CCUnusedProperties
+	// initialize before calling Init
+	hod      common.HostOrDeviceSupported
+	multilib common.Multilib
 
-	installPath string
+	// delegates, initialize before calling Init
+	customizer Customizer
+	features   []feature
+	compiler   compiler
+	linker     linker
+	installer  installer
 
-	savedDepNames CCDeps
+	deps       Deps
+	outputFile common.OptionalPath
+
+	cachedToolchain Toolchain
 }
 
-func newCCBase(base *CCBase, module CCModuleType, hod common.HostOrDeviceSupported,
-	multilib common.Multilib, props ...interface{}) (blueprint.Module, []interface{}) {
+func (c *Module) Init() (blueprint.Module, []interface{}) {
+	props := []interface{}{&c.Properties, &c.unused}
+	if c.customizer != nil {
+		props = append(props, c.customizer.Properties()...)
+	}
+	if c.compiler != nil {
+		props = append(props, c.compiler.props()...)
+	}
+	if c.linker != nil {
+		props = append(props, c.linker.props()...)
+	}
+	if c.installer != nil {
+		props = append(props, c.installer.props()...)
+	}
+	for _, feature := range c.features {
+		props = append(props, feature.props()...)
+	}
 
-	base.module = module
+	_, props = common.InitAndroidArchModule(c, c.hod, c.multilib, props...)
 
-	props = append(props, &base.Properties, &base.unused)
-
-	_, props = common.InitAndroidArchModule(module, hod, multilib, props...)
-
-	return common.InitDefaultableModule(module, base, props...)
+	return common.InitDefaultableModule(c, c, props...)
 }
 
-func (c *CCBase) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
-	toolchain := c.findToolchain(ctx)
+type baseModuleContext struct {
+	common.AndroidBaseContext
+	moduleContextImpl
+}
+
+type moduleContext struct {
+	common.AndroidModuleContext
+	moduleContextImpl
+}
+
+type moduleContextImpl struct {
+	mod *Module
+	ctx BaseModuleContext
+}
+
+func (ctx *moduleContextImpl) module() *Module {
+	return ctx.mod
+}
+
+func (ctx *moduleContextImpl) clang() bool {
+	return ctx.mod.clang(ctx.ctx)
+}
+
+func (ctx *moduleContextImpl) toolchain() Toolchain {
+	return ctx.mod.toolchain(ctx.ctx)
+}
+
+func (ctx *moduleContextImpl) static() bool {
+	if ctx.mod.linker == nil {
+		panic(fmt.Errorf("static called on module %q with no linker", ctx.ctx.ModuleName()))
+	}
+	if linker, ok := ctx.mod.linker.(baseLinkerInterface); ok {
+		return linker.static()
+	} else {
+		panic(fmt.Errorf("static called on module %q that doesn't use base linker", ctx.ctx.ModuleName()))
+	}
+}
+
+func (ctx *moduleContextImpl) staticBinary() bool {
+	if ctx.mod.linker == nil {
+		panic(fmt.Errorf("staticBinary called on module %q with no linker", ctx.ctx.ModuleName()))
+	}
+	if linker, ok := ctx.mod.linker.(baseLinkerInterface); ok {
+		return linker.staticBinary()
+	} else {
+		panic(fmt.Errorf("staticBinary called on module %q that doesn't use base linker", ctx.ctx.ModuleName()))
+	}
+}
+
+func (ctx *moduleContextImpl) noDefaultCompilerFlags() bool {
+	return Bool(ctx.mod.Properties.No_default_compiler_flags)
+}
+
+func (ctx *moduleContextImpl) sdk() bool {
+	return ctx.mod.Properties.Sdk_version != ""
+}
+
+func (ctx *moduleContextImpl) sdkVersion() string {
+	return ctx.mod.Properties.Sdk_version
+}
+
+func newBaseModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *Module {
+	return &Module{
+		hod:      hod,
+		multilib: multilib,
+	}
+}
+
+func newModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *Module {
+	module := newBaseModule(hod, multilib)
+	module.features = []feature{
+		&stlFeature{},
+	}
+	return module
+}
+
+func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
+	ctx := &moduleContext{
+		AndroidModuleContext: actx,
+		moduleContextImpl: moduleContextImpl{
+			mod: c,
+		},
+	}
+	ctx.ctx = ctx
+
+	flags := Flags{
+		Toolchain: c.toolchain(ctx),
+		Clang:     c.clang(ctx),
+	}
+
+	if c.compiler != nil {
+		flags = c.compiler.flags(ctx, flags)
+	}
+	if c.linker != nil {
+		flags = c.linker.flags(ctx, flags)
+	}
+	for _, feature := range c.features {
+		flags = feature.flags(ctx, flags)
+	}
 	if ctx.Failed() {
 		return
 	}
 
-	flags := c.collectFlags(ctx, toolchain)
-	if ctx.Failed() {
-		return
-	}
+	flags.CFlags, _ = filterList(flags.CFlags, illegalFlags)
+	flags.CppFlags, _ = filterList(flags.CppFlags, illegalFlags)
+	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, illegalFlags)
 
-	deps := c.depsToPaths(ctx, c.savedDepNames)
+	// Optimization to reduce size of build.ninja
+	// Replace the long list of flags for each file with a module-local variable
+	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))
+	ctx.Variable(pctx, "cppflags", strings.Join(flags.CppFlags, " "))
+	ctx.Variable(pctx, "asflags", strings.Join(flags.AsFlags, " "))
+	flags.CFlags = []string{"$cflags"}
+	flags.CppFlags = []string{"$cppflags"}
+	flags.AsFlags = []string{"$asflags"}
+
+	deps := c.depsToPaths(actx, c.deps)
 	if ctx.Failed() {
 		return
 	}
 
 	flags.CFlags = append(flags.CFlags, deps.Cflags...)
 
-	objFiles := c.compileObjs(ctx, flags)
-	if ctx.Failed() {
-		return
+	var objFiles common.Paths
+	if c.compiler != nil {
+		objFiles = c.compiler.compile(ctx, flags)
+		if ctx.Failed() {
+			return
+		}
 	}
 
-	generatedObjFiles := c.compileGeneratedObjs(ctx, flags)
-	if ctx.Failed() {
-		return
-	}
+	if c.linker != nil {
+		outputFile := c.linker.link(ctx, flags, deps, objFiles)
+		if ctx.Failed() {
+			return
+		}
+		c.outputFile = common.OptionalPathForPath(outputFile)
 
-	objFiles = append(objFiles, generatedObjFiles...)
-
-	c.ccModuleType().compileModule(ctx, flags, deps, objFiles)
-	if ctx.Failed() {
-		return
-	}
-
-	c.ccModuleType().installModule(ctx, flags)
-	if ctx.Failed() {
-		return
+		if c.installer != nil {
+			c.installer.install(ctx, outputFile)
+			if ctx.Failed() {
+				return
+			}
+		}
 	}
 }
 
-func (c *CCBase) ccModuleType() CCModuleType {
-	return c.module
-}
-
-func (c *CCBase) findToolchain(ctx common.AndroidModuleContext) Toolchain {
-	arch := ctx.Arch()
-	hod := ctx.HostOrDevice()
-	ht := ctx.HostType()
-	factory := toolchainFactories[hod][ht][arch.ArchType]
-	if factory == nil {
-		ctx.ModuleErrorf("Toolchain not found for %s %s arch %q", hod.String(), ht.String(), arch.String())
-		return nil
+func (c *Module) toolchain(ctx BaseModuleContext) Toolchain {
+	if c.cachedToolchain == nil {
+		arch := ctx.Arch()
+		hod := ctx.HostOrDevice()
+		ht := ctx.HostType()
+		factory := toolchainFactories[hod][ht][arch.ArchType]
+		if factory == nil {
+			ctx.ModuleErrorf("Toolchain not found for %s %s arch %q", hod.String(), ht.String(), arch.String())
+			return nil
+		}
+		c.cachedToolchain = factory(arch)
 	}
-	return factory(arch)
+	return c.cachedToolchain
 }
 
-func (c *CCBase) ModifyProperties(ctx CCModuleContext) {
-}
-
-func (c *CCBase) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.Properties.Whole_static_libs...)
-	depNames.StaticLibs = append(depNames.StaticLibs, c.Properties.Static_libs...)
-	depNames.SharedLibs = append(depNames.SharedLibs, c.Properties.Shared_libs...)
-
-	return depNames
-}
-
-func (c *CCBase) depsMutator(ctx common.AndroidBottomUpMutatorContext) {
-	c.savedDepNames = c.module.depNames(ctx, CCDeps{})
-	c.savedDepNames.WholeStaticLibs = lastUniqueElements(c.savedDepNames.WholeStaticLibs)
-	c.savedDepNames.StaticLibs = lastUniqueElements(c.savedDepNames.StaticLibs)
-	c.savedDepNames.SharedLibs = lastUniqueElements(c.savedDepNames.SharedLibs)
-
-	staticLibs := c.savedDepNames.WholeStaticLibs
-	staticLibs = append(staticLibs, c.savedDepNames.StaticLibs...)
-	staticLibs = append(staticLibs, c.savedDepNames.LateStaticLibs...)
-	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, staticLibs...)
-
-	ctx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, c.savedDepNames.SharedLibs...)
-
-	ctx.AddDependency(ctx.Module(), c.savedDepNames.ObjFiles.Strings()...)
-	if c.savedDepNames.CrtBegin != "" {
-		ctx.AddDependency(ctx.Module(), c.savedDepNames.CrtBegin)
+func (c *Module) begin(ctx BaseModuleContext) {
+	if c.compiler != nil {
+		c.compiler.begin(ctx)
 	}
-	if c.savedDepNames.CrtEnd != "" {
-		ctx.AddDependency(ctx.Module(), c.savedDepNames.CrtEnd)
+	if c.linker != nil {
+		c.linker.begin(ctx)
+	}
+	for _, feature := range c.features {
+		feature.begin(ctx)
+	}
+}
+
+func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
+	ctx := &baseModuleContext{
+		AndroidBaseContext: actx,
+		moduleContextImpl: moduleContextImpl{
+			mod: c,
+		},
+	}
+	ctx.ctx = ctx
+
+	if c.customizer != nil {
+		c.customizer.CustomizeProperties(ctx)
+	}
+
+	c.begin(ctx)
+
+	c.deps = Deps{}
+
+	if c.compiler != nil {
+		c.deps = c.compiler.deps(ctx, c.deps)
+	}
+	if c.linker != nil {
+		c.deps = c.linker.deps(ctx, c.deps)
+	}
+	for _, feature := range c.features {
+		c.deps = feature.deps(ctx, c.deps)
+	}
+
+	c.deps.WholeStaticLibs = lastUniqueElements(c.deps.WholeStaticLibs)
+	c.deps.StaticLibs = lastUniqueElements(c.deps.StaticLibs)
+	c.deps.LateStaticLibs = lastUniqueElements(c.deps.LateStaticLibs)
+	c.deps.SharedLibs = lastUniqueElements(c.deps.SharedLibs)
+	c.deps.LateSharedLibs = lastUniqueElements(c.deps.LateSharedLibs)
+
+	staticLibs := c.deps.WholeStaticLibs
+	staticLibs = append(staticLibs, c.deps.StaticLibs...)
+	staticLibs = append(staticLibs, c.deps.LateStaticLibs...)
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, staticLibs...)
+
+	sharedLibs := c.deps.SharedLibs
+	sharedLibs = append(sharedLibs, c.deps.LateSharedLibs...)
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, sharedLibs...)
+
+	actx.AddDependency(ctx.module(), c.deps.ObjFiles.Strings()...)
+	if c.deps.CrtBegin != "" {
+		actx.AddDependency(ctx.module(), c.deps.CrtBegin)
+	}
+	if c.deps.CrtEnd != "" {
+		actx.AddDependency(ctx.module(), c.deps.CrtEnd)
 	}
 }
 
 func depsMutator(ctx common.AndroidBottomUpMutatorContext) {
-	if c, ok := ctx.Module().(CCModuleType); ok {
-		c.ModifyProperties(ctx)
+	if c, ok := ctx.Module().(*Module); ok {
 		c.depsMutator(ctx)
 	}
 }
 
-// Create a ccFlags struct that collects the compile flags from global values,
-// per-target values, module type values, and per-module Blueprints properties
-func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolchain) CCFlags {
-	flags := CCFlags{
-		CFlags:     c.Properties.Cflags,
-		CppFlags:   c.Properties.Cppflags,
-		ConlyFlags: c.Properties.Conlyflags,
-		LdFlags:    c.Properties.Ldflags,
-		AsFlags:    c.Properties.Asflags,
-		YaccFlags:  c.Properties.Yaccflags,
-		Nocrt:      Bool(c.Properties.Nocrt),
-		Toolchain:  toolchain,
-		Clang:      Bool(c.Properties.Clang),
+func (c *Module) clang(ctx BaseModuleContext) bool {
+	clang := Bool(c.Properties.Clang)
+
+	if c.Properties.Clang == nil {
+		if ctx.Host() {
+			clang = true
+		}
+
+		if ctx.Device() && ctx.AConfig().DeviceUsesClang() {
+			clang = true
+		}
 	}
 
+	if !c.toolchain(ctx).ClangSupported() {
+		clang = false
+	}
+
+	return clang
+}
+
+func (c *Module) depsToPathsFromList(ctx common.AndroidModuleContext,
+	names []string) (modules []common.AndroidModule,
+	outputFiles common.Paths, exportedFlags []string) {
+
+	for _, n := range names {
+		found := false
+		ctx.VisitDirectDeps(func(m blueprint.Module) {
+			otherName := ctx.OtherModuleName(m)
+			if otherName != n {
+				return
+			}
+
+			if a, ok := m.(*Module); ok {
+				if !a.Enabled() {
+					ctx.ModuleErrorf("depends on disabled module %q", otherName)
+					return
+				}
+				if a.HostOrDevice() != ctx.HostOrDevice() {
+					ctx.ModuleErrorf("host/device mismatch between %q and %q", ctx.ModuleName(),
+						otherName)
+					return
+				}
+
+				if outputFile := a.outputFile; outputFile.Valid() {
+					if found {
+						ctx.ModuleErrorf("multiple modules satisified dependency on %q", otherName)
+						return
+					}
+					outputFiles = append(outputFiles, outputFile.Path())
+					modules = append(modules, a)
+					if i, ok := a.linker.(exportedFlagsProducer); ok {
+						exportedFlags = append(exportedFlags, i.exportedFlags()...)
+					}
+					found = true
+				} else {
+					ctx.ModuleErrorf("module %q missing output file", otherName)
+					return
+				}
+			} else {
+				ctx.ModuleErrorf("module %q not an android module", otherName)
+				return
+			}
+		})
+		if !found && !inList(n, ctx.GetMissingDependencies()) {
+			ctx.ModuleErrorf("unsatisified dependency on %q", n)
+		}
+	}
+
+	return modules, outputFiles, exportedFlags
+}
+
+// Convert dependency names to paths.  Takes a Deps containing names and returns a PathDeps
+// containing paths
+func (c *Module) depsToPaths(ctx common.AndroidModuleContext, deps Deps) PathDeps {
+	var depPaths PathDeps
+	var newCflags []string
+
+	var wholeStaticLibModules []common.AndroidModule
+
+	wholeStaticLibModules, depPaths.WholeStaticLibs, newCflags =
+		c.depsToPathsFromList(ctx, deps.WholeStaticLibs)
+	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
+	depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, newCflags...)
+
+	for _, am := range wholeStaticLibModules {
+		if m, ok := am.(*Module); ok {
+			if staticLib, ok := m.linker.(*libraryLinker); ok && staticLib.static() {
+				if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
+					postfix := " (required by " + ctx.OtherModuleName(m) + ")"
+					for i := range missingDeps {
+						missingDeps[i] += postfix
+					}
+					ctx.AddMissingDependencies(missingDeps)
+				}
+				depPaths.WholeStaticLibObjFiles =
+					append(depPaths.WholeStaticLibObjFiles, staticLib.objFiles...)
+			} else {
+				ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
+			}
+		} else {
+			ctx.ModuleErrorf("module %q not an android module", ctx.OtherModuleName(m))
+		}
+	}
+
+	_, depPaths.StaticLibs, newCflags = c.depsToPathsFromList(ctx, deps.StaticLibs)
+	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
+
+	_, depPaths.LateStaticLibs, newCflags = c.depsToPathsFromList(ctx, deps.LateStaticLibs)
+	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
+
+	_, depPaths.SharedLibs, newCflags = c.depsToPathsFromList(ctx, deps.SharedLibs)
+	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
+
+	_, depPaths.LateSharedLibs, newCflags = c.depsToPathsFromList(ctx, deps.LateSharedLibs)
+	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
+
+	ctx.VisitDirectDeps(func(bm blueprint.Module) {
+		if m, ok := bm.(*Module); ok {
+			otherName := ctx.OtherModuleName(m)
+			if otherName == deps.CrtBegin {
+				depPaths.CrtBegin = m.outputFile
+			} else if otherName == deps.CrtEnd {
+				depPaths.CrtEnd = m.outputFile
+			} else {
+				output := m.outputFile
+				if output.Valid() {
+					depPaths.ObjFiles = append(depPaths.ObjFiles, output.Path())
+				} else {
+					ctx.ModuleErrorf("module %s did not provide an output file", otherName)
+				}
+			}
+		}
+	})
+
+	return depPaths
+}
+
+func (c *Module) InstallInData() bool {
+	if c.installer == nil {
+		return false
+	}
+	return c.installer.inData()
+}
+
+// Compiler
+
+type baseCompiler struct {
+	Properties BaseCompilerProperties
+}
+
+var _ compiler = (*baseCompiler)(nil)
+
+func (compiler *baseCompiler) props() []interface{} {
+	return []interface{}{&compiler.Properties}
+}
+
+func (compiler *baseCompiler) begin(ctx BaseModuleContext)                {}
+func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps { return deps }
+
+// Create a Flags struct that collects the compile flags from global values,
+// per-target values, module type values, and per-module Blueprints properties
+func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
+	toolchain := ctx.toolchain()
+
+	flags.CFlags = append(flags.CFlags, compiler.Properties.Cflags...)
+	flags.CppFlags = append(flags.CppFlags, compiler.Properties.Cppflags...)
+	flags.ConlyFlags = append(flags.ConlyFlags, compiler.Properties.Conlyflags...)
+	flags.AsFlags = append(flags.AsFlags, compiler.Properties.Asflags...)
+	flags.YaccFlags = append(flags.YaccFlags, compiler.Properties.Yaccflags...)
+
 	// Include dir cflags
-	rootIncludeDirs := common.PathsForSource(ctx, c.Properties.Include_dirs)
-	localIncludeDirs := common.PathsForModuleSrc(ctx, c.Properties.Local_include_dirs)
+	rootIncludeDirs := common.PathsForSource(ctx, compiler.Properties.Include_dirs)
+	localIncludeDirs := common.PathsForModuleSrc(ctx, compiler.Properties.Local_include_dirs)
 	flags.GlobalFlags = append(flags.GlobalFlags,
 		includeDirsToFlags(localIncludeDirs),
 		includeDirsToFlags(rootIncludeDirs))
 
-	rootIncludeFiles := common.PathsForSource(ctx, c.Properties.Include_files)
-	localIncludeFiles := common.PathsForModuleSrc(ctx, c.Properties.Local_include_files)
+	rootIncludeFiles := common.PathsForSource(ctx, compiler.Properties.Include_files)
+	localIncludeFiles := common.PathsForModuleSrc(ctx, compiler.Properties.Local_include_files)
 
 	flags.GlobalFlags = append(flags.GlobalFlags,
 		includeFilesToFlags(rootIncludeFiles),
 		includeFilesToFlags(localIncludeFiles))
 
-	if !Bool(c.Properties.No_default_compiler_flags) {
-		if c.Properties.Sdk_version == "" || ctx.Host() {
+	if !ctx.noDefaultCompilerFlags() {
+		if !ctx.sdk() || ctx.Host() {
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				"${commonGlobalIncludes}",
 				toolchain.IncludeFlags(),
@@ -540,21 +934,10 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}...)
 	}
 
-	if c.Properties.Clang == nil {
-		if ctx.Host() {
-			flags.Clang = true
-		}
-
-		if ctx.Device() && ctx.AConfig().DeviceUsesClang() {
-			flags.Clang = true
-		}
+	instructionSet := compiler.Properties.Instruction_set
+	if flags.RequiredInstructionSet != "" {
+		instructionSet = flags.RequiredInstructionSet
 	}
-
-	if !toolchain.ClangSupported() {
-		flags.Clang = false
-	}
-
-	instructionSet := c.Properties.Instruction_set
 	instructionSetFlags, err := toolchain.InstructionSetFlags(instructionSet)
 	if flags.Clang {
 		instructionSetFlags, err = toolchain.ClangInstructionSetFlags(instructionSet)
@@ -564,12 +947,12 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	}
 
 	// TODO: debug
-	flags.CFlags = append(flags.CFlags, c.Properties.Release.Cflags...)
+	flags.CFlags = append(flags.CFlags, compiler.Properties.Release.Cflags...)
 
 	if flags.Clang {
 		flags.CFlags = clangFilterUnknownCflags(flags.CFlags)
-		flags.CFlags = append(flags.CFlags, c.Properties.Clang_cflags...)
-		flags.AsFlags = append(flags.AsFlags, c.Properties.Clang_asflags...)
+		flags.CFlags = append(flags.CFlags, compiler.Properties.Clang_cflags...)
+		flags.AsFlags = append(flags.AsFlags, compiler.Properties.Clang_asflags...)
 		flags.CppFlags = clangFilterUnknownCflags(flags.CppFlags)
 		flags.ConlyFlags = clangFilterUnknownCflags(flags.ConlyFlags)
 		flags.LdFlags = clangFilterUnknownCflags(flags.LdFlags)
@@ -582,11 +965,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
 	}
 
-	if !Bool(c.Properties.No_default_compiler_flags) {
-		if ctx.Device() && !Bool(c.Properties.Allow_undefined_symbols) {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
-		}
-
+	if !ctx.noDefaultCompilerFlags() {
 		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
 
 		if flags.Clang {
@@ -611,7 +990,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		}
 
 		if ctx.Device() {
-			if Bool(c.Properties.Rtti) {
+			if Bool(compiler.Properties.Rtti) {
 				flags.CppFlags = append(flags.CppFlags, "-frtti")
 			} else {
 				flags.CppFlags = append(flags.CppFlags, "-fno-rtti")
@@ -622,14 +1001,8 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 
 		if flags.Clang {
 			flags.CppFlags = append(flags.CppFlags, toolchain.ClangCppflags())
-			flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
 		} else {
 			flags.CppFlags = append(flags.CppFlags, toolchain.Cppflags())
-			flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
-		}
-
-		if ctx.Host() {
-			flags.LdFlags = append(flags.LdFlags, c.Properties.Host_ldlibs...)
 		}
 	}
 
@@ -640,9 +1013,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	}
 	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 
-	flags = c.ccModuleType().flags(ctx, flags)
-
-	if c.Properties.Sdk_version == "" {
+	if !ctx.sdk() {
 		if ctx.Host() && !flags.Clang {
 			// The host GCC doesn't support C++14 (and is deprecated, so likely
 			// never will). Build these modules with C++11.
@@ -651,10 +1022,6 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 			flags.CppFlags = append(flags.CppFlags, "-std=gnu++14")
 		}
 	}
-
-	flags.CFlags, _ = filterList(flags.CFlags, illegalFlags)
-	flags.CppFlags, _ = filterList(flags.CppFlags, illegalFlags)
-	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, illegalFlags)
 
 	// We can enforce some rules more strictly in the code we own. strict
 	// indicates if this is code that we can be stricter with. If we have
@@ -672,27 +1039,36 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.CFlags = append(flags.CFlags, "-DANDROID_STRICT")
 	}
 
-	// Optimization to reduce size of build.ninja
-	// Replace the long list of flags for each file with a module-local variable
-	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))
-	ctx.Variable(pctx, "cppflags", strings.Join(flags.CppFlags, " "))
-	ctx.Variable(pctx, "asflags", strings.Join(flags.AsFlags, " "))
-	flags.CFlags = []string{"$cflags"}
-	flags.CppFlags = []string{"$cppflags"}
-	flags.AsFlags = []string{"$asflags"}
-
 	return flags
 }
 
-func (c *CCBase) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	return flags
+func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags) common.Paths {
+	// Compile files listed in c.Properties.Srcs into objects
+	objFiles := compiler.compileObjs(ctx, flags, "", compiler.Properties.Srcs, compiler.Properties.Exclude_srcs)
+	if ctx.Failed() {
+		return nil
+	}
+
+	var genSrcs common.Paths
+	ctx.VisitDirectDeps(func(module blueprint.Module) {
+		if gen, ok := module.(genrule.SourceFileGenerator); ok {
+			genSrcs = append(genSrcs, gen.GeneratedSourceFiles()...)
+		}
+	})
+
+	if len(genSrcs) != 0 {
+		genObjs := TransformSourceToObj(ctx, "", genSrcs, flagsToBuilderFlags(flags), nil)
+		objFiles = append(objFiles, genObjs...)
+	}
+
+	return objFiles
 }
 
 // Compile a list of source files into objects a specified subdirectory
-func (c *CCBase) customCompileObjs(ctx common.AndroidModuleContext, flags CCFlags,
+func (compiler *baseCompiler) compileObjs(ctx common.AndroidModuleContext, flags Flags,
 	subdir string, srcFiles, excludes []string) common.Paths {
 
-	buildFlags := ccFlagsToBuilderFlags(flags)
+	buildFlags := flagsToBuilderFlags(flags)
 
 	inputFiles := ctx.ExpandSources(srcFiles, excludes)
 	srcPaths, deps := genSources(ctx, inputFiles, buildFlags)
@@ -700,385 +1076,100 @@ func (c *CCBase) customCompileObjs(ctx common.AndroidModuleContext, flags CCFlag
 	return TransformSourceToObj(ctx, subdir, srcPaths, buildFlags, deps)
 }
 
-// Compile files listed in c.Properties.Srcs into objects
-func (c *CCBase) compileObjs(ctx common.AndroidModuleContext, flags CCFlags) common.Paths {
-
-	if c.Properties.SkipCompileObjs {
-		return nil
-	}
-
-	return c.customCompileObjs(ctx, flags, "", c.Properties.Srcs, c.Properties.Exclude_srcs)
-}
-
-// Compile generated source files from dependencies
-func (c *CCBase) compileGeneratedObjs(ctx common.AndroidModuleContext, flags CCFlags) common.Paths {
-	var srcs common.Paths
-
-	if c.Properties.SkipCompileObjs {
-		return nil
-	}
-
-	ctx.VisitDirectDeps(func(module blueprint.Module) {
-		if gen, ok := module.(genrule.SourceFileGenerator); ok {
-			srcs = append(srcs, gen.GeneratedSourceFiles()...)
-		}
-	})
-
-	if len(srcs) == 0 {
-		return nil
-	}
-
-	return TransformSourceToObj(ctx, "", srcs, ccFlagsToBuilderFlags(flags), nil)
-}
-
-func (c *CCBase) outputFile() common.OptionalPath {
-	return common.OptionalPath{}
-}
-
-func (c *CCBase) depsToPathsFromList(ctx common.AndroidModuleContext,
-	names []string) (modules []common.AndroidModule,
-	outputFiles common.Paths, exportedFlags []string) {
-
-	for _, n := range names {
-		found := false
-		ctx.VisitDirectDeps(func(m blueprint.Module) {
-			otherName := ctx.OtherModuleName(m)
-			if otherName != n {
-				return
-			}
-
-			if a, ok := m.(CCModuleType); ok {
-				if !a.Enabled() {
-					// If a cc_library host+device module depends on a library that exists as both
-					// cc_library_shared and cc_library_host_shared, it will end up with two
-					// dependencies with the same name, one of which is marked disabled for each
-					// of host and device.  Ignore the disabled one.
-					return
-				}
-				if a.HostOrDevice() != ctx.HostOrDevice() {
-					ctx.ModuleErrorf("host/device mismatch between %q and %q", ctx.ModuleName(),
-						otherName)
-					return
-				}
-
-				if outputFile := a.outputFile(); outputFile.Valid() {
-					if found {
-						ctx.ModuleErrorf("multiple modules satisified dependency on %q", otherName)
-						return
-					}
-					outputFiles = append(outputFiles, outputFile.Path())
-					modules = append(modules, a)
-					if i, ok := a.(ccExportedFlagsProducer); ok {
-						exportedFlags = append(exportedFlags, i.exportedFlags()...)
-					}
-					found = true
-				} else {
-					ctx.ModuleErrorf("module %q missing output file", otherName)
-					return
-				}
-			} else {
-				ctx.ModuleErrorf("module %q not an android module", otherName)
-				return
-			}
-		})
-		if !found && !inList(n, ctx.GetMissingDependencies()) {
-			ctx.ModuleErrorf("unsatisified dependency on %q", n)
-		}
-	}
-
-	return modules, outputFiles, exportedFlags
-}
-
-// Convert dependency names to paths.  Takes a CCDeps containing names and returns a CCPathDeps
-// containing paths
-func (c *CCBase) depsToPaths(ctx common.AndroidModuleContext, depNames CCDeps) CCPathDeps {
-	var depPaths CCPathDeps
-	var newCflags []string
-
-	var wholeStaticLibModules []common.AndroidModule
-
-	wholeStaticLibModules, depPaths.WholeStaticLibs, newCflags =
-		c.depsToPathsFromList(ctx, depNames.WholeStaticLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-	depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, newCflags...)
-
-	for _, m := range wholeStaticLibModules {
-		if staticLib, ok := m.(ccLibraryInterface); ok && staticLib.static() {
-			if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
-				postfix := " (required by " + ctx.OtherModuleName(m) + ")"
-				for i := range missingDeps {
-					missingDeps[i] += postfix
-				}
-				ctx.AddMissingDependencies(missingDeps)
-			}
-			depPaths.WholeStaticLibObjFiles =
-				append(depPaths.WholeStaticLibObjFiles, staticLib.allObjFiles()...)
-		} else {
-			ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
-		}
-	}
-
-	_, depPaths.StaticLibs, newCflags = c.depsToPathsFromList(ctx, depNames.StaticLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	_, depPaths.LateStaticLibs, newCflags = c.depsToPathsFromList(ctx, depNames.LateStaticLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	_, depPaths.SharedLibs, newCflags = c.depsToPathsFromList(ctx, depNames.SharedLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	ctx.VisitDirectDeps(func(m blueprint.Module) {
-		if obj, ok := m.(ccObjectProvider); ok {
-			otherName := ctx.OtherModuleName(m)
-			if otherName == depNames.CrtBegin {
-				if !Bool(c.Properties.Nocrt) {
-					depPaths.CrtBegin = obj.object().outputFile()
-				}
-			} else if otherName == depNames.CrtEnd {
-				if !Bool(c.Properties.Nocrt) {
-					depPaths.CrtEnd = obj.object().outputFile()
-				}
-			} else {
-				output := obj.object().outputFile()
-				if output.Valid() {
-					depPaths.ObjFiles = append(depPaths.ObjFiles, output.Path())
-				} else {
-					ctx.ModuleErrorf("module %s did not provide an output file", otherName)
-				}
-			}
-		}
-	})
-
-	return depPaths
-}
-
-type ccLinkedProperties struct {
-	VariantIsShared       bool `blueprint:"mutated"`
-	VariantIsStatic       bool `blueprint:"mutated"`
-	VariantIsStaticBinary bool `blueprint:"mutated"`
-}
-
-// CCLinked contains the properties and members used by libraries and executables
-type CCLinked struct {
-	CCBase
-	dynamicProperties ccLinkedProperties
-}
-
-func newCCDynamic(dynamic *CCLinked, module CCModuleType, hod common.HostOrDeviceSupported,
-	multilib common.Multilib, props ...interface{}) (blueprint.Module, []interface{}) {
-
-	props = append(props, &dynamic.dynamicProperties)
-
-	return newCCBase(&dynamic.CCBase, module, hod, multilib, props...)
-}
-
-func (c *CCLinked) systemSharedLibs(ctx common.AndroidBaseContext) []string {
-	if c.Properties.System_shared_libs != nil {
-		return c.Properties.System_shared_libs
-	} else if ctx.Device() && c.Properties.Sdk_version == "" {
-		return []string{"libc", "libm"}
-	} else {
-		return nil
+// baseLinker provides support for shared_libs, static_libs, and whole_static_libs properties
+type baseLinker struct {
+	Properties        BaseLinkerProperties
+	dynamicProperties struct {
+		VariantIsShared       bool `blueprint:"mutated"`
+		VariantIsStatic       bool `blueprint:"mutated"`
+		VariantIsStaticBinary bool `blueprint:"mutated"`
 	}
 }
 
-func (c *CCLinked) stl(ctx common.AndroidBaseContext) string {
-	if c.Properties.Sdk_version != "" && ctx.Device() {
-		switch c.Properties.Stl {
-		case "":
-			return "ndk_system"
-		case "c++_shared", "c++_static",
-			"stlport_shared", "stlport_static",
-			"gnustl_static":
-			return "ndk_lib" + c.Properties.Stl
-		default:
-			ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", c.Properties.Stl)
-			return ""
-		}
-	}
+func (linker *baseLinker) begin(ctx BaseModuleContext) {}
 
-	if ctx.HostType() == common.Windows {
-		switch c.Properties.Stl {
-		case "libc++", "libc++_static", "libstdc++", "":
-			// libc++ is not supported on mingw
-			return "libstdc++"
-		case "none":
-			return ""
-		default:
-			ctx.ModuleErrorf("stl: %q is not a supported STL", c.Properties.Stl)
-			return ""
-		}
-	} else {
-		switch c.Properties.Stl {
-		case "libc++", "libc++_static",
-			"libstdc++":
-			return c.Properties.Stl
-		case "none":
-			return ""
-		case "":
-			if c.static() {
-				return "libc++_static"
-			} else {
-				return "libc++"
-			}
-		default:
-			ctx.ModuleErrorf("stl: %q is not a supported STL", c.Properties.Stl)
-			return ""
-		}
-	}
+func (linker *baseLinker) props() []interface{} {
+	return []interface{}{&linker.Properties, &linker.dynamicProperties}
 }
 
-var hostDynamicGccLibs, hostStaticGccLibs map[common.HostType][]string
-
-func init() {
-	hostDynamicGccLibs = map[common.HostType][]string{
-		common.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
-		common.Darwin: []string{"-lc", "-lSystem"},
-		common.Windows: []string{"-lmsvcr110", "-lmingw32", "-lgcc", "-lmoldname",
-			"-lmingwex", "-lmsvcrt", "-ladvapi32", "-lshell32", "-luser32",
-			"-lkernel32", "-lmingw32", "-lgcc", "-lmoldname", "-lmingwex",
-			"-lmsvcrt"},
-	}
-	hostStaticGccLibs = map[common.HostType][]string{
-		common.Linux:   []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"},
-		common.Darwin:  []string{"NO_STATIC_HOST_BINARIES_ON_DARWIN"},
-		common.Windows: []string{"NO_STATIC_HOST_BINARIES_ON_WINDOWS"},
-	}
-}
-
-func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	stl := c.stl(ctx)
-	if ctx.Failed() {
-		return flags
-	}
-
-	switch stl {
-	case "libc++", "libc++_static":
-		flags.CFlags = append(flags.CFlags, "-D_USING_LIBCXX")
-		if ctx.Host() {
-			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
-			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			flags.LdFlags = append(flags.LdFlags, "-lpthread", "-lm")
-			if c.staticBinary() {
-				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.HostType()]...)
-			} else {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.HostType()]...)
-			}
-		} else {
-			if ctx.Arch().ArchType == common.Arm {
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
-			}
-		}
-	case "libstdc++":
-		// Using bionic's basic libstdc++. Not actually an STL. Only around until the
-		// tree is in good enough shape to not need it.
-		// Host builds will use GNU libstdc++.
-		if ctx.Device() {
-			flags.CFlags = append(flags.CFlags, "-I"+common.PathForSource(ctx, "bionic/libstdc++/include").String())
-		} else {
-			// Host builds will use the system C++. libc++ on Darwin, GNU libstdc++ everywhere else
-			flags.CppFlags = append(flags.CppFlags, flags.Toolchain.SystemCppCppflags())
-			flags.LdFlags = append(flags.LdFlags, flags.Toolchain.SystemCppLdflags())
-		}
-	case "ndk_system":
-		ndkSrcRoot := common.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
-		flags.CFlags = append(flags.CFlags, "-isystem "+ndkSrcRoot.String())
-	case "ndk_libc++_shared", "ndk_libc++_static":
-		// TODO(danalbert): This really shouldn't be here...
-		flags.CppFlags = append(flags.CppFlags, "-std=c++11")
-	case "ndk_libstlport_shared", "ndk_libstlport_static", "ndk_libgnustl_static":
-		// Nothing
-	case "":
-		// None or error.
-		if ctx.Host() {
-			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
-			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			if c.staticBinary() {
-				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.HostType()]...)
-			} else {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.HostType()]...)
-			}
-		}
-	default:
-		panic(fmt.Errorf("Unknown stl in CCLinked.Flags: %q", stl))
-	}
-
-	return flags
-}
-
-func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCBase.depNames(ctx, depNames)
-
-	stl := c.stl(ctx)
-	if ctx.Failed() {
-		return depNames
-	}
-
-	switch stl {
-	case "libstdc++":
-		if ctx.Device() {
-			depNames.SharedLibs = append(depNames.SharedLibs, stl)
-		}
-	case "libc++", "libc++_static":
-		if stl == "libc++" {
-			depNames.SharedLibs = append(depNames.SharedLibs, stl)
-		} else {
-			depNames.StaticLibs = append(depNames.StaticLibs, stl)
-		}
-		if ctx.Device() {
-			if ctx.Arch().ArchType == common.Arm {
-				depNames.StaticLibs = append(depNames.StaticLibs, "libunwind_llvm")
-			}
-			if c.staticBinary() {
-				depNames.StaticLibs = append(depNames.StaticLibs, "libdl")
-			} else {
-				depNames.SharedLibs = append(depNames.SharedLibs, "libdl")
-			}
-		}
-	case "":
-		// None or error.
-	case "ndk_system":
-		// TODO: Make a system STL prebuilt for the NDK.
-		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
-		// its own includes. The includes are handled in CCBase.Flags().
-		depNames.SharedLibs = append([]string{"libstdc++"}, depNames.SharedLibs...)
-	case "ndk_libc++_shared", "ndk_libstlport_shared":
-		depNames.SharedLibs = append(depNames.SharedLibs, stl)
-	case "ndk_libc++_static", "ndk_libstlport_static", "ndk_libgnustl_static":
-		depNames.StaticLibs = append(depNames.StaticLibs, stl)
-	default:
-		panic(fmt.Errorf("Unknown stl in CCLinked.depNames: %q", stl))
-	}
+func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
+	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
+	deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Shared_libs...)
 
 	if ctx.ModuleName() != "libcompiler_rt-extras" {
-		depNames.StaticLibs = append(depNames.StaticLibs, "libcompiler_rt-extras")
+		deps.StaticLibs = append(deps.StaticLibs, "libcompiler_rt-extras")
 	}
 
 	if ctx.Device() {
 		// libgcc and libatomic have to be last on the command line
-		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libatomic")
-		if !Bool(c.Properties.No_libgcc) {
-			depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcc")
+		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
+		if !Bool(linker.Properties.No_libgcc) {
+			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
 		}
 
-		if !c.static() {
-			depNames.SharedLibs = append(depNames.SharedLibs, c.systemSharedLibs(ctx)...)
+		if !linker.static() {
+			if linker.Properties.System_shared_libs != nil {
+				deps.LateSharedLibs = append(deps.LateSharedLibs,
+					linker.Properties.System_shared_libs...)
+			} else if !ctx.sdk() {
+				deps.LateSharedLibs = append(deps.LateSharedLibs, "libc", "libm")
+			}
 		}
 
-		if c.Properties.Sdk_version != "" {
-			version := c.Properties.Sdk_version
-			depNames.SharedLibs = append(depNames.SharedLibs,
+		if ctx.sdk() {
+			version := ctx.sdkVersion()
+			deps.SharedLibs = append(deps.SharedLibs,
 				"ndk_libc."+version,
 				"ndk_libm."+version,
 			)
 		}
 	}
 
-	return depNames
+	return deps
 }
 
-// ccLinkedInterface interface is used on ccLinked to deal with static or shared variants
-type ccLinkedInterface interface {
+func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	toolchain := ctx.toolchain()
+
+	flags.LdFlags = append(flags.LdFlags, linker.Properties.Ldflags...)
+
+	if !ctx.noDefaultCompilerFlags() {
+		if ctx.Device() && !Bool(linker.Properties.Allow_undefined_symbols) {
+			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
+		}
+
+		if flags.Clang {
+			flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
+		} else {
+			flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
+		}
+
+		if ctx.Host() {
+			flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
+		}
+	}
+
+	if !flags.Clang {
+		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
+	}
+
+	return flags
+}
+
+func (linker *baseLinker) static() bool {
+	return linker.dynamicProperties.VariantIsStatic
+}
+
+func (linker *baseLinker) staticBinary() bool {
+	return linker.dynamicProperties.VariantIsStaticBinary
+}
+
+func (linker *baseLinker) setStatic(static bool) {
+	linker.dynamicProperties.VariantIsStatic = static
+}
+
+type baseLinkerInterface interface {
 	// Returns true if the build options for the module have selected a static or shared build
 	buildStatic() bool
 	buildShared() bool
@@ -1093,172 +1184,63 @@ type ccLinkedInterface interface {
 	staticBinary() bool
 }
 
-var _ ccLinkedInterface = (*CCLibrary)(nil)
-var _ ccLinkedInterface = (*CCBinary)(nil)
-
-func (c *CCLinked) static() bool {
-	return c.dynamicProperties.VariantIsStatic
-}
-
-func (c *CCLinked) staticBinary() bool {
-	return c.dynamicProperties.VariantIsStaticBinary
-}
-
-func (c *CCLinked) setStatic(static bool) {
-	c.dynamicProperties.VariantIsStatic = static
-}
-
-type ccExportedFlagsProducer interface {
+type exportedFlagsProducer interface {
 	exportedFlags() []string
+}
+
+type baseInstaller struct {
+	Properties InstallerProperties
+
+	dir   string
+	dir64 string
+	data  bool
+
+	path common.Path
+}
+
+var _ installer = (*baseInstaller)(nil)
+
+func (installer *baseInstaller) props() []interface{} {
+	return []interface{}{&installer.Properties}
+}
+
+func (installer *baseInstaller) install(ctx ModuleContext, file common.Path) {
+	subDir := installer.dir
+	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
+		subDir = installer.dir64
+	}
+	dir := common.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path)
+	installer.path = ctx.InstallFile(dir, file)
+}
+
+func (installer *baseInstaller) inData() bool {
+	return installer.data
 }
 
 //
 // Combined static+shared libraries
 //
 
-type CCLibraryProperties struct {
-	BuildStatic bool `blueprint:"mutated"`
-	BuildShared bool `blueprint:"mutated"`
-	Static      struct {
-		Srcs              []string `android:"arch_variant"`
-		Exclude_srcs      []string `android:"arch_variant"`
-		Cflags            []string `android:"arch_variant"`
-		Whole_static_libs []string `android:"arch_variant"`
-		Static_libs       []string `android:"arch_variant"`
-		Shared_libs       []string `android:"arch_variant"`
-	} `android:"arch_variant"`
-	Shared struct {
-		Srcs              []string `android:"arch_variant"`
-		Exclude_srcs      []string `android:"arch_variant"`
-		Cflags            []string `android:"arch_variant"`
-		Whole_static_libs []string `android:"arch_variant"`
-		Static_libs       []string `android:"arch_variant"`
-		Shared_libs       []string `android:"arch_variant"`
-	} `android:"arch_variant"`
+type libraryCompiler struct {
+	baseCompiler
 
-	// local file name to pass to the linker as --version_script
-	Version_script *string `android:"arch_variant"`
-	// local file name to pass to the linker as -unexported_symbols_list
-	Unexported_symbols_list *string `android:"arch_variant"`
-	// local file name to pass to the linker as -force_symbols_not_weak_list
-	Force_symbols_not_weak_list *string `android:"arch_variant"`
-	// local file name to pass to the linker as -force_symbols_weak_list
-	Force_symbols_weak_list *string `android:"arch_variant"`
-}
+	linker     *libraryLinker
+	Properties LibraryCompilerProperties
 
-type CCLibrary struct {
-	CCLinked
-
-	reuseFrom     ccLibraryInterface
+	// For reusing static library objects for shared library
+	reuseFrom     *libraryCompiler
 	reuseObjFiles common.Paths
-	objFiles      common.Paths
-	exportFlags   []string
-	out           common.Path
-	systemLibs    []string
-
-	// If we're used as a whole_static_lib, our missing dependencies need
-	// to be given
-	wholeStaticMissingDeps []string
-
-	LibraryProperties CCLibraryProperties
 }
 
-func (c *CCLibrary) buildStatic() bool {
-	return c.LibraryProperties.BuildStatic
+var _ compiler = (*libraryCompiler)(nil)
+
+func (library *libraryCompiler) props() []interface{} {
+	props := library.baseCompiler.props()
+	return append(props, &library.Properties)
 }
 
-func (c *CCLibrary) buildShared() bool {
-	return c.LibraryProperties.BuildShared
-}
-
-type ccLibraryInterface interface {
-	ccLinkedInterface
-	ccLibrary() *CCLibrary
-	setReuseFrom(ccLibraryInterface)
-	getReuseFrom() ccLibraryInterface
-	getReuseObjFiles() common.Paths
-	allObjFiles() common.Paths
-	getWholeStaticMissingDeps() []string
-}
-
-var _ ccLibraryInterface = (*CCLibrary)(nil)
-
-func (c *CCLibrary) ccLibrary() *CCLibrary {
-	return c
-}
-
-func NewCCLibrary(library *CCLibrary, module CCModuleType,
-	hod common.HostOrDeviceSupported) (blueprint.Module, []interface{}) {
-
-	return newCCDynamic(&library.CCLinked, module, hod, common.MultilibBoth,
-		&library.LibraryProperties)
-}
-
-func CCLibraryFactory() (blueprint.Module, []interface{}) {
-	module := &CCLibrary{}
-
-	module.LibraryProperties.BuildShared = true
-	module.LibraryProperties.BuildStatic = true
-
-	return NewCCLibrary(module, module, common.HostAndDeviceSupported)
-}
-
-func (c *CCLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCLinked.depNames(ctx, depNames)
-	if c.static() {
-		depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.LibraryProperties.Static.Whole_static_libs...)
-		depNames.StaticLibs = append(depNames.StaticLibs, c.LibraryProperties.Static.Static_libs...)
-		depNames.SharedLibs = append(depNames.SharedLibs, c.LibraryProperties.Static.Shared_libs...)
-	} else {
-		if ctx.Device() {
-			if c.Properties.Sdk_version == "" {
-				depNames.CrtBegin = "crtbegin_so"
-				depNames.CrtEnd = "crtend_so"
-			} else {
-				depNames.CrtBegin = "ndk_crtbegin_so." + c.Properties.Sdk_version
-				depNames.CrtEnd = "ndk_crtend_so." + c.Properties.Sdk_version
-			}
-		}
-		depNames.WholeStaticLibs = append(depNames.WholeStaticLibs, c.LibraryProperties.Shared.Whole_static_libs...)
-		depNames.StaticLibs = append(depNames.StaticLibs, c.LibraryProperties.Shared.Static_libs...)
-		depNames.SharedLibs = append(depNames.SharedLibs, c.LibraryProperties.Shared.Shared_libs...)
-	}
-
-	c.systemLibs = c.systemSharedLibs(ctx)
-
-	return depNames
-}
-
-func (c *CCLibrary) outputFile() common.OptionalPath {
-	return common.OptionalPathForPath(c.out)
-}
-
-func (c *CCLibrary) getReuseObjFiles() common.Paths {
-	return c.reuseObjFiles
-}
-
-func (c *CCLibrary) setReuseFrom(reuseFrom ccLibraryInterface) {
-	c.reuseFrom = reuseFrom
-}
-
-func (c *CCLibrary) getReuseFrom() ccLibraryInterface {
-	return c.reuseFrom
-}
-
-func (c *CCLibrary) allObjFiles() common.Paths {
-	return c.objFiles
-}
-
-func (c *CCLibrary) getWholeStaticMissingDeps() []string {
-	return c.wholeStaticMissingDeps
-}
-
-func (c *CCLibrary) exportedFlags() []string {
-	return c.exportFlags
-}
-
-func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	flags = c.CCLinked.flags(ctx, flags)
+func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
+	flags = library.baseCompiler.flags(ctx, flags)
 
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
@@ -1267,13 +1249,71 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 		flags.CFlags = append(flags.CFlags, "-fPIC")
 	}
 
-	if c.static() {
-		flags.CFlags = append(flags.CFlags, c.LibraryProperties.Static.Cflags...)
+	if library.linker.static() {
+		flags.CFlags = append(flags.CFlags, library.Properties.Static.Cflags...)
 	} else {
-		flags.CFlags = append(flags.CFlags, c.LibraryProperties.Shared.Cflags...)
+		flags.CFlags = append(flags.CFlags, library.Properties.Shared.Cflags...)
 	}
 
-	if !c.static() {
+	return flags
+}
+
+func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags) common.Paths {
+	var objFiles common.Paths
+
+	if library.reuseFrom != library && library.reuseFrom.Properties.Static.Cflags == nil &&
+		library.Properties.Shared.Cflags == nil {
+		objFiles = append(common.Paths(nil), library.reuseFrom.reuseObjFiles...)
+	} else {
+		objFiles = library.baseCompiler.compile(ctx, flags)
+		library.reuseObjFiles = objFiles
+	}
+
+	if library.linker.static() {
+		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceStaticLibrary,
+			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs)...)
+	} else {
+		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceSharedLibrary,
+			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs)...)
+	}
+
+	return objFiles
+}
+
+type libraryLinker struct {
+	baseLinker
+
+	Properties LibraryLinkerProperties
+
+	dynamicProperties struct {
+		BuildStatic bool `blueprint:"mutated"`
+		BuildShared bool `blueprint:"mutated"`
+	}
+
+	exportFlags []string
+
+	// If we're used as a whole_static_lib, our missing dependencies need
+	// to be given
+	wholeStaticMissingDeps []string
+
+	// For whole_static_libs
+	objFiles common.Paths
+}
+
+var _ linker = (*libraryLinker)(nil)
+var _ exportedFlagsProducer = (*libraryLinker)(nil)
+
+func (library *libraryLinker) props() []interface{} {
+	props := library.baseLinker.props()
+	return append(props, &library.Properties, &library.dynamicProperties)
+}
+
+func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	flags = library.baseLinker.flags(ctx, flags)
+
+	flags.Nocrt = Bool(library.Properties.Nocrt)
+
+	if !library.static() {
 		libName := ctx.ModuleName()
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
 		sharedFlag := "-Wl,-shared"
@@ -1305,56 +1345,69 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 	return flags
 }
 
-func (c *CCLibrary) compileStaticLibrary(ctx common.AndroidModuleContext,
-	flags CCFlags, deps CCPathDeps, objFiles common.Paths) {
+func (library *libraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = library.baseLinker.deps(ctx, deps)
+	if library.static() {
+		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Static.Whole_static_libs...)
+		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)
+		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
+	} else {
+		if ctx.Device() && !Bool(library.Properties.Nocrt) {
+			if !ctx.sdk() {
+				deps.CrtBegin = "crtbegin_so"
+				deps.CrtEnd = "crtend_so"
+			} else {
+				deps.CrtBegin = "ndk_crtbegin_so." + ctx.sdkVersion()
+				deps.CrtEnd = "ndk_crtend_so." + ctx.sdkVersion()
+			}
+		}
+		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Shared.Whole_static_libs...)
+		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Shared.Static_libs...)
+		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Shared.Shared_libs...)
+	}
 
-	staticFlags := flags
-	objFilesStatic := c.customCompileObjs(ctx, staticFlags, common.DeviceStaticLibrary,
-		c.LibraryProperties.Static.Srcs, c.LibraryProperties.Static.Exclude_srcs)
+	return deps
+}
 
-	objFiles = append(objFiles, objFilesStatic...)
+func (library *libraryLinker) exportedFlags() []string {
+	return library.exportFlags
+}
+
+func (library *libraryLinker) linkStatic(ctx ModuleContext,
+	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+
 	objFiles = append(objFiles, deps.WholeStaticLibObjFiles...)
+	library.objFiles = objFiles
 
 	outputFile := common.PathForModuleOut(ctx, ctx.ModuleName()+staticLibraryExtension)
 
 	if ctx.Darwin() {
-		TransformDarwinObjToStaticLib(ctx, objFiles, ccFlagsToBuilderFlags(flags), outputFile)
+		TransformDarwinObjToStaticLib(ctx, objFiles, flagsToBuilderFlags(flags), outputFile)
 	} else {
-		TransformObjToStaticLib(ctx, objFiles, ccFlagsToBuilderFlags(flags), outputFile)
+		TransformObjToStaticLib(ctx, objFiles, flagsToBuilderFlags(flags), outputFile)
 	}
 
-	c.wholeStaticMissingDeps = ctx.GetMissingDependencies()
-
-	c.objFiles = objFiles
-	c.out = outputFile
-
-	includeDirs := common.PathsForModuleSrc(ctx, c.Properties.Export_include_dirs)
-	c.exportFlags = []string{includeDirsToFlags(includeDirs)}
-	c.exportFlags = append(c.exportFlags, deps.ReexportedCflags...)
+	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
 
 	ctx.CheckbuildFile(outputFile)
+
+	return outputFile
 }
 
-func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
-	flags CCFlags, deps CCPathDeps, objFiles common.Paths) {
-
-	sharedFlags := flags
-	objFilesShared := c.customCompileObjs(ctx, sharedFlags, common.DeviceSharedLibrary,
-		c.LibraryProperties.Shared.Srcs, c.LibraryProperties.Shared.Exclude_srcs)
-
-	objFiles = append(objFiles, objFilesShared...)
+func (library *libraryLinker) linkShared(ctx ModuleContext,
+	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
 	outputFile := common.PathForModuleOut(ctx, ctx.ModuleName()+flags.Toolchain.ShlibSuffix())
 
 	var linkerDeps common.Paths
 
-	versionScript := common.OptionalPathForModuleSrc(ctx, c.LibraryProperties.Version_script)
-	unexportedSymbols := common.OptionalPathForModuleSrc(ctx, c.LibraryProperties.Unexported_symbols_list)
-	forceNotWeakSymbols := common.OptionalPathForModuleSrc(ctx, c.LibraryProperties.Force_symbols_not_weak_list)
-	forceWeakSymbols := common.OptionalPathForModuleSrc(ctx, c.LibraryProperties.Force_symbols_weak_list)
+	versionScript := common.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
+	unexportedSymbols := common.OptionalPathForModuleSrc(ctx, library.Properties.Unexported_symbols_list)
+	forceNotWeakSymbols := common.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_not_weak_list)
+	forceWeakSymbols := common.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_weak_list)
 	if !ctx.Darwin() {
 		if versionScript.Valid() {
-			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,--version-script,"+versionScript.String())
+			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
 			linkerDeps = append(linkerDeps, versionScript.Path())
 		}
 		if unexportedSymbols.Valid() {
@@ -1371,100 +1424,128 @@ func (c *CCLibrary) compileSharedLibrary(ctx common.AndroidModuleContext,
 			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
 		}
 		if unexportedSymbols.Valid() {
-			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,-unexported_symbols_list,"+unexportedSymbols.String())
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-unexported_symbols_list,"+unexportedSymbols.String())
 			linkerDeps = append(linkerDeps, unexportedSymbols.Path())
 		}
 		if forceNotWeakSymbols.Valid() {
-			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,-force_symbols_not_weak_list,"+forceNotWeakSymbols.String())
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-force_symbols_not_weak_list,"+forceNotWeakSymbols.String())
 			linkerDeps = append(linkerDeps, forceNotWeakSymbols.Path())
 		}
 		if forceWeakSymbols.Valid() {
-			sharedFlags.LdFlags = append(sharedFlags.LdFlags, "-Wl,-force_symbols_weak_list,"+forceWeakSymbols.String())
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-force_symbols_weak_list,"+forceWeakSymbols.String())
 			linkerDeps = append(linkerDeps, forceWeakSymbols.Path())
 		}
 	}
 
-	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
-		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, false,
-		ccFlagsToBuilderFlags(sharedFlags), outputFile)
+	sharedLibs := deps.SharedLibs
+	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
 
-	c.out = outputFile
-	includeDirs := common.PathsForModuleSrc(ctx, c.Properties.Export_include_dirs)
-	c.exportFlags = []string{includeDirsToFlags(includeDirs)}
-	c.exportFlags = append(c.exportFlags, deps.ReexportedCflags...)
+	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs,
+		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
+		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, flagsToBuilderFlags(flags), outputFile)
+
+	return outputFile
 }
 
-func (c *CCLibrary) compileModule(ctx common.AndroidModuleContext,
-	flags CCFlags, deps CCPathDeps, objFiles common.Paths) {
+func (library *libraryLinker) link(ctx ModuleContext,
+	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
-	// Reuse the object files from the matching static library if it exists
-	if c.getReuseFrom().ccLibrary() == c {
-		c.reuseObjFiles = objFiles
+	var out common.Path
+	if library.static() {
+		out = library.linkStatic(ctx, flags, deps, objFiles)
 	} else {
-		if c.getReuseFrom().ccLibrary().LibraryProperties.Static.Cflags == nil &&
-			c.LibraryProperties.Shared.Cflags == nil {
-			objFiles = append(common.Paths(nil), c.getReuseFrom().getReuseObjFiles()...)
-		}
+		out = library.linkShared(ctx, flags, deps, objFiles)
 	}
 
-	if c.static() {
-		c.compileStaticLibrary(ctx, flags, deps, objFiles)
-	} else {
-		c.compileSharedLibrary(ctx, flags, deps, objFiles)
+	includeDirs := common.PathsForModuleSrc(ctx, library.Properties.Export_include_dirs)
+	library.exportFlags = []string{includeDirsToFlags(includeDirs)}
+	library.exportFlags = append(library.exportFlags, deps.ReexportedCflags...)
+
+	return out
+}
+
+func (library *libraryLinker) buildStatic() bool {
+	return library.dynamicProperties.BuildStatic
+}
+
+func (library *libraryLinker) buildShared() bool {
+	return library.dynamicProperties.BuildShared
+}
+
+func (library *libraryLinker) getWholeStaticMissingDeps() []string {
+	return library.wholeStaticMissingDeps
+}
+
+type libraryInstaller struct {
+	baseInstaller
+
+	linker *libraryLinker
+}
+
+func (library *libraryInstaller) install(ctx ModuleContext, file common.Path) {
+	if !library.linker.static() {
+		library.baseInstaller.install(ctx, file)
 	}
 }
 
-func (c *CCLibrary) installStaticLibrary(ctx common.AndroidModuleContext, flags CCFlags) {
-	// Static libraries do not get installed.
-}
+func NewLibrary(hod common.HostOrDeviceSupported, shared, static bool) *Module {
+	module := newModule(hod, common.MultilibBoth)
 
-func (c *CCLibrary) installSharedLibrary(ctx common.AndroidModuleContext, flags CCFlags) {
-	installDir := "lib"
-	if flags.Toolchain.Is64Bit() {
-		installDir = "lib64"
+	linker := &libraryLinker{}
+	linker.dynamicProperties.BuildShared = shared
+	linker.dynamicProperties.BuildStatic = static
+	module.linker = linker
+
+	module.compiler = &libraryCompiler{
+		linker: linker,
+	}
+	module.installer = &libraryInstaller{
+		baseInstaller: baseInstaller{
+			dir:   "lib",
+			dir64: "lib64",
+		},
+		linker: linker,
 	}
 
-	ctx.InstallFile(common.PathForModuleInstall(ctx, installDir, c.Properties.Relative_install_path), c.out)
+	return module
 }
 
-func (c *CCLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	if c.static() {
-		c.installStaticLibrary(ctx, flags)
-	} else {
-		c.installSharedLibrary(ctx, flags)
-	}
+func libraryFactory() (blueprint.Module, []interface{}) {
+	module := NewLibrary(common.HostAndDeviceSupported, true, true)
+	return module.Init()
 }
 
 //
 // Objects (for crt*.o)
 //
 
-type ccObjectProvider interface {
-	object() *ccObject
+type objectLinker struct {
 }
 
-type ccObject struct {
-	CCBase
-	out common.OptionalPath
+func objectFactory() (blueprint.Module, []interface{}) {
+	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module.compiler = &baseCompiler{}
+	module.linker = &objectLinker{}
+	return module.Init()
 }
 
-func (c *ccObject) object() *ccObject {
-	return c
+func (*objectLinker) props() []interface{} {
+	return nil
 }
 
-func CCObjectFactory() (blueprint.Module, []interface{}) {
-	module := &ccObject{}
+func (*objectLinker) begin(ctx BaseModuleContext) {}
 
-	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth)
-}
-
-func (*ccObject) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (*objectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	// object files can't have any dynamic dependencies
-	return CCDeps{}
+	return deps
 }
 
-func (c *ccObject) compileModule(ctx common.AndroidModuleContext,
-	flags CCFlags, deps CCPathDeps, objFiles common.Paths) {
+func (*objectLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	return flags
+}
+
+func (object *objectLinker) link(ctx ModuleContext,
+	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
 	objFiles = append(objFiles, deps.ObjFiles...)
 
@@ -1473,128 +1554,115 @@ func (c *ccObject) compileModule(ctx common.AndroidModuleContext,
 		outputFile = objFiles[0]
 	} else {
 		output := common.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
-		TransformObjsToObj(ctx, objFiles, ccFlagsToBuilderFlags(flags), output)
+		TransformObjsToObj(ctx, objFiles, flagsToBuilderFlags(flags), output)
 		outputFile = output
 	}
 
-	c.out = common.OptionalPathForPath(outputFile)
-
 	ctx.CheckbuildFile(outputFile)
+	return outputFile
 }
-
-func (c *ccObject) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	// Object files do not get installed.
-}
-
-func (c *ccObject) outputFile() common.OptionalPath {
-	return c.out
-}
-
-var _ ccObjectProvider = (*ccObject)(nil)
 
 //
 // Executables
 //
 
-type CCBinaryProperties struct {
-	// compile executable with -static
-	Static_executable *bool
+type binaryLinker struct {
+	baseLinker
 
-	// set the name of the output
-	Stem string `android:"arch_variant"`
+	Properties BinaryLinkerProperties
 
-	// append to the name of the output
-	Suffix string `android:"arch_variant"`
-
-	// if set, add an extra objcopy --prefix-symbols= step
-	Prefix_symbols string
+	hostToolPath common.OptionalPath
 }
 
-type CCBinary struct {
-	CCLinked
-	out              common.Path
-	installFile      common.Path
-	BinaryProperties CCBinaryProperties
+var _ linker = (*binaryLinker)(nil)
+
+func (binary *binaryLinker) props() []interface{} {
+	return append(binary.baseLinker.props(), &binary.Properties)
 }
 
-func (c *CCBinary) buildStatic() bool {
-	return Bool(c.BinaryProperties.Static_executable)
+func (binary *binaryLinker) buildStatic() bool {
+	return Bool(binary.Properties.Static_executable)
 }
 
-func (c *CCBinary) buildShared() bool {
-	return !Bool(c.BinaryProperties.Static_executable)
+func (binary *binaryLinker) buildShared() bool {
+	return !Bool(binary.Properties.Static_executable)
 }
 
-func (c *CCBinary) getStem(ctx common.AndroidModuleContext) string {
+func (binary *binaryLinker) getStem(ctx BaseModuleContext) string {
 	stem := ctx.ModuleName()
-	if c.BinaryProperties.Stem != "" {
-		stem = c.BinaryProperties.Stem
+	if binary.Properties.Stem != "" {
+		stem = binary.Properties.Stem
 	}
 
-	return stem + c.BinaryProperties.Suffix
+	return stem + binary.Properties.Suffix
 }
 
-func (c *CCBinary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCLinked.depNames(ctx, depNames)
+func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = binary.baseLinker.deps(ctx, deps)
 	if ctx.Device() {
-		if c.Properties.Sdk_version == "" {
-			if Bool(c.BinaryProperties.Static_executable) {
-				depNames.CrtBegin = "crtbegin_static"
+		if !ctx.sdk() {
+			if Bool(binary.Properties.Static_executable) {
+				deps.CrtBegin = "crtbegin_static"
 			} else {
-				depNames.CrtBegin = "crtbegin_dynamic"
+				deps.CrtBegin = "crtbegin_dynamic"
 			}
-			depNames.CrtEnd = "crtend_android"
+			deps.CrtEnd = "crtend_android"
 		} else {
-			if Bool(c.BinaryProperties.Static_executable) {
-				depNames.CrtBegin = "ndk_crtbegin_static." + c.Properties.Sdk_version
+			if Bool(binary.Properties.Static_executable) {
+				deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
 			} else {
-				depNames.CrtBegin = "ndk_crtbegin_dynamic." + c.Properties.Sdk_version
+				deps.CrtBegin = "ndk_crtbegin_dynamic." + ctx.sdkVersion()
 			}
-			depNames.CrtEnd = "ndk_crtend_android." + c.Properties.Sdk_version
+			deps.CrtEnd = "ndk_crtend_android." + ctx.sdkVersion()
 		}
 
-		if Bool(c.BinaryProperties.Static_executable) {
-			if c.stl(ctx) == "libc++_static" {
-				depNames.StaticLibs = append(depNames.StaticLibs, "libm", "libc", "libdl")
+		if Bool(binary.Properties.Static_executable) {
+			if inList("libc++_static", deps.StaticLibs) {
+				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc", "libdl")
 			}
 			// static libraries libcompiler_rt, libc and libc_nomalloc need to be linked with
 			// --start-group/--end-group along with libgcc.  If they are in deps.StaticLibs,
 			// move them to the beginning of deps.LateStaticLibs
 			var groupLibs []string
-			depNames.StaticLibs, groupLibs = filterList(depNames.StaticLibs,
+			deps.StaticLibs, groupLibs = filterList(deps.StaticLibs,
 				[]string{"libc", "libc_nomalloc", "libcompiler_rt"})
-			depNames.LateStaticLibs = append(groupLibs, depNames.LateStaticLibs...)
+			deps.LateStaticLibs = append(groupLibs, deps.LateStaticLibs...)
 		}
 	}
-	return depNames
+
+	if !Bool(binary.Properties.Static_executable) && inList("libc", deps.StaticLibs) {
+		ctx.ModuleErrorf("statically linking libc to dynamic executable, please remove libc\n" +
+			"from static libs or set static_executable: true")
+	}
+	return deps
 }
 
-func NewCCBinary(binary *CCBinary, module CCModuleType,
-	hod common.HostOrDeviceSupported, multilib common.Multilib,
-	props ...interface{}) (blueprint.Module, []interface{}) {
-
-	props = append(props, &binary.BinaryProperties)
-
-	return newCCDynamic(&binary.CCLinked, module, hod, multilib, props...)
+func NewBinary(hod common.HostOrDeviceSupported) *Module {
+	module := newModule(hod, common.MultilibFirst)
+	module.compiler = &baseCompiler{}
+	module.linker = &binaryLinker{}
+	module.installer = &baseInstaller{
+		dir: "bin",
+	}
+	return module
 }
 
-func CCBinaryFactory() (blueprint.Module, []interface{}) {
-	module := &CCBinary{}
-
-	return NewCCBinary(module, module, common.HostAndDeviceSupported, common.MultilibFirst)
+func binaryFactory() (blueprint.Module, []interface{}) {
+	module := NewBinary(common.HostAndDeviceSupported)
+	return module.Init()
 }
 
-func (c *CCBinary) ModifyProperties(ctx CCModuleContext) {
+func (binary *binaryLinker) ModifyProperties(ctx ModuleContext) {
 	if ctx.Darwin() {
-		c.BinaryProperties.Static_executable = proptools.BoolPtr(false)
+		binary.Properties.Static_executable = proptools.BoolPtr(false)
 	}
-	if Bool(c.BinaryProperties.Static_executable) {
-		c.dynamicProperties.VariantIsStaticBinary = true
+	if Bool(binary.Properties.Static_executable) {
+		binary.dynamicProperties.VariantIsStaticBinary = true
 	}
 }
 
-func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	flags = c.CCLinked.flags(ctx, flags)
+func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	flags = binary.baseLinker.flags(ctx, flags)
 
 	if ctx.Host() {
 		flags.LdFlags = append(flags.LdFlags, "-pie")
@@ -1611,7 +1679,7 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 	}
 
 	if ctx.Device() {
-		if Bool(c.BinaryProperties.Static_executable) {
+		if Bool(binary.Properties.Static_executable) {
 			// Clang driver needs -static to create static executable.
 			// However, bionic/linker uses -shared to overwrite.
 			// Linker for x86 targets does not allow coexistance of -static and -shared,
@@ -1629,7 +1697,7 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 		} else {
 			linker := "/system/bin/linker"
 			if flags.Toolchain.Is64Bit() {
-				linker = "/system/bin/linker64"
+				linker += "64"
 			}
 
 			flags.LdFlags = append(flags.LdFlags,
@@ -1648,86 +1716,69 @@ func (c *CCBinary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 	return flags
 }
 
-func (c *CCBinary) compileModule(ctx common.AndroidModuleContext,
-	flags CCFlags, deps CCPathDeps, objFiles common.Paths) {
+func (binary *binaryLinker) link(ctx ModuleContext,
+	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
-	if !Bool(c.BinaryProperties.Static_executable) && inList("libc", c.Properties.Static_libs) {
-		ctx.ModuleErrorf("statically linking libc to dynamic executable, please remove libc\n" +
-			"from static libs or set static_executable: true")
+	outputFile := common.PathForModuleOut(ctx, binary.getStem(ctx)+flags.Toolchain.ExecutableSuffix())
+	if ctx.HostOrDevice().Host() {
+		binary.hostToolPath = common.OptionalPathForPath(outputFile)
 	}
+	ret := outputFile
 
-	outputFile := common.PathForModuleOut(ctx, c.getStem(ctx)+flags.Toolchain.ExecutableSuffix())
-	c.out = outputFile
-	if c.BinaryProperties.Prefix_symbols != "" {
+	if binary.Properties.Prefix_symbols != "" {
 		afterPrefixSymbols := outputFile
-		outputFile = common.PathForModuleOut(ctx, c.getStem(ctx)+".intermediate")
-		TransformBinaryPrefixSymbols(ctx, c.BinaryProperties.Prefix_symbols, outputFile,
-			ccFlagsToBuilderFlags(flags), afterPrefixSymbols)
+		outputFile = common.PathForModuleOut(ctx, binary.getStem(ctx)+".intermediate")
+		TransformBinaryPrefixSymbols(ctx, binary.Properties.Prefix_symbols, outputFile,
+			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
 	var linkerDeps common.Paths
 
-	TransformObjToDynamicBinary(ctx, objFiles, deps.SharedLibs, deps.StaticLibs,
+	sharedLibs := deps.SharedLibs
+	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
+
+	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
-		ccFlagsToBuilderFlags(flags), outputFile)
+		flagsToBuilderFlags(flags), outputFile)
+
+	return ret
 }
 
-func (c *CCBinary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	c.installFile = ctx.InstallFile(common.PathForModuleInstall(ctx, "bin", c.Properties.Relative_install_path), c.out)
+func (binary *binaryLinker) HostToolPath() common.OptionalPath {
+	return binary.hostToolPath
 }
-
-func (c *CCBinary) HostToolPath() common.OptionalPath {
-	if c.HostOrDevice().Host() {
-		return common.OptionalPathForPath(c.installFile)
-	}
-	return common.OptionalPath{}
-}
-
-func (c *CCBinary) binary() *CCBinary {
-	return c
-}
-
-type testPerSrc interface {
-	binary() *CCBinary
-	testPerSrc() bool
-}
-
-var _ testPerSrc = (*CCTest)(nil)
 
 func testPerSrcMutator(mctx common.AndroidBottomUpMutatorContext) {
-	if test, ok := mctx.Module().(testPerSrc); ok {
-		if test.testPerSrc() {
-			testNames := make([]string, len(test.binary().Properties.Srcs))
-			for i, src := range test.binary().Properties.Srcs {
-				testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
-			}
-			tests := mctx.CreateLocalVariations(testNames...)
-			for i, src := range test.binary().Properties.Srcs {
-				tests[i].(testPerSrc).binary().Properties.Srcs = []string{src}
-				tests[i].(testPerSrc).binary().BinaryProperties.Stem = testNames[i]
+	if m, ok := mctx.Module().(*Module); ok {
+		if test, ok := m.linker.(*testLinker); ok {
+			if Bool(test.Properties.Test_per_src) {
+				testNames := make([]string, len(m.compiler.(*baseCompiler).Properties.Srcs))
+				for i, src := range m.compiler.(*baseCompiler).Properties.Srcs {
+					testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
+				}
+				tests := mctx.CreateLocalVariations(testNames...)
+				for i, src := range m.compiler.(*baseCompiler).Properties.Srcs {
+					tests[i].(*Module).compiler.(*baseCompiler).Properties.Srcs = []string{src}
+					tests[i].(*Module).linker.(*testLinker).binaryLinker.Properties.Stem = testNames[i]
+				}
 			}
 		}
 	}
 }
 
-type CCTestProperties struct {
-	// if set, build against the gtest library. Defaults to true.
-	Gtest bool
-
-	// Create a separate binary for each source file.  Useful when there is
-	// global state that can not be torn down and reset between each test suite.
-	Test_per_src *bool
+type testLinker struct {
+	binaryLinker
+	Properties TestLinkerProperties
 }
 
-type CCTest struct {
-	CCBinary
-
-	TestProperties CCTestProperties
+func (test *testLinker) props() []interface{} {
+	return append(test.binaryLinker.props(), &test.Properties)
 }
 
-func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
-	flags = c.CCBinary.flags(ctx, flags)
-	if !c.TestProperties.Gtest {
+func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	flags = test.binaryLinker.flags(ctx, flags)
+
+	if !test.Properties.Gtest {
 		return flags
 	}
 
@@ -1752,175 +1803,159 @@ func (c *CCTest) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags {
 	return flags
 }
 
-func (c *CCTest) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	if c.TestProperties.Gtest {
-		depNames.StaticLibs = append(depNames.StaticLibs, "libgtest_main", "libgtest")
+func (test *testLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	if test.Properties.Gtest {
+		deps.StaticLibs = append(deps.StaticLibs, "libgtest_main", "libgtest")
 	}
-	depNames = c.CCBinary.depNames(ctx, depNames)
-	return depNames
+	deps = test.binaryLinker.deps(ctx, deps)
+	return deps
 }
 
-func (c *CCTest) InstallInData() bool {
-	return true
+type testInstaller struct {
+	baseInstaller
 }
 
-func (c *CCTest) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	installDir := "nativetest"
-	if flags.Toolchain.Is64Bit() {
-		installDir = "nativetest64"
+func (installer *testInstaller) install(ctx ModuleContext, file common.Path) {
+	installer.dir = filepath.Join(installer.dir, ctx.ModuleName())
+	installer.dir64 = filepath.Join(installer.dir64, ctx.ModuleName())
+	installer.baseInstaller.install(ctx, file)
+}
+
+func NewTest(hod common.HostOrDeviceSupported) *Module {
+	module := newModule(hod, common.MultilibBoth)
+	module.compiler = &baseCompiler{}
+	linker := &testLinker{}
+	linker.Properties.Gtest = true
+	module.linker = linker
+	module.installer = &testInstaller{
+		baseInstaller: baseInstaller{
+			dir:   "nativetest",
+			dir64: "nativetest64",
+			data:  true,
+		},
 	}
-	ctx.InstallFile(common.PathForModuleInstall(ctx, installDir, ctx.ModuleName()), c.out)
+	return module
 }
 
-func (c *CCTest) testPerSrc() bool {
-	return Bool(c.TestProperties.Test_per_src)
+func testFactory() (blueprint.Module, []interface{}) {
+	module := NewTest(common.HostAndDeviceSupported)
+	return module.Init()
 }
 
-func NewCCTest(test *CCTest, module CCModuleType,
-	hod common.HostOrDeviceSupported, props ...interface{}) (blueprint.Module, []interface{}) {
-
-	props = append(props, &test.TestProperties)
-
-	return NewCCBinary(&test.CCBinary, module, hod, common.MultilibBoth, props...)
+type benchmarkLinker struct {
+	binaryLinker
 }
 
-func CCTestFactory() (blueprint.Module, []interface{}) {
-	module := &CCTest{}
-	module.TestProperties.Gtest = true
-
-	return NewCCTest(module, module, common.HostAndDeviceSupported)
+func (benchmark *benchmarkLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = benchmark.binaryLinker.deps(ctx, deps)
+	deps.StaticLibs = append(deps.StaticLibs, "libbenchmark", "libbase")
+	return deps
 }
 
-type CCBenchmark struct {
-	CCBinary
-}
-
-func (c *CCBenchmark) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
-	depNames = c.CCBinary.depNames(ctx, depNames)
-	depNames.StaticLibs = append(depNames.StaticLibs, "libbenchmark", "libbase")
-	return depNames
-}
-
-func (c *CCBenchmark) InstallInData() bool {
-	return true
-}
-
-func (c *CCBenchmark) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	if ctx.Device() {
-		installDir := "nativetest"
-		if flags.Toolchain.Is64Bit() {
-			installDir = "nativetest64"
-		}
-		ctx.InstallFile(common.PathForModuleInstall(ctx, installDir, ctx.ModuleName()), c.out)
-	} else {
-		c.CCBinary.installModule(ctx, flags)
+func NewBenchmark(hod common.HostOrDeviceSupported) *Module {
+	module := newModule(hod, common.MultilibFirst)
+	module.compiler = &baseCompiler{}
+	module.linker = &benchmarkLinker{}
+	module.installer = &baseInstaller{
+		dir:   "nativetest",
+		dir64: "nativetest64",
+		data:  true,
 	}
+	return module
 }
 
-func NewCCBenchmark(test *CCBenchmark, module CCModuleType,
-	hod common.HostOrDeviceSupported, props ...interface{}) (blueprint.Module, []interface{}) {
-
-	return NewCCBinary(&test.CCBinary, module, hod, common.MultilibFirst, props...)
-}
-
-func CCBenchmarkFactory() (blueprint.Module, []interface{}) {
-	module := &CCBenchmark{}
-
-	return NewCCBenchmark(module, module, common.HostAndDeviceSupported)
+func benchmarkFactory() (blueprint.Module, []interface{}) {
+	module := NewBenchmark(common.HostAndDeviceSupported)
+	return module.Init()
 }
 
 //
 // Static library
 //
 
-func CCLibraryStaticFactory() (blueprint.Module, []interface{}) {
-	module := &CCLibrary{}
-	module.LibraryProperties.BuildStatic = true
-
-	return NewCCLibrary(module, module, common.HostAndDeviceSupported)
+func libraryStaticFactory() (blueprint.Module, []interface{}) {
+	module := NewLibrary(common.HostAndDeviceSupported, false, true)
+	return module.Init()
 }
 
 //
 // Shared libraries
 //
 
-func CCLibrarySharedFactory() (blueprint.Module, []interface{}) {
-	module := &CCLibrary{}
-	module.LibraryProperties.BuildShared = true
-
-	return NewCCLibrary(module, module, common.HostAndDeviceSupported)
+func librarySharedFactory() (blueprint.Module, []interface{}) {
+	module := NewLibrary(common.HostAndDeviceSupported, true, false)
+	return module.Init()
 }
 
 //
 // Host static library
 //
 
-func CCLibraryHostStaticFactory() (blueprint.Module, []interface{}) {
-	module := &CCLibrary{}
-	module.LibraryProperties.BuildStatic = true
-
-	return NewCCLibrary(module, module, common.HostSupported)
+func libraryHostStaticFactory() (blueprint.Module, []interface{}) {
+	module := NewLibrary(common.HostSupported, false, true)
+	return module.Init()
 }
 
 //
 // Host Shared libraries
 //
 
-func CCLibraryHostSharedFactory() (blueprint.Module, []interface{}) {
-	module := &CCLibrary{}
-	module.LibraryProperties.BuildShared = true
-
-	return NewCCLibrary(module, module, common.HostSupported)
+func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
+	module := NewLibrary(common.HostSupported, true, false)
+	return module.Init()
 }
 
 //
 // Host Binaries
 //
 
-func CCBinaryHostFactory() (blueprint.Module, []interface{}) {
-	module := &CCBinary{}
-
-	return NewCCBinary(module, module, common.HostSupported, common.MultilibFirst)
+func binaryHostFactory() (blueprint.Module, []interface{}) {
+	module := NewBinary(common.HostSupported)
+	return module.Init()
 }
 
 //
 // Host Tests
 //
 
-func CCTestHostFactory() (blueprint.Module, []interface{}) {
-	module := &CCTest{}
-	return NewCCTest(module, module, common.HostSupported)
+func testHostFactory() (blueprint.Module, []interface{}) {
+	module := NewTest(common.HostSupported)
+	return module.Init()
 }
 
 //
 // Host Benchmarks
 //
 
-func CCBenchmarkHostFactory() (blueprint.Module, []interface{}) {
-	module := &CCBenchmark{}
-	return NewCCBinary(&module.CCBinary, module, common.HostSupported, common.MultilibFirst)
+func benchmarkHostFactory() (blueprint.Module, []interface{}) {
+	module := NewBenchmark(common.HostSupported)
+	return module.Init()
 }
 
 //
 // Defaults
 //
-type CCDefaults struct {
+type Defaults struct {
 	common.AndroidModuleBase
 	common.DefaultsModule
 }
 
-func (*CCDefaults) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
+func (*Defaults) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
 }
 
-func CCDefaultsFactory() (blueprint.Module, []interface{}) {
-	module := &CCDefaults{}
+func defaultsFactory() (blueprint.Module, []interface{}) {
+	module := &Defaults{}
 
 	propertyStructs := []interface{}{
-		&CCBaseProperties{},
-		&CCLibraryProperties{},
-		&CCBinaryProperties{},
-		&CCTestProperties{},
-		&CCUnusedProperties{},
+		&BaseProperties{},
+		&BaseCompilerProperties{},
+		&BaseLinkerProperties{},
+		&LibraryCompilerProperties{},
+		&LibraryLinkerProperties{},
+		&BinaryLinkerProperties{},
+		&TestLinkerProperties{},
+		&UnusedProperties{},
+		&StlProperties{},
 	}
 
 	_, propertyStructs = common.InitAndroidArchModule(module, common.HostAndDeviceDefault,
@@ -1933,27 +1968,35 @@ func CCDefaultsFactory() (blueprint.Module, []interface{}) {
 // Device libraries shipped with gcc
 //
 
-type toolchainLibrary struct {
-	CCLibrary
+type toolchainLibraryLinker struct {
+	baseLinker
 }
 
-func (*toolchainLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+var _ baseLinkerInterface = (*toolchainLibraryLinker)(nil)
+
+func (*toolchainLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	// toolchain libraries can't have any dependencies
-	return CCDeps{}
+	return deps
 }
 
-func ToolchainLibraryFactory() (blueprint.Module, []interface{}) {
-	module := &toolchainLibrary{}
+func (*toolchainLibraryLinker) buildStatic() bool {
+	return true
+}
 
-	module.LibraryProperties.BuildStatic = true
+func (*toolchainLibraryLinker) buildShared() bool {
+	return false
+}
+
+func toolchainLibraryFactory() (blueprint.Module, []interface{}) {
+	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module.compiler = &baseCompiler{}
+	module.linker = &toolchainLibraryLinker{}
 	module.Properties.Clang = proptools.BoolPtr(false)
-
-	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth,
-		&module.LibraryProperties)
+	return module.Init()
 }
 
-func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,
-	flags CCFlags, deps CCPathDeps, objFiles common.Paths) {
+func (library *toolchainLibraryLinker) link(ctx ModuleContext,
+	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
 	libName := ctx.ModuleName() + staticLibraryExtension
 	outputFile := common.PathForModuleOut(ctx, libName)
@@ -1962,15 +2005,11 @@ func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,
 		ctx.ModuleErrorf("toolchain_library must use GCC, not Clang")
 	}
 
-	CopyGccLib(ctx, libName, ccFlagsToBuilderFlags(flags), outputFile)
-
-	c.out = outputFile
+	CopyGccLib(ctx, libName, flagsToBuilderFlags(flags), outputFile)
 
 	ctx.CheckbuildFile(outputFile)
-}
 
-func (c *toolchainLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	// Toolchain libraries do not get installed.
+	return outputFile
 }
 
 // NDK prebuilt libraries.
@@ -1994,95 +2033,94 @@ func ndkPrebuiltModuleToPath(ctx common.AndroidModuleContext, toolchain Toolchai
 	return dir.Join(ctx, name+ext)
 }
 
-type ndkPrebuiltObject struct {
-	ccObject
+type ndkPrebuiltObjectLinker struct {
+	objectLinker
 }
 
-func (*ndkPrebuiltObject) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (*ndkPrebuiltObjectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	// NDK objects can't have any dependencies
-	return CCDeps{}
+	return deps
 }
 
-func NdkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
-	module := &ndkPrebuiltObject{}
-	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth)
+func ndkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
+	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module.linker = &ndkPrebuiltObjectLinker{}
+	return module.Init()
 }
 
-func (c *ndkPrebuiltObject) compileModule(ctx common.AndroidModuleContext, flags CCFlags,
-	deps CCPathDeps, objFiles common.Paths) {
+func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
+	deps PathDeps, objFiles common.Paths) common.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_crt") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_crt prefixed name")
 	}
 
-	c.out = common.OptionalPathForPath(ndkPrebuiltModuleToPath(ctx, flags.Toolchain, objectExtension, c.Properties.Sdk_version))
+	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, objectExtension, ctx.sdkVersion())
 }
 
-func (c *ndkPrebuiltObject) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	// Objects do not get installed.
+type ndkPrebuiltLibraryLinker struct {
+	libraryLinker
+	Properties struct {
+		Export_include_dirs []string `android:"arch_variant"`
+	}
 }
 
-var _ ccObjectProvider = (*ndkPrebuiltObject)(nil)
+var _ baseLinkerInterface = (*ndkPrebuiltLibraryLinker)(nil)
+var _ exportedFlagsProducer = (*libraryLinker)(nil)
 
-type ndkPrebuiltLibrary struct {
-	CCLibrary
+func (ndk *ndkPrebuiltLibraryLinker) props() []interface{} {
+	return []interface{}{&ndk.Properties}
 }
 
-func (*ndkPrebuiltLibrary) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDeps {
+func (*ndkPrebuiltLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	// NDK libraries can't have any dependencies
-	return CCDeps{}
+	return deps
 }
 
-func NdkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
-	module := &ndkPrebuiltLibrary{}
-	module.LibraryProperties.BuildShared = true
-	return NewCCLibrary(&module.CCLibrary, module, common.DeviceSupported)
+func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
+	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	linker := &ndkPrebuiltLibraryLinker{}
+	linker.dynamicProperties.BuildShared = true
+	module.linker = linker
+	return module.Init()
 }
 
-func (c *ndkPrebuiltLibrary) compileModule(ctx common.AndroidModuleContext, flags CCFlags,
-	deps CCPathDeps, objFiles common.Paths) {
+func (ndk *ndkPrebuiltLibraryLinker) link(ctx ModuleContext, flags Flags,
+	deps PathDeps, objFiles common.Paths) common.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
 	}
 
-	includeDirs := common.PathsForModuleSrc(ctx, c.Properties.Export_include_dirs)
-	c.exportFlags = []string{common.JoinWithPrefix(includeDirs.Strings(), "-isystem ")}
+	includeDirs := common.PathsForModuleSrc(ctx, ndk.Properties.Export_include_dirs)
+	ndk.exportFlags = []string{common.JoinWithPrefix(includeDirs.Strings(), "-isystem ")}
 
-	c.out = ndkPrebuiltModuleToPath(ctx, flags.Toolchain, flags.Toolchain.ShlibSuffix(),
-		c.Properties.Sdk_version)
-}
-
-func (c *ndkPrebuiltLibrary) installModule(ctx common.AndroidModuleContext, flags CCFlags) {
-	// NDK prebuilt libraries do not get installed.
+	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, flags.Toolchain.ShlibSuffix(),
+		ctx.sdkVersion())
 }
 
 // The NDK STLs are slightly different from the prebuilt system libraries:
 //     * Are not specific to each platform version.
 //     * The libraries are not in a predictable location for each STL.
 
-type ndkPrebuiltStl struct {
-	ndkPrebuiltLibrary
+type ndkPrebuiltStlLinker struct {
+	ndkPrebuiltLibraryLinker
 }
 
-type ndkPrebuiltStaticStl struct {
-	ndkPrebuiltStl
+func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
+	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	linker := &ndkPrebuiltStlLinker{}
+	linker.dynamicProperties.BuildShared = true
+	module.linker = linker
+	return module.Init()
 }
 
-type ndkPrebuiltSharedStl struct {
-	ndkPrebuiltStl
-}
-
-func NdkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
-	module := &ndkPrebuiltSharedStl{}
-	module.LibraryProperties.BuildShared = true
-	return NewCCLibrary(&module.CCLibrary, module, common.DeviceSupported)
-}
-
-func NdkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
-	module := &ndkPrebuiltStaticStl{}
-	module.LibraryProperties.BuildStatic = true
-	return NewCCLibrary(&module.CCLibrary, module, common.DeviceSupported)
+func ndkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
+	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	linker := &ndkPrebuiltStlLinker{}
+	linker.dynamicProperties.BuildStatic = true
+	module.linker = linker
+	return module.Init()
 }
 
 func getNdkStlLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, stl string) common.SourcePath {
@@ -2106,49 +2144,53 @@ func getNdkStlLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, stl s
 	return common.PathForSource(ctx, "")
 }
 
-func (c *ndkPrebuiltStl) compileModule(ctx common.AndroidModuleContext, flags CCFlags,
-	deps CCPathDeps, objFiles common.Paths) {
+func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
+	deps PathDeps, objFiles common.Paths) common.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
 	}
 
-	includeDirs := common.PathsForModuleSrc(ctx, c.Properties.Export_include_dirs)
-	c.exportFlags = []string{includeDirsToFlags(includeDirs)}
+	includeDirs := common.PathsForModuleSrc(ctx, ndk.Properties.Export_include_dirs)
+	ndk.exportFlags = []string{includeDirsToFlags(includeDirs)}
 
 	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
 	libExt := flags.Toolchain.ShlibSuffix()
-	if c.LibraryProperties.BuildStatic {
+	if ndk.dynamicProperties.BuildStatic {
 		libExt = staticLibraryExtension
 	}
 
 	stlName := strings.TrimSuffix(libName, "_shared")
 	stlName = strings.TrimSuffix(stlName, "_static")
 	libDir := getNdkStlLibDir(ctx, flags.Toolchain, stlName)
-	c.out = libDir.Join(ctx, libName+libExt)
+	return libDir.Join(ctx, libName+libExt)
 }
 
 func linkageMutator(mctx common.AndroidBottomUpMutatorContext) {
-	if c, ok := mctx.Module().(ccLinkedInterface); ok {
-		var modules []blueprint.Module
-		if c.buildStatic() && c.buildShared() {
-			modules = mctx.CreateLocalVariations("static", "shared")
-			modules[0].(ccLinkedInterface).setStatic(true)
-			modules[1].(ccLinkedInterface).setStatic(false)
-		} else if c.buildStatic() {
-			modules = mctx.CreateLocalVariations("static")
-			modules[0].(ccLinkedInterface).setStatic(true)
-		} else if c.buildShared() {
-			modules = mctx.CreateLocalVariations("shared")
-			modules[0].(ccLinkedInterface).setStatic(false)
-		} else {
-			panic(fmt.Errorf("ccLibrary %q not static or shared", mctx.ModuleName()))
-		}
+	if m, ok := mctx.Module().(*Module); ok {
+		if m.linker != nil {
+			if linker, ok := m.linker.(baseLinkerInterface); ok {
+				var modules []blueprint.Module
+				if linker.buildStatic() && linker.buildShared() {
+					modules = mctx.CreateLocalVariations("static", "shared")
+					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
+					modules[1].(*Module).linker.(baseLinkerInterface).setStatic(false)
+				} else if linker.buildStatic() {
+					modules = mctx.CreateLocalVariations("static")
+					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
+				} else if linker.buildShared() {
+					modules = mctx.CreateLocalVariations("shared")
+					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(false)
+				} else {
+					panic(fmt.Errorf("library %q not static or shared", mctx.ModuleName()))
+				}
 
-		if _, ok := c.(ccLibraryInterface); ok {
-			reuseFrom := modules[0].(ccLibraryInterface)
-			for _, m := range modules {
-				m.(ccLibraryInterface).setReuseFrom(reuseFrom)
+				if _, ok := m.compiler.(*libraryCompiler); ok {
+					reuseFrom := modules[0].(*Module).compiler.(*libraryCompiler)
+					for _, m := range modules {
+						m.(*Module).compiler.(*libraryCompiler).reuseFrom = reuseFrom
+					}
+				}
 			}
 		}
 	}

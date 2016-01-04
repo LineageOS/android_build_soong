@@ -39,10 +39,11 @@ type AndroidMkDataProvider interface {
 type AndroidMkData struct {
 	Class      string
 	OutputFile OptionalPath
+	Disabled   bool
 
 	Custom func(w io.Writer, name, prefix string) error
 
-	Extra func(w io.Writer, outputFile Path) error
+	Extra []func(w io.Writer, outputFile Path) error
 }
 
 func AndroidMkSingleton() blueprint.Singleton {
@@ -166,6 +167,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		return data.Custom(w, name, prefix)
 	}
 
+	if data.Disabled {
+		return nil
+	}
+
 	if !data.OutputFile.Valid() {
 		return err
 	}
@@ -189,8 +194,8 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 	}
 
-	if data.Extra != nil {
-		err = data.Extra(w, data.OutputFile.Path())
+	for _, extra := range data.Extra {
+		err = extra(w, data.OutputFile.Path())
 		if err != nil {
 			return err
 		}

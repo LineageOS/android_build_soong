@@ -72,7 +72,7 @@ func moduleToLibName(module string) (string, error) {
 	return matches[1], nil
 }
 
-func ccFlagsToBuilderFlags(in CCFlags) builderFlags {
+func flagsToBuilderFlags(in Flags) builderFlags {
 	return builderFlags{
 		globalFlags: strings.Join(in.GlobalFlags, " "),
 		asFlags:     strings.Join(in.AsFlags, " "),
