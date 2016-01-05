@@ -51,6 +51,10 @@ type variableProperties struct {
 		Unbundled_build struct {
 			Enabled *bool `android:"arch_variant"`
 		} `android:"arch_variant"`
+
+		Brillo struct {
+			Version_script *string `android:"arch_variant"`
+		} `android:"arch_variant"`
 	} `android:"arch_variant"`
 }
 
