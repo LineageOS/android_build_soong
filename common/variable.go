@@ -39,9 +39,6 @@ type variableProperties struct {
 			Whole_static_libs []string
 			Include_dirs      []string
 		}
-		Dlmalloc_alignment struct {
-			Cflags []string
-		}
 		Platform_sdk_version struct {
 			Asflags []string
 		}
@@ -63,7 +60,6 @@ var zeroProductVariables variableProperties
 type productVariables struct {
 	Device_uses_jemalloc *bool `json:",omitempty"`
 	Device_uses_dlmalloc *bool `json:",omitempty"`
-	Dlmalloc_alignment   *int  `json:",omitempty"`
 	Platform_sdk_version *int  `json:",omitempty"`
 
 	DeviceName        *string   `json:",omitempty"`
