@@ -190,6 +190,10 @@ func (t *toolchainArm64) ToolchainClangCflags() string {
 	return t.toolchainClangCflags
 }
 
+func (toolchainArm64) AddressSanitizerRuntimeLibrary() string {
+	return "libclang_rt.asan-aarch64-android.so"
+}
+
 func arm64ToolchainFactory(arch common.Arch) Toolchain {
 	if arch.ArchVariant != "armv8-a" {
 		panic(fmt.Sprintf("Unknown ARM architecture version: %q", arch.ArchVariant))
