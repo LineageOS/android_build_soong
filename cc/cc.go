@@ -137,6 +137,10 @@ func init() {
 			"frameworks/av/include",
 			"frameworks/base/include",
 		})
+	// This is used by non-NDK modules to get jni.h. export_include_dirs doesn't help
+	// with this, since there is no associated library.
+	pctx.PrefixedPathsForOptionalSourceVariable("commonNativehelperInclude", "-I",
+		[]string{"libnativehelper/include/nativehelper"})
 
 	pctx.SourcePathVariable("clangPath", "prebuilts/clang/host/${HostPrebuiltTag}/3.8/bin")
 }
@@ -502,7 +506,7 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				"${commonGlobalIncludes}",
 				toolchain.IncludeFlags(),
-				"-I"+common.PathForSource(ctx, "libnativehelper/include/nativehelper").String())
+				"${commonNativehelperInclude}")
 		}
 
 		flags.GlobalFlags = append(flags.GlobalFlags, []string{
