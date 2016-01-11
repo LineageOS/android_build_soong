@@ -51,53 +51,19 @@ func AndroidMkSingleton() blueprint.Singleton {
 type androidMkSingleton struct{}
 
 func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	dirModules := make(map[string][]blueprint.Module)
-	hasBPDir := make(map[string]bool)
-	bpDirs := []string{}
-
 	if !ctx.Config().(Config).EmbeddedInMake() {
 		return
 	}
 
 	ctx.SetNinjaBuildDir(pctx, filepath.Join(ctx.Config().(Config).buildDir, ".."))
 
+	var androidMkModulesList []AndroidModule
+
 	ctx.VisitAllModules(func(module blueprint.Module) {
-		if _, ok := module.(AndroidModule); ok {
-			bpDir := filepath.Dir(ctx.BlueprintFile(module))
-
-			if !hasBPDir[bpDir] {
-				hasBPDir[bpDir] = true
-				bpDirs = append(bpDirs, bpDir)
-			}
-
-			dirModules[bpDir] = append(dirModules[bpDir], module)
-		}
-	})
-
-	// Gather list of eligible Android modules for translation
-	androidMkModules := make(map[blueprint.Module]bool)
-	sort.Strings(bpDirs)
-	for _, bpDir := range bpDirs {
-		mkFile := OptionalPathForSource(ctx, "androidmk", bpDir, "Android.mk")
-		if !mkFile.Valid() {
-			for _, mod := range dirModules[bpDir] {
-				androidMkModules[mod] = true
-			}
-		}
-	}
-
-	// Validate that all modules have proper dependencies
-	androidMkModulesList := make([]AndroidModule, 0, len(androidMkModules))
-	for mod := range androidMkModules {
-		ctx.VisitDepsDepthFirstIf(mod, isAndroidModule, func(module blueprint.Module) {
-			if !androidMkModules[module] {
-				ctx.Errorf("Module %q missing dependency for Android.mk: %q", ctx.ModuleName(mod), ctx.ModuleName(module))
-			}
-		})
-		if amod, ok := mod.(AndroidModule); ok {
+		if amod, ok := module.(AndroidModule); ok {
 			androidMkModulesList = append(androidMkModulesList, amod)
 		}
-	}
+	})
 
 	sort.Sort(AndroidModulesByName{androidMkModulesList, ctx})
 
