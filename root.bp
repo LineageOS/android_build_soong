@@ -1,7 +1,6 @@
 subname = "Android.bp"
 
 subdirs = [
-    "art",
     "build/blueprint",
     "build/soong",
     "bionic",
@@ -11,7 +10,6 @@ subdirs = [
     "frameworks/native/libs/*",
     "hardware/*",
     "libcore",
-    "libnativehelper",
     "prebuilts/ndk",
     "prebuilts/sdk",
     "system/core/*",
