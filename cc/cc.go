@@ -1004,7 +1004,7 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 
 	if ctx.Device() {
 		// libgcc and libatomic have to be last on the command line
-		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic")
+		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libatomic")
 		if !Bool(c.Properties.No_libgcc) {
 			depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcc")
 		}
