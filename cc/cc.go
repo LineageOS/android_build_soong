@@ -613,8 +613,8 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainClangCflags())
 	} else {
 		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainCflags())
-		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 	}
+	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 
 	flags = c.ccModuleType().flags(ctx, flags)
 
