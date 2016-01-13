@@ -69,6 +69,7 @@ var (
 	linuxClangCflags = append([]string{
 		"--gcc-toolchain=${linuxGccRoot}",
 		"--sysroot=${linuxGccRoot}/sysroot",
+		"-fstack-protector-strong",
 	}, clangFilterUnknownCflags(linuxCflags)...)
 
 	linuxClangLdflags = append([]string{

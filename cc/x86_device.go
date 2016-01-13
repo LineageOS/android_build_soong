@@ -36,7 +36,7 @@ var (
 		"-fstrict-aliasing",
 		"-funswitch-loops",
 		"-funwind-tables",
-		"-fstack-protector",
+		"-fstack-protector-strong",
 		"-no-canonical-prefixes",
 		"-fno-canonical-system-headers",
 

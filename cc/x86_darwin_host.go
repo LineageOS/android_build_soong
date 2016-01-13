@@ -65,6 +65,7 @@ var (
 
 	darwinClangCflags = append([]string{
 		"-integrated-as",
+		"-fstack-protector-strong",
 	}, clangFilterUnknownCflags(darwinCflags)...)
 
 	darwinClangLdflags = clangFilterUnknownCflags(darwinLdflags)

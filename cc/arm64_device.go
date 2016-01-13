@@ -25,7 +25,7 @@ var (
 		"-fno-exceptions", // from build/core/combo/select.mk
 		"-Wno-multichar",  // from build/core/combo/select.mk
 		"-fno-strict-aliasing",
-		"-fstack-protector",
+		"-fstack-protector-strong",
 		"-ffunction-sections",
 		"-fdata-sections",
 		"-funwind-tables",
@@ -61,6 +61,8 @@ var (
 		"-Wl,-maarch64linux",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--fix-cortex-a53-843419",
+		"-fuse-ld=gold",
+		"-Wl,--icf=safe",
 		"-Wl,--no-undefined-version",
 
 		// Disable transitive dependency library symbol resolving.

@@ -33,7 +33,7 @@ var (
 		"-ffunction-sections",
 		"-fdata-sections",
 		"-funwind-tables",
-		"-fstack-protector",
+		"-fstack-protector-strong",
 		"-Wa,--noexecstack",
 		"-Werror=format-security",
 		"-D_FORTIFY_SOURCE=2",
