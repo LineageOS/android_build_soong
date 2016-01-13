@@ -41,7 +41,6 @@ var clangUnknownCflags = sorted([]string{
 
 	// arm + arm64
 	"-fno-align-jumps",
-	"-Wa,--noexecstack",
 
 	// arm
 	"-mthumb-interwork",
