@@ -211,6 +211,10 @@ func (t *toolchainMips) ToolchainClangCflags() string {
 	return t.toolchainClangCflags
 }
 
+func (t *toolchainMips) ClangAsflags() string {
+	return "-fPIC"
+}
+
 func (t *toolchainMips) ClangCflags() string {
 	return t.clangCflags
 }
