@@ -84,10 +84,6 @@ func init() {
 		// See http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html.
 		"-Wno-unused-command-line-argument",
 
-		// Disable -Winconsistent-missing-override until we can clean up the existing
-		// codebase for it.
-		"-Wno-inconsistent-missing-override",
-
 		// Force clang to always output color diagnostics. Ninja will strip the ANSI
 		// color codes if it is not running in a terminal.
 		"-fcolor-diagnostics",
@@ -95,6 +91,12 @@ func init() {
 
 	pctx.StaticVariable("clangExtraConlyflags", strings.Join([]string{
 		"-std=gnu99",
+	}, " "))
+
+	pctx.StaticVariable("clangExtraCppflags", strings.Join([]string{
+		// Disable -Winconsistent-missing-override until we can clean up the existing
+		// codebase for it.
+		"-Wno-inconsistent-missing-override",
 	}, " "))
 
 	pctx.StaticVariable("clangExtraTargetCflags", strings.Join([]string{

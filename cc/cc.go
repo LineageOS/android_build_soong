@@ -115,13 +115,13 @@ func init() {
 	pctx.StaticVariable("commonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))
 
 	pctx.StaticVariable("commonClangGlobalCflags",
-		strings.Join(clangFilterUnknownCflags(commonGlobalCflags), " "))
+		strings.Join(append(clangFilterUnknownCflags(commonGlobalCflags), "${clangExtraCflags}"), " "))
 	pctx.StaticVariable("deviceClangGlobalCflags",
-		strings.Join(clangFilterUnknownCflags(deviceGlobalCflags), " "))
+		strings.Join(append(clangFilterUnknownCflags(deviceGlobalCflags), "${clangExtraTargetCflags}"), " "))
 	pctx.StaticVariable("hostClangGlobalCflags",
 		strings.Join(clangFilterUnknownCflags(hostGlobalCflags), " "))
 	pctx.StaticVariable("commonClangGlobalCppflags",
-		strings.Join(clangFilterUnknownCflags(commonGlobalCppflags), " "))
+		strings.Join(append(clangFilterUnknownCflags(commonGlobalCppflags), "${clangExtraCppflags}"), " "))
 
 	// Everything in this list is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
@@ -550,12 +550,6 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.ConlyFlags = clangFilterUnknownCflags(flags.ConlyFlags)
 		flags.LdFlags = clangFilterUnknownCflags(flags.LdFlags)
 
-		flags.CFlags = append(flags.CFlags, "${clangExtraCflags}")
-		flags.ConlyFlags = append(flags.ConlyFlags, "${clangExtraConlyflags}")
-		if ctx.Device() {
-			flags.CFlags = append(flags.CFlags, "${clangExtraTargetCflags}")
-		}
-
 		target := "-target " + toolchain.ClangTriple()
 		gccPrefix := "-B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 
@@ -577,6 +571,8 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 				toolchain.ClangCflags(),
 				"${commonClangGlobalCflags}",
 				fmt.Sprintf("${%sClangGlobalCflags}", ctx.HostOrDevice()))
+
+			flags.ConlyFlags = append(flags.ConlyFlags, "${clangExtraConlyflags}")
 		} else {
 			flags.CppFlags = append(flags.CppFlags, "${commonGlobalCppflags}")
 			flags.GlobalFlags = append(flags.GlobalFlags,
