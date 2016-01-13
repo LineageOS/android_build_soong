@@ -1882,6 +1882,7 @@ func ToolchainLibraryFactory() (blueprint.Module, []interface{}) {
 	module := &toolchainLibrary{}
 
 	module.LibraryProperties.BuildStatic = true
+	module.Properties.Clang = proptools.BoolPtr(false)
 
 	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth,
 		&module.LibraryProperties)
@@ -1892,6 +1893,10 @@ func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,
 
 	libName := ctx.ModuleName() + staticLibraryExtension
 	outputFile := common.PathForModuleOut(ctx, libName)
+
+	if flags.Clang {
+		ctx.ModuleErrorf("toolchain_library must use GCC, not Clang")
+	}
 
 	CopyGccLib(ctx, libName, ccFlagsToBuilderFlags(flags), outputFile)
 
