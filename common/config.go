@@ -304,6 +304,6 @@ func (c *config) AllowMissingDependencies() bool {
 	return Bool(c.ProductVariables.Unbundled_build)
 }
 
-func (c *config) SkipInstall() bool {
+func (c *config) SkipDeviceInstall() bool {
 	return c.EmbeddedInMake() || Bool(c.Mega_device)
 }

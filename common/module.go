@@ -519,7 +519,7 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 
 	fullInstallPath := installPath.Join(a, name)
 
-	if !a.AConfig().SkipInstall() {
+	if a.Host() || !a.AConfig().SkipDeviceInstall() {
 		deps = append(deps, a.installDeps...)
 
 		a.ModuleBuild(pctx, ModuleBuildParams{
@@ -527,7 +527,7 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 			Output:    fullInstallPath,
 			Input:     srcPath,
 			OrderOnly: Paths(deps),
-			Default:   true,
+			Default:   !a.AConfig().EmbeddedInMake(),
 		})
 
 		a.installFiles = append(a.installFiles, fullInstallPath)
