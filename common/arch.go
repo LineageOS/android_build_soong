@@ -920,14 +920,14 @@ func decodeMegaDevice() ([]Arch, error) {
 		{"arm", "armv7-a-neon", "krait", []string{"armeabi-v7a"}},
 		{"arm64", "", "cortex-a53", []string{"arm64-v8a"}},
 		{"arm64", "", "denver64", []string{"arm64-v8a"}},
-		// mips is missing __popcountsi2 from libc
-		//{"mips", "mips32-fp", "", []string{"mips"}},
-		//{"mips", "mips32r2-fp", "", []string{"mips"}},
-		//{"mips", "mips32r2-fp-xburst", "", []string{"mips"}},
-		//{"mips", "mips32r6", "", []string{"mips32r6"}},
-		// mips32r2dsp[r2]-fp also fails in the assembler for dmisc.c in libc:
-		//   Error: invalid operands `mtlo $ac0,$8'
-		//   Error: invalid operands `mthi $ac0,$3'
+		{"mips", "mips32-fp", "", []string{"mips"}},
+		{"mips", "mips32r2-fp", "", []string{"mips"}},
+		{"mips", "mips32r2-fp-xburst", "", []string{"mips"}},
+		{"mips", "mips32r6", "", []string{"mips32r6"}},
+		// mips32r2dsp[r2]-fp fails in the assembler for divdf3.c in compiler-rt:
+		// (same errors in make and soong)
+		//   Error: invalid operands `mtlo $ac0,$11'
+		//   Error: invalid operands `mthi $ac0,$12'
 		//{"mips", "mips32r2dsp-fp", "", []string{"mips"}},
 		//{"mips", "mips32r2dspr2-fp", "", []string{"mips"}},
 		// mips64r2 is mismatching 64r2 and 64r6 libraries during linking to libgcc
