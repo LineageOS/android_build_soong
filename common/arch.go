@@ -901,6 +901,65 @@ func decodeArchProductVariables(variables productVariables) (map[HostType][]Arch
 	return hostTypeArches, deviceArches, nil
 }
 
+func decodeMegaDevice() ([]Arch, error) {
+	archSettings := []struct {
+		arch        string
+		archVariant string
+		cpuVariant  string
+		abi         []string
+	}{
+		{"arm", "armv7-a-neon", "cortex-a7", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "cortex-a8", []string{"armeabi-v7a"}},
+		// gtest_all_test.cc fails to build:
+		//   error in backend: Unsupported library call operation!
+		//{"arm", "armv7-a-neon", "cortex-a9", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "cortex-a15", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "cortex-a53", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "cortex-a53.a57", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "denver", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "krait", []string{"armeabi-v7a"}},
+		{"arm64", "", "cortex-a53", []string{"arm64-v8a"}},
+		{"arm64", "", "denver64", []string{"arm64-v8a"}},
+		// mips is missing __popcountsi2 from libc
+		//{"mips", "mips32-fp", "", []string{"mips"}},
+		//{"mips", "mips32r2-fp", "", []string{"mips"}},
+		//{"mips", "mips32r2-fp-xburst", "", []string{"mips"}},
+		//{"mips", "mips32r6", "", []string{"mips32r6"}},
+		// mips32r2dsp[r2]-fp also fails in the assembler for dmisc.c in libc:
+		//   Error: invalid operands `mtlo $ac0,$8'
+		//   Error: invalid operands `mthi $ac0,$3'
+		//{"mips", "mips32r2dsp-fp", "", []string{"mips"}},
+		//{"mips", "mips32r2dspr2-fp", "", []string{"mips"}},
+		// mips64r2 is mismatching 64r2 and 64r6 libraries during linking to libgcc
+		//{"mips64", "mips64r2", "", []string{"mips64"}},
+		{"mips64", "mips64r6", "", []string{"mips64"}},
+		{"x86", "", "", []string{"x86"}},
+		{"x86", "atom", "", []string{"x86"}},
+		{"x86", "haswell", "", []string{"x86"}},
+		{"x86", "ivybridge", "", []string{"x86"}},
+		{"x86", "sandybridge", "", []string{"x86"}},
+		{"x86", "silvermont", "", []string{"x86"}},
+		{"x86_64", "", "", []string{"x86_64"}},
+		{"x86_64", "haswell", "", []string{"x86_64"}},
+		{"x86_64", "ivybridge", "", []string{"x86_64"}},
+		{"x86_64", "sandybridge", "", []string{"x86_64"}},
+		{"x86_64", "silvermont", "", []string{"x86_64"}},
+	}
+
+	var ret []Arch
+
+	for _, config := range archSettings {
+		arch, err := decodeArch(config.arch, &config.archVariant,
+			&config.cpuVariant, &config.abi)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, arch)
+	}
+
+	return ret, nil
+}
+
 // Convert a set of strings from product variables into a single Arch struct
 func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Arch, error) {
 	stringPtr := func(p *string) string {

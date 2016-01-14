@@ -115,13 +115,13 @@ func init() {
 	pctx.StaticVariable("commonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))
 
 	pctx.StaticVariable("commonClangGlobalCflags",
-		strings.Join(clangFilterUnknownCflags(commonGlobalCflags), " "))
+		strings.Join(append(clangFilterUnknownCflags(commonGlobalCflags), "${clangExtraCflags}"), " "))
 	pctx.StaticVariable("deviceClangGlobalCflags",
-		strings.Join(clangFilterUnknownCflags(deviceGlobalCflags), " "))
+		strings.Join(append(clangFilterUnknownCflags(deviceGlobalCflags), "${clangExtraTargetCflags}"), " "))
 	pctx.StaticVariable("hostClangGlobalCflags",
 		strings.Join(clangFilterUnknownCflags(hostGlobalCflags), " "))
 	pctx.StaticVariable("commonClangGlobalCppflags",
-		strings.Join(clangFilterUnknownCflags(commonGlobalCppflags), " "))
+		strings.Join(append(clangFilterUnknownCflags(commonGlobalCppflags), "${clangExtraCppflags}"), " "))
 
 	// Everything in this list is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
@@ -550,12 +550,6 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.ConlyFlags = clangFilterUnknownCflags(flags.ConlyFlags)
 		flags.LdFlags = clangFilterUnknownCflags(flags.LdFlags)
 
-		flags.CFlags = append(flags.CFlags, "${clangExtraCflags}")
-		flags.ConlyFlags = append(flags.ConlyFlags, "${clangExtraConlyflags}")
-		if ctx.Device() {
-			flags.CFlags = append(flags.CFlags, "${clangExtraTargetCflags}")
-		}
-
 		target := "-target " + toolchain.ClangTriple()
 		gccPrefix := "-B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 
@@ -572,11 +566,14 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
 
 		if flags.Clang {
+			flags.AsFlags = append(flags.AsFlags, toolchain.ClangAsflags())
 			flags.CppFlags = append(flags.CppFlags, "${commonClangGlobalCppflags}")
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.ClangCflags(),
 				"${commonClangGlobalCflags}",
 				fmt.Sprintf("${%sClangGlobalCflags}", ctx.HostOrDevice()))
+
+			flags.ConlyFlags = append(flags.ConlyFlags, "${clangExtraConlyflags}")
 		} else {
 			flags.CppFlags = append(flags.CppFlags, "${commonGlobalCppflags}")
 			flags.GlobalFlags = append(flags.GlobalFlags,
@@ -616,8 +613,8 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainClangCflags())
 	} else {
 		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainCflags())
-		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 	}
+	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 
 	flags = c.ccModuleType().flags(ctx, flags)
 
@@ -1008,7 +1005,7 @@ func (c *CCLinked) depNames(ctx common.AndroidBaseContext, depNames CCDeps) CCDe
 
 	if ctx.Device() {
 		// libgcc and libatomic have to be last on the command line
-		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcov", "libatomic")
+		depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libatomic")
 		if !Bool(c.Properties.No_libgcc) {
 			depNames.LateStaticLibs = append(depNames.LateStaticLibs, "libgcc")
 		}
@@ -1885,6 +1882,7 @@ func ToolchainLibraryFactory() (blueprint.Module, []interface{}) {
 	module := &toolchainLibrary{}
 
 	module.LibraryProperties.BuildStatic = true
+	module.Properties.Clang = proptools.BoolPtr(false)
 
 	return newCCBase(&module.CCBase, module, common.DeviceSupported, common.MultilibBoth,
 		&module.LibraryProperties)
@@ -1895,6 +1893,10 @@ func (c *toolchainLibrary) compileModule(ctx common.AndroidModuleContext,
 
 	libName := ctx.ModuleName() + staticLibraryExtension
 	outputFile := common.PathForModuleOut(ctx, libName)
+
+	if flags.Clang {
+		ctx.ModuleErrorf("toolchain_library must use GCC, not Clang")
+	}
 
 	CopyGccLib(ctx, libName, ccFlagsToBuilderFlags(flags), outputFile)
 

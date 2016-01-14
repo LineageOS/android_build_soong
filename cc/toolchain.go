@@ -60,6 +60,7 @@ type Toolchain interface {
 	ClangSupported() bool
 	ClangTriple() string
 	ToolchainClangCflags() string
+	ClangAsflags() string
 	ClangCflags() string
 	ClangCppflags() string
 	ClangLdflags() string
@@ -109,6 +110,10 @@ func (toolchainBase) ShlibSuffix() string {
 }
 
 func (toolchainBase) ExecutableSuffix() string {
+	return ""
+}
+
+func (toolchainBase) ClangAsflags() string {
 	return ""
 }
 
