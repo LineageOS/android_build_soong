@@ -117,6 +117,7 @@ func (v *productVariables) SetDefaultConfig() {
 	if runtime.GOOS == "linux" {
 		v.CrossHost = stringPtr("windows")
 		v.CrossHostArch = stringPtr("x86")
+		v.CrossHostSecondaryArch = stringPtr("x86_64")
 	}
 }
 

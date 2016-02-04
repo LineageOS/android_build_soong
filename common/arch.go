@@ -264,6 +264,8 @@ type archProperties struct {
 		Windows interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		// Properties for module variants being built to run on windows x86 hosts
 		Windows_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
+		// Properties for module variants being built to run on windows x86_64 hosts
+		Windows_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 		// Properties for module variants being built to run on linux or darwin hosts
 		Not_windows interface{} `blueprint:"filter(android:\"arch_variant\")"`
 	}

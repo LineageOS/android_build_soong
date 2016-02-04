@@ -55,9 +55,24 @@ var (
 	}
 
 	windowsLdflags = []string{
-		"-m32",
 		"-L${windowsGccRoot}/${windowsGccTriple}",
 		"--enable-stdcall-fixup",
+	}
+
+	windowsX86Cflags = []string{
+		"-m32",
+	}
+
+	windowsX8664Cflags = []string{
+		"-m64",
+	}
+
+	windowsX86Ldflags = []string{
+		"-m32",
+	}
+
+	windowsX8664Ldflags = []string{
+		"-m64",
 	}
 )
 
@@ -75,16 +90,33 @@ func init() {
 
 	pctx.StaticVariable("windowsCflags", strings.Join(windowsCflags, " "))
 	pctx.StaticVariable("windowsLdflags", strings.Join(windowsLdflags, " "))
+
+	pctx.StaticVariable("windowsX86Cflags", strings.Join(windowsX86Cflags, " "))
+	pctx.StaticVariable("windowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
+	pctx.StaticVariable("windowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
+	pctx.StaticVariable("windowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
 }
 
 type toolchainWindows struct {
-	toolchain32Bit
-
 	cFlags, ldFlags string
 }
 
-func (t *toolchainWindows) Name() string {
+type toolchainWindowsX86 struct {
+	toolchain32Bit
+	toolchainWindows
+}
+
+type toolchainWindowsX8664 struct {
+	toolchain64Bit
+	toolchainWindows
+}
+
+func (t *toolchainWindowsX86) Name() string {
 	return "x86"
+}
+
+func (t *toolchainWindowsX8664) Name() string {
+	return "x86_64"
 }
 
 func (t *toolchainWindows) GccRoot() string {
@@ -99,16 +131,24 @@ func (t *toolchainWindows) GccVersion() string {
 	return windowsGccVersion
 }
 
-func (t *toolchainWindows) Cflags() string {
-	return "${windowsCflags}"
+func (t *toolchainWindowsX86) Cflags() string {
+	return "${windowsCflags} ${windowsX86Cflags}"
+}
+
+func (t *toolchainWindowsX8664) Cflags() string {
+	return "${windowsCflags} ${windowsX8664Cflags}"
 }
 
 func (t *toolchainWindows) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainWindows) Ldflags() string {
-	return "${windowsLdflags}"
+func (t *toolchainWindowsX86) Ldflags() string {
+	return "${windowsLdflags} ${windowsX86Ldflags}"
+}
+
+func (t *toolchainWindowsX8664) Ldflags() string {
+	return "${windowsLdflags} ${windowsX8664Ldflags}"
 }
 
 func (t *toolchainWindows) IncludeFlags() string {
@@ -143,12 +183,18 @@ func (t *toolchainWindows) ExecutableSuffix() string {
 	return ".exe"
 }
 
-var toolchainWindowsSingleton Toolchain = &toolchainWindows{}
+var toolchainWindowsX86Singleton Toolchain = &toolchainWindowsX86{}
+var toolchainWindowsX8664Singleton Toolchain = &toolchainWindowsX8664{}
 
-func windowsToolchainFactory(arch common.Arch) Toolchain {
-	return toolchainWindowsSingleton
+func windowsX86ToolchainFactory(arch common.Arch) Toolchain {
+	return toolchainWindowsX86Singleton
+}
+
+func windowsX8664ToolchainFactory(arch common.Arch) Toolchain {
+	return toolchainWindowsX8664Singleton
 }
 
 func init() {
-	registerHostToolchainFactory(common.Windows, common.X86, windowsToolchainFactory)
+	registerHostToolchainFactory(common.Windows, common.X86, windowsX86ToolchainFactory)
+	registerHostToolchainFactory(common.Windows, common.X86_64, windowsX8664ToolchainFactory)
 }
