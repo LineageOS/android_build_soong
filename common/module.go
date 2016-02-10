@@ -255,6 +255,14 @@ func (a *AndroidModuleBase) HostType() HostType {
 	return a.commonProperties.CompileHostType
 }
 
+func (a *AndroidModuleBase) Host() bool {
+	return a.HostOrDevice().Host()
+}
+
+func (a *AndroidModuleBase) Arch() Arch {
+	return a.commonProperties.CompileArch
+}
+
 func (a *AndroidModuleBase) HostSupported() bool {
 	return a.commonProperties.HostOrDeviceSupported == HostSupported ||
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&

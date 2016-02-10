@@ -15,17 +15,21 @@
 package java
 
 import (
+	"fmt"
+
 	"android/soong/common"
 )
 
-func (*JavaLibrary) AndroidMk() (ret common.AndroidMkData) {
+func (*JavaLibrary) AndroidMk() (ret common.AndroidMkData, err error) {
 	ret.Class = "JAVA_LIBRARIES"
 	// TODO
+	err = fmt.Errorf("Not yet implemented")
 	return
 }
 
-func (*JavaPrebuilt) AndroidMk() (ret common.AndroidMkData) {
+func (*JavaPrebuilt) AndroidMk() (ret common.AndroidMkData, err error) {
 	ret.Class = "JAVA_LIBRARIES"
 	// TODO
+	err = fmt.Errorf("Not yet implemented")
 	return
 }

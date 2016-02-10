@@ -16,6 +16,7 @@ package common
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -32,16 +33,16 @@ func init() {
 }
 
 type AndroidMkDataProvider interface {
-	AndroidMk() AndroidMkData
+	AndroidMk() (AndroidMkData, error)
 }
 
 type AndroidMkData struct {
 	Class      string
 	OutputFile OptionalPath
 
-	Custom func(w io.Writer, name, prefix string)
+	Custom func(w io.Writer, name, prefix string) error
 
-	Extra func(name, prefix string, outputFile Path, arch Arch) []string
+	Extra func(w io.Writer, outputFile Path) error
 }
 
 func AndroidMkSingleton() blueprint.Singleton {
@@ -87,8 +88,8 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []AndroidModule) error {
 	buf := &bytes.Buffer{}
 
-	io.WriteString(buf, "LOCAL_PATH := $(TOP)\n")
-	io.WriteString(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))\n")
+	fmt.Fprintln(buf, "LOCAL_PATH := $(TOP)")
+	fmt.Fprintln(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))")
 
 	for _, mod := range mods {
 		err := translateAndroidMkModule(ctx, buf, mod)
@@ -122,112 +123,83 @@ func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []An
 }
 
 func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod blueprint.Module) error {
-	if mod != ctx.PrimaryModule(mod) {
-		// These will be handled by the primary module
+	name := ctx.ModuleName(mod)
+
+	provider, ok := mod.(AndroidMkDataProvider)
+	if !ok {
 		return nil
 	}
 
-	name := ctx.ModuleName(mod)
-
-	type hostClass struct {
-		host     bool
-		class    string
-		multilib string
+	amod := mod.(AndroidModule).base()
+	data, err := provider.AndroidMk()
+	if err != nil {
+		return err
 	}
 
-	type archSrc struct {
-		arch  Arch
-		src   Path
-		extra []string
+	if !amod.Enabled() {
+		return err
 	}
 
-	srcs := make(map[hostClass][]archSrc)
-	var modules []hostClass
+	hostCross := false
+	if amod.Host() && amod.HostType() != CurrentHostType() {
+		hostCross = true
+	}
 
-	ctx.VisitAllModuleVariants(mod, func(m blueprint.Module) {
-		provider, ok := m.(AndroidMkDataProvider)
-		if !ok {
-			return
-		}
-
-		amod := m.(AndroidModule).base()
-		data := provider.AndroidMk()
-
-		if !amod.Enabled() {
-			return
-		}
-
-		arch := amod.commonProperties.CompileArch
-
+	if data.Custom != nil {
 		prefix := ""
-		if amod.HostOrDevice() == Host {
-			if arch.ArchType != ctx.Config().(Config).HostArches[amod.HostType()][0].ArchType {
-				prefix = "2ND_"
+		if amod.Host() {
+			if hostCross {
+				prefix = "HOST_CROSS_"
+			} else {
+				prefix = "HOST_"
+			}
+			if amod.Arch().ArchType != ctx.Config().(Config).HostArches[amod.HostType()][0].ArchType {
+				prefix = "2ND_" + prefix
 			}
 		} else {
-			if arch.ArchType != ctx.Config().(Config).DeviceArches[0].ArchType {
-				prefix = "2ND_"
+			prefix = "TARGET_"
+			if amod.Arch().ArchType != ctx.Config().(Config).DeviceArches[0].ArchType {
+				prefix = "2ND_" + prefix
 			}
 		}
 
-		if data.Custom != nil {
-			data.Custom(w, name, prefix)
-			return
-		}
-
-		if !data.OutputFile.Valid() {
-			return
-		}
-
-		hC := hostClass{
-			host:     amod.HostOrDevice() == Host,
-			class:    data.Class,
-			multilib: amod.commonProperties.Compile_multilib,
-		}
-
-		src := archSrc{
-			arch: arch,
-			src:  data.OutputFile.Path(),
-		}
-
-		if data.Extra != nil {
-			src.extra = data.Extra(name, prefix, src.src, arch)
-		}
-
-		if srcs[hC] == nil {
-			modules = append(modules, hC)
-		}
-		srcs[hC] = append(srcs[hC], src)
-	})
-
-	for _, hC := range modules {
-		archSrcs := srcs[hC]
-
-		io.WriteString(w, "\ninclude $(CLEAR_VARS)\n")
-		io.WriteString(w, "LOCAL_MODULE := "+name+"\n")
-		io.WriteString(w, "LOCAL_MODULE_CLASS := "+hC.class+"\n")
-		io.WriteString(w, "LOCAL_MULTILIB := "+hC.multilib+"\n")
-
-		printed := make(map[string]bool)
-		for _, src := range archSrcs {
-			io.WriteString(w, "LOCAL_SRC_FILES_"+src.arch.ArchType.String()+" := "+src.src.String()+"\n")
-
-			for _, extra := range src.extra {
-				if !printed[extra] {
-					printed[extra] = true
-					io.WriteString(w, extra+"\n")
-				}
-			}
-		}
-
-		if hC.host {
-			// TODO: this isn't true for every module
-			io.WriteString(w, "LOCAL_ACP_UNAVAILABLE := true\n")
-
-			io.WriteString(w, "LOCAL_IS_HOST_MODULE := true\n")
-		}
-		io.WriteString(w, "include $(BUILD_PREBUILT)\n")
+		return data.Custom(w, name, prefix)
 	}
 
-	return nil
+	if !data.OutputFile.Valid() {
+		return err
+	}
+
+	fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+	fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+	fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", data.Class)
+	fmt.Fprintln(w, "LOCAL_MULTILIB :=", amod.commonProperties.Compile_multilib)
+	fmt.Fprintln(w, "LOCAL_SRC_FILES :=", data.OutputFile.String())
+
+	archStr := amod.Arch().ArchType.String()
+	if amod.Host() {
+		if hostCross {
+			fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
+		} else {
+			fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
+
+			// TODO: this isn't true for every module, only dependencies of ACP
+			fmt.Fprintln(w, "LOCAL_ACP_UNAVAILABLE := true")
+		}
+		fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", amod.HostType().String())
+		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+	} else {
+		fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
+	}
+
+	if data.Extra != nil {
+		err = data.Extra(w, data.OutputFile.Path())
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
+
+	return err
 }
