@@ -76,7 +76,7 @@ var (
 			"-march=core-avx-i",
 		},
 		"sandybridge": []string{
-			"-march=corei7-avx",
+			"-march=corei7",
 		},
 		"silvermont": []string{
 			"-march=slm",
@@ -125,8 +125,6 @@ func init() {
 		"sse4",
 		"sse4_1",
 		"sse4_2",
-		"aes_ni",
-		"avx",
 		"popcnt")
 	common.RegisterArchFeatures(common.X86_64, "silvermont",
 		"ssse3",
