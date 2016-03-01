@@ -29,16 +29,6 @@ func init() {
 
 type variableProperties struct {
 	Product_variables struct {
-		Device_uses_dlmalloc struct {
-			Cflags []string
-			Srcs   []string
-		}
-		Device_uses_jemalloc struct {
-			Cflags            []string
-			Srcs              []string
-			Whole_static_libs []string
-			Include_dirs      []string
-		}
 		Platform_sdk_version struct {
 			Asflags []string
 		}
@@ -52,15 +42,17 @@ type variableProperties struct {
 		Brillo struct {
 			Version_script *string `android:"arch_variant"`
 		} `android:"arch_variant"`
+
+		Malloc_not_svelte struct {
+			Cflags []string
+		}
 	} `android:"arch_variant"`
 }
 
 var zeroProductVariables variableProperties
 
 type productVariables struct {
-	Device_uses_jemalloc *bool `json:",omitempty"`
-	Device_uses_dlmalloc *bool `json:",omitempty"`
-	Platform_sdk_version *int  `json:",omitempty"`
+	Platform_sdk_version *int `json:",omitempty"`
 
 	DeviceName        *string   `json:",omitempty"`
 	DeviceArch        *string   `json:",omitempty"`
@@ -81,8 +73,9 @@ type productVariables struct {
 	CrossHostArch          *string `json:",omitempty"`
 	CrossHostSecondaryArch *string `json:",omitempty"`
 
-	Unbundled_build *bool `json:",omitempty"`
-	Brillo          *bool `json:",omitempty"`
+	Unbundled_build   *bool `json:",omitempty"`
+	Brillo            *bool `json:",omitempty"`
+	Malloc_not_svelte *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -99,7 +92,6 @@ func stringPtr(v string) *string {
 
 func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
-		Device_uses_dlmalloc:       boolPtr(true),
 		Platform_sdk_version:       intPtr(22),
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),
@@ -112,6 +104,7 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
 		DeviceSecondaryCpuVariant:  stringPtr("denver"),
 		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
+		Malloc_not_svelte:          boolPtr(false),
 	}
 
 	if runtime.GOOS == "linux" {
