@@ -634,6 +634,22 @@ func (c *CCBase) collectFlags(ctx common.AndroidModuleContext, toolchain Toolcha
 	flags.CppFlags, _ = filterList(flags.CppFlags, illegalFlags)
 	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, illegalFlags)
 
+	// We can enforce some rules more strictly in the code we own. strict
+	// indicates if this is code that we can be stricter with. If we have
+	// rules that we want to apply to *our* code (but maybe can't for
+	// vendor/device specific things), we could extend this to be a ternary
+	// value.
+	strict := true
+	if strings.HasPrefix(common.PathForModuleSrc(ctx).String(), "external/") {
+		strict = false
+	}
+
+	// Can be used to make some annotations stricter for code we can fix
+	// (such as when we mark functions as deprecated).
+	if strict {
+		flags.CFlags = append(flags.CFlags, "-DANDROID_STRICT")
+	}
+
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
 	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))
