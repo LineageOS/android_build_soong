@@ -94,6 +94,7 @@ var (
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
+		"-Werror=date-time",
 	}
 
 	hostGlobalCflags = []string{}
