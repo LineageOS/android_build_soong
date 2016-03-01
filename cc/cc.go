@@ -129,6 +129,7 @@ func init() {
 	pctx.PrefixedPathsForOptionalSourceVariable("commonGlobalIncludes", "-isystem ",
 		[]string{
 			"system/core/include",
+			"system/media/audio/include",
 			"hardware/libhardware/include",
 			"hardware/libhardware_legacy/include",
 			"hardware/ril/include",
