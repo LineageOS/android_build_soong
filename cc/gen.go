@@ -33,12 +33,11 @@ func init() {
 var (
 	yacc = pctx.StaticRule("yacc",
 		blueprint.RuleParams{
-			Command: "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags -o $cppFile $in && " +
-				"cp -f $hppFile $hFile",
+			Command:     "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags --defines=$hFile -o $cFile $in",
 			CommandDeps: []string{"$yaccCmd"},
 			Description: "yacc $out",
 		},
-		"yaccFlags", "cppFile", "hppFile", "hFile")
+		"yaccFlags", "cFile", "hFile")
 
 	lex = pctx.StaticRule("lex",
 		blueprint.RuleParams{
@@ -48,36 +47,29 @@ var (
 		})
 )
 
-func genYacc(ctx common.AndroidModuleContext, yaccFile common.Path, yaccFlags string) (cppFile, headerFile common.ModuleGenPath) {
-	cppFile = common.GenPathWithExt(ctx, yaccFile, "cpp")
-	hppFile := common.GenPathWithExt(ctx, yaccFile, "hpp")
+func genYacc(ctx common.AndroidModuleContext, yaccFile common.Path, outFile common.ModuleGenPath, yaccFlags string) (headerFile common.ModuleGenPath) {
 	headerFile = common.GenPathWithExt(ctx, yaccFile, "h")
 
 	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
 		Rule:    yacc,
-		Outputs: common.WritablePaths{cppFile, headerFile},
+		Outputs: common.WritablePaths{outFile, headerFile},
 		Input:   yaccFile,
 		Args: map[string]string{
 			"yaccFlags": yaccFlags,
-			"cppFile":   cppFile.String(),
-			"hppFile":   hppFile.String(),
+			"cFile":     outFile.String(),
 			"hFile":     headerFile.String(),
 		},
 	})
 
-	return cppFile, headerFile
+	return headerFile
 }
 
-func genLex(ctx common.AndroidModuleContext, lexFile common.Path) (cppFile common.ModuleGenPath) {
-	cppFile = common.GenPathWithExt(ctx, lexFile, "cpp")
-
+func genLex(ctx common.AndroidModuleContext, lexFile common.Path, outFile common.ModuleGenPath) {
 	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
 		Rule:   lex,
-		Output: cppFile,
+		Output: outFile,
 		Input:  lexFile,
 	})
-
-	return cppFile
 }
 
 func genSources(ctx common.AndroidModuleContext, srcFiles common.Paths,
@@ -87,13 +79,22 @@ func genSources(ctx common.AndroidModuleContext, srcFiles common.Paths,
 
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
-		case ".y", ".yy":
-			cppFile, headerFile := genYacc(ctx, srcFile, buildFlags.yaccFlags)
+		case ".y":
+			cFile := common.GenPathWithExt(ctx, srcFile, "c")
+			srcFiles[i] = cFile
+			deps = append(deps, genYacc(ctx, srcFile, cFile, buildFlags.yaccFlags))
+		case ".yy":
+			cppFile := common.GenPathWithExt(ctx, srcFile, "cpp")
 			srcFiles[i] = cppFile
-			deps = append(deps, headerFile)
-		case ".l", ".ll":
-			cppFile := genLex(ctx, srcFile)
+			deps = append(deps, genYacc(ctx, srcFile, cppFile, buildFlags.yaccFlags))
+		case ".l":
+			cFile := common.GenPathWithExt(ctx, srcFile, "c")
+			srcFiles[i] = cFile
+			genLex(ctx, srcFile, cFile)
+		case ".ll":
+			cppFile := common.GenPathWithExt(ctx, srcFile, "cpp")
 			srcFiles[i] = cppFile
+			genLex(ctx, srcFile, cppFile)
 		}
 	}
 
