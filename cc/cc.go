@@ -142,7 +142,7 @@ func init() {
 	pctx.PrefixedPathsForOptionalSourceVariable("commonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
 
-	pctx.SourcePathVariable("clangPath", "prebuilts/clang/host/${HostPrebuiltTag}/3.8/bin")
+	pctx.SourcePathVariable("clangPath", "prebuilts/clang/host/${HostPrebuiltTag}/clang-2629532/bin")
 }
 
 type CCModuleContext common.AndroidBaseContext
