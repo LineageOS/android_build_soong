@@ -261,7 +261,7 @@ func (c *config) DeviceUsesClang() bool {
 	if c.ProductVariables.DeviceUsesClang != nil {
 		return *c.ProductVariables.DeviceUsesClang
 	}
-	return false
+	return true
 }
 
 func (c *config) ResourceOverlays() []SourcePath {
