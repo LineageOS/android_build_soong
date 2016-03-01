@@ -31,7 +31,6 @@ var clangUnknownCflags = sorted([]string{
 	"-Wunused-but-set-parameter",
 	"-Wunused-but-set-variable",
 	"-fdiagnostics-color",
-	"-fdebug-prefix-map=/proc/self/cwd=",
 
 	// arm + arm64 + mips + mips64
 	"-fgcse-after-reload",
