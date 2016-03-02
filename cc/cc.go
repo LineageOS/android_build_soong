@@ -94,6 +94,7 @@ var (
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
+		"-Werror=date-time",
 	}
 
 	hostGlobalCflags = []string{}
@@ -128,6 +129,7 @@ func init() {
 	pctx.PrefixedPathsForOptionalSourceVariable("commonGlobalIncludes", "-isystem ",
 		[]string{
 			"system/core/include",
+			"system/media/audio/include",
 			"hardware/libhardware/include",
 			"hardware/libhardware_legacy/include",
 			"hardware/ril/include",
@@ -142,7 +144,7 @@ func init() {
 	pctx.PrefixedPathsForOptionalSourceVariable("commonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
 
-	pctx.SourcePathVariable("clangPath", "prebuilts/clang/host/${HostPrebuiltTag}/3.8/bin")
+	pctx.SourcePathVariable("clangPath", "prebuilts/clang/host/${HostPrebuiltTag}/clang-2629532/bin")
 }
 
 type CCModuleContext common.AndroidBaseContext
