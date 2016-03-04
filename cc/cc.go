@@ -938,7 +938,7 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 		if ctx.Host() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			flags.LdFlags = append(flags.LdFlags, "-lm", "-lpthread")
+			flags.LdFlags = append(flags.LdFlags, "-lpthread", "-lm")
 			if c.staticBinary() {
 				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.HostType()]...)
 			} else {
