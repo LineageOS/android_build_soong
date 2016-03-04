@@ -66,28 +66,28 @@ var (
 		`-Wl,-rpath,\$$ORIGIN/lib64`,
 	}
 
-	linuxClangCflags = append([]string{
+	linuxClangCflags = append(clangFilterUnknownCflags(linuxCflags), []string{
 		"--gcc-toolchain=${linuxGccRoot}",
 		"--sysroot=${linuxGccRoot}/sysroot",
 		"-fstack-protector-strong",
-	}, clangFilterUnknownCflags(linuxCflags)...)
+	}...)
 
-	linuxClangLdflags = append([]string{
+	linuxClangLdflags = append(clangFilterUnknownCflags(linuxLdflags), []string{
 		"--gcc-toolchain=${linuxGccRoot}",
 		"--sysroot=${linuxGccRoot}/sysroot",
-	}, clangFilterUnknownCflags(linuxLdflags)...)
+	}...)
 
-	linuxX86ClangLdflags = append([]string{
+	linuxX86ClangLdflags = append(clangFilterUnknownCflags(linuxX86Ldflags), []string{
 		"-B${linuxGccRoot}/lib/gcc/${linuxGccTriple}/${linuxGccVersion}/32",
 		"-L${linuxGccRoot}/lib/gcc/${linuxGccTriple}/${linuxGccVersion}/32",
 		"-L${linuxGccRoot}/${linuxGccTriple}/lib32",
-	}, clangFilterUnknownCflags(linuxX86Ldflags)...)
+	}...)
 
-	linuxX8664ClangLdflags = append([]string{
+	linuxX8664ClangLdflags = append(clangFilterUnknownCflags(linuxX8664Ldflags), []string{
 		"-B${linuxGccRoot}/lib/gcc/${linuxGccTriple}/${linuxGccVersion}",
 		"-L${linuxGccRoot}/lib/gcc/${linuxGccTriple}/${linuxGccVersion}",
 		"-L${linuxGccRoot}/${linuxGccTriple}/lib64",
-	}, clangFilterUnknownCflags(linuxX8664Ldflags)...)
+	}...)
 
 	linuxClangCppflags = []string{
 		"-isystem ${linuxGccRoot}/${linuxGccTriple}/include/c++/${linuxGccVersion}",

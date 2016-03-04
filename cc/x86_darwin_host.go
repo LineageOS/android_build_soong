@@ -63,10 +63,10 @@ var (
 		"-Wl,-rpath,@loader_path/lib64",
 	}
 
-	darwinClangCflags = append([]string{
+	darwinClangCflags = append(clangFilterUnknownCflags(darwinCflags), []string{
 		"-integrated-as",
 		"-fstack-protector-strong",
-	}, clangFilterUnknownCflags(darwinCflags)...)
+	}...)
 
 	darwinClangLdflags = clangFilterUnknownCflags(darwinLdflags)
 
