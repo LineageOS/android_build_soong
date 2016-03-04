@@ -103,6 +103,11 @@ var (
 		"-Wsign-promo",
 	}
 
+	noOverrideGlobalCflags = []string{
+		"-Werror=int-to-pointer-cast",
+		"-Werror=pointer-to-int-cast",
+	}
+
 	illegalFlags = []string{
 		"-w",
 	}
@@ -112,6 +117,7 @@ func init() {
 	pctx.StaticVariable("commonGlobalCflags", strings.Join(commonGlobalCflags, " "))
 	pctx.StaticVariable("deviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
 	pctx.StaticVariable("hostGlobalCflags", strings.Join(hostGlobalCflags, " "))
+	pctx.StaticVariable("noOverrideGlobalCflags", strings.Join(noOverrideGlobalCflags, " "))
 
 	pctx.StaticVariable("commonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))
 
@@ -121,6 +127,9 @@ func init() {
 		strings.Join(append(clangFilterUnknownCflags(deviceGlobalCflags), "${clangExtraTargetCflags}"), " "))
 	pctx.StaticVariable("hostClangGlobalCflags",
 		strings.Join(clangFilterUnknownCflags(hostGlobalCflags), " "))
+	pctx.StaticVariable("noOverrideClangGlobalCflags",
+		strings.Join(append(clangFilterUnknownCflags(noOverrideGlobalCflags), "${clangExtraNoOverrideCflags}"), " "))
+
 	pctx.StaticVariable("commonClangGlobalCppflags",
 		strings.Join(append(clangFilterUnknownCflags(commonGlobalCppflags), "${clangExtraCppflags}"), " "))
 

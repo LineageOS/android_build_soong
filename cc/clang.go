@@ -101,6 +101,12 @@ func init() {
 	pctx.StaticVariable("clangExtraTargetCflags", strings.Join([]string{
 		"-nostdlibinc",
 	}, " "))
+
+	pctx.StaticVariable("clangExtraNoOverrideCflags", strings.Join([]string{
+		"-Werror=address-of-temporary",
+		"-Werror=null-dereference",
+		"-Werror=return-type",
+	}, " "))
 }
 
 func clangFilterUnknownCflags(cflags []string) []string {
