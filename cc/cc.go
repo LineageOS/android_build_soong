@@ -1248,7 +1248,10 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 			sharedFlag = "-shared"
 		}
 		if ctx.Device() {
-			flags.LdFlags = append(flags.LdFlags, "-nostdlib")
+			flags.LdFlags = append(flags.LdFlags,
+				"-nostdlib",
+				"-Wl,--gc-sections",
+			)
 		}
 
 		if ctx.Darwin() {
@@ -1260,7 +1263,6 @@ func (c *CCLibrary) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlag
 			)
 		} else {
 			flags.LdFlags = append(flags.LdFlags,
-				"-Wl,--gc-sections",
 				sharedFlag,
 				"-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix(),
 			)
