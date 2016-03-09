@@ -79,10 +79,10 @@ var (
 	darwinX8664ClangLdflags = clangFilterUnknownCflags(darwinX8664Ldflags)
 
 	darwinSupportedSdkVersions = []string{
-		"macosx10.8",
-		"macosx10.9",
-		"macosx10.10",
-		"macosx10.11",
+		"10.8",
+		"10.9",
+		"10.10",
+		"10.11",
 	}
 )
 
@@ -99,9 +99,7 @@ func init() {
 	pctx.VariableFunc("macSdkRoot", func(config interface{}) (string, error) {
 		return xcrunSdk(config.(common.Config), "--show-sdk-path")
 	})
-	pctx.VariableFunc("macSdkVersion", func(config interface{}) (string, error) {
-		return xcrunSdk(config.(common.Config), "--show-sdk-version")
-	})
+	pctx.StaticVariable("macSdkVersion", darwinSupportedSdkVersions[0])
 	pctx.VariableFunc("macArPath", func(config interface{}) (string, error) {
 		bytes, err := exec.Command("xcrun", "--find", "ar").Output()
 		return strings.TrimSpace(string(bytes)), err
@@ -138,7 +136,7 @@ func init() {
 
 func xcrunSdk(config common.Config, arg string) (string, error) {
 	if selected := config.Getenv("MAC_SDK_VERSION"); selected != "" {
-		if !inList("macosx"+selected, darwinSupportedSdkVersions) {
+		if !inList(selected, darwinSupportedSdkVersions) {
 			return "", fmt.Errorf("MAC_SDK_VERSION %s isn't supported: %q", selected, darwinSupportedSdkVersions)
 		}
 
@@ -150,7 +148,7 @@ func xcrunSdk(config common.Config, arg string) (string, error) {
 	}
 
 	for _, sdk := range darwinSupportedSdkVersions {
-		bytes, err := exec.Command("xcrun", "--sdk", sdk, arg).Output()
+		bytes, err := exec.Command("xcrun", "--sdk", "macosx"+sdk, arg).Output()
 		if err == nil {
 			return strings.TrimSpace(string(bytes)), err
 		}
