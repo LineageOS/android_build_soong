@@ -955,6 +955,10 @@ func (c *CCLinked) flags(ctx common.AndroidModuleContext, flags CCFlags) CCFlags
 		// Host builds will use GNU libstdc++.
 		if ctx.Device() {
 			flags.CFlags = append(flags.CFlags, "-I"+common.PathForSource(ctx, "bionic/libstdc++/include").String())
+		} else {
+			// Host builds will use the system C++. libc++ on Darwin, GNU libstdc++ everywhere else
+			flags.CppFlags = append(flags.CppFlags, flags.Toolchain.SystemCppCppflags())
+			flags.LdFlags = append(flags.LdFlags, flags.Toolchain.SystemCppLdflags())
 		}
 	case "ndk_system":
 		ndkSrcRoot := common.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")

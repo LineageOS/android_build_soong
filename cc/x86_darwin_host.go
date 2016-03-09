@@ -32,14 +32,18 @@ var (
 		"-DMACOSX_DEPLOYMENT_TARGET=${macSdkVersion}",
 	}
 
-	darwinCppflags = []string{
-		"-isystem ${macToolchainRoot}/usr/include/c++/v1",
-	}
-
 	darwinLdflags = []string{
 		"-isysroot ${macSdkRoot}",
 		"-Wl,-syslibroot,${macSdkRoot}",
 		"-mmacosx-version-min=${macSdkVersion}",
+	}
+
+	darwinSystemCppCppflags = []string{
+		"-isystem ${macToolchainRoot}/usr/include/c++/v1",
+	}
+
+	darwinSystemCppLdflags = []string{
+		"-stdlib=libc++",
 	}
 
 	// Extended cflags
@@ -73,8 +77,6 @@ var (
 	darwinX86ClangLdflags = clangFilterUnknownCflags(darwinX86Ldflags)
 
 	darwinX8664ClangLdflags = clangFilterUnknownCflags(darwinX8664Ldflags)
-
-	darwinClangCppflags = clangFilterUnknownCflags(darwinCppflags)
 
 	darwinSupportedSdkVersions = []string{
 		"macosx10.8",
@@ -113,11 +115,12 @@ func init() {
 
 	pctx.StaticVariable("darwinCflags", strings.Join(darwinCflags, " "))
 	pctx.StaticVariable("darwinLdflags", strings.Join(darwinLdflags, " "))
-	pctx.StaticVariable("darwinCppflags", strings.Join(darwinCppflags, " "))
 
 	pctx.StaticVariable("darwinClangCflags", strings.Join(darwinClangCflags, " "))
 	pctx.StaticVariable("darwinClangLdflags", strings.Join(darwinClangLdflags, " "))
-	pctx.StaticVariable("darwinClangCppflags", strings.Join(darwinClangCppflags, " "))
+
+	pctx.StaticVariable("darwinSystemCppCppflags", strings.Join(darwinSystemCppCppflags, " "))
+	pctx.StaticVariable("darwinSystemCppLdflags", strings.Join(darwinSystemCppLdflags, " "))
 
 	// Extended cflags
 	pctx.StaticVariable("darwinX86Cflags", strings.Join(darwinX86Cflags, " "))
@@ -198,7 +201,7 @@ func (t *toolchainDarwinX8664) Cflags() string {
 }
 
 func (t *toolchainDarwin) Cppflags() string {
-	return "${darwinCppflags}"
+	return ""
 }
 
 func (t *toolchainDarwinX86) Ldflags() string {
@@ -221,10 +224,6 @@ func (t *toolchainDarwinX86) ClangCflags() string {
 	return "${darwinClangCflags} ${darwinX86ClangCflags}"
 }
 
-func (t *toolchainDarwinX86) ClangCppflags() string {
-	return "${darwinClangCppflags}"
-}
-
 func (t *toolchainDarwinX8664) ClangTriple() string {
 	return "x86_64-darwin-gnu"
 }
@@ -233,8 +232,8 @@ func (t *toolchainDarwinX8664) ClangCflags() string {
 	return "${darwinClangCflags} ${darwinX8664ClangCflags}"
 }
 
-func (t *toolchainDarwinX8664) ClangCppflags() string {
-	return "${darwinClangCppflags}"
+func (t *toolchainDarwin) ClangCppflags() string {
+	return ""
 }
 
 func (t *toolchainDarwinX86) ClangLdflags() string {
@@ -247,6 +246,14 @@ func (t *toolchainDarwinX8664) ClangLdflags() string {
 
 func (t *toolchainDarwin) ShlibSuffix() string {
 	return ".dylib"
+}
+
+func (t *toolchainDarwin) SystemCppCppflags() string {
+	return "${darwinSystemCppCppflags}"
+}
+
+func (t *toolchainDarwin) SystemCppLdflags() string {
+	return "${darwinSystemCppLdflags}"
 }
 
 var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}

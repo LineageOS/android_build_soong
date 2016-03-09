@@ -70,6 +70,9 @@ type Toolchain interface {
 
 	ShlibSuffix() string
 	ExecutableSuffix() string
+
+	SystemCppCppflags() string
+	SystemCppLdflags() string
 }
 
 type toolchainBase struct {
@@ -114,6 +117,14 @@ func (toolchainBase) ExecutableSuffix() string {
 }
 
 func (toolchainBase) ClangAsflags() string {
+	return ""
+}
+
+func (toolchainBase) SystemCppCppflags() string {
+	return ""
+}
+
+func (toolchainBase) SystemCppLdflags() string {
 	return ""
 }
 
