@@ -79,6 +79,8 @@ type AndroidModuleContext interface {
 	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) Path
 	InstallFileName(installPath OutputPath, name string, srcPath Path, deps ...Path) Path
 	CheckbuildFile(srcPath Path)
+
+	AddMissingDependencies(deps []string)
 }
 
 type AndroidModule interface {
@@ -480,6 +482,12 @@ func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params
 
 func (a *androidModuleContext) GetMissingDependencies() []string {
 	return a.missingDeps
+}
+
+func (a *androidModuleContext) AddMissingDependencies(deps []string) {
+	if deps != nil {
+		a.missingDeps = append(a.missingDeps, deps...)
+	}
 }
 
 func (a *androidBaseContextImpl) Arch() Arch {
