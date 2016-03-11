@@ -173,6 +173,21 @@ type Paths []Path
 
 // PathsForSource returns Paths rooted from SrcDir
 func PathsForSource(ctx PathContext, paths []string) Paths {
+	if pathConfig(ctx).AllowMissingDependencies() {
+		if modCtx, ok := ctx.(AndroidModuleContext); ok {
+			ret := make(Paths, 0, len(paths))
+			intermediates := PathForModuleOut(modCtx, "missing").String()
+			for _, path := range paths {
+				p := OptionalPathForSource(ctx, intermediates, path)
+				if p.Valid() {
+					ret = append(ret, p.Path())
+				} else {
+					modCtx.AddMissingDependencies([]string{path})
+				}
+			}
+			return ret
+		}
+	}
 	ret := make(Paths, len(paths))
 	for i, path := range paths {
 		ret[i] = PathForSource(ctx, path)
