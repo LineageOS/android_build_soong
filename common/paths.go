@@ -176,7 +176,7 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 	if pathConfig(ctx).AllowMissingDependencies() {
 		if modCtx, ok := ctx.(AndroidModuleContext); ok {
 			ret := make(Paths, 0, len(paths))
-			intermediates := PathForModuleOut(modCtx, "missing").String()
+			intermediates := filepath.Join(modCtx.ModuleDir(), modCtx.ModuleName(), modCtx.ModuleSubDir(), "missing")
 			for _, path := range paths {
 				p := OptionalPathForSource(ctx, intermediates, path)
 				if p.Valid() {
