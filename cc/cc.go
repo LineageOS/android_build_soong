@@ -153,7 +153,20 @@ func init() {
 	pctx.PrefixedPathsForOptionalSourceVariable("commonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
 
-	pctx.SourcePathVariable("clangPath", "prebuilts/clang/host/${HostPrebuiltTag}/clang-2658975/bin")
+	pctx.SourcePathVariable("clangDefaultBase", "prebuilts/clang/host")
+	pctx.VariableFunc("clangBase", func(config interface{}) (string, error) {
+		if override := config.(common.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
+			return override, nil
+		}
+		return "${clangDefaultBase}", nil
+	})
+	pctx.VariableFunc("clangVersion", func(config interface{}) (string, error) {
+		if override := config.(common.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
+			return override, nil
+		}
+		return "clang-2658975", nil
+	})
+	pctx.StaticVariable("clangPath", "${clangBase}/${HostPrebuiltTag}/${clangVersion}/bin")
 }
 
 type CCModuleContext common.AndroidBaseContext
