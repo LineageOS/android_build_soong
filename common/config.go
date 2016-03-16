@@ -301,7 +301,7 @@ func (c *config) DefaultAppCertificate(ctx PathContext) SourcePath {
 }
 
 func (c *config) AllowMissingDependencies() bool {
-	return Bool(c.ProductVariables.Unbundled_build)
+	return Bool(c.ProductVariables.Allow_missing_dependencies)
 }
 
 func (c *config) SkipDeviceInstall() bool {
