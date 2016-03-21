@@ -164,7 +164,7 @@ func init() {
 		if override := config.(common.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
-		return "clang-2658975", nil
+		return "clang-2690385", nil
 	})
 	pctx.StaticVariable("clangPath", "${clangBase}/${HostPrebuiltTag}/${clangVersion}/bin")
 }
