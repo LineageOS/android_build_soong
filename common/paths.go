@@ -478,6 +478,10 @@ func (p OutputPath) String() string {
 	return filepath.Join(p.config.buildDir, p.path)
 }
 
+func (p OutputPath) RelPathString() string {
+	return p.path
+}
+
 // Join creates a new OutputPath with paths... joined with the current path. The
 // provided paths... may not use '..' to escape from the current path.
 func (p OutputPath) Join(ctx PathContext, paths ...string) OutputPath {
