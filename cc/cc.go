@@ -1195,7 +1195,7 @@ type baseInstaller struct {
 	dir64 string
 	data  bool
 
-	path common.Path
+	path common.OutputPath
 }
 
 var _ installer = (*baseInstaller)(nil)

@@ -17,6 +17,7 @@ package cc
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"android/soong/common"
@@ -105,5 +106,17 @@ func (binary *binaryLinker) AndroidMk(ret *common.AndroidMkData) {
 }
 
 func (test *testLinker) AndroidMk(ret *common.AndroidMkData) {
-	ret.Disabled = true
+	test.binaryLinker.AndroidMk(ret)
+	if Bool(test.Properties.Test_per_src) {
+		ret.SubName = test.binaryLinker.Properties.Stem
+	}
+}
+
+func (installer *baseInstaller) AndroidMk(ret *common.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) error {
+		path := installer.path.RelPathString()
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Dir(path))
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+filepath.Base(path))
+		return nil
+	})
 }

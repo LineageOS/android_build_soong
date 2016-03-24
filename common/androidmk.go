@@ -38,6 +38,7 @@ type AndroidMkDataProvider interface {
 
 type AndroidMkData struct {
 	Class      string
+	SubName    string
 	OutputFile OptionalPath
 	Disabled   bool
 
@@ -139,6 +140,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 
 	if !amod.Enabled() {
 		return err
+	}
+
+	if data.SubName != "" {
+		name += "_" + data.SubName
 	}
 
 	hostCross := false
