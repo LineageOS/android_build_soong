@@ -76,8 +76,8 @@ type AndroidModuleContext interface {
 	ExpandSources(srcFiles, excludes []string) Paths
 	Glob(outDir, globPattern string, excludes []string) Paths
 
-	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) Path
-	InstallFileName(installPath OutputPath, name string, srcPath Path, deps ...Path) Path
+	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) OutputPath
+	InstallFileName(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
 	CheckbuildFile(srcPath Path)
 
 	AddMissingDependencies(deps []string)
@@ -531,7 +531,7 @@ func (a *androidBaseContextImpl) InstallInData() bool {
 }
 
 func (a *androidModuleContext) InstallFileName(installPath OutputPath, name string, srcPath Path,
-	deps ...Path) Path {
+	deps ...Path) OutputPath {
 
 	fullInstallPath := installPath.Join(a, name)
 
@@ -552,7 +552,7 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 	return fullInstallPath
 }
 
-func (a *androidModuleContext) InstallFile(installPath OutputPath, srcPath Path, deps ...Path) Path {
+func (a *androidModuleContext) InstallFile(installPath OutputPath, srcPath Path, deps ...Path) OutputPath {
 	return a.InstallFileName(installPath, filepath.Base(srcPath.String()), srcPath, deps...)
 }
 
