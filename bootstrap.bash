@@ -8,11 +8,7 @@ if [[ "$ORIG_SRCDIR" != "." ]]; then
     echo "error: To use BUILDDIR, run from the source directory"
     exit 1
   fi
-  if [[ ${ORIG_SRCDIR:0:1} == '/' ]]; then
-    export BUILDDIR=$PWD
-  else
-    export BUILDDIR=$(python -c "import os; print os.path.relpath('.', '$ORIG_SRCDIR')")
-  fi
+  export BUILDDIR=$("${ORIG_SRCDIR}/build/soong/reverse_path.py" "$ORIG_SRCDIR")
   cd $ORIG_SRCDIR
 fi
 if [[ -z "$BUILDDIR" ]]; then
@@ -49,11 +45,7 @@ if [[ $# -eq 0 ]]; then
       exit 1
     fi
 
-    if [[ ${BUILDDIR:0:1} == '/' ]]; then
-      export SRCDIR_FROM_BUILDDIR=$PWD
-    else
-      export SRCDIR_FROM_BUILDDIR=$(python -c "import os; print os.path.relpath('.', '$BUILDDIR')")
-    fi
+    export SRCDIR_FROM_BUILDDIR=$(build/soong/reverse_path.py "$BUILDDIR")
 
     sed -e "s|@@BuildDir@@|${BUILDDIR}|" \
         -e "s|@@SrcDirFromBuildDir@@|${SRCDIR_FROM_BUILDDIR}|" \
