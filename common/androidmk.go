@@ -192,6 +192,9 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 			fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
+
+			// TODO: this isn't true for every module, only dependencies of ACP
+			fmt.Fprintln(w, "LOCAL_ACP_UNAVAILABLE := true")
 		}
 		fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", amod.HostType().String())
 		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
