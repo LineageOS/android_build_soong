@@ -2174,10 +2174,12 @@ func linkageMutator(mctx common.AndroidBottomUpMutatorContext) {
 				if linker.buildStatic() && linker.buildShared() {
 					modules = mctx.CreateLocalVariations("static", "shared")
 					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
+					modules[0].(*Module).installer = nil
 					modules[1].(*Module).linker.(baseLinkerInterface).setStatic(false)
 				} else if linker.buildStatic() {
 					modules = mctx.CreateLocalVariations("static")
 					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
+					modules[0].(*Module).installer = nil
 				} else if linker.buildShared() {
 					modules = mctx.CreateLocalVariations("shared")
 					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(false)
