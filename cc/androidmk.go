@@ -115,8 +115,10 @@ func (test *testLinker) AndroidMk(ret *common.AndroidMkData) {
 func (installer *baseInstaller) AndroidMk(ret *common.AndroidMkData) {
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) error {
 		path := installer.path.RelPathString()
-		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Dir(path))
-		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+filepath.Base(path))
+		dir, file := filepath.Split(path)
+		stem := strings.TrimSuffix(file, filepath.Ext(file))
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+dir)
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 		return nil
 	})
 }
