@@ -28,7 +28,6 @@ var (
 		"-DUSE_MINGW",
 		"-DWIN32_LEAN_AND_MEAN",
 		"-Wno-unused-parameter",
-		"-m32",
 
 		// Workaround differences in inttypes.h between host and target.
 		//See bug 12708004.
@@ -37,11 +36,13 @@ var (
 
 		// Use C99-compliant printf functions (%zd).
 		"-D__USE_MINGW_ANSI_STDIO=1",
-		// Admit to using >= Win2K. Both are needed because of <_mingw.h>.
-		"-D_WIN32_WINNT=0x0500",
-		"-DWINVER=0x0500",
+		// Admit to using >= Vista. Both are needed because of <_mingw.h>.
+		"-D_WIN32_WINNT=0x0600",
+		"-DWINVER=0x0600",
 		// Get 64-bit off_t and related functions.
 		"-D_FILE_OFFSET_BITS=64",
+
+		"--sysroot ${windowsGccRoot}/${windowsGccTriple}",
 
 		// HOST_RELEASE_CFLAGS
 		"-O2", // from build/core/combo/select.mk
@@ -55,7 +56,6 @@ var (
 	}
 
 	windowsLdflags = []string{
-		"-L${windowsGccRoot}/${windowsGccTriple}",
 		"--enable-stdcall-fixup",
 	}
 
