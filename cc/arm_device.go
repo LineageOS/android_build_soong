@@ -106,6 +106,11 @@ var (
 	armCpuVariantCflags = map[string][]string{
 		"cortex-a7": []string{
 			"-mcpu=cortex-a7",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
 		},
 		"cortex-a8": []string{
 			"-mcpu=cortex-a8",
@@ -114,6 +119,8 @@ var (
 			"-mcpu=cortex-a15",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
 			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
 	}
