@@ -86,3 +86,22 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		clang:       in.Clang,
 	}
 }
+
+func copyVariantFlags(m map[string][]string) map[string][]string {
+	ret := make(map[string][]string, len(m))
+	for k, v := range m {
+		l := make([]string, len(m[k]))
+		for i := range m[k] {
+			l[i] = v[i]
+		}
+		ret[k] = l
+	}
+	return ret
+}
+
+func variantOrDefault(variants map[string]string, choice string) string {
+	if ret, ok := variants[choice]; ok {
+		return ret
+	}
+	return variants[""]
+}

@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"fmt"
 	"strings"
 
 	"android/soong/common"
@@ -72,6 +73,14 @@ var (
 	arm64Cppflags = []string{
 		"-fvisibility-inlines-hidden",
 	}
+
+	arm64CpuVariantCflags = map[string][]string{
+		"cortex-a53": []string{
+			"-mcpu=cortex-a53",
+		},
+	}
+
+	arm64ClangCpuVariantCflags = copyVariantFlags(arm64CpuVariantCflags)
 )
 
 const (
@@ -101,13 +110,31 @@ func init() {
 	pctx.StaticVariable("arm64ClangCflags", strings.Join(clangFilterUnknownCflags(arm64Cflags), " "))
 	pctx.StaticVariable("arm64ClangLdflags", strings.Join(clangFilterUnknownCflags(arm64Ldflags), " "))
 	pctx.StaticVariable("arm64ClangCppflags", strings.Join(clangFilterUnknownCflags(arm64Cppflags), " "))
+
+	pctx.StaticVariable("arm64CortexA53Cflags",
+		strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
+	pctx.StaticVariable("arm64ClangCortexA53Cflags",
+		strings.Join(arm64ClangCpuVariantCflags["cortex-a53"], " "))
 }
+
+var (
+	arm64CpuVariantCflagsVar = map[string]string{
+		"":           "",
+		"cortex-a53": "${arm64CortexA53Cflags}",
+	}
+
+	arm64ClangCpuVariantCflagsVar = map[string]string{
+		"":           "",
+		"cortex-a53": "${arm64ClangCortexA53Cflags}",
+	}
+)
 
 type toolchainArm64 struct {
 	toolchain64Bit
-}
 
-var toolchainArm64Singleton = &toolchainArm64{}
+	toolchainCflags      string
+	toolchainClangCflags string
+}
 
 func (t *toolchainArm64) Name() string {
 	return "arm64"
@@ -123,6 +150,10 @@ func (t *toolchainArm64) GccTriple() string {
 
 func (t *toolchainArm64) GccVersion() string {
 	return arm64GccVersion
+}
+
+func (t *toolchainArm64) ToolchainCflags() string {
+	return t.toolchainCflags
 }
 
 func (t *toolchainArm64) Cflags() string {
@@ -157,8 +188,19 @@ func (t *toolchainArm64) ClangLdflags() string {
 	return "${arm64Ldflags}"
 }
 
+func (t *toolchainArm64) ToolchainClangCflags() string {
+	return t.toolchainClangCflags
+}
+
 func arm64ToolchainFactory(arch common.Arch) Toolchain {
-	return toolchainArm64Singleton
+	if arch.ArchVariant != "armv8-a" {
+		panic(fmt.Sprintf("Unknown ARM architecture version: %q", arch.ArchVariant))
+	}
+
+	return &toolchainArm64{
+		toolchainCflags:      variantOrDefault(arm64CpuVariantCflagsVar, arch.CpuVariant),
+		toolchainClangCflags: variantOrDefault(arm64ClangCpuVariantCflagsVar, arch.CpuVariant),
+	}
 }
 
 func init() {
