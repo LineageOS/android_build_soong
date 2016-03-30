@@ -72,6 +72,10 @@ var (
 		"-fstack-protector-strong",
 	}...)
 
+	darwinX86ClangCflags = append(clangFilterUnknownCflags(darwinX86Cflags), []string{
+		"-msse3",
+	}...)
+
 	darwinClangLdflags = clangFilterUnknownCflags(darwinLdflags)
 
 	darwinX86ClangLdflags = clangFilterUnknownCflags(darwinX86Ldflags)
@@ -126,8 +130,7 @@ func init() {
 	pctx.StaticVariable("darwinX86Ldflags", strings.Join(darwinX86Ldflags, " "))
 	pctx.StaticVariable("darwinX8664Ldflags", strings.Join(darwinX8664Ldflags, " "))
 
-	pctx.StaticVariable("darwinX86ClangCflags",
-		strings.Join(clangFilterUnknownCflags(darwinX86Cflags), " "))
+	pctx.StaticVariable("darwinX86ClangCflags", strings.Join(darwinX86ClangCflags, " "))
 	pctx.StaticVariable("darwinX8664ClangCflags",
 		strings.Join(clangFilterUnknownCflags(darwinX8664Cflags), " "))
 	pctx.StaticVariable("darwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
@@ -215,7 +218,7 @@ func (t *toolchainDarwin) IncludeFlags() string {
 }
 
 func (t *toolchainDarwinX86) ClangTriple() string {
-	return "i686-darwin-gnu"
+	return "i686-apple-darwin"
 }
 
 func (t *toolchainDarwinX86) ClangCflags() string {
@@ -223,7 +226,7 @@ func (t *toolchainDarwinX86) ClangCflags() string {
 }
 
 func (t *toolchainDarwinX8664) ClangTriple() string {
-	return "x86_64-darwin-gnu"
+	return "x86_64-apple-darwin"
 }
 
 func (t *toolchainDarwinX8664) ClangCflags() string {
