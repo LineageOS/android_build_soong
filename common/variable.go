@@ -98,6 +98,7 @@ func (v *productVariables) SetDefaultConfig() {
 		HostSecondaryArch:          stringPtr("x86"),
 		DeviceName:                 stringPtr("flounder"),
 		DeviceArch:                 stringPtr("arm64"),
+		DeviceArchVariant:          stringPtr("armv8-a"),
 		DeviceCpuVariant:           stringPtr("denver64"),
 		DeviceAbi:                  &[]string{"arm64-v8a"},
 		DeviceUsesClang:            boolPtr(true),
