@@ -912,18 +912,20 @@ func decodeMegaDevice() ([]Arch, error) {
 		cpuVariant  string
 		abi         []string
 	}{
+		// armv5 is only used for unbundled apps
+		//{"arm", "armv5te", "", []string{"armeabi"}},
+		{"arm", "armv7-a", "generic", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "generic", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a7", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a8", []string{"armeabi-v7a"}},
-		// gtest_all_test.cc fails to build:
-		//   error in backend: Unsupported library call operation!
-		//{"arm", "armv7-a-neon", "cortex-a9", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "cortex-a9", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a15", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a53", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a53.a57", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "denver", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "krait", []string{"armeabi-v7a"}},
-		{"arm64", "", "cortex-a53", []string{"arm64-v8a"}},
-		{"arm64", "", "denver64", []string{"arm64-v8a"}},
+		{"arm64", "armv8-a", "cortex-a53", []string{"arm64-v8a"}},
+		{"arm64", "armv8-a", "denver64", []string{"arm64-v8a"}},
 		{"mips", "mips32-fp", "", []string{"mips"}},
 		{"mips", "mips32r2-fp", "", []string{"mips"}},
 		{"mips", "mips32r2-fp-xburst", "", []string{"mips"}},
