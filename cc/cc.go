@@ -79,7 +79,6 @@ var (
 		"-Wno-unused",
 		"-Winit-self",
 		"-Wpointer-arith",
-		"-fdebug-prefix-map=/proc/self/cwd=",
 
 		// COMMON_RELEASE_CFLAGS
 		"-DNDEBUG",
@@ -114,6 +113,10 @@ var (
 )
 
 func init() {
+	if common.CurrentHostType() == common.Linux {
+		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
+	}
+
 	pctx.StaticVariable("commonGlobalCflags", strings.Join(commonGlobalCflags, " "))
 	pctx.StaticVariable("deviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
 	pctx.StaticVariable("hostGlobalCflags", strings.Join(hostGlobalCflags, " "))
