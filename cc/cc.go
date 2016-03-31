@@ -1014,7 +1014,6 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	} else {
 		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainCflags())
 	}
-	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 
 	if !ctx.sdk() {
 		if ctx.Host() && !flags.Clang {
@@ -1153,7 +1152,9 @@ func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 	}
 
-	if !flags.Clang {
+	if flags.Clang {
+		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
+	} else {
 		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
 	}
 
@@ -1544,6 +1545,12 @@ func (*objectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func (*objectLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	if flags.Clang {
+		flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainClangLdflags())
+	} else {
+		flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainLdflags())
+	}
+
 	return flags
 }
 
