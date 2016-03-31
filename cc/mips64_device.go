@@ -147,10 +147,6 @@ func (t *toolchainMips64) GccVersion() string {
 	return mips64GccVersion
 }
 
-func (t *toolchainMips64) ToolchainLdflags() string {
-	return ""
-}
-
 func (t *toolchainMips64) ToolchainCflags() string {
 	return t.toolchainCflags
 }
