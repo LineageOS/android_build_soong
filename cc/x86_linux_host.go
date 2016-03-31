@@ -56,14 +56,10 @@ var (
 
 	linuxX86Ldflags = []string{
 		"-m32",
-		`-Wl,-rpath,\$$ORIGIN/../lib`,
-		`-Wl,-rpath,\$$ORIGIN/lib`,
 	}
 
 	linuxX8664Ldflags = []string{
 		"-m64",
-		`-Wl,-rpath,\$$ORIGIN/../lib64`,
-		`-Wl,-rpath,\$$ORIGIN/lib64`,
 	}
 
 	linuxClangCflags = append(clangFilterUnknownCflags(linuxCflags), []string{
