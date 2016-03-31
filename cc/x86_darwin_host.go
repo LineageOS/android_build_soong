@@ -57,14 +57,10 @@ var (
 
 	darwinX86Ldflags = []string{
 		"-m32",
-		"-Wl,-rpath,@loader_path/../lib",
-		"-Wl,-rpath,@loader_path/lib",
 	}
 
 	darwinX8664Ldflags = []string{
 		"-m64",
-		"-Wl,-rpath,@loader_path/../lib64",
-		"-Wl,-rpath,@loader_path/lib64",
 	}
 
 	darwinClangCflags = append(clangFilterUnknownCflags(darwinCflags), []string{
