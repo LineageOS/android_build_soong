@@ -60,6 +60,7 @@ type Toolchain interface {
 	ClangSupported() bool
 	ClangTriple() string
 	ToolchainClangCflags() string
+	ToolchainClangLdflags() string
 	ClangAsflags() string
 	ClangCflags() string
 	ClangCppflags() string
@@ -101,6 +102,10 @@ func (toolchainBase) ToolchainLdflags() string {
 }
 
 func (toolchainBase) ToolchainClangCflags() string {
+	return ""
+}
+
+func (toolchainBase) ToolchainClangLdflags() string {
 	return ""
 }
 
