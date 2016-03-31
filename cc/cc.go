@@ -1086,9 +1086,17 @@ type baseLinker struct {
 		VariantIsStatic       bool `blueprint:"mutated"`
 		VariantIsStaticBinary bool `blueprint:"mutated"`
 	}
+
+	runPaths []string
 }
 
-func (linker *baseLinker) begin(ctx BaseModuleContext) {}
+func (linker *baseLinker) begin(ctx BaseModuleContext) {
+	if ctx.toolchain().Is64Bit() {
+		linker.runPaths = []string{"../lib64", "lib64"}
+	} else {
+		linker.runPaths = []string{"../lib", "lib"}
+	}
+}
 
 func (linker *baseLinker) props() []interface{} {
 	return []interface{}{&linker.Properties, &linker.dynamicProperties}
@@ -1149,6 +1157,17 @@ func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 
 		if ctx.Host() {
 			flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
+		}
+	}
+
+	if ctx.Host() && !linker.static() {
+		rpath_prefix := `\$$ORIGIN/`
+		if ctx.Darwin() {
+			rpath_prefix = "@loader_path/"
+		}
+
+		for _, rpath := range linker.runPaths {
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
 		}
 	}
 
@@ -1779,6 +1798,16 @@ func testPerSrcMutator(mctx common.AndroidBottomUpMutatorContext) {
 type testLinker struct {
 	binaryLinker
 	Properties TestLinkerProperties
+}
+
+func (test *testLinker) begin(ctx BaseModuleContext) {
+	test.binaryLinker.begin(ctx)
+
+	runpath := "../../lib"
+	if ctx.toolchain().Is64Bit() {
+		runpath += "64"
+	}
+	test.runPaths = append([]string{runpath}, test.runPaths...)
 }
 
 func (test *testLinker) props() []interface{} {
