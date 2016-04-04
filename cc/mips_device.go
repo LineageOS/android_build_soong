@@ -137,8 +137,6 @@ func init() {
 		"-isystem ${LibcRoot}/include",
 		"-isystem ${LibcRoot}/kernel/uapi",
 		"-isystem ${LibcRoot}/kernel/uapi/asm-mips",
-		"-isystem ${LibmRoot}/include",
-		"-isystem ${LibmRoot}/include/mips",
 	}, " "))
 
 	// Clang cflags

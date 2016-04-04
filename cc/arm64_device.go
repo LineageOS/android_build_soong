@@ -103,8 +103,6 @@ func init() {
 		"-isystem ${LibcRoot}/include",
 		"-isystem ${LibcRoot}/kernel/uapi",
 		"-isystem ${LibcRoot}/kernel/uapi/asm-arm64",
-		"-isystem ${LibmRoot}/include",
-		"-isystem ${LibmRoot}/include/arm64",
 	}, " "))
 
 	pctx.StaticVariable("arm64ClangCflags", strings.Join(clangFilterUnknownCflags(arm64Cflags), " "))

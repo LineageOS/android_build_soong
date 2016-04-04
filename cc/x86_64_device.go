@@ -152,8 +152,6 @@ func init() {
 		"-isystem ${LibcRoot}/include",
 		"-isystem ${LibcRoot}/kernel/uapi",
 		"-isystem ${LibcRoot}/kernel/uapi/asm-x86",
-		"-isystem ${LibmRoot}/include",
-		"-isystem ${LibmRoot}/include/amd64",
 	}, " "))
 
 	// Clang cflags

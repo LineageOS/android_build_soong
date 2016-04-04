@@ -167,8 +167,6 @@ func init() {
 		"-isystem ${LibcRoot}/include",
 		"-isystem ${LibcRoot}/kernel/uapi",
 		"-isystem ${LibcRoot}/kernel/uapi/asm-arm",
-		"-isystem ${LibmRoot}/include",
-		"-isystem ${LibmRoot}/include/arm",
 	}, " "))
 
 	// Extended cflags
