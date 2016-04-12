@@ -175,7 +175,7 @@ type Deps struct {
 	SharedLibs, LateSharedLibs                  []string
 	StaticLibs, LateStaticLibs, WholeStaticLibs []string
 
-	ObjFiles common.Paths
+	ObjFiles []string
 
 	Cflags, ReexportedCflags []string
 
@@ -378,6 +378,11 @@ type TestLinkerProperties struct {
 	// Create a separate binary for each source file.  Useful when there is
 	// global state that can not be torn down and reset between each test suite.
 	Test_per_src *bool
+}
+
+type ObjectLinkerProperties struct {
+	// names of other cc_object modules to link into this module using partial linking
+	Objs []string `android:"arch_variant"`
 }
 
 // Properties used to compile all C or C++ modules
@@ -722,7 +727,8 @@ func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
 	sharedLibs = append(sharedLibs, c.deps.LateSharedLibs...)
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, sharedLibs...)
 
-	actx.AddDependency(ctx.module(), c.deps.ObjFiles.Strings()...)
+	actx.AddDependency(ctx.module(), c.deps.ObjFiles...)
+
 	if c.deps.CrtBegin != "" {
 		actx.AddDependency(ctx.module(), c.deps.CrtBegin)
 	}
@@ -1542,6 +1548,7 @@ func libraryFactory() (blueprint.Module, []interface{}) {
 //
 
 type objectLinker struct {
+	Properties ObjectLinkerProperties
 }
 
 func objectFactory() (blueprint.Module, []interface{}) {
@@ -1551,14 +1558,14 @@ func objectFactory() (blueprint.Module, []interface{}) {
 	return module.Init()
 }
 
-func (*objectLinker) props() []interface{} {
-	return nil
+func (object *objectLinker) props() []interface{} {
+	return []interface{}{&object.Properties}
 }
 
 func (*objectLinker) begin(ctx BaseModuleContext) {}
 
-func (*objectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	// object files can't have any dynamic dependencies
+func (object *objectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps.ObjFiles = append(deps.ObjFiles, object.Properties.Objs...)
 	return deps
 }
 
