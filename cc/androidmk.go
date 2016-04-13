@@ -26,8 +26,8 @@ import (
 func (c *Module) AndroidMk() (ret common.AndroidMkData, err error) {
 	ret.OutputFile = c.outputFile
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) (err error) {
-		if len(c.deps.SharedLibs) > 0 {
-			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.deps.SharedLibs, " "))
+		if len(c.Properties.AndroidMkSharedLibs) > 0 {
+			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 		}
 		return nil
 	})
@@ -48,7 +48,9 @@ func (c *Module) AndroidMk() (ret common.AndroidMkData, err error) {
 
 	callSubAndroidMk(c.compiler)
 	callSubAndroidMk(c.linker)
-	callSubAndroidMk(c.installer)
+	if c.linker.installable() {
+		callSubAndroidMk(c.installer)
+	}
 
 	return ret, nil
 }
