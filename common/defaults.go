@@ -19,6 +19,12 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+type defaultsDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+var DefaultsDepTag defaultsDependencyTag
+
 type defaultsProperties struct {
 	Defaults []string
 }
@@ -105,7 +111,7 @@ func (defaultable *DefaultableModule) applyDefaults(ctx AndroidTopDownMutatorCon
 
 func defaultsDepsMutator(ctx AndroidBottomUpMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
-		ctx.AddDependency(ctx.Module(), defaultable.defaults().Defaults...)
+		ctx.AddDependency(ctx.Module(), DefaultsDepTag, defaultable.defaults().Defaults...)
 	}
 }
 

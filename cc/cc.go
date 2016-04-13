@@ -396,6 +396,8 @@ type BaseProperties struct {
 	// don't insert default compiler flags into asflags, cflags,
 	// cppflags, conlyflags, ldflags, or include_dirs
 	No_default_compiler_flags *bool
+
+	AndroidMkSharedLibs []string `blueprint:"mutated"`
 }
 
 type InstallerProperties struct {
@@ -453,6 +455,7 @@ type compiler interface {
 type linker interface {
 	feature
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles common.Paths) common.Path
+	installable() bool
 }
 
 type installer interface {
@@ -460,6 +463,24 @@ type installer interface {
 	install(ctx ModuleContext, path common.Path)
 	inData() bool
 }
+
+type dependencyTag struct {
+	blueprint.BaseDependencyTag
+	name    string
+	library bool
+}
+
+var (
+	sharedDepTag      = dependencyTag{name: "shared", library: true}
+	lateSharedDepTag  = dependencyTag{name: "late shared", library: true}
+	staticDepTag      = dependencyTag{name: "static", library: true}
+	lateStaticDepTag  = dependencyTag{name: "late static", library: true}
+	wholeStaticDepTag = dependencyTag{name: "whole static", library: true}
+	objDepTag         = dependencyTag{name: "obj"}
+	crtBeginDepTag    = dependencyTag{name: "crtbegin"}
+	crtEndDepTag      = dependencyTag{name: "crtend"}
+	reuseObjTag       = dependencyTag{name: "reuse objects"}
+)
 
 // Module contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
@@ -482,7 +503,6 @@ type Module struct {
 	linker     linker
 	installer  installer
 
-	deps       Deps
 	outputFile common.OptionalPath
 
 	cachedToolchain Toolchain
@@ -627,7 +647,7 @@ func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
 	flags.CppFlags = []string{"$cppflags"}
 	flags.AsFlags = []string{"$asflags"}
 
-	deps := c.depsToPaths(actx, c.deps)
+	deps := c.depsToPaths(ctx)
 	if ctx.Failed() {
 		return
 	}
@@ -649,7 +669,7 @@ func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
 		}
 		c.outputFile = common.OptionalPathForPath(outputFile)
 
-		if c.installer != nil {
+		if c.installer != nil && c.linker.installable() {
 			c.installer.install(ctx, outputFile)
 			if ctx.Failed() {
 				return
@@ -685,6 +705,28 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 }
 
+func (c *Module) deps(ctx BaseModuleContext) Deps {
+	deps := Deps{}
+
+	if c.compiler != nil {
+		deps = c.compiler.deps(ctx, deps)
+	}
+	if c.linker != nil {
+		deps = c.linker.deps(ctx, deps)
+	}
+	for _, feature := range c.features {
+		deps = feature.deps(ctx, deps)
+	}
+
+	deps.WholeStaticLibs = lastUniqueElements(deps.WholeStaticLibs)
+	deps.StaticLibs = lastUniqueElements(deps.StaticLibs)
+	deps.LateStaticLibs = lastUniqueElements(deps.LateStaticLibs)
+	deps.SharedLibs = lastUniqueElements(deps.SharedLibs)
+	deps.LateSharedLibs = lastUniqueElements(deps.LateSharedLibs)
+
+	return deps
+}
+
 func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
 	ctx := &baseModuleContext{
 		AndroidBaseContext: actx,
@@ -700,40 +742,32 @@ func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
 
 	c.begin(ctx)
 
-	c.deps = Deps{}
+	deps := c.deps(ctx)
 
-	if c.compiler != nil {
-		c.deps = c.compiler.deps(ctx, c.deps)
+	c.Properties.AndroidMkSharedLibs = deps.SharedLibs
+
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, wholeStaticDepTag,
+		deps.WholeStaticLibs...)
+
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, staticDepTag,
+		deps.StaticLibs...)
+
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, lateStaticDepTag,
+		deps.LateStaticLibs...)
+
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, sharedDepTag,
+		deps.SharedLibs...)
+
+	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, lateSharedDepTag,
+		deps.LateSharedLibs...)
+
+	actx.AddDependency(ctx.module(), objDepTag, deps.ObjFiles...)
+
+	if deps.CrtBegin != "" {
+		actx.AddDependency(ctx.module(), crtBeginDepTag, deps.CrtBegin)
 	}
-	if c.linker != nil {
-		c.deps = c.linker.deps(ctx, c.deps)
-	}
-	for _, feature := range c.features {
-		c.deps = feature.deps(ctx, c.deps)
-	}
-
-	c.deps.WholeStaticLibs = lastUniqueElements(c.deps.WholeStaticLibs)
-	c.deps.StaticLibs = lastUniqueElements(c.deps.StaticLibs)
-	c.deps.LateStaticLibs = lastUniqueElements(c.deps.LateStaticLibs)
-	c.deps.SharedLibs = lastUniqueElements(c.deps.SharedLibs)
-	c.deps.LateSharedLibs = lastUniqueElements(c.deps.LateSharedLibs)
-
-	staticLibs := c.deps.WholeStaticLibs
-	staticLibs = append(staticLibs, c.deps.StaticLibs...)
-	staticLibs = append(staticLibs, c.deps.LateStaticLibs...)
-	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, staticLibs...)
-
-	sharedLibs := c.deps.SharedLibs
-	sharedLibs = append(sharedLibs, c.deps.LateSharedLibs...)
-	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, sharedLibs...)
-
-	actx.AddDependency(ctx.module(), c.deps.ObjFiles...)
-
-	if c.deps.CrtBegin != "" {
-		actx.AddDependency(ctx.module(), c.deps.CrtBegin)
-	}
-	if c.deps.CrtEnd != "" {
-		actx.AddDependency(ctx.module(), c.deps.CrtEnd)
+	if deps.CrtEnd != "" {
+		actx.AddDependency(ctx.module(), crtEndDepTag, deps.CrtEnd)
 	}
 }
 
@@ -763,117 +797,98 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 	return clang
 }
 
-func (c *Module) depsToPathsFromList(ctx common.AndroidModuleContext,
-	names []string) (modules []common.AndroidModule,
-	outputFiles common.Paths, exportedFlags []string) {
-
-	for _, n := range names {
-		found := false
-		ctx.VisitDirectDeps(func(m blueprint.Module) {
-			otherName := ctx.OtherModuleName(m)
-			if otherName != n {
-				return
-			}
-
-			if a, ok := m.(*Module); ok {
-				if !a.Enabled() {
-					ctx.ModuleErrorf("depends on disabled module %q", otherName)
-					return
-				}
-				if a.HostOrDevice() != ctx.HostOrDevice() {
-					ctx.ModuleErrorf("host/device mismatch between %q and %q", ctx.ModuleName(),
-						otherName)
-					return
-				}
-
-				if outputFile := a.outputFile; outputFile.Valid() {
-					if found {
-						ctx.ModuleErrorf("multiple modules satisified dependency on %q", otherName)
-						return
-					}
-					outputFiles = append(outputFiles, outputFile.Path())
-					modules = append(modules, a)
-					if i, ok := a.linker.(exportedFlagsProducer); ok {
-						exportedFlags = append(exportedFlags, i.exportedFlags()...)
-					}
-					found = true
-				} else {
-					ctx.ModuleErrorf("module %q missing output file", otherName)
-					return
-				}
-			} else {
-				ctx.ModuleErrorf("module %q not an android module", otherName)
-				return
-			}
-		})
-		if !found && !inList(n, ctx.GetMissingDependencies()) {
-			ctx.ModuleErrorf("unsatisified dependency on %q", n)
-		}
-	}
-
-	return modules, outputFiles, exportedFlags
-}
-
-// Convert dependency names to paths.  Takes a Deps containing names and returns a PathDeps
-// containing paths
-func (c *Module) depsToPaths(ctx common.AndroidModuleContext, deps Deps) PathDeps {
+// Convert dependencies to paths.  Returns a PathDeps containing paths
+func (c *Module) depsToPaths(ctx common.AndroidModuleContext) PathDeps {
 	var depPaths PathDeps
-	var newCflags []string
 
-	var wholeStaticLibModules []common.AndroidModule
+	ctx.VisitDirectDeps(func(m blueprint.Module) {
+		name := ctx.OtherModuleName(m)
+		tag := ctx.OtherModuleDependencyTag(m)
 
-	wholeStaticLibModules, depPaths.WholeStaticLibs, newCflags =
-		c.depsToPathsFromList(ctx, deps.WholeStaticLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-	depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, newCflags...)
-
-	for _, am := range wholeStaticLibModules {
-		if m, ok := am.(*Module); ok {
-			if staticLib, ok := m.linker.(*libraryLinker); ok && staticLib.static() {
-				if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
-					postfix := " (required by " + ctx.OtherModuleName(m) + ")"
-					for i := range missingDeps {
-						missingDeps[i] += postfix
-					}
-					ctx.AddMissingDependencies(missingDeps)
-				}
-				depPaths.WholeStaticLibObjFiles =
-					append(depPaths.WholeStaticLibObjFiles, staticLib.objFiles...)
-			} else {
-				ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
-			}
-		} else {
-			ctx.ModuleErrorf("module %q not an android module", ctx.OtherModuleName(m))
+		a, _ := m.(common.AndroidModule)
+		if a == nil {
+			ctx.ModuleErrorf("module %q not an android module", name)
+			return
 		}
-	}
 
-	_, depPaths.StaticLibs, newCflags = c.depsToPathsFromList(ctx, deps.StaticLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	_, depPaths.LateStaticLibs, newCflags = c.depsToPathsFromList(ctx, deps.LateStaticLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	_, depPaths.SharedLibs, newCflags = c.depsToPathsFromList(ctx, deps.SharedLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	_, depPaths.LateSharedLibs, newCflags = c.depsToPathsFromList(ctx, deps.LateSharedLibs)
-	depPaths.Cflags = append(depPaths.Cflags, newCflags...)
-
-	ctx.VisitDirectDeps(func(bm blueprint.Module) {
-		if m, ok := bm.(*Module); ok {
-			otherName := ctx.OtherModuleName(m)
-			if otherName == deps.CrtBegin {
-				depPaths.CrtBegin = m.outputFile
-			} else if otherName == deps.CrtEnd {
-				depPaths.CrtEnd = m.outputFile
-			} else {
-				output := m.outputFile
-				if output.Valid() {
-					depPaths.ObjFiles = append(depPaths.ObjFiles, output.Path())
-				} else {
-					ctx.ModuleErrorf("module %s did not provide an output file", otherName)
-				}
+		c, _ := m.(*Module)
+		if c == nil {
+			if tag != common.DefaultsDepTag {
+				ctx.ModuleErrorf("depends on non-cc module %q", name)
 			}
+			return
+		}
+
+		if !a.Enabled() {
+			ctx.ModuleErrorf("depends on disabled module %q", name)
+			return
+		}
+
+		if a.HostOrDevice() != ctx.HostOrDevice() {
+			ctx.ModuleErrorf("host/device mismatch between %q and %q", ctx.ModuleName(), name)
+			return
+		}
+
+		if !c.outputFile.Valid() {
+			ctx.ModuleErrorf("module %q missing output file", name)
+			return
+		}
+
+		if tag == reuseObjTag {
+			depPaths.ObjFiles = append(depPaths.ObjFiles,
+				c.compiler.(*libraryCompiler).reuseObjFiles...)
+			return
+		}
+
+		var cflags []string
+		if t, _ := tag.(dependencyTag); t.library {
+			if i, ok := c.linker.(exportedFlagsProducer); ok {
+				cflags = i.exportedFlags()
+				depPaths.Cflags = append(depPaths.Cflags, cflags...)
+			}
+		}
+
+		var depPtr *common.Paths
+
+		switch tag {
+		case sharedDepTag:
+			depPtr = &depPaths.SharedLibs
+		case lateSharedDepTag:
+			depPtr = &depPaths.LateSharedLibs
+		case staticDepTag:
+			depPtr = &depPaths.StaticLibs
+		case lateStaticDepTag:
+			depPtr = &depPaths.LateStaticLibs
+		case wholeStaticDepTag:
+			depPtr = &depPaths.WholeStaticLibs
+			depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, cflags...)
+			staticLib, _ := c.linker.(*libraryLinker)
+			if staticLib == nil || !staticLib.static() {
+				ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
+				return
+			}
+
+			if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
+				postfix := " (required by " + ctx.OtherModuleName(m) + ")"
+				for i := range missingDeps {
+					missingDeps[i] += postfix
+				}
+				ctx.AddMissingDependencies(missingDeps)
+			}
+			depPaths.WholeStaticLibObjFiles =
+				append(depPaths.WholeStaticLibObjFiles, staticLib.objFiles...)
+		case objDepTag:
+			depPtr = &depPaths.ObjFiles
+		case crtBeginDepTag:
+			depPaths.CrtBegin = c.outputFile
+		case crtEndDepTag:
+			depPaths.CrtEnd = c.outputFile
+		default:
+			panic(fmt.Errorf("unknown dependency tag: %s", ctx.OtherModuleDependencyTag(m)))
+		}
+
+		if depPtr != nil {
+			*depPtr = append(*depPtr, c.outputFile.Path())
 		}
 	})
 
@@ -1087,19 +1102,18 @@ func (compiler *baseCompiler) compileObjs(ctx common.AndroidModuleContext, flags
 type baseLinker struct {
 	Properties        BaseLinkerProperties
 	dynamicProperties struct {
-		VariantIsShared       bool `blueprint:"mutated"`
-		VariantIsStatic       bool `blueprint:"mutated"`
-		VariantIsStaticBinary bool `blueprint:"mutated"`
+		VariantIsShared       bool     `blueprint:"mutated"`
+		VariantIsStatic       bool     `blueprint:"mutated"`
+		VariantIsStaticBinary bool     `blueprint:"mutated"`
+		RunPaths              []string `blueprint:"mutated"`
 	}
-
-	runPaths []string
 }
 
 func (linker *baseLinker) begin(ctx BaseModuleContext) {
 	if ctx.toolchain().Is64Bit() {
-		linker.runPaths = []string{"../lib64", "lib64"}
+		linker.dynamicProperties.RunPaths = []string{"../lib64", "lib64"}
 	} else {
-		linker.runPaths = []string{"../lib", "lib"}
+		linker.dynamicProperties.RunPaths = []string{"../lib", "lib"}
 	}
 }
 
@@ -1171,7 +1185,7 @@ func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 			rpath_prefix = "@loader_path/"
 		}
 
-		for _, rpath := range linker.runPaths {
+		for _, rpath := range linker.dynamicProperties.RunPaths {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
 		}
 	}
@@ -1256,7 +1270,6 @@ type libraryCompiler struct {
 	Properties LibraryCompilerProperties
 
 	// For reusing static library objects for shared library
-	reuseFrom     *libraryCompiler
 	reuseObjFiles common.Paths
 }
 
@@ -1289,13 +1302,8 @@ func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags) common.Paths {
 	var objFiles common.Paths
 
-	if library.reuseFrom != library && library.reuseFrom.Properties.Static.Cflags == nil &&
-		library.Properties.Shared.Cflags == nil {
-		objFiles = append(common.Paths(nil), library.reuseFrom.reuseObjFiles...)
-	} else {
-		objFiles = library.baseCompiler.compile(ctx, flags)
-		library.reuseObjFiles = objFiles
-	}
+	objFiles = library.baseCompiler.compile(ctx, flags)
+	library.reuseObjFiles = objFiles
 
 	if library.linker.static() {
 		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceStaticLibrary,
@@ -1478,6 +1486,8 @@ func (library *libraryLinker) linkShared(ctx ModuleContext,
 func (library *libraryLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
+	objFiles = append(objFiles, deps.ObjFiles...)
+
 	var out common.Path
 	if library.static() {
 		out = library.linkStatic(ctx, flags, deps, objFiles)
@@ -1502,6 +1512,10 @@ func (library *libraryLinker) buildShared() bool {
 
 func (library *libraryLinker) getWholeStaticMissingDeps() []string {
 	return library.wholeStaticMissingDeps
+}
+
+func (library *libraryLinker) installable() bool {
+	return !library.static()
 }
 
 type libraryInstaller struct {
@@ -1597,6 +1611,10 @@ func (object *objectLinker) link(ctx ModuleContext,
 	return outputFile
 }
 
+func (*objectLinker) installable() bool {
+	return false
+}
+
 //
 // Executables
 //
@@ -1670,6 +1688,10 @@ func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 			"from static libs or set static_executable: true")
 	}
 	return deps
+}
+
+func (*binaryLinker) installable() bool {
+	return true
 }
 
 func NewBinary(hod common.HostOrDeviceSupported) *Module {
@@ -1813,7 +1835,7 @@ func (test *testLinker) begin(ctx BaseModuleContext) {
 	if ctx.toolchain().Is64Bit() {
 		runpath += "64"
 	}
-	test.runPaths = append([]string{runpath}, test.runPaths...)
+	test.dynamicProperties.RunPaths = append([]string{runpath}, test.dynamicProperties.RunPaths...)
 }
 
 func (test *testLinker) props() []interface{} {
@@ -2057,6 +2079,10 @@ func (library *toolchainLibraryLinker) link(ctx ModuleContext,
 	return outputFile
 }
 
+func (*toolchainLibraryLinker) installable() bool {
+	return false
+}
+
 // NDK prebuilt libraries.
 //
 // These differ from regular prebuilts in that they aren't stripped and usually aren't installed
@@ -2114,7 +2140,7 @@ var _ baseLinkerInterface = (*ndkPrebuiltLibraryLinker)(nil)
 var _ exportedFlagsProducer = (*libraryLinker)(nil)
 
 func (ndk *ndkPrebuiltLibraryLinker) props() []interface{} {
-	return []interface{}{&ndk.Properties}
+	return append(ndk.libraryLinker.props(), &ndk.Properties)
 }
 
 func (*ndkPrebuiltLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
@@ -2218,25 +2244,29 @@ func linkageMutator(mctx common.AndroidBottomUpMutatorContext) {
 				var modules []blueprint.Module
 				if linker.buildStatic() && linker.buildShared() {
 					modules = mctx.CreateLocalVariations("static", "shared")
-					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
-					modules[0].(*Module).installer = nil
-					modules[1].(*Module).linker.(baseLinkerInterface).setStatic(false)
+					static := modules[0].(*Module)
+					shared := modules[1].(*Module)
+
+					static.linker.(baseLinkerInterface).setStatic(true)
+					shared.linker.(baseLinkerInterface).setStatic(false)
+
+					if staticCompiler, ok := static.compiler.(*libraryCompiler); ok {
+						sharedCompiler := shared.compiler.(*libraryCompiler)
+						if len(staticCompiler.Properties.Static.Cflags) == 0 &&
+							len(sharedCompiler.Properties.Shared.Cflags) == 0 {
+							// Optimize out compiling common .o files twice for static+shared libraries
+							mctx.AddInterVariantDependency(reuseObjTag, shared, static)
+							sharedCompiler.baseCompiler.Properties.Srcs = nil
+						}
+					}
 				} else if linker.buildStatic() {
 					modules = mctx.CreateLocalVariations("static")
 					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
-					modules[0].(*Module).installer = nil
 				} else if linker.buildShared() {
 					modules = mctx.CreateLocalVariations("shared")
 					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(false)
 				} else {
 					panic(fmt.Errorf("library %q not static or shared", mctx.ModuleName()))
-				}
-
-				if _, ok := m.compiler.(*libraryCompiler); ok {
-					reuseFrom := modules[0].(*Module).compiler.(*libraryCompiler)
-					for _, m := range modules {
-						m.(*Module).compiler.(*libraryCompiler).reuseFrom = reuseFrom
-					}
 				}
 			}
 		}

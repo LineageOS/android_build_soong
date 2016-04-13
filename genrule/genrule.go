@@ -88,7 +88,7 @@ func genruleDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{"host_or_device", common.Host.String()},
 				{"host_type", common.CurrentHostType().String()},
-			}, g.properties.Tool)
+			}, nil, g.properties.Tool)
 		}
 	}
 }
