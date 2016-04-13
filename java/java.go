@@ -193,7 +193,7 @@ var defaultJavaLibraries = []string{"core-libart", "core-junit", "ext", "framewo
 
 func javaDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
 	if j, ok := ctx.Module().(JavaModuleType); ok {
-		ctx.AddDependency(ctx.Module(), j.JavaDependencies(ctx)...)
+		ctx.AddDependency(ctx.Module(), nil, j.JavaDependencies(ctx)...)
 	}
 }
 
