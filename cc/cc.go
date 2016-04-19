@@ -406,12 +406,20 @@ type InstallerProperties struct {
 }
 
 type UnusedProperties struct {
-	Native_coverage  *bool
-	Required         []string
-	Sanitize         []string `android:"arch_variant"`
-	Sanitize_recover []string
-	Strip            string
-	Tags             []string
+	Native_coverage *bool
+	Required        []string
+	Strip           string
+	Tags            []string
+	Sanitize        struct {
+		Never          bool     `android:"arch_variant"`
+		Address        bool     `android:"arch_variant"`
+		Thread         bool     `android:"arch_variant"`
+		Undefined      bool     `android:"arch_variant"`
+		All_undefined  bool     `android:"arch_variant"`
+		Misc_undefined []string `android:"arch_variant"`
+		Coverage       bool     `android:"arch_variant"`
+		Recover        []string
+	} `android:"arch_variant"`
 }
 
 type ModuleContextIntf interface {
