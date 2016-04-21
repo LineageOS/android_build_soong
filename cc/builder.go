@@ -199,7 +199,7 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			Rule:      cc,
 			Output:    objFile,
 			Input:     srcFile,
-			Implicits: deps,
+			OrderOnly: deps,
 			Args: map[string]string{
 				"cFlags": moduleCflags,
 				"ccCmd":  ccCmd,

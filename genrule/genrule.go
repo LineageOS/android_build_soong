@@ -39,6 +39,7 @@ func init() {
 
 type SourceFileGenerator interface {
 	GeneratedSourceFiles() common.Paths
+	GeneratedHeaderDir() common.Path
 }
 
 type HostToolProvider interface {
@@ -68,6 +69,8 @@ type generator struct {
 	deps common.Paths
 	rule blueprint.Rule
 
+	genPath common.Path
+
 	outputFiles common.Paths
 }
 
@@ -80,6 +83,10 @@ type generateTask struct {
 
 func (g *generator) GeneratedSourceFiles() common.Paths {
 	return g.outputFiles
+}
+
+func (g *generator) GeneratedHeaderDir() common.Path {
+	return g.genPath
 }
 
 func genruleDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
@@ -110,6 +117,8 @@ func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext)
 			ctx.ModuleErrorf("unknown dependency %q", ctx.OtherModuleName(module))
 		}
 	})
+
+	g.genPath = common.PathForModuleGen(ctx, "")
 
 	for _, task := range g.tasks(ctx) {
 		g.generateSourceFile(ctx, task)

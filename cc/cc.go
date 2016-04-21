@@ -177,6 +177,9 @@ type Deps struct {
 
 	ObjFiles []string
 
+	GeneratedSources []string
+	GeneratedHeaders []string
+
 	Cflags, ReexportedCflags []string
 
 	CrtBegin, CrtEnd string
@@ -188,6 +191,9 @@ type PathDeps struct {
 
 	ObjFiles               common.Paths
 	WholeStaticLibObjFiles common.Paths
+
+	GeneratedSources common.Paths
+	GeneratedHeaders common.Paths
 
 	Cflags, ReexportedCflags []string
 
@@ -265,6 +271,14 @@ type BaseCompilerProperties struct {
 	// using -include.
 	// If possible, don't use this.
 	Local_include_files []string `android:"arch_variant"`
+
+	// list of generated sources to compile. These are the names of gensrcs or
+	// genrule modules.
+	Generated_sources []string `android:"arch_variant"`
+
+	// list of generated headers to add to the include path. These are the names
+	// of genrule modules.
+	Generated_headers []string `android:"arch_variant"`
 
 	// pass -frtti instead of -fno-rtti
 	Rtti *bool
@@ -457,7 +471,7 @@ type feature interface {
 
 type compiler interface {
 	feature
-	compile(ctx ModuleContext, flags Flags) common.Paths
+	compile(ctx ModuleContext, flags Flags, deps PathDeps) common.Paths
 }
 
 type linker interface {
@@ -484,6 +498,8 @@ var (
 	staticDepTag      = dependencyTag{name: "static", library: true}
 	lateStaticDepTag  = dependencyTag{name: "late static", library: true}
 	wholeStaticDepTag = dependencyTag{name: "whole static", library: true}
+	genSourceDepTag   = dependencyTag{name: "gen source"}
+	genHeaderDepTag   = dependencyTag{name: "gen header"}
 	objDepTag         = dependencyTag{name: "obj"}
 	crtBeginDepTag    = dependencyTag{name: "crtbegin"}
 	crtEndDepTag      = dependencyTag{name: "crtend"}
@@ -664,7 +680,7 @@ func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
 
 	var objFiles common.Paths
 	if c.compiler != nil {
-		objFiles = c.compiler.compile(ctx, flags)
+		objFiles = c.compiler.compile(ctx, flags, deps)
 		if ctx.Failed() {
 			return
 		}
@@ -769,6 +785,9 @@ func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, lateSharedDepTag,
 		deps.LateSharedLibs...)
 
+	actx.AddDependency(ctx.module(), genSourceDepTag, deps.GeneratedSources...)
+	actx.AddDependency(ctx.module(), genHeaderDepTag, deps.GeneratedHeaders...)
+
 	actx.AddDependency(ctx.module(), objDepTag, deps.ObjFiles...)
 
 	if deps.CrtBegin != "" {
@@ -821,7 +840,25 @@ func (c *Module) depsToPaths(ctx common.AndroidModuleContext) PathDeps {
 
 		c, _ := m.(*Module)
 		if c == nil {
-			if tag != common.DefaultsDepTag {
+			switch tag {
+			case common.DefaultsDepTag:
+			case genSourceDepTag:
+				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
+					depPaths.GeneratedSources = append(depPaths.GeneratedSources,
+						genRule.GeneratedSourceFiles()...)
+				} else {
+					ctx.ModuleErrorf("module %q is not a gensrcs or genrule", name)
+				}
+			case genHeaderDepTag:
+				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
+					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
+						genRule.GeneratedSourceFiles()...)
+					depPaths.Cflags = append(depPaths.Cflags,
+						includeDirsToFlags(common.Paths{genRule.GeneratedHeaderDir()}))
+				} else {
+					ctx.ModuleErrorf("module %q is not a genrule", name)
+				}
+			default:
 				ctx.ModuleErrorf("depends on non-cc module %q", name)
 			}
 			return
@@ -922,8 +959,14 @@ func (compiler *baseCompiler) props() []interface{} {
 	return []interface{}{&compiler.Properties}
 }
 
-func (compiler *baseCompiler) begin(ctx BaseModuleContext)                {}
-func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps { return deps }
+func (compiler *baseCompiler) begin(ctx BaseModuleContext) {}
+
+func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
+	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
+
+	return deps
+}
 
 // Create a Flags struct that collects the compile flags from global values,
 // per-target values, module type values, and per-module Blueprints properties
@@ -1072,23 +1115,14 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags) common.Paths {
+func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) common.Paths {
 	// Compile files listed in c.Properties.Srcs into objects
-	objFiles := compiler.compileObjs(ctx, flags, "", compiler.Properties.Srcs, compiler.Properties.Exclude_srcs)
+	objFiles := compiler.compileObjs(ctx, flags, "",
+		compiler.Properties.Srcs, compiler.Properties.Exclude_srcs,
+		deps.GeneratedSources, deps.GeneratedHeaders)
+
 	if ctx.Failed() {
 		return nil
-	}
-
-	var genSrcs common.Paths
-	ctx.VisitDirectDeps(func(module blueprint.Module) {
-		if gen, ok := module.(genrule.SourceFileGenerator); ok {
-			genSrcs = append(genSrcs, gen.GeneratedSourceFiles()...)
-		}
-	})
-
-	if len(genSrcs) != 0 {
-		genObjs := TransformSourceToObj(ctx, "", genSrcs, flagsToBuilderFlags(flags), nil)
-		objFiles = append(objFiles, genObjs...)
 	}
 
 	return objFiles
@@ -1096,12 +1130,15 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags) common.Pat
 
 // Compile a list of source files into objects a specified subdirectory
 func (compiler *baseCompiler) compileObjs(ctx common.AndroidModuleContext, flags Flags,
-	subdir string, srcFiles, excludes []string) common.Paths {
+	subdir string, srcFiles, excludes []string, extraSrcs, deps common.Paths) common.Paths {
 
 	buildFlags := flagsToBuilderFlags(flags)
 
 	inputFiles := ctx.ExpandSources(srcFiles, excludes)
-	srcPaths, deps := genSources(ctx, inputFiles, buildFlags)
+	inputFiles = append(inputFiles, extraSrcs...)
+	srcPaths, gendeps := genSources(ctx, inputFiles, buildFlags)
+
+	deps = append(deps, gendeps...)
 
 	return TransformSourceToObj(ctx, subdir, srcPaths, buildFlags, deps)
 }
@@ -1307,18 +1344,20 @@ func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags) common.Paths {
+func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) common.Paths {
 	var objFiles common.Paths
 
-	objFiles = library.baseCompiler.compile(ctx, flags)
+	objFiles = library.baseCompiler.compile(ctx, flags, deps)
 	library.reuseObjFiles = objFiles
 
 	if library.linker.static() {
 		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceStaticLibrary,
-			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs)...)
+			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs,
+			nil, deps.GeneratedHeaders)...)
 	} else {
 		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceSharedLibrary,
-			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs)...)
+			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs,
+			nil, deps.GeneratedHeaders)...)
 	}
 
 	return objFiles
