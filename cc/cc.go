@@ -528,6 +528,7 @@ type Module struct {
 	compiler   compiler
 	linker     linker
 	installer  installer
+	stl        *stl
 
 	outputFile common.OptionalPath
 
@@ -547,6 +548,9 @@ func (c *Module) Init() (blueprint.Module, []interface{}) {
 	}
 	if c.installer != nil {
 		props = append(props, c.installer.props()...)
+	}
+	if c.stl != nil {
+		props = append(props, c.stl.props()...)
 	}
 	for _, feature := range c.features {
 		props = append(props, feature.props()...)
@@ -627,9 +631,7 @@ func newBaseModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *
 
 func newModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *Module {
 	module := newBaseModule(hod, multilib)
-	module.features = []feature{
-		&stlFeature{},
-	}
+	module.stl = &stl{}
 	return module
 }
 
@@ -652,6 +654,9 @@ func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
 	}
 	if c.linker != nil {
 		flags = c.linker.flags(ctx, flags)
+	}
+	if c.stl != nil {
+		flags = c.stl.flags(ctx, flags)
 	}
 	for _, feature := range c.features {
 		flags = feature.flags(ctx, flags)
@@ -726,6 +731,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	if c.linker != nil {
 		c.linker.begin(ctx)
 	}
+	if c.stl != nil {
+		c.stl.begin(ctx)
+	}
 	for _, feature := range c.features {
 		feature.begin(ctx)
 	}
@@ -739,6 +747,9 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	}
 	if c.linker != nil {
 		deps = c.linker.deps(ctx, deps)
+	}
+	if c.stl != nil {
+		deps = c.stl.deps(ctx, deps)
 	}
 	for _, feature := range c.features {
 		deps = feature.deps(ctx, deps)

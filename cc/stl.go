@@ -28,17 +28,15 @@ type StlProperties struct {
 	SelectedStl string `blueprint:"mutated"`
 }
 
-type stlFeature struct {
+type stl struct {
 	Properties StlProperties
 }
 
-var _ feature = (*stlFeature)(nil)
-
-func (stl *stlFeature) props() []interface{} {
+func (stl *stl) props() []interface{} {
 	return []interface{}{&stl.Properties}
 }
 
-func (stl *stlFeature) begin(ctx BaseModuleContext) {
+func (stl *stl) begin(ctx BaseModuleContext) {
 	stl.Properties.SelectedStl = func() string {
 		if ctx.sdk() && ctx.Device() {
 			switch stl.Properties.Stl {
@@ -84,7 +82,7 @@ func (stl *stlFeature) begin(ctx BaseModuleContext) {
 	}()
 }
 
-func (stl *stlFeature) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	switch stl.Properties.SelectedStl {
 	case "libstdc++":
 		if ctx.Device() {
@@ -124,7 +122,7 @@ func (stl *stlFeature) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-func (stl *stlFeature) flags(ctx ModuleContext, flags Flags) Flags {
+func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	switch stl.Properties.SelectedStl {
 	case "libc++", "libc++_static":
 		flags.CFlags = append(flags.CFlags, "-D_USING_LIBCXX")
