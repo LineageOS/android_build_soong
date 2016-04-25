@@ -1997,10 +1997,6 @@ func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX_ANDROID")
 	}
 
-	// TODO(danalbert): Make gtest export its dependencies.
-	flags.CFlags = append(flags.CFlags,
-		"-I"+common.PathForSource(ctx, "external/gtest/include").String())
-
 	return flags
 }
 
