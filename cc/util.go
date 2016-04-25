@@ -40,14 +40,18 @@ func libNamesToFlags(names []string) string {
 	return common.JoinWithPrefix(names, "-l")
 }
 
-func inList(s string, list []string) bool {
-	for _, l := range list {
+func indexList(s string, list []string) int {
+	for i, l := range list {
 		if l == s {
-			return true
+			return i
 		}
 	}
 
-	return false
+	return -1
+}
+
+func inList(s string, list []string) bool {
+	return indexList(s, list) != -1
 }
 
 func filterList(list []string, filter []string) (remainder []string, filtered []string) {
@@ -60,6 +64,15 @@ func filterList(list []string, filter []string) (remainder []string, filtered []
 	}
 
 	return
+}
+
+func removeFromList(s string, list []string) (bool, []string) {
+	i := indexList(s, list)
+	if i != -1 {
+		return true, append(list[:i], list[i+1:]...)
+	} else {
+		return false, list
+	}
 }
 
 var libNameRegexp = regexp.MustCompile(`^lib(.*)$`)
@@ -81,6 +94,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		cppFlags:    strings.Join(in.CppFlags, " "),
 		yaccFlags:   strings.Join(in.YaccFlags, " "),
 		ldFlags:     strings.Join(in.LdFlags, " "),
+		libFlags:    strings.Join(in.libFlags, " "),
 		nocrt:       in.Nocrt,
 		toolchain:   in.Toolchain,
 		clang:       in.Clang,

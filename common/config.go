@@ -307,3 +307,17 @@ func (c *config) AllowMissingDependencies() bool {
 func (c *config) SkipDeviceInstall() bool {
 	return c.EmbeddedInMake() || Bool(c.Mega_device)
 }
+
+func (c *config) SanitizeHost() []string {
+	if c.ProductVariables.SanitizeHost == nil {
+		return nil
+	}
+	return *c.ProductVariables.SanitizeHost
+}
+
+func (c *config) SanitizeDevice() []string {
+	if c.ProductVariables.SanitizeDevice == nil {
+		return nil
+	}
+	return *c.ProductVariables.SanitizeDevice
+}
