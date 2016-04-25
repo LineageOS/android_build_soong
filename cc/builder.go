@@ -133,6 +133,7 @@ type builderFlags struct {
 	conlyFlags  string
 	cppFlags    string
 	ldFlags     string
+	libFlags    string
 	yaccFlags   string
 	nocrt       bool
 	toolchain   Toolchain
@@ -190,7 +191,7 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 				panic("unrecoginzied ccCmd")
 			}
 
-			ccCmd = "${clangPath}/" + ccCmd
+			ccCmd = "${clangBin}/" + ccCmd
 		} else {
 			ccCmd = gccCmd(flags.toolchain, ccCmd)
 		}
@@ -288,13 +289,17 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 
 	var ldCmd string
 	if flags.clang {
-		ldCmd = "${clangPath}/clang++"
+		ldCmd = "${clangBin}/clang++"
 	} else {
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}
 
 	var ldDirs []string
 	var libFlagsList []string
+
+	if len(flags.libFlags) > 0 {
+		libFlagsList = append(libFlagsList, flags.libFlags)
+	}
 
 	if len(wholeStaticLibs) > 0 {
 		if ctx.Host() && ctx.Darwin() {
@@ -359,7 +364,7 @@ func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles common.Paths,
 
 	var ldCmd string
 	if flags.clang {
-		ldCmd = "${clangPath}clang++"
+		ldCmd = "${clangBin}clang++"
 	} else {
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}

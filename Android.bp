@@ -124,6 +124,7 @@ bootstrap_go_package {
         "cc/cc.go",
         "cc/clang.go",
         "cc/gen.go",
+        "cc/sanitize.go",
         "cc/stl.go",
         "cc/toolchain.go",
         "cc/util.go",
