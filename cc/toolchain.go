@@ -74,6 +74,8 @@ type Toolchain interface {
 
 	SystemCppCppflags() string
 	SystemCppLdflags() string
+
+	AddressSanitizerRuntimeLibrary() string
 }
 
 type toolchainBase struct {
@@ -130,6 +132,10 @@ func (toolchainBase) SystemCppCppflags() string {
 }
 
 func (toolchainBase) SystemCppLdflags() string {
+	return ""
+}
+
+func (toolchainBase) AddressSanitizerRuntimeLibrary() string {
 	return ""
 }
 
