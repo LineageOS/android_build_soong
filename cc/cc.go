@@ -341,6 +341,12 @@ type LibraryCompilerProperties struct {
 	} `android:"arch_variant"`
 }
 
+type FlagExporterProperties struct {
+	// list of directories relative to the Blueprints file that will
+	// be added to the include path using -I for any module that links against this module
+	Export_include_dirs []string `android:"arch_variant"`
+}
+
 type LibraryLinkerProperties struct {
 	Static struct {
 		Whole_static_libs []string `android:"arch_variant"`
@@ -361,10 +367,6 @@ type LibraryLinkerProperties struct {
 	Force_symbols_not_weak_list *string `android:"arch_variant"`
 	// local file name to pass to the linker as -force_symbols_weak_list
 	Force_symbols_weak_list *string `android:"arch_variant"`
-
-	// list of directories relative to the Blueprints file that will
-	// be added to the include path using -I for any module that links against this module
-	Export_include_dirs []string `android:"arch_variant"`
 
 	// don't link in crt_begin and crt_end.  This flag should only be necessary for
 	// compiling crt or libc.
@@ -1271,10 +1273,6 @@ type baseLinkerInterface interface {
 	staticBinary() bool
 }
 
-type exportedFlagsProducer interface {
-	exportedFlags() []string
-}
-
 type baseInstaller struct {
 	Properties InstallerProperties
 
@@ -1307,6 +1305,31 @@ func (installer *baseInstaller) inData() bool {
 //
 // Combined static+shared libraries
 //
+
+type flagExporter struct {
+	Properties FlagExporterProperties
+
+	flags []string
+}
+
+func (f *flagExporter) exportIncludes(ctx ModuleContext, inc string) {
+	includeDirs := common.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
+	f.flags = append(f.flags, common.JoinWithPrefix(includeDirs.Strings(), inc))
+}
+
+func (f *flagExporter) reexportFlags(flags []string) {
+	f.flags = append(f.flags, flags...)
+}
+
+func (f *flagExporter) exportedFlags() []string {
+	return f.flags
+}
+
+type exportedFlagsProducer interface {
+	exportedFlags() []string
+}
+
+var _ exportedFlagsProducer = (*flagExporter)(nil)
 
 type libraryCompiler struct {
 	baseCompiler
@@ -1365,6 +1388,7 @@ func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags, deps Pat
 
 type libraryLinker struct {
 	baseLinker
+	flagExporter
 
 	Properties LibraryLinkerProperties
 
@@ -1372,8 +1396,6 @@ type libraryLinker struct {
 		BuildStatic bool `blueprint:"mutated"`
 		BuildShared bool `blueprint:"mutated"`
 	}
-
-	exportFlags []string
 
 	// If we're used as a whole_static_lib, our missing dependencies need
 	// to be given
@@ -1384,11 +1406,13 @@ type libraryLinker struct {
 }
 
 var _ linker = (*libraryLinker)(nil)
-var _ exportedFlagsProducer = (*libraryLinker)(nil)
 
 func (library *libraryLinker) props() []interface{} {
 	props := library.baseLinker.props()
-	return append(props, &library.Properties, &library.dynamicProperties)
+	return append(props,
+		&library.Properties,
+		&library.dynamicProperties,
+		&library.flagExporter.Properties)
 }
 
 func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
@@ -1450,10 +1474,6 @@ func (library *libraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	}
 
 	return deps
-}
-
-func (library *libraryLinker) exportedFlags() []string {
-	return library.exportFlags
 }
 
 func (library *libraryLinker) linkStatic(ctx ModuleContext,
@@ -1542,9 +1562,8 @@ func (library *libraryLinker) link(ctx ModuleContext,
 		out = library.linkShared(ctx, flags, deps, objFiles)
 	}
 
-	includeDirs := common.PathsForModuleSrc(ctx, library.Properties.Export_include_dirs)
-	library.exportFlags = []string{includeDirsToFlags(includeDirs)}
-	library.exportFlags = append(library.exportFlags, deps.ReexportedCflags...)
+	library.exportIncludes(ctx, "-I")
+	library.reexportFlags(deps.ReexportedCflags)
 
 	return out
 }
@@ -2065,6 +2084,7 @@ func defaultsFactory() (blueprint.Module, []interface{}) {
 		&BaseCompilerProperties{},
 		&BaseLinkerProperties{},
 		&LibraryCompilerProperties{},
+		&FlagExporterProperties{},
 		&LibraryLinkerProperties{},
 		&BinaryLinkerProperties{},
 		&TestLinkerProperties{},
@@ -2178,16 +2198,13 @@ func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
 
 type ndkPrebuiltLibraryLinker struct {
 	libraryLinker
-	Properties struct {
-		Export_include_dirs []string `android:"arch_variant"`
-	}
 }
 
 var _ baseLinkerInterface = (*ndkPrebuiltLibraryLinker)(nil)
 var _ exportedFlagsProducer = (*libraryLinker)(nil)
 
 func (ndk *ndkPrebuiltLibraryLinker) props() []interface{} {
-	return append(ndk.libraryLinker.props(), &ndk.Properties)
+	return append(ndk.libraryLinker.props(), &ndk.Properties, &ndk.flagExporter.Properties)
 }
 
 func (*ndkPrebuiltLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
@@ -2210,8 +2227,7 @@ func (ndk *ndkPrebuiltLibraryLinker) link(ctx ModuleContext, flags Flags,
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
 	}
 
-	includeDirs := common.PathsForModuleSrc(ctx, ndk.Properties.Export_include_dirs)
-	ndk.exportFlags = []string{common.JoinWithPrefix(includeDirs.Strings(), "-isystem ")}
+	ndk.exportIncludes(ctx, "-isystem")
 
 	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, flags.Toolchain.ShlibSuffix(),
 		ctx.sdkVersion())
@@ -2269,8 +2285,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
 	}
 
-	includeDirs := common.PathsForModuleSrc(ctx, ndk.Properties.Export_include_dirs)
-	ndk.exportFlags = []string{includeDirsToFlags(includeDirs)}
+	ndk.exportIncludes(ctx, "-I")
 
 	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
 	libExt := flags.Toolchain.ShlibSuffix()
