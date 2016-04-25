@@ -46,6 +46,8 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				"stlport_shared", "stlport_static",
 				"gnustl_static":
 				return "ndk_lib" + stl.Properties.Stl
+			case "none":
+				return ""
 			default:
 				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", stl.Properties.Stl)
 				return ""
