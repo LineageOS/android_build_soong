@@ -101,6 +101,18 @@ var (
 		},
 		"objcopyCmd", "prefix")
 
+	stripPath = pctx.SourcePathVariable("stripPath", "build/soong/scripts/strip.sh")
+
+	strip = pctx.StaticRule("strip",
+		blueprint.RuleParams{
+			Depfile:     "${out}.d",
+			Deps:        blueprint.DepsGCC,
+			Command:     "CROSS_COMPILE=$crossCompile $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
+			CommandDeps: []string{"$stripPath"},
+			Description: "strip $out",
+		},
+		"args", "crossCompile")
+
 	copyGccLibPath = pctx.SourcePathVariable("copyGccLibPath", "build/soong/scripts/copygcclib.sh")
 
 	copyGccLib = pctx.StaticRule("copyGccLib",
@@ -138,6 +150,10 @@ type builderFlags struct {
 	nocrt       bool
 	toolchain   Toolchain
 	clang       bool
+
+	stripKeepSymbols       bool
+	stripKeepMiniDebugInfo bool
+	stripAddGnuDebuglink   bool
 }
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
@@ -393,6 +409,32 @@ func TransformBinaryPrefixSymbols(ctx common.AndroidModuleContext, prefix string
 		Args: map[string]string{
 			"objcopyCmd": objcopyCmd,
 			"prefix":     prefix,
+		},
+	})
+}
+
+func TransformStrip(ctx common.AndroidModuleContext, inputFile common.Path,
+	outputFile common.WritablePath, flags builderFlags) {
+
+	crossCompile := gccCmd(flags.toolchain, "")
+	args := ""
+	if flags.stripAddGnuDebuglink {
+		args += " --add-gnu-debuglink"
+	}
+	if flags.stripKeepMiniDebugInfo {
+		args += " --keep-mini-debug-info"
+	}
+	if flags.stripKeepSymbols {
+		args += " --keep-symbols"
+	}
+
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		Rule:   strip,
+		Output: outputFile,
+		Input:  inputFile,
+		Args: map[string]string{
+			"crossCompile": crossCompile,
+			"args":         args,
 		},
 	})
 }
