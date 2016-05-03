@@ -119,7 +119,7 @@ func (installer *baseInstaller) AndroidMk(ret *common.AndroidMkData) {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
-		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+dir)
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 		return nil
 	})
