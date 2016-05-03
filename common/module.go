@@ -440,7 +440,7 @@ func (a *androidModuleContext) ninjaError(outputs []string, err error) {
 }
 
 func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
-	if a.missingDeps != nil {
+	if a.missingDeps != nil && params.Rule != globRule {
 		a.ninjaError(params.Outputs, fmt.Errorf("module %s missing dependencies: %s\n",
 			a.ModuleName(), strings.Join(a.missingDeps, ", ")))
 		return
