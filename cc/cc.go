@@ -434,10 +434,16 @@ type InstallerProperties struct {
 	Relative_install_path string
 }
 
+type StripProperties struct {
+	Strip struct {
+		None         bool
+		Keep_symbols bool
+	}
+}
+
 type UnusedProperties struct {
 	Native_coverage *bool
 	Required        []string
-	Strip           string
 	Tags            []string
 }
 
@@ -1441,6 +1447,7 @@ func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags, deps Pat
 type libraryLinker struct {
 	baseLinker
 	flagExporter
+	stripper
 
 	Properties LibraryLinkerProperties
 
@@ -1465,7 +1472,8 @@ func (library *libraryLinker) props() []interface{} {
 	return append(props,
 		&library.Properties,
 		&library.dynamicProperties,
-		&library.flagExporter.Properties)
+		&library.flagExporter.Properties,
+		&library.stripper.StripProperties)
 }
 
 func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
@@ -1554,9 +1562,6 @@ func (library *libraryLinker) linkStatic(ctx ModuleContext,
 func (library *libraryLinker) linkShared(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
-	outputFile := common.PathForModuleOut(ctx,
-		ctx.ModuleName()+library.Properties.VariantName+flags.Toolchain.ShlibSuffix())
-
 	var linkerDeps common.Paths
 
 	versionScript := common.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
@@ -1595,14 +1600,26 @@ func (library *libraryLinker) linkShared(ctx ModuleContext,
 		}
 	}
 
+	fileName := ctx.ModuleName() + library.Properties.VariantName + flags.Toolchain.ShlibSuffix()
+	outputFile := common.PathForModuleOut(ctx, fileName)
+	ret := outputFile
+
+	builderFlags := flagsToBuilderFlags(flags)
+
+	if library.stripper.needsStrip(ctx) {
+		strippedOutputFile := outputFile
+		outputFile = common.PathForModuleOut(ctx, "unstripped", fileName)
+		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
+	}
+
 	sharedLibs := deps.SharedLibs
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
 
 	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
-		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, flagsToBuilderFlags(flags), outputFile)
+		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile)
 
-	return outputFile
+	return ret
 }
 
 func (library *libraryLinker) link(ctx ModuleContext,
@@ -1746,6 +1763,7 @@ func (*objectLinker) installable() bool {
 
 type binaryLinker struct {
 	baseLinker
+	stripper
 
 	Properties BinaryLinkerProperties
 
@@ -1755,7 +1773,10 @@ type binaryLinker struct {
 var _ linker = (*binaryLinker)(nil)
 
 func (binary *binaryLinker) props() []interface{} {
-	return append(binary.baseLinker.props(), &binary.Properties)
+	return append(binary.baseLinker.props(),
+		&binary.Properties,
+		&binary.stripper.StripProperties)
+
 }
 
 func (binary *binaryLinker) buildStatic() bool {
@@ -1906,17 +1927,11 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 func (binary *binaryLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
-	outputFile := common.PathForModuleOut(ctx, binary.getStem(ctx)+flags.Toolchain.ExecutableSuffix())
+	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
+	outputFile := common.PathForModuleOut(ctx, fileName)
+	ret := outputFile
 	if ctx.HostOrDevice().Host() {
 		binary.hostToolPath = common.OptionalPathForPath(outputFile)
-	}
-	ret := outputFile
-
-	if binary.Properties.Prefix_symbols != "" {
-		afterPrefixSymbols := outputFile
-		outputFile = common.PathForModuleOut(ctx, binary.getStem(ctx)+".intermediate")
-		TransformBinaryPrefixSymbols(ctx, binary.Properties.Prefix_symbols, outputFile,
-			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
 	var linkerDeps common.Paths
@@ -1928,15 +1943,46 @@ func (binary *binaryLinker) link(ctx ModuleContext,
 		flags.LdFlags = append(flags.LdFlags, " -Wl,-dynamic-linker,"+flags.DynamicLinker)
 	}
 
+	builderFlags := flagsToBuilderFlags(flags)
+
+	if binary.stripper.needsStrip(ctx) {
+		strippedOutputFile := outputFile
+		outputFile = common.PathForModuleOut(ctx, "unstripped", fileName)
+		binary.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
+	}
+
+	if binary.Properties.Prefix_symbols != "" {
+		afterPrefixSymbols := outputFile
+		outputFile = common.PathForModuleOut(ctx, "unprefixed", fileName)
+		TransformBinaryPrefixSymbols(ctx, binary.Properties.Prefix_symbols, outputFile,
+			flagsToBuilderFlags(flags), afterPrefixSymbols)
+	}
+
 	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
-		flagsToBuilderFlags(flags), outputFile)
+		builderFlags, outputFile)
 
 	return ret
 }
 
 func (binary *binaryLinker) HostToolPath() common.OptionalPath {
 	return binary.hostToolPath
+}
+
+type stripper struct {
+	StripProperties StripProperties
+}
+
+func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
+	return !ctx.AConfig().EmbeddedInMake() && !stripper.StripProperties.Strip.None
+}
+
+func (stripper *stripper) strip(ctx ModuleContext, in, out common.ModuleOutPath,
+	flags builderFlags) {
+	flags.stripKeepSymbols = stripper.StripProperties.Strip.Keep_symbols
+	// TODO(ccross): don't add gnu debuglink for user builds
+	flags.stripAddGnuDebuglink = true
+	TransformStrip(ctx, in, out, flags)
 }
 
 func testPerSrcMutator(mctx common.AndroidBottomUpMutatorContext) {
@@ -2155,6 +2201,7 @@ func defaultsFactory() (blueprint.Module, []interface{}) {
 		&UnusedProperties{},
 		&StlProperties{},
 		&SanitizeProperties{},
+		&StripProperties{},
 	}
 
 	_, propertyStructs = common.InitAndroidArchModule(module, common.HostAndDeviceDefault,
