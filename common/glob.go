@@ -73,7 +73,7 @@ type globContext interface {
 }
 
 func Glob(ctx globContext, outDir string, globPattern string, excludes []string) ([]string, error) {
-	fileListFile := filepath.Join(outDir, "glob", globToString(globPattern))
+	fileListFile := filepath.Join(outDir, "glob", globToString(globPattern)+".glob")
 	depFile := fileListFile + ".d"
 
 	// Get a globbed file list, and write out fileListFile and depFile
