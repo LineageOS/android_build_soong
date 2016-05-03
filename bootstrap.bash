@@ -8,7 +8,7 @@ if [[ "$ORIG_SRCDIR" != "." ]]; then
     echo "error: To use BUILDDIR, run from the source directory"
     exit 1
   fi
-  export BUILDDIR=$("${ORIG_SRCDIR}/build/soong/reverse_path.py" "$ORIG_SRCDIR")
+  export BUILDDIR=$("${ORIG_SRCDIR}/build/soong/scripts/reverse_path.py" "$ORIG_SRCDIR")
   cd $ORIG_SRCDIR
 fi
 if [[ -z "$BUILDDIR" ]]; then
@@ -45,7 +45,7 @@ if [[ $# -eq 0 ]]; then
       exit 1
     fi
 
-    export SRCDIR_FROM_BUILDDIR=$(build/soong/reverse_path.py "$BUILDDIR")
+    export SRCDIR_FROM_BUILDDIR=$(build/soong/scripts/reverse_path.py "$BUILDDIR")
 
     sed -e "s|@@BuildDir@@|${BUILDDIR}|" \
         -e "s|@@SrcDirFromBuildDir@@|${SRCDIR_FROM_BUILDDIR}|" \
