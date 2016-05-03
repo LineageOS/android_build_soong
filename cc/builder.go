@@ -101,7 +101,7 @@ var (
 		},
 		"objcopyCmd", "prefix")
 
-	copyGccLibPath = pctx.SourcePathVariable("copyGccLibPath", "build/soong/copygcclib.sh")
+	copyGccLibPath = pctx.SourcePathVariable("copyGccLibPath", "build/soong/scripts/copygcclib.sh")
 
 	copyGccLib = pctx.StaticRule("copyGccLib",
 		blueprint.RuleParams{
