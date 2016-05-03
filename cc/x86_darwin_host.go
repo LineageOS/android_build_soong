@@ -105,6 +105,11 @@ func init() {
 		return strings.TrimSpace(string(bytes)), err
 	})
 
+	pctx.VariableFunc("macStripPath", func(config interface{}) (string, error) {
+		bytes, err := exec.Command("xcrun", "--find", "strip").Output()
+		return strings.TrimSpace(string(bytes)), err
+	})
+
 	pctx.StaticVariable("darwinGccVersion", darwinGccVersion)
 	pctx.SourcePathVariable("darwinGccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${darwinGccVersion}")
