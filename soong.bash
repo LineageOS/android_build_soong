@@ -40,4 +40,4 @@ if [ -f "${ENVFILE}" ]; then
     fi
 fi
 
-"prebuilts/ninja/${PREBUILTOS}/ninja" -f "${BUILDDIR}/build.ninja" -w dupbuild=err "$@"
+"prebuilts/build-tools/${PREBUILTOS}/bin/ninja" -f "${BUILDDIR}/build.ninja" -w dupbuild=err "$@"
