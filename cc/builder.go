@@ -79,19 +79,26 @@ var (
 
 	darwinAr = pctx.StaticRule("darwinAr",
 		blueprint.RuleParams{
-			Command:     "rm -f ${out} && $arCmd $arFlags $out $in",
-			CommandDeps: []string{"$arCmd"},
+			Command:     "rm -f ${out} && ${macArPath} $arFlags $out $in",
+			CommandDeps: []string{"${macArPath}"},
 			Description: "ar $out",
 		},
-		"arCmd", "arFlags")
+		"arFlags")
 
 	darwinAppendAr = pctx.StaticRule("darwinAppendAr",
 		blueprint.RuleParams{
-			Command:     "cp -f ${inAr} ${out}.tmp && $arCmd $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
-			CommandDeps: []string{"$arCmd"},
+			Command:     "cp -f ${inAr} ${out}.tmp && ${macArPath} $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
+			CommandDeps: []string{"${macArPath}"},
 			Description: "ar $out",
 		},
-		"arCmd", "arFlags", "inAr")
+		"arFlags", "inAr")
+
+	darwinStrip = pctx.StaticRule("darwinStrip",
+		blueprint.RuleParams{
+			Command:     "${macStripPath} -u -r -o $out $in",
+			CommandDeps: []string{"${macStripPath}"},
+			Description: "strip $out",
+		})
 
 	prefixSymbols = pctx.StaticRule("prefixSymbols",
 		blueprint.RuleParams{
@@ -252,7 +259,6 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Pa
 func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Paths,
 	flags builderFlags, outputPath common.ModuleOutPath) {
 
-	arCmd := "${macArPath}"
 	arFlags := "cqs"
 
 	// ARG_MAX on darwin is 262144, use half that to be safe
@@ -278,7 +284,6 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 				Inputs:  l,
 				Args: map[string]string{
 					"arFlags": arFlags,
-					"arCmd":   arCmd,
 				},
 			})
 		} else {
@@ -289,7 +294,6 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 				Implicits: []string{in},
 				Args: map[string]string{
 					"arFlags": arFlags,
-					"arCmd":   arCmd,
 					"inAr":    in,
 				},
 			})
@@ -436,6 +440,16 @@ func TransformStrip(ctx common.AndroidModuleContext, inputFile common.Path,
 			"crossCompile": crossCompile,
 			"args":         args,
 		},
+	})
+}
+
+func TransformDarwinStrip(ctx common.AndroidModuleContext, inputFile common.Path,
+	outputFile common.WritablePath) {
+
+	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		Rule:   darwinStrip,
+		Output: outputFile,
+		Input:  inputFile,
 	})
 }
 
