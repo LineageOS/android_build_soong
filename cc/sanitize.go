@@ -69,6 +69,7 @@ type SanitizeProperties struct {
 
 	SanitizerEnabled bool `blueprint:"mutated"`
 	SanitizeDep      bool `blueprint:"mutated"`
+	InData           bool `blueprint:"mutated"`
 }
 
 type sanitize struct {
@@ -266,6 +267,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
+func (sanitize *sanitize) inData() bool {
+	return sanitize.Properties.InData
+}
+
 func (sanitize *sanitize) Sanitizer(t sanitizerType) bool {
 	if sanitize == nil {
 		return false
@@ -314,14 +319,24 @@ func sanitizerMutator(t sanitizerType) func(common.AndroidBottomUpMutatorContext
 	return func(mctx common.AndroidBottomUpMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
 			if d, ok := c.linker.(baseLinkerInterface); ok && d.isDependencyRoot() && c.sanitize.Sanitizer(t) {
-				mctx.CreateVariations(t.String())
+				modules := mctx.CreateVariations(t.String())
+				modules[0].(*Module).sanitize.SetSanitizer(t, true)
+				if mctx.AConfig().EmbeddedInMake() {
+					modules[0].(*Module).sanitize.Properties.InData = true
+				}
 			} else if c.sanitize.Properties.SanitizeDep {
-				modules := mctx.CreateVariations("", t.String())
-				modules[0].(*Module).sanitize.SetSanitizer(t, false)
-				modules[1].(*Module).sanitize.SetSanitizer(t, true)
-				modules[1].(*Module).appendVariantName("_" + t.String())
-				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
-				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+				if mctx.AConfig().EmbeddedInMake() {
+					modules := mctx.CreateVariations(t.String())
+					modules[0].(*Module).sanitize.SetSanitizer(t, true)
+					modules[0].(*Module).sanitize.Properties.InData = true
+				} else {
+					modules := mctx.CreateVariations("", t.String())
+					modules[0].(*Module).sanitize.SetSanitizer(t, false)
+					modules[1].(*Module).sanitize.SetSanitizer(t, true)
+					modules[1].(*Module).appendVariantName("_" + t.String())
+					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
+					modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+				}
 			}
 			c.sanitize.Properties.SanitizeDep = false
 		}

@@ -26,6 +26,7 @@ import (
 func (c *Module) AndroidMk() (ret common.AndroidMkData, err error) {
 	ret.OutputFile = c.outputFile
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) (err error) {
+		fmt.Fprintln(w, "LOCAL_SANITIZE := never")
 		if len(c.Properties.AndroidMkSharedLibs) > 0 {
 			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 		}
