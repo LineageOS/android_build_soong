@@ -1482,7 +1482,7 @@ func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	flags.Nocrt = Bool(library.Properties.Nocrt)
 
 	if !library.static() {
-		libName := ctx.ModuleName()
+		libName := ctx.ModuleName() + library.Properties.VariantName
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
 		sharedFlag := "-Wl,-shared"
 		if flags.Clang || ctx.Host() {
@@ -1663,13 +1663,18 @@ func (library *libraryLinker) appendVariantName(variant string) {
 type libraryInstaller struct {
 	baseInstaller
 
-	linker *libraryLinker
+	linker   *libraryLinker
+	sanitize *sanitize
 }
 
 func (library *libraryInstaller) install(ctx ModuleContext, file common.Path) {
 	if !library.linker.static() {
 		library.baseInstaller.install(ctx, file)
 	}
+}
+
+func (library *libraryInstaller) inData() bool {
+	return library.baseInstaller.inData() || library.sanitize.inData()
 }
 
 func NewLibrary(hod common.HostOrDeviceSupported, shared, static bool) *Module {
@@ -1688,7 +1693,8 @@ func NewLibrary(hod common.HostOrDeviceSupported, shared, static bool) *Module {
 			dir:   "lib",
 			dir64: "lib64",
 		},
-		linker: linker,
+		linker:   linker,
+		sanitize: module.sanitize,
 	}
 
 	return module
