@@ -33,6 +33,7 @@ var standardProperties = map[string]struct {
 
 	// List properties
 	"LOCAL_SRC_FILES":               {"srcs", bpparser.List},
+	"LOCAL_SRC_FILES_EXCLUDE":       {"exclude_srcs", bpparser.List},
 	"LOCAL_SHARED_LIBRARIES":        {"shared_libs", bpparser.List},
 	"LOCAL_STATIC_LIBRARIES":        {"static_libs", bpparser.List},
 	"LOCAL_WHOLE_STATIC_LIBRARIES":  {"whole_static_libs", bpparser.List},
@@ -314,7 +315,7 @@ var deleteProperties = map[string]struct{}{
 
 var propertyPrefixes = map[string]string{
 	"arm":    "arch.arm",
-	"arm64":  "arm.arm64",
+	"arm64":  "arch.arm64",
 	"mips":   "arch.mips",
 	"mips64": "arch.mips64",
 	"x86":    "arch.x86",
