@@ -1979,10 +1979,14 @@ func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
 
 func (stripper *stripper) strip(ctx ModuleContext, in, out common.ModuleOutPath,
 	flags builderFlags) {
-	flags.stripKeepSymbols = stripper.StripProperties.Strip.Keep_symbols
-	// TODO(ccross): don't add gnu debuglink for user builds
-	flags.stripAddGnuDebuglink = true
-	TransformStrip(ctx, in, out, flags)
+	if ctx.Darwin() {
+		TransformDarwinStrip(ctx, in, out)
+	} else {
+		flags.stripKeepSymbols = stripper.StripProperties.Strip.Keep_symbols
+		// TODO(ccross): don't add gnu debuglink for user builds
+		flags.stripAddGnuDebuglink = true
+		TransformStrip(ctx, in, out, flags)
+	}
 }
 
 func testPerSrcMutator(mctx common.AndroidBottomUpMutatorContext) {
