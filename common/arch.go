@@ -621,7 +621,17 @@ func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
 		return true, nil
 	}
 
-	err := proptools.AppendProperties(dst, src, filter)
+	order := func(property string,
+		dstField, srcField reflect.StructField,
+		dstValue, srcValue interface{}) (proptools.Order, error) {
+		if proptools.HasTag(dstField, "android", "variant_prepend") {
+			return proptools.Prepend, nil
+		} else {
+			return proptools.Append, nil
+		}
+	}
+
+	err := proptools.ExtendProperties(dst, src, filter, order)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
 			ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())

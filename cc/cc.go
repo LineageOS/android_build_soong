@@ -306,10 +306,10 @@ type BaseLinkerProperties struct {
 	// in their entirety.  For static library modules, all of the .o files from the intermediate
 	// directory of the dependency will be linked into this modules .a file.  For a shared library,
 	// the dependency's .a file will be linked into this module using -Wl,--whole-archive.
-	Whole_static_libs []string `android:"arch_variant"`
+	Whole_static_libs []string `android:"arch_variant,variant_prepend"`
 
 	// list of modules that should be statically linked into this module.
-	Static_libs []string `android:"arch_variant"`
+	Static_libs []string `android:"arch_variant,variant_prepend"`
 
 	// list of modules that should be dynamically linked into this module.
 	Shared_libs []string `android:"arch_variant"`
