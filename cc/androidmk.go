@@ -68,9 +68,9 @@ func (library *libraryLinker) AndroidMk(ret *common.AndroidMkData) {
 	library.baseLinker.AndroidMk(ret)
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) error {
-		exportedIncludes := library.exportedFlags()
+		var exportedIncludes []string
 		for _, flag := range library.exportedFlags() {
-			if flag != "" {
+			if strings.HasPrefix(flag, "-I") {
 				exportedIncludes = append(exportedIncludes, strings.TrimPrefix(flag, "-I"))
 			}
 		}
