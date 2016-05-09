@@ -1020,7 +1020,7 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 	}
 
 	if featureMap, ok := archFeatureMap[archType]; ok {
-		a.ArchFeatures = featureMap[stringPtr(archVariant)]
+		a.ArchFeatures = featureMap[a.ArchVariant]
 	}
 
 	return a, nil
