@@ -40,6 +40,7 @@ var (
 		// Help catch common 32/64-bit errors.
 		"-Werror=pointer-to-int-cast",
 		"-Werror=int-to-pointer-cast",
+		"-Werror=implicit-function-declaration",
 
 		"-fno-strict-volatile-bitfields",
 
