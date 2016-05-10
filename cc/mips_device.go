@@ -50,6 +50,10 @@ var (
 		"-frename-registers",
 	}
 
+	mipsClangCflags = append(mipsCflags, []string{
+		"-fPIC",
+	}...)
+
 	mipsCppflags = []string{
 		"-fvisibility-inlines-hidden",
 	}
@@ -80,7 +84,7 @@ var (
 			"-mips32r2",
 			"-mfp32",
 			"-modd-spreg",
-			"-mno-synci",
+			"-msynci",
 		},
 		"mips32r2-fp-xburst": []string{
 			"-mips32r2",
@@ -141,7 +145,7 @@ func init() {
 
 	// Clang cflags
 	pctx.StaticVariable("mipsClangTriple", "mipsel-linux-android")
-	pctx.StaticVariable("mipsClangCflags", strings.Join(clangFilterUnknownCflags(mipsCflags), " "))
+	pctx.StaticVariable("mipsClangCflags", strings.Join(clangFilterUnknownCflags(mipsClangCflags), " "))
 	pctx.StaticVariable("mipsClangLdflags", strings.Join(clangFilterUnknownCflags(mipsLdflags), " "))
 	pctx.StaticVariable("mipsClangCppflags", strings.Join(clangFilterUnknownCflags(mipsCppflags), " "))
 
@@ -203,6 +207,10 @@ func (t *toolchainMips) IncludeFlags() string {
 
 func (t *toolchainMips) ClangTriple() string {
 	return "${mipsClangTriple}"
+}
+
+func (t *toolchainMips) ToolchainClangLdflags() string {
+	return "${mipsToolchainLdflags}"
 }
 
 func (t *toolchainMips) ToolchainClangCflags() string {
