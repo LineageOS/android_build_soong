@@ -46,6 +46,15 @@ var (
 		"-fno-strict-aliasing",
 	}
 
+	x86ClangCflags = append(x86Cflags, []string{
+		"-msse3",
+
+		// -mstackrealign is needed to realign stack in native code
+		// that could be called from JNI, so that movaps instruction
+		// will work on assumed stack aligned local variables.
+		"-mstackrealign",
+	}...)
+
 	x86Cppflags = []string{}
 
 	x86Ldflags = []string{
@@ -157,7 +166,7 @@ func init() {
 	}, " "))
 
 	// Clang cflags
-	pctx.StaticVariable("x86ClangCflags", strings.Join(clangFilterUnknownCflags(x86Cflags), " "))
+	pctx.StaticVariable("x86ClangCflags", strings.Join(clangFilterUnknownCflags(x86ClangCflags), " "))
 	pctx.StaticVariable("x86ClangLdflags", strings.Join(clangFilterUnknownCflags(x86Ldflags), " "))
 	pctx.StaticVariable("x86ClangCppflags", strings.Join(clangFilterUnknownCflags(x86Cppflags), " "))
 
@@ -217,7 +226,11 @@ func (t *toolchainX86) IncludeFlags() string {
 }
 
 func (t *toolchainX86) ClangTriple() string {
-	return "${x86GccTriple}"
+	return "i686-linux-android"
+}
+
+func (t *toolchainX86) ToolchainClangLdflags() string {
+	return "${x86ToolchainLdflags}"
 }
 
 func (t *toolchainX86) ToolchainClangCflags() string {
