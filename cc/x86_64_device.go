@@ -219,6 +219,10 @@ func (t *toolchainX86_64) ClangTriple() string {
 	return "${x86_64GccTriple}"
 }
 
+func (t *toolchainX86_64) ToolchainClangLdflags() string {
+	return "${x86_64ToolchainLdflags}"
+}
+
 func (t *toolchainX86_64) ToolchainClangCflags() string {
 	return t.toolchainClangCflags
 }
