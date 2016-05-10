@@ -126,6 +126,14 @@ var (
 			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
+		"krait": []string{
+			"-mcpu=cortex-a15",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
+		},
 	}
 
 	armClangCpuVariantCflags  = copyVariantFlags(armCpuVariantCflags)
@@ -146,10 +154,8 @@ func init() {
 	}
 
 	replaceFirst(armClangArchVariantCflags["armv5te"], "-march=armv5te", "-march=armv5t")
-	armClangCpuVariantCflags["krait"] = []string{
-		"-mcpu=krait",
-		"-mfpu=neon-vfpv4",
-	}
+	replaceFirst(armClangCpuVariantCflags["krait"], "-mcpu=cortex-a15", "-mcpu=krait")
+	armClangCpuVariantCflags["krait"] = append(armClangCpuVariantCflags["krait"], "-mfpu=neon-vfpv4")
 
 	pctx.StaticVariable("armGccVersion", armGccVersion)
 
@@ -185,6 +191,7 @@ func init() {
 	pctx.StaticVariable("armCortexA7Cflags", strings.Join(armCpuVariantCflags["cortex-a7"], " "))
 	pctx.StaticVariable("armCortexA8Cflags", strings.Join(armCpuVariantCflags["cortex-a8"], " "))
 	pctx.StaticVariable("armCortexA15Cflags", strings.Join(armCpuVariantCflags["cortex-a15"], " "))
+	pctx.StaticVariable("armKraitCflags", strings.Join(armCpuVariantCflags["krait"], " "))
 
 	// Clang cflags
 	pctx.StaticVariable("armToolchainClangCflags", strings.Join(clangFilterUnknownCflags(armToolchainCflags), " "))
@@ -231,7 +238,7 @@ var (
 		"cortex-a15":     "${armCortexA15Cflags}",
 		"cortex-a53":     "${armCortexA7Cflags}",
 		"cortex-a53.a57": "${armCortexA7Cflags}",
-		"krait":          "${armCortexA15Cflags}",
+		"krait":          "${armKraitCflags}",
 		"denver":         "${armCortexA15Cflags}",
 	}
 
