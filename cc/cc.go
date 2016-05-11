@@ -1258,8 +1258,6 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
-	flags.LdFlags = append(flags.LdFlags, linker.Properties.Ldflags...)
-
 	if !ctx.noDefaultCompilerFlags() {
 		if ctx.Device() && !Bool(linker.Properties.Allow_undefined_symbols) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
@@ -1275,6 +1273,8 @@ func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
 		}
 	}
+
+	flags.LdFlags = append(flags.LdFlags, linker.Properties.Ldflags...)
 
 	if ctx.Host() && !linker.static() {
 		rpath_prefix := `\$$ORIGIN/`
