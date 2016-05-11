@@ -186,6 +186,8 @@ type archProperties struct {
 			Ivybridge   interface{} `blueprint:"filter(android:\"arch_variant\")"`
 			Sandybridge interface{} `blueprint:"filter(android:\"arch_variant\")"`
 			Silvermont  interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			// Generic variant for X86 on X86_64
+			X86_64      interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 			// X86 arch features
 			Ssse3  interface{} `blueprint:"filter(android:\"arch_variant\")"`
@@ -955,6 +957,7 @@ func decodeMegaDevice() ([]Arch, error) {
 		{"x86", "ivybridge", "", []string{"x86"}},
 		{"x86", "sandybridge", "", []string{"x86"}},
 		{"x86", "silvermont", "", []string{"x86"}},
+		{"x86", "x86_64", "", []string{"x86"}},
 		{"x86_64", "", "", []string{"x86_64"}},
 		{"x86_64", "haswell", "", []string{"x86_64"}},
 		{"x86_64", "ivybridge", "", []string{"x86_64"}},
