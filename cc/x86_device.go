@@ -73,6 +73,9 @@ var (
 		"": []string{
 			"-march=prescott",
 		},
+		"x86_64": []string{
+			"-march=prescott",
+		},
 		"atom": []string{
 			"-march=atom",
 			"-mfpmath=sse",
@@ -110,6 +113,12 @@ const (
 )
 
 func init() {
+	common.RegisterArchFeatures(common.X86, "x86_64",
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"popcnt")
 	common.RegisterArchFeatures(common.X86, "atom",
 		"ssse3",
 		"movbe")
