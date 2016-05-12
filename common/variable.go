@@ -52,6 +52,9 @@ type variableProperties struct {
 var zeroProductVariables variableProperties
 
 type productVariables struct {
+	// Suffix to add to generated Makefiles
+	Make_suffix *string `json:",omitempty"`
+
 	Platform_sdk_version *int `json:",omitempty"`
 
 	DeviceName        *string   `json:",omitempty"`
