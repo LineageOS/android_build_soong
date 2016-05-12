@@ -59,6 +59,7 @@ type SanitizeProperties struct {
 		All_undefined  bool     `android:"arch_variant"`
 		Misc_undefined []string `android:"arch_variant"`
 		Coverage       bool     `android:"arch_variant"`
+		SafeStack      bool     `android:"arch_variant"`
 
 		// value to pass to -fsantitize-recover=
 		Recover []string
@@ -127,15 +128,20 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			sanitize.Properties.Sanitize.Coverage = true
 		}
 
+		if found, globalSanitizers = removeFromList("safe-stack", globalSanitizers); found {
+			sanitize.Properties.Sanitize.SafeStack = true
+		}
+
 		if len(globalSanitizers) > 0 {
 			ctx.ModuleErrorf("unknown global sanitizer option %s", globalSanitizers[0])
 		}
 		sanitize.Properties.SanitizerEnabled = true
 	}
 
-	if !ctx.toolchain().Is64Bit() && sanitize.Properties.Sanitize.Thread {
-		// TSAN is not supported on 32-bit architectures
+	if !ctx.toolchain().Is64Bit() {
+		// TSAN and SafeStack are not supported on 32-bit architectures
 		sanitize.Properties.Sanitize.Thread = false
+		sanitize.Properties.Sanitize.SafeStack = false
 		// TODO(ccross): error for compile_multilib = "32"?
 	}
 
@@ -237,6 +243,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if sanitize.Properties.Sanitize.Coverage {
 		flags.CFlags = append(flags.CFlags, "-fsanitize-coverage=edge,indirect-calls,8bit-counters,trace-cmp")
+	}
+
+	if sanitize.Properties.Sanitize.SafeStack {
+		sanitizers = append(sanitizers, "safe-stack")
 	}
 
 	if sanitize.Properties.Sanitize.Recover != nil {
