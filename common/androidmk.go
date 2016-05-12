@@ -26,6 +26,7 @@ import (
 	"android/soong"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -54,11 +55,13 @@ func AndroidMkSingleton() blueprint.Singleton {
 type androidMkSingleton struct{}
 
 func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	if !ctx.Config().(Config).EmbeddedInMake() {
+	config := ctx.Config().(Config)
+
+	if !config.EmbeddedInMake() {
 		return
 	}
 
-	ctx.SetNinjaBuildDir(pctx, filepath.Join(ctx.Config().(Config).buildDir, ".."))
+	ctx.SetNinjaBuildDir(pctx, filepath.Join(config.buildDir, ".."))
 
 	var androidMkModulesList []AndroidModule
 
@@ -70,7 +73,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 
 	sort.Sort(AndroidModulesByName{androidMkModulesList, ctx})
 
-	transMk := PathForOutput(ctx, "Android.mk")
+	transMk := PathForOutput(ctx, "Android"+proptools.String(config.ProductVariables.Make_suffix)+".mk")
 	if ctx.Failed() {
 		return
 	}
