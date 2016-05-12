@@ -1540,16 +1540,16 @@ func (library *libraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 func (library *libraryLinker) linkStatic(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
 
-	objFiles = append(objFiles, deps.WholeStaticLibObjFiles...)
-	library.objFiles = objFiles
+	library.objFiles = append(common.Paths{}, deps.WholeStaticLibObjFiles...)
+	library.objFiles = append(library.objFiles, objFiles...)
 
 	outputFile := common.PathForModuleOut(ctx,
 		ctx.ModuleName()+library.Properties.VariantName+staticLibraryExtension)
 
 	if ctx.Darwin() {
-		TransformDarwinObjToStaticLib(ctx, objFiles, flagsToBuilderFlags(flags), outputFile)
+		TransformDarwinObjToStaticLib(ctx, library.objFiles, flagsToBuilderFlags(flags), outputFile)
 	} else {
-		TransformObjToStaticLib(ctx, objFiles, flagsToBuilderFlags(flags), outputFile)
+		TransformObjToStaticLib(ctx, library.objFiles, flagsToBuilderFlags(flags), outputFile)
 	}
 
 	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
