@@ -2051,10 +2051,14 @@ func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	if ctx.Host() {
 		flags.CFlags = append(flags.CFlags, "-O0", "-g")
 
-		if ctx.HostType() == common.Windows {
+		switch ctx.HostType() {
+		case common.Windows:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_WINDOWS")
-		} else {
+		case common.Linux:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX")
+			flags.LdFlags = append(flags.LdFlags, "-lpthread")
+		case common.Darwin:
+			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_MAC")
 			flags.LdFlags = append(flags.LdFlags, "-lpthread")
 		}
 	} else {
