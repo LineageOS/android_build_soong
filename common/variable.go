@@ -46,6 +46,10 @@ type variableProperties struct {
 		Malloc_not_svelte struct {
 			Cflags []string
 		}
+
+		Safestack struct {
+			Cflags []string `android:"arch_variant"`
+		} `android:"arch_variant"`
 	} `android:"arch_variant"`
 }
 
@@ -80,6 +84,7 @@ type productVariables struct {
 	Unbundled_build            *bool `json:",omitempty"`
 	Brillo                     *bool `json:",omitempty"`
 	Malloc_not_svelte          *bool `json:",omitempty"`
+	Safestack                  *bool `json:",omitempty"`
 
 	SanitizeHost   *[]string `json:",omitempty"`
 	SanitizeDevice *[]string `json:",omitempty"`
@@ -113,6 +118,7 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceSecondaryCpuVariant:  stringPtr("denver"),
 		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
 		Malloc_not_svelte:          boolPtr(false),
+		Safestack:                  boolPtr(false),
 	}
 
 	if runtime.GOOS == "linux" {
