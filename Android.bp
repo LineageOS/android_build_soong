@@ -94,7 +94,6 @@ bootstrap_go_package {
         "common/config.go",
         "common/defaults.go",
         "common/defs.go",
-        "common/env.go",
         "common/glob.go",
         "common/makevars.go",
         "common/module.go",
@@ -103,6 +102,9 @@ bootstrap_go_package {
         "common/paths.go",
         "common/util.go",
         "common/variable.go",
+
+        // Lock down environment access last
+        "common/env.go",
     ],
     testSrcs: [
         "common/paths_test.go",
