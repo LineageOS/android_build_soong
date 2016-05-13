@@ -456,6 +456,7 @@ type ModuleContextIntf interface {
 	noDefaultCompilerFlags() bool
 	sdk() bool
 	sdkVersion() string
+	selectedStl() string
 }
 
 type ModuleContext interface {
@@ -635,6 +636,13 @@ func (ctx *moduleContextImpl) sdk() bool {
 
 func (ctx *moduleContextImpl) sdkVersion() string {
 	return ctx.mod.Properties.Sdk_version
+}
+
+func (ctx *moduleContextImpl) selectedStl() string {
+	if stl := ctx.mod.stl; stl != nil {
+		return stl.Properties.SelectedStl
+	}
+	return ""
 }
 
 func newBaseModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *Module {
@@ -2058,7 +2066,18 @@ func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
 
 func (test *testLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	if test.Properties.Gtest {
-		deps.StaticLibs = append(deps.StaticLibs, "libgtest_main", "libgtest")
+		if ctx.sdk() && ctx.Device() {
+			switch ctx.selectedStl() {
+			case "ndk_libc++_shared", "ndk_libc++_static":
+				deps.StaticLibs = append(deps.StaticLibs, "libgtest_main_ndk_libcxx", "libgtest_ndk_libcxx")
+			case "ndk_libgnustl_static":
+				deps.StaticLibs = append(deps.StaticLibs, "libgtest_main_ndk_gnustl", "libgtest_ndk_gnustl")
+			default:
+				deps.StaticLibs = append(deps.StaticLibs, "libgtest_main_ndk", "libgtest_ndk")
+			}
+		} else {
+			deps.StaticLibs = append(deps.StaticLibs, "libgtest_main", "libgtest")
+		}
 	}
 	deps = test.binaryLinker.deps(ctx, deps)
 	return deps
