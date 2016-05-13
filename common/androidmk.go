@@ -93,7 +93,6 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []AndroidModule) error {
 	buf := &bytes.Buffer{}
 
-	fmt.Fprintln(buf, "LOCAL_PATH := $(TOP)")
 	fmt.Fprintln(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))")
 
 	for _, mod := range mods {
@@ -184,10 +183,11 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	}
 
 	fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+	fmt.Fprintln(w, "LOCAL_PATH :=", filepath.Dir(ctx.BlueprintFile(mod)))
 	fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 	fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", data.Class)
 	fmt.Fprintln(w, "LOCAL_MULTILIB :=", amod.commonProperties.Compile_multilib)
-	fmt.Fprintln(w, "LOCAL_SRC_FILES :=", data.OutputFile.String())
+	fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", data.OutputFile.String())
 
 	archStr := amod.Arch().ArchType.String()
 	if amod.Host() {
