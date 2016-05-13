@@ -88,7 +88,7 @@ var (
 	darwinAppendAr = pctx.StaticRule("darwinAppendAr",
 		blueprint.RuleParams{
 			Command:     "cp -f ${inAr} ${out}.tmp && ${macArPath} $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
-			CommandDeps: []string{"${macArPath}"},
+			CommandDeps: []string{"${macArPath}", "${inAr}"},
 			Description: "ar $out",
 		},
 		"arFlags", "inAr")
@@ -119,6 +119,12 @@ var (
 			Description: "strip $out",
 		},
 		"args", "crossCompile")
+
+	emptyFile = pctx.StaticRule("emptyFile",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && touch $out",
+			Description: "empty file $out",
+		})
 
 	copyGccLibPath = pctx.SourcePathVariable("copyGccLibPath", "build/soong/scripts/copygcclib.sh")
 
@@ -261,6 +267,37 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 
 	arFlags := "cqs"
 
+	if len(objFiles) == 0 {
+		dummy := common.PathForModuleOut(ctx, "dummy" + objectExtension)
+		dummyAr := common.PathForModuleOut(ctx, "dummy" + staticLibraryExtension)
+
+		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+			Rule:   emptyFile,
+			Output: dummy,
+		})
+
+		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+			Rule:   darwinAr,
+			Output: dummyAr,
+			Input:  dummy,
+			Args: map[string]string{
+				"arFlags": arFlags,
+			},
+		})
+
+		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+			Rule:   darwinAppendAr,
+			Output: outputPath,
+			Input:  dummy,
+			Args: map[string]string{
+				"arFlags": "d",
+				"inAr":    dummyAr.String(),
+			},
+		})
+
+		return
+	}
+
 	// ARG_MAX on darwin is 262144, use half that to be safe
 	objFilesLists, err := splitListForSize(objFiles.Strings(), 131072)
 	if err != nil {
@@ -291,7 +328,6 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 				Rule:      darwinAppendAr,
 				Outputs:   []string{out},
 				Inputs:    l,
-				Implicits: []string{in},
 				Args: map[string]string{
 					"arFlags": arFlags,
 					"inAr":    in,
