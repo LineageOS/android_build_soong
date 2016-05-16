@@ -115,6 +115,18 @@ func (test *testLinker) AndroidMk(ret *common.AndroidMkData) {
 	}
 }
 
+func (library *toolchainLibraryLinker) AndroidMk(ret *common.AndroidMkData) {
+	library.baseLinker.AndroidMk(ret)
+
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) error {
+		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
+		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
+		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
+
+		return nil
+	})
+}
+
 func (installer *baseInstaller) AndroidMk(ret *common.AndroidMkData) {
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile common.Path) error {
 		path := installer.path.RelPathString()
