@@ -29,6 +29,11 @@ func init() {
 func makeVarsProvider(ctx common.MakeVarsContext) {
 	ctx.Strict("LLVM_PREBUILTS_VERSION", "${clangVersion}")
 	ctx.Strict("LLVM_PREBUILTS_BASE", "${clangBase}")
+	ctx.Strict("LLVM_PREBUILTS_PATH", "${clangBin}")
+	ctx.Strict("CLANG", "${clangBin}/clang")
+	ctx.Strict("CLANG_CXX", "${clangBin}/clang++")
+	ctx.Strict("LLVM_AS", "${clangBin}/llvm-as")
+	ctx.Strict("LLVM_LINK", "${clangBin}/llvm-link")
 
 	hostType := common.CurrentHostType()
 	arches := ctx.Config().HostArches[hostType]
@@ -108,4 +113,16 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"READELF", gccCmd(toolchain, "readelf"))
 		ctx.Strict(makePrefix+"NM", gccCmd(toolchain, "nm"))
 	}
+
+	if ht == common.Windows {
+		ctx.Strict(makePrefix+"OBJDUMP", gccCmd(toolchain, "objdump"))
+	}
+
+	if hod.Device() {
+		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
+		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
+		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
+	}
+
+	ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 }
