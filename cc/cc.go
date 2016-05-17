@@ -1797,11 +1797,11 @@ func (binary *binaryLinker) props() []interface{} {
 }
 
 func (binary *binaryLinker) buildStatic() bool {
-	return Bool(binary.Properties.Static_executable)
+	return binary.baseLinker.staticBinary()
 }
 
 func (binary *binaryLinker) buildShared() bool {
-	return !Bool(binary.Properties.Static_executable)
+	return !binary.baseLinker.staticBinary()
 }
 
 func (binary *binaryLinker) getStem(ctx BaseModuleContext) string {
@@ -1817,14 +1817,14 @@ func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	deps = binary.baseLinker.deps(ctx, deps)
 	if ctx.Device() {
 		if !ctx.sdk() {
-			if Bool(binary.Properties.Static_executable) {
+			if binary.buildStatic() {
 				deps.CrtBegin = "crtbegin_static"
 			} else {
 				deps.CrtBegin = "crtbegin_dynamic"
 			}
 			deps.CrtEnd = "crtend_android"
 		} else {
-			if Bool(binary.Properties.Static_executable) {
+			if binary.buildStatic() {
 				deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
 			} else {
 				deps.CrtBegin = "ndk_crtbegin_dynamic." + ctx.sdkVersion()
@@ -1832,7 +1832,7 @@ func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 			deps.CrtEnd = "ndk_crtend_android." + ctx.sdkVersion()
 		}
 
-		if Bool(binary.Properties.Static_executable) {
+		if binary.buildStatic() {
 			if inList("libc++_static", deps.StaticLibs) {
 				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc", "libdl")
 			}
@@ -1846,7 +1846,7 @@ func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 		}
 	}
 
-	if !Bool(binary.Properties.Static_executable) && inList("libc", deps.StaticLibs) {
+	if binary.buildShared() && inList("libc", deps.StaticLibs) {
 		ctx.ModuleErrorf("statically linking libc to dynamic executable, please remove libc\n" +
 			"from static libs or set static_executable: true")
 	}
@@ -1876,11 +1876,22 @@ func binaryFactory() (blueprint.Module, []interface{}) {
 	return module.Init()
 }
 
-func (binary *binaryLinker) ModifyProperties(ctx ModuleContext) {
-	if ctx.Darwin() {
-		binary.Properties.Static_executable = proptools.BoolPtr(false)
+func (binary *binaryLinker) begin(ctx BaseModuleContext) {
+	binary.baseLinker.begin(ctx)
+
+	static := Bool(binary.Properties.Static_executable)
+	if ctx.Host() {
+		if ctx.HostType() == common.Linux {
+			if binary.Properties.Static_executable == nil && Bool(ctx.AConfig().ProductVariables.HostStaticBinaries) {
+				static = true
+			}
+		} else {
+			// Static executables are not supported on Darwin or Windows
+			static = false
+		}
 	}
-	if Bool(binary.Properties.Static_executable) {
+	if static {
+		binary.dynamicProperties.VariantIsStatic = true
 		binary.dynamicProperties.VariantIsStaticBinary = true
 	}
 }
@@ -1888,7 +1899,7 @@ func (binary *binaryLinker) ModifyProperties(ctx ModuleContext) {
 func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseLinker.flags(ctx, flags)
 
-	if ctx.Host() {
+	if ctx.Host() && !binary.staticBinary() {
 		flags.LdFlags = append(flags.LdFlags, "-pie")
 		if ctx.HostType() == common.Windows {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
@@ -1903,7 +1914,7 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if ctx.Device() {
-		if Bool(binary.Properties.Static_executable) {
+		if binary.buildStatic() {
 			// Clang driver needs -static to create static executable.
 			// However, bionic/linker uses -shared to overwrite.
 			// Linker for x86 targets does not allow coexistance of -static and -shared,
@@ -1934,8 +1945,13 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 				"-Wl,-z,nocopyreloc",
 			)
 		}
-	} else if ctx.Darwin() {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,-headerpad_max_install_names")
+	} else {
+		if binary.staticBinary() {
+			flags.LdFlags = append(flags.LdFlags, "-static")
+		}
+		if ctx.Darwin() {
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-headerpad_max_install_names")
+		}
 	}
 
 	return flags
