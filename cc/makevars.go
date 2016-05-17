@@ -74,6 +74,10 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 
 	globalCflags := fmt.Sprintf("${commonGlobalCflags} ${%sGlobalCflags}", hod)
 
+	if hod.Device() && Bool(ctx.Config().ProductVariables.Brillo) {
+		globalCflags += " -D__BRILLO__"
+	}
+
 	ctx.StrictSorted(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.ToolchainCflags(),
 		globalCflags,
@@ -92,6 +96,10 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 		}
 
 		globalClangCflags := fmt.Sprintf("${commonClangGlobalCflags} ${clangExtraCflags} ${%sClangGlobalCflags}", hod)
+
+		if hod.Device() && Bool(ctx.Config().ProductVariables.Brillo) {
+			globalClangCflags += " -D__BRILLO__"
+		}
 
 		ctx.StrictSorted(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 			toolchain.ToolchainClangCflags(),
