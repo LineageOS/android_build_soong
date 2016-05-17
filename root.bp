@@ -6,7 +6,7 @@ subdirs = [
 ]
 
 optional_subdirs = [
-    "bionic/*",
+    "bionic",
     "build/kati",
     "build/tools/*",
     "dalvik",
