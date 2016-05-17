@@ -74,12 +74,12 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 
 	globalCflags := fmt.Sprintf("${commonGlobalCflags} ${%sGlobalCflags}", hod)
 
-	ctx.CheckSorted(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
+	ctx.StrictSorted(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.ToolchainCflags(),
 		globalCflags,
 		toolchain.Cflags(),
 	}, " "))
-	ctx.CheckSorted(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+	ctx.StrictSorted(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 		toolchain.ToolchainLdflags(),
 		toolchain.Ldflags(),
 	}, " "))
@@ -93,13 +93,13 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 
 		globalClangCflags := fmt.Sprintf("${commonClangGlobalCflags} ${clangExtraCflags} ${%sClangGlobalCflags}", hod)
 
-		ctx.CheckSorted(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
+		ctx.StrictSorted(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 			toolchain.ToolchainClangCflags(),
 			globalClangCflags,
 			toolchain.ClangCflags(),
 			clangExtras,
 		}, " "))
-		ctx.CheckSorted(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+		ctx.StrictSorted(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 			toolchain.ToolchainClangLdflags(),
 			toolchain.ClangLdflags(),
 			clangExtras,
