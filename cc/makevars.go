@@ -86,7 +86,10 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 
 	if toolchain.ClangSupported() {
 		clangPrefix := secondPrefix + "CLANG_" + typePrefix
-		clangExtras := "-target " + toolchain.ClangTriple() + " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
+		clangExtras := "-target " + toolchain.ClangTriple()
+		if ht != common.Darwin {
+			clangExtras += " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
+		}
 
 		globalClangCflags := fmt.Sprintf("${commonClangGlobalCflags} ${clangExtraCflags} ${%sClangGlobalCflags}", hod)
 
