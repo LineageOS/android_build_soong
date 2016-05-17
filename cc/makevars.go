@@ -83,6 +83,11 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 		globalCflags,
 		toolchain.Cflags(),
 	}, " "))
+	ctx.StrictSorted(makePrefix+"GLOBAL_CONLYFLAGS", "")
+	ctx.StrictSorted(makePrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
+		"${commonGlobalCppflags}",
+		toolchain.Cppflags(),
+	}, " "))
 	ctx.StrictSorted(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 		toolchain.ToolchainLdflags(),
 		toolchain.Ldflags(),
@@ -106,6 +111,11 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 			globalClangCflags,
 			toolchain.ClangCflags(),
 			clangExtras,
+		}, " "))
+		ctx.StrictSorted(clangPrefix+"GLOBAL_CONLYFLAGS", "${clangExtraConlyflags}")
+		ctx.StrictSorted(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
+			"${commonClangGlobalCppflags}",
+			toolchain.ClangCppflags(),
 		}, " "))
 		ctx.StrictSorted(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 			toolchain.ToolchainClangLdflags(),
