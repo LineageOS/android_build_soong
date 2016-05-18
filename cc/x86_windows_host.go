@@ -69,10 +69,12 @@ var (
 
 	windowsX86Ldflags = []string{
 		"-m32",
+		"-L${windowsGccRoot}/${windowsGccTriple}/lib32",
 	}
 
 	windowsX8664Ldflags = []string{
 		"-m64",
+		"-L${windowsGccRoot}/${windowsGccTriple}/lib64",
 	}
 )
 
