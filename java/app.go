@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 // AAR prebuilts
@@ -61,8 +61,8 @@ type AndroidApp struct {
 
 	appProperties androidAppProperties
 
-	aaptJavaFileList common.Path
-	exportPackage    common.Path
+	aaptJavaFileList android.Path
+	exportPackage    android.Path
 }
 
 func (a *AndroidApp) JavaDependencies(ctx AndroidJavaModuleContext) []string {
@@ -80,7 +80,7 @@ func (a *AndroidApp) JavaDependencies(ctx AndroidJavaModuleContext) []string {
 	return deps
 }
 
-func (a *AndroidApp) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
+func (a *AndroidApp) GenerateJavaBuildActions(ctx android.ModuleContext) {
 	aaptFlags, aaptDeps, hasResources := a.aaptFlags(ctx)
 
 	if hasResources {
@@ -143,16 +143,16 @@ func (a *AndroidApp) GenerateJavaBuildActions(ctx common.AndroidModuleContext) {
 	} else if dir, _ := filepath.Split(certificate); dir == "" {
 		certificate = filepath.Join(ctx.AConfig().DefaultAppCertificateDir(ctx).String(), certificate)
 	} else {
-		certificate = filepath.Join(common.PathForSource(ctx).String(), certificate)
+		certificate = filepath.Join(android.PathForSource(ctx).String(), certificate)
 	}
 
 	certificates := []string{certificate}
 	for _, c := range a.appProperties.Additional_certificates {
-		certificates = append(certificates, filepath.Join(common.PathForSource(ctx).String(), c))
+		certificates = append(certificates, filepath.Join(android.PathForSource(ctx).String(), c))
 	}
 
 	a.outputFile = CreateAppPackage(ctx, aaptPackageFlags, a.outputFile, certificates)
-	ctx.InstallFileName(common.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
+	ctx.InstallFileName(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
 }
 
 var aaptIgnoreFilenames = []string{
@@ -167,7 +167,7 @@ var aaptIgnoreFilenames = []string{
 	"*~",
 }
 
-func (a *AndroidApp) aaptFlags(ctx common.AndroidModuleContext) ([]string, common.Paths, bool) {
+func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Paths, bool) {
 	aaptFlags := a.appProperties.Aaptflags
 	hasVersionCode := false
 	hasVersionName := false
@@ -183,10 +183,10 @@ func (a *AndroidApp) aaptFlags(ctx common.AndroidModuleContext) ([]string, commo
 		aaptFlags = append(aaptFlags, "-z")
 	}
 
-	assetDirs := common.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Asset_dirs, "assets")
-	resourceDirs := common.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Android_resource_dirs, "res")
+	assetDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Asset_dirs, "assets")
+	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Android_resource_dirs, "res")
 
-	var overlayResourceDirs common.Paths
+	var overlayResourceDirs android.Paths
 	// For every resource directory, check if there is an overlay directory with the same path.
 	// If found, it will be prepended to the list of resource directories.
 	for _, overlayDir := range ctx.AConfig().ResourceOverlays() {
@@ -204,7 +204,7 @@ func (a *AndroidApp) aaptFlags(ctx common.AndroidModuleContext) ([]string, commo
 
 	// aapt needs to rerun if any files are added or modified in the assets or resource directories,
 	// use glob to create a filelist.
-	var aaptDeps common.Paths
+	var aaptDeps android.Paths
 	var hasResources bool
 	for _, d := range resourceDirs {
 		newDeps := ctx.Glob("app_resources", filepath.Join(d.String(), "**/*"), aaptIgnoreFilenames)
@@ -225,20 +225,20 @@ func (a *AndroidApp) aaptFlags(ctx common.AndroidModuleContext) ([]string, commo
 		manifestFile = *a.properties.Manifest
 	}
 
-	manifestPath := common.PathForModuleSrc(ctx, manifestFile)
+	manifestPath := android.PathForModuleSrc(ctx, manifestFile)
 	aaptDeps = append(aaptDeps, manifestPath)
 
 	aaptFlags = append(aaptFlags, "-M "+manifestPath.String())
-	aaptFlags = append(aaptFlags, common.JoinWithPrefix(assetDirs.Strings(), "-A "))
-	aaptFlags = append(aaptFlags, common.JoinWithPrefix(resourceDirs.Strings(), "-S "))
+	aaptFlags = append(aaptFlags, android.JoinWithPrefix(assetDirs.Strings(), "-A "))
+	aaptFlags = append(aaptFlags, android.JoinWithPrefix(resourceDirs.Strings(), "-S "))
 
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
-		var depFile common.OptionalPath
+		var depFile android.OptionalPath
 		if sdkDep, ok := module.(sdkDependency); ok {
-			depFile = common.OptionalPathForPath(sdkDep.ClasspathFile())
+			depFile = android.OptionalPathForPath(sdkDep.ClasspathFile())
 		} else if javaDep, ok := module.(JavaDependency); ok {
 			if ctx.OtherModuleName(module) == "framework-res" {
-				depFile = common.OptionalPathForPath(javaDep.(*javaBase).module.(*AndroidApp).exportPackage)
+				depFile = android.OptionalPathForPath(javaDep.(*javaBase).module.(*AndroidApp).exportPackage)
 			}
 		}
 		if depFile.Valid() {
@@ -278,5 +278,5 @@ func AndroidAppFactory() (blueprint.Module, []interface{}) {
 
 	module.properties.Dex = true
 
-	return NewJavaBase(&module.javaBase, module, common.DeviceSupported, &module.appProperties)
+	return NewJavaBase(&module.javaBase, module, android.DeviceSupported, &module.appProperties)
 }

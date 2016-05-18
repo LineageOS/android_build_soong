@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -97,7 +97,7 @@ func init() {
 	})
 	pctx.StaticVariable("macToolchainRoot", "${macSdkPath}/Toolchains/XcodeDefault.xctoolchain")
 	pctx.VariableFunc("macSdkRoot", func(config interface{}) (string, error) {
-		return xcrunSdk(config.(common.Config), "--show-sdk-path")
+		return xcrunSdk(config.(android.Config), "--show-sdk-path")
 	})
 	pctx.StaticVariable("macSdkVersion", darwinSupportedSdkVersions[0])
 	pctx.VariableFunc("macArPath", func(config interface{}) (string, error) {
@@ -138,7 +138,7 @@ func init() {
 	pctx.StaticVariable("darwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
 }
 
-func xcrunSdk(config common.Config, arg string) (string, error) {
+func xcrunSdk(config android.Config, arg string) (string, error) {
 	if selected := config.Getenv("MAC_SDK_VERSION"); selected != "" {
 		if !inList(selected, darwinSupportedSdkVersions) {
 			return "", fmt.Errorf("MAC_SDK_VERSION %s isn't supported: %q", selected, darwinSupportedSdkVersions)
@@ -261,15 +261,15 @@ func (t *toolchainDarwin) SystemCppLdflags() string {
 var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}
 var toolchainDarwinX8664Singleton Toolchain = &toolchainDarwinX8664{}
 
-func darwinX86ToolchainFactory(arch common.Arch) Toolchain {
+func darwinX86ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainDarwinX86Singleton
 }
 
-func darwinX8664ToolchainFactory(arch common.Arch) Toolchain {
+func darwinX8664ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainDarwinX8664Singleton
 }
 
 func init() {
-	registerHostToolchainFactory(common.Darwin, common.X86, darwinX86ToolchainFactory)
-	registerHostToolchainFactory(common.Darwin, common.X86_64, darwinX8664ToolchainFactory)
+	registerHostToolchainFactory(android.Darwin, android.X86, darwinX86ToolchainFactory)
+	registerHostToolchainFactory(android.Darwin, android.X86_64, darwinX8664ToolchainFactory)
 }

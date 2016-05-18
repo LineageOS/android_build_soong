@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"bytes"
@@ -63,10 +63,10 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 
 	ctx.SetNinjaBuildDir(pctx, filepath.Join(config.buildDir, ".."))
 
-	var androidMkModulesList []AndroidModule
+	var androidMkModulesList []Module
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
-		if amod, ok := module.(AndroidModule); ok {
+		if amod, ok := module.(Module); ok {
 			androidMkModulesList = append(androidMkModulesList, amod)
 		}
 	})
@@ -90,7 +90,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 	})
 }
 
-func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []AndroidModule) error {
+func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []Module) error {
 	buf := &bytes.Buffer{}
 
 	fmt.Fprintln(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))")
@@ -134,7 +134,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		return nil
 	}
 
-	amod := mod.(AndroidModule).base()
+	amod := mod.(Module).base()
 	data, err := provider.AndroidMk()
 	if err != nil {
 		return err

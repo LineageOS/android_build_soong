@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -195,7 +195,7 @@ func (toolchainArm64) AddressSanitizerRuntimeLibrary() string {
 	return "libclang_rt.asan-aarch64-android.so"
 }
 
-func arm64ToolchainFactory(arch common.Arch) Toolchain {
+func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	if arch.ArchVariant != "armv8-a" {
 		panic(fmt.Sprintf("Unknown ARM architecture version: %q", arch.ArchVariant))
 	}
@@ -207,5 +207,5 @@ func arm64ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(common.Arm64, arm64ToolchainFactory)
+	registerDeviceToolchainFactory(android.Arm64, arm64ToolchainFactory)
 }

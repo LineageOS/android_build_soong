@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"fmt"
@@ -129,10 +129,10 @@ func (v *productVariables) SetDefaultConfig() {
 	}
 }
 
-func variableMutator(mctx AndroidBottomUpMutatorContext) {
-	var module AndroidModule
+func variableMutator(mctx BottomUpMutatorContext) {
+	var module Module
 	var ok bool
-	if module, ok = mctx.Module().(AndroidModule); !ok {
+	if module, ok = mctx.Module().(Module); !ok {
 		return
 	}
 
@@ -169,7 +169,7 @@ func variableMutator(mctx AndroidBottomUpMutatorContext) {
 	}
 }
 
-func (a *AndroidModuleBase) setVariableProperties(ctx AndroidBottomUpMutatorContext,
+func (a *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
 
 	printfIntoProperties(productVariablePropertyValue, variableValue)

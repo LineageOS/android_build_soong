@@ -19,7 +19,7 @@ package cc
 // functions.
 
 import (
-	"android/soong/common"
+	"android/soong/android"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	pctx = common.NewPackageContext("android/soong/cc")
+	pctx = android.NewPackageContext("android/soong/cc")
 
 	cc = pctx.StaticRule("cc",
 		blueprint.RuleParams{
@@ -170,10 +170,10 @@ type builderFlags struct {
 }
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
-func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFiles common.Paths,
-	flags builderFlags, deps common.Paths) (objFiles common.Paths) {
+func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles android.Paths,
+	flags builderFlags, deps android.Paths) (objFiles android.Paths) {
 
-	objFiles = make(common.Paths, len(srcFiles))
+	objFiles = make(android.Paths, len(srcFiles))
 
 	cflags := flags.globalFlags + " " + flags.cFlags + " " + flags.conlyFlags
 	cppflags := flags.globalFlags + " " + flags.cFlags + " " + flags.cppFlags
@@ -188,7 +188,7 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 	}
 
 	for i, srcFile := range srcFiles {
-		objFile := common.ObjPathWithExt(ctx, srcFile, subdir, "o")
+		objFile := android.ObjPathWithExt(ctx, srcFile, subdir, "o")
 
 		objFiles[i] = objFile
 
@@ -225,7 +225,7 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 			ccCmd = gccCmd(flags.toolchain, ccCmd)
 		}
 
-		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:      cc,
 			Output:    objFile,
 			Input:     srcFile,
@@ -241,13 +241,13 @@ func TransformSourceToObj(ctx common.AndroidModuleContext, subdir string, srcFil
 }
 
 // Generate a rule for compiling multiple .o files to a static library (.a)
-func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Paths,
-	flags builderFlags, outputFile common.ModuleOutPath) {
+func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
+	flags builderFlags, outputFile android.ModuleOutPath) {
 
 	arCmd := gccCmd(flags.toolchain, "ar")
 	arFlags := "crsPD"
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   ar,
 		Output: outputFile,
 		Inputs: objFiles,
@@ -262,21 +262,21 @@ func TransformObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Pa
 // darwin.  The darwin ar tool doesn't support @file for list files, and has a
 // very small command line length limit, so we have to split the ar into multiple
 // steps, each appending to the previous one.
-func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles common.Paths,
-	flags builderFlags, outputPath common.ModuleOutPath) {
+func TransformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
+	flags builderFlags, outputPath android.ModuleOutPath) {
 
 	arFlags := "cqs"
 
 	if len(objFiles) == 0 {
-		dummy := common.PathForModuleOut(ctx, "dummy" + objectExtension)
-		dummyAr := common.PathForModuleOut(ctx, "dummy" + staticLibraryExtension)
+		dummy := android.PathForModuleOut(ctx, "dummy"+objectExtension)
+		dummyAr := android.PathForModuleOut(ctx, "dummy"+staticLibraryExtension)
 
-		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:   emptyFile,
 			Output: dummy,
 		})
 
-		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:   darwinAr,
 			Output: dummyAr,
 			Input:  dummy,
@@ -285,7 +285,7 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 			},
 		})
 
-		ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:   darwinAppendAr,
 			Output: outputPath,
 			Input:  dummy,
@@ -325,9 +325,9 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 			})
 		} else {
 			ctx.Build(pctx, blueprint.BuildParams{
-				Rule:      darwinAppendAr,
-				Outputs:   []string{out},
-				Inputs:    l,
+				Rule:    darwinAppendAr,
+				Outputs: []string{out},
+				Inputs:  l,
 				Args: map[string]string{
 					"arFlags": arFlags,
 					"inAr":    in,
@@ -339,9 +339,9 @@ func TransformDarwinObjToStaticLib(ctx common.AndroidModuleContext, objFiles com
 
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
 // and shared libraires, to a shared library (.so) or dynamic executable
-func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
-	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps common.Paths,
-	crtBegin, crtEnd common.OptionalPath, groupLate bool, flags builderFlags, outputFile common.WritablePath) {
+func TransformObjToDynamicBinary(ctx android.ModuleContext,
+	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps android.Paths,
+	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags, outputFile android.WritablePath) {
 
 	var ldCmd string
 	if flags.clang {
@@ -359,7 +359,7 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 
 	if len(wholeStaticLibs) > 0 {
 		if ctx.Host() && ctx.Darwin() {
-			libFlagsList = append(libFlagsList, common.JoinWithPrefix(wholeStaticLibs.Strings(), "-force_load "))
+			libFlagsList = append(libFlagsList, android.JoinWithPrefix(wholeStaticLibs.Strings(), "-force_load "))
 		} else {
 			libFlagsList = append(libFlagsList, "-Wl,--whole-archive ")
 			libFlagsList = append(libFlagsList, wholeStaticLibs.Strings()...)
@@ -398,7 +398,7 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 		deps = append(deps, crtBegin.Path(), crtEnd.Path())
 	}
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      ld,
 		Output:    outputFile,
 		Inputs:    objFiles,
@@ -415,8 +415,8 @@ func TransformObjToDynamicBinary(ctx common.AndroidModuleContext,
 }
 
 // Generate a rule for compiling multiple .o files to a .o using ld partial linking
-func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles common.Paths,
-	flags builderFlags, outputFile common.WritablePath) {
+func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
+	flags builderFlags, outputFile android.WritablePath) {
 
 	var ldCmd string
 	if flags.clang {
@@ -425,7 +425,7 @@ func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles common.Paths,
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   partialLd,
 		Output: outputFile,
 		Inputs: objFiles,
@@ -437,12 +437,12 @@ func TransformObjsToObj(ctx common.AndroidModuleContext, objFiles common.Paths,
 }
 
 // Generate a rule for runing objcopy --prefix-symbols on a binary
-func TransformBinaryPrefixSymbols(ctx common.AndroidModuleContext, prefix string, inputFile common.Path,
-	flags builderFlags, outputFile common.WritablePath) {
+func TransformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inputFile android.Path,
+	flags builderFlags, outputFile android.WritablePath) {
 
 	objcopyCmd := gccCmd(flags.toolchain, "objcopy")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   prefixSymbols,
 		Output: outputFile,
 		Input:  inputFile,
@@ -453,8 +453,8 @@ func TransformBinaryPrefixSymbols(ctx common.AndroidModuleContext, prefix string
 	})
 }
 
-func TransformStrip(ctx common.AndroidModuleContext, inputFile common.Path,
-	outputFile common.WritablePath, flags builderFlags) {
+func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
+	outputFile android.WritablePath, flags builderFlags) {
 
 	crossCompile := gccCmd(flags.toolchain, "")
 	args := ""
@@ -468,7 +468,7 @@ func TransformStrip(ctx common.AndroidModuleContext, inputFile common.Path,
 		args += " --keep-symbols"
 	}
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   strip,
 		Output: outputFile,
 		Input:  inputFile,
@@ -479,20 +479,20 @@ func TransformStrip(ctx common.AndroidModuleContext, inputFile common.Path,
 	})
 }
 
-func TransformDarwinStrip(ctx common.AndroidModuleContext, inputFile common.Path,
-	outputFile common.WritablePath) {
+func TransformDarwinStrip(ctx android.ModuleContext, inputFile android.Path,
+	outputFile android.WritablePath) {
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   darwinStrip,
 		Output: outputFile,
 		Input:  inputFile,
 	})
 }
 
-func CopyGccLib(ctx common.AndroidModuleContext, libName string,
-	flags builderFlags, outputFile common.WritablePath) {
+func CopyGccLib(ctx android.ModuleContext, libName string,
+	flags builderFlags, outputFile android.WritablePath) {
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   copyGccLib,
 		Output: outputFile,
 		Args: map[string]string{
