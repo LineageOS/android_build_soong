@@ -85,6 +85,7 @@ type productVariables struct {
 	Brillo                     *bool `json:",omitempty"`
 	Malloc_not_svelte          *bool `json:",omitempty"`
 	Safestack                  *bool `json:",omitempty"`
+	HostStaticBinaries         *bool `json:",omitempty"`
 
 	SanitizeHost   *[]string `json:",omitempty"`
 	SanitizeDevice *[]string `json:",omitempty"`
