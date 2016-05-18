@@ -17,7 +17,7 @@ package cc
 import (
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -122,7 +122,7 @@ const (
 )
 
 func init() {
-	common.RegisterArchFeatures(common.Mips, "mips32r6",
+	android.RegisterArchFeatures(android.Mips, "mips32r6",
 		"rev6")
 
 	pctx.StaticVariable("mipsGccVersion", mipsGccVersion)
@@ -233,7 +233,7 @@ func (t *toolchainMips) ClangLdflags() string {
 	return "${mipsClangLdflags}"
 }
 
-func mipsToolchainFactory(arch common.Arch) Toolchain {
+func mipsToolchainFactory(arch android.Arch) Toolchain {
 	return &toolchainMips{
 		cflags:               "${mipsCflags}",
 		clangCflags:          "${mipsClangCflags}",
@@ -243,5 +243,5 @@ func mipsToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(common.Mips, mipsToolchainFactory)
+	registerDeviceToolchainFactory(android.Mips, mipsToolchainFactory)
 }

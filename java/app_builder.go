@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -79,16 +79,16 @@ func init() {
 	pctx.HostJavaToolVariable("signapkCmd", "signapk.jar")
 }
 
-func CreateResourceJavaFiles(ctx common.AndroidModuleContext, flags []string,
-	deps common.Paths) (common.Path, common.Path, common.Path) {
-	javaDir := common.PathForModuleGen(ctx, "R")
-	javaFileList := common.PathForModuleOut(ctx, "R.filelist")
-	publicResourcesFile := common.PathForModuleOut(ctx, "public_resources.xml")
-	proguardOptionsFile := common.PathForModuleOut(ctx, "proguard.options")
+func CreateResourceJavaFiles(ctx android.ModuleContext, flags []string,
+	deps android.Paths) (android.Path, android.Path, android.Path) {
+	javaDir := android.PathForModuleGen(ctx, "R")
+	javaFileList := android.PathForModuleOut(ctx, "R.filelist")
+	publicResourcesFile := android.PathForModuleOut(ctx, "public_resources.xml")
+	proguardOptionsFile := android.PathForModuleOut(ctx, "proguard.options")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      aaptCreateResourceJavaFile,
-		Outputs:   common.WritablePaths{publicResourcesFile, proguardOptionsFile, javaFileList},
+		Outputs:   android.WritablePaths{publicResourcesFile, proguardOptionsFile, javaFileList},
 		Implicits: deps,
 		Args: map[string]string{
 			"aaptFlags":           strings.Join(flags, " "),
@@ -102,10 +102,10 @@ func CreateResourceJavaFiles(ctx common.AndroidModuleContext, flags []string,
 	return publicResourcesFile, proguardOptionsFile, javaFileList
 }
 
-func CreateExportPackage(ctx common.AndroidModuleContext, flags []string, deps common.Paths) common.ModuleOutPath {
-	outputFile := common.PathForModuleOut(ctx, "package-export.apk")
+func CreateExportPackage(ctx android.ModuleContext, flags []string, deps android.Paths) android.ModuleOutPath {
+	outputFile := android.PathForModuleOut(ctx, "package-export.apk")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      aaptCreateAssetsPackage,
 		Output:    outputFile,
 		Implicits: deps,
@@ -117,12 +117,12 @@ func CreateExportPackage(ctx common.AndroidModuleContext, flags []string, deps c
 	return outputFile
 }
 
-func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile common.Path,
-	certificates []string) common.Path {
+func CreateAppPackage(ctx android.ModuleContext, flags []string, jarFile android.Path,
+	certificates []string) android.Path {
 
-	resourceApk := common.PathForModuleOut(ctx, "resources.apk")
+	resourceApk := android.PathForModuleOut(ctx, "resources.apk")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   aaptAddResources,
 		Output: resourceApk,
 		Input:  jarFile,
@@ -131,14 +131,14 @@ func CreateAppPackage(ctx common.AndroidModuleContext, flags []string, jarFile c
 		},
 	})
 
-	outputFile := common.PathForModuleOut(ctx, "package.apk")
+	outputFile := android.PathForModuleOut(ctx, "package.apk")
 
 	var certificateArgs []string
 	for _, c := range certificates {
 		certificateArgs = append(certificateArgs, c+".x509.pem", c+".pk8")
 	}
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   signapk,
 		Output: outputFile,
 		Input:  resourceApk,

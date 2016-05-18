@@ -15,7 +15,7 @@
 package cc
 
 import (
-	"android/soong/common"
+	"android/soong/android"
 	"fmt"
 )
 
@@ -52,7 +52,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", stl.Properties.Stl)
 				return ""
 			}
-		} else if ctx.HostType() == common.Windows {
+		} else if ctx.HostType() == android.Windows {
 			switch stl.Properties.Stl {
 			case "libc++", "libc++_static", "libstdc++", "":
 				// libc++ is not supported on mingw
@@ -97,7 +97,7 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 			deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
 		}
 		if ctx.Device() {
-			if ctx.Arch().ArchType == common.Arm {
+			if ctx.Arch().ArchType == android.Arm {
 				deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
 			}
 			if ctx.staticBinary() {
@@ -138,7 +138,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.HostType()]...)
 			}
 		} else {
-			if ctx.Arch().ArchType == common.Arm {
+			if ctx.Arch().ArchType == android.Arm {
 				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
 			}
 		}
@@ -147,14 +147,14 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 		// tree is in good enough shape to not need it.
 		// Host builds will use GNU libstdc++.
 		if ctx.Device() {
-			flags.CFlags = append(flags.CFlags, "-I"+common.PathForSource(ctx, "bionic/libstdc++/include").String())
+			flags.CFlags = append(flags.CFlags, "-I"+android.PathForSource(ctx, "bionic/libstdc++/include").String())
 		} else {
 			// Host builds will use the system C++. libc++ on Darwin, GNU libstdc++ everywhere else
 			flags.CppFlags = append(flags.CppFlags, flags.Toolchain.SystemCppCppflags())
 			flags.LdFlags = append(flags.LdFlags, flags.Toolchain.SystemCppLdflags())
 		}
 	case "ndk_system":
-		ndkSrcRoot := common.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
+		ndkSrcRoot := android.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
 		flags.CFlags = append(flags.CFlags, "-isystem "+ndkSrcRoot.String())
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		// TODO(danalbert): This really shouldn't be here...
@@ -179,20 +179,20 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-var hostDynamicGccLibs, hostStaticGccLibs map[common.HostType][]string
+var hostDynamicGccLibs, hostStaticGccLibs map[android.HostType][]string
 
 func init() {
-	hostDynamicGccLibs = map[common.HostType][]string{
-		common.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
-		common.Darwin: []string{"-lc", "-lSystem"},
-		common.Windows: []string{"-lmsvcr110", "-lmingw32", "-lgcc", "-lmoldname",
+	hostDynamicGccLibs = map[android.HostType][]string{
+		android.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
+		android.Darwin: []string{"-lc", "-lSystem"},
+		android.Windows: []string{"-lmsvcr110", "-lmingw32", "-lgcc", "-lmoldname",
 			"-lmingwex", "-lmsvcrt", "-ladvapi32", "-lshell32", "-luser32",
 			"-lkernel32", "-lmingw32", "-lgcc", "-lmoldname", "-lmingwex",
 			"-lmsvcrt"},
 	}
-	hostStaticGccLibs = map[common.HostType][]string{
-		common.Linux:   []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"},
-		common.Darwin:  []string{"NO_STATIC_HOST_BINARIES_ON_DARWIN"},
-		common.Windows: []string{"NO_STATIC_HOST_BINARIES_ON_WINDOWS"},
+	hostStaticGccLibs = map[android.HostType][]string{
+		android.Linux:   []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"},
+		android.Darwin:  []string{"NO_STATIC_HOST_BINARIES_ON_DARWIN"},
+		android.Windows: []string{"NO_STATIC_HOST_BINARIES_ON_WINDOWS"},
 	}
 }

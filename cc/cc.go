@@ -27,7 +27,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong"
-	"android/soong/common"
+	"android/soong/android"
 	"android/soong/genrule"
 )
 
@@ -56,19 +56,19 @@ func init() {
 	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
 	// the Go initialization order because this package depends on common, so common's init
 	// functions will run first.
-	common.RegisterBottomUpMutator("link", linkageMutator)
-	common.RegisterBottomUpMutator("test_per_src", testPerSrcMutator)
-	common.RegisterBottomUpMutator("deps", depsMutator)
+	android.RegisterBottomUpMutator("link", linkageMutator)
+	android.RegisterBottomUpMutator("test_per_src", testPerSrcMutator)
+	android.RegisterBottomUpMutator("deps", depsMutator)
 
-	common.RegisterTopDownMutator("asan_deps", sanitizerDepsMutator(asan))
-	common.RegisterBottomUpMutator("asan", sanitizerMutator(asan))
+	android.RegisterTopDownMutator("asan_deps", sanitizerDepsMutator(asan))
+	android.RegisterBottomUpMutator("asan", sanitizerMutator(asan))
 
-	common.RegisterTopDownMutator("tsan_deps", sanitizerDepsMutator(tsan))
-	common.RegisterBottomUpMutator("tsan", sanitizerMutator(tsan))
+	android.RegisterTopDownMutator("tsan_deps", sanitizerDepsMutator(tsan))
+	android.RegisterBottomUpMutator("tsan", sanitizerMutator(tsan))
 }
 
 var (
-	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", common.Config.PrebuiltOS)
+	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
 
 	LibcRoot = pctx.SourcePathVariable("LibcRoot", "bionic/libc")
 )
@@ -118,7 +118,7 @@ var (
 )
 
 func init() {
-	if common.CurrentHostType() == common.Linux {
+	if android.CurrentHostType() == android.Linux {
 		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
 	}
 
@@ -163,13 +163,13 @@ func init() {
 
 	pctx.SourcePathVariable("clangDefaultBase", "prebuilts/clang/host")
 	pctx.VariableFunc("clangBase", func(config interface{}) (string, error) {
-		if override := config.(common.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
+		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
 			return override, nil
 		}
 		return "${clangDefaultBase}", nil
 	})
 	pctx.VariableFunc("clangVersion", func(config interface{}) (string, error) {
-		if override := config.(common.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
+		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
 		return "clang-2812033", nil
@@ -193,18 +193,18 @@ type Deps struct {
 }
 
 type PathDeps struct {
-	SharedLibs, LateSharedLibs                  common.Paths
-	StaticLibs, LateStaticLibs, WholeStaticLibs common.Paths
+	SharedLibs, LateSharedLibs                  android.Paths
+	StaticLibs, LateStaticLibs, WholeStaticLibs android.Paths
 
-	ObjFiles               common.Paths
-	WholeStaticLibObjFiles common.Paths
+	ObjFiles               android.Paths
+	WholeStaticLibObjFiles android.Paths
 
-	GeneratedSources common.Paths
-	GeneratedHeaders common.Paths
+	GeneratedSources android.Paths
+	GeneratedHeaders android.Paths
 
 	Cflags, ReexportedCflags []string
 
-	CrtBegin, CrtEnd common.OptionalPath
+	CrtBegin, CrtEnd android.OptionalPath
 }
 
 type Flags struct {
@@ -224,7 +224,7 @@ type Flags struct {
 	RequiredInstructionSet string
 	DynamicLinker          string
 
-	CFlagsDeps common.Paths // Files depended on by compiler flags
+	CFlagsDeps android.Paths // Files depended on by compiler flags
 }
 
 type BaseCompilerProperties struct {
@@ -460,12 +460,12 @@ type ModuleContextIntf interface {
 }
 
 type ModuleContext interface {
-	common.AndroidModuleContext
+	android.ModuleContext
 	ModuleContextIntf
 }
 
 type BaseModuleContext interface {
-	common.AndroidBaseContext
+	android.BaseContext
 	ModuleContextIntf
 }
 
@@ -483,18 +483,18 @@ type feature interface {
 
 type compiler interface {
 	feature
-	compile(ctx ModuleContext, flags Flags, deps PathDeps) common.Paths
+	compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths
 }
 
 type linker interface {
 	feature
-	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles common.Paths) common.Path
+	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles android.Paths) android.Path
 	installable() bool
 }
 
 type installer interface {
 	props() []interface{}
-	install(ctx ModuleContext, path common.Path)
+	install(ctx ModuleContext, path android.Path)
 	inData() bool
 }
 
@@ -522,15 +522,15 @@ var (
 // the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
 // to construct the output file.  Behavior can be customized with a Customizer interface
 type Module struct {
-	common.AndroidModuleBase
-	common.DefaultableModule
+	android.ModuleBase
+	android.DefaultableModule
 
 	Properties BaseProperties
 	unused     UnusedProperties
 
 	// initialize before calling Init
-	hod      common.HostOrDeviceSupported
-	multilib common.Multilib
+	hod      android.HostOrDeviceSupported
+	multilib android.Multilib
 
 	// delegates, initialize before calling Init
 	customizer Customizer
@@ -543,7 +543,7 @@ type Module struct {
 
 	androidMkSharedLibDeps []string
 
-	outputFile common.OptionalPath
+	outputFile android.OptionalPath
 
 	cachedToolchain Toolchain
 }
@@ -572,18 +572,18 @@ func (c *Module) Init() (blueprint.Module, []interface{}) {
 		props = append(props, feature.props()...)
 	}
 
-	_, props = common.InitAndroidArchModule(c, c.hod, c.multilib, props...)
+	_, props = android.InitAndroidArchModule(c, c.hod, c.multilib, props...)
 
-	return common.InitDefaultableModule(c, c, props...)
+	return android.InitDefaultableModule(c, c, props...)
 }
 
 type baseModuleContext struct {
-	common.AndroidBaseContext
+	android.BaseContext
 	moduleContextImpl
 }
 
 type moduleContext struct {
-	common.AndroidModuleContext
+	android.ModuleContext
 	moduleContextImpl
 }
 
@@ -645,23 +645,23 @@ func (ctx *moduleContextImpl) selectedStl() string {
 	return ""
 }
 
-func newBaseModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *Module {
+func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	return &Module{
 		hod:      hod,
 		multilib: multilib,
 	}
 }
 
-func newModule(hod common.HostOrDeviceSupported, multilib common.Multilib) *Module {
+func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	module := newBaseModule(hod, multilib)
 	module.stl = &stl{}
 	module.sanitize = &sanitize{}
 	return module
 }
 
-func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
+func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	ctx := &moduleContext{
-		AndroidModuleContext: actx,
+		ModuleContext: actx,
 		moduleContextImpl: moduleContextImpl{
 			mod: c,
 		},
@@ -711,7 +711,7 @@ func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
 
 	flags.CFlags = append(flags.CFlags, deps.Cflags...)
 
-	var objFiles common.Paths
+	var objFiles android.Paths
 	if c.compiler != nil {
 		objFiles = c.compiler.compile(ctx, flags, deps)
 		if ctx.Failed() {
@@ -724,7 +724,7 @@ func (c *Module) GenerateAndroidBuildActions(actx common.AndroidModuleContext) {
 		if ctx.Failed() {
 			return
 		}
-		c.outputFile = common.OptionalPathForPath(outputFile)
+		c.outputFile = android.OptionalPathForPath(outputFile)
 
 		if c.installer != nil && c.linker.installable() {
 			c.installer.install(ctx, outputFile)
@@ -796,9 +796,9 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	return deps
 }
 
-func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
+func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 	ctx := &baseModuleContext{
-		AndroidBaseContext: actx,
+		BaseContext: actx,
 		moduleContextImpl: moduleContextImpl{
 			mod: c,
 		},
@@ -843,7 +843,7 @@ func (c *Module) depsMutator(actx common.AndroidBottomUpMutatorContext) {
 	}
 }
 
-func depsMutator(ctx common.AndroidBottomUpMutatorContext) {
+func depsMutator(ctx android.BottomUpMutatorContext) {
 	if c, ok := ctx.Module().(*Module); ok {
 		c.depsMutator(ctx)
 	}
@@ -870,14 +870,14 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 }
 
 // Convert dependencies to paths.  Returns a PathDeps containing paths
-func (c *Module) depsToPaths(ctx common.AndroidModuleContext) PathDeps {
+func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
 	ctx.VisitDirectDeps(func(m blueprint.Module) {
 		name := ctx.OtherModuleName(m)
 		tag := ctx.OtherModuleDependencyTag(m)
 
-		a, _ := m.(common.AndroidModule)
+		a, _ := m.(android.Module)
 		if a == nil {
 			ctx.ModuleErrorf("module %q not an android module", name)
 			return
@@ -886,7 +886,7 @@ func (c *Module) depsToPaths(ctx common.AndroidModuleContext) PathDeps {
 		c, _ := m.(*Module)
 		if c == nil {
 			switch tag {
-			case common.DefaultsDepTag:
+			case android.DefaultsDepTag:
 			case genSourceDepTag:
 				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedSources = append(depPaths.GeneratedSources,
@@ -899,7 +899,7 @@ func (c *Module) depsToPaths(ctx common.AndroidModuleContext) PathDeps {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
 						genRule.GeneratedSourceFiles()...)
 					depPaths.Cflags = append(depPaths.Cflags,
-						includeDirsToFlags(common.Paths{genRule.GeneratedHeaderDir()}))
+						includeDirsToFlags(android.Paths{genRule.GeneratedHeaderDir()}))
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", name)
 				}
@@ -938,7 +938,7 @@ func (c *Module) depsToPaths(ctx common.AndroidModuleContext) PathDeps {
 			}
 		}
 
-		var depPtr *common.Paths
+		var depPtr *android.Paths
 
 		switch tag {
 		case sharedDepTag:
@@ -1039,14 +1039,14 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	flags.YaccFlags = append(flags.YaccFlags, compiler.Properties.Yaccflags...)
 
 	// Include dir cflags
-	rootIncludeDirs := common.PathsForSource(ctx, compiler.Properties.Include_dirs)
-	localIncludeDirs := common.PathsForModuleSrc(ctx, compiler.Properties.Local_include_dirs)
+	rootIncludeDirs := android.PathsForSource(ctx, compiler.Properties.Include_dirs)
+	localIncludeDirs := android.PathsForModuleSrc(ctx, compiler.Properties.Local_include_dirs)
 	flags.GlobalFlags = append(flags.GlobalFlags,
 		includeDirsToFlags(localIncludeDirs),
 		includeDirsToFlags(rootIncludeDirs))
 
-	rootIncludeFiles := common.PathsForSource(ctx, compiler.Properties.Include_files)
-	localIncludeFiles := common.PathsForModuleSrc(ctx, compiler.Properties.Local_include_files)
+	rootIncludeFiles := android.PathsForSource(ctx, compiler.Properties.Include_files)
+	localIncludeFiles := android.PathsForModuleSrc(ctx, compiler.Properties.Local_include_files)
 
 	flags.GlobalFlags = append(flags.GlobalFlags,
 		includeFilesToFlags(rootIncludeFiles),
@@ -1061,9 +1061,9 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 
 		flags.GlobalFlags = append(flags.GlobalFlags, []string{
-			"-I" + common.PathForModuleSrc(ctx).String(),
-			"-I" + common.PathForModuleOut(ctx).String(),
-			"-I" + common.PathForModuleGen(ctx).String(),
+			"-I" + android.PathForModuleSrc(ctx).String(),
+			"-I" + android.PathForModuleOut(ctx).String(),
+			"-I" + android.PathForModuleGen(ctx).String(),
 		}...)
 	}
 
@@ -1164,7 +1164,7 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	// vendor/device specific things), we could extend this to be a ternary
 	// value.
 	strict := true
-	if strings.HasPrefix(common.PathForModuleSrc(ctx).String(), "external/") {
+	if strings.HasPrefix(android.PathForModuleSrc(ctx).String(), "external/") {
 		strict = false
 	}
 
@@ -1177,7 +1177,7 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) common.Paths {
+func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
 	// Compile files listed in c.Properties.Srcs into objects
 	objFiles := compiler.compileObjs(ctx, flags, "",
 		compiler.Properties.Srcs, compiler.Properties.Exclude_srcs,
@@ -1191,8 +1191,8 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 }
 
 // Compile a list of source files into objects a specified subdirectory
-func (compiler *baseCompiler) compileObjs(ctx common.AndroidModuleContext, flags Flags,
-	subdir string, srcFiles, excludes []string, extraSrcs, deps common.Paths) common.Paths {
+func (compiler *baseCompiler) compileObjs(ctx android.ModuleContext, flags Flags,
+	subdir string, srcFiles, excludes []string, extraSrcs, deps android.Paths) android.Paths {
 
 	buildFlags := flagsToBuilderFlags(flags)
 
@@ -1349,7 +1349,7 @@ type baseInstaller struct {
 	dir64 string
 	data  bool
 
-	path common.OutputPath
+	path android.OutputPath
 }
 
 var _ installer = (*baseInstaller)(nil)
@@ -1358,12 +1358,12 @@ func (installer *baseInstaller) props() []interface{} {
 	return []interface{}{&installer.Properties}
 }
 
-func (installer *baseInstaller) install(ctx ModuleContext, file common.Path) {
+func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 	subDir := installer.dir
 	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
 		subDir = installer.dir64
 	}
-	dir := common.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path)
+	dir := android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path)
 	installer.path = ctx.InstallFile(dir, file)
 }
 
@@ -1382,8 +1382,8 @@ type flagExporter struct {
 }
 
 func (f *flagExporter) exportIncludes(ctx ModuleContext, inc string) {
-	includeDirs := common.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
-	f.flags = append(f.flags, common.JoinWithPrefix(includeDirs.Strings(), inc))
+	includeDirs := android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
+	f.flags = append(f.flags, android.JoinWithPrefix(includeDirs.Strings(), inc))
 }
 
 func (f *flagExporter) reexportFlags(flags []string) {
@@ -1407,7 +1407,7 @@ type libraryCompiler struct {
 	Properties LibraryCompilerProperties
 
 	// For reusing static library objects for shared library
-	reuseObjFiles common.Paths
+	reuseObjFiles android.Paths
 }
 
 var _ compiler = (*libraryCompiler)(nil)
@@ -1423,7 +1423,7 @@ func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
-	if ctx.HostType() != common.Windows {
+	if ctx.HostType() != android.Windows {
 		flags.CFlags = append(flags.CFlags, "-fPIC")
 	}
 
@@ -1436,18 +1436,18 @@ func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) common.Paths {
-	var objFiles common.Paths
+func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
+	var objFiles android.Paths
 
 	objFiles = library.baseCompiler.compile(ctx, flags, deps)
 	library.reuseObjFiles = objFiles
 
 	if library.linker.static() {
-		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceStaticLibrary,
+		objFiles = append(objFiles, library.compileObjs(ctx, flags, android.DeviceStaticLibrary,
 			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs,
 			nil, deps.GeneratedHeaders)...)
 	} else {
-		objFiles = append(objFiles, library.compileObjs(ctx, flags, common.DeviceSharedLibrary,
+		objFiles = append(objFiles, library.compileObjs(ctx, flags, android.DeviceSharedLibrary,
 			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs,
 			nil, deps.GeneratedHeaders)...)
 	}
@@ -1472,7 +1472,7 @@ type libraryLinker struct {
 	wholeStaticMissingDeps []string
 
 	// For whole_static_libs
-	objFiles common.Paths
+	objFiles android.Paths
 }
 
 var _ linker = (*libraryLinker)(nil)
@@ -1549,12 +1549,12 @@ func (library *libraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func (library *libraryLinker) linkStatic(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
-	library.objFiles = append(common.Paths{}, deps.WholeStaticLibObjFiles...)
+	library.objFiles = append(android.Paths{}, deps.WholeStaticLibObjFiles...)
 	library.objFiles = append(library.objFiles, objFiles...)
 
-	outputFile := common.PathForModuleOut(ctx,
+	outputFile := android.PathForModuleOut(ctx,
 		ctx.ModuleName()+library.Properties.VariantName+staticLibraryExtension)
 
 	if ctx.Darwin() {
@@ -1571,14 +1571,14 @@ func (library *libraryLinker) linkStatic(ctx ModuleContext,
 }
 
 func (library *libraryLinker) linkShared(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
-	var linkerDeps common.Paths
+	var linkerDeps android.Paths
 
-	versionScript := common.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
-	unexportedSymbols := common.OptionalPathForModuleSrc(ctx, library.Properties.Unexported_symbols_list)
-	forceNotWeakSymbols := common.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_not_weak_list)
-	forceWeakSymbols := common.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_weak_list)
+	versionScript := android.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
+	unexportedSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Unexported_symbols_list)
+	forceNotWeakSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_not_weak_list)
+	forceWeakSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_weak_list)
 	if !ctx.Darwin() {
 		if versionScript.Valid() {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
@@ -1612,14 +1612,14 @@ func (library *libraryLinker) linkShared(ctx ModuleContext,
 	}
 
 	fileName := ctx.ModuleName() + library.Properties.VariantName + flags.Toolchain.ShlibSuffix()
-	outputFile := common.PathForModuleOut(ctx, fileName)
+	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
 
 	builderFlags := flagsToBuilderFlags(flags)
 
 	if library.stripper.needsStrip(ctx) {
 		strippedOutputFile := outputFile
-		outputFile = common.PathForModuleOut(ctx, "unstripped", fileName)
+		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
 
@@ -1634,11 +1634,11 @@ func (library *libraryLinker) linkShared(ctx ModuleContext,
 }
 
 func (library *libraryLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	objFiles = append(objFiles, deps.ObjFiles...)
 
-	var out common.Path
+	var out android.Path
 	if library.static() {
 		out = library.linkStatic(ctx, flags, deps, objFiles)
 	} else {
@@ -1678,7 +1678,7 @@ type libraryInstaller struct {
 	sanitize *sanitize
 }
 
-func (library *libraryInstaller) install(ctx ModuleContext, file common.Path) {
+func (library *libraryInstaller) install(ctx ModuleContext, file android.Path) {
 	if !library.linker.static() {
 		library.baseInstaller.install(ctx, file)
 	}
@@ -1688,8 +1688,8 @@ func (library *libraryInstaller) inData() bool {
 	return library.baseInstaller.inData() || library.sanitize.inData()
 }
 
-func NewLibrary(hod common.HostOrDeviceSupported, shared, static bool) *Module {
-	module := newModule(hod, common.MultilibBoth)
+func NewLibrary(hod android.HostOrDeviceSupported, shared, static bool) *Module {
+	module := newModule(hod, android.MultilibBoth)
 
 	linker := &libraryLinker{}
 	linker.dynamicProperties.BuildShared = shared
@@ -1712,7 +1712,7 @@ func NewLibrary(hod common.HostOrDeviceSupported, shared, static bool) *Module {
 }
 
 func libraryFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(common.HostAndDeviceSupported, true, true)
+	module := NewLibrary(android.HostAndDeviceSupported, true, true)
 	return module.Init()
 }
 
@@ -1725,7 +1725,7 @@ type objectLinker struct {
 }
 
 func objectFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.compiler = &baseCompiler{}
 	module.linker = &objectLinker{}
 	return module.Init()
@@ -1753,15 +1753,15 @@ func (*objectLinker) flags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (object *objectLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	objFiles = append(objFiles, deps.ObjFiles...)
 
-	var outputFile common.Path
+	var outputFile android.Path
 	if len(objFiles) == 1 {
 		outputFile = objFiles[0]
 	} else {
-		output := common.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
+		output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
 		TransformObjsToObj(ctx, objFiles, flagsToBuilderFlags(flags), output)
 		outputFile = output
 	}
@@ -1784,7 +1784,7 @@ type binaryLinker struct {
 
 	Properties BinaryLinkerProperties
 
-	hostToolPath common.OptionalPath
+	hostToolPath android.OptionalPath
 }
 
 var _ linker = (*binaryLinker)(nil)
@@ -1861,8 +1861,8 @@ func (binary *binaryLinker) isDependencyRoot() bool {
 	return true
 }
 
-func NewBinary(hod common.HostOrDeviceSupported) *Module {
-	module := newModule(hod, common.MultilibFirst)
+func NewBinary(hod android.HostOrDeviceSupported) *Module {
+	module := newModule(hod, android.MultilibFirst)
 	module.compiler = &baseCompiler{}
 	module.linker = &binaryLinker{}
 	module.installer = &baseInstaller{
@@ -1872,7 +1872,7 @@ func NewBinary(hod common.HostOrDeviceSupported) *Module {
 }
 
 func binaryFactory() (blueprint.Module, []interface{}) {
-	module := NewBinary(common.HostAndDeviceSupported)
+	module := NewBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
@@ -1881,7 +1881,7 @@ func (binary *binaryLinker) begin(ctx BaseModuleContext) {
 
 	static := Bool(binary.Properties.Static_executable)
 	if ctx.Host() {
-		if ctx.HostType() == common.Linux {
+		if ctx.HostType() == android.Linux {
 			if binary.Properties.Static_executable == nil && Bool(ctx.AConfig().ProductVariables.HostStaticBinaries) {
 				static = true
 			}
@@ -1901,7 +1901,7 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if ctx.Host() && !binary.staticBinary() {
 		flags.LdFlags = append(flags.LdFlags, "-pie")
-		if ctx.HostType() == common.Windows {
+		if ctx.HostType() == android.Windows {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
 		}
 	}
@@ -1909,7 +1909,7 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
-	if ctx.HostType() != common.Windows {
+	if ctx.HostType() != android.Windows {
 		flags.CFlags = append(flags.CFlags, "-fpie")
 	}
 
@@ -1958,16 +1958,16 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (binary *binaryLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
-	outputFile := common.PathForModuleOut(ctx, fileName)
+	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
 	if ctx.HostOrDevice().Host() {
-		binary.hostToolPath = common.OptionalPathForPath(outputFile)
+		binary.hostToolPath = android.OptionalPathForPath(outputFile)
 	}
 
-	var linkerDeps common.Paths
+	var linkerDeps android.Paths
 
 	sharedLibs := deps.SharedLibs
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
@@ -1980,13 +1980,13 @@ func (binary *binaryLinker) link(ctx ModuleContext,
 
 	if binary.stripper.needsStrip(ctx) {
 		strippedOutputFile := outputFile
-		outputFile = common.PathForModuleOut(ctx, "unstripped", fileName)
+		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		binary.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
 
 	if binary.Properties.Prefix_symbols != "" {
 		afterPrefixSymbols := outputFile
-		outputFile = common.PathForModuleOut(ctx, "unprefixed", fileName)
+		outputFile = android.PathForModuleOut(ctx, "unprefixed", fileName)
 		TransformBinaryPrefixSymbols(ctx, binary.Properties.Prefix_symbols, outputFile,
 			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
@@ -1998,7 +1998,7 @@ func (binary *binaryLinker) link(ctx ModuleContext,
 	return ret
 }
 
-func (binary *binaryLinker) HostToolPath() common.OptionalPath {
+func (binary *binaryLinker) HostToolPath() android.OptionalPath {
 	return binary.hostToolPath
 }
 
@@ -2010,7 +2010,7 @@ func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
 	return !ctx.AConfig().EmbeddedInMake() && !stripper.StripProperties.Strip.None
 }
 
-func (stripper *stripper) strip(ctx ModuleContext, in, out common.ModuleOutPath,
+func (stripper *stripper) strip(ctx ModuleContext, in, out android.ModuleOutPath,
 	flags builderFlags) {
 	if ctx.Darwin() {
 		TransformDarwinStrip(ctx, in, out)
@@ -2022,7 +2022,7 @@ func (stripper *stripper) strip(ctx ModuleContext, in, out common.ModuleOutPath,
 	}
 }
 
-func testPerSrcMutator(mctx common.AndroidBottomUpMutatorContext) {
+func testPerSrcMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
 		if test, ok := m.linker.(*testLinker); ok {
 			if Bool(test.Properties.Test_per_src) {
@@ -2071,12 +2071,12 @@ func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, "-O0", "-g")
 
 		switch ctx.HostType() {
-		case common.Windows:
+		case android.Windows:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_WINDOWS")
-		case common.Linux:
+		case android.Linux:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX")
 			flags.LdFlags = append(flags.LdFlags, "-lpthread")
-		case common.Darwin:
+		case android.Darwin:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_MAC")
 			flags.LdFlags = append(flags.LdFlags, "-lpthread")
 		}
@@ -2110,14 +2110,14 @@ type testInstaller struct {
 	baseInstaller
 }
 
-func (installer *testInstaller) install(ctx ModuleContext, file common.Path) {
+func (installer *testInstaller) install(ctx ModuleContext, file android.Path) {
 	installer.dir = filepath.Join(installer.dir, ctx.ModuleName())
 	installer.dir64 = filepath.Join(installer.dir64, ctx.ModuleName())
 	installer.baseInstaller.install(ctx, file)
 }
 
-func NewTest(hod common.HostOrDeviceSupported) *Module {
-	module := newModule(hod, common.MultilibBoth)
+func NewTest(hod android.HostOrDeviceSupported) *Module {
+	module := newModule(hod, android.MultilibBoth)
 	module.compiler = &baseCompiler{}
 	linker := &testLinker{}
 	linker.Properties.Gtest = true
@@ -2133,7 +2133,7 @@ func NewTest(hod common.HostOrDeviceSupported) *Module {
 }
 
 func testFactory() (blueprint.Module, []interface{}) {
-	module := NewTest(common.HostAndDeviceSupported)
+	module := NewTest(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
@@ -2147,8 +2147,8 @@ func (benchmark *benchmarkLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-func NewBenchmark(hod common.HostOrDeviceSupported) *Module {
-	module := newModule(hod, common.MultilibFirst)
+func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
+	module := newModule(hod, android.MultilibFirst)
 	module.compiler = &baseCompiler{}
 	module.linker = &benchmarkLinker{}
 	module.installer = &baseInstaller{
@@ -2160,7 +2160,7 @@ func NewBenchmark(hod common.HostOrDeviceSupported) *Module {
 }
 
 func benchmarkFactory() (blueprint.Module, []interface{}) {
-	module := NewBenchmark(common.HostAndDeviceSupported)
+	module := NewBenchmark(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
@@ -2169,7 +2169,7 @@ func benchmarkFactory() (blueprint.Module, []interface{}) {
 //
 
 func libraryStaticFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(common.HostAndDeviceSupported, false, true)
+	module := NewLibrary(android.HostAndDeviceSupported, false, true)
 	return module.Init()
 }
 
@@ -2178,7 +2178,7 @@ func libraryStaticFactory() (blueprint.Module, []interface{}) {
 //
 
 func librarySharedFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(common.HostAndDeviceSupported, true, false)
+	module := NewLibrary(android.HostAndDeviceSupported, true, false)
 	return module.Init()
 }
 
@@ -2187,7 +2187,7 @@ func librarySharedFactory() (blueprint.Module, []interface{}) {
 //
 
 func libraryHostStaticFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(common.HostSupported, false, true)
+	module := NewLibrary(android.HostSupported, false, true)
 	return module.Init()
 }
 
@@ -2196,7 +2196,7 @@ func libraryHostStaticFactory() (blueprint.Module, []interface{}) {
 //
 
 func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(common.HostSupported, true, false)
+	module := NewLibrary(android.HostSupported, true, false)
 	return module.Init()
 }
 
@@ -2205,7 +2205,7 @@ func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
 //
 
 func binaryHostFactory() (blueprint.Module, []interface{}) {
-	module := NewBinary(common.HostSupported)
+	module := NewBinary(android.HostSupported)
 	return module.Init()
 }
 
@@ -2214,7 +2214,7 @@ func binaryHostFactory() (blueprint.Module, []interface{}) {
 //
 
 func testHostFactory() (blueprint.Module, []interface{}) {
-	module := NewTest(common.HostSupported)
+	module := NewTest(android.HostSupported)
 	return module.Init()
 }
 
@@ -2223,7 +2223,7 @@ func testHostFactory() (blueprint.Module, []interface{}) {
 //
 
 func benchmarkHostFactory() (blueprint.Module, []interface{}) {
-	module := NewBenchmark(common.HostSupported)
+	module := NewBenchmark(android.HostSupported)
 	return module.Init()
 }
 
@@ -2231,11 +2231,11 @@ func benchmarkHostFactory() (blueprint.Module, []interface{}) {
 // Defaults
 //
 type Defaults struct {
-	common.AndroidModuleBase
-	common.DefaultsModule
+	android.ModuleBase
+	android.DefaultsModule
 }
 
-func (*Defaults) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
+func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func defaultsFactory() (blueprint.Module, []interface{}) {
@@ -2256,10 +2256,10 @@ func defaultsFactory() (blueprint.Module, []interface{}) {
 		&StripProperties{},
 	}
 
-	_, propertyStructs = common.InitAndroidArchModule(module, common.HostAndDeviceDefault,
-		common.MultilibDefault, propertyStructs...)
+	_, propertyStructs = android.InitAndroidArchModule(module, android.HostAndDeviceDefault,
+		android.MultilibDefault, propertyStructs...)
 
-	return common.InitDefaultsModule(module, module, propertyStructs...)
+	return android.InitDefaultsModule(module, module, propertyStructs...)
 }
 
 //
@@ -2286,7 +2286,7 @@ func (*toolchainLibraryLinker) buildShared() bool {
 }
 
 func toolchainLibraryFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.compiler = &baseCompiler{}
 	module.linker = &toolchainLibraryLinker{}
 	module.Properties.Clang = proptools.BoolPtr(false)
@@ -2294,10 +2294,10 @@ func toolchainLibraryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (library *toolchainLibraryLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles common.Paths) common.Path {
+	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	libName := ctx.ModuleName() + staticLibraryExtension
-	outputFile := common.PathForModuleOut(ctx, libName)
+	outputFile := android.PathForModuleOut(ctx, libName)
 
 	if flags.Clang {
 		ctx.ModuleErrorf("toolchain_library must use GCC, not Clang")
@@ -2320,19 +2320,19 @@ func (*toolchainLibraryLinker) installable() bool {
 // either (with the exception of the shared STLs, which are installed to the app's directory rather
 // than to the system image).
 
-func getNdkLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, version string) common.SourcePath {
+func getNdkLibDir(ctx android.ModuleContext, toolchain Toolchain, version string) android.SourcePath {
 	suffix := ""
 	// Most 64-bit NDK prebuilts store libraries in "lib64", except for arm64 which is not a
 	// multilib toolchain and stores the libraries in "lib".
-	if toolchain.Is64Bit() && ctx.Arch().ArchType != common.Arm64 {
+	if toolchain.Is64Bit() && ctx.Arch().ArchType != android.Arm64 {
 		suffix = "64"
 	}
-	return common.PathForSource(ctx, fmt.Sprintf("prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/lib%s",
+	return android.PathForSource(ctx, fmt.Sprintf("prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/lib%s",
 		version, toolchain.Name(), suffix))
 }
 
-func ndkPrebuiltModuleToPath(ctx common.AndroidModuleContext, toolchain Toolchain,
-	ext string, version string) common.Path {
+func ndkPrebuiltModuleToPath(ctx android.ModuleContext, toolchain Toolchain,
+	ext string, version string) android.Path {
 
 	// NDK prebuilts are named like: ndk_NAME.EXT.SDK_VERSION.
 	// We want to translate to just NAME.EXT
@@ -2351,13 +2351,13 @@ func (*ndkPrebuiltObjectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func ndkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.linker = &ndkPrebuiltObjectLinker{}
 	return module.Init()
 }
 
 func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objFiles common.Paths) common.Path {
+	deps PathDeps, objFiles android.Paths) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_crt") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_crt prefixed name")
@@ -2383,7 +2383,7 @@ func (*ndkPrebuiltLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	linker := &ndkPrebuiltLibraryLinker{}
 	linker.dynamicProperties.BuildShared = true
 	module.linker = linker
@@ -2391,7 +2391,7 @@ func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (ndk *ndkPrebuiltLibraryLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objFiles common.Paths) common.Path {
+	deps PathDeps, objFiles android.Paths) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
@@ -2412,7 +2412,7 @@ type ndkPrebuiltStlLinker struct {
 }
 
 func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	linker := &ndkPrebuiltStlLinker{}
 	linker.dynamicProperties.BuildShared = true
 	module.linker = linker
@@ -2420,14 +2420,14 @@ func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
 }
 
 func ndkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(common.DeviceSupported, common.MultilibBoth)
+	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	linker := &ndkPrebuiltStlLinker{}
 	linker.dynamicProperties.BuildStatic = true
 	module.linker = linker
 	return module.Init()
 }
 
-func getNdkStlLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, stl string) common.SourcePath {
+func getNdkStlLibDir(ctx android.ModuleContext, toolchain Toolchain, stl string) android.SourcePath {
 	gccVersion := toolchain.GccVersion()
 	var libDir string
 	switch stl {
@@ -2441,15 +2441,15 @@ func getNdkStlLibDir(ctx common.AndroidModuleContext, toolchain Toolchain, stl s
 
 	if libDir != "" {
 		ndkSrcRoot := "prebuilts/ndk/current/sources"
-		return common.PathForSource(ctx, ndkSrcRoot).Join(ctx, libDir, ctx.Arch().Abi[0])
+		return android.PathForSource(ctx, ndkSrcRoot).Join(ctx, libDir, ctx.Arch().Abi[0])
 	}
 
 	ctx.ModuleErrorf("Unknown NDK STL: %s", stl)
-	return common.PathForSource(ctx, "")
+	return android.PathForSource(ctx, "")
 }
 
 func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objFiles common.Paths) common.Path {
+	deps PathDeps, objFiles android.Paths) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
@@ -2469,7 +2469,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 	return libDir.Join(ctx, libName+libExt)
 }
 
-func linkageMutator(mctx common.AndroidBottomUpMutatorContext) {
+func linkageMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
 		if m.linker != nil {
 			if linker, ok := m.linker.(baseLinkerInterface); ok {

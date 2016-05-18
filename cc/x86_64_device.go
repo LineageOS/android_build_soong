@@ -17,7 +17,7 @@ package cc
 import (
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -99,21 +99,13 @@ const (
 )
 
 func init() {
-	common.RegisterArchFeatures(common.X86_64, "",
+	android.RegisterArchFeatures(android.X86_64, "",
 		"ssse3",
 		"sse4",
 		"sse4_1",
 		"sse4_2",
 		"popcnt")
-	common.RegisterArchFeatures(common.X86_64, "haswell",
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"aes_ni",
-		"avx",
-		"popcnt")
-	common.RegisterArchFeatures(common.X86_64, "ivybridge",
+	android.RegisterArchFeatures(android.X86_64, "haswell",
 		"ssse3",
 		"sse4",
 		"sse4_1",
@@ -121,13 +113,21 @@ func init() {
 		"aes_ni",
 		"avx",
 		"popcnt")
-	common.RegisterArchFeatures(common.X86_64, "sandybridge",
+	android.RegisterArchFeatures(android.X86_64, "ivybridge",
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"aes_ni",
+		"avx",
+		"popcnt")
+	android.RegisterArchFeatures(android.X86_64, "sandybridge",
 		"ssse3",
 		"sse4",
 		"sse4_1",
 		"sse4_2",
 		"popcnt")
-	common.RegisterArchFeatures(common.X86_64, "silvermont",
+	android.RegisterArchFeatures(android.X86_64, "silvermont",
 		"ssse3",
 		"sse4",
 		"sse4_1",
@@ -239,7 +239,7 @@ func (t *toolchainX86_64) ClangLdflags() string {
 	return "${x86_64Ldflags}"
 }
 
-func x86_64ToolchainFactory(arch common.Arch) Toolchain {
+func x86_64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainCflags := []string{
 		"${x86_64ToolchainCflags}",
 		"${x86_64" + arch.ArchVariant + "VariantCflags}",
@@ -262,5 +262,5 @@ func x86_64ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(common.X86_64, x86_64ToolchainFactory)
+	registerDeviceToolchainFactory(android.X86_64, x86_64ToolchainFactory)
 }

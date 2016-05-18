@@ -19,25 +19,25 @@ import (
 	"regexp"
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 // Efficiently converts a list of include directories to a single string
 // of cflags with -I prepended to each directory.
-func includeDirsToFlags(dirs common.Paths) string {
-	return common.JoinWithPrefix(dirs.Strings(), "-I")
+func includeDirsToFlags(dirs android.Paths) string {
+	return android.JoinWithPrefix(dirs.Strings(), "-I")
 }
 
-func includeFilesToFlags(files common.Paths) string {
-	return common.JoinWithPrefix(files.Strings(), "-include ")
+func includeFilesToFlags(files android.Paths) string {
+	return android.JoinWithPrefix(files.Strings(), "-include ")
 }
 
 func ldDirsToFlags(dirs []string) string {
-	return common.JoinWithPrefix(dirs, "-L")
+	return android.JoinWithPrefix(dirs, "-L")
 }
 
 func libNamesToFlags(names []string) string {
-	return common.JoinWithPrefix(names, "-l")
+	return android.JoinWithPrefix(names, "-l")
 }
 
 func indexList(s string, list []string) int {
