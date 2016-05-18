@@ -17,7 +17,7 @@ package cc
 import (
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -186,15 +186,15 @@ func (t *toolchainWindows) ExecutableSuffix() string {
 var toolchainWindowsX86Singleton Toolchain = &toolchainWindowsX86{}
 var toolchainWindowsX8664Singleton Toolchain = &toolchainWindowsX8664{}
 
-func windowsX86ToolchainFactory(arch common.Arch) Toolchain {
+func windowsX86ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainWindowsX86Singleton
 }
 
-func windowsX8664ToolchainFactory(arch common.Arch) Toolchain {
+func windowsX8664ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainWindowsX8664Singleton
 }
 
 func init() {
-	registerHostToolchainFactory(common.Windows, common.X86, windowsX86ToolchainFactory)
-	registerHostToolchainFactory(common.Windows, common.X86_64, windowsX8664ToolchainFactory)
+	registerHostToolchainFactory(android.Windows, android.X86, windowsX86ToolchainFactory)
+	registerHostToolchainFactory(android.Windows, android.X86_64, windowsX8664ToolchainFactory)
 }

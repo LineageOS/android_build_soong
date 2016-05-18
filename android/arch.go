@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"fmt"
@@ -187,7 +187,7 @@ type archProperties struct {
 			Sandybridge interface{} `blueprint:"filter(android:\"arch_variant\")"`
 			Silvermont  interface{} `blueprint:"filter(android:\"arch_variant\")"`
 			// Generic variant for X86 on X86_64
-			X86_64      interface{} `blueprint:"filter(android:\"arch_variant\")"`
+			X86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
 
 			// X86 arch features
 			Ssse3  interface{} `blueprint:"filter(android:\"arch_variant\")"`
@@ -443,10 +443,10 @@ var (
 	}
 )
 
-func HostOrDeviceMutator(mctx AndroidBottomUpMutatorContext) {
-	var module AndroidModule
+func HostOrDeviceMutator(mctx BottomUpMutatorContext) {
+	var module Module
 	var ok bool
-	if module, ok = mctx.Module().(AndroidModule); !ok {
+	if module, ok = mctx.Module().(Module); !ok {
 		return
 	}
 
@@ -471,14 +471,14 @@ func HostOrDeviceMutator(mctx AndroidBottomUpMutatorContext) {
 
 	modules := mctx.CreateVariations(hodNames...)
 	for i, m := range modules {
-		m.(AndroidModule).base().SetHostOrDevice(hods[i])
+		m.(Module).base().SetHostOrDevice(hods[i])
 	}
 }
 
-func HostTypeMutator(mctx AndroidBottomUpMutatorContext) {
-	var module AndroidModule
+func HostTypeMutator(mctx BottomUpMutatorContext) {
+	var module Module
 	var ok bool
-	if module, ok = mctx.Module().(AndroidModule); !ok {
+	if module, ok = mctx.Module().(Module); !ok {
 		return
 	}
 
@@ -499,14 +499,14 @@ func HostTypeMutator(mctx AndroidBottomUpMutatorContext) {
 
 	modules := mctx.CreateVariations(typeNames...)
 	for i, m := range modules {
-		m.(AndroidModule).base().SetHostType(buildTypes[i])
+		m.(Module).base().SetHostType(buildTypes[i])
 	}
 }
 
-func ArchMutator(mctx AndroidBottomUpMutatorContext) {
-	var module AndroidModule
+func ArchMutator(mctx BottomUpMutatorContext) {
+	var module Module
 	var ok bool
-	if module, ok = mctx.Module().(AndroidModule); !ok {
+	if module, ok = mctx.Module().(Module); !ok {
 		return
 	}
 
@@ -543,12 +543,12 @@ func ArchMutator(mctx AndroidBottomUpMutatorContext) {
 	modules := mctx.CreateVariations(archNames...)
 
 	for i, m := range modules {
-		m.(AndroidModule).base().SetArch(moduleArches[i])
-		m.(AndroidModule).base().setArchProperties(mctx)
+		m.(Module).base().SetArch(moduleArches[i])
+		m.(Module).base().setArchProperties(mctx)
 	}
 }
 
-func InitArchModule(m AndroidModule,
+func InitArchModule(m Module,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	base := m.base()
@@ -589,7 +589,7 @@ func InitArchModule(m AndroidModule,
 
 var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
 
-func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
+func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 	dst, src interface{}, field, srcPrefix string) interface{} {
 
 	srcField := reflect.ValueOf(src).FieldByName(field)
@@ -646,7 +646,7 @@ func (a *AndroidModuleBase) appendProperties(ctx AndroidBottomUpMutatorContext,
 }
 
 // Rewrite the module's properties structs to contain arch-specific values.
-func (a *AndroidModuleBase) setArchProperties(ctx AndroidBottomUpMutatorContext) {
+func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	arch := a.commonProperties.CompileArch
 	hod := a.commonProperties.CompileHostOrDevice
 	ht := a.commonProperties.CompileHostType

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"fmt"
@@ -60,12 +60,12 @@ type androidBaseContext interface {
 	InstallInData() bool
 }
 
-type AndroidBaseContext interface {
+type BaseContext interface {
 	blueprint.BaseModuleContext
 	androidBaseContext
 }
 
-type AndroidModuleContext interface {
+type ModuleContext interface {
 	blueprint.ModuleContext
 	androidBaseContext
 
@@ -83,12 +83,12 @@ type AndroidModuleContext interface {
 	AddMissingDependencies(deps []string)
 }
 
-type AndroidModule interface {
+type Module interface {
 	blueprint.Module
 
-	GenerateAndroidBuildActions(AndroidModuleContext)
+	GenerateAndroidBuildActions(ModuleContext)
 
-	base() *AndroidModuleBase
+	base() *ModuleBase
 	Enabled() bool
 	HostOrDevice() HostOrDevice
 	InstallInData() bool
@@ -138,7 +138,7 @@ const (
 	MultilibDefault Multilib = ""
 )
 
-func InitAndroidModule(m AndroidModule,
+func InitAndroidModule(m Module,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	base := m.base()
@@ -149,7 +149,7 @@ func InitAndroidModule(m AndroidModule,
 	return m, propertyStructs
 }
 
-func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMultilib Multilib,
+func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
 	_, propertyStructs = InitAndroidModule(m, propertyStructs...)
@@ -211,10 +211,10 @@ func InitAndroidArchModule(m AndroidModule, hod HostOrDeviceSupported, defaultMu
 //
 //         // ...
 //     }
-type AndroidModuleBase struct {
+type ModuleBase struct {
 	// Putting the curiously recurring thing pointing to the thing that contains
 	// the thing pattern to good use.
-	module AndroidModule
+	module Module
 
 	commonProperties        commonProperties
 	variableProperties      variableProperties
@@ -233,51 +233,51 @@ type AndroidModuleBase struct {
 	blueprintDir     string
 }
 
-func (a *AndroidModuleBase) base() *AndroidModuleBase {
+func (a *ModuleBase) base() *ModuleBase {
 	return a
 }
 
-func (a *AndroidModuleBase) SetHostOrDevice(hod HostOrDevice) {
+func (a *ModuleBase) SetHostOrDevice(hod HostOrDevice) {
 	a.commonProperties.CompileHostOrDevice = hod
 }
 
-func (a *AndroidModuleBase) SetHostType(ht HostType) {
+func (a *ModuleBase) SetHostType(ht HostType) {
 	a.commonProperties.CompileHostType = ht
 }
 
-func (a *AndroidModuleBase) SetArch(arch Arch) {
+func (a *ModuleBase) SetArch(arch Arch) {
 	a.commonProperties.CompileArch = arch
 }
 
-func (a *AndroidModuleBase) HostOrDevice() HostOrDevice {
+func (a *ModuleBase) HostOrDevice() HostOrDevice {
 	return a.commonProperties.CompileHostOrDevice
 }
 
-func (a *AndroidModuleBase) HostType() HostType {
+func (a *ModuleBase) HostType() HostType {
 	return a.commonProperties.CompileHostType
 }
 
-func (a *AndroidModuleBase) Host() bool {
+func (a *ModuleBase) Host() bool {
 	return a.HostOrDevice().Host()
 }
 
-func (a *AndroidModuleBase) Arch() Arch {
+func (a *ModuleBase) Arch() Arch {
 	return a.commonProperties.CompileArch
 }
 
-func (a *AndroidModuleBase) HostSupported() bool {
+func (a *ModuleBase) HostSupported() bool {
 	return a.commonProperties.HostOrDeviceSupported == HostSupported ||
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
 			a.hostAndDeviceProperties.Host_supported
 }
 
-func (a *AndroidModuleBase) DeviceSupported() bool {
+func (a *ModuleBase) DeviceSupported() bool {
 	return a.commonProperties.HostOrDeviceSupported == DeviceSupported ||
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
 			a.hostAndDeviceProperties.Device_supported
 }
 
-func (a *AndroidModuleBase) Enabled() bool {
+func (a *ModuleBase) Enabled() bool {
 	if a.commonProperties.Enabled == nil {
 		if a.HostSupported() && a.HostOrDevice().Host() && a.HostType() == Windows {
 			return false
@@ -288,7 +288,7 @@ func (a *AndroidModuleBase) Enabled() bool {
 	return *a.commonProperties.Enabled
 }
 
-func (a *AndroidModuleBase) computeInstallDeps(
+func (a *ModuleBase) computeInstallDeps(
 	ctx blueprint.ModuleContext) Paths {
 
 	result := Paths{}
@@ -302,27 +302,27 @@ func (a *AndroidModuleBase) computeInstallDeps(
 	return result
 }
 
-func (a *AndroidModuleBase) filesToInstall() Paths {
+func (a *ModuleBase) filesToInstall() Paths {
 	return a.installFiles
 }
 
-func (p *AndroidModuleBase) NoAddressSanitizer() bool {
+func (p *ModuleBase) NoAddressSanitizer() bool {
 	return p.noAddressSanitizer
 }
 
-func (p *AndroidModuleBase) InstallInData() bool {
+func (p *ModuleBase) InstallInData() bool {
 	return false
 }
 
-func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
-	if a != ctx.FinalModule().(AndroidModule).base() {
+func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
+	if a != ctx.FinalModule().(Module).base() {
 		return
 	}
 
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
 	ctx.VisitAllModuleVariants(func(module blueprint.Module) {
-		a := module.(AndroidModule).base()
+		a := module.(Module).base()
 		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
 		allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
 	})
@@ -370,7 +370,7 @@ func (a *AndroidModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	}
 }
 
-func (a *AndroidModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
+func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
 	return androidBaseContextImpl{
 		arch:          a.commonProperties.CompileArch,
 		hod:           a.commonProperties.CompileHostOrDevice,
@@ -381,7 +381,7 @@ func (a *AndroidModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleCo
 	}
 }
 
-func (a *AndroidModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
+func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	androidCtx := &androidModuleContext{
 		ModuleContext:          ctx,
 		androidBaseContextImpl: a.androidBaseContextFactory(ctx),
@@ -570,7 +570,7 @@ func isFileInstaller(m blueprint.Module) bool {
 }
 
 func isAndroidModule(m blueprint.Module) bool {
-	_, ok := m.(AndroidModule)
+	_, ok := m.(Module)
 	return ok
 }
 
@@ -630,7 +630,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 	dirModules := make(map[string][]string)
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
-		if a, ok := module.(AndroidModule); ok {
+		if a, ok := module.(Module); ok {
 			blueprintDir := a.base().blueprintDir
 			installTarget := a.base().installTarget
 			checkbuildTarget := a.base().checkbuildTarget
@@ -674,7 +674,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 }
 
 type AndroidModulesByName struct {
-	slice []AndroidModule
+	slice []Module
 	ctx   interface {
 		ModuleName(blueprint.Module) string
 		ModuleSubDir(blueprint.Module) string

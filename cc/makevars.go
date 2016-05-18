@@ -19,14 +19,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 func init() {
-	common.RegisterMakeVarsProvider(pctx, makeVarsProvider)
+	android.RegisterMakeVarsProvider(pctx, makeVarsProvider)
 }
 
-func makeVarsProvider(ctx common.MakeVarsContext) {
+func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("LLVM_PREBUILTS_VERSION", "${clangVersion}")
 	ctx.Strict("LLVM_PREBUILTS_BASE", "${clangBase}")
 	ctx.Strict("LLVM_PREBUILTS_PATH", "${clangBin}")
@@ -35,32 +35,32 @@ func makeVarsProvider(ctx common.MakeVarsContext) {
 	ctx.Strict("LLVM_AS", "${clangBin}/llvm-as")
 	ctx.Strict("LLVM_LINK", "${clangBin}/llvm-link")
 
-	hostType := common.CurrentHostType()
+	hostType := android.CurrentHostType()
 	arches := ctx.Config().HostArches[hostType]
-	makeVarsToolchain(ctx, "", common.Host, hostType, arches[0])
+	makeVarsToolchain(ctx, "", android.Host, hostType, arches[0])
 	if len(arches) > 1 {
-		makeVarsToolchain(ctx, "2ND_", common.Host, hostType, arches[1])
+		makeVarsToolchain(ctx, "2ND_", android.Host, hostType, arches[1])
 	}
 
-	if winArches, ok := ctx.Config().HostArches[common.Windows]; ok {
-		makeVarsToolchain(ctx, "", common.Host, common.Windows, winArches[0])
+	if winArches, ok := ctx.Config().HostArches[android.Windows]; ok {
+		makeVarsToolchain(ctx, "", android.Host, android.Windows, winArches[0])
 		if len(winArches) > 1 {
-			makeVarsToolchain(ctx, "2ND_", common.Host, common.Windows, winArches[1])
+			makeVarsToolchain(ctx, "2ND_", android.Host, android.Windows, winArches[1])
 		}
 	}
 
 	arches = ctx.Config().DeviceArches
-	makeVarsToolchain(ctx, "", common.Device, common.NoHostType, arches[0])
+	makeVarsToolchain(ctx, "", android.Device, android.NoHostType, arches[0])
 	if len(arches) > 1 {
-		makeVarsToolchain(ctx, "2ND_", common.Device, common.NoHostType, arches[1])
+		makeVarsToolchain(ctx, "2ND_", android.Device, android.NoHostType, arches[1])
 	}
 }
 
-func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
-	hod common.HostOrDevice, ht common.HostType, arch common.Arch) {
+func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
+	hod android.HostOrDevice, ht android.HostType, arch android.Arch) {
 	var typePrefix string
 	if hod.Host() {
-		if ht == common.Windows {
+		if ht == android.Windows {
 			typePrefix = "HOST_CROSS_"
 		} else {
 			typePrefix = "HOST_"
@@ -102,7 +102,7 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 	if toolchain.ClangSupported() {
 		clangPrefix := secondPrefix + "CLANG_" + typePrefix
 		clangExtras := "-target " + toolchain.ClangTriple()
-		if ht != common.Darwin {
+		if ht != android.Darwin {
 			clangExtras += " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 		}
 
@@ -131,7 +131,7 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 	ctx.Strict(makePrefix+"CC", gccCmd(toolchain, "gcc"))
 	ctx.Strict(makePrefix+"CXX", gccCmd(toolchain, "g++"))
 
-	if ht == common.Darwin {
+	if ht == android.Darwin {
 		ctx.Strict(makePrefix+"AR", "${macArPath}")
 	} else {
 		ctx.Strict(makePrefix+"AR", gccCmd(toolchain, "ar"))
@@ -139,7 +139,7 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"NM", gccCmd(toolchain, "nm"))
 	}
 
-	if ht == common.Windows {
+	if ht == android.Windows {
 		ctx.Strict(makePrefix+"OBJDUMP", gccCmd(toolchain, "objdump"))
 	}
 

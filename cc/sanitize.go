@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 type sanitizerType int
@@ -213,7 +213,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if sanitize.Properties.Sanitize.Address {
-		if ctx.Arch().ArchType == common.Arm {
+		if ctx.Arch().ArchType == android.Arm {
 			// Frame pointer based unwinder in ASan requires ARM frame setup.
 			// TODO: put in flags?
 			flags.RequiredInstructionSet = "arm"
@@ -268,7 +268,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 	}
 
-	blacklist := common.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
+	blacklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
 	if blacklist.Valid() {
 		flags.CFlags = append(flags.CFlags, "-fsanitize-blacklist="+blacklist.String())
 		flags.CFlagsDeps = append(flags.CFlagsDeps, blacklist.Path())
@@ -311,8 +311,8 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 }
 
 // Propagate asan requirements down from binaries
-func sanitizerDepsMutator(t sanitizerType) func(common.AndroidTopDownMutatorContext) {
-	return func(mctx common.AndroidTopDownMutatorContext) {
+func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
+	return func(mctx android.TopDownMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize.Sanitizer(t) {
 			mctx.VisitDepsDepthFirst(func(module blueprint.Module) {
 				if d, ok := mctx.Module().(*Module); ok && c.sanitize != nil &&
@@ -325,8 +325,8 @@ func sanitizerDepsMutator(t sanitizerType) func(common.AndroidTopDownMutatorCont
 }
 
 // Create asan variants for modules that need them
-func sanitizerMutator(t sanitizerType) func(common.AndroidBottomUpMutatorContext) {
-	return func(mctx common.AndroidBottomUpMutatorContext) {
+func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
+	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
 			if d, ok := c.linker.(baseLinkerInterface); ok && d.isDependencyRoot() && c.sanitize.Sanitizer(t) {
 				modules := mctx.CreateVariations(t.String())
