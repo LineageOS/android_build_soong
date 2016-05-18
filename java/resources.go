@@ -17,7 +17,7 @@ package java
 import (
 	"path/filepath"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var resourceExcludes = []string{
@@ -38,11 +38,11 @@ func isStringInSlice(str string, slice []string) bool {
 	return false
 }
 
-func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs, excludeDirs []string) []jarSpec {
+func ResourceDirsToJarSpecs(ctx android.ModuleContext, resourceDirs, excludeDirs []string) []jarSpec {
 	var excludes []string
 
 	for _, exclude := range excludeDirs {
-		excludes = append(excludes, common.PathForModuleSrc(ctx, exclude, "**/*").String())
+		excludes = append(excludes, android.PathForModuleSrc(ctx, exclude, "**/*").String())
 	}
 
 	excludes = append(excludes, resourceExcludes...)
@@ -53,14 +53,14 @@ func ResourceDirsToJarSpecs(ctx common.AndroidModuleContext, resourceDirs, exclu
 		if isStringInSlice(resourceDir, excludeDirs) {
 			continue
 		}
-		resourceDir := common.PathForModuleSrc(ctx, resourceDir)
+		resourceDir := android.PathForModuleSrc(ctx, resourceDir)
 		dirs := ctx.Glob("java_resources", resourceDir.String(), nil)
 		for _, dir := range dirs {
-			fileListFile := common.ResPathWithName(ctx, dir, "resources.list")
+			fileListFile := android.ResPathWithName(ctx, dir, "resources.list")
 			depFile := fileListFile.String() + ".d"
 
 			glob := filepath.Join(dir.String(), "**/*")
-			common.GlobRule(ctx, glob, excludes, fileListFile.String(), depFile)
+			android.GlobRule(ctx, glob, excludes, fileListFile.String(), depFile)
 			jarSpecs = append(jarSpecs, jarSpec{fileListFile, dir})
 		}
 	}

@@ -17,7 +17,7 @@ package cc
 import (
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -113,16 +113,16 @@ const (
 )
 
 func init() {
-	common.RegisterArchFeatures(common.X86, "x86_64",
+	android.RegisterArchFeatures(android.X86, "x86_64",
 		"ssse3",
 		"sse4",
 		"sse4_1",
 		"sse4_2",
 		"popcnt")
-	common.RegisterArchFeatures(common.X86, "atom",
+	android.RegisterArchFeatures(android.X86, "atom",
 		"ssse3",
 		"movbe")
-	common.RegisterArchFeatures(common.X86, "haswell",
+	android.RegisterArchFeatures(android.X86, "haswell",
 		"ssse3",
 		"sse4",
 		"sse4_1",
@@ -131,7 +131,7 @@ func init() {
 		"avx",
 		"popcnt",
 		"movbe")
-	common.RegisterArchFeatures(common.X86, "ivybridge",
+	android.RegisterArchFeatures(android.X86, "ivybridge",
 		"ssse3",
 		"sse4",
 		"sse4_1",
@@ -139,13 +139,13 @@ func init() {
 		"aes_ni",
 		"avx",
 		"popcnt")
-	common.RegisterArchFeatures(common.X86, "sandybridge",
+	android.RegisterArchFeatures(android.X86, "sandybridge",
 		"ssse3",
 		"sse4",
 		"sse4_1",
 		"sse4_2",
 		"popcnt")
-	common.RegisterArchFeatures(common.X86, "silvermont",
+	android.RegisterArchFeatures(android.X86, "silvermont",
 		"ssse3",
 		"sse4",
 		"sse4_1",
@@ -262,7 +262,7 @@ func (toolchainX86) AddressSanitizerRuntimeLibrary() string {
 	return "libclang_rt.asan-i686-android.so"
 }
 
-func x86ToolchainFactory(arch common.Arch) Toolchain {
+func x86ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainCflags := []string{
 		"${x86ToolchainCflags}",
 		"${x86" + arch.ArchVariant + "VariantCflags}",
@@ -285,5 +285,5 @@ func x86ToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(common.X86, x86ToolchainFactory)
+	registerDeviceToolchainFactory(android.X86, x86ToolchainFactory)
 }

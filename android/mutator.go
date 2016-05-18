@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"android/soong"
@@ -20,9 +20,9 @@ import (
 	"github.com/google/blueprint"
 )
 
-type AndroidTopDownMutator func(AndroidTopDownMutatorContext)
+type AndroidTopDownMutator func(TopDownMutatorContext)
 
-type AndroidTopDownMutatorContext interface {
+type TopDownMutatorContext interface {
 	blueprint.TopDownMutatorContext
 	androidBaseContext
 }
@@ -32,9 +32,9 @@ type androidTopDownMutatorContext struct {
 	androidBaseContextImpl
 }
 
-type AndroidBottomUpMutator func(AndroidBottomUpMutatorContext)
+type AndroidBottomUpMutator func(BottomUpMutatorContext)
 
-type AndroidBottomUpMutatorContext interface {
+type BottomUpMutatorContext interface {
 	blueprint.BottomUpMutatorContext
 	androidBaseContext
 }
@@ -46,7 +46,7 @@ type androidBottomUpMutatorContext struct {
 
 func RegisterBottomUpMutator(name string, mutator AndroidBottomUpMutator) {
 	soong.RegisterBottomUpMutator(name, func(ctx blueprint.BottomUpMutatorContext) {
-		if a, ok := ctx.Module().(AndroidModule); ok {
+		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidBottomUpMutatorContext{
 				BottomUpMutatorContext: ctx,
 				androidBaseContextImpl: a.base().androidBaseContextFactory(ctx),
@@ -58,7 +58,7 @@ func RegisterBottomUpMutator(name string, mutator AndroidBottomUpMutator) {
 
 func RegisterTopDownMutator(name string, mutator AndroidTopDownMutator) {
 	soong.RegisterTopDownMutator(name, func(ctx blueprint.TopDownMutatorContext) {
-		if a, ok := ctx.Module().(AndroidModule); ok {
+		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidTopDownMutatorContext{
 				TopDownMutatorContext:  ctx,
 				androidBaseContextImpl: a.base().androidBaseContextFactory(ctx),

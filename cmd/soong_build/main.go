@@ -24,7 +24,7 @@ import (
 
 	"android/soong"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func main() {
 
 	ctx := soong.NewContext()
 
-	configuration, err := common.NewConfig(srcDir, bootstrap.BuildDir)
+	configuration, err := android.NewConfig(srcDir, bootstrap.BuildDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)

@@ -22,14 +22,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 
 	"github.com/google/blueprint"
 	_ "github.com/google/blueprint/bootstrap"
 )
 
 var (
-	pctx = common.NewPackageContext("android/soong/java")
+	pctx = android.NewPackageContext("android/soong/java")
 
 	// Compiling java is not conducive to proper dependency tracking.  The path-matches-class-name
 	// requirement leads to unpredictable generated source file names, and a single .java file
@@ -104,24 +104,24 @@ type javaBuilderFlags struct {
 }
 
 type jarSpec struct {
-	fileList, dir common.Path
+	fileList, dir android.Path
 }
 
 func (j jarSpec) soongJarArgs() string {
 	return "-C " + j.dir.String() + " -l " + j.fileList.String()
 }
 
-func TransformJavaToClasses(ctx common.AndroidModuleContext, srcFiles common.Paths, srcFileLists common.Paths,
-	flags javaBuilderFlags, deps common.Paths) jarSpec {
+func TransformJavaToClasses(ctx android.ModuleContext, srcFiles android.Paths, srcFileLists android.Paths,
+	flags javaBuilderFlags, deps android.Paths) jarSpec {
 
-	classDir := common.PathForModuleOut(ctx, "classes")
-	classFileList := common.PathForModuleOut(ctx, "classes.list")
+	classDir := android.PathForModuleOut(ctx, "classes")
+	classFileList := android.PathForModuleOut(ctx, "classes.list")
 
-	javacFlags := flags.javacFlags + common.JoinWithPrefix(srcFileLists.Strings(), "@")
+	javacFlags := flags.javacFlags + android.JoinWithPrefix(srcFileLists.Strings(), "@")
 
 	deps = append(deps, srcFileLists...)
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      javac,
 		Output:    classFileList,
 		Inputs:    srcFiles,
@@ -137,12 +137,12 @@ func TransformJavaToClasses(ctx common.AndroidModuleContext, srcFiles common.Pat
 	return jarSpec{classFileList, classDir}
 }
 
-func TransformClassesToJar(ctx common.AndroidModuleContext, classes []jarSpec,
-	manifest common.OptionalPath) common.Path {
+func TransformClassesToJar(ctx android.ModuleContext, classes []jarSpec,
+	manifest android.OptionalPath) android.Path {
 
-	outputFile := common.PathForModuleOut(ctx, "classes-full-debug.jar")
+	outputFile := android.PathForModuleOut(ctx, "classes-full-debug.jar")
 
-	deps := common.Paths{}
+	deps := android.Paths{}
 	jarArgs := []string{}
 
 	for _, j := range classes {
@@ -155,7 +155,7 @@ func TransformClassesToJar(ctx common.AndroidModuleContext, classes []jarSpec,
 		jarArgs = append(jarArgs, "-m "+manifest.String())
 	}
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      jar,
 		Output:    outputFile,
 		Implicits: deps,
@@ -167,13 +167,13 @@ func TransformClassesToJar(ctx common.AndroidModuleContext, classes []jarSpec,
 	return outputFile
 }
 
-func TransformClassesJarToDex(ctx common.AndroidModuleContext, classesJar common.Path,
+func TransformClassesJarToDex(ctx android.ModuleContext, classesJar android.Path,
 	flags javaBuilderFlags) jarSpec {
 
-	outDir := common.PathForModuleOut(ctx, "dex")
-	outputFile := common.PathForModuleOut(ctx, "dex.filelist")
+	outDir := android.PathForModuleOut(ctx, "dex")
+	outputFile := android.PathForModuleOut(ctx, "dex.filelist")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   dx,
 		Output: outputFile,
 		Input:  classesJar,
@@ -186,11 +186,11 @@ func TransformClassesJarToDex(ctx common.AndroidModuleContext, classesJar common
 	return jarSpec{outputFile, outDir}
 }
 
-func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
-	dexJarSpec jarSpec) common.Path {
+func TransformDexToJavaLib(ctx android.ModuleContext, resources []jarSpec,
+	dexJarSpec jarSpec) android.Path {
 
-	outputFile := common.PathForModuleOut(ctx, "javalib.jar")
-	var deps common.Paths
+	outputFile := android.PathForModuleOut(ctx, "javalib.jar")
+	var deps android.Paths
 	var jarArgs []string
 
 	for _, j := range resources {
@@ -201,7 +201,7 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 	deps = append(deps, dexJarSpec.fileList)
 	jarArgs = append(jarArgs, dexJarSpec.soongJarArgs())
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      jar,
 		Output:    outputFile,
 		Implicits: deps,
@@ -213,9 +213,9 @@ func TransformDexToJavaLib(ctx common.AndroidModuleContext, resources []jarSpec,
 	return outputFile
 }
 
-func TransformJarJar(ctx common.AndroidModuleContext, classesJar common.Path, rulesFile common.Path) common.Path {
-	outputFile := common.PathForModuleOut(ctx, "classes-jarjar.jar")
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFile android.Path) android.Path {
+	outputFile := android.PathForModuleOut(ctx, "classes-jarjar.jar")
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:     jarjar,
 		Output:   outputFile,
 		Input:    classesJar,
@@ -228,16 +228,16 @@ func TransformJarJar(ctx common.AndroidModuleContext, classesJar common.Path, ru
 	return outputFile
 }
 
-func TransformPrebuiltJarToClasses(ctx common.AndroidModuleContext,
-	prebuilt common.Path) (classJarSpec, resourceJarSpec jarSpec) {
+func TransformPrebuiltJarToClasses(ctx android.ModuleContext,
+	prebuilt android.Path) (classJarSpec, resourceJarSpec jarSpec) {
 
-	classDir := common.PathForModuleOut(ctx, "extracted/classes")
-	classFileList := common.PathForModuleOut(ctx, "extracted/classes.list")
-	resourceFileList := common.PathForModuleOut(ctx, "extracted/resources.list")
+	classDir := android.PathForModuleOut(ctx, "extracted/classes")
+	classFileList := android.PathForModuleOut(ctx, "extracted/classes.list")
+	resourceFileList := android.PathForModuleOut(ctx, "extracted/resources.list")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:    extractPrebuilt,
-		Outputs: common.WritablePaths{classFileList, resourceFileList},
+		Outputs: android.WritablePaths{classFileList, resourceFileList},
 		Input:   prebuilt,
 		Args: map[string]string{
 			"outDir":       classDir.String(),

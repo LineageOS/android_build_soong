@@ -3,7 +3,7 @@ package cc
 import (
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -227,15 +227,15 @@ func (t *toolchainLinuxX8664) ClangLdflags() string {
 var toolchainLinuxX86Singleton Toolchain = &toolchainLinuxX86{}
 var toolchainLinuxX8664Singleton Toolchain = &toolchainLinuxX8664{}
 
-func linuxX86ToolchainFactory(arch common.Arch) Toolchain {
+func linuxX86ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainLinuxX86Singleton
 }
 
-func linuxX8664ToolchainFactory(arch common.Arch) Toolchain {
+func linuxX8664ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainLinuxX8664Singleton
 }
 
 func init() {
-	registerHostToolchainFactory(common.Linux, common.X86, linuxX86ToolchainFactory)
-	registerHostToolchainFactory(common.Linux, common.X86_64, linuxX8664ToolchainFactory)
+	registerHostToolchainFactory(android.Linux, android.X86, linuxX86ToolchainFactory)
+	registerHostToolchainFactory(android.Linux, android.X86_64, linuxX8664ToolchainFactory)
 }

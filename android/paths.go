@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"fmt"
@@ -91,18 +91,18 @@ type WritablePath interface {
 }
 
 type genPathProvider interface {
-	genPathWithExt(ctx AndroidModuleContext, ext string) ModuleGenPath
+	genPathWithExt(ctx ModuleContext, ext string) ModuleGenPath
 }
 type objPathProvider interface {
-	objPathWithExt(ctx AndroidModuleContext, subdir, ext string) ModuleObjPath
+	objPathWithExt(ctx ModuleContext, subdir, ext string) ModuleObjPath
 }
 type resPathProvider interface {
-	resPathWithName(ctx AndroidModuleContext, name string) ModuleResPath
+	resPathWithName(ctx ModuleContext, name string) ModuleResPath
 }
 
 // GenPathWithExt derives a new file path in ctx's generated sources directory
 // from the current path, but with the new extension.
-func GenPathWithExt(ctx AndroidModuleContext, p Path, ext string) ModuleGenPath {
+func GenPathWithExt(ctx ModuleContext, p Path, ext string) ModuleGenPath {
 	if path, ok := p.(genPathProvider); ok {
 		return path.genPathWithExt(ctx, ext)
 	}
@@ -112,7 +112,7 @@ func GenPathWithExt(ctx AndroidModuleContext, p Path, ext string) ModuleGenPath 
 
 // ObjPathWithExt derives a new file path in ctx's object directory from the
 // current path, but with the new extension.
-func ObjPathWithExt(ctx AndroidModuleContext, p Path, subdir, ext string) ModuleObjPath {
+func ObjPathWithExt(ctx ModuleContext, p Path, subdir, ext string) ModuleObjPath {
 	if path, ok := p.(objPathProvider); ok {
 		return path.objPathWithExt(ctx, subdir, ext)
 	}
@@ -123,7 +123,7 @@ func ObjPathWithExt(ctx AndroidModuleContext, p Path, subdir, ext string) Module
 // ResPathWithName derives a new path in ctx's output resource directory, using
 // the current path to create the directory name, and the `name` argument for
 // the filename.
-func ResPathWithName(ctx AndroidModuleContext, p Path, name string) ModuleResPath {
+func ResPathWithName(ctx ModuleContext, p Path, name string) ModuleResPath {
 	if path, ok := p.(resPathProvider); ok {
 		return path.resPathWithName(ctx, name)
 	}
@@ -174,7 +174,7 @@ type Paths []Path
 // PathsForSource returns Paths rooted from SrcDir
 func PathsForSource(ctx PathContext, paths []string) Paths {
 	if pathConfig(ctx).AllowMissingDependencies() {
-		if modCtx, ok := ctx.(AndroidModuleContext); ok {
+		if modCtx, ok := ctx.(ModuleContext); ok {
 			ret := make(Paths, 0, len(paths))
 			intermediates := filepath.Join(modCtx.ModuleDir(), modCtx.ModuleName(), modCtx.ModuleSubDir(), "missing")
 			for _, path := range paths {
@@ -211,7 +211,7 @@ func PathsForOptionalSource(ctx PathContext, intermediates string, paths []strin
 
 // PathsForModuleSrc returns Paths rooted from the module's local source
 // directory
-func PathsForModuleSrc(ctx AndroidModuleContext, paths []string) Paths {
+func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 	ret := make(Paths, len(paths))
 	for i, path := range paths {
 		ret[i] = PathForModuleSrc(ctx, path)
@@ -222,7 +222,7 @@ func PathsForModuleSrc(ctx AndroidModuleContext, paths []string) Paths {
 // pathsForModuleSrcFromFullPath returns Paths rooted from the module's local
 // source directory, but strip the local source directory from the beginning of
 // each string.
-func pathsForModuleSrcFromFullPath(ctx AndroidModuleContext, paths []string) Paths {
+func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string) Paths {
 	prefix := filepath.Join(ctx.AConfig().srcDir, ctx.ModuleDir()) + "/"
 	ret := make(Paths, 0, len(paths))
 	for _, p := range paths {
@@ -238,7 +238,7 @@ func pathsForModuleSrcFromFullPath(ctx AndroidModuleContext, paths []string) Pat
 
 // PathsWithOptionalDefaultForModuleSrc returns Paths rooted from the module's
 // local source directory. If none are provided, use the default if it exists.
-func PathsWithOptionalDefaultForModuleSrc(ctx AndroidModuleContext, input []string, def string) Paths {
+func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def string) Paths {
 	if len(input) > 0 {
 		return PathsForModuleSrc(ctx, input)
 	}
@@ -425,7 +425,7 @@ func (p SourcePath) Join(ctx PathContext, paths ...string) SourcePath {
 
 // OverlayPath returns the overlay for `path' if it exists. This assumes that the
 // SourcePath is the path to a resource overlay directory.
-func (p SourcePath) OverlayPath(ctx AndroidModuleContext, path Path) OptionalPath {
+func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	var relDir string
 	if moduleSrcPath, ok := path.(ModuleSrcPath); ok {
 		relDir = moduleSrcPath.sourcePath.path
@@ -510,14 +510,14 @@ var _ resPathProvider = ModuleSrcPath{}
 
 // PathForModuleSrc returns a ModuleSrcPath representing the paths... under the
 // module's local source directory.
-func PathForModuleSrc(ctx AndroidModuleContext, paths ...string) ModuleSrcPath {
+func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
 	path := validatePath(ctx, paths...)
 	return ModuleSrcPath{basePath{path, ctx.AConfig()}, PathForSource(ctx, ctx.ModuleDir(), path), ctx.ModuleDir()}
 }
 
 // OptionalPathForModuleSrc returns an OptionalPath. The OptionalPath contains a
 // valid path if p is non-nil.
-func OptionalPathForModuleSrc(ctx AndroidModuleContext, p *string) OptionalPath {
+func OptionalPathForModuleSrc(ctx ModuleContext, p *string) OptionalPath {
 	if p == nil {
 		return OptionalPath{}
 	}
@@ -528,15 +528,15 @@ func (p ModuleSrcPath) String() string {
 	return p.sourcePath.String()
 }
 
-func (p ModuleSrcPath) genPathWithExt(ctx AndroidModuleContext, ext string) ModuleGenPath {
+func (p ModuleSrcPath) genPathWithExt(ctx ModuleContext, ext string) ModuleGenPath {
 	return PathForModuleGen(ctx, p.moduleDir, pathtools.ReplaceExtension(p.path, ext))
 }
 
-func (p ModuleSrcPath) objPathWithExt(ctx AndroidModuleContext, subdir, ext string) ModuleObjPath {
+func (p ModuleSrcPath) objPathWithExt(ctx ModuleContext, subdir, ext string) ModuleObjPath {
 	return PathForModuleObj(ctx, subdir, p.moduleDir, pathtools.ReplaceExtension(p.path, ext))
 }
 
-func (p ModuleSrcPath) resPathWithName(ctx AndroidModuleContext, name string) ModuleResPath {
+func (p ModuleSrcPath) resPathWithName(ctx ModuleContext, name string) ModuleResPath {
 	// TODO: Use full directory if the new ctx is not the current ctx?
 	return PathForModuleRes(ctx, p.path, name)
 }
@@ -550,7 +550,7 @@ var _ Path = ModuleOutPath{}
 
 // PathForModuleOut returns a Path representing the paths... under the module's
 // output directory.
-func PathForModuleOut(ctx AndroidModuleContext, paths ...string) ModuleOutPath {
+func PathForModuleOut(ctx ModuleContext, paths ...string) ModuleOutPath {
 	p := validatePath(ctx, paths...)
 	return ModuleOutPath{PathForOutput(ctx, ".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir(), p)}
 }
@@ -568,7 +568,7 @@ var _ objPathProvider = ModuleGenPath{}
 
 // PathForModuleGen returns a Path representing the paths... under the module's
 // `gen' directory.
-func PathForModuleGen(ctx AndroidModuleContext, paths ...string) ModuleGenPath {
+func PathForModuleGen(ctx ModuleContext, paths ...string) ModuleGenPath {
 	p := validatePath(ctx, paths...)
 	return ModuleGenPath{
 		PathForModuleOut(ctx, "gen", p),
@@ -576,12 +576,12 @@ func PathForModuleGen(ctx AndroidModuleContext, paths ...string) ModuleGenPath {
 	}
 }
 
-func (p ModuleGenPath) genPathWithExt(ctx AndroidModuleContext, ext string) ModuleGenPath {
+func (p ModuleGenPath) genPathWithExt(ctx ModuleContext, ext string) ModuleGenPath {
 	// TODO: make a different path for local vs remote generated files?
 	return PathForModuleGen(ctx, pathtools.ReplaceExtension(p.path, ext))
 }
 
-func (p ModuleGenPath) objPathWithExt(ctx AndroidModuleContext, subdir, ext string) ModuleObjPath {
+func (p ModuleGenPath) objPathWithExt(ctx ModuleContext, subdir, ext string) ModuleObjPath {
 	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
 }
 
@@ -595,7 +595,7 @@ var _ Path = ModuleObjPath{}
 
 // PathForModuleObj returns a Path representing the paths... under the module's
 // 'obj' directory.
-func PathForModuleObj(ctx AndroidModuleContext, paths ...string) ModuleObjPath {
+func PathForModuleObj(ctx ModuleContext, paths ...string) ModuleObjPath {
 	p := validatePath(ctx, paths...)
 	return ModuleObjPath{PathForModuleOut(ctx, "obj", p)}
 }
@@ -610,14 +610,14 @@ var _ Path = ModuleResPath{}
 
 // PathForModuleRes returns a Path representing the paths... under the module's
 // 'res' directory.
-func PathForModuleRes(ctx AndroidModuleContext, paths ...string) ModuleResPath {
+func PathForModuleRes(ctx ModuleContext, paths ...string) ModuleResPath {
 	p := validatePath(ctx, paths...)
 	return ModuleResPath{PathForModuleOut(ctx, "res", p)}
 }
 
 // PathForModuleInstall returns a Path representing the install path for the
 // module appended with paths...
-func PathForModuleInstall(ctx AndroidModuleContext, paths ...string) OutputPath {
+func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
 	var outPaths []string
 	if ctx.Device() {
 		partition := "system"

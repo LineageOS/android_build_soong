@@ -21,7 +21,7 @@ package cc
 import (
 	"github.com/google/blueprint"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 func init() {
@@ -47,12 +47,12 @@ var (
 		})
 )
 
-func genYacc(ctx common.AndroidModuleContext, yaccFile common.Path, outFile common.ModuleGenPath, yaccFlags string) (headerFile common.ModuleGenPath) {
-	headerFile = common.GenPathWithExt(ctx, yaccFile, "h")
+func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.ModuleGenPath, yaccFlags string) (headerFile android.ModuleGenPath) {
+	headerFile = android.GenPathWithExt(ctx, yaccFile, "h")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:    yacc,
-		Outputs: common.WritablePaths{outFile, headerFile},
+		Outputs: android.WritablePaths{outFile, headerFile},
 		Input:   yaccFile,
 		Args: map[string]string{
 			"yaccFlags": yaccFlags,
@@ -64,35 +64,35 @@ func genYacc(ctx common.AndroidModuleContext, yaccFile common.Path, outFile comm
 	return headerFile
 }
 
-func genLex(ctx common.AndroidModuleContext, lexFile common.Path, outFile common.ModuleGenPath) {
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   lex,
 		Output: outFile,
 		Input:  lexFile,
 	})
 }
 
-func genSources(ctx common.AndroidModuleContext, srcFiles common.Paths,
-	buildFlags builderFlags) (common.Paths, common.Paths) {
+func genSources(ctx android.ModuleContext, srcFiles android.Paths,
+	buildFlags builderFlags) (android.Paths, android.Paths) {
 
-	var deps common.Paths
+	var deps android.Paths
 
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".y":
-			cFile := common.GenPathWithExt(ctx, srcFile, "c")
+			cFile := android.GenPathWithExt(ctx, srcFile, "c")
 			srcFiles[i] = cFile
 			deps = append(deps, genYacc(ctx, srcFile, cFile, buildFlags.yaccFlags))
 		case ".yy":
-			cppFile := common.GenPathWithExt(ctx, srcFile, "cpp")
+			cppFile := android.GenPathWithExt(ctx, srcFile, "cpp")
 			srcFiles[i] = cppFile
 			deps = append(deps, genYacc(ctx, srcFile, cppFile, buildFlags.yaccFlags))
 		case ".l":
-			cFile := common.GenPathWithExt(ctx, srcFile, "c")
+			cFile := android.GenPathWithExt(ctx, srcFile, "c")
 			srcFiles[i] = cFile
 			genLex(ctx, srcFile, cFile)
 		case ".ll":
-			cppFile := common.GenPathWithExt(ctx, srcFile, "cpp")
+			cppFile := android.GenPathWithExt(ctx, srcFile, "cpp")
 			srcFiles[i] = cppFile
 			genLex(ctx, srcFile, cppFile)
 		}

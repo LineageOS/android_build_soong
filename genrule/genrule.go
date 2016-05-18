@@ -18,18 +18,18 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong"
-	"android/soong/common"
+	"android/soong/android"
 )
 
 func init() {
 	soong.RegisterModuleType("gensrcs", GenSrcsFactory)
 	soong.RegisterModuleType("genrule", GenRuleFactory)
 
-	common.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator)
+	android.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator)
 }
 
 var (
-	pctx = common.NewPackageContext("android/soong/genrule")
+	pctx = android.NewPackageContext("android/soong/genrule")
 )
 
 func init() {
@@ -38,12 +38,12 @@ func init() {
 }
 
 type SourceFileGenerator interface {
-	GeneratedSourceFiles() common.Paths
-	GeneratedHeaderDir() common.Path
+	GeneratedSourceFiles() android.Paths
+	GeneratedHeaderDir() android.Path
 }
 
 type HostToolProvider interface {
-	HostToolPath() common.OptionalPath
+	HostToolPath() android.OptionalPath
 }
 
 type generatorProperties struct {
@@ -64,47 +64,47 @@ type generatorProperties struct {
 }
 
 type generator struct {
-	common.AndroidModuleBase
+	android.ModuleBase
 
 	properties generatorProperties
 
 	tasks taskFunc
 
-	deps common.Paths
+	deps android.Paths
 	rule blueprint.Rule
 
-	genPath common.Path
+	genPath android.Path
 
-	outputFiles common.Paths
+	outputFiles android.Paths
 }
 
-type taskFunc func(ctx common.AndroidModuleContext) []generateTask
+type taskFunc func(ctx android.ModuleContext) []generateTask
 
 type generateTask struct {
-	in  common.Paths
-	out common.ModuleGenPath
+	in  android.Paths
+	out android.ModuleGenPath
 }
 
-func (g *generator) GeneratedSourceFiles() common.Paths {
+func (g *generator) GeneratedSourceFiles() android.Paths {
 	return g.outputFiles
 }
 
-func (g *generator) GeneratedHeaderDir() common.Path {
+func (g *generator) GeneratedHeaderDir() android.Path {
 	return g.genPath
 }
 
-func genruleDepsMutator(ctx common.AndroidBottomUpMutatorContext) {
+func genruleDepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*generator); ok {
 		if g.properties.Tool != "" {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{"host_or_device", common.Host.String()},
-				{"host_type", common.CurrentHostType().String()},
+				{"host_or_device", android.Host.String()},
+				{"host_type", android.CurrentHostType().String()},
 			}, nil, g.properties.Tool)
 		}
 	}
 }
 
-func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
+func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if g.properties.Tool != "" && g.properties.Tool_file != "" {
 		ctx.ModuleErrorf("`tool` and `tool_file` may not be specified at the same time")
 		return
@@ -116,7 +116,7 @@ func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext)
 
 	var tool string
 	if g.properties.Tool_file != "" {
-		toolpath := common.PathForModuleSrc(ctx, g.properties.Tool_file)
+		toolpath := android.PathForModuleSrc(ctx, g.properties.Tool_file)
 		g.deps = append(g.deps, toolpath)
 		tool = toolpath.String()
 	} else if g.properties.Tool != "" {
@@ -135,15 +135,15 @@ func (g *generator) GenerateAndroidBuildActions(ctx common.AndroidModuleContext)
 		})
 	}
 
-	g.genPath = common.PathForModuleGen(ctx, "")
+	g.genPath = android.PathForModuleGen(ctx, "")
 
 	for _, task := range g.tasks(ctx) {
 		g.generateSourceFile(ctx, task, tool)
 	}
 }
 
-func (g *generator) generateSourceFile(ctx common.AndroidModuleContext, task generateTask, tool string) {
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask, tool string) {
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      g.rule,
 		Output:    task.out,
 		Inputs:    task.in,
@@ -163,19 +163,19 @@ func generatorFactory(tasks taskFunc, props ...interface{}) (blueprint.Module, [
 
 	props = append(props, &module.properties)
 
-	return common.InitAndroidModule(module, props...)
+	return android.InitAndroidModule(module, props...)
 }
 
 func GenSrcsFactory() (blueprint.Module, []interface{}) {
 	properties := &genSrcsProperties{}
 
-	tasks := func(ctx common.AndroidModuleContext) []generateTask {
+	tasks := func(ctx android.ModuleContext) []generateTask {
 		srcFiles := ctx.ExpandSources(properties.Srcs, nil)
 		tasks := make([]generateTask, 0, len(srcFiles))
 		for _, in := range srcFiles {
 			tasks = append(tasks, generateTask{
-				in:  common.Paths{in},
-				out: common.GenPathWithExt(ctx, in, properties.Output_extension),
+				in:  android.Paths{in},
+				out: android.GenPathWithExt(ctx, in, properties.Output_extension),
 			})
 		}
 		return tasks
@@ -195,11 +195,11 @@ type genSrcsProperties struct {
 func GenRuleFactory() (blueprint.Module, []interface{}) {
 	properties := &genRuleProperties{}
 
-	tasks := func(ctx common.AndroidModuleContext) []generateTask {
+	tasks := func(ctx android.ModuleContext) []generateTask {
 		return []generateTask{
 			{
 				in:  ctx.ExpandSources(properties.Srcs, nil),
-				out: common.PathForModuleGen(ctx, properties.Out),
+				out: android.PathForModuleGen(ctx, properties.Out),
 			},
 		}
 	}

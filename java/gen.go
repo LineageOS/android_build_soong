@@ -21,7 +21,7 @@ package java
 import (
 	"github.com/google/blueprint"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 func init() {
@@ -56,11 +56,11 @@ var (
 		})
 )
 
-func genAidl(ctx common.AndroidModuleContext, aidlFile common.Path, aidlFlags string) common.Path {
-	javaFile := common.GenPathWithExt(ctx, aidlFile, "java")
+func genAidl(ctx android.ModuleContext, aidlFile android.Path, aidlFlags string) android.Path {
+	javaFile := android.GenPathWithExt(ctx, aidlFile, "java")
 	depFile := javaFile.String() + ".d"
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   aidl,
 		Output: javaFile,
 		Input:  aidlFile,
@@ -73,10 +73,10 @@ func genAidl(ctx common.AndroidModuleContext, aidlFile common.Path, aidlFlags st
 	return javaFile
 }
 
-func genLogtags(ctx common.AndroidModuleContext, logtagsFile common.Path) common.Path {
-	javaFile := common.GenPathWithExt(ctx, logtagsFile, "java")
+func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Path {
+	javaFile := android.GenPathWithExt(ctx, logtagsFile, "java")
 
-	ctx.ModuleBuild(pctx, common.ModuleBuildParams{
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   logtags,
 		Output: javaFile,
 		Input:  logtagsFile,
@@ -85,8 +85,8 @@ func genLogtags(ctx common.AndroidModuleContext, logtagsFile common.Path) common
 	return javaFile
 }
 
-func (j *javaBase) genSources(ctx common.AndroidModuleContext, srcFiles common.Paths,
-	flags javaBuilderFlags) common.Paths {
+func (j *javaBase) genSources(ctx android.ModuleContext, srcFiles android.Paths,
+	flags javaBuilderFlags) android.Paths {
 
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
@@ -108,13 +108,13 @@ func LogtagsSingleton() blueprint.Singleton {
 }
 
 type logtagsProducer interface {
-	logtags() common.Paths
+	logtags() android.Paths
 }
 
 type logtagsSingleton struct{}
 
 func (l *logtagsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	var allLogtags common.Paths
+	var allLogtags android.Paths
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if logtags, ok := module.(logtagsProducer); ok {
 			allLogtags = append(allLogtags, logtags.logtags()...)
