@@ -72,15 +72,20 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 
 	toolchain := toolchainFactories[hod][ht][arch.ArchType](arch)
 
-	globalCflags := fmt.Sprintf("${commonGlobalCflags} ${%sGlobalCflags}", hod)
-
+	var productExtraCflags string
+	var productExtraLdflags string
 	if hod.Device() && Bool(ctx.Config().ProductVariables.Brillo) {
-		globalCflags += " -D__BRILLO__"
+		productExtraCflags += "-D__BRILLO__"
+	}
+	if hod.Host() && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
+		productExtraLdflags += "-static"
 	}
 
 	ctx.StrictSorted(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.ToolchainCflags(),
-		globalCflags,
+		"${commonGlobalCflags}",
+		fmt.Sprintf("${%sGlobalCflags}", hod),
+		productExtraCflags,
 		toolchain.Cflags(),
 	}, " "))
 	ctx.StrictSorted(makePrefix+"GLOBAL_CONLYFLAGS", "")
@@ -90,6 +95,7 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 	}, " "))
 	ctx.StrictSorted(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 		toolchain.ToolchainLdflags(),
+		productExtraLdflags,
 		toolchain.Ldflags(),
 	}, " "))
 
@@ -100,15 +106,12 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 			clangExtras += " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 		}
 
-		globalClangCflags := fmt.Sprintf("${commonClangGlobalCflags} ${clangExtraCflags} ${%sClangGlobalCflags}", hod)
-
-		if hod.Device() && Bool(ctx.Config().ProductVariables.Brillo) {
-			globalClangCflags += " -D__BRILLO__"
-		}
-
 		ctx.StrictSorted(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 			toolchain.ToolchainClangCflags(),
-			globalClangCflags,
+			"${commonClangGlobalCflags}",
+			"${clangExtraCflags}",
+			fmt.Sprintf("${%sClangGlobalCflags}", hod),
+			productExtraCflags,
 			toolchain.ClangCflags(),
 			clangExtras,
 		}, " "))
@@ -119,6 +122,7 @@ func makeVarsToolchain(ctx common.MakeVarsContext, secondPrefix string,
 		}, " "))
 		ctx.StrictSorted(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 			toolchain.ToolchainClangLdflags(),
+			productExtraLdflags,
 			toolchain.ClangLdflags(),
 			clangExtras,
 		}, " "))
