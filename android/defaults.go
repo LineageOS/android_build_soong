@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package android
 
 import (
 	"github.com/google/blueprint"
@@ -45,12 +45,12 @@ func (d *DefaultableModule) setProperties(props []interface{}) {
 type Defaultable interface {
 	defaults() *defaultsProperties
 	setProperties([]interface{})
-	applyDefaults(AndroidTopDownMutatorContext, Defaults)
+	applyDefaults(TopDownMutatorContext, Defaults)
 }
 
 var _ Defaultable = (*DefaultableModule)(nil)
 
-func InitDefaultableModule(module AndroidModule, d Defaultable,
+func InitDefaultableModule(module Module, d Defaultable,
 	props ...interface{}) (blueprint.Module, []interface{}) {
 
 	d.setProperties(props)
@@ -82,7 +82,7 @@ func (d *DefaultsModule) setProperties(props []interface{}) {
 	d.defaultProperties = props
 }
 
-func InitDefaultsModule(module AndroidModule, d Defaults, props ...interface{}) (blueprint.Module, []interface{}) {
+func InitDefaultsModule(module Module, d Defaults, props ...interface{}) (blueprint.Module, []interface{}) {
 	d.setProperties(props)
 
 	return module, props
@@ -90,7 +90,7 @@ func InitDefaultsModule(module AndroidModule, d Defaults, props ...interface{}) 
 
 var _ Defaults = (*DefaultsModule)(nil)
 
-func (defaultable *DefaultableModule) applyDefaults(ctx AndroidTopDownMutatorContext,
+func (defaultable *DefaultableModule) applyDefaults(ctx TopDownMutatorContext,
 	defaults Defaults) {
 
 	for _, prop := range defaultable.defaultableProperties {
@@ -109,13 +109,13 @@ func (defaultable *DefaultableModule) applyDefaults(ctx AndroidTopDownMutatorCon
 	}
 }
 
-func defaultsDepsMutator(ctx AndroidBottomUpMutatorContext) {
+func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
 		ctx.AddDependency(ctx.Module(), DefaultsDepTag, defaultable.defaults().Defaults...)
 	}
 }
 
-func defaultsMutator(ctx AndroidTopDownMutatorContext) {
+func defaultsMutator(ctx TopDownMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
 		for _, defaultsDep := range defaultable.defaults().Defaults {
 			ctx.VisitDirectDeps(func(m blueprint.Module) {

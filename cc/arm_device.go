@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"android/soong/common"
+	"android/soong/android"
 )
 
 var (
@@ -348,7 +348,7 @@ func (toolchainArm) AddressSanitizerRuntimeLibrary() string {
 	return "libclang_rt.asan-arm-android.so"
 }
 
-func armToolchainFactory(arch common.Arch) Toolchain {
+func armToolchainFactory(arch android.Arch) Toolchain {
 	var fixCortexA8 string
 	toolchainCflags := make([]string, 2, 3)
 	toolchainClangCflags := make([]string, 2, 3)
@@ -391,5 +391,5 @@ func armToolchainFactory(arch common.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(common.Arm, armToolchainFactory)
+	registerDeviceToolchainFactory(android.Arm, armToolchainFactory)
 }
