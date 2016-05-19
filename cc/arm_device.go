@@ -24,12 +24,12 @@ import (
 var (
 	armToolchainCflags = []string{
 		"-mthumb-interwork",
+		"-msoft-float",
 	}
 
 	armCflags = []string{
 		"-fno-exceptions", // from build/core/combo/select.mk
 		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-msoft-float",
 		"-ffunction-sections",
 		"-fdata-sections",
 		"-funwind-tables",
