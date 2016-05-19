@@ -51,8 +51,8 @@ var (
 	}
 
 	windowsIncludeFlags = []string{
-		"-I${windowsGccRoot}/${windowsGccTriple}/include",
-		"-I${windowsGccRoot}/lib/gcc/${windowsGccTriple}/4.8.3/include",
+		"-isystem ${windowsGccRoot}/${windowsGccTriple}/include",
+		"-isystem ${windowsGccRoot}/lib/gcc/${windowsGccTriple}/4.8.3/include",
 	}
 
 	windowsLdflags = []string{
@@ -95,6 +95,8 @@ func init() {
 	pctx.StaticVariable("windowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
 	pctx.StaticVariable("windowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
 	pctx.StaticVariable("windowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
+
+	pctx.StaticVariable("windowsIncludeFlags", strings.Join(windowsIncludeFlags, " "))
 }
 
 type toolchainWindows struct {
@@ -152,7 +154,7 @@ func (t *toolchainWindowsX8664) Ldflags() string {
 }
 
 func (t *toolchainWindows) IncludeFlags() string {
-	return ""
+	return "${windowsIncludeFlags}"
 }
 
 func (t *toolchainWindows) ClangSupported() bool {
