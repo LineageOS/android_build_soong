@@ -82,11 +82,11 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	}
 
 	ctx.StrictSorted(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
-		toolchain.ToolchainCflags(),
+		toolchain.Cflags(),
 		"${commonGlobalCflags}",
 		fmt.Sprintf("${%sGlobalCflags}", hod),
+		toolchain.ToolchainCflags(),
 		productExtraCflags,
-		toolchain.Cflags(),
 	}, " "))
 	ctx.StrictSorted(makePrefix+"GLOBAL_CONLYFLAGS", "")
 	ctx.StrictSorted(makePrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
@@ -94,9 +94,9 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.Cppflags(),
 	}, " "))
 	ctx.StrictSorted(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+		toolchain.Ldflags(),
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
-		toolchain.Ldflags(),
 	}, " "))
 
 	if toolchain.ClangSupported() {
@@ -107,13 +107,12 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		}
 
 		ctx.StrictSorted(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
-			toolchain.ToolchainClangCflags(),
-			"${commonClangGlobalCflags}",
-			"${clangExtraCflags}",
-			fmt.Sprintf("${%sClangGlobalCflags}", hod),
-			productExtraCflags,
 			toolchain.ClangCflags(),
+			"${commonClangGlobalCflags}",
+			fmt.Sprintf("${%sClangGlobalCflags}", hod),
+			toolchain.ToolchainClangCflags(),
 			clangExtras,
+			productExtraCflags,
 		}, " "))
 		ctx.StrictSorted(clangPrefix+"GLOBAL_CONLYFLAGS", "${clangExtraConlyflags}")
 		ctx.StrictSorted(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
@@ -121,9 +120,9 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			toolchain.ClangCppflags(),
 		}, " "))
 		ctx.StrictSorted(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+			toolchain.ClangLdflags(),
 			toolchain.ToolchainClangLdflags(),
 			productExtraLdflags,
-			toolchain.ClangLdflags(),
 			clangExtras,
 		}, " "))
 	}
