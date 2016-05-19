@@ -140,6 +140,7 @@ func init() {
 		"-isystem ${LibcRoot}/arch-mips/include",
 		"-isystem ${LibcRoot}/include",
 		"-isystem ${LibcRoot}/kernel/uapi",
+		"-isystem ${LibcRoot}/kernel/common",
 		"-isystem ${LibcRoot}/kernel/uapi/asm-mips",
 	}, " "))
 

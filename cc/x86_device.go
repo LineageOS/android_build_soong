@@ -171,6 +171,7 @@ func init() {
 		"-isystem ${LibcRoot}/arch-x86/include",
 		"-isystem ${LibcRoot}/include",
 		"-isystem ${LibcRoot}/kernel/uapi",
+		"-isystem ${LibcRoot}/kernel/common",
 		"-isystem ${LibcRoot}/kernel/uapi/asm-x86",
 	}, " "))
 
