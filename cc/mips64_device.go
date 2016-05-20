@@ -186,6 +186,10 @@ func (t *toolchainMips64) ClangLdflags() string {
 	return "${mips64ClangLdflags}"
 }
 
+func (toolchainMips64) AddressSanitizerRuntimeLibrary() string {
+	return "libclang_rt.asan-mips64-android.so"
+}
+
 func mips64ToolchainFactory(arch android.Arch) Toolchain {
 	return &toolchainMips64{
 		cflags:               "${mips64Cflags}",
