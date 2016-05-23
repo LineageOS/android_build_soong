@@ -98,6 +98,22 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
 	}, " "))
+	ctx.Strict(makePrefix+"SYSTEMCPP_CPPFLAGS", toolchain.SystemCppCppflags())
+	ctx.Strict(makePrefix+"SYSTEMCPP_LDFLAGS", toolchain.SystemCppLdflags())
+
+	includeFlags, err := ctx.Eval(toolchain.IncludeFlags())
+	if err != nil { panic(err) }
+	ctx.StrictRaw(makePrefix+"C_INCLUDES", strings.Replace(includeFlags, "-isystem ", "", -1))
+
+	if arch.ArchType == android.Arm {
+		flags, err := toolchain.InstructionSetFlags("arm")
+		if err != nil { panic(err) }
+		ctx.Strict(makePrefix+"arm_CFLAGS", flags)
+
+		flags, err = toolchain.InstructionSetFlags("thumb")
+		if err != nil { panic(err) }
+		ctx.Strict(makePrefix+"thumb_CFLAGS", flags)
+	}
 
 	if toolchain.ClangSupported() {
 		clangPrefix := secondPrefix + "CLANG_" + typePrefix
@@ -125,6 +141,14 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			productExtraLdflags,
 			clangExtras,
 		}, " "))
+
+		if hod.Device() {
+			ctx.Strict(secondPrefix + "ADDRESS_SANITIZER_RUNTIME_LIBRARY", strings.TrimSuffix(toolchain.AddressSanitizerRuntimeLibrary(), ".so"))
+		}
+
+		// This is used by external/gentoo/...
+		ctx.Strict("CLANG_CONFIG_" + arch.ArchType.Name + "_" + typePrefix + "TRIPLE",
+			toolchain.ClangTriple())
 	}
 
 	ctx.Strict(makePrefix+"CC", gccCmd(toolchain, "gcc"))
@@ -146,7 +170,11 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
 		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
 		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
+		ctx.Strict(makePrefix+"GCC_VERSION", toolchain.GccVersion())
+		ctx.Strict(makePrefix+"NDK_GCC_VERSION", toolchain.GccVersion())
 	}
 
 	ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
+	ctx.Strict(makePrefix+"SHLIB_SUFFIX", toolchain.ShlibSuffix())
+	ctx.Strict(makePrefix+"EXECUTABLE_SUFFIX", toolchain.ExecutableSuffix())
 }
