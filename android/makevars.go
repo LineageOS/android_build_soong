@@ -44,6 +44,17 @@ type MakeVarsContext interface {
 	// string.
 	StrictSorted(name, ninjaStr string)
 	CheckSorted(name, ninjaStr string)
+
+	// Evaluates a ninja string and returns the result. Used if more
+	// complicated modification needs to happen before giving it to Make.
+	Eval(ninjaStr string) (string, error)
+
+	// These are equivalent to Strict and Check, but do not attempt to
+	// evaluate the values before writing them to the Makefile. They can
+	// be used when all ninja variables have already been evaluated through
+	// Eval().
+	StrictRaw(name, value string)
+	CheckRaw(name, value string)
 }
 
 type MakeVarsProvider func(ctx MakeVarsContext)
@@ -146,7 +157,7 @@ func (s *makeVarsSingleton) writeVars(vars []makeVarsVariable) []byte {
 # $(3): Extra snippet to run if it does not match
 define soong-compare-var
 ifneq ($$($(1)),)
-  my_val_make := $(if $(2),$$(sort $$($(1))),$$($(1)))
+  my_val_make := $$(strip $(if $(2),$$(sort $$($(1))),$$($(1))))
   my_val_soong := $(if $(2),$$(sort $$(SOONG_$(1))),$$(SOONG_$(1)))
   ifneq ($$(my_val_make),$$(my_val_soong))
     $$(warning $(1) does not match between Make and Soong:)
@@ -214,11 +225,11 @@ func (c *makeVarsContext) Config() Config {
 	return c.config
 }
 
-func (c *makeVarsContext) addVariable(name, ninjaStr string, strict, sort bool) {
-	value, err := c.ctx.Eval(c.pctx, ninjaStr)
-	if err != nil {
-		c.ctx.Errorf(err.Error())
-	}
+func (c *makeVarsContext) Eval(ninjaStr string) (string, error) {
+	return c.ctx.Eval(c.pctx, ninjaStr)
+}
+
+func (c *makeVarsContext) addVariableRaw(name, value string, strict, sort bool) {
 	c.vars = append(c.vars, makeVarsVariable{
 		name:   name,
 		value:  value,
@@ -227,11 +238,22 @@ func (c *makeVarsContext) addVariable(name, ninjaStr string, strict, sort bool) 
 	})
 }
 
+func (c *makeVarsContext) addVariable(name, ninjaStr string, strict, sort bool) {
+	value, err := c.Eval(ninjaStr)
+	if err != nil {
+		c.ctx.Errorf(err.Error())
+	}
+	c.addVariableRaw(name, value, strict, sort)
+}
+
 func (c *makeVarsContext) Strict(name, ninjaStr string) {
 	c.addVariable(name, ninjaStr, true, false)
 }
 func (c *makeVarsContext) StrictSorted(name, ninjaStr string) {
 	c.addVariable(name, ninjaStr, true, true)
+}
+func (c *makeVarsContext) StrictRaw(name, value string) {
+	c.addVariableRaw(name, value, true, false)
 }
 
 func (c *makeVarsContext) Check(name, ninjaStr string) {
@@ -239,4 +261,7 @@ func (c *makeVarsContext) Check(name, ninjaStr string) {
 }
 func (c *makeVarsContext) CheckSorted(name, ninjaStr string) {
 	c.addVariable(name, ninjaStr, false, true)
+}
+func (c *makeVarsContext) CheckRaw(name, value string) {
+	c.addVariableRaw(name, value, false, false)
 }
