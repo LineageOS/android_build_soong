@@ -34,6 +34,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("CLANG_CXX", "${clangBin}/clang++")
 	ctx.Strict("LLVM_AS", "${clangBin}/llvm-as")
 	ctx.Strict("LLVM_LINK", "${clangBin}/llvm-link")
+	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(clangUnknownCflags, " "))
 
 	hostType := android.CurrentHostType()
 	arches := ctx.Config().HostArches[hostType]

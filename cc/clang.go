@@ -15,6 +15,8 @@ var clangUnknownCflags = sorted([]string{
 	"-fno-tree-sra",
 	"-fprefetch-loop-arrays",
 	"-funswitch-loops",
+	"-Werror=unused-but-set-parameter",
+	"-Werror=unused-but-set-variable",
 	"-Wmaybe-uninitialized",
 	"-Wno-error=clobbered",
 	"-Wno-error=maybe-uninitialized",
