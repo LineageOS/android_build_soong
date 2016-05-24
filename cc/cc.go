@@ -427,6 +427,7 @@ type BaseProperties struct {
 	No_default_compiler_flags *bool
 
 	AndroidMkSharedLibs []string `blueprint:"mutated"`
+	HideFromMake        bool     `blueprint:"mutated"`
 }
 
 type InstallerProperties struct {
@@ -992,20 +993,6 @@ func (c *Module) InstallInData() bool {
 	return c.installer.inData()
 }
 
-type appendVariantName interface {
-	appendVariantName(string)
-}
-
-func (c *Module) appendVariantName(name string) {
-	if c.linker == nil {
-		return
-	}
-
-	if l, ok := c.linker.(appendVariantName); ok {
-		l.appendVariantName(name)
-	}
-}
-
 // Compiler
 
 type baseCompiler struct {
@@ -1476,7 +1463,6 @@ type libraryLinker struct {
 }
 
 var _ linker = (*libraryLinker)(nil)
-var _ appendVariantName = (*libraryLinker)(nil)
 
 func (library *libraryLinker) props() []interface{} {
 	props := library.baseLinker.props()
@@ -1665,10 +1651,6 @@ func (library *libraryLinker) getWholeStaticMissingDeps() []string {
 
 func (library *libraryLinker) installable() bool {
 	return !library.static()
-}
-
-func (library *libraryLinker) appendVariantName(variant string) {
-	library.Properties.VariantName += variant
 }
 
 type libraryInstaller struct {
