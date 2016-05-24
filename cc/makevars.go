@@ -82,19 +82,19 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		productExtraLdflags += "-static"
 	}
 
-	ctx.StrictSorted(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
+	ctx.Strict(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.Cflags(),
 		"${commonGlobalCflags}",
 		fmt.Sprintf("${%sGlobalCflags}", hod),
 		toolchain.ToolchainCflags(),
 		productExtraCflags,
 	}, " "))
-	ctx.StrictSorted(makePrefix+"GLOBAL_CONLYFLAGS", "")
-	ctx.StrictSorted(makePrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
+	ctx.Strict(makePrefix+"GLOBAL_CONLYFLAGS", "")
+	ctx.Strict(makePrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
 		"${commonGlobalCppflags}",
 		toolchain.Cppflags(),
 	}, " "))
-	ctx.StrictSorted(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+	ctx.Strict(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 		toolchain.Ldflags(),
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
@@ -123,7 +123,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			clangExtras += " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 		}
 
-		ctx.StrictSorted(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
+		ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 			toolchain.ClangCflags(),
 			"${commonClangGlobalCflags}",
 			fmt.Sprintf("${%sClangGlobalCflags}", hod),
@@ -131,12 +131,12 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			clangExtras,
 			productExtraCflags,
 		}, " "))
-		ctx.StrictSorted(clangPrefix+"GLOBAL_CONLYFLAGS", "${clangExtraConlyflags}")
-		ctx.StrictSorted(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
+		ctx.Strict(clangPrefix+"GLOBAL_CONLYFLAGS", "${clangExtraConlyflags}")
+		ctx.Strict(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
 			"${commonClangGlobalCppflags}",
 			toolchain.ClangCppflags(),
 		}, " "))
-		ctx.StrictSorted(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+		ctx.Strict(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 			toolchain.ClangLdflags(),
 			toolchain.ToolchainClangLdflags(),
 			productExtraLdflags,
