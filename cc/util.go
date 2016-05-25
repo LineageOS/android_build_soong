@@ -119,3 +119,10 @@ func variantOrDefault(variants map[string]string, choice string) string {
 	}
 	return variants[""]
 }
+
+func addPrefix(list []string, prefix string) []string {
+	for i := range list {
+		list[i] = prefix + list[i]
+	}
+	return list
+}
