@@ -331,18 +331,24 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 			if d, ok := c.linker.(baseLinkerInterface); ok && d.isDependencyRoot() && c.sanitize.Sanitizer(t) {
 				modules := mctx.CreateVariations(t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
-				if mctx.AConfig().EmbeddedInMake() {
+				if mctx.AConfig().EmbeddedInMake() && !c.Host() {
 					modules[0].(*Module).sanitize.Properties.InData = true
 				}
 			} else if c.sanitize.Properties.SanitizeDep {
-				modules := mctx.CreateVariations("", t.String())
-				modules[0].(*Module).sanitize.SetSanitizer(t, false)
-				modules[1].(*Module).sanitize.SetSanitizer(t, true)
-				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
-				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
-				modules[1].(*Module).sanitize.Properties.InData = true
-				if mctx.AConfig().EmbeddedInMake() {
-					modules[0].(*Module).Properties.HideFromMake = true
+				if c.Host() {
+					modules := mctx.CreateVariations(t.String())
+					modules[0].(*Module).sanitize.SetSanitizer(t, true)
+					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
+				} else {
+					modules := mctx.CreateVariations("", t.String())
+					modules[0].(*Module).sanitize.SetSanitizer(t, false)
+					modules[1].(*Module).sanitize.SetSanitizer(t, true)
+					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
+					modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+					modules[1].(*Module).sanitize.Properties.InData = true
+					if mctx.AConfig().EmbeddedInMake() {
+						modules[0].(*Module).Properties.HideFromMake = true
+					}
 				}
 			}
 			c.sanitize.Properties.SanitizeDep = false
