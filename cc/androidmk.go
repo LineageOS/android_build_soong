@@ -24,6 +24,11 @@ import (
 )
 
 func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
+	if c.Properties.HideFromMake {
+		ret.Disabled = true
+		return ret, nil
+	}
+
 	ret.OutputFile = c.outputFile
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) (err error) {
 		fmt.Fprintln(w, "LOCAL_SANITIZE := never")

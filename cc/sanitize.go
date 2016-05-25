@@ -335,17 +335,14 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 					modules[0].(*Module).sanitize.Properties.InData = true
 				}
 			} else if c.sanitize.Properties.SanitizeDep {
+				modules := mctx.CreateVariations("", t.String())
+				modules[0].(*Module).sanitize.SetSanitizer(t, false)
+				modules[1].(*Module).sanitize.SetSanitizer(t, true)
+				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
+				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+				modules[1].(*Module).sanitize.Properties.InData = true
 				if mctx.AConfig().EmbeddedInMake() {
-					modules := mctx.CreateVariations(t.String())
-					modules[0].(*Module).sanitize.SetSanitizer(t, true)
-					modules[0].(*Module).sanitize.Properties.InData = true
-				} else {
-					modules := mctx.CreateVariations("", t.String())
-					modules[0].(*Module).sanitize.SetSanitizer(t, false)
-					modules[1].(*Module).sanitize.SetSanitizer(t, true)
-					modules[1].(*Module).appendVariantName("_" + t.String())
-					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
-					modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+					modules[0].(*Module).Properties.HideFromMake = true
 				}
 			}
 			c.sanitize.Properties.SanitizeDep = false
