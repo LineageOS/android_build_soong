@@ -90,7 +90,7 @@ func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
 	pctx.StaticVariable("commonJdkFlags", "-source 1.7 -target 1.7 -Xmaxerrs 9999999")
 	pctx.StaticVariable("javacCmd", "javac -J-Xmx1024M $commonJdkFlags")
-	pctx.StaticVariable("jarCmd", filepath.Join("${bootstrap.BinDir}", "soong_jar"))
+	pctx.StaticVariable("jarCmd", filepath.Join("${bootstrap.ToolDir}", "soong_jar"))
 	pctx.HostBinToolVariable("dxCmd", "dx")
 	pctx.HostJavaToolVariable("jarjarCmd", "jarjar.jar")
 }

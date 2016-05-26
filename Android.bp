@@ -44,7 +44,7 @@ bootstrap_go_package {
 }
 
 
-bootstrap_go_binary {
+blueprint_go_binary {
     name: "soong_glob",
     deps: [
         "soong-glob",
@@ -166,7 +166,7 @@ bootstrap_go_package {
     pluginFor: ["soong_build"],
 }
 
-bootstrap_go_binary {
+blueprint_go_binary {
     name: "soong_jar",
     srcs: [
         "cmd/soong_jar/soong_jar.go",
@@ -199,7 +199,7 @@ bootstrap_go_package {
 // androidmk Android.mk to Blueprints translator
 //
 
-bootstrap_go_binary {
+blueprint_go_binary {
     name: "androidmk",
     srcs: [
         "androidmk/cmd/androidmk/android.go",
