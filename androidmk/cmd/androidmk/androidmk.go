@@ -195,10 +195,10 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 	prefix := ""
 
 	if strings.HasPrefix(name, "LOCAL_") {
-		for k, v := range propertyPrefixes {
-			if strings.HasSuffix(name, "_"+k) {
-				name = strings.TrimSuffix(name, "_"+k)
-				prefix = v
+		for _, x := range propertyPrefixes {
+			if strings.HasSuffix(name, "_"+x.mk) {
+				name = strings.TrimSuffix(name, "_"+x.mk)
+				prefix = x.bp
 				break
 			}
 		}
