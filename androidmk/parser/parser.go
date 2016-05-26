@@ -21,7 +21,7 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Pos, e.Err)
 }
 
-func (p *parser) Parse() ([]MakeThing, []error) {
+func (p *parser) Parse() ([]Node, []error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if r == errTooManyErrors {
@@ -33,22 +33,24 @@ func (p *parser) Parse() ([]MakeThing, []error) {
 
 	p.parseLines()
 	p.accept(scanner.EOF)
-	p.things = append(p.things, p.comments...)
-	sort.Sort(byPosition(p.things))
+	p.nodes = append(p.nodes, p.comments...)
+	sort.Sort(byPosition(p.nodes))
 
-	return p.things, p.errors
+	return p.nodes, p.errors
 }
 
 type parser struct {
 	scanner  scanner.Scanner
 	tok      rune
 	errors   []error
-	comments []MakeThing
-	things   []MakeThing
+	comments []Node
+	nodes    []Node
+	lines    []int
 }
 
 func NewParser(filename string, r io.Reader) *parser {
 	p := &parser{}
+	p.lines = []int{0}
 	p.scanner.Init(r)
 	p.scanner.Error = func(sc *scanner.Scanner, msg string) {
 		p.errorf(msg)
@@ -65,14 +67,29 @@ func NewParser(filename string, r io.Reader) *parser {
 	return p
 }
 
-func (p *parser) errorf(format string, args ...interface{}) {
+func (p *parser) Unpack(pos Pos) scanner.Position {
+	offset := int(pos)
+	line := sort.Search(len(p.lines), func(i int) bool { return p.lines[i] > offset }) - 1
+	return scanner.Position{
+		Filename: p.scanner.Filename,
+		Line:     line + 1,
+		Column:   offset - p.lines[line] + 1,
+		Offset:   offset,
+	}
+}
+
+func (p *parser) pos() Pos {
 	pos := p.scanner.Position
 	if !pos.IsValid() {
 		pos = p.scanner.Pos()
 	}
+	return Pos(pos.Offset)
+}
+
+func (p *parser) errorf(format string, args ...interface{}) {
 	err := &ParseError{
 		Err: fmt.Errorf(format, args...),
-		Pos: pos,
+		Pos: p.scanner.Position,
 	}
 	p.errors = append(p.errors, err)
 	if len(p.errors) >= maxErrors {
@@ -99,7 +116,9 @@ func (p *parser) next() {
 			p.tok = p.scanner.Scan()
 		}
 	}
-	return
+	if p.tok == '\n' {
+		p.lines = append(p.lines, p.scanner.Position.Offset+1)
+	}
 }
 
 func (p *parser) parseLines() {
@@ -110,7 +129,7 @@ func (p *parser) parseLines() {
 			continue
 		}
 
-		ident, _ := p.parseExpression('=', '?', ':', '#', '\n')
+		ident := p.parseExpression('=', '?', ':', '#', '\n')
 
 		p.ignoreSpaces()
 
@@ -142,7 +161,7 @@ func (p *parser) parseLines() {
 		case '#', '\n', scanner.EOF:
 			ident.TrimRightSpaces()
 			if v, ok := toVariable(ident); ok {
-				p.things = append(p.things, v)
+				p.nodes = append(p.nodes, &v)
 			} else if !ident.Empty() {
 				p.errorf("expected directive, rule, or assignment after ident " + ident.Dump())
 			}
@@ -168,9 +187,9 @@ func (p *parser) parseDirective() bool {
 	}
 
 	d := p.scanner.TokenText()
-	pos := p.scanner.Position
-	endPos := pos
+	pos := p.pos()
 	p.accept(scanner.Ident)
+	endPos := NoPos
 
 	expression := SimpleMakeString("", pos)
 
@@ -178,35 +197,33 @@ func (p *parser) parseDirective() bool {
 	case "endif", "endef", "else":
 		// Nothing
 	case "define":
-		expression = p.parseDefine()
+		expression, endPos = p.parseDefine()
 	default:
 		p.ignoreSpaces()
-		expression, endPos = p.parseExpression()
+		expression = p.parseExpression()
 	}
 
-	p.things = append(p.things, Directive{
-		makeThing: makeThing{
-			pos:    pos,
-			endPos: endPos,
-		},
-		Name: d,
-		Args: expression,
+	p.nodes = append(p.nodes, &Directive{
+		NamePos: pos,
+		Name:    d,
+		Args:    expression,
+		EndPos:  endPos,
 	})
 	return true
 }
 
-func (p *parser) parseDefine() *MakeString {
-	value := SimpleMakeString("", p.scanner.Position)
+func (p *parser) parseDefine() (*MakeString, Pos) {
+	value := SimpleMakeString("", p.pos())
 
 loop:
 	for {
 		switch p.tok {
 		case scanner.Ident:
+			value.appendString(p.scanner.TokenText())
 			if p.scanner.TokenText() == "endef" {
 				p.accept(scanner.Ident)
 				break loop
 			}
-			value.appendString(p.scanner.TokenText())
 			p.accept(scanner.Ident)
 		case '\\':
 			p.parseEscape()
@@ -235,7 +252,7 @@ loop:
 		}
 	}
 
-	return value
+	return value, p.pos()
 }
 
 func (p *parser) parseEscape() {
@@ -244,8 +261,8 @@ func (p *parser) parseEscape() {
 	p.scanner.Mode = scanner.ScanIdents
 }
 
-func (p *parser) parseExpression(end ...rune) (*MakeString, scanner.Position) {
-	value := SimpleMakeString("", p.scanner.Position)
+func (p *parser) parseExpression(end ...rune) *MakeString {
+	value := SimpleMakeString("", p.pos())
 
 	endParen := false
 	for _, r := range end {
@@ -255,14 +272,11 @@ func (p *parser) parseExpression(end ...rune) (*MakeString, scanner.Position) {
 	}
 	parens := 0
 
-	endPos := p.scanner.Position
-
 loop:
 	for {
 		if endParen && parens > 0 && p.tok == ')' {
 			parens--
 			value.appendString(")")
-			endPos = p.scanner.Position
 			p.accept(')')
 			continue
 		}
@@ -278,7 +292,6 @@ loop:
 			break loop
 		case scanner.Ident:
 			value.appendString(p.scanner.TokenText())
-			endPos = p.scanner.Position
 			p.accept(scanner.Ident)
 		case '\\':
 			p.parseEscape()
@@ -288,18 +301,17 @@ loop:
 			case scanner.EOF:
 				p.errorf("expected escaped character, found %s",
 					scanner.TokenString(p.tok))
-				return value, endPos
+				return value
 			default:
 				value.appendString(`\` + string(p.tok))
 			}
-			endPos = p.scanner.Position
 			p.accept(p.tok)
 		case '#':
 			p.parseComment()
 			break loop
 		case '$':
 			var variable Variable
-			variable, endPos = p.parseVariable()
+			variable = p.parseVariable()
 			value.appendVariable(variable)
 		case scanner.EOF:
 			break loop
@@ -308,11 +320,9 @@ loop:
 				parens++
 			}
 			value.appendString("(")
-			endPos = p.scanner.Position
 			p.accept('(')
 		default:
 			value.appendString(p.scanner.TokenText())
-			endPos = p.scanner.Position
 			p.accept(p.tok)
 		}
 	}
@@ -320,12 +330,11 @@ loop:
 	if parens > 0 {
 		p.errorf("expected closing paren %s", value.Dump())
 	}
-	return value, endPos
+	return value
 }
 
-func (p *parser) parseVariable() (Variable, scanner.Position) {
-	pos := p.scanner.Position
-	endPos := pos
+func (p *parser) parseVariable() Variable {
+	pos := p.pos()
 	p.accept('$')
 	var name *MakeString
 	switch p.tok {
@@ -334,30 +343,26 @@ func (p *parser) parseVariable() (Variable, scanner.Position) {
 	case '{':
 		return p.parseBracketedVariable('{', '}', pos)
 	case '$':
-		name = SimpleMakeString("__builtin_dollar", scanner.Position{})
+		name = SimpleMakeString("__builtin_dollar", NoPos)
 	case scanner.EOF:
 		p.errorf("expected variable name, found %s",
 			scanner.TokenString(p.tok))
 	default:
-		name, endPos = p.parseExpression(variableNameEndRunes...)
+		name = p.parseExpression(variableNameEndRunes...)
 	}
 
-	return p.nameToVariable(name, pos, endPos), endPos
+	return p.nameToVariable(name)
 }
 
-func (p *parser) parseBracketedVariable(start, end rune, pos scanner.Position) (Variable, scanner.Position) {
+func (p *parser) parseBracketedVariable(start, end rune, pos Pos) Variable {
 	p.accept(start)
-	name, endPos := p.parseExpression(end)
+	name := p.parseExpression(end)
 	p.accept(end)
-	return p.nameToVariable(name, pos, endPos), endPos
+	return p.nameToVariable(name)
 }
 
-func (p *parser) nameToVariable(name *MakeString, pos, endPos scanner.Position) Variable {
+func (p *parser) nameToVariable(name *MakeString) Variable {
 	return Variable{
-		makeThing: makeThing{
-			pos:    pos,
-			endPos: endPos,
-		},
 		Name: name,
 	}
 }
@@ -366,12 +371,11 @@ func (p *parser) parseRule(target *MakeString) {
 	prerequisites, newLine := p.parseRulePrerequisites(target)
 
 	recipe := ""
-	endPos := p.scanner.Position
+	recipePos := p.pos()
 loop:
 	for {
 		if newLine {
 			if p.tok == '\t' {
-				endPos = p.scanner.Position
 				p.accept('\t')
 				newLine = false
 				continue loop
@@ -388,31 +392,25 @@ loop:
 		case '\\':
 			p.parseEscape()
 			recipe += string(p.tok)
-			endPos = p.scanner.Position
 			p.accept(p.tok)
 		case '\n':
 			newLine = true
 			recipe += "\n"
-			endPos = p.scanner.Position
 			p.accept('\n')
 		case scanner.EOF:
 			break loop
 		default:
 			recipe += p.scanner.TokenText()
-			endPos = p.scanner.Position
 			p.accept(p.tok)
 		}
 	}
 
 	if prerequisites != nil {
-		p.things = append(p.things, Rule{
-			makeThing: makeThing{
-				pos:    target.Pos,
-				endPos: endPos,
-			},
+		p.nodes = append(p.nodes, &Rule{
 			Target:        target,
 			Prerequisites: prerequisites,
 			Recipe:        recipe,
+			RecipePos:     recipePos,
 		})
 	}
 }
@@ -422,7 +420,7 @@ func (p *parser) parseRulePrerequisites(target *MakeString) (*MakeString, bool) 
 
 	p.ignoreSpaces()
 
-	prerequisites, _ := p.parseExpression('#', '\n', ';', ':', '=')
+	prerequisites := p.parseExpression('#', '\n', ';', ':', '=')
 
 	switch p.tok {
 	case '\n':
@@ -439,7 +437,7 @@ func (p *parser) parseRulePrerequisites(target *MakeString) (*MakeString, bool) 
 			p.parseAssignment(":=", target, prerequisites)
 			return nil, true
 		} else {
-			more, _ := p.parseExpression('#', '\n', ';')
+			more := p.parseExpression('#', '\n', ';')
 			prerequisites.appendMakeString(more)
 		}
 	case '=':
@@ -453,10 +451,9 @@ func (p *parser) parseRulePrerequisites(target *MakeString) (*MakeString, bool) 
 }
 
 func (p *parser) parseComment() {
-	pos := p.scanner.Position
+	pos := p.pos()
 	p.accept('#')
 	comment := ""
-	endPos := pos
 loop:
 	for {
 		switch p.tok {
@@ -467,27 +464,21 @@ loop:
 			} else {
 				comment += "\\" + p.scanner.TokenText()
 			}
-			endPos = p.scanner.Position
 			p.accept(p.tok)
 		case '\n':
-			endPos = p.scanner.Position
 			p.accept('\n')
 			break loop
 		case scanner.EOF:
 			break loop
 		default:
 			comment += p.scanner.TokenText()
-			endPos = p.scanner.Position
 			p.accept(p.tok)
 		}
 	}
 
-	p.comments = append(p.comments, Comment{
-		makeThing: makeThing{
-			pos:    pos,
-			endPos: endPos,
-		},
-		Comment: comment,
+	p.comments = append(p.comments, &Comment{
+		CommentPos: pos,
+		Comment:    comment,
 	})
 }
 
@@ -496,7 +487,7 @@ func (p *parser) parseAssignment(t string, target *MakeString, ident *MakeString
 	// non-whitespace character after the = until the end of the logical line,
 	// which may included escaped newlines
 	p.accept('=')
-	value, endPos := p.parseExpression()
+	value := p.parseExpression()
 	value.TrimLeftSpaces()
 	if ident.EndsWith('+') && t == "=" {
 		ident.TrimRightOne()
@@ -505,11 +496,7 @@ func (p *parser) parseAssignment(t string, target *MakeString, ident *MakeString
 
 	ident.TrimRightSpaces()
 
-	p.things = append(p.things, Assignment{
-		makeThing: makeThing{
-			pos:    ident.Pos,
-			endPos: endPos,
-		},
+	p.nodes = append(p.nodes, &Assignment{
 		Name:   ident,
 		Value:  value,
 		Target: target,
