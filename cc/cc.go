@@ -1019,6 +1019,11 @@ func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps {
 func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
+	CheckBadCompilerFlags(ctx, "cflags", compiler.Properties.Cflags)
+	CheckBadCompilerFlags(ctx, "cppflags", compiler.Properties.Cppflags)
+	CheckBadCompilerFlags(ctx, "conlyflags", compiler.Properties.Conlyflags)
+	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
+
 	flags.CFlags = append(flags.CFlags, compiler.Properties.Cflags...)
 	flags.CppFlags = append(flags.CppFlags, compiler.Properties.Cppflags...)
 	flags.ConlyFlags = append(flags.ConlyFlags, compiler.Properties.Conlyflags...)
@@ -1066,10 +1071,15 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		ctx.ModuleErrorf("%s", err)
 	}
 
+	CheckBadCompilerFlags(ctx, "release.cflags", compiler.Properties.Release.Cflags)
+
 	// TODO: debug
 	flags.CFlags = append(flags.CFlags, compiler.Properties.Release.Cflags...)
 
 	if flags.Clang {
+		CheckBadCompilerFlags(ctx, "clang_cflags", compiler.Properties.Clang_cflags)
+		CheckBadCompilerFlags(ctx, "clang_asflags", compiler.Properties.Clang_asflags)
+
 		flags.CFlags = clangFilterUnknownCflags(flags.CFlags)
 		flags.CFlags = append(flags.CFlags, compiler.Properties.Clang_cflags...)
 		flags.AsFlags = append(flags.AsFlags, compiler.Properties.Clang_asflags...)
@@ -1268,9 +1278,13 @@ func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 
 		if ctx.Host() {
+			CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
+
 			flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
 		}
 	}
+
+	CheckBadLinkerFlags(ctx, "ldflags", linker.Properties.Ldflags)
 
 	flags.LdFlags = append(flags.LdFlags, linker.Properties.Ldflags...)
 
