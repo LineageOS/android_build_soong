@@ -29,8 +29,8 @@ type bpFile struct {
 	inModule bool
 }
 
-func (f *bpFile) errorf(thing mkparser.MakeThing, s string, args ...interface{}) {
-	orig := thing.Dump()
+func (f *bpFile) errorf(node mkparser.Node, s string, args ...interface{}) {
+	orig := node.Dump()
 	s = fmt.Sprintf(s, args...)
 	c := bpparser.Comment{
 		Comment: []string{fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s)},
@@ -73,7 +73,7 @@ func main() {
 
 	p := mkparser.NewParser(os.Args[1], bytes.NewBuffer(b))
 
-	things, errs := p.Parse()
+	nodes, errs := p.Parse()
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println("ERROR: ", err)
@@ -90,33 +90,34 @@ func main() {
 	var conds []*conditional
 	var assignmentCond *conditional
 
-	for _, t := range things {
-		file.setMkPos(t.Pos(), t.EndPos())
+	for _, node := range nodes {
+		file.setMkPos(p.Unpack(node.Pos()), p.Unpack(node.End()))
 
-		if comment, ok := t.AsComment(); ok {
+		switch x := node.(type) {
+		case *mkparser.Comment:
 			file.comments = append(file.comments, bpparser.Comment{
-				Comment: []string{"//" + comment.Comment},
 				Pos:     file.bpPos,
+				Comment: []string{"//" + x.Comment},
 			})
-		} else if assignment, ok := t.AsAssignment(); ok {
-			handleAssignment(file, assignment, assignmentCond)
-		} else if directive, ok := t.AsDirective(); ok {
-			switch directive.Name {
+		case *mkparser.Assignment:
+			handleAssignment(file, x, assignmentCond)
+		case *mkparser.Directive:
+			switch x.Name {
 			case "include":
-				val := directive.Args.Value(file.scope)
+				val := x.Args.Value(file.scope)
 				switch {
 				case soongModuleTypes[val]:
-					handleModuleConditionals(file, directive, conds)
+					handleModuleConditionals(file, x, conds)
 					makeModule(file, val)
 				case val == clear_vars:
 					resetModule(file)
 				default:
-					file.errorf(directive, "unsupported include")
+					file.errorf(x, "unsupported include")
 					continue
 				}
 			case "ifeq", "ifneq", "ifdef", "ifndef":
-				args := directive.Args.Dump()
-				eq := directive.Name == "ifeq" || directive.Name == "ifdef"
+				args := x.Args.Dump()
+				eq := x.Name == "ifeq" || x.Name == "ifdef"
 				if _, ok := conditionalTranslations[args]; ok {
 					newCond := conditional{args, eq}
 					conds = append(conds, &newCond)
@@ -124,29 +125,29 @@ func main() {
 						if assignmentCond == nil {
 							assignmentCond = &newCond
 						} else {
-							file.errorf(directive, "unsupported nested conditional in module")
+							file.errorf(x, "unsupported nested conditional in module")
 						}
 					}
 				} else {
-					file.errorf(directive, "unsupported conditional")
+					file.errorf(x, "unsupported conditional")
 					conds = append(conds, nil)
 					continue
 				}
 			case "else":
 				if len(conds) == 0 {
-					file.errorf(directive, "missing if before else")
+					file.errorf(x, "missing if before else")
 					continue
 				} else if conds[len(conds)-1] == nil {
-					file.errorf(directive, "else from unsupported contitional")
+					file.errorf(x, "else from unsupported contitional")
 					continue
 				}
 				conds[len(conds)-1].eq = !conds[len(conds)-1].eq
 			case "endif":
 				if len(conds) == 0 {
-					file.errorf(directive, "missing if before endif")
+					file.errorf(x, "missing if before endif")
 					continue
 				} else if conds[len(conds)-1] == nil {
-					file.errorf(directive, "endif from unsupported contitional")
+					file.errorf(x, "endif from unsupported contitional")
 					conds = conds[:len(conds)-1]
 				} else {
 					if assignmentCond == conds[len(conds)-1] {
@@ -155,11 +156,11 @@ func main() {
 					conds = conds[:len(conds)-1]
 				}
 			default:
-				file.errorf(directive, "unsupported directive")
+				file.errorf(x, "unsupported directive")
 				continue
 			}
-		} else {
-			file.errorf(t, "unsupported line")
+		default:
+			file.errorf(x, "unsupported line")
 		}
 	}
 
@@ -175,7 +176,7 @@ func main() {
 	fmt.Print(string(out))
 }
 
-func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *conditional) {
+func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditional) {
 	if !assignment.Name.Const() {
 		file.errorf(assignment, "unsupported non-const variable name")
 		return
@@ -239,7 +240,7 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 			// This is a hack to get the LOCAL_ARM_MODE value inside
 			// of an arch: { arm: {} } block.
 			armModeAssign := assignment
-			armModeAssign.Name = mkparser.SimpleMakeString("LOCAL_ARM_MODE_HACK_arm", assignment.Name.Pos)
+			armModeAssign.Name = mkparser.SimpleMakeString("LOCAL_ARM_MODE_HACK_arm", assignment.Name.Pos())
 			handleAssignment(file, armModeAssign, c)
 		case name == "LOCAL_ADDITIONAL_DEPENDENCIES":
 			// TODO: check for only .mk files?
@@ -257,7 +258,7 @@ func handleAssignment(file *bpFile, assignment mkparser.Assignment, c *condition
 	}
 }
 
-func handleModuleConditionals(file *bpFile, directive mkparser.Directive, conds []*conditional) {
+func handleModuleConditionals(file *bpFile, directive *mkparser.Directive, conds []*conditional) {
 	for _, c := range conds {
 		if c == nil {
 			continue
@@ -270,7 +271,7 @@ func handleModuleConditionals(file *bpFile, directive mkparser.Directive, conds 
 		disabledPrefix := conditionalTranslations[c.cond][!c.eq]
 
 		// Create a fake assignment with enabled = false
-		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", file.bpPos), bpparser.Bool)
+		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", mkparser.NoPos), bpparser.Bool)
 		if err == nil {
 			err = setVariable(file, false, disabledPrefix, "enabled", val, true)
 		}
