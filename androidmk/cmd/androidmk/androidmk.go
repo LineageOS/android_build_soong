@@ -23,8 +23,8 @@ type bpFile struct {
 	scope             mkparser.Scope
 	module            *bpparser.Module
 
-	pos            scanner.Position
-	prevLine, line int
+	mkPos scanner.Position // Position of the last handled line in the makefile
+	bpPos scanner.Position // Position of the last emitted line to the blueprint file
 
 	inModule bool
 }
@@ -32,36 +32,31 @@ type bpFile struct {
 func (f *bpFile) errorf(thing mkparser.MakeThing, s string, args ...interface{}) {
 	orig := thing.Dump()
 	s = fmt.Sprintf(s, args...)
-	f.comments = append(f.comments, bpparser.Comment{
+	c := bpparser.Comment{
 		Comment: []string{fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s)},
-		Pos:     f.pos,
-	})
+		Pos:     f.bpPos,
+	}
+
 	lines := strings.Split(orig, "\n")
 	for _, l := range lines {
-		f.incPos()
-		f.comments = append(f.comments, bpparser.Comment{
-			Comment: []string{"// " + l},
-			Pos:     f.pos,
-		})
+		c.Comment = append(c.Comment, "// "+l)
 	}
+	f.incBpPos(len(lines))
+
+	f.comments = append(f.comments, c)
 }
 
-func (f *bpFile) setPos(pos, endPos scanner.Position) {
-	f.pos = pos
-
-	f.line++
-	if f.pos.Line > f.prevLine+1 {
-		f.line++
+func (f *bpFile) setMkPos(pos, end scanner.Position) {
+	if pos.Line < f.mkPos.Line {
+		panic(fmt.Errorf("out of order lines, %q after %q", pos, f.mkPos))
 	}
-
-	f.pos.Line = f.line
-	f.prevLine = endPos.Line
+	f.bpPos.Line += (pos.Line - f.mkPos.Line)
+	f.mkPos = end
 }
 
-func (f *bpFile) incPos() {
-	f.pos.Line++
-	f.line++
-	f.prevLine++
+// Called when inserting extra lines into the blueprint file
+func (f *bpFile) incBpPos(lines int) {
+	f.bpPos.Line += lines
 }
 
 type conditional struct {
@@ -96,12 +91,12 @@ func main() {
 	var assignmentCond *conditional
 
 	for _, t := range things {
-		file.setPos(t.Pos(), t.EndPos())
+		file.setMkPos(t.Pos(), t.EndPos())
 
 		if comment, ok := t.AsComment(); ok {
 			file.comments = append(file.comments, bpparser.Comment{
-				Pos:     file.pos,
 				Comment: []string{"//" + comment.Comment},
+				Pos:     file.bpPos,
 			})
 		} else if assignment, ok := t.AsAssignment(); ok {
 			handleAssignment(file, assignment, assignmentCond)
@@ -275,7 +270,7 @@ func handleModuleConditionals(file *bpFile, directive mkparser.Directive, conds 
 		disabledPrefix := conditionalTranslations[c.cond][!c.eq]
 
 		// Create a fake assignment with enabled = false
-		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", file.pos), bpparser.Bool)
+		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", file.bpPos), bpparser.Bool)
 		if err == nil {
 			err = setVariable(file, false, disabledPrefix, "enabled", val, true)
 		}
@@ -290,14 +285,14 @@ func makeModule(file *bpFile, t string) {
 		Name: t,
 		Pos:  file.module.LbracePos,
 	}
-	file.module.RbracePos = file.pos
+	file.module.RbracePos = file.bpPos
 	file.defs = append(file.defs, file.module)
 	file.inModule = false
 }
 
 func resetModule(file *bpFile) {
 	file.module = &bpparser.Module{}
-	file.module.LbracePos = file.pos
+	file.module.LbracePos = file.bpPos
 	file.localAssignments = make(map[string]*bpparser.Property)
 	file.inModule = true
 }
@@ -331,7 +326,7 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bppa
 		name = prefix + "." + name
 	}
 
-	pos := file.pos
+	pos := file.bpPos
 
 	var oldValue *bpparser.Value
 	if local {
