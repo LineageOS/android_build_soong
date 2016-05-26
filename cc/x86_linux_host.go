@@ -97,6 +97,20 @@ var (
 	linuxX8664ClangCppflags = []string{
 		"-isystem ${linuxGccRoot}/${linuxGccTriple}/include/c++/${linuxGccVersion}/${linuxGccTriple}",
 	}
+
+	linuxAvailableLibraries = addPrefix([]string{
+		"c",
+		"dl",
+		"gcc",
+		"gcc_s",
+		"m",
+		"ncurses",
+		"pthread",
+		"resolv",
+		"rt",
+		"util",
+		"z",
+	}, "-l")
 )
 
 const (
@@ -222,6 +236,10 @@ func (t *toolchainLinuxX86) ClangLdflags() string {
 
 func (t *toolchainLinuxX8664) ClangLdflags() string {
 	return "${linuxClangLdflags} ${linuxX8664ClangLdflags}"
+}
+
+func (t *toolchainLinux) AvailableLibraries() []string {
+	return linuxAvailableLibraries
 }
 
 var toolchainLinuxX86Singleton Toolchain = &toolchainLinuxX86{}

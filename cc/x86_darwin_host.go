@@ -84,6 +84,12 @@ var (
 		"10.10",
 		"10.11",
 	}
+
+	darwinAvailableLibraries = addPrefix([]string{
+		"c",
+		"m",
+		"pthread",
+	}, "-l")
 )
 
 const (
@@ -256,6 +262,10 @@ func (t *toolchainDarwin) SystemCppCppflags() string {
 
 func (t *toolchainDarwin) SystemCppLdflags() string {
 	return "${darwinSystemCppLdflags}"
+}
+
+func (t *toolchainDarwin) AvailableLibraries() []string {
+	return darwinAvailableLibraries
 }
 
 var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}
