@@ -313,15 +313,17 @@ var deleteProperties = map[string]struct{}{
 	"LOCAL_CPP_EXTENSION": struct{}{},
 }
 
-var propertyPrefixes = map[string]string{
-	"arm":    "arch.arm",
-	"arm64":  "arch.arm64",
-	"mips":   "arch.mips",
-	"mips64": "arch.mips64",
-	"x86":    "arch.x86",
-	"x86_64": "arch.x86_64",
-	"32":     "multilib.lib32",
-	"64":     "multilib.lib64",
+// Shorter suffixes of other suffixes must be at the end of the list
+var propertyPrefixes = []struct{ mk, bp string }{
+	{"arm", "arch.arm"},
+	{"arm64", "arch.arm64"},
+	{"mips", "arch.mips"},
+	{"mips64", "arch.mips64"},
+	{"x86", "arch.x86"},
+	{"x86_64", "arch.x86_64"},
+	{"32", "multilib.lib32"},
+	// 64 must be after x86_64
+	{"64", "multilib.lib64"},
 }
 
 var conditionalTranslations = map[string]map[bool]string{
