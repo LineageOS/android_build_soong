@@ -216,8 +216,8 @@ bootstrap_go_package {
     name: "androidmk-parser",
     pkgPath: "android/soong/androidmk/parser",
     srcs: [
+        "androidmk/parser/ast.go",
         "androidmk/parser/make_strings.go",
-        "androidmk/parser/makething.go",
         "androidmk/parser/parser.go",
         "androidmk/parser/scope.go",
     ],
