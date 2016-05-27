@@ -175,6 +175,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"NDK_GCC_VERSION", toolchain.GccVersion())
 	}
 
+	ctx.Strict(makePrefix+"TOOLCHAIN_ROOT", toolchain.GccRoot())
 	ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 	ctx.Strict(makePrefix+"SHLIB_SUFFIX", toolchain.ShlibSuffix())
 	ctx.Strict(makePrefix+"EXECUTABLE_SUFFIX", toolchain.ExecutableSuffix())
