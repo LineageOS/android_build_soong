@@ -269,19 +269,9 @@ type BaseCompilerProperties struct {
 	// that module.
 	Include_dirs []string `android:"arch_variant"`
 
-	// list of files relative to the root of the source tree that will be included
-	// using -include.
-	// If possible, don't use this.
-	Include_files []string `android:"arch_variant"`
-
 	// list of directories relative to the Blueprints file that will
 	// be added to the include path using -I
 	Local_include_dirs []string `android:"arch_variant"`
-
-	// list of files relative to the Blueprints file that will be included
-	// using -include.
-	// If possible, don't use this.
-	Local_include_files []string `android:"arch_variant"`
 
 	// list of generated sources to compile. These are the names of gensrcs or
 	// genrule modules.
@@ -1036,13 +1026,6 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	flags.GlobalFlags = append(flags.GlobalFlags,
 		includeDirsToFlags(localIncludeDirs),
 		includeDirsToFlags(rootIncludeDirs))
-
-	rootIncludeFiles := android.PathsForSource(ctx, compiler.Properties.Include_files)
-	localIncludeFiles := android.PathsForModuleSrc(ctx, compiler.Properties.Local_include_files)
-
-	flags.GlobalFlags = append(flags.GlobalFlags,
-		includeFilesToFlags(rootIncludeFiles),
-		includeFilesToFlags(localIncludeFiles))
 
 	if !ctx.noDefaultCompilerFlags() {
 		if !ctx.sdk() || ctx.Host() {
