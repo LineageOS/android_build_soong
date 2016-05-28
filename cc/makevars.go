@@ -36,6 +36,11 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("LLVM_LINK", "${clangBin}/llvm-link")
 	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(clangUnknownCflags, " "))
 
+	ctx.Strict("GLOBAL_CFLAGS_NO_OVERRIDE", "${noOverrideGlobalCflags}")
+	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${clangExtraNoOverrideCflags}")
+	ctx.Strict("GLOBAL_CPPFLAGS_NO_OVERRIDE", "")
+	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
+
 	hostType := android.CurrentHostType()
 	arches := ctx.Config().HostArches[hostType]
 	makeVarsToolchain(ctx, "", android.Host, hostType, arches[0])
