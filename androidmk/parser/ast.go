@@ -22,7 +22,7 @@ func (x *Assignment) Dump() string {
 	if x.Target != nil {
 		target = x.Target.Dump() + ": "
 	}
-	return target + x.Name.Dump() + x.Type + x.Value.Dump()
+	return target + x.Name.Dump() + " " + x.Type + " " + x.Value.Dump()
 }
 
 func (x *Assignment) Pos() Pos {
