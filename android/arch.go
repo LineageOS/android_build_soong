@@ -303,6 +303,7 @@ type Arch struct {
 	CpuVariant   string
 	Abi          []string
 	ArchFeatures []string
+	Native       bool
 }
 
 func (a Arch) String() string {
@@ -911,6 +912,9 @@ func decodeArchProductVariables(variables productVariables) (map[HostType][]Arch
 		if err != nil {
 			return nil, nil, err
 		}
+		if deviceArch.ArchType.Multilib == deviceSecondaryArch.ArchType.Multilib {
+			deviceSecondaryArch.Native = false
+		}
 		deviceArches = append(deviceArches, deviceSecondaryArch)
 	}
 
@@ -973,6 +977,7 @@ func decodeMegaDevice() ([]Arch, error) {
 		if err != nil {
 			return nil, err
 		}
+		arch.Native = false
 		ret = append(ret, arch)
 	}
 
@@ -1005,6 +1010,7 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 		ArchVariant: stringPtr(archVariant),
 		CpuVariant:  stringPtr(cpuVariant),
 		Abi:         slicePtr(abi),
+		Native:      true,
 	}
 
 	if a.ArchVariant == a.ArchType.Name || a.ArchVariant == "generic" {
