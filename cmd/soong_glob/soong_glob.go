@@ -61,7 +61,7 @@ func main() {
 	flag.Parse()
 
 	if *out == "" {
-		fmt.Fprintln(os.Stderr, "error: -o is required\n")
+		fmt.Fprintf(os.Stderr, "error: -o is required\n")
 		usage()
 	}
 
