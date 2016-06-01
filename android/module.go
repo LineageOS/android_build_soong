@@ -111,6 +111,10 @@ type commonProperties struct {
 	// whether this is a proprietary vendor module, and should be installed into /vendor
 	Proprietary bool
 
+	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
+	// file
+	Logtags []string
+
 	// Set by HostOrDeviceMutator
 	CompileHostOrDevice HostOrDevice `blueprint:"mutated"`
 
