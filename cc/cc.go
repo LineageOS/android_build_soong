@@ -1347,6 +1347,9 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
 		subDir = installer.dir64
 	}
+	if !ctx.Host() && !ctx.Arch().Native {
+		subDir = filepath.Join(subDir, ctx.Arch().ArchType.String())
+	}
 	dir := android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path)
 	installer.path = ctx.InstallFile(dir, file)
 }
