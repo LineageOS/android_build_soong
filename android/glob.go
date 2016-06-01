@@ -39,7 +39,7 @@ import (
 // in a build failure with a "missing and no known rule to make it" error.
 
 var (
-	globCmd = filepath.Join("${bootstrap.BinDir}", "soong_glob")
+	globCmd = filepath.Join("${bootstrap.ToolDir}", "soong_glob")
 
 	// globRule rule traverses directories to produce a list of files that match $glob
 	// and writes it to $out if it has changed, and writes the directories to $out.d

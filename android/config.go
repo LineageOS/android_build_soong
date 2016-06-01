@@ -197,6 +197,10 @@ func (c *config) RemoveAbandonedFiles() bool {
 	return false
 }
 
+func (c *config) BlueprintToolLocation() string {
+	return filepath.Join(c.buildDir, "host", c.PrebuiltOS(), "bin")
+}
+
 // PrebuiltOS returns the name of the host OS used in prebuilts directories
 func (c *config) PrebuiltOS() string {
 	switch runtime.GOOS {
