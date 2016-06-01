@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"android/soong"
 
@@ -200,6 +201,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 	} else {
 		fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
+
+		if len(amod.commonProperties.Logtags) > 0 {
+			fmt.Fprintln(w, "LOCAL_LOGTAGS_FILES := ", strings.Join(amod.commonProperties.Logtags, " "))
+		}
 	}
 
 	for _, extra := range data.Extra {
