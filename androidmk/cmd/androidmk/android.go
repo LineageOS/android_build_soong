@@ -32,7 +32,6 @@ var standardProperties = map[string]struct {
 	"LOCAL_MODULE_RELATIVE_PATH": {"relative_install_path", bpparser.String},
 
 	// List properties
-	"LOCAL_SRC_FILES":               {"srcs", bpparser.List},
 	"LOCAL_SRC_FILES_EXCLUDE":       {"exclude_srcs", bpparser.List},
 	"LOCAL_SHARED_LIBRARIES":        {"shared_libs", bpparser.List},
 	"LOCAL_STATIC_LIBRARIES":        {"static_libs", bpparser.List},
@@ -51,6 +50,7 @@ var standardProperties = map[string]struct {
 	"LOCAL_YACCFLAGS":               {"yaccflags", bpparser.List},
 	"LOCAL_SANITIZE":                {"sanitize", bpparser.List},
 	"LOCAL_SANITIZE_RECOVER":        {"sanitize_recover", bpparser.List},
+	"LOCAL_LOGTAGS_FILES":           {"logtags", bpparser.List},
 
 	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.List},
 	"LOCAL_JAVACFLAGS":            {"javacflags", bpparser.List},
@@ -82,39 +82,118 @@ var rewriteProperties = map[string]struct {
 	"LOCAL_EXPORT_C_INCLUDE_DIRS": {exportIncludeDirs},
 	"LOCAL_MODULE_STEM":           {stem},
 	"LOCAL_MODULE_HOST_OS":        {hostOs},
+	"LOCAL_SRC_FILES":             {srcFiles},
 }
 
-func localAbsPath(value bpparser.Value) (*bpparser.Value, error) {
+type listSplitFunc func(bpparser.Value) (string, *bpparser.Value, error)
+
+func emptyList(value *bpparser.Value) bool {
+	return value.Type == bpparser.List && value.Expression == nil && value.Variable == "" &&
+		len(value.ListValue) == 0
+}
+
+func splitBpList(val *bpparser.Value, keyFunc listSplitFunc) (lists map[string]*bpparser.Value, err error) {
+	lists = make(map[string]*bpparser.Value)
+
+	if val.Expression != nil {
+		listsA, err := splitBpList(&val.Expression.Args[0], keyFunc)
+		if err != nil {
+			return nil, err
+		}
+
+		listsB, err := splitBpList(&val.Expression.Args[1], keyFunc)
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range listsA {
+			if !emptyList(v) {
+				lists[k] = v
+			}
+		}
+
+		for k, vB := range listsB {
+			if emptyList(vB) {
+				continue
+			}
+
+			if vA, ok := lists[k]; ok {
+				expression := *val.Expression
+				lists[k] = &bpparser.Value{
+					Type:       bpparser.List,
+					Expression: &expression,
+				}
+				lists[k].Expression.Args = [2]bpparser.Value{*vA, *vB}
+			} else {
+				lists[k] = vB
+			}
+		}
+	} else if val.Variable != "" {
+		key, value, err := keyFunc(*val)
+		if err != nil {
+			return nil, err
+		}
+		if value.Type == bpparser.List {
+			lists[key] = value
+		} else {
+			lists[key] = &bpparser.Value{
+				Type:      bpparser.List,
+				ListValue: []bpparser.Value{*value},
+			}
+		}
+	} else {
+		for _, v := range val.ListValue {
+			key, value, err := keyFunc(v)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := lists[key]; !ok {
+				lists[key] = &bpparser.Value{
+					Type: bpparser.List,
+				}
+			}
+			lists[key].ListValue = append(lists[key].ListValue, *value)
+		}
+	}
+
+	return lists, nil
+}
+
+func splitLocalGlobalPath(value bpparser.Value) (string, *bpparser.Value, error) {
+	if value.Variable == "LOCAL_PATH" {
+		return "local", &bpparser.Value{
+			Type:        bpparser.String,
+			StringValue: ".",
+		}, nil
+	} else if value.Variable != "" {
+		// TODO: Should we split variables?
+		return "global", &value, nil
+	}
+
 	if value.Type != bpparser.String {
-		return nil, fmt.Errorf("isLocalAbsPath expected a string, got %d", value.Type)
+		return "", nil, fmt.Errorf("splitLocalGlobalPath expected a string, got %s", value.Type)
 	}
 
 	if value.Expression == nil {
-		if value.Variable == "LOCAL_PATH" {
-			return &bpparser.Value{
-				Type:        bpparser.String,
-				StringValue: ".",
-			}, nil
-		}
-		return nil, nil
+		return "global", &value, nil
 	}
 
 	if value.Expression.Operator != '+' {
-		return nil, nil
+		return "global", &value, nil
 	}
 
 	firstOperand := value.Expression.Args[0]
 	secondOperand := value.Expression.Args[1]
 	if firstOperand.Type != bpparser.String {
-		return nil, nil
+		return "global", &value, nil
 	}
 
 	if firstOperand.Expression != nil {
-		return nil, nil
+		return "global", &value, nil
 	}
 
 	if firstOperand.Variable != "LOCAL_PATH" {
-		return nil, nil
+		return "global", &value, nil
 	}
 
 	if secondOperand.Expression == nil && secondOperand.Variable == "" {
@@ -122,76 +201,7 @@ func localAbsPath(value bpparser.Value) (*bpparser.Value, error) {
 			secondOperand.StringValue = secondOperand.StringValue[1:]
 		}
 	}
-	return &secondOperand, nil
-}
-
-func emptyList(value *bpparser.Value) bool {
-	return value.Type == bpparser.List && value.Expression == nil && value.Variable == "" &&
-		len(value.ListValue) == 0
-}
-
-func splitLocalGlobal(file *bpFile, val *bpparser.Value) (local, global *bpparser.Value, err error) {
-	local = &bpparser.Value{
-		Type: bpparser.List,
-	}
-	global = &bpparser.Value{
-		Type: bpparser.List,
-	}
-
-	if val.Expression != nil {
-		localA, globalA, err := splitLocalGlobal(file, &val.Expression.Args[0])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		localB, globalB, err := splitLocalGlobal(file, &val.Expression.Args[1])
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if emptyList(localA) {
-			local = localB
-		} else if emptyList(localB) {
-			local = localA
-		} else {
-			localExpression := *val.Expression
-			local.Expression = &localExpression
-			local.Expression.Args = [2]bpparser.Value{*localA, *localB}
-		}
-
-		if emptyList(globalA) {
-			global = globalB
-		} else if emptyList(globalB) {
-			global = globalA
-		} else {
-			globalExpression := *val.Expression
-			global.Expression = &globalExpression
-			global.Expression.Args = [2]bpparser.Value{*globalA, *globalB}
-		}
-	} else if val.Variable != "" {
-		if val.Variable == "LOCAL_PATH" {
-			local.ListValue = append(local.ListValue, bpparser.Value{
-				Type:        bpparser.String,
-				StringValue: ".",
-			})
-		} else {
-			global.Variable = val.Variable
-		}
-	} else {
-		for _, v := range val.ListValue {
-			localPath, err := localAbsPath(v)
-			if err != nil {
-				return nil, nil, err
-			}
-			if localPath != nil {
-				local.ListValue = append(local.ListValue, *localPath)
-			} else {
-				global.ListValue = append(global.ListValue, v)
-			}
-		}
-	}
-
-	return local, global, nil
+	return "local", &secondOperand, nil
 }
 
 func localIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
@@ -200,19 +210,19 @@ func localIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, a
 		return err
 	}
 
-	local, global, err := splitLocalGlobal(file, val)
+	lists, err := splitBpList(val, splitLocalGlobalPath)
 	if err != nil {
 		return err
 	}
 
-	if len(global.ListValue) > 0 || global.Expression != nil || global.Variable != "" {
+	if global, ok := lists["global"]; ok && !emptyList(global) {
 		err = setVariable(file, appendVariable, prefix, "include_dirs", global, true)
 		if err != nil {
 			return err
 		}
 	}
 
-	if len(local.ListValue) > 0 || local.Expression != nil || local.Variable != "" {
+	if local, ok := lists["local"]; ok && !emptyList(local) {
 		err = setVariable(file, appendVariable, prefix, "local_include_dirs", local, true)
 		if err != nil {
 			return err
@@ -228,12 +238,12 @@ func exportIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, 
 		return err
 	}
 
-	local, global, err := splitLocalGlobal(file, val)
+	lists, err := splitBpList(val, splitLocalGlobalPath)
 	if err != nil {
 		return err
 	}
 
-	if len(local.ListValue) > 0 || local.Expression != nil || local.Variable != "" {
+	if local, ok := lists["local"]; ok && !emptyList(local) {
 		err = setVariable(file, appendVariable, prefix, "export_include_dirs", local, true)
 		if err != nil {
 			return err
@@ -243,7 +253,7 @@ func exportIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, 
 
 	// Add any paths that could not be converted to local relative paths to export_include_dirs
 	// anyways, they will cause an error if they don't exist and can be fixed manually.
-	if len(global.ListValue) > 0 || global.Expression != nil || global.Variable != "" {
+	if global, ok := lists["global"]; ok && !emptyList(global) {
 		err = setVariable(file, appendVariable, prefix, "export_include_dirs", global, true)
 		if err != nil {
 			return err
@@ -307,6 +317,53 @@ func hostOs(file *bpFile, prefix string, value *mkparser.MakeString, appendVaria
 	}
 
 	return err
+}
+
+func splitSrcsLogtags(value bpparser.Value) (string, *bpparser.Value, error) {
+	if value.Variable != "" {
+		// TODO: attempt to split variables?
+		return "srcs", &value, nil
+	}
+
+	if value.Type != bpparser.String {
+		return "", nil, fmt.Errorf("splitSrcsLogtags expected a string, got %s", value.Type)
+	}
+
+	if value.Expression != nil {
+		// TODO: attempt to handle expressions?
+		return "srcs", &value, nil
+	}
+
+	if strings.HasSuffix(value.StringValue, ".logtags") {
+		return "logtags", &value, nil
+	}
+
+	return "srcs", &value, nil
+}
+
+func srcFiles(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
+	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	if err != nil {
+		return err
+	}
+
+	lists, err := splitBpList(val, splitSrcsLogtags)
+
+	if srcs, ok := lists["srcs"]; ok && !emptyList(srcs) {
+		err = setVariable(file, appendVariable, prefix, "srcs", srcs, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	if logtags, ok := lists["logtags"]; ok && !emptyList(logtags) {
+		err = setVariable(file, true, prefix, "logtags", logtags, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var deleteProperties = map[string]struct{}{
