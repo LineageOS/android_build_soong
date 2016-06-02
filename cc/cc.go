@@ -118,7 +118,7 @@ var (
 )
 
 func init() {
-	if android.CurrentHostType() == android.Linux {
+	if android.BuildOs == android.Linux {
 		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
 	}
 
@@ -729,11 +729,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 func (c *Module) toolchain(ctx BaseModuleContext) Toolchain {
 	if c.cachedToolchain == nil {
 		arch := ctx.Arch()
-		hod := ctx.HostOrDevice()
-		ht := ctx.HostType()
-		factory := toolchainFactories[hod][ht][arch.ArchType]
+		os := ctx.Os()
+		factory := toolchainFactories[os][arch.ArchType]
 		if factory == nil {
-			ctx.ModuleErrorf("Toolchain not found for %s %s arch %q", hod.String(), ht.String(), arch.String())
+			ctx.ModuleErrorf("Toolchain not found for %s arch %q", os.String(), arch.String())
 			return nil
 		}
 		c.cachedToolchain = factory(arch)
@@ -905,8 +904,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		if a.HostOrDevice() != ctx.HostOrDevice() {
-			ctx.ModuleErrorf("host/device mismatch between %q and %q", ctx.ModuleName(), name)
+		if a.Target().Os != ctx.Os() {
+			ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), name)
+			return
+		}
+
+		if a.Target().Arch.ArchType != ctx.Arch().ArchType {
+			ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), name)
 			return
 		}
 
@@ -1081,6 +1085,11 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
 	}
 
+	hod := "host"
+	if ctx.Os().Class == android.Device {
+		hod = "device"
+	}
+
 	if !ctx.noDefaultCompilerFlags() {
 		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
 
@@ -1090,7 +1099,7 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.ClangCflags(),
 				"${commonClangGlobalCflags}",
-				fmt.Sprintf("${%sClangGlobalCflags}", ctx.HostOrDevice()))
+				fmt.Sprintf("${%sClangGlobalCflags}", hod))
 
 			flags.ConlyFlags = append(flags.ConlyFlags, "${clangExtraConlyflags}")
 		} else {
@@ -1098,7 +1107,7 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				toolchain.Cflags(),
 				"${commonGlobalCflags}",
-				fmt.Sprintf("${%sGlobalCflags}", ctx.HostOrDevice()))
+				fmt.Sprintf("${%sGlobalCflags}", hod))
 		}
 
 		if Bool(ctx.AConfig().ProductVariables.Brillo) {
@@ -1410,7 +1419,7 @@ func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
-	if ctx.HostType() != android.Windows {
+	if ctx.Os() != android.Windows {
 		flags.CFlags = append(flags.CFlags, "-fPIC")
 	}
 
@@ -1863,7 +1872,7 @@ func (binary *binaryLinker) begin(ctx BaseModuleContext) {
 
 	static := Bool(binary.Properties.Static_executable)
 	if ctx.Host() {
-		if ctx.HostType() == android.Linux {
+		if ctx.Os() == android.Linux {
 			if binary.Properties.Static_executable == nil && Bool(ctx.AConfig().ProductVariables.HostStaticBinaries) {
 				static = true
 			}
@@ -1883,7 +1892,7 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if ctx.Host() && !binary.staticBinary() {
 		flags.LdFlags = append(flags.LdFlags, "-pie")
-		if ctx.HostType() == android.Windows {
+		if ctx.Os() == android.Windows {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
 		}
 	}
@@ -1891,7 +1900,7 @@ func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
-	if ctx.HostType() != android.Windows {
+	if ctx.Os() != android.Windows {
 		flags.CFlags = append(flags.CFlags, "-fpie")
 	}
 
@@ -1945,7 +1954,7 @@ func (binary *binaryLinker) link(ctx ModuleContext,
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
-	if ctx.HostOrDevice().Host() {
+	if ctx.Os().Class == android.Host {
 		binary.hostToolPath = android.OptionalPathForPath(outputFile)
 	}
 
@@ -2052,7 +2061,7 @@ func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	if ctx.Host() {
 		flags.CFlags = append(flags.CFlags, "-O0", "-g")
 
-		switch ctx.HostType() {
+		switch ctx.Os() {
 		case android.Windows:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_WINDOWS")
 		case android.Linux:
