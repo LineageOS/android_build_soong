@@ -248,5 +248,5 @@ func mipsToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(android.Android, android.Mips, mipsToolchainFactory)
+	registerDeviceToolchainFactory(android.Mips, mipsToolchainFactory)
 }
