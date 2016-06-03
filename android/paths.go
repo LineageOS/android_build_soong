@@ -629,7 +629,7 @@ func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
 		}
 		outPaths = []string{"target", "product", ctx.AConfig().DeviceName(), partition}
 	} else {
-		outPaths = []string{"host", ctx.HostType().String() + "-x86"}
+		outPaths = []string{"host", ctx.Os().String() + "-x86"}
 	}
 	if ctx.Debug() {
 		outPaths = append([]string{"debug"}, outPaths...)

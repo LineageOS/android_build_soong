@@ -208,5 +208,5 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(android.Arm64, arm64ToolchainFactory)
+	registerToolchainFactory(android.Android, android.Arm64, arm64ToolchainFactory)
 }
