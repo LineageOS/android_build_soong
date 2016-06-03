@@ -97,8 +97,7 @@ func genruleDepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*generator); ok {
 		if g.properties.Tool != "" {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{"host_or_device", android.Host.String()},
-				{"host_type", android.CurrentHostType().String()},
+				{"arch", ctx.AConfig().BuildOsVariant},
 			}, nil, g.properties.Tool)
 		}
 	}
