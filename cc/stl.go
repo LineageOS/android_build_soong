@@ -52,7 +52,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", stl.Properties.Stl)
 				return ""
 			}
-		} else if ctx.Os() == android.Windows {
+		} else if ctx.HostType() == android.Windows {
 			switch stl.Properties.Stl {
 			case "libc++", "libc++_static", "libstdc++", "":
 				// libc++ is not supported on mingw
@@ -60,7 +60,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			case "none":
 				return ""
 			default:
-				ctx.ModuleErrorf("stl: %q is not a supported STL for windows", stl.Properties.Stl)
+				ctx.ModuleErrorf("stl: %q is not a supported STL", stl.Properties.Stl)
 				return ""
 			}
 		} else {
@@ -133,9 +133,9 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
 			flags.LdFlags = append(flags.LdFlags, "-lpthread", "-lm")
 			if ctx.staticBinary() {
-				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.Os()]...)
+				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.HostType()]...)
 			} else {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.Os()]...)
+				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.HostType()]...)
 			}
 		} else {
 			if ctx.Arch().ArchType == android.Arm {
@@ -167,9 +167,9 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
 			if ctx.staticBinary() {
-				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.Os()]...)
+				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.HostType()]...)
 			} else {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.Os()]...)
+				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.HostType()]...)
 			}
 		}
 	default:
@@ -179,10 +179,10 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-var hostDynamicGccLibs, hostStaticGccLibs map[android.OsType][]string
+var hostDynamicGccLibs, hostStaticGccLibs map[android.HostType][]string
 
 func init() {
-	hostDynamicGccLibs = map[android.OsType][]string{
+	hostDynamicGccLibs = map[android.HostType][]string{
 		android.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
 		android.Darwin: []string{"-lc", "-lSystem"},
 		android.Windows: []string{"-lmsvcr110", "-lmingw32", "-lgcc", "-lmoldname",
@@ -190,7 +190,7 @@ func init() {
 			"-lkernel32", "-lmingw32", "-lgcc", "-lmoldname", "-lmingwex",
 			"-lmsvcrt"},
 	}
-	hostStaticGccLibs = map[android.OsType][]string{
+	hostStaticGccLibs = map[android.HostType][]string{
 		android.Linux:   []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"},
 		android.Darwin:  []string{"NO_STATIC_HOST_BINARIES_ON_DARWIN"},
 		android.Windows: []string{"NO_STATIC_HOST_BINARIES_ON_WINDOWS"},

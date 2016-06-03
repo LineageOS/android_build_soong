@@ -254,6 +254,6 @@ func linuxX8664ToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(android.Linux, android.X86, linuxX86ToolchainFactory)
-	registerToolchainFactory(android.Linux, android.X86_64, linuxX8664ToolchainFactory)
+	registerHostToolchainFactory(android.Linux, android.X86, linuxX86ToolchainFactory)
+	registerHostToolchainFactory(android.Linux, android.X86_64, linuxX8664ToolchainFactory)
 }
