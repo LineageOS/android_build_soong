@@ -263,5 +263,5 @@ func x86_64ToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerDeviceToolchainFactory(android.X86_64, x86_64ToolchainFactory)
+	registerToolchainFactory(android.Android, android.X86_64, x86_64ToolchainFactory)
 }
