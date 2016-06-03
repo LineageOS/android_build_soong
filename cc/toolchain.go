@@ -22,13 +22,23 @@ import (
 
 type toolchainFactory func(arch android.Arch) Toolchain
 
-var toolchainFactories = make(map[android.OsType]map[android.ArchType]toolchainFactory)
+var toolchainFactories = map[android.HostOrDevice]map[android.HostType]map[android.ArchType]toolchainFactory{
+	android.Host: map[android.HostType]map[android.ArchType]toolchainFactory{
+		android.Linux:   make(map[android.ArchType]toolchainFactory),
+		android.Darwin:  make(map[android.ArchType]toolchainFactory),
+		android.Windows: make(map[android.ArchType]toolchainFactory),
+	},
+	android.Device: map[android.HostType]map[android.ArchType]toolchainFactory{
+		android.NoHostType: make(map[android.ArchType]toolchainFactory),
+	},
+}
 
-func registerToolchainFactory(os android.OsType, arch android.ArchType, factory toolchainFactory) {
-	if toolchainFactories[os] == nil {
-		toolchainFactories[os] = make(map[android.ArchType]toolchainFactory)
-	}
-	toolchainFactories[os][arch] = factory
+func registerDeviceToolchainFactory(arch android.ArchType, factory toolchainFactory) {
+	toolchainFactories[android.Device][android.NoHostType][arch] = factory
+}
+
+func registerHostToolchainFactory(ht android.HostType, arch android.ArchType, factory toolchainFactory) {
+	toolchainFactories[android.Host][ht][arch] = factory
 }
 
 type Toolchain interface {

@@ -280,6 +280,6 @@ func darwinX8664ToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerToolchainFactory(android.Darwin, android.X86, darwinX86ToolchainFactory)
-	registerToolchainFactory(android.Darwin, android.X86_64, darwinX8664ToolchainFactory)
+	registerHostToolchainFactory(android.Darwin, android.X86, darwinX86ToolchainFactory)
+	registerHostToolchainFactory(android.Darwin, android.X86_64, darwinX8664ToolchainFactory)
 }

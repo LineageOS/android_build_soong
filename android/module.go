@@ -48,9 +48,9 @@ type ModuleBuildParams struct {
 }
 
 type androidBaseContext interface {
-	Target() Target
 	Arch() Arch
-	Os() OsType
+	HostOrDevice() HostOrDevice
+	HostType() HostType
 	Host() bool
 	Device() bool
 	Darwin() bool
@@ -90,7 +90,7 @@ type Module interface {
 
 	base() *ModuleBase
 	Enabled() bool
-	Target() Target
+	HostOrDevice() HostOrDevice
 	InstallInData() bool
 }
 
@@ -115,8 +115,14 @@ type commonProperties struct {
 	// file
 	Logtags []string
 
-	// Set by TargetMutator
-	CompileTarget Target `blueprint:"mutated"`
+	// Set by HostOrDeviceMutator
+	CompileHostOrDevice HostOrDevice `blueprint:"mutated"`
+
+	// Set by HostTypeMutator
+	CompileHostType HostType `blueprint:"mutated"`
+
+	// Set by ArchMutator
+	CompileArch Arch `blueprint:"mutated"`
 
 	// Set by InitAndroidModule
 	HostOrDeviceSupported HostOrDeviceSupported `blueprint:"mutated"`
@@ -134,16 +140,6 @@ const (
 	MultilibFirst   Multilib = "first"
 	MultilibCommon  Multilib = "common"
 	MultilibDefault Multilib = ""
-)
-
-type HostOrDeviceSupported int
-
-const (
-	_ HostOrDeviceSupported = iota
-	HostSupported
-	DeviceSupported
-	HostAndDeviceSupported
-	HostAndDeviceDefault
 )
 
 func InitAndroidModule(m Module,
@@ -245,45 +241,38 @@ func (a *ModuleBase) base() *ModuleBase {
 	return a
 }
 
-func (a *ModuleBase) SetTarget(target Target) {
-	a.commonProperties.CompileTarget = target
+func (a *ModuleBase) SetHostOrDevice(hod HostOrDevice) {
+	a.commonProperties.CompileHostOrDevice = hod
 }
 
-func (a *ModuleBase) Target() Target {
-	return a.commonProperties.CompileTarget
+func (a *ModuleBase) SetHostType(ht HostType) {
+	a.commonProperties.CompileHostType = ht
 }
 
-func (a *ModuleBase) Os() OsType {
-	return a.Target().Os
+func (a *ModuleBase) SetArch(arch Arch) {
+	a.commonProperties.CompileArch = arch
+}
+
+func (a *ModuleBase) HostOrDevice() HostOrDevice {
+	return a.commonProperties.CompileHostOrDevice
+}
+
+func (a *ModuleBase) HostType() HostType {
+	return a.commonProperties.CompileHostType
 }
 
 func (a *ModuleBase) Host() bool {
-	return a.Os().Class == Host || a.Os().Class == HostCross
+	return a.HostOrDevice().Host()
 }
 
 func (a *ModuleBase) Arch() Arch {
-	return a.Target().Arch
+	return a.commonProperties.CompileArch
 }
 
-func (a *ModuleBase) OsClassSupported() []OsClass {
-	switch a.commonProperties.HostOrDeviceSupported {
-	case HostSupported:
-		// TODO(ccross): explicitly mark host cross support
-		return []OsClass{Host, HostCross}
-	case DeviceSupported:
-		return []OsClass{Device}
-	case HostAndDeviceSupported:
-		var supported []OsClass
-		if a.hostAndDeviceProperties.Host_supported {
-			supported = append(supported, Host, HostCross)
-		}
-		if a.hostAndDeviceProperties.Device_supported {
-			supported = append(supported, Device)
-		}
-		return supported
-	default:
-		return nil
-	}
+func (a *ModuleBase) HostSupported() bool {
+	return a.commonProperties.HostOrDeviceSupported == HostSupported ||
+		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
+			a.hostAndDeviceProperties.Host_supported
 }
 
 func (a *ModuleBase) DeviceSupported() bool {
@@ -294,7 +283,11 @@ func (a *ModuleBase) DeviceSupported() bool {
 
 func (a *ModuleBase) Enabled() bool {
 	if a.commonProperties.Enabled == nil {
-		return a.Os().Class != HostCross
+		if a.HostSupported() && a.HostOrDevice().Host() && a.HostType() == Windows {
+			return false
+		} else {
+			return true
+		}
 	}
 	return *a.commonProperties.Enabled
 }
@@ -383,7 +376,9 @@ func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 
 func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
 	return androidBaseContextImpl{
-		target:        a.commonProperties.CompileTarget,
+		arch:          a.commonProperties.CompileArch,
+		hod:           a.commonProperties.CompileHostOrDevice,
+		ht:            a.commonProperties.CompileHostType,
 		proprietary:   a.commonProperties.Proprietary,
 		config:        ctx.Config().(Config),
 		installInData: a.module.InstallInData(),
@@ -418,7 +413,9 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 }
 
 type androidBaseContextImpl struct {
-	target        Target
+	arch          Arch
+	hod           HostOrDevice
+	ht            HostType
 	debug         bool
 	config        Config
 	proprietary   bool
@@ -497,28 +494,28 @@ func (a *androidModuleContext) AddMissingDependencies(deps []string) {
 	}
 }
 
-func (a *androidBaseContextImpl) Target() Target {
-	return a.target
-}
-
 func (a *androidBaseContextImpl) Arch() Arch {
-	return a.target.Arch
+	return a.arch
 }
 
-func (a *androidBaseContextImpl) Os() OsType {
-	return a.target.Os
+func (a *androidBaseContextImpl) HostOrDevice() HostOrDevice {
+	return a.hod
+}
+
+func (a *androidBaseContextImpl) HostType() HostType {
+	return a.ht
 }
 
 func (a *androidBaseContextImpl) Host() bool {
-	return a.target.Os.Class == Host || a.target.Os.Class == HostCross
+	return a.hod.Host()
 }
 
 func (a *androidBaseContextImpl) Device() bool {
-	return a.target.Os.Class == Device
+	return a.hod.Device()
 }
 
 func (a *androidBaseContextImpl) Darwin() bool {
-	return a.target.Os == Darwin
+	return a.hod.Host() && a.ht == Darwin
 }
 
 func (a *androidBaseContextImpl) Debug() bool {

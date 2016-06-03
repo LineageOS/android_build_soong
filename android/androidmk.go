@@ -149,21 +149,27 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		name += "_" + data.SubName
 	}
 
+	hostCross := false
+	if amod.Host() && amod.HostType() != CurrentHostType() {
+		hostCross = true
+	}
+
 	if data.Custom != nil {
 		prefix := ""
-		switch amod.Os().Class {
-		case Host:
-			prefix = "HOST_"
-		case HostCross:
-			prefix = "HOST_CROSS_"
-		case Device:
+		if amod.Host() {
+			if hostCross {
+				prefix = "HOST_CROSS_"
+			} else {
+				prefix = "HOST_"
+			}
+			if amod.Arch().ArchType != ctx.Config().(Config).HostArches[amod.HostType()][0].ArchType {
+				prefix = "2ND_" + prefix
+			}
+		} else {
 			prefix = "TARGET_"
-
-		}
-
-		config := ctx.Config().(Config)
-		if amod.Arch().ArchType != config.Targets[amod.Os().Class][0].Arch.ArchType {
-			prefix = "2ND_" + prefix
+			if amod.Arch().ArchType != ctx.Config().(Config).DeviceArches[0].ArchType {
+				prefix = "2ND_" + prefix
+			}
 		}
 
 		return data.Custom(w, name, prefix)
@@ -185,25 +191,20 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", data.OutputFile.String())
 
 	archStr := amod.Arch().ArchType.String()
-	host := false
-	switch amod.Os().Class {
-	case Host:
-		fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
-		host = true
-	case HostCross:
-		fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
-		host = true
-	case Device:
+	if amod.Host() {
+		if hostCross {
+			fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
+		} else {
+			fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
+		}
+		fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", amod.HostType().String())
+		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+	} else {
 		fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 
 		if len(amod.commonProperties.Logtags) > 0 {
 			fmt.Fprintln(w, "LOCAL_LOGTAGS_FILES := ", strings.Join(amod.commonProperties.Logtags, " "))
 		}
-	}
-
-	if host {
-		fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", amod.Os().String())
-		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 	}
 
 	for _, extra := range data.Extra {
