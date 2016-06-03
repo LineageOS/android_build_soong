@@ -199,6 +199,6 @@ func windowsX8664ToolchainFactory(arch android.Arch) Toolchain {
 }
 
 func init() {
-	registerHostToolchainFactory(android.Windows, android.X86, windowsX86ToolchainFactory)
-	registerHostToolchainFactory(android.Windows, android.X86_64, windowsX8664ToolchainFactory)
+	registerToolchainFactory(android.Windows, android.X86, windowsX86ToolchainFactory)
+	registerToolchainFactory(android.Windows, android.X86_64, windowsX8664ToolchainFactory)
 }

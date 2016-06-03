@@ -41,49 +41,54 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 
-	hostType := android.CurrentHostType()
-	arches := ctx.Config().HostArches[hostType]
-	makeVarsToolchain(ctx, "", android.Host, hostType, arches[0])
-	if len(arches) > 1 {
-		makeVarsToolchain(ctx, "2ND_", android.Host, hostType, arches[1])
+	hostTargets := ctx.Config().Targets[android.Host]
+	makeVarsToolchain(ctx, "", hostTargets[0])
+	if len(hostTargets) > 1 {
+		makeVarsToolchain(ctx, "2ND_", hostTargets[1])
 	}
 
-	if winArches, ok := ctx.Config().HostArches[android.Windows]; ok {
-		makeVarsToolchain(ctx, "", android.Host, android.Windows, winArches[0])
-		if len(winArches) > 1 {
-			makeVarsToolchain(ctx, "2ND_", android.Host, android.Windows, winArches[1])
+	crossTargets := ctx.Config().Targets[android.HostCross]
+	if len(crossTargets) > 0 {
+		makeVarsToolchain(ctx, "", crossTargets[0])
+		if len(crossTargets) > 1 {
+			makeVarsToolchain(ctx, "2ND_", crossTargets[1])
 		}
 	}
 
-	arches = ctx.Config().DeviceArches
-	makeVarsToolchain(ctx, "", android.Device, android.NoHostType, arches[0])
-	if len(arches) > 1 {
-		makeVarsToolchain(ctx, "2ND_", android.Device, android.NoHostType, arches[1])
+	deviceTargets := ctx.Config().Targets[android.Device]
+	makeVarsToolchain(ctx, "", deviceTargets[0])
+	if len(deviceTargets) > 1 {
+		makeVarsToolchain(ctx, "2ND_", deviceTargets[1])
 	}
 }
 
 func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
-	hod android.HostOrDevice, ht android.HostType, arch android.Arch) {
+	target android.Target) {
 	var typePrefix string
-	if hod.Host() {
-		if ht == android.Windows {
-			typePrefix = "HOST_CROSS_"
-		} else {
-			typePrefix = "HOST_"
-		}
-	} else {
+	switch target.Os.Class {
+	case android.Host:
+		typePrefix = "HOST_"
+	case android.HostCross:
+		typePrefix = "HOST_CROSS_"
+	case android.Device:
 		typePrefix = "TARGET_"
 	}
 	makePrefix := secondPrefix + typePrefix
 
-	toolchain := toolchainFactories[hod][ht][arch.ArchType](arch)
+	toolchain := toolchainFactories[target.Os][target.Arch.ArchType](target.Arch)
 
 	var productExtraCflags string
 	var productExtraLdflags string
-	if hod.Device() && Bool(ctx.Config().ProductVariables.Brillo) {
+
+	hod := "host"
+	if target.Os.Class == android.Device {
+		hod = "device"
+	}
+
+	if target.Os.Class == android.Device && Bool(ctx.Config().ProductVariables.Brillo) {
 		productExtraCflags += "-D__BRILLO__"
 	}
-	if hod.Host() && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
+	if target.Os.Class == android.Host && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
 		productExtraLdflags += "-static"
 	}
 
@@ -108,23 +113,29 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	ctx.Strict(makePrefix+"SYSTEMCPP_LDFLAGS", toolchain.SystemCppLdflags())
 
 	includeFlags, err := ctx.Eval(toolchain.IncludeFlags())
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	ctx.StrictRaw(makePrefix+"C_INCLUDES", strings.Replace(includeFlags, "-isystem ", "", -1))
 
-	if arch.ArchType == android.Arm {
+	if target.Arch.ArchType == android.Arm {
 		flags, err := toolchain.InstructionSetFlags("arm")
-		if err != nil { panic(err) }
+		if err != nil {
+			panic(err)
+		}
 		ctx.Strict(makePrefix+"arm_CFLAGS", flags)
 
 		flags, err = toolchain.InstructionSetFlags("thumb")
-		if err != nil { panic(err) }
+		if err != nil {
+			panic(err)
+		}
 		ctx.Strict(makePrefix+"thumb_CFLAGS", flags)
 	}
 
 	if toolchain.ClangSupported() {
 		clangPrefix := secondPrefix + "CLANG_" + typePrefix
 		clangExtras := "-target " + toolchain.ClangTriple()
-		if ht != android.Darwin {
+		if target.Os != android.Darwin {
 			clangExtras += " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
 		}
 
@@ -148,19 +159,19 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			clangExtras,
 		}, " "))
 
-		if hod.Device() {
-			ctx.Strict(secondPrefix + "ADDRESS_SANITIZER_RUNTIME_LIBRARY", strings.TrimSuffix(toolchain.AddressSanitizerRuntimeLibrary(), ".so"))
+		if target.Os.Class == android.Device {
+			ctx.Strict(secondPrefix+"ADDRESS_SANITIZER_RUNTIME_LIBRARY", strings.TrimSuffix(toolchain.AddressSanitizerRuntimeLibrary(), ".so"))
 		}
 
 		// This is used by external/gentoo/...
-		ctx.Strict("CLANG_CONFIG_" + arch.ArchType.Name + "_" + typePrefix + "TRIPLE",
+		ctx.Strict("CLANG_CONFIG_"+target.Arch.ArchType.Name+"_"+typePrefix+"TRIPLE",
 			toolchain.ClangTriple())
 	}
 
 	ctx.Strict(makePrefix+"CC", gccCmd(toolchain, "gcc"))
 	ctx.Strict(makePrefix+"CXX", gccCmd(toolchain, "g++"))
 
-	if ht == android.Darwin {
+	if target.Os == android.Darwin {
 		ctx.Strict(makePrefix+"AR", "${macArPath}")
 	} else {
 		ctx.Strict(makePrefix+"AR", gccCmd(toolchain, "ar"))
@@ -168,11 +179,11 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"NM", gccCmd(toolchain, "nm"))
 	}
 
-	if ht == android.Windows {
+	if target.Os == android.Windows {
 		ctx.Strict(makePrefix+"OBJDUMP", gccCmd(toolchain, "objdump"))
 	}
 
-	if hod.Device() {
+	if target.Os.Class == android.Device {
 		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
 		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
 		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
