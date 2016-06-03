@@ -54,8 +54,8 @@ type config struct {
 	ConfigFileName           string
 	ProductVariablesFileName string
 
-	Targets        map[OsClass][]Target
-	BuildOsVariant string
+	DeviceArches []Arch
+	HostArches   map[HostType][]Arch
 
 	srcDir   string // the path of the root source directory
 	buildDir string // the path of the build output directory
@@ -175,21 +175,20 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		config.inMake = true
 	}
 
-	targets, err := decodeTargetProductVariables(config)
+	hostArches, deviceArches, err := decodeArchProductVariables(config.ProductVariables)
 	if err != nil {
 		return Config{}, err
 	}
 
 	if Bool(config.Mega_device) {
-		deviceTargets, err := decodeMegaDevice()
+		deviceArches, err = decodeMegaDevice()
 		if err != nil {
 			return Config{}, err
 		}
-		targets[Device] = deviceTargets
 	}
 
-	config.Targets = targets
-	config.BuildOsVariant = targets[Host][0].String()
+	config.HostArches = hostArches
+	config.DeviceArches = deviceArches
 
 	return config, nil
 }
@@ -325,14 +324,4 @@ func (c *config) SanitizeDevice() []string {
 		return nil
 	}
 	return *c.ProductVariables.SanitizeDevice
-}
-
-func (c *config) Android64() bool {
-	for _, t := range c.Targets[Device] {
-		if t.Arch.ArchType.Multilib == "lib64" {
-			return true
-		}
-	}
-
-	return false
 }
