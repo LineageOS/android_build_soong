@@ -28,8 +28,6 @@ func init() {
 	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator)
 	RegisterTopDownMutator("defaults", defaultsMutator)
 
-	RegisterBottomUpMutator("host_or_device", HostOrDeviceMutator)
-	RegisterBottomUpMutator("host_type", HostTypeMutator)
 	RegisterBottomUpMutator("arch", ArchMutator)
 }
 
@@ -333,75 +331,7 @@ func (a ArchType) String() string {
 	return a.Name
 }
 
-type HostOrDeviceSupported int
-
-const (
-	_ HostOrDeviceSupported = iota
-	HostSupported
-	DeviceSupported
-	HostAndDeviceSupported
-	HostAndDeviceDefault
-)
-
-type HostOrDevice int
-
-const (
-	_ HostOrDevice = iota
-	Host
-	Device
-)
-
-func (hod HostOrDevice) String() string {
-	switch hod {
-	case Device:
-		return "device"
-	case Host:
-		return "host"
-	default:
-		panic(fmt.Sprintf("unexpected HostOrDevice value %d", hod))
-	}
-}
-
-func (hod HostOrDevice) Property() string {
-	switch hod {
-	case Device:
-		return "android"
-	case Host:
-		return "host"
-	default:
-		panic(fmt.Sprintf("unexpected HostOrDevice value %d", hod))
-	}
-}
-
-func (hod HostOrDevice) Host() bool {
-	if hod == 0 {
-		panic("HostOrDevice unset")
-	}
-	return hod == Host
-}
-
-func (hod HostOrDevice) Device() bool {
-	if hod == 0 {
-		panic("HostOrDevice unset")
-	}
-	return hod == Device
-}
-
-var hostOrDeviceName = map[HostOrDevice]string{
-	Device: "device",
-	Host:   "host",
-}
-
-type HostType int
-
-const (
-	NoHostType HostType = iota
-	Linux
-	Darwin
-	Windows
-)
-
-func CurrentHostType() HostType {
+var BuildOs = func() OsType {
 	switch runtime.GOOS {
 	case "linux":
 		return Linux
@@ -410,98 +340,71 @@ func CurrentHostType() HostType {
 	default:
 		panic(fmt.Sprintf("unsupported OS: %s", runtime.GOOS))
 	}
+}()
+
+var (
+	osTypeList []OsType
+
+	NoOsType OsType
+	Linux    = NewOsType("linux", Host)
+	Darwin   = NewOsType("darwin", Host)
+	Windows  = NewOsType("windows", HostCross)
+	Android  = NewOsType("android", Device)
+)
+
+type OsType struct {
+	Name, Field string
+	Class       OsClass
 }
 
-func (ht HostType) String() string {
-	switch ht {
-	case Linux:
-		return "linux"
-	case Darwin:
-		return "darwin"
-	case Windows:
-		return "windows"
-	default:
-		panic(fmt.Sprintf("unexpected HostType value %d", ht))
-	}
+type OsClass int
+
+const (
+	Device OsClass = iota
+	Host
+	HostCross
+)
+
+func (os OsType) String() string {
+	return os.Name
 }
 
-func (ht HostType) Field() string {
-	switch ht {
-	case Linux:
-		return "Linux"
-	case Darwin:
-		return "Darwin"
-	case Windows:
-		return "Windows"
-	default:
-		panic(fmt.Sprintf("unexpected HostType value %d", ht))
+func NewOsType(name string, class OsClass) OsType {
+	os := OsType{
+		Name:  name,
+		Field: strings.Title(name),
+		Class: class,
 	}
+	osTypeList = append(osTypeList, os)
+	return os
+}
+
+func osByName(name string) OsType {
+	for _, os := range osTypeList {
+		if os.Name == name {
+			return os
+		}
+	}
+
+	return NoOsType
 }
 
 var (
-	commonArch = Arch{
-		ArchType: Common,
+	commonTarget = Target{
+		Os: Android,
+		Arch: Arch{
+			ArchType: Common,
+		},
 	}
 )
 
-func HostOrDeviceMutator(mctx BottomUpMutatorContext) {
-	var module Module
-	var ok bool
-	if module, ok = mctx.Module().(Module); !ok {
-		return
-	}
-
-	hods := []HostOrDevice{}
-
-	if module.base().HostSupported() {
-		hods = append(hods, Host)
-	}
-
-	if module.base().DeviceSupported() {
-		hods = append(hods, Device)
-	}
-
-	if len(hods) == 0 {
-		return
-	}
-
-	hodNames := []string{}
-	for _, hod := range hods {
-		hodNames = append(hodNames, hod.String())
-	}
-
-	modules := mctx.CreateVariations(hodNames...)
-	for i, m := range modules {
-		m.(Module).base().SetHostOrDevice(hods[i])
-	}
+type Target struct {
+	Os   OsType
+	Arch Arch
 }
 
-func HostTypeMutator(mctx BottomUpMutatorContext) {
-	var module Module
-	var ok bool
-	if module, ok = mctx.Module().(Module); !ok {
-		return
-	}
-
-	if !module.base().HostSupported() || !module.base().HostOrDevice().Host() {
-		return
-	}
-
-	buildTypes, err := decodeHostTypesProductVariables(mctx.Config().(Config).ProductVariables)
-	if err != nil {
-		mctx.ModuleErrorf("%s", err.Error())
-		return
-	}
-
-	typeNames := []string{}
-	for _, ht := range buildTypes {
-		typeNames = append(typeNames, ht.String())
-	}
-
-	modules := mctx.CreateVariations(typeNames...)
-	for i, m := range modules {
-		m.(Module).base().SetHostType(buildTypes[i])
-	}
+func (target Target) String() string {
+	return target.Os.String() + "_" + target.Arch.String()
 }
 
 func ArchMutator(mctx BottomUpMutatorContext) {
@@ -511,40 +414,32 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 		return
 	}
 
-	moduleArches := []Arch{}
-	multilib := module.base().commonProperties.Compile_multilib
+	osClasses := module.base().OsClassSupported()
 
-	if module.base().HostSupported() && module.base().HostOrDevice().Host() {
-		hostModuleArches, err := decodeMultilib(multilib, mctx.Config().(Config).HostArches[module.base().HostType()])
-		if err != nil {
-			mctx.ModuleErrorf("%s", err.Error())
-		}
-
-		moduleArches = append(moduleArches, hostModuleArches...)
-	}
-
-	if module.base().DeviceSupported() && module.base().HostOrDevice().Device() {
-		deviceModuleArches, err := decodeMultilib(multilib, mctx.Config().(Config).DeviceArches)
-		if err != nil {
-			mctx.ModuleErrorf("%s", err.Error())
-		}
-
-		moduleArches = append(moduleArches, deviceModuleArches...)
-	}
-
-	if len(moduleArches) == 0 {
+	if len(osClasses) == 0 {
 		return
 	}
 
-	archNames := []string{}
-	for _, arch := range moduleArches {
-		archNames = append(archNames, arch.String())
+	var moduleTargets []Target
+
+	for _, class := range osClasses {
+		multilib := module.base().commonProperties.Compile_multilib
+		targets, err := decodeMultilib(multilib, mctx.AConfig().Targets[class])
+		if err != nil {
+			mctx.ModuleErrorf("%s", err.Error())
+		}
+		moduleTargets = append(moduleTargets, targets...)
 	}
 
-	modules := mctx.CreateVariations(archNames...)
+	targetNames := make([]string, len(moduleTargets))
 
+	for i, target := range moduleTargets {
+		targetNames[i] = target.String()
+	}
+
+	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
-		m.(Module).base().SetArch(moduleArches[i])
+		m.(Module).base().SetTarget(moduleTargets[i])
 		m.(Module).base().setArchProperties(mctx)
 	}
 }
@@ -648,9 +543,8 @@ func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 
 // Rewrite the module's properties structs to contain arch-specific values.
 func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
-	arch := a.commonProperties.CompileArch
-	hod := a.commonProperties.CompileHostOrDevice
-	ht := a.commonProperties.CompileHostType
+	arch := a.Arch()
+	os := a.Os()
 
 	if arch.ArchType == Common {
 		return
@@ -719,18 +613,19 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		prefix = "multilib." + t.Multilib
 		a.appendProperties(ctx, genProps, archProps.Multilib, field, prefix)
 
-		// Handle host-or-device-specific properties in the form:
+		// Handle host-specific properties in the form:
 		// target: {
 		//     host: {
 		//         key: value,
 		//     },
 		// },
-		hodProperty := hod.Property()
-		field = proptools.FieldNameForProperty(hodProperty)
-		prefix = "target." + hodProperty
-		a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+		if os.Class == Host || os.Class == HostCross {
+			field = "Host"
+			prefix = "target.host"
+			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+		}
 
-		// Handle host target properties in the form:
+		// Handle target OS properties in the form:
 		// target: {
 		//     linux: {
 		//         key: value,
@@ -744,22 +639,29 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		//     linux_arm: {
 		//         key: value,
 		//     },
+		//     android {
+		//         key: value,
+		//     },
+		//     android_arm {
+		//         key: value,
+		//     },
+		//     android_x86 {
+		//         key: value,
+		//     },
 		// },
-		if hod.Host() {
-			field := ht.Field()
-			prefix := "target." + ht.String()
-			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+		// },
+		field = os.Field
+		prefix = "target." + os.Name
+		a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 
-			t := arch.ArchType
-			field = ht.Field() + "_" + t.Name
-			prefix = "target." + ht.String() + "_" + t.Name
-			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+		field = os.Field + "_" + t.Name
+		prefix = "target." + os.Name + "_" + t.Name
+		a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 
-			if ht != Windows {
-				field := "Not_windows"
-				prefix := "target.not_windows"
-				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
-			}
+		if (os.Class == Host || os.Class == HostCross) && os != Windows {
+			field := "Not_windows"
+			prefix := "target.not_windows"
+			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 		}
 
 		// Handle 64-bit device properties in the form:
@@ -775,8 +677,8 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		// options for all targets on a device that supports 64-bit binaries, not just the targets
 		// that are being compiled for 64-bit.  Its expected use case is binaries like linker and
 		// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
-		if hod.Device() {
-			if true /* && target_is_64_bit */ {
+		if os.Class == Device {
+			if ctx.AConfig().Android64() {
 				field := "Android64"
 				prefix := "target.android64"
 				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
@@ -785,26 +687,6 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				prefix := "target.android32"
 				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
 			}
-		}
-
-		// Handle device architecture properties in the form:
-		// target {
-		//     android_arm {
-		//         key: value,
-		//     },
-		//     android_x86 {
-		//         key: value,
-		//     },
-		// },
-		if hod.Device() {
-			t := arch.ArchType
-			field := "Android_" + t.Name
-			prefix := "target.android_" + t.Name
-			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
-		}
-
-		if ctx.Failed() {
-			return
 		}
 	}
 }
@@ -824,104 +706,84 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 	}
 }
 
-// Get a list of HostTypes from the product variables
-func decodeHostTypesProductVariables(variables productVariables) ([]HostType, error) {
-	ret := []HostType{CurrentHostType()}
+// Convert the arch product variables into a list of targets for each os class structs
+func decodeTargetProductVariables(config Config) (map[OsClass][]Target, error) {
+	variables := config.ProductVariables
 
-	if variables.CrossHost != nil && *variables.CrossHost != "" {
-		switch *variables.CrossHost {
-		case "windows":
-			ret = append(ret, Windows)
-		default:
-			return nil, fmt.Errorf("Unsupported secondary host: %s", *variables.CrossHost)
+	targets := make(map[OsClass][]Target)
+	var targetErr error
+
+	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi *[]string) {
+		if targetErr != nil {
+			return
 		}
+
+		arch, err := decodeArch(archName, archVariant, cpuVariant, abi)
+		if err != nil {
+			targetErr = err
+			return
+		}
+
+		targets[os.Class] = append(targets[os.Class],
+			Target{
+				Os:   os,
+				Arch: arch,
+			})
 	}
 
-	return ret, nil
-}
-
-// Convert the arch product variables into a list of host and device Arch structs
-func decodeArchProductVariables(variables productVariables) (map[HostType][]Arch, []Arch, error) {
 	if variables.HostArch == nil {
-		return nil, nil, fmt.Errorf("No host primary architecture set")
+		return nil, fmt.Errorf("No host primary architecture set")
 	}
 
-	hostArch, err := decodeArch(*variables.HostArch, nil, nil, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	hostArches := []Arch{hostArch}
+	addTarget(BuildOs, *variables.HostArch, nil, nil, nil)
 
 	if variables.HostSecondaryArch != nil && *variables.HostSecondaryArch != "" {
-		hostSecondaryArch, err := decodeArch(*variables.HostSecondaryArch, nil, nil, nil)
-		if err != nil {
-			return nil, nil, err
-		}
-		hostArches = append(hostArches, hostSecondaryArch)
-	}
-
-	hostTypeArches := map[HostType][]Arch{
-		CurrentHostType(): hostArches,
+		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil)
 	}
 
 	if variables.CrossHost != nil && *variables.CrossHost != "" {
+		crossHostOs := osByName(*variables.CrossHost)
+		if crossHostOs == NoOsType {
+			return nil, fmt.Errorf("Unknown cross host OS %q", *variables.CrossHost)
+		}
+
 		if variables.CrossHostArch == nil || *variables.CrossHostArch == "" {
-			return nil, nil, fmt.Errorf("No cross-host primary architecture set")
+			return nil, fmt.Errorf("No cross-host primary architecture set")
 		}
 
-		crossHostArch, err := decodeArch(*variables.CrossHostArch, nil, nil, nil)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		crossHostArches := []Arch{crossHostArch}
+		addTarget(crossHostOs, *variables.CrossHostArch, nil, nil, nil)
 
 		if variables.CrossHostSecondaryArch != nil && *variables.CrossHostSecondaryArch != "" {
-			crossHostSecondaryArch, err := decodeArch(*variables.CrossHostSecondaryArch, nil, nil, nil)
-			if err != nil {
-				return nil, nil, err
-			}
-			crossHostArches = append(crossHostArches, crossHostSecondaryArch)
-		}
-
-		switch *variables.CrossHost {
-		case "windows":
-			hostTypeArches[Windows] = crossHostArches
-		default:
-			return nil, nil, fmt.Errorf("Unsupported cross-host: %s", *variables.CrossHost)
+			addTarget(crossHostOs, *variables.CrossHostSecondaryArch, nil, nil, nil)
 		}
 	}
 
 	if variables.DeviceArch == nil {
-		return nil, nil, fmt.Errorf("No device primary architecture set")
+		return nil, fmt.Errorf("No device primary architecture set")
 	}
 
-	deviceArch, err := decodeArch(*variables.DeviceArch, variables.DeviceArchVariant,
+	addTarget(Android, *variables.DeviceArch, variables.DeviceArchVariant,
 		variables.DeviceCpuVariant, variables.DeviceAbi)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	deviceArches := []Arch{deviceArch}
 
 	if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
-		deviceSecondaryArch, err := decodeArch(*variables.DeviceSecondaryArch,
+		addTarget(Android, *variables.DeviceSecondaryArch,
 			variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
 			variables.DeviceSecondaryAbi)
-		if err != nil {
-			return nil, nil, err
+
+		deviceArches := targets[Device]
+		if deviceArches[0].Arch.ArchType.Multilib == deviceArches[1].Arch.ArchType.Multilib {
+			deviceArches[1].Arch.Native = false
 		}
-		if deviceArch.ArchType.Multilib == deviceSecondaryArch.ArchType.Multilib {
-			deviceSecondaryArch.Native = false
-		}
-		deviceArches = append(deviceArches, deviceSecondaryArch)
 	}
 
-	return hostTypeArches, deviceArches, nil
+	if targetErr != nil {
+		return nil, targetErr
+	}
+
+	return targets, nil
 }
 
-func decodeMegaDevice() ([]Arch, error) {
+func decodeMegaDevice() ([]Target, error) {
 	archSettings := []struct {
 		arch        string
 		archVariant string
@@ -969,7 +831,7 @@ func decodeMegaDevice() ([]Arch, error) {
 		{"x86_64", "silvermont", "", []string{"x86_64"}},
 	}
 
-	var ret []Arch
+	var ret []Target
 
 	for _, config := range archSettings {
 		arch, err := decodeArch(config.arch, &config.archVariant,
@@ -978,7 +840,10 @@ func decodeMegaDevice() ([]Arch, error) {
 			return nil, err
 		}
 		arch.Native = false
-		ret = append(ret, arch)
+		ret = append(ret, Target{
+			Os:   Android,
+			Arch: arch,
+		})
 	}
 
 	return ret, nil
@@ -1035,33 +900,32 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 	return a, nil
 }
 
-// Use the module multilib setting to select one or more arches from an arch list
-func decodeMultilib(multilib string, arches []Arch) ([]Arch, error) {
-	buildArches := []Arch{}
+// Use the module multilib setting to select one or more targets from a target list
+func decodeMultilib(multilib string, targets []Target) ([]Target, error) {
+	buildTargets := []Target{}
 	switch multilib {
 	case "common":
-		buildArches = append(buildArches, commonArch)
+		buildTargets = append(buildTargets, commonTarget)
 	case "both":
-		buildArches = append(buildArches, arches...)
+		buildTargets = append(buildTargets, targets...)
 	case "first":
-		buildArches = append(buildArches, arches[0])
+		buildTargets = append(buildTargets, targets[0])
 	case "32":
-		for _, a := range arches {
-			if a.ArchType.Multilib == "lib32" {
-				buildArches = append(buildArches, a)
+		for _, t := range targets {
+			if t.Arch.ArchType.Multilib == "lib32" {
+				buildTargets = append(buildTargets, t)
 			}
 		}
 	case "64":
-		for _, a := range arches {
-			if a.ArchType.Multilib == "lib64" {
-				buildArches = append(buildArches, a)
+		for _, t := range targets {
+			if t.Arch.ArchType.Multilib == "lib64" {
+				buildTargets = append(buildTargets, t)
 			}
 		}
 	default:
 		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", or "64", found %q`,
 			multilib)
-		//buildArches = append(buildArches, arches[0])
 	}
 
-	return buildArches, nil
+	return buildTargets, nil
 }
