@@ -71,14 +71,23 @@ func main() {
 		return
 	}
 
-	p := mkparser.NewParser(os.Args[1], bytes.NewBuffer(b))
+	output, errs := convertFile(os.Args[1], bytes.NewBuffer(b))
+	if len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Fprintln(os.Stderr, "ERROR: ", err)
+		}
+		os.Exit(1)
+	}
+
+	fmt.Print(output)
+}
+
+func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
+	p := mkparser.NewParser(filename, buffer)
 
 	nodes, errs := p.Parse()
 	if len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Println("ERROR: ", err)
-		}
-		return
+		return "", errs
 	}
 
 	file := &bpFile{
@@ -169,11 +178,10 @@ func main() {
 		Comments: file.comments,
 	})
 	if err != nil {
-		fmt.Println(err)
-		return
+		return "", []error{err}
 	}
 
-	fmt.Print(string(out))
+	return string(out), nil
 }
 
 func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditional) {
