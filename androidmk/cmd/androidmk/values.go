@@ -65,9 +65,17 @@ func makeToStringExpression(ms *mkparser.MakeString, scope mkparser.Scope) (*bpp
 				Variable: name.Value(nil),
 			}
 
-			val, err = addValues(val, tmp)
-			if err != nil {
-				return nil, err
+			if tmp.Variable == "TOP" {
+				if s[0] == '/' {
+					s = s[1:]
+				} else {
+					s = "." + s
+				}
+			} else {
+				val, err = addValues(val, tmp)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -120,15 +128,22 @@ func makeToListExpression(ms *mkparser.MakeString, scope mkparser.Scope) (*bppar
 				if !f.Variables[0].Name.Const() {
 					return nil, fmt.Errorf("unsupported non-const variable name")
 				}
-				if len(listValue.ListValue) > 0 {
-					listOfListValues = append(listOfListValues, listValue)
-				}
-				listOfListValues = append(listOfListValues, &bpparser.Value{
-					Type:     bpparser.List,
-					Variable: f.Variables[0].Name.Value(nil),
-				})
-				listValue = &bpparser.Value{
-					Type: bpparser.List,
+				if f.Variables[0].Name.Value(nil) == "TOP" {
+					listValue.ListValue = append(listValue.ListValue, bpparser.Value{
+						Type:        bpparser.String,
+						StringValue: ".",
+					})
+				} else {
+					if len(listValue.ListValue) > 0 {
+						listOfListValues = append(listOfListValues, listValue)
+					}
+					listOfListValues = append(listOfListValues, &bpparser.Value{
+						Type:     bpparser.List,
+						Variable: f.Variables[0].Name.Value(nil),
+					})
+					listValue = &bpparser.Value{
+						Type: bpparser.List,
+					}
 				}
 			}
 		} else {

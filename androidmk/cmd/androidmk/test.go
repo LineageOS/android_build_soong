@@ -108,7 +108,7 @@ input = ["testing/include"]
 cc_library_shared {
     // Comment 1
     include_dirs: ["system/core/include"] + // Comment 2
-    input + [TOP + "/system/core/include"],
+    input + ["system/core/include"],
     local_include_dirs: ["."] + ["include"] + ["test/include"],
     // Comment 3
 }`,
@@ -342,6 +342,19 @@ include $(BUILD_SHARED_LIBRARY)
 cc_library_shared {
     ldflags: ["-Wl,--link-opt"],
     version_script: "exported32.map",
+}
+`,
+	},
+	{
+		desc: "Handle TOP",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_C_INCLUDES := $(TOP)/system/core/include $(TOP)
+include $(BUILD_SHARED_LIBRARY)
+`,
+		expected: `
+cc_library_shared {
+	include_dirs: ["system/core/include", "."],
 }
 `,
 	},
