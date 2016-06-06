@@ -42,7 +42,6 @@ var standardProperties = map[string]struct {
 	"LOCAL_CFLAGS":                  {"cflags", bpparser.List},
 	"LOCAL_CONLYFLAGS":              {"conlyflags", bpparser.List},
 	"LOCAL_CPPFLAGS":                {"cppflags", bpparser.List},
-	"LOCAL_LDFLAGS":                 {"ldflags", bpparser.List},
 	"LOCAL_REQUIRED_MODULES":        {"required", bpparser.List},
 	"LOCAL_MODULE_TAGS":             {"tags", bpparser.List},
 	"LOCAL_LDLIBS":                  {"host_ldlibs", bpparser.List},
@@ -83,6 +82,7 @@ var rewriteProperties = map[string]struct {
 	"LOCAL_MODULE_HOST_OS":        {hostOs},
 	"LOCAL_SRC_FILES":             {srcFiles},
 	"LOCAL_SANITIZE":              {sanitize},
+	"LOCAL_LDFLAGS":               {ldflags},
 }
 
 type listSplitFunc func(bpparser.Value) (string, *bpparser.Value, error)
@@ -420,6 +420,56 @@ func sanitize(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendV
 	}
 
 	return err
+}
+
+func ldflags(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendVariable bool) error {
+	val, err := makeVariableToBlueprint(file, mkvalue, bpparser.List)
+	if err != nil {
+		return err
+	}
+
+	lists, err := splitBpList(val, func(value bpparser.Value) (string, *bpparser.Value, error) {
+		// Anything other than "-Wl,--version_script," + LOCAL_PATH + "<path>" matches ldflags
+		if value.Variable != "" || value.Expression == nil {
+			return "ldflags", &value, nil
+		}
+
+		exp := value.Expression.Args[0]
+		if exp.Variable != "" || exp.Expression == nil || exp.Expression.Args[0].StringValue != "-Wl,--version-script," {
+			return "ldflags", &value, nil
+		}
+
+		if exp.Expression.Args[1].Variable != "LOCAL_PATH" {
+			file.errorf(mkvalue, "Unrecognized version-script")
+			return "ldflags", &value, nil
+		}
+
+		value.Expression.Args[1].StringValue = strings.TrimPrefix(value.Expression.Args[1].StringValue, "/")
+
+		return "version", &value.Expression.Args[1], nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if ldflags, ok := lists["ldflags"]; ok && !emptyList(ldflags) {
+		err = setVariable(file, appendVariable, prefix, "ldflags", ldflags, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	if version_script, ok := lists["version"]; ok && !emptyList(version_script) {
+		if len(version_script.ListValue) > 1 {
+			file.errorf(mkvalue, "multiple version scripts found?")
+		}
+		err = setVariable(file, false, prefix, "version_script", &version_script.ListValue[0], true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var deleteProperties = map[string]struct{}{
