@@ -206,6 +206,9 @@ blueprint_go_binary {
         "androidmk/cmd/androidmk/androidmk.go",
         "androidmk/cmd/androidmk/values.go",
     ],
+    testSrcs: [
+        "androidmk/cmd/androidmk/test.go",
+    ],
     deps: [
         "androidmk-parser",
         "blueprint-parser",
