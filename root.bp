@@ -8,6 +8,7 @@ subdirs = [
 optional_subdirs = [
     "bionic",
     "build/kati",
+    "build/libs/*",
     "build/tools/*",
     "dalvik",
     "external/*",
