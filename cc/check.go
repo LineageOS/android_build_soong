@@ -69,6 +69,8 @@ func CheckBadLinkerFlags(ctx ModuleContext, prop string, flags []string) {
 			}
 		} else if strings.HasPrefix(flag, "-L") {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s` is not allowed", flag)
+		} else if strings.HasPrefix(flag, "-Wl,--version-script") {
+			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use version_script instead", flag)
 		} else if strings.Contains(flag, " ") {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s` is not an allowed multi-word flag. Should it be split into multiple flags?", flag)
 		}
