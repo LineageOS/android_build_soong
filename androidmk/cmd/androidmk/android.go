@@ -381,6 +381,9 @@ var propertyPrefixes = []struct{ mk, bp string }{
 	{"32", "multilib.lib32"},
 	// 64 must be after x86_64
 	{"64", "multilib.lib64"},
+	{"darwin", "target.darwin"},
+	{"linux", "target.linux"},
+	{"windows", "target.windows"},
 }
 
 var conditionalTranslations = map[string]map[bool]string{
@@ -414,9 +417,6 @@ var conditionalTranslations = map[string]map[bool]string{
 	"($(BUILD_OS), linux)": {
 		true:  "target.linux",
 		false: "target.not_linux"},
-	"USE_MINGW": {
-		true:  "target.windows",
-		false: "target.not_windows"},
 	"(,$(TARGET_BUILD_APPS))": {
 		false: "product_variables.unbundled_build",
 	},
