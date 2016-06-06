@@ -48,8 +48,7 @@ var standardProperties = map[string]struct {
 	"LOCAL_LDLIBS":                  {"host_ldlibs", bpparser.List},
 	"LOCAL_CLANG_CFLAGS":            {"clang_cflags", bpparser.List},
 	"LOCAL_YACCFLAGS":               {"yaccflags", bpparser.List},
-	"LOCAL_SANITIZE":                {"sanitize", bpparser.List},
-	"LOCAL_SANITIZE_RECOVER":        {"sanitize_recover", bpparser.List},
+	"LOCAL_SANITIZE_RECOVER":        {"sanitize.recover", bpparser.List},
 	"LOCAL_LOGTAGS_FILES":           {"logtags", bpparser.List},
 
 	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.List},
@@ -83,6 +82,7 @@ var rewriteProperties = map[string]struct {
 	"LOCAL_MODULE_STEM":           {stem},
 	"LOCAL_MODULE_HOST_OS":        {hostOs},
 	"LOCAL_SRC_FILES":             {srcFiles},
+	"LOCAL_SANITIZE":              {sanitize},
 }
 
 type listSplitFunc func(bpparser.Value) (string, *bpparser.Value, error)
@@ -364,6 +364,62 @@ func srcFiles(file *bpFile, prefix string, value *mkparser.MakeString, appendVar
 	}
 
 	return nil
+}
+
+func sanitize(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendVariable bool) error {
+	val, err := makeVariableToBlueprint(file, mkvalue, bpparser.List)
+	if err != nil {
+		return err
+	}
+
+	lists, err := splitBpList(val, func(value bpparser.Value) (string, *bpparser.Value, error) {
+		if value.Variable != "" {
+			return "vars", &value, nil
+		}
+
+		if value.Expression != nil {
+			file.errorf(mkvalue, "unknown sanitize expression")
+			return "unknown", &value, nil
+		}
+
+		switch value.StringValue {
+		case "never", "address", "coverage", "integer", "thread", "undefined":
+			bpTrue := bpparser.Value{
+				Type:      bpparser.Bool,
+				BoolValue: true,
+			}
+			return value.StringValue, &bpTrue, nil
+		default:
+			file.errorf(mkvalue, "unknown sanitize argument: %s", value.StringValue)
+			return "unknown", &value, nil
+		}
+	})
+	if err != nil {
+		return err
+	}
+
+	for k, v := range lists {
+		if emptyList(v) {
+			continue
+		}
+
+		switch k {
+		case "never", "address", "coverage", "integer", "thread", "undefined":
+			err = setVariable(file, false, prefix, "sanitize."+k, &lists[k].ListValue[0], true)
+		case "unknown":
+			// Nothing, we already added the error above
+		case "vars":
+			fallthrough
+		default:
+			err = setVariable(file, true, prefix, "sanitize", v, true)
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 var deleteProperties = map[string]struct{}{
