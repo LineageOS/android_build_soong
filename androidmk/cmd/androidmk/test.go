@@ -242,6 +242,31 @@ cc_library_shared {
 }
 `,
 	},
+	{
+		desc: "_<OS> suffixes",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES_darwin := darwin.c
+LOCAL_SRC_FILES_linux := linux.c
+LOCAL_SRC_FILES_windows := windows.c
+include $(BUILD_SHARED_LIBRARY)
+`,
+		expected: `
+cc_library_shared {
+    target: {
+        darwin: {
+            srcs: ["darwin.c"],
+        },
+        linux: {
+            srcs: ["linux.c"],
+        },
+        windows: {
+            srcs: ["windows.c"],
+        },
+    },
+}
+`,
+	},
 }
 
 func reformatBlueprint(input string) string {
