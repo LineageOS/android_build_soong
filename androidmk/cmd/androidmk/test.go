@@ -331,6 +331,20 @@ cc_library_shared {
 }
 `,
 	},
+	{
+		desc: "version_script in LOCAL_LDFLAGS",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_LDFLAGS := -Wl,--link-opt -Wl,--version-script,$(LOCAL_PATH)/exported32.map
+include $(BUILD_SHARED_LIBRARY)
+`,
+		expected: `
+cc_library_shared {
+    ldflags: ["-Wl,--link-opt"],
+    version_script: "exported32.map",
+}
+`,
+	},
 }
 
 func reformatBlueprint(input string) string {
