@@ -64,7 +64,7 @@ var standardProperties = map[string]struct {
 	// Bool properties
 	"LOCAL_IS_HOST_MODULE":          {"host", bpparser.Bool},
 	"LOCAL_CLANG":                   {"clang", bpparser.Bool},
-	"LOCAL_FORCE_STATIC_EXECUTABLE": {"static", bpparser.Bool},
+	"LOCAL_FORCE_STATIC_EXECUTABLE": {"static_executable", bpparser.Bool},
 	"LOCAL_NATIVE_COVERAGE":         {"native_coverage", bpparser.Bool},
 	"LOCAL_NO_CRT":                  {"nocrt", bpparser.Bool},
 	"LOCAL_ALLOW_UNDEFINED_SYMBOLS": {"allow_undefined_symbols", bpparser.Bool},
