@@ -35,6 +35,13 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 		if len(c.Properties.AndroidMkSharedLibs) > 0 {
 			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 		}
+		if c.Target().Os == android.Android && c.Properties.Sdk_version != "" {
+			fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
+			fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
+		} else {
+			// These are already included in LOCAL_SHARED_LIBRARIES
+			fmt.Fprintln(w, "LOCAL_CXX_STL := none")
+		}
 		return nil
 	})
 
@@ -85,8 +92,6 @@ func (library *libraryLinker) AndroidMk(ret *android.AndroidMkData) {
 
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 
-		// These are already included in LOCAL_SHARED_LIBRARIES
-		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 
 		return nil
