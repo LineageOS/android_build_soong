@@ -636,11 +636,17 @@ func (ctx *moduleContextImpl) noDefaultCompilerFlags() bool {
 }
 
 func (ctx *moduleContextImpl) sdk() bool {
-	return ctx.mod.Properties.Sdk_version != ""
+	if ctx.ctx.Device() {
+		return ctx.mod.Properties.Sdk_version != ""
+	}
+	return false
 }
 
 func (ctx *moduleContextImpl) sdkVersion() string {
-	return ctx.mod.Properties.Sdk_version
+	if ctx.ctx.Device() {
+		return ctx.mod.Properties.Sdk_version
+	}
+	return ""
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -901,6 +907,28 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
+	// Whether a module can link to another module, taking into
+	// account NDK linking.
+	linkTypeOk := func(from, to *Module) bool {
+		if from.Target().Os != android.Android {
+			// Host code is not restricted
+			return true
+		}
+		if from.Properties.Sdk_version == "" {
+			// Platform code can link to anything
+			return true
+		}
+		if _, ok := to.linker.(*toolchainLibraryLinker); ok {
+			// These are always allowed
+			return true
+		}
+		if _, ok := to.linker.(*ndkPrebuiltLibraryLinker); ok {
+			// These are allowed, but don't set sdk_version
+			return true
+		}
+		return from.Properties.Sdk_version != ""
+	}
+
 	ctx.VisitDirectDeps(func(m blueprint.Module) {
 		name := ctx.OtherModuleName(m)
 		tag := ctx.OtherModuleDependencyTag(m)
@@ -911,8 +939,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		c, _ := m.(*Module)
-		if c == nil {
+		cc, _ := m.(*Module)
+		if cc == nil {
 			switch tag {
 			case android.DefaultsDepTag:
 			case genSourceDepTag:
@@ -952,25 +980,29 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		if !c.outputFile.Valid() {
+		if !cc.outputFile.Valid() {
 			ctx.ModuleErrorf("module %q missing output file", name)
 			return
 		}
 
 		if tag == reuseObjTag {
 			depPaths.ObjFiles = append(depPaths.ObjFiles,
-				c.compiler.(*libraryCompiler).reuseObjFiles...)
+				cc.compiler.(*libraryCompiler).reuseObjFiles...)
 			return
 		}
 
 		if t, ok := tag.(dependencyTag); ok && t.library {
-			if i, ok := c.linker.(exportedFlagsProducer); ok {
+			if i, ok := cc.linker.(exportedFlagsProducer); ok {
 				cflags := i.exportedFlags()
 				depPaths.Cflags = append(depPaths.Cflags, cflags...)
 
 				if t.reexportFlags {
 					depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, cflags...)
 				}
+			}
+
+			if !linkTypeOk(c, cc) {
+				ctx.ModuleErrorf("depends on non-NDK-built library %q", name)
 			}
 		}
 
@@ -987,9 +1019,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPtr = &depPaths.LateStaticLibs
 		case wholeStaticDepTag:
 			depPtr = &depPaths.WholeStaticLibs
-			staticLib, _ := c.linker.(*libraryLinker)
+			staticLib, _ := cc.linker.(*libraryLinker)
 			if staticLib == nil || !staticLib.static() {
-				ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
+				ctx.ModuleErrorf("module %q not a static library", name)
 				return
 			}
 
@@ -1005,15 +1037,15 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		case objDepTag:
 			depPtr = &depPaths.ObjFiles
 		case crtBeginDepTag:
-			depPaths.CrtBegin = c.outputFile
+			depPaths.CrtBegin = cc.outputFile
 		case crtEndDepTag:
-			depPaths.CrtEnd = c.outputFile
+			depPaths.CrtEnd = cc.outputFile
 		default:
 			panic(fmt.Errorf("unknown dependency tag: %s", tag))
 		}
 
 		if depPtr != nil {
-			*depPtr = append(*depPtr, c.outputFile.Path())
+			*depPtr = append(*depPtr, cc.outputFile.Path())
 		}
 	})
 
@@ -1266,7 +1298,7 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
 	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
 
-	if ctx.ModuleName() != "libcompiler_rt-extras" {
+	if !ctx.sdk() && ctx.ModuleName() != "libcompiler_rt-extras" {
 		deps.StaticLibs = append(deps.StaticLibs, "libcompiler_rt-extras")
 	}
 
