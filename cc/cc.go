@@ -182,6 +182,8 @@ type Deps struct {
 	SharedLibs, LateSharedLibs                  []string
 	StaticLibs, LateStaticLibs, WholeStaticLibs []string
 
+	ReexportSharedLibHeaders, ReexportStaticLibHeaders []string
+
 	ObjFiles []string
 
 	GeneratedSources []string
@@ -327,6 +329,14 @@ type BaseLinkerProperties struct {
 
 	// -l arguments to pass to linker for host-provided shared libraries
 	Host_ldlibs []string `android:"arch_variant"`
+
+	// list of shared libraries to re-export include directories from. Entries must be
+	// present in shared_libs.
+	Export_shared_lib_headers []string `android:"arch_variant"`
+
+	// list of static libraries to re-export include directories from. Entries must be
+	// present in static_libs.
+	Export_static_lib_headers []string `android:"arch_variant"`
 }
 
 type LibraryCompilerProperties struct {
@@ -493,20 +503,24 @@ type dependencyTag struct {
 	blueprint.BaseDependencyTag
 	name    string
 	library bool
+
+	reexportFlags bool
 }
 
 var (
-	sharedDepTag      = dependencyTag{name: "shared", library: true}
-	lateSharedDepTag  = dependencyTag{name: "late shared", library: true}
-	staticDepTag      = dependencyTag{name: "static", library: true}
-	lateStaticDepTag  = dependencyTag{name: "late static", library: true}
-	wholeStaticDepTag = dependencyTag{name: "whole static", library: true}
-	genSourceDepTag   = dependencyTag{name: "gen source"}
-	genHeaderDepTag   = dependencyTag{name: "gen header"}
-	objDepTag         = dependencyTag{name: "obj"}
-	crtBeginDepTag    = dependencyTag{name: "crtbegin"}
-	crtEndDepTag      = dependencyTag{name: "crtend"}
-	reuseObjTag       = dependencyTag{name: "reuse objects"}
+	sharedDepTag       = dependencyTag{name: "shared", library: true}
+	sharedExportDepTag = dependencyTag{name: "shared", library: true, reexportFlags: true}
+	lateSharedDepTag   = dependencyTag{name: "late shared", library: true}
+	staticDepTag       = dependencyTag{name: "static", library: true}
+	staticExportDepTag = dependencyTag{name: "static", library: true, reexportFlags: true}
+	lateStaticDepTag   = dependencyTag{name: "late static", library: true}
+	wholeStaticDepTag  = dependencyTag{name: "whole static", library: true, reexportFlags: true}
+	genSourceDepTag    = dependencyTag{name: "gen source"}
+	genHeaderDepTag    = dependencyTag{name: "gen header"}
+	objDepTag          = dependencyTag{name: "obj"}
+	crtBeginDepTag     = dependencyTag{name: "crtbegin"}
+	crtEndDepTag       = dependencyTag{name: "crtend"}
+	reuseObjTag        = dependencyTag{name: "reuse objects"}
 )
 
 // Module contains the properties and members used by all C/C++ module types, and implements
@@ -783,6 +797,18 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	deps.SharedLibs = lastUniqueElements(deps.SharedLibs)
 	deps.LateSharedLibs = lastUniqueElements(deps.LateSharedLibs)
 
+	for _, lib := range deps.ReexportSharedLibHeaders {
+		if !inList(lib, deps.SharedLibs) {
+			ctx.PropertyErrorf("export_shared_lib_headers", "Shared library not in shared_libs: '%s'", lib)
+		}
+	}
+
+	for _, lib := range deps.ReexportStaticLibHeaders {
+		if !inList(lib, deps.StaticLibs) {
+			ctx.PropertyErrorf("export_static_lib_headers", "Static library not in static_libs: '%s'", lib)
+		}
+	}
+
 	return deps
 }
 
@@ -808,14 +834,26 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, wholeStaticDepTag,
 		deps.WholeStaticLibs...)
 
-	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, staticDepTag,
-		deps.StaticLibs...)
+	for _, lib := range deps.StaticLibs {
+		depTag := staticDepTag
+		if inList(lib, deps.ReexportStaticLibHeaders) {
+			depTag = staticExportDepTag
+		}
+		actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, depTag,
+			deps.StaticLibs...)
+	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, lateStaticDepTag,
 		deps.LateStaticLibs...)
 
-	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, sharedDepTag,
-		deps.SharedLibs...)
+	for _, lib := range deps.SharedLibs {
+		depTag := sharedDepTag
+		if inList(lib, deps.ReexportSharedLibHeaders) {
+			depTag = sharedExportDepTag
+		}
+		actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, depTag,
+			deps.SharedLibs...)
+	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, lateSharedDepTag,
 		deps.LateSharedLibs...)
@@ -925,28 +963,30 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		var cflags []string
-		if t, _ := tag.(dependencyTag); t.library {
+		if t, ok := tag.(dependencyTag); ok && t.library {
 			if i, ok := c.linker.(exportedFlagsProducer); ok {
-				cflags = i.exportedFlags()
+				cflags := i.exportedFlags()
 				depPaths.Cflags = append(depPaths.Cflags, cflags...)
+
+				if t.reexportFlags {
+					depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, cflags...)
+				}
 			}
 		}
 
 		var depPtr *android.Paths
 
 		switch tag {
-		case sharedDepTag:
+		case sharedDepTag, sharedExportDepTag:
 			depPtr = &depPaths.SharedLibs
 		case lateSharedDepTag:
 			depPtr = &depPaths.LateSharedLibs
-		case staticDepTag:
+		case staticDepTag, staticExportDepTag:
 			depPtr = &depPaths.StaticLibs
 		case lateStaticDepTag:
 			depPtr = &depPaths.LateStaticLibs
 		case wholeStaticDepTag:
 			depPtr = &depPaths.WholeStaticLibs
-			depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, cflags...)
 			staticLib, _ := c.linker.(*libraryLinker)
 			if staticLib == nil || !staticLib.static() {
 				ctx.ModuleErrorf("module %q not a static library", ctx.OtherModuleName(m))
@@ -969,7 +1009,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		case crtEndDepTag:
 			depPaths.CrtEnd = c.outputFile
 		default:
-			panic(fmt.Errorf("unknown dependency tag: %s", ctx.OtherModuleDependencyTag(m)))
+			panic(fmt.Errorf("unknown dependency tag: %s", tag))
 		}
 
 		if depPtr != nil {
@@ -1222,6 +1262,9 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Shared_libs...)
+
+	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
+	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
 
 	if ctx.ModuleName() != "libcompiler_rt-extras" {
 		deps.StaticLibs = append(deps.StaticLibs, "libcompiler_rt-extras")
