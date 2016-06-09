@@ -41,9 +41,9 @@ include $(CLEAR_VARS)
 # Name Comment
 LOCAL_MODULE := test
 # Source comment
-LOCAL_SRC_FILES := a.c
+LOCAL_SRC_FILES_EXCLUDE := a.c
 # Second source comment
-LOCAL_SRC_FILES += b.c
+LOCAL_SRC_FILES_EXCLUDE += b.c
 include $(BUILD_SHARED_LIBRARY)`,
 		expected: `
 //
@@ -55,7 +55,7 @@ cc_library_shared {
     // Name Comment
     name: "test",
     // Source comment
-    srcs: ["a.c"] + ["b.c"], // Second source comment
+    exclude_srcs: ["a.c"] + ["b.c"], // Second source comment
 
 }`,
 	},
@@ -107,8 +107,7 @@ include $(BUILD_SHARED_LIBRARY)`,
 input = ["testing/include"]
 cc_library_shared {
     // Comment 1
-    include_dirs: ["system/core/include"] + // Comment 2
-    input + ["system/core/include"],
+    include_dirs: ["system/core/include"] + input + ["system/core/include"], // Comment 2
     local_include_dirs: ["."] + ["include"] + ["test/include"],
     // Comment 3
 }`,
@@ -386,9 +385,6 @@ func TestEndToEnd(t *testing.T) {
 			t.Errorf("Unexpected errors: %q", errs)
 			continue
 		}
-
-		// TODO(dwillemsen): remove once bpfmt and androidmk agree
-		got = reformatBlueprint(got)
 
 		if got != expected {
 			t.Errorf("failed testcase '%s'\ninput:\n%s\n\nexpected:\n%s\ngot:\n%s\n", test.desc, strings.TrimSpace(test.in), expected, got)

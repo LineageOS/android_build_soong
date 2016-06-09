@@ -14,65 +14,65 @@ const (
 
 var standardProperties = map[string]struct {
 	string
-	bpparser.ValueType
+	bpparser.Type
 }{
 	// String properties
-	"LOCAL_MODULE":               {"name", bpparser.String},
-	"LOCAL_MODULE_CLASS":         {"class", bpparser.String},
-	"LOCAL_CXX_STL":              {"stl", bpparser.String},
-	"LOCAL_STRIP_MODULE":         {"strip", bpparser.String},
-	"LOCAL_MULTILIB":             {"compile_multilib", bpparser.String},
-	"LOCAL_ARM_MODE_HACK":        {"instruction_set", bpparser.String},
-	"LOCAL_SDK_VERSION":          {"sdk_version", bpparser.String},
-	"LOCAL_NDK_STL_VARIANT":      {"stl", bpparser.String},
-	"LOCAL_JAR_MANIFEST":         {"manifest", bpparser.String},
-	"LOCAL_JARJAR_RULES":         {"jarjar_rules", bpparser.String},
-	"LOCAL_CERTIFICATE":          {"certificate", bpparser.String},
-	"LOCAL_PACKAGE_NAME":         {"name", bpparser.String},
-	"LOCAL_MODULE_RELATIVE_PATH": {"relative_install_path", bpparser.String},
+	"LOCAL_MODULE":               {"name", bpparser.StringType},
+	"LOCAL_MODULE_CLASS":         {"class", bpparser.StringType},
+	"LOCAL_CXX_STL":              {"stl", bpparser.StringType},
+	"LOCAL_STRIP_MODULE":         {"strip", bpparser.StringType},
+	"LOCAL_MULTILIB":             {"compile_multilib", bpparser.StringType},
+	"LOCAL_ARM_MODE_HACK":        {"instruction_set", bpparser.StringType},
+	"LOCAL_SDK_VERSION":          {"sdk_version", bpparser.StringType},
+	"LOCAL_NDK_STL_VARIANT":      {"stl", bpparser.StringType},
+	"LOCAL_JAR_MANIFEST":         {"manifest", bpparser.StringType},
+	"LOCAL_JARJAR_RULES":         {"jarjar_rules", bpparser.StringType},
+	"LOCAL_CERTIFICATE":          {"certificate", bpparser.StringType},
+	"LOCAL_PACKAGE_NAME":         {"name", bpparser.StringType},
+	"LOCAL_MODULE_RELATIVE_PATH": {"relative_install_path", bpparser.StringType},
 
 	// List properties
-	"LOCAL_SRC_FILES_EXCLUDE":             {"exclude_srcs", bpparser.List},
-	"LOCAL_SHARED_LIBRARIES":              {"shared_libs", bpparser.List},
-	"LOCAL_STATIC_LIBRARIES":              {"static_libs", bpparser.List},
-	"LOCAL_WHOLE_STATIC_LIBRARIES":        {"whole_static_libs", bpparser.List},
-	"LOCAL_SYSTEM_SHARED_LIBRARIES":       {"system_shared_libs", bpparser.List},
-	"LOCAL_ASFLAGS":                       {"asflags", bpparser.List},
-	"LOCAL_CLANG_ASFLAGS":                 {"clang_asflags", bpparser.List},
-	"LOCAL_CFLAGS":                        {"cflags", bpparser.List},
-	"LOCAL_CONLYFLAGS":                    {"conlyflags", bpparser.List},
-	"LOCAL_CPPFLAGS":                      {"cppflags", bpparser.List},
-	"LOCAL_REQUIRED_MODULES":              {"required", bpparser.List},
-	"LOCAL_MODULE_TAGS":                   {"tags", bpparser.List},
-	"LOCAL_LDLIBS":                        {"host_ldlibs", bpparser.List},
-	"LOCAL_CLANG_CFLAGS":                  {"clang_cflags", bpparser.List},
-	"LOCAL_YACCFLAGS":                     {"yaccflags", bpparser.List},
-	"LOCAL_SANITIZE_RECOVER":              {"sanitize.recover", bpparser.List},
-	"LOCAL_LOGTAGS_FILES":                 {"logtags", bpparser.List},
-	"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": {"export_shared_lib_headers", bpparser.List},
-	"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": {"export_static_lib_headers", bpparser.List},
+	"LOCAL_SRC_FILES_EXCLUDE":             {"exclude_srcs", bpparser.ListType},
+	"LOCAL_SHARED_LIBRARIES":              {"shared_libs", bpparser.ListType},
+	"LOCAL_STATIC_LIBRARIES":              {"static_libs", bpparser.ListType},
+	"LOCAL_WHOLE_STATIC_LIBRARIES":        {"whole_static_libs", bpparser.ListType},
+	"LOCAL_SYSTEM_SHARED_LIBRARIES":       {"system_shared_libs", bpparser.ListType},
+	"LOCAL_ASFLAGS":                       {"asflags", bpparser.ListType},
+	"LOCAL_CLANG_ASFLAGS":                 {"clang_asflags", bpparser.ListType},
+	"LOCAL_CFLAGS":                        {"cflags", bpparser.ListType},
+	"LOCAL_CONLYFLAGS":                    {"conlyflags", bpparser.ListType},
+	"LOCAL_CPPFLAGS":                      {"cppflags", bpparser.ListType},
+	"LOCAL_REQUIRED_MODULES":              {"required", bpparser.ListType},
+	"LOCAL_MODULE_TAGS":                   {"tags", bpparser.ListType},
+	"LOCAL_LDLIBS":                        {"host_ldlibs", bpparser.ListType},
+	"LOCAL_CLANG_CFLAGS":                  {"clang_cflags", bpparser.ListType},
+	"LOCAL_YACCFLAGS":                     {"yaccflags", bpparser.ListType},
+	"LOCAL_SANITIZE_RECOVER":              {"sanitize.recover", bpparser.ListType},
+	"LOCAL_LOGTAGS_FILES":                 {"logtags", bpparser.ListType},
+	"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": {"export_shared_lib_headers", bpparser.ListType},
+	"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": {"export_static_lib_headers", bpparser.ListType},
 
-	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.List},
-	"LOCAL_JAVACFLAGS":            {"javacflags", bpparser.List},
-	"LOCAL_DX_FLAGS":              {"dxflags", bpparser.List},
-	"LOCAL_JAVA_LIBRARIES":        {"java_libs", bpparser.List},
-	"LOCAL_STATIC_JAVA_LIBRARIES": {"java_static_libs", bpparser.List},
-	"LOCAL_AIDL_INCLUDES":         {"aidl_includes", bpparser.List},
-	"LOCAL_AAPT_FLAGS":            {"aaptflags", bpparser.List},
-	"LOCAL_PACKAGE_SPLITS":        {"package_splits", bpparser.List},
+	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.ListType},
+	"LOCAL_JAVACFLAGS":            {"javacflags", bpparser.ListType},
+	"LOCAL_DX_FLAGS":              {"dxflags", bpparser.ListType},
+	"LOCAL_JAVA_LIBRARIES":        {"java_libs", bpparser.ListType},
+	"LOCAL_STATIC_JAVA_LIBRARIES": {"java_static_libs", bpparser.ListType},
+	"LOCAL_AIDL_INCLUDES":         {"aidl_includes", bpparser.ListType},
+	"LOCAL_AAPT_FLAGS":            {"aaptflags", bpparser.ListType},
+	"LOCAL_PACKAGE_SPLITS":        {"package_splits", bpparser.ListType},
 
 	// Bool properties
-	"LOCAL_IS_HOST_MODULE":          {"host", bpparser.Bool},
-	"LOCAL_CLANG":                   {"clang", bpparser.Bool},
-	"LOCAL_FORCE_STATIC_EXECUTABLE": {"static_executable", bpparser.Bool},
-	"LOCAL_NATIVE_COVERAGE":         {"native_coverage", bpparser.Bool},
-	"LOCAL_NO_CRT":                  {"nocrt", bpparser.Bool},
-	"LOCAL_ALLOW_UNDEFINED_SYMBOLS": {"allow_undefined_symbols", bpparser.Bool},
-	"LOCAL_RTTI_FLAG":               {"rtti", bpparser.Bool},
+	"LOCAL_IS_HOST_MODULE":          {"host", bpparser.BoolType},
+	"LOCAL_CLANG":                   {"clang", bpparser.BoolType},
+	"LOCAL_FORCE_STATIC_EXECUTABLE": {"static_executable", bpparser.BoolType},
+	"LOCAL_NATIVE_COVERAGE":         {"native_coverage", bpparser.BoolType},
+	"LOCAL_NO_CRT":                  {"nocrt", bpparser.BoolType},
+	"LOCAL_ALLOW_UNDEFINED_SYMBOLS": {"allow_undefined_symbols", bpparser.BoolType},
+	"LOCAL_RTTI_FLAG":               {"rtti", bpparser.BoolType},
 
-	"LOCAL_NO_STANDARD_LIBRARIES": {"no_standard_libraries", bpparser.Bool},
+	"LOCAL_NO_STANDARD_LIBRARIES": {"no_standard_libraries", bpparser.BoolType},
 
-	"LOCAL_EXPORT_PACKAGE_RESOURCES": {"export_package_resources", bpparser.Bool},
+	"LOCAL_EXPORT_PACKAGE_RESOURCES": {"export_package_resources", bpparser.BoolType},
 }
 
 var rewriteProperties = map[string]struct {
@@ -87,23 +87,26 @@ var rewriteProperties = map[string]struct {
 	"LOCAL_LDFLAGS":               {ldflags},
 }
 
-type listSplitFunc func(bpparser.Value) (string, *bpparser.Value, error)
+type listSplitFunc func(bpparser.Expression) (string, bpparser.Expression, error)
 
-func emptyList(value *bpparser.Value) bool {
-	return value.Type == bpparser.List && value.Expression == nil && value.Variable == "" &&
-		len(value.ListValue) == 0
+func emptyList(value bpparser.Expression) bool {
+	if list, ok := value.(*bpparser.List); ok {
+		return len(list.Values) == 0
+	}
+	return false
 }
 
-func splitBpList(val *bpparser.Value, keyFunc listSplitFunc) (lists map[string]*bpparser.Value, err error) {
-	lists = make(map[string]*bpparser.Value)
+func splitBpList(val bpparser.Expression, keyFunc listSplitFunc) (lists map[string]bpparser.Expression, err error) {
+	lists = make(map[string]bpparser.Expression)
 
-	if val.Expression != nil {
-		listsA, err := splitBpList(&val.Expression.Args[0], keyFunc)
+	switch val := val.(type) {
+	case *bpparser.Operator:
+		listsA, err := splitBpList(val.Args[0], keyFunc)
 		if err != nil {
 			return nil, err
 		}
 
-		listsB, err := splitBpList(&val.Expression.Args[1], keyFunc)
+		listsB, err := splitBpList(val.Args[1], keyFunc)
 		if err != nil {
 			return nil, err
 		}
@@ -120,94 +123,96 @@ func splitBpList(val *bpparser.Value, keyFunc listSplitFunc) (lists map[string]*
 			}
 
 			if vA, ok := lists[k]; ok {
-				expression := *val.Expression
-				lists[k] = &bpparser.Value{
-					Type:       bpparser.List,
-					Expression: &expression,
-				}
-				lists[k].Expression.Args = [2]bpparser.Value{*vA, *vB}
+				expression := val.Copy().(*bpparser.Operator)
+				expression.Args = [2]bpparser.Expression{vA, vB}
+				lists[k] = expression
 			} else {
 				lists[k] = vB
 			}
 		}
-	} else if val.Variable != "" {
-		key, value, err := keyFunc(*val)
+	case *bpparser.Variable:
+		key, value, err := keyFunc(val)
 		if err != nil {
 			return nil, err
 		}
-		if value.Type == bpparser.List {
+		if value.Type() == bpparser.ListType {
 			lists[key] = value
 		} else {
-			lists[key] = &bpparser.Value{
-				Type:      bpparser.List,
-				ListValue: []bpparser.Value{*value},
+			lists[key] = &bpparser.List{
+				Values: []bpparser.Expression{value},
 			}
 		}
-	} else {
-		for _, v := range val.ListValue {
+	case *bpparser.List:
+		for _, v := range val.Values {
 			key, value, err := keyFunc(v)
 			if err != nil {
 				return nil, err
 			}
-			if _, ok := lists[key]; !ok {
-				lists[key] = &bpparser.Value{
-					Type: bpparser.List,
-				}
+			l := lists[key]
+			if l == nil {
+				l = &bpparser.List{}
 			}
-			lists[key].ListValue = append(lists[key].ListValue, *value)
+			l.(*bpparser.List).Values = append(l.(*bpparser.List).Values, value)
+			lists[key] = l
 		}
+	default:
+		panic(fmt.Errorf("unexpected type %t", val))
 	}
 
 	return lists, nil
 }
 
-func splitLocalGlobalPath(value bpparser.Value) (string, *bpparser.Value, error) {
-	if value.Variable == "LOCAL_PATH" {
-		return "local", &bpparser.Value{
-			Type:        bpparser.String,
-			StringValue: ".",
-		}, nil
-	} else if value.Variable != "" {
-		// TODO: Should we split variables?
-		return "global", &value, nil
-	}
-
-	if value.Type != bpparser.String {
-		return "", nil, fmt.Errorf("splitLocalGlobalPath expected a string, got %s", value.Type)
-	}
-
-	if value.Expression == nil {
-		return "global", &value, nil
-	}
-
-	if value.Expression.Operator != '+' {
-		return "global", &value, nil
-	}
-
-	firstOperand := value.Expression.Args[0]
-	secondOperand := value.Expression.Args[1]
-	if firstOperand.Type != bpparser.String {
-		return "global", &value, nil
-	}
-
-	if firstOperand.Expression != nil {
-		return "global", &value, nil
-	}
-
-	if firstOperand.Variable != "LOCAL_PATH" {
-		return "global", &value, nil
-	}
-
-	if secondOperand.Expression == nil && secondOperand.Variable == "" {
-		if strings.HasPrefix(secondOperand.StringValue, "/") {
-			secondOperand.StringValue = secondOperand.StringValue[1:]
+func splitLocalGlobalPath(value bpparser.Expression) (string, bpparser.Expression, error) {
+	switch v := value.(type) {
+	case *bpparser.Variable:
+		if v.Name == "LOCAL_PATH" {
+			return "local", &bpparser.String{
+				Value: ".",
+			}, nil
+		} else {
+			// TODO: Should we split variables?
+			return "global", value, nil
 		}
+	case *bpparser.Operator:
+		if v.Type() != bpparser.StringType {
+			return "", nil, fmt.Errorf("splitLocalGlobalPath expected a string, got %s", value.Type)
+		}
+
+		if v.Operator != '+' {
+			return "global", value, nil
+		}
+
+		firstOperand := v.Args[0]
+		secondOperand := v.Args[1]
+		if firstOperand.Type() != bpparser.StringType {
+			return "global", value, nil
+		}
+
+		if _, ok := firstOperand.(*bpparser.Operator); ok {
+			return "global", value, nil
+		}
+
+		if variable, ok := firstOperand.(*bpparser.Variable); !ok || variable.Name != "LOCAL_PATH" {
+			return "global", value, nil
+		}
+
+		local := secondOperand
+		if s, ok := secondOperand.(*bpparser.String); ok {
+			if strings.HasPrefix(s.Value, "/") {
+				s.Value = s.Value[1:]
+			}
+		}
+		return "local", local, nil
+	case *bpparser.String:
+		return "global", value, nil
+	default:
+		return "", nil, fmt.Errorf("splitLocalGlobalPath expected a string, got %s", value.Type)
+
 	}
-	return "local", &secondOperand, nil
 }
 
 func localIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	val, err := makeVariableToBlueprint(file, value, bpparser.ListType)
 	if err != nil {
 		return err
 	}
@@ -235,7 +240,7 @@ func localIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, a
 }
 
 func exportIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	val, err := makeVariableToBlueprint(file, value, bpparser.ListType)
 	if err != nil {
 		return err
 	}
@@ -266,44 +271,43 @@ func exportIncludeDirs(file *bpFile, prefix string, value *mkparser.MakeString, 
 }
 
 func stem(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, value, bpparser.String)
+	val, err := makeVariableToBlueprint(file, value, bpparser.StringType)
 	if err != nil {
 		return err
 	}
 	varName := "stem"
 
-	if val.Expression != nil && val.Expression.Operator == '+' &&
-		val.Expression.Args[0].Variable == "LOCAL_MODULE" {
-		varName = "suffix"
-		val = &val.Expression.Args[1]
+	if exp, ok := val.(*bpparser.Operator); ok && exp.Operator == '+' {
+		if variable, ok := exp.Args[0].(*bpparser.Variable); ok && variable.Name == "LOCAL_MODULE" {
+			varName = "suffix"
+			val = exp.Args[1]
+		}
 	}
 
 	return setVariable(file, appendVariable, prefix, varName, val, true)
 }
 
 func hostOs(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	val, err := makeVariableToBlueprint(file, value, bpparser.ListType)
 	if err != nil {
 		return err
 	}
 
 	inList := func(s string) bool {
-		for _, v := range val.ListValue {
-			if v.StringValue == s {
+		for _, v := range val.(*bpparser.List).Values {
+			if v.(*bpparser.String).Value == s {
 				return true
 			}
 		}
 		return false
 	}
 
-	falseValue := &bpparser.Value{
-		Type:      bpparser.Bool,
-		BoolValue: false,
+	falseValue := &bpparser.Bool{
+		Value: false,
 	}
 
-	trueValue := &bpparser.Value{
-		Type:      bpparser.Bool,
-		BoolValue: true,
+	trueValue := &bpparser.Bool{
+		Value: true,
 	}
 
 	if inList("windows") {
@@ -321,30 +325,27 @@ func hostOs(file *bpFile, prefix string, value *mkparser.MakeString, appendVaria
 	return err
 }
 
-func splitSrcsLogtags(value bpparser.Value) (string, *bpparser.Value, error) {
-	if value.Variable != "" {
+func splitSrcsLogtags(value bpparser.Expression) (string, bpparser.Expression, error) {
+	switch v := value.(type) {
+	case *bpparser.Variable:
 		// TODO: attempt to split variables?
-		return "srcs", &value, nil
-	}
-
-	if value.Type != bpparser.String {
-		return "", nil, fmt.Errorf("splitSrcsLogtags expected a string, got %s", value.Type)
-	}
-
-	if value.Expression != nil {
+		return "srcs", value, nil
+	case *bpparser.Operator:
 		// TODO: attempt to handle expressions?
-		return "srcs", &value, nil
+		return "srcs", value, nil
+	case *bpparser.String:
+		if strings.HasSuffix(v.Value, ".logtags") {
+			return "logtags", value, nil
+		}
+		return "srcs", value, nil
+	default:
+		return "", nil, fmt.Errorf("splitSrcsLogtags expected a string, got %s", value.Type())
 	}
 
-	if strings.HasSuffix(value.StringValue, ".logtags") {
-		return "logtags", &value, nil
-	}
-
-	return "srcs", &value, nil
 }
 
 func srcFiles(file *bpFile, prefix string, value *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, value, bpparser.List)
+	val, err := makeVariableToBlueprint(file, value, bpparser.ListType)
 	if err != nil {
 		return err
 	}
@@ -369,31 +370,31 @@ func srcFiles(file *bpFile, prefix string, value *mkparser.MakeString, appendVar
 }
 
 func sanitize(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, mkvalue, bpparser.List)
+	val, err := makeVariableToBlueprint(file, mkvalue, bpparser.ListType)
 	if err != nil {
 		return err
 	}
 
-	lists, err := splitBpList(val, func(value bpparser.Value) (string, *bpparser.Value, error) {
-		if value.Variable != "" {
-			return "vars", &value, nil
-		}
-
-		if value.Expression != nil {
+	lists, err := splitBpList(val, func(value bpparser.Expression) (string, bpparser.Expression, error) {
+		switch v := value.(type) {
+		case *bpparser.Variable:
+			return "vars", value, nil
+		case *bpparser.Operator:
 			file.errorf(mkvalue, "unknown sanitize expression")
-			return "unknown", &value, nil
-		}
-
-		switch value.StringValue {
-		case "never", "address", "coverage", "integer", "thread", "undefined":
-			bpTrue := bpparser.Value{
-				Type:      bpparser.Bool,
-				BoolValue: true,
+			return "unknown", value, nil
+		case *bpparser.String:
+			switch v.Value {
+			case "never", "address", "coverage", "integer", "thread", "undefined":
+				bpTrue := &bpparser.Bool{
+					Value: true,
+				}
+				return v.Value, bpTrue, nil
+			default:
+				file.errorf(mkvalue, "unknown sanitize argument: %s", v.Value)
+				return "unknown", value, nil
 			}
-			return value.StringValue, &bpTrue, nil
 		default:
-			file.errorf(mkvalue, "unknown sanitize argument: %s", value.StringValue)
-			return "unknown", &value, nil
+			return "", nil, fmt.Errorf("sanitize expected a string, got %s", value.Type())
 		}
 	})
 	if err != nil {
@@ -407,7 +408,7 @@ func sanitize(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendV
 
 		switch k {
 		case "never", "address", "coverage", "integer", "thread", "undefined":
-			err = setVariable(file, false, prefix, "sanitize."+k, &lists[k].ListValue[0], true)
+			err = setVariable(file, false, prefix, "sanitize."+k, lists[k].(*bpparser.List).Values[0], true)
 		case "unknown":
 			// Nothing, we already added the error above
 		case "vars":
@@ -425,30 +426,41 @@ func sanitize(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendV
 }
 
 func ldflags(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendVariable bool) error {
-	val, err := makeVariableToBlueprint(file, mkvalue, bpparser.List)
+	val, err := makeVariableToBlueprint(file, mkvalue, bpparser.ListType)
 	if err != nil {
 		return err
 	}
 
-	lists, err := splitBpList(val, func(value bpparser.Value) (string, *bpparser.Value, error) {
+	lists, err := splitBpList(val, func(value bpparser.Expression) (string, bpparser.Expression, error) {
 		// Anything other than "-Wl,--version_script," + LOCAL_PATH + "<path>" matches ldflags
-		if value.Variable != "" || value.Expression == nil {
-			return "ldflags", &value, nil
+		exp1, ok := value.(*bpparser.Operator)
+		if !ok {
+			return "ldflags", value, nil
 		}
 
-		exp := value.Expression.Args[0]
-		if exp.Variable != "" || exp.Expression == nil || exp.Expression.Args[0].StringValue != "-Wl,--version-script," {
-			return "ldflags", &value, nil
+		exp2, ok := exp1.Args[0].(*bpparser.Operator)
+		if !ok {
+			return "ldflags", value, nil
 		}
 
-		if exp.Expression.Args[1].Variable != "LOCAL_PATH" {
+		if s, ok := exp2.Args[0].(*bpparser.String); !ok || s.Value != "-Wl,--version-script," {
+			return "ldflags", value, nil
+		}
+
+		if v, ok := exp2.Args[1].(*bpparser.Variable); !ok || v.Name != "LOCAL_PATH" {
 			file.errorf(mkvalue, "Unrecognized version-script")
-			return "ldflags", &value, nil
+			return "ldflags", value, nil
 		}
 
-		value.Expression.Args[1].StringValue = strings.TrimPrefix(value.Expression.Args[1].StringValue, "/")
+		s, ok := exp1.Args[1].(*bpparser.String)
+		if !ok {
+			file.errorf(mkvalue, "Unrecognized version-script")
+			return "ldflags", value, nil
+		}
 
-		return "version", &value.Expression.Args[1], nil
+		s.Value = strings.TrimPrefix(s.Value, "/")
+
+		return "version", s, nil
 	})
 	if err != nil {
 		return err
@@ -462,10 +474,10 @@ func ldflags(file *bpFile, prefix string, mkvalue *mkparser.MakeString, appendVa
 	}
 
 	if version_script, ok := lists["version"]; ok && !emptyList(version_script) {
-		if len(version_script.ListValue) > 1 {
+		if len(version_script.(*bpparser.List).Values) > 1 {
 			file.errorf(mkvalue, "multiple version scripts found?")
 		}
-		err = setVariable(file, false, prefix, "version_script", &version_script.ListValue[0], true)
+		err = setVariable(file, false, prefix, "version_script", version_script.(*bpparser.List).Values[0], true)
 		if err != nil {
 			return err
 		}
