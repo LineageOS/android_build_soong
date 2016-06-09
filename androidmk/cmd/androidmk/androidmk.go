@@ -290,10 +290,8 @@ func handleModuleConditionals(file *bpFile, directive *mkparser.Directive, conds
 }
 
 func makeModule(file *bpFile, t string) {
-	file.module.Type = bpparser.Ident{
-		Name: t,
-		Pos:  file.module.LBracePos,
-	}
+	file.module.Type = t
+	file.module.TypePos = file.module.LBracePos
 	file.module.RBracePos = file.bpPos
 	file.defs = append(file.defs, file.module)
 	file.inModule = false
@@ -364,8 +362,8 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 				prop := file.localAssignments[fqn]
 				if prop == nil {
 					prop = &bpparser.Property{
-						Name: bpparser.Ident{Name: n, Pos: pos},
-						Pos:  pos,
+						Name:    n,
+						NamePos: pos,
 						Value: &bpparser.Map{
 							Properties: []*bpparser.Property{},
 						},
@@ -377,9 +375,9 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 			}
 
 			prop := &bpparser.Property{
-				Name:  bpparser.Ident{Name: names[len(names)-1], Pos: pos},
-				Pos:   pos,
-				Value: value,
+				Name:    names[len(names)-1],
+				NamePos: pos,
+				Value:   value,
 			}
 			file.localAssignments[name] = prop
 			*container = append(*container, prop)
@@ -387,10 +385,8 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 	} else {
 		if oldValue != nil && plusequals {
 			a := &bpparser.Assignment{
-				Name: bpparser.Ident{
-					Name: name,
-					Pos:  pos,
-				},
+				Name:      name,
+				NamePos:   pos,
 				Value:     value,
 				OrigValue: value,
 				Pos:       pos,
@@ -399,10 +395,8 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 			file.defs = append(file.defs, a)
 		} else {
 			a := &bpparser.Assignment{
-				Name: bpparser.Ident{
-					Name: name,
-					Pos:  pos,
-				},
+				Name:      name,
+				NamePos:   pos,
 				Value:     value,
 				OrigValue: value,
 				Pos:       pos,
@@ -412,6 +406,5 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 			file.defs = append(file.defs, a)
 		}
 	}
-
 	return nil
 }
