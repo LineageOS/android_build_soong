@@ -19,7 +19,7 @@ type bpFile struct {
 	comments          []bpparser.Comment
 	defs              []bpparser.Definition
 	localAssignments  map[string]*bpparser.Property
-	globalAssignments map[string]*bpparser.Value
+	globalAssignments map[string]*bpparser.Expression
 	scope             mkparser.Scope
 	module            *bpparser.Module
 
@@ -34,7 +34,7 @@ func (f *bpFile) errorf(node mkparser.Node, s string, args ...interface{}) {
 	s = fmt.Sprintf(s, args...)
 	c := bpparser.Comment{
 		Comment: []string{fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s)},
-		Pos:     f.bpPos,
+		Slash:   f.bpPos,
 	}
 
 	lines := strings.Split(orig, "\n")
@@ -93,7 +93,7 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 	file := &bpFile{
 		scope:             androidScope(),
 		localAssignments:  make(map[string]*bpparser.Property),
-		globalAssignments: make(map[string]*bpparser.Value),
+		globalAssignments: make(map[string]*bpparser.Expression),
 	}
 
 	var conds []*conditional
@@ -105,7 +105,7 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 		switch x := node.(type) {
 		case *mkparser.Comment:
 			file.comments = append(file.comments, bpparser.Comment{
-				Pos:     file.bpPos,
+				Slash:   file.bpPos,
 				Comment: []string{"//" + x.Comment},
 			})
 		case *mkparser.Assignment:
@@ -231,8 +231,8 @@ func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditio
 
 	var err error
 	if prop, ok := standardProperties[name]; ok {
-		var val *bpparser.Value
-		val, err = makeVariableToBlueprint(file, assignment.Value, prop.ValueType)
+		var val bpparser.Expression
+		val, err = makeVariableToBlueprint(file, assignment.Value, prop.Type)
 		if err == nil {
 			err = setVariable(file, appendVariable, prefix, prop.string, val, true)
 		}
@@ -256,8 +256,8 @@ func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditio
 			file.errorf(assignment, "unsupported assignment to %s", name)
 			return
 		default:
-			var val *bpparser.Value
-			val, err = makeVariableToBlueprint(file, assignment.Value, bpparser.List)
+			var val bpparser.Expression
+			val, err = makeVariableToBlueprint(file, assignment.Value, bpparser.ListType)
 			err = setVariable(file, appendVariable, prefix, name, val, false)
 		}
 	}
@@ -279,7 +279,7 @@ func handleModuleConditionals(file *bpFile, directive *mkparser.Directive, conds
 		disabledPrefix := conditionalTranslations[c.cond][!c.eq]
 
 		// Create a fake assignment with enabled = false
-		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", mkparser.NoPos), bpparser.Bool)
+		val, err := makeVariableToBlueprint(file, mkparser.SimpleMakeString("false", mkparser.NoPos), bpparser.BoolType)
 		if err == nil {
 			err = setVariable(file, false, disabledPrefix, "enabled", val, true)
 		}
@@ -292,31 +292,31 @@ func handleModuleConditionals(file *bpFile, directive *mkparser.Directive, conds
 func makeModule(file *bpFile, t string) {
 	file.module.Type = bpparser.Ident{
 		Name: t,
-		Pos:  file.module.LbracePos,
+		Pos:  file.module.LBracePos,
 	}
-	file.module.RbracePos = file.bpPos
+	file.module.RBracePos = file.bpPos
 	file.defs = append(file.defs, file.module)
 	file.inModule = false
 }
 
 func resetModule(file *bpFile) {
 	file.module = &bpparser.Module{}
-	file.module.LbracePos = file.bpPos
+	file.module.LBracePos = file.bpPos
 	file.localAssignments = make(map[string]*bpparser.Property)
 	file.inModule = true
 }
 
 func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
-	typ bpparser.ValueType) (*bpparser.Value, error) {
+	typ bpparser.Type) (bpparser.Expression, error) {
 
-	var exp *bpparser.Value
+	var exp bpparser.Expression
 	var err error
 	switch typ {
-	case bpparser.List:
+	case bpparser.ListType:
 		exp, err = makeToListExpression(val, file.scope)
-	case bpparser.String:
+	case bpparser.StringType:
 		exp, err = makeToStringExpression(val, file.scope)
-	case bpparser.Bool:
+	case bpparser.BoolType:
 		exp, err = makeToBoolExpression(val)
 	default:
 		panic("unknown type")
@@ -329,7 +329,7 @@ func makeVariableToBlueprint(file *bpFile, val *mkparser.MakeString,
 	return exp, nil
 }
 
-func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bpparser.Value, local bool) error {
+func setVariable(file *bpFile, plusequals bool, prefix, name string, value bpparser.Expression, local bool) error {
 
 	if prefix != "" {
 		name = prefix + "." + name
@@ -337,7 +337,7 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bppa
 
 	pos := file.bpPos
 
-	var oldValue *bpparser.Value
+	var oldValue *bpparser.Expression
 	if local {
 		oldProp := file.localAssignments[name]
 		if oldProp != nil {
@@ -349,12 +349,12 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bppa
 
 	if local {
 		if oldValue != nil && plusequals {
-			val, err := addValues(oldValue, value)
+			val, err := addValues(*oldValue, value)
 			if err != nil {
 				return fmt.Errorf("unsupported addition: %s", err.Error())
 			}
-			val.Expression.Pos = pos
-			*oldValue = *val
+			val.(*bpparser.Operator).OperatorPos = pos
+			*oldValue = val
 		} else {
 			names := strings.Split(name, ".")
 			container := &file.module.Properties
@@ -366,21 +366,20 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bppa
 					prop = &bpparser.Property{
 						Name: bpparser.Ident{Name: n, Pos: pos},
 						Pos:  pos,
-						Value: bpparser.Value{
-							Type:     bpparser.Map,
-							MapValue: []*bpparser.Property{},
+						Value: &bpparser.Map{
+							Properties: []*bpparser.Property{},
 						},
 					}
 					file.localAssignments[fqn] = prop
 					*container = append(*container, prop)
 				}
-				container = &prop.Value.MapValue
+				container = &prop.Value.(*bpparser.Map).Properties
 			}
 
 			prop := &bpparser.Property{
 				Name:  bpparser.Ident{Name: names[len(names)-1], Pos: pos},
 				Pos:   pos,
-				Value: *value,
+				Value: value,
 			}
 			file.localAssignments[name] = prop
 			*container = append(*container, prop)
@@ -392,8 +391,8 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bppa
 					Name: name,
 					Pos:  pos,
 				},
-				Value:     *value,
-				OrigValue: *value,
+				Value:     value,
+				OrigValue: value,
 				Pos:       pos,
 				Assigner:  "+=",
 			}
@@ -404,8 +403,8 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value *bppa
 					Name: name,
 					Pos:  pos,
 				},
-				Value:     *value,
-				OrigValue: *value,
+				Value:     value,
+				OrigValue: value,
 				Pos:       pos,
 				Assigner:  "=",
 			}
