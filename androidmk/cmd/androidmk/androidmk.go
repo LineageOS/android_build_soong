@@ -389,7 +389,7 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 				NamePos:   pos,
 				Value:     value,
 				OrigValue: value,
-				Pos:       pos,
+				EqualsPos: pos,
 				Assigner:  "+=",
 			}
 			file.defs = append(file.defs, a)
@@ -399,7 +399,7 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 				NamePos:   pos,
 				Value:     value,
 				OrigValue: value,
-				Pos:       pos,
+				EqualsPos: pos,
 				Assigner:  "=",
 			}
 			file.globalAssignments[name] = &a.Value
