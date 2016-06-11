@@ -79,6 +79,8 @@ func (library *baseLinker) AndroidMk(ret *android.AndroidMkData) {
 func (library *libraryLinker) AndroidMk(ret *android.AndroidMkData) {
 	library.baseLinker.AndroidMk(ret)
 
+	library.stripper.AndroidMk(ret)
+
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		var exportedIncludes []string
 		for _, flag := range library.exportedFlags() {
@@ -110,6 +112,8 @@ func (object *objectLinker) AndroidMk(ret *android.AndroidMkData) {
 }
 
 func (binary *binaryLinker) AndroidMk(ret *android.AndroidMkData) {
+	binary.stripper.AndroidMk(ret)
+
 	ret.Class = "EXECUTABLES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
@@ -132,6 +136,18 @@ func (library *toolchainLibraryLinker) AndroidMk(ret *android.AndroidMkData) {
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
+
+		return nil
+	})
+}
+
+func (stripper *stripper) AndroidMk(ret *android.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		if stripper.StripProperties.Strip.None {
+			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
+		} else if stripper.StripProperties.Strip.Keep_symbols {
+			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := keep_symbols")
+		}
 
 		return nil
 	})
