@@ -16,7 +16,7 @@ import (
 // TODO: non-expanded variables with expressions
 
 type bpFile struct {
-	comments          []bpparser.Comment
+	comments          []*bpparser.CommentGroup
 	defs              []bpparser.Definition
 	localAssignments  map[string]*bpparser.Property
 	globalAssignments map[string]*bpparser.Expression
@@ -29,21 +29,32 @@ type bpFile struct {
 	inModule bool
 }
 
+func (f *bpFile) insertComment(s string) {
+	f.comments = append(f.comments, &bpparser.CommentGroup{
+		Comments: []*bpparser.Comment{
+			&bpparser.Comment{
+				Comment: []string{s},
+				Slash:   f.bpPos,
+			},
+		},
+	})
+	f.bpPos.Offset += len(s)
+}
+
+func (f *bpFile) insertExtraComment(s string) {
+	f.insertComment(s)
+	f.bpPos.Line++
+}
+
 func (f *bpFile) errorf(node mkparser.Node, s string, args ...interface{}) {
 	orig := node.Dump()
 	s = fmt.Sprintf(s, args...)
-	c := bpparser.Comment{
-		Comment: []string{fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s)},
-		Slash:   f.bpPos,
-	}
+	f.insertExtraComment(fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s))
 
 	lines := strings.Split(orig, "\n")
 	for _, l := range lines {
-		c.Comment = append(c.Comment, "// "+l)
+		f.insertExtraComment("// " + l)
 	}
-	f.incBpPos(len(lines))
-
-	f.comments = append(f.comments, c)
 }
 
 func (f *bpFile) setMkPos(pos, end scanner.Position) {
@@ -52,11 +63,6 @@ func (f *bpFile) setMkPos(pos, end scanner.Position) {
 	}
 	f.bpPos.Line += (pos.Line - f.mkPos.Line)
 	f.mkPos = end
-}
-
-// Called when inserting extra lines into the blueprint file
-func (f *bpFile) incBpPos(lines int) {
-	f.bpPos.Line += lines
 }
 
 type conditional struct {
@@ -104,10 +110,7 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 
 		switch x := node.(type) {
 		case *mkparser.Comment:
-			file.comments = append(file.comments, bpparser.Comment{
-				Slash:   file.bpPos,
-				Comment: []string{"//" + x.Comment},
-			})
+			file.insertComment("//" + x.Comment)
 		case *mkparser.Assignment:
 			handleAssignment(file, x, assignmentCond)
 		case *mkparser.Directive:
