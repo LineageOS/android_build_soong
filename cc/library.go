@@ -246,7 +246,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 			sharedFlag = "-shared"
 		}
 		var f []string
-		if ctx.Device() {
+		if ctx.toolchain().Bionic() {
 			f = append(f,
 				"-nostdlib",
 				"-Wl,--gc-sections",
