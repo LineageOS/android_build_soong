@@ -16,7 +16,7 @@ import (
 // TODO: non-expanded variables with expressions
 
 type bpFile struct {
-	comments          []bpparser.Comment
+	comments          []*bpparser.CommentGroup
 	defs              []bpparser.Definition
 	localAssignments  map[string]*bpparser.Property
 	globalAssignments map[string]*bpparser.Expression
@@ -29,21 +29,32 @@ type bpFile struct {
 	inModule bool
 }
 
+func (f *bpFile) insertComment(s string) {
+	f.comments = append(f.comments, &bpparser.CommentGroup{
+		Comments: []*bpparser.Comment{
+			&bpparser.Comment{
+				Comment: []string{s},
+				Slash:   f.bpPos,
+			},
+		},
+	})
+	f.bpPos.Offset += len(s)
+}
+
+func (f *bpFile) insertExtraComment(s string) {
+	f.insertComment(s)
+	f.bpPos.Line++
+}
+
 func (f *bpFile) errorf(node mkparser.Node, s string, args ...interface{}) {
 	orig := node.Dump()
 	s = fmt.Sprintf(s, args...)
-	c := bpparser.Comment{
-		Comment: []string{fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s)},
-		Slash:   f.bpPos,
-	}
+	f.insertExtraComment(fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s))
 
 	lines := strings.Split(orig, "\n")
 	for _, l := range lines {
-		c.Comment = append(c.Comment, "// "+l)
+		f.insertExtraComment("// " + l)
 	}
-	f.incBpPos(len(lines))
-
-	f.comments = append(f.comments, c)
 }
 
 func (f *bpFile) setMkPos(pos, end scanner.Position) {
@@ -52,11 +63,6 @@ func (f *bpFile) setMkPos(pos, end scanner.Position) {
 	}
 	f.bpPos.Line += (pos.Line - f.mkPos.Line)
 	f.mkPos = end
-}
-
-// Called when inserting extra lines into the blueprint file
-func (f *bpFile) incBpPos(lines int) {
-	f.bpPos.Line += lines
 }
 
 type conditional struct {
@@ -104,10 +110,7 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 
 		switch x := node.(type) {
 		case *mkparser.Comment:
-			file.comments = append(file.comments, bpparser.Comment{
-				Slash:   file.bpPos,
-				Comment: []string{"//" + x.Comment},
-			})
+			file.insertComment("//" + x.Comment)
 		case *mkparser.Assignment:
 			handleAssignment(file, x, assignmentCond)
 		case *mkparser.Directive:
@@ -290,10 +293,8 @@ func handleModuleConditionals(file *bpFile, directive *mkparser.Directive, conds
 }
 
 func makeModule(file *bpFile, t string) {
-	file.module.Type = bpparser.Ident{
-		Name: t,
-		Pos:  file.module.LBracePos,
-	}
+	file.module.Type = t
+	file.module.TypePos = file.module.LBracePos
 	file.module.RBracePos = file.bpPos
 	file.defs = append(file.defs, file.module)
 	file.inModule = false
@@ -364,8 +365,8 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 				prop := file.localAssignments[fqn]
 				if prop == nil {
 					prop = &bpparser.Property{
-						Name: bpparser.Ident{Name: n, Pos: pos},
-						Pos:  pos,
+						Name:    n,
+						NamePos: pos,
 						Value: &bpparser.Map{
 							Properties: []*bpparser.Property{},
 						},
@@ -377,9 +378,9 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 			}
 
 			prop := &bpparser.Property{
-				Name:  bpparser.Ident{Name: names[len(names)-1], Pos: pos},
-				Pos:   pos,
-				Value: value,
+				Name:    names[len(names)-1],
+				NamePos: pos,
+				Value:   value,
 			}
 			file.localAssignments[name] = prop
 			*container = append(*container, prop)
@@ -387,31 +388,26 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 	} else {
 		if oldValue != nil && plusequals {
 			a := &bpparser.Assignment{
-				Name: bpparser.Ident{
-					Name: name,
-					Pos:  pos,
-				},
+				Name:      name,
+				NamePos:   pos,
 				Value:     value,
 				OrigValue: value,
-				Pos:       pos,
+				EqualsPos: pos,
 				Assigner:  "+=",
 			}
 			file.defs = append(file.defs, a)
 		} else {
 			a := &bpparser.Assignment{
-				Name: bpparser.Ident{
-					Name: name,
-					Pos:  pos,
-				},
+				Name:      name,
+				NamePos:   pos,
 				Value:     value,
 				OrigValue: value,
-				Pos:       pos,
+				EqualsPos: pos,
 				Assigner:  "=",
 			}
 			file.globalAssignments[name] = &a.Value
 			file.defs = append(file.defs, a)
 		}
 	}
-
 	return nil
 }
