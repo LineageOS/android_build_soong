@@ -65,8 +65,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			}
 		} else {
 			switch stl.Properties.Stl {
-			case "libc++", "libc++_static",
-				"libstdc++":
+			case "libc++", "libc++_static":
 				return stl.Properties.Stl
 			case "none":
 				return ""
@@ -87,9 +86,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	switch stl.Properties.SelectedStl {
 	case "libstdc++":
-		if ctx.Device() {
-			deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
-		}
+		// Nothing
 	case "libc++", "libc++_static":
 		if stl.Properties.SelectedStl == "libc++" {
 			deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
@@ -143,16 +140,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			}
 		}
 	case "libstdc++":
-		// Using bionic's basic libstdc++. Not actually an STL. Only around until the
-		// tree is in good enough shape to not need it.
-		// Host builds will use GNU libstdc++.
-		if ctx.Device() {
-			flags.CFlags = append(flags.CFlags, "-I"+android.PathForSource(ctx, "bionic/libstdc++/include").String())
-		} else {
-			// Host builds will use the system C++. libc++ on Darwin, GNU libstdc++ everywhere else
-			flags.CppFlags = append(flags.CppFlags, flags.Toolchain.SystemCppCppflags())
-			flags.LdFlags = append(flags.LdFlags, flags.Toolchain.SystemCppLdflags())
-		}
+		// Nothing
 	case "ndk_system":
 		ndkSrcRoot := android.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
 		flags.CFlags = append(flags.CFlags, "-isystem "+ndkSrcRoot.String())

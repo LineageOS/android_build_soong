@@ -62,9 +62,6 @@ type Toolchain interface {
 	ShlibSuffix() string
 	ExecutableSuffix() string
 
-	SystemCppCppflags() string
-	SystemCppLdflags() string
-
 	AddressSanitizerRuntimeLibrary() string
 
 	AvailableLibraries() []string
@@ -116,14 +113,6 @@ func (toolchainBase) ExecutableSuffix() string {
 }
 
 func (toolchainBase) ClangAsflags() string {
-	return ""
-}
-
-func (toolchainBase) SystemCppCppflags() string {
-	return ""
-}
-
-func (toolchainBase) SystemCppLdflags() string {
 	return ""
 }
 
