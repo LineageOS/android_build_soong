@@ -109,8 +109,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
 	}, " "))
-	ctx.Strict(makePrefix+"SYSTEMCPP_CPPFLAGS", toolchain.SystemCppCppflags())
-	ctx.Strict(makePrefix+"SYSTEMCPP_LDFLAGS", toolchain.SystemCppLdflags())
 
 	includeFlags, err := ctx.Eval(toolchain.IncludeFlags())
 	if err != nil {
