@@ -38,14 +38,6 @@ var (
 		"-mmacosx-version-min=${macSdkVersion}",
 	}
 
-	darwinSystemCppCppflags = []string{
-		"-isystem ${macToolchainRoot}/usr/include/c++/v1",
-	}
-
-	darwinSystemCppLdflags = []string{
-		"-stdlib=libc++",
-	}
-
 	// Extended cflags
 	darwinX86Cflags = []string{
 		"-m32",
@@ -128,9 +120,6 @@ func init() {
 
 	pctx.StaticVariable("darwinClangCflags", strings.Join(darwinClangCflags, " "))
 	pctx.StaticVariable("darwinClangLdflags", strings.Join(darwinClangLdflags, " "))
-
-	pctx.StaticVariable("darwinSystemCppCppflags", strings.Join(darwinSystemCppCppflags, " "))
-	pctx.StaticVariable("darwinSystemCppLdflags", strings.Join(darwinSystemCppLdflags, " "))
 
 	// Extended cflags
 	pctx.StaticVariable("darwinX86Cflags", strings.Join(darwinX86Cflags, " "))
@@ -255,14 +244,6 @@ func (t *toolchainDarwinX8664) ClangLdflags() string {
 
 func (t *toolchainDarwin) ShlibSuffix() string {
 	return ".dylib"
-}
-
-func (t *toolchainDarwin) SystemCppCppflags() string {
-	return "${darwinSystemCppCppflags}"
-}
-
-func (t *toolchainDarwin) SystemCppLdflags() string {
-	return "${darwinSystemCppLdflags}"
 }
 
 func (t *toolchainDarwin) AvailableLibraries() []string {
