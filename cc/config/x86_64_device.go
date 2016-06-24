@@ -99,21 +99,12 @@ const (
 )
 
 func init() {
-	android.RegisterArchFeatures(android.X86_64, "",
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"popcnt")
-	android.RegisterArchFeatures(android.X86_64, "haswell",
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"aes_ni",
-		"avx",
-		"popcnt")
-	android.RegisterArchFeatures(android.X86_64, "ivybridge",
+	android.RegisterArchVariants(android.X86_64,
+		"haswell",
+		"ivybridge",
+		"sandybridge",
+		"silvermont")
+	android.RegisterArchFeatures(android.X86_64,
 		"ssse3",
 		"sse4",
 		"sse4_1",
@@ -121,13 +112,35 @@ func init() {
 		"aes_ni",
 		"avx",
 		"popcnt")
-	android.RegisterArchFeatures(android.X86_64, "sandybridge",
+	android.RegisterArchVariantFeatures(android.X86_64, "",
 		"ssse3",
 		"sse4",
 		"sse4_1",
 		"sse4_2",
 		"popcnt")
-	android.RegisterArchFeatures(android.X86_64, "silvermont",
+	android.RegisterArchVariantFeatures(android.X86_64, "haswell",
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"aes_ni",
+		"avx",
+		"popcnt")
+	android.RegisterArchVariantFeatures(android.X86_64, "ivybridge",
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"aes_ni",
+		"avx",
+		"popcnt")
+	android.RegisterArchVariantFeatures(android.X86_64, "sandybridge",
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"popcnt")
+	android.RegisterArchVariantFeatures(android.X86_64, "silvermont",
 		"ssse3",
 		"sse4",
 		"sse4_1",
