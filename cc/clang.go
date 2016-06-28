@@ -88,6 +88,9 @@ func init() {
 		// Force clang to always output color diagnostics. Ninja will strip the ANSI
 		// color codes if it is not running in a terminal.
 		"-fcolor-diagnostics",
+
+		// http://b/29823425 Disable -Wexpansion-to-defined for Clang update to r271374
+		"-Wno-expansion-to-defined",
 	}, " "))
 
 	pctx.StaticVariable("clangExtraConlyflags", strings.Join([]string{
@@ -98,6 +101,10 @@ func init() {
 		// Disable -Winconsistent-missing-override until we can clean up the existing
 		// codebase for it.
 		"-Wno-inconsistent-missing-override",
+
+		// Bug: http://b/29823425 Disable -Wnull-dereference until the
+		// new instances detected by this warning are fixed.
+		"-Wno-null-dereference",
 	}, " "))
 
 	pctx.StaticVariable("clangExtraTargetCflags", strings.Join([]string{
@@ -106,7 +113,10 @@ func init() {
 
 	pctx.StaticVariable("clangExtraNoOverrideCflags", strings.Join([]string{
 		"-Werror=address-of-temporary",
-		"-Werror=null-dereference",
+		// Bug: http://b/29823425 Disable -Wnull-dereference until the
+		// new cases detected by this warning in Clang r271374 are
+		// fixed.
+		//"-Werror=null-dereference",
 		"-Werror=return-type",
 	}, " "))
 }
