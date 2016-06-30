@@ -52,6 +52,7 @@ var (
 
 	mipsClangCflags = append(mipsCflags, []string{
 		"-fPIC",
+		"-fno-integrated-as",
 	}...)
 
 	mipsCppflags = []string{
@@ -219,7 +220,7 @@ func (t *toolchainMips) ToolchainClangCflags() string {
 }
 
 func (t *toolchainMips) ClangAsflags() string {
-	return "-fPIC"
+	return "-fPIC -fno-integrated-as"
 }
 
 func (t *toolchainMips) ClangCflags() string {
