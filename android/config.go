@@ -317,14 +317,14 @@ func (c *config) SanitizeHost() []string {
 	if c.ProductVariables.SanitizeHost == nil {
 		return nil
 	}
-	return *c.ProductVariables.SanitizeHost
+	return append([]string(nil), *c.ProductVariables.SanitizeHost...)
 }
 
 func (c *config) SanitizeDevice() []string {
 	if c.ProductVariables.SanitizeDevice == nil {
 		return nil
 	}
-	return *c.ProductVariables.SanitizeDevice
+	return append([]string(nil), *c.ProductVariables.SanitizeDevice...)
 }
 
 func (c *config) Android64() bool {
