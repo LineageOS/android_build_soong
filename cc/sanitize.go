@@ -25,6 +25,14 @@ import (
 
 type sanitizerType int
 
+func boolPtr(v bool) *bool {
+	if v {
+		return &v
+	} else {
+		return nil
+	}
+}
+
 func init() {
 	pctx.StaticVariable("clangAsanLibDir", "${clangPath}/lib64/clang/3.8/lib/linux")
 }
@@ -51,15 +59,15 @@ type SanitizeProperties struct {
 		Never bool `android:"arch_variant"`
 
 		// main sanitizers
-		Address bool `android:"arch_variant"`
-		Thread  bool `android:"arch_variant"`
+		Address *bool `android:"arch_variant"`
+		Thread  *bool `android:"arch_variant"`
 
 		// local sanitizers
-		Undefined      bool     `android:"arch_variant"`
-		All_undefined  bool     `android:"arch_variant"`
+		Undefined      *bool    `android:"arch_variant"`
+		All_undefined  *bool    `android:"arch_variant"`
 		Misc_undefined []string `android:"arch_variant"`
-		Coverage       bool     `android:"arch_variant"`
-		SafeStack      bool     `android:"arch_variant"`
+		Coverage       *bool    `android:"arch_variant"`
+		Safestack      *bool    `android:"arch_variant"`
 
 		// value to pass to -fsantitize-recover=
 		Recover []string
@@ -82,18 +90,16 @@ func (sanitize *sanitize) props() []interface{} {
 }
 
 func (sanitize *sanitize) begin(ctx BaseModuleContext) {
+	s := &sanitize.Properties.Sanitize
+
 	// Don't apply sanitizers to NDK code.
 	if ctx.sdk() {
-		sanitize.Properties.Sanitize.Never = true
+		s.Never = true
 	}
 
 	// Never always wins.
-	if sanitize.Properties.Sanitize.Never {
+	if s.Never {
 		return
-	}
-
-	if ctx.ContainsProperty("sanitize") {
-		sanitize.Properties.SanitizerEnabled = true
 	}
 
 	var globalSanitizers []string
@@ -105,48 +111,59 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 	}
 
-	// The sanitizer specified by the environment wins over the module.
+	var found bool
+	if s.All_undefined == nil {
+		found, globalSanitizers = removeFromList("undefined", globalSanitizers)
+		s.All_undefined = boolPtr(found)
+	}
+
+	if s.Undefined == nil {
+		found, globalSanitizers = removeFromList("default-ub", globalSanitizers)
+		s.Undefined = boolPtr(found)
+	}
+
+	if s.Address == nil {
+		found, globalSanitizers = removeFromList("address", globalSanitizers)
+		s.Address = boolPtr(found)
+	}
+
+	if s.Thread == nil {
+		found, globalSanitizers = removeFromList("thread", globalSanitizers)
+		s.Thread = boolPtr(found)
+	}
+
+	if s.Coverage == nil {
+		found, globalSanitizers = removeFromList("coverage", globalSanitizers)
+		s.Coverage = boolPtr(found)
+	}
+
+	if s.Safestack == nil {
+		found, globalSanitizers = removeFromList("safe-stack", globalSanitizers)
+		s.Safestack = boolPtr(found)
+	}
+
 	if len(globalSanitizers) > 0 {
-		// wipe the enabled sanitizers
-		sanitize.Properties = SanitizeProperties{}
-		var found bool
-		if found, globalSanitizers = removeFromList("undefined", globalSanitizers); found {
-			sanitize.Properties.Sanitize.All_undefined = true
-		} else if found, globalSanitizers = removeFromList("default-ub", globalSanitizers); found {
-			sanitize.Properties.Sanitize.Undefined = true
-		}
+		ctx.ModuleErrorf("unknown global sanitizer option %s", globalSanitizers[0])
+	}
 
-		if found, globalSanitizers = removeFromList("address", globalSanitizers); found {
-			sanitize.Properties.Sanitize.Address = true
-		}
-
-		if found, globalSanitizers = removeFromList("thread", globalSanitizers); found {
-			sanitize.Properties.Sanitize.Thread = true
-		}
-
-		if found, globalSanitizers = removeFromList("coverage", globalSanitizers); found {
-			sanitize.Properties.Sanitize.Coverage = true
-		}
-
-		if found, globalSanitizers = removeFromList("safe-stack", globalSanitizers); found {
-			sanitize.Properties.Sanitize.SafeStack = true
-		}
-
-		if len(globalSanitizers) > 0 {
-			ctx.ModuleErrorf("unknown global sanitizer option %s", globalSanitizers[0])
-		}
+	if Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) ||
+		Bool(s.Thread) || Bool(s.Coverage) || Bool(s.Safestack) {
 		sanitize.Properties.SanitizerEnabled = true
+	}
+
+	if Bool(s.All_undefined) {
+		s.Undefined = nil
 	}
 
 	if !ctx.toolchain().Is64Bit() {
 		// TSAN and SafeStack are not supported on 32-bit architectures
-		sanitize.Properties.Sanitize.Thread = false
-		sanitize.Properties.Sanitize.SafeStack = false
+		s.Thread = nil
+		s.Safestack = nil
 		// TODO(ccross): error for compile_multilib = "32"?
 	}
 
-	if sanitize.Properties.Sanitize.Coverage {
-		if !sanitize.Properties.Sanitize.Address {
+	if Bool(s.Coverage) {
+		if !Bool(s.Address) {
 			ctx.ModuleErrorf(`Use of "coverage" also requires "address"`)
 		}
 	}
@@ -159,7 +176,7 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 
 	if ctx.Device() {
 		deps.SharedLibs = append(deps.SharedLibs, "libdl")
-		if sanitize.Properties.Sanitize.Address {
+		if Bool(sanitize.Properties.Sanitize.Address) {
 			deps.StaticLibs = append(deps.StaticLibs, "libasan")
 		}
 	}
@@ -178,13 +195,13 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	var sanitizers []string
 
-	if sanitize.Properties.Sanitize.All_undefined {
+	if Bool(sanitize.Properties.Sanitize.All_undefined) {
 		sanitizers = append(sanitizers, "undefined")
 		if ctx.Device() {
 			ctx.ModuleErrorf("ubsan is not yet supported on the device")
 		}
 	} else {
-		if sanitize.Properties.Sanitize.Undefined {
+		if Bool(sanitize.Properties.Sanitize.Undefined) {
 			sanitizers = append(sanitizers,
 				"bool",
 				"integer-divide-by-zero",
@@ -212,7 +229,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitizers = append(sanitizers, sanitize.Properties.Sanitize.Misc_undefined...)
 	}
 
-	if sanitize.Properties.Sanitize.Address {
+	if Bool(sanitize.Properties.Sanitize.Address) {
 		if ctx.Arch().ArchType == android.Arm {
 			// Frame pointer based unwinder in ASan requires ARM frame setup.
 			// TODO: put in flags?
@@ -241,11 +258,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitizers = append(sanitizers, "address")
 	}
 
-	if sanitize.Properties.Sanitize.Coverage {
+	if Bool(sanitize.Properties.Sanitize.Coverage) {
 		flags.CFlags = append(flags.CFlags, "-fsanitize-coverage=edge,indirect-calls,8bit-counters,trace-cmp")
 	}
 
-	if sanitize.Properties.Sanitize.SafeStack {
+	if Bool(sanitize.Properties.Sanitize.Safestack) {
 		sanitizers = append(sanitizers, "safe-stack")
 	}
 
@@ -262,7 +279,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
 			flags.LdFlags = append(flags.LdFlags, "-lrt", "-ldl")
 		} else {
-			if !sanitize.Properties.Sanitize.Address {
+			if !Bool(sanitize.Properties.Sanitize.Address) {
 				flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
 			}
 		}
@@ -288,9 +305,9 @@ func (sanitize *sanitize) Sanitizer(t sanitizerType) bool {
 
 	switch t {
 	case asan:
-		return sanitize.Properties.Sanitize.Address
+		return Bool(sanitize.Properties.Sanitize.Address)
 	case tsan:
-		return sanitize.Properties.Sanitize.Thread
+		return Bool(sanitize.Properties.Sanitize.Thread)
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -299,9 +316,9 @@ func (sanitize *sanitize) Sanitizer(t sanitizerType) bool {
 func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 	switch t {
 	case asan:
-		sanitize.Properties.Sanitize.Address = b
+		sanitize.Properties.Sanitize.Address = boolPtr(b)
 	case tsan:
-		sanitize.Properties.Sanitize.Thread = b
+		sanitize.Properties.Sanitize.Thread = boolPtr(b)
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
