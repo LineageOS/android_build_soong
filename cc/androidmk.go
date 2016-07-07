@@ -79,7 +79,9 @@ func (library *baseLinker) AndroidMk(ret *android.AndroidMkData) {
 func (library *libraryLinker) AndroidMk(ret *android.AndroidMkData) {
 	library.baseLinker.AndroidMk(ret)
 
-	library.stripper.AndroidMk(ret)
+	if !library.static() {
+		library.stripper.AndroidMk(ret)
+	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		var exportedIncludes []string
