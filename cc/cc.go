@@ -115,6 +115,26 @@ var (
 	illegalFlags = []string{
 		"-w",
 	}
+
+	ndkPrebuiltSharedLibs = []string{
+		"android",
+		"c",
+		"dl",
+		"EGL",
+		"GLESv1_CM",
+		"GLESv2",
+		"GLESv3",
+		"jnigraphics",
+		"log",
+		"mediandk",
+		"m",
+		"OpenMAXAL",
+		"OpenSLES",
+		"stdc++",
+		"vulkan",
+		"z",
+	}
+	ndkPrebuiltSharedLibraries = addPrefix(append([]string(nil), ndkPrebuiltSharedLibs...), "lib")
 )
 
 func init() {
@@ -800,6 +820,22 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	deps.SharedLibs = lastUniqueElements(deps.SharedLibs)
 	deps.LateSharedLibs = lastUniqueElements(deps.LateSharedLibs)
 
+	if ctx.sdk() {
+		version := "." + ctx.sdkVersion()
+
+		rewriteNdkLibs := func(list []string) []string {
+			for i, entry := range list {
+				if inList(entry, ndkPrebuiltSharedLibraries) {
+					list[i] = "ndk_" + entry + version
+				}
+			}
+			return list
+		}
+
+		deps.SharedLibs = rewriteNdkLibs(deps.SharedLibs)
+		deps.LateSharedLibs = rewriteNdkLibs(deps.LateSharedLibs)
+	}
+
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
 			ctx.PropertyErrorf("export_shared_lib_headers", "Shared library not in shared_libs: '%s'", lib)
@@ -1320,10 +1356,9 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 		}
 
 		if ctx.sdk() {
-			version := ctx.sdkVersion()
 			deps.SharedLibs = append(deps.SharedLibs,
-				"ndk_libc."+version,
-				"ndk_libm."+version,
+				"libc",
+				"libm",
 			)
 		}
 	}
