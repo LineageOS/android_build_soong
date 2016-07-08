@@ -40,6 +40,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${clangExtraNoOverrideCflags}")
 	ctx.Strict("GLOBAL_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
+	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
 	hostTargets := ctx.Config().Targets[android.Host]
 	makeVarsToolchain(ctx, "", hostTargets[0])
