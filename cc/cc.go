@@ -928,7 +928,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// These are allowed, but don't set sdk_version
 			return true
 		}
-		return from.Properties.Sdk_version != ""
+		if _, ok := to.linker.(*ndkPrebuiltStlLinker); ok {
+			// These are allowed, but don't set sdk_version
+			return true
+		}
+		return to.Properties.Sdk_version != ""
 	}
 
 	ctx.VisitDirectDeps(func(m blueprint.Module) {
