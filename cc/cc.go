@@ -360,11 +360,13 @@ type FlagExporterProperties struct {
 
 type LibraryLinkerProperties struct {
 	Static struct {
+		Enabled           *bool    `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
 		Static_libs       []string `android:"arch_variant"`
 		Shared_libs       []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 	Shared struct {
+		Enabled           *bool    `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
 		Static_libs       []string `android:"arch_variant"`
 		Shared_libs       []string `android:"arch_variant"`
@@ -1547,6 +1549,21 @@ type libraryLinker struct {
 }
 
 var _ linker = (*libraryLinker)(nil)
+
+func (library *libraryLinker) begin(ctx BaseModuleContext) {
+	library.baseLinker.begin(ctx)
+	if library.static() {
+		if library.Properties.Static.Enabled != nil &&
+		 !*library.Properties.Static.Enabled {
+			ctx.module().Disable()
+		}
+	} else {
+		if library.Properties.Shared.Enabled != nil &&
+		 !*library.Properties.Shared.Enabled {
+			ctx.module().Disable()
+		}
+	}
+}
 
 func (library *libraryLinker) props() []interface{} {
 	props := library.baseLinker.props()
