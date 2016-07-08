@@ -23,6 +23,7 @@ import (
 	"android/soong/glob"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -89,6 +90,7 @@ type Module interface {
 	GenerateAndroidBuildActions(ModuleContext)
 
 	base() *ModuleBase
+	Disable()
 	Enabled() bool
 	Target() Target
 	InstallInData() bool
@@ -290,6 +292,10 @@ func (a *ModuleBase) DeviceSupported() bool {
 	return a.commonProperties.HostOrDeviceSupported == DeviceSupported ||
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
 			a.hostAndDeviceProperties.Device_supported
+}
+
+func (a *ModuleBase) Disable() {
+	a.commonProperties.Enabled = proptools.BoolPtr(false)
 }
 
 func (a *ModuleBase) Enabled() bool {
