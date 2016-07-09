@@ -106,7 +106,7 @@ func (object *objectLinker) AndroidMk(ret *android.AndroidMkData) {
 	ret.Custom = func(w io.Writer, name, prefix string) error {
 		out := ret.OutputFile.Path()
 
-		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+":", out.String(), "| $(ACP)")
+		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+":", out.String())
 		fmt.Fprintln(w, "\t$(copy-file-to-target)")
 
 		return nil

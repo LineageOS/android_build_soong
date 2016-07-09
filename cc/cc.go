@@ -820,22 +820,6 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	deps.SharedLibs = lastUniqueElements(deps.SharedLibs)
 	deps.LateSharedLibs = lastUniqueElements(deps.LateSharedLibs)
 
-	if ctx.sdk() {
-		version := "." + ctx.sdkVersion()
-
-		rewriteNdkLibs := func(list []string) []string {
-			for i, entry := range list {
-				if inList(entry, ndkPrebuiltSharedLibraries) {
-					list[i] = "ndk_" + entry + version
-				}
-			}
-			return list
-		}
-
-		deps.SharedLibs = rewriteNdkLibs(deps.SharedLibs)
-		deps.LateSharedLibs = rewriteNdkLibs(deps.LateSharedLibs)
-	}
-
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
 			ctx.PropertyErrorf("export_shared_lib_headers", "Shared library not in shared_libs: '%s'", lib)
@@ -868,7 +852,23 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 
 	deps := c.deps(ctx)
 
-	c.Properties.AndroidMkSharedLibs = deps.SharedLibs
+	c.Properties.AndroidMkSharedLibs = append([]string(nil), deps.SharedLibs...)
+
+	if ctx.sdk() {
+		version := "." + ctx.sdkVersion()
+
+		rewriteNdkLibs := func(list []string) []string {
+			for i, entry := range list {
+				if inList(entry, ndkPrebuiltSharedLibraries) {
+					list[i] = "ndk_" + entry + version
+				}
+			}
+			return list
+		}
+
+		deps.SharedLibs = rewriteNdkLibs(deps.SharedLibs)
+		deps.LateSharedLibs = rewriteNdkLibs(deps.LateSharedLibs)
+	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, wholeStaticDepTag,
 		deps.WholeStaticLibs...)
@@ -2457,6 +2457,7 @@ func (*ndkPrebuiltObjectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 func ndkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.linker = &ndkPrebuiltObjectLinker{}
+	module.Properties.HideFromMake = true
 	return module.Init()
 }
 
@@ -2491,6 +2492,7 @@ func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
 	linker := &ndkPrebuiltLibraryLinker{}
 	linker.dynamicProperties.BuildShared = true
 	module.linker = linker
+	module.Properties.HideFromMake = true
 	return module.Init()
 }
 
@@ -2520,6 +2522,7 @@ func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
 	linker := &ndkPrebuiltStlLinker{}
 	linker.dynamicProperties.BuildShared = true
 	module.linker = linker
+	module.Properties.HideFromMake = true
 	return module.Init()
 }
 
@@ -2528,6 +2531,7 @@ func ndkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
 	linker := &ndkPrebuiltStlLinker{}
 	linker.dynamicProperties.BuildStatic = true
 	module.linker = linker
+	module.Properties.HideFromMake = true
 	return module.Init()
 }
 
