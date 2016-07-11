@@ -909,7 +909,7 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 }
 
 func depsMutator(ctx android.BottomUpMutatorContext) {
-	if c, ok := ctx.Module().(*Module); ok {
+	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
 		c.depsMutator(ctx)
 	}
 }
