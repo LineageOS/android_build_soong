@@ -850,7 +850,8 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 
 	deps := c.deps(ctx)
 
-	c.Properties.AndroidMkSharedLibs = append([]string(nil), deps.SharedLibs...)
+	c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, deps.SharedLibs...)
+	c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, deps.LateSharedLibs...)
 
 	if ctx.sdk() {
 		version := "." + ctx.sdkVersion()
