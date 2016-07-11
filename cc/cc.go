@@ -209,8 +209,6 @@ type Deps struct {
 	GeneratedSources []string
 	GeneratedHeaders []string
 
-	Cflags, ReexportedCflags []string
-
 	CrtBegin, CrtEnd string
 }
 
@@ -224,7 +222,7 @@ type PathDeps struct {
 	GeneratedSources android.Paths
 	GeneratedHeaders android.Paths
 
-	Cflags, ReexportedCflags []string
+	Flags, ReexportedFlags []string
 
 	CrtBegin, CrtEnd android.OptionalPath
 }
@@ -737,7 +735,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		return
 	}
 
-	flags.CFlags = append(flags.CFlags, deps.Cflags...)
+	flags.GlobalFlags = append(flags.GlobalFlags, deps.Flags...)
 
 	var objFiles android.Paths
 	if c.compiler != nil {
@@ -991,7 +989,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
 						genRule.GeneratedSourceFiles()...)
-					depPaths.Cflags = append(depPaths.Cflags,
+					depPaths.Flags = append(depPaths.Flags,
 						includeDirsToFlags(android.Paths{genRule.GeneratedHeaderDir()}))
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", name)
@@ -1030,11 +1028,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		if t, ok := tag.(dependencyTag); ok && t.library {
 			if i, ok := cc.linker.(exportedFlagsProducer); ok {
-				cflags := i.exportedFlags()
-				depPaths.Cflags = append(depPaths.Cflags, cflags...)
+				flags := i.exportedFlags()
+				depPaths.Flags = append(depPaths.Flags, flags...)
 
 				if t.reexportFlags {
-					depPaths.ReexportedCflags = append(depPaths.ReexportedCflags, cflags...)
+					depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
 				}
 			}
 
@@ -1752,7 +1750,7 @@ func (library *libraryLinker) link(ctx ModuleContext,
 	}
 
 	library.exportIncludes(ctx, "-I")
-	library.reexportFlags(deps.ReexportedCflags)
+	library.reexportFlags(deps.ReexportedFlags)
 
 	return out
 }
