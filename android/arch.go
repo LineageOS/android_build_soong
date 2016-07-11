@@ -435,6 +435,11 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 		moduleTargets = append(moduleTargets, targets...)
 	}
 
+	if len(moduleTargets) == 0 {
+		module.base().commonProperties.Enabled = boolPtr(false)
+		return
+	}
+
 	targetNames := make([]string, len(moduleTargets))
 
 	for i, target := range moduleTargets {
@@ -762,21 +767,19 @@ func decodeTargetProductVariables(config Config) (map[OsClass][]Target, error) {
 		}
 	}
 
-	if variables.DeviceArch == nil {
-		return nil, fmt.Errorf("No device primary architecture set")
-	}
+	if variables.DeviceArch != nil && *variables.DeviceArch != "" {
+		addTarget(Android, *variables.DeviceArch, variables.DeviceArchVariant,
+			variables.DeviceCpuVariant, variables.DeviceAbi)
 
-	addTarget(Android, *variables.DeviceArch, variables.DeviceArchVariant,
-		variables.DeviceCpuVariant, variables.DeviceAbi)
+		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
+			addTarget(Android, *variables.DeviceSecondaryArch,
+				variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
+				variables.DeviceSecondaryAbi)
 
-	if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
-		addTarget(Android, *variables.DeviceSecondaryArch,
-			variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
-			variables.DeviceSecondaryAbi)
-
-		deviceArches := targets[Device]
-		if deviceArches[0].Arch.ArchType.Multilib == deviceArches[1].Arch.ArchType.Multilib {
-			deviceArches[1].Arch.Native = false
+			deviceArches := targets[Device]
+			if deviceArches[0].Arch.ArchType.Multilib == deviceArches[1].Arch.ArchType.Multilib {
+				deviceArches[1].Arch.Native = false
+			}
 		}
 	}
 
