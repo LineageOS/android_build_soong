@@ -2254,10 +2254,12 @@ func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
 	module := newModule(hod, android.MultilibFirst)
 	module.compiler = &baseCompiler{}
 	module.linker = &benchmarkLinker{}
-	module.installer = &baseInstaller{
-		dir:   "nativetest",
-		dir64: "nativetest64",
-		data:  true,
+	module.installer = &testInstaller{
+		baseInstaller: baseInstaller{
+			dir:   "nativetest",
+			dir64: "nativetest64",
+			data:  true,
+		},
 	}
 	return module
 }
