@@ -124,9 +124,9 @@ func (binary *binaryLinker) AndroidMk(ret *android.AndroidMkData) {
 	})
 }
 
-func (test *testLinker) AndroidMk(ret *android.AndroidMkData) {
+func (test *testBinaryLinker) AndroidMk(ret *android.AndroidMkData) {
 	test.binaryLinker.AndroidMk(ret)
-	if Bool(test.Properties.Test_per_src) {
+	if Bool(test.testLinker.Properties.Test_per_src) {
 		ret.SubName = test.binaryLinker.Properties.Stem
 	}
 }
