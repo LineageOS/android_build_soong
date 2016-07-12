@@ -23,7 +23,7 @@ type StlProperties struct {
 	// select the STL library to use.  Possible values are "libc++", "libc++_static",
 	// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
 	// default
-	Stl string
+	Stl *string
 
 	SelectedStl string `blueprint:"mutated"`
 }
@@ -38,35 +38,39 @@ func (stl *stl) props() []interface{} {
 
 func (stl *stl) begin(ctx BaseModuleContext) {
 	stl.Properties.SelectedStl = func() string {
+		s := ""
+		if stl.Properties.Stl != nil {
+			s = *stl.Properties.Stl
+		}
 		if ctx.sdk() && ctx.Device() {
-			switch stl.Properties.Stl {
+			switch s {
 			case "":
 				return "ndk_system"
 			case "c++_shared", "c++_static",
 				"stlport_shared", "stlport_static",
 				"gnustl_static":
-				return "ndk_lib" + stl.Properties.Stl
+				return "ndk_lib" + s
 			case "none":
 				return ""
 			default:
-				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", stl.Properties.Stl)
+				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", s)
 				return ""
 			}
 		} else if ctx.Os() == android.Windows {
-			switch stl.Properties.Stl {
+			switch s {
 			case "libc++", "libc++_static", "libstdc++", "":
 				// libc++ is not supported on mingw
 				return "libstdc++"
 			case "none":
 				return ""
 			default:
-				ctx.ModuleErrorf("stl: %q is not a supported STL for windows", stl.Properties.Stl)
+				ctx.ModuleErrorf("stl: %q is not a supported STL for windows", s)
 				return ""
 			}
 		} else {
-			switch stl.Properties.Stl {
+			switch s {
 			case "libc++", "libc++_static":
-				return stl.Properties.Stl
+				return s
 			case "none":
 				return ""
 			case "":
@@ -76,7 +80,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 					return "libc++"
 				}
 			default:
-				ctx.ModuleErrorf("stl: %q is not a supported STL", stl.Properties.Stl)
+				ctx.ModuleErrorf("stl: %q is not a supported STL", s)
 				return ""
 			}
 		}
