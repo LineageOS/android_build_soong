@@ -123,8 +123,8 @@ type commonProperties struct {
 }
 
 type hostAndDeviceProperties struct {
-	Host_supported   bool
-	Device_supported bool
+	Host_supported   *bool
+	Device_supported *bool
 }
 
 type Multilib string
@@ -170,7 +170,7 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	case HostAndDeviceSupported:
 		// Default to module to device supported, host not supported, can override in module
 		// properties
-		base.hostAndDeviceProperties.Device_supported = true
+		base.hostAndDeviceProperties.Device_supported = boolPtr(true)
 		fallthrough
 	case HostAndDeviceDefault:
 		propertyStructs = append(propertyStructs, &base.hostAndDeviceProperties)
@@ -274,10 +274,10 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 		return []OsClass{Device}
 	case HostAndDeviceSupported:
 		var supported []OsClass
-		if a.hostAndDeviceProperties.Host_supported {
+		if Bool(a.hostAndDeviceProperties.Host_supported) {
 			supported = append(supported, Host, HostCross)
 		}
-		if a.hostAndDeviceProperties.Device_supported {
+		if Bool(a.hostAndDeviceProperties.Device_supported) {
 			supported = append(supported, Device)
 		}
 		return supported
@@ -289,7 +289,7 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 func (a *ModuleBase) DeviceSupported() bool {
 	return a.commonProperties.HostOrDeviceSupported == DeviceSupported ||
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
-			a.hostAndDeviceProperties.Device_supported
+			Bool(a.hostAndDeviceProperties.Device_supported)
 }
 
 func (a *ModuleBase) Enabled() bool {
