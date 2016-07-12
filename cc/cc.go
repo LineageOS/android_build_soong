@@ -2245,7 +2245,7 @@ type benchmarkLinker struct {
 
 func (benchmark *benchmarkLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	deps = benchmark.binaryLinker.deps(ctx, deps)
-	deps.StaticLibs = append(deps.StaticLibs, "libbenchmark", "libbase")
+	deps.StaticLibs = append(deps.StaticLibs, "libgoogle-benchmark")
 	return deps
 }
 
