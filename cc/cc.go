@@ -38,6 +38,7 @@ func init() {
 	soong.RegisterModuleType("cc_object", objectFactory)
 	soong.RegisterModuleType("cc_binary", binaryFactory)
 	soong.RegisterModuleType("cc_test", testFactory)
+	soong.RegisterModuleType("cc_test_library", testLibraryFactory)
 	soong.RegisterModuleType("cc_benchmark", benchmarkFactory)
 	soong.RegisterModuleType("cc_defaults", defaultsFactory)
 
@@ -1055,7 +1056,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPtr = &depPaths.LateStaticLibs
 		case wholeStaticDepTag:
 			depPtr = &depPaths.WholeStaticLibs
-			staticLib, _ := cc.linker.(*libraryLinker)
+			staticLib, _ := cc.linker.(libraryInterface)
 			if staticLib == nil || !staticLib.static() {
 				ctx.ModuleErrorf("module %q not a static library", name)
 				return
@@ -1069,7 +1070,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				ctx.AddMissingDependencies(missingDeps)
 			}
 			depPaths.WholeStaticLibObjFiles =
-				append(depPaths.WholeStaticLibObjFiles, staticLib.objFiles...)
+				append(depPaths.WholeStaticLibObjFiles, staticLib.objs()...)
 		case objDepTag:
 			depPtr = &depPaths.ObjFiles
 		case crtBeginDepTag:
@@ -1583,6 +1584,12 @@ type libraryLinker struct {
 
 var _ linker = (*libraryLinker)(nil)
 
+type libraryInterface interface {
+	getWholeStaticMissingDeps() []string
+	static() bool
+	objs() android.Paths
+}
+
 func (library *libraryLinker) props() []interface{} {
 	props := library.baseLinker.props()
 	return append(props,
@@ -1772,6 +1779,10 @@ func (library *libraryLinker) getWholeStaticMissingDeps() []string {
 
 func (library *libraryLinker) installable() bool {
 	return !library.static()
+}
+
+func (library *libraryLinker) objs() android.Paths {
+	return library.objFiles
 }
 
 type libraryInstaller struct {
@@ -2127,8 +2138,8 @@ func (stripper *stripper) strip(ctx ModuleContext, in, out android.ModuleOutPath
 
 func testPerSrcMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
-		if test, ok := m.linker.(*testLinker); ok {
-			if Bool(test.Properties.Test_per_src) {
+		if test, ok := m.linker.(*testBinaryLinker); ok {
+			if Bool(test.testLinker.Properties.Test_per_src) {
 				testNames := make([]string, len(m.compiler.(*baseCompiler).Properties.Srcs))
 				for i, src := range m.compiler.(*baseCompiler).Properties.Srcs {
 					testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
@@ -2136,7 +2147,7 @@ func testPerSrcMutator(mctx android.BottomUpMutatorContext) {
 				tests := mctx.CreateLocalVariations(testNames...)
 				for i, src := range m.compiler.(*baseCompiler).Properties.Srcs {
 					tests[i].(*Module).compiler.(*baseCompiler).Properties.Srcs = []string{src}
-					tests[i].(*Module).linker.(*testLinker).binaryLinker.Properties.Stem = testNames[i]
+					tests[i].(*Module).linker.(*testBinaryLinker).binaryLinker.Properties.Stem = testNames[i]
 				}
 			}
 		}
@@ -2144,27 +2155,10 @@ func testPerSrcMutator(mctx android.BottomUpMutatorContext) {
 }
 
 type testLinker struct {
-	binaryLinker
 	Properties TestLinkerProperties
 }
 
-func (test *testLinker) begin(ctx BaseModuleContext) {
-	test.binaryLinker.begin(ctx)
-
-	runpath := "../../lib"
-	if ctx.toolchain().Is64Bit() {
-		runpath += "64"
-	}
-	test.dynamicProperties.RunPaths = append([]string{runpath}, test.dynamicProperties.RunPaths...)
-}
-
-func (test *testLinker) props() []interface{} {
-	return append(test.binaryLinker.props(), &test.Properties)
-}
-
 func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
-	flags = test.binaryLinker.flags(ctx, flags)
-
 	if !test.Properties.Gtest {
 		return flags
 	}
@@ -2205,7 +2199,57 @@ func (test *testLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 			deps.StaticLibs = append(deps.StaticLibs, "libgtest_main", "libgtest")
 		}
 	}
+	return deps
+}
+
+type testBinaryLinker struct {
+	testLinker
+	binaryLinker
+}
+
+func (test *testBinaryLinker) begin(ctx BaseModuleContext) {
+	test.binaryLinker.begin(ctx)
+	runpath := "../../lib"
+	if ctx.toolchain().Is64Bit() {
+		runpath += "64"
+	}
+	test.dynamicProperties.RunPaths = append([]string{runpath}, test.dynamicProperties.RunPaths...)
+}
+
+func (test *testBinaryLinker) props() []interface{} {
+	return append(test.binaryLinker.props(), &test.testLinker.Properties)
+}
+
+func (test *testBinaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	flags = test.binaryLinker.flags(ctx, flags)
+	flags = test.testLinker.flags(ctx, flags)
+	return flags
+}
+
+func (test *testBinaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = test.testLinker.deps(ctx, deps)
 	deps = test.binaryLinker.deps(ctx, deps)
+	return deps
+}
+
+type testLibraryLinker struct {
+	testLinker
+	*libraryLinker
+}
+
+func (test *testLibraryLinker) props() []interface{} {
+	return append(test.libraryLinker.props(), &test.testLinker.Properties)
+}
+
+func (test *testLibraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
+	flags = test.libraryLinker.flags(ctx, flags)
+	flags = test.testLinker.flags(ctx, flags)
+	return flags
+}
+
+func (test *testLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = test.testLinker.deps(ctx, deps)
+	deps = test.libraryLinker.deps(ctx, deps)
 	return deps
 }
 
@@ -2222,8 +2266,8 @@ func (installer *testInstaller) install(ctx ModuleContext, file android.Path) {
 func NewTest(hod android.HostOrDeviceSupported) *Module {
 	module := newModule(hod, android.MultilibBoth)
 	module.compiler = &baseCompiler{}
-	linker := &testLinker{}
-	linker.Properties.Gtest = true
+	linker := &testBinaryLinker{}
+	linker.testLinker.Properties.Gtest = true
 	module.linker = linker
 	module.installer = &testInstaller{
 		baseInstaller: baseInstaller{
@@ -2237,6 +2281,28 @@ func NewTest(hod android.HostOrDeviceSupported) *Module {
 
 func testFactory() (blueprint.Module, []interface{}) {
 	module := NewTest(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func NewTestLibrary(hod android.HostOrDeviceSupported) *Module {
+	module := NewLibrary(android.HostAndDeviceSupported, false, true)
+	linker := &testLibraryLinker{
+		libraryLinker: module.linker.(*libraryLinker),
+	}
+	linker.testLinker.Properties.Gtest = true
+	module.linker = linker
+	module.installer = &testInstaller{
+		baseInstaller: baseInstaller{
+			dir:   "nativetest",
+			dir64: "nativetest64",
+			data:  true,
+		},
+	}
+	return module
+}
+
+func testLibraryFactory() (blueprint.Module, []interface{}) {
+	module := NewTestLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
