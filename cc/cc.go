@@ -1490,7 +1490,9 @@ type flagExporter struct {
 
 func (f *flagExporter) exportIncludes(ctx ModuleContext, inc string) {
 	includeDirs := android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
-	f.flags = append(f.flags, android.JoinWithPrefix(includeDirs.Strings(), inc))
+	for _, dir := range includeDirs.Strings() {
+		f.flags = append(f.flags, inc + dir)
+	}
 }
 
 func (f *flagExporter) reexportFlags(flags []string) {
