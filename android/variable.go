@@ -50,6 +50,14 @@ type variableProperties struct {
 		Safestack struct {
 			Cflags []string `android:"arch_variant"`
 		} `android:"arch_variant"`
+
+		Cpusets struct {
+			Cflags []string
+		}
+
+		Schedboost struct {
+			Cflags []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -86,6 +94,8 @@ type productVariables struct {
 	Malloc_not_svelte          *bool `json:",omitempty"`
 	Safestack                  *bool `json:",omitempty"`
 	HostStaticBinaries         *bool `json:",omitempty"`
+	Cpusets                    *bool `json:",omitempty"`
+	Schedboost                 *bool `json:",omitempty"`
 
 	SanitizeHost   *[]string `json:",omitempty"`
 	SanitizeDevice *[]string `json:",omitempty"`
