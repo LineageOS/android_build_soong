@@ -409,7 +409,7 @@ type LibraryLinkerProperties struct {
 
 type BinaryLinkerProperties struct {
 	// compile executable with -static
-	Static_executable *bool
+	Static_executable *bool `android:"arch_variant"`
 
 	// set the name of the output
 	Stem string `android:"arch_variant"`
