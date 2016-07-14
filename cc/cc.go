@@ -1491,7 +1491,7 @@ type flagExporter struct {
 func (f *flagExporter) exportIncludes(ctx ModuleContext, inc string) {
 	includeDirs := android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
 	for _, dir := range includeDirs.Strings() {
-		f.flags = append(f.flags, inc + dir)
+		f.flags = append(f.flags, inc+dir)
 	}
 }
 
@@ -1613,26 +1613,28 @@ func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 		if flags.Clang || ctx.Host() {
 			sharedFlag = "-shared"
 		}
+		var f []string
 		if ctx.Device() {
-			flags.LdFlags = append(flags.LdFlags,
+			f = append(f,
 				"-nostdlib",
 				"-Wl,--gc-sections",
 			)
 		}
 
 		if ctx.Darwin() {
-			flags.LdFlags = append(flags.LdFlags,
+			f = append(f,
 				"-dynamiclib",
 				"-single_module",
 				//"-read_only_relocs suppress",
 				"-install_name @rpath/"+libName+flags.Toolchain.ShlibSuffix(),
 			)
 		} else {
-			flags.LdFlags = append(flags.LdFlags,
+			f = append(f,
 				sharedFlag,
-				"-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix(),
-			)
+				"-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix())
 		}
+
+		flags.LdFlags = append(f, flags.LdFlags...)
 	}
 
 	return flags
