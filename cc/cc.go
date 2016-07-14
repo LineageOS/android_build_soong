@@ -2311,11 +2311,11 @@ func testLibraryFactory() (blueprint.Module, []interface{}) {
 }
 
 type benchmarkLinker struct {
-	binaryLinker
+	testBinaryLinker
 }
 
 func (benchmark *benchmarkLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = benchmark.binaryLinker.deps(ctx, deps)
+	deps = benchmark.testBinaryLinker.deps(ctx, deps)
 	deps.StaticLibs = append(deps.StaticLibs, "libgoogle-benchmark")
 	return deps
 }
