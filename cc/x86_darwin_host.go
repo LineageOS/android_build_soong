@@ -79,6 +79,7 @@ var (
 
 	darwinAvailableLibraries = addPrefix([]string{
 		"c",
+		"dl",
 		"m",
 		"pthread",
 		"z",
