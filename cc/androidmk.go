@@ -23,6 +23,10 @@ import (
 	"android/soong/android"
 )
 
+type AndroidMkContext interface {
+	Target() android.Target
+}
+
 func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 	if c.Properties.HideFromMake {
 		ret.Disabled = true
@@ -48,9 +52,9 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 	callSubAndroidMk := func(obj interface{}) {
 		if obj != nil {
 			if androidmk, ok := obj.(interface {
-				AndroidMk(*android.AndroidMkData)
+				AndroidMk(AndroidMkContext, *android.AndroidMkData)
 			}); ok {
-				androidmk.AndroidMk(&ret)
+				androidmk.AndroidMk(c, &ret)
 			}
 		}
 	}
@@ -68,7 +72,7 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 	return ret, nil
 }
 
-func (library *baseLinker) AndroidMk(ret *android.AndroidMkData) {
+func (library *baseLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	if library.static() {
 		ret.Class = "STATIC_LIBRARIES"
 	} else {
@@ -76,11 +80,11 @@ func (library *baseLinker) AndroidMk(ret *android.AndroidMkData) {
 	}
 }
 
-func (library *libraryLinker) AndroidMk(ret *android.AndroidMkData) {
-	library.baseLinker.AndroidMk(ret)
+func (library *libraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	library.baseLinker.AndroidMk(ctx, ret)
 
 	if !library.static() {
-		library.stripper.AndroidMk(ret)
+		library.stripper.AndroidMk(ctx, ret)
 	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
@@ -102,7 +106,7 @@ func (library *libraryLinker) AndroidMk(ret *android.AndroidMkData) {
 	})
 }
 
-func (object *objectLinker) AndroidMk(ret *android.AndroidMkData) {
+func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Custom = func(w io.Writer, name, prefix string) error {
 		out := ret.OutputFile.Path()
 
@@ -113,8 +117,8 @@ func (object *objectLinker) AndroidMk(ret *android.AndroidMkData) {
 	}
 }
 
-func (binary *binaryLinker) AndroidMk(ret *android.AndroidMkData) {
-	binary.stripper.AndroidMk(ret)
+func (binary *binaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	binary.stripper.AndroidMk(ctx, ret)
 
 	ret.Class = "EXECUTABLES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
@@ -124,15 +128,15 @@ func (binary *binaryLinker) AndroidMk(ret *android.AndroidMkData) {
 	})
 }
 
-func (test *testBinaryLinker) AndroidMk(ret *android.AndroidMkData) {
-	test.binaryLinker.AndroidMk(ret)
+func (test *testBinaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	test.binaryLinker.AndroidMk(ctx, ret)
 	if Bool(test.testLinker.Properties.Test_per_src) {
 		ret.SubName = test.binaryLinker.Properties.Stem
 	}
 }
 
-func (library *toolchainLibraryLinker) AndroidMk(ret *android.AndroidMkData) {
-	library.baseLinker.AndroidMk(ret)
+func (library *toolchainLibraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	library.baseLinker.AndroidMk(ctx, ret)
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
@@ -143,19 +147,26 @@ func (library *toolchainLibraryLinker) AndroidMk(ret *android.AndroidMkData) {
 	})
 }
 
-func (stripper *stripper) AndroidMk(ret *android.AndroidMkData) {
+func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	// Make only supports stripping target modules
+	if ctx.Target().Os != android.Android {
+		return
+	}
+
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		if stripper.StripProperties.Strip.None {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
 		} else if stripper.StripProperties.Strip.Keep_symbols {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := keep_symbols")
+		} else {
+			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := mini-debug-info")
 		}
 
 		return nil
 	})
 }
 
-func (installer *baseInstaller) AndroidMk(ret *android.AndroidMkData) {
+func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
