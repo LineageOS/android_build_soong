@@ -356,6 +356,10 @@ type BaseLinkerProperties struct {
 	// list of static libraries to re-export include directories from. Entries must be
 	// present in static_libs.
 	Export_static_lib_headers []string `android:"arch_variant"`
+
+	// don't link in crt_begin and crt_end.  This flag should only be necessary for
+	// compiling crt or libc.
+	Nocrt *bool `android:"arch_variant"`
 }
 
 type LibraryCompilerProperties struct {
@@ -399,10 +403,6 @@ type LibraryLinkerProperties struct {
 	Force_symbols_not_weak_list *string `android:"arch_variant"`
 	// local file name to pass to the linker as -force_symbols_weak_list
 	Force_symbols_weak_list *string `android:"arch_variant"`
-
-	// don't link in crt_begin and crt_end.  This flag should only be necessary for
-	// compiling crt or libc.
-	Nocrt *bool `android:"arch_variant"`
 
 	VariantName string `blueprint:"mutated"`
 }
@@ -1367,6 +1367,8 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
+	flags.Nocrt = Bool(linker.Properties.Nocrt)
+
 	if !ctx.noDefaultCompilerFlags() {
 		if ctx.Device() && !Bool(linker.Properties.Allow_undefined_symbols) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
@@ -1602,8 +1604,6 @@ func (library *libraryLinker) props() []interface{} {
 func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseLinker.flags(ctx, flags)
 
-	flags.Nocrt = Bool(library.Properties.Nocrt)
-
 	if !library.static() {
 		libName := ctx.ModuleName() + library.Properties.VariantName
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
@@ -1645,7 +1645,7 @@ func (library *libraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
 	} else {
-		if ctx.Device() && !Bool(library.Properties.Nocrt) {
+		if ctx.Device() && !Bool(library.baseLinker.Properties.Nocrt) {
 			if !ctx.sdk() {
 				deps.CrtBegin = "crtbegin_so"
 				deps.CrtEnd = "crtend_so"
@@ -1932,20 +1932,26 @@ func (binary *binaryLinker) getStem(ctx BaseModuleContext) string {
 func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	deps = binary.baseLinker.deps(ctx, deps)
 	if ctx.Device() {
-		if !ctx.sdk() {
-			if binary.buildStatic() {
-				deps.CrtBegin = "crtbegin_static"
+		if !Bool(binary.baseLinker.Properties.Nocrt) {
+			if !ctx.sdk() {
+				if binary.buildStatic() {
+					deps.CrtBegin = "crtbegin_static"
+				} else {
+					deps.CrtBegin = "crtbegin_dynamic"
+				}
+				deps.CrtEnd = "crtend_android"
 			} else {
-				deps.CrtBegin = "crtbegin_dynamic"
+				if binary.buildStatic() {
+					deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
+				} else {
+					if Bool(binary.Properties.Static_executable) {
+						deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
+					} else {
+						deps.CrtBegin = "ndk_crtbegin_dynamic." + ctx.sdkVersion()
+					}
+					deps.CrtEnd = "ndk_crtend_android." + ctx.sdkVersion()
+				}
 			}
-			deps.CrtEnd = "crtend_android"
-		} else {
-			if binary.buildStatic() {
-				deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
-			} else {
-				deps.CrtBegin = "ndk_crtbegin_dynamic." + ctx.sdkVersion()
-			}
-			deps.CrtEnd = "ndk_crtend_android." + ctx.sdkVersion()
 		}
 
 		if binary.buildStatic() {
