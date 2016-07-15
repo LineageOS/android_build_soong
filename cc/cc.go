@@ -878,8 +878,7 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 		if inList(lib, deps.ReexportStaticLibHeaders) {
 			depTag = staticExportDepTag
 		}
-		actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, depTag,
-			deps.StaticLibs...)
+		actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, depTag, lib)
 	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, lateStaticDepTag,
@@ -890,8 +889,7 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 		if inList(lib, deps.ReexportSharedLibHeaders) {
 			depTag = sharedExportDepTag
 		}
-		actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, depTag,
-			deps.SharedLibs...)
+		actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, depTag, lib)
 	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "shared"}}, lateSharedDepTag,
