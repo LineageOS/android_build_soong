@@ -124,6 +124,9 @@ func (binary *binaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.Android
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
+		if binary.static() {
+			fmt.Fprintln(w, "LOCAL_FORCE_STATIC_EXECUTABLE := true")
+		}
 		return nil
 	})
 }
@@ -173,6 +176,9 @@ func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.And
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+		if len(installer.Properties.Symlinks) > 0 {
+			fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS := "+strings.Join(installer.Properties.Symlinks, " "))
+		}
 		return nil
 	})
 }

@@ -78,6 +78,7 @@ type ModuleContext interface {
 
 	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) OutputPath
 	InstallFileName(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
+	InstallSymlink(installPath OutputPath, name string, srcPath OutputPath) OutputPath
 	CheckbuildFile(srcPath Path)
 
 	AddMissingDependencies(deps []string)
@@ -561,6 +562,24 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 
 func (a *androidModuleContext) InstallFile(installPath OutputPath, srcPath Path, deps ...Path) OutputPath {
 	return a.InstallFileName(installPath, filepath.Base(srcPath.String()), srcPath, deps...)
+}
+
+func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name string, srcPath OutputPath) OutputPath {
+	fullInstallPath := installPath.Join(a, name)
+
+	a.ModuleBuild(pctx, ModuleBuildParams{
+		Rule:      Symlink,
+		Output:    fullInstallPath,
+		OrderOnly: Paths{srcPath},
+		Default:   !a.AConfig().EmbeddedInMake(),
+		Args: map[string]string{
+			"fromPath": srcPath.String(),
+		},
+	})
+
+	a.installFiles = append(a.installFiles, fullInstallPath)
+	a.checkbuildFiles = append(a.checkbuildFiles, srcPath)
+	return fullInstallPath
 }
 
 func (a *androidModuleContext) CheckbuildFile(srcPath Path) {
