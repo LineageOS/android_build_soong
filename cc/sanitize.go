@@ -170,9 +170,11 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 	}
 
 	if ctx.Device() {
-		deps.SharedLibs = append(deps.SharedLibs, "libdl")
 		if Bool(sanitize.Properties.Sanitize.Address) {
 			deps.StaticLibs = append(deps.StaticLibs, "libasan")
+		}
+		if Bool(sanitize.Properties.Sanitize.Address) || Bool(sanitize.Properties.Sanitize.Thread) {
+			deps.SharedLibs = append(deps.SharedLibs, "libdl")
 		}
 	}
 
@@ -274,8 +276,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
 			flags.LdFlags = append(flags.LdFlags, "-lrt", "-ldl")
 		} else {
-			if !Bool(sanitize.Properties.Sanitize.Address) {
-				flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
+			flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
+			if Bool(sanitize.Properties.Sanitize.Address) || Bool(sanitize.Properties.Sanitize.Thread) {
+				flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap=address,thread")
 			}
 		}
 	}
