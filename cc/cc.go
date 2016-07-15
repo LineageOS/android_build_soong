@@ -454,6 +454,9 @@ type BaseProperties struct {
 type InstallerProperties struct {
 	// install to a subdirectory of the default install path for the module
 	Relative_install_path string
+
+	// install symlinks to the module
+	Symlinks []string `android:"arch_variant"`
 }
 
 type StripProperties struct {
@@ -1472,6 +1475,9 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 	}
 	dir := android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path)
 	installer.path = ctx.InstallFile(dir, file)
+	for _, symlink := range installer.Properties.Symlinks {
+		ctx.InstallSymlink(dir, symlink, installer.path)
+	}
 }
 
 func (installer *baseInstaller) inData() bool {
