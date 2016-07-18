@@ -1337,7 +1337,7 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
 
 	if !ctx.sdk() && ctx.ModuleName() != "libcompiler_rt-extras" {
-		deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt-extras")
+		deps.StaticLibs = append(deps.StaticLibs, "libcompiler_rt-extras")
 	}
 
 	if ctx.Device() {
