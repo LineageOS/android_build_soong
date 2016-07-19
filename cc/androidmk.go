@@ -134,7 +134,7 @@ func (binary *binaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.Android
 func (test *testBinaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	test.binaryLinker.AndroidMk(ctx, ret)
 	if Bool(test.testLinker.Properties.Test_per_src) {
-		ret.SubName = test.binaryLinker.Properties.Stem
+		ret.SubName = "_" + test.binaryLinker.Properties.Stem
 	}
 }
 
