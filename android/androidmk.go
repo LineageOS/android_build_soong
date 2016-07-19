@@ -146,7 +146,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	}
 
 	if data.SubName != "" {
-		name += "_" + data.SubName
+		name += data.SubName
 	}
 
 	if data.Custom != nil {
