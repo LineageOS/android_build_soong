@@ -369,11 +369,11 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 
 	libFlagsList = append(libFlagsList, staticLibs.Strings()...)
 
-	if groupLate && len(lateStaticLibs) > 0 {
+	if groupLate && !ctx.Darwin() && len(lateStaticLibs) > 0 {
 		libFlagsList = append(libFlagsList, "-Wl,--start-group")
 	}
 	libFlagsList = append(libFlagsList, lateStaticLibs.Strings()...)
-	if groupLate && len(lateStaticLibs) > 0 {
+	if groupLate && !ctx.Darwin() && len(lateStaticLibs) > 0 {
 		libFlagsList = append(libFlagsList, "-Wl,--end-group")
 	}
 
