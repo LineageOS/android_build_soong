@@ -52,6 +52,13 @@ var (
 		},
 		"cpFlags")
 
+	// A timestamp touch rule.
+	Touch = pctx.StaticRule("Touch",
+		blueprint.RuleParams{
+			Command:     "touch $out",
+			Description: "touch $out",
+		})
+
 	// A symlink rule.
 	Symlink = pctx.StaticRule("Symlink",
 		blueprint.RuleParams{
