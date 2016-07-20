@@ -193,7 +193,7 @@ func init() {
 		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
-		return "clang-2812033", nil
+		return "clang-3016494", nil
 	})
 	pctx.StaticVariable("clangPath", "${clangBase}/${HostPrebuiltTag}/${clangVersion}")
 	pctx.StaticVariable("clangBin", "${clangPath}/bin")
