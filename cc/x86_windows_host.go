@@ -76,6 +76,16 @@ var (
 		"-m64",
 		"-L${windowsGccRoot}/${windowsGccTriple}/lib64",
 	}
+
+	windowsAvailableLibraries = addPrefix([]string{
+		"gdi32",
+		"imagehlp",
+		"ole32",
+		"psapi",
+		"userenv",
+		"uuid",
+		"ws2_32",
+	}, "-l")
 )
 
 const (
@@ -185,6 +195,10 @@ func (t *toolchainWindows) ShlibSuffix() string {
 
 func (t *toolchainWindows) ExecutableSuffix() string {
 	return ".exe"
+}
+
+func (t *toolchainWindows) AvailableLibraries() []string {
+	return windowsAvailableLibraries
 }
 
 var toolchainWindowsX86Singleton Toolchain = &toolchainWindowsX86{}
