@@ -81,6 +81,7 @@ var (
 		"c",
 		"dl",
 		"m",
+		"ncurses",
 		"pthread",
 		"z",
 	}, "-l")
