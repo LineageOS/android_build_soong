@@ -159,8 +159,6 @@ func init() {
 	pctx.SourcePathVariable("x86GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${x86GccVersion}")
 
-	pctx.StaticVariable("x86GccTriple", "x86_64-linux-android")
-
 	pctx.StaticVariable("x86ToolchainCflags", "-m32")
 	pctx.StaticVariable("x86ToolchainLdflags", "-m32")
 
@@ -198,7 +196,7 @@ func (t *toolchainX86) GccRoot() string {
 }
 
 func (t *toolchainX86) GccTriple() string {
-	return "${x86GccTriple}"
+	return "x86_64-linux-android"
 }
 
 func (t *toolchainX86) GccVersion() string {
