@@ -385,8 +385,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		if !strings.HasSuffix(file, flags.toolchain.ShlibSuffix()) {
 			panic("shared library " + lib.String() + " does not end with " + flags.toolchain.ShlibSuffix())
 		}
-		libFlagsList = append(libFlagsList,
-			"-l"+strings.TrimSuffix(strings.TrimPrefix(file, "lib"), flags.toolchain.ShlibSuffix()))
+		libFlagsList = append(libFlagsList, lib.String())
 		ldDirs = append(ldDirs, dir)
 	}
 
