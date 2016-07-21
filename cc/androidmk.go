@@ -99,6 +99,7 @@ func (library *libraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 		}
 
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
+		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)$(LOCAL_MODULE_SUFFIX)")
 
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 
