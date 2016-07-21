@@ -99,14 +99,7 @@ func init() {
 	pctx.StaticVariable("arm64Cflags", strings.Join(arm64Cflags, " "))
 	pctx.StaticVariable("arm64Ldflags", strings.Join(arm64Ldflags, " "))
 	pctx.StaticVariable("arm64Cppflags", strings.Join(arm64Cppflags, " "))
-	pctx.StaticVariable("arm64IncludeFlags", strings.Join([]string{
-		"-isystem ${LibcRoot}/arch-arm64/include",
-		"-isystem ${LibcRoot}/include",
-		"-isystem ${LibcRoot}/kernel/uapi",
-		"-isystem ${LibcRoot}/kernel/android/uapi",
-		"-isystem ${LibcRoot}/kernel/common",
-		"-isystem ${LibcRoot}/kernel/uapi/asm-arm64",
-	}, " "))
+	pctx.StaticVariable("arm64IncludeFlags", bionicHeaders("arm64", "arm64"))
 
 	pctx.StaticVariable("arm64ClangCflags", strings.Join(clangFilterUnknownCflags(arm64Cflags), " "))
 	pctx.StaticVariable("arm64ClangLdflags", strings.Join(clangFilterUnknownCflags(arm64Ldflags), " "))
