@@ -70,8 +70,6 @@ func init() {
 
 var (
 	HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
-
-	LibcRoot = pctx.SourcePathVariable("LibcRoot", "bionic/libc")
 )
 
 // Flags used by lots of devices.  Putting them in package static variables will save bytes in

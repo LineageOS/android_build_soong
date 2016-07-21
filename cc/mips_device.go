@@ -137,14 +137,7 @@ func init() {
 	pctx.StaticVariable("mipsCflags", strings.Join(mipsCflags, " "))
 	pctx.StaticVariable("mipsLdflags", strings.Join(mipsLdflags, " "))
 	pctx.StaticVariable("mipsCppflags", strings.Join(mipsCppflags, " "))
-	pctx.StaticVariable("mipsIncludeFlags", strings.Join([]string{
-		"-isystem ${LibcRoot}/arch-mips/include",
-		"-isystem ${LibcRoot}/include",
-		"-isystem ${LibcRoot}/kernel/uapi",
-		"-isystem ${LibcRoot}/kernel/android/uapi",
-		"-isystem ${LibcRoot}/kernel/common",
-		"-isystem ${LibcRoot}/kernel/uapi/asm-mips",
-	}, " "))
+	pctx.StaticVariable("mipsIncludeFlags", bionicHeaders("mips", "mips"))
 
 	// Clang cflags
 	pctx.StaticVariable("mipsClangTriple", "mipsel-linux-android")
