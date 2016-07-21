@@ -42,6 +42,14 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
+	includeFlags, err := ctx.Eval("${commonGlobalIncludes}")
+	if err != nil {
+		panic(err)
+	}
+	includes, systemIncludes := splitSystemIncludes(ctx, includeFlags)
+	ctx.StrictRaw("SRC_HEADERS", strings.Join(includes, " "))
+	ctx.StrictRaw("SRC_SYSTEM_HEADERS", strings.Join(systemIncludes, " "))
+
 	hostTargets := ctx.Config().Targets[android.Host]
 	makeVarsToolchain(ctx, "", hostTargets[0])
 	if len(hostTargets) > 1 {
@@ -115,7 +123,9 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	if err != nil {
 		panic(err)
 	}
-	ctx.StrictRaw(makePrefix+"C_INCLUDES", strings.Replace(includeFlags, "-isystem ", "", -1))
+	includes, systemIncludes := splitSystemIncludes(ctx, includeFlags)
+	ctx.StrictRaw(makePrefix+"C_INCLUDES", strings.Join(includes, " "))
+	ctx.StrictRaw(makePrefix+"C_SYSTEM_INCLUDES", strings.Join(systemIncludes, " "))
 
 	if target.Arch.ArchType == android.Arm {
 		flags, err := toolchain.InstructionSetFlags("arm")
@@ -194,4 +204,40 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 	ctx.Strict(makePrefix+"SHLIB_SUFFIX", toolchain.ShlibSuffix())
 	ctx.Strict(makePrefix+"EXECUTABLE_SUFFIX", toolchain.ExecutableSuffix())
+}
+
+func splitSystemIncludes(ctx android.MakeVarsContext, val string) (includes, systemIncludes []string) {
+	flags, err := ctx.Eval(val)
+	if err != nil {
+		panic(err)
+	}
+
+	extract := func(flags string, dirs []string, prefix string) (string, []string, bool) {
+		if strings.HasPrefix(flags, prefix) {
+			flags = strings.TrimPrefix(flags, prefix)
+			flags = strings.TrimLeft(flags, " ")
+			s := strings.SplitN(flags, " ", 2)
+			dirs = append(dirs, s[0])
+			if len(s) > 1 {
+				return strings.TrimLeft(s[1], " "), dirs, true
+			}
+			return "", dirs, true
+		} else {
+			return flags, dirs, false
+		}
+	}
+
+	flags = strings.TrimLeft(flags, " ")
+	for flags != "" {
+		found := false
+		flags, includes, found = extract(flags, includes, "-I")
+		if !found {
+			flags, systemIncludes, found = extract(flags, systemIncludes, "-isystem ")
+		}
+		if !found {
+			panic(fmt.Errorf("Unexpected flag in %q", flags))
+		}
+	}
+
+	return includes, systemIncludes
 }
