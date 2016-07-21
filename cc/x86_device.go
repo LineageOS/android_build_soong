@@ -167,14 +167,7 @@ func init() {
 	pctx.StaticVariable("x86Cflags", strings.Join(x86Cflags, " "))
 	pctx.StaticVariable("x86Ldflags", strings.Join(x86Ldflags, " "))
 	pctx.StaticVariable("x86Cppflags", strings.Join(x86Cppflags, " "))
-	pctx.StaticVariable("x86IncludeFlags", strings.Join([]string{
-		"-isystem ${LibcRoot}/arch-x86/include",
-		"-isystem ${LibcRoot}/include",
-		"-isystem ${LibcRoot}/kernel/uapi",
-		"-isystem ${LibcRoot}/kernel/android/uapi",
-		"-isystem ${LibcRoot}/kernel/common",
-		"-isystem ${LibcRoot}/kernel/uapi/asm-x86",
-	}, " "))
+	pctx.StaticVariable("x86IncludeFlags", bionicHeaders("x86", "x86"))
 
 	// Clang cflags
 	pctx.StaticVariable("x86ClangCflags", strings.Join(clangFilterUnknownCflags(x86ClangCflags), " "))

@@ -168,14 +168,7 @@ func init() {
 	pctx.StaticVariable("armCflags", strings.Join(armCflags, " "))
 	pctx.StaticVariable("armLdflags", strings.Join(armLdflags, " "))
 	pctx.StaticVariable("armCppflags", strings.Join(armCppflags, " "))
-	pctx.StaticVariable("armIncludeFlags", strings.Join([]string{
-		"-isystem ${LibcRoot}/arch-arm/include",
-		"-isystem ${LibcRoot}/include",
-		"-isystem ${LibcRoot}/kernel/uapi",
-		"-isystem ${LibcRoot}/kernel/android/uapi",
-		"-isystem ${LibcRoot}/kernel/common",
-		"-isystem ${LibcRoot}/kernel/uapi/asm-arm",
-	}, " "))
+	pctx.StaticVariable("armIncludeFlags", bionicHeaders("arm", "arm"))
 
 	// Extended cflags
 

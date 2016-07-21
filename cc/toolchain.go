@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"strings"
 
 	"android/soong/android"
 )
@@ -138,4 +139,15 @@ type toolchain32Bit struct {
 
 func (toolchain32Bit) Is64Bit() bool {
 	return false
+}
+
+func bionicHeaders(bionicArch, kernelArch string) string {
+	return strings.Join([]string{
+		"-isystem bionic/libc/arch-" + bionicArch + "/include",
+		"-isystem bionic/libc/include",
+		"-isystem bionic/libc/kernel/uapi",
+		"-isystem bionic/libc/kernel/android/uapi",
+		"-isystem bionic/libc/kernel/common",
+		"-isystem bionic/libc/kernel/uapi/asm-" + kernelArch,
+	}, " ")
 }
