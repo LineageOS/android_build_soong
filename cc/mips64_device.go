@@ -100,14 +100,7 @@ func init() {
 	pctx.StaticVariable("mips64Cflags", strings.Join(mips64Cflags, " "))
 	pctx.StaticVariable("mips64Ldflags", strings.Join(mips64Ldflags, " "))
 	pctx.StaticVariable("mips64Cppflags", strings.Join(mips64Cppflags, " "))
-	pctx.StaticVariable("mips64IncludeFlags", strings.Join([]string{
-		"-isystem ${LibcRoot}/arch-mips64/include",
-		"-isystem ${LibcRoot}/include",
-		"-isystem ${LibcRoot}/kernel/uapi",
-		"-isystem ${LibcRoot}/kernel/android/uapi",
-		"-isystem ${LibcRoot}/kernel/common",
-		"-isystem ${LibcRoot}/kernel/uapi/asm-mips",
-	}, " "))
+	pctx.StaticVariable("mips64IncludeFlags", bionicHeaders("mips64", "mips"))
 
 	// Clang cflags
 	pctx.StaticVariable("mips64ClangTriple", "mips64el-linux-android")
