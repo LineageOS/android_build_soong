@@ -402,6 +402,9 @@ type LibraryLinkerProperties struct {
 	// local file name to pass to the linker as -force_symbols_weak_list
 	Force_symbols_weak_list *string `android:"arch_variant"`
 
+	// rename host libraries to prevent overlap with system installed libraries
+	Unique_host_soname *bool
+
 	VariantName string `blueprint:"mutated"`
 }
 
@@ -1605,11 +1608,23 @@ func (library *libraryLinker) props() []interface{} {
 		&library.stripper.StripProperties)
 }
 
+func (library *libraryLinker) getLibName(ctx ModuleContext) string {
+	name := ctx.ModuleName()
+
+	if Bool(library.Properties.Unique_host_soname) {
+		if !strings.HasSuffix(name, "-host") {
+			name = name + "-host"
+		}
+	}
+
+	return name + library.Properties.VariantName
+}
+
 func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseLinker.flags(ctx, flags)
 
 	if !library.static() {
-		libName := ctx.ModuleName() + library.Properties.VariantName
+		libName := library.getLibName(ctx)
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
 		sharedFlag := "-Wl,-shared"
 		if flags.Clang || ctx.Host() {
@@ -1729,7 +1744,7 @@ func (library *libraryLinker) linkShared(ctx ModuleContext,
 		}
 	}
 
-	fileName := ctx.ModuleName() + library.Properties.VariantName + flags.Toolchain.ShlibSuffix()
+	fileName := library.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
 
