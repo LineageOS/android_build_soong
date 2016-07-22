@@ -1611,7 +1611,7 @@ func (library *libraryLinker) props() []interface{} {
 func (library *libraryLinker) getLibName(ctx ModuleContext) string {
 	name := ctx.ModuleName()
 
-	if Bool(library.Properties.Unique_host_soname) {
+	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
 		if !strings.HasSuffix(name, "-host") {
 			name = name + "-host"
 		}
