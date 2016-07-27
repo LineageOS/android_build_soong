@@ -50,14 +50,14 @@ var (
 
 	ld = pctx.StaticRule("ld",
 		blueprint.RuleParams{
-			Command: "$ldCmd ${ldDirFlags} ${crtBegin} @${out}.rsp " +
+			Command: "$ldCmd ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags}",
 			CommandDeps:    []string{"$ldCmd"},
 			Description:    "ld $out",
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
 		},
-		"ldCmd", "ldDirFlags", "crtBegin", "libFlags", "crtEnd", "ldFlags")
+		"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags")
 
 	partialLd = pctx.StaticRule("partialLd",
 		blueprint.RuleParams{
@@ -350,7 +350,6 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}
 
-	var ldDirs []string
 	var libFlagsList []string
 
 	if len(flags.libFlags) > 0 {
@@ -378,7 +377,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	}
 
 	for _, lib := range sharedLibs {
-		dir, file := filepath.Split(lib.String())
+		file := filepath.Base(lib.String())
 		if !strings.HasPrefix(file, "lib") {
 			panic("shared library " + lib.String() + " does not start with lib")
 		}
@@ -386,7 +385,6 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 			panic("shared library " + lib.String() + " does not end with " + flags.toolchain.ShlibSuffix())
 		}
 		libFlagsList = append(libFlagsList, lib.String())
-		ldDirs = append(ldDirs, dir)
 	}
 
 	deps = append(deps, sharedLibs...)
@@ -403,12 +401,11 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		Inputs:    objFiles,
 		Implicits: deps,
 		Args: map[string]string{
-			"ldCmd":      ldCmd,
-			"ldDirFlags": ldDirsToFlags(ldDirs),
-			"crtBegin":   crtBegin.String(),
-			"libFlags":   strings.Join(libFlagsList, " "),
-			"ldFlags":    flags.ldFlags,
-			"crtEnd":     crtEnd.String(),
+			"ldCmd":    ldCmd,
+			"crtBegin": crtBegin.String(),
+			"libFlags": strings.Join(libFlagsList, " "),
+			"ldFlags":  flags.ldFlags,
+			"crtEnd":   crtEnd.String(),
 		},
 	})
 }
