@@ -58,6 +58,10 @@ type variableProperties struct {
 		Schedboost struct {
 			Cflags []string
 		}
+
+		Binder32bit struct {
+			Cflags []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -96,6 +100,7 @@ type productVariables struct {
 	HostStaticBinaries         *bool `json:",omitempty"`
 	Cpusets                    *bool `json:",omitempty"`
 	Schedboost                 *bool `json:",omitempty"`
+	Binder32bit                *bool `json:",omitempty"`
 
 	SanitizeHost   *[]string `json:",omitempty"`
 	SanitizeDevice *[]string `json:",omitempty"`
