@@ -24,7 +24,7 @@ import (
 
 // Check for invalid c/conly/cpp/asflags and suggest alternatives. Only use this
 // for flags explicitly passed by the user, since these flags may be used internally.
-func CheckBadCompilerFlags(ctx ModuleContext, prop string, flags []string) {
+func CheckBadCompilerFlags(ctx BaseModuleContext, prop string, flags []string) {
 	for _, flag := range flags {
 		flag = strings.TrimSpace(flag)
 
@@ -55,7 +55,7 @@ func CheckBadCompilerFlags(ctx ModuleContext, prop string, flags []string) {
 
 // Check for bad ldflags and suggest alternatives. Only use this for flags
 // explicitly passed by the user, since these flags may be used internally.
-func CheckBadLinkerFlags(ctx ModuleContext, prop string, flags []string) {
+func CheckBadLinkerFlags(ctx BaseModuleContext, prop string, flags []string) {
 	for _, flag := range flags {
 		flag = strings.TrimSpace(flag)
 
