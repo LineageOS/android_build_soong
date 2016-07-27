@@ -94,8 +94,6 @@ func init() {
 	pctx.SourcePathVariable("arm64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/aarch64/aarch64-linux-android-${arm64GccVersion}")
 
-	pctx.StaticVariable("arm64GccTriple", "aarch64-linux-android")
-
 	pctx.StaticVariable("arm64Cflags", strings.Join(arm64Cflags, " "))
 	pctx.StaticVariable("arm64Ldflags", strings.Join(arm64Ldflags, " "))
 	pctx.StaticVariable("arm64Cppflags", strings.Join(arm64Cppflags, " "))
@@ -139,7 +137,7 @@ func (t *toolchainArm64) GccRoot() string {
 }
 
 func (t *toolchainArm64) GccTriple() string {
-	return "${arm64GccTriple}"
+	return "aarch64-linux-android"
 }
 
 func (t *toolchainArm64) GccVersion() string {
@@ -167,7 +165,7 @@ func (t *toolchainArm64) IncludeFlags() string {
 }
 
 func (t *toolchainArm64) ClangTriple() string {
-	return "${arm64GccTriple}"
+	return t.GccTriple()
 }
 
 func (t *toolchainArm64) ClangCflags() string {
