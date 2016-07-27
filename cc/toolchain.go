@@ -146,8 +146,7 @@ func bionicHeaders(bionicArch, kernelArch string) string {
 		"-isystem bionic/libc/arch-" + bionicArch + "/include",
 		"-isystem bionic/libc/include",
 		"-isystem bionic/libc/kernel/uapi",
-		"-isystem bionic/libc/kernel/android/uapi",
-		"-isystem bionic/libc/kernel/common",
 		"-isystem bionic/libc/kernel/uapi/asm-" + kernelArch,
+		"-isystem bionic/libc/kernel/android/uapi",
 	}, " ")
 }
