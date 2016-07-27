@@ -15,6 +15,7 @@ optional_subdirs = [
     "frameworks/native/libs/*",
     "hardware/*",
     "libcore",
+    "libnativehelper",
     "packages/apps/HTMLViewer",
     "prebuilts/ndk",
     "prebuilts/sdk",
