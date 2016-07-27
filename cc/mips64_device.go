@@ -95,15 +95,12 @@ func init() {
 	pctx.SourcePathVariable("mips64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/mips/mips64el-linux-android-${mips64GccVersion}")
 
-	pctx.StaticVariable("mips64GccTriple", "mips64el-linux-android")
-
 	pctx.StaticVariable("mips64Cflags", strings.Join(mips64Cflags, " "))
 	pctx.StaticVariable("mips64Ldflags", strings.Join(mips64Ldflags, " "))
 	pctx.StaticVariable("mips64Cppflags", strings.Join(mips64Cppflags, " "))
 	pctx.StaticVariable("mips64IncludeFlags", bionicHeaders("mips64", "mips"))
 
 	// Clang cflags
-	pctx.StaticVariable("mips64ClangTriple", "mips64el-linux-android")
 	pctx.StaticVariable("mips64ClangCflags", strings.Join(clangFilterUnknownCflags(mips64Cflags), " "))
 	pctx.StaticVariable("mips64ClangLdflags", strings.Join(clangFilterUnknownCflags(mips64Ldflags), " "))
 	pctx.StaticVariable("mips64ClangCppflags", strings.Join(clangFilterUnknownCflags(mips64Cppflags), " "))
@@ -133,7 +130,7 @@ func (t *toolchainMips64) GccRoot() string {
 }
 
 func (t *toolchainMips64) GccTriple() string {
-	return "${mips64GccTriple}"
+	return "mips64el-linux-android"
 }
 
 func (t *toolchainMips64) GccVersion() string {
@@ -161,7 +158,7 @@ func (t *toolchainMips64) IncludeFlags() string {
 }
 
 func (t *toolchainMips64) ClangTriple() string {
-	return "${mips64ClangTriple}"
+	return t.GccTriple()
 }
 
 func (t *toolchainMips64) ToolchainClangCflags() string {

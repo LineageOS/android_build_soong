@@ -161,8 +161,6 @@ func init() {
 	pctx.SourcePathVariable("armGccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/arm/arm-linux-androideabi-${armGccVersion}")
 
-	pctx.StaticVariable("armGccTriple", "arm-linux-androideabi")
-
 	pctx.StaticVariable("armToolchainCflags", strings.Join(armToolchainCflags, " "))
 	pctx.StaticVariable("armCflags", strings.Join(armCflags, " "))
 	pctx.StaticVariable("armLdflags", strings.Join(armLdflags, " "))
@@ -269,7 +267,7 @@ func (t *toolchainArm) GccRoot() string {
 }
 
 func (t *toolchainArm) GccTriple() string {
-	return "${armGccTriple}"
+	return "arm-linux-androideabi"
 }
 
 func (t *toolchainArm) GccVersion() string {
@@ -308,7 +306,7 @@ func (t *toolchainArm) InstructionSetFlags(isa string) (string, error) {
 }
 
 func (t *toolchainArm) ClangTriple() string {
-	return "${armGccTriple}"
+	return t.GccTriple()
 }
 
 func (t *toolchainArm) ToolchainClangCflags() string {
