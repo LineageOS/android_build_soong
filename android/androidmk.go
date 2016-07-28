@@ -96,12 +96,28 @@ func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []Mo
 
 	fmt.Fprintln(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))")
 
+	type_stats := make(map[string]int)
 	for _, mod := range mods {
 		err := translateAndroidMkModule(ctx, buf, mod)
 		if err != nil {
 			os.Remove(mkFile)
 			return err
 		}
+
+		if ctx.PrimaryModule(mod) == mod {
+			type_stats[ctx.ModuleType(mod)] += 1
+		}
+	}
+
+	keys := []string{}
+	fmt.Fprintln(buf, "\nSTATS.SOONG_MODULE_TYPE :=")
+	for k := range type_stats {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, mod_type := range keys {
+		fmt.Fprintln(buf, "STATS.SOONG_MODULE_TYPE +=", mod_type)
+		fmt.Fprintf(buf, "STATS.SOONG_MODULE_TYPE.%s := %d\n", mod_type, type_stats[mod_type])
 	}
 
 	// Don't write to the file if it hasn't changed
