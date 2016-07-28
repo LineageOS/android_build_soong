@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -180,6 +181,25 @@ func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.And
 		if len(installer.Properties.Symlinks) > 0 {
 			fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS := "+strings.Join(installer.Properties.Symlinks, " "))
 		}
+		return nil
+	})
+}
+
+func (c *stubCompiler) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.SubName = "." + strconv.Itoa(c.properties.ApiLevel)
+}
+
+func (installer *stubInstaller) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		path, file := filepath.Split(installer.installPath)
+		stem := strings.TrimSuffix(file, filepath.Ext(file))
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+
+		// Prevent make from installing the libraries to obj/lib (since we have
+		// dozens of libraries with the same name, they'll clobber each other
+		// and the real versions of the libraries from the platform).
+		fmt.Fprintln(w, "LOCAL_COPY_TO_INTERMEDIATE_LIBRARIES := false")
 		return nil
 	})
 }
