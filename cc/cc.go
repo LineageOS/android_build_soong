@@ -2691,6 +2691,7 @@ func linkageMutator(mctx android.BottomUpMutatorContext) {
 							// Optimize out compiling common .o files twice for static+shared libraries
 							mctx.AddInterVariantDependency(reuseObjTag, shared, static)
 							sharedCompiler.baseCompiler.Properties.Srcs = nil
+							sharedCompiler.baseCompiler.Properties.Generated_sources = nil
 						}
 					}
 				} else if linker.buildStatic() {
