@@ -45,7 +45,7 @@ func (d *DefaultableModule) setProperties(props []interface{}) {
 type Defaultable interface {
 	defaults() *defaultsProperties
 	setProperties([]interface{})
-	applyDefaults(TopDownMutatorContext, Defaults)
+	applyDefaults(BottomUpMutatorContext, Defaults)
 }
 
 var _ Defaultable = (*DefaultableModule)(nil)
@@ -61,12 +61,13 @@ func InitDefaultableModule(module Module, d Defaultable,
 }
 
 type DefaultsModule struct {
+	DefaultableModule
 	defaultProperties []interface{}
 }
 
 type Defaults interface {
+	Defaultable
 	isDefaults() bool
-	setProperties([]interface{})
 	properties() []interface{}
 }
 
@@ -75,22 +76,16 @@ func (d *DefaultsModule) isDefaults() bool {
 }
 
 func (d *DefaultsModule) properties() []interface{} {
-	return d.defaultProperties
-}
-
-func (d *DefaultsModule) setProperties(props []interface{}) {
-	d.defaultProperties = props
+	return d.defaultableProperties
 }
 
 func InitDefaultsModule(module Module, d Defaults, props ...interface{}) (blueprint.Module, []interface{}) {
-	d.setProperties(props)
-
-	return module, props
+	return InitDefaultableModule(module, d, props...)
 }
 
 var _ Defaults = (*DefaultsModule)(nil)
 
-func (defaultable *DefaultableModule) applyDefaults(ctx TopDownMutatorContext,
+func (defaultable *DefaultableModule) applyDefaults(ctx BottomUpMutatorContext,
 	defaults Defaults) {
 
 	for _, prop := range defaultable.defaultableProperties {
@@ -115,7 +110,7 @@ func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
-func defaultsMutator(ctx TopDownMutatorContext) {
+func defaultsMutator(ctx BottomUpMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
 		for _, defaultsDep := range defaultable.defaults().Defaults {
 			ctx.VisitDirectDeps(func(m blueprint.Module) {
