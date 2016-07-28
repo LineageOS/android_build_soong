@@ -494,8 +494,15 @@ type BaseModuleContext interface {
 	ModuleContextIntf
 }
 
+type CustomizerFlagsContext interface {
+	BaseModuleContext
+	AppendCflags(...string)
+	AppendLdflags(...string)
+	AppendAsflags(...string)
+}
+
 type Customizer interface {
-	CustomizeProperties(BaseModuleContext)
+	Flags(CustomizerFlagsContext)
 	Properties() []interface{}
 }
 
@@ -508,12 +515,15 @@ type feature interface {
 
 type compiler interface {
 	feature
+	appendCflags([]string)
+	appendAsflags([]string)
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths
 }
 
 type linker interface {
 	feature
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles android.Paths) android.Path
+	appendLdflags([]string)
 	installable() bool
 }
 
@@ -562,7 +572,7 @@ type Module struct {
 	multilib android.Multilib
 
 	// delegates, initialize before calling Init
-	customizer Customizer
+	Customizer Customizer
 	features   []feature
 	compiler   compiler
 	linker     linker
@@ -579,8 +589,8 @@ type Module struct {
 
 func (c *Module) Init() (blueprint.Module, []interface{}) {
 	props := []interface{}{&c.Properties, &c.unused}
-	if c.customizer != nil {
-		props = append(props, c.customizer.Properties()...)
+	if c.Customizer != nil {
+		props = append(props, c.Customizer.Properties()...)
 	}
 	if c.compiler != nil {
 		props = append(props, c.compiler.props()...)
@@ -619,6 +629,21 @@ type moduleContext struct {
 type moduleContextImpl struct {
 	mod *Module
 	ctx BaseModuleContext
+}
+
+func (ctx *moduleContextImpl) AppendCflags(flags ...string) {
+	CheckBadCompilerFlags(ctx.ctx, "", flags)
+	ctx.mod.compiler.appendCflags(flags)
+}
+
+func (ctx *moduleContextImpl) AppendAsflags(flags ...string) {
+	CheckBadCompilerFlags(ctx.ctx, "", flags)
+	ctx.mod.compiler.appendAsflags(flags)
+}
+
+func (ctx *moduleContextImpl) AppendLdflags(flags ...string) {
+	CheckBadLinkerFlags(ctx.ctx, "", flags)
+	ctx.mod.linker.appendLdflags(flags)
 }
 
 func (ctx *moduleContextImpl) clang() bool {
@@ -698,6 +723,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		},
 	}
 	ctx.ctx = ctx
+
+	if c.Customizer != nil {
+		c.Customizer.Flags(ctx)
+	}
 
 	flags := Flags{
 		Toolchain: c.toolchain(ctx),
@@ -846,10 +875,6 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 		},
 	}
 	ctx.ctx = ctx
-
-	if c.customizer != nil {
-		c.customizer.CustomizeProperties(ctx)
-	}
 
 	c.begin(ctx)
 
@@ -1106,6 +1131,14 @@ type baseCompiler struct {
 
 var _ compiler = (*baseCompiler)(nil)
 
+func (compiler *baseCompiler) appendCflags(flags []string) {
+	compiler.Properties.Cflags = append(compiler.Properties.Cflags, flags...)
+}
+
+func (compiler *baseCompiler) appendAsflags(flags []string) {
+	compiler.Properties.Asflags = append(compiler.Properties.Asflags, flags...)
+}
+
 func (compiler *baseCompiler) props() []interface{} {
 	return []interface{}{&compiler.Properties}
 }
@@ -1315,6 +1348,10 @@ type baseLinker struct {
 		VariantIsStaticBinary bool     `blueprint:"mutated"`
 		RunPaths              []string `blueprint:"mutated"`
 	}
+}
+
+func (linker *baseLinker) appendLdflags(flags []string) {
+	linker.Properties.Ldflags = append(linker.Properties.Ldflags, flags...)
 }
 
 func (linker *baseLinker) begin(ctx BaseModuleContext) {
@@ -1864,6 +1901,10 @@ func objectFactory() (blueprint.Module, []interface{}) {
 	module.compiler = &baseCompiler{}
 	module.linker = &objectLinker{}
 	return module.Init()
+}
+
+func (object *objectLinker) appendLdflags(flags []string) {
+	panic(fmt.Errorf("appendLdflags on object Linker not supported"))
 }
 
 func (object *objectLinker) props() []interface{} {
