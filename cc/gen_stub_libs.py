@@ -65,6 +65,12 @@ class Stack(object):
         return self.stack[-1]
 
 
+def get_tags(line):
+    """Returns a list of all tags on this line."""
+    _, _, all_tags = line.strip().partition('#')
+    return re.split(r'\s+', all_tags)
+
+
 def version_is_private(version):
     """Returns True if the version name should be treated as private."""
     return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
@@ -78,7 +84,8 @@ def enter_version(scope, line, version_file):
     # Entering a new version block. By convention symbols with versions ending
     # with "_PRIVATE" or "_PLATFORM" are not included in the NDK.
     version_name = line.split('{')[0].strip()
-    if version_is_private(version_name):
+    tags = get_tags(line)
+    if version_is_private(version_name) or 'future' in tags:
         scope.push(Scope.Private)
     else:
         scope.push(Scope.Global)  # By default symbols are visible.
@@ -166,6 +173,11 @@ def symbol_in_version(tags, arch, version):
         elif tag.startswith('introduced-' + arch + '='):
             introduced_tag = tag
             arch_specific = True
+        elif tag == 'future':
+            # This symbol is not in any released API level.
+            # TODO(danalbert): These need to be emitted for version == current.
+            # That's not a construct we have yet, so just skip it for now.
+            return False
 
     if introduced_tag is None:
         # We found no "introduced" tags, so the symbol has always been
@@ -194,8 +206,7 @@ def handle_global_scope(scope, line, src_file, version_file, arch, api):
     # Line is now in the format "<symbol-name>; # tags"
     # Tags are whitespace separated.
     symbol_name, _, rest = line.strip().partition(';')
-    _, _, all_tags = rest.partition('#')
-    tags = re.split(r'\s+', all_tags)
+    tags = get_tags(line)
 
     if not symbol_in_arch(tags, arch):
         return
