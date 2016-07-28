@@ -134,6 +134,10 @@ bootstrap_go_package {
         "cc/toolchain.go",
         "cc/util.go",
 
+        "cc/ndk_headers.go",
+        "cc/ndk_library.go",
+        "cc/ndk_sysroot.go",
+
         "cc/arm_device.go",
         "cc/arm64_device.go",
         "cc/mips_device.go",
