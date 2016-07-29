@@ -112,6 +112,30 @@ bootstrap_go_package {
 }
 
 bootstrap_go_package {
+    name: "soong-cc-config",
+    pkgPath: "android/soong/cc/config",
+    deps: [
+        "soong-android",
+    ],
+    srcs: [
+        "cc/config/clang.go",
+        "cc/config/global.go",
+        "cc/config/toolchain.go",
+
+        "cc/config/arm_device.go",
+        "cc/config/arm64_device.go",
+        "cc/config/mips_device.go",
+        "cc/config/mips64_device.go",
+        "cc/config/x86_device.go",
+        "cc/config/x86_64_device.go",
+
+        "cc/config/x86_darwin_host.go",
+        "cc/config/x86_linux_host.go",
+        "cc/config/x86_windows_host.go",
+    ],
+}
+
+bootstrap_go_package {
     name: "soong-cc",
     pkgPath: "android/soong/cc",
     deps: [
@@ -119,6 +143,7 @@ bootstrap_go_package {
         "blueprint-pathtools",
         "soong",
         "soong-android",
+        "soong-cc-config",
         "soong-genrule",
     ],
     srcs: [
@@ -126,14 +151,11 @@ bootstrap_go_package {
         "cc/builder.go",
         "cc/cc.go",
         "cc/check.go",
-        "cc/clang.go",
         "cc/gen.go",
-        "cc/global.go",
         "cc/makevars.go",
         "cc/sanitize.go",
         "cc/stl.go",
         "cc/strip.go",
-        "cc/toolchain.go",
         "cc/util.go",
 
         "cc/compiler.go",
@@ -149,17 +171,6 @@ bootstrap_go_package {
         "cc/ndk_headers.go",
         "cc/ndk_library.go",
         "cc/ndk_sysroot.go",
-
-        "cc/arm_device.go",
-        "cc/arm64_device.go",
-        "cc/mips_device.go",
-        "cc/mips64_device.go",
-        "cc/x86_device.go",
-        "cc/x86_64_device.go",
-
-        "cc/x86_darwin_host.go",
-        "cc/x86_linux_host.go",
-        "cc/x86_windows_host.go",
     ],
     testSrcs: [
         "cc/cc_test.go",

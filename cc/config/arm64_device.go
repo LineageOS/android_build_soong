@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"fmt"
@@ -91,33 +91,33 @@ const (
 func init() {
 	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
-	pctx.SourcePathVariable("arm64GccRoot",
+	pctx.SourcePathVariable("Arm64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/aarch64/aarch64-linux-android-${arm64GccVersion}")
 
-	pctx.StaticVariable("arm64Cflags", strings.Join(arm64Cflags, " "))
-	pctx.StaticVariable("arm64Ldflags", strings.Join(arm64Ldflags, " "))
-	pctx.StaticVariable("arm64Cppflags", strings.Join(arm64Cppflags, " "))
-	pctx.StaticVariable("arm64IncludeFlags", bionicHeaders("arm64", "arm64"))
+	pctx.StaticVariable("Arm64Cflags", strings.Join(arm64Cflags, " "))
+	pctx.StaticVariable("Arm64Ldflags", strings.Join(arm64Ldflags, " "))
+	pctx.StaticVariable("Arm64Cppflags", strings.Join(arm64Cppflags, " "))
+	pctx.StaticVariable("Arm64IncludeFlags", bionicHeaders("arm64", "arm64"))
 
-	pctx.StaticVariable("arm64ClangCflags", strings.Join(clangFilterUnknownCflags(arm64Cflags), " "))
-	pctx.StaticVariable("arm64ClangLdflags", strings.Join(clangFilterUnknownCflags(arm64Ldflags), " "))
-	pctx.StaticVariable("arm64ClangCppflags", strings.Join(clangFilterUnknownCflags(arm64Cppflags), " "))
+	pctx.StaticVariable("Arm64ClangCflags", strings.Join(ClangFilterUnknownCflags(arm64Cflags), " "))
+	pctx.StaticVariable("Arm64ClangLdflags", strings.Join(ClangFilterUnknownCflags(arm64Ldflags), " "))
+	pctx.StaticVariable("Arm64ClangCppflags", strings.Join(ClangFilterUnknownCflags(arm64Cppflags), " "))
 
-	pctx.StaticVariable("arm64CortexA53Cflags",
+	pctx.StaticVariable("Arm64CortexA53Cflags",
 		strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
-	pctx.StaticVariable("arm64ClangCortexA53Cflags",
+	pctx.StaticVariable("Arm64ClangCortexA53Cflags",
 		strings.Join(arm64ClangCpuVariantCflags["cortex-a53"], " "))
 }
 
 var (
 	arm64CpuVariantCflagsVar = map[string]string{
 		"":           "",
-		"cortex-a53": "${arm64CortexA53Cflags}",
+		"cortex-a53": "${config.Arm64CortexA53Cflags}",
 	}
 
 	arm64ClangCpuVariantCflagsVar = map[string]string{
 		"":           "",
-		"cortex-a53": "${arm64ClangCortexA53Cflags}",
+		"cortex-a53": "${config.Arm64ClangCortexA53Cflags}",
 	}
 )
 
@@ -133,7 +133,7 @@ func (t *toolchainArm64) Name() string {
 }
 
 func (t *toolchainArm64) GccRoot() string {
-	return "${arm64GccRoot}"
+	return "${config.Arm64GccRoot}"
 }
 
 func (t *toolchainArm64) GccTriple() string {
@@ -149,19 +149,19 @@ func (t *toolchainArm64) ToolchainCflags() string {
 }
 
 func (t *toolchainArm64) Cflags() string {
-	return "${arm64Cflags}"
+	return "${config.Arm64Cflags}"
 }
 
 func (t *toolchainArm64) Cppflags() string {
-	return "${arm64Cppflags}"
+	return "${config.Arm64Cppflags}"
 }
 
 func (t *toolchainArm64) Ldflags() string {
-	return "${arm64Ldflags}"
+	return "${config.Arm64Ldflags}"
 }
 
 func (t *toolchainArm64) IncludeFlags() string {
-	return "${arm64IncludeFlags}"
+	return "${config.Arm64IncludeFlags}"
 }
 
 func (t *toolchainArm64) ClangTriple() string {
@@ -169,15 +169,15 @@ func (t *toolchainArm64) ClangTriple() string {
 }
 
 func (t *toolchainArm64) ClangCflags() string {
-	return "${arm64ClangCflags}"
+	return "${config.Arm64ClangCflags}"
 }
 
 func (t *toolchainArm64) ClangCppflags() string {
-	return "${arm64ClangCppflags}"
+	return "${config.Arm64ClangCppflags}"
 }
 
 func (t *toolchainArm64) ClangLdflags() string {
-	return "${arm64Ldflags}"
+	return "${config.Arm64Ldflags}"
 }
 
 func (t *toolchainArm64) ToolchainClangCflags() string {

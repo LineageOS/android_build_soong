@@ -33,10 +33,6 @@ func boolPtr(v bool) *bool {
 	}
 }
 
-func init() {
-	pctx.StaticVariable("clangAsanLibDir", "${clangPath}/lib64/clang/3.8/lib/linux")
-}
-
 const (
 	asan sanitizerType = iota + 1
 	tsan
@@ -244,7 +240,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		// ASan runtime library must be the first in the link order.
 		runtimeLibrary := ctx.toolchain().AddressSanitizerRuntimeLibrary()
 		if runtimeLibrary != "" {
-			flags.libFlags = append([]string{"${clangAsanLibDir}/" + runtimeLibrary}, flags.libFlags...)
+			flags.libFlags = append([]string{"${config.ClangAsanLibDir}/" + runtimeLibrary}, flags.libFlags...)
 		}
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking

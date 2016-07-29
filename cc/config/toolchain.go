@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"fmt"
@@ -29,6 +29,15 @@ func registerToolchainFactory(os android.OsType, arch android.ArchType, factory 
 		toolchainFactories[os] = make(map[android.ArchType]toolchainFactory)
 	}
 	toolchainFactories[os][arch] = factory
+}
+
+func FindToolchain(os android.OsType, arch android.Arch) Toolchain {
+	factory := toolchainFactories[os][arch.ArchType]
+	if factory == nil {
+		panic(fmt.Errorf("Toolchain not found for %s arch %q", os.String(), arch.String()))
+		return nil
+	}
+	return factory(arch)
 }
 
 type Toolchain interface {
@@ -138,4 +147,44 @@ type toolchain32Bit struct {
 
 func (toolchain32Bit) Is64Bit() bool {
 	return false
+}
+
+func copyVariantFlags(m map[string][]string) map[string][]string {
+	ret := make(map[string][]string, len(m))
+	for k, v := range m {
+		l := make([]string, len(m[k]))
+		for i := range m[k] {
+			l[i] = v[i]
+		}
+		ret[k] = l
+	}
+	return ret
+}
+
+func variantOrDefault(variants map[string]string, choice string) string {
+	if ret, ok := variants[choice]; ok {
+		return ret
+	}
+	return variants[""]
+}
+
+func addPrefix(list []string, prefix string) []string {
+	for i := range list {
+		list[i] = prefix + list[i]
+	}
+	return list
+}
+
+func indexList(s string, list []string) int {
+	for i, l := range list {
+		if l == s {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func inList(s string, list []string) bool {
+	return indexList(s, list) != -1
 }
