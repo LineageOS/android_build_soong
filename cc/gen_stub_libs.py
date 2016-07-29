@@ -71,6 +71,19 @@ def get_tags(line):
     return re.split(r'\s+', all_tags)
 
 
+def get_tag_value(tag):
+    """Returns the value of a key/value tag.
+
+    Raises:
+        ValueError: Tag is not a key/value type tag.
+
+    Returns: Value part of tag as a string.
+    """
+    if '=' not in tag:
+        raise ValueError('Not a key/value tag: ' + tag)
+    return tag.partition('=')[2]
+
+
 def version_is_private(version):
     """Returns True if the version name should be treated as private."""
     return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
@@ -87,7 +100,7 @@ def should_omit_version(name, tags, arch, api):
         return True
     if not symbol_in_arch(tags, arch):
         return True
-    if not symbol_in_version(tags, arch, api):
+    if not symbol_in_api(tags, arch, api):
         return True
     return False
 
@@ -178,8 +191,8 @@ def symbol_in_arch(tags, arch):
     return not has_arch_tags
 
 
-def symbol_in_version(tags, arch, version):
-    """Returns true if the symbol is present for the given version."""
+def symbol_in_api(tags, arch, api):
+    """Returns true if the symbol is present for the given API level."""
     introduced_tag = None
     arch_specific = False
     for tag in tags:
@@ -191,7 +204,7 @@ def symbol_in_version(tags, arch, version):
             arch_specific = True
         elif tag == 'future':
             # This symbol is not in any released API level.
-            # TODO(danalbert): These need to be emitted for version == current.
+            # TODO(danalbert): These need to be emitted for api == current.
             # That's not a construct we have yet, so just skip it for now.
             return False
 
@@ -200,9 +213,28 @@ def symbol_in_version(tags, arch, version):
         # available.
         return True
 
-    # The tag is a key=value pair, and we only care about the value now.
-    _, _, version_str = introduced_tag.partition('=')
-    return version >= int(version_str)
+    return api >= int(get_tag_value(introduced_tag))
+
+
+def symbol_versioned_in_api(tags, api):
+    """Returns true if the symbol should be versioned for the given API.
+
+    This models the `versioned=API` tag. This should be a very uncommonly
+    needed tag, and is really only needed to fix versioning mistakes that are
+    already out in the wild.
+
+    For example, some of libc's __aeabi_* functions were originally placed in
+    the private version, but that was incorrect. They are now in LIBC_N, but
+    when building against any version prior to N we need the symbol to be
+    unversioned (otherwise it won't resolve on M where it is private).
+    """
+    for tag in tags:
+        if tag.startswith('versioned='):
+            return api >= int(get_tag_value(tag))
+    # If there is no "versioned" tag, the tag has been versioned for as long as
+    # it was introduced.
+    return True
+
 
 
 def handle_global_scope(scope, line, src_file, version_file, arch, api):
@@ -221,19 +253,21 @@ def handle_global_scope(scope, line, src_file, version_file, arch, api):
 
     # Line is now in the format "<symbol-name>; # tags"
     # Tags are whitespace separated.
-    symbol_name, _, rest = line.strip().partition(';')
+    symbol_name, _, _ = line.strip().partition(';')
     tags = get_tags(line)
 
     if not symbol_in_arch(tags, arch):
         return
-    if not symbol_in_version(tags, arch, api):
+    if not symbol_in_api(tags, arch, api):
         return
 
     if 'var' in tags:
         src_file.write('int {} = 0;\n'.format(symbol_name))
     else:
         src_file.write('void {}() {{}}\n'.format(symbol_name))
-    version_file.write(line)
+
+    if symbol_versioned_in_api(tags, api):
+        version_file.write(line)
 
 
 def generate(symbol_file, src_file, version_file, arch, api):
