@@ -76,7 +76,23 @@ def version_is_private(version):
     return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
 
 
-def enter_version(scope, line, version_file):
+def should_omit_version(name, tags, arch, api):
+    """Returns True if the version section should be ommitted.
+
+    We want to omit any sections that do not have any symbols we'll have in the
+    stub library. Sections that contain entirely future symbols or only symbols
+    for certain architectures.
+    """
+    if version_is_private(name):
+        return True
+    if not symbol_in_arch(tags, arch):
+        return True
+    if not symbol_in_version(tags, arch, api):
+        return True
+    return False
+
+
+def enter_version(scope, line, version_file, arch, api):
     """Enters a new version block scope."""
     if scope.top != Scope.Top:
         raise RuntimeError('Encountered nested version block.')
@@ -85,7 +101,7 @@ def enter_version(scope, line, version_file):
     # with "_PRIVATE" or "_PLATFORM" are not included in the NDK.
     version_name = line.split('{')[0].strip()
     tags = get_tags(line)
-    if version_is_private(version_name) or 'future' in tags:
+    if should_omit_version(version_name, tags, arch, api):
         scope.push(Scope.Private)
     else:
         scope.push(Scope.Global)  # By default symbols are visible.
@@ -123,10 +139,10 @@ def leave_visibility(scope):
     assert scope.top == Scope.Top
 
 
-def handle_top_scope(scope, line, version_file):
+def handle_top_scope(scope, line, version_file, arch, api):
     """Processes a line in the top level scope."""
     if '{' in line:
-        enter_version(scope, line, version_file)
+        enter_version(scope, line, version_file, arch, api)
     else:
         raise RuntimeError('Unexpected contents at top level: ' + line)
 
@@ -228,7 +244,7 @@ def generate(symbol_file, src_file, version_file, arch, api):
         if line.strip() == '' or line.strip().startswith('#'):
             version_file.write(line)
         elif scope.top == Scope.Top:
-            handle_top_scope(scope, line, version_file)
+            handle_top_scope(scope, line, version_file, arch, api)
         elif scope.top == Scope.Private:
             handle_private_scope(scope, line, version_file)
         elif scope.top == Scope.Local:
