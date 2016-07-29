@@ -35,6 +35,30 @@ var (
 		}, "arch", "apiLevel")
 
 	ndkLibrarySuffix = ".ndk"
+
+	ndkPrebuiltSharedLibs = []string{
+		"android",
+		"c",
+		"dl",
+		"EGL",
+		"GLESv1_CM",
+		"GLESv2",
+		"GLESv3",
+		"jnigraphics",
+		"log",
+		"mediandk",
+		"m",
+		"OpenMAXAL",
+		"OpenSLES",
+		"stdc++",
+		"vulkan",
+		"z",
+	}
+	ndkPrebuiltSharedLibraries = addPrefix(append([]string(nil), ndkPrebuiltSharedLibs...), "lib")
+
+	// These libraries have migrated over to the new ndk_library, which is added
+	// as a variation dependency via depsMutator.
+	ndkMigratedLibs = []string{}
 )
 
 // Creates a stub shared library based on the provided version file.
