@@ -16,6 +16,7 @@
 #
 """Generates source for stub shared libraries for the NDK."""
 import argparse
+import logging
 import os
 import re
 
@@ -30,45 +31,15 @@ ALL_ARCHITECTURES = (
 )
 
 
-class Scope(object):
-    """Enum for version script scope.
-
-    Top: Top level of the file.
-    Global: In a version and visibility section where symbols should be visible
-            to the NDK.
-    Local: In a visibility section of a public version where symbols should be
-           hidden to the NDK.
-    Private: In a version where symbols should not be visible to the NDK.
-    """
-    Top = 1
-    Global = 2
-    Local = 3
-    Private = 4
-
-
-class Stack(object):
-    """Basic stack implementation."""
-    def __init__(self):
-        self.stack = []
-
-    def push(self, obj):
-        """Push an item on to the stack."""
-        self.stack.append(obj)
-
-    def pop(self):
-        """Remove and return the item on the top of the stack."""
-        return self.stack.pop()
-
-    @property
-    def top(self):
-        """Return the top of the stack."""
-        return self.stack[-1]
+def logger():
+    """Return the main logger for this module."""
+    return logging.getLogger(__name__)
 
 
 def get_tags(line):
     """Returns a list of all tags on this line."""
     _, _, all_tags = line.strip().partition('#')
-    return re.split(r'\s+', all_tags)
+    return [e for e in re.split(r'\s+', all_tags) if e.strip()]
 
 
 def get_tag_value(tag):
@@ -103,77 +74,6 @@ def should_omit_version(name, tags, arch, api):
     if not symbol_in_api(tags, arch, api):
         return True
     return False
-
-
-def enter_version(scope, line, version_file, arch, api):
-    """Enters a new version block scope."""
-    if scope.top != Scope.Top:
-        raise RuntimeError('Encountered nested version block.')
-
-    # Entering a new version block. By convention symbols with versions ending
-    # with "_PRIVATE" or "_PLATFORM" are not included in the NDK.
-    version_name = line.split('{')[0].strip()
-    tags = get_tags(line)
-    if should_omit_version(version_name, tags, arch, api):
-        scope.push(Scope.Private)
-    else:
-        scope.push(Scope.Global)  # By default symbols are visible.
-        version_file.write(line)
-
-
-def leave_version(scope, line, version_file):
-    """Leave a version block scope."""
-    # There is no close to a visibility section, just the end of the version or
-    # a new visiblity section.
-    assert scope.top in (Scope.Global, Scope.Local, Scope.Private)
-    if scope.top != Scope.Private:
-        version_file.write(line)
-    scope.pop()
-    assert scope.top == Scope.Top
-
-
-def enter_visibility(scope, line, version_file):
-    """Enters a new visibility block scope."""
-    leave_visibility(scope)
-    version_file.write(line)
-    visibility = line.split(':')[0].strip()
-    if visibility == 'local':
-        scope.push(Scope.Local)
-    elif visibility == 'global':
-        scope.push(Scope.Global)
-    else:
-        raise RuntimeError('Unknown visiblity label: ' + visibility)
-
-
-def leave_visibility(scope):
-    """Leaves a visibility block scope."""
-    assert scope.top in (Scope.Global, Scope.Local)
-    scope.pop()
-    assert scope.top == Scope.Top
-
-
-def handle_top_scope(scope, line, version_file, arch, api):
-    """Processes a line in the top level scope."""
-    if '{' in line:
-        enter_version(scope, line, version_file, arch, api)
-    else:
-        raise RuntimeError('Unexpected contents at top level: ' + line)
-
-
-def handle_private_scope(scope, line, version_file):
-    """Eats all input."""
-    if '}' in line:
-        leave_version(scope, line, version_file)
-
-
-def handle_local_scope(scope, line, version_file):
-    """Passes through input."""
-    if ':' in line:
-        enter_visibility(scope, line, version_file)
-    elif '}' in line:
-        leave_version(scope, line, version_file)
-    else:
-        version_file.write(line)
 
 
 def symbol_in_arch(tags, arch):
@@ -236,64 +136,181 @@ def symbol_versioned_in_api(tags, api):
     return True
 
 
-
-def handle_global_scope(scope, line, src_file, version_file, arch, api):
-    """Emits present symbols to the version file and stub source file."""
-    if ':' in line:
-        enter_visibility(scope, line, version_file)
-        return
-    if '}' in line:
-        leave_version(scope, line, version_file)
-        return
-
-    if ';' not in line:
-        raise RuntimeError('Expected ; to terminate symbol: ' + line)
-    if '*' in line:
-        raise RuntimeError('Wildcard global symbols are not permitted.')
-
-    # Line is now in the format "<symbol-name>; # tags"
-    # Tags are whitespace separated.
-    symbol_name, _, _ = line.strip().partition(';')
-    tags = get_tags(line)
-
-    if not symbol_in_arch(tags, arch):
-        return
-    if not symbol_in_api(tags, arch, api):
-        return
-
-    if 'var' in tags:
-        src_file.write('int {} = 0;\n'.format(symbol_name))
-    else:
-        src_file.write('void {}() {{}}\n'.format(symbol_name))
-
-    if symbol_versioned_in_api(tags, api):
-        version_file.write(line)
+class ParseError(RuntimeError):
+    """An error that occurred while parsing a symbol file."""
+    pass
 
 
-def generate(symbol_file, src_file, version_file, arch, api):
-    """Generates the stub source file and version script."""
-    scope = Stack()
-    scope.push(Scope.Top)
-    for line in symbol_file:
-        if line.strip() == '' or line.strip().startswith('#'):
-            version_file.write(line)
-        elif scope.top == Scope.Top:
-            handle_top_scope(scope, line, version_file, arch, api)
-        elif scope.top == Scope.Private:
-            handle_private_scope(scope, line, version_file)
-        elif scope.top == Scope.Local:
-            handle_local_scope(scope, line, version_file)
-        elif scope.top == Scope.Global:
-            handle_global_scope(scope, line, src_file, version_file, arch, api)
+class Version(object):
+    """A version block of a symbol file."""
+    def __init__(self, name, base, tags, symbols):
+        self.name = name
+        self.base = base
+        self.tags = tags
+        self.symbols = symbols
+
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.base != other.base:
+            return False
+        if self.tags != other.tags:
+            return False
+        if self.symbols != other.symbols:
+            return False
+        return True
+
+
+class Symbol(object):
+    """A symbol definition from a symbol file."""
+    def __init__(self, name, tags):
+        self.name = name
+        self.tags = tags
+
+    def __eq__(self, other):
+        return self.name == other.name and set(self.tags) == set(other.tags)
+
+
+class SymbolFileParser(object):
+    """Parses NDK symbol files."""
+    def __init__(self, input_file):
+        self.input_file = input_file
+        self.current_line = None
+
+    def parse(self):
+        """Parses the symbol file and returns a list of Version objects."""
+        versions = []
+        while self.next_line() != '':
+            if '{' in self.current_line:
+                versions.append(self.parse_version())
+            else:
+                raise ParseError(
+                    'Unexpected contents at top level: ' + self.current_line)
+        return versions
+
+    def parse_version(self):
+        """Parses a single version section and returns a Version object."""
+        name = self.current_line.split('{')[0].strip()
+        tags = get_tags(self.current_line)
+        symbols = []
+        global_scope = True
+        while self.next_line() != '':
+            if '}' in self.current_line:
+                # Line is something like '} BASE; # tags'. Both base and tags
+                # are optional here.
+                base = self.current_line.partition('}')[2]
+                base = base.partition('#')[0].strip()
+                if not base.endswith(';'):
+                    raise ParseError(
+                        'Unterminated version block (expected ;).')
+                base = base.rstrip(';').rstrip()
+                if base == '':
+                    base = None
+                return Version(name, base, tags, symbols)
+            elif ':' in self.current_line:
+                visibility = self.current_line.split(':')[0].strip()
+                if visibility == 'local':
+                    global_scope = False
+                elif visibility == 'global':
+                    global_scope = True
+                else:
+                    raise ParseError('Unknown visiblity label: ' + visibility)
+            elif global_scope:
+                symbols.append(self.parse_symbol())
+            else:
+                # We're in a hidden scope. Ignore everything.
+                pass
+        raise ParseError('Unexpected EOF in version block.')
+
+    def parse_symbol(self):
+        """Parses a single symbol line and returns a Symbol object."""
+        if ';' not in self.current_line:
+            raise ParseError(
+                'Expected ; to terminate symbol: ' + self.current_line)
+        if '*' in self.current_line:
+            raise ParseError(
+                'Wildcard global symbols are not permitted.')
+        # Line is now in the format "<symbol-name>; # tags"
+        name, _, _ = self.current_line.strip().partition(';')
+        tags = get_tags(self.current_line)
+        return Symbol(name, tags)
+
+    def next_line(self):
+        """Returns the next non-empty non-comment line.
+
+        A return value of '' indicates EOF.
+        """
+        line = self.input_file.readline()
+        while line.strip() == '' or line.strip().startswith('#'):
+            line = self.input_file.readline()
+
+            # We want to skip empty lines, but '' indicates EOF.
+            if line == '':
+                break
+        self.current_line = line
+        return self.current_line
+
+
+class Generator(object):
+    """Output generator that writes stub source files and version scripts."""
+    def __init__(self, src_file, version_script, arch, api):
+        self.src_file = src_file
+        self.version_script = version_script
+        self.arch = arch
+        self.api = api
+
+    def write(self, versions):
+        """Writes all symbol data to the output files."""
+        for version in versions:
+            self.write_version(version)
+
+    def write_version(self, version):
+        """Writes a single version block's data to the output files."""
+        name = version.name
+        tags = version.tags
+        if should_omit_version(name, tags, self.arch, self.api):
+            return
+
+        version_empty = True
+        pruned_symbols = []
+        for symbol in version.symbols:
+            if not symbol_in_arch(symbol.tags, self.arch):
+                continue
+            if not symbol_in_api(symbol.tags, self.arch, self.api):
+                continue
+
+            if symbol_versioned_in_api(symbol.tags, self.api):
+                version_empty = False
+            pruned_symbols.append(symbol)
+
+        if len(pruned_symbols) > 0:
+            if not version_empty:
+                self.version_script.write(version.name + ' {\n')
+                self.version_script.write('    global:\n')
+            for symbol in pruned_symbols:
+                if symbol_versioned_in_api(symbol.tags, self.api):
+                    self.version_script.write('        ' + symbol.name + ';\n')
+
+                if 'var' in symbol.tags:
+                    self.src_file.write('int {} = 0;\n'.format(symbol.name))
+                else:
+                    self.src_file.write('void {}() {{}}\n'.format(symbol.name))
+
+            if not version_empty:
+                base = '' if version.base is None else ' ' + version.base
+                self.version_script.write('}' + base + ';\n')
 
 
 def parse_args():
     """Parses and returns command line arguments."""
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--api', type=int, help='API level being targeted.')
+    parser.add_argument('-v', '--verbose', action='count', default=0)
+
     parser.add_argument(
-        '--arch', choices=ALL_ARCHITECTURES,
+        '--api', type=int, required=True, help='API level being targeted.')
+    parser.add_argument(
+        '--arch', choices=ALL_ARCHITECTURES, required=True,
         help='Architecture being targeted.')
 
     parser.add_argument(
@@ -312,11 +329,19 @@ def main():
     """Program entry point."""
     args = parse_args()
 
+    verbose_map = (logging.WARNING, logging.INFO, logging.DEBUG)
+    verbosity = args.verbose
+    if verbosity > 2:
+        verbosity = 2
+    logging.basicConfig(level=verbose_map[verbosity])
+
     with open(args.symbol_file) as symbol_file:
-        with open(args.stub_src, 'w') as src_file:
-            with open(args.version_script, 'w') as version_file:
-                generate(symbol_file, src_file, version_file, args.arch,
-                         args.api)
+        versions = SymbolFileParser(symbol_file).parse()
+
+    with open(args.stub_src, 'w') as src_file:
+        with open(args.version_script, 'w') as version_file:
+            generator = Generator(src_file, version_file, args.arch, args.api)
+            generator.write(versions)
 
 
 if __name__ == '__main__':
