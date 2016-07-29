@@ -116,6 +116,9 @@ type commonProperties struct {
 	// file
 	Logtags []string
 
+	// init.rc files to be installed if this module is installed
+	Init_rc []string
+
 	// Set by TargetMutator
 	CompileTarget Target `blueprint:"mutated"`
 

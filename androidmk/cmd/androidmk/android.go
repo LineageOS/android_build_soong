@@ -51,6 +51,7 @@ var standardProperties = map[string]struct {
 	"LOCAL_LOGTAGS_FILES":                 {"logtags", bpparser.ListType},
 	"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": {"export_shared_lib_headers", bpparser.ListType},
 	"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": {"export_static_lib_headers", bpparser.ListType},
+	"LOCAL_INIT_RC":                       {"init_rc", bpparser.ListType},
 
 	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.ListType},
 	"LOCAL_JAVACFLAGS":            {"javacflags", bpparser.ListType},
