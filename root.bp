@@ -12,7 +12,7 @@ optional_subdirs = [
     "dalvik",
     "external/*",
     "frameworks/base",
-    "frameworks/native/libs/*",
+    "frameworks/native",
     "hardware/*",
     "libcore",
     "libnativehelper",
