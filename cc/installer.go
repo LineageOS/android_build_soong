@@ -1,0 +1,66 @@
+// Copyright 2016 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cc
+
+import (
+	"path/filepath"
+
+	"android/soong/android"
+)
+
+// This file handles installing files into their final location
+
+type InstallerProperties struct {
+	// install to a subdirectory of the default install path for the module
+	Relative_install_path string
+
+	// install symlinks to the module
+	Symlinks []string `android:"arch_variant"`
+}
+
+type baseInstaller struct {
+	Properties InstallerProperties
+
+	dir   string
+	dir64 string
+	data  bool
+
+	path android.OutputPath
+}
+
+var _ installer = (*baseInstaller)(nil)
+
+func (installer *baseInstaller) props() []interface{} {
+	return []interface{}{&installer.Properties}
+}
+
+func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
+	subDir := installer.dir
+	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
+		subDir = installer.dir64
+	}
+	if !ctx.Host() && !ctx.Arch().Native {
+		subDir = filepath.Join(subDir, ctx.Arch().ArchType.String())
+	}
+	dir := android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path)
+	installer.path = ctx.InstallFile(dir, file)
+	for _, symlink := range installer.Properties.Symlinks {
+		ctx.InstallSymlink(dir, symlink, installer.path)
+	}
+}
+
+func (installer *baseInstaller) inData() bool {
+	return installer.data
+}
