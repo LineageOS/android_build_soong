@@ -166,6 +166,7 @@ bootstrap_go_package {
         "cc/library.go",
         "cc/object.go",
         "cc/test.go",
+        "cc/toolchain_library.go",
 
         "cc/ndk_prebuilt.go",
         "cc/ndk_headers.go",

@@ -345,7 +345,7 @@ func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
-			if d, ok := c.linker.(baseLinkerInterface); ok && d.isDependencyRoot() && c.sanitize.Sanitizer(t) {
+			if c.isDependencyRoot() && c.sanitize.Sanitizer(t) {
 				modules := mctx.CreateVariations(t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
 				if mctx.AConfig().EmbeddedInMake() && !c.Host() {

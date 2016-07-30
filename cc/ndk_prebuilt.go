@@ -70,7 +70,11 @@ func (*ndkPrebuiltObjectLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Dep
 
 func ndkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
-	module.linker = &ndkPrebuiltObjectLinker{}
+	module.linker = &ndkPrebuiltObjectLinker{
+		objectLinker: objectLinker{
+			baseLinker: NewBaseLinker(),
+		},
+	}
 	module.Properties.HideFromMake = true
 	return module.Init()
 }
@@ -86,14 +90,11 @@ func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
 }
 
 type ndkPrebuiltLibraryLinker struct {
-	libraryLinker
+	*libraryDecorator
 }
 
-var _ baseLinkerInterface = (*ndkPrebuiltLibraryLinker)(nil)
-var _ exportedFlagsProducer = (*libraryLinker)(nil)
-
 func (ndk *ndkPrebuiltLibraryLinker) linkerProps() []interface{} {
-	return append(ndk.libraryLinker.linkerProps(), &ndk.Properties, &ndk.flagExporter.Properties)
+	return append(ndk.libraryDecorator.linkerProps(), &ndk.Properties, &ndk.flagExporter.Properties)
 }
 
 func (*ndkPrebuiltLibraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
@@ -102,10 +103,14 @@ func (*ndkPrebuiltLibraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) De
 }
 
 func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
-	linker := &ndkPrebuiltLibraryLinker{}
-	linker.dynamicProperties.BuildShared = true
+	module, library := NewLibrary(android.DeviceSupported, true, false)
+	linker := &ndkPrebuiltLibraryLinker{
+		libraryDecorator: library,
+	}
+	module.compiler = nil
 	module.linker = linker
+	module.installer = nil
+	module.stl = nil
 	module.Properties.HideFromMake = true
 	return module.Init()
 }
@@ -128,19 +133,29 @@ type ndkPrebuiltStlLinker struct {
 }
 
 func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
-	linker := &ndkPrebuiltStlLinker{}
-	linker.dynamicProperties.BuildShared = true
+	module, library := NewLibrary(android.DeviceSupported, true, false)
+	linker := &ndkPrebuiltStlLinker{
+		ndkPrebuiltLibraryLinker: ndkPrebuiltLibraryLinker{
+			libraryDecorator: library,
+		},
+	}
+	module.compiler = nil
 	module.linker = linker
+	module.installer = nil
 	module.Properties.HideFromMake = true
 	return module.Init()
 }
 
 func ndkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
-	linker := &ndkPrebuiltStlLinker{}
-	linker.dynamicProperties.BuildStatic = true
+	module, library := NewLibrary(android.DeviceSupported, false, true)
+	linker := &ndkPrebuiltStlLinker{
+		ndkPrebuiltLibraryLinker: ndkPrebuiltLibraryLinker{
+			libraryDecorator: library,
+		},
+	}
+	module.compiler = nil
 	module.linker = linker
+	module.installer = nil
 	module.Properties.HideFromMake = true
 	return module.Init()
 }
@@ -177,7 +192,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 
 	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
 	libExt := flags.Toolchain.ShlibSuffix()
-	if ndk.dynamicProperties.BuildStatic {
+	if ndk.Properties.BuildStatic {
 		libExt = staticLibraryExtension
 	}
 
@@ -185,41 +200,4 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 	stlName = strings.TrimSuffix(stlName, "_static")
 	libDir := getNdkStlLibDir(ctx, flags.Toolchain, stlName)
 	return libDir.Join(ctx, libName+libExt)
-}
-
-func linkageMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok {
-		if m.linker != nil {
-			if linker, ok := m.linker.(baseLinkerInterface); ok {
-				var modules []blueprint.Module
-				if linker.buildStatic() && linker.buildShared() {
-					modules = mctx.CreateLocalVariations("static", "shared")
-					static := modules[0].(*Module)
-					shared := modules[1].(*Module)
-
-					static.linker.(baseLinkerInterface).setStatic(true)
-					shared.linker.(baseLinkerInterface).setStatic(false)
-
-					if staticCompiler, ok := static.compiler.(*libraryCompiler); ok {
-						sharedCompiler := shared.compiler.(*libraryCompiler)
-						if len(staticCompiler.Properties.Static.Cflags) == 0 &&
-							len(sharedCompiler.Properties.Shared.Cflags) == 0 {
-							// Optimize out compiling common .o files twice for static+shared libraries
-							mctx.AddInterVariantDependency(reuseObjTag, shared, static)
-							sharedCompiler.baseCompiler.Properties.Srcs = nil
-							sharedCompiler.baseCompiler.Properties.Generated_sources = nil
-						}
-					}
-				} else if linker.buildStatic() {
-					modules = mctx.CreateLocalVariations("static")
-					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(true)
-				} else if linker.buildShared() {
-					modules = mctx.CreateLocalVariations("shared")
-					modules[0].(*Module).linker.(baseLinkerInterface).setStatic(false)
-				} else {
-					panic(fmt.Errorf("library %q not static or shared", mctx.ModuleName()))
-				}
-			}
-		}
-	}
 }
