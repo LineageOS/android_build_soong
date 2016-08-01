@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 func init() {
@@ -27,22 +28,22 @@ func init() {
 }
 
 func makeVarsProvider(ctx android.MakeVarsContext) {
-	ctx.Strict("LLVM_PREBUILTS_VERSION", "${clangVersion}")
-	ctx.Strict("LLVM_PREBUILTS_BASE", "${clangBase}")
-	ctx.Strict("LLVM_PREBUILTS_PATH", "${clangBin}")
-	ctx.Strict("CLANG", "${clangBin}/clang")
-	ctx.Strict("CLANG_CXX", "${clangBin}/clang++")
-	ctx.Strict("LLVM_AS", "${clangBin}/llvm-as")
-	ctx.Strict("LLVM_LINK", "${clangBin}/llvm-link")
-	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(clangUnknownCflags, " "))
+	ctx.Strict("LLVM_PREBUILTS_VERSION", "${config.ClangVersion}")
+	ctx.Strict("LLVM_PREBUILTS_BASE", "${config.ClangBase}")
+	ctx.Strict("LLVM_PREBUILTS_PATH", "${config.ClangBin}")
+	ctx.Strict("CLANG", "${config.ClangBin}/clang")
+	ctx.Strict("CLANG_CXX", "${config.ClangBin}/clang++")
+	ctx.Strict("LLVM_AS", "${config.ClangBin}/llvm-as")
+	ctx.Strict("LLVM_LINK", "${config.ClangBin}/llvm-link")
+	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(config.ClangUnknownCflags, " "))
 
-	ctx.Strict("GLOBAL_CFLAGS_NO_OVERRIDE", "${noOverrideGlobalCflags}")
-	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${clangExtraNoOverrideCflags}")
+	ctx.Strict("GLOBAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideGlobalCflags}")
+	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.ClangExtraNoOverrideCflags}")
 	ctx.Strict("GLOBAL_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
-	includeFlags, err := ctx.Eval("${commonGlobalIncludes}")
+	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes}")
 	if err != nil {
 		panic(err)
 	}
@@ -86,14 +87,14 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	}
 	makePrefix := secondPrefix + typePrefix
 
-	toolchain := toolchainFactories[target.Os][target.Arch.ArchType](target.Arch)
+	toolchain := config.FindToolchain(target.Os, target.Arch)
 
 	var productExtraCflags string
 	var productExtraLdflags string
 
-	hod := "host"
+	hod := "Host"
 	if target.Os.Class == android.Device {
-		hod = "device"
+		hod = "Device"
 	}
 
 	if target.Os.Class == android.Device && Bool(ctx.Config().ProductVariables.Brillo) {
@@ -105,14 +106,14 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 
 	ctx.Strict(makePrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.Cflags(),
-		"${commonGlobalCflags}",
-		fmt.Sprintf("${%sGlobalCflags}", hod),
+		"${config.CommonGlobalCflags}",
+		fmt.Sprintf("${config.%sGlobalCflags}", hod),
 		toolchain.ToolchainCflags(),
 		productExtraCflags,
 	}, " "))
 	ctx.Strict(makePrefix+"GLOBAL_CONLYFLAGS", "")
 	ctx.Strict(makePrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
-		"${commonGlobalCppflags}",
+		"${config.CommonGlobalCppflags}",
 		toolchain.Cppflags(),
 	}, " "))
 	ctx.Strict(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
@@ -152,15 +153,15 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 
 		ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 			toolchain.ClangCflags(),
-			"${commonClangGlobalCflags}",
-			fmt.Sprintf("${%sClangGlobalCflags}", hod),
+			"${config.CommonClangGlobalCflags}",
+			fmt.Sprintf("${config.%sClangGlobalCflags}", hod),
 			toolchain.ToolchainClangCflags(),
 			clangExtras,
 			productExtraCflags,
 		}, " "))
-		ctx.Strict(clangPrefix+"GLOBAL_CONLYFLAGS", "${clangExtraConlyflags}")
+		ctx.Strict(clangPrefix+"GLOBAL_CONLYFLAGS", "${config.ClangExtraConlyflags}")
 		ctx.Strict(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
-			"${commonClangGlobalCppflags}",
+			"${config.CommonClangGlobalCppflags}",
 			toolchain.ClangCppflags(),
 		}, " "))
 		ctx.Strict(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
@@ -183,7 +184,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	ctx.Strict(makePrefix+"CXX", gccCmd(toolchain, "g++"))
 
 	if target.Os == android.Darwin {
-		ctx.Strict(makePrefix+"AR", "${macArPath}")
+		ctx.Strict(makePrefix+"AR", "${config.MacArPath}")
 	} else {
 		ctx.Strict(makePrefix+"AR", gccCmd(toolchain, "ar"))
 		ctx.Strict(makePrefix+"READELF", gccCmd(toolchain, "readelf"))

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"strings"
@@ -59,38 +59,40 @@ var (
 		"-Werror=pointer-to-int-cast",
 	}
 
-	illegalFlags = []string{
+	IllegalFlags = []string{
 		"-w",
 	}
 )
+
+var pctx = android.NewPackageContext("android/soong/cc/config")
 
 func init() {
 	if android.BuildOs == android.Linux {
 		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
 	}
 
-	pctx.StaticVariable("commonGlobalCflags", strings.Join(commonGlobalCflags, " "))
-	pctx.StaticVariable("deviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
-	pctx.StaticVariable("hostGlobalCflags", strings.Join(hostGlobalCflags, " "))
-	pctx.StaticVariable("noOverrideGlobalCflags", strings.Join(noOverrideGlobalCflags, " "))
+	pctx.StaticVariable("CommonGlobalCflags", strings.Join(commonGlobalCflags, " "))
+	pctx.StaticVariable("DeviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
+	pctx.StaticVariable("HostGlobalCflags", strings.Join(hostGlobalCflags, " "))
+	pctx.StaticVariable("NoOverrideGlobalCflags", strings.Join(noOverrideGlobalCflags, " "))
 
-	pctx.StaticVariable("commonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))
+	pctx.StaticVariable("CommonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))
 
-	pctx.StaticVariable("commonClangGlobalCflags",
-		strings.Join(append(clangFilterUnknownCflags(commonGlobalCflags), "${clangExtraCflags}"), " "))
-	pctx.StaticVariable("deviceClangGlobalCflags",
-		strings.Join(append(clangFilterUnknownCflags(deviceGlobalCflags), "${clangExtraTargetCflags}"), " "))
-	pctx.StaticVariable("hostClangGlobalCflags",
-		strings.Join(clangFilterUnknownCflags(hostGlobalCflags), " "))
-	pctx.StaticVariable("noOverrideClangGlobalCflags",
-		strings.Join(append(clangFilterUnknownCflags(noOverrideGlobalCflags), "${clangExtraNoOverrideCflags}"), " "))
+	pctx.StaticVariable("CommonClangGlobalCflags",
+		strings.Join(append(ClangFilterUnknownCflags(commonGlobalCflags), "${ClangExtraCflags}"), " "))
+	pctx.StaticVariable("DeviceClangGlobalCflags",
+		strings.Join(append(ClangFilterUnknownCflags(deviceGlobalCflags), "${ClangExtraTargetCflags}"), " "))
+	pctx.StaticVariable("HostClangGlobalCflags",
+		strings.Join(ClangFilterUnknownCflags(hostGlobalCflags), " "))
+	pctx.StaticVariable("NoOverrideClangGlobalCflags",
+		strings.Join(append(ClangFilterUnknownCflags(noOverrideGlobalCflags), "${ClangExtraNoOverrideCflags}"), " "))
 
-	pctx.StaticVariable("commonClangGlobalCppflags",
-		strings.Join(append(clangFilterUnknownCflags(commonGlobalCppflags), "${clangExtraCppflags}"), " "))
+	pctx.StaticVariable("CommonClangGlobalCppflags",
+		strings.Join(append(ClangFilterUnknownCflags(commonGlobalCppflags), "${ClangExtraCppflags}"), " "))
 
 	// Everything in this list is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
-	pctx.PrefixedPathsForOptionalSourceVariable("commonGlobalIncludes", "-isystem ",
+	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalIncludes", "-isystem ",
 		[]string{
 			"system/core/include",
 			"system/media/audio/include",
@@ -105,24 +107,26 @@ func init() {
 		})
 	// This is used by non-NDK modules to get jni.h. export_include_dirs doesn't help
 	// with this, since there is no associated library.
-	pctx.PrefixedPathsForOptionalSourceVariable("commonNativehelperInclude", "-I",
+	pctx.PrefixedPathsForOptionalSourceVariable("CommonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
 
-	pctx.SourcePathVariable("clangDefaultBase", "prebuilts/clang/host")
-	pctx.VariableFunc("clangBase", func(config interface{}) (string, error) {
+	pctx.SourcePathVariable("ClangDefaultBase", "prebuilts/clang/host")
+	pctx.VariableFunc("ClangBase", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
 			return override, nil
 		}
-		return "${clangDefaultBase}", nil
+		return "${ClangDefaultBase}", nil
 	})
-	pctx.VariableFunc("clangVersion", func(config interface{}) (string, error) {
+	pctx.VariableFunc("ClangVersion", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
 		return "clang-3016494", nil
 	})
-	pctx.StaticVariable("clangPath", "${clangBase}/${HostPrebuiltTag}/${clangVersion}")
-	pctx.StaticVariable("clangBin", "${clangPath}/bin")
+	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
+	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
+
+	pctx.StaticVariable("ClangAsanLibDir", "${ClangPath}/lib64/clang/3.8/lib/linux")
 }
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)

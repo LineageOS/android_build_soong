@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"strings"
@@ -92,26 +92,26 @@ func init() {
 
 	pctx.StaticVariable("mips64GccVersion", mips64GccVersion)
 
-	pctx.SourcePathVariable("mips64GccRoot",
+	pctx.SourcePathVariable("Mips64GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/mips/mips64el-linux-android-${mips64GccVersion}")
 
-	pctx.StaticVariable("mips64Cflags", strings.Join(mips64Cflags, " "))
-	pctx.StaticVariable("mips64Ldflags", strings.Join(mips64Ldflags, " "))
-	pctx.StaticVariable("mips64Cppflags", strings.Join(mips64Cppflags, " "))
-	pctx.StaticVariable("mips64IncludeFlags", bionicHeaders("mips64", "mips"))
+	pctx.StaticVariable("Mips64Cflags", strings.Join(mips64Cflags, " "))
+	pctx.StaticVariable("Mips64Ldflags", strings.Join(mips64Ldflags, " "))
+	pctx.StaticVariable("Mips64Cppflags", strings.Join(mips64Cppflags, " "))
+	pctx.StaticVariable("Mips64IncludeFlags", bionicHeaders("mips64", "mips"))
 
 	// Clang cflags
-	pctx.StaticVariable("mips64ClangCflags", strings.Join(clangFilterUnknownCflags(mips64Cflags), " "))
-	pctx.StaticVariable("mips64ClangLdflags", strings.Join(clangFilterUnknownCflags(mips64Ldflags), " "))
-	pctx.StaticVariable("mips64ClangCppflags", strings.Join(clangFilterUnknownCflags(mips64Cppflags), " "))
+	pctx.StaticVariable("Mips64ClangCflags", strings.Join(ClangFilterUnknownCflags(mips64Cflags), " "))
+	pctx.StaticVariable("Mips64ClangLdflags", strings.Join(ClangFilterUnknownCflags(mips64Ldflags), " "))
+	pctx.StaticVariable("Mips64ClangCppflags", strings.Join(ClangFilterUnknownCflags(mips64Cppflags), " "))
 
 	// Extended cflags
 
 	// Architecture variant cflags
 	for variant, cflags := range mips64ArchVariantCflags {
-		pctx.StaticVariable("mips64"+variant+"VariantCflags", strings.Join(cflags, " "))
-		pctx.StaticVariable("mips64"+variant+"VariantClangCflags",
-			strings.Join(clangFilterUnknownCflags(cflags), " "))
+		pctx.StaticVariable("Mips64"+variant+"VariantCflags", strings.Join(cflags, " "))
+		pctx.StaticVariable("Mips64"+variant+"VariantClangCflags",
+			strings.Join(ClangFilterUnknownCflags(cflags), " "))
 	}
 }
 
@@ -126,7 +126,7 @@ func (t *toolchainMips64) Name() string {
 }
 
 func (t *toolchainMips64) GccRoot() string {
-	return "${mips64GccRoot}"
+	return "${config.Mips64GccRoot}"
 }
 
 func (t *toolchainMips64) GccTriple() string {
@@ -146,15 +146,15 @@ func (t *toolchainMips64) Cflags() string {
 }
 
 func (t *toolchainMips64) Cppflags() string {
-	return "${mips64Cppflags}"
+	return "${config.Mips64Cppflags}"
 }
 
 func (t *toolchainMips64) Ldflags() string {
-	return "${mips64Ldflags}"
+	return "${config.Mips64Ldflags}"
 }
 
 func (t *toolchainMips64) IncludeFlags() string {
-	return "${mips64IncludeFlags}"
+	return "${config.Mips64IncludeFlags}"
 }
 
 func (t *toolchainMips64) ClangTriple() string {
@@ -170,11 +170,11 @@ func (t *toolchainMips64) ClangCflags() string {
 }
 
 func (t *toolchainMips64) ClangCppflags() string {
-	return "${mips64ClangCppflags}"
+	return "${config.Mips64ClangCppflags}"
 }
 
 func (t *toolchainMips64) ClangLdflags() string {
-	return "${mips64ClangLdflags}"
+	return "${config.Mips64ClangLdflags}"
 }
 
 func (toolchainMips64) AddressSanitizerRuntimeLibrary() string {
@@ -183,10 +183,10 @@ func (toolchainMips64) AddressSanitizerRuntimeLibrary() string {
 
 func mips64ToolchainFactory(arch android.Arch) Toolchain {
 	return &toolchainMips64{
-		cflags:               "${mips64Cflags}",
-		clangCflags:          "${mips64ClangCflags}",
-		toolchainCflags:      "${mips64" + arch.ArchVariant + "VariantCflags}",
-		toolchainClangCflags: "${mips64" + arch.ArchVariant + "VariantClangCflags}",
+		cflags:               "${config.Mips64Cflags}",
+		clangCflags:          "${config.Mips64ClangCflags}",
+		toolchainCflags:      "${config.Mips64" + arch.ArchVariant + "VariantCflags}",
+		toolchainClangCflags: "${config.Mips64" + arch.ArchVariant + "VariantClangCflags}",
 	}
 }
 

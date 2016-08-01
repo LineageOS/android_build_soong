@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"strings"
@@ -156,29 +156,29 @@ func init() {
 
 	pctx.StaticVariable("x86GccVersion", x86GccVersion)
 
-	pctx.SourcePathVariable("x86GccRoot",
+	pctx.SourcePathVariable("X86GccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/x86/x86_64-linux-android-${x86GccVersion}")
 
-	pctx.StaticVariable("x86ToolchainCflags", "-m32")
-	pctx.StaticVariable("x86ToolchainLdflags", "-m32")
+	pctx.StaticVariable("X86ToolchainCflags", "-m32")
+	pctx.StaticVariable("X86ToolchainLdflags", "-m32")
 
-	pctx.StaticVariable("x86Cflags", strings.Join(x86Cflags, " "))
-	pctx.StaticVariable("x86Ldflags", strings.Join(x86Ldflags, " "))
-	pctx.StaticVariable("x86Cppflags", strings.Join(x86Cppflags, " "))
-	pctx.StaticVariable("x86IncludeFlags", bionicHeaders("x86", "x86"))
+	pctx.StaticVariable("X86Cflags", strings.Join(x86Cflags, " "))
+	pctx.StaticVariable("X86Ldflags", strings.Join(x86Ldflags, " "))
+	pctx.StaticVariable("X86Cppflags", strings.Join(x86Cppflags, " "))
+	pctx.StaticVariable("X86IncludeFlags", bionicHeaders("x86", "x86"))
 
 	// Clang cflags
-	pctx.StaticVariable("x86ClangCflags", strings.Join(clangFilterUnknownCflags(x86ClangCflags), " "))
-	pctx.StaticVariable("x86ClangLdflags", strings.Join(clangFilterUnknownCflags(x86Ldflags), " "))
-	pctx.StaticVariable("x86ClangCppflags", strings.Join(clangFilterUnknownCflags(x86Cppflags), " "))
+	pctx.StaticVariable("X86ClangCflags", strings.Join(ClangFilterUnknownCflags(x86ClangCflags), " "))
+	pctx.StaticVariable("X86ClangLdflags", strings.Join(ClangFilterUnknownCflags(x86Ldflags), " "))
+	pctx.StaticVariable("X86ClangCppflags", strings.Join(ClangFilterUnknownCflags(x86Cppflags), " "))
 
 	// Extended cflags
 
 	// Architecture variant cflags
 	for variant, cflags := range x86ArchVariantCflags {
-		pctx.StaticVariable("x86"+variant+"VariantCflags", strings.Join(cflags, " "))
-		pctx.StaticVariable("x86"+variant+"VariantClangCflags",
-			strings.Join(clangFilterUnknownCflags(cflags), " "))
+		pctx.StaticVariable("X86"+variant+"VariantCflags", strings.Join(cflags, " "))
+		pctx.StaticVariable("X86"+variant+"VariantClangCflags",
+			strings.Join(ClangFilterUnknownCflags(cflags), " "))
 	}
 }
 
@@ -192,7 +192,7 @@ func (t *toolchainX86) Name() string {
 }
 
 func (t *toolchainX86) GccRoot() string {
-	return "${x86GccRoot}"
+	return "${config.X86GccRoot}"
 }
 
 func (t *toolchainX86) GccTriple() string {
@@ -204,7 +204,7 @@ func (t *toolchainX86) GccVersion() string {
 }
 
 func (t *toolchainX86) ToolchainLdflags() string {
-	return "${x86ToolchainLdflags}"
+	return "${config.X86ToolchainLdflags}"
 }
 
 func (t *toolchainX86) ToolchainCflags() string {
@@ -212,19 +212,19 @@ func (t *toolchainX86) ToolchainCflags() string {
 }
 
 func (t *toolchainX86) Cflags() string {
-	return "${x86Cflags}"
+	return "${config.X86Cflags}"
 }
 
 func (t *toolchainX86) Cppflags() string {
-	return "${x86Cppflags}"
+	return "${config.X86Cppflags}"
 }
 
 func (t *toolchainX86) Ldflags() string {
-	return "${x86Ldflags}"
+	return "${config.X86Ldflags}"
 }
 
 func (t *toolchainX86) IncludeFlags() string {
-	return "${x86IncludeFlags}"
+	return "${config.X86IncludeFlags}"
 }
 
 func (t *toolchainX86) ClangTriple() string {
@@ -232,7 +232,7 @@ func (t *toolchainX86) ClangTriple() string {
 }
 
 func (t *toolchainX86) ToolchainClangLdflags() string {
-	return "${x86ToolchainLdflags}"
+	return "${config.X86ToolchainLdflags}"
 }
 
 func (t *toolchainX86) ToolchainClangCflags() string {
@@ -240,15 +240,15 @@ func (t *toolchainX86) ToolchainClangCflags() string {
 }
 
 func (t *toolchainX86) ClangCflags() string {
-	return "${x86ClangCflags}"
+	return "${config.X86ClangCflags}"
 }
 
 func (t *toolchainX86) ClangCppflags() string {
-	return "${x86ClangCppflags}"
+	return "${config.X86ClangCppflags}"
 }
 
 func (t *toolchainX86) ClangLdflags() string {
-	return "${x86Ldflags}"
+	return "${config.X86Ldflags}"
 }
 
 func (toolchainX86) AddressSanitizerRuntimeLibrary() string {
@@ -257,13 +257,13 @@ func (toolchainX86) AddressSanitizerRuntimeLibrary() string {
 
 func x86ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainCflags := []string{
-		"${x86ToolchainCflags}",
-		"${x86" + arch.ArchVariant + "VariantCflags}",
+		"${config.X86ToolchainCflags}",
+		"${config.X86" + arch.ArchVariant + "VariantCflags}",
 	}
 
 	toolchainClangCflags := []string{
-		"${x86ToolchainCflags}",
-		"${x86" + arch.ArchVariant + "VariantClangCflags}",
+		"${config.X86ToolchainCflags}",
+		"${config.X86" + arch.ArchVariant + "VariantClangCflags}",
 	}
 
 	for _, feature := range arch.ArchFeatures {

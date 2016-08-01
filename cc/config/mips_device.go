@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"strings"
@@ -128,27 +128,27 @@ func init() {
 
 	pctx.StaticVariable("mipsGccVersion", mipsGccVersion)
 
-	pctx.SourcePathVariable("mipsGccRoot",
+	pctx.SourcePathVariable("MipsGccRoot",
 		"prebuilts/gcc/${HostPrebuiltTag}/mips/mips64el-linux-android-${mipsGccVersion}")
 
-	pctx.StaticVariable("mipsToolchainLdflags", strings.Join(mipsToolchainLdflags, " "))
-	pctx.StaticVariable("mipsCflags", strings.Join(mipsCflags, " "))
-	pctx.StaticVariable("mipsLdflags", strings.Join(mipsLdflags, " "))
-	pctx.StaticVariable("mipsCppflags", strings.Join(mipsCppflags, " "))
-	pctx.StaticVariable("mipsIncludeFlags", bionicHeaders("mips", "mips"))
+	pctx.StaticVariable("MipsToolchainLdflags", strings.Join(mipsToolchainLdflags, " "))
+	pctx.StaticVariable("MipsCflags", strings.Join(mipsCflags, " "))
+	pctx.StaticVariable("MipsLdflags", strings.Join(mipsLdflags, " "))
+	pctx.StaticVariable("MipsCppflags", strings.Join(mipsCppflags, " "))
+	pctx.StaticVariable("MipsIncludeFlags", bionicHeaders("mips", "mips"))
 
 	// Clang cflags
-	pctx.StaticVariable("mipsClangCflags", strings.Join(clangFilterUnknownCflags(mipsClangCflags), " "))
-	pctx.StaticVariable("mipsClangLdflags", strings.Join(clangFilterUnknownCflags(mipsLdflags), " "))
-	pctx.StaticVariable("mipsClangCppflags", strings.Join(clangFilterUnknownCflags(mipsCppflags), " "))
+	pctx.StaticVariable("MipsClangCflags", strings.Join(ClangFilterUnknownCflags(mipsClangCflags), " "))
+	pctx.StaticVariable("MipsClangLdflags", strings.Join(ClangFilterUnknownCflags(mipsLdflags), " "))
+	pctx.StaticVariable("MipsClangCppflags", strings.Join(ClangFilterUnknownCflags(mipsCppflags), " "))
 
 	// Extended cflags
 
 	// Architecture variant cflags
 	for variant, cflags := range mipsArchVariantCflags {
-		pctx.StaticVariable("mips"+variant+"VariantCflags", strings.Join(cflags, " "))
-		pctx.StaticVariable("mips"+variant+"VariantClangCflags",
-			strings.Join(clangFilterUnknownCflags(cflags), " "))
+		pctx.StaticVariable("Mips"+variant+"VariantCflags", strings.Join(cflags, " "))
+		pctx.StaticVariable("Mips"+variant+"VariantClangCflags",
+			strings.Join(ClangFilterUnknownCflags(cflags), " "))
 	}
 }
 
@@ -163,7 +163,7 @@ func (t *toolchainMips) Name() string {
 }
 
 func (t *toolchainMips) GccRoot() string {
-	return "${mipsGccRoot}"
+	return "${config.MipsGccRoot}"
 }
 
 func (t *toolchainMips) GccTriple() string {
@@ -175,7 +175,7 @@ func (t *toolchainMips) GccVersion() string {
 }
 
 func (t *toolchainMips) ToolchainLdflags() string {
-	return "${mipsToolchainLdflags}"
+	return "${config.MipsToolchainLdflags}"
 }
 
 func (t *toolchainMips) ToolchainCflags() string {
@@ -187,15 +187,15 @@ func (t *toolchainMips) Cflags() string {
 }
 
 func (t *toolchainMips) Cppflags() string {
-	return "${mipsCppflags}"
+	return "${config.MipsCppflags}"
 }
 
 func (t *toolchainMips) Ldflags() string {
-	return "${mipsLdflags}"
+	return "${config.MipsLdflags}"
 }
 
 func (t *toolchainMips) IncludeFlags() string {
-	return "${mipsIncludeFlags}"
+	return "${config.MipsIncludeFlags}"
 }
 
 func (t *toolchainMips) ClangTriple() string {
@@ -203,7 +203,7 @@ func (t *toolchainMips) ClangTriple() string {
 }
 
 func (t *toolchainMips) ToolchainClangLdflags() string {
-	return "${mipsToolchainLdflags}"
+	return "${config.MipsToolchainLdflags}"
 }
 
 func (t *toolchainMips) ToolchainClangCflags() string {
@@ -219,11 +219,11 @@ func (t *toolchainMips) ClangCflags() string {
 }
 
 func (t *toolchainMips) ClangCppflags() string {
-	return "${mipsClangCppflags}"
+	return "${config.MipsClangCppflags}"
 }
 
 func (t *toolchainMips) ClangLdflags() string {
-	return "${mipsClangLdflags}"
+	return "${config.MipsClangLdflags}"
 }
 
 func (toolchainMips) AddressSanitizerRuntimeLibrary() string {
@@ -232,10 +232,10 @@ func (toolchainMips) AddressSanitizerRuntimeLibrary() string {
 
 func mipsToolchainFactory(arch android.Arch) Toolchain {
 	return &toolchainMips{
-		cflags:               "${mipsCflags}",
-		clangCflags:          "${mipsClangCflags}",
-		toolchainCflags:      "${mips" + arch.ArchVariant + "VariantCflags}",
-		toolchainClangCflags: "${mips" + arch.ArchVariant + "VariantClangCflags}",
+		cflags:               "${config.MipsCflags}",
+		clangCflags:          "${config.MipsClangCflags}",
+		toolchainCflags:      "${config.Mips" + arch.ArchVariant + "VariantCflags}",
+		toolchainClangCflags: "${config.Mips" + arch.ArchVariant + "VariantClangCflags}",
 	}
 }
 
