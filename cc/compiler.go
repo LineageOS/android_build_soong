@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 // This file contains the basic C/C++/assembly to .o compliation steps
@@ -118,7 +119,7 @@ func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps {
 // Create a Flags struct that collects the compile flags from global values,
 // per-target values, module type values, and per-module Blueprints properties
 func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
-	toolchain := ctx.toolchain()
+	tc := ctx.toolchain()
 
 	CheckBadCompilerFlags(ctx, "cflags", compiler.Properties.Cflags)
 	CheckBadCompilerFlags(ctx, "cppflags", compiler.Properties.Cppflags)
@@ -141,9 +142,9 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	if !ctx.noDefaultCompilerFlags() {
 		if !ctx.sdk() || ctx.Host() {
 			flags.GlobalFlags = append(flags.GlobalFlags,
-				"${commonGlobalIncludes}",
-				toolchain.IncludeFlags(),
-				"${commonNativehelperInclude}")
+				"${config.CommonGlobalIncludes}",
+				tc.IncludeFlags(),
+				"${config.CommonNativehelperInclude}")
 		}
 
 		flags.GlobalFlags = append(flags.GlobalFlags, []string{
@@ -160,7 +161,7 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		// behavior here, and the NDK always has all the NDK headers available.
 		flags.GlobalFlags = append(flags.GlobalFlags,
 			"-isystem "+getCurrentIncludePath(ctx).String(),
-			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, toolchain.ClangTriple()).String())
+			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, tc.ClangTriple()).String())
 
 		// Traditionally this has come from android/api-level.h, but with the
 		// libc headers unified it must be set by the build system since we
@@ -181,9 +182,9 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
 	}
-	instructionSetFlags, err := toolchain.InstructionSetFlags(instructionSet)
+	instructionSetFlags, err := tc.InstructionSetFlags(instructionSet)
 	if flags.Clang {
-		instructionSetFlags, err = toolchain.ClangInstructionSetFlags(instructionSet)
+		instructionSetFlags, err = tc.ClangInstructionSetFlags(instructionSet)
 	}
 	if err != nil {
 		ctx.ModuleErrorf("%s", err)
@@ -198,17 +199,17 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		CheckBadCompilerFlags(ctx, "clang_cflags", compiler.Properties.Clang_cflags)
 		CheckBadCompilerFlags(ctx, "clang_asflags", compiler.Properties.Clang_asflags)
 
-		flags.CFlags = clangFilterUnknownCflags(flags.CFlags)
+		flags.CFlags = config.ClangFilterUnknownCflags(flags.CFlags)
 		flags.CFlags = append(flags.CFlags, compiler.Properties.Clang_cflags...)
 		flags.AsFlags = append(flags.AsFlags, compiler.Properties.Clang_asflags...)
-		flags.CppFlags = clangFilterUnknownCflags(flags.CppFlags)
-		flags.ConlyFlags = clangFilterUnknownCflags(flags.ConlyFlags)
-		flags.LdFlags = clangFilterUnknownCflags(flags.LdFlags)
+		flags.CppFlags = config.ClangFilterUnknownCflags(flags.CppFlags)
+		flags.ConlyFlags = config.ClangFilterUnknownCflags(flags.ConlyFlags)
+		flags.LdFlags = config.ClangFilterUnknownCflags(flags.LdFlags)
 
-		target := "-target " + toolchain.ClangTriple()
+		target := "-target " + tc.ClangTriple()
 		var gccPrefix string
 		if !ctx.Darwin() {
-			gccPrefix = "-B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
+			gccPrefix = "-B" + filepath.Join(tc.GccRoot(), tc.GccTriple(), "bin")
 		}
 
 		flags.CFlags = append(flags.CFlags, target, gccPrefix)
@@ -216,29 +217,29 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
 	}
 
-	hod := "host"
+	hod := "Host"
 	if ctx.Os().Class == android.Device {
-		hod = "device"
+		hod = "Device"
 	}
 
 	if !ctx.noDefaultCompilerFlags() {
 		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
 
 		if flags.Clang {
-			flags.AsFlags = append(flags.AsFlags, toolchain.ClangAsflags())
-			flags.CppFlags = append(flags.CppFlags, "${commonClangGlobalCppflags}")
+			flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())
+			flags.CppFlags = append(flags.CppFlags, "${config.CommonClangGlobalCppflags}")
 			flags.GlobalFlags = append(flags.GlobalFlags,
-				toolchain.ClangCflags(),
-				"${commonClangGlobalCflags}",
-				fmt.Sprintf("${%sClangGlobalCflags}", hod))
+				tc.ClangCflags(),
+				"${config.CommonClangGlobalCflags}",
+				fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
 
-			flags.ConlyFlags = append(flags.ConlyFlags, "${clangExtraConlyflags}")
+			flags.ConlyFlags = append(flags.ConlyFlags, "${config.ClangExtraConlyflags}")
 		} else {
-			flags.CppFlags = append(flags.CppFlags, "${commonGlobalCppflags}")
+			flags.CppFlags = append(flags.CppFlags, "${config.CommonGlobalCppflags}")
 			flags.GlobalFlags = append(flags.GlobalFlags,
-				toolchain.Cflags(),
-				"${commonGlobalCflags}",
-				fmt.Sprintf("${%sGlobalCflags}", hod))
+				tc.Cflags(),
+				"${config.CommonGlobalCflags}",
+				fmt.Sprintf("${config.%sGlobalCflags}", hod))
 		}
 
 		if Bool(ctx.AConfig().ProductVariables.Brillo) {
@@ -256,16 +257,16 @@ func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.AsFlags = append(flags.AsFlags, "-D__ASSEMBLY__")
 
 		if flags.Clang {
-			flags.CppFlags = append(flags.CppFlags, toolchain.ClangCppflags())
+			flags.CppFlags = append(flags.CppFlags, tc.ClangCppflags())
 		} else {
-			flags.CppFlags = append(flags.CppFlags, toolchain.Cppflags())
+			flags.CppFlags = append(flags.CppFlags, tc.Cppflags())
 		}
 	}
 
 	if flags.Clang {
-		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainClangCflags())
+		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainClangCflags())
 	} else {
-		flags.GlobalFlags = append(flags.GlobalFlags, toolchain.ToolchainCflags())
+		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainCflags())
 	}
 
 	if !ctx.sdk() {

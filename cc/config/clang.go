@@ -1,4 +1,4 @@
-package cc
+package config
 
 import (
 	"sort"
@@ -6,7 +6,7 @@ import (
 )
 
 // Cflags that should be filtered out when compiling with clang
-var clangUnknownCflags = sorted([]string{
+var ClangUnknownCflags = sorted([]string{
 	"-finline-functions",
 	"-finline-limit=64",
 	"-fno-canonical-system-headers",
@@ -66,7 +66,7 @@ var clangUnknownCflags = sorted([]string{
 })
 
 func init() {
-	pctx.StaticVariable("clangExtraCflags", strings.Join([]string{
+	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
 		"-D__compiler_offsetof=__builtin_offsetof",
 
 		// Help catch common 32/64-bit errors.
@@ -93,11 +93,11 @@ func init() {
 		"-Wno-expansion-to-defined",
 	}, " "))
 
-	pctx.StaticVariable("clangExtraConlyflags", strings.Join([]string{
+	pctx.StaticVariable("ClangExtraConlyflags", strings.Join([]string{
 		"-std=gnu99",
 	}, " "))
 
-	pctx.StaticVariable("clangExtraCppflags", strings.Join([]string{
+	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
 		// Disable -Winconsistent-missing-override until we can clean up the existing
 		// codebase for it.
 		"-Wno-inconsistent-missing-override",
@@ -107,11 +107,11 @@ func init() {
 		"-Wno-null-dereference",
 	}, " "))
 
-	pctx.StaticVariable("clangExtraTargetCflags", strings.Join([]string{
+	pctx.StaticVariable("ClangExtraTargetCflags", strings.Join([]string{
 		"-nostdlibinc",
 	}, " "))
 
-	pctx.StaticVariable("clangExtraNoOverrideCflags", strings.Join([]string{
+	pctx.StaticVariable("ClangExtraNoOverrideCflags", strings.Join([]string{
 		"-Werror=address-of-temporary",
 		// Bug: http://b/29823425 Disable -Wnull-dereference until the
 		// new cases detected by this warning in Clang r271374 are
@@ -121,10 +121,10 @@ func init() {
 	}, " "))
 }
 
-func clangFilterUnknownCflags(cflags []string) []string {
+func ClangFilterUnknownCflags(cflags []string) []string {
 	ret := make([]string, 0, len(cflags))
 	for _, f := range cflags {
-		if !inListSorted(f, clangUnknownCflags) {
+		if !inListSorted(f, ClangUnknownCflags) {
 			ret = append(ret, f)
 		}
 	}

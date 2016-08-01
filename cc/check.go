@@ -20,6 +20,8 @@ package cc
 import (
 	"path/filepath"
 	"strings"
+
+	"android/soong/cc/config"
 )
 
 // Check for invalid c/conly/cpp/asflags and suggest alternatives. Only use this
@@ -32,7 +34,7 @@ func CheckBadCompilerFlags(ctx BaseModuleContext, prop string, flags []string) {
 			ctx.PropertyErrorf(prop, "Flag `%s` must start with `-`", flag)
 		} else if strings.HasPrefix(flag, "-I") || strings.HasPrefix(flag, "-isystem") {
 			ctx.PropertyErrorf(prop, "Bad flag `%s`, use local_include_dirs or include_dirs instead", flag)
-		} else if inList(flag, illegalFlags) {
+		} else if inList(flag, config.IllegalFlags) {
 			ctx.PropertyErrorf(prop, "Illegal flag `%s`", flag)
 		} else if strings.Contains(flag, " ") {
 			args := strings.Split(flag, " ")

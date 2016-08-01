@@ -27,6 +27,7 @@ import (
 
 	"android/soong"
 	"android/soong/android"
+	"android/soong/cc/config"
 	"android/soong/genrule"
 )
 
@@ -48,6 +49,8 @@ func init() {
 
 	android.RegisterTopDownMutator("tsan_deps", sanitizerDepsMutator(tsan))
 	android.RegisterBottomUpMutator("tsan", sanitizerMutator(tsan))
+
+	pctx.Import("android/soong/cc/config")
 }
 
 type Deps struct {
@@ -90,7 +93,7 @@ type Flags struct {
 	libFlags    []string // Flags to add libraries early to the link order
 
 	Nocrt     bool
-	Toolchain Toolchain
+	Toolchain config.Toolchain
 	Clang     bool
 
 	RequiredInstructionSet string
@@ -130,7 +133,7 @@ type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
 	clang() bool
-	toolchain() Toolchain
+	toolchain() config.Toolchain
 	noDefaultCompilerFlags() bool
 	sdk() bool
 	sdkVersion() string
@@ -239,7 +242,7 @@ type Module struct {
 
 	outputFile android.OptionalPath
 
-	cachedToolchain Toolchain
+	cachedToolchain config.Toolchain
 }
 
 func (c *Module) Init() (blueprint.Module, []interface{}) {
@@ -305,7 +308,7 @@ func (ctx *moduleContextImpl) clang() bool {
 	return ctx.mod.clang(ctx.ctx)
 }
 
-func (ctx *moduleContextImpl) toolchain() Toolchain {
+func (ctx *moduleContextImpl) toolchain() config.Toolchain {
 	return ctx.mod.toolchain(ctx.ctx)
 }
 
@@ -406,9 +409,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		return
 	}
 
-	flags.CFlags, _ = filterList(flags.CFlags, illegalFlags)
-	flags.CppFlags, _ = filterList(flags.CppFlags, illegalFlags)
-	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, illegalFlags)
+	flags.CFlags, _ = filterList(flags.CFlags, config.IllegalFlags)
+	flags.CppFlags, _ = filterList(flags.CppFlags, config.IllegalFlags)
+	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, config.IllegalFlags)
 
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
@@ -450,16 +453,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 }
 
-func (c *Module) toolchain(ctx BaseModuleContext) Toolchain {
+func (c *Module) toolchain(ctx BaseModuleContext) config.Toolchain {
 	if c.cachedToolchain == nil {
-		arch := ctx.Arch()
-		os := ctx.Os()
-		factory := toolchainFactories[os][arch.ArchType]
-		if factory == nil {
-			ctx.ModuleErrorf("Toolchain not found for %s arch %q", os.String(), arch.String())
-			return nil
-		}
-		c.cachedToolchain = factory(arch)
+		c.cachedToolchain = config.FindToolchain(ctx.Os(), ctx.Arch())
 	}
 	return c.cachedToolchain
 }
