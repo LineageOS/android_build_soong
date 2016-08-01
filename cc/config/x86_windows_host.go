@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cc
+package config
 
 import (
 	"strings"
@@ -42,7 +42,7 @@ var (
 		// Get 64-bit off_t and related functions.
 		"-D_FILE_OFFSET_BITS=64",
 
-		"--sysroot ${windowsGccRoot}/${windowsGccTriple}",
+		"--sysroot ${WindowsGccRoot}/${WindowsGccTriple}",
 
 		// HOST_RELEASE_CFLAGS
 		"-O2", // from build/core/combo/select.mk
@@ -51,8 +51,8 @@ var (
 	}
 
 	windowsIncludeFlags = []string{
-		"-isystem ${windowsGccRoot}/${windowsGccTriple}/include",
-		"-isystem ${windowsGccRoot}/lib/gcc/${windowsGccTriple}/4.8.3/include",
+		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include",
+		"-isystem ${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/include",
 	}
 
 	windowsLdflags = []string{
@@ -69,12 +69,12 @@ var (
 
 	windowsX86Ldflags = []string{
 		"-m32",
-		"-L${windowsGccRoot}/${windowsGccTriple}/lib32",
+		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib32",
 	}
 
 	windowsX8664Ldflags = []string{
 		"-m64",
-		"-L${windowsGccRoot}/${windowsGccTriple}/lib64",
+		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib64",
 	}
 
 	windowsAvailableLibraries = addPrefix([]string{
@@ -93,22 +93,22 @@ const (
 )
 
 func init() {
-	pctx.StaticVariable("windowsGccVersion", windowsGccVersion)
+	pctx.StaticVariable("WindowsGccVersion", windowsGccVersion)
 
-	pctx.SourcePathVariable("windowsGccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-w64-mingw32-${windowsGccVersion}")
+	pctx.SourcePathVariable("WindowsGccRoot",
+		"prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-w64-mingw32-${WindowsGccVersion}")
 
-	pctx.StaticVariable("windowsGccTriple", "x86_64-w64-mingw32")
+	pctx.StaticVariable("WindowsGccTriple", "x86_64-w64-mingw32")
 
-	pctx.StaticVariable("windowsCflags", strings.Join(windowsCflags, " "))
-	pctx.StaticVariable("windowsLdflags", strings.Join(windowsLdflags, " "))
+	pctx.StaticVariable("WindowsCflags", strings.Join(windowsCflags, " "))
+	pctx.StaticVariable("WindowsLdflags", strings.Join(windowsLdflags, " "))
 
-	pctx.StaticVariable("windowsX86Cflags", strings.Join(windowsX86Cflags, " "))
-	pctx.StaticVariable("windowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
-	pctx.StaticVariable("windowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
-	pctx.StaticVariable("windowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
+	pctx.StaticVariable("WindowsX86Cflags", strings.Join(windowsX86Cflags, " "))
+	pctx.StaticVariable("WindowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
+	pctx.StaticVariable("WindowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
+	pctx.StaticVariable("WindowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
 
-	pctx.StaticVariable("windowsIncludeFlags", strings.Join(windowsIncludeFlags, " "))
+	pctx.StaticVariable("WindowsIncludeFlags", strings.Join(windowsIncludeFlags, " "))
 }
 
 type toolchainWindows struct {
@@ -134,11 +134,11 @@ func (t *toolchainWindowsX8664) Name() string {
 }
 
 func (t *toolchainWindows) GccRoot() string {
-	return "${windowsGccRoot}"
+	return "${config.WindowsGccRoot}"
 }
 
 func (t *toolchainWindows) GccTriple() string {
-	return "${windowsGccTriple}"
+	return "${config.WindowsGccTriple}"
 }
 
 func (t *toolchainWindows) GccVersion() string {
@@ -146,11 +146,11 @@ func (t *toolchainWindows) GccVersion() string {
 }
 
 func (t *toolchainWindowsX86) Cflags() string {
-	return "${windowsCflags} ${windowsX86Cflags}"
+	return "${config.WindowsCflags} ${config.WindowsX86Cflags}"
 }
 
 func (t *toolchainWindowsX8664) Cflags() string {
-	return "${windowsCflags} ${windowsX8664Cflags}"
+	return "${config.WindowsCflags} ${config.WindowsX8664Cflags}"
 }
 
 func (t *toolchainWindows) Cppflags() string {
@@ -158,15 +158,15 @@ func (t *toolchainWindows) Cppflags() string {
 }
 
 func (t *toolchainWindowsX86) Ldflags() string {
-	return "${windowsLdflags} ${windowsX86Ldflags}"
+	return "${config.WindowsLdflags} ${config.WindowsX86Ldflags}"
 }
 
 func (t *toolchainWindowsX8664) Ldflags() string {
-	return "${windowsLdflags} ${windowsX8664Ldflags}"
+	return "${config.WindowsLdflags} ${config.WindowsX8664Ldflags}"
 }
 
 func (t *toolchainWindows) IncludeFlags() string {
-	return "${windowsIncludeFlags}"
+	return "${config.WindowsIncludeFlags}"
 }
 
 func (t *toolchainWindows) ClangSupported() bool {
