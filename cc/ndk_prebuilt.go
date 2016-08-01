@@ -22,6 +22,7 @@ import (
 
 	"android/soong"
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 func init() {
@@ -37,7 +38,7 @@ func init() {
 // either (with the exception of the shared STLs, which are installed to the app's directory rather
 // than to the system image).
 
-func getNdkLibDir(ctx android.ModuleContext, toolchain Toolchain, version string) android.SourcePath {
+func getNdkLibDir(ctx android.ModuleContext, toolchain config.Toolchain, version string) android.SourcePath {
 	suffix := ""
 	// Most 64-bit NDK prebuilts store libraries in "lib64", except for arm64 which is not a
 	// multilib toolchain and stores the libraries in "lib".
@@ -48,7 +49,7 @@ func getNdkLibDir(ctx android.ModuleContext, toolchain Toolchain, version string
 		version, toolchain.Name(), suffix))
 }
 
-func ndkPrebuiltModuleToPath(ctx android.ModuleContext, toolchain Toolchain,
+func ndkPrebuiltModuleToPath(ctx android.ModuleContext, toolchain config.Toolchain,
 	ext string, version string) android.Path {
 
 	// NDK prebuilts are named like: ndk_NAME.EXT.SDK_VERSION.
@@ -144,7 +145,7 @@ func ndkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
 	return module.Init()
 }
 
-func getNdkStlLibDir(ctx android.ModuleContext, toolchain Toolchain, stl string) android.SourcePath {
+func getNdkStlLibDir(ctx android.ModuleContext, toolchain config.Toolchain, stl string) android.SourcePath {
 	gccVersion := toolchain.GccVersion()
 	var libDir string
 	switch stl {

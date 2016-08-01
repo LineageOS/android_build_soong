@@ -1,4 +1,18 @@
-package cc
+// Copyright 2016 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package config
 
 import (
 	"fmt"
@@ -55,20 +69,20 @@ var (
 		"-m64",
 	}
 
-	darwinClangCflags = append(clangFilterUnknownCflags(darwinCflags), []string{
+	darwinClangCflags = append(ClangFilterUnknownCflags(darwinCflags), []string{
 		"-integrated-as",
 		"-fstack-protector-strong",
 	}...)
 
-	darwinX86ClangCflags = append(clangFilterUnknownCflags(darwinX86Cflags), []string{
+	darwinX86ClangCflags = append(ClangFilterUnknownCflags(darwinX86Cflags), []string{
 		"-msse3",
 	}...)
 
-	darwinClangLdflags = clangFilterUnknownCflags(darwinLdflags)
+	darwinClangLdflags = ClangFilterUnknownCflags(darwinLdflags)
 
-	darwinX86ClangLdflags = clangFilterUnknownCflags(darwinX86Ldflags)
+	darwinX86ClangLdflags = ClangFilterUnknownCflags(darwinX86Ldflags)
 
-	darwinX8664ClangLdflags = clangFilterUnknownCflags(darwinX8664Ldflags)
+	darwinX8664ClangLdflags = ClangFilterUnknownCflags(darwinX8664Ldflags)
 
 	darwinSupportedSdkVersions = []string{
 		"10.8",
@@ -96,44 +110,43 @@ func init() {
 		bytes, err := exec.Command("xcode-select", "--print-path").Output()
 		return strings.TrimSpace(string(bytes)), err
 	})
-	pctx.StaticVariable("macToolchainRoot", "${macSdkPath}/Toolchains/XcodeDefault.xctoolchain")
 	pctx.VariableFunc("macSdkRoot", func(config interface{}) (string, error) {
 		return xcrunSdk(config.(android.Config), "--show-sdk-path")
 	})
 	pctx.StaticVariable("macSdkVersion", darwinSupportedSdkVersions[0])
-	pctx.VariableFunc("macArPath", func(config interface{}) (string, error) {
+	pctx.VariableFunc("MacArPath", func(config interface{}) (string, error) {
 		bytes, err := exec.Command("xcrun", "--find", "ar").Output()
 		return strings.TrimSpace(string(bytes)), err
 	})
 
-	pctx.VariableFunc("macStripPath", func(config interface{}) (string, error) {
+	pctx.VariableFunc("MacStripPath", func(config interface{}) (string, error) {
 		bytes, err := exec.Command("xcrun", "--find", "strip").Output()
 		return strings.TrimSpace(string(bytes)), err
 	})
 
-	pctx.StaticVariable("darwinGccVersion", darwinGccVersion)
-	pctx.SourcePathVariable("darwinGccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${darwinGccVersion}")
+	pctx.StaticVariable("DarwinGccVersion", darwinGccVersion)
+	pctx.SourcePathVariable("DarwinGccRoot",
+		"prebuilts/gcc/${HostPrebuiltTag}/host/i686-apple-darwin-${DarwinGccVersion}")
 
-	pctx.StaticVariable("darwinGccTriple", "i686-apple-darwin11")
+	pctx.StaticVariable("DarwinGccTriple", "i686-apple-darwin11")
 
-	pctx.StaticVariable("darwinCflags", strings.Join(darwinCflags, " "))
-	pctx.StaticVariable("darwinLdflags", strings.Join(darwinLdflags, " "))
+	pctx.StaticVariable("DarwinCflags", strings.Join(darwinCflags, " "))
+	pctx.StaticVariable("DarwinLdflags", strings.Join(darwinLdflags, " "))
 
-	pctx.StaticVariable("darwinClangCflags", strings.Join(darwinClangCflags, " "))
-	pctx.StaticVariable("darwinClangLdflags", strings.Join(darwinClangLdflags, " "))
+	pctx.StaticVariable("DarwinClangCflags", strings.Join(darwinClangCflags, " "))
+	pctx.StaticVariable("DarwinClangLdflags", strings.Join(darwinClangLdflags, " "))
 
 	// Extended cflags
-	pctx.StaticVariable("darwinX86Cflags", strings.Join(darwinX86Cflags, " "))
-	pctx.StaticVariable("darwinX8664Cflags", strings.Join(darwinX8664Cflags, " "))
-	pctx.StaticVariable("darwinX86Ldflags", strings.Join(darwinX86Ldflags, " "))
-	pctx.StaticVariable("darwinX8664Ldflags", strings.Join(darwinX8664Ldflags, " "))
+	pctx.StaticVariable("DarwinX86Cflags", strings.Join(darwinX86Cflags, " "))
+	pctx.StaticVariable("DarwinX8664Cflags", strings.Join(darwinX8664Cflags, " "))
+	pctx.StaticVariable("DarwinX86Ldflags", strings.Join(darwinX86Ldflags, " "))
+	pctx.StaticVariable("DarwinX8664Ldflags", strings.Join(darwinX8664Ldflags, " "))
 
-	pctx.StaticVariable("darwinX86ClangCflags", strings.Join(darwinX86ClangCflags, " "))
-	pctx.StaticVariable("darwinX8664ClangCflags",
-		strings.Join(clangFilterUnknownCflags(darwinX8664Cflags), " "))
-	pctx.StaticVariable("darwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
-	pctx.StaticVariable("darwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
+	pctx.StaticVariable("DarwinX86ClangCflags", strings.Join(darwinX86ClangCflags, " "))
+	pctx.StaticVariable("DarwinX8664ClangCflags",
+		strings.Join(ClangFilterUnknownCflags(darwinX8664Cflags), " "))
+	pctx.StaticVariable("DarwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
+	pctx.StaticVariable("DarwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
 }
 
 func xcrunSdk(config android.Config, arg string) (string, error) {
@@ -181,11 +194,11 @@ func (t *toolchainDarwinX8664) Name() string {
 }
 
 func (t *toolchainDarwin) GccRoot() string {
-	return "${darwinGccRoot}"
+	return "${config.DarwinGccRoot}"
 }
 
 func (t *toolchainDarwin) GccTriple() string {
-	return "${darwinGccTriple}"
+	return "${config.DarwinGccTriple}"
 }
 
 func (t *toolchainDarwin) GccVersion() string {
@@ -193,11 +206,11 @@ func (t *toolchainDarwin) GccVersion() string {
 }
 
 func (t *toolchainDarwin) Cflags() string {
-	return "${darwinCflags} ${darwinX86Cflags}"
+	return "${config.DarwinCflags} ${config.DarwinX86Cflags}"
 }
 
 func (t *toolchainDarwinX8664) Cflags() string {
-	return "${darwinCflags} ${darwinX8664Cflags}"
+	return "${config.DarwinCflags} ${config.DarwinX8664Cflags}"
 }
 
 func (t *toolchainDarwin) Cppflags() string {
@@ -205,11 +218,11 @@ func (t *toolchainDarwin) Cppflags() string {
 }
 
 func (t *toolchainDarwinX86) Ldflags() string {
-	return "${darwinLdflags} ${darwinX86Ldflags}"
+	return "${config.DarwinLdflags} ${config.DarwinX86Ldflags}"
 }
 
 func (t *toolchainDarwinX8664) Ldflags() string {
-	return "${darwinLdflags} ${darwinX8664Ldflags}"
+	return "${config.DarwinLdflags} ${config.DarwinX8664Ldflags}"
 }
 
 func (t *toolchainDarwin) IncludeFlags() string {
@@ -221,7 +234,7 @@ func (t *toolchainDarwinX86) ClangTriple() string {
 }
 
 func (t *toolchainDarwinX86) ClangCflags() string {
-	return "${darwinClangCflags} ${darwinX86ClangCflags}"
+	return "${config.DarwinClangCflags} ${config.DarwinX86ClangCflags}"
 }
 
 func (t *toolchainDarwinX8664) ClangTriple() string {
@@ -229,7 +242,7 @@ func (t *toolchainDarwinX8664) ClangTriple() string {
 }
 
 func (t *toolchainDarwinX8664) ClangCflags() string {
-	return "${darwinClangCflags} ${darwinX8664ClangCflags}"
+	return "${config.DarwinClangCflags} ${config.DarwinX8664ClangCflags}"
 }
 
 func (t *toolchainDarwin) ClangCppflags() string {
@@ -237,11 +250,11 @@ func (t *toolchainDarwin) ClangCppflags() string {
 }
 
 func (t *toolchainDarwinX86) ClangLdflags() string {
-	return "${darwinClangLdflags} ${darwinX86ClangLdflags}"
+	return "${config.DarwinClangLdflags} ${config.DarwinX86ClangLdflags}"
 }
 
 func (t *toolchainDarwinX8664) ClangLdflags() string {
-	return "${darwinClangLdflags} ${darwinX8664ClangLdflags}"
+	return "${config.DarwinClangLdflags} ${config.DarwinX8664ClangLdflags}"
 }
 
 func (t *toolchainDarwin) ShlibSuffix() string {

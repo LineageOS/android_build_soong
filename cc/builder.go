@@ -19,15 +19,16 @@ package cc
 // functions.
 
 import (
-	"android/soong/android"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strconv"
-
-	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
+
+	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 const (
@@ -79,16 +80,16 @@ var (
 
 	darwinAr = pctx.StaticRule("darwinAr",
 		blueprint.RuleParams{
-			Command:     "rm -f ${out} && ${macArPath} $arFlags $out $in",
-			CommandDeps: []string{"${macArPath}"},
+			Command:     "rm -f ${out} && ${config.MacArPath} $arFlags $out $in",
+			CommandDeps: []string{"${config.MacArPath}"},
 			Description: "ar $out",
 		},
 		"arFlags")
 
 	darwinAppendAr = pctx.StaticRule("darwinAppendAr",
 		blueprint.RuleParams{
-			Command:     "cp -f ${inAr} ${out}.tmp && ${macArPath} $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
-			CommandDeps: []string{"${macArPath}", "${inAr}"},
+			Command:     "cp -f ${inAr} ${out}.tmp && ${config.MacArPath} $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
+			CommandDeps: []string{"${config.MacArPath}", "${inAr}"},
 			Description: "ar $out",
 		},
 		"arFlags", "inAr")
@@ -161,7 +162,7 @@ type builderFlags struct {
 	libFlags    string
 	yaccFlags   string
 	nocrt       bool
-	toolchain   Toolchain
+	toolchain   config.Toolchain
 	clang       bool
 
 	stripKeepSymbols       bool
@@ -180,11 +181,11 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 	asflags := flags.globalFlags + " " + flags.asFlags
 
 	if flags.clang {
-		cflags += " ${noOverrideClangGlobalCflags}"
-		cppflags += " ${noOverrideClangGlobalCflags}"
+		cflags += " ${config.NoOverrideClangGlobalCflags}"
+		cppflags += " ${config.NoOverrideClangGlobalCflags}"
 	} else {
-		cflags += " ${noOverrideGlobalCflags}"
-		cppflags += " ${noOverrideGlobalCflags}"
+		cflags += " ${config.NoOverrideGlobalCflags}"
+		cppflags += " ${config.NoOverrideGlobalCflags}"
 	}
 
 	for i, srcFile := range srcFiles {
@@ -220,7 +221,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				panic("unrecoginzied ccCmd")
 			}
 
-			ccCmd = "${clangBin}/" + ccCmd
+			ccCmd = "${config.ClangBin}/" + ccCmd
 		} else {
 			ccCmd = gccCmd(flags.toolchain, ccCmd)
 		}
@@ -345,7 +346,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 
 	var ldCmd string
 	if flags.clang {
-		ldCmd = "${clangBin}/clang++"
+		ldCmd = "${config.ClangBin}/clang++"
 	} else {
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}
@@ -416,7 +417,7 @@ func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 
 	var ldCmd string
 	if flags.clang {
-		ldCmd = "${clangBin}clang++"
+		ldCmd = "${config.ClangBin}/clang++"
 	} else {
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}
@@ -499,7 +500,7 @@ func CopyGccLib(ctx android.ModuleContext, libName string,
 	})
 }
 
-func gccCmd(toolchain Toolchain, cmd string) string {
+func gccCmd(toolchain config.Toolchain, cmd string) string {
 	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
 }
 
