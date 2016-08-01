@@ -149,13 +149,13 @@ type libraryCompiler struct {
 
 var _ compiler = (*libraryCompiler)(nil)
 
-func (library *libraryCompiler) props() []interface{} {
-	props := library.baseCompiler.props()
+func (library *libraryCompiler) compilerProps() []interface{} {
+	props := library.baseCompiler.compilerProps()
 	return append(props, &library.Properties)
 }
 
-func (library *libraryCompiler) flags(ctx ModuleContext, flags Flags) Flags {
-	flags = library.baseCompiler.flags(ctx, flags)
+func (library *libraryCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = library.baseCompiler.compilerFlags(ctx, flags)
 
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
@@ -227,8 +227,8 @@ type libraryInterface interface {
 	objs() android.Paths
 }
 
-func (library *libraryLinker) props() []interface{} {
-	props := library.baseLinker.props()
+func (library *libraryLinker) linkerProps() []interface{} {
+	props := library.baseLinker.linkerProps()
 	return append(props,
 		&library.Properties,
 		&library.dynamicProperties,
@@ -251,8 +251,8 @@ func (library *libraryLinker) getLibName(ctx ModuleContext) string {
 	return name + library.Properties.VariantName
 }
 
-func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
-	flags = library.baseLinker.flags(ctx, flags)
+func (library *libraryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = library.baseLinker.linkerFlags(ctx, flags)
 
 	if !library.static() {
 		libName := library.getLibName(ctx)
@@ -288,8 +288,8 @@ func (library *libraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (library *libraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = library.baseLinker.deps(ctx, deps)
+func (library *libraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = library.baseLinker.linkerDeps(ctx, deps)
 	if library.static() {
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Static.Whole_static_libs...)
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)

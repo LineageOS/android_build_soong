@@ -211,14 +211,14 @@ type stubLinker struct {
 	libraryLinker
 }
 
-func (linker *stubLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (linker *stubLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	return Deps{}
 }
 
-func (linker *stubLinker) flags(ctx ModuleContext, flags Flags) Flags {
+func (linker *stubLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	linker.libraryLinker.libName = strings.TrimSuffix(ctx.ModuleName(),
 		ndkLibrarySuffix)
-	return linker.libraryLinker.flags(ctx, flags)
+	return linker.libraryLinker.linkerFlags(ctx, flags)
 }
 
 type stubInstaller struct {

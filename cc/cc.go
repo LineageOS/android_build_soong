@@ -170,21 +170,29 @@ type feature interface {
 }
 
 type compiler interface {
-	feature
+	compilerInit(ctx BaseModuleContext)
+	compilerDeps(ctx BaseModuleContext, deps Deps) Deps
+	compilerFlags(ctx ModuleContext, flags Flags) Flags
+	compilerProps() []interface{}
+
 	appendCflags([]string)
 	appendAsflags([]string)
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths
 }
 
 type linker interface {
-	feature
+	linkerInit(ctx BaseModuleContext)
+	linkerDeps(ctx BaseModuleContext, deps Deps) Deps
+	linkerFlags(ctx ModuleContext, flags Flags) Flags
+	linkerProps() []interface{}
+
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles android.Paths) android.Path
 	appendLdflags([]string)
 	installable() bool
 }
 
 type installer interface {
-	props() []interface{}
+	installerProps() []interface{}
 	install(ctx ModuleContext, path android.Path)
 	inData() bool
 }
@@ -251,13 +259,13 @@ func (c *Module) Init() (blueprint.Module, []interface{}) {
 		props = append(props, c.Customizer.Properties()...)
 	}
 	if c.compiler != nil {
-		props = append(props, c.compiler.props()...)
+		props = append(props, c.compiler.compilerProps()...)
 	}
 	if c.linker != nil {
-		props = append(props, c.linker.props()...)
+		props = append(props, c.linker.linkerProps()...)
 	}
 	if c.installer != nil {
-		props = append(props, c.installer.props()...)
+		props = append(props, c.installer.installerProps()...)
 	}
 	if c.stl != nil {
 		props = append(props, c.stl.props()...)
@@ -391,10 +399,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		Clang:     c.clang(ctx),
 	}
 	if c.compiler != nil {
-		flags = c.compiler.flags(ctx, flags)
+		flags = c.compiler.compilerFlags(ctx, flags)
 	}
 	if c.linker != nil {
-		flags = c.linker.flags(ctx, flags)
+		flags = c.linker.linkerFlags(ctx, flags)
 	}
 	if c.stl != nil {
 		flags = c.stl.flags(ctx, flags)
@@ -462,10 +470,10 @@ func (c *Module) toolchain(ctx BaseModuleContext) config.Toolchain {
 
 func (c *Module) begin(ctx BaseModuleContext) {
 	if c.compiler != nil {
-		c.compiler.begin(ctx)
+		c.compiler.compilerInit(ctx)
 	}
 	if c.linker != nil {
-		c.linker.begin(ctx)
+		c.linker.linkerInit(ctx)
 	}
 	if c.stl != nil {
 		c.stl.begin(ctx)
@@ -482,10 +490,10 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	deps := Deps{}
 
 	if c.compiler != nil {
-		deps = c.compiler.deps(ctx, deps)
+		deps = c.compiler.compilerDeps(ctx, deps)
 	}
 	if c.linker != nil {
-		deps = c.linker.deps(ctx, deps)
+		deps = c.linker.linkerDeps(ctx, deps)
 	}
 	if c.stl != nil {
 		deps = c.stl.deps(ctx, deps)
@@ -850,7 +858,7 @@ type toolchainLibraryLinker struct {
 
 var _ baseLinkerInterface = (*toolchainLibraryLinker)(nil)
 
-func (*toolchainLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (*toolchainLibraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	// toolchain libraries can't have any dependencies
 	return deps
 }

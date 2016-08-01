@@ -82,7 +82,7 @@ func (linker *baseLinker) appendLdflags(flags []string) {
 	linker.Properties.Ldflags = append(linker.Properties.Ldflags, flags...)
 }
 
-func (linker *baseLinker) begin(ctx BaseModuleContext) {
+func (linker *baseLinker) linkerInit(ctx BaseModuleContext) {
 	if ctx.toolchain().Is64Bit() {
 		linker.dynamicProperties.RunPaths = []string{"../lib64", "lib64"}
 	} else {
@@ -90,11 +90,11 @@ func (linker *baseLinker) begin(ctx BaseModuleContext) {
 	}
 }
 
-func (linker *baseLinker) props() []interface{} {
+func (linker *baseLinker) linkerProps() []interface{} {
 	return []interface{}{&linker.Properties, &linker.dynamicProperties}
 }
 
-func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Shared_libs...)
@@ -133,7 +133,7 @@ func (linker *baseLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-func (linker *baseLinker) flags(ctx ModuleContext, flags Flags) Flags {
+func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
 	flags.Nocrt = Bool(linker.Properties.Nocrt)
