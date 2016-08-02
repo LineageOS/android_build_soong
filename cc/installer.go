@@ -42,7 +42,7 @@ type baseInstaller struct {
 
 var _ installer = (*baseInstaller)(nil)
 
-func (installer *baseInstaller) props() []interface{} {
+func (installer *baseInstaller) installerProps() []interface{} {
 	return []interface{}{&installer.Properties}
 }
 

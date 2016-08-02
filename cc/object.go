@@ -46,18 +46,18 @@ func (object *objectLinker) appendLdflags(flags []string) {
 	panic(fmt.Errorf("appendLdflags on object Linker not supported"))
 }
 
-func (object *objectLinker) props() []interface{} {
+func (object *objectLinker) linkerProps() []interface{} {
 	return []interface{}{&object.Properties}
 }
 
-func (*objectLinker) begin(ctx BaseModuleContext) {}
+func (*objectLinker) linkerInit(ctx BaseModuleContext) {}
 
-func (object *objectLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (object *objectLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.ObjFiles = append(deps.ObjFiles, object.Properties.Objs...)
 	return deps
 }
 
-func (*objectLinker) flags(ctx ModuleContext, flags Flags) Flags {
+func (*objectLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	if flags.Clang {
 		flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainClangLdflags())
 	} else {
