@@ -93,7 +93,7 @@ type testLinker struct {
 	Properties TestLinkerProperties
 }
 
-func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
+func (test *testLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	if !test.Properties.Gtest {
 		return flags
 	}
@@ -119,7 +119,7 @@ func (test *testLinker) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (test *testLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (test *testLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	if test.Properties.Gtest {
 		if ctx.sdk() && ctx.Device() {
 			switch ctx.selectedStl() {
@@ -142,8 +142,8 @@ type testBinaryLinker struct {
 	binaryLinker
 }
 
-func (test *testBinaryLinker) begin(ctx BaseModuleContext) {
-	test.binaryLinker.begin(ctx)
+func (test *testBinaryLinker) linkerInit(ctx BaseModuleContext) {
+	test.binaryLinker.linkerInit(ctx)
 	runpath := "../../lib"
 	if ctx.toolchain().Is64Bit() {
 		runpath += "64"
@@ -151,19 +151,19 @@ func (test *testBinaryLinker) begin(ctx BaseModuleContext) {
 	test.dynamicProperties.RunPaths = append([]string{runpath}, test.dynamicProperties.RunPaths...)
 }
 
-func (test *testBinaryLinker) props() []interface{} {
-	return append(test.binaryLinker.props(), &test.testLinker.Properties)
+func (test *testBinaryLinker) linkerProps() []interface{} {
+	return append(test.binaryLinker.linkerProps(), &test.testLinker.Properties)
 }
 
-func (test *testBinaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
-	flags = test.binaryLinker.flags(ctx, flags)
-	flags = test.testLinker.flags(ctx, flags)
+func (test *testBinaryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = test.binaryLinker.linkerFlags(ctx, flags)
+	flags = test.testLinker.linkerFlags(ctx, flags)
 	return flags
 }
 
-func (test *testBinaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = test.testLinker.deps(ctx, deps)
-	deps = test.binaryLinker.deps(ctx, deps)
+func (test *testBinaryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = test.testLinker.linkerDeps(ctx, deps)
+	deps = test.binaryLinker.linkerDeps(ctx, deps)
 	return deps
 }
 
@@ -172,19 +172,19 @@ type testLibraryLinker struct {
 	*libraryLinker
 }
 
-func (test *testLibraryLinker) props() []interface{} {
-	return append(test.libraryLinker.props(), &test.testLinker.Properties)
+func (test *testLibraryLinker) linkerProps() []interface{} {
+	return append(test.libraryLinker.linkerProps(), &test.testLinker.Properties)
 }
 
-func (test *testLibraryLinker) flags(ctx ModuleContext, flags Flags) Flags {
-	flags = test.libraryLinker.flags(ctx, flags)
-	flags = test.testLinker.flags(ctx, flags)
+func (test *testLibraryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = test.libraryLinker.linkerFlags(ctx, flags)
+	flags = test.testLinker.linkerFlags(ctx, flags)
 	return flags
 }
 
-func (test *testLibraryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = test.testLinker.deps(ctx, deps)
-	deps = test.libraryLinker.deps(ctx, deps)
+func (test *testLibraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = test.testLinker.linkerDeps(ctx, deps)
+	deps = test.libraryLinker.linkerDeps(ctx, deps)
 	return deps
 }
 
@@ -235,8 +235,8 @@ type benchmarkLinker struct {
 	testBinaryLinker
 }
 
-func (benchmark *benchmarkLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = benchmark.testBinaryLinker.deps(ctx, deps)
+func (benchmark *benchmarkLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = benchmark.testBinaryLinker.linkerDeps(ctx, deps)
 	deps.StaticLibs = append(deps.StaticLibs, "libgoogle-benchmark")
 	return deps
 }
