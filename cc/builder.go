@@ -96,8 +96,8 @@ var (
 
 	darwinStrip = pctx.StaticRule("darwinStrip",
 		blueprint.RuleParams{
-			Command:     "${macStripPath} -u -r -o $out $in",
-			CommandDeps: []string{"${macStripPath}"},
+			Command:     "${config.MacStripPath} -u -r -o $out $in",
+			CommandDeps: []string{"${config.MacStripPath}"},
 			Description: "strip $out",
 		})
 
