@@ -67,8 +67,8 @@ type binaryLinker struct {
 
 var _ linker = (*binaryLinker)(nil)
 
-func (binary *binaryLinker) props() []interface{} {
-	return append(binary.baseLinker.props(),
+func (binary *binaryLinker) linkerProps() []interface{} {
+	return append(binary.baseLinker.linkerProps(),
 		&binary.Properties,
 		&binary.stripper.StripProperties)
 
@@ -91,8 +91,8 @@ func (binary *binaryLinker) getStem(ctx BaseModuleContext) string {
 	return stem + binary.Properties.Suffix
 }
 
-func (binary *binaryLinker) deps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = binary.baseLinker.deps(ctx, deps)
+func (binary *binaryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = binary.baseLinker.linkerDeps(ctx, deps)
 	if ctx.Device() {
 		if !Bool(binary.baseLinker.Properties.Nocrt) {
 			if !ctx.sdk() {
@@ -155,8 +155,8 @@ func NewBinary(hod android.HostOrDeviceSupported) *Module {
 	return module
 }
 
-func (binary *binaryLinker) begin(ctx BaseModuleContext) {
-	binary.baseLinker.begin(ctx)
+func (binary *binaryLinker) linkerInit(ctx BaseModuleContext) {
+	binary.baseLinker.linkerInit(ctx)
 
 	static := Bool(binary.Properties.Static_executable)
 	if ctx.Host() {
@@ -175,8 +175,8 @@ func (binary *binaryLinker) begin(ctx BaseModuleContext) {
 	}
 }
 
-func (binary *binaryLinker) flags(ctx ModuleContext, flags Flags) Flags {
-	flags = binary.baseLinker.flags(ctx, flags)
+func (binary *binaryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = binary.baseLinker.linkerFlags(ctx, flags)
 
 	if ctx.Host() && !binary.staticBinary() {
 		flags.LdFlags = append(flags.LdFlags, "-pie")

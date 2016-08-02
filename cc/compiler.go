@@ -103,13 +103,13 @@ func (compiler *baseCompiler) appendAsflags(flags []string) {
 	compiler.Properties.Asflags = append(compiler.Properties.Asflags, flags...)
 }
 
-func (compiler *baseCompiler) props() []interface{} {
+func (compiler *baseCompiler) compilerProps() []interface{} {
 	return []interface{}{&compiler.Properties}
 }
 
-func (compiler *baseCompiler) begin(ctx BaseModuleContext) {}
+func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 
-func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (compiler *baseCompiler) compilerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
 
@@ -118,7 +118,7 @@ func (compiler *baseCompiler) deps(ctx BaseModuleContext, deps Deps) Deps {
 
 // Create a Flags struct that collects the compile flags from global values,
 // per-target values, module type values, and per-module Blueprints properties
-func (compiler *baseCompiler) flags(ctx ModuleContext, flags Flags) Flags {
+func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	tc := ctx.toolchain()
 
 	CheckBadCompilerFlags(ctx, "cflags", compiler.Properties.Cflags)
