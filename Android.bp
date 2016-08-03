@@ -10,6 +10,8 @@
 //    2) Build again
 //
 
+subdirs = ["third_party/zip"]
+
 bootstrap_go_binary {
     name: "soong_build",
     deps: [
@@ -192,6 +194,14 @@ bootstrap_go_package {
         "genrule/genrule.go",
     ],
     pluginFor: ["soong_build"],
+}
+
+blueprint_go_binary {
+    name: "zip2zip",
+    deps: ["android-archive-zip"],
+    srcs: [
+        "cmd/zip2zip/zip2zip.go",
+    ],
 }
 
 blueprint_go_binary {
