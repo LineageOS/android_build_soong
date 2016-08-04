@@ -41,7 +41,7 @@ func (l *fileArgs) Set(s string) error {
 		return fmt.Errorf("must pass -C before -f")
 	}
 
-	*l = append(*l, fileArg{*relativeRoot, s})
+	*l = append(*l, fileArg{filepath.Clean(*relativeRoot), s})
 	return nil
 }
 
@@ -162,6 +162,8 @@ func (z *zipWriter) writeListFile(listFile fileArg) error {
 }
 
 func (z *zipWriter) writeRelFile(root, file string) error {
+	file = filepath.Clean(file)
+
 	rel, err := filepath.Rel(root, file)
 	if err != nil {
 		return err
@@ -176,11 +178,17 @@ func (z *zipWriter) writeRelFile(root, file string) error {
 }
 
 func (z *zipWriter) writeFile(rel, file string) error {
-	if s, _ := os.Stat(file); s.IsDir() {
+	if s, err := os.Lstat(file); err != nil {
+		return err
+	} else if s.IsDir() {
 		if z.directories {
-			return z.writeDirectory(file)
+			return z.writeDirectory(rel)
 		}
 		return nil
+	} else if s.Mode()&os.ModeSymlink != 0 {
+		return z.writeSymlink(rel, file)
+	} else if !s.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a file, directory, or symlink", file)
 	}
 
 	if z.directories {
@@ -217,13 +225,17 @@ func (z *zipWriter) writeFile(rel, file string) error {
 }
 
 func (z *zipWriter) writeDirectory(dir string) error {
-	for dir != "" && !z.createdDirs[dir] {
+	if dir != "" && !strings.HasSuffix(dir, "/") {
+		dir = dir + "/"
+	}
+
+	for dir != "" && dir != "./" && !z.createdDirs[dir] {
 		z.createdDirs[dir] = true
 
 		dirHeader := &zip.FileHeader{
 			Name: dir,
 		}
-		dirHeader.SetMode(os.ModeDir)
+		dirHeader.SetMode(0700 | os.ModeDir)
 		dirHeader.SetModTime(z.time)
 
 		_, err := z.w.CreateHeader(dirHeader)
@@ -235,4 +247,32 @@ func (z *zipWriter) writeDirectory(dir string) error {
 	}
 
 	return nil
+}
+
+func (z *zipWriter) writeSymlink(rel, file string) error {
+	if z.directories {
+		dir, _ := filepath.Split(rel)
+		if err := z.writeDirectory(dir); err != nil {
+			return err
+		}
+	}
+
+	fileHeader := &zip.FileHeader{
+		Name: rel,
+	}
+	fileHeader.SetModTime(z.time)
+	fileHeader.SetMode(0700 | os.ModeSymlink)
+
+	out, err := z.w.CreateHeader(fileHeader)
+	if err != nil {
+		return err
+	}
+
+	dest, err := os.Readlink(file)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(out, dest)
+	return err
 }
