@@ -56,8 +56,6 @@ type androidBaseContext interface {
 	Darwin() bool
 	Debug() bool
 	AConfig() Config
-	Proprietary() bool
-	InstallInData() bool
 }
 
 type BaseContext interface {
@@ -82,6 +80,9 @@ type ModuleContext interface {
 	CheckbuildFile(srcPath Path)
 
 	AddMissingDependencies(deps []string)
+
+	Proprietary() bool
+	InstallInData() bool
 }
 
 type Module interface {
@@ -387,15 +388,14 @@ func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 
 func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
 	return androidBaseContextImpl{
-		target:        a.commonProperties.CompileTarget,
-		proprietary:   a.commonProperties.Proprietary,
-		config:        ctx.Config().(Config),
-		installInData: a.module.InstallInData(),
+		target: a.commonProperties.CompileTarget,
+		config: ctx.Config().(Config),
 	}
 }
 
 func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	androidCtx := &androidModuleContext{
+		module:                 a.module,
 		ModuleContext:          ctx,
 		androidBaseContextImpl: a.androidBaseContextFactory(ctx),
 		installDeps:            a.computeInstallDeps(ctx),
@@ -422,11 +422,9 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 }
 
 type androidBaseContextImpl struct {
-	target        Target
-	debug         bool
-	config        Config
-	proprietary   bool
-	installInData bool
+	target Target
+	debug  bool
+	config Config
 }
 
 type androidModuleContext struct {
@@ -436,6 +434,7 @@ type androidModuleContext struct {
 	installFiles    Paths
 	checkbuildFiles Paths
 	missingDeps     []string
+	module          Module
 }
 
 func (a *androidModuleContext) ninjaError(outputs []string, err error) {
@@ -533,12 +532,12 @@ func (a *androidBaseContextImpl) AConfig() Config {
 	return a.config
 }
 
-func (a *androidBaseContextImpl) Proprietary() bool {
-	return a.proprietary
+func (a *androidModuleContext) Proprietary() bool {
+	return a.module.base().commonProperties.Proprietary
 }
 
-func (a *androidBaseContextImpl) InstallInData() bool {
-	return a.installInData
+func (a *androidModuleContext) InstallInData() bool {
+	return a.module.InstallInData()
 }
 
 func (a *androidModuleContext) InstallFileName(installPath OutputPath, name string, srcPath Path,
