@@ -93,6 +93,8 @@ type stubCompiler struct {
 	baseCompiler
 
 	properties libraryProperties
+
+	linker *stubLinker
 }
 
 // OMG GO
@@ -175,6 +177,7 @@ func (c *stubCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) an
 	stubSrcPath := android.PathForModuleGen(ctx, stubSrcName)
 	versionScriptName := fileBase + ".map"
 	versionScriptPath := android.PathForModuleGen(ctx, versionScriptName)
+	c.linker.versionScriptPath = versionScriptPath
 	symbolFilePath := android.PathForModuleSrc(ctx, c.properties.Symbol_file)
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:    genStubSrc,
@@ -209,6 +212,8 @@ func (c *stubCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) an
 
 type stubLinker struct {
 	libraryLinker
+
+	versionScriptPath android.ModuleGenPath
 }
 
 func (linker *stubLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
@@ -219,6 +224,14 @@ func (linker *stubLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	linker.libraryLinker.libName = strings.TrimSuffix(ctx.ModuleName(),
 		ndkLibrarySuffix)
 	return linker.libraryLinker.linkerFlags(ctx, flags)
+}
+
+func (linker *stubLinker) link(ctx ModuleContext, flags Flags, deps PathDeps,
+	objFiles android.Paths) android.Path {
+
+	linkerScriptFlag := "-Wl,--version-script," + linker.versionScriptPath.String()
+	flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+	return linker.libraryLinker.link(ctx, flags, deps, objFiles)
 }
 
 type stubInstaller struct {
@@ -258,6 +271,7 @@ func newStubLibrary() *Module {
 	module.linker = linker
 
 	compiler := &stubCompiler{}
+	compiler.linker = linker
 	module.compiler = compiler
 	module.installer = &stubInstaller{baseInstaller{
 		dir:   "lib",
