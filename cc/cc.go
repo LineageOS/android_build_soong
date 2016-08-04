@@ -20,6 +20,7 @@ package cc
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -654,33 +655,69 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	// Whether a module can link to another module, taking into
 	// account NDK linking.
-	linkTypeOk := func(from, to *Module) bool {
+	checkLinkType := func(from, to *Module) {
 		if from.Target().Os != android.Android {
 			// Host code is not restricted
-			return true
+			return
 		}
 		if from.Properties.Sdk_version == "" {
 			// Platform code can link to anything
-			return true
+			return
 		}
 		if _, ok := to.linker.(*toolchainLibraryLinker); ok {
 			// These are always allowed
-			return true
+			return
 		}
 		if _, ok := to.linker.(*ndkPrebuiltLibraryLinker); ok {
 			// These are allowed, but don't set sdk_version
-			return true
+			return
 		}
 		if _, ok := to.linker.(*ndkPrebuiltStlLinker); ok {
 			// These are allowed, but don't set sdk_version
-			return true
+			return
 		}
 		if _, ok := to.linker.(*stubLinker); ok {
 			// These aren't real libraries, but are the stub shared libraries that are included in
 			// the NDK.
-			return true
+			return
 		}
-		return to.Properties.Sdk_version != ""
+		if to.Properties.Sdk_version == "" {
+			// NDK code linking to platform code is never okay.
+			ctx.ModuleErrorf("depends on non-NDK-built library %q",
+				ctx.OtherModuleName(to))
+		}
+
+		// All this point we know we have two NDK libraries, but we need to
+		// check that we're not linking against anything built against a higher
+		// API level, as it is only valid to link against older or equivalent
+		// APIs.
+
+		if from.Properties.Sdk_version == "current" {
+			// Current can link against anything.
+			return
+		} else if to.Properties.Sdk_version == "current" {
+			// Current can't be linked against by anything else.
+			ctx.ModuleErrorf("links %q built against newer API version %q",
+				ctx.OtherModuleName(to), "current")
+		}
+
+		fromApi, err := strconv.Atoi(from.Properties.Sdk_version)
+		if err != nil {
+			ctx.PropertyErrorf("sdk_version",
+				"Invalid sdk_version value (must be int): %q",
+				from.Properties.Sdk_version)
+		}
+		toApi, err := strconv.Atoi(to.Properties.Sdk_version)
+		if err != nil {
+			ctx.PropertyErrorf("sdk_version",
+				"Invalid sdk_version value (must be int): %q",
+				to.Properties.Sdk_version)
+		}
+
+		if toApi > fromApi {
+			ctx.ModuleErrorf("links %q built against newer API version %q",
+				ctx.OtherModuleName(to), to.Properties.Sdk_version)
+		}
 	}
 
 	ctx.VisitDirectDeps(func(m blueprint.Module) {
@@ -755,9 +792,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 
-			if !linkTypeOk(c, cc) {
-				ctx.ModuleErrorf("depends on non-NDK-built library %q", name)
-			}
+			checkLinkType(c, cc)
 		}
 
 		var depPtr *android.Paths
