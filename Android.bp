@@ -206,8 +206,10 @@ blueprint_go_binary {
 
 blueprint_go_binary {
     name: "soong_jar",
+    deps: ["android-archive-zip"],
     srcs: [
         "cmd/soong_jar/soong_jar.go",
+        "cmd/soong_jar/rate_limit.go",
     ],
 }
 

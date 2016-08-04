@@ -15,16 +15,43 @@
 package main
 
 import (
-	"archive/zip"
+	"bytes"
+	"compress/flate"
 	"flag"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"strings"
+	"sync"
 	"time"
+
+	"android/soong/third_party/zip"
 )
+
+// Block size used during parallel compression of a single file.
+const parallelBlockSize = 1 * 1024 * 1024 // 1MB
+
+// Minimum file size to use parallel compression. It requires more
+// flate.Writer allocations, since we can't change the dictionary
+// during Reset
+const minParallelFileSize = parallelBlockSize * 6
+
+// Size of the ZIP compression window (32KB)
+const windowSize = 32 * 1024
+
+type nopCloser struct {
+	io.Writer
+}
+
+func (nopCloser) Close() error {
+	return nil
+}
 
 type fileArg struct {
 	relativeRoot, file string
@@ -54,8 +81,13 @@ var (
 	manifest     = flag.String("m", "", "input manifest file name")
 	directories  = flag.Bool("d", false, "include directories in jar")
 	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
+	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
+	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
 	listFiles    fileArgs
 	files        fileArgs
+
+	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
+	traceFile  = flag.String("trace", "", "write trace to file")
 )
 
 func init() {
@@ -74,11 +106,50 @@ type zipWriter struct {
 	createdDirs map[string]bool
 	directories bool
 
-	w *zip.Writer
+	errors   chan error
+	writeOps chan chan *zipEntry
+
+	rateLimit *RateLimit
+
+	compressorPool sync.Pool
+	compLevel      int
+}
+
+type zipEntry struct {
+	fh *zip.FileHeader
+
+	// List of delayed io.Reader
+	futureReaders chan chan io.Reader
 }
 
 func main() {
 	flag.Parse()
+
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer f.Close()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	if *traceFile != "" {
+		f, err := os.Create(*traceFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer f.Close()
+		err = trace.Start(f)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer trace.Stop()
+	}
 
 	if *out == "" {
 		fmt.Fprintf(os.Stderr, "error: -o is required\n")
@@ -89,9 +160,9 @@ func main() {
 		time:        time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC),
 		createdDirs: make(map[string]bool),
 		directories: *directories,
+		compLevel:   *compLevel,
 	}
 
-	// TODO: Go's zip implementation doesn't support increasing the compression level yet
 	err := w.write(*out, listFiles, *manifest)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -112,31 +183,138 @@ func (z *zipWriter) write(out string, listFiles fileArgs, manifest string) error
 		}
 	}()
 
-	z.w = zip.NewWriter(f)
-	defer z.w.Close()
+	z.errors = make(chan error)
+	defer close(z.errors)
 
-	for _, listFile := range listFiles {
-		err = z.writeListFile(listFile)
-		if err != nil {
+	// This channel size can be essentially unlimited -- it's used as a fifo
+	// queue decouple the CPU and IO loads. Directories don't require any
+	// compression time, but still cost some IO. Similar with small files that
+	// can be very fast to compress. Some files that are more difficult to
+	// compress won't take a corresponding longer time writing out.
+	//
+	// The optimum size here depends on your CPU and IO characteristics, and
+	// the the layout of your zip file. 1000 was chosen mostly at random as
+	// something that worked reasonably well for a test file.
+	//
+	// The RateLimit object will put the upper bounds on the number of
+	// parallel compressions and outstanding buffers.
+	z.writeOps = make(chan chan *zipEntry, 1000)
+	z.rateLimit = NewRateLimit(*parallelJobs, 0)
+	defer z.rateLimit.Stop()
+
+	go func() {
+		var err error
+		defer close(z.writeOps)
+
+		for _, listFile := range listFiles {
+			err = z.writeListFile(listFile)
+			if err != nil {
+				z.errors <- err
+				return
+			}
+		}
+
+		for _, file := range files {
+			err = z.writeRelFile(file.relativeRoot, file.file)
+			if err != nil {
+				z.errors <- err
+				return
+			}
+		}
+
+		if manifest != "" {
+			err = z.writeFile("META-INF/MANIFEST.MF", manifest)
+			if err != nil {
+				z.errors <- err
+				return
+			}
+		}
+	}()
+
+	zipw := zip.NewWriter(f)
+
+	var currentWriteOpChan chan *zipEntry
+	var currentWriter io.WriteCloser
+	var currentReaders chan chan io.Reader
+	var currentReader chan io.Reader
+	var done bool
+
+	for !done {
+		var writeOpsChan chan chan *zipEntry
+		var writeOpChan chan *zipEntry
+		var readersChan chan chan io.Reader
+
+		if currentReader != nil {
+			// Only read and process errors
+		} else if currentReaders != nil {
+			readersChan = currentReaders
+		} else if currentWriteOpChan != nil {
+			writeOpChan = currentWriteOpChan
+		} else {
+			writeOpsChan = z.writeOps
+		}
+
+		select {
+		case writeOp, ok := <-writeOpsChan:
+			if !ok {
+				done = true
+			}
+
+			currentWriteOpChan = writeOp
+
+		case op := <-writeOpChan:
+			currentWriteOpChan = nil
+
+			if op.fh.Method == zip.Deflate {
+				currentWriter, err = zipw.CreateCompressedHeader(op.fh)
+			} else {
+				var zw io.Writer
+				zw, err = zipw.CreateHeader(op.fh)
+				currentWriter = nopCloser{zw}
+			}
+			if err != nil {
+				return err
+			}
+
+			currentReaders = op.futureReaders
+			if op.futureReaders == nil {
+				currentWriter.Close()
+				currentWriter = nil
+			}
+
+		case futureReader, ok := <-readersChan:
+			if !ok {
+				// Done with reading
+				currentWriter.Close()
+				currentWriter = nil
+				currentReaders = nil
+			}
+
+			currentReader = futureReader
+
+		case reader := <-currentReader:
+			var count int64
+			count, err = io.Copy(currentWriter, reader)
+			if err != nil {
+				return err
+			}
+			z.rateLimit.Release(int(count))
+
+			currentReader = nil
+
+		case err = <-z.errors:
 			return err
 		}
 	}
 
-	for _, file := range files {
-		err = z.writeRelFile(file.relativeRoot, file.file)
-		if err != nil {
-			return err
-		}
+	// One last chance to catch an error
+	select {
+	case err = <-z.errors:
+		return err
+	default:
+		zipw.Close()
+		return nil
 	}
-
-	if manifest != "" {
-		err = z.writeFile("META-INF/MANIFEST.MF", manifest)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (z *zipWriter) writeListFile(listFile fileArg) error {
@@ -178,6 +356,8 @@ func (z *zipWriter) writeRelFile(root, file string) error {
 }
 
 func (z *zipWriter) writeFile(rel, file string) error {
+	var fileSize int64
+
 	if s, err := os.Lstat(file); err != nil {
 		return err
 	} else if s.IsDir() {
@@ -189,6 +369,8 @@ func (z *zipWriter) writeFile(rel, file string) error {
 		return z.writeSymlink(rel, file)
 	} else if !s.Mode().IsRegular() {
 		return fmt.Errorf("%s is not a file, directory, or symlink", file)
+	} else {
+		fileSize = s.Size()
 	}
 
 	if z.directories {
@@ -199,29 +381,201 @@ func (z *zipWriter) writeFile(rel, file string) error {
 		}
 	}
 
+	compressChan := make(chan *zipEntry, 1)
+	z.writeOps <- compressChan
+
+	// Pre-fill a zipEntry, it will be sent in the compressChan once
+	// we're sure about the Method and CRC.
+	ze := &zipEntry{
+		fh: &zip.FileHeader{
+			Name:   rel,
+			Method: zip.Deflate,
+
+			UncompressedSize64: uint64(fileSize),
+		},
+	}
+	ze.fh.SetModTime(z.time)
+
+	r, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+
+	exec := z.rateLimit.RequestExecution()
+
+	if fileSize >= minParallelFileSize {
+		wg := new(sync.WaitGroup)
+
+		// Allocate enough buffer to hold all readers. We'll limit
+		// this based on actual buffer sizes in RateLimit.
+		ze.futureReaders = make(chan chan io.Reader, (fileSize/parallelBlockSize)+1)
+
+		// Calculate the CRC in the background, since reading the entire
+		// file could take a while.
+		//
+		// We could split this up into chuncks as well, but it's faster
+		// than the compression. Due to the Go Zip API, we also need to
+		// know the result before we can begin writing the compressed
+		// data out to the zipfile.
+		wg.Add(1)
+		go z.crcFile(r, ze, exec, compressChan, wg)
+
+		for start := int64(0); start < fileSize; start += parallelBlockSize {
+			sr := io.NewSectionReader(r, start, parallelBlockSize)
+			resultChan := make(chan io.Reader, 1)
+			ze.futureReaders <- resultChan
+
+			exec := z.rateLimit.RequestExecution()
+
+			last := !(start+parallelBlockSize < fileSize)
+			var dict []byte
+			if start >= windowSize {
+				dict, err = ioutil.ReadAll(io.NewSectionReader(r, start-windowSize, windowSize))
+			}
+
+			wg.Add(1)
+			go z.compressPartialFile(sr, dict, last, exec, resultChan, wg)
+		}
+
+		close(ze.futureReaders)
+
+		// Close the file handle after all readers are done
+		go func(wg *sync.WaitGroup, f *os.File) {
+			wg.Wait()
+			f.Close()
+		}(wg, r)
+	} else {
+		go z.compressWholeFile(rel, r, exec, compressChan)
+	}
+
+	return nil
+}
+
+func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, exec Execution, resultChan chan *zipEntry, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer exec.Finish(0)
+
+	crc := crc32.NewIEEE()
+	_, err := io.Copy(crc, r)
+	if err != nil {
+		z.errors <- err
+		return
+	}
+
+	ze.fh.CRC32 = crc.Sum32()
+	resultChan <- ze
+	close(resultChan)
+}
+
+func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, exec Execution, resultChan chan io.Reader, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	result, err := z.compressBlock(r, dict, last)
+	if err != nil {
+		z.errors <- err
+		return
+	}
+
+	exec.Finish(result.Len())
+	resultChan <- result
+}
+
+func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.Buffer, error) {
+	buf := new(bytes.Buffer)
+	var fw *flate.Writer
+	var err error
+	if len(dict) > 0 {
+		// There's no way to Reset a Writer with a new dictionary, so
+		// don't use the Pool
+		fw, err = flate.NewWriterDict(buf, z.compLevel, dict)
+	} else {
+		var ok bool
+		if fw, ok = z.compressorPool.Get().(*flate.Writer); ok {
+			fw.Reset(buf)
+		} else {
+			fw, err = flate.NewWriter(buf, z.compLevel)
+		}
+		defer z.compressorPool.Put(fw)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = io.Copy(fw, r)
+	if err != nil {
+		return nil, err
+	}
+	if last {
+		fw.Close()
+	} else {
+		fw.Flush()
+	}
+
+	return buf, nil
+}
+
+func (z *zipWriter) compressWholeFile(rel string, r *os.File, exec Execution, compressChan chan *zipEntry) {
+	var bufSize int
+
+	defer r.Close()
+
 	fileHeader := &zip.FileHeader{
 		Name:   rel,
 		Method: zip.Deflate,
 	}
 	fileHeader.SetModTime(z.time)
 
-	out, err := z.w.CreateHeader(fileHeader)
+	crc := crc32.NewIEEE()
+	count, err := io.Copy(crc, r)
 	if err != nil {
-		return err
+		z.errors <- err
+		return
 	}
 
-	in, err := os.Open(file)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
+	fileHeader.CRC32 = crc.Sum32()
+	fileHeader.UncompressedSize64 = uint64(count)
 
-	_, err = io.Copy(out, in)
+	_, err = r.Seek(0, 0)
 	if err != nil {
-		return err
+		z.errors <- err
+		return
 	}
 
-	return nil
+	compressed, err := z.compressBlock(r, nil, true)
+
+	ze := &zipEntry{
+		fh:            fileHeader,
+		futureReaders: make(chan chan io.Reader, 1),
+	}
+	futureReader := make(chan io.Reader, 1)
+	ze.futureReaders <- futureReader
+	close(ze.futureReaders)
+
+	if uint64(compressed.Len()) < ze.fh.UncompressedSize64 {
+		futureReader <- compressed
+		bufSize = compressed.Len()
+	} else {
+		_, err = r.Seek(0, 0)
+		if err != nil {
+			z.errors <- err
+			return
+		}
+
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			z.errors <- err
+			return
+		}
+
+		ze.fh.Method = zip.Store
+		futureReader <- bytes.NewReader(buf)
+		bufSize = int(ze.fh.UncompressedSize64)
+	}
+	exec.Finish(bufSize)
+	close(futureReader)
+
+	compressChan <- ze
+	close(compressChan)
 }
 
 func (z *zipWriter) writeDirectory(dir string) error {
@@ -238,10 +592,12 @@ func (z *zipWriter) writeDirectory(dir string) error {
 		dirHeader.SetMode(0700 | os.ModeDir)
 		dirHeader.SetModTime(z.time)
 
-		_, err := z.w.CreateHeader(dirHeader)
-		if err != nil {
-			return err
+		ze := make(chan *zipEntry, 1)
+		ze <- &zipEntry{
+			fh: dirHeader,
 		}
+		close(ze)
+		z.writeOps <- ze
 
 		dir, _ = filepath.Split(dir)
 	}
@@ -263,16 +619,30 @@ func (z *zipWriter) writeSymlink(rel, file string) error {
 	fileHeader.SetModTime(z.time)
 	fileHeader.SetMode(0700 | os.ModeSymlink)
 
-	out, err := z.w.CreateHeader(fileHeader)
-	if err != nil {
-		return err
-	}
-
 	dest, err := os.Readlink(file)
 	if err != nil {
 		return err
 	}
 
-	_, err = io.WriteString(out, dest)
-	return err
+	ze := make(chan *zipEntry, 1)
+	futureReaders := make(chan chan io.Reader, 1)
+	futureReader := make(chan io.Reader, 1)
+	futureReaders <- futureReader
+	close(futureReaders)
+	futureReader <- bytes.NewBufferString(dest)
+	close(futureReader)
+
+	// We didn't ask permission to execute, since this should be very short
+	// but we still need to increment the outstanding buffer sizes, since
+	// the read will decrement the buffer size.
+	z.rateLimit.Release(-len(dest))
+
+	ze <- &zipEntry{
+		fh:            fileHeader,
+		futureReaders: futureReaders,
+	}
+	close(ze)
+	z.writeOps <- ze
+
+	return nil
 }
