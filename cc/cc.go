@@ -43,6 +43,7 @@ func init() {
 	android.RegisterBottomUpMutator("link", linkageMutator)
 	android.RegisterBottomUpMutator("ndk_api", ndkApiMutator)
 	android.RegisterBottomUpMutator("test_per_src", testPerSrcMutator)
+	android.RegisterBottomUpMutator("begin", beginMutator)
 	android.RegisterBottomUpMutator("deps", depsMutator)
 
 	android.RegisterTopDownMutator("asan_deps", sanitizerDepsMutator(asan))
@@ -527,7 +528,7 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	return deps
 }
 
-func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
+func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 	ctx := &baseModuleContext{
 		BaseContext: actx,
 		moduleContextImpl: moduleContextImpl{
@@ -537,6 +538,16 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 	ctx.ctx = ctx
 
 	c.begin(ctx)
+}
+
+func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
+	ctx := &baseModuleContext{
+		BaseContext: actx,
+		moduleContextImpl: moduleContextImpl{
+			mod: c,
+		},
+	}
+	ctx.ctx = ctx
 
 	deps := c.deps(ctx)
 
@@ -621,6 +632,12 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 		{"ndk_api", version}, {"link", "shared"}}, ndkStubDepTag, variantNdkLibs...)
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{"ndk_api", version}, {"link", "shared"}}, ndkLateStubDepTag, variantLateNdkLibs...)
+}
+
+func beginMutator(ctx android.BottomUpMutatorContext) {
+	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
+		c.beginMutator(ctx)
+	}
 }
 
 func depsMutator(ctx android.BottomUpMutatorContext) {
