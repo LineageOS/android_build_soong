@@ -99,26 +99,16 @@ type stubDecorator struct {
 }
 
 // OMG GO
-func intMin(a int, b int) int {
-	if a < b {
+func intMax(a int, b int) int {
+	if a > b {
 		return a
 	} else {
 		return b
 	}
 }
 
-func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
+func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (int, error) {
 	minVersion := 9 // Minimum version supported by the NDK.
-	// TODO(danalbert): Use PlatformSdkVersion when possible.
-	// This is an interesting case because for the moment we actually need 24
-	// even though the latest released version in aosp is 23. prebuilts/ndk/r11
-	// has android-24 versions of libraries, and as platform libraries get
-	// migrated the libraries in prebuilts will need to depend on them.
-	//
-	// Once everything is all moved over to the new stuff (when there isn't a
-	// prebuilts/ndk any more) then this should be fixable, but for now I think
-	// it needs to remain as-is.
-	maxVersion := 24
 	firstArchVersions := map[string]int{
 		"arm":    9,
 		"arm64":  21,
@@ -129,31 +119,49 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorat
 	}
 
 	// If the NDK drops support for a platform version, we don't want to have to
-	// fix up every module that was using it as its minimum version. Clip to the
+	// fix up every module that was using it as its SDK version. Clip to the
 	// supported version here instead.
-	firstVersion, err := strconv.Atoi(c.properties.First_version)
+	version, err := strconv.Atoi(apiLevel)
 	if err != nil {
-		mctx.ModuleErrorf("Invalid first_version value (must be int): %q",
-			c.properties.First_version)
+		return -1, fmt.Errorf("API level must be an integer (is %q)", apiLevel)
 	}
-	if firstVersion < minVersion {
-		firstVersion = minVersion
+	version = intMax(version, minVersion)
+
+	archStr := arch.ArchType.String()
+	firstArchVersion, ok := firstArchVersions[archStr]
+	if !ok {
+		panic(fmt.Errorf("Arch %q not found in firstArchVersions", archStr))
 	}
 
-	arch := mctx.Arch().ArchType.String()
-	firstArchVersion, ok := firstArchVersions[arch]
-	if !ok {
-		panic(fmt.Errorf("Arch %q not found in firstArchVersions", arch))
+	return intMax(version, firstArchVersion), nil
+}
+
+func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
+	// TODO(danalbert): Use PlatformSdkVersion when possible.
+	// This is an interesting case because for the moment we actually need 24
+	// even though the latest released version in aosp is 23. prebuilts/ndk/r11
+	// has android-24 versions of libraries, and as platform libraries get
+	// migrated the libraries in prebuilts will need to depend on them.
+	//
+	// Once everything is all moved over to the new stuff (when there isn't a
+	// prebuilts/ndk any more) then this should be fixable, but for now I think
+	// it needs to remain as-is.
+	maxVersion := 24
+
+	firstVersion, err := normalizeNdkApiLevel(c.properties.First_version,
+		mctx.Arch())
+	if err != nil {
+		mctx.PropertyErrorf("first_version", err.Error())
 	}
-	firstGenVersion := intMin(firstVersion, firstArchVersion)
-	versionStrs := make([]string, maxVersion-firstGenVersion+1)
-	for version := firstGenVersion; version <= maxVersion; version++ {
-		versionStrs[version-firstGenVersion] = strconv.Itoa(version)
+
+	versionStrs := make([]string, maxVersion-firstVersion+1)
+	for version := firstVersion; version <= maxVersion; version++ {
+		versionStrs[version-firstVersion] = strconv.Itoa(version)
 	}
 
 	modules := mctx.CreateVariations(versionStrs...)
 	for i, module := range modules {
-		module.(*Module).compiler.(*stubDecorator).properties.ApiLevel = firstGenVersion + i
+		module.(*Module).compiler.(*stubDecorator).properties.ApiLevel = firstVersion + i
 	}
 }
 
