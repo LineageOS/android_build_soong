@@ -136,8 +136,6 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
-	flags.Nocrt = Bool(linker.Properties.Nocrt)
-
 	if !ctx.noDefaultCompilerFlags() {
 		if ctx.Device() && !Bool(linker.Properties.Allow_undefined_symbols) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")

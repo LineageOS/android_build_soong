@@ -161,7 +161,6 @@ type builderFlags struct {
 	ldFlags     string
 	libFlags    string
 	yaccFlags   string
-	nocrt       bool
 	toolchain   config.Toolchain
 	clang       bool
 
