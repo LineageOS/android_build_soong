@@ -89,12 +89,13 @@ type libraryProperties struct {
 	ApiLevel int `blueprint:"mutated"`
 }
 
-type stubCompiler struct {
-	baseCompiler
+type stubDecorator struct {
+	*libraryDecorator
 
 	properties libraryProperties
 
-	linker *stubLinker
+	versionScriptPath android.ModuleGenPath
+	installPath       string
 }
 
 // OMG GO
@@ -106,7 +107,7 @@ func intMin(a int, b int) int {
 	}
 }
 
-func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubCompiler) {
+func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
 	minVersion := 9 // Minimum version supported by the NDK.
 	// TODO(danalbert): Use PlatformSdkVersion when possible.
 	// This is an interesting case because for the moment we actually need 24
@@ -152,19 +153,19 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubCompile
 
 	modules := mctx.CreateVariations(versionStrs...)
 	for i, module := range modules {
-		module.(*Module).compiler.(*stubCompiler).properties.ApiLevel = firstGenVersion + i
+		module.(*Module).compiler.(*stubDecorator).properties.ApiLevel = firstGenVersion + i
 	}
 }
 
 func ndkApiMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
-		if compiler, ok := m.compiler.(*stubCompiler); ok {
+		if compiler, ok := m.compiler.(*stubDecorator); ok {
 			generateStubApiVariants(mctx, compiler)
 		}
 	}
 }
 
-func (c *stubCompiler) compilerInit(ctx BaseModuleContext) {
+func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	c.baseCompiler.compilerInit(ctx)
 
 	name := strings.TrimSuffix(ctx.ModuleName(), ".ndk")
@@ -176,7 +177,7 @@ func (c *stubCompiler) compilerInit(ctx BaseModuleContext) {
 	ndkMigratedLibs = append(ndkMigratedLibs, name)
 }
 
-func (c *stubCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
+func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
 	arch := ctx.Arch().ArchType.String()
 
 	if !strings.HasSuffix(ctx.ModuleName(), ndkLibrarySuffix) {
@@ -189,7 +190,7 @@ func (c *stubCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) an
 	stubSrcPath := android.PathForModuleGen(ctx, stubSrcName)
 	versionScriptName := fileBase + ".map"
 	versionScriptPath := android.PathForModuleGen(ctx, versionScriptName)
-	c.linker.versionScriptPath = versionScriptPath
+	c.versionScriptPath = versionScriptPath
 	symbolFilePath := android.PathForModuleSrc(ctx, c.properties.Symbol_file)
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:    genStubSrc,
@@ -218,47 +219,31 @@ func (c *stubCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) an
 	excludeSrcs := []string{}
 	extraSrcs := []android.Path{stubSrcPath}
 	extraDeps := []android.Path{}
-	return c.baseCompiler.compileObjs(ctx, flags, subdir, srcs, excludeSrcs,
+	return compileObjs(ctx, flags, subdir, srcs, excludeSrcs,
 		extraSrcs, extraDeps)
 }
 
-type stubLinker struct {
-	libraryLinker
-
-	versionScriptPath android.ModuleGenPath
-}
-
-func (linker *stubLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (linker *stubDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	return Deps{}
 }
 
-func (linker *stubLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	linker.libraryLinker.libName = strings.TrimSuffix(ctx.ModuleName(),
+func (stub *stubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	stub.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(),
 		ndkLibrarySuffix)
-	return linker.libraryLinker.linkerFlags(ctx, flags)
+	return stub.libraryDecorator.linkerFlags(ctx, flags)
 }
 
-func (linker *stubLinker) link(ctx ModuleContext, flags Flags, deps PathDeps,
+func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objFiles android.Paths) android.Path {
 
-	linkerScriptFlag := "-Wl,--version-script," + linker.versionScriptPath.String()
+	linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
 	flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
-	return linker.libraryLinker.link(ctx, flags, deps, objFiles)
+	return stub.libraryDecorator.link(ctx, flags, deps, objFiles)
 }
 
-type stubInstaller struct {
-	baseInstaller
-
-	compiler *stubCompiler
-
-	installPath string
-}
-
-var _ installer = (*stubInstaller)(nil)
-
-func (installer *stubInstaller) install(ctx ModuleContext, path android.Path) {
+func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	arch := ctx.Target().Arch.ArchType.Name
-	apiLevel := installer.compiler.properties.ApiLevel
+	apiLevel := stub.properties.ApiLevel
 
 	// arm64 isn't actually a multilib toolchain, so unlike the other LP64
 	// architectures it's just installed to lib.
@@ -269,32 +254,26 @@ func (installer *stubInstaller) install(ctx ModuleContext, path android.Path) {
 
 	installDir := getNdkInstallBase(ctx).Join(ctx, fmt.Sprintf(
 		"platforms/android-%d/arch-%s/usr/%s", apiLevel, arch, libDir))
-	installer.installPath = ctx.InstallFile(installDir, path).String()
+	stub.installPath = ctx.InstallFile(installDir, path).String()
 }
 
 func newStubLibrary() *Module {
-	module := newModule(android.DeviceSupported, android.MultilibBoth)
+	module, library := NewLibrary(android.DeviceSupported, true, false)
 	module.stl = nil
+	module.sanitize = nil
+	library.StripProperties.Strip.None = true
 
-	linker := &stubLinker{}
-	linker.dynamicProperties.BuildShared = true
-	linker.dynamicProperties.BuildStatic = false
-	linker.stripper.StripProperties.Strip.None = true
-	module.linker = linker
-
-	compiler := &stubCompiler{}
-	compiler.linker = linker
-	module.compiler = compiler
-	module.installer = &stubInstaller{baseInstaller{
-		dir:   "lib",
-		dir64: "lib64",
-	}, compiler, ""}
+	stub := &stubDecorator{
+		libraryDecorator: library,
+	}
+	module.compiler = stub
+	module.linker = stub
+	module.installer = stub
 
 	return module
 }
 
 func ndkLibraryFactory() (blueprint.Module, []interface{}) {
 	module := newStubLibrary()
-	return android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth,
-		&module.compiler.(*stubCompiler).properties)
+	return module.Init()
 }

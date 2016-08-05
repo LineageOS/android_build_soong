@@ -26,6 +26,23 @@ import (
 
 type AndroidMkContext interface {
 	Target() android.Target
+	subAndroidMk(*android.AndroidMkData, interface{})
+}
+
+type subAndroidMkProvider interface {
+	AndroidMk(AndroidMkContext, *android.AndroidMkData)
+}
+
+func (c *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
+	if c.subAndroidMkOnce == nil {
+		c.subAndroidMkOnce = make(map[subAndroidMkProvider]bool)
+	}
+	if androidmk, ok := obj.(subAndroidMkProvider); ok {
+		if !c.subAndroidMkOnce[androidmk] {
+			c.subAndroidMkOnce[androidmk] = true
+			androidmk.AndroidMk(c, data)
+		}
+	}
 }
 
 func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
@@ -50,42 +67,26 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 		return nil
 	})
 
-	callSubAndroidMk := func(obj interface{}) {
-		if obj != nil {
-			if androidmk, ok := obj.(interface {
-				AndroidMk(AndroidMkContext, *android.AndroidMkData)
-			}); ok {
-				androidmk.AndroidMk(c, &ret)
-			}
-		}
-	}
-
 	for _, feature := range c.features {
-		callSubAndroidMk(feature)
+		c.subAndroidMk(&ret, feature)
 	}
 
-	callSubAndroidMk(c.compiler)
-	callSubAndroidMk(c.linker)
-	if c.linker.installable() {
-		callSubAndroidMk(c.installer)
-	}
+	c.subAndroidMk(&ret, c.compiler)
+	c.subAndroidMk(&ret, c.linker)
+	c.subAndroidMk(&ret, c.installer)
 
 	return ret, nil
 }
 
-func (library *baseLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	if !library.static() {
+		ctx.subAndroidMk(ret, &library.stripper)
+	}
+
 	if library.static() {
 		ret.Class = "STATIC_LIBRARIES"
 	} else {
 		ret.Class = "SHARED_LIBRARIES"
-	}
-}
-
-func (library *libraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	library.baseLinker.AndroidMk(ctx, ret)
-
-	if !library.static() {
-		library.stripper.AndroidMk(ctx, ret)
 	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
@@ -106,6 +107,10 @@ func (library *libraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 
 		return nil
 	})
+
+	if !library.static() {
+		ctx.subAndroidMk(ret, library.baseInstaller)
+	}
 }
 
 func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
@@ -119,30 +124,39 @@ func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.Android
 	}
 }
 
-func (binary *binaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	binary.stripper.AndroidMk(ctx, ret)
+func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, &binary.stripper)
 
 	ret.Class = "EXECUTABLES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
-		if binary.static() {
+		if Bool(binary.Properties.Static_executable) {
 			fmt.Fprintln(w, "LOCAL_FORCE_STATIC_EXECUTABLE := true")
 		}
 		return nil
 	})
 }
 
-func (test *testBinaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	test.binaryLinker.AndroidMk(ctx, ret)
-	if Bool(test.testLinker.Properties.Test_per_src) {
-		ret.SubName = "_" + test.binaryLinker.Properties.Stem
+func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, benchmark.binaryDecorator)
+	ctx.subAndroidMk(ret, benchmark.baseInstaller)
+}
+
+func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, test.binaryDecorator)
+	ctx.subAndroidMk(ret, test.baseInstaller)
+	if Bool(test.Properties.Test_per_src) {
+		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
 	}
 }
 
-func (library *toolchainLibraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	library.baseLinker.AndroidMk(ctx, ret)
+func (test *testLibrary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, test.libraryDecorator)
+}
 
+func (library *toolchainLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Class = "STATIC_LIBRARIES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
@@ -185,13 +199,11 @@ func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.And
 	})
 }
 
-func (c *stubCompiler) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.SubName = "." + strconv.Itoa(c.properties.ApiLevel)
-}
 
-func (installer *stubInstaller) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
-		path, file := filepath.Split(installer.installPath)
+		path, file := filepath.Split(c.installPath)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
