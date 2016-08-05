@@ -96,7 +96,7 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if m, ok := module.(*Module); ok {
-			if installer, ok := m.installer.(*stubInstaller); ok {
+			if installer, ok := m.installer.(*stubDecorator); ok {
 				installPaths = append(installPaths, installer.installPath)
 			}
 		}
