@@ -95,7 +95,6 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		yaccFlags:   strings.Join(in.YaccFlags, " "),
 		ldFlags:     strings.Join(in.LdFlags, " "),
 		libFlags:    strings.Join(in.libFlags, " "),
-		nocrt:       in.Nocrt,
 		toolchain:   in.Toolchain,
 		clang:       in.Clang,
 	}
