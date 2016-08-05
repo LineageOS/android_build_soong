@@ -23,33 +23,22 @@ import (
 	"android/soong/android"
 )
 
-type LibraryCompilerProperties struct {
+type LibraryProperties struct {
 	Static struct {
 		Srcs         []string `android:"arch_variant"`
 		Exclude_srcs []string `android:"arch_variant"`
 		Cflags       []string `android:"arch_variant"`
-	} `android:"arch_variant"`
-	Shared struct {
-		Srcs         []string `android:"arch_variant"`
-		Exclude_srcs []string `android:"arch_variant"`
-		Cflags       []string `android:"arch_variant"`
-	} `android:"arch_variant"`
-}
 
-type FlagExporterProperties struct {
-	// list of directories relative to the Blueprints file that will
-	// be added to the include path using -I for any module that links against this module
-	Export_include_dirs []string `android:"arch_variant"`
-}
-
-type LibraryLinkerProperties struct {
-	Static struct {
 		Enabled           *bool    `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
 		Static_libs       []string `android:"arch_variant"`
 		Shared_libs       []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 	Shared struct {
+		Srcs         []string `android:"arch_variant"`
+		Exclude_srcs []string `android:"arch_variant"`
+		Cflags       []string `android:"arch_variant"`
+
 		Enabled           *bool    `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
 		Static_libs       []string `android:"arch_variant"`
@@ -69,6 +58,21 @@ type LibraryLinkerProperties struct {
 	Unique_host_soname *bool
 
 	VariantName string `blueprint:"mutated"`
+
+	// Build a static variant
+	BuildStatic bool `blueprint:"mutated"`
+	// Build a shared variant
+	BuildShared bool `blueprint:"mutated"`
+	// This variant is shared
+	VariantIsShared bool `blueprint:"mutated"`
+	// This variant is static
+	VariantIsStatic bool `blueprint:"mutated"`
+}
+
+type FlagExporterProperties struct {
+	// list of directories relative to the Blueprints file that will
+	// be added to the include path using -I for any module that links against this module
+	Export_include_dirs []string `android:"arch_variant"`
 }
 
 func init() {
@@ -82,31 +86,31 @@ func init() {
 // Module factory for combined static + shared libraries, device by default but with possible host
 // support
 func libraryFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(android.HostAndDeviceSupported, true, true)
+	module, _ := NewLibrary(android.HostAndDeviceSupported, true, true)
 	return module.Init()
 }
 
 // Module factory for static libraries
 func libraryStaticFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(android.HostAndDeviceSupported, false, true)
+	module, _ := NewLibrary(android.HostAndDeviceSupported, false, true)
 	return module.Init()
 }
 
 // Module factory for shared libraries
 func librarySharedFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(android.HostAndDeviceSupported, true, false)
+	module, _ := NewLibrary(android.HostAndDeviceSupported, true, false)
 	return module.Init()
 }
 
 // Module factory for host static libraries
 func libraryHostStaticFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(android.HostSupported, false, true)
+	module, _ := NewLibrary(android.HostSupported, false, true)
 	return module.Init()
 }
 
 // Module factory for host shared libraries
 func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
-	module := NewLibrary(android.HostSupported, true, false)
+	module, _ := NewLibrary(android.HostSupported, true, false)
 	return module.Init()
 }
 
@@ -137,75 +141,16 @@ type exportedFlagsProducer interface {
 
 var _ exportedFlagsProducer = (*flagExporter)(nil)
 
-type libraryCompiler struct {
-	baseCompiler
-
-	linker     *libraryLinker
-	Properties LibraryCompilerProperties
+// libraryDecorator wraps baseCompiler, baseLinker and baseInstaller to provide library-specific
+// functionality: static vs. shared linkage, reusing object files for shared libraries
+type libraryDecorator struct {
+	Properties LibraryProperties
 
 	// For reusing static library objects for shared library
 	reuseObjFiles android.Paths
-}
 
-var _ compiler = (*libraryCompiler)(nil)
-
-func (library *libraryCompiler) compilerProps() []interface{} {
-	props := library.baseCompiler.compilerProps()
-	return append(props, &library.Properties)
-}
-
-func (library *libraryCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
-	flags = library.baseCompiler.compilerFlags(ctx, flags)
-
-	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
-	// all code is position independent, and then those warnings get promoted to
-	// errors.
-	if ctx.Os() != android.Windows {
-		flags.CFlags = append(flags.CFlags, "-fPIC")
-	}
-
-	if library.linker.static() {
-		flags.CFlags = append(flags.CFlags, library.Properties.Static.Cflags...)
-	} else {
-		flags.CFlags = append(flags.CFlags, library.Properties.Shared.Cflags...)
-	}
-
-	return flags
-}
-
-func (library *libraryCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
-	var objFiles android.Paths
-
-	objFiles = library.baseCompiler.compile(ctx, flags, deps)
-	library.reuseObjFiles = objFiles
-
-	pathDeps := deps.GeneratedHeaders
-	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
-
-	if library.linker.static() {
-		objFiles = append(objFiles, library.compileObjs(ctx, flags, android.DeviceStaticLibrary,
-			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs,
-			nil, pathDeps)...)
-	} else {
-		objFiles = append(objFiles, library.compileObjs(ctx, flags, android.DeviceSharedLibrary,
-			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs,
-			nil, pathDeps)...)
-	}
-
-	return objFiles
-}
-
-type libraryLinker struct {
-	baseLinker
 	flagExporter
 	stripper
-
-	Properties LibraryLinkerProperties
-
-	dynamicProperties struct {
-		BuildStatic bool `blueprint:"mutated"`
-		BuildShared bool `blueprint:"mutated"`
-	}
 
 	// If we're used as a whole_static_lib, our missing dependencies need
 	// to be given
@@ -217,42 +162,39 @@ type libraryLinker struct {
 	// Uses the module's name if empty, but can be overridden. Does not include
 	// shlib suffix.
 	libName string
+
+	sanitize *sanitize
+
+	// Decorated interafaces
+	*baseCompiler
+	*baseLinker
+	*baseInstaller
 }
 
-var _ linker = (*libraryLinker)(nil)
-
-type libraryInterface interface {
-	getWholeStaticMissingDeps() []string
-	static() bool
-	objs() android.Paths
-}
-
-func (library *libraryLinker) linkerProps() []interface{} {
-	props := library.baseLinker.linkerProps()
+func (library *libraryDecorator) linkerProps() []interface{} {
+	var props []interface{}
+	props = append(props, library.baseLinker.linkerProps()...)
 	return append(props,
 		&library.Properties,
-		&library.dynamicProperties,
 		&library.flagExporter.Properties,
 		&library.stripper.StripProperties)
 }
 
-func (library *libraryLinker) getLibName(ctx ModuleContext) string {
-	name := library.libName
-	if name == "" {
-		name = ctx.ModuleName()
-	}
-
-	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
-		if !strings.HasSuffix(name, "-host") {
-			name = name + "-host"
-		}
-	}
-
-	return name + library.Properties.VariantName
-}
-
-func (library *libraryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseLinker.linkerFlags(ctx, flags)
+
+	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
+	// all code is position independent, and then those warnings get promoted to
+	// errors.
+	if ctx.Os() != android.Windows {
+		flags.CFlags = append(flags.CFlags, "-fPIC")
+	}
+
+	if library.static() {
+		flags.CFlags = append(flags.CFlags, library.Properties.Static.Cflags...)
+	} else {
+		flags.CFlags = append(flags.CFlags, library.Properties.Shared.Cflags...)
+	}
 
 	if !library.static() {
 		libName := library.getLibName(ctx)
@@ -288,10 +230,73 @@ func (library *libraryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags 
 	return flags
 }
 
-func (library *libraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
-	deps = library.baseLinker.linkerDeps(ctx, deps)
+func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
+	var objFiles android.Paths
+
+	objFiles = library.baseCompiler.compile(ctx, flags, deps)
+	library.reuseObjFiles = objFiles
+
+	pathDeps := deps.GeneratedHeaders
+	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
+
 	if library.static() {
-		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Static.Whole_static_libs...)
+		objFiles = append(objFiles, compileObjs(ctx, flags, android.DeviceStaticLibrary,
+			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs,
+			nil, pathDeps)...)
+	} else {
+		objFiles = append(objFiles, compileObjs(ctx, flags, android.DeviceSharedLibrary,
+			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs,
+			nil, pathDeps)...)
+	}
+
+	return objFiles
+}
+
+type libraryInterface interface {
+	getWholeStaticMissingDeps() []string
+	static() bool
+	objs() android.Paths
+	reuseObjs() android.Paths
+
+	// Returns true if the build options for the module have selected a static or shared build
+	buildStatic() bool
+	buildShared() bool
+
+	// Sets whether a specific variant is static or shared
+	setStatic(bool)
+}
+
+func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
+	name := library.libName
+	if name == "" {
+		name = ctx.ModuleName()
+	}
+
+	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
+		if !strings.HasSuffix(name, "-host") {
+			name = name + "-host"
+		}
+	}
+
+	return name + library.Properties.VariantName
+}
+
+func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
+	location := InstallInSystem
+	if library.sanitize.inData() {
+		location = InstallInData
+	}
+	library.baseInstaller.location = location
+
+	library.baseLinker.linkerInit(ctx)
+}
+
+func (library *libraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+	deps = library.baseLinker.linkerDeps(ctx, deps)
+
+	if library.static() {
+		deps.WholeStaticLibs = append(deps.WholeStaticLibs,
+			library.Properties.Static.Whole_static_libs...)
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
 	} else {
@@ -312,7 +317,7 @@ func (library *libraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps 
 	return deps
 }
 
-func (library *libraryLinker) linkStatic(ctx ModuleContext,
+func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	library.objFiles = append(android.Paths{}, deps.WholeStaticLibObjFiles...)
@@ -334,7 +339,7 @@ func (library *libraryLinker) linkStatic(ctx ModuleContext,
 	return outputFile
 }
 
-func (library *libraryLinker) linkShared(ctx ModuleContext,
+func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	var linkerDeps android.Paths
@@ -397,7 +402,7 @@ func (library *libraryLinker) linkShared(ctx ModuleContext,
 	return ret
 }
 
-func (library *libraryLinker) link(ctx ModuleContext,
+func (library *libraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
 
 	objFiles = append(objFiles, deps.ObjFiles...)
@@ -415,64 +420,92 @@ func (library *libraryLinker) link(ctx ModuleContext,
 	return out
 }
 
-func (library *libraryLinker) buildStatic() bool {
-	return library.dynamicProperties.BuildStatic &&
+func (library *libraryDecorator) buildStatic() bool {
+	return library.Properties.BuildStatic &&
 		(library.Properties.Static.Enabled == nil || *library.Properties.Static.Enabled)
 }
 
-func (library *libraryLinker) buildShared() bool {
-	return library.dynamicProperties.BuildShared &&
+func (library *libraryDecorator) buildShared() bool {
+	return library.Properties.BuildShared &&
 		(library.Properties.Shared.Enabled == nil || *library.Properties.Shared.Enabled)
 }
 
-func (library *libraryLinker) getWholeStaticMissingDeps() []string {
+func (library *libraryDecorator) getWholeStaticMissingDeps() []string {
 	return library.wholeStaticMissingDeps
 }
 
-func (library *libraryLinker) installable() bool {
-	return !library.static()
-}
-
-func (library *libraryLinker) objs() android.Paths {
+func (library *libraryDecorator) objs() android.Paths {
 	return library.objFiles
 }
 
-type libraryInstaller struct {
-	baseInstaller
-
-	linker   *libraryLinker
-	sanitize *sanitize
+func (library *libraryDecorator) reuseObjs() android.Paths {
+	return library.reuseObjFiles
 }
 
-func (library *libraryInstaller) install(ctx ModuleContext, file android.Path) {
-	if !library.linker.static() {
+func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
+	if !ctx.static() {
 		library.baseInstaller.install(ctx, file)
 	}
 }
 
-func (library *libraryInstaller) inData() bool {
-	return library.baseInstaller.inData() || library.sanitize.inData()
+func (library *libraryDecorator) static() bool {
+	return library.Properties.VariantIsStatic
 }
 
-func NewLibrary(hod android.HostOrDeviceSupported, shared, static bool) *Module {
+func (library *libraryDecorator) setStatic(static bool) {
+	library.Properties.VariantIsStatic = static
+}
+
+func NewLibrary(hod android.HostOrDeviceSupported, shared, static bool) (*Module, *libraryDecorator) {
 	module := newModule(hod, android.MultilibBoth)
 
-	linker := &libraryLinker{}
-	linker.dynamicProperties.BuildShared = shared
-	linker.dynamicProperties.BuildStatic = static
-	module.linker = linker
-
-	module.compiler = &libraryCompiler{
-		linker: linker,
-	}
-	module.installer = &libraryInstaller{
-		baseInstaller: baseInstaller{
-			dir:   "lib",
-			dir64: "lib64",
+	library := &libraryDecorator{
+		Properties: LibraryProperties{
+			BuildShared: shared,
+			BuildStatic: static,
 		},
-		linker:   linker,
-		sanitize: module.sanitize,
+		baseCompiler:  NewBaseCompiler(),
+		baseLinker:    NewBaseLinker(),
+		baseInstaller: NewBaseInstaller("lib", "lib64", InstallInSystem),
+		sanitize:      module.sanitize,
 	}
 
-	return module
+	module.compiler = library
+	module.linker = library
+	module.installer = library
+
+	return module, library
+}
+
+func linkageMutator(mctx android.BottomUpMutatorContext) {
+	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
+		if library, ok := m.linker.(libraryInterface); ok {
+			var modules []blueprint.Module
+			if library.buildStatic() && library.buildShared() {
+				modules = mctx.CreateLocalVariations("static", "shared")
+				static := modules[0].(*Module)
+				shared := modules[1].(*Module)
+
+				static.linker.(libraryInterface).setStatic(true)
+				shared.linker.(libraryInterface).setStatic(false)
+
+				if staticCompiler, ok := static.compiler.(*libraryDecorator); ok {
+					sharedCompiler := shared.compiler.(*libraryDecorator)
+					if len(staticCompiler.Properties.Static.Cflags) == 0 &&
+						len(sharedCompiler.Properties.Shared.Cflags) == 0 {
+						// Optimize out compiling common .o files twice for static+shared libraries
+						mctx.AddInterVariantDependency(reuseObjTag, shared, static)
+						sharedCompiler.baseCompiler.Properties.Srcs = nil
+						sharedCompiler.baseCompiler.Properties.Generated_sources = nil
+					}
+				}
+			} else if library.buildStatic() {
+				modules = mctx.CreateLocalVariations("static")
+				modules[0].(*Module).linker.(libraryInterface).setStatic(true)
+			} else if library.buildShared() {
+				modules = mctx.CreateLocalVariations("shared")
+				modules[0].(*Module).linker.(libraryInterface).setStatic(false)
+			}
+		}
+	}
 }

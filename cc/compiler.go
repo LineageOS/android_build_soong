@@ -89,6 +89,10 @@ type BaseCompilerProperties struct {
 	} `android:"arch_variant"`
 }
 
+func NewBaseCompiler() *baseCompiler {
+	return &baseCompiler{}
+}
+
 type baseCompiler struct {
 	Properties BaseCompilerProperties
 }
@@ -311,7 +315,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	pathDeps := deps.GeneratedHeaders
 	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
 	// Compile files listed in c.Properties.Srcs into objects
-	objFiles := compiler.compileObjs(ctx, flags, "",
+	objFiles := compileObjs(ctx, flags, "",
 		compiler.Properties.Srcs, compiler.Properties.Exclude_srcs,
 		deps.GeneratedSources, pathDeps)
 
@@ -323,7 +327,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 }
 
 // Compile a list of source files into objects a specified subdirectory
-func (compiler *baseCompiler) compileObjs(ctx android.ModuleContext, flags Flags,
+func compileObjs(ctx android.ModuleContext, flags Flags,
 	subdir string, srcFiles, excludes []string, extraSrcs, deps android.Paths) android.Paths {
 
 	buildFlags := flagsToBuilderFlags(flags)
