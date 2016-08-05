@@ -164,6 +164,18 @@ func ndkApiMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+func (c *stubCompiler) compilerInit(ctx BaseModuleContext) {
+	c.baseCompiler.compilerInit(ctx)
+
+	name := strings.TrimSuffix(ctx.ModuleName(), ".ndk")
+	for _, lib := range ndkMigratedLibs {
+		if lib == name {
+			return
+		}
+	}
+	ndkMigratedLibs = append(ndkMigratedLibs, name)
+}
+
 func (c *stubCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
 	arch := ctx.Arch().ArchType.String()
 
