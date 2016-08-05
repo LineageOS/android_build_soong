@@ -86,7 +86,7 @@ func main() {
 	}
 
 	w := &zipWriter{
-		time:        time.Now(),
+		time:        time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC),
 		createdDirs: make(map[string]bool),
 		directories: *directories,
 	}
