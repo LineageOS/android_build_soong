@@ -491,6 +491,13 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	for _, feature := range c.features {
 		feature.begin(ctx)
 	}
+	if ctx.sdk() {
+		version, err := normalizeNdkApiLevel(ctx.sdkVersion(), ctx.Arch())
+		if err != nil {
+			ctx.PropertyErrorf("sdk_version", err.Error())
+		}
+		c.Properties.Sdk_version = strconv.Itoa(version)
+	}
 }
 
 func (c *Module) deps(ctx BaseModuleContext) Deps {
