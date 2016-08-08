@@ -265,7 +265,7 @@ func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	stub.installPath = ctx.InstallFile(installDir, path).String()
 }
 
-func newStubLibrary() *Module {
+func newStubLibrary() (*Module, []interface{}) {
 	module, library := NewLibrary(android.DeviceSupported, true, false)
 	module.stl = nil
 	module.sanitize = nil
@@ -278,10 +278,11 @@ func newStubLibrary() *Module {
 	module.linker = stub
 	module.installer = stub
 
-	return module
+	return module, []interface{}{&stub.properties}
 }
 
 func ndkLibraryFactory() (blueprint.Module, []interface{}) {
-	module := newStubLibrary()
-	return module.Init()
+	module, properties := newStubLibrary()
+	return android.InitAndroidArchModule(module, android.DeviceSupported,
+		android.MultilibBoth, properties...)
 }
