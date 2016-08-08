@@ -25,7 +25,7 @@ func init() {
 	soong.RegisterModuleType("gensrcs", GenSrcsFactory)
 	soong.RegisterModuleType("genrule", GenRuleFactory)
 
-	android.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator)
+	android.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator).Parallel()
 }
 
 var (
