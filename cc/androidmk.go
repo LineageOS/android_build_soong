@@ -206,6 +206,8 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		path, file := filepath.Split(c.installPath)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
+		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
+		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 
