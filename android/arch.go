@@ -463,6 +463,7 @@ func InitArchModule(m Module,
 
 	for _, properties := range base.generalProperties {
 		propertiesValue := reflect.ValueOf(properties)
+		t := propertiesValue.Type()
 		if propertiesValue.Kind() != reflect.Ptr {
 			panic(fmt.Errorf("properties must be a pointer to a struct, got %T",
 				propertiesValue.Interface()))
@@ -476,7 +477,7 @@ func InitArchModule(m Module,
 
 		archProperties := &archProperties{}
 		forEachInterface(reflect.ValueOf(archProperties), func(v reflect.Value) {
-			newValue := proptools.CloneEmptyProperties(propertiesValue)
+			newValue := reflect.Zero(t)
 			v.Set(newValue)
 		})
 
