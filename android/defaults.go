@@ -45,7 +45,7 @@ func (d *DefaultableModule) setProperties(props []interface{}) {
 type Defaultable interface {
 	defaults() *defaultsProperties
 	setProperties([]interface{})
-	applyDefaults(BottomUpMutatorContext, Defaults)
+	applyDefaults(TopDownMutatorContext, []Defaults)
 }
 
 var _ Defaultable = (*DefaultableModule)(nil)
@@ -85,18 +85,20 @@ func InitDefaultsModule(module Module, d Defaults, props ...interface{}) (bluepr
 
 var _ Defaults = (*DefaultsModule)(nil)
 
-func (defaultable *DefaultableModule) applyDefaults(ctx BottomUpMutatorContext,
-	defaults Defaults) {
+func (defaultable *DefaultableModule) applyDefaults(ctx TopDownMutatorContext,
+	defaultsList []Defaults) {
 
-	for _, prop := range defaultable.defaultableProperties {
-		for _, def := range defaults.properties() {
-			if proptools.TypeEqual(prop, def) {
-				err := proptools.PrependProperties(prop, def, nil)
-				if err != nil {
-					if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-						ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
-					} else {
-						panic(err)
+	for _, defaults := range defaultsList {
+		for _, prop := range defaultable.defaultableProperties {
+			for _, def := range defaults.properties() {
+				if proptools.TypeEqual(prop, def) {
+					err := proptools.PrependProperties(prop, def, nil)
+					if err != nil {
+						if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+							ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+						} else {
+							panic(err)
+						}
 					}
 				}
 			}
@@ -110,19 +112,21 @@ func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
-func defaultsMutator(ctx BottomUpMutatorContext) {
-	if defaultable, ok := ctx.Module().(Defaultable); ok {
-		for _, defaultsDep := range defaultable.defaults().Defaults {
-			ctx.VisitDirectDeps(func(m blueprint.Module) {
-				if ctx.OtherModuleName(m) == defaultsDep {
-					if defaultsModule, ok := m.(Defaults); ok {
-						defaultable.applyDefaults(ctx, defaultsModule)
-					} else {
-						ctx.PropertyErrorf("defaults", "module %s is not an defaults module",
-							ctx.OtherModuleName(m))
-					}
+func defaultsMutator(ctx TopDownMutatorContext) {
+	if defaultable, ok := ctx.Module().(Defaultable); ok && len(defaultable.defaults().Defaults) > 0 {
+		var defaultsList []Defaults
+		ctx.WalkDeps(func(module, parent blueprint.Module) bool {
+			if ctx.OtherModuleDependencyTag(module) == DefaultsDepTag {
+				if defaults, ok := module.(Defaults); ok {
+					defaultsList = append(defaultsList, defaults)
+					return len(defaults.defaults().Defaults) > 0
+				} else {
+					ctx.PropertyErrorf("defaults", "module %s is not an defaults module",
+						ctx.OtherModuleName(module))
 				}
-			})
-		}
+			}
+			return false
+		})
+		defaultable.applyDefaults(ctx, defaultsList)
 	}
 }

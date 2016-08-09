@@ -26,7 +26,7 @@ import (
 
 func init() {
 	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator)
-	RegisterBottomUpMutator("defaults", defaultsMutator)
+	RegisterTopDownMutator("defaults", defaultsMutator)
 
 	RegisterBottomUpMutator("arch", ArchMutator)
 }
