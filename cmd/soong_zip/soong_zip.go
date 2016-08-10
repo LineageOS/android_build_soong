@@ -77,9 +77,9 @@ func (l *fileArgs) Get() interface{} {
 }
 
 var (
-	out          = flag.String("o", "", "file to write jar file to")
-	manifest     = flag.String("m", "", "input manifest file name")
-	directories  = flag.Bool("d", false, "include directories in jar")
+	out          = flag.String("o", "", "file to write zip file to")
+	manifest     = flag.String("m", "", "input jar manifest file name")
+	directories  = flag.Bool("d", false, "include directories in zip")
 	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
@@ -92,11 +92,11 @@ var (
 
 func init() {
 	flag.Var(&listFiles, "l", "file containing list of .class files")
-	flag.Var(&files, "f", "file to include in jar")
+	flag.Var(&files, "f", "file to include in zip")
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: soong_jar -o jarfile [-m manifest] -C dir [-f|-l file]...\n")
+	fmt.Fprintf(os.Stderr, "usage: soong_zip -o zipfile [-m manifest] -C dir [-f|-l file]...\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
