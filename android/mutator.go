@@ -44,8 +44,8 @@ type androidBottomUpMutatorContext struct {
 	androidBaseContextImpl
 }
 
-func RegisterBottomUpMutator(name string, mutator AndroidBottomUpMutator) {
-	soong.RegisterBottomUpMutator(name, func(ctx blueprint.BottomUpMutatorContext) {
+func RegisterBottomUpMutator(name string, mutator AndroidBottomUpMutator) soong.BottomUpMutatorHandle {
+	return soong.RegisterBottomUpMutator(name, func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidBottomUpMutatorContext{
 				BottomUpMutatorContext: ctx,
