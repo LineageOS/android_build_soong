@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/blueprint"
 
@@ -58,7 +59,8 @@ var (
 
 	// These libraries have migrated over to the new ndk_library, which is added
 	// as a variation dependency via depsMutator.
-	ndkMigratedLibs = []string{}
+	ndkMigratedLibs     = []string{}
+	ndkMigratedLibsLock sync.Mutex // protects ndkMigratedLibs writes during parallel beginMutator
 )
 
 // Creates a stub shared library based on the provided version file.
@@ -177,6 +179,8 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	c.baseCompiler.compilerInit(ctx)
 
 	name := strings.TrimSuffix(ctx.ModuleName(), ".ndk")
+	ndkMigratedLibsLock.Lock()
+	defer ndkMigratedLibsLock.Unlock()
 	for _, lib := range ndkMigratedLibs {
 		if lib == name {
 			return
