@@ -140,6 +140,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	if ctx.staticBinary() {
 		s.Address = nil
+		s.Coverage = nil
 		s.Thread = nil
 	}
 
@@ -317,6 +318,9 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 	switch t {
 	case asan:
 		sanitize.Properties.Sanitize.Address = boolPtr(b)
+		if !b {
+			sanitize.Properties.Sanitize.Coverage = nil
+		}
 	case tsan:
 		sanitize.Properties.Sanitize.Thread = boolPtr(b)
 	default:
