@@ -10,6 +10,8 @@
 //    2) Build again
 //
 
+subdirs = ["third_party/zip"]
+
 bootstrap_go_binary {
     name: "soong_build",
     deps: [
@@ -195,9 +197,19 @@ bootstrap_go_package {
 }
 
 blueprint_go_binary {
-    name: "soong_jar",
+    name: "zip2zip",
+    deps: ["android-archive-zip"],
     srcs: [
-        "cmd/soong_jar/soong_jar.go",
+        "cmd/zip2zip/zip2zip.go",
+    ],
+}
+
+blueprint_go_binary {
+    name: "soong_zip",
+    deps: ["android-archive-zip"],
+    srcs: [
+        "cmd/soong_zip/soong_zip.go",
+        "cmd/soong_zip/rate_limit.go",
     ],
 }
 
