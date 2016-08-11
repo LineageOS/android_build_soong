@@ -24,7 +24,7 @@ import (
 )
 
 func init() {
-	RegisterBottomUpMutator("variable", variableMutator)
+	RegisterBottomUpMutator("variable", variableMutator).Parallel()
 }
 
 type variableProperties struct {

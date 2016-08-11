@@ -38,17 +38,17 @@ func init() {
 	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
 	// the Go initialization order because this package depends on common, so common's init
 	// functions will run first.
-	android.RegisterBottomUpMutator("link", linkageMutator)
-	android.RegisterBottomUpMutator("ndk_api", ndkApiMutator)
-	android.RegisterBottomUpMutator("test_per_src", testPerSrcMutator)
-	android.RegisterBottomUpMutator("begin", beginMutator)
-	android.RegisterBottomUpMutator("deps", depsMutator)
+	android.RegisterBottomUpMutator("link", linkageMutator).Parallel()
+	android.RegisterBottomUpMutator("ndk_api", ndkApiMutator).Parallel()
+	android.RegisterBottomUpMutator("test_per_src", testPerSrcMutator).Parallel()
+	android.RegisterBottomUpMutator("begin", beginMutator).Parallel()
+	android.RegisterBottomUpMutator("deps", depsMutator).Parallel()
 
 	android.RegisterTopDownMutator("asan_deps", sanitizerDepsMutator(asan))
-	android.RegisterBottomUpMutator("asan", sanitizerMutator(asan))
+	android.RegisterBottomUpMutator("asan", sanitizerMutator(asan)).Parallel()
 
 	android.RegisterTopDownMutator("tsan_deps", sanitizerDepsMutator(tsan))
-	android.RegisterBottomUpMutator("tsan", sanitizerMutator(tsan))
+	android.RegisterBottomUpMutator("tsan", sanitizerMutator(tsan)).Parallel()
 
 	pctx.Import("android/soong/cc/config")
 }

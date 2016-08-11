@@ -34,9 +34,10 @@ type mutator struct {
 	name            string
 	bottomUpMutator blueprint.BottomUpMutator
 	topDownMutator  blueprint.TopDownMutator
+	parallel        bool
 }
 
-var mutators []mutator
+var mutators []*mutator
 
 func RegisterModuleType(name string, factory blueprint.ModuleFactory) {
 	moduleTypes = append(moduleTypes, moduleType{name, factory})
@@ -46,12 +47,23 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
-func RegisterBottomUpMutator(name string, m blueprint.BottomUpMutator) {
-	mutators = append(mutators, mutator{name: name, bottomUpMutator: m})
+func RegisterBottomUpMutator(name string, m blueprint.BottomUpMutator) BottomUpMutatorHandle {
+	mutator := &mutator{name: name, bottomUpMutator: m}
+	mutators = append(mutators, mutator)
+	return mutator
 }
 
 func RegisterTopDownMutator(name string, m blueprint.TopDownMutator) {
-	mutators = append(mutators, mutator{name: name, topDownMutator: m})
+	mutators = append(mutators, &mutator{name: name, topDownMutator: m})
+}
+
+type BottomUpMutatorHandle interface {
+	Parallel() BottomUpMutatorHandle
+}
+
+func (mutator *mutator) Parallel() BottomUpMutatorHandle {
+	mutator.parallel = true
+	return mutator
 }
 
 func NewContext() *blueprint.Context {
@@ -67,7 +79,10 @@ func NewContext() *blueprint.Context {
 
 	for _, t := range mutators {
 		if t.bottomUpMutator != nil {
-			ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
+			handle := ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
+			if t.parallel {
+				handle.Parallel()
+			}
 		}
 		if t.topDownMutator != nil {
 			ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
