@@ -296,6 +296,7 @@ func (benchmark *benchmarkDecorator) linkerDeps(ctx BaseModuleContext, deps Deps
 func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Path) {
 	benchmark.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
 	benchmark.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
+	benchmark.baseInstaller.install(ctx, file)
 }
 
 func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
