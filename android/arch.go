@@ -26,7 +26,7 @@ import (
 
 func init() {
 	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator).Parallel()
-	RegisterTopDownMutator("defaults", defaultsMutator)
+	RegisterTopDownMutator("defaults", defaultsMutator).Parallel()
 
 	RegisterBottomUpMutator("arch", ArchMutator).Parallel()
 }
