@@ -47,21 +47,23 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
-func RegisterBottomUpMutator(name string, m blueprint.BottomUpMutator) BottomUpMutatorHandle {
+func RegisterBottomUpMutator(name string, m blueprint.BottomUpMutator) MutatorHandle {
 	mutator := &mutator{name: name, bottomUpMutator: m}
 	mutators = append(mutators, mutator)
 	return mutator
 }
 
-func RegisterTopDownMutator(name string, m blueprint.TopDownMutator) {
-	mutators = append(mutators, &mutator{name: name, topDownMutator: m})
+func RegisterTopDownMutator(name string, m blueprint.TopDownMutator) MutatorHandle {
+	mutator := &mutator{name: name, topDownMutator: m}
+	mutators = append(mutators, mutator)
+	return mutator
 }
 
-type BottomUpMutatorHandle interface {
-	Parallel() BottomUpMutatorHandle
+type MutatorHandle interface {
+	Parallel() MutatorHandle
 }
 
-func (mutator *mutator) Parallel() BottomUpMutatorHandle {
+func (mutator *mutator) Parallel() MutatorHandle {
 	mutator.parallel = true
 	return mutator
 }
@@ -78,14 +80,14 @@ func NewContext() *blueprint.Context {
 	}
 
 	for _, t := range mutators {
+		var handle blueprint.MutatorHandle
 		if t.bottomUpMutator != nil {
-			handle := ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
-			if t.parallel {
-				handle.Parallel()
-			}
+			handle = ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
+		} else if t.topDownMutator != nil {
+			handle = ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
 		}
-		if t.topDownMutator != nil {
-			ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
+		if t.parallel {
+			handle.Parallel()
 		}
 	}
 
