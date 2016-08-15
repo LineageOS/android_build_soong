@@ -124,7 +124,6 @@ type BaseProperties struct {
 
 type UnusedProperties struct {
 	Native_coverage *bool
-	Required        []string
 	Tags            []string
 }
 
