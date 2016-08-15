@@ -71,7 +71,7 @@ type Toolchain interface {
 	ShlibSuffix() string
 	ExecutableSuffix() string
 
-	AddressSanitizerRuntimeLibrary() string
+	SanitizerRuntimeLibraryArch() string
 
 	AvailableLibraries() []string
 }
@@ -125,7 +125,7 @@ func (toolchainBase) ClangAsflags() string {
 	return ""
 }
 
-func (toolchainBase) AddressSanitizerRuntimeLibrary() string {
+func (toolchainBase) SanitizerRuntimeLibraryArch() string {
 	return ""
 }
 
@@ -187,4 +187,20 @@ func indexList(s string, list []string) int {
 
 func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
+}
+
+func AddressSanitizerRuntimeLibrary(t Toolchain) string {
+	arch := t.SanitizerRuntimeLibraryArch()
+	if arch == "" {
+		return ""
+	}
+	return "libclang_rt.asan-" + arch + "-android.so"
+}
+
+func UndefinedBehaviorSanitizerRuntimeLibrary(t Toolchain) string {
+	arch := t.SanitizerRuntimeLibraryArch()
+	if arch == "" {
+		return ""
+	}
+	return "libclang_rt.ubsan_standalone-" + arch + "-android.so"
 }
