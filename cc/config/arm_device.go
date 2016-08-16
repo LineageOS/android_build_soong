@@ -336,8 +336,8 @@ func (t *toolchainArm) ClangInstructionSetFlags(isa string) (string, error) {
 	}
 }
 
-func (toolchainArm) AddressSanitizerRuntimeLibrary() string {
-	return "libclang_rt.asan-arm-android.so"
+func (toolchainArm) SanitizerRuntimeLibraryArch() string {
+	return "arm"
 }
 
 func armToolchainFactory(arch android.Arch) Toolchain {
