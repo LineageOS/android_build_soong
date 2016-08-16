@@ -232,6 +232,10 @@ func (t *toolchainX86_64) ClangLdflags() string {
 	return "${config.X86_64Ldflags}"
 }
 
+func (toolchainX86_64) SanitizerRuntimeLibraryArch() string {
+	return "x86_64"
+}
+
 func x86_64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainCflags := []string{
 		"${config.X86_64ToolchainCflags}",

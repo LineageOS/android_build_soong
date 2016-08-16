@@ -184,8 +184,8 @@ func (t *toolchainArm64) ToolchainClangCflags() string {
 	return t.toolchainClangCflags
 }
 
-func (toolchainArm64) AddressSanitizerRuntimeLibrary() string {
-	return "libclang_rt.asan-aarch64-android.so"
+func (toolchainArm64) SanitizerRuntimeLibraryArch() string {
+	return "aarch64"
 }
 
 func arm64ToolchainFactory(arch android.Arch) Toolchain {
