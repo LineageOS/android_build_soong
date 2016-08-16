@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 type sanitizerType int
@@ -239,7 +240,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,-u,__asan_preinit")
 
 		// ASan runtime library must be the first in the link order.
-		runtimeLibrary := ctx.toolchain().AddressSanitizerRuntimeLibrary()
+		runtimeLibrary := config.AddressSanitizerRuntimeLibrary(ctx.toolchain())
 		if runtimeLibrary != "" {
 			flags.libFlags = append([]string{"${config.ClangAsanLibDir}/" + runtimeLibrary}, flags.libFlags...)
 		}

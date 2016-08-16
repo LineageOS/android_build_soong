@@ -251,8 +251,8 @@ func (t *toolchainX86) ClangLdflags() string {
 	return "${config.X86Ldflags}"
 }
 
-func (toolchainX86) AddressSanitizerRuntimeLibrary() string {
-	return "libclang_rt.asan-i686-android.so"
+func (toolchainX86) SanitizerRuntimeLibraryArch() string {
+	return "i686"
 }
 
 func x86ToolchainFactory(arch android.Arch) Toolchain {
