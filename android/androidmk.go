@@ -200,6 +200,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	fmt.Fprintln(w, "LOCAL_MULTILIB :=", amod.commonProperties.Compile_multilib)
 	fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", data.OutputFile.String())
 
+	if len(amod.commonProperties.Required) > 0 {
+		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(amod.commonProperties.Required, " "))
+	}
+
 	archStr := amod.Arch().ArchType.String()
 	host := false
 	switch amod.Os().Class {

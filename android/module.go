@@ -120,6 +120,9 @@ type commonProperties struct {
 	// init.rc files to be installed if this module is installed
 	Init_rc []string
 
+	// names of other modules to install if this module is installed
+	Required []string
+
 	// Set by TargetMutator
 	CompileTarget Target `blueprint:"mutated"`
 
