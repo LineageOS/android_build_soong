@@ -888,9 +888,13 @@ func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func defaultsFactory() (blueprint.Module, []interface{}) {
+	return DefaultsFactory()
+}
+
+func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 	module := &Defaults{}
 
-	propertyStructs := []interface{}{
+	props = append(props,
 		&BaseProperties{},
 		&BaseCompilerProperties{},
 		&BaseLinkerProperties{},
@@ -903,12 +907,12 @@ func defaultsFactory() (blueprint.Module, []interface{}) {
 		&StlProperties{},
 		&SanitizeProperties{},
 		&StripProperties{},
-	}
+	)
 
-	_, propertyStructs = android.InitAndroidArchModule(module, android.HostAndDeviceDefault,
-		android.MultilibDefault, propertyStructs...)
+	_, props = android.InitAndroidArchModule(module, android.HostAndDeviceDefault,
+		android.MultilibDefault, props...)
 
-	return android.InitDefaultsModule(module, module, propertyStructs...)
+	return android.InitDefaultsModule(module, module, props...)
 }
 
 // lastUniqueElements returns all unique elements of a slice, keeping the last copy of each
