@@ -100,6 +100,7 @@ bootstrap_go_package {
         "android/makevars.go",
         "android/module.go",
         "android/mutator.go",
+        "android/onceper.go",
         "android/package_ctx.go",
         "android/paths.go",
         "android/util.go",
