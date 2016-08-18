@@ -56,6 +56,7 @@ type androidBaseContext interface {
 	Darwin() bool
 	Debug() bool
 	AConfig() Config
+	DeviceConfig() DeviceConfig
 }
 
 type BaseContext interface {
@@ -533,6 +534,10 @@ func (a *androidBaseContextImpl) Debug() bool {
 
 func (a *androidBaseContextImpl) AConfig() Config {
 	return a.config
+}
+
+func (a *androidBaseContextImpl) DeviceConfig() DeviceConfig {
+	return DeviceConfig{a.config.deviceConfig}
 }
 
 func (a *androidModuleContext) Proprietary() bool {

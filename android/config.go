@@ -43,11 +43,18 @@ func (f *FileConfigurableOptions) SetDefaultConfig() {
 	*f = FileConfigurableOptions{}
 }
 
+// A Config object represents the entire build configuration for Android.
 type Config struct {
 	*config
 }
 
-// A config object represents the entire build configuration for Android.
+// A DeviceConfig object represents the configuration for a particular device being built.  For
+// now there will only be one of these, but in the future there may be multiple devices being
+// built
+type DeviceConfig struct {
+	*deviceConfig
+}
+
 type config struct {
 	FileConfigurableOptions
 	ProductVariables productVariables
@@ -58,6 +65,8 @@ type config struct {
 	Targets        map[OsClass][]Target
 	BuildOsVariant string
 
+	deviceConfig *deviceConfig
+
 	srcDir   string // the path of the root source directory
 	buildDir string // the path of the build output directory
 
@@ -66,6 +75,13 @@ type config struct {
 	envFrozen bool
 
 	inMake bool
+	OncePer
+}
+
+type deviceConfig struct {
+	config  *config
+	targets []Arch
+	OncePer
 }
 
 type jsonConfigurable interface {
@@ -138,16 +154,22 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 // the root source directory. It also loads the config file, if found.
 func NewConfig(srcDir, buildDir string) (Config, error) {
 	// Make a config with default options
-	config := Config{
-		config: &config{
-			ConfigFileName:           filepath.Join(buildDir, configFileName),
-			ProductVariablesFileName: filepath.Join(buildDir, productVariablesFileName),
+	config := &config{
+		ConfigFileName:           filepath.Join(buildDir, configFileName),
+		ProductVariablesFileName: filepath.Join(buildDir, productVariablesFileName),
 
-			srcDir:   srcDir,
-			buildDir: buildDir,
-			envDeps:  make(map[string]string),
-		},
+		srcDir:   srcDir,
+		buildDir: buildDir,
+		envDeps:  make(map[string]string),
+
+		deviceConfig: &deviceConfig{},
 	}
+
+	deviceConfig := &deviceConfig{
+		config: config,
+	}
+
+	config.deviceConfig = deviceConfig
 
 	// Sanity check the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious cases.
@@ -166,7 +188,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	}
 
 	// Load any configurable options from the configuration file
-	err = loadConfig(config.config)
+	err = loadConfig(config)
 	if err != nil {
 		return Config{}, err
 	}
@@ -192,7 +214,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	config.Targets = targets
 	config.BuildOsVariant = targets[Host][0].String()
 
-	return config, nil
+	return Config{config}, nil
 }
 
 func (c *config) RemoveAbandonedFiles() bool {
@@ -336,4 +358,12 @@ func (c *config) Android64() bool {
 	}
 
 	return false
+}
+
+func (c *deviceConfig) Arches() []Arch {
+	var arches []Arch
+	for _, target := range c.config.Targets[Device] {
+		arches = append(arches, target.Arch)
+	}
+	return arches
 }
