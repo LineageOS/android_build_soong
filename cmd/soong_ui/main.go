@@ -24,6 +24,7 @@ import (
 
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
+	"android/soong/ui/tracer"
 )
 
 func indexList(s string, list []string) int {
@@ -51,26 +52,33 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	build.SetupSignals(log, cancel, log.Cleanup)
+	trace := tracer.New(log)
+	defer trace.Close()
 
-	buildCtx := &build.ContextImpl{
+	build.SetupSignals(log, cancel, func() {
+		trace.Close()
+		log.Cleanup()
+	})
+
+	buildCtx := build.Context{&build.ContextImpl{
 		Context:        ctx,
 		Logger:         log,
+		Tracer:         trace,
 		StdioInterface: build.StdioImpl{},
-	}
+	}}
 	config := build.NewConfig(buildCtx, os.Args[1:]...)
 
 	log.SetVerbose(config.IsVerbose())
-	if err := os.MkdirAll(config.OutDir(), 0777); err != nil {
-		log.Fatalf("Error creating out directory: %v", err)
-	}
+	build.SetupOutDir(buildCtx, config)
 	log.SetOutput(filepath.Join(config.OutDir(), "build.log"))
+	trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
 			if start_time, err := strconv.ParseUint(start, 10, 64); err == nil {
 				log.Verbosef("Took %dms to start up.",
 					time.Since(time.Unix(0, int64(start_time))).Nanoseconds()/time.Millisecond.Nanoseconds())
+				buildCtx.CompleteTrace("startup", start_time, uint64(time.Now().UnixNano()))
 			}
 		}
 	}

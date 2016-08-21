@@ -17,6 +17,7 @@ bootstrap_go_package {
     pkgPath: "android/soong/ui/build",
     deps: [
         "soong-ui-logger",
+        "soong-ui-tracer",
     ],
     srcs: [
         "build.go",

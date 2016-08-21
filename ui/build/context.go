@@ -18,8 +18,10 @@ import (
 	"context"
 	"io"
 	"os"
+	"time"
 
 	"android/soong/ui/logger"
+	"android/soong/ui/tracer"
 )
 
 type StdioInterface interface {
@@ -55,10 +57,41 @@ var _ StdioInterface = customStdio{}
 // Context combines a context.Context, logger.Logger, and StdIO redirection.
 // These all are agnostic of the current build, and may be used for multiple
 // builds, while the Config objects contain per-build information.
-type Context *ContextImpl
+type Context struct{ *ContextImpl }
 type ContextImpl struct {
 	context.Context
 	logger.Logger
 
 	StdioInterface
+
+	Thread tracer.Thread
+	Tracer tracer.Tracer
+}
+
+// BeginTrace starts a new Duration Event.
+func (c ContextImpl) BeginTrace(name string) {
+	if c.Tracer != nil {
+		c.Tracer.Begin(name, c.Thread)
+	}
+}
+
+// EndTrace finishes the last Duration Event.
+func (c ContextImpl) EndTrace() {
+	if c.Tracer != nil {
+		c.Tracer.End(c.Thread)
+	}
+}
+
+// CompleteTrace writes a trace with a beginning and end times.
+func (c ContextImpl) CompleteTrace(name string, begin, end uint64) {
+	if c.Tracer != nil {
+		c.Tracer.Complete(name, c.Thread, begin, end)
+	}
+}
+
+// ImportNinjaLog imports a .ninja_log file into the tracer.
+func (c ContextImpl) ImportNinjaLog(filename string, startOffset time.Time) {
+	if c.Tracer != nil {
+		c.Tracer.ImportNinjaLog(c.Thread, filename, startOffset)
+	}
 }
