@@ -24,13 +24,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-func init() {
-	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator).Parallel()
-	RegisterTopDownMutator("defaults", defaultsMutator).Parallel()
-
-	RegisterBottomUpMutator("arch", ArchMutator).Parallel()
-}
-
 var (
 	Arm    = newArch("arm", "lib32")
 	Arm64  = newArch("arm64", "lib64")
@@ -489,6 +482,8 @@ func InitArchModule(m Module,
 	for _, asp := range base.archProperties {
 		allProperties = append(allProperties, asp)
 	}
+
+	base.customizableProperties = allProperties
 
 	return m, allProperties
 }
