@@ -94,6 +94,7 @@ bootstrap_go_package {
         "android/androidmk.go",
         "android/arch.go",
         "android/config.go",
+        "android/customizer.go",
         "android/defaults.go",
         "android/defs.go",
         "android/glob.go",
