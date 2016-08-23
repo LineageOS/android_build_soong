@@ -25,6 +25,14 @@ import (
 	"github.com/google/blueprint"
 )
 
+func init() {
+	RegisterTopDownMutator("customizer", customizerMutator).Parallel()
+	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator).Parallel()
+	RegisterTopDownMutator("defaults", defaultsMutator).Parallel()
+
+	RegisterBottomUpMutator("arch", ArchMutator).Parallel()
+}
+
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"
@@ -188,6 +196,11 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	return InitArchModule(m, propertyStructs...)
 }
 
+func AddCustomizer(m blueprint.Module, c PropertyCustomizer) {
+	base := m.(Module).base()
+	base.customizers = append(base.customizers, c)
+}
+
 // A AndroidModuleBase object contains the properties that are common to all Android
 // modules.  It should be included as an anonymous field in every module
 // struct definition.  InitAndroidModule should then be called from the module's
@@ -238,6 +251,7 @@ type ModuleBase struct {
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
 	archProperties          []*archProperties
+	customizableProperties  []interface{}
 
 	noAddressSanitizer bool
 	installFiles       Paths
@@ -248,6 +262,8 @@ type ModuleBase struct {
 	installTarget    string
 	checkbuildTarget string
 	blueprintDir     string
+
+	customizers []PropertyCustomizer
 }
 
 func (a *ModuleBase) base() *ModuleBase {
