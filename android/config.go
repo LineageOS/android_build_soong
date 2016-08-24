@@ -75,6 +75,7 @@ type config struct {
 	envFrozen bool
 
 	inMake bool
+
 	OncePer
 }
 
@@ -330,6 +331,14 @@ func (c *config) DefaultAppCertificate(ctx PathContext) SourcePath {
 
 func (c *config) AllowMissingDependencies() bool {
 	return Bool(c.ProductVariables.Allow_missing_dependencies)
+}
+
+func (c *config) DevicePrefer32BitExecutables() bool {
+	return Bool(c.ProductVariables.DevicePrefer32BitExecutables)
+}
+
+func (c *config) HostPrefer32BitExecutables() bool {
+	return Bool(c.ProductVariables.HostPrefer32BitExecutables)
 }
 
 func (c *config) SkipDeviceInstall() bool {
