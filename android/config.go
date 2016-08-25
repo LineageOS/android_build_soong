@@ -360,6 +360,14 @@ func (c *config) Android64() bool {
 	return false
 }
 
+func (c *config) LibartImgHostBaseAddress() string {
+	return "0x60000000"
+}
+
+func (c *config) LibartImgDeviceBaseAddress() string {
+	return "0x70000000"
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Device] {
