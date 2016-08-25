@@ -6,7 +6,6 @@ subdirs = [
 ]
 
 optional_subdirs = [
-    "art",
     "bionic",
     "build/kati",
     "build/tools/*",
