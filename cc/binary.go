@@ -34,6 +34,9 @@ type BinaryLinkerProperties struct {
 
 	// if set, add an extra objcopy --prefix-symbols= step
 	Prefix_symbols string
+
+	// if set, install a symlink to the preferred architecture
+	Symlink_preferred_arch bool
 }
 
 func init() {
@@ -59,6 +62,7 @@ func binaryHostFactory() (blueprint.Module, []interface{}) {
 
 type binaryDecorator struct {
 	*baseLinker
+	*baseInstaller
 	stripper
 
 	Properties BinaryLinkerProperties
@@ -137,11 +141,12 @@ func (binary *binaryDecorator) isDependencyRoot() bool {
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
 	binary := &binaryDecorator{
-		baseLinker: NewBaseLinker(),
+		baseLinker:    NewBaseLinker(),
+		baseInstaller: NewBaseInstaller("bin", "", InstallInSystem),
 	}
 	module.compiler = NewBaseCompiler()
 	module.linker = binary
-	module.installer = NewBaseInstaller("bin", "", InstallInSystem)
+	module.installer = binary
 	return module, binary
 }
 
@@ -156,6 +161,22 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 		} else {
 			// Static executables are not supported on Darwin or Windows
 			binary.Properties.Static_executable = nil
+		}
+	}
+
+	if binary.Properties.Symlink_preferred_arch {
+		if binary.Properties.Stem == "" && binary.Properties.Suffix == "" {
+			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify stem or suffix")
+		}
+		var prefer bool
+		if ctx.Host() {
+			prefer = ctx.AConfig().HostPrefer32BitExecutables()
+		} else {
+			prefer = ctx.AConfig().DevicePrefer32BitExecutables()
+		}
+		if ctx.PrimaryArch() != prefer {
+			binary.baseInstaller.Properties.Symlinks = append(binary.baseInstaller.Properties.Symlinks,
+				ctx.ModuleName())
 		}
 	}
 }
