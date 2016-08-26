@@ -102,6 +102,9 @@ type productVariables struct {
 	Schedboost                 *bool `json:",omitempty"`
 	Binder32bit                *bool `json:",omitempty"`
 
+	DevicePrefer32BitExecutables *bool `json:",omitempty"`
+	HostPrefer32BitExecutables   *bool `json:",omitempty"`
+
 	SanitizeHost   *[]string `json:",omitempty"`
 	SanitizeDevice *[]string `json:",omitempty"`
 }
