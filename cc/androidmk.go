@@ -125,6 +125,7 @@ func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.Android
 }
 
 func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, binary.baseInstaller)
 	ctx.subAndroidMk(ret, &binary.stripper)
 
 	ret.Class = "EXECUTABLES"

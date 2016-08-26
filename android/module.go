@@ -63,6 +63,7 @@ type androidBaseContext interface {
 	Device() bool
 	Darwin() bool
 	Debug() bool
+	PrimaryArch() bool
 	AConfig() Config
 	DeviceConfig() DeviceConfig
 }
@@ -546,6 +547,10 @@ func (a *androidBaseContextImpl) Darwin() bool {
 
 func (a *androidBaseContextImpl) Debug() bool {
 	return a.debug
+}
+
+func (a *androidBaseContextImpl) PrimaryArch() bool {
+	return a.target.Arch.ArchType == a.config.Targets[a.target.Os.Class][0].Arch.ArchType
 }
 
 func (a *androidBaseContextImpl) AConfig() Config {
