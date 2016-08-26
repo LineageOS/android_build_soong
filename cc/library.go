@@ -215,7 +215,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 			f = append(f,
 				"-dynamiclib",
 				"-single_module",
-				//"-read_only_relocs suppress",
+				"-read_only_relocs suppress",
 				"-install_name @rpath/"+libName+flags.Toolchain.ShlibSuffix(),
 			)
 		} else {
