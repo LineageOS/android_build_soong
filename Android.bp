@@ -10,32 +10,11 @@
 //    2) Build again
 //
 
-subdirs = ["third_party/zip"]
-
-bootstrap_go_binary {
-    name: "soong_build",
-    deps: [
-        "blueprint",
-        "blueprint-bootstrap",
-        "soong",
-        "soong-android",
-        "soong-env",
-    ],
-    srcs: [
-        "cmd/soong_build/main.go",
-    ],
-    primaryBuilder: true,
-}
-
-bootstrap_go_binary {
-    name: "soong_env",
-    deps: [
-        "soong-env",
-    ],
-    srcs: [
-        "cmd/soong_env/soong_env.go",
-    ],
-}
+subdirs = [
+    "androidmk",
+    "cmd/*",
+    "third_party/zip",
+]
 
 bootstrap_go_package {
     name: "soong-env",
@@ -45,16 +24,6 @@ bootstrap_go_package {
     ],
 }
 
-
-blueprint_go_binary {
-    name: "soong_glob",
-    deps: [
-        "soong-glob",
-    ],
-    srcs: [
-        "cmd/soong_glob/soong_glob.go",
-    ],
-}
 
 bootstrap_go_package {
     name: "soong-glob",
@@ -198,23 +167,6 @@ bootstrap_go_package {
     pluginFor: ["soong_build"],
 }
 
-blueprint_go_binary {
-    name: "zip2zip",
-    deps: ["android-archive-zip"],
-    srcs: [
-        "cmd/zip2zip/zip2zip.go",
-    ],
-}
-
-blueprint_go_binary {
-    name: "soong_zip",
-    deps: ["android-archive-zip"],
-    srcs: [
-        "cmd/soong_zip/soong_zip.go",
-        "cmd/soong_zip/rate_limit.go",
-    ],
-}
-
 bootstrap_go_package {
     name: "soong-java",
     pkgPath: "android/soong/java",
@@ -235,40 +187,6 @@ bootstrap_go_package {
         "java/resources.go",
     ],
     pluginFor: ["soong_build"],
-}
-
-//
-// androidmk Android.mk to Blueprints translator
-//
-
-blueprint_go_binary {
-    name: "androidmk",
-    srcs: [
-        "androidmk/cmd/androidmk/android.go",
-        "androidmk/cmd/androidmk/androidmk.go",
-        "androidmk/cmd/androidmk/values.go",
-    ],
-    testSrcs: [
-        "androidmk/cmd/androidmk/androidmk_test.go",
-    ],
-    deps: [
-        "androidmk-parser",
-        "blueprint-parser",
-    ],
-}
-
-bootstrap_go_package {
-    name: "androidmk-parser",
-    pkgPath: "android/soong/androidmk/parser",
-    srcs: [
-        "androidmk/parser/ast.go",
-        "androidmk/parser/make_strings.go",
-        "androidmk/parser/parser.go",
-        "androidmk/parser/scope.go",
-    ],
-    testSrcs: [
-        "androidmk/parser/make_strings_test.go",
-    ],
 }
 
 //
