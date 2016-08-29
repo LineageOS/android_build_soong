@@ -33,7 +33,7 @@ func init() {
 }
 
 var (
-	aidl = pctx.StaticRule("aidl",
+	aidl = pctx.AndroidStaticRule("aidl",
 		blueprint.RuleParams{
 			Command:     "$aidlCmd -d$depFile $aidlFlags $in $out",
 			CommandDeps: []string{"$aidlCmd"},
@@ -41,14 +41,14 @@ var (
 		},
 		"depFile", "aidlFlags")
 
-	logtags = pctx.StaticRule("logtags",
+	logtags = pctx.AndroidStaticRule("logtags",
 		blueprint.RuleParams{
 			Command:     "$logtagsCmd -o $out $in $allLogtagsFile",
 			CommandDeps: []string{"$logtagsCmd"},
 			Description: "logtags $out",
 		})
 
-	mergeLogtags = pctx.StaticRule("mergeLogtags",
+	mergeLogtags = pctx.AndroidStaticRule("mergeLogtags",
 		blueprint.RuleParams{
 			Command:     "$mergeLogtagsCmd -o $out $in",
 			CommandDeps: []string{"$mergeLogtagsCmd"},

@@ -101,6 +101,7 @@ type productVariables struct {
 	Cpusets                    *bool `json:",omitempty"`
 	Schedboost                 *bool `json:",omitempty"`
 	Binder32bit                *bool `json:",omitempty"`
+	UseGoma                    *bool `json:",omitempty"`
 
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
 	HostPrefer32BitExecutables   *bool `json:",omitempty"`
