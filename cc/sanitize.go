@@ -353,9 +353,6 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 			if c.isDependencyRoot() && c.sanitize.Sanitizer(t) {
 				modules := mctx.CreateVariations(t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
-				if mctx.AConfig().EmbeddedInMake() && !c.Host() {
-					modules[0].(*Module).sanitize.Properties.InData = true
-				}
 			} else if c.sanitize.Properties.SanitizeDep {
 				if c.Host() {
 					modules := mctx.CreateVariations(t.String())
