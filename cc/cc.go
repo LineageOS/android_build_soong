@@ -873,6 +873,9 @@ func (c *Module) InstallInData() bool {
 	if c.installer == nil {
 		return false
 	}
+	if c.sanitize != nil && c.sanitize.inData() {
+		return true
+	}
 	return c.installer.inData()
 }
 
