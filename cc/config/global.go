@@ -127,6 +127,13 @@ func init() {
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
 
 	pctx.StaticVariable("ClangAsanLibDir", "${ClangPath}/lib64/clang/3.8/lib/linux")
+
+	pctx.VariableFunc("CcWrapper", func(config interface{}) (string, error) {
+		if override := config.(android.Config).Getenv("CC_WRAPPER"); override != "" {
+			return override + " ", nil
+		}
+		return "", nil
+	})
 }
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
