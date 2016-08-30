@@ -181,7 +181,6 @@ type testBinary struct {
 	testDecorator
 	*binaryDecorator
 	*baseCompiler
-	*baseInstaller
 	Properties TestBinaryProperties
 }
 
@@ -209,14 +208,15 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
-	test.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
-	test.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
-	test.baseInstaller.install(ctx, file)
+	test.binaryDecorator.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
+	test.binaryDecorator.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
+	test.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
 func NewTest(hod android.HostOrDeviceSupported) *Module {
 	module, binary := NewBinary(hod)
 	module.multilib = android.MultilibBoth
+	binary.baseInstaller = NewTestInstaller()
 
 	test := &testBinary{
 		testDecorator: testDecorator{
@@ -224,7 +224,6 @@ func NewTest(hod android.HostOrDeviceSupported) *Module {
 		},
 		binaryDecorator: binary,
 		baseCompiler:    NewBaseCompiler(),
-		baseInstaller:   NewTestInstaller(),
 	}
 	test.testDecorator.Properties.Gtest = true
 	module.compiler = test
@@ -275,7 +274,6 @@ func NewTestLibrary(hod android.HostOrDeviceSupported) *Module {
 
 type benchmarkDecorator struct {
 	*binaryDecorator
-	*baseInstaller
 }
 
 func (benchmark *benchmarkDecorator) linkerInit(ctx BaseModuleContext) {
@@ -294,18 +292,18 @@ func (benchmark *benchmarkDecorator) linkerDeps(ctx BaseModuleContext, deps Deps
 }
 
 func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Path) {
-	benchmark.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
-	benchmark.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
-	benchmark.baseInstaller.install(ctx, file)
+	benchmark.binaryDecorator.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
+	benchmark.binaryDecorator.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
+	benchmark.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
 func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
 	module, binary := NewBinary(hod)
 	module.multilib = android.MultilibBoth
+	binary.baseInstaller = NewTestInstaller()
 
 	benchmark := &benchmarkDecorator{
 		binaryDecorator: binary,
-		baseInstaller:   NewTestInstaller(),
 	}
 	module.linker = benchmark
 	module.installer = benchmark

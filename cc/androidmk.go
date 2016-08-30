@@ -100,8 +100,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			fmt.Fprintln(w, "LOCAL_EXPORT_C_INCLUDE_DIRS :=", strings.Join(exportedIncludes, " "))
 		}
 
-		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
-		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)$(LOCAL_MODULE_SUFFIX)")
+		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+outputFile.Ext())
 
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 
@@ -141,12 +140,10 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 
 func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, benchmark.binaryDecorator)
-	ctx.subAndroidMk(ret, benchmark.baseInstaller)
 }
 
 func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, test.binaryDecorator)
-	ctx.subAndroidMk(ret, test.baseInstaller)
 	if Bool(test.Properties.Test_per_src) {
 		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
 	}
@@ -191,6 +188,7 @@ func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.And
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
+		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 		if len(installer.Properties.Symlinks) > 0 {
