@@ -20,9 +20,6 @@ source "${BOOTSTRAP}"
 # $BOOTSTRAP are correct
 cd ${SRCDIR_FROM_BUILDDIR}
 
-# Run the blueprint wrapper
-BUILDDIR="${BUILDDIR}" SKIP_NINJA=true build/blueprint/blueprint.bash
-
 # Ninja can't depend on environment variables, so do a manual comparison
 # of the relevant environment variables from the last build using the
 # soong_env tool and trigger a build manifest regeneration if necessary
@@ -40,4 +37,4 @@ if [ -f "${ENVFILE}" ]; then
     fi
 fi
 
-"prebuilts/build-tools/${PREBUILTOS}/bin/ninja" -f "${BUILDDIR}/build.ninja" -w dupbuild=err "$@"
+BUILDDIR="${BUILDDIR}" NINJA="prebuilts/build-tools/${PREBUILTOS}/bin/ninja" build/blueprint/blueprint.bash "$@"
