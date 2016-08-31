@@ -259,7 +259,8 @@ func (test *testLibrary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func NewTestLibrary(hod android.HostOrDeviceSupported) *Module {
-	module, library := NewLibrary(android.HostAndDeviceSupported, false, true)
+	module, library := NewLibrary(android.HostAndDeviceSupported, true, true)
+	library.baseInstaller = NewTestInstaller()
 	test := &testLibrary{
 		testDecorator: testDecorator{
 			linker: library.baseLinker,
@@ -268,7 +269,6 @@ func NewTestLibrary(hod android.HostOrDeviceSupported) *Module {
 	}
 	test.testDecorator.Properties.Gtest = true
 	module.linker = test
-	module.installer = nil
 	return module
 }
 
