@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	aaptCreateResourceJavaFile = pctx.StaticRule("aaptCreateResourceJavaFile",
+	aaptCreateResourceJavaFile = pctx.AndroidStaticRule("aaptCreateResourceJavaFile",
 		blueprint.RuleParams{
 			Command: `rm -rf "$javaDir" && mkdir -p "$javaDir" && ` +
 				`$aaptCmd package -m $aaptFlags -P $publicResourcesFile -G $proguardOptionsFile ` +
@@ -38,7 +38,7 @@ var (
 		},
 		"aaptFlags", "publicResourcesFile", "proguardOptionsFile", "javaDir", "javaFileList")
 
-	aaptCreateAssetsPackage = pctx.StaticRule("aaptCreateAssetsPackage",
+	aaptCreateAssetsPackage = pctx.AndroidStaticRule("aaptCreateAssetsPackage",
 		blueprint.RuleParams{
 			Command:     `rm -f $out && $aaptCmd package $aaptFlags -F $out`,
 			CommandDeps: []string{"$aaptCmd"},
@@ -46,7 +46,7 @@ var (
 		},
 		"aaptFlags", "publicResourcesFile", "proguardOptionsFile", "javaDir", "javaFileList")
 
-	aaptAddResources = pctx.StaticRule("aaptAddResources",
+	aaptAddResources = pctx.AndroidStaticRule("aaptAddResources",
 		blueprint.RuleParams{
 			// TODO: add-jni-shared-libs-to-package
 			Command:     `cp -f $in $out.tmp && $aaptCmd package -u $aaptFlags -F $out.tmp && mv $out.tmp $out`,
@@ -55,7 +55,7 @@ var (
 		},
 		"aaptFlags")
 
-	signapk = pctx.StaticRule("signapk",
+	signapk = pctx.AndroidStaticRule("signapk",
 		blueprint.RuleParams{
 			Command:     `java -jar $signapkCmd $certificates $in $out`,
 			CommandDeps: []string{"$signapkCmd"},
@@ -63,7 +63,7 @@ var (
 		},
 		"certificates")
 
-	androidManifestMerger = pctx.StaticRule("androidManifestMerger",
+	androidManifestMerger = pctx.AndroidStaticRule("androidManifestMerger",
 		blueprint.RuleParams{
 			Command: "java -classpath $androidManifestMergerCmd com.android.manifmerger.Main merge " +
 				"--main $in --libs $libsManifests --out $out",
