@@ -37,7 +37,7 @@ var (
 	// this, all java rules write into separate directories and then a post-processing step lists
 	// the files in the the directory into a list file that later rules depend on (and sometimes
 	// read from directly using @<listfile>)
-	javac = pctx.StaticRule("javac",
+	javac = pctx.AndroidStaticRule("javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 				`$javacCmd -encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
@@ -49,7 +49,7 @@ var (
 		},
 		"javacCmd", "javacFlags", "bootClasspath", "classpath", "outDir")
 
-	jar = pctx.StaticRule("jar",
+	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
 			Command:     `$jarCmd -o $out $jarArgs`,
 			CommandDeps: []string{"$jarCmd"},
@@ -57,7 +57,7 @@ var (
 		},
 		"jarCmd", "jarArgs")
 
-	dx = pctx.StaticRule("dx",
+	dx = pctx.AndroidStaticRule("dx",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 				`$dxCmd --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
@@ -67,7 +67,7 @@ var (
 		},
 		"outDir", "dxFlags")
 
-	jarjar = pctx.StaticRule("jarjar",
+	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
 			Command:     "java -jar $jarjarCmd process $rulesFile $in $out",
 			CommandDeps: []string{"$jarjarCmd", "$rulesFile"},
@@ -75,7 +75,7 @@ var (
 		},
 		"rulesFile")
 
-	extractPrebuilt = pctx.StaticRule("extractPrebuilt",
+	extractPrebuilt = pctx.AndroidStaticRule("extractPrebuilt",
 		blueprint.RuleParams{
 			Command: `rm -rf $outDir && unzip -qo $in -d $outDir && ` +
 				`find $outDir -name "*.class" > $classFile && ` +

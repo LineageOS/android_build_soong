@@ -43,7 +43,7 @@ var (
 
 	// globRule rule traverses directories to produce a list of files that match $glob
 	// and writes it to $out if it has changed, and writes the directories to $out.d
-	globRule = pctx.StaticRule("globRule",
+	globRule = pctx.AndroidStaticRule("globRule",
 		blueprint.RuleParams{
 			Command:     fmt.Sprintf(`%s -o $out $excludes "$glob"`, globCmd),
 			CommandDeps: []string{globCmd},
