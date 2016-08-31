@@ -39,7 +39,7 @@ const (
 var (
 	pctx = android.NewPackageContext("android/soong/cc")
 
-	cc = pctx.StaticRule("cc",
+	cc = pctx.AndroidGomaStaticRule("cc",
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
@@ -49,7 +49,7 @@ var (
 		},
 		"ccCmd", "cFlags")
 
-	ld = pctx.StaticRule("ld",
+	ld = pctx.AndroidStaticRule("ld",
 		blueprint.RuleParams{
 			Command: "$ldCmd ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags}",
@@ -60,7 +60,7 @@ var (
 		},
 		"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags")
 
-	partialLd = pctx.StaticRule("partialLd",
+	partialLd = pctx.AndroidStaticRule("partialLd",
 		blueprint.RuleParams{
 			Command:     "$ldCmd -nostdlib -Wl,-r ${in} -o ${out} ${ldFlags}",
 			CommandDeps: []string{"$ldCmd"},
@@ -68,7 +68,7 @@ var (
 		},
 		"ldCmd", "ldFlags")
 
-	ar = pctx.StaticRule("ar",
+	ar = pctx.AndroidStaticRule("ar",
 		blueprint.RuleParams{
 			Command:        "rm -f ${out} && $arCmd $arFlags $out @${out}.rsp",
 			CommandDeps:    []string{"$arCmd"},
@@ -78,7 +78,7 @@ var (
 		},
 		"arCmd", "arFlags")
 
-	darwinAr = pctx.StaticRule("darwinAr",
+	darwinAr = pctx.AndroidStaticRule("darwinAr",
 		blueprint.RuleParams{
 			Command:     "rm -f ${out} && ${config.MacArPath} $arFlags $out $in",
 			CommandDeps: []string{"${config.MacArPath}"},
@@ -86,7 +86,7 @@ var (
 		},
 		"arFlags")
 
-	darwinAppendAr = pctx.StaticRule("darwinAppendAr",
+	darwinAppendAr = pctx.AndroidStaticRule("darwinAppendAr",
 		blueprint.RuleParams{
 			Command:     "cp -f ${inAr} ${out}.tmp && ${config.MacArPath} $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
 			CommandDeps: []string{"${config.MacArPath}", "${inAr}"},
@@ -94,14 +94,14 @@ var (
 		},
 		"arFlags", "inAr")
 
-	darwinStrip = pctx.StaticRule("darwinStrip",
+	darwinStrip = pctx.AndroidStaticRule("darwinStrip",
 		blueprint.RuleParams{
 			Command:     "${config.MacStripPath} -u -r -o $out $in",
 			CommandDeps: []string{"${config.MacStripPath}"},
 			Description: "strip $out",
 		})
 
-	prefixSymbols = pctx.StaticRule("prefixSymbols",
+	prefixSymbols = pctx.AndroidStaticRule("prefixSymbols",
 		blueprint.RuleParams{
 			Command:     "$objcopyCmd --prefix-symbols=${prefix} ${in} ${out}",
 			CommandDeps: []string{"$objcopyCmd"},
@@ -111,7 +111,7 @@ var (
 
 	stripPath = pctx.SourcePathVariable("stripPath", "build/soong/scripts/strip.sh")
 
-	strip = pctx.StaticRule("strip",
+	strip = pctx.AndroidStaticRule("strip",
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
@@ -121,7 +121,7 @@ var (
 		},
 		"args", "crossCompile")
 
-	emptyFile = pctx.StaticRule("emptyFile",
+	emptyFile = pctx.AndroidStaticRule("emptyFile",
 		blueprint.RuleParams{
 			Command:     "rm -f $out && touch $out",
 			Description: "empty file $out",
@@ -129,7 +129,7 @@ var (
 
 	copyGccLibPath = pctx.SourcePathVariable("copyGccLibPath", "build/soong/scripts/copygcclib.sh")
 
-	copyGccLib = pctx.StaticRule("copyGccLib",
+	copyGccLib = pctx.AndroidStaticRule("copyGccLib",
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,

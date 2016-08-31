@@ -131,3 +131,35 @@ func (p AndroidPackageContext) PrefixedPathsForOptionalSourceVariable(
 		return JoinWithPrefix(paths.Strings(), prefix), nil
 	})
 }
+
+type RuleParams struct {
+	blueprint.RuleParams
+	GomaSupported bool
+}
+
+// AndroidStaticRule wraps blueprint.StaticRule and provides a default Pool if none is specified
+func (p AndroidPackageContext) AndroidStaticRule(name string, params blueprint.RuleParams,
+	argNames ...string) blueprint.Rule {
+	return p.AndroidRuleFunc(name, func(interface{}) (blueprint.RuleParams, error) {
+		return params, nil
+	}, argNames...)
+}
+
+// AndroidGomaStaticRule wraps blueprint.StaticRule but uses goma's parallelism if goma is enabled
+func (p AndroidPackageContext) AndroidGomaStaticRule(name string, params blueprint.RuleParams,
+	argNames ...string) blueprint.Rule {
+	return p.StaticRule(name, params, argNames...)
+}
+
+func (p AndroidPackageContext) AndroidRuleFunc(name string,
+	f func(interface{}) (blueprint.RuleParams, error), argNames ...string) blueprint.Rule {
+	return p.PackageContext.RuleFunc(name, func(config interface{}) (blueprint.RuleParams, error) {
+		params, err := f(config)
+		if config.(Config).UseGoma() && params.Pool == nil {
+			// When USE_GOMA=true is set and the rule is not supported by goma, restrict jobs to the
+			// local parallelism value
+			params.Pool = localPool
+		}
+		return params, err
+	}, argNames...)
+}

@@ -31,7 +31,7 @@ func init() {
 }
 
 var (
-	yacc = pctx.StaticRule("yacc",
+	yacc = pctx.AndroidStaticRule("yacc",
 		blueprint.RuleParams{
 			Command:     "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags --defines=$hFile -o $cFile $in",
 			CommandDeps: []string{"$yaccCmd"},
@@ -39,7 +39,7 @@ var (
 		},
 		"yaccFlags", "cFile", "hFile")
 
-	lex = pctx.StaticRule("lex",
+	lex = pctx.AndroidStaticRule("lex",
 		blueprint.RuleParams{
 			Command:     "$lexCmd -o$out $in",
 			CommandDeps: []string{"$lexCmd"},
