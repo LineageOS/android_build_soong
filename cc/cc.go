@@ -910,6 +910,7 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&StlProperties{},
 		&SanitizeProperties{},
 		&StripProperties{},
+		&InstallerProperties{},
 	)
 
 	_, props = android.InitAndroidArchModule(module, android.HostAndDeviceDefault,
