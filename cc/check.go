@@ -91,8 +91,8 @@ func CheckBadHostLdlibs(ctx ModuleContext, prop string, flags []string) {
 		flag = strings.TrimSpace(flag)
 
 		// TODO: Probably should just redo this property to prefix -l in Soong
-		if !strings.HasPrefix(flag, "-l") {
-			ctx.PropertyErrorf(prop, "Invalid flag: `%s`, must start with `-l`", flag)
+		if !strings.HasPrefix(flag, "-l") && !strings.HasPrefix(flag, "-framework") {
+			ctx.PropertyErrorf(prop, "Invalid flag: `%s`, must start with `-l` or `-framework`", flag)
 		} else if !inList(flag, allowed_ldlibs) {
 			ctx.PropertyErrorf(prop, "Host library `%s` not available", flag)
 		}
