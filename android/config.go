@@ -337,10 +337,6 @@ func (c *config) DevicePrefer32BitExecutables() bool {
 	return Bool(c.ProductVariables.DevicePrefer32BitExecutables)
 }
 
-func (c *config) HostPrefer32BitExecutables() bool {
-	return Bool(c.ProductVariables.HostPrefer32BitExecutables)
-}
-
 func (c *config) SkipDeviceInstall() bool {
 	return c.EmbeddedInMake() || Bool(c.Mega_device)
 }
