@@ -420,7 +420,19 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 		if len(targets) == 0 {
 			continue
 		}
-		multilib := module.base().commonProperties.Compile_multilib
+		var multilib string
+		switch class {
+		case Device:
+			multilib = module.base().commonProperties.Target.Android.Compile_multilib
+		case Host, HostCross:
+			multilib = module.base().commonProperties.Target.Host.Compile_multilib
+		}
+		if multilib == "" {
+			multilib = module.base().commonProperties.Compile_multilib
+		}
+		if multilib == "" {
+			multilib = module.base().commonProperties.Default_multilib
+		}
 		targets, err := decodeMultilib(multilib, targets)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
@@ -903,6 +915,16 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 	return a, nil
 }
 
+func filterMultilibTargets(targets []Target, multilib string) []Target {
+	var ret []Target
+	for _, t := range targets {
+		if t.Arch.ArchType.Multilib == multilib {
+			ret = append(ret, t)
+		}
+	}
+	return ret
+}
+
 // Use the module multilib setting to select one or more targets from a target list
 func decodeMultilib(multilib string, targets []Target) ([]Target, error) {
 	buildTargets := []Target{}
@@ -914,19 +936,16 @@ func decodeMultilib(multilib string, targets []Target) ([]Target, error) {
 	case "first":
 		buildTargets = append(buildTargets, targets[0])
 	case "32":
-		for _, t := range targets {
-			if t.Arch.ArchType.Multilib == "lib32" {
-				buildTargets = append(buildTargets, t)
-			}
-		}
+		buildTargets = filterMultilibTargets(targets, "lib32")
 	case "64":
-		for _, t := range targets {
-			if t.Arch.ArchType.Multilib == "lib64" {
-				buildTargets = append(buildTargets, t)
-			}
+		buildTargets = filterMultilibTargets(targets, "lib64")
+	case "prefer32":
+		buildTargets = filterMultilibTargets(targets, "lib32")
+		if len(buildTargets) == 0 {
+			buildTargets = filterMultilibTargets(targets, "lib64")
 		}
 	default:
-		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", or "64", found %q`,
+		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", or "prefer32" found %q`,
 			multilib)
 	}
 
