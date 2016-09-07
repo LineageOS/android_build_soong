@@ -74,7 +74,14 @@ func CheckBadLinkerFlags(ctx BaseModuleContext, prop string, flags []string) {
 		} else if strings.HasPrefix(flag, "-Wl,--version-script") {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use version_script instead", flag)
 		} else if strings.Contains(flag, " ") {
-			ctx.PropertyErrorf(prop, "Bad flag: `%s` is not an allowed multi-word flag. Should it be split into multiple flags?", flag)
+			args := strings.Split(flag, " ")
+			if args[0] == "-z" {
+				if len(args) > 2 {
+					ctx.PropertyErrorf(prop, "`-z` only takes one argument: `%s`", flag)
+				}
+			} else {
+				ctx.PropertyErrorf(prop, "Bad flag: `%s` is not an allowed multi-word flag. Should it be split into multiple flags?", flag)
+			}
 		}
 	}
 }
