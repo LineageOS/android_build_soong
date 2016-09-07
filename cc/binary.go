@@ -37,6 +37,8 @@ type BinaryLinkerProperties struct {
 
 	// if set, install a symlink to the preferred architecture
 	Symlink_preferred_arch bool
+
+	DynamicLinker string `blueprint:"mutated"`
 }
 
 func init() {
@@ -222,9 +224,13 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 
 		} else {
 			if flags.DynamicLinker == "" {
-				flags.DynamicLinker = "/system/bin/linker"
-				if flags.Toolchain.Is64Bit() {
-					flags.DynamicLinker += "64"
+				if binary.Properties.DynamicLinker != "" {
+					flags.DynamicLinker = binary.Properties.DynamicLinker
+				} else {
+					flags.DynamicLinker = "/system/bin/linker"
+					if flags.Toolchain.Is64Bit() {
+						flags.DynamicLinker += "64"
+					}
 				}
 			}
 
