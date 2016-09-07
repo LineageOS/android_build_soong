@@ -197,7 +197,6 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	fmt.Fprintln(w, "LOCAL_PATH :=", filepath.Dir(ctx.BlueprintFile(mod)))
 	fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 	fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", data.Class)
-	fmt.Fprintln(w, "LOCAL_MULTILIB :=", amod.commonProperties.Compile_multilib)
 	fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", data.OutputFile.String())
 
 	if len(amod.commonProperties.Required) > 0 {
