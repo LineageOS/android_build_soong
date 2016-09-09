@@ -89,6 +89,11 @@ const (
 )
 
 func init() {
+	android.RegisterArchVariants(android.Arm64,
+		"armv8_a",
+		"cortex_a53",
+		"denver64")
+
 	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
 	pctx.SourcePathVariable("Arm64GccRoot",

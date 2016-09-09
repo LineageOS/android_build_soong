@@ -25,6 +25,8 @@ import (
 )
 
 var (
+	archTypeList []ArchType
+
 	Arm    = newArch("arm", "lib32")
 	Arm64  = newArch("arm64", "lib64")
 	Mips   = newArch("mips", "lib32")
@@ -102,185 +104,32 @@ module {
 }
 */
 
-type Embed interface{}
-
-type archProperties struct {
-	// Properties to vary by target architecture
-	Arch struct {
-		// Properties for module variants being built to run on arm (host or device)
-		Arm struct {
-			Embed `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Arm arch variants
-			Armv5te      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Armv7_a      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Armv7_a_neon interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Arm cpu variants
-			Cortex_a7      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Cortex_a8      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Cortex_a9      interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Cortex_a15     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Cortex_a53     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Cortex_a53_a57 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Krait          interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Denver         interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		}
-
-		// Properties for module variants being built to run on arm64 (host or device)
-		Arm64 struct {
-			Embed `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Arm64 arch variants
-			Armv8_a interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Arm64 cpu variants
-			Cortex_a53 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Denver64   interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		}
-
-		// Properties for module variants being built to run on mips (host or device)
-		Mips struct {
-			Embed `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Mips arch variants
-			Mips32_fp          interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Mips32r2_fp        interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Mips32r2_fp_xburst interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Mips32r2dsp_fp     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Mips32r2dspr2_fp   interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Mips32r6           interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Mips arch features
-			Rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		}
-
-		// Properties for module variants being built to run on mips64 (host or device)
-		Mips64 struct {
-			Embed `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Mips64 arch variants
-			Mips64r2 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Mips64r6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-			// Mips64 arch features
-			Rev6 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		}
-
-		// Properties for module variants being built to run on x86 (host or device)
-		X86 struct {
-			Embed `blueprint:"filter(android:\"arch_variant\")"`
-
-			// X86 arch variants
-			Atom        interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Haswell     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Ivybridge   interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sandybridge interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Silvermont  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			// Generic variant for X86 on X86_64
-			X86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-			// X86 arch features
-			Ssse3  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4   interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4_1 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4_2 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Aes_ni interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Avx    interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Popcnt interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Movbe  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		}
-
-		// Properties for module variants being built to run on x86_64 (host or device)
-		X86_64 struct {
-			Embed `blueprint:"filter(android:\"arch_variant\")"`
-
-			// X86 arch variants
-			Haswell     interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Ivybridge   interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sandybridge interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Silvermont  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-
-			// X86 arch features
-			Ssse3  interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4   interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4_1 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Sse4_2 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Aes_ni interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Avx    interface{} `blueprint:"filter(android:\"arch_variant\")"`
-			Popcnt interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		}
-	}
-
-	// Properties to vary by 32-bit or 64-bit
-	Multilib struct {
-		// Properties for module variants being built to run on 32-bit devices
-		Lib32 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on 64-bit devices
-		Lib64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-	}
-	// Properties to vary by build target (host or device, os, os+archictecture)
-	Target struct {
-		// Properties for module variants being built to run on the host
-		Host interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on the device
-		Android interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on arm devices
-		Android_arm interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on arm64 devices
-		Android_arm64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on mips devices
-		Android_mips interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on mips64 devices
-		Android_mips64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on x86 devices
-		Android_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on x86_64 devices
-		Android_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on devices that support 64-bit
-		Android64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on devices that do not support 64-bit
-		Android32 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on linux hosts
-		Linux interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on linux x86 hosts
-		Linux_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on linux x86_64 hosts
-		Linux_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on darwin hosts
-		Darwin interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on darwin x86 hosts
-		Darwin_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on darwin x86_64 hosts
-		Darwin_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on windows hosts
-		Windows interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on windows x86 hosts
-		Windows_x86 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on windows x86_64 hosts
-		Windows_x86_64 interface{} `blueprint:"filter(android:\"arch_variant\")"`
-		// Properties for module variants being built to run on linux or darwin hosts
-		Not_windows interface{} `blueprint:"filter(android:\"arch_variant\")"`
-	}
-}
-
+var archVariants = map[ArchType][]string{}
+var archFeatures = map[ArchType][]string{}
 var archFeatureMap = map[ArchType]map[string][]string{}
 
-func RegisterArchFeatures(arch ArchType, variant string, features ...string) {
-	archField := proptools.FieldNameForProperty(arch.Name)
-	variantField := proptools.FieldNameForProperty(variant)
-	archStruct := reflect.ValueOf(archProperties{}.Arch).FieldByName(archField)
-	if variant != "" {
-		if !archStruct.FieldByName(variantField).IsValid() {
-			panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
-		}
+func RegisterArchVariants(arch ArchType, variants ...string) {
+	checkCalledFromInit()
+	archVariants[arch] = append(archVariants[arch], variants...)
+}
+
+func RegisterArchFeatures(arch ArchType, features ...string) {
+	checkCalledFromInit()
+	archFeatures[arch] = append(archFeatures[arch], features...)
+}
+
+func RegisterArchVariantFeatures(arch ArchType, variant string, features ...string) {
+	checkCalledFromInit()
+	if variant != "" && !inList(variant, archVariants[arch]) {
+		panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
 	}
+
 	for _, feature := range features {
-		field := proptools.FieldNameForProperty(feature)
-		if !archStruct.FieldByName(field).IsValid() {
+		if !inList(feature, archFeatures[arch]) {
 			panic(fmt.Errorf("Invalid feature %q for arch %q variant %q", feature, arch, variant))
 		}
 	}
+
 	if archFeatureMap[arch] == nil {
 		archFeatureMap[arch] = make(map[string][]string)
 	}
@@ -310,14 +159,18 @@ func (a Arch) String() string {
 
 type ArchType struct {
 	Name     string
+	Field    string
 	Multilib string
 }
 
 func newArch(name, multilib string) ArchType {
-	return ArchType{
+	archType := ArchType{
 		Name:     name,
+		Field:    proptools.FieldNameForProperty(name),
 		Multilib: multilib,
 	}
+	archTypeList = append(archTypeList, archType)
+	return archType
 }
 
 func (a ArchType) String() string {
@@ -343,6 +196,13 @@ var (
 	Darwin   = NewOsType("darwin", Host)
 	Windows  = NewOsType("windows", HostCross)
 	Android  = NewOsType("android", Device)
+
+	osArchTypeMap = map[OsType][]ArchType{
+		Linux:   []ArchType{X86, X86_64},
+		Darwin:  []ArchType{X86, X86_64},
+		Windows: []ArchType{X86, X86_64},
+		Android: []ArchType{Arm, Arm64, Mips, Mips64, X86, X86_64},
+	}
 )
 
 type OsType struct {
@@ -458,6 +318,142 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 	}
 }
 
+func filterArchStruct(prop reflect.Type) (reflect.Type, bool) {
+	var fields []reflect.StructField
+
+	ptr := prop.Kind() == reflect.Ptr
+	if ptr {
+		prop = prop.Elem()
+	}
+
+	for i := 0; i < prop.NumField(); i++ {
+		field := prop.Field(i)
+		if !proptools.HasTag(field, "android", "arch_variant") {
+			continue
+		}
+
+		// The arch_variant field isn't necessary past this point
+		// Instead of wasting space, just remove it. Go also has a
+		// 16-bit limit on structure name length. The name is constructed
+		// based on the Go source representation of the structure, so
+		// the tag names count towards that length.
+		//
+		// TODO: handle the uncommon case of other tags being involved
+		if field.Tag == `android:"arch_variant"` {
+			field.Tag = ""
+		}
+
+		// Recurse into structs
+		switch field.Type.Kind() {
+		case reflect.Struct:
+			var ok bool
+			field.Type, ok = filterArchStruct(field.Type)
+			if !ok {
+				continue
+			}
+		case reflect.Ptr:
+			if field.Type.Elem().Kind() == reflect.Struct {
+				nestedType, ok := filterArchStruct(field.Type.Elem())
+				if !ok {
+					continue
+				}
+				field.Type = reflect.PtrTo(nestedType)
+			}
+		case reflect.Interface:
+			panic("Interfaces are not supported in arch_variant properties")
+		}
+
+		fields = append(fields, field)
+	}
+	if len(fields) == 0 {
+		return nil, false
+	}
+
+	ret := reflect.StructOf(fields)
+	if ptr {
+		ret = reflect.PtrTo(ret)
+	}
+	return ret, true
+}
+
+func createArchType(props reflect.Type) reflect.Type {
+	props, ok := filterArchStruct(props)
+	if !ok {
+		return nil
+	}
+
+	variantFields := func(names []string) []reflect.StructField {
+		ret := make([]reflect.StructField, len(names))
+
+		for i, name := range names {
+			ret[i].Name = name
+			ret[i].Type = props
+		}
+
+		return ret
+	}
+
+	archFields := make([]reflect.StructField, len(archTypeList))
+	for i, arch := range archTypeList {
+		variants := []string{}
+
+		for _, archVariant := range archVariants[arch] {
+			variants = append(variants, proptools.FieldNameForProperty(archVariant))
+		}
+		for _, feature := range archFeatures[arch] {
+			variants = append(variants, proptools.FieldNameForProperty(feature))
+		}
+
+		fields := variantFields(variants)
+
+		fields = append([]reflect.StructField{reflect.StructField{
+			Name:      "BlueprintEmbed",
+			Type:      props,
+			Anonymous: true,
+		}}, fields...)
+
+		archFields[i] = reflect.StructField{
+			Name: arch.Field,
+			Type: reflect.StructOf(fields),
+		}
+	}
+	archType := reflect.StructOf(archFields)
+
+	multilibType := reflect.StructOf(variantFields([]string{"Lib32", "Lib64"}))
+
+	targets := []string{
+		"Host",
+		"Android64",
+		"Android32",
+		"Not_windows",
+	}
+	for _, os := range osTypeList {
+		targets = append(targets, os.Field)
+
+		for _, archType := range osArchTypeMap[os] {
+			targets = append(targets, os.Field+"_"+archType.Name)
+		}
+	}
+
+	targetType := reflect.StructOf(variantFields(targets))
+	return reflect.StructOf([]reflect.StructField{
+		reflect.StructField{
+			Name: "Arch",
+			Type: archType,
+		},
+		reflect.StructField{
+			Name: "Multilib",
+			Type: multilibType,
+		},
+		reflect.StructField{
+			Name: "Target",
+			Type: targetType,
+		},
+	})
+}
+
+var archPropTypeMap OncePer
+
 func InitArchModule(m Module,
 	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
 
@@ -480,19 +476,23 @@ func InitArchModule(m Module,
 				propertiesValue.Interface()))
 		}
 
-		archProperties := &archProperties{}
-		forEachInterface(reflect.ValueOf(archProperties), func(v reflect.Value) {
-			newValue := reflect.Zero(t)
-			v.Set(newValue)
+		archPropType := archPropTypeMap.Once(t, func() interface{} {
+			return createArchType(t)
 		})
 
-		base.archProperties = append(base.archProperties, archProperties)
+		if archPropType != nil {
+			base.archProperties = append(base.archProperties, reflect.New(archPropType.(reflect.Type)).Interface())
+		} else {
+			base.archProperties = append(base.archProperties, nil)
+		}
 	}
 
 	var allProperties []interface{}
 	allProperties = append(allProperties, base.generalProperties...)
 	for _, asp := range base.archProperties {
-		allProperties = append(allProperties, asp)
+		if asp != nil {
+			allProperties = append(allProperties, asp)
+		}
 	}
 
 	base.customizableProperties = allProperties
@@ -503,37 +503,18 @@ func InitArchModule(m Module,
 var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
 
 func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
-	dst, src interface{}, field, srcPrefix string) interface{} {
+	dst interface{}, src reflect.Value, field, srcPrefix string) reflect.Value {
 
-	srcField := reflect.ValueOf(src).FieldByName(field)
-	if !srcField.IsValid() {
+	src = src.FieldByName(field)
+	if !src.IsValid() {
 		ctx.ModuleErrorf("field %q does not exist", srcPrefix)
-		return nil
+		return src
 	}
 
-	ret := srcField
+	ret := src
 
-	if srcField.Kind() == reflect.Struct {
-		srcField = srcField.FieldByName("Embed")
-	}
-
-	src = srcField.Elem().Interface()
-
-	filter := func(property string,
-		dstField, srcField reflect.StructField,
-		dstValue, srcValue interface{}) (bool, error) {
-
-		srcProperty := srcPrefix + "." + property
-
-		if !proptools.HasTag(dstField, "android", "arch_variant") {
-			if ctx.ContainsProperty(srcProperty) {
-				return false, fmt.Errorf("can't be specific to a build variant")
-			} else {
-				return false, nil
-			}
-		}
-
-		return true, nil
+	if src.Kind() == reflect.Struct {
+		src = src.FieldByName("BlueprintEmbed")
 	}
 
 	order := func(property string,
@@ -546,7 +527,7 @@ func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 		}
 	}
 
-	err := proptools.ExtendProperties(dst, src, filter, order)
+	err := proptools.ExtendMatchingProperties([]interface{}{dst}, src.Interface(), nil, order)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
 			ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
@@ -555,7 +536,7 @@ func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 		}
 	}
 
-	return ret.Interface()
+	return ret
 }
 
 // Rewrite the module's properties structs to contain arch-specific values.
@@ -569,7 +550,15 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 
 	for i := range a.generalProperties {
 		genProps := a.generalProperties[i]
-		archProps := a.archProperties[i]
+		if a.archProperties[i] == nil {
+			continue
+		}
+		archProps := reflect.ValueOf(a.archProperties[i]).Elem()
+
+		archProp := archProps.FieldByName("Arch")
+		multilibProp := archProps.FieldByName("Multilib")
+		targetProp := archProps.FieldByName("Target")
+
 		// Handle arch-specific properties in the form:
 		// arch: {
 		//     arm64: {
@@ -580,7 +569,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 
 		field := proptools.FieldNameForProperty(t.Name)
 		prefix := "arch." + t.Name
-		archStruct := a.appendProperties(ctx, genProps, archProps.Arch, field, prefix)
+		archStruct := a.appendProperties(ctx, genProps, archProp, field, prefix)
 
 		// Handle arch-variant-specific properties in the form:
 		// arch: {
@@ -628,7 +617,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		// },
 		field = proptools.FieldNameForProperty(t.Multilib)
 		prefix = "multilib." + t.Multilib
-		a.appendProperties(ctx, genProps, archProps.Multilib, field, prefix)
+		a.appendProperties(ctx, genProps, multilibProp, field, prefix)
 
 		// Handle host-specific properties in the form:
 		// target: {
@@ -639,7 +628,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		if os.Class == Host || os.Class == HostCross {
 			field = "Host"
 			prefix = "target.host"
-			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
 		}
 
 		// Handle target OS properties in the form:
@@ -669,16 +658,16 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		// },
 		field = os.Field
 		prefix = "target." + os.Name
-		a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+		a.appendProperties(ctx, genProps, targetProp, field, prefix)
 
 		field = os.Field + "_" + t.Name
 		prefix = "target." + os.Name + "_" + t.Name
-		a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+		a.appendProperties(ctx, genProps, targetProp, field, prefix)
 
 		if (os.Class == Host || os.Class == HostCross) && os != Windows {
 			field := "Not_windows"
 			prefix := "target.not_windows"
-			a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
 		}
 
 		// Handle 64-bit device properties in the form:
@@ -698,11 +687,11 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			if ctx.AConfig().Android64() {
 				field := "Android64"
 				prefix := "target.android64"
-				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			} else {
 				field := "Android32"
 				prefix := "target.android32"
-				a.appendProperties(ctx, genProps, archProps.Target, field, prefix)
+				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 		}
 	}
