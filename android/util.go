@@ -14,7 +14,11 @@
 
 package android
 
-import "sort"
+import (
+	"runtime"
+	"sort"
+	"strings"
+)
 
 func JoinWithPrefix(strs []string, prefix string) string {
 	if len(strs) == 0 {
@@ -75,4 +79,64 @@ func sortedKeys(m map[string][]string) []string {
 	}
 	sort.Strings(s)
 	return s
+}
+
+func indexList(s string, list []string) int {
+	for i, l := range list {
+		if l == s {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func inList(s string, list []string) bool {
+	return indexList(s, list) != -1
+}
+
+// checkCalledFromInit panics if a Go package's init function is not on the
+// call stack.
+func checkCalledFromInit() {
+	for skip := 3; ; skip++ {
+		_, funcName, ok := callerName(skip)
+		if !ok {
+			panic("not called from an init func")
+		}
+
+		if funcName == "init" || strings.HasPrefix(funcName, "init·") {
+			return
+		}
+	}
+}
+
+// callerName returns the package path and function name of the calling
+// function.  The skip argument has the same meaning as the skip argument of
+// runtime.Callers.
+func callerName(skip int) (pkgPath, funcName string, ok bool) {
+	var pc [1]uintptr
+	n := runtime.Callers(skip+1, pc[:])
+	if n != 1 {
+		return "", "", false
+	}
+
+	f := runtime.FuncForPC(pc[0])
+	fullName := f.Name()
+
+	lastDotIndex := strings.LastIndex(fullName, ".")
+	if lastDotIndex == -1 {
+		panic("unable to distinguish function name from package")
+	}
+
+	if fullName[lastDotIndex-1] == ')' {
+		// The caller is a method on some type, so it's name looks like
+		// "pkg/path.(type).method".  We need to go back one dot farther to get
+		// to the package name.
+		lastDotIndex = strings.LastIndex(fullName[:lastDotIndex], ".")
+	}
+
+	pkgPath = fullName[:lastDotIndex]
+	funcName = fullName[lastDotIndex+1:]
+	ok = true
+	return
 }
