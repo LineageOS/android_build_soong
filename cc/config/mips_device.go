@@ -126,7 +126,15 @@ const (
 )
 
 func init() {
-	android.RegisterArchFeatures(android.Mips, "mips32r6",
+	android.RegisterArchVariants(android.Mips,
+		"mips32_fp",
+		"mips32r2_fp",
+		"mips32r2_fp_xburst",
+		"mips32r2dsp_fp",
+		"mips32r2dspr2_fp",
+		"mips32r6")
+	android.RegisterArchFeatures(android.Mips, "rev6")
+	android.RegisterArchVariantFeatures(android.Mips, "mips32r6",
 		"rev6")
 
 	pctx.StaticVariable("mipsGccVersion", mipsGccVersion)

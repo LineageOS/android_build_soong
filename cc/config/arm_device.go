@@ -145,6 +145,19 @@ const (
 )
 
 func init() {
+	android.RegisterArchVariants(android.Arm,
+		"armv5te",
+		"armv7_a",
+		"armv7_a_neon",
+		"cortex_a7",
+		"cortex_a8",
+		"cortex_a9",
+		"cortex_a15",
+		"cortex_a53",
+		"cortex_a53_a57",
+		"krait",
+		"denver")
+
 	replaceFirst := func(slice []string, from, to string) {
 		if slice[0] != from {
 			panic(fmt.Errorf("Expected %q, found %q", from, to))
