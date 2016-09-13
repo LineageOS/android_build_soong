@@ -274,6 +274,7 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 	}
 
 	var moduleTargets []Target
+	primaryModules := make(map[int]bool)
 
 	for _, class := range osClasses {
 		targets := mctx.AConfig().Targets[class]
@@ -293,11 +294,18 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 		if multilib == "" {
 			multilib = module.base().commonProperties.Default_multilib
 		}
-		targets, err := decodeMultilib(multilib, targets)
+		prefer32 := false
+		if class == Device {
+			prefer32 = mctx.AConfig().DevicePrefer32BitExecutables()
+		}
+		targets, err := decodeMultilib(multilib, targets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
-		moduleTargets = append(moduleTargets, targets...)
+		if len(targets) > 0 {
+			primaryModules[len(moduleTargets)] = true
+			moduleTargets = append(moduleTargets, targets...)
+		}
 	}
 
 	if len(moduleTargets) == 0 {
@@ -313,7 +321,7 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
-		m.(Module).base().SetTarget(moduleTargets[i])
+		m.(Module).base().SetTarget(moduleTargets[i], primaryModules[i])
 		m.(Module).base().setArchProperties(mctx)
 	}
 }
@@ -915,15 +923,26 @@ func filterMultilibTargets(targets []Target, multilib string) []Target {
 }
 
 // Use the module multilib setting to select one or more targets from a target list
-func decodeMultilib(multilib string, targets []Target) ([]Target, error) {
+func decodeMultilib(multilib string, targets []Target, prefer32 bool) ([]Target, error) {
 	buildTargets := []Target{}
+	if multilib == "first" {
+		if prefer32 {
+			multilib = "prefer32"
+		} else {
+			multilib = "prefer64"
+		}
+	}
 	switch multilib {
 	case "common":
 		buildTargets = append(buildTargets, commonTarget)
 	case "both":
-		buildTargets = append(buildTargets, targets...)
-	case "first":
-		buildTargets = append(buildTargets, targets[0])
+		if prefer32 {
+			buildTargets = append(buildTargets, filterMultilibTargets(targets, "lib32")...)
+			buildTargets = append(buildTargets, filterMultilibTargets(targets, "lib64")...)
+		} else {
+			buildTargets = append(buildTargets, filterMultilibTargets(targets, "lib64")...)
+			buildTargets = append(buildTargets, filterMultilibTargets(targets, "lib32")...)
+		}
 	case "32":
 		buildTargets = filterMultilibTargets(targets, "lib32")
 	case "64":
@@ -932,6 +951,11 @@ func decodeMultilib(multilib string, targets []Target) ([]Target, error) {
 		buildTargets = filterMultilibTargets(targets, "lib32")
 		if len(buildTargets) == 0 {
 			buildTargets = filterMultilibTargets(targets, "lib64")
+		}
+	case "prefer64":
+		buildTargets = filterMultilibTargets(targets, "lib64")
+		if len(buildTargets) == 0 {
+			buildTargets = filterMultilibTargets(targets, "lib32")
 		}
 	default:
 		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", or "prefer32" found %q`,
