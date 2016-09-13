@@ -24,5 +24,6 @@ optional_subdirs = [
     "system/core/*",
     "system/extras/*",
     "system/keymaster",
+    "system/media/*",
     "system/security/*",
 ]
