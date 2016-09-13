@@ -26,11 +26,12 @@ import (
 )
 
 func init() {
-	RegisterTopDownMutator("customizer", customizerMutator).Parallel()
+	RegisterTopDownMutator("load_hooks", loadHookMutator).Parallel()
 	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator).Parallel()
 	RegisterTopDownMutator("defaults", defaultsMutator).Parallel()
 
 	RegisterBottomUpMutator("arch", ArchMutator).Parallel()
+	RegisterTopDownMutator("arch_hooks", archHookMutator).Parallel()
 }
 
 var (
@@ -210,11 +211,6 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	return InitArchModule(m, propertyStructs...)
 }
 
-func AddCustomizer(m blueprint.Module, c PropertyCustomizer) {
-	base := m.(Module).base()
-	base.customizers = append(base.customizers, c)
-}
-
 // A AndroidModuleBase object contains the properties that are common to all Android
 // modules.  It should be included as an anonymous field in every module
 // struct definition.  InitAndroidModule should then be called from the module's
@@ -277,7 +273,7 @@ type ModuleBase struct {
 	checkbuildTarget string
 	blueprintDir     string
 
-	customizers []PropertyCustomizer
+	hooks hooks
 }
 
 func (a *ModuleBase) base() *ModuleBase {
@@ -597,6 +593,7 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 	deps ...Path) OutputPath {
 
 	fullInstallPath := installPath.Join(a, name)
+	a.module.base().hooks.runInstallHooks(a, fullInstallPath, false)
 
 	if a.Host() || !a.AConfig().SkipDeviceInstall() {
 		deps = append(deps, a.installDeps...)
@@ -621,6 +618,7 @@ func (a *androidModuleContext) InstallFile(installPath OutputPath, srcPath Path,
 
 func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name string, srcPath OutputPath) OutputPath {
 	fullInstallPath := installPath.Join(a, name)
+	a.module.base().hooks.runInstallHooks(a, fullInstallPath, true)
 
 	if a.Host() || !a.AConfig().SkipDeviceInstall() {
 		a.ModuleBuild(pctx, ModuleBuildParams{
