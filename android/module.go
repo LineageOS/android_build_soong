@@ -57,6 +57,7 @@ type ModuleBuildParams struct {
 
 type androidBaseContext interface {
 	Target() Target
+	TargetPrimary() bool
 	Arch() Arch
 	Os() OsType
 	Host() bool
@@ -145,7 +146,8 @@ type commonProperties struct {
 	Required []string
 
 	// Set by TargetMutator
-	CompileTarget Target `blueprint:"mutated"`
+	CompileTarget  Target `blueprint:"mutated"`
+	CompilePrimary bool   `blueprint:"mutated"`
 
 	// Set by InitAndroidModule
 	HostOrDeviceSupported HostOrDeviceSupported `blueprint:"mutated"`
@@ -282,12 +284,17 @@ func (a *ModuleBase) base() *ModuleBase {
 	return a
 }
 
-func (a *ModuleBase) SetTarget(target Target) {
+func (a *ModuleBase) SetTarget(target Target, primary bool) {
 	a.commonProperties.CompileTarget = target
+	a.commonProperties.CompilePrimary = primary
 }
 
 func (a *ModuleBase) Target() Target {
 	return a.commonProperties.CompileTarget
+}
+
+func (a *ModuleBase) TargetPrimary() bool {
+	return a.commonProperties.CompilePrimary
 }
 
 func (a *ModuleBase) Os() OsType {
@@ -420,8 +427,9 @@ func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 
 func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
 	return androidBaseContextImpl{
-		target: a.commonProperties.CompileTarget,
-		config: ctx.Config().(Config),
+		target:        a.commonProperties.CompileTarget,
+		targetPrimary: a.commonProperties.CompilePrimary,
+		config:        ctx.Config().(Config),
 	}
 }
 
@@ -454,9 +462,10 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 }
 
 type androidBaseContextImpl struct {
-	target Target
-	debug  bool
-	config Config
+	target        Target
+	targetPrimary bool
+	debug         bool
+	config        Config
 }
 
 type androidModuleContext struct {
@@ -534,6 +543,10 @@ func (a *androidModuleContext) AddMissingDependencies(deps []string) {
 
 func (a *androidBaseContextImpl) Target() Target {
 	return a.target
+}
+
+func (a *androidBaseContextImpl) TargetPrimary() bool {
+	return a.targetPrimary
 }
 
 func (a *androidBaseContextImpl) Arch() Arch {

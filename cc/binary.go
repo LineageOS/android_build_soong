@@ -170,11 +170,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 		if binary.Properties.Stem == "" && binary.Properties.Suffix == "" {
 			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify stem or suffix")
 		}
-		prefer32 := false
-		if ctx.Device() {
-			prefer32 = ctx.AConfig().DevicePrefer32BitExecutables()
-		}
-		if ctx.PrimaryArch() != prefer32 {
+		if ctx.TargetPrimary() {
 			binary.baseInstaller.Properties.Symlinks = append(binary.baseInstaller.Properties.Symlinks,
 				ctx.ModuleName())
 		}
