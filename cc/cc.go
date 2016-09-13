@@ -148,18 +148,6 @@ type BaseModuleContext interface {
 	ModuleContextIntf
 }
 
-type CustomizerFlagsContext interface {
-	BaseModuleContext
-	AppendCflags(...string)
-	AppendLdflags(...string)
-	AppendAsflags(...string)
-}
-
-type Customizer interface {
-	Flags(CustomizerFlagsContext)
-	Properties() []interface{}
-}
-
 type feature interface {
 	begin(ctx BaseModuleContext)
 	deps(ctx BaseModuleContext, deps Deps) Deps
@@ -235,13 +223,12 @@ type Module struct {
 	multilib android.Multilib
 
 	// delegates, initialize before calling Init
-	Customizer Customizer
-	features   []feature
-	compiler   compiler
-	linker     linker
-	installer  installer
-	stl        *stl
-	sanitize   *sanitize
+	features  []feature
+	compiler  compiler
+	linker    linker
+	installer installer
+	stl       *stl
+	sanitize  *sanitize
 
 	androidMkSharedLibDeps []string
 
@@ -254,9 +241,6 @@ type Module struct {
 
 func (c *Module) Init() (blueprint.Module, []interface{}) {
 	props := []interface{}{&c.Properties, &c.unused}
-	if c.Customizer != nil {
-		props = append(props, c.Customizer.Properties()...)
-	}
 	if c.compiler != nil {
 		props = append(props, c.compiler.compilerProps()...)
 	}
@@ -305,21 +289,6 @@ type moduleContext struct {
 type moduleContextImpl struct {
 	mod *Module
 	ctx BaseModuleContext
-}
-
-func (ctx *moduleContextImpl) AppendCflags(flags ...string) {
-	CheckBadCompilerFlags(ctx.ctx, "", flags)
-	ctx.mod.compiler.appendCflags(flags)
-}
-
-func (ctx *moduleContextImpl) AppendAsflags(flags ...string) {
-	CheckBadCompilerFlags(ctx.ctx, "", flags)
-	ctx.mod.compiler.appendAsflags(flags)
-}
-
-func (ctx *moduleContextImpl) AppendLdflags(flags ...string) {
-	CheckBadLinkerFlags(ctx.ctx, "", flags)
-	ctx.mod.linker.appendLdflags(flags)
 }
 
 func (ctx *moduleContextImpl) clang() bool {
@@ -395,10 +364,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		},
 	}
 	ctx.ctx = ctx
-
-	if c.Customizer != nil {
-		c.Customizer.Flags(ctx)
-	}
 
 	flags := Flags{
 		Toolchain: c.toolchain(ctx),
