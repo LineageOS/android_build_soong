@@ -70,8 +70,8 @@ var standardProperties = map[string]struct {
 	"LOCAL_NO_CRT":                  {"nocrt", bpparser.BoolType},
 	"LOCAL_ALLOW_UNDEFINED_SYMBOLS": {"allow_undefined_symbols", bpparser.BoolType},
 	"LOCAL_RTTI_FLAG":               {"rtti", bpparser.BoolType},
-
-	"LOCAL_NO_STANDARD_LIBRARIES": {"no_standard_libraries", bpparser.BoolType},
+	"LOCAL_NO_STANDARD_LIBRARIES":   {"no_standard_libraries", bpparser.BoolType},
+	"LOCAL_PACK_MODULE_RELOCATIONS": {"pack_relocations", bpparser.BoolType},
 
 	"LOCAL_EXPORT_PACKAGE_RESOURCES": {"export_package_resources", bpparser.BoolType},
 }

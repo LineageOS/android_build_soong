@@ -81,6 +81,7 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	if !library.static() {
 		ctx.subAndroidMk(ret, &library.stripper)
+		ctx.subAndroidMk(ret, &library.relocationPacker)
 	}
 
 	if library.static() {
@@ -177,6 +178,15 @@ func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMk
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := mini-debug-info")
 		}
 
+		return nil
+	})
+}
+
+func (packer *relocationPacker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		if packer.Properties.PackingRelocations {
+			fmt.Fprintln(w, "LOCAL_PACK_MODULE_RELOCATIONS := true")
+		}
 		return nil
 	})
 }

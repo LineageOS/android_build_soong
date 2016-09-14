@@ -151,6 +151,7 @@ type libraryDecorator struct {
 
 	flagExporter
 	stripper
+	relocationPacker
 
 	// If we're used as a whole_static_lib, our missing dependencies need
 	// to be given
@@ -177,7 +178,8 @@ func (library *libraryDecorator) linkerProps() []interface{} {
 	return append(props,
 		&library.Properties,
 		&library.flagExporter.Properties,
-		&library.stripper.StripProperties)
+		&library.stripper.StripProperties,
+		&library.relocationPacker.Properties)
 }
 
 func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -289,6 +291,8 @@ func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 	library.baseInstaller.location = location
 
 	library.baseLinker.linkerInit(ctx)
+
+	library.relocationPacker.packingInit(ctx)
 }
 
 func (library *libraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
@@ -385,6 +389,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	ret := outputFile
 
 	builderFlags := flagsToBuilderFlags(flags)
+
+	if library.relocationPacker.needsPacking(ctx) {
+		packedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unpacked", fileName)
+		library.relocationPacker.pack(ctx, outputFile, packedOutputFile, builderFlags)
+	}
 
 	if library.stripper.needsStrip(ctx) {
 		strippedOutputFile := outputFile
