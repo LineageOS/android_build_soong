@@ -25,8 +25,8 @@ import (
 )
 
 func init() {
-	pctx.SourcePathVariable("lexCmd", "prebuilts/misc/${HostPrebuiltTag}/flex/flex-2.5.39")
-	pctx.SourcePathVariable("yaccCmd", "prebuilts/misc/${HostPrebuiltTag}/bison/bison")
+	pctx.SourcePathVariable("lexCmd", "prebuilts/misc/${config.HostPrebuiltTag}/flex/flex-2.5.39")
+	pctx.SourcePathVariable("yaccCmd", "prebuilts/misc/${config.HostPrebuiltTag}/bison/bison")
 	pctx.SourcePathVariable("yaccDataDir", "external/bison/data")
 }
 
