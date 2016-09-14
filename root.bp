@@ -24,6 +24,10 @@ optional_subdirs = [
     "system/core/*",
     "system/extras/*",
     "system/keymaster",
+    "system/hwservicemanager",
+    "system/libhidl",
+    "system/libhwbinder",
     "system/media/*",
     "system/security/*",
+    "system/tools/*",
 ]
