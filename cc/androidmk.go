@@ -129,7 +129,6 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 
 	ret.Class = "EXECUTABLES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
-		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		if Bool(binary.Properties.Static_executable) {
 			fmt.Fprintln(w, "LOCAL_FORCE_STATIC_EXECUTABLE := true")
@@ -157,7 +156,6 @@ func (library *toolchainLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *a
 	ret.Class = "STATIC_LIBRARIES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
-		fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 
 		return nil
