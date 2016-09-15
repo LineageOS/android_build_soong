@@ -90,9 +90,11 @@ func init() {
 	pctx.StaticVariable("CommonClangGlobalCppflags",
 		strings.Join(append(ClangFilterUnknownCflags(commonGlobalCppflags), "${ClangExtraCppflags}"), " "))
 
-	// Everything in this list is a crime against abstraction and dependency tracking.
+	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
-	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalIncludes", "-isystem ",
+	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalIncludes", "-I",
+		[]string{})
+	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalSystemIncludes", "-isystem ",
 		[]string{
 			"system/core/include",
 			"system/media/audio/include",
