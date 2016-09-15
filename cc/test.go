@@ -26,7 +26,7 @@ import (
 
 type TestProperties struct {
 	// if set, build against the gtest library. Defaults to true.
-	Gtest bool
+	Gtest *bool
 }
 
 type TestBinaryProperties struct {
@@ -116,8 +116,12 @@ type testDecorator struct {
 	linker     *baseLinker
 }
 
+func (test *testDecorator) gtest() bool {
+	return test.Properties.Gtest == nil || *test.Properties.Gtest == true
+}
+
 func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	if !test.Properties.Gtest {
+	if !test.gtest() {
 		return flags
 	}
 
@@ -143,7 +147,7 @@ func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
-	if test.Properties.Gtest {
+	if test.gtest() {
 		if ctx.sdk() && ctx.Device() {
 			switch ctx.selectedStl() {
 			case "ndk_libc++_shared", "ndk_libc++_static":
@@ -208,8 +212,9 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
-	test.binaryDecorator.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
-	test.binaryDecorator.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
+	test.binaryDecorator.baseInstaller.dir = "nativetest"
+	test.binaryDecorator.baseInstaller.dir64 = "nativetest64"
+	test.binaryDecorator.baseInstaller.relative = ctx.ModuleName()
 	test.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
@@ -225,7 +230,6 @@ func NewTest(hod android.HostOrDeviceSupported) *Module {
 		binaryDecorator: binary,
 		baseCompiler:    NewBaseCompiler(),
 	}
-	test.testDecorator.Properties.Gtest = true
 	module.compiler = test
 	module.linker = test
 	module.installer = test
@@ -267,7 +271,6 @@ func NewTestLibrary(hod android.HostOrDeviceSupported) *Module {
 		},
 		libraryDecorator: library,
 	}
-	test.testDecorator.Properties.Gtest = true
 	module.linker = test
 	return module
 }
