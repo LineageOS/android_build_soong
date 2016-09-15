@@ -44,7 +44,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
-	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes}")
+	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes} ${config.CommonGlobalSystemIncludes}")
 	if err != nil {
 		panic(err)
 	}
