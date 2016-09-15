@@ -147,6 +147,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		if !ctx.sdk() || ctx.Host() {
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				"${config.CommonGlobalIncludes}",
+				"${config.CommonGlobalSystemIncludes}",
 				tc.IncludeFlags(),
 				"${config.CommonNativehelperInclude}")
 		}
