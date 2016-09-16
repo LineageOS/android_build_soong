@@ -108,5 +108,6 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 		Rule:      android.Touch,
 		Outputs:   []string{getNdkSysrootTimestampFile(ctx).String()},
 		Implicits: installPaths,
+		Optional:  true,
 	})
 }
