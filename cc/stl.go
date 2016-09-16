@@ -114,9 +114,15 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
 		// its own includes. The includes are handled in CCBase.Flags().
 		deps.SharedLibs = append([]string{"libstdc++"}, deps.SharedLibs...)
-	case "ndk_libc++_shared", "ndk_libstlport_shared":
+	case "ndk_libc++_shared":
+		deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl,
+			"libdl")
+	case "ndk_libc++_static":
+		deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
+		deps.SharedLibs = append(deps.SharedLibs, "libdl")
+	case "ndk_libstlport_shared":
 		deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
-	case "ndk_libc++_static", "ndk_libstlport_static", "ndk_libgnustl_static":
+	case "ndk_libstlport_static", "ndk_libgnustl_static":
 		deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
 	default:
 		panic(fmt.Errorf("Unknown stl: %q", stl.Properties.SelectedStl))
