@@ -120,6 +120,7 @@ type BaseProperties struct {
 
 	AndroidMkSharedLibs []string `blueprint:"mutated"`
 	HideFromMake        bool     `blueprint:"mutated"`
+	PreventInstall      bool     `blueprint:"mutated"`
 }
 
 type UnusedProperties struct {
@@ -423,7 +424,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 		c.outputFile = android.OptionalPathForPath(outputFile)
 
-		if c.installer != nil {
+		if c.installer != nil && !c.Properties.PreventInstall {
 			c.installer.install(ctx, outputFile)
 			if ctx.Failed() {
 				return

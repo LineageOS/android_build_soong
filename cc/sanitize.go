@@ -354,20 +354,18 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				modules := mctx.CreateVariations(t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
 			} else if c.sanitize.Properties.SanitizeDep {
-				if c.Host() {
-					modules := mctx.CreateVariations(t.String())
-					modules[0].(*Module).sanitize.SetSanitizer(t, true)
-					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
-				} else {
-					modules := mctx.CreateVariations("", t.String())
-					modules[0].(*Module).sanitize.SetSanitizer(t, false)
-					modules[1].(*Module).sanitize.SetSanitizer(t, true)
-					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
-					modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+				modules := mctx.CreateVariations("", t.String())
+				modules[0].(*Module).sanitize.SetSanitizer(t, false)
+				modules[1].(*Module).sanitize.SetSanitizer(t, true)
+				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
+				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+				if mctx.Device() {
 					modules[1].(*Module).sanitize.Properties.InData = true
-					if mctx.AConfig().EmbeddedInMake() {
-						modules[0].(*Module).Properties.HideFromMake = true
-					}
+				} else {
+					modules[0].(*Module).Properties.PreventInstall = true
+				}
+				if mctx.AConfig().EmbeddedInMake() {
+					modules[0].(*Module).Properties.HideFromMake = true
 				}
 			}
 			c.sanitize.Properties.SanitizeDep = false
