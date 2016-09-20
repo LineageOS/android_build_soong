@@ -82,6 +82,7 @@ var (
 		"imagehlp",
 		"ole32",
 		"psapi",
+		"pthread",
 		"userenv",
 		"uuid",
 		"ws2_32",
