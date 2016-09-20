@@ -366,10 +366,6 @@ func (p *ModuleBase) InstallInData() bool {
 }
 
 func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
-	if a != ctx.FinalModule().(Module).base() {
-		return
-	}
-
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
 	ctx.VisitAllModuleVariants(func(module blueprint.Module) {
@@ -439,21 +435,21 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		missingDeps:            ctx.GetMissingDependencies(),
 	}
 
-	if !a.Enabled() {
-		return
+	if a.Enabled() {
+		a.module.GenerateAndroidBuildActions(androidCtx)
+		if ctx.Failed() {
+			return
+		}
+
+		a.installFiles = append(a.installFiles, androidCtx.installFiles...)
+		a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
 	}
 
-	a.module.GenerateAndroidBuildActions(androidCtx)
-	if ctx.Failed() {
-		return
-	}
-
-	a.installFiles = append(a.installFiles, androidCtx.installFiles...)
-	a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
-
-	a.generateModuleTarget(ctx)
-	if ctx.Failed() {
-		return
+	if a == ctx.FinalModule().(Module).base() {
+		a.generateModuleTarget(ctx)
+		if ctx.Failed() {
+			return
+		}
 	}
 }
 
