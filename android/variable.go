@@ -62,6 +62,10 @@ type variableProperties struct {
 		Binder32bit struct {
 			Cflags []string
 		}
+
+		Debuggable struct {
+			Cflags []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -102,6 +106,7 @@ type productVariables struct {
 	Schedboost                 *bool `json:",omitempty"`
 	Binder32bit                *bool `json:",omitempty"`
 	UseGoma                    *bool `json:",omitempty"`
+	Debuggable                 *bool `json:",omitempty"`
 
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
 	HostPrefer32BitExecutables   *bool `json:",omitempty"`
