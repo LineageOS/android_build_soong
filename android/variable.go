@@ -112,6 +112,9 @@ type productVariables struct {
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
 
+	ClangTidy  *bool   `json:",omitempty"`
+	TidyChecks *string `json:",omitempty"`
+
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
 	HostPrefer32BitExecutables   *bool `json:",omitempty"`
 

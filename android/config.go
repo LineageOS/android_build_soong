@@ -384,6 +384,17 @@ func (c *config) UseGoma() bool {
 	return Bool(c.ProductVariables.UseGoma)
 }
 
+func (c *config) ClangTidy() bool {
+	return Bool(c.ProductVariables.ClangTidy)
+}
+
+func (c *config) TidyChecks() string {
+	if c.ProductVariables.TidyChecks == nil {
+		return ""
+	}
+	return *c.ProductVariables.TidyChecks
+}
+
 func (c *config) LibartImgHostBaseAddress() string {
 	return "0x60000000"
 }
