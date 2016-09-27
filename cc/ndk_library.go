@@ -189,7 +189,7 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	ndkMigratedLibs = append(ndkMigratedLibs, name)
 }
 
-func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
+func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	arch := ctx.Arch().ArchType.String()
 
 	if !strings.HasSuffix(ctx.ModuleName(), ndkLibrarySuffix) {
@@ -242,11 +242,11 @@ func (stub *stubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
-	objFiles android.Paths) android.Path {
+	objs Objects) android.Path {
 
 	linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
 	flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
-	return stub.libraryDecorator.link(ctx, flags, deps, objFiles)
+	return stub.libraryDecorator.link(ctx, flags, deps, objs)
 }
 
 func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {

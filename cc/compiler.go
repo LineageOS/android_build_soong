@@ -350,7 +350,7 @@ func ndkPathDeps(ctx ModuleContext) android.Paths {
 	return nil
 }
 
-func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
+func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	pathDeps := deps.GeneratedHeaders
 	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
 
@@ -367,18 +367,18 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	compiler.deps = pathDeps
 
 	// Compile files listed in c.Properties.Srcs into objects
-	objFiles := compileObjs(ctx, buildFlags, "", srcs, compiler.deps)
+	objs := compileObjs(ctx, buildFlags, "", srcs, compiler.deps)
 
 	if ctx.Failed() {
-		return nil
+		return Objects{}
 	}
 
-	return objFiles
+	return objs
 }
 
 // Compile a list of source files into objects a specified subdirectory
 func compileObjs(ctx android.ModuleContext, flags builderFlags,
-	subdir string, srcFiles, deps android.Paths) android.Paths {
+	subdir string, srcFiles, deps android.Paths) Objects {
 
 	return TransformSourceToObj(ctx, subdir, srcFiles, flags, deps)
 }

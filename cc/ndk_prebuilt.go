@@ -79,7 +79,7 @@ func ndkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
 }
 
 func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objFiles android.Paths) android.Path {
+	deps PathDeps, objs Objects) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_crt") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_crt prefixed name")
@@ -115,7 +115,7 @@ func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (ndk *ndkPrebuiltLibraryLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objFiles android.Paths) android.Path {
+	deps PathDeps, objs Objects) android.Path {
 	// A null build step, but it sets up the output path.
 	ndk.exportIncludes(ctx, "-isystem")
 
@@ -181,7 +181,7 @@ func getNdkStlLibDir(ctx android.ModuleContext, toolchain config.Toolchain, stl 
 }
 
 func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objFiles android.Paths) android.Path {
+	deps PathDeps, objs Objects) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
 		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
