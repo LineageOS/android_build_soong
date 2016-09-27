@@ -28,7 +28,7 @@ Every module must have a `name` property, and the value must be unique across
 all Android.bp files.
 
 For a list of valid module types and their properties see
-[$OUT_DIR/soong/.bootstrap/docs/soong_build.html](https://android-build.googleplex.com/builds/latest/branches/aosp-build-tools/targets/linux/soong_build.html).
+[$OUT_DIR/soong/.bootstrap/docs/soong_build.html](https://go/Android.bp).
 
 ### Variables
 
@@ -113,7 +113,18 @@ androidmk Android.mk > Android.bp
 ```
 
 The tool converts variables, modules, comments, and some conditionals, but any
-custom Makefile rules or complex conditionals must be converted by hand.
+custom Makefile rules, complex conditionals or extra includes must be converted
+by hand.
+
+#### Differences between Android.mk and Android.bp
+
+* Android.mk files often have multiple modules with the same name (for example
+for static and shared version of a library, or for host and device versions).
+Android.bp files require unique names for every module, but a single module can
+be built in multiple variants, for example by adding `host_supported: true`.
+The androidmk converter will produce multiple conflicting modules, which must
+be resolved by hand to a single module with any differences inside
+`target: { android: { }, host: { } }` blocks.
 
 ## Build logic
 
