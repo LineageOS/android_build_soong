@@ -15,6 +15,8 @@
 package genrule
 
 import (
+	"os"
+
 	"github.com/google/blueprint"
 
 	"android/soong"
@@ -52,6 +54,7 @@ type generatorProperties struct {
 	// $in: one or more input files
 	// $out: a single output file
 	// $srcDir: the root directory of the source tree
+	// $genDir: the sandbox directory for this tool; contains $out
 	// The host bin directory will be in the path
 	Cmd string
 
@@ -109,8 +112,30 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	g.genPath = android.PathForModuleGen(ctx, "")
+
+	cmd := os.Expand(g.properties.Cmd, func(name string) string {
+		switch name {
+		case "$":
+			return "$$"
+		case "tool":
+			return "${tool}"
+		case "in":
+			return "${in}"
+		case "out":
+			return "${out}"
+		case "srcDir":
+			return "${srcDir}"
+		case "genDir":
+			return g.genPath.String()
+		default:
+			ctx.PropertyErrorf("cmd", "unknown variable '%s'", name)
+		}
+		return ""
+	})
+
 	g.rule = ctx.Rule(pctx, "generator", blueprint.RuleParams{
-		Command: "PATH=$$PATH:$hostBin " + g.properties.Cmd,
+		Command: "PATH=$$PATH:$hostBin " + cmd,
 	}, "tool")
 
 	var tool string
@@ -133,8 +158,6 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 		})
 	}
-
-	g.genPath = android.PathForModuleGen(ctx, "")
 
 	for _, task := range g.tasks(ctx) {
 		g.generateSourceFile(ctx, task, tool)
