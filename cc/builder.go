@@ -377,13 +377,6 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	}
 
 	for _, lib := range sharedLibs {
-		file := filepath.Base(lib.String())
-		if !strings.HasPrefix(file, "lib") {
-			panic("shared library " + lib.String() + " does not start with lib")
-		}
-		if !strings.HasSuffix(file, flags.toolchain.ShlibSuffix()) {
-			panic("shared library " + lib.String() + " does not end with " + flags.toolchain.ShlibSuffix())
-		}
 		libFlagsList = append(libFlagsList, lib.String())
 	}
 
