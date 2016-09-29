@@ -181,6 +181,7 @@ type installer interface {
 	installerProps() []interface{}
 	install(ctx ModuleContext, path android.Path)
 	inData() bool
+	hostToolPath() android.OptionalPath
 }
 
 type dependencyTag struct {
@@ -843,6 +844,13 @@ func (c *Module) InstallInData() bool {
 		return true
 	}
 	return c.installer.inData()
+}
+
+func (c *Module) HostToolPath() android.OptionalPath {
+	if c.installer == nil {
+		return android.OptionalPath{}
+	}
+	return c.installer.hostToolPath()
 }
 
 //
