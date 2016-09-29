@@ -80,3 +80,7 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 func (installer *baseInstaller) inData() bool {
 	return installer.location == InstallInData
 }
+
+func (installer *baseInstaller) hostToolPath() android.OptionalPath {
+	return android.OptionalPath{}
+}

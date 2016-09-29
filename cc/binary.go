@@ -69,7 +69,7 @@ type binaryDecorator struct {
 
 	Properties BinaryLinkerProperties
 
-	hostToolPath android.OptionalPath
+	toolPath android.OptionalPath
 }
 
 var _ linker = (*binaryDecorator)(nil)
@@ -256,9 +256,6 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
-	if ctx.Os().Class == android.Host {
-		binary.hostToolPath = android.OptionalPathForPath(outputFile)
-	}
 
 	var linkerDeps android.Paths
 
@@ -291,6 +288,13 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	return ret
 }
 
-func (binary *binaryDecorator) HostToolPath() android.OptionalPath {
-	return binary.hostToolPath
+func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
+	binary.baseInstaller.install(ctx, file)
+	if ctx.Os().Class == android.Host {
+		binary.toolPath = android.OptionalPathForPath(binary.baseInstaller.path)
+	}
+}
+
+func (binary *binaryDecorator) hostToolPath() android.OptionalPath {
+	return binary.toolPath
 }
