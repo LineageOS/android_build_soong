@@ -15,6 +15,8 @@
 package genrule
 
 import (
+	"os"
+
 	"github.com/google/blueprint"
 
 	"android/soong"
@@ -52,6 +54,7 @@ type generatorProperties struct {
 	// $in: one or more input files
 	// $out: a single output file
 	// $srcDir: the root directory of the source tree
+	// $genDir: the sandbox directory for this tool; contains $out
 	// The host bin directory will be in the path
 	Cmd string
 
@@ -82,7 +85,7 @@ type taskFunc func(ctx android.ModuleContext) []generateTask
 
 type generateTask struct {
 	in  android.Paths
-	out android.ModuleGenPath
+	out android.WritablePaths
 }
 
 func (g *generator) GeneratedSourceFiles() android.Paths {
@@ -109,8 +112,30 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	g.genPath = android.PathForModuleGen(ctx, "")
+
+	cmd := os.Expand(g.properties.Cmd, func(name string) string {
+		switch name {
+		case "$":
+			return "$$"
+		case "tool":
+			return "${tool}"
+		case "in":
+			return "${in}"
+		case "out":
+			return "${out}"
+		case "srcDir":
+			return "${srcDir}"
+		case "genDir":
+			return g.genPath.String()
+		default:
+			ctx.PropertyErrorf("cmd", "unknown variable '%s'", name)
+		}
+		return ""
+	})
+
 	g.rule = ctx.Rule(pctx, "generator", blueprint.RuleParams{
-		Command: "PATH=$$PATH:$hostBin " + g.properties.Cmd,
+		Command: "PATH=$$PATH:$hostBin " + cmd,
 	}, "tool")
 
 	var tool string
@@ -134,8 +159,6 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 	}
 
-	g.genPath = android.PathForModuleGen(ctx, "")
-
 	for _, task := range g.tasks(ctx) {
 		g.generateSourceFile(ctx, task, tool)
 	}
@@ -144,7 +167,7 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask, tool string) {
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      g.rule,
-		Output:    task.out,
+		Outputs:   task.out,
 		Inputs:    task.in,
 		Implicits: g.deps,
 		Args: map[string]string{
@@ -152,7 +175,9 @@ func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateT
 		},
 	})
 
-	g.outputFiles = append(g.outputFiles, task.out)
+	for _, outputFile := range task.out {
+		g.outputFiles = append(g.outputFiles, outputFile)
+	}
 }
 
 func generatorFactory(tasks taskFunc, props ...interface{}) (blueprint.Module, []interface{}) {
@@ -174,7 +199,7 @@ func GenSrcsFactory() (blueprint.Module, []interface{}) {
 		for _, in := range srcFiles {
 			tasks = append(tasks, generateTask{
 				in:  android.Paths{in},
-				out: android.GenPathWithExt(ctx, in, properties.Output_extension),
+				out: android.WritablePaths{android.GenPathWithExt(ctx, in, properties.Output_extension)},
 			})
 		}
 		return tasks
@@ -195,10 +220,14 @@ func GenRuleFactory() (blueprint.Module, []interface{}) {
 	properties := &genRuleProperties{}
 
 	tasks := func(ctx android.ModuleContext) []generateTask {
+		outs := make(android.WritablePaths, len(properties.Out))
+		for i, out := range properties.Out {
+			outs[i] = android.PathForModuleGen(ctx, out)
+		}
 		return []generateTask{
 			{
 				in:  ctx.ExpandSources(properties.Srcs, nil),
-				out: android.PathForModuleGen(ctx, properties.Out),
+				out: outs,
 			},
 		}
 	}
@@ -210,6 +239,6 @@ type genRuleProperties struct {
 	// list of input files
 	Srcs []string
 
-	// name of the output file that will be generated
-	Out string
+	// names of the output files that will be generated
+	Out []string
 }
