@@ -192,6 +192,12 @@ func (packer *relocationPacker) AndroidMk(ctx AndroidMkContext, ret *android.And
 }
 
 func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	// Soong installation is only supported for host modules. Have Make
+	// installation trigger Soong installation.
+	if ctx.Target().Os.Class == android.Host {
+		ret.OutputFile = android.OptionalPathForPath(installer.path)
+	}
+
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
