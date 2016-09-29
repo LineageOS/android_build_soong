@@ -80,6 +80,7 @@ type PathDeps struct {
 	GeneratedHeaders android.Paths
 
 	Flags, ReexportedFlags []string
+	ReexportedFlagsDeps    android.Paths
 
 	CrtBegin, CrtEnd android.OptionalPath
 }
@@ -760,6 +761,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					depPaths.Flags = append(depPaths.Flags, flags)
 					if tag == genHeaderExportDepTag {
 						depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags)
+						depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps,
+							genRule.GeneratedSourceFiles()...)
 					}
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", name)
@@ -799,10 +802,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		if t, ok := tag.(dependencyTag); ok && t.library {
 			if i, ok := cc.linker.(exportedFlagsProducer); ok {
 				flags := i.exportedFlags()
+				deps := i.exportedFlagsDeps()
 				depPaths.Flags = append(depPaths.Flags, flags...)
+				depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders, deps...)
 
 				if t.reexportFlags {
 					depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
+					depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps, deps...)
 				}
 			}
 
