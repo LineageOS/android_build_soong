@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/cc/config"
 )
@@ -130,11 +132,13 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	CheckBadCompilerFlags(ctx, "conlyflags", compiler.Properties.Conlyflags)
 	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
 
-	flags.CFlags = append(flags.CFlags, compiler.Properties.Cflags...)
-	flags.CppFlags = append(flags.CppFlags, compiler.Properties.Cppflags...)
-	flags.ConlyFlags = append(flags.ConlyFlags, compiler.Properties.Conlyflags...)
-	flags.AsFlags = append(flags.AsFlags, compiler.Properties.Asflags...)
-	flags.YaccFlags = append(flags.YaccFlags, compiler.Properties.Yaccflags...)
+	esc := proptools.NinjaAndShellEscape
+
+	flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Cflags)...)
+	flags.CppFlags = append(flags.CppFlags, esc(compiler.Properties.Cppflags)...)
+	flags.ConlyFlags = append(flags.ConlyFlags, esc(compiler.Properties.Conlyflags)...)
+	flags.AsFlags = append(flags.AsFlags, esc(compiler.Properties.Asflags)...)
+	flags.YaccFlags = append(flags.YaccFlags, esc(compiler.Properties.Yaccflags)...)
 
 	// Include dir cflags
 	rootIncludeDirs := android.PathsForSource(ctx, compiler.Properties.Include_dirs)
@@ -198,15 +202,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	CheckBadCompilerFlags(ctx, "release.cflags", compiler.Properties.Release.Cflags)
 
 	// TODO: debug
-	flags.CFlags = append(flags.CFlags, compiler.Properties.Release.Cflags...)
+	flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Release.Cflags)...)
 
 	if flags.Clang {
 		CheckBadCompilerFlags(ctx, "clang_cflags", compiler.Properties.Clang_cflags)
 		CheckBadCompilerFlags(ctx, "clang_asflags", compiler.Properties.Clang_asflags)
 
 		flags.CFlags = config.ClangFilterUnknownCflags(flags.CFlags)
-		flags.CFlags = append(flags.CFlags, compiler.Properties.Clang_cflags...)
-		flags.AsFlags = append(flags.AsFlags, compiler.Properties.Clang_asflags...)
+		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Clang_cflags)...)
+		flags.AsFlags = append(flags.AsFlags, esc(compiler.Properties.Clang_asflags)...)
 		flags.CppFlags = config.ClangFilterUnknownCflags(flags.CppFlags)
 		flags.ConlyFlags = config.ClangFilterUnknownCflags(flags.ConlyFlags)
 		flags.LdFlags = config.ClangFilterUnknownCflags(flags.LdFlags)
