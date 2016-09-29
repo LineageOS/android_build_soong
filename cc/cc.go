@@ -64,6 +64,8 @@ type Deps struct {
 	GeneratedSources []string
 	GeneratedHeaders []string
 
+	ReexportGeneratedHeaders []string
+
 	CrtBegin, CrtEnd string
 }
 
@@ -193,21 +195,22 @@ type dependencyTag struct {
 }
 
 var (
-	sharedDepTag       = dependencyTag{name: "shared", library: true}
-	sharedExportDepTag = dependencyTag{name: "shared", library: true, reexportFlags: true}
-	lateSharedDepTag   = dependencyTag{name: "late shared", library: true}
-	staticDepTag       = dependencyTag{name: "static", library: true}
-	staticExportDepTag = dependencyTag{name: "static", library: true, reexportFlags: true}
-	lateStaticDepTag   = dependencyTag{name: "late static", library: true}
-	wholeStaticDepTag  = dependencyTag{name: "whole static", library: true, reexportFlags: true}
-	genSourceDepTag    = dependencyTag{name: "gen source"}
-	genHeaderDepTag    = dependencyTag{name: "gen header"}
-	objDepTag          = dependencyTag{name: "obj"}
-	crtBeginDepTag     = dependencyTag{name: "crtbegin"}
-	crtEndDepTag       = dependencyTag{name: "crtend"}
-	reuseObjTag        = dependencyTag{name: "reuse objects"}
-	ndkStubDepTag      = dependencyTag{name: "ndk stub", library: true}
-	ndkLateStubDepTag  = dependencyTag{name: "ndk late stub", library: true}
+	sharedDepTag          = dependencyTag{name: "shared", library: true}
+	sharedExportDepTag    = dependencyTag{name: "shared", library: true, reexportFlags: true}
+	lateSharedDepTag      = dependencyTag{name: "late shared", library: true}
+	staticDepTag          = dependencyTag{name: "static", library: true}
+	staticExportDepTag    = dependencyTag{name: "static", library: true, reexportFlags: true}
+	lateStaticDepTag      = dependencyTag{name: "late static", library: true}
+	wholeStaticDepTag     = dependencyTag{name: "whole static", library: true, reexportFlags: true}
+	genSourceDepTag       = dependencyTag{name: "gen source"}
+	genHeaderDepTag       = dependencyTag{name: "gen header"}
+	genHeaderExportDepTag = dependencyTag{name: "gen header", reexportFlags: true}
+	objDepTag             = dependencyTag{name: "obj"}
+	crtBeginDepTag        = dependencyTag{name: "crtbegin"}
+	crtEndDepTag          = dependencyTag{name: "crtend"}
+	reuseObjTag           = dependencyTag{name: "reuse objects"}
+	ndkStubDepTag         = dependencyTag{name: "ndk stub", library: true}
+	ndkLateStubDepTag     = dependencyTag{name: "ndk late stub", library: true}
 )
 
 // Module contains the properties and members used by all C/C++ module types, and implements
@@ -503,6 +506,12 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 		}
 	}
 
+	for _, gen := range deps.ReexportGeneratedHeaders {
+		if !inList(gen, deps.GeneratedHeaders) {
+			ctx.PropertyErrorf("export_generated_headers", "Generated header module not in generated_headers: '%s'", gen)
+		}
+	}
+
 	return deps
 }
 
@@ -594,7 +603,14 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 		deps.LateSharedLibs...)
 
 	actx.AddDependency(c, genSourceDepTag, deps.GeneratedSources...)
-	actx.AddDependency(c, genHeaderDepTag, deps.GeneratedHeaders...)
+
+	for _, gen := range deps.GeneratedHeaders {
+		depTag := genHeaderDepTag
+		if inList(gen, deps.ReexportGeneratedHeaders) {
+			depTag = genHeaderExportDepTag
+		}
+		actx.AddDependency(c, depTag, gen)
+	}
 
 	actx.AddDependency(c, objDepTag, deps.ObjFiles...)
 
@@ -736,12 +752,15 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				} else {
 					ctx.ModuleErrorf("module %q is not a gensrcs or genrule", name)
 				}
-			case genHeaderDepTag:
+			case genHeaderDepTag, genHeaderExportDepTag:
 				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
 						genRule.GeneratedSourceFiles()...)
-					depPaths.Flags = append(depPaths.Flags,
-						includeDirsToFlags(android.Paths{genRule.GeneratedHeaderDir()}))
+					flags := includeDirsToFlags(android.Paths{genRule.GeneratedHeaderDir()})
+					depPaths.Flags = append(depPaths.Flags, flags)
+					if tag == genHeaderExportDepTag {
+						depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags)
+					}
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", name)
 				}
