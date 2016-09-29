@@ -67,6 +67,10 @@ type BaseLinkerProperties struct {
 	// present in static_libs.
 	Export_static_lib_headers []string `android:"arch_variant"`
 
+	// list of generated headers to re-export include directories from. Entries must be
+	// present in generated_headers.
+	Export_generated_headers []string `android:"arch_variant"`
+
 	// don't link in crt_begin and crt_end.  This flag should only be necessary for
 	// compiling crt or libc.
 	Nocrt *bool `android:"arch_variant"`
@@ -107,6 +111,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 
 	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
 	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
+	deps.ReexportGeneratedHeaders = append(deps.ReexportGeneratedHeaders, linker.Properties.Export_generated_headers...)
 
 	if ctx.ModuleName() != "libcompiler_rt-extras" {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt-extras")
