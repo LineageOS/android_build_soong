@@ -17,6 +17,8 @@ package cc
 import (
 	"android/soong/android"
 	"fmt"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // This file contains the basic functionality for linking against static libraries and shared
@@ -167,7 +169,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	CheckBadLinkerFlags(ctx, "ldflags", linker.Properties.Ldflags)
 
-	flags.LdFlags = append(flags.LdFlags, linker.Properties.Ldflags...)
+	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscape(linker.Properties.Ldflags)...)
 
 	if ctx.Host() {
 		rpath_prefix := `\$$ORIGIN/`
