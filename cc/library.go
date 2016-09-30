@@ -117,7 +117,8 @@ func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
 type flagExporter struct {
 	Properties FlagExporterProperties
 
-	flags []string
+	flags     []string
+	flagsDeps android.Paths
 }
 
 func (f *flagExporter) exportIncludes(ctx ModuleContext, inc string) {
@@ -131,12 +132,21 @@ func (f *flagExporter) reexportFlags(flags []string) {
 	f.flags = append(f.flags, flags...)
 }
 
+func (f *flagExporter) reexportDeps(deps android.Paths) {
+	f.flagsDeps = append(f.flagsDeps, deps...)
+}
+
 func (f *flagExporter) exportedFlags() []string {
 	return f.flags
 }
 
+func (f *flagExporter) exportedFlagsDeps() android.Paths {
+	return f.flagsDeps
+}
+
 type exportedFlagsProducer interface {
 	exportedFlags() []string
+	exportedFlagsDeps() android.Paths
 }
 
 var _ exportedFlagsProducer = (*flagExporter)(nil)
@@ -445,6 +455,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 	library.exportIncludes(ctx, "-I")
 	library.reexportFlags(deps.ReexportedFlags)
+	library.reexportDeps(deps.ReexportedFlagsDeps)
 
 	return out
 }
