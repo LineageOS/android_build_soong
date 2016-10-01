@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 
 	"android/soong"
 	"android/soong/android"
@@ -158,6 +159,8 @@ type libraryDecorator struct {
 
 	// For reusing static library objects for shared library
 	reuseObjFiles android.Paths
+	// table-of-contents file to optimize out relinking when possible
+	tocFile android.OptionalPath
 
 	flagExporter
 	stripper
@@ -269,6 +272,7 @@ type libraryInterface interface {
 	static() bool
 	objs() android.Paths
 	reuseObjs() android.Paths
+	toc() android.OptionalPath
 
 	// Returns true if the build options for the module have selected a static or shared build
 	buildStatic() bool
@@ -434,9 +438,27 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	}
 
+	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
+	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+
 	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
 		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile)
+
+	if ctx.Device() {
+		// For device targets, optimize out relinking against shared
+		// libraries whose interface hasn't changed by depending on
+		// a table of contents file instead of the library itself.
+		// For host targets, the library might be part of a host tool
+		// that is run during the build, use the library directly so
+		// that the timestamp of the binary changes whenever a library
+		// changes and any necessary tools get re-run.
+		tocPath := outputFile.String()
+		tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
+		tocFile := android.PathForOutput(ctx, tocPath)
+		library.tocFile = android.OptionalPathForPath(tocFile)
+		TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
+	}
 
 	return ret
 }
@@ -480,6 +502,10 @@ func (library *libraryDecorator) objs() android.Paths {
 
 func (library *libraryDecorator) reuseObjs() android.Paths {
 	return library.reuseObjFiles
+}
+
+func (library *libraryDecorator) toc() android.OptionalPath {
+	return library.tocFile
 }
 
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {

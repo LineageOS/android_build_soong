@@ -281,6 +281,9 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
+	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
+	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+
 	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
 		builderFlags, outputFile)
