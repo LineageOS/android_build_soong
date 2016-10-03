@@ -138,6 +138,18 @@ var (
 			Description: "copy gcc $out",
 		},
 		"ccCmd", "cFlags", "libName")
+
+	tocPath = pctx.SourcePathVariable("tocPath", "build/soong/scripts/toc.sh")
+
+	toc = pctx.AndroidStaticRule("toc",
+		blueprint.RuleParams{
+			Depfile:     "${out}.d",
+			Deps:        blueprint.DepsGCC,
+			Command:     "CROSS_COMPILE=$crossCompile $tocPath -i ${in} -o ${out} -d ${out}.d",
+			CommandDeps: []string{"$tocPath"},
+			Restat:      true,
+		},
+		"crossCompile")
 )
 
 func init() {
@@ -380,7 +392,6 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		libFlagsList = append(libFlagsList, lib.String())
 	}
 
-	deps = append(deps, sharedLibs...)
 	deps = append(deps, staticLibs...)
 	deps = append(deps, lateStaticLibs...)
 	deps = append(deps, wholeStaticLibs...)
@@ -399,6 +410,22 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 			"libFlags": strings.Join(libFlagsList, " "),
 			"ldFlags":  flags.ldFlags,
 			"crtEnd":   crtEnd.String(),
+		},
+	})
+}
+
+// Generate a rule for extract a table of contents from a shared library (.so)
+func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.WritablePath,
+	outputFile android.WritablePath, flags builderFlags) {
+
+	crossCompile := gccCmd(flags.toolchain, "")
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:   toc,
+		Output: outputFile,
+		Input:  inputFile,
+		Args: map[string]string{
+			"crossCompile": crossCompile,
 		},
 	})
 }
