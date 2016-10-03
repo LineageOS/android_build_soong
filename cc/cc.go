@@ -70,18 +70,25 @@ type Deps struct {
 }
 
 type PathDeps struct {
-	SharedLibs, LateSharedLibs                  android.Paths
+	// Paths to .so files
+	SharedLibs, LateSharedLibs android.Paths
+	// Paths to the dependencies to use for .so files (.so.toc files)
+	SharedLibsDeps, LateSharedLibsDeps android.Paths
+	// Paths to .a files
 	StaticLibs, LateStaticLibs, WholeStaticLibs android.Paths
 
+	// Paths to .o files
 	ObjFiles               android.Paths
 	WholeStaticLibObjFiles android.Paths
 
+	// Paths to generated source files
 	GeneratedSources android.Paths
 	GeneratedHeaders android.Paths
 
 	Flags, ReexportedFlags []string
 	ReexportedFlagsDeps    android.Paths
 
+	// Paths to crt*.o files
 	CrtBegin, CrtEnd android.OptionalPath
 }
 
@@ -815,19 +822,27 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			checkLinkType(c, cc)
 		}
 
+		var ptr *android.Paths
 		var depPtr *android.Paths
+
+		linkFile := cc.outputFile
+		depFile := android.OptionalPath{}
 
 		switch tag {
 		case ndkStubDepTag, sharedDepTag, sharedExportDepTag:
-			depPtr = &depPaths.SharedLibs
+			ptr = &depPaths.SharedLibs
+			depPtr = &depPaths.SharedLibsDeps
+			depFile = cc.linker.(libraryInterface).toc()
 		case lateSharedDepTag, ndkLateStubDepTag:
-			depPtr = &depPaths.LateSharedLibs
+			ptr = &depPaths.LateSharedLibs
+			depPtr = &depPaths.LateSharedLibsDeps
+			depFile = cc.linker.(libraryInterface).toc()
 		case staticDepTag, staticExportDepTag:
-			depPtr = &depPaths.StaticLibs
+			ptr = &depPaths.StaticLibs
 		case lateStaticDepTag:
-			depPtr = &depPaths.LateStaticLibs
+			ptr = &depPaths.LateStaticLibs
 		case wholeStaticDepTag:
-			depPtr = &depPaths.WholeStaticLibs
+			ptr = &depPaths.WholeStaticLibs
 			staticLib, ok := cc.linker.(libraryInterface)
 			if !ok || !staticLib.static() {
 				ctx.ModuleErrorf("module %q not a static library", name)
@@ -844,17 +859,25 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPaths.WholeStaticLibObjFiles =
 				append(depPaths.WholeStaticLibObjFiles, staticLib.objs()...)
 		case objDepTag:
-			depPtr = &depPaths.ObjFiles
+			ptr = &depPaths.ObjFiles
 		case crtBeginDepTag:
-			depPaths.CrtBegin = cc.outputFile
+			depPaths.CrtBegin = linkFile
 		case crtEndDepTag:
-			depPaths.CrtEnd = cc.outputFile
+			depPaths.CrtEnd = linkFile
 		default:
 			panic(fmt.Errorf("unknown dependency tag: %s", tag))
 		}
 
+		if ptr != nil {
+			*ptr = append(*ptr, linkFile.Path())
+		}
+
 		if depPtr != nil {
-			*depPtr = append(*depPtr, cc.outputFile.Path())
+			dep := depFile
+			if !dep.Valid() {
+				dep = linkFile
+			}
+			*depPtr = append(*depPtr, dep.Path())
 		}
 	})
 

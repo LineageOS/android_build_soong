@@ -5,6 +5,7 @@
 #  Environment:
 #   CROSS_COMPILE: prefix added to readelf, objcopy tools
 #  Arguments:
+#   -i ${file}: input file (required)
 #   -o ${file}: output file (required)
 #   -d ${file}: deps file (required)
 #   --keep-symbols
