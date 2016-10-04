@@ -453,7 +453,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		// that is run during the build, use the library directly so
 		// that the timestamp of the binary changes whenever a library
 		// changes and any necessary tools get re-run.
-		tocPath := outputFile.String()
+		tocPath := outputFile.RelPathString()
 		tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
 		tocFile := android.PathForOutput(ctx, tocPath)
 		library.tocFile = android.OptionalPathForPath(tocFile)
