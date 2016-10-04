@@ -594,11 +594,22 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 	if a.Host() || !a.AConfig().SkipDeviceInstall() {
 		deps = append(deps, a.installDeps...)
 
+		var implicitDeps, orderOnlyDeps Paths
+
+		if a.Host() {
+			// Installed host modules might be used during the build, depend directly on their
+			// dependencies so their timestamp is updated whenever their dependency is updated
+			implicitDeps = deps
+		} else {
+			orderOnlyDeps = deps
+		}
+
 		a.ModuleBuild(pctx, ModuleBuildParams{
 			Rule:      Cp,
 			Output:    fullInstallPath,
 			Input:     srcPath,
-			OrderOnly: Paths(deps),
+			Implicits: implicitDeps,
+			OrderOnly: orderOnlyDeps,
 			Default:   !a.AConfig().EmbeddedInMake(),
 		})
 
