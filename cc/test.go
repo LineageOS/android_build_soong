@@ -16,6 +16,7 @@ package cc
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -301,6 +302,16 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Pat
 }
 
 func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
+	// Benchmarks aren't supported on Darwin
+	if runtime.GOOS == "darwin" {
+		switch hod {
+		case android.HostAndDeviceSupported:
+			hod = android.DeviceSupported
+		case android.HostSupported:
+			hod = android.NeitherHostNorDeviceSupported
+		}
+	}
+
 	module, binary := NewBinary(hod)
 	module.multilib = android.MultilibBoth
 	binary.baseInstaller = NewTestInstaller()

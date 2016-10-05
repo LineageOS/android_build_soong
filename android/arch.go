@@ -267,11 +267,11 @@ func ArchMutator(mctx BottomUpMutatorContext) {
 		return
 	}
 
-	osClasses := module.base().OsClassSupported()
-
-	if len(osClasses) == 0 {
+	if !module.base().ArchSpecific() {
 		return
 	}
+
+	osClasses := module.base().OsClassSupported()
 
 	var moduleTargets []Target
 	primaryModules := make(map[int]bool)
