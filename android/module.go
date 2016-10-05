@@ -152,6 +152,7 @@ type commonProperties struct {
 
 	// Set by InitAndroidModule
 	HostOrDeviceSupported HostOrDeviceSupported `blueprint:"mutated"`
+	ArchSpecific          bool                  `blueprint:"mutated"`
 }
 
 type hostAndDeviceProperties struct {
@@ -176,6 +177,7 @@ const (
 	DeviceSupported
 	HostAndDeviceSupported
 	HostAndDeviceDefault
+	NeitherHostNorDeviceSupported
 )
 
 func InitAndroidModule(m Module,
@@ -197,6 +199,7 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	base := m.base()
 	base.commonProperties.HostOrDeviceSupported = hod
 	base.commonProperties.Default_multilib = string(defaultMultilib)
+	base.commonProperties.ArchSpecific = true
 
 	switch hod {
 	case HostAndDeviceSupported:
@@ -303,6 +306,10 @@ func (a *ModuleBase) Host() bool {
 
 func (a *ModuleBase) Arch() Arch {
 	return a.Target().Arch
+}
+
+func (a *ModuleBase) ArchSpecific() bool {
+	return a.commonProperties.ArchSpecific
 }
 
 func (a *ModuleBase) OsClassSupported() []OsClass {
