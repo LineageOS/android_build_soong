@@ -33,6 +33,7 @@ func registerMutators() {
 	}
 
 	ctx.TopDown("load_hooks", loadHookMutator).Parallel()
+	ctx.BottomUp("prebuilts", prebuiltMutator).Parallel()
 	ctx.BottomUp("defaults_deps", defaultsDepsMutator).Parallel()
 	ctx.TopDown("defaults", defaultsMutator).Parallel()
 
@@ -44,6 +45,9 @@ func registerMutators() {
 	register(preDeps)
 
 	ctx.BottomUp("deps", depsMutator).Parallel()
+
+	ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
+	ctx.TopDown("prebuilt_disable", PrebuiltDisableMutator).Parallel()
 
 	register(postDeps)
 }
