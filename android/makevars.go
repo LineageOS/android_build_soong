@@ -170,6 +170,7 @@ ifneq ($$($(1)),)
 else
   $(1) := $$(SOONG_$(1))
 endif
+.KATI_READONLY := $(1) SOONG_$(1)
 endef
 
 my_check_failed := false
