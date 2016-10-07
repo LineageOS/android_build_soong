@@ -93,10 +93,6 @@ func init() {
 		"-Wno-expansion-to-defined",
 	}, " "))
 
-	pctx.StaticVariable("ClangExtraConlyflags", strings.Join([]string{
-		"-std=gnu99",
-	}, " "))
-
 	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
 		// Disable -Winconsistent-missing-override until we can clean up the existing
 		// codebase for it.
