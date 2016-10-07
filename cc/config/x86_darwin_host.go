@@ -91,14 +91,19 @@ var (
 		"10.11",
 	}
 
-	darwinAvailableLibraries = append(addPrefix([]string{
-		"c",
-		"dl",
-		"m",
-		"ncurses",
-		"pthread",
-		"z",
-	}, "-l"), "-framework CoreFoundation")
+	darwinAvailableLibraries = append(
+		addPrefix([]string{
+			"c",
+			"dl",
+			"m",
+			"ncurses",
+			"objc",
+			"pthread",
+			"z",
+		}, "-l"),
+		"-framework CoreFoundation",
+		"-framework IOKit",
+	)
 )
 
 const (
