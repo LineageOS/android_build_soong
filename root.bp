@@ -15,6 +15,7 @@ optional_subdirs = [
     "frameworks/av",
     "frameworks/base",
     "frameworks/native",
+    "frameworks/rs",
     "frameworks/wilhelm",
     "hardware/*",
     "libcore",
