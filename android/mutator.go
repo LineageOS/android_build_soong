@@ -14,11 +14,7 @@
 
 package android
 
-import (
-	"android/soong"
-
-	"github.com/google/blueprint"
-)
+import "github.com/google/blueprint"
 
 type AndroidTopDownMutator func(TopDownMutatorContext)
 
@@ -44,26 +40,41 @@ type androidBottomUpMutatorContext struct {
 	androidBaseContextImpl
 }
 
-func RegisterBottomUpMutator(name string, mutator AndroidBottomUpMutator) soong.MutatorHandle {
-	return soong.RegisterBottomUpMutator(name, func(ctx blueprint.BottomUpMutatorContext) {
+func RegisterBottomUpMutator(name string, m AndroidBottomUpMutator) MutatorHandle {
+	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidBottomUpMutatorContext{
 				BottomUpMutatorContext: ctx,
 				androidBaseContextImpl: a.base().androidBaseContextFactory(ctx),
 			}
-			mutator(actx)
+			m(actx)
 		}
-	})
+	}
+	mutator := &mutator{name: name, bottomUpMutator: f}
+	mutators = append(mutators, mutator)
+	return mutator
 }
 
-func RegisterTopDownMutator(name string, mutator AndroidTopDownMutator) soong.MutatorHandle {
-	return soong.RegisterTopDownMutator(name, func(ctx blueprint.TopDownMutatorContext) {
+func RegisterTopDownMutator(name string, m AndroidTopDownMutator) MutatorHandle {
+	f := func(ctx blueprint.TopDownMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidTopDownMutatorContext{
 				TopDownMutatorContext:  ctx,
 				androidBaseContextImpl: a.base().androidBaseContextFactory(ctx),
 			}
-			mutator(actx)
+			m(actx)
 		}
-	})
+	}
+	mutator := &mutator{name: name, topDownMutator: f}
+	mutators = append(mutators, mutator)
+	return mutator
+}
+
+type MutatorHandle interface {
+	Parallel() MutatorHandle
+}
+
+func (mutator *mutator) Parallel() MutatorHandle {
+	mutator.parallel = true
+	return mutator
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
-	"android/soong"
 	"android/soong/android"
 )
 
@@ -42,8 +41,8 @@ type BinaryLinkerProperties struct {
 }
 
 func init() {
-	soong.RegisterModuleType("cc_binary", binaryFactory)
-	soong.RegisterModuleType("cc_binary_host", binaryHostFactory)
+	android.RegisterModuleType("cc_binary", binaryFactory)
+	android.RegisterModuleType("cc_binary_host", binaryHostFactory)
 }
 
 // Module factory for binaries

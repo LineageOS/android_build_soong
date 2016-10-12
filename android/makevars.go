@@ -20,8 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"android/soong"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -66,7 +64,7 @@ func RegisterMakeVarsProvider(pctx blueprint.PackageContext, provider MakeVarsPr
 ///////////////////////////////////////////////////////////////////////////////
 
 func init() {
-	soong.RegisterSingletonType("makevars", makeVarsSingletonFunc)
+	RegisterSingletonType("makevars", makeVarsSingletonFunc)
 }
 
 func makeVarsSingletonFunc() blueprint.Singleton {

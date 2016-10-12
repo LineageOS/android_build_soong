@@ -20,7 +20,6 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 
-	"android/soong"
 	"android/soong/android"
 )
 
@@ -77,11 +76,11 @@ type FlagExporterProperties struct {
 }
 
 func init() {
-	soong.RegisterModuleType("cc_library_static", libraryStaticFactory)
-	soong.RegisterModuleType("cc_library_shared", librarySharedFactory)
-	soong.RegisterModuleType("cc_library", libraryFactory)
-	soong.RegisterModuleType("cc_library_host_static", libraryHostStaticFactory)
-	soong.RegisterModuleType("cc_library_host_shared", libraryHostSharedFactory)
+	android.RegisterModuleType("cc_library_static", libraryStaticFactory)
+	android.RegisterModuleType("cc_library_shared", librarySharedFactory)
+	android.RegisterModuleType("cc_library", libraryFactory)
+	android.RegisterModuleType("cc_library_host_static", libraryHostStaticFactory)
+	android.RegisterModuleType("cc_library_host_shared", libraryHostSharedFactory)
 }
 
 // Module factory for combined static + shared libraries, device by default but with possible host
