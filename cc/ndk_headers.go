@@ -56,6 +56,9 @@ type headerModule struct {
 	installPaths []string
 }
 
+func (m *headerModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+}
+
 func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	srcFiles := ctx.ExpandSources(m.properties.Srcs, nil)
 	for _, header := range srcFiles {

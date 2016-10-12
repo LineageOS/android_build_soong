@@ -260,7 +260,7 @@ func (target Target) String() string {
 	return target.Os.String() + "_" + target.Arch.String()
 }
 
-func ArchMutator(mctx BottomUpMutatorContext) {
+func archMutator(mctx BottomUpMutatorContext) {
 	var module Module
 	var ok bool
 	if module, ok = mctx.Module().(Module); !ok {

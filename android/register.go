@@ -58,6 +58,8 @@ func NewContext() *blueprint.Context {
 		ctx.RegisterSingletonType(t.name, t.factory)
 	}
 
+	registerMutators()
+
 	for _, t := range mutators {
 		var handle blueprint.MutatorHandle
 		if t.bottomUpMutator != nil {
