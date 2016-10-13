@@ -81,7 +81,7 @@ func (binary *binaryDecorator) linkerProps() []interface{} {
 }
 
 func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
-	stem := ctx.ModuleName()
+	stem := ctx.baseModuleName()
 	if binary.Properties.Stem != "" {
 		stem = binary.Properties.Stem
 	}
@@ -171,7 +171,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 		}
 		if ctx.TargetPrimary() {
 			binary.baseInstaller.Properties.Symlinks = append(binary.baseInstaller.Properties.Symlinks,
-				ctx.ModuleName())
+				ctx.baseModuleName())
 		}
 	}
 }

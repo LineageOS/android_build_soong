@@ -72,6 +72,7 @@ bootstrap_go_package {
         "android/onceper.go",
         "android/package_ctx.go",
         "android/paths.go",
+        "android/prebuilt.go",
         "android/register.go",
         "android/util.go",
         "android/variable.go",
@@ -81,6 +82,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "android/paths_test.go",
+        "android/prebuilt_test.go",
     ],
 }
 
@@ -126,6 +128,7 @@ bootstrap_go_package {
         "cc/check.go",
         "cc/gen.go",
         "cc/makevars.go",
+        "cc/prebuilt.go",
         "cc/relocation_packer.go",
         "cc/sanitize.go",
         "cc/stl.go",
