@@ -19,7 +19,6 @@ package cc
 // is handled in builder.go
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -146,6 +145,7 @@ type ModuleContextIntf interface {
 	sdk() bool
 	sdkVersion() string
 	selectedStl() string
+	baseModuleName() string
 }
 
 type ModuleContext interface {
@@ -354,6 +354,10 @@ func (ctx *moduleContextImpl) selectedStl() string {
 	return ""
 }
 
+func (ctx *moduleContextImpl) baseModuleName() string {
+	return ctx.mod.ModuleBase.BaseModuleName()
+}
+
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	return &Module{
 		hod:      hod,
@@ -366,6 +370,21 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.stl = &stl{}
 	module.sanitize = &sanitize{}
 	return module
+}
+
+func (c *Module) Prebuilt() *android.Prebuilt {
+	if p, ok := c.linker.(prebuiltLinkerInterface); ok {
+		return p.prebuilt()
+	}
+	return nil
+}
+
+func (c *Module) Name() string {
+	name := c.ModuleBase.Name()
+	if p, ok := c.linker.(prebuiltLinkerInterface); ok {
+		name = p.Name(name)
+	}
+	return name
 }
 
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
@@ -434,12 +453,12 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			return
 		}
 		c.outputFile = android.OptionalPathForPath(outputFile)
+	}
 
-		if c.installer != nil && !c.Properties.PreventInstall {
-			c.installer.install(ctx, outputFile)
-			if ctx.Failed() {
-				return
-			}
+	if c.installer != nil && !c.Properties.PreventInstall && c.outputFile.Valid() {
+		c.installer.install(ctx, c.outputFile.Path())
+		if ctx.Failed() {
+			return
 		}
 	}
 }
@@ -792,11 +811,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		if !cc.outputFile.Valid() {
-			ctx.ModuleErrorf("module %q missing output file", name)
-			return
-		}
-
 		if tag == reuseObjTag {
 			depPaths.ObjFiles = append(depPaths.ObjFiles,
 				cc.compiler.(libraryInterface).reuseObjs()...)
@@ -861,11 +875,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPaths.CrtBegin = linkFile
 		case crtEndDepTag:
 			depPaths.CrtEnd = linkFile
-		default:
-			panic(fmt.Errorf("unknown dependency tag: %s", tag))
 		}
 
 		if ptr != nil {
+			if !linkFile.Valid() {
+				ctx.ModuleErrorf("module %q missing output file", name)
+				return
+			}
 			*ptr = append(*ptr, linkFile.Path())
 		}
 
