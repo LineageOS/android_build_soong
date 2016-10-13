@@ -99,9 +99,12 @@ type Module interface {
 	InstallInData() bool
 }
 
-type commonProperties struct {
+type nameProperties struct {
+	// The name of the module.  Must be unique across all modules.
 	Name string
-	Deps []string
+}
+
+type commonProperties struct {
 	Tags []string
 
 	// emit build rules for this module
@@ -177,7 +180,10 @@ func InitAndroidModule(m Module,
 	base := m.base()
 	base.module = m
 
-	propertyStructs = append(propertyStructs, &base.commonProperties, &base.variableProperties)
+	propertyStructs = append(propertyStructs,
+		&base.nameProperties,
+		&base.commonProperties,
+		&base.variableProperties)
 
 	return m, propertyStructs
 }
@@ -250,6 +256,7 @@ type ModuleBase struct {
 	// the thing pattern to good use.
 	module Module
 
+	nameProperties          nameProperties
 	commonProperties        commonProperties
 	variableProperties      variableProperties
 	hostAndDeviceProperties hostAndDeviceProperties
@@ -268,6 +275,10 @@ type ModuleBase struct {
 	blueprintDir     string
 
 	hooks hooks
+}
+
+func (a *ModuleBase) Name() string {
+	return a.nameProperties.Name
 }
 
 func (a *ModuleBase) base() *ModuleBase {

@@ -80,7 +80,20 @@ func (d *DefaultsModule) properties() []interface{} {
 }
 
 func InitDefaultsModule(module Module, d Defaults, props ...interface{}) (blueprint.Module, []interface{}) {
-	return InitDefaultableModule(module, d, props...)
+	props = append(props,
+		&hostAndDeviceProperties{},
+		&commonProperties{},
+		&variableProperties{})
+
+	_, props = InitArchModule(module, props...)
+
+	_, props = InitDefaultableModule(module, d, props...)
+
+	props = append(props, &module.base().nameProperties)
+
+	module.base().module = module
+
+	return module, props
 }
 
 var _ Defaults = (*DefaultsModule)(nil)
