@@ -151,6 +151,11 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 	return nil
 }
 
+// TestConfig returns a Config object suitable for using for tests
+func TestConfig() Config {
+	return Config{&config{}}
+}
+
 // New creates a new Config object.  The srcDir argument specifies the path to
 // the root source directory. It also loads the config file, if found.
 func NewConfig(srcDir, buildDir string) (Config, error) {
