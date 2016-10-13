@@ -34,6 +34,7 @@ func init() {
 
 type AndroidMkDataProvider interface {
 	AndroidMk() (AndroidMkData, error)
+	BaseModuleName() string
 }
 
 type AndroidMkData struct {
@@ -142,13 +143,12 @@ func translateAndroidMk(ctx blueprint.SingletonContext, mkFile string, mods []Mo
 }
 
 func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod blueprint.Module) error {
-	name := ctx.ModuleName(mod)
-
 	provider, ok := mod.(AndroidMkDataProvider)
 	if !ok {
 		return nil
 	}
 
+	name := provider.BaseModuleName()
 	amod := mod.(Module).base()
 	data, err := provider.AndroidMk()
 	if err != nil {
@@ -156,7 +156,11 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	}
 
 	if !amod.Enabled() {
-		return err
+		return nil
+	}
+
+	if amod.commonProperties.SkipInstall {
+		return nil
 	}
 
 	if data.SubName != "" {

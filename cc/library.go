@@ -284,7 +284,7 @@ type libraryInterface interface {
 func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 	name := library.libName
 	if name == "" {
-		name = ctx.ModuleName()
+		name = ctx.baseModuleName()
 	}
 
 	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
