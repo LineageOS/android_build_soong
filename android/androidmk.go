@@ -24,14 +24,12 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
 func init() {
-	soong.RegisterSingletonType("androidmk", AndroidMkSingleton)
+	RegisterSingletonType("androidmk", AndroidMkSingleton)
 }
 
 type AndroidMkDataProvider interface {
