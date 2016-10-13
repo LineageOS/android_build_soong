@@ -19,13 +19,12 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong"
 	"android/soong/android"
 )
 
 func init() {
-	soong.RegisterModuleType("gensrcs", GenSrcsFactory)
-	soong.RegisterModuleType("genrule", GenRuleFactory)
+	android.RegisterModuleType("gensrcs", GenSrcsFactory)
+	android.RegisterModuleType("genrule", GenRuleFactory)
 
 	android.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator).Parallel()
 }

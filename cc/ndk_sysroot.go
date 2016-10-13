@@ -55,14 +55,13 @@ package cc
 import (
 	"github.com/google/blueprint"
 
-	"android/soong"
 	"android/soong/android"
 )
 
 func init() {
-	soong.RegisterModuleType("ndk_headers", ndkHeadersFactory)
-	soong.RegisterModuleType("ndk_library", ndkLibraryFactory)
-	soong.RegisterSingletonType("ndk", NdkSingleton)
+	android.RegisterModuleType("ndk_headers", ndkHeadersFactory)
+	android.RegisterModuleType("ndk_library", ndkLibraryFactory)
+	android.RegisterSingletonType("ndk", NdkSingleton)
 
 	pctx.Import("android/soong/common")
 }

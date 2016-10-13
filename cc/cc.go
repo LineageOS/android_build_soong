@@ -26,14 +26,13 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
-	"android/soong"
 	"android/soong/android"
 	"android/soong/cc/config"
 	"android/soong/genrule"
 )
 
 func init() {
-	soong.RegisterModuleType("cc_defaults", defaultsFactory)
+	android.RegisterModuleType("cc_defaults", defaultsFactory)
 
 	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
 	// the Go initialization order because this package depends on common, so common's init

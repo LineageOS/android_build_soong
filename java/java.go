@@ -24,22 +24,21 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong"
 	"android/soong/android"
 	"android/soong/genrule"
 )
 
 func init() {
-	soong.RegisterModuleType("java_library", JavaLibraryFactory)
-	soong.RegisterModuleType("java_library_static", JavaLibraryFactory)
-	soong.RegisterModuleType("java_library_host", JavaLibraryHostFactory)
-	soong.RegisterModuleType("java_binary", JavaBinaryFactory)
-	soong.RegisterModuleType("java_binary_host", JavaBinaryHostFactory)
-	soong.RegisterModuleType("prebuilt_java_library", JavaPrebuiltFactory)
-	soong.RegisterModuleType("prebuilt_sdk", SdkPrebuiltFactory)
-	soong.RegisterModuleType("android_app", AndroidAppFactory)
+	android.RegisterModuleType("java_library", JavaLibraryFactory)
+	android.RegisterModuleType("java_library_static", JavaLibraryFactory)
+	android.RegisterModuleType("java_library_host", JavaLibraryHostFactory)
+	android.RegisterModuleType("java_binary", JavaBinaryFactory)
+	android.RegisterModuleType("java_binary_host", JavaBinaryHostFactory)
+	android.RegisterModuleType("prebuilt_java_library", JavaPrebuiltFactory)
+	android.RegisterModuleType("prebuilt_sdk", SdkPrebuiltFactory)
+	android.RegisterModuleType("android_app", AndroidAppFactory)
 
-	soong.RegisterSingletonType("logtags", LogtagsSingleton)
+	android.RegisterSingletonType("logtags", LogtagsSingleton)
 }
 
 // TODO:
