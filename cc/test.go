@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong"
 	"android/soong/android"
 )
 
@@ -37,11 +36,11 @@ type TestBinaryProperties struct {
 }
 
 func init() {
-	soong.RegisterModuleType("cc_test", testFactory)
-	soong.RegisterModuleType("cc_test_library", testLibraryFactory)
-	soong.RegisterModuleType("cc_benchmark", benchmarkFactory)
-	soong.RegisterModuleType("cc_test_host", testHostFactory)
-	soong.RegisterModuleType("cc_benchmark_host", benchmarkHostFactory)
+	android.RegisterModuleType("cc_test", testFactory)
+	android.RegisterModuleType("cc_test_library", testLibraryFactory)
+	android.RegisterModuleType("cc_benchmark", benchmarkFactory)
+	android.RegisterModuleType("cc_test_host", testHostFactory)
+	android.RegisterModuleType("cc_benchmark_host", benchmarkHostFactory)
 }
 
 // Module factory for tests

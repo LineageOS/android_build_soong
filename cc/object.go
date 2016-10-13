@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong"
 	"android/soong/android"
 )
 
@@ -28,7 +27,7 @@ import (
 //
 
 func init() {
-	soong.RegisterModuleType("cc_object", objectFactory)
+	android.RegisterModuleType("cc_object", objectFactory)
 }
 
 type objectLinker struct {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package soong
+package android
 
 import "github.com/google/blueprint"
 
@@ -45,27 +45,6 @@ func RegisterModuleType(name string, factory blueprint.ModuleFactory) {
 
 func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
-}
-
-func RegisterBottomUpMutator(name string, m blueprint.BottomUpMutator) MutatorHandle {
-	mutator := &mutator{name: name, bottomUpMutator: m}
-	mutators = append(mutators, mutator)
-	return mutator
-}
-
-func RegisterTopDownMutator(name string, m blueprint.TopDownMutator) MutatorHandle {
-	mutator := &mutator{name: name, topDownMutator: m}
-	mutators = append(mutators, mutator)
-	return mutator
-}
-
-type MutatorHandle interface {
-	Parallel() MutatorHandle
-}
-
-func (mutator *mutator) Parallel() MutatorHandle {
-	mutator.parallel = true
-	return mutator
 }
 
 func NewContext() *blueprint.Context {

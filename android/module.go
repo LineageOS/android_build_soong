@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"android/soong"
 	"android/soong/glob"
 
 	"github.com/google/blueprint"
@@ -710,7 +709,7 @@ func (ctx *androidModuleContext) Glob(outDir, globPattern string, excludes []str
 }
 
 func init() {
-	soong.RegisterSingletonType("buildtarget", BuildTargetSingleton)
+	RegisterSingletonType("buildtarget", BuildTargetSingleton)
 }
 
 func BuildTargetSingleton() blueprint.Singleton {
