@@ -935,9 +935,6 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&InstallerProperties{},
 	)
 
-	_, props = android.InitAndroidArchModule(module, android.HostAndDeviceDefault,
-		android.MultilibDefault, props...)
-
 	return android.InitDefaultsModule(module, module, props...)
 }
 
