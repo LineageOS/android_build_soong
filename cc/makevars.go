@@ -113,7 +113,9 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.ToolchainCflags(),
 		productExtraCflags,
 	}, " "))
-	ctx.Strict(makePrefix+"GLOBAL_CONLYFLAGS", "")
+	ctx.Strict(makePrefix+"GLOBAL_CONLYFLAGS", strings.Join([]string{
+		"${config.CommonGlobalConlyflags}",
+	}, " "))
 	ctx.Strict(makePrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
 		"${config.CommonGlobalCppflags}",
 		toolchain.Cppflags(),
@@ -161,7 +163,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			clangExtras,
 			productExtraCflags,
 		}, " "))
-		ctx.Strict(clangPrefix+"GLOBAL_CONLYFLAGS", "${config.ClangExtraConlyflags}")
 		ctx.Strict(clangPrefix+"GLOBAL_CPPFLAGS", strings.Join([]string{
 			"${config.CommonClangGlobalCppflags}",
 			toolchain.ClangCppflags(),
