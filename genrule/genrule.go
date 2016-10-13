@@ -25,8 +25,6 @@ import (
 func init() {
 	android.RegisterModuleType("gensrcs", GenSrcsFactory)
 	android.RegisterModuleType("genrule", GenRuleFactory)
-
-	android.RegisterBottomUpMutator("genrule_deps", genruleDepsMutator).Parallel()
 }
 
 var (
@@ -95,7 +93,7 @@ func (g *generator) GeneratedHeaderDir() android.Path {
 	return g.genPath
 }
 
-func genruleDepsMutator(ctx android.BottomUpMutatorContext) {
+func (g *generator) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*generator); ok {
 		if g.properties.Tool != "" {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{

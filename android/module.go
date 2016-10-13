@@ -24,15 +24,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-func init() {
-	RegisterTopDownMutator("load_hooks", loadHookMutator).Parallel()
-	RegisterBottomUpMutator("defaults_deps", defaultsDepsMutator).Parallel()
-	RegisterTopDownMutator("defaults", defaultsMutator).Parallel()
-
-	RegisterBottomUpMutator("arch", ArchMutator).Parallel()
-	RegisterTopDownMutator("arch_hooks", archHookMutator).Parallel()
-}
-
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"
@@ -100,6 +91,7 @@ type Module interface {
 	blueprint.Module
 
 	GenerateAndroidBuildActions(ModuleContext)
+	DepsMutator(BottomUpMutatorContext)
 
 	base() *ModuleBase
 	Enabled() bool

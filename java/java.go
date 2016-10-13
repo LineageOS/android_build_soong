@@ -190,7 +190,7 @@ func (j *javaBase) BootClasspath(ctx android.BaseContext) string {
 
 var defaultJavaLibraries = []string{"core-libart", "core-junit", "ext", "framework"}
 
-func javaDepsMutator(ctx android.BottomUpMutatorContext) {
+func (j *javaBase) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if j, ok := ctx.Module().(JavaModuleType); ok {
 		ctx.AddDependency(ctx.Module(), nil, j.JavaDependencies(ctx)...)
 	}
@@ -511,6 +511,9 @@ type JavaPrebuilt struct {
 
 	classpathFile                   android.Path
 	classJarSpecs, resourceJarSpecs []jarSpec
+}
+
+func (j *JavaPrebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
