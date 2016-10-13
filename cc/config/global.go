@@ -37,6 +37,10 @@ var (
 		"-UDEBUG",
 	}
 
+	commonGlobalConlyflags = []string{
+		"-std=gnu99",
+	}
+
 	deviceGlobalCflags = []string{
 		"-fdiagnostics-color",
 
@@ -72,6 +76,7 @@ func init() {
 	}
 
 	pctx.StaticVariable("CommonGlobalCflags", strings.Join(commonGlobalCflags, " "))
+	pctx.StaticVariable("CommonGlobalConlyflags", strings.Join(commonGlobalConlyflags, " "))
 	pctx.StaticVariable("DeviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
 	pctx.StaticVariable("HostGlobalCflags", strings.Join(hostGlobalCflags, " "))
 	pctx.StaticVariable("NoOverrideGlobalCflags", strings.Join(noOverrideGlobalCflags, " "))
