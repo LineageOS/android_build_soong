@@ -18,7 +18,6 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
-	"android/soong"
 	"android/soong/android"
 )
 
@@ -27,7 +26,7 @@ import (
 //
 
 func init() {
-	soong.RegisterModuleType("toolchain_library", toolchainLibraryFactory)
+	android.RegisterModuleType("toolchain_library", toolchainLibraryFactory)
 }
 
 type toolchainLibraryDecorator struct {

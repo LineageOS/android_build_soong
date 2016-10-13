@@ -20,16 +20,15 @@ import (
 
 	"github.com/google/blueprint"
 
-	"android/soong"
 	"android/soong/android"
 	"android/soong/cc/config"
 )
 
 func init() {
-	soong.RegisterModuleType("ndk_prebuilt_library", ndkPrebuiltLibraryFactory)
-	soong.RegisterModuleType("ndk_prebuilt_object", ndkPrebuiltObjectFactory)
-	soong.RegisterModuleType("ndk_prebuilt_static_stl", ndkPrebuiltStaticStlFactory)
-	soong.RegisterModuleType("ndk_prebuilt_shared_stl", ndkPrebuiltSharedStlFactory)
+	android.RegisterModuleType("ndk_prebuilt_library", ndkPrebuiltLibraryFactory)
+	android.RegisterModuleType("ndk_prebuilt_object", ndkPrebuiltObjectFactory)
+	android.RegisterModuleType("ndk_prebuilt_static_stl", ndkPrebuiltStaticStlFactory)
+	android.RegisterModuleType("ndk_prebuilt_shared_stl", ndkPrebuiltSharedStlFactory)
 }
 
 // NDK prebuilt libraries.

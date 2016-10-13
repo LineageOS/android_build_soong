@@ -15,7 +15,6 @@
 package android
 
 import (
-	"android/soong"
 	"android/soong/env"
 
 	"github.com/google/blueprint"
@@ -29,7 +28,7 @@ import (
 // a manifest regeneration.
 
 func init() {
-	soong.RegisterSingletonType("env", EnvSingleton)
+	RegisterSingletonType("env", EnvSingleton)
 }
 
 func EnvSingleton() blueprint.Singleton {
