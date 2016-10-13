@@ -24,7 +24,9 @@ import (
 )
 
 func init() {
-	RegisterBottomUpMutator("variable", variableMutator).Parallel()
+	PreDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("variable", variableMutator).Parallel()
+	})
 }
 
 type variableProperties struct {

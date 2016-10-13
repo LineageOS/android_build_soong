@@ -34,20 +34,20 @@ import (
 func init() {
 	android.RegisterModuleType("cc_defaults", defaultsFactory)
 
-	// LinkageMutator must be registered after common.ArchMutator, but that is guaranteed by
-	// the Go initialization order because this package depends on common, so common's init
-	// functions will run first.
-	android.RegisterBottomUpMutator("link", linkageMutator).Parallel()
-	android.RegisterBottomUpMutator("ndk_api", ndkApiMutator).Parallel()
-	android.RegisterBottomUpMutator("test_per_src", testPerSrcMutator).Parallel()
-	android.RegisterBottomUpMutator("begin", beginMutator).Parallel()
-	android.RegisterBottomUpMutator("deps", depsMutator).Parallel()
+	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("link", linkageMutator).Parallel()
+		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
+		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
+		ctx.BottomUp("begin", beginMutator).Parallel()
+	})
 
-	android.RegisterTopDownMutator("asan_deps", sanitizerDepsMutator(asan))
-	android.RegisterBottomUpMutator("asan", sanitizerMutator(asan)).Parallel()
+	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("asan_deps", sanitizerDepsMutator(asan))
+		ctx.BottomUp("asan", sanitizerMutator(asan)).Parallel()
 
-	android.RegisterTopDownMutator("tsan_deps", sanitizerDepsMutator(tsan))
-	android.RegisterBottomUpMutator("tsan", sanitizerMutator(tsan)).Parallel()
+		ctx.TopDown("tsan_deps", sanitizerDepsMutator(tsan))
+		ctx.BottomUp("tsan", sanitizerMutator(tsan)).Parallel()
+	})
 
 	pctx.Import("android/soong/cc/config")
 }
@@ -534,7 +534,11 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 	c.begin(ctx)
 }
 
-func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
+func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
+	if !c.Enabled() {
+		return
+	}
+
 	ctx := &baseModuleContext{
 		BaseContext: actx,
 		moduleContextImpl: moduleContextImpl{
@@ -638,12 +642,6 @@ func (c *Module) depsMutator(actx android.BottomUpMutatorContext) {
 func beginMutator(ctx android.BottomUpMutatorContext) {
 	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
 		c.beginMutator(ctx)
-	}
-}
-
-func depsMutator(ctx android.BottomUpMutatorContext) {
-	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
-		c.depsMutator(ctx)
 	}
 }
 
@@ -909,6 +907,9 @@ type Defaults struct {
 }
 
 func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+}
+
+func (d *Defaults) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func defaultsFactory() (blueprint.Module, []interface{}) {
