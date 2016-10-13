@@ -14,7 +14,11 @@
 
 package android
 
-import "github.com/google/blueprint"
+import (
+	"sync"
+
+	"github.com/google/blueprint"
+)
 
 type moduleType struct {
 	name    string
@@ -47,6 +51,8 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
+var registerMutatorsOnce sync.Once
+
 func NewContext() *blueprint.Context {
 	ctx := blueprint.NewContext()
 
@@ -58,7 +64,7 @@ func NewContext() *blueprint.Context {
 		ctx.RegisterSingletonType(t.name, t.factory)
 	}
 
-	registerMutators()
+	registerMutatorsOnce.Do(registerMutators)
 
 	for _, t := range mutators {
 		var handle blueprint.MutatorHandle
