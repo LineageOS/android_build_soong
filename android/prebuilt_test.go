@@ -15,6 +15,8 @@
 package android
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -81,9 +83,43 @@ var prebuiltsTests = []struct {
 			}`,
 		prebuilt: true,
 	},
+	{
+		name: "prebuilt no file not preferred",
+		modules: `
+			source {
+				name: "bar",
+			}
+			
+			prebuilt {
+				name: "bar",
+				prefer: false,
+			}`,
+		prebuilt: false,
+	},
+	{
+		name: "prebuilt no file preferred",
+		modules: `
+			source {
+				name: "bar",
+			}
+			
+			prebuilt {
+				name: "bar",
+				prefer: true,
+			}`,
+		prebuilt: false,
+	},
 }
 
 func TestPrebuilts(t *testing.T) {
+	buildDir, err := ioutil.TempDir("", "soong_prebuilt_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(buildDir)
+
+	config := TestConfig(buildDir)
+
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := NewContext()
@@ -97,8 +133,6 @@ func TestPrebuilts(t *testing.T) {
 					}
 					` + test.modules),
 			})
-
-			config := TestConfig()
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
 			fail(t, errs)
@@ -129,7 +163,6 @@ func TestPrebuilts(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 type prebuiltModule struct {
