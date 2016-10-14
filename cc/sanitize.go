@@ -24,6 +24,12 @@ import (
 	"android/soong/cc/config"
 )
 
+const (
+	asanCflags = "-fno-omit-frame-pointer"
+	asanLdflags = "-Wl,-u,__asan_preinit"
+	asanLibs = "libasan"
+)
+
 type sanitizerType int
 
 func boolPtr(v bool) *bool {
@@ -175,7 +181,7 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 
 	if ctx.Device() {
 		if Bool(sanitize.Properties.Sanitize.Address) {
-			deps.StaticLibs = append(deps.StaticLibs, "libasan")
+			deps.StaticLibs = append(deps.StaticLibs, asanLibs)
 		}
 		if Bool(sanitize.Properties.Sanitize.Address) || Bool(sanitize.Properties.Sanitize.Thread) {
 			deps.SharedLibs = append(deps.SharedLibs, "libdl")
@@ -236,8 +242,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// TODO: put in flags?
 			flags.RequiredInstructionSet = "arm"
 		}
-		flags.CFlags = append(flags.CFlags, "-fno-omit-frame-pointer")
-		flags.LdFlags = append(flags.LdFlags, "-Wl,-u,__asan_preinit")
+		flags.CFlags = append(flags.CFlags, asanCflags)
+		flags.LdFlags = append(flags.LdFlags, asanLdflags)
 
 		// ASan runtime library must be the first in the link order.
 		runtimeLibrary := config.AddressSanitizerRuntimeLibrary(ctx.toolchain())
