@@ -82,7 +82,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "android/paths_test.go",
-        //"android/prebuilt_test.go",
+        "android/prebuilt_test.go",
     ],
 }
 
