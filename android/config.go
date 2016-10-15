@@ -152,8 +152,10 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 }
 
 // TestConfig returns a Config object suitable for using for tests
-func TestConfig() Config {
-	return Config{&config{}}
+func TestConfig(buildDir string) Config {
+	return Config{&config{
+		buildDir: buildDir,
+	}}
 }
 
 // New creates a new Config object.  The srcDir argument specifies the path to
