@@ -37,9 +37,7 @@ var (
 		"-UDEBUG",
 	}
 
-	commonGlobalConlyflags = []string{
-		"-std=gnu99",
-	}
+	commonGlobalConlyflags = []string{}
 
 	deviceGlobalCflags = []string{
 		"-fdiagnostics-color",
@@ -66,6 +64,10 @@ var (
 	IllegalFlags = []string{
 		"-w",
 	}
+
+	CStdVersion      = "gnu99"
+	CppStdVersion    = "gnu++14"
+	GccCppStdVersion = "gnu++11"
 )
 
 var pctx = android.NewPackageContext("android/soong/cc/config")
