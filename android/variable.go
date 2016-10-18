@@ -42,6 +42,7 @@ type variableProperties struct {
 		} `android:"arch_variant"`
 
 		Brillo struct {
+			Cflags         []string
 			Version_script *string `android:"arch_variant"`
 		} `android:"arch_variant"`
 
@@ -66,7 +67,8 @@ type variableProperties struct {
 		}
 
 		Debuggable struct {
-			Cflags []string
+			Cflags   []string
+			Cppflags []string
 		}
 	} `android:"arch_variant"`
 }
