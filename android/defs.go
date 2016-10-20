@@ -74,6 +74,12 @@ var (
 		},
 		"error")
 
+	Cat = pctx.AndroidStaticRule("Cat",
+		blueprint.RuleParams{
+			Command:     "cat $in > $out",
+			Description: "concatenate licenses $out",
+		})
+
 	// Used only when USE_GOMA=true is set, to restrict non-goma jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 )
