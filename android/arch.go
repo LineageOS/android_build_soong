@@ -799,13 +799,15 @@ func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) 
 	return targets, nil
 }
 
-func decodeMegaDevice() ([]Target, error) {
-	archSettings := []struct {
-		arch        string
-		archVariant string
-		cpuVariant  string
-		abi         []string
-	}{
+type archConfig struct {
+	arch        string
+	archVariant string
+	cpuVariant  string
+	abi         []string
+}
+
+func getMegaDeviceConfig() []archConfig {
+	return []archConfig{
 		// armv5 is only used for unbundled apps
 		//{"arm", "armv5te", "", []string{"armeabi"}},
 		{"arm", "armv7-a", "generic", []string{"armeabi-v7a"}},
@@ -846,10 +848,23 @@ func decodeMegaDevice() ([]Target, error) {
 		{"x86_64", "sandybridge", "", []string{"x86_64"}},
 		{"x86_64", "silvermont", "", []string{"x86_64"}},
 	}
+}
 
+func getNdkAbisConfig() []archConfig {
+	return []archConfig{
+		{"arm", "armv5te", "", []string{"armeabi"}},
+		{"arm64", "armv8-a", "", []string{"arm64-v8a"}},
+		{"mips", "mips32-fp", "", []string{"mips"}},
+		{"mips64", "mips64r6", "", []string{"mips64"}},
+		{"x86", "", "", []string{"x86"}},
+		{"x86_64", "", "", []string{"x86_64"}},
+	}
+}
+
+func decodeArchSettings(archConfigs []archConfig) ([]Target, error) {
 	var ret []Target
 
-	for _, config := range archSettings {
+	for _, config := range archConfigs {
 		arch, err := decodeArch(config.arch, &config.archVariant,
 			&config.cpuVariant, &config.abi)
 		if err != nil {
