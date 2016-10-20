@@ -229,9 +229,13 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 			f = append(f,
 				"-dynamiclib",
 				"-single_module",
-				"-read_only_relocs suppress",
 				"-install_name @rpath/"+libName+flags.Toolchain.ShlibSuffix(),
 			)
+			if ctx.Arch().ArchType == android.X86 {
+				f = append(f,
+					"-read_only_relocs suppress",
+				)
+			}
 		} else {
 			f = append(f,
 				sharedFlag,
