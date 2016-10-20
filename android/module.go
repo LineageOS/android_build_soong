@@ -170,6 +170,7 @@ type HostOrDeviceSupported int
 const (
 	_ HostOrDeviceSupported = iota
 	HostSupported
+	HostSupportedNoCross
 	DeviceSupported
 	HostAndDeviceSupported
 	HostAndDeviceDefault
@@ -326,8 +327,9 @@ func (a *ModuleBase) ArchSpecific() bool {
 func (a *ModuleBase) OsClassSupported() []OsClass {
 	switch a.commonProperties.HostOrDeviceSupported {
 	case HostSupported:
-		// TODO(ccross): explicitly mark host cross support
 		return []OsClass{Host, HostCross}
+	case HostSupportedNoCross:
+		return []OsClass{Host}
 	case DeviceSupported:
 		return []OsClass{Device}
 	case HostAndDeviceSupported:

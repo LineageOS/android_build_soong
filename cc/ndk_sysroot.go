@@ -66,12 +66,12 @@ func init() {
 	pctx.Import("android/soong/common")
 }
 
-func getNdkInstallBase(ctx android.ModuleContext) android.OutputPath {
+func getNdkInstallBase(ctx android.PathContext) android.OutputPath {
 	return android.PathForOutput(ctx, "ndk")
 }
 
 // Returns the main install directory for the NDK sysroot. Usable with --sysroot.
-func getNdkSysrootBase(ctx android.ModuleContext) android.OutputPath {
+func getNdkSysrootBase(ctx android.PathContext) android.OutputPath {
 	return getNdkInstallBase(ctx).Join(ctx, "sysroot")
 }
 
@@ -87,9 +87,11 @@ type ndkSingleton struct{}
 
 func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	installPaths := []string{}
+	licensePaths := []string{}
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if m, ok := module.(*headerModule); ok {
 			installPaths = append(installPaths, m.installPaths...)
+			licensePaths = append(licensePaths, m.licensePath.String())
 		}
 	})
 
@@ -101,12 +103,22 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 		}
 	})
 
+	combinedLicense := getNdkInstallBase(ctx).Join(ctx, "NOTICE")
+	ctx.Build(pctx, blueprint.BuildParams{
+		Rule:     android.Cat,
+		Outputs:  []string{combinedLicense.String()},
+		Inputs:   licensePaths,
+		Optional: true,
+	})
+
+	depPaths := append(installPaths, combinedLicense.String())
+
 	// There's a dummy "ndk" rule defined in ndk/Android.mk that depends on
 	// this. `m ndk` will build the sysroots.
 	ctx.Build(pctx, blueprint.BuildParams{
 		Rule:      android.Touch,
 		Outputs:   []string{getNdkSysrootTimestampFile(ctx).String()},
-		Implicits: installPaths,
+		Implicits: depPaths,
 		Optional:  true,
 	})
 }
