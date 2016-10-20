@@ -37,6 +37,7 @@ const productVariablesFileName = "soong.variables"
 // config file. These will be included in the config struct.
 type FileConfigurableOptions struct {
 	Mega_device *bool `json:",omitempty"`
+	Ndk_abis    *bool `json:",omitempty"`
 }
 
 func (f *FileConfigurableOptions) SetDefaultConfig() {
@@ -211,8 +212,15 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		return Config{}, err
 	}
 
+	var archConfig []archConfig
 	if Bool(config.Mega_device) {
-		deviceTargets, err := decodeMegaDevice()
+		archConfig = getMegaDeviceConfig()
+	} else if Bool(config.Ndk_abis) {
+		archConfig = getNdkAbisConfig()
+	}
+
+	if archConfig != nil {
+		deviceTargets, err := decodeArchSettings(archConfig)
 		if err != nil {
 			return Config{}, err
 		}
