@@ -150,7 +150,12 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
 	if !ctx.noDefaultCompilerFlags() {
-		if ctx.Device() && !Bool(linker.Properties.Allow_undefined_symbols) {
+		if Bool(linker.Properties.Allow_undefined_symbols) {
+			if ctx.Darwin() {
+				// darwin defaults to treating undefined symbols as errors
+				flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
+			}
+		} else if !ctx.Darwin() {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 		}
 
