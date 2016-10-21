@@ -255,6 +255,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
 			flags.LdFlags = append(flags.LdFlags, "-lm", "-lpthread")
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
+			// Host ASAN only links symbols in the final executable, so
+			// there will always be undefined symbols in intermediate libraries.
+			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
 		} else {
 			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
 			flags.DynamicLinker = "/system/bin/linker_asan"
