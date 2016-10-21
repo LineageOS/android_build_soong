@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	asanCflags = "-fno-omit-frame-pointer"
+	asanCflags  = "-fno-omit-frame-pointer"
 	asanLdflags = "-Wl,-u,__asan_preinit"
-	asanLibs = "libasan"
+	asanLibs    = "libasan"
 )
 
 type sanitizerType int
