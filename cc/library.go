@@ -55,6 +55,11 @@ type LibraryProperties struct {
 	// rename host libraries to prevent overlap with system installed libraries
 	Unique_host_soname *bool
 
+	Proto struct {
+		// export headers generated from .proto sources
+		Export_proto_headers bool
+	}
+
 	VariantName string `blueprint:"mutated"`
 
 	// Build a static variant
@@ -472,6 +477,16 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	library.exportIncludes(ctx, "-I")
 	library.reexportFlags(deps.ReexportedFlags)
 	library.reexportDeps(deps.ReexportedFlagsDeps)
+
+	if library.baseCompiler.hasProto() {
+		if library.Properties.Proto.Export_proto_headers {
+			library.reexportFlags([]string{
+				"-I" + protoSubDir(ctx).String(),
+				"-I" + protoDir(ctx).String(),
+			})
+			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to proto deps
+		}
+	}
 
 	return out
 }
