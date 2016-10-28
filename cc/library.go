@@ -25,9 +25,8 @@ import (
 
 type LibraryProperties struct {
 	Static struct {
-		Srcs         []string `android:"arch_variant"`
-		Exclude_srcs []string `android:"arch_variant"`
-		Cflags       []string `android:"arch_variant"`
+		Srcs   []string `android:"arch_variant"`
+		Cflags []string `android:"arch_variant"`
 
 		Enabled           *bool    `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
@@ -35,9 +34,8 @@ type LibraryProperties struct {
 		Shared_libs       []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 	Shared struct {
-		Srcs         []string `android:"arch_variant"`
-		Exclude_srcs []string `android:"arch_variant"`
-		Cflags       []string `android:"arch_variant"`
+		Srcs   []string `android:"arch_variant"`
+		Cflags []string `android:"arch_variant"`
 
 		Enabled           *bool    `android:"arch_variant"`
 		Whole_static_libs []string `android:"arch_variant"`
@@ -253,18 +251,16 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	objFiles = library.baseCompiler.compile(ctx, flags, deps)
 	library.reuseObjFiles = objFiles
-
-	pathDeps := deps.GeneratedHeaders
-	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
+	buildFlags := flagsToBuilderFlags(flags)
 
 	if library.static() {
-		objFiles = append(objFiles, compileObjs(ctx, flags, android.DeviceStaticLibrary,
-			library.Properties.Static.Srcs, library.Properties.Static.Exclude_srcs,
-			nil, pathDeps)...)
+		srcs := android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
+		objFiles = append(objFiles, compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
+			srcs, library.baseCompiler.deps)...)
 	} else {
-		objFiles = append(objFiles, compileObjs(ctx, flags, android.DeviceSharedLibrary,
-			library.Properties.Shared.Srcs, library.Properties.Shared.Exclude_srcs,
-			nil, pathDeps)...)
+		srcs := android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
+		objFiles = append(objFiles, compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
+			srcs, library.baseCompiler.deps)...)
 	}
 
 	return objFiles
