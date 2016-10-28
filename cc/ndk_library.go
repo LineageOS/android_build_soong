@@ -227,12 +227,8 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) a
 	)
 
 	subdir := ""
-	srcs := []string{}
-	excludeSrcs := []string{}
-	extraSrcs := []android.Path{stubSrcPath}
-	extraDeps := []android.Path{}
-	return compileObjs(ctx, flags, subdir, srcs, excludeSrcs,
-		extraSrcs, extraDeps)
+	srcs := []android.Path{stubSrcPath}
+	return compileObjs(ctx, flagsToBuilderFlags(flags), subdir, srcs, nil)
 }
 
 func (linker *stubDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
