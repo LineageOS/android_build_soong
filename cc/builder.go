@@ -173,6 +173,7 @@ type builderFlags struct {
 	ldFlags     string
 	libFlags    string
 	yaccFlags   string
+	protoFlags  string
 	toolchain   config.Toolchain
 	clang       bool
 

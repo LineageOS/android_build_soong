@@ -30,6 +30,7 @@ var standardProperties = map[string]struct {
 	"LOCAL_CERTIFICATE":          {"certificate", bpparser.StringType},
 	"LOCAL_PACKAGE_NAME":         {"name", bpparser.StringType},
 	"LOCAL_MODULE_RELATIVE_PATH": {"relative_install_path", bpparser.StringType},
+	"LOCAL_PROTOC_OPTIMIZE_TYPE": {"proto.type", bpparser.StringType},
 
 	// List properties
 	"LOCAL_SRC_FILES_EXCLUDE":             {"exclude_srcs", bpparser.ListType},
