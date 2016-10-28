@@ -79,8 +79,11 @@ type Path interface {
 	// Returns the path in string form
 	String() string
 
-	// Returns the current file extension of the path
+	// Ext returns the extension of the last element of the path
 	Ext() string
+
+	// Base returns the last element of the path
+	Base() string
 }
 
 // WritablePath is a type of path that can be used as an output for build rules.
@@ -282,6 +285,10 @@ type basePath struct {
 
 func (p basePath) Ext() string {
 	return filepath.Ext(p.path)
+}
+
+func (p basePath) Base() string {
+	return filepath.Base(p.path)
 }
 
 // SourcePath is a Path representing a file path rooted from SrcDir
