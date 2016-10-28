@@ -93,6 +93,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		conlyFlags:  strings.Join(in.ConlyFlags, " "),
 		cppFlags:    strings.Join(in.CppFlags, " "),
 		yaccFlags:   strings.Join(in.YaccFlags, " "),
+		protoFlags:  strings.Join(in.protoFlags, " "),
 		ldFlags:     strings.Join(in.LdFlags, " "),
 		libFlags:    strings.Join(in.libFlags, " "),
 		toolchain:   in.Toolchain,
