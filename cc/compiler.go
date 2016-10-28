@@ -100,6 +100,7 @@ func NewBaseCompiler() *baseCompiler {
 
 type baseCompiler struct {
 	Properties BaseCompilerProperties
+	Proto      ProtoProperties
 	deps       android.Paths
 }
 
@@ -122,6 +123,10 @@ func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 func (compiler *baseCompiler) compilerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
+
+	if compiler.hasProto() {
+		deps = protoDeps(ctx, deps, &compiler.Proto)
+	}
 
 	return deps
 }
@@ -160,11 +165,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 				"${config.CommonNativehelperInclude}")
 		}
 
-		flags.GlobalFlags = append(flags.GlobalFlags, []string{
-			"-I" + android.PathForModuleSrc(ctx).String(),
-			"-I" + android.PathForModuleOut(ctx).String(),
-			"-I" + android.PathForModuleGen(ctx).String(),
-		}...)
+		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
 	}
 
 	if ctx.sdk() {
@@ -321,7 +322,21 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.CFlags = append(flags.CFlags, "-DANDROID_STRICT")
 	}
 
+	if compiler.hasProto() {
+		flags = protoFlags(ctx, flags, &compiler.Proto)
+	}
+
 	return flags
+}
+
+func (compiler *baseCompiler) hasProto() bool {
+	for _, src := range compiler.Properties.Srcs {
+		if filepath.Ext(src) == ".proto" {
+			return true
+		}
+	}
+
+	return false
 }
 
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")
