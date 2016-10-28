@@ -42,14 +42,14 @@ var (
 		"-g",  // from build/core/combo/select.mk
 		"-fno-strict-aliasing", // from build/core/combo/select.mk
 		"-isysroot ${macSdkRoot}",
-		"-mmacosx-version-min=${macSdkVersion}",
-		"-DMACOSX_DEPLOYMENT_TARGET=${macSdkVersion}",
+		"-mmacosx-version-min=${macMinVersion}",
+		"-DMACOSX_DEPLOYMENT_TARGET=${macMinVersion}",
 	}
 
 	darwinLdflags = []string{
 		"-isysroot ${macSdkRoot}",
 		"-Wl,-syslibroot,${macSdkRoot}",
-		"-mmacosx-version-min=${macSdkVersion}",
+		"-mmacosx-version-min=${macMinVersion}",
 	}
 
 	// Extended cflags
@@ -85,11 +85,9 @@ var (
 	darwinX8664ClangLdflags = ClangFilterUnknownCflags(darwinX8664Ldflags)
 
 	darwinSupportedSdkVersions = []string{
-		"10.8",
-		"10.9",
 		"10.10",
 		"10.11",
-                "10.12",
+		"10.12",
 	}
 
 	darwinAvailableLibraries = append(
@@ -119,7 +117,7 @@ func init() {
 	pctx.VariableFunc("macSdkRoot", func(config interface{}) (string, error) {
 		return xcrunSdk(config.(android.Config), "--show-sdk-path")
 	})
-	pctx.StaticVariable("macSdkVersion", darwinSupportedSdkVersions[0])
+	pctx.StaticVariable("macMinVersion", "10.8")
 	pctx.VariableFunc("MacArPath", func(config interface{}) (string, error) {
 		bytes, err := exec.Command("xcrun", "--find", "ar").Output()
 		return strings.TrimSpace(string(bytes)), err
