@@ -150,6 +150,14 @@ var (
 			Restat:      true,
 		},
 		"crossCompile")
+
+	clangTidy = pctx.AndroidStaticRule("clangTidy",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && ${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
+			CommandDeps: []string{"${config.ClangBin}/clang-tidy"},
+			Description: "tidy $out",
+		},
+		"cFlags", "tidyFlags")
 )
 
 func init() {
@@ -174,19 +182,44 @@ type builderFlags struct {
 	libFlags    string
 	yaccFlags   string
 	protoFlags  string
+	tidyFlags   string
 	toolchain   config.Toolchain
 	clang       bool
+	tidy        bool
 
 	stripKeepSymbols       bool
 	stripKeepMiniDebugInfo bool
 	stripAddGnuDebuglink   bool
 }
 
+type Objects struct {
+	objFiles  android.Paths
+	tidyFiles android.Paths
+}
+
+func (a Objects) Copy() Objects {
+	return Objects{
+		objFiles:  append(android.Paths{}, a.objFiles...),
+		tidyFiles: append(android.Paths{}, a.tidyFiles...),
+	}
+}
+
+func (a Objects) Append(b Objects) Objects {
+	return Objects{
+		objFiles:  append(a.objFiles, b.objFiles...),
+		tidyFiles: append(a.tidyFiles, b.tidyFiles...),
+	}
+}
+
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
 func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles android.Paths,
-	flags builderFlags, deps android.Paths) (objFiles android.Paths) {
+	flags builderFlags, deps android.Paths) Objects {
 
-	objFiles = make(android.Paths, len(srcFiles))
+	objFiles := make(android.Paths, len(srcFiles))
+	var tidyFiles android.Paths
+	if flags.tidy && flags.clang {
+		tidyFiles = make(android.Paths, 0, len(srcFiles))
+	}
 
 	cflags := flags.globalFlags + " " + flags.cFlags + " " + flags.conlyFlags
 	cppflags := flags.globalFlags + " " + flags.cFlags + " " + flags.cppFlags
@@ -207,11 +240,13 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 
 		var moduleCflags string
 		var ccCmd string
+		tidy := flags.tidy && flags.clang
 
 		switch srcFile.Ext() {
 		case ".S", ".s":
 			ccCmd = "gcc"
 			moduleCflags = asflags
+			tidy = false
 		case ".c":
 			ccCmd = "gcc"
 			moduleCflags = cflags
@@ -248,22 +283,45 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				"ccCmd":  ccCmd,
 			},
 		})
+
+		if tidy {
+			tidyFile := android.ObjPathWithExt(ctx, srcFile, subdir, "tidy")
+			tidyFiles = append(tidyFiles, tidyFile)
+
+			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+				Rule:   clangTidy,
+				Output: tidyFile,
+				Input:  srcFile,
+				// We must depend on objFile, since clang-tidy doesn't
+				// support exporting dependencies.
+				Implicit: objFile,
+				Args: map[string]string{
+					"cFlags":    moduleCflags,
+					"tidyFlags": flags.tidyFlags,
+				},
+			})
+		}
+
 	}
 
-	return objFiles
+	return Objects{
+		objFiles:  objFiles,
+		tidyFiles: tidyFiles,
+	}
 }
 
 // Generate a rule for compiling multiple .o files to a static library (.a)
 func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
-	flags builderFlags, outputFile android.ModuleOutPath) {
+	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
 
 	arCmd := gccCmd(flags.toolchain, "ar")
 	arFlags := "crsPD"
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:   ar,
-		Output: outputFile,
-		Inputs: objFiles,
+		Rule:      ar,
+		Output:    outputFile,
+		Inputs:    objFiles,
+		Implicits: deps,
 		Args: map[string]string{
 			"arFlags": arFlags,
 			"arCmd":   arCmd,
@@ -276,7 +334,7 @@ func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 // very small command line length limit, so we have to split the ar into multiple
 // steps, each appending to the previous one.
 func TransformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
-	flags builderFlags, outputPath android.ModuleOutPath) {
+	flags builderFlags, outputPath android.ModuleOutPath, deps android.Paths) {
 
 	arFlags := "cqs"
 
@@ -285,8 +343,9 @@ func TransformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 		dummyAr := android.PathForModuleOut(ctx, "dummy"+staticLibraryExtension)
 
 		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-			Rule:   emptyFile,
-			Output: dummy,
+			Rule:      emptyFile,
+			Output:    dummy,
+			Implicits: deps,
 		})
 
 		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
@@ -329,9 +388,10 @@ func TransformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 
 		if in == "" {
 			ctx.Build(pctx, blueprint.BuildParams{
-				Rule:    darwinAr,
-				Outputs: []string{out},
-				Inputs:  l,
+				Rule:      darwinAr,
+				Outputs:   []string{out},
+				Inputs:    l,
+				Implicits: deps.Strings(),
 				Args: map[string]string{
 					"arFlags": arFlags,
 				},

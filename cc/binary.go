@@ -250,7 +250,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 }
 
 func (binary *binaryDecorator) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
@@ -282,8 +282,9 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+	linkerDeps = append(linkerDeps, objs.tidyFiles...)
 
-	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs, deps.StaticLibs,
+	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
 		builderFlags, outputFile)
 

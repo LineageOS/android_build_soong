@@ -160,7 +160,7 @@ type libraryDecorator struct {
 	Properties LibraryProperties
 
 	// For reusing static library objects for shared library
-	reuseObjFiles android.Paths
+	reuseObjects Objects
 	// table-of-contents file to optimize out relinking when possible
 	tocFile android.OptionalPath
 
@@ -173,7 +173,7 @@ type libraryDecorator struct {
 	wholeStaticMissingDeps []string
 
 	// For whole_static_libs
-	objFiles android.Paths
+	objects Objects
 
 	// Uses the module's name if empty, but can be overridden. Does not include
 	// shlib suffix.
@@ -251,31 +251,29 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	return flags
 }
 
-func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths {
-	var objFiles android.Paths
-
-	objFiles = library.baseCompiler.compile(ctx, flags, deps)
-	library.reuseObjFiles = objFiles
+func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
+	objs := library.baseCompiler.compile(ctx, flags, deps)
+	library.reuseObjects = objs
 	buildFlags := flagsToBuilderFlags(flags)
 
 	if library.static() {
 		srcs := android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
-		objFiles = append(objFiles, compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
-			srcs, library.baseCompiler.deps)...)
+		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
+			srcs, library.baseCompiler.deps))
 	} else {
 		srcs := android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
-		objFiles = append(objFiles, compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
-			srcs, library.baseCompiler.deps)...)
+		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
+			srcs, library.baseCompiler.deps))
 	}
 
-	return objFiles
+	return objs
 }
 
 type libraryInterface interface {
 	getWholeStaticMissingDeps() []string
 	static() bool
-	objs() android.Paths
-	reuseObjs() android.Paths
+	objs() Objects
+	reuseObjs() Objects
 	toc() android.OptionalPath
 
 	// Returns true if the build options for the module have selected a static or shared build
@@ -340,18 +338,18 @@ func (library *libraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) De
 }
 
 func (library *libraryDecorator) linkStatic(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	library.objFiles = append(android.Paths{}, deps.WholeStaticLibObjFiles...)
-	library.objFiles = append(library.objFiles, objFiles...)
+	library.objects = deps.WholeStaticLibObjs.Copy()
+	library.objects = library.objects.Append(objs)
 
 	outputFile := android.PathForModuleOut(ctx,
 		ctx.ModuleName()+library.Properties.VariantName+staticLibraryExtension)
 
 	if ctx.Darwin() {
-		TransformDarwinObjToStaticLib(ctx, library.objFiles, flagsToBuilderFlags(flags), outputFile)
+		TransformDarwinObjToStaticLib(ctx, library.objects.objFiles, flagsToBuilderFlags(flags), outputFile, objs.tidyFiles)
 	} else {
-		TransformObjToStaticLib(ctx, library.objFiles, flagsToBuilderFlags(flags), outputFile)
+		TransformObjToStaticLib(ctx, library.objects.objFiles, flagsToBuilderFlags(flags), outputFile, objs.tidyFiles)
 	}
 
 	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
@@ -362,7 +360,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 }
 
 func (library *libraryDecorator) linkShared(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	var linkerDeps android.Paths
 
@@ -454,8 +452,9 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+	linkerDeps = append(linkerDeps, objs.tidyFiles...)
 
-	TransformObjToDynamicBinary(ctx, objFiles, sharedLibs,
+	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
 		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile)
 
@@ -463,15 +462,15 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 }
 
 func (library *libraryDecorator) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	objFiles = append(objFiles, deps.ObjFiles...)
+	objs = objs.Append(deps.Objs)
 
 	var out android.Path
 	if library.static() {
-		out = library.linkStatic(ctx, flags, deps, objFiles)
+		out = library.linkStatic(ctx, flags, deps, objs)
 	} else {
-		out = library.linkShared(ctx, flags, deps, objFiles)
+		out = library.linkShared(ctx, flags, deps, objs)
 	}
 
 	library.exportIncludes(ctx, "-I")
@@ -505,12 +504,12 @@ func (library *libraryDecorator) getWholeStaticMissingDeps() []string {
 	return library.wholeStaticMissingDeps
 }
 
-func (library *libraryDecorator) objs() android.Paths {
-	return library.objFiles
+func (library *libraryDecorator) objs() Objects {
+	return library.objects
 }
 
-func (library *libraryDecorator) reuseObjs() android.Paths {
-	return library.reuseObjFiles
+func (library *libraryDecorator) reuseObjs() Objects {
+	return library.reuseObjects
 }
 
 func (library *libraryDecorator) toc() android.OptionalPath {

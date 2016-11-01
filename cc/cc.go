@@ -76,8 +76,8 @@ type PathDeps struct {
 	StaticLibs, LateStaticLibs, WholeStaticLibs android.Paths
 
 	// Paths to .o files
-	ObjFiles               android.Paths
-	WholeStaticLibObjFiles android.Paths
+	Objs               Objects
+	WholeStaticLibObjs Objects
 
 	// Paths to generated source files
 	GeneratedSources android.Paths
@@ -100,9 +100,11 @@ type Flags struct {
 	protoFlags  []string // Flags that apply to proto source files
 	LdFlags     []string // Flags that apply to linker command lines
 	libFlags    []string // Flags to add libraries early to the link order
+	TidyFlags   []string // Flags that apply to clang-tidy
 
 	Toolchain config.Toolchain
 	Clang     bool
+	Tidy      bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string
@@ -174,7 +176,7 @@ type compiler interface {
 
 	appendCflags([]string)
 	appendAsflags([]string)
-	compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Paths
+	compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects
 }
 
 type linker interface {
@@ -183,7 +185,7 @@ type linker interface {
 	linkerFlags(ctx ModuleContext, flags Flags) Flags
 	linkerProps() []interface{}
 
-	link(ctx ModuleContext, flags Flags, deps PathDeps, objFiles android.Paths) android.Path
+	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
 	appendLdflags([]string)
 }
 
@@ -368,6 +370,9 @@ func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib)
 
 func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	module := newBaseModule(hod, multilib)
+	module.features = []feature{
+		&tidyFeature{},
+	}
 	module.stl = &stl{}
 	module.sanitize = &sanitize{}
 	return module
@@ -440,16 +445,16 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	flags.GlobalFlags = append(flags.GlobalFlags, deps.Flags...)
 
-	var objFiles android.Paths
+	var objs Objects
 	if c.compiler != nil {
-		objFiles = c.compiler.compile(ctx, flags, deps)
+		objs = c.compiler.compile(ctx, flags, deps)
 		if ctx.Failed() {
 			return
 		}
 	}
 
 	if c.linker != nil {
-		outputFile := c.linker.link(ctx, flags, deps, objFiles)
+		outputFile := c.linker.link(ctx, flags, deps, objs)
 		if ctx.Failed() {
 			return
 		}
@@ -813,8 +818,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if tag == reuseObjTag {
-			depPaths.ObjFiles = append(depPaths.ObjFiles,
-				cc.compiler.(libraryInterface).reuseObjs()...)
+			depPaths.Objs = depPaths.Objs.Append(cc.compiler.(libraryInterface).reuseObjs())
 			return
 		}
 
@@ -868,10 +872,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 				ctx.AddMissingDependencies(missingDeps)
 			}
-			depPaths.WholeStaticLibObjFiles =
-				append(depPaths.WholeStaticLibObjFiles, staticLib.objs()...)
+			depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
 		case objDepTag:
-			ptr = &depPaths.ObjFiles
+			depPaths.Objs.objFiles = append(depPaths.Objs.objFiles, linkFile.Path())
 		case crtBeginDepTag:
 			depPaths.CrtBegin = linkFile
 		case crtEndDepTag:
@@ -950,6 +953,7 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&SanitizeProperties{},
 		&StripProperties{},
 		&InstallerProperties{},
+		&TidyProperties{},
 	)
 
 	return android.InitDefaultsModule(module, module, props...)
