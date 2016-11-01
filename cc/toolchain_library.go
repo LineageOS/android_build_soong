@@ -53,12 +53,12 @@ func toolchainLibraryFactory() (blueprint.Module, []interface{}) {
 }
 
 func (library *toolchainLibraryDecorator) compile(ctx ModuleContext, flags Flags,
-	deps PathDeps) android.Paths {
-	return nil
+	deps PathDeps) Objects {
+	return Objects{}
 }
 
 func (library *toolchainLibraryDecorator) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	libName := ctx.ModuleName() + staticLibraryExtension
 	outputFile := android.PathForModuleOut(ctx, libName)
