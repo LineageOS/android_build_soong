@@ -105,3 +105,31 @@ func CheckBadHostLdlibs(ctx ModuleContext, prop string, flags []string) {
 		}
 	}
 }
+
+// Check for bad clang tidy flags
+func CheckBadTidyFlags(ctx ModuleContext, prop string, flags []string) {
+	for _, flag := range flags {
+		flag = strings.TrimSpace(flag)
+
+		if !strings.HasPrefix(flag, "-") {
+			ctx.PropertyErrorf(prop, "Flag `%s` must start with `-`", flag)
+		} else if strings.HasPrefix(flag, "-fix") {
+			ctx.PropertyErrorf(prop, "Flag `%s` is not allowed, since it could cause multiple writes to the same source file", flag)
+		} else if strings.HasPrefix(flag, "-checks=") {
+			ctx.PropertyErrorf(prop, "Flag `%s` is not allowed, use `tidy_checks` property instead", flag)
+		} else if strings.Contains(flag, " ") {
+			ctx.PropertyErrorf(prop, "Bad flag: `%s` is not an allowed multi-word flag. Should it be split into multiple flags?", flag)
+		}
+	}
+}
+
+// Check for bad clang tidy checks
+func CheckBadTidyChecks(ctx ModuleContext, prop string, checks []string) {
+	for _, check := range checks {
+		if strings.Contains(check, " ") {
+			ctx.PropertyErrorf("tidy_checks", "Check `%s` invalid, cannot contain spaces", check)
+		} else if strings.Contains(check, ",") {
+			ctx.PropertyErrorf("tidy_checks", "Check `%s` invalid, cannot contain commas. Split each entry into it's own string instead", check)
+		}
+	}
+}
