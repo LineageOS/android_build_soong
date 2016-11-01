@@ -53,6 +53,9 @@ var standardProperties = map[string]struct {
 	"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": {"export_shared_lib_headers", bpparser.ListType},
 	"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": {"export_static_lib_headers", bpparser.ListType},
 	"LOCAL_INIT_RC":                       {"init_rc", bpparser.ListType},
+	"LOCAL_TIDY_FLAGS":                    {"tidy_flags", bpparser.ListType},
+	// TODO: This is comma-seperated, not space-separated
+	"LOCAL_TIDY_CHECKS": {"tidy_checks", bpparser.ListType},
 
 	"LOCAL_JAVA_RESOURCE_DIRS":    {"java_resource_dirs", bpparser.ListType},
 	"LOCAL_JAVACFLAGS":            {"javacflags", bpparser.ListType},
@@ -73,6 +76,7 @@ var standardProperties = map[string]struct {
 	"LOCAL_RTTI_FLAG":               {"rtti", bpparser.BoolType},
 	"LOCAL_NO_STANDARD_LIBRARIES":   {"no_standard_libraries", bpparser.BoolType},
 	"LOCAL_PACK_MODULE_RELOCATIONS": {"pack_relocations", bpparser.BoolType},
+	"LOCAL_TIDY":                    {"tidy", bpparser.BoolType},
 
 	"LOCAL_EXPORT_PACKAGE_RESOURCES": {"export_package_resources", bpparser.BoolType},
 }

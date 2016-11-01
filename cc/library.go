@@ -347,9 +347,9 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 		ctx.ModuleName()+library.Properties.VariantName+staticLibraryExtension)
 
 	if ctx.Darwin() {
-		TransformDarwinObjToStaticLib(ctx, library.objects.objFiles, flagsToBuilderFlags(flags), outputFile)
+		TransformDarwinObjToStaticLib(ctx, library.objects.objFiles, flagsToBuilderFlags(flags), outputFile, objs.tidyFiles)
 	} else {
-		TransformObjToStaticLib(ctx, library.objects.objFiles, flagsToBuilderFlags(flags), outputFile)
+		TransformObjToStaticLib(ctx, library.objects.objFiles, flagsToBuilderFlags(flags), outputFile, objs.tidyFiles)
 	}
 
 	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
@@ -452,6 +452,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+	linkerDeps = append(linkerDeps, objs.tidyFiles...)
 
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
