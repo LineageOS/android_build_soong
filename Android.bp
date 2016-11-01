@@ -95,6 +95,7 @@ bootstrap_go_package {
     srcs: [
         "cc/config/clang.go",
         "cc/config/global.go",
+        "cc/config/tidy.go",
         "cc/config/toolchain.go",
 
         "cc/config/arm_device.go",
@@ -107,6 +108,9 @@ bootstrap_go_package {
         "cc/config/x86_darwin_host.go",
         "cc/config/x86_linux_host.go",
         "cc/config/x86_windows_host.go",
+    ],
+    testSrcs: [
+        "cc/config/tidy_test.go",
     ],
 }
 
@@ -134,6 +138,7 @@ bootstrap_go_package {
         "cc/sanitize.go",
         "cc/stl.go",
         "cc/strip.go",
+        "cc/tidy.go",
         "cc/util.go",
 
         "cc/compiler.go",

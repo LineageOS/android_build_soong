@@ -36,6 +36,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("CLANG_CXX", "${config.ClangBin}/clang++")
 	ctx.Strict("LLVM_AS", "${config.ClangBin}/llvm-as")
 	ctx.Strict("LLVM_LINK", "${config.ClangBin}/llvm-link")
+	ctx.Strict("PATH_TO_CLANG_TIDY", "${config.ClangBin}/clang-tidy")
 	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(config.ClangUnknownCflags, " "))
 
 	ctx.Strict("GLOBAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideGlobalCflags}")
@@ -51,6 +52,10 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("DEFAULT_C_STD_VERSION", config.CStdVersion)
 	ctx.Strict("DEFAULT_CPP_STD_VERSION", config.CppStdVersion)
 	ctx.Strict("DEFAULT_GCC_CPP_STD_VERSION", config.GccCppStdVersion)
+
+	ctx.Strict("DEFAULT_GLOBAL_TIDY_CHECKS", "${config.TidyDefaultGlobalChecks}")
+	ctx.Strict("DEFAULT_LOCAL_TIDY_CHECKS", joinLocalTidyChecks(config.DefaultLocalTidyChecks))
+	ctx.Strict("DEFAULT_TIDY_HEADER_DIRS", "${config.TidyDefaultHeaderDirs}")
 
 	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes} ${config.CommonGlobalSystemIncludes}")
 	if err != nil {
@@ -256,4 +261,12 @@ func splitSystemIncludes(ctx android.MakeVarsContext, val string) (includes, sys
 	}
 
 	return includes, systemIncludes
+}
+
+func joinLocalTidyChecks(checks []config.PathBasedTidyCheck) string {
+	rets := make([]string, len(checks))
+	for i, check := range config.DefaultLocalTidyChecks {
+		rets[i] = check.PathPrefix + ":" + check.Checks
+	}
+	return strings.Join(rets, " ")
 }
