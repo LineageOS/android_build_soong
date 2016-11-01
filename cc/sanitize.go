@@ -71,8 +71,17 @@ type SanitizeProperties struct {
 		Misc_undefined []string `android:"arch_variant"`
 		Coverage       *bool    `android:"arch_variant"`
 		Safestack      *bool    `android:"arch_variant"`
+		Cfi            *bool    `android:"arch_variant"`
 
-		// value to pass to -fsantitize-recover=
+		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
+		// Replaces abort() on error with a human-readable error message.
+		// Address and Thread sanitizers always run in diagnostic mode.
+		Diag struct {
+			Undefined *bool `android:"arch_variant"`
+			Cfi       *bool `android:"arch_variant"`
+		}
+
+		// value to pass to -fsanitize-recover=
 		Recover []string
 
 		// value to pass to -fsanitize-blacklist
@@ -140,6 +149,10 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Safestack = boolPtr(true)
 		}
 
+		if found, globalSanitizers = removeFromList("cfi", globalSanitizers); found && s.Cfi == nil {
+			s.Cfi = boolPtr(true)
+		}
+
 		if len(globalSanitizers) > 0 {
 			ctx.ModuleErrorf("unknown global sanitizer option %s", globalSanitizers[0])
 		}
@@ -163,7 +176,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	if Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) ||
-		Bool(s.Thread) || Bool(s.Coverage) || Bool(s.Safestack) {
+		Bool(s.Thread) || Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 
@@ -201,6 +214,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	var sanitizers []string
+	var diagSanitizers []string
 
 	if Bool(sanitize.Properties.Sanitize.All_undefined) {
 		sanitizers = append(sanitizers, "undefined")
@@ -236,6 +250,13 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitizers = append(sanitizers, sanitize.Properties.Sanitize.Misc_undefined...)
 	}
 
+	if Bool(sanitize.Properties.Sanitize.Diag.Undefined) &&
+		(Bool(sanitize.Properties.Sanitize.All_undefined) ||
+			Bool(sanitize.Properties.Sanitize.Undefined) ||
+			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) {
+		diagSanitizers = append(diagSanitizers, "undefined")
+	}
+
 	if Bool(sanitize.Properties.Sanitize.Address) {
 		if ctx.Arch().ArchType == android.Arm {
 			// Frame pointer based unwinder in ASan requires ARM frame setup.
@@ -266,6 +287,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			}
 		}
 		sanitizers = append(sanitizers, "address")
+		diagSanitizers = append(diagSanitizers, "address")
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Coverage) {
@@ -274,6 +296,19 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanitize.Properties.Sanitize.Safestack) {
 		sanitizers = append(sanitizers, "safe-stack")
+	}
+
+	if Bool(sanitize.Properties.Sanitize.Cfi) {
+		sanitizers = append(sanitizers, "cfi")
+		cfiFlags := []string{"-flto", "-fsanitize=cfi", "-fsanitize-cfi-cross-dso"}
+		flags.CFlags = append(flags.CFlags, cfiFlags...)
+		flags.CFlags = append(flags.CFlags, "-fvisibility=default")
+		flags.LdFlags = append(flags.LdFlags, cfiFlags...)
+		// FIXME: revert the __cfi_check flag when clang is updated to r280031.
+		flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,O1", "-Wl,-export-dynamic-symbol=__cfi_check")
+		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
+			diagSanitizers = append(diagSanitizers, "cfi")
+		}
 	}
 
 	if sanitize.Properties.Sanitize.Recover != nil {
@@ -290,10 +325,25 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, "-lrt", "-ldl")
 		} else {
 			flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
-			if Bool(sanitize.Properties.Sanitize.Address) || Bool(sanitize.Properties.Sanitize.Thread) {
-				flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap=address,thread")
-			}
 		}
+	}
+
+	if len(diagSanitizers) > 0 {
+		flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap="+strings.Join(diagSanitizers, ","))
+	}
+	// FIXME: enable RTTI if diag + (cfi or vptr)
+
+	// Link a runtime library if needed.
+	runtimeLibrary := ""
+	if Bool(sanitize.Properties.Sanitize.Address) {
+		runtimeLibrary = config.AddressSanitizerRuntimeLibrary(ctx.toolchain())
+	} else if len(diagSanitizers) > 0 {
+		runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(ctx.toolchain())
+	}
+
+	// ASan runtime library must be the first in the link order.
+	if runtimeLibrary != "" {
+		flags.libFlags = append([]string{"${config.ClangAsanLibDir}/" + runtimeLibrary}, flags.libFlags...)
 	}
 
 	blacklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
