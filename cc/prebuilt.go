@@ -46,7 +46,7 @@ func (p *prebuiltLibraryLinker) linkerProps() []interface{} {
 }
 
 func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 	// TODO(ccross): verify shared library dependencies
 	if len(p.Prebuilt.Properties.Srcs) > 0 {
 		p.libraryDecorator.exportIncludes(ctx, "-I")

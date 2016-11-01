@@ -182,11 +182,27 @@ type builderFlags struct {
 	stripAddGnuDebuglink   bool
 }
 
+type Objects struct {
+	objFiles android.Paths
+}
+
+func (a Objects) Copy() Objects {
+	return Objects{
+		objFiles: append(android.Paths{}, a.objFiles...),
+	}
+}
+
+func (a Objects) Append(b Objects) Objects {
+	return Objects{
+		objFiles: append(a.objFiles, b.objFiles...),
+	}
+}
+
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
 func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles android.Paths,
-	flags builderFlags, deps android.Paths) (objFiles android.Paths) {
+	flags builderFlags, deps android.Paths) Objects {
 
-	objFiles = make(android.Paths, len(srcFiles))
+	objFiles := make(android.Paths, len(srcFiles))
 
 	cflags := flags.globalFlags + " " + flags.cFlags + " " + flags.conlyFlags
 	cppflags := flags.globalFlags + " " + flags.cFlags + " " + flags.cppFlags
@@ -250,7 +266,9 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		})
 	}
 
-	return objFiles
+	return Objects{
+		objFiles: objFiles,
+	}
 }
 
 // Generate a rule for compiling multiple .o files to a static library (.a)
