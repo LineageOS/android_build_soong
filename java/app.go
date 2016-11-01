@@ -207,14 +207,14 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 	var aaptDeps android.Paths
 	var hasResources bool
 	for _, d := range resourceDirs {
-		newDeps := ctx.Glob("app_resources", filepath.Join(d.String(), "**/*"), aaptIgnoreFilenames)
+		newDeps := ctx.Glob(filepath.Join(d.String(), "**/*"), aaptIgnoreFilenames)
 		aaptDeps = append(aaptDeps, newDeps...)
 		if len(newDeps) > 0 {
 			hasResources = true
 		}
 	}
 	for _, d := range assetDirs {
-		newDeps := ctx.Glob("app_assets", filepath.Join(d.String(), "**/*"), aaptIgnoreFilenames)
+		newDeps := ctx.Glob(filepath.Join(d.String(), "**/*"), aaptIgnoreFilenames)
 		aaptDeps = append(aaptDeps, newDeps...)
 	}
 
