@@ -100,9 +100,11 @@ type Flags struct {
 	protoFlags  []string // Flags that apply to proto source files
 	LdFlags     []string // Flags that apply to linker command lines
 	libFlags    []string // Flags to add libraries early to the link order
+	TidyFlags   []string // Flags that apply to clang-tidy
 
 	Toolchain config.Toolchain
 	Clang     bool
+	Tidy      bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string
@@ -368,6 +370,9 @@ func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib)
 
 func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	module := newBaseModule(hod, multilib)
+	module.features = []feature{
+		&tidyFeature{},
+	}
 	module.stl = &stl{}
 	module.sanitize = &sanitize{}
 	return module
@@ -948,6 +953,7 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&SanitizeProperties{},
 		&StripProperties{},
 		&InstallerProperties{},
+		&TidyProperties{},
 	)
 
 	return android.InitDefaultsModule(module, module, props...)
