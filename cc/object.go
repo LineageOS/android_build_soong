@@ -70,16 +70,16 @@ func (*objectLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (object *objectLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	objFiles = append(objFiles, deps.ObjFiles...)
+	objs = objs.Append(deps.Objs)
 
 	var outputFile android.Path
-	if len(objFiles) == 1 {
-		outputFile = objFiles[0]
+	if len(objs.objFiles) == 1 {
+		outputFile = objs.objFiles[0]
 	} else {
 		output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
-		TransformObjsToObj(ctx, objFiles, flagsToBuilderFlags(flags), output)
+		TransformObjsToObj(ctx, objs.objFiles, flagsToBuilderFlags(flags), output)
 		outputFile = output
 	}
 

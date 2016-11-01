@@ -197,6 +197,6 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (linker *baseLinker) link(ctx ModuleContext,
-	flags Flags, deps PathDeps, objFiles android.Paths) android.Path {
+	flags Flags, deps PathDeps, objs Objects) android.Path {
 	panic(fmt.Errorf("baseLinker doesn't know how to link"))
 }
