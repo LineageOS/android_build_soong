@@ -357,17 +357,15 @@ func (c *config) SkipDeviceInstall() bool {
 }
 
 func (c *config) SanitizeHost() []string {
-	if c.ProductVariables.SanitizeHost == nil {
-		return nil
-	}
-	return append([]string(nil), *c.ProductVariables.SanitizeHost...)
+	return append([]string(nil), c.ProductVariables.SanitizeHost...)
 }
 
 func (c *config) SanitizeDevice() []string {
-	if c.ProductVariables.SanitizeDevice == nil {
-		return nil
-	}
-	return append([]string(nil), *c.ProductVariables.SanitizeDevice...)
+	return append([]string(nil), c.ProductVariables.SanitizeDevice...)
+}
+
+func (c *config) SanitizeDeviceArch() []string {
+	return append([]string(nil), c.ProductVariables.SanitizeDeviceArch...)
 }
 
 func (c *config) Android64() bool {
