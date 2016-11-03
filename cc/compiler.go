@@ -124,7 +124,7 @@ func (compiler *baseCompiler) compilerDeps(ctx BaseModuleContext, deps Deps) Dep
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
 
-	if compiler.hasProto() {
+	if compiler.hasSrcExt(".proto") {
 		deps = protoDeps(ctx, deps, &compiler.Proto)
 	}
 
@@ -322,16 +322,21 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.CFlags = append(flags.CFlags, "-DANDROID_STRICT")
 	}
 
-	if compiler.hasProto() {
+	if compiler.hasSrcExt(".proto") {
 		flags = protoFlags(ctx, flags, &compiler.Proto)
+	}
+
+	if compiler.hasSrcExt(".y") || compiler.hasSrcExt(".yy") {
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			"-I"+android.PathForModuleGen(ctx, "yacc", ctx.ModuleDir()).String())
 	}
 
 	return flags
 }
 
-func (compiler *baseCompiler) hasProto() bool {
+func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 	for _, src := range compiler.Properties.Srcs {
-		if filepath.Ext(src) == ".proto" {
+		if filepath.Ext(src) == ext {
 			return true
 		}
 	}
