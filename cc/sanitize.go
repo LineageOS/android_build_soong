@@ -119,7 +119,10 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		if ctx.Host() {
 			globalSanitizers = ctx.AConfig().SanitizeHost()
 		} else {
-			globalSanitizers = ctx.AConfig().SanitizeDevice()
+			arches := ctx.AConfig().SanitizeDeviceArch()
+			if len(arches) == 0 || inList(ctx.Arch().ArchType.Name, arches) {
+				globalSanitizers = ctx.AConfig().SanitizeDevice()
+			}
 		}
 	}
 
