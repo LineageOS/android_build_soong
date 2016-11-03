@@ -234,7 +234,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 	}
 
 	for i, srcFile := range srcFiles {
-		objFile := android.ObjPathWithExt(ctx, srcFile, subdir, "o")
+		objFile := android.ObjPathWithExt(ctx, subdir, srcFile, "o")
 
 		objFiles[i] = objFile
 
@@ -285,7 +285,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		})
 
 		if tidy {
-			tidyFile := android.ObjPathWithExt(ctx, srcFile, subdir, "tidy")
+			tidyFile := android.ObjPathWithExt(ctx, subdir, srcFile, "tidy")
 			tidyFiles = append(tidyFiles, tidyFile)
 
 			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
