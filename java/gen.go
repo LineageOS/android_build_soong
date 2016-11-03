@@ -57,7 +57,7 @@ var (
 )
 
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, aidlFlags string) android.Path {
-	javaFile := android.GenPathWithExt(ctx, aidlFile, "java")
+	javaFile := android.GenPathWithExt(ctx, "aidl", aidlFile, "java")
 	depFile := javaFile.String() + ".d"
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
@@ -74,7 +74,7 @@ func genAidl(ctx android.ModuleContext, aidlFile android.Path, aidlFlags string)
 }
 
 func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Path {
-	javaFile := android.GenPathWithExt(ctx, logtagsFile, "java")
+	javaFile := android.GenPathWithExt(ctx, "logtags", logtagsFile, "java")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   logtags,

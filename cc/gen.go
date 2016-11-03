@@ -48,7 +48,7 @@ var (
 )
 
 func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.ModuleGenPath, yaccFlags string) (headerFile android.ModuleGenPath) {
-	headerFile = android.GenPathWithExt(ctx, yaccFile, "h")
+	headerFile = android.GenPathWithExt(ctx, "yacc", yaccFile, "h")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:    yacc,
@@ -80,19 +80,19 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".y":
-			cFile := android.GenPathWithExt(ctx, srcFile, "c")
+			cFile := android.GenPathWithExt(ctx, "yacc", srcFile, "c")
 			srcFiles[i] = cFile
 			deps = append(deps, genYacc(ctx, srcFile, cFile, buildFlags.yaccFlags))
 		case ".yy":
-			cppFile := android.GenPathWithExt(ctx, srcFile, "cpp")
+			cppFile := android.GenPathWithExt(ctx, "yacc", srcFile, "cpp")
 			srcFiles[i] = cppFile
 			deps = append(deps, genYacc(ctx, srcFile, cppFile, buildFlags.yaccFlags))
 		case ".l":
-			cFile := android.GenPathWithExt(ctx, srcFile, "c")
+			cFile := android.GenPathWithExt(ctx, "lex", srcFile, "c")
 			srcFiles[i] = cFile
 			genLex(ctx, srcFile, cFile)
 		case ".ll":
-			cppFile := android.GenPathWithExt(ctx, srcFile, "cpp")
+			cppFile := android.GenPathWithExt(ctx, "lex", srcFile, "cpp")
 			srcFiles[i] = cppFile
 			genLex(ctx, srcFile, cppFile)
 		case ".proto":
