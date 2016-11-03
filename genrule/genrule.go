@@ -196,7 +196,7 @@ func GenSrcsFactory() (blueprint.Module, []interface{}) {
 		for _, in := range srcFiles {
 			tasks = append(tasks, generateTask{
 				in:  android.Paths{in},
-				out: android.WritablePaths{android.GenPathWithExt(ctx, in, properties.Output_extension)},
+				out: android.WritablePaths{android.GenPathWithExt(ctx, "", in, properties.Output_extension)},
 			})
 		}
 		return tasks
