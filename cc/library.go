@@ -55,6 +55,11 @@ type LibraryProperties struct {
 	// rename host libraries to prevent overlap with system installed libraries
 	Unique_host_soname *bool
 
+	Aidl struct {
+		// export headers generated from .aidl sources
+		Export_aidl_headers bool
+	}
+
 	Proto struct {
 		// export headers generated from .proto sources
 		Export_proto_headers bool
@@ -495,8 +500,17 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	library.reexportFlags(deps.ReexportedFlags)
 	library.reexportDeps(deps.ReexportedFlagsDeps)
 
-	if library.baseCompiler.hasSrcExt(".proto") {
-		if library.Properties.Proto.Export_proto_headers {
+	if library.Properties.Aidl.Export_aidl_headers {
+		if library.baseCompiler.hasSrcExt(".aidl") {
+			library.reexportFlags([]string{
+				"-I" + android.PathForModuleGen(ctx, "aidl").String(),
+			})
+			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to aidl deps
+		}
+	}
+
+	if library.Properties.Proto.Export_proto_headers {
+		if library.baseCompiler.hasSrcExt(".proto") {
 			library.reexportFlags([]string{
 				"-I" + protoSubDir(ctx).String(),
 				"-I" + protoDir(ctx).String(),

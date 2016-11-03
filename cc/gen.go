@@ -28,6 +28,8 @@ func init() {
 	pctx.SourcePathVariable("lexCmd", "prebuilts/misc/${config.HostPrebuiltTag}/flex/flex-2.5.39")
 	pctx.SourcePathVariable("yaccCmd", "prebuilts/misc/${config.HostPrebuiltTag}/bison/bison")
 	pctx.SourcePathVariable("yaccDataDir", "external/bison/data")
+
+	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
 }
 
 var (
@@ -45,6 +47,16 @@ var (
 			CommandDeps: []string{"$lexCmd"},
 			Description: "lex $out",
 		})
+
+	aidl = pctx.AndroidStaticRule("aidl",
+		blueprint.RuleParams{
+			Command:     "$aidlCmd -d${out}.d -ninja $aidlFlags $in $outDir $out",
+			CommandDeps: []string{"$aidlCmd"},
+			Depfile:     "${out}.d",
+			Deps:        blueprint.DepsGCC,
+			Description: "aidl $out",
+		},
+		"aidlFlags", "outDir")
 )
 
 func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.ModuleGenPath, yaccFlags string) (headerFile android.ModuleGenPath) {
@@ -62,6 +74,22 @@ func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.M
 	})
 
 	return headerFile
+}
+
+func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.ModuleGenPath, aidlFlags string) android.Paths {
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:   aidl,
+		Output: outFile,
+		Input:  aidlFile,
+		Args: map[string]string{
+			"aidlFlags": aidlFlags,
+			"outDir":    android.PathForModuleGen(ctx, "aidl").String(),
+		},
+	})
+
+	// TODO: This should return the generated headers, not the source file.
+	return android.Paths{outFile}
 }
 
 func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
@@ -99,6 +127,10 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			cppFile, headerFile := genProto(ctx, srcFile, buildFlags.protoFlags)
 			srcFiles[i] = cppFile
 			deps = append(deps, headerFile)
+		case ".aidl":
+			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
+			srcFiles[i] = cppFile
+			deps = append(deps, genAidl(ctx, srcFile, cppFile, buildFlags.aidlFlags)...)
 		}
 	}
 
