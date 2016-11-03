@@ -32,4 +32,5 @@ optional_subdirs = [
     "system/media/*",
     "system/security/*",
     "system/tools/*",
+    "test/vts",
 ]
