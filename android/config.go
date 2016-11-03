@@ -17,6 +17,7 @@ package android
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -127,27 +128,33 @@ func loadFromConfigFile(configurable jsonConfigurable, filename string) error {
 	return nil
 }
 
+// atomically writes the config file in case two copies of soong_build are running simultaneously
+// (for example, docs generation and ninja manifest generation)
 func saveToConfigFile(config jsonConfigurable, filename string) error {
 	data, err := json.MarshalIndent(&config, "", "    ")
 	if err != nil {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
 	}
 
-	configFileWriter, err := os.Create(filename)
+	f, err := ioutil.TempFile(filepath.Dir(filename), "config")
 	if err != nil {
 		return fmt.Errorf("cannot create empty config file %s: %s\n", filename, err.Error())
 	}
-	defer configFileWriter.Close()
+	defer os.Remove(f.Name())
+	defer f.Close()
 
-	_, err = configFileWriter.Write(data)
+	_, err = f.Write(data)
 	if err != nil {
 		return fmt.Errorf("default config file: %s could not be written: %s", filename, err.Error())
 	}
 
-	_, err = configFileWriter.WriteString("\n")
+	_, err = f.WriteString("\n")
 	if err != nil {
 		return fmt.Errorf("default config file: %s could not be written: %s", filename, err.Error())
 	}
+
+	f.Close()
+	os.Rename(f.Name(), filename)
 
 	return nil
 }
