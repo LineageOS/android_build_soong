@@ -118,8 +118,9 @@ type productVariables struct {
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
 	HostPrefer32BitExecutables   *bool `json:",omitempty"`
 
-	SanitizeHost   *[]string `json:",omitempty"`
-	SanitizeDevice *[]string `json:",omitempty"`
+	SanitizeHost       []string `json:",omitempty"`
+	SanitizeDevice     []string `json:",omitempty"`
+	SanitizeDeviceArch []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
