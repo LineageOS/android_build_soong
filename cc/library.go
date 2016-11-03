@@ -477,7 +477,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	library.reexportFlags(deps.ReexportedFlags)
 	library.reexportDeps(deps.ReexportedFlagsDeps)
 
-	if library.baseCompiler.hasProto() {
+	if library.baseCompiler.hasSrcExt(".proto") {
 		if library.Properties.Proto.Export_proto_headers {
 			library.reexportFlags([]string{
 				"-I" + protoSubDir(ctx).String(),
