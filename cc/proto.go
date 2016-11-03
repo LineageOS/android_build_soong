@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"strings"
-
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -46,17 +44,14 @@ var (
 func genProto(ctx android.ModuleContext, protoFile android.Path,
 	protoFlags string) (android.ModuleGenPath, android.ModuleGenPath) {
 
-	outDir := android.PathForModuleGen(ctx, "proto")
-	baseName := strings.TrimSuffix(protoFile.Base(), protoFile.Ext())
-
-	outFile := android.PathForModuleGen(ctx, "proto", ctx.ModuleDir(), baseName+".pb.cc")
-	headerFile := android.PathForModuleGen(ctx, "proto", ctx.ModuleDir(), baseName+".pb.h")
+	outFile := android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
+	headerFile := android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:    proto,
 		Outputs: android.WritablePaths{outFile, headerFile},
 		Input:   protoFile,
 		Args: map[string]string{
-			"outDir":     outDir.String(),
+			"outDir":     protoDir(ctx).String(),
 			"protoFlags": protoFlags,
 		},
 	})
