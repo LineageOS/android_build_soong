@@ -74,7 +74,8 @@ type LibraryProperties struct {
 
 type FlagExporterProperties struct {
 	// list of directories relative to the Blueprints file that will
-	// be added to the include path using -I for any module that links against this module
+	// be added to the include path (using -I) for this module and any module that links
+	// against this module
 	Export_include_dirs []string `android:"arch_variant"`
 }
 
@@ -249,6 +250,15 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	}
 
 	return flags
+}
+
+func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
+	if len(exportIncludeDirs) > 0 {
+		flags.GlobalFlags = append(flags.GlobalFlags, includeDirsToFlags(exportIncludeDirs))
+	}
+
+	return library.baseCompiler.compilerFlags(ctx, flags)
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
