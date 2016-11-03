@@ -33,11 +33,11 @@ func init() {
 var (
 	yacc = pctx.AndroidStaticRule("yacc",
 		blueprint.RuleParams{
-			Command:     "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags --defines=$hFile -o $cFile $in",
+			Command:     "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags --defines=$hFile -o $out $in",
 			CommandDeps: []string{"$yaccCmd"},
 			Description: "yacc $out",
 		},
-		"yaccFlags", "cFile", "hFile")
+		"yaccFlags", "hFile")
 
 	lex = pctx.AndroidStaticRule("lex",
 		blueprint.RuleParams{
@@ -51,12 +51,12 @@ func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.M
 	headerFile = android.GenPathWithExt(ctx, "yacc", yaccFile, "h")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:    yacc,
-		Outputs: android.WritablePaths{outFile, headerFile},
-		Input:   yaccFile,
+		Rule:           yacc,
+		Output:         outFile,
+		ImplicitOutput: headerFile,
+		Input:          yaccFile,
 		Args: map[string]string{
 			"yaccFlags": yaccFlags,
-			"cFile":     outFile.String(),
 			"hFile":     headerFile.String(),
 		},
 	})
