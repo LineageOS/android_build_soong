@@ -7,7 +7,7 @@
 #
 #     bootstrap [from Go package github.com/google/blueprint/bootstrap]
 #
-ninja_required_version = 1.6.0
+ninja_required_version = 1.7.0
 
 g.bootstrap.buildDir = @@BuildDir@@
 
@@ -33,6 +33,12 @@ rule g.bootstrap.bootstrap
     command = BUILDDIR=${g.bootstrap.buildDir} ${g.bootstrap.bootstrapCmd} -i ${in}
     description = bootstrap ${in}
     generator = true
+
+rule g.bootstrap.build.ninja
+    command = ${builder} ${extra} -b ${g.bootstrap.buildDir} -d ${out}.d -o ${out} ${in}
+    depfile = ${out}.d
+    description = ${builder} ${out}
+    restat = true
 
 rule g.bootstrap.compile
     command = GOROOT='${g.bootstrap.goRoot}' ${g.bootstrap.compileCmd} -o ${out} -p ${pkgPath} -complete ${incFlags} -pack ${in}
@@ -120,7 +126,10 @@ default ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test
 build ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test.passed: $
         g.bootstrap.test $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test | $
-        ${g.bootstrap.goTestRunnerCmd}
+        ${g.bootstrap.goTestRunnerCmd} || $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/test/test.passed $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/test/test.passed $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/test/test.passed
     pkg = github.com/google/blueprint
     pkgSrcDir = ${g.bootstrap.srcDir}/build/blueprint
 default ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test.passed
@@ -142,8 +151,7 @@ build $
         ${g.bootstrap.compileCmd} $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a $
-        || ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test.passed
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a
     incFlags = -I ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/pkg -I ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/pkg -I ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/pkg
     pkgPath = github.com/google/blueprint
 default $
@@ -276,8 +284,7 @@ build $
         ${g.bootstrap.srcDir}/build/blueprint/parser/parser.go $
         ${g.bootstrap.srcDir}/build/blueprint/parser/printer.go $
         ${g.bootstrap.srcDir}/build/blueprint/parser/sort.go | $
-        ${g.bootstrap.compileCmd} || $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/test/test.passed
+        ${g.bootstrap.compileCmd}
     pkgPath = github.com/google/blueprint/parser
 default $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/pkg/github.com/google/blueprint/parser.a
@@ -337,8 +344,7 @@ build $
         : g.bootstrap.compile $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/lists.go $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/glob.go | $
-        ${g.bootstrap.compileCmd} || $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/test/test.passed
+        ${g.bootstrap.compileCmd}
     pkgPath = github.com/google/blueprint/pathtools
 default $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a
@@ -410,8 +416,7 @@ build $
         ${g.bootstrap.srcDir}/build/blueprint/proptools/extend.go $
         ${g.bootstrap.srcDir}/build/blueprint/proptools/proptools.go $
         ${g.bootstrap.srcDir}/build/blueprint/proptools/typeequal.go | $
-        ${g.bootstrap.compileCmd} || $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/test/test.passed
+        ${g.bootstrap.compileCmd}
     pkgPath = github.com/google/blueprint/proptools
 default $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/pkg/github.com/google/blueprint/proptools.a
@@ -493,40 +498,27 @@ build ${g.bootstrap.buildDir}/.bootstrap/minibp/obj/a.out: g.bootstrap.link $
 default ${g.bootstrap.buildDir}/.bootstrap/minibp/obj/a.out
 
 build ${g.bootstrap.BinDir}/minibp: g.bootstrap.cp $
-        ${g.bootstrap.buildDir}/.bootstrap/minibp/obj/a.out
+        ${g.bootstrap.buildDir}/.bootstrap/minibp/obj/a.out || $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/test/test.passed $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/test/test.passed $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/test/test.passed $
+        ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test.passed
 default ${g.bootstrap.BinDir}/minibp
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Singleton: bootstrap
 # Factory:   github.com/google/blueprint/bootstrap.newSingletonFactory.func1
 
-rule s.bootstrap.primarybp
-    command = ${g.bootstrap.BinDir}/minibp --build-primary ${runTests} -b ${g.bootstrap.buildDir} -d ${outfile}.d -o ${outfile} ${in}
-    depfile = ${outfile}.d
-    description = minibp ${outfile}
-
-rule s.bootstrap.minibp
-    command = ${g.bootstrap.BinDir}/minibp ${runTests} -b ${g.bootstrap.buildDir} -d ${out}.d -o ${out} ${in}
-    depfile = ${out}.d
-    description = minibp ${out}
-    restat = true
-
-build ${g.bootstrap.buildDir}/.bootstrap/build.ninja: s.bootstrap.primarybp $
-        ${g.bootstrap.srcDir}/Android.bp | ${g.bootstrap.BinDir}/gotestmain $
-        ${g.bootstrap.BinDir}/gotestrunner ${g.bootstrap.BinDir}/minibp $
-        ${g.bootstrap.srcDir}/Android.bp $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/github.com/google/blueprint.a $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/test/github.com/google/blueprint/parser.a $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/test/github.com/google/blueprint/pathtools.a $
-        ${g.bootstrap.buildDir}/.bootstrap/blueprint-proptools/test/github.com/google/blueprint/proptools.a
-    outfile = ${g.bootstrap.buildDir}/.bootstrap/build.ninja
-    runTests = -t
+build ${g.bootstrap.buildDir}/.bootstrap/build.ninja: g.bootstrap.build.ninja $
+        ${g.bootstrap.srcDir}/Android.bp | ${builder}
+    builder = ${g.bootstrap.BinDir}/minibp
+    extra = --build-primary -t
 default ${g.bootstrap.buildDir}/.bootstrap/build.ninja
 
 build ${g.bootstrap.buildDir}/.minibootstrap/build.ninja.in: $
-        s.bootstrap.minibp ${g.bootstrap.srcDir}/Android.bp | $
-        ${g.bootstrap.BinDir}/minibp
-    runTests = -t
+        g.bootstrap.build.ninja ${g.bootstrap.srcDir}/Android.bp | ${builder}
+    builder = ${g.bootstrap.BinDir}/minibp
+    extra =  -t
 default ${g.bootstrap.buildDir}/.minibootstrap/build.ninja.in
 
 build ${g.bootstrap.buildDir}/.minibootstrap/build.ninja: $
