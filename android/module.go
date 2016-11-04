@@ -34,16 +34,18 @@ var (
 )
 
 type ModuleBuildParams struct {
-	Rule      blueprint.Rule
-	Output    WritablePath
-	Outputs   WritablePaths
-	Input     Path
-	Inputs    Paths
-	Implicit  Path
-	Implicits Paths
-	OrderOnly Paths
-	Default   bool
-	Args      map[string]string
+	Rule            blueprint.Rule
+	Output          WritablePath
+	Outputs         WritablePaths
+	ImplicitOutput  WritablePath
+	ImplicitOutputs WritablePaths
+	Input           Path
+	Inputs          Paths
+	Implicit        Path
+	Implicits       Paths
+	OrderOnly       Paths
+	Default         bool
+	Args            map[string]string
 }
 
 type androidBaseContext interface {
@@ -519,17 +521,21 @@ func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params bluep
 
 func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
 	bparams := blueprint.BuildParams{
-		Rule:      params.Rule,
-		Outputs:   params.Outputs.Strings(),
-		Inputs:    params.Inputs.Strings(),
-		Implicits: params.Implicits.Strings(),
-		OrderOnly: params.OrderOnly.Strings(),
-		Args:      params.Args,
-		Optional:  !params.Default,
+		Rule:            params.Rule,
+		Outputs:         params.Outputs.Strings(),
+		ImplicitOutputs: params.ImplicitOutputs.Strings(),
+		Inputs:          params.Inputs.Strings(),
+		Implicits:       params.Implicits.Strings(),
+		OrderOnly:       params.OrderOnly.Strings(),
+		Args:            params.Args,
+		Optional:        !params.Default,
 	}
 
 	if params.Output != nil {
 		bparams.Outputs = append(bparams.Outputs, params.Output.String())
+	}
+	if params.ImplicitOutput != nil {
+		bparams.ImplicitOutputs = append(bparams.ImplicitOutputs, params.ImplicitOutput.String())
 	}
 	if params.Input != nil {
 		bparams.Inputs = append(bparams.Inputs, params.Input.String())
