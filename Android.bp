@@ -24,19 +24,6 @@ bootstrap_go_package {
     ],
 }
 
-
-bootstrap_go_package {
-    name: "soong-glob",
-    pkgPath: "android/soong/glob",
-    deps: [
-        "blueprint-deptools",
-        "blueprint-pathtools",
-    ],
-    srcs: [
-        "glob/glob.go",
-    ],
-}
-
 bootstrap_go_package {
     name: "soong",
     pkgPath: "android/soong",
@@ -56,7 +43,6 @@ bootstrap_go_package {
         "blueprint-bootstrap",
         "soong",
         "soong-env",
-        "soong-glob",
     ],
     srcs: [
         "android/androidmk.go",
@@ -64,7 +50,6 @@ bootstrap_go_package {
         "android/config.go",
         "android/defaults.go",
         "android/defs.go",
-        "android/glob.go",
         "android/hooks.go",
         "android/makevars.go",
         "android/module.go",

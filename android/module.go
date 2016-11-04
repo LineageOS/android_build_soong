@@ -19,9 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"android/soong/glob"
-
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 )
 
 var (
@@ -76,7 +75,7 @@ type ModuleContext interface {
 	ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams)
 
 	ExpandSources(srcFiles, excludes []string) Paths
-	Glob(outDir, globPattern string, excludes []string) Paths
+	Glob(globPattern string, excludes []string) Paths
 
 	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) OutputPath
 	InstallFileName(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
@@ -509,7 +508,7 @@ func (a *androidModuleContext) ninjaError(outputs []string, err error) {
 }
 
 func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
-	if a.missingDeps != nil && params.Rule != globRule {
+	if a.missingDeps != nil {
 		a.ninjaError(params.Outputs, fmt.Errorf("module %s missing dependencies: %s\n",
 			a.ModuleName(), strings.Join(a.missingDeps, ", ")))
 		return
@@ -718,8 +717,8 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Path
 
 	globbedSrcFiles := make(Paths, 0, len(srcFiles))
 	for _, s := range srcFiles {
-		if glob.IsGlob(s) {
-			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob("src_glob", filepath.Join(prefix, s), excludes)...)
+		if pathtools.IsGlob(s) {
+			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob(filepath.Join(prefix, s), excludes)...)
 		} else {
 			globbedSrcFiles = append(globbedSrcFiles, PathForModuleSrc(ctx, s))
 		}
@@ -728,8 +727,8 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Path
 	return globbedSrcFiles
 }
 
-func (ctx *androidModuleContext) Glob(outDir, globPattern string, excludes []string) Paths {
-	ret, err := Glob(ctx, PathForModuleOut(ctx, outDir).String(), globPattern, excludes)
+func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) Paths {
+	ret, err := ctx.GlobWithDeps(globPattern, excludes)
 	if err != nil {
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}
