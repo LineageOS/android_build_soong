@@ -17,6 +17,8 @@ package java
 import (
 	"path/filepath"
 
+	"github.com/google/blueprint/bootstrap"
+
 	"android/soong/android"
 )
 
@@ -54,13 +56,13 @@ func ResourceDirsToJarSpecs(ctx android.ModuleContext, resourceDirs, excludeDirs
 			continue
 		}
 		resourceDir := android.PathForModuleSrc(ctx, resourceDir)
-		dirs := ctx.Glob("java_resources", resourceDir.String(), nil)
+		dirs := ctx.Glob(resourceDir.String(), nil)
 		for _, dir := range dirs {
 			fileListFile := android.ResPathWithName(ctx, dir, "resources.list")
 			depFile := fileListFile.String() + ".d"
 
-			glob := filepath.Join(dir.String(), "**/*")
-			android.GlobRule(ctx, glob, excludes, fileListFile.String(), depFile)
+			pattern := filepath.Join(dir.String(), "**/*")
+			bootstrap.GlobFile(ctx, pattern, excludes, fileListFile.String(), depFile)
 			jarSpecs = append(jarSpecs, jarSpec{fileListFile, dir})
 		}
 	}
