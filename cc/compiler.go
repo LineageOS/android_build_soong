@@ -115,7 +115,7 @@ func (compiler *baseCompiler) appendAsflags(flags []string) {
 }
 
 func (compiler *baseCompiler) compilerProps() []interface{} {
-	return []interface{}{&compiler.Properties}
+	return []interface{}{&compiler.Properties, &compiler.Proto}
 }
 
 func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
