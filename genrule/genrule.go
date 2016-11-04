@@ -15,7 +15,8 @@
 package genrule
 
 import (
-	"os"
+	"fmt"
+	"strings"
 
 	"github.com/google/blueprint"
 
@@ -31,11 +32,6 @@ var (
 	pctx = android.NewPackageContext("android/soong/genrule")
 )
 
-func init() {
-	pctx.SourcePathVariable("srcDir", "")
-	pctx.HostBinToolVariable("hostBin", "")
-}
-
 type SourceFileGenerator interface {
 	GeneratedSourceFiles() android.Paths
 	GeneratedHeaderDir() android.Path
@@ -47,20 +43,24 @@ type HostToolProvider interface {
 
 type generatorProperties struct {
 	// command to run on one or more input files.  Available variables for substitution:
-	// $tool: the path to the `tool` or `tool_file`
-	// $in: one or more input files
-	// $out: a single output file
-	// $srcDir: the root directory of the source tree
-	// $genDir: the sandbox directory for this tool; contains $out
-	// The host bin directory will be in the path
+	// $(location): the path to the first entry in tools or tool_files
+	// $(location <label>): the path to the tool or tool_file with name <label>
+	// $(in): one or more input files
+	// $(out): a single output file
+	// $(genDir): the sandbox directory for this tool; contains $(out)
+	// $$: a literal $
+	//
+	// DO NOT directly reference paths to files in the source tree, or the
+	// command will be missing proper dependencies to re-run if the files
+	// change.
 	Cmd string
 
-	// name of the module (if any) that produces the host executable.   Leave empty for
+	// name of the modules (if any) that produces the host executable.   Leave empty for
 	// prebuilts or scripts that do not need a module to build them.
-	Tool string
+	Tools []string
 
 	// Local file that is used as the tool
-	Tool_file string
+	Tool_files []string
 }
 
 type generator struct {
@@ -95,58 +95,36 @@ func (g *generator) GeneratedHeaderDir() android.Path {
 
 func (g *generator) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*generator); ok {
-		if g.properties.Tool != "" {
+		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{"arch", ctx.AConfig().BuildOsVariant},
-			}, nil, g.properties.Tool)
+			}, nil, g.properties.Tools...)
 		}
 	}
 }
 
 func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if g.properties.Tool != "" && g.properties.Tool_file != "" {
-		ctx.ModuleErrorf("`tool` and `tool_file` may not be specified at the same time")
+	if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
+		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
 		return
 	}
 
 	g.genPath = android.PathForModuleGen(ctx, "")
 
-	cmd := os.Expand(g.properties.Cmd, func(name string) string {
-		switch name {
-		case "$":
-			return "$$"
-		case "tool":
-			return "${tool}"
-		case "in":
-			return "${in}"
-		case "out":
-			return "${out}"
-		case "srcDir":
-			return "${srcDir}"
-		case "genDir":
-			return g.genPath.String()
-		default:
-			ctx.PropertyErrorf("cmd", "unknown variable '%s'", name)
-		}
-		return ""
-	})
+	tools := map[string]android.Path{}
 
-	g.rule = ctx.Rule(pctx, "generator", blueprint.RuleParams{
-		Command: "PATH=$$PATH:$hostBin " + cmd,
-	}, "tool")
-
-	var tool string
-	if g.properties.Tool_file != "" {
-		toolpath := android.PathForModuleSrc(ctx, g.properties.Tool_file)
-		g.deps = append(g.deps, toolpath)
-		tool = toolpath.String()
-	} else if g.properties.Tool != "" {
+	if len(g.properties.Tools) > 0 {
 		ctx.VisitDirectDeps(func(module blueprint.Module) {
 			if t, ok := module.(HostToolProvider); ok {
 				p := t.HostToolPath()
 				if p.Valid() {
 					g.deps = append(g.deps, p.Path())
-					tool = p.String()
+					tool := ctx.OtherModuleName(module)
+					if _, exists := tools[tool]; !exists {
+						tools[tool] = p.Path()
+					} else {
+						ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], p.Path().String())
+					}
 				} else {
 					ctx.ModuleErrorf("host tool %q missing output file", ctx.OtherModuleName(module))
 				}
@@ -156,20 +134,62 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 	}
 
+	for _, tool := range g.properties.Tool_files {
+		toolPath := android.PathForModuleSrc(ctx, tool)
+		g.deps = append(g.deps, toolPath)
+		if _, exists := tools[tool]; !exists {
+			tools[tool] = toolPath
+		} else {
+			ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], toolPath.String())
+		}
+	}
+
+	cmd, err := android.Expand(g.properties.Cmd, func(name string) (string, error) {
+		switch name {
+		case "location":
+			if len(g.properties.Tools) > 0 {
+				return tools[g.properties.Tools[0]].String(), nil
+			} else {
+				return tools[g.properties.Tool_files[0]].String(), nil
+			}
+		case "in":
+			return "${in}", nil
+		case "out":
+			return "${out}", nil
+		case "genDir":
+			return g.genPath.String(), nil
+		default:
+			if strings.HasPrefix(name, "location ") {
+				label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
+				if tool, ok := tools[label]; ok {
+					return tool.String(), nil
+				} else {
+					return "", fmt.Errorf("unknown location label %q", label)
+				}
+			}
+			return "", fmt.Errorf("unknown variable '$(%s)'", name)
+		}
+	})
+
+	if err != nil {
+		ctx.PropertyErrorf("cmd", "%s", err.Error())
+	}
+
+	g.rule = ctx.Rule(pctx, "generator", blueprint.RuleParams{
+		Command: cmd,
+	})
+
 	for _, task := range g.tasks(ctx) {
-		g.generateSourceFile(ctx, task, tool)
+		g.generateSourceFile(ctx, task)
 	}
 }
 
-func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask, tool string) {
+func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask) {
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:      g.rule,
 		Outputs:   task.out,
 		Inputs:    task.in,
 		Implicits: g.deps,
-		Args: map[string]string{
-			"tool": tool,
-		},
 	})
 
 	for _, outputFile := range task.out {
