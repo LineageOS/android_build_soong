@@ -21,8 +21,6 @@ import (
 	"reflect"
 	"strings"
 
-	"android/soong/glob"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 )
@@ -32,6 +30,10 @@ import (
 type PathContext interface {
 	Config() interface{}
 	AddNinjaFileDeps(deps ...string)
+}
+
+type PathGlobContext interface {
+	GlobWithDeps(globPattern string, excludes []string) ([]string, error)
 }
 
 var _ PathContext = blueprint.SingletonContext(nil)
@@ -248,7 +250,7 @@ func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
 	// is created, we're run again.
 	path := filepath.Join(ctx.AConfig().srcDir, ctx.ModuleDir(), def)
-	return ctx.Glob("default", path, []string{})
+	return ctx.Glob(path, []string{})
 }
 
 // Strings returns the Paths in string form
@@ -382,15 +384,15 @@ func OptionalPathForSource(ctx PathContext, intermediates string, paths ...strin
 		return OptionalPath{}
 	}
 
-	if glob.IsGlob(path.String()) {
+	if pathtools.IsGlob(path.String()) {
 		reportPathError(ctx, "path may not contain a glob: %s", path.String())
 		return OptionalPath{}
 	}
 
-	if gctx, ok := ctx.(globContext); ok {
+	if gctx, ok := ctx.(PathGlobContext); ok {
 		// Use glob to produce proper dependencies, even though we only want
 		// a single file.
-		files, err := Glob(gctx, PathForIntermediates(ctx, intermediates).String(), path.String(), nil)
+		files, err := gctx.GlobWithDeps(path.String(), nil)
 		if err != nil {
 			reportPathError(ctx, "glob: %s", err.Error())
 			return OptionalPath{}
@@ -444,10 +446,10 @@ func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	}
 	dir := filepath.Join(p.config.srcDir, p.path, relDir)
 	// Use Glob so that we are run again if the directory is added.
-	if glob.IsGlob(dir) {
+	if pathtools.IsGlob(dir) {
 		reportPathError(ctx, "Path may not contain a glob: %s", dir)
 	}
-	paths, err := Glob(ctx, PathForModuleOut(ctx, "overlay").String(), dir, []string{})
+	paths, err := ctx.GlobWithDeps(dir, []string{})
 	if err != nil {
 		reportPathError(ctx, "glob: %s", err.Error())
 		return OptionalPath{}
