@@ -69,6 +69,8 @@ def should_omit_version(name, tags, arch, api):
     """
     if version_is_private(name):
         return True
+    if 'platform-only' in tags:
+        return True
     if not symbol_in_arch(tags, arch):
         return True
     if not symbol_in_api(tags, arch, api):
