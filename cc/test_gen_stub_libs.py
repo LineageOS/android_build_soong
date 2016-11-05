@@ -110,6 +110,9 @@ class OmitVersionTest(unittest.TestCase):
         self.assertTrue(gsl.should_omit_version('foo_PRIVATE', [], 'arm', 9))
         self.assertTrue(gsl.should_omit_version('foo_PLATFORM', [], 'arm', 9))
 
+        self.assertTrue(gsl.should_omit_version(
+            'foo', ['platform-only'], 'arm', 9))
+
     def test_omit_arch(self):
         self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9))
         self.assertFalse(gsl.should_omit_version('foo', ['arm'], 'arm', 9))
