@@ -59,9 +59,7 @@ func getMapping(s string, mapping func(string) (string, error)) (string, int, er
 	case '$':
 		return s[0:1], 1, nil
 	default:
-		i := strings.IndexFunc(s, func(c rune) bool {
-			return !(unicode.IsLetter(c) || unicode.IsNumber(c) || c == '_' || c == '.' || c == '-')
-		})
+		i := strings.IndexFunc(s, unicode.IsSpace)
 		if i == 0 {
 			return "", 0, fmt.Errorf("unexpected character '%c' after '$'", s[0])
 		} else if i == -1 {
