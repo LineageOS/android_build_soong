@@ -183,8 +183,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		// Traditionally this has come from android/api-level.h, but with the
 		// libc headers unified it must be set by the build system since we
 		// don't have per-API level copies of that header now.
+		version := ctx.sdkVersion()
+		if version == "current" {
+			version = "__ANDROID_API_FUTURE__"
+		}
 		flags.GlobalFlags = append(flags.GlobalFlags,
-			"-D__ANDROID_API__="+ctx.sdkVersion())
+			"-D__ANDROID_API__="+version)
 
 		// Until the full NDK has been migrated to using ndk_headers, we still
 		// need to add the legacy sysroot includes to get the full set of
