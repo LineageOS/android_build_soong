@@ -31,9 +31,28 @@ ALL_ARCHITECTURES = (
 )
 
 
+# Arbitrary magic number. We use the same one in api-level.h for this purpose.
+FUTURE_API_LEVEL = 10000
+
+
 def logger():
     """Return the main logger for this module."""
     return logging.getLogger(__name__)
+
+
+def api_level_arg(api_str):
+    """Parses an API level, handling the "current" special case.
+
+    Args:
+        api_str: (string) Either a numeric API level or "current".
+
+    Returns:
+        (int) FUTURE_API_LEVEL if `api_str` is "current", else `api_str` parsed
+        as an integer.
+    """
+    if api_str == "current":
+        return FUTURE_API_LEVEL
+    return int(api_str)
 
 
 def get_tags(line):
@@ -105,10 +124,7 @@ def symbol_in_api(tags, arch, api):
             introduced_tag = tag
             arch_specific = True
         elif tag == 'future':
-            # This symbol is not in any released API level.
-            # TODO(danalbert): These need to be emitted for api == current.
-            # That's not a construct we have yet, so just skip it for now.
-            return False
+            return api == FUTURE_API_LEVEL
 
     if introduced_tag is None:
         # We found no "introduced" tags, so the symbol has always been
@@ -310,7 +326,8 @@ def parse_args():
     parser.add_argument('-v', '--verbose', action='count', default=0)
 
     parser.add_argument(
-        '--api', type=int, required=True, help='API level being targeted.')
+        '--api', type=api_level_arg, required=True,
+        help='API level being targeted.')
     parser.add_argument(
         '--arch', choices=ALL_ARCHITECTURES, required=True,
         help='Architecture being targeted.')
