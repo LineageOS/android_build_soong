@@ -139,16 +139,7 @@ func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (int, error) {
 }
 
 func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
-	// TODO(danalbert): Use PlatformSdkVersion when possible.
-	// This is an interesting case because for the moment we actually need 24
-	// even though the latest released version in aosp is 23. prebuilts/ndk/r11
-	// has android-24 versions of libraries, and as platform libraries get
-	// migrated the libraries in prebuilts will need to depend on them.
-	//
-	// Once everything is all moved over to the new stuff (when there isn't a
-	// prebuilts/ndk any more) then this should be fixable, but for now I think
-	// it needs to remain as-is.
-	maxVersion := 24
+	maxVersion := mctx.AConfig().PlatformSdkVersionInt()
 
 	firstVersion, err := normalizeNdkApiLevel(c.properties.First_version,
 		mctx.Arch())
