@@ -137,7 +137,7 @@ func stringPtr(v string) *string {
 
 func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
-		Platform_sdk_version:       intPtr(23),
+		Platform_sdk_version:       intPtr(24),
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),
 		DeviceName:                 stringPtr("flounder"),
