@@ -75,6 +75,8 @@ class SymbolPresenceTest(unittest.TestCase):
             ['introduced=9', 'introduced-x86=21'], 'arm', 14))
         self.assertTrue(gsl.symbol_in_api(
             ['introduced=21', 'introduced-arm=9'], 'arm', 14))
+        self.assertTrue(gsl.symbol_in_api(
+            ['future'], 'arm', gsl.FUTURE_API_LEVEL))
 
         self.assertFalse(gsl.symbol_in_api(['introduced=14'], 'arm', 9))
         self.assertFalse(gsl.symbol_in_api(['introduced-arm=14'], 'arm', 9))
