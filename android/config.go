@@ -323,8 +323,12 @@ func (c *config) PlatformVersion() string {
 	return "M"
 }
 
+func (c *config) PlatformSdkVersionInt() int {
+	return *c.ProductVariables.Platform_sdk_version
+}
+
 func (c *config) PlatformSdkVersion() string {
-	return strconv.Itoa(*c.ProductVariables.Platform_sdk_version)
+	return strconv.Itoa(c.PlatformSdkVersionInt())
 }
 
 func (c *config) BuildNumber() string {
