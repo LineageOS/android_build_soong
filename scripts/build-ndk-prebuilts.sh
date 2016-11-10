@@ -7,13 +7,17 @@ fi
 
 TOP=$(pwd)
 
+source build/envsetup.sh
+PLATFORM_SDK_VERSION=$(get_build_var PLATFORM_SDK_VERSION)
+
 SOONG_OUT=${OUT_DIR}/soong
 SOONG_NDK_OUT=${OUT_DIR}/soong/ndk
 rm -rf ${SOONG_OUT}
 mkdir -p ${SOONG_OUT}
 cat > ${SOONG_OUT}/soong.config << EOF
 {
-    "Ndk_abis": true
+    "Ndk_abis": true,
+    "Platform_sdk_version": ${PLATFORM_SDK_VERSION}
 }
 EOF
 BUILDDIR=${SOONG_OUT} ./bootstrap.bash
