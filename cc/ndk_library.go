@@ -109,7 +109,11 @@ func intMax(a int, b int) int {
 	}
 }
 
-func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (int, error) {
+func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (string, error) {
+	if apiLevel == "current" {
+		return apiLevel, nil
+	}
+
 	minVersion := 9 // Minimum version supported by the NDK.
 	firstArchVersions := map[string]int{
 		"arm":    9,
@@ -125,7 +129,7 @@ func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (int, error) {
 	// supported version here instead.
 	version, err := strconv.Atoi(apiLevel)
 	if err != nil {
-		return -1, fmt.Errorf("API level must be an integer (is %q)", apiLevel)
+		return "", fmt.Errorf("API level must be an integer (is %q)", apiLevel)
 	}
 	version = intMax(version, minVersion)
 
@@ -135,20 +139,35 @@ func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (int, error) {
 		panic(fmt.Errorf("Arch %q not found in firstArchVersions", archStr))
 	}
 
-	return intMax(version, firstArchVersion), nil
+	return strconv.Itoa(intMax(version, firstArchVersion)), nil
+}
+
+func getFirstGeneratedVersion(firstSupportedVersion string, platformVersion int) (int, error) {
+	if firstSupportedVersion == "current" {
+		return platformVersion + 1, nil
+	}
+
+	return strconv.Atoi(firstSupportedVersion)
 }
 
 func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
-	maxVersion := mctx.AConfig().PlatformSdkVersionInt()
+	platformVersion := mctx.AConfig().PlatformSdkVersionInt()
 
-	firstVersion, err := normalizeNdkApiLevel(c.properties.First_version,
+	firstSupportedVersion, err := normalizeNdkApiLevel(c.properties.First_version,
 		mctx.Arch())
 	if err != nil {
 		mctx.PropertyErrorf("first_version", err.Error())
 	}
 
+	firstGenVersion, err := getFirstGeneratedVersion(firstSupportedVersion, platformVersion)
+	if err != nil {
+		// In theory this is impossible because we've already run this through
+		// normalizeNdkApiLevel above.
+		mctx.PropertyErrorf("first_version", err.Error())
+	}
+
 	var versionStrs []string
-	for version := firstVersion; version <= maxVersion; version++ {
+	for version := firstGenVersion; version <= platformVersion; version++ {
 		versionStrs = append(versionStrs, strconv.Itoa(version))
 	}
 	versionStrs = append(versionStrs, "current")
