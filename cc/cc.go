@@ -497,7 +497,7 @@ func (c *Module) begin(ctx BaseModuleContext) {
 		if err != nil {
 			ctx.PropertyErrorf("sdk_version", err.Error())
 		}
-		c.Properties.Sdk_version = strconv.Itoa(version)
+		c.Properties.Sdk_version = version
 	}
 }
 
