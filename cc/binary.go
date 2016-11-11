@@ -101,15 +101,24 @@ func (binary *binaryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps
 				}
 				deps.CrtEnd = "crtend_android"
 			} else {
+				// TODO(danalbert): Add generation of crt objects.
+				// For `sdk_version: "current"`, we don't actually have a
+				// freshly generated set of CRT objects. Use the last stable
+				// version.
+				version := ctx.sdkVersion()
+				if version == "current" {
+					version = ctx.AConfig().PlatformSdkVersion()
+				}
+
 				if binary.static() {
-					deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
+					deps.CrtBegin = "ndk_crtbegin_static." + version
 				} else {
 					if binary.static() {
-						deps.CrtBegin = "ndk_crtbegin_static." + ctx.sdkVersion()
+						deps.CrtBegin = "ndk_crtbegin_static." + version
 					} else {
-						deps.CrtBegin = "ndk_crtbegin_dynamic." + ctx.sdkVersion()
+						deps.CrtBegin = "ndk_crtbegin_dynamic." + version
 					}
-					deps.CrtEnd = "ndk_crtend_android." + ctx.sdkVersion()
+					deps.CrtEnd = "ndk_crtend_android." + version
 				}
 			}
 		}
