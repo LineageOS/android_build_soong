@@ -335,8 +335,16 @@ func (library *libraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) De
 				deps.CrtBegin = "crtbegin_so"
 				deps.CrtEnd = "crtend_so"
 			} else {
-				deps.CrtBegin = "ndk_crtbegin_so." + ctx.sdkVersion()
-				deps.CrtEnd = "ndk_crtend_so." + ctx.sdkVersion()
+				// TODO(danalbert): Add generation of crt objects.
+				// For `sdk_version: "current"`, we don't actually have a
+				// freshly generated set of CRT objects. Use the last stable
+				// version.
+				version := ctx.sdkVersion()
+				if version == "current" {
+					version = ctx.AConfig().PlatformSdkVersion()
+				}
+				deps.CrtBegin = "ndk_crtbegin_so." + version
+				deps.CrtEnd = "ndk_crtend_so." + version
 			}
 		}
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Shared.Whole_static_libs...)
