@@ -192,10 +192,10 @@ var (
 	osTypeList []OsType
 
 	NoOsType OsType
-	Linux    = NewOsType("linux", Host)
-	Darwin   = NewOsType("darwin", Host)
-	Windows  = NewOsType("windows", HostCross)
-	Android  = NewOsType("android", Device)
+	Linux    = NewOsType("linux", Host, false)
+	Darwin   = NewOsType("darwin", Host, false)
+	Windows  = NewOsType("windows", HostCross, true)
+	Android  = NewOsType("android", Device, false)
 
 	osArchTypeMap = map[OsType][]ArchType{
 		Linux:   []ArchType{X86, X86_64},
@@ -208,6 +208,8 @@ var (
 type OsType struct {
 	Name, Field string
 	Class       OsClass
+
+	DefaultDisabled bool
 }
 
 type OsClass int
@@ -222,11 +224,13 @@ func (os OsType) String() string {
 	return os.Name
 }
 
-func NewOsType(name string, class OsClass) OsType {
+func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 	os := OsType{
 		Name:  name,
 		Field: strings.Title(name),
 		Class: class,
+
+		DefaultDisabled: defDisabled,
 	}
 	osTypeList = append(osTypeList, os)
 	return os
