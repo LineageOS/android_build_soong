@@ -119,7 +119,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt-extras")
 	}
 
-	if ctx.Device() {
+	if ctx.toolchain().Bionic() {
 		// libgcc and libatomic have to be last on the command line
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 		if !Bool(linker.Properties.No_libgcc) {
@@ -165,7 +165,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
 		}
 
-		if ctx.Host() {
+		if !ctx.toolchain().Bionic() {
 			CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
 
 			flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
