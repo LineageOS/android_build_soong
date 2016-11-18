@@ -97,7 +97,7 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		} else {
 			deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
 		}
-		if ctx.Device() {
+		if ctx.toolchain().Bionic() {
 			if ctx.Arch().ArchType == android.Arm {
 				deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
 			}
@@ -135,7 +135,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	switch stl.Properties.SelectedStl {
 	case "libc++", "libc++_static":
 		flags.CFlags = append(flags.CFlags, "-D_USING_LIBCXX")
-		if ctx.Host() {
+		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
 			flags.LdFlags = append(flags.LdFlags, "-lpthread", "-lm")
@@ -161,7 +161,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 		// Nothing
 	case "":
 		// None or error.
-		if ctx.Host() {
+		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
 			if ctx.staticBinary() {

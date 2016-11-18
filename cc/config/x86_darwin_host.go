@@ -269,6 +269,10 @@ func (t *toolchainDarwin) AvailableLibraries() []string {
 	return darwinAvailableLibraries
 }
 
+func (t *toolchainDarwin) Bionic() bool {
+	return false
+}
+
 var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}
 var toolchainDarwinX8664Singleton Toolchain = &toolchainDarwinX8664{}
 
