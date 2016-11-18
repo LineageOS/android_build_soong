@@ -45,6 +45,13 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
+	if ctx.Config().ProductVariables.DeviceVndkVersion != nil {
+		ctx.Strict("BOARD_VNDK_VERSION", *ctx.Config().ProductVariables.DeviceVndkVersion)
+	} else {
+		ctx.Strict("BOARD_VNDK_VERSION", "")
+	}
+	ctx.Strict("VNDK_LIBRARIES", strings.Join(config.VndkLibraries(), " "))
+
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS", asanCflags)
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS", asanLdflags)
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_STATIC_LIBRARIES", asanLibs)

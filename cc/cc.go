@@ -125,6 +125,9 @@ type BaseProperties struct {
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version string
 
+	// Whether to compile against the VNDK
+	Use_vndk bool
+
 	// don't insert default compiler flags into asflags, cflags,
 	// cppflags, conlyflags, ldflags, or include_dirs
 	No_default_compiler_flags *bool
@@ -132,6 +135,7 @@ type BaseProperties struct {
 	AndroidMkSharedLibs []string `blueprint:"mutated"`
 	HideFromMake        bool     `blueprint:"mutated"`
 	PreventInstall      bool     `blueprint:"mutated"`
+	Vndk_version        string   `blueprint:"mutated"`
 }
 
 type UnusedProperties struct {
@@ -147,6 +151,7 @@ type ModuleContextIntf interface {
 	noDefaultCompilerFlags() bool
 	sdk() bool
 	sdkVersion() string
+	vndk() bool
 	selectedStl() string
 	baseModuleName() string
 }
@@ -345,9 +350,20 @@ func (ctx *moduleContextImpl) sdk() bool {
 
 func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
-		return ctx.mod.Properties.Sdk_version
+		if ctx.mod.Properties.Use_vndk {
+			return ctx.mod.Properties.Vndk_version
+		} else {
+			return ctx.mod.Properties.Sdk_version
+		}
 	}
 	return ""
+}
+
+func (ctx *moduleContextImpl) vndk() bool {
+	if ctx.ctx.Device() {
+		return ctx.mod.Properties.Use_vndk
+	}
+	return false
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -493,11 +509,22 @@ func (c *Module) begin(ctx BaseModuleContext) {
 		feature.begin(ctx)
 	}
 	if ctx.sdk() {
+		if ctx.vndk() {
+			ctx.PropertyErrorf("use_vndk",
+				"sdk_version and use_vndk cannot be used at the same time")
+		}
+
 		version, err := normalizeNdkApiLevel(ctx.sdkVersion(), ctx.Arch())
 		if err != nil {
 			ctx.PropertyErrorf("sdk_version", err.Error())
 		}
 		c.Properties.Sdk_version = version
+	} else if ctx.vndk() {
+		version, err := normalizeNdkApiLevel(ctx.DeviceConfig().VndkVersion(), ctx.Arch())
+		if err != nil {
+			ctx.ModuleErrorf("Bad BOARD_VNDK_VERSION: %s", err.Error())
+		}
+		c.Properties.Vndk_version = version
 	}
 }
 
@@ -579,7 +606,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	variantNdkLibs := []string{}
 	variantLateNdkLibs := []string{}
-	if ctx.sdk() {
+	if ctx.sdk() || ctx.vndk() {
 		version := ctx.sdkVersion()
 
 		// Rewrites the names of shared libraries into the names of the NDK
