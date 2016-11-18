@@ -191,17 +191,19 @@ var BuildOs = func() OsType {
 var (
 	osTypeList []OsType
 
-	NoOsType OsType
-	Linux    = NewOsType("linux", Host, false)
-	Darwin   = NewOsType("darwin", Host, false)
-	Windows  = NewOsType("windows", HostCross, true)
-	Android  = NewOsType("android", Device, false)
+	NoOsType    OsType
+	Linux       = NewOsType("linux", Host, false)
+	Darwin      = NewOsType("darwin", Host, false)
+	LinuxBionic = NewOsType("linux_bionic", Host, true)
+	Windows     = NewOsType("windows", HostCross, true)
+	Android     = NewOsType("android", Device, false)
 
 	osArchTypeMap = map[OsType][]ArchType{
-		Linux:   []ArchType{X86, X86_64},
-		Darwin:  []ArchType{X86, X86_64},
-		Windows: []ArchType{X86, X86_64},
-		Android: []ArchType{Arm, Arm64, Mips, Mips64, X86, X86_64},
+		Linux:       []ArchType{X86, X86_64},
+		LinuxBionic: []ArchType{X86_64},
+		Darwin:      []ArchType{X86, X86_64},
+		Windows:     []ArchType{X86, X86_64},
+		Android:     []ArchType{Arm, Arm64, Mips, Mips64, X86, X86_64},
 	}
 )
 
