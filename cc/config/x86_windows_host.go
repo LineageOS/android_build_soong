@@ -202,6 +202,10 @@ func (t *toolchainWindows) AvailableLibraries() []string {
 	return windowsAvailableLibraries
 }
 
+func (t *toolchainWindows) Bionic() bool {
+	return false
+}
+
 var toolchainWindowsX86Singleton Toolchain = &toolchainWindowsX86{}
 var toolchainWindowsX8664Singleton Toolchain = &toolchainWindowsX8664{}
 

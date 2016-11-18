@@ -209,6 +209,7 @@ cc_defaults {
 
 toolchain_library {
     name: "libatomic",
+    defaults: ["linux_bionic_supported"],
     arch: {
         arm: {
             instruction_set: "arm",
@@ -218,6 +219,7 @@ toolchain_library {
 
 toolchain_library {
     name: "libgcc",
+    defaults: ["linux_bionic_supported"],
     arch: {
         arm: {
             instruction_set: "arm",
@@ -227,6 +229,7 @@ toolchain_library {
 
 toolchain_library {
     name: "libgcov",
+    defaults: ["linux_bionic_supported"],
     arch: {
         arm: {
             instruction_set: "arm",
