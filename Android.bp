@@ -187,6 +187,23 @@ bootstrap_go_package {
 }
 
 //
+// Defaults to enable various configurations of host bionic
+//
+
+cc_defaults {
+    name: "linux_bionic_supported",
+    host_supported: true,
+    target: {
+        host: {
+            enabled: false,
+        },
+        linux_bionic: {
+            enabled: true,
+        },
+    },
+}
+
+//
 // C static libraries extracted from the gcc toolchain
 //
 
