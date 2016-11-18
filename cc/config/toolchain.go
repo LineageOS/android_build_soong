@@ -74,6 +74,8 @@ type Toolchain interface {
 	SanitizerRuntimeLibraryArch() string
 
 	AvailableLibraries() []string
+
+	Bionic() bool
 }
 
 type toolchainBase struct {
@@ -131,6 +133,10 @@ func (toolchainBase) SanitizerRuntimeLibraryArch() string {
 
 func (toolchainBase) AvailableLibraries() []string {
 	return []string{}
+}
+
+func (toolchainBase) Bionic() bool {
+	return true
 }
 
 type toolchain64Bit struct {

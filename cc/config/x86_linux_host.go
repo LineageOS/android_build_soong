@@ -256,6 +256,10 @@ func (t *toolchainLinux) AvailableLibraries() []string {
 	return linuxAvailableLibraries
 }
 
+func (t *toolchainLinux) Bionic() bool {
+	return false
+}
+
 var toolchainLinuxX86Singleton Toolchain = &toolchainLinuxX86{}
 var toolchainLinuxX8664Singleton Toolchain = &toolchainLinuxX8664{}
 
