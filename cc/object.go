@@ -36,7 +36,7 @@ type objectLinker struct {
 }
 
 func objectFactory() (blueprint.Module, []interface{}) {
-	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
+	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
 	module.linker = &objectLinker{
 		baseLinker: NewBaseLinker(),
 	}
