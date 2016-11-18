@@ -91,7 +91,7 @@ func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
 
 func (binary *binaryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps = binary.baseLinker.linkerDeps(ctx, deps)
-	if ctx.Device() {
+	if ctx.toolchain().Bionic() {
 		if !Bool(binary.baseLinker.Properties.Nocrt) {
 			if !ctx.sdk() {
 				if binary.static() {
@@ -163,7 +163,7 @@ func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 	binary.baseLinker.linkerInit(ctx)
 
-	if ctx.Host() {
+	if !ctx.toolchain().Bionic() {
 		if ctx.Os() == android.Linux {
 			if binary.Properties.Static_executable == nil && Bool(ctx.AConfig().ProductVariables.HostStaticBinaries) {
 				binary.Properties.Static_executable = proptools.BoolPtr(true)
@@ -210,7 +210,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 		flags.CFlags = append(flags.CFlags, "-fpie")
 	}
 
-	if ctx.Device() {
+	if ctx.toolchain().Bionic() {
 		if binary.static() {
 			// Clang driver needs -static to create static executable.
 			// However, bionic/linker uses -shared to overwrite.
