@@ -355,7 +355,7 @@ func (a *ModuleBase) DeviceSupported() bool {
 
 func (a *ModuleBase) Enabled() bool {
 	if a.commonProperties.Enabled == nil {
-		return a.Os().Class != HostCross
+		return !a.Os().DefaultDisabled
 	}
 	return *a.commonProperties.Enabled
 }
