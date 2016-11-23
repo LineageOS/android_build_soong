@@ -85,19 +85,19 @@ var expandTestCases = []struct {
 	},
 	{
 		in:  "$$",
-		out: "$",
+		out: "$$",
 	},
 	{
 		in:  "$$(var1)",
-		out: "$(var1)",
+		out: "$$(var1)",
 	},
 	{
 		in:  "$$$(var1)",
-		out: "$abc",
+		out: "$$abc",
 	},
 	{
 		in:  "$(var1)$$",
-		out: "abc$",
+		out: "abc$$",
 	},
 	{
 		in:  "$(💩)",
