@@ -47,6 +47,7 @@ type generatorProperties struct {
 	// $(location <label>): the path to the tool or tool_file with name <label>
 	// $(in): one or more input files
 	// $(out): a single output file
+	// $(deps): a file to which dependencies will be written, if the depfile property is set to true
 	// $(genDir): the sandbox directory for this tool; contains $(out)
 	// $$: a literal $
 	//
@@ -54,6 +55,9 @@ type generatorProperties struct {
 	// command will be missing proper dependencies to re-run if the files
 	// change.
 	Cmd string
+
+	// Enable reading a file containing dependencies in gcc format after the command completes
+	Depfile bool
 
 	// name of the modules (if any) that produces the host executable.   Leave empty for
 	// prebuilts or scripts that do not need a module to build them.
@@ -156,6 +160,11 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			return "${in}", nil
 		case "out":
 			return "${out}", nil
+		case "depfile":
+			if !g.properties.Depfile {
+				return "", fmt.Errorf("$(depfile) used without depfile property")
+			}
+			return "${depfile}", nil
 		case "genDir":
 			return g.genPath.String(), nil
 		default:
@@ -175,9 +184,15 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("cmd", "%s", err.Error())
 	}
 
-	g.rule = ctx.Rule(pctx, "generator", blueprint.RuleParams{
+	ruleParams := blueprint.RuleParams{
 		Command: cmd,
-	})
+	}
+	var args []string
+	if g.properties.Depfile {
+		ruleParams.Deps = blueprint.DepsGCC
+		args = append(args, "depfile")
+	}
+	g.rule = ctx.Rule(pctx, "generator", ruleParams, args...)
 
 	for _, task := range g.tasks(ctx) {
 		g.generateSourceFile(ctx, task)
@@ -185,12 +200,17 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask) {
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	params := android.ModuleBuildParams{
 		Rule:      g.rule,
 		Outputs:   task.out,
 		Inputs:    task.in,
 		Implicits: g.deps,
-	})
+	}
+	if g.properties.Depfile {
+		depfile := android.GenPathWithExt(ctx, "", task.out[0], task.out[0].Ext()+".d")
+		params.Depfile = depfile
+	}
+	ctx.ModuleBuild(pctx, params)
 
 	for _, outputFile := range task.out {
 		g.outputFiles = append(g.outputFiles, outputFile)
