@@ -57,7 +57,7 @@ func getMapping(s string, mapping func(string) (string, error)) (string, int, er
 		}
 		return "", len(s), fmt.Errorf("missing )")
 	case '$':
-		return s[0:1], 1, nil
+		return "$$", 1, nil
 	default:
 		i := strings.IndexFunc(s, unicode.IsSpace)
 		if i == 0 {
