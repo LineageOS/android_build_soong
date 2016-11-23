@@ -136,7 +136,13 @@ func init() {
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
 
-	pctx.StaticVariable("ClangAsanLibDir", "${ClangPath}/lib64/clang/3.8/lib/linux")
+	pctx.VariableFunc("ClangShortVersion", func(config interface{}) (string, error) {
+		if override := config.(android.Config).Getenv("LLVM_RELEASE_VERSION"); override != "" {
+			return override, nil
+		}
+		return "3.8", nil
+	})
+	pctx.StaticVariable("ClangAsanLibDir", "${ClangPath}/lib64/clang/${ClangShortVersion}/lib/linux")
 
 	pctx.VariableFunc("CcWrapper", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("CC_WRAPPER"); override != "" {
