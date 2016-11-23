@@ -100,8 +100,11 @@ var (
 			"pthread",
 			"z",
 		}, "-l"),
+		"-framework AppKit",
 		"-framework CoreFoundation",
+		"-framework Foundation",
 		"-framework IOKit",
+		"-framework Security",
 	)
 )
 
