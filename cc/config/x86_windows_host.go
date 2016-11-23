@@ -85,6 +85,7 @@ var (
 		"pthread",
 		"userenv",
 		"uuid",
+		"version",
 		"ws2_32",
 	}, "-l")
 )
