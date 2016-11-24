@@ -34,6 +34,8 @@ var (
 
 type ModuleBuildParams struct {
 	Rule            blueprint.Rule
+	Deps            blueprint.Deps
+	Depfile         WritablePath
 	Output          WritablePath
 	Outputs         WritablePaths
 	ImplicitOutput  WritablePath
@@ -521,6 +523,7 @@ func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params bluep
 func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
 	bparams := blueprint.BuildParams{
 		Rule:            params.Rule,
+		Deps:            params.Deps,
 		Outputs:         params.Outputs.Strings(),
 		ImplicitOutputs: params.ImplicitOutputs.Strings(),
 		Inputs:          params.Inputs.Strings(),
@@ -530,6 +533,9 @@ func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params
 		Optional:        !params.Default,
 	}
 
+	if params.Depfile != nil {
+		bparams.Depfile = params.Depfile.String()
+	}
 	if params.Output != nil {
 		bparams.Outputs = append(bparams.Outputs, params.Output.String())
 	}
