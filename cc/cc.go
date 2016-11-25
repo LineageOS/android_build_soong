@@ -786,7 +786,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
 						genRule.GeneratedSourceFiles()...)
-					flags := includeDirsToFlags(android.Paths{genRule.GeneratedHeaderDir()})
+					flags := includeDirsToFlags(genRule.GeneratedHeaderDirs())
 					depPaths.Flags = append(depPaths.Flags, flags)
 					if tag == genHeaderExportDepTag {
 						depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags)
