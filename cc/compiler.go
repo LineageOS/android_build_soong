@@ -245,17 +245,17 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 
 	if !ctx.noDefaultCompilerFlags() {
 		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
-		flags.ConlyFlags = append(flags.ConlyFlags, "${config.CommonGlobalConlyflags}")
+		flags.ConlyFlags = append([]string{"${config.CommonGlobalConlyflags}"}, flags.ConlyFlags...)
 
 		if flags.Clang {
 			flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())
-			flags.CppFlags = append(flags.CppFlags, "${config.CommonClangGlobalCppflags}")
+			flags.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.CppFlags...)
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				tc.ClangCflags(),
 				"${config.CommonClangGlobalCflags}",
 				fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
 		} else {
-			flags.CppFlags = append(flags.CppFlags, "${config.CommonGlobalCppflags}")
+			flags.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.CppFlags...)
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				tc.Cflags(),
 				"${config.CommonGlobalCflags}",
