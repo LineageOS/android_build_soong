@@ -160,7 +160,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	}
 
 	if !ctx.noDefaultCompilerFlags() {
-		if !ctx.sdk() || ctx.Host() {
+		if !(ctx.sdk() || ctx.vndk()) || ctx.Host() {
 			flags.GlobalFlags = append(flags.GlobalFlags,
 				"${config.CommonGlobalIncludes}",
 				"${config.CommonGlobalSystemIncludes}",
@@ -171,7 +171,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
 	}
 
-	if ctx.sdk() {
+	if ctx.sdk() || ctx.vndk() {
 		// The NDK headers are installed to a common sysroot. While a more
 		// typical Soong approach would be to only make the headers for the
 		// library you're using available, we're trying to emulate the NDK
@@ -354,7 +354,7 @@ func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")
 
 func ndkPathDeps(ctx ModuleContext) android.Paths {
-	if ctx.sdk() {
+	if ctx.sdk() || ctx.vndk() {
 		// The NDK sysroot timestamp file depends on all the NDK sysroot files
 		// (headers and libraries).
 		return android.Paths{getNdkSysrootTimestampFile(ctx)}
