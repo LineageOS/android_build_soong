@@ -77,6 +77,7 @@ var standardProperties = map[string]struct {
 	"LOCAL_NO_STANDARD_LIBRARIES":   {"no_standard_libraries", bpparser.BoolType},
 	"LOCAL_PACK_MODULE_RELOCATIONS": {"pack_relocations", bpparser.BoolType},
 	"LOCAL_TIDY":                    {"tidy", bpparser.BoolType},
+	"LOCAL_USE_VNDK":                {"use_vndk", bpparser.BoolType},
 
 	"LOCAL_EXPORT_PACKAGE_RESOURCES": {"export_package_resources", bpparser.BoolType},
 }

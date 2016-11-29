@@ -331,7 +331,7 @@ func (library *libraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) De
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
 	} else {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
-			if !ctx.sdk() {
+			if !ctx.sdk() && !ctx.vndk() {
 				deps.CrtBegin = "crtbegin_so"
 				deps.CrtEnd = "crtend_so"
 			} else {

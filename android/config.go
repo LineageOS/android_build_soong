@@ -424,3 +424,10 @@ func (c *deviceConfig) Arches() []Arch {
 	}
 	return arches
 }
+
+func (c *deviceConfig) VndkVersion() string {
+	if c.config.ProductVariables.DeviceVndkVersion == nil {
+		return ""
+	}
+	return *c.config.ProductVariables.DeviceVndkVersion
+}
