@@ -217,7 +217,8 @@ type OsType struct {
 type OsClass int
 
 const (
-	Device OsClass = iota
+	Generic OsClass = iota
+	Device
 	Host
 	HostCross
 )
