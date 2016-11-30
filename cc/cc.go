@@ -845,8 +845,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if tag == reuseObjTag {
-			depPaths.Objs = depPaths.Objs.Append(cc.compiler.(libraryInterface).reuseObjs())
-			return
+			if l, ok := cc.compiler.(libraryInterface); ok {
+				depPaths.Objs = depPaths.Objs.Append(l.reuseObjs())
+				return
+			}
 		}
 
 		if t, ok := tag.(dependencyTag); ok && t.library {

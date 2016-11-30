@@ -60,13 +60,14 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 }
 
 func prebuiltSharedLibraryFactory() (blueprint.Module, []interface{}) {
-	module, library := NewLibrary(android.HostAndDeviceSupported, true, false)
+	module, library := NewLibrary(android.HostAndDeviceSupported, true, true)
 	module.compiler = nil
 
 	prebuilt := &prebuiltLibraryLinker{
 		libraryDecorator: library,
 	}
 	module.linker = prebuilt
+	module.installer = prebuilt
 
 	return module.Init()
 }
