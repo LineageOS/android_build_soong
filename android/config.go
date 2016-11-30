@@ -291,6 +291,24 @@ func (c *config) Getenv(key string) string {
 	return val
 }
 
+func (c *config) GetenvWithDefault(key string, defaultValue string) string {
+	ret := c.Getenv(key)
+	if ret == "" {
+		return defaultValue
+	}
+	return ret
+}
+
+func (c *config) IsEnvTrue(key string) bool {
+	value := c.Getenv(key)
+	return value == "1" || value == "y" || value == "yes" || value == "on" || value == "true"
+}
+
+func (c *config) IsEnvFalse(key string) bool {
+	value := c.Getenv(key)
+	return value == "0" || value == "n" || value == "no" || value == "off" || value == "false"
+}
+
 func (c *config) EnvDeps() map[string]string {
 	c.envLock.Lock()
 	c.envFrozen = true
