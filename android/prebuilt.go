@@ -68,6 +68,7 @@ func (p *Prebuilt) Path(ctx ModuleContext) Path {
 type PrebuiltInterface interface {
 	Module
 	Prebuilt() *Prebuilt
+	SkipInstall()
 }
 
 type PrebuiltSourceInterface interface {
@@ -89,14 +90,19 @@ func prebuiltMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
-// PrebuiltReplaceMutator replaces dependencies on the source module with dependencies on the prebuilt
-// when both modules exist and the prebuilt should be used.
+// PrebuiltReplaceMutator replaces dependencies on the source module with dependencies on the
+// prebuilt when both modules exist and the prebuilt should be used.  When the prebuilt should not
+// be used, disable installing it.
 func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
 		p := m.Prebuilt()
 		name := m.base().BaseModuleName()
-		if p.Properties.SourceExists && p.usePrebuilt(ctx) {
-			ctx.ReplaceDependencies(name)
+		if p.usePrebuilt(ctx) {
+			if p.Properties.SourceExists {
+				ctx.ReplaceDependencies(name)
+			}
+		} else {
+			m.SkipInstall()
 		}
 	}
 }
