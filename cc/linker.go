@@ -76,6 +76,10 @@ type BaseLinkerProperties struct {
 	// don't link in crt_begin and crt_end.  This flag should only be necessary for
 	// compiling crt or libc.
 	Nocrt *bool `android:"arch_variant"`
+
+	// group static libraries.  This can resolve missing symbols issues with interdependencies
+	// between static libraries, but it is generally better to order them correctly instead.
+	Group_static_libs *bool `android:"arch_variant"`
 }
 
 func NewBaseLinker() *baseLinker {
@@ -191,6 +195,10 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
 	} else {
 		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
+	}
+
+	if Bool(linker.Properties.Group_static_libs) {
+		flags.GroupStaticLibs = true
 	}
 
 	return flags
