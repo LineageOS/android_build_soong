@@ -46,8 +46,8 @@ func registerMutators() {
 
 	ctx.BottomUp("deps", depsMutator).Parallel()
 
+	ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
 	ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
-	ctx.TopDown("prebuilt_disable", PrebuiltDisableMutator).Parallel()
 
 	register(postDeps)
 }
