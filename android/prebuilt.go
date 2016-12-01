@@ -21,20 +21,6 @@ import "github.com/google/blueprint"
 
 var prebuiltDependencyTag blueprint.BaseDependencyTag
 
-func SourceModuleHasPrebuilt(ctx ModuleContext) OptionalPath {
-	var path Path
-	ctx.VisitDirectDeps(func(m blueprint.Module) {
-		if ctx.OtherModuleDependencyTag(m) == prebuiltDependencyTag {
-			p := m.(PrebuiltInterface).Prebuilt()
-			if p.usePrebuilt(ctx) {
-				path = p.Path(ctx)
-			}
-		}
-	})
-
-	return OptionalPathForPath(path)
-}
-
 type Prebuilt struct {
 	Properties struct {
 		Srcs []string `android:"arch_variant"`
@@ -43,6 +29,7 @@ type Prebuilt struct {
 		Prefer bool `android:"arch_variant"`
 
 		SourceExists bool `blueprint:"mutated"`
+		UsePrebuilt  bool `blueprint:"mutated"`
 	}
 	module Module
 }
@@ -68,11 +55,6 @@ func (p *Prebuilt) Path(ctx ModuleContext) Path {
 type PrebuiltInterface interface {
 	Module
 	Prebuilt() *Prebuilt
-	SkipInstall()
-}
-
-type PrebuiltSourceInterface interface {
-	SkipInstall()
 }
 
 // prebuiltMutator ensures that there is always a module with an undecorated name, and marks
@@ -90,6 +72,22 @@ func prebuiltMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+// PrebuiltSelectModuleMutator marks prebuilts that are overriding source modules, and disables
+// installing the source module.
+func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
+	if s, ok := ctx.Module().(Module); ok {
+		ctx.VisitDirectDeps(func(m blueprint.Module) {
+			if ctx.OtherModuleDependencyTag(m) == prebuiltDependencyTag {
+				p := m.(PrebuiltInterface).Prebuilt()
+				if p.usePrebuilt(ctx, s) {
+					p.Properties.UsePrebuilt = true
+					s.SkipInstall()
+				}
+			}
+		})
+	}
+}
+
 // PrebuiltReplaceMutator replaces dependencies on the source module with dependencies on the
 // prebuilt when both modules exist and the prebuilt should be used.  When the prebuilt should not
 // be used, disable installing it.
@@ -97,7 +95,7 @@ func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
 		p := m.Prebuilt()
 		name := m.base().BaseModuleName()
-		if p.usePrebuilt(ctx) {
+		if p.Properties.UsePrebuilt {
 			if p.Properties.SourceExists {
 				ctx.ReplaceDependencies(name)
 			}
@@ -107,21 +105,17 @@ func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
-// PrebuiltDisableMutator disables source modules that have prebuilts that should be used instead.
-func PrebuiltDisableMutator(ctx TopDownMutatorContext) {
-	if s, ok := ctx.Module().(PrebuiltSourceInterface); ok {
-		ctx.VisitDirectDeps(func(m blueprint.Module) {
-			if ctx.OtherModuleDependencyTag(m) == prebuiltDependencyTag {
-				p := m.(PrebuiltInterface).Prebuilt()
-				if p.usePrebuilt(ctx) {
-					s.SkipInstall()
-				}
-			}
-		})
+// usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
+// will be used if it is marked "prefer" or if the source module is disabled.
+func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
+	if len(p.Properties.Srcs) == 0 {
+		return false
 	}
-}
 
-func (p *Prebuilt) usePrebuilt(ctx BaseContext) bool {
-	// TODO: use p.Properties.Name and ctx.ModuleDir to override prefer
-	return p.Properties.Prefer && len(p.Properties.Srcs) > 0
+	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
+	if p.Properties.Prefer {
+		return true
+	}
+
+	return !source.Enabled()
 }
