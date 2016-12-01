@@ -100,6 +100,7 @@ type Module interface {
 	Enabled() bool
 	Target() Target
 	InstallInData() bool
+	SkipInstall()
 }
 
 type nameProperties struct {
