@@ -70,7 +70,7 @@ type javaBaseProperties struct {
 	// list of directories that should be excluded from java_resource_dirs
 	Exclude_java_resource_dirs []string `android:"arch_variant"`
 
-	// don't build against the default libraries (core-libart, core-junit,
+	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
 	No_standard_libraries bool
 
@@ -188,7 +188,7 @@ func (j *javaBase) BootClasspath(ctx android.BaseContext) string {
 	}
 }
 
-var defaultJavaLibraries = []string{"core-libart", "core-junit", "ext", "framework"}
+var defaultJavaLibraries = []string{"core-libart", "legacy-test", "ext", "framework"}
 
 func (j *javaBase) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if j, ok := ctx.Module().(JavaModuleType); ok {
