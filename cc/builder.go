@@ -250,7 +250,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		case ".c":
 			ccCmd = "gcc"
 			moduleCflags = cflags
-		case ".cpp", ".cc":
+		case ".cpp", ".cc", ".mm":
 			ccCmd = "g++"
 			moduleCflags = cppflags
 		default:
