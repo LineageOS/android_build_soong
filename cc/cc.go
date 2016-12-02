@@ -110,6 +110,8 @@ type Flags struct {
 	DynamicLinker          string
 
 	CFlagsDeps android.Paths // Files depended on by compiler flags
+
+	GroupStaticLibs bool
 }
 
 type ObjectLinkerProperties struct {
