@@ -100,6 +100,8 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		toolchain:   in.Toolchain,
 		clang:       in.Clang,
 		tidy:        in.Tidy,
+
+		groupStaticLibs: in.GroupStaticLibs,
 	}
 }
 
