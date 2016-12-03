@@ -188,6 +188,9 @@ func init() {
 	pctx.StaticVariable("X86ClangLdflags", strings.Join(ClangFilterUnknownCflags(x86Ldflags), " "))
 	pctx.StaticVariable("X86ClangCppflags", strings.Join(ClangFilterUnknownCflags(x86Cppflags), " "))
 
+	// Yasm flags
+	pctx.StaticVariable("X86YasmFlags", "-f elf32 -m x86")
+
 	// Extended cflags
 
 	// Architecture variant cflags
@@ -265,6 +268,10 @@ func (t *toolchainX86) ClangCppflags() string {
 
 func (t *toolchainX86) ClangLdflags() string {
 	return "${config.X86Ldflags}"
+}
+
+func (t *toolchainX86) YasmFlags() string {
+	return "${config.X86YasmFlags}"
 }
 
 func (toolchainX86) SanitizerRuntimeLibraryArch() string {
