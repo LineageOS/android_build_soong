@@ -66,6 +66,8 @@ type Toolchain interface {
 	ClangLdflags() string
 	ClangInstructionSetFlags(string) (string, error)
 
+	YasmFlags() string
+
 	Is64Bit() bool
 
 	ShlibSuffix() string
@@ -124,6 +126,10 @@ func (toolchainBase) ExecutableSuffix() string {
 }
 
 func (toolchainBase) ClangAsflags() string {
+	return ""
+}
+
+func (toolchainBase) YasmFlags() string {
 	return ""
 }
 

@@ -101,6 +101,7 @@ type Flags struct {
 	LdFlags     []string // Flags that apply to linker command lines
 	libFlags    []string // Flags to add libraries early to the link order
 	TidyFlags   []string // Flags that apply to clang-tidy
+	YasmFlags   []string // Flags that apply to yasm assembly source files
 
 	Toolchain config.Toolchain
 	Clang     bool

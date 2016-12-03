@@ -147,6 +147,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	flags.CppFlags = append(flags.CppFlags, esc(compiler.Properties.Cppflags)...)
 	flags.ConlyFlags = append(flags.ConlyFlags, esc(compiler.Properties.Conlyflags)...)
 	flags.AsFlags = append(flags.AsFlags, esc(compiler.Properties.Asflags)...)
+	flags.YasmFlags = append(flags.YasmFlags, esc(compiler.Properties.Asflags)...)
 	flags.YaccFlags = append(flags.YaccFlags, esc(compiler.Properties.Yaccflags)...)
 
 	// Include dir cflags
@@ -281,6 +282,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		} else {
 			flags.CppFlags = append(flags.CppFlags, tc.Cppflags())
 		}
+
+		flags.YasmFlags = append(flags.YasmFlags, tc.YasmFlags())
 	}
 
 	if flags.Clang {
