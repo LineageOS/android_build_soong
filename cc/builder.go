@@ -158,6 +158,16 @@ var (
 			Description: "tidy $out",
 		},
 		"cFlags", "tidyFlags")
+
+	yasmCmd = pctx.SourcePathVariable("yasmCmd", "prebuilts/misc/${config.HostPrebuiltTag}/yasm/yasm")
+
+	yasm = pctx.AndroidStaticRule("yasm",
+		blueprint.RuleParams{
+			Command:     "$yasmCmd $asFlags -o $out $in",
+			CommandDeps: []string{"$yasmCmd"},
+			Description: "yasm $out",
+		},
+		"asFlags")
 )
 
 func init() {
@@ -183,6 +193,7 @@ type builderFlags struct {
 	yaccFlags   string
 	protoFlags  string
 	tidyFlags   string
+	yasmFlags   string
 	toolchain   config.Toolchain
 	clang       bool
 	tidy        bool
@@ -239,6 +250,19 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		objFile := android.ObjPathWithExt(ctx, subdir, srcFile, "o")
 
 		objFiles[i] = objFile
+
+		if srcFile.Ext() == ".asm" {
+			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+				Rule:      yasm,
+				Output:    objFile,
+				Input:     srcFile,
+				OrderOnly: deps,
+				Args: map[string]string{
+					"asFlags": flags.yasmFlags,
+				},
+			})
+			continue
+		}
 
 		var moduleCflags string
 		var ccCmd string
