@@ -49,6 +49,9 @@ func (tidy *tidyFeature) deps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
+	CheckBadTidyFlags(ctx, "tidy_flags", tidy.Properties.Tidy_flags)
+	CheckBadTidyChecks(ctx, "tidy_checks", tidy.Properties.Tidy_checks)
+
 	// Check if tidy is explicitly disabled for this module
 	if tidy.Properties.Tidy != nil && !*tidy.Properties.Tidy {
 		return flags
@@ -66,8 +69,6 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 
 	flags.Tidy = true
 
-	CheckBadTidyFlags(ctx, "tidy_flags", tidy.Properties.Tidy_flags)
-
 	esc := proptools.NinjaAndShellEscape
 
 	flags.TidyFlags = append(flags.TidyFlags, esc(tidy.Properties.Tidy_flags)...)
@@ -83,8 +84,6 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		tidyChecks += config.TidyChecksForDir(ctx.ModuleDir())
 	}
 	if len(tidy.Properties.Tidy_checks) > 0 {
-		CheckBadTidyChecks(ctx, "tidy_checks", tidy.Properties.Tidy_checks)
-
 		tidyChecks = tidyChecks + "," + strings.Join(esc(tidy.Properties.Tidy_checks), ",")
 	}
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
