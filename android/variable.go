@@ -113,6 +113,8 @@ type productVariables struct {
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
 
+	VendorPath *string `json:",omitempty"`
+
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`
 
