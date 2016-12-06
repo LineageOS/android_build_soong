@@ -631,7 +631,7 @@ func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
 	if ctx.Device() {
 		partition := "system"
 		if ctx.Proprietary() {
-			partition = "vendor"
+			partition = ctx.DeviceConfig().VendorPath()
 		}
 		if ctx.InstallInData() {
 			partition = "data"

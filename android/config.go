@@ -443,6 +443,13 @@ func (c *deviceConfig) Arches() []Arch {
 	return arches
 }
 
+func (c *deviceConfig) VendorPath() string {
+	if c.config.ProductVariables.VendorPath != nil {
+		return *c.config.ProductVariables.VendorPath
+	}
+	return "vendor"
+}
+
 func (c *deviceConfig) VndkVersion() string {
 	if c.config.ProductVariables.DeviceVndkVersion == nil {
 		return ""
