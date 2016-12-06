@@ -98,6 +98,7 @@ type Flags struct {
 	CppFlags    []string // Flags that apply to C++ source files
 	YaccFlags   []string // Flags that apply to Yacc source files
 	protoFlags  []string // Flags that apply to proto source files
+	aidlFlags   []string // Flags that apply to aidl source files
 	LdFlags     []string // Flags that apply to linker command lines
 	libFlags    []string // Flags to add libraries early to the link order
 	TidyFlags   []string // Flags that apply to clang-tidy
