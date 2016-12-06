@@ -87,6 +87,15 @@ type BaseCompilerProperties struct {
 	// if set to false, use -std=c++* instead of -std=gnu++*
 	Gnu_extensions *bool
 
+	Aidl struct {
+		// list of directories that will be added to the aidl include paths.
+		Include_dirs []string
+
+		// list of directories relative to the Blueprints file that will
+		// be added to the aidl include paths.
+		Local_include_dirs []string
+	}
+
 	Debug, Release struct {
 		// list of module-specific flags that will be used for C and C++ compiles in debug or
 		// release builds
@@ -339,6 +348,20 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	if compiler.hasSrcExt(".y") || compiler.hasSrcExt(".yy") {
 		flags.GlobalFlags = append(flags.GlobalFlags,
 			"-I"+android.PathForModuleGen(ctx, "yacc", ctx.ModuleDir()).String())
+	}
+
+	if compiler.hasSrcExt(".aidl") {
+		if len(compiler.Properties.Aidl.Local_include_dirs) > 0 {
+			localAidlIncludeDirs := android.PathsForModuleSrc(ctx, compiler.Properties.Aidl.Local_include_dirs)
+			flags.aidlFlags = append(flags.aidlFlags, includeDirsToFlags(localAidlIncludeDirs))
+		}
+		if len(compiler.Properties.Aidl.Include_dirs) > 0 {
+			rootAidlIncludeDirs := android.PathsForSource(ctx, compiler.Properties.Aidl.Include_dirs)
+			flags.aidlFlags = append(flags.aidlFlags, includeDirsToFlags(rootAidlIncludeDirs))
+		}
+
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			"-I"+android.PathForModuleGen(ctx, "aidl").String())
 	}
 
 	return flags

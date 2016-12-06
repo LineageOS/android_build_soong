@@ -64,6 +64,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("DEFAULT_LOCAL_TIDY_CHECKS", joinLocalTidyChecks(config.DefaultLocalTidyChecks))
 	ctx.Strict("DEFAULT_TIDY_HEADER_DIRS", "${config.TidyDefaultHeaderDirs}")
 
+	ctx.Strict("AIDL_CPP", "${aidlCmd}")
+
 	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes} ${config.CommonGlobalSystemIncludes}")
 	if err != nil {
 		panic(err)
