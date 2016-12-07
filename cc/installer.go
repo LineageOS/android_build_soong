@@ -25,9 +25,6 @@ import (
 type InstallerProperties struct {
 	// install to a subdirectory of the default install path for the module
 	Relative_install_path string `android:"arch_variant"`
-
-	// install symlinks to the module
-	Symlinks []string `android:"arch_variant"`
 }
 
 type installLocation int
@@ -62,7 +59,7 @@ func (installer *baseInstaller) installerProps() []interface{} {
 	return []interface{}{&installer.Properties}
 }
 
-func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
+func (installer *baseInstaller) installDir(ctx ModuleContext) android.OutputPath {
 	subDir := installer.dir
 	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
 		subDir = installer.dir64
@@ -70,11 +67,11 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 	if !ctx.Host() && !ctx.Arch().Native {
 		subDir = filepath.Join(subDir, ctx.Arch().ArchType.String())
 	}
-	dir := android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path, installer.relative)
-	installer.path = ctx.InstallFile(dir, file)
-	for _, symlink := range installer.Properties.Symlinks {
-		ctx.InstallSymlink(dir, symlink, installer.path)
-	}
+	return android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path, installer.relative)
+}
+
+func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
+	installer.path = ctx.InstallFile(installer.installDir(ctx), file)
 }
 
 func (installer *baseInstaller) inData() bool {
