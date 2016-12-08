@@ -53,7 +53,7 @@ type BaseLinkerProperties struct {
 	// modules cannot contain undefined symbols that are not satisified by their immediate
 	// dependencies.  Set this flag to true to remove --no-undefined from the linker flags.
 	// This flag should only be necessary for compiling low-level libraries like libc.
-	Allow_undefined_symbols *bool
+	Allow_undefined_symbols *bool `android:"arch_variant"`
 
 	// don't link in libgcc.a
 	No_libgcc *bool
