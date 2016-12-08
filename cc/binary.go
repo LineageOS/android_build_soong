@@ -37,6 +37,10 @@ type BinaryLinkerProperties struct {
 	// if set, install a symlink to the preferred architecture
 	Symlink_preferred_arch bool
 
+	// install symlinks to the binary.  Symlink names will have the suffix and the binary
+	// extension (if any) appended
+	Symlinks []string `android:"arch_variant"`
+
 	DynamicLinker string `blueprint:"mutated"`
 }
 
@@ -69,6 +73,9 @@ type binaryDecorator struct {
 	Properties BinaryLinkerProperties
 
 	toolPath android.OptionalPath
+
+	// Names of symlinks to be installed for use in LOCAL_MODULE_SYMLINKS
+	symlinks []string
 }
 
 var _ linker = (*binaryDecorator)(nil)
@@ -171,16 +178,6 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 		} else {
 			// Static executables are not supported on Darwin or Windows
 			binary.Properties.Static_executable = nil
-		}
-	}
-
-	if binary.Properties.Symlink_preferred_arch {
-		if binary.Properties.Stem == "" && binary.Properties.Suffix == "" {
-			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify stem or suffix")
-		}
-		if ctx.TargetPrimary() {
-			binary.baseInstaller.Properties.Symlinks = append(binary.baseInstaller.Properties.Symlinks,
-				ctx.baseModuleName())
 		}
 	}
 }
@@ -302,6 +299,24 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 	binary.baseInstaller.install(ctx, file)
+	for _, symlink := range binary.Properties.Symlinks {
+		binary.symlinks = append(binary.symlinks,
+			symlink+binary.Properties.Suffix+binary.baseInstaller.path.Ext())
+	}
+
+	if binary.Properties.Symlink_preferred_arch {
+		if binary.Properties.Stem == "" && binary.Properties.Suffix == "" {
+			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify stem or suffix")
+		}
+		if ctx.TargetPrimary() {
+			binary.symlinks = append(binary.symlinks, ctx.baseModuleName())
+		}
+	}
+
+	for _, symlink := range binary.symlinks {
+		ctx.InstallSymlink(binary.baseInstaller.installDir(ctx), symlink, binary.baseInstaller.path)
+	}
+
 	if ctx.Os().Class == android.Host {
 		binary.toolPath = android.OptionalPathForPath(binary.baseInstaller.path)
 	}
