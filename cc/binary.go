@@ -301,7 +301,7 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 	binary.baseInstaller.install(ctx, file)
 	for _, symlink := range binary.Properties.Symlinks {
 		binary.symlinks = append(binary.symlinks,
-			symlink+binary.Properties.Suffix+binary.baseInstaller.path.Ext())
+			symlink+binary.Properties.Suffix+ctx.toolchain().ExecutableSuffix())
 	}
 
 	if binary.Properties.Symlink_preferred_arch {
