@@ -66,7 +66,18 @@ type variableProperties struct {
 			Cflags []string
 		}
 
+		// debuggable is true for eng and userdebug builds, and can be used to turn on additional
+		// debugging features that don't significantly impact runtime behavior.  userdebug builds
+		// are used for dogfooding and performance testing, and should be as similar to user builds
+		// as possible.
 		Debuggable struct {
+			Cflags   []string
+			Cppflags []string
+		}
+
+		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
+		// features.
+		Eng struct {
 			Cflags   []string
 			Cppflags []string
 		}
@@ -112,6 +123,7 @@ type productVariables struct {
 	Binder32bit                *bool `json:",omitempty"`
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
+	Eng                        *bool `json:",omitempty"`
 
 	VendorPath *string `json:",omitempty"`
 
