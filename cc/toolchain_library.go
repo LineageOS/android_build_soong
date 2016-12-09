@@ -39,7 +39,8 @@ func (*toolchainLibraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) D
 }
 
 func toolchainLibraryFactory() (blueprint.Module, []interface{}) {
-	module, library := NewLibrary(android.HostAndDeviceSupported, false, true)
+	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyStatic()
 	toolchainLibrary := &toolchainLibraryDecorator{
 		libraryDecorator: library,
 	}

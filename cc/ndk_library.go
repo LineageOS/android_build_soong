@@ -277,7 +277,8 @@ func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 }
 
 func newStubLibrary() (*Module, []interface{}) {
-	module, library := NewLibrary(android.DeviceSupported, true, false)
+	module, library := NewLibrary(android.DeviceSupported)
+	library.BuildOnlyShared()
 	module.stl = nil
 	module.sanitize = nil
 	library.StripProperties.Strip.None = true
