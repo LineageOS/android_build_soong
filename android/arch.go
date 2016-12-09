@@ -444,6 +444,8 @@ func createArchType(props reflect.Type) reflect.Type {
 		"Android64",
 		"Android32",
 		"Not_windows",
+		"Arm_on_x86",
+		"Arm_on_x86_64",
 	}
 	for _, os := range osTypeList {
 		targets = append(targets, os.Field)
@@ -712,6 +714,17 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 		}
+
+		if arch.ArchType == X86 && hasArmAbi(arch) {
+			field := "Arm_on_x86"
+			prefix := "target.arm_on_x86"
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+		}
+		if arch.ArchType == X86_64 && hasArmAbi(arch) {
+			field := "Arm_on_x86_64"
+			prefix := "target.arm_on_x86_64"
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+		}
 	}
 }
 
@@ -803,6 +816,16 @@ func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) 
 	}
 
 	return targets, nil
+}
+
+// hasArmAbi returns true if arch has at least one arm ABI
+func hasArmAbi(arch Arch) bool {
+	for _, abi := range arch.Abi {
+		if strings.HasPrefix(abi, "arm") {
+			return true
+		}
+	}
+	return false
 }
 
 type archConfig struct {
