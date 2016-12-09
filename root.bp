@@ -18,6 +18,7 @@ optional_subdirs = [
     "external/*",
     "frameworks/av",
     "frameworks/base",
+    "frameworks/compile/*",
     "frameworks/native",
     "frameworks/rs",
     "frameworks/wilhelm",
