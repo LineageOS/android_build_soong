@@ -834,7 +834,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if !a.Enabled() {
-			ctx.ModuleErrorf("depends on disabled module %q", name)
+			if ctx.AConfig().AllowMissingDependencies() {
+				ctx.AddMissingDependencies([]string{name})
+			} else {
+				ctx.ModuleErrorf("depends on disabled module %q", name)
+			}
 			return
 		}
 
