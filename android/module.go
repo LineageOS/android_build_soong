@@ -711,6 +711,38 @@ func findStringInSlice(str string, slice []string) int {
 	return -1
 }
 
+func SrcIsModule(s string) string {
+	if len(s) > 1 && s[0] == ':' {
+		return s[1:]
+	}
+	return ""
+}
+
+type sourceDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+var SourceDepTag sourceDependencyTag
+
+// Returns a list of modules that must be depended on to satisfy filegroup or generated sources
+// modules listed in srcFiles using ":module" syntax
+func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
+	var deps []string
+	for _, s := range srcFiles {
+		if m := SrcIsModule(s); m != "" {
+			deps = append(deps, m)
+		}
+	}
+
+	ctx.AddDependency(ctx.Module(), SourceDepTag, deps...)
+}
+
+type SourceFileProducer interface {
+	Srcs() Paths
+}
+
+// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.
+// ExpandSourceDeps must have already been called during the dependency resolution phase.
 func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
 	prefix := PathForModuleSrc(ctx).String()
 	for i, e := range excludes {
@@ -724,7 +756,14 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Path
 
 	globbedSrcFiles := make(Paths, 0, len(srcFiles))
 	for _, s := range srcFiles {
-		if pathtools.IsGlob(s) {
+		if m := SrcIsModule(s); m != "" {
+			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
+			if srcProducer, ok := module.(SourceFileProducer); ok {
+				globbedSrcFiles = append(globbedSrcFiles, srcProducer.Srcs()...)
+			} else {
+				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
+			}
+		} else if pathtools.IsGlob(s) {
 			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob(filepath.Join(prefix, s), excludes)...)
 		} else {
 			globbedSrcFiles = append(globbedSrcFiles, PathForModuleSrc(ctx, s))

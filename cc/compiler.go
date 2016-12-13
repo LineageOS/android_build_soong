@@ -29,6 +29,8 @@ import (
 
 type BaseCompilerProperties struct {
 	// list of source files used to compile the C/C++ module.  May be .c, .cpp, or .S files.
+	// srcs may reference the outputs of other modules that produce source files like genrule
+	// or filegroup using the syntax ":module".
 	Srcs []string `android:"arch_variant"`
 
 	// list of source files that should not be used to build the C/C++ module.
@@ -132,6 +134,8 @@ func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
+
+	android.ExtractSourcesDeps(ctx, compiler.Properties.Srcs)
 
 	if compiler.hasSrcExt(".proto") {
 		deps = protoDeps(ctx, deps, &compiler.Proto)
