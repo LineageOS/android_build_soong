@@ -33,7 +33,7 @@ type toolchainLibraryDecorator struct {
 	*libraryDecorator
 }
 
-func (*toolchainLibraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (*toolchainLibraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	// toolchain libraries can't have any dependencies
 	return deps
 }

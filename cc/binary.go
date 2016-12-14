@@ -96,7 +96,7 @@ func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
 	return stem + binary.Properties.Suffix
 }
 
-func (binary *binaryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseLinker.linkerDeps(ctx, deps)
 	if ctx.toolchain().Bionic() {
 		if !Bool(binary.baseLinker.Properties.Nocrt) {

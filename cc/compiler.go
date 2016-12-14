@@ -129,7 +129,7 @@ func (compiler *baseCompiler) compilerProps() []interface{} {
 
 func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 
-func (compiler *baseCompiler) compilerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
 

@@ -242,7 +242,7 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	return compileObjs(ctx, flagsToBuilderFlags(flags), subdir, srcs, nil)
 }
 
-func (linker *stubDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (linker *stubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return Deps{}
 }
 

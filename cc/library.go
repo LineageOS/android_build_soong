@@ -351,7 +351,7 @@ func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 	library.relocationPacker.packingInit(ctx)
 }
 
-func (library *libraryDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = library.baseLinker.linkerDeps(ctx, deps)
 
 	if library.static() {
