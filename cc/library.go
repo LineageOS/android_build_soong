@@ -95,31 +95,35 @@ func init() {
 // Module factory for combined static + shared libraries, device by default but with possible host
 // support
 func libraryFactory() (blueprint.Module, []interface{}) {
-	module, _ := NewLibrary(android.HostAndDeviceSupported, true, true)
+	module, _ := NewLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for static libraries
 func libraryStaticFactory() (blueprint.Module, []interface{}) {
-	module, _ := NewLibrary(android.HostAndDeviceSupported, false, true)
+	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyStatic()
 	return module.Init()
 }
 
 // Module factory for shared libraries
 func librarySharedFactory() (blueprint.Module, []interface{}) {
-	module, _ := NewLibrary(android.HostAndDeviceSupported, true, false)
+	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyShared()
 	return module.Init()
 }
 
 // Module factory for host static libraries
 func libraryHostStaticFactory() (blueprint.Module, []interface{}) {
-	module, _ := NewLibrary(android.HostSupported, false, true)
+	module, library := NewLibrary(android.HostSupported)
+	library.BuildOnlyStatic()
 	return module.Init()
 }
 
 // Module factory for host shared libraries
 func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
-	module, _ := NewLibrary(android.HostSupported, true, false)
+	module, library := NewLibrary(android.HostSupported)
+	library.BuildOnlyShared()
 	return module.Init()
 }
 
@@ -562,13 +566,21 @@ func (library *libraryDecorator) setStatic(static bool) {
 	library.Properties.VariantIsStatic = static
 }
 
-func NewLibrary(hod android.HostOrDeviceSupported, shared, static bool) (*Module, *libraryDecorator) {
+func (library *libraryDecorator) BuildOnlyStatic() {
+	library.Properties.BuildShared = false
+}
+
+func (library *libraryDecorator) BuildOnlyShared() {
+	library.Properties.BuildStatic = false
+}
+
+func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module := newModule(hod, android.MultilibBoth)
 
 	library := &libraryDecorator{
 		Properties: LibraryProperties{
-			BuildShared: shared,
-			BuildStatic: static,
+			BuildShared: true,
+			BuildStatic: true,
 		},
 		baseCompiler:  NewBaseCompiler(),
 		baseLinker:    NewBaseLinker(),
