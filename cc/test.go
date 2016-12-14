@@ -199,7 +199,7 @@ func (test *testBinary) linkerInit(ctx BaseModuleContext) {
 	test.binaryDecorator.linkerInit(ctx)
 }
 
-func (test *testBinary) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (test *testBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = test.testDecorator.linkerDeps(ctx, deps)
 	deps = test.binaryDecorator.linkerDeps(ctx, deps)
 	return deps
@@ -250,7 +250,7 @@ func (test *testLibrary) linkerInit(ctx BaseModuleContext) {
 	test.libraryDecorator.linkerInit(ctx)
 }
 
-func (test *testLibrary) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (test *testLibrary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = test.testDecorator.linkerDeps(ctx, deps)
 	deps = test.libraryDecorator.linkerDeps(ctx, deps)
 	return deps
@@ -288,7 +288,7 @@ func (benchmark *benchmarkDecorator) linkerInit(ctx BaseModuleContext) {
 	benchmark.binaryDecorator.linkerInit(ctx)
 }
 
-func (benchmark *benchmarkDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (benchmark *benchmarkDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = benchmark.binaryDecorator.linkerDeps(ctx, deps)
 	deps.StaticLibs = append(deps.StaticLibs, "libgoogle-benchmark")
 	return deps

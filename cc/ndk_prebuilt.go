@@ -62,7 +62,7 @@ type ndkPrebuiltObjectLinker struct {
 	objectLinker
 }
 
-func (*ndkPrebuiltObjectLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (*ndkPrebuiltObjectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	// NDK objects can't have any dependencies
 	return deps
 }
@@ -96,7 +96,7 @@ func (ndk *ndkPrebuiltLibraryLinker) linkerProps() []interface{} {
 	return append(ndk.libraryDecorator.linkerProps(), &ndk.Properties, &ndk.flagExporter.Properties)
 }
 
-func (*ndkPrebuiltLibraryLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (*ndkPrebuiltLibraryLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	// NDK libraries can't have any dependencies
 	return deps
 }
