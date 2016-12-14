@@ -37,6 +37,9 @@ type BaseLinkerProperties struct {
 	// list of modules that should be dynamically linked into this module.
 	Shared_libs []string `android:"arch_variant"`
 
+	// list of modules that should only provide headers for this module.
+	Header_libs []string `android:"arch_variant,variant_prepend"`
+
 	// list of module-specific flags that will be used for all link steps
 	Ldflags []string `android:"arch_variant"`
 
@@ -68,6 +71,10 @@ type BaseLinkerProperties struct {
 	// list of static libraries to re-export include directories from. Entries must be
 	// present in static_libs.
 	Export_static_lib_headers []string `android:"arch_variant"`
+
+	// list of header libraries to re-export include directories from. Entries must be
+	// present in header_libs.
+	Export_header_lib_headers []string `android:"arch_variant"`
 
 	// list of generated headers to re-export include directories from. Entries must be
 	// present in generated_headers.
@@ -112,9 +119,11 @@ func (linker *baseLinker) linkerProps() []interface{} {
 
 func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
+	deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Header_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Shared_libs...)
 
+	deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders, linker.Properties.Export_header_lib_headers...)
 	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
 	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
 	deps.ReexportGeneratedHeaders = append(deps.ReexportGeneratedHeaders, linker.Properties.Export_generated_headers...)
