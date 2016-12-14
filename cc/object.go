@@ -54,7 +54,7 @@ func (object *objectLinker) linkerProps() []interface{} {
 
 func (*objectLinker) linkerInit(ctx BaseModuleContext) {}
 
-func (object *objectLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.ObjFiles = append(deps.ObjFiles, object.Properties.Objs...)
 	return deps
 }

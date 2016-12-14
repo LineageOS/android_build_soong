@@ -171,16 +171,21 @@ type BaseModuleContext interface {
 	ModuleContextIntf
 }
 
+type DepsContext interface {
+	android.BottomUpMutatorContext
+	ModuleContextIntf
+}
+
 type feature interface {
 	begin(ctx BaseModuleContext)
-	deps(ctx BaseModuleContext, deps Deps) Deps
+	deps(ctx DepsContext, deps Deps) Deps
 	flags(ctx ModuleContext, flags Flags) Flags
 	props() []interface{}
 }
 
 type compiler interface {
 	compilerInit(ctx BaseModuleContext)
-	compilerDeps(ctx BaseModuleContext, deps Deps) Deps
+	compilerDeps(ctx DepsContext, deps Deps) Deps
 	compilerFlags(ctx ModuleContext, flags Flags) Flags
 	compilerProps() []interface{}
 
@@ -191,7 +196,7 @@ type compiler interface {
 
 type linker interface {
 	linkerInit(ctx BaseModuleContext)
-	linkerDeps(ctx BaseModuleContext, deps Deps) Deps
+	linkerDeps(ctx DepsContext, deps Deps) Deps
 	linkerFlags(ctx ModuleContext, flags Flags) Flags
 	linkerProps() []interface{}
 
@@ -304,6 +309,11 @@ func (c *Module) isDependencyRoot() bool {
 
 type baseModuleContext struct {
 	android.BaseContext
+	moduleContextImpl
+}
+
+type depsContext struct {
+	android.BottomUpMutatorContext
 	moduleContextImpl
 }
 
@@ -534,7 +544,7 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 }
 
-func (c *Module) deps(ctx BaseModuleContext) Deps {
+func (c *Module) deps(ctx DepsContext) Deps {
 	deps := Deps{}
 
 	if c.compiler != nil {
@@ -604,8 +614,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		return
 	}
 
-	ctx := &baseModuleContext{
-		BaseContext: actx,
+	ctx := &depsContext{
+		BottomUpMutatorContext: actx,
 		moduleContextImpl: moduleContextImpl{
 			mod: c,
 		},
