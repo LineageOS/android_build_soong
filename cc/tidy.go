@@ -44,7 +44,7 @@ func (tidy *tidyFeature) props() []interface{} {
 func (tidy *tidyFeature) begin(ctx BaseModuleContext) {
 }
 
-func (tidy *tidyFeature) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (tidy *tidyFeature) deps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
