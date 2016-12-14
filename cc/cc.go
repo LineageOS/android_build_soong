@@ -54,8 +54,9 @@ func init() {
 type Deps struct {
 	SharedLibs, LateSharedLibs                  []string
 	StaticLibs, LateStaticLibs, WholeStaticLibs []string
+	HeaderLibs                                  []string
 
-	ReexportSharedLibHeaders, ReexportStaticLibHeaders []string
+	ReexportSharedLibHeaders, ReexportStaticLibHeaders, ReexportHeaderLibHeaders []string
 
 	ObjFiles []string
 
@@ -221,6 +222,7 @@ var (
 	staticExportDepTag    = dependencyTag{name: "static", library: true, reexportFlags: true}
 	lateStaticDepTag      = dependencyTag{name: "late static", library: true}
 	wholeStaticDepTag     = dependencyTag{name: "whole static", library: true, reexportFlags: true}
+	headerDepTag          = dependencyTag{name: "header", library: true, reexportFlags: true}
 	genSourceDepTag       = dependencyTag{name: "gen source"}
 	genHeaderDepTag       = dependencyTag{name: "gen header"}
 	genHeaderExportDepTag = dependencyTag{name: "gen header", reexportFlags: true}
@@ -556,6 +558,7 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	deps.LateStaticLibs = lastUniqueElements(deps.LateStaticLibs)
 	deps.SharedLibs = lastUniqueElements(deps.SharedLibs)
 	deps.LateSharedLibs = lastUniqueElements(deps.LateSharedLibs)
+	deps.HeaderLibs = lastUniqueElements(deps.HeaderLibs)
 
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
@@ -566,6 +569,12 @@ func (c *Module) deps(ctx BaseModuleContext) Deps {
 	for _, lib := range deps.ReexportStaticLibHeaders {
 		if !inList(lib, deps.StaticLibs) {
 			ctx.PropertyErrorf("export_static_lib_headers", "Static library not in static_libs: '%s'", lib)
+		}
+	}
+
+	for _, lib := range deps.ReexportHeaderLibHeaders {
+		if !inList(lib, deps.HeaderLibs) {
+			ctx.PropertyErrorf("export_header_lib_headers", "Header library not in header_libs: '%s'", lib)
 		}
 	}
 
@@ -643,6 +652,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		deps.SharedLibs, variantNdkLibs = rewriteNdkLibs(deps.SharedLibs)
 		deps.LateSharedLibs, variantLateNdkLibs = rewriteNdkLibs(deps.LateSharedLibs)
 	}
+
+	actx.AddVariationDependencies(nil, headerDepTag, deps.HeaderLibs...)
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, wholeStaticDepTag,
 		deps.WholeStaticLibs...)
@@ -910,6 +921,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				ctx.AddMissingDependencies(missingDeps)
 			}
 			depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
+		case headerDepTag:
+			// Nothing
 		case objDepTag:
 			depPaths.Objs.objFiles = append(depPaths.Objs.objFiles, linkFile.Path())
 		case crtBeginDepTag:

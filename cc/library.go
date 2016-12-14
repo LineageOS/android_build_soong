@@ -90,6 +90,7 @@ func init() {
 	android.RegisterModuleType("cc_library", libraryFactory)
 	android.RegisterModuleType("cc_library_host_static", libraryHostStaticFactory)
 	android.RegisterModuleType("cc_library_host_shared", libraryHostSharedFactory)
+	android.RegisterModuleType("cc_library_headers", libraryHeaderFactory)
 }
 
 // Module factory for combined static + shared libraries, device by default but with possible host
@@ -124,6 +125,13 @@ func libraryHostStaticFactory() (blueprint.Module, []interface{}) {
 func libraryHostSharedFactory() (blueprint.Module, []interface{}) {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
+	return module.Init()
+}
+
+// Module factory for header-only libraries
+func libraryHeaderFactory() (blueprint.Module, []interface{}) {
+	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.HeaderOnly()
 	return module.Init()
 }
 
@@ -271,6 +279,19 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
+	if !library.buildShared() && !library.buildStatic() {
+		if len(library.baseCompiler.Properties.Srcs) > 0 {
+			ctx.PropertyErrorf("srcs", "cc_library_headers must not have any srcs")
+		}
+		if len(library.Properties.Static.Srcs) > 0 {
+			ctx.PropertyErrorf("static.srcs", "cc_library_headers must not have any srcs")
+		}
+		if len(library.Properties.Shared.Srcs) > 0 {
+			ctx.PropertyErrorf("shared.srcs", "cc_library_headers must not have any srcs")
+		}
+		return Objects{}
+	}
+
 	objs := library.baseCompiler.compile(ctx, flags, deps)
 	library.reuseObjects = objs
 	buildFlags := flagsToBuilderFlags(flags)
@@ -571,6 +592,11 @@ func (library *libraryDecorator) BuildOnlyStatic() {
 }
 
 func (library *libraryDecorator) BuildOnlyShared() {
+	library.Properties.BuildStatic = false
+}
+
+func (library *libraryDecorator) HeaderOnly() {
+	library.Properties.BuildShared = false
 	library.Properties.BuildStatic = false
 }
 
