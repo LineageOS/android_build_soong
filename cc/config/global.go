@@ -113,7 +113,6 @@ func init() {
 	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalSystemIncludes", "-isystem ",
 		[]string{
 			"frameworks/av/include",
-			"frameworks/base/include",
 		})
 	// This is used by non-NDK modules to get jni.h. export_include_dirs doesn't help
 	// with this, since there is no associated library.
