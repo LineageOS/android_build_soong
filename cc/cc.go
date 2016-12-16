@@ -227,7 +227,8 @@ var (
 	staticExportDepTag    = dependencyTag{name: "static", library: true, reexportFlags: true}
 	lateStaticDepTag      = dependencyTag{name: "late static", library: true}
 	wholeStaticDepTag     = dependencyTag{name: "whole static", library: true, reexportFlags: true}
-	headerDepTag          = dependencyTag{name: "header", library: true, reexportFlags: true}
+	headerDepTag          = dependencyTag{name: "header", library: true}
+	headerExportDepTag    = dependencyTag{name: "header", library: true, reexportFlags: true}
 	genSourceDepTag       = dependencyTag{name: "gen source"}
 	genHeaderDepTag       = dependencyTag{name: "gen header"}
 	genHeaderExportDepTag = dependencyTag{name: "gen header", reexportFlags: true}
@@ -663,7 +664,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		deps.LateSharedLibs, variantLateNdkLibs = rewriteNdkLibs(deps.LateSharedLibs)
 	}
 
-	actx.AddVariationDependencies(nil, headerDepTag, deps.HeaderLibs...)
+	for _, lib := range deps.HeaderLibs {
+		depTag := headerDepTag
+		if inList(lib, deps.ReexportHeaderLibHeaders) {
+			depTag = headerExportDepTag
+		}
+		actx.AddVariationDependencies(nil, depTag, lib)
+	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{{"link", "static"}}, wholeStaticDepTag,
 		deps.WholeStaticLibs...)
