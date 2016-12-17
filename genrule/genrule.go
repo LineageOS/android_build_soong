@@ -96,6 +96,10 @@ func (g *generator) GeneratedSourceFiles() android.Paths {
 	return g.outputFiles
 }
 
+func (g *generator) Srcs() android.Paths {
+	return g.outputFiles
+}
+
 func (g *generator) GeneratedHeaderDirs() android.Paths {
 	return g.exportedIncludeDirs
 }

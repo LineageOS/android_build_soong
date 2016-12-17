@@ -8,7 +8,9 @@ declarative descriptions of modules to build.
 
 By design, Android.bp files are very simple.  There are no conditionals or
 control flow statements - any complexity is handled in build logic written in
-Go.
+Go.  The syntax and semantics of Android.bp files are intentionally similar
+to [Bazel BUILD files](https://www.bazel.io/versions/master/docs/be/overview.html)
+when possible.
 
 ### Modules
 
