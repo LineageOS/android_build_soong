@@ -159,6 +159,7 @@ bootstrap_go_package {
         "soong-android",
     ],
     srcs: [
+        "genrule/filegroup.go",
         "genrule/genrule.go",
     ],
     pluginFor: ["soong_build"],
