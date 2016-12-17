@@ -833,7 +833,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		cc, _ := m.(*Module)
 		if cc == nil {
 			switch tag {
-			case android.DefaultsDepTag:
+			case android.DefaultsDepTag, android.SourceDepTag:
 			case genSourceDepTag:
 				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedSources = append(depPaths.GeneratedSources,
