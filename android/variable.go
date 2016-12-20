@@ -136,6 +136,8 @@ type productVariables struct {
 	SanitizeHost       []string `json:",omitempty"`
 	SanitizeDevice     []string `json:",omitempty"`
 	SanitizeDeviceArch []string `json:",omitempty"`
+
+	ArtUseReadBarrier *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
