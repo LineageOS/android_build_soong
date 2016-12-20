@@ -435,6 +435,10 @@ func (c *config) LibartImgDeviceBaseAddress() string {
 	}
 }
 
+func (c *config) ArtUseReadBarrier() bool {
+	return Bool(c.ProductVariables.ArtUseReadBarrier)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Device] {
