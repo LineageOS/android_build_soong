@@ -610,11 +610,13 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		//         key: value,
 		//     },
 		// },
-		c := variantReplacer.Replace(arch.CpuVariant)
-		if c != "" {
-			field := proptools.FieldNameForProperty(c)
-			prefix := "arch." + t.Name + "." + c
-			a.appendProperties(ctx, genProps, archStruct, field, prefix)
+		if arch.CpuVariant != arch.ArchVariant {
+			c := variantReplacer.Replace(arch.CpuVariant)
+			if c != "" {
+				field := proptools.FieldNameForProperty(c)
+				prefix := "arch." + t.Name + "." + c
+				a.appendProperties(ctx, genProps, archStruct, field, prefix)
+			}
 		}
 
 		// Handle arch-feature-specific properties in the form:
