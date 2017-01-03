@@ -87,6 +87,12 @@ type libraryProperties struct {
 	// for every API level beginning with this one.
 	First_version string
 
+	// The first API level that library should have the version script applied.
+	// This defaults to the value of first_version, and should almost never be
+	// used. This is only needed to work around platform bugs like
+	// https://github.com/android-ndk/ndk/issues/265.
+	Unversioned_until string
+
 	// Private property for use by the mutator that splits per-API level.
 	ApiLevel string `blueprint:"mutated"`
 }
@@ -148,6 +154,29 @@ func getFirstGeneratedVersion(firstSupportedVersion string, platformVersion int)
 	}
 
 	return strconv.Atoi(firstSupportedVersion)
+}
+
+func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
+	// unversioned_until is normally empty, in which case we should use the version script.
+	if stub.properties.Unversioned_until == "" {
+		return true, nil
+	}
+
+	if stub.properties.ApiLevel == "current" {
+		return true, nil
+	}
+
+	unversionedUntil, err := strconv.Atoi(stub.properties.Unversioned_until)
+	if err != nil {
+		return true, err
+	}
+
+	version, err := strconv.Atoi(stub.properties.ApiLevel)
+	if err != nil {
+		return true, err
+	}
+
+	return version >= unversionedUntil, nil
 }
 
 func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
@@ -255,8 +284,16 @@ func (stub *stubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
 
-	linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
-	flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+	useVersionScript, err := shouldUseVersionScript(stub)
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+	}
+
+	if useVersionScript {
+		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
+		flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+	}
+
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
 }
 
