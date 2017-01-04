@@ -289,6 +289,7 @@ class Generator(object):
         if should_omit_version(name, tags, self.arch, self.api):
             return
 
+        section_versioned = symbol_versioned_in_api(tags, self.api)
         version_empty = True
         pruned_symbols = []
         for symbol in version.symbols:
@@ -302,11 +303,12 @@ class Generator(object):
             pruned_symbols.append(symbol)
 
         if len(pruned_symbols) > 0:
-            if not version_empty:
+            if not version_empty and section_versioned:
                 self.version_script.write(version.name + ' {\n')
                 self.version_script.write('    global:\n')
             for symbol in pruned_symbols:
-                if symbol_versioned_in_api(symbol.tags, self.api):
+                emit_version = symbol_versioned_in_api(symbol.tags, self.api)
+                if section_versioned and emit_version:
                     self.version_script.write('        ' + symbol.name + ';\n')
 
                 if 'var' in symbol.tags:
@@ -314,7 +316,7 @@ class Generator(object):
                 else:
                     self.src_file.write('void {}() {{}}\n'.format(symbol.name))
 
-            if not version_empty:
+            if not version_empty and section_versioned:
                 base = '' if version.base is None else ' ' + version.base
                 self.version_script.write('}' + base + ';\n')
 
