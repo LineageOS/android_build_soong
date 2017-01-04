@@ -407,6 +407,14 @@ class IntegrationTest(unittest.TestCase):
                 woodly;
                 doodly; # var
             } VERSION_2;
+
+            VERSION_4 { # versioned=9
+                wibble;
+            } VERSION_2;
+
+            VERSION_5 { # versioned=14
+                wobble;
+            } VERSION_4;
         """))
         parser = gsl.SymbolFileParser(input_file)
         versions = parser.parse()
@@ -420,6 +428,8 @@ class IntegrationTest(unittest.TestCase):
             int foo = 0;
             void baz() {}
             void qux() {}
+            void wibble() {}
+            void wobble() {}
         """)
         self.assertEqual(expected_src, src_file.getvalue())
 
@@ -432,6 +442,10 @@ class IntegrationTest(unittest.TestCase):
                 global:
                     baz;
             } VERSION_1;
+            VERSION_4 {
+                global:
+                    wibble;
+            } VERSION_2;
         """)
         self.assertEqual(expected_version, version_file.getvalue())
 
