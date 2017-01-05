@@ -14,7 +14,7 @@ optional_subdirs = [
     "build/kati",
     "build/tools/*",
     "dalvik",
-    "development/ndk",
+    "development/*",
     "external/*",
     "frameworks/av",
     "frameworks/base",
