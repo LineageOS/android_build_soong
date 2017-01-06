@@ -162,6 +162,14 @@ func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
 		return true, nil
 	}
 
+	if stub.properties.Unversioned_until == "current" {
+		if stub.properties.ApiLevel == "current" {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	}
+
 	if stub.properties.ApiLevel == "current" {
 		return true, nil
 	}
