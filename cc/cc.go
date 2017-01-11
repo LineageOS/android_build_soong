@@ -269,6 +269,9 @@ type Module struct {
 	cachedToolchain config.Toolchain
 
 	subAndroidMkOnce map[subAndroidMkProvider]bool
+
+	// Flags used to compile this module
+	flags Flags
 }
 
 func (c *Module) Init() (blueprint.Module, []interface{}) {
@@ -462,6 +465,13 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	flags.CppFlags, _ = filterList(flags.CppFlags, config.IllegalFlags)
 	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, config.IllegalFlags)
 
+	deps := c.depsToPaths(ctx)
+	if ctx.Failed() {
+		return
+	}
+	flags.GlobalFlags = append(flags.GlobalFlags, deps.Flags...)
+	c.flags = flags
+
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
 	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))
@@ -470,13 +480,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	flags.CFlags = []string{"$cflags"}
 	flags.CppFlags = []string{"$cppflags"}
 	flags.AsFlags = []string{"$asflags"}
-
-	deps := c.depsToPaths(ctx)
-	if ctx.Failed() {
-		return
-	}
-
-	flags.GlobalFlags = append(flags.GlobalFlags, deps.Flags...)
 
 	var objs Objects
 	if c.compiler != nil {
