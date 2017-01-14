@@ -68,6 +68,9 @@ type generatorProperties struct {
 
 	// List of directories to export generated headers from
 	Export_include_dirs []string
+
+	// list of input files
+	Srcs []string
 }
 
 type generator struct {
@@ -85,7 +88,7 @@ type generator struct {
 	outputFiles android.Paths
 }
 
-type taskFunc func(ctx android.ModuleContext) []generateTask
+type taskFunc func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask
 
 type generateTask struct {
 	in  android.Paths
@@ -105,6 +108,7 @@ func (g *generator) GeneratedHeaderDirs() android.Paths {
 }
 
 func (g *generator) DepsMutator(ctx android.BottomUpMutatorContext) {
+	android.ExtractSourcesDeps(ctx, g.properties.Srcs)
 	if g, ok := ctx.Module().(*generator); ok {
 		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
@@ -208,7 +212,8 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	g.rule = ctx.Rule(pctx, "generator", ruleParams, args...)
 
-	for _, task := range g.tasks(ctx) {
+	srcFiles := ctx.ExpandSources(g.properties.Srcs, nil)
+	for _, task := range g.tasks(ctx, srcFiles) {
 		g.generateSourceFile(ctx, task)
 	}
 }
@@ -244,8 +249,7 @@ func generatorFactory(tasks taskFunc, props ...interface{}) (blueprint.Module, [
 func GenSrcsFactory() (blueprint.Module, []interface{}) {
 	properties := &genSrcsProperties{}
 
-	tasks := func(ctx android.ModuleContext) []generateTask {
-		srcFiles := ctx.ExpandSources(properties.Srcs, nil)
+	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
 		tasks := make([]generateTask, 0, len(srcFiles))
 		for _, in := range srcFiles {
 			tasks = append(tasks, generateTask{
@@ -260,9 +264,6 @@ func GenSrcsFactory() (blueprint.Module, []interface{}) {
 }
 
 type genSrcsProperties struct {
-	// list of input files
-	Srcs []string
-
 	// extension that will be substituted for each output file
 	Output_extension string
 }
@@ -270,14 +271,14 @@ type genSrcsProperties struct {
 func GenRuleFactory() (blueprint.Module, []interface{}) {
 	properties := &genRuleProperties{}
 
-	tasks := func(ctx android.ModuleContext) []generateTask {
+	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
 		outs := make(android.WritablePaths, len(properties.Out))
 		for i, out := range properties.Out {
 			outs[i] = android.PathForModuleGen(ctx, out)
 		}
 		return []generateTask{
 			{
-				in:  ctx.ExpandSources(properties.Srcs, nil),
+				in:  srcFiles,
 				out: outs,
 			},
 		}
@@ -287,9 +288,6 @@ func GenRuleFactory() (blueprint.Module, []interface{}) {
 }
 
 type genRuleProperties struct {
-	// list of input files
-	Srcs []string
-
 	// names of the output files that will be generated
 	Out []string
 }
