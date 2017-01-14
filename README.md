@@ -163,6 +163,10 @@ cc_library {
 }
 ```
 
+See [art/build/art.go](https://android.googlesource.com/platform/art/+/master/build/art.go)
+or [external/llvm/soong/llvm.go](https://android.googlesource.com/platform/external/llvm/+/master/soong/llvm.go)
+for examples of more complex conditionals on product variables or environment variables.
+
 ## Contact
 
 Email android-building@googlegroups.com (external) for any questions, or see
