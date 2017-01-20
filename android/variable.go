@@ -124,6 +124,7 @@ type productVariables struct {
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
 	Eng                        *bool `json:",omitempty"`
+	EnableCFI                  *bool `json:",omitempty"`
 
 	VendorPath *string `json:",omitempty"`
 
