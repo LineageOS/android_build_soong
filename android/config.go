@@ -398,6 +398,10 @@ func (c *config) SanitizeDeviceArch() []string {
 	return append([]string(nil), c.ProductVariables.SanitizeDeviceArch...)
 }
 
+func (c *config) EnableCFI() bool {
+	return Bool(c.ProductVariables.EnableCFI)
+}
+
 func (c *config) Android64() bool {
 	for _, t := range c.Targets[Device] {
 		if t.Arch.ArchType.Multilib == "lib64" {
