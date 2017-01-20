@@ -155,6 +155,7 @@ func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 
 func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, test.binaryDecorator)
+	ret.Class = "NATIVE_TESTS"
 	if Bool(test.Properties.Test_per_src) {
 		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
 	}
