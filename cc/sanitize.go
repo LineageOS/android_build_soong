@@ -307,6 +307,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Cfi) {
+		if ctx.Arch().ArchType == android.Arm {
+			// __cfi_check needs to be built as Thumb (see the code in linker_cfi.cpp). LLVM is not set up
+			// to do this on a function basis, so force Thumb on the entire module.
+			flags.RequiredInstructionSet = "thumb"
+		}
 		sanitizers = append(sanitizers, "cfi")
 		cfiFlags := []string{"-flto", "-fsanitize=cfi", "-fsanitize-cfi-cross-dso"}
 		flags.CFlags = append(flags.CFlags, cfiFlags...)
