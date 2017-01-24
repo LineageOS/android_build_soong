@@ -136,8 +136,14 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Undefined = boolPtr(true)
 		}
 
-		if found, globalSanitizers = removeFromList("address", globalSanitizers); found && s.Address == nil {
-			s.Address = boolPtr(true)
+		if found, globalSanitizers = removeFromList("address", globalSanitizers); found {
+			if s.Address == nil {
+				s.Address = boolPtr(true)
+			} else if *s.Address == false {
+				// Coverage w/o address is an error. If globalSanitizers includes both, and the module
+				// disables address, then disable coverage as well.
+				_, globalSanitizers = removeFromList("coverage", globalSanitizers)
+			}
 		}
 
 		if found, globalSanitizers = removeFromList("thread", globalSanitizers); found && s.Thread == nil {
