@@ -50,6 +50,10 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				"stlport_shared", "stlport_static",
 				"gnustl_static":
 				return "ndk_lib" + s
+			case "libc++":
+				return "ndk_libc++_shared"
+			case "libc++_static":
+				return "ndk_libc++_static"
 			case "none":
 				return ""
 			default:
