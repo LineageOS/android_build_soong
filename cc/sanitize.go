@@ -203,8 +203,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		// TODO(ccross): error for compile_multilib = "32"?
 	}
 
-	if Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) ||
-		Bool(s.Thread) || Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) {
+	if ctx.Os() != android.Windows && (Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) || Bool(s.Thread) ||
+		Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) || len(s.Misc_undefined) > 0) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 
@@ -299,9 +299,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
 			flags.LdFlags = append(flags.LdFlags, "-lm", "-lpthread")
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
-			// Host ASAN only links symbols in the final executable, so
-			// there will always be undefined symbols in intermediate libraries.
-			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
 		} else {
 			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
 			flags.DynamicLinker = "/system/bin/linker_asan"
@@ -351,6 +348,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover=all")
 			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
 			flags.LdFlags = append(flags.LdFlags, "-lrt", "-ldl")
+			// Host sanitizers only link symbols in the final executable, so
+			// there will always be undefined symbols in intermediate libraries.
+			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
 		} else {
 			flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
 		}
