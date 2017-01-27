@@ -131,7 +131,7 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		}
 
 		if binary.static() {
-			if inList("libc++_static", deps.StaticLibs) {
+			if ctx.selectedStl() == "libc++_static" {
 				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc", "libdl")
 			}
 			// static libraries libcompiler_rt, libc and libc_nomalloc need to be linked with
