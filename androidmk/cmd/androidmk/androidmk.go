@@ -261,7 +261,9 @@ func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditio
 		default:
 			var val bpparser.Expression
 			val, err = makeVariableToBlueprint(file, assignment.Value, bpparser.ListType)
-			err = setVariable(file, appendVariable, prefix, name, val, false)
+			if err == nil {
+				err = setVariable(file, appendVariable, prefix, name, val, false)
+			}
 		}
 	}
 	if err != nil {
