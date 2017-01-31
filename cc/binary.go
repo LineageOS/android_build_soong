@@ -41,6 +41,9 @@ type BinaryLinkerProperties struct {
 	// extension (if any) appended
 	Symlinks []string `android:"arch_variant"`
 
+	// do not pass -pie
+	No_pie *bool `android:"arch_variant"`
+
 	DynamicLinker string `blueprint:"mutated"`
 }
 
@@ -194,9 +197,11 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 	flags = binary.baseLinker.linkerFlags(ctx, flags)
 
 	if ctx.Host() && !binary.static() {
-		flags.LdFlags = append(flags.LdFlags, "-pie")
-		if ctx.Os() == android.Windows {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
+		if !ctx.AConfig().IsEnvTrue("DISABLE_HOST_PIE") {
+			flags.LdFlags = append(flags.LdFlags, "-pie")
+			if ctx.Os() == android.Windows {
+				flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
+			}
 		}
 	}
 
