@@ -280,11 +280,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, asanCflags)
 		flags.LdFlags = append(flags.LdFlags, asanLdflags)
 
-		// ASan runtime library must be the first in the link order.
-		runtimeLibrary := config.AddressSanitizerRuntimeLibrary(ctx.toolchain())
-		if runtimeLibrary != "" {
-			flags.libFlags = append([]string{"${config.ClangAsanLibDir}/" + runtimeLibrary}, flags.libFlags...)
-		}
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
