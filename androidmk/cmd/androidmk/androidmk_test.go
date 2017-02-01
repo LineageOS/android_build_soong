@@ -357,6 +357,34 @@ cc_library_shared {
 }
 `,
 	},
+	{
+		desc: "Remove LOCAL_MODULE_TAGS optional",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := optional
+include $(BUILD_SHARED_LIBRARY)
+`,
+
+		expected: `
+cc_library_shared {
+
+}
+`,
+	},
+	{
+		desc: "Keep LOCAL_MODULE_TAGS non-optional",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := debug
+include $(BUILD_SHARED_LIBRARY)
+`,
+
+		expected: `
+cc_library_shared {
+	tags: ["debug"],
+}
+`,
+	},
 }
 
 func reformatBlueprint(input string) string {
