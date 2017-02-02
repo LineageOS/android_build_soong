@@ -218,17 +218,17 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	return InitArchModule(m, propertyStructs...)
 }
 
-// A AndroidModuleBase object contains the properties that are common to all Android
+// A ModuleBase object contains the properties that are common to all Android
 // modules.  It should be included as an anonymous field in every module
 // struct definition.  InitAndroidModule should then be called from the module's
 // factory function, and the return values from InitAndroidModule should be
 // returned from the factory function.
 //
-// The AndroidModuleBase type is responsible for implementing the
-// GenerateBuildActions method to support the blueprint.Module interface. This
-// method will then call the module's GenerateAndroidBuildActions method once
-// for each build variant that is to be built. GenerateAndroidBuildActions is
-// passed a AndroidModuleContext rather than the usual blueprint.ModuleContext.
+// The ModuleBase type is responsible for implementing the GenerateBuildActions
+// method to support the blueprint.Module interface. This method will then call
+// the module's GenerateAndroidBuildActions method once for each build variant
+// that is to be built. GenerateAndroidBuildActions is passed a
+// AndroidModuleContext rather than the usual blueprint.ModuleContext.
 // AndroidModuleContext exposes extra functionality specific to the Android build
 // system including details about the particular build variant that is to be
 // generated.
@@ -236,12 +236,12 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 // For example:
 //
 //     import (
-//         "android/soong/common"
+//         "android/soong/android"
 //         "github.com/google/blueprint"
 //     )
 //
 //     type myModule struct {
-//         common.AndroidModuleBase
+//         android.ModuleBase
 //         properties struct {
 //             MyProperty string
 //         }
@@ -249,10 +249,10 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 //
 //     func NewMyModule() (blueprint.Module, []interface{}) {
 //         m := &myModule{}
-//         return common.InitAndroidModule(m, &m.properties)
+//         return android.InitAndroidModule(m, &m.properties)
 //     }
 //
-//     func (m *myModule) GenerateAndroidBuildActions(ctx common.AndroidModuleContext) {
+//     func (m *myModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 //         // Get the CPU architecture for the current build variant.
 //         variantArch := ctx.Arch()
 //
