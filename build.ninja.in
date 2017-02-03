@@ -70,7 +70,6 @@ rule g.bootstrap.test
 build $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/github.com/google/blueprint.a $
         : g.bootstrap.compile ${g.bootstrap.srcDir}/build/blueprint/context.go $
-        ${g.bootstrap.srcDir}/build/blueprint/fs.go $
         ${g.bootstrap.srcDir}/build/blueprint/glob.go $
         ${g.bootstrap.srcDir}/build/blueprint/live_tracker.go $
         ${g.bootstrap.srcDir}/build/blueprint/mangle.go $
@@ -139,7 +138,6 @@ default ${g.bootstrap.buildDir}/.bootstrap/blueprint/test/test.passed
 build $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint/pkg/github.com/google/blueprint.a $
         : g.bootstrap.compile ${g.bootstrap.srcDir}/build/blueprint/context.go $
-        ${g.bootstrap.srcDir}/build/blueprint/fs.go $
         ${g.bootstrap.srcDir}/build/blueprint/glob.go $
         ${g.bootstrap.srcDir}/build/blueprint/live_tracker.go $
         ${g.bootstrap.srcDir}/build/blueprint/mangle.go $
@@ -217,7 +215,7 @@ default $
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModuleFactory.func1
-# Defined: build/blueprint/Blueprints:50:1
+# Defined: build/blueprint/Blueprints:49:1
 
 build $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a $
@@ -233,7 +231,7 @@ default $
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModuleFactory.func1
-# Defined: build/blueprint/Blueprints:34:1
+# Defined: build/blueprint/Blueprints:33:1
 
 build $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-parser/test/github.com/google/blueprint/parser.a $
@@ -300,12 +298,13 @@ default $
 # Variant:
 # Type:    bootstrap_go_package
 # Factory: github.com/google/blueprint/bootstrap.newGoPackageModuleFactory.func1
-# Defined: build/blueprint/Blueprints:56:1
+# Defined: build/blueprint/Blueprints:55:1
 
 build $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/test/github.com/google/blueprint/pathtools.a $
         : g.bootstrap.compile $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/lists.go $
+        ${g.bootstrap.srcDir}/build/blueprint/pathtools/fs.go $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/glob.go $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/glob_test.go | $
         ${g.bootstrap.compileCmd} $
@@ -351,6 +350,7 @@ build $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-pathtools/pkg/github.com/google/blueprint/pathtools.a $
         : g.bootstrap.compile $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/lists.go $
+        ${g.bootstrap.srcDir}/build/blueprint/pathtools/fs.go $
         ${g.bootstrap.srcDir}/build/blueprint/pathtools/glob.go | $
         ${g.bootstrap.compileCmd} $
         ${g.bootstrap.buildDir}/.bootstrap/blueprint-deptools/pkg/github.com/google/blueprint/deptools.a
