@@ -16,7 +16,6 @@ package android
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -28,6 +27,7 @@ import (
 // PathContext is the subset of a (Module|Singleton)Context required by the
 // Path methods.
 type PathContext interface {
+	Fs() pathtools.FileSystem
 	Config() interface{}
 	AddNinjaFileDeps(deps ...string)
 }
@@ -347,12 +347,10 @@ func PathForSource(ctx PathContext, paths ...string) SourcePath {
 		return ret
 	}
 
-	if _, err = os.Stat(ret.String()); err != nil {
-		if os.IsNotExist(err) {
-			reportPathError(ctx, "source path %s does not exist", ret)
-		} else {
-			reportPathError(ctx, "%s: %s", ret, err.Error())
-		}
+	if exists, _, err := ctx.Fs().Exists(ret.String()); err != nil {
+		reportPathError(ctx, "%s: %s", ret, err.Error())
+	} else if !exists {
+		reportPathError(ctx, "source path %s does not exist", ret)
 	}
 	return ret
 }
@@ -404,7 +402,7 @@ func OptionalPathForSource(ctx PathContext, intermediates string, paths ...strin
 	} else {
 		// We cannot add build statements in this context, so we fall back to
 		// AddNinjaFileDeps
-		files, dirs, err := pathtools.Glob(path.String())
+		files, dirs, err := pathtools.Glob(path.String(), nil)
 		if err != nil {
 			reportPathError(ctx, "glob: %s", err.Error())
 			return OptionalPath{}

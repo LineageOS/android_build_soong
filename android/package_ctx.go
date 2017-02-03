@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 )
 
 // AndroidPackageContext is a wrapper for blueprint.PackageContext that adds
@@ -53,6 +54,10 @@ func (e *configErrorWrapper) Errorf(format string, args ...interface{}) {
 }
 func (e *configErrorWrapper) AddNinjaFileDeps(deps ...string) {
 	e.pctx.AddNinjaFileDeps(deps...)
+}
+
+func (e *configErrorWrapper) Fs() pathtools.FileSystem {
+	return nil
 }
 
 // SourcePathVariable returns a Variable whose value is the source directory
