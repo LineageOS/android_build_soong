@@ -150,8 +150,6 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				} else {
 					ctx.ModuleErrorf("host tool %q missing output file", ctx.OtherModuleName(module))
 				}
-			} else {
-				ctx.ModuleErrorf("unknown dependency %q", ctx.OtherModuleName(module))
 			}
 		})
 	}
