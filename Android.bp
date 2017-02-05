@@ -168,6 +168,19 @@ bootstrap_go_package {
 }
 
 bootstrap_go_package {
+    name: "soong-phony",
+    pkgPath: "android/soong/phony",
+    deps: [
+        "blueprint",
+        "soong-android",
+    ],
+    srcs: [
+        "phony/phony.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+bootstrap_go_package {
     name: "soong-java",
     pkgPath: "android/soong/java",
     deps: [
