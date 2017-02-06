@@ -86,6 +86,11 @@ type Path interface {
 
 	// Base returns the last element of the path
 	Base() string
+
+	// Rel returns the portion of the path relative to the directory it was created from.  For
+	// example, Rel on a PathsForModuleSrc would return the path relative to the module source
+	// directory.
+	Rel() string
 }
 
 // WritablePath is a type of path that can be used as an output for build rules.
@@ -283,6 +288,7 @@ func (p WritablePaths) Strings() []string {
 type basePath struct {
 	path   string
 	config Config
+	rel    string
 }
 
 func (p basePath) Ext() string {
@@ -291,6 +297,13 @@ func (p basePath) Ext() string {
 
 func (p basePath) Base() string {
 	return filepath.Base(p.path)
+}
+
+func (p basePath) Rel() string {
+	if p.rel != "" {
+		return p.rel
+	}
+	return p.path
 }
 
 // SourcePath is a Path representing a file path rooted from SrcDir
@@ -304,7 +317,7 @@ var _ Path = SourcePath{}
 // code that is embedding ninja variables in paths
 func safePathForSource(ctx PathContext, path string) SourcePath {
 	p := validateSafePath(ctx, path)
-	ret := SourcePath{basePath{p, pathConfig(ctx)}}
+	ret := SourcePath{basePath{p, pathConfig(ctx), ""}}
 
 	abs, err := filepath.Abs(ret.String())
 	if err != nil {
@@ -330,7 +343,7 @@ func safePathForSource(ctx PathContext, path string) SourcePath {
 // will return a usable, but invalid SourcePath, and report a ModuleError.
 func PathForSource(ctx PathContext, paths ...string) SourcePath {
 	p := validatePath(ctx, paths...)
-	ret := SourcePath{basePath{p, pathConfig(ctx)}}
+	ret := SourcePath{basePath{p, pathConfig(ctx), ""}}
 
 	abs, err := filepath.Abs(ret.String())
 	if err != nil {
@@ -365,7 +378,7 @@ func OptionalPathForSource(ctx PathContext, intermediates string, paths ...strin
 	}
 
 	p := validatePath(ctx, paths...)
-	path := SourcePath{basePath{p, pathConfig(ctx)}}
+	path := SourcePath{basePath{p, pathConfig(ctx), ""}}
 
 	abs, err := filepath.Abs(path.String())
 	if err != nil {
@@ -476,7 +489,7 @@ var _ Path = OutputPath{}
 // OutputPath, and report a ModuleError.
 func PathForOutput(ctx PathContext, paths ...string) OutputPath {
 	path := validatePath(ctx, paths...)
-	return OutputPath{basePath{path, pathConfig(ctx)}}
+	return OutputPath{basePath{path, pathConfig(ctx), ""}}
 }
 
 func (p OutputPath) writablePath() {}
@@ -516,8 +529,10 @@ var _ resPathProvider = ModuleSrcPath{}
 // PathForModuleSrc returns a ModuleSrcPath representing the paths... under the
 // module's local source directory.
 func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
-	path := validatePath(ctx, paths...)
-	return ModuleSrcPath{PathForSource(ctx, ctx.ModuleDir(), path)}
+	p := validatePath(ctx, paths...)
+	path := ModuleSrcPath{PathForSource(ctx, ctx.ModuleDir(), p)}
+	path.basePath.rel = p
+	return path
 }
 
 // OptionalPathForModuleSrc returns an OptionalPath. The OptionalPath contains a
@@ -540,6 +555,18 @@ func (p ModuleSrcPath) objPathWithExt(ctx ModuleContext, subdir, ext string) Mod
 func (p ModuleSrcPath) resPathWithName(ctx ModuleContext, name string) ModuleResPath {
 	// TODO: Use full directory if the new ctx is not the current ctx?
 	return PathForModuleRes(ctx, p.path, name)
+}
+
+func (p ModuleSrcPath) WithSubDir(ctx ModuleContext, subdir string) ModuleSrcPath {
+	subdir = PathForModuleSrc(ctx, subdir).String()
+	var err error
+	rel, err := filepath.Rel(subdir, p.path)
+	if err != nil {
+		ctx.ModuleErrorf("source file %q is not under path %q", p.path, subdir)
+		return p
+	}
+	p.rel = rel
+	return p
 }
 
 // ModuleOutPath is a Path representing a module's output directory.
