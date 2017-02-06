@@ -29,6 +29,12 @@ type fileGroupProperties struct {
 	Srcs []string
 
 	Exclude_srcs []string
+
+	// The base path to the files.  May be used by other modules to determine which portion
+	// of the path to use.  For example, when a filegroup is used as data in a cc_test rule,
+	// the base path is stripped off the path and the remaining path is used as the
+	// installation directory.
+	Path string
 }
 
 type fileGroup struct {
@@ -53,7 +59,7 @@ func (fg *fileGroup) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	fg.srcs = ctx.ExpandSources(fg.properties.Srcs, fg.properties.Exclude_srcs)
+	fg.srcs = ctx.ExpandSourcesSubDir(fg.properties.Srcs, fg.properties.Exclude_srcs, fg.properties.Path)
 }
 
 func (fg *fileGroup) Srcs() android.Paths {
