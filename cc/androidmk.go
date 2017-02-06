@@ -159,6 +159,23 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	if Bool(test.Properties.Test_per_src) {
 		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
 	}
+
+	var testFiles []string
+	for _, d := range test.data {
+		rel := d.Rel()
+		path := d.String()
+		if !strings.HasSuffix(path, rel) {
+			panic(fmt.Errorf("path %q does not end with %q", path, rel))
+		}
+		path = strings.TrimSuffix(path, rel)
+		testFiles = append(testFiles, path+":"+rel)
+	}
+	if len(testFiles) > 0 {
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(testFiles, " "))
+			return nil
+		})
+	}
 }
 
 func (test *testLibrary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {

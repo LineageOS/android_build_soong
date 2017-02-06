@@ -77,6 +77,7 @@ type ModuleContext interface {
 	ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams)
 
 	ExpandSources(srcFiles, excludes []string) Paths
+	ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths
 	Glob(globPattern string, excludes []string) Paths
 
 	InstallFile(installPath OutputPath, srcPath Path, deps ...Path) OutputPath
@@ -742,9 +743,14 @@ type SourceFileProducer interface {
 }
 
 // Returns a list of paths expanded from globs and modules referenced using ":module" syntax.
-// ExpandSourceDeps must have already been called during the dependency resolution phase.
+// ExtractSourcesDeps must have already been called during the dependency resolution phase.
 func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
+	return ctx.ExpandSourcesSubDir(srcFiles, excludes, "")
+}
+
+func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {
 	prefix := PathForModuleSrc(ctx).String()
+
 	for i, e := range excludes {
 		j := findStringInSlice(e, srcFiles)
 		if j != -1 {
@@ -754,23 +760,28 @@ func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Path
 		excludes[i] = filepath.Join(prefix, e)
 	}
 
-	globbedSrcFiles := make(Paths, 0, len(srcFiles))
+	expandedSrcFiles := make(Paths, 0, len(srcFiles))
 	for _, s := range srcFiles {
 		if m := SrcIsModule(s); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
 			if srcProducer, ok := module.(SourceFileProducer); ok {
-				globbedSrcFiles = append(globbedSrcFiles, srcProducer.Srcs()...)
+				expandedSrcFiles = append(expandedSrcFiles, srcProducer.Srcs()...)
 			} else {
 				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
 			}
 		} else if pathtools.IsGlob(s) {
-			globbedSrcFiles = append(globbedSrcFiles, ctx.Glob(filepath.Join(prefix, s), excludes)...)
+			globbedSrcFiles := ctx.Glob(filepath.Join(prefix, s), excludes)
+			expandedSrcFiles = append(expandedSrcFiles, globbedSrcFiles...)
+			for i, s := range expandedSrcFiles {
+				expandedSrcFiles[i] = s.(ModuleSrcPath).WithSubDir(ctx, subDir)
+			}
 		} else {
-			globbedSrcFiles = append(globbedSrcFiles, PathForModuleSrc(ctx, s))
+			s := PathForModuleSrc(ctx, s).WithSubDir(ctx, subDir)
+			expandedSrcFiles = append(expandedSrcFiles, s)
 		}
 	}
 
-	return globbedSrcFiles
+	return expandedSrcFiles
 }
 
 func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) Paths {
