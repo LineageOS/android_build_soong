@@ -60,6 +60,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("DEFAULT_C_STD_VERSION", config.CStdVersion)
 	ctx.Strict("DEFAULT_CPP_STD_VERSION", config.CppStdVersion)
 	ctx.Strict("DEFAULT_GCC_CPP_STD_VERSION", config.GccCppStdVersion)
+	ctx.Strict("EXPERIMENTAL_C_STD_VERSION", config.ExperimentalCStdVersion)
+	ctx.Strict("EXPERIMENTAL_CPP_STD_VERSION", config.ExperimentalCppStdVersion)
 
 	ctx.Strict("DEFAULT_GLOBAL_TIDY_CHECKS", "${config.TidyDefaultGlobalChecks}")
 	ctx.Strict("DEFAULT_LOCAL_TIDY_CHECKS", joinLocalTidyChecks(config.DefaultLocalTidyChecks))
