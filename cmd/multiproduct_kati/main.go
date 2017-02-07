@@ -28,6 +28,7 @@ import (
 
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
+	"android/soong/ui/tracer"
 )
 
 // We default to number of cpus / 4, which seems to be the sweet spot for my
@@ -64,13 +65,20 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	build.SetupSignals(log, cancel, log.Cleanup)
+	trace := tracer.New(log)
+	defer trace.Close()
 
-	buildCtx := &build.ContextImpl{
+	build.SetupSignals(log, cancel, func() {
+		trace.Close()
+		log.Cleanup()
+	})
+
+	buildCtx := build.Context{&build.ContextImpl{
 		Context:        ctx,
 		Logger:         log,
+		Tracer:         trace,
 		StdioInterface: build.StdioImpl{},
-	}
+	}}
 
 	failed := false
 
@@ -95,6 +103,7 @@ func main() {
 
 	build.SetupOutDir(buildCtx, config)
 	log.SetOutput(filepath.Join(config.OutDir(), "build.log"))
+	trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
 
 	vars, err := build.DumpMakeVars(buildCtx, config, nil, nil, []string{"all_named_products"})
 	if err != nil {
@@ -130,11 +139,13 @@ func main() {
 			productLog := logger.New(&bytes.Buffer{})
 			productLog.SetOutput(filepath.Join(productOutDir, "build.log"))
 
-			productCtx := &build.ContextImpl{
+			productCtx := build.Context{&build.ContextImpl{
 				Context:        ctx,
 				Logger:         productLog,
+				Tracer:         trace,
 				StdioInterface: build.NewCustomStdio(nil, f, f),
-			}
+				Thread:         trace.NewThread(product),
+			}}
 
 			productConfig := build.NewConfig(productCtx)
 			productConfig.Environment().Set("OUT_DIR", productOutDir)

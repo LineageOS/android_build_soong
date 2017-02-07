@@ -57,6 +57,9 @@ func genKatiSuffix(ctx Context, config Config) {
 }
 
 func runKati(ctx Context, config Config) {
+	ctx.BeginTrace("kati")
+	defer ctx.EndTrace()
+
 	genKatiSuffix(ctx, config)
 
 	executable := "prebuilts/build-tools/" + config.HostPrebuiltTag() + "/bin/ckati"

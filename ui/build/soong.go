@@ -20,6 +20,9 @@ import (
 )
 
 func runSoongBootstrap(ctx Context, config Config) {
+	ctx.BeginTrace("bootstrap soong")
+	defer ctx.EndTrace()
+
 	cmd := exec.CommandContext(ctx.Context, "./bootstrap.bash")
 	env := config.Environment().Copy()
 	env.Set("BUILDDIR", config.SoongOutDir())
@@ -37,6 +40,9 @@ func runSoongBootstrap(ctx Context, config Config) {
 }
 
 func runSoong(ctx Context, config Config) {
+	ctx.BeginTrace("soong")
+	defer ctx.EndTrace()
+
 	cmd := exec.CommandContext(ctx.Context, filepath.Join(config.SoongOutDir(), "soong"), "-w", "dupbuild=err")
 	if config.IsVerbose() {
 		cmd.Args = append(cmd.Args, "-v")
