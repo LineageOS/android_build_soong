@@ -129,6 +129,7 @@ bootstrap_go_package {
         "cc/tidy.go",
         "cc/util.go",
 
+        "cc/cmakelists.go",
         "cc/compiler.go",
         "cc/installer.go",
         "cc/linker.go",

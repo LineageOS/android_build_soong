@@ -123,9 +123,19 @@ type baseCompiler struct {
 	Properties BaseCompilerProperties
 	Proto      ProtoProperties
 	deps       android.Paths
+	srcs       android.Paths
+	flags      builderFlags
 }
 
 var _ compiler = (*baseCompiler)(nil)
+
+type CompiledInterface interface {
+	Srcs() android.Paths
+}
+
+func (compiler *baseCompiler) Srcs() android.Paths {
+	return compiler.srcs
+}
 
 func (compiler *baseCompiler) appendCflags(flags []string) {
 	compiler.Properties.Cflags = append(compiler.Properties.Cflags, flags...)
@@ -428,6 +438,9 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	pathDeps = append(pathDeps, flags.CFlagsDeps...)
 
 	compiler.deps = pathDeps
+
+	// Save src, buildFlags and context
+	compiler.srcs = srcs
 
 	// Compile files listed in c.Properties.Srcs into objects
 	objs := compileObjs(ctx, buildFlags, "", srcs, compiler.deps)

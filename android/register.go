@@ -77,6 +77,7 @@ func NewContext() *blueprint.Context {
 			handle.Parallel()
 		}
 	}
+	ctx.RegisterSingletonType("env", EnvSingleton)
 
 	return ctx
 }
