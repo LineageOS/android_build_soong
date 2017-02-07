@@ -50,6 +50,7 @@ func runSoong(ctx Context, config Config) {
 	env := config.Environment().Copy()
 	env.Set("SKIP_NINJA", "true")
 	cmd.Env = env.Environ()
+	cmd.Stdin = ctx.Stdin()
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
 	ctx.Verboseln(cmd.Path, cmd.Args)
