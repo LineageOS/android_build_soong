@@ -35,6 +35,9 @@ import (
 // vars is the list of variables to read. The values will be put in the
 // returned map.
 func DumpMakeVars(ctx Context, config Config, goals, extra_targets, vars []string) (map[string]string, error) {
+	ctx.BeginTrace("dumpvars")
+	defer ctx.EndTrace()
+
 	cmd := exec.CommandContext(ctx.Context,
 		"make",
 		"--no-print-directory",
