@@ -15,6 +15,8 @@
 package build
 
 import (
+	"log"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -39,6 +41,8 @@ type configImpl struct {
 	ninjaArgs  []string
 	katiSuffix string
 }
+
+const srcDirFileCheck = "build/soong/root.bp"
 
 func NewConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
@@ -70,6 +74,14 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Sane default matching ninja
 	ret.parallel = runtime.NumCPU() + 2
 	ret.keepGoing = 1
+
+	// Precondition: the current directory is the top of the source tree
+	if _, err := os.Stat(srcDirFileCheck); err != nil {
+		if os.IsNotExist(err) {
+			log.Fatalf("Current working directory must be the source tree. %q not found", srcDirFileCheck)
+		}
+		log.Fatalln("Error verifying tree state:", err)
+	}
 
 	for _, arg := range args {
 		arg = strings.TrimSpace(arg)

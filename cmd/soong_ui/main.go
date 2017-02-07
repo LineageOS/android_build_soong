@@ -48,14 +48,6 @@ func main() {
 		log.Fatalln("The `soong` native UI is not yet available.")
 	}
 
-	// Precondition: the current directory is the top of the source tree
-	if _, err := os.Stat("build/soong/root.bp"); err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalln("soong_ui should run from the root of the source directory: build/soong/root.bp not found")
-		}
-		log.Fatalln("Error verifying tree state:", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
