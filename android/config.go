@@ -177,7 +177,6 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 
 		srcDir:   srcDir,
 		buildDir: buildDir,
-		envDeps:  make(map[string]string),
 
 		deviceConfig: &deviceConfig{},
 	}
@@ -281,6 +280,10 @@ func (c *config) Getenv(key string) string {
 	var val string
 	var exists bool
 	c.envLock.Lock()
+	defer c.envLock.Unlock()
+	if c.envDeps == nil {
+		c.envDeps = make(map[string]string)
+	}
 	if val, exists = c.envDeps[key]; !exists {
 		if c.envFrozen {
 			panic("Cannot access new environment variables after envdeps are frozen")
@@ -288,7 +291,6 @@ func (c *config) Getenv(key string) string {
 		val = os.Getenv(key)
 		c.envDeps[key] = val
 	}
-	c.envLock.Unlock()
 	return val
 }
 
@@ -312,8 +314,8 @@ func (c *config) IsEnvFalse(key string) bool {
 
 func (c *config) EnvDeps() map[string]string {
 	c.envLock.Lock()
+	defer c.envLock.Unlock()
 	c.envFrozen = true
-	c.envLock.Unlock()
 	return c.envDeps
 }
 
