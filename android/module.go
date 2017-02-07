@@ -89,6 +89,8 @@ type ModuleContext interface {
 
 	Proprietary() bool
 	InstallInData() bool
+
+	RequiredModuleNames() []string
 }
 
 type Module interface {
@@ -782,6 +784,10 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 	}
 
 	return expandedSrcFiles
+}
+
+func (ctx *androidModuleContext) RequiredModuleNames() []string {
+	return ctx.module.base().commonProperties.Required
 }
 
 func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) Paths {
