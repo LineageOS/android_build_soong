@@ -27,10 +27,6 @@ import (
 // compare the contents of the environment variables, rewriting the file if necessary to cause
 // a manifest regeneration.
 
-func init() {
-	RegisterSingletonType("env", EnvSingleton)
-}
-
 func EnvSingleton() blueprint.Singleton {
 	return &envSingleton{}
 }
