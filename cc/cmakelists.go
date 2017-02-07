@@ -290,7 +290,9 @@ func parseCompilerParameters(params []string, ctx blueprint.SingletonContext, f 
 			}
 			i = i + 1
 		case flag:
-			compilerParameters.flags = append(compilerParameters.flags, param)
+			c := cleanupParameter(param)
+			f.WriteString(fmt.Sprintf("# FLAG '%s' became %s\n", param, c))
+			compilerParameters.flags = append(compilerParameters.flags, c)
 		case systemRoot:
 			if i < len(params)-1 {
 				compilerParameters.sysroot = params[i+1]
@@ -301,6 +303,43 @@ func parseCompilerParameters(params []string, ctx blueprint.SingletonContext, f 
 		}
 	}
 	return compilerParameters
+}
+
+func cleanupParameter(p string) string {
+	// In the blueprint, c flags can be passed as:
+	//  cflags: [ "-DLOG_TAG=\"libEGL\"", ]
+	// which becomes:
+	// '-DLOG_TAG="libEGL"' in soong.
+	// In order to be injected in CMakelists.txt we need to:
+	// - Remove the wrapping ' character
+	// - Double escape all special \ and " characters.
+	// For a end result like:
+	// -DLOG_TAG=\\\"libEGL\\\"
+	if !strings.HasPrefix(p, "'") || !strings.HasSuffix(p, "'") || len(p) < 3 {
+		return p
+	}
+
+	// Reverse wrapper quotes and escaping that may have happened in NinjaAndShellEscape
+	// TODO:  It is ok to reverse here for now but if NinjaAndShellEscape becomes more complex,
+	// we should create a method NinjaAndShellUnescape in escape.go and use that instead.
+	p = p[1 : len(p)-1]
+	p = strings.Replace(p, `'\''`, `'`, -1)
+	p = strings.Replace(p, `$$`, `$`, -1)
+
+	p = doubleEscape(p)
+	return p
+}
+
+func escape(s string) string {
+	s = strings.Replace(s, `\`, `\\`, -1)
+	s = strings.Replace(s, `"`, `\"`, -1)
+	return s
+}
+
+func doubleEscape(s string) string {
+	s = escape(s)
+	s = escape(s)
+	return s
 }
 
 func concatenateParams(c1 *compilerParameters, c2 compilerParameters) {
