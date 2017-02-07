@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All rights reserved.
+// Copyright 2016 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-blueprint_go_binary {
-    name: "multiproduct_kati",
-    deps: [
-        "soong-ui-build",
-        "soong-ui-logger",
-        "soong-ui-tracer",
-    ],
+bootstrap_go_package {
+    name: "soong-ui-tracer",
+    pkgPath: "android/soong/ui/tracer",
+    deps: ["soong-ui-logger"],
     srcs: [
-        "main.go",
+        "ninja.go",
+        "tracer.go",
     ],
 }

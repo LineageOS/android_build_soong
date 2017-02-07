@@ -16,11 +16,16 @@ package build
 
 import (
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func runNinja(ctx Context, config Config) {
+	ctx.BeginTrace("ninja")
+	defer ctx.EndTrace()
+
 	executable := "prebuilts/build-tools/" + config.HostPrebuiltTag() + "/bin/ninja"
 	args := []string{
 		"-d", "keepdepfile",
@@ -68,6 +73,8 @@ func runNinja(ctx Context, config Config) {
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
 	ctx.Verboseln(cmd.Path, cmd.Args)
+	startTime := time.Now()
+	defer ctx.ImportNinjaLog(filepath.Join(config.OutDir(), ".ninja_log"), startTime)
 	if err := cmd.Run(); err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
 			ctx.Fatalln("ninja failed with:", e.ProcessState.String())
