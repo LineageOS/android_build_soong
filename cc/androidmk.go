@@ -120,7 +120,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 }
 
 func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Custom = func(w io.Writer, name, prefix string) error {
+	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
 		out := ret.OutputFile.Path()
 
 		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+":", out.String())
