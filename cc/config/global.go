@@ -145,6 +145,14 @@ func init() {
 	})
 	pctx.StaticVariable("ClangAsanLibDir", "${ClangPath}/lib64/clang/${ClangShortVersion}/lib/linux")
 
+	// These are tied to the version of LLVM directly in external/llvm, so they might trail the host prebuilts
+	// being used for the rest of the build process.
+	pctx.SourcePathVariable("RSClangBase", "prebuilts/clang/host")
+	pctx.SourcePathVariable("RSClangVersion", "clang-3289846")
+	pctx.SourcePathVariable("RSReleaseVersion", "3.8")
+	pctx.StaticVariable("RSLLVMPrebuiltsPath", "${RSClangBase}/${HostPrebuiltTag}/${RSClangVersion}/bin")
+	pctx.StaticVariable("RSIncludePath", "${RSLLVMPrebuiltsPath}/../lib64/clang/${RSReleaseVersion}/include")
+
 	pctx.VariableFunc("CcWrapper", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("CC_WRAPPER"); override != "" {
 			return override + " ", nil
