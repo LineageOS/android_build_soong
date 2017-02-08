@@ -40,6 +40,13 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("PATH_TO_CLANG_TIDY", "${config.ClangBin}/clang-tidy")
 	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(config.ClangUnknownCflags, " "))
 
+	ctx.Strict("RS_LLVM_PREBUILTS_VERSION", "${config.RSClangVersion}")
+	ctx.Strict("RS_LLVM_PREBUILTS_BASE", "${config.RSClangBase}")
+	ctx.Strict("RS_LLVM_PREBUILTS_PATH", "${config.RSLLVMPrebuiltsPath}")
+	ctx.Strict("RS_CLANG", "${config.RSLLVMPrebuiltsPath}/clang")
+	ctx.Strict("RS_LLVM_AS", "${config.RSLLVMPrebuiltsPath}/llvm-as")
+	ctx.Strict("RS_LLVM_LINK", "${config.RSLLVMPrebuiltsPath}/llvm-link")
+
 	ctx.Strict("GLOBAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideGlobalCflags}")
 	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.ClangExtraNoOverrideCflags}")
 	ctx.Strict("GLOBAL_CPPFLAGS_NO_OVERRIDE", "")
