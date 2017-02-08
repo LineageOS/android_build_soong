@@ -168,6 +168,41 @@ var (
 			Description: "yasm $out",
 		},
 		"asFlags")
+
+	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
+
+	sAbiDump = pctx.AndroidStaticRule("sAbiDump",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -Wno-packed -isystem ${config.RSIncludePath}",
+			CommandDeps: []string{"$sAbiDumper"},
+			Description: "header-abi-dumper $in -o $out $exportDirs",
+		},
+		"cFlags", "exportDirs")
+
+	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
+
+	sAbiLink = pctx.AndroidStaticRule("sAbiLink",
+		blueprint.RuleParams{
+			Command:        "$sAbiLinker -o ${out} $symbolFile -arch $arch -api $api $exportedHeaderFlags @${out}.rsp ",
+			CommandDeps:    []string{"$sAbiLinker"},
+			Description:    "header-abi-linker $in -o $out",
+			Rspfile:        "${out}.rsp",
+			RspfileContent: "${in}",
+		},
+		"symbolFile", "arch", "api", "exportedHeaderFlags")
+
+	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
+	// The output file is different from what the build system knows about.
+	// This is done since we have to create a report file even when builds
+	// fail in this case. Abidiff check turned on in advice-only mode. Builds
+	// will not fail on abi incompatibilties / extensions.
+	sAbiDiff = pctx.AndroidStaticRule("sAbiDiff",
+		blueprint.RuleParams{
+			Command:     "$sAbiDiffer -advice-only -o ${out}s -new $in -old $referenceDump",
+			CommandDeps: []string{"$sAbiDiffer"},
+			Description: "header-abi-diff -o ${out} -new $in -old $referenceDump",
+		},
+		"referenceDump")
 )
 
 func init() {
@@ -194,12 +229,14 @@ type builderFlags struct {
 	yaccFlags   string
 	protoFlags  string
 	tidyFlags   string
+	sAbiFlags   string
 	yasmFlags   string
 	aidlFlags   string
 	toolchain   config.Toolchain
 	clang       bool
 	tidy        bool
 	coverage    bool
+	sAbiDump    bool
 
 	systemIncludeFlags string
 
@@ -214,6 +251,7 @@ type Objects struct {
 	objFiles      android.Paths
 	tidyFiles     android.Paths
 	coverageFiles android.Paths
+	sAbiDumpFiles android.Paths
 }
 
 func (a Objects) Copy() Objects {
@@ -221,6 +259,7 @@ func (a Objects) Copy() Objects {
 		objFiles:      append(android.Paths{}, a.objFiles...),
 		tidyFiles:     append(android.Paths{}, a.tidyFiles...),
 		coverageFiles: append(android.Paths{}, a.coverageFiles...),
+		sAbiDumpFiles: append(android.Paths{}, a.sAbiDumpFiles...),
 	}
 }
 
@@ -229,6 +268,7 @@ func (a Objects) Append(b Objects) Objects {
 		objFiles:      append(a.objFiles, b.objFiles...),
 		tidyFiles:     append(a.tidyFiles, b.tidyFiles...),
 		coverageFiles: append(a.coverageFiles, b.coverageFiles...),
+		sAbiDumpFiles: append(a.sAbiDumpFiles, b.sAbiDumpFiles...),
 	}
 }
 
@@ -265,6 +305,10 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		flags.systemIncludeFlags,
 		flags.asFlags,
 	}, " ")
+	var sAbiDumpFiles android.Paths
+	if flags.sAbiDump && flags.clang {
+		sAbiDumpFiles = make(android.Paths, 0, len(srcFiles))
+	}
 
 	if flags.clang {
 		cflags += " ${config.NoOverrideClangGlobalCflags}"
@@ -296,6 +340,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		var ccCmd string
 		tidy := flags.tidy && flags.clang
 		coverage := flags.coverage
+		dump := flags.sAbiDump && flags.clang
 
 		switch srcFile.Ext() {
 		case ".S", ".s":
@@ -303,6 +348,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			moduleCflags = asflags
 			tidy = false
 			coverage = false
+			dump = false
 		case ".c":
 			ccCmd = "gcc"
 			moduleCflags = cflags
@@ -366,12 +412,29 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			})
 		}
 
+		if dump {
+			sAbiDumpFile := android.ObjPathWithExt(ctx, subdir, srcFile, "sdump")
+			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
+
+			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+				Rule:     sAbiDump,
+				Output:   sAbiDumpFile,
+				Input:    srcFile,
+				Implicit: objFile,
+				Args: map[string]string{
+					"cFlags":     moduleCflags,
+					"exportDirs": flags.sAbiFlags,
+				},
+			})
+		}
+
 	}
 
 	return Objects{
 		objFiles:      objFiles,
 		tidyFiles:     tidyFiles,
 		coverageFiles: coverageFiles,
+		sAbiDumpFiles: sAbiDumpFiles,
 	}
 }
 
@@ -552,6 +615,47 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 			"crtEnd":   crtEnd.String(),
 		},
 	})
+}
+
+// Generate a rule to combine .dump sAbi dump files from multiple source files
+// into a single .ldump sAbi dump file
+func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths,
+	symbolFile android.OptionalPath, apiLevel, baseName, exportedHeaderFlags string) android.OptionalPath {
+	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
+	var symbolFileStr string
+	var linkedDumpDep android.Path
+	if symbolFile.Valid() {
+		symbolFileStr = "-v " + symbolFile.Path().String()
+		linkedDumpDep = symbolFile.Path()
+	}
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:     sAbiLink,
+		Output:   outputFile,
+		Inputs:   sAbiDumps,
+		Implicit: linkedDumpDep,
+		Args: map[string]string{
+			"symbolFile": symbolFileStr,
+			"arch":       ctx.Arch().ArchType.Name,
+			"api":        apiLevel,
+			"exportedHeaderFlags": exportedHeaderFlags,
+		},
+	})
+	return android.OptionalPathForPath(outputFile)
+}
+
+func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
+	baseName string) android.OptionalPath {
+	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:     sAbiDiff,
+		Output:   outputFile,
+		Input:    inputDump,
+		Implicit: referenceDump,
+		Args: map[string]string{
+			"referenceDump": referenceDump.String(),
+		},
+	})
+	return android.OptionalPathForPath(outputFile)
 }
 
 // Generate a rule for extract a table of contents from a shared library (.so)

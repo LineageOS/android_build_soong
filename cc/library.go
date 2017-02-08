@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 type LibraryProperties struct {
@@ -220,8 +221,16 @@ type libraryDecorator struct {
 
 	sanitize *sanitize
 
+	sabi *sabi
+
 	// Output archive of gcno coverage information files
 	coverageOutputFile android.OptionalPath
+
+	// linked Source Abi Dump
+	sAbiOutputFile android.OptionalPath
+
+	// Source Abi Diff
+	sAbiDiff android.OptionalPath
 
 	// Decorated interafaces
 	*baseCompiler
@@ -316,7 +325,20 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		}
 		return Objects{}
 	}
+	if ctx.createVndkSourceAbiDump() || (library.sabi.Properties.CreateSAbiDumps && ctx.Device()) {
+		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
+		var SourceAbiFlags []string
+		for _, dir := range exportIncludeDirs.Strings() {
+			SourceAbiFlags = append(SourceAbiFlags, "-I "+dir)
+		}
 
+		flags.SAbiFlags = SourceAbiFlags
+		total_length := len(library.baseCompiler.Properties.Srcs) + len(deps.GeneratedSources) + len(library.Properties.Shared.Srcs) +
+			len(library.Properties.Static.Srcs)
+		if total_length > 0 {
+			flags.SAbiDump = true
+		}
+	}
 	objs := library.baseCompiler.compile(ctx, flags, deps)
 	library.reuseObjects = objs
 	buildFlags := flagsToBuilderFlags(flags)
@@ -534,9 +556,43 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
+
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
+
 	library.coverageOutputFile = TransformCoverageFilesToLib(ctx, objs, builderFlags, library.getLibName(ctx))
+	library.linkSAbiDumpFiles(ctx, objs, fileName)
 
 	return ret
+}
+
+func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string) {
+	//Also take into account object re-use.
+	if len(objs.sAbiDumpFiles) > 0 && ctx.createVndkSourceAbiDump() {
+		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, "current", fileName, vndkVsNdk(ctx), true)
+		versionScript := android.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
+		var symbolFile android.OptionalPath
+		if versionScript.Valid() {
+			symbolFile = versionScript
+		}
+		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
+		var SourceAbiFlags []string
+		for _, dir := range exportIncludeDirs.Strings() {
+			SourceAbiFlags = append(SourceAbiFlags, "-I "+dir)
+		}
+		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
+		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, symbolFile, "current", fileName, exportedHeaderFlags)
+		if refSourceDumpFile.Valid() {
+			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(), refSourceDumpFile.Path(), fileName)
+		}
+	}
+}
+
+func vndkVsNdk(ctx ModuleContext) bool {
+	if inList(ctx.baseModuleName(), config.LLndkLibraries()) {
+		return false
+	}
+	return true
 }
 
 func (library *libraryDecorator) link(ctx ModuleContext,
@@ -656,6 +712,7 @@ func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) 
 		baseLinker:    NewBaseLinker(),
 		baseInstaller: NewBaseInstaller("lib", "lib64", InstallInSystem),
 		sanitize:      module.sanitize,
+		sabi:          module.sabi,
 	}
 
 	module.compiler = library
