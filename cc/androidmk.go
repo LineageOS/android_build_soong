@@ -141,6 +141,13 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		library.androidMkWriteExportedFlags(w)
+		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := ")
+		if library.sAbiOutputFile.Valid() {
+			fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES += ", library.sAbiOutputFile.String())
+			if library.sAbiDiff.Valid() && !library.static() {
+				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES += ", library.sAbiDiff.String())
+			}
+		}
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+outputFile.Ext())
 
