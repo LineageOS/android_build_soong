@@ -70,8 +70,15 @@ func main() {
 
 	log.SetVerbose(config.IsVerbose())
 	build.SetupOutDir(buildCtx, config)
-	log.SetOutput(filepath.Join(config.OutDir(), "build.log"))
-	trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
+
+	if config.Dist() {
+		os.MkdirAll(config.DistDir(), 0777)
+		log.SetOutput(filepath.Join(config.DistDir(), "logs", "soong.log"))
+		trace.SetOutput(filepath.Join(config.DistDir(), "logs", "build.trace"))
+	} else {
+		log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
+		trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
+	}
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {

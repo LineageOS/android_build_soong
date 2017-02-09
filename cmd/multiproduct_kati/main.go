@@ -102,7 +102,7 @@ func main() {
 	log.Println("Output directory:", *outDir)
 
 	build.SetupOutDir(buildCtx, config)
-	log.SetOutput(filepath.Join(config.OutDir(), "build.log"))
+	log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
 	trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
 
 	vars, err := build.DumpMakeVars(buildCtx, config, nil, nil, []string{"all_named_products"})
@@ -137,7 +137,7 @@ func main() {
 			}
 
 			productLog := logger.New(&bytes.Buffer{})
-			productLog.SetOutput(filepath.Join(productOutDir, "build.log"))
+			productLog.SetOutput(filepath.Join(productOutDir, "soong.log"))
 
 			productCtx := build.Context{&build.ContextImpl{
 				Context:        ctx,
