@@ -35,6 +35,7 @@ type configImpl struct {
 	parallel  int
 	keepGoing int
 	verbose   bool
+	dist      bool
 
 	// From the product config
 	katiArgs   []string
@@ -90,6 +91,8 @@ func NewConfig(ctx Context, args ...string) Config {
 		} else if arg == "showcommands" {
 			ret.verbose = true
 			continue
+		} else if arg == "dist" {
+			ret.dist = true
 		}
 		if arg[0] == '-' {
 			var err error
@@ -183,6 +186,13 @@ func (c *configImpl) OutDir() string {
 	return "out"
 }
 
+func (c *configImpl) DistDir() string {
+	if distDir, ok := c.environ.Get("DIST_DIR"); ok {
+		return distDir
+	}
+	return filepath.Join(c.OutDir(), "dist")
+}
+
 func (c *configImpl) NinjaArgs() []string {
 	return c.ninjaArgs
 }
@@ -196,6 +206,10 @@ func (c *configImpl) KatiSuffix() string {
 		return c.katiSuffix
 	}
 	panic("SetKatiSuffix has not been called")
+}
+
+func (c *configImpl) Dist() bool {
+	return c.dist
 }
 
 func (c *configImpl) IsVerbose() bool {
