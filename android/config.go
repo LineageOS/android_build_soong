@@ -471,11 +471,3 @@ func (c *deviceConfig) VndkVersion() string {
 func (c *deviceConfig) BtConfigIncludeDir() string {
 	return String(c.config.ProductVariables.BtConfigIncludeDir)
 }
-
-func (c *deviceConfig) BtHcilpIncluded() string {
-	return String(c.config.ProductVariables.BtHcilpIncluded)
-}
-
-func (c *deviceConfig) BtHciUseMct() bool {
-	return Bool(c.config.ProductVariables.BtHciUseMct)
-}
