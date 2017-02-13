@@ -173,6 +173,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
+	// Also disable CFI for arm32 until b/35157333 is fixed.
+	if ctx.Arch().ArchType == android.Arm {
+		s.Cfi = nil
+		s.Diag.Cfi = nil
+	}
+
 	if ctx.staticBinary() {
 		s.Address = nil
 		s.Coverage = nil
