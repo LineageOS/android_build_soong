@@ -64,6 +64,9 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS", asanLdflags)
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_STATIC_LIBRARIES", asanLibs)
 
+	ctx.Strict("CFI_EXTRA_CFLAGS", cfiCflags)
+	ctx.Strict("CFI_EXTRA_LDFLAGS", cfiLdflags)
+
 	ctx.Strict("DEFAULT_C_STD_VERSION", config.CStdVersion)
 	ctx.Strict("DEFAULT_CPP_STD_VERSION", config.CppStdVersion)
 	ctx.Strict("DEFAULT_GCC_CPP_STD_VERSION", config.GccCppStdVersion)
