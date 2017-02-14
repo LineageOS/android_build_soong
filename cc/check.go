@@ -36,6 +36,8 @@ func CheckBadCompilerFlags(ctx BaseModuleContext, prop string, flags []string) {
 			ctx.PropertyErrorf(prop, "Bad flag `%s`, use local_include_dirs or include_dirs instead", flag)
 		} else if inList(flag, config.IllegalFlags) {
 			ctx.PropertyErrorf(prop, "Illegal flag `%s`", flag)
+		} else if flag == "--coverage" {
+			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use native_coverage instead", flag)
 		} else if strings.Contains(flag, " ") {
 			args := strings.Split(flag, " ")
 			if args[0] == "-include" {
@@ -73,6 +75,8 @@ func CheckBadLinkerFlags(ctx BaseModuleContext, prop string, flags []string) {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s` is not allowed", flag)
 		} else if strings.HasPrefix(flag, "-Wl,--version-script") {
 			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use version_script instead", flag)
+		} else if flag == "--coverage" {
+			ctx.PropertyErrorf(prop, "Bad flag: `%s`, use native_coverage instead", flag)
 		} else if strings.Contains(flag, " ") {
 			args := strings.Split(flag, " ")
 			if args[0] == "-z" {
