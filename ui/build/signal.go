@@ -21,40 +21,74 @@ import (
 	"syscall"
 
 	"android/soong/ui/logger"
+	"time"
 )
 
-// SetupSignals sets up signal handling to kill our children and allow us to cleanly finish
-// writing our log/trace files.
+// SetupSignals sets up signal handling to ensure all of our subprocesses are killed and that
+// our log/trace buffers are flushed to disk.
 //
-// Currently, on the first SIGINT|SIGALARM we call the cancel() function, which is usually
-// the CancelFunc returned by context.WithCancel, which will kill all the commands running
-// within that Context. Usually that's enough, and you'll run through your normal error paths.
+// All of our subprocesses are in the same process group, so they'll receive a SIGINT at the
+// same time we do. Most of the time this means we just need to ignore the signal and we'll
+// just see errors from all of our subprocesses. But in case that fails, when we get a signal:
 //
-// If another signal comes in after the first one, we'll trigger a panic with full stacktraces
-// from every goroutine so that it's possible to debug what is stuck. Just before the process
-// exits, we'll call the cleanup() function so that you can flush your log files.
+//   1. Wait two seconds to exit normally.
+//   2. Call cancel() which is normally the cancellation of a Context. This will send a SIGKILL
+//      to any subprocesses attached to that context.
+//   3. Wait two seconds to exit normally.
+//   4. Call cleanup() to close the log/trace buffers, then panic.
+//   5. If another two seconds passes (if cleanup got stuck, etc), then panic.
+//
 func SetupSignals(log logger.Logger, cancel, cleanup func()) {
 	signals := make(chan os.Signal, 5)
-	// TODO: Handle other signals
-	signal.Notify(signals, os.Interrupt, syscall.SIGALRM)
+	signal.Notify(signals, os.Interrupt, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM)
 	go handleSignals(signals, log, cancel, cleanup)
 }
 
 func handleSignals(signals chan os.Signal, log logger.Logger, cancel, cleanup func()) {
-	defer cleanup()
+	var timeouts int
+	var timeout <-chan time.Time
 
-	var force bool
+	handleTimeout := func() {
+		timeouts += 1
+		switch timeouts {
+		case 1:
+			// Things didn't exit cleanly, cancel our ctx (SIGKILL to subprocesses)
+			// Do this asynchronously to ensure it won't block and prevent us from
+			// taking more drastic measures.
+			log.Println("Still alive, killing subprocesses...")
+			go cancel()
+		case 2:
+			// Cancel didn't work. Try to run cleanup manually, then we'll panic
+			// at the next timer whether it finished or not.
+			log.Println("Still alive, cleaning up...")
+
+			// Get all stacktraces to see what was stuck
+			debug.SetTraceback("all")
+
+			go func() {
+				defer log.Panicln("Timed out exiting...")
+				cleanup()
+			}()
+		default:
+			// In case cleanup() deadlocks, the next tick will panic.
+			log.Panicln("Got signal, but timed out exiting...")
+		}
+	}
 
 	for {
-		s := <-signals
-		if force {
-			// So that we can better see what was stuck
-			debug.SetTraceback("all")
-			log.Panicln("Second signal received:", s)
-		} else {
+		select {
+		case s := <-signals:
 			log.Println("Got signal:", s)
-			cancel()
-			force = true
+
+			// Another signal triggers our next timeout handler early
+			if timeout != nil {
+				handleTimeout()
+			}
+
+			// Wait 2 seconds for everything to exit cleanly.
+			timeout = time.Tick(time.Second * 2)
+		case <-timeout:
+			handleTimeout()
 		}
 	}
 }
