@@ -194,7 +194,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 
 	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
 	libExt := flags.Toolchain.ShlibSuffix()
-	if ndk.Properties.BuildStatic {
+	if ndk.static() {
 		libExt = staticLibraryExtension
 	}
 

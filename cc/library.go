@@ -64,7 +64,9 @@ type LibraryProperties struct {
 		// export headers generated from .proto sources
 		Export_proto_headers bool
 	}
+}
 
+type LibraryMutatedProperties struct {
 	VariantName string `blueprint:"mutated"`
 
 	// Build a static variant
@@ -175,7 +177,8 @@ var _ exportedFlagsProducer = (*flagExporter)(nil)
 // libraryDecorator wraps baseCompiler, baseLinker and baseInstaller to provide library-specific
 // functionality: static vs. shared linkage, reusing object files for shared libraries
 type libraryDecorator struct {
-	Properties LibraryProperties
+	Properties        LibraryProperties
+	MutatedProperties LibraryMutatedProperties
 
 	// For reusing static library objects for shared library
 	reuseObjects Objects
@@ -213,6 +216,7 @@ func (library *libraryDecorator) linkerProps() []interface{} {
 	props = append(props, library.baseLinker.linkerProps()...)
 	return append(props,
 		&library.Properties,
+		&library.MutatedProperties,
 		&library.flagExporter.Properties,
 		&library.stripper.StripProperties,
 		&library.relocationPacker.Properties)
@@ -230,11 +234,11 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 
 	if library.static() {
 		flags.CFlags = append(flags.CFlags, library.Properties.Static.Cflags...)
-	} else {
+	} else if library.shared() {
 		flags.CFlags = append(flags.CFlags, library.Properties.Shared.Cflags...)
 	}
 
-	if !library.static() {
+	if library.shared() {
 		libName := library.getLibName(ctx)
 		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
 		sharedFlag := "-Wl,-shared"
@@ -303,7 +307,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		srcs := android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
 			srcs, library.baseCompiler.deps))
-	} else {
+	} else if library.shared() {
 		srcs := android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
 			srcs, library.baseCompiler.deps))
@@ -324,7 +328,8 @@ type libraryInterface interface {
 	buildShared() bool
 
 	// Sets whether a specific variant is static or shared
-	setStatic(bool)
+	setStatic()
+	setShared()
 }
 
 func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
@@ -339,7 +344,7 @@ func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 		}
 	}
 
-	return name + library.Properties.VariantName
+	return name + library.MutatedProperties.VariantName
 }
 
 func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
@@ -362,7 +367,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			library.Properties.Static.Whole_static_libs...)
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
-	} else {
+	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
 			if !ctx.sdk() && !ctx.vndk() {
 				deps.CrtBegin = "crtbegin_so"
@@ -395,13 +400,13 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	library.objects = library.objects.Append(objs)
 
 	outputFile := android.PathForModuleOut(ctx,
-		ctx.ModuleName()+library.Properties.VariantName+staticLibraryExtension)
+		ctx.ModuleName()+library.MutatedProperties.VariantName+staticLibraryExtension)
 	builderFlags := flagsToBuilderFlags(flags)
 
 	TransformObjToStaticLib(ctx, library.objects.objFiles, builderFlags, outputFile, objs.tidyFiles)
 
 	library.coverageOutputFile = TransformCoverageFilesToLib(ctx, library.objects, builderFlags,
-		ctx.ModuleName()+library.Properties.VariantName)
+		ctx.ModuleName()+library.MutatedProperties.VariantName)
 
 	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
 
@@ -522,7 +527,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	objs = objs.Append(deps.Objs)
 
 	var out android.Path
-	if library.static() {
+	if library.static() || library.header() {
 		out = library.linkStatic(ctx, flags, deps, objs)
 	} else {
 		out = library.linkShared(ctx, flags, deps, objs)
@@ -555,12 +560,12 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 }
 
 func (library *libraryDecorator) buildStatic() bool {
-	return library.Properties.BuildStatic &&
+	return library.MutatedProperties.BuildStatic &&
 		(library.Properties.Static.Enabled == nil || *library.Properties.Static.Enabled)
 }
 
 func (library *libraryDecorator) buildShared() bool {
-	return library.Properties.BuildShared &&
+	return library.MutatedProperties.BuildShared &&
 		(library.Properties.Shared.Enabled == nil || *library.Properties.Shared.Enabled)
 }
 
@@ -587,31 +592,45 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 }
 
 func (library *libraryDecorator) static() bool {
-	return library.Properties.VariantIsStatic
+	return library.MutatedProperties.VariantIsStatic
 }
 
-func (library *libraryDecorator) setStatic(static bool) {
-	library.Properties.VariantIsStatic = static
+func (library *libraryDecorator) shared() bool {
+	return library.MutatedProperties.VariantIsShared
+}
+
+func (library *libraryDecorator) header() bool {
+	return !library.static() && !library.shared()
+}
+
+func (library *libraryDecorator) setStatic() {
+	library.MutatedProperties.VariantIsStatic = true
+	library.MutatedProperties.VariantIsShared = false
+}
+
+func (library *libraryDecorator) setShared() {
+	library.MutatedProperties.VariantIsStatic = false
+	library.MutatedProperties.VariantIsShared = true
 }
 
 func (library *libraryDecorator) BuildOnlyStatic() {
-	library.Properties.BuildShared = false
+	library.MutatedProperties.BuildShared = false
 }
 
 func (library *libraryDecorator) BuildOnlyShared() {
-	library.Properties.BuildStatic = false
+	library.MutatedProperties.BuildStatic = false
 }
 
 func (library *libraryDecorator) HeaderOnly() {
-	library.Properties.BuildShared = false
-	library.Properties.BuildStatic = false
+	library.MutatedProperties.BuildShared = false
+	library.MutatedProperties.BuildStatic = false
 }
 
 func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module := newModule(hod, android.MultilibBoth)
 
 	library := &libraryDecorator{
-		Properties: LibraryProperties{
+		MutatedProperties: LibraryMutatedProperties{
 			BuildShared: true,
 			BuildStatic: true,
 		},
@@ -637,8 +656,8 @@ func linkageMutator(mctx android.BottomUpMutatorContext) {
 				static := modules[0].(*Module)
 				shared := modules[1].(*Module)
 
-				static.linker.(libraryInterface).setStatic(true)
-				shared.linker.(libraryInterface).setStatic(false)
+				static.linker.(libraryInterface).setStatic()
+				shared.linker.(libraryInterface).setShared()
 
 				if staticCompiler, ok := static.compiler.(*libraryDecorator); ok {
 					sharedCompiler := shared.compiler.(*libraryDecorator)
@@ -652,10 +671,10 @@ func linkageMutator(mctx android.BottomUpMutatorContext) {
 				}
 			} else if library.buildStatic() {
 				modules = mctx.CreateLocalVariations("static")
-				modules[0].(*Module).linker.(libraryInterface).setStatic(true)
+				modules[0].(*Module).linker.(libraryInterface).setStatic()
 			} else if library.buildShared() {
 				modules = mctx.CreateLocalVariations("shared")
-				modules[0].(*Module).linker.(libraryInterface).setStatic(false)
+				modules[0].(*Module).linker.(libraryInterface).setShared()
 			}
 		}
 	}
