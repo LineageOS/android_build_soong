@@ -118,6 +118,7 @@ bootstrap_go_package {
         "cc/builder.go",
         "cc/cc.go",
         "cc/check.go",
+        "cc/coverage.go",
         "cc/gen.go",
         "cc/makevars.go",
         "cc/prebuilt.go",
