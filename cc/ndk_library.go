@@ -335,7 +335,7 @@ func newStubLibrary() (*Module, []interface{}) {
 	module.linker = stub
 	module.installer = stub
 
-	return module, []interface{}{&stub.properties}
+	return module, []interface{}{&stub.properties, &library.MutatedProperties}
 }
 
 func ndkLibraryFactory() (blueprint.Module, []interface{}) {
