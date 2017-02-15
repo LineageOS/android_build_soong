@@ -46,6 +46,8 @@ func init() {
 
 		ctx.TopDown("tsan_deps", sanitizerDepsMutator(tsan))
 		ctx.BottomUp("tsan", sanitizerMutator(tsan)).Parallel()
+
+		ctx.BottomUp("coverage", coverageLinkingMutator).Parallel()
 	})
 
 	pctx.Import("android/soong/cc/config")
@@ -78,6 +80,7 @@ type PathDeps struct {
 
 	// Paths to .o files
 	Objs               Objects
+	StaticLibObjs      Objects
 	WholeStaticLibObjs Objects
 
 	// Paths to generated source files
@@ -108,6 +111,7 @@ type Flags struct {
 	Toolchain config.Toolchain
 	Clang     bool
 	Tidy      bool
+	Coverage  bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string
@@ -144,8 +148,7 @@ type BaseProperties struct {
 }
 
 type UnusedProperties struct {
-	Native_coverage *bool
-	Tags            []string
+	Tags []string
 }
 
 type ModuleContextIntf interface {
@@ -261,6 +264,7 @@ type Module struct {
 	installer installer
 	stl       *stl
 	sanitize  *sanitize
+	coverage  *coverage
 
 	androidMkSharedLibDeps []string
 
@@ -290,6 +294,9 @@ func (c *Module) Init() (blueprint.Module, []interface{}) {
 	}
 	if c.sanitize != nil {
 		props = append(props, c.sanitize.props()...)
+	}
+	if c.coverage != nil {
+		props = append(props, c.coverage.props()...)
 	}
 	for _, feature := range c.features {
 		props = append(props, feature.props()...)
@@ -411,6 +418,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	}
 	module.stl = &stl{}
 	module.sanitize = &sanitize{}
+	module.coverage = &coverage{}
 	return module
 }
 
@@ -453,6 +461,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if c.sanitize != nil {
 		flags = c.sanitize.flags(ctx, flags)
+	}
+	if c.coverage != nil {
+		flags = c.coverage.flags(ctx, flags)
 	}
 	for _, feature := range c.features {
 		flags = feature.flags(ctx, flags)
@@ -525,6 +536,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	if c.sanitize != nil {
 		c.sanitize.begin(ctx)
 	}
+	if c.coverage != nil {
+		c.coverage.begin(ctx)
+	}
 	for _, feature := range c.features {
 		feature.begin(ctx)
 	}
@@ -562,6 +576,9 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	}
 	if c.sanitize != nil {
 		deps = c.sanitize.deps(ctx, deps)
+	}
+	if c.coverage != nil {
+		deps = c.coverage.deps(ctx, deps)
 	}
 	for _, feature := range c.features {
 		deps = feature.deps(ctx, deps)
@@ -951,6 +968,20 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPaths.CrtEnd = linkFile
 		}
 
+		switch tag {
+		case staticDepTag, staticExportDepTag, lateStaticDepTag:
+			staticLib, ok := cc.linker.(libraryInterface)
+			if !ok || !staticLib.static() {
+				ctx.ModuleErrorf("module %q not a static library", name)
+				return
+			}
+
+			// When combining coverage files for shared libraries and executables, coverage files
+			// in static libraries act as if they were whole static libraries.
+			depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
+				staticLib.objs().coverageFiles...)
+		}
+
 		if ptr != nil {
 			if !linkFile.Valid() {
 				ctx.ModuleErrorf("module %q missing output file", name)
@@ -1024,6 +1055,7 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&StripProperties{},
 		&InstallerProperties{},
 		&TidyProperties{},
+		&CoverageProperties{},
 	)
 
 	return android.InitDefaultsModule(module, module, props...)
