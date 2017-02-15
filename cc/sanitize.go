@@ -28,6 +28,12 @@ const (
 	asanCflags  = "-fno-omit-frame-pointer"
 	asanLdflags = "-Wl,-u,__asan_preinit"
 	asanLibs    = "libasan"
+
+	cfiCflags = "-flto -fsanitize-cfi-cross-dso -fvisibility=default " +
+		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"
+	// FIXME: revert the __cfi_check flag when clang is updated to r280031.
+	cfiLdflags = "-flto -fsanitize-cfi-cross-dso -fsanitize=cfi " +
+		"-Wl,-plugin-opt,O1 -Wl,-export-dynamic-symbol=__cfi_check"
 )
 
 type sanitizerType int
@@ -324,12 +330,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, "-march=armv7-a")
 		}
 		sanitizers = append(sanitizers, "cfi")
-		cfiFlags := []string{"-flto", "-fsanitize=cfi", "-fsanitize-cfi-cross-dso"}
-		flags.CFlags = append(flags.CFlags, cfiFlags...)
-		flags.CFlags = append(flags.CFlags, "-fvisibility=default")
-		flags.LdFlags = append(flags.LdFlags, cfiFlags...)
-		// FIXME: revert the __cfi_check flag when clang is updated to r280031.
-		flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,O1", "-Wl,-export-dynamic-symbol=__cfi_check")
+		flags.CFlags = append(flags.CFlags, cfiCflags)
+		flags.LdFlags = append(flags.LdFlags, cfiLdflags)
 		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
 			diagSanitizers = append(diagSanitizers, "cfi")
 		}
