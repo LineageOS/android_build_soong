@@ -81,14 +81,14 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 }
 
 func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	if !library.static() {
+	if library.shared() {
 		ctx.subAndroidMk(ret, &library.stripper)
 		ctx.subAndroidMk(ret, &library.relocationPacker)
 	}
 
-	if library.static() {
+	if library.static() || library.header() {
 		ret.Class = "STATIC_LIBRARIES"
-	} else {
+	} else if library.shared() {
 		ret.Class = "SHARED_LIBRARIES"
 	}
 
@@ -118,7 +118,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		return nil
 	})
 
-	if !library.static() {
+	if library.shared() {
 		ctx.subAndroidMk(ret, library.baseInstaller)
 	}
 }
