@@ -32,6 +32,12 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	fh := &fileHeader
 	fh.Flags |= 0x8
 
+	// The zip64 extras change between the Central Directory and Local File Header, while we use
+	// the same structure for both. The Local File Haeder is taken care of by us writing a data
+	// descriptor with the zip64 values. The Central Directory Entry is written by Close(), where
+	// the zip64 extra is automatically created and appended when necessary.
+	fh.Extra = stripZip64Extras(fh.Extra)
+
 	h := &header{
 		FileHeader: fh,
 		offset:     uint64(w.cw.count),
@@ -68,6 +74,29 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	}
 	_, err = w.cw.Write(buf)
 	return err
+}
+
+// Strip any Zip64 extra fields
+func stripZip64Extras(input []byte) []byte {
+	ret := []byte{}
+
+	for len(input) >= 4 {
+		r := readBuf(input)
+		tag := r.uint16()
+		size := r.uint16()
+		if int(size) > len(r) {
+			break
+		}
+		if tag != zip64ExtraId {
+			ret = append(ret, input[:4+size]...)
+		}
+		input = input[4+size:]
+	}
+
+	// Keep any trailing data
+	ret = append(ret, input...)
+
+	return ret
 }
 
 // CreateCompressedHeader adds a file to the zip file using the provied
