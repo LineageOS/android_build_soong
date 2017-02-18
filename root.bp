@@ -15,6 +15,7 @@ optional_subdirs = [
     "build/tools/*",
     "dalvik",
     "development/*",
+    "device/*/*",
     "external/*",
     "frameworks/av",
     "frameworks/base",
