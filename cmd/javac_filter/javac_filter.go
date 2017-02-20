@@ -54,6 +54,10 @@ func main() {
 
 func process(r io.Reader, w io.Writer) error {
 	scanner := bufio.NewScanner(r)
+	// Some javac wrappers output the entire list of java files being
+	// compiled on a single line, which can be very large, set the maximum
+	// buffer size to 2MB.
+	scanner.Buffer(nil, 2*1024*1024)
 	for scanner.Scan() {
 		processLine(w, scanner.Text())
 	}
