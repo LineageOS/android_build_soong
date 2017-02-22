@@ -95,3 +95,10 @@ func (c ContextImpl) ImportNinjaLog(filename string, startOffset time.Time) {
 		c.Tracer.ImportNinjaLog(c.Thread, filename, startOffset)
 	}
 }
+
+func (c ContextImpl) IsTerminal() bool {
+	if term, ok := os.LookupEnv("TERM"); ok {
+		return term != "dumb" && isTerminal(c.Stdout()) && isTerminal(c.Stderr())
+	}
+	return false
+}
