@@ -15,11 +15,14 @@
 package build
 
 import (
+	"bufio"
 	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -94,14 +97,78 @@ func runKati(ctx Context, config Config) {
 
 	cmd := exec.CommandContext(ctx.Context, executable, args...)
 	cmd.Env = config.Environment().Environ()
-	cmd.Stdout = ctx.Stdout()
-	cmd.Stderr = ctx.Stderr()
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		ctx.Fatalln("Error getting output pipe for ckati:", err)
+	}
+	cmd.Stderr = cmd.Stdout
+
 	ctx.Verboseln(cmd.Path, cmd.Args)
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Start(); err != nil {
+		ctx.Fatalln("Failed to run ckati:", err)
+	}
+
+	katiRewriteOutput(ctx, pipe)
+
+	if err := cmd.Wait(); err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
 			ctx.Fatalln("ckati failed with:", e.ProcessState.String())
 		} else {
 			ctx.Fatalln("Failed to run ckati:", err)
 		}
+	}
+}
+
+var katiIncludeRe = regexp.MustCompile(`^(\[\d+/\d+] )?including [^ ]+ ...$`)
+
+func katiRewriteOutput(ctx Context, pipe io.ReadCloser) {
+	haveBlankLine := true
+	smartTerminal := ctx.IsTerminal()
+
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		line := scanner.Text()
+		verbose := katiIncludeRe.MatchString(line)
+
+		// For verbose lines, write them on the current line without a newline,
+		// then overwrite them if the next thing we're printing is another
+		// verbose line.
+		if smartTerminal && verbose {
+			// Limit line width to the terminal width, otherwise we'll wrap onto
+			// another line and we won't delete the previous line.
+			//
+			// Run this on every line in case the window has been resized while
+			// we're printing. This could be optimized to only re-run when we
+			// get SIGWINCH if it ever becomes too time consuming.
+			if max, ok := termWidth(ctx.Stdout()); ok {
+				if len(line) > max {
+					// Just do a max. Ninja elides the middle, but that's
+					// more complicated and these lines aren't that important.
+					line = line[:max]
+				}
+			}
+
+			// Move to the beginning on the line, print the output, then clear
+			// the rest of the line.
+			fmt.Fprint(ctx.Stdout(), "\r", line, "\x1b[K")
+			haveBlankLine = false
+			continue
+		} else if smartTerminal && !haveBlankLine {
+			// If we've previously written a verbose message, send a newline to save
+			// that message instead of overwriting it.
+			fmt.Fprintln(ctx.Stdout())
+			haveBlankLine = true
+		} else if !smartTerminal {
+			// Most editors display these as garbage, so strip them out.
+			line = string(stripAnsiEscapes([]byte(line)))
+		}
+
+		// Assume that non-verbose lines are important enough for stderr
+		fmt.Fprintln(ctx.Stderr(), line)
+	}
+
+	// Save our last verbose line.
+	if !haveBlankLine {
+		fmt.Fprintln(ctx.Stdout())
 	}
 }

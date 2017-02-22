@@ -12,33 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-bootstrap_go_package {
-    name: "soong-ui-build",
-    pkgPath: "android/soong/ui/build",
-    deps: [
-        "soong-ui-logger",
-        "soong-ui-tracer",
-    ],
-    srcs: [
-        "build.go",
-        "config.go",
-        "context.go",
-        "environment.go",
-        "kati.go",
-        "make.go",
-        "ninja.go",
-        "signal.go",
-        "soong.go",
-        "util.go",
-    ],
-    testSrcs: [
-        "environment_test.go",
-        "util_test.go",
-    ],
-    darwin: {
-        srcs: ["util_darwin.go"],
-    },
-    linux: {
-        srcs: ["util_linux.go"],
-    },
-}
+package build
+
+import (
+	"syscall"
+)
+
+const ioctlGetTermios = syscall.TIOCGETA
