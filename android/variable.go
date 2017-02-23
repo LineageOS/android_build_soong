@@ -54,14 +54,6 @@ type variableProperties struct {
 			Cflags []string `android:"arch_variant"`
 		} `android:"arch_variant"`
 
-		Cpusets struct {
-			Cflags []string
-		}
-
-		Schedboost struct {
-			Cflags []string
-		}
-
 		Binder32bit struct {
 			Cflags []string
 		}
@@ -118,8 +110,6 @@ type productVariables struct {
 	Malloc_not_svelte          *bool `json:",omitempty"`
 	Safestack                  *bool `json:",omitempty"`
 	HostStaticBinaries         *bool `json:",omitempty"`
-	Cpusets                    *bool `json:",omitempty"`
-	Schedboost                 *bool `json:",omitempty"`
 	Binder32bit                *bool `json:",omitempty"`
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
