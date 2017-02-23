@@ -53,7 +53,7 @@ function run_go
 {
     # Increment when microfactory changes enough that it cannot rebuild itself.
     # For example, if we use a new command line argument that doesn't work on older versions.
-    local mf_version=1
+    local mf_version=2
 
     local mf_src="${TOP}/build/soong/cmd/microfactory"
 
