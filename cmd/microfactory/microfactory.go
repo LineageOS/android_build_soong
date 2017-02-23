@@ -67,7 +67,21 @@ var (
 	verbose = false
 
 	goToolDir = filepath.Join(runtime.GOROOT(), "pkg", "tool", runtime.GOOS+"_"+runtime.GOARCH)
+	goVersion = findGoVersion()
 )
+
+func findGoVersion() string {
+	if version, err := ioutil.ReadFile(filepath.Join(runtime.GOROOT(), "VERSION")); err == nil {
+		return string(version)
+	}
+
+	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "version")
+	if version, err := cmd.Output(); err == nil {
+		return string(version)
+	} else {
+		panic(fmt.Sprintf("Unable to discover go version: %v", err))
+	}
+}
 
 type GoPackage struct {
 	Name string
@@ -218,7 +232,7 @@ func (p *GoPackage) Compile(outDir, trimPath string) error {
 	shaFile := p.output + ".hash"
 
 	hash := sha1.New()
-	fmt.Fprintln(hash, runtime.GOOS, runtime.GOARCH, runtime.Version())
+	fmt.Fprintln(hash, runtime.GOOS, runtime.GOARCH, goVersion)
 
 	cmd := exec.Command(filepath.Join(goToolDir, "compile"),
 		"-o", p.output,
