@@ -73,20 +73,18 @@ func runKati(ctx Context, config Config) {
 		"--regen",
 		"--ignore_optional_include=" + filepath.Join(config.OutDir(), "%.P"),
 		"--detect_android_echo",
+		"--color_warnings",
+		"--gen_all_targets",
+		"-f", "build/core/main.mk",
 	}
 
 	if !config.Environment().IsFalse("KATI_EMULATE_FIND") {
 		args = append(args, "--use_find_emulator")
 	}
 
-	// The argument order could be simplified, but currently this matches
-	// the ordering in Make
-	args = append(args, "-f", "build/core/main.mk")
-
 	args = append(args, config.KatiArgs()...)
 
 	args = append(args,
-		"--gen_all_targets",
 		"BUILDING_WITH_NINJA=true",
 		"SOONG_ANDROID_MK="+config.SoongAndroidMk(),
 		"SOONG_MAKEVARS_MK="+config.SoongMakeVarsMk())
