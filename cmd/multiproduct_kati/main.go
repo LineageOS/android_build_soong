@@ -181,8 +181,7 @@ func main() {
 					}
 					build.Build(product.ctx, product.config, buildWhat)
 					if !*keep {
-						// TODO: kati aborts from opendir while setting up the find emulator
-						//os.RemoveAll(product.config.OutDir())
+						os.RemoveAll(product.config.OutDir())
 					}
 					log.Println("Finished running for", product.config.TargetProduct())
 				}()
