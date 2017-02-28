@@ -121,8 +121,9 @@ type productVariables struct {
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`
 
-	NativeCoverage *bool     `json:",omitempty"`
-	CoveragePaths  *[]string `json:",omitempty"`
+	NativeCoverage       *bool     `json:",omitempty"`
+	CoveragePaths        *[]string `json:",omitempty"`
+	CoverageExcludePaths *[]string `json:",omitempty"`
 
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
 	HostPrefer32BitExecutables   *bool `json:",omitempty"`
