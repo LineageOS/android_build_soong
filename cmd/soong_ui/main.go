@@ -72,9 +72,10 @@ func main() {
 	build.SetupOutDir(buildCtx, config)
 
 	if config.Dist() {
-		os.MkdirAll(config.DistDir(), 0777)
-		log.SetOutput(filepath.Join(config.DistDir(), "logs", "soong.log"))
-		trace.SetOutput(filepath.Join(config.DistDir(), "logs", "build.trace"))
+		logsDir := filepath.Join(config.DistDir(), "logs")
+		os.MkdirAll(logsDir, 0777)
+		log.SetOutput(filepath.Join(logsDir, "soong.log"))
+		trace.SetOutput(filepath.Join(logsDir, "build.trace"))
 	} else {
 		log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
 		trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
