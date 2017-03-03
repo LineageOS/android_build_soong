@@ -57,7 +57,15 @@ function run_go
 
     local mf_src="${TOP}/build/soong/cmd/microfactory"
 
-    local out_dir="${OUT_DIR:-${TOP}/out}"
+    local out_dir="${OUT_DIR-}"
+    if [ -z "${out_dir}" ]; then
+        if [ "${OUT_DIR_COMMON_BASE-}" ]; then
+            out_dir="${OUT_DIR_COMMON_BASE}/$(basename ${TOP})"
+        else
+            out_dir="${TOP}/out"
+        fi
+    fi
+
     local mf_bin="${out_dir}/microfactory_$(uname)"
     local mf_version_file="${out_dir}/.microfactory_$(uname)_version"
     local soong_ui_bin="${out_dir}/soong_ui"
