@@ -50,6 +50,19 @@ func NewConfig(ctx Context, args ...string) Config {
 		environ: OsEnvironment(),
 	}
 
+	// Make sure OUT_DIR is set appropriately
+	if _, ok := ret.environ.Get("OUT_DIR"); !ok {
+		outDir := "out"
+		if baseDir, ok := ret.environ.Get("OUT_DIR_COMMON_BASE"); ok {
+			if wd, err := os.Getwd(); err != nil {
+				ctx.Fatalln("Failed to get working directory:", err)
+			} else {
+				outDir = filepath.Join(baseDir, filepath.Base(wd))
+			}
+		}
+		ret.environ.Set("OUT_DIR", outDir)
+	}
+
 	ret.environ.Unset(
 		// We're already using it
 		"USE_SOONG_UI",
@@ -67,6 +80,9 @@ func NewConfig(ctx Context, args ...string) Config {
 		// Used by the goma compiler wrapper, but should only be set by
 		// gomacc
 		"GOMACC_PATH",
+
+		// We handle this above
+		"OUT_DIR_COMMON_BASE",
 	)
 
 	// Tell python not to spam the source tree with .pyc files.
