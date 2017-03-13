@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -186,9 +185,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	if toolchain.ClangSupported() {
 		clangPrefix := secondPrefix + "CLANG_" + typePrefix
 		clangExtras := "-target " + toolchain.ClangTriple()
-		if target.Os != android.Darwin {
-			clangExtras += " -B" + filepath.Join(toolchain.GccRoot(), toolchain.GccTriple(), "bin")
-		}
+		clangExtras += " -B" + config.ToolPath(toolchain)
 
 		ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 			toolchain.ClangCflags(),

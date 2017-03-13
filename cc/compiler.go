@@ -262,10 +262,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.LdFlags = config.ClangFilterUnknownCflags(flags.LdFlags)
 
 		target := "-target " + tc.ClangTriple()
-		var gccPrefix string
-		if !ctx.Darwin() {
-			gccPrefix = "-B" + filepath.Join(tc.GccRoot(), tc.GccTriple(), "bin")
-		}
+		gccPrefix := "-B" + config.ToolPath(tc)
 
 		flags.CFlags = append(flags.CFlags, target, gccPrefix)
 		flags.AsFlags = append(flags.AsFlags, target, gccPrefix)
