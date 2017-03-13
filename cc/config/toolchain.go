@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"android/soong/android"
 )
@@ -47,6 +48,7 @@ type Toolchain interface {
 	GccTriple() string
 	// GccVersion should return a real value, not a ninja reference
 	GccVersion() string
+	ToolPath() string
 
 	ToolchainCflags() string
 	ToolchainLdflags() string
@@ -145,6 +147,10 @@ func (toolchainBase) Bionic() bool {
 	return true
 }
 
+func (t toolchainBase) ToolPath() string {
+	return ""
+}
+
 type toolchain64Bit struct {
 	toolchainBase
 }
@@ -215,4 +221,11 @@ func UndefinedBehaviorSanitizerRuntimeLibrary(t Toolchain) string {
 		return ""
 	}
 	return "libclang_rt.ubsan_standalone-" + arch + "-android.so"
+}
+
+func ToolPath(t Toolchain) string {
+	if p := t.ToolPath(); p != "" {
+		return p
+	}
+	return filepath.Join(t.GccRoot(), t.GccTriple(), "bin")
 }

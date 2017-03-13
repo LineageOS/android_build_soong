@@ -17,6 +17,7 @@ package config
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -129,6 +130,11 @@ func init() {
 	pctx.VariableFunc("MacStripPath", func(config interface{}) (string, error) {
 		bytes, err := exec.Command("xcrun", "--find", "strip").Output()
 		return strings.TrimSpace(string(bytes)), err
+	})
+
+	pctx.VariableFunc("MacToolPath", func(config interface{}) (string, error) {
+		bytes, err := exec.Command("xcrun", "--find", "ld").Output()
+		return filepath.Dir(strings.TrimSpace(string(bytes))), err
 	})
 
 	pctx.StaticVariable("DarwinGccVersion", darwinGccVersion)
@@ -274,6 +280,10 @@ func (t *toolchainDarwin) AvailableLibraries() []string {
 
 func (t *toolchainDarwin) Bionic() bool {
 	return false
+}
+
+func (t *toolchainDarwin) ToolPath() string {
+	return "${config.MacToolPath}"
 }
 
 var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}
