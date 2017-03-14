@@ -47,6 +47,7 @@ type baseInstaller struct {
 
 	dir      string
 	dir64    string
+	subDir   string
 	relative string
 	location installLocation
 
@@ -60,14 +61,14 @@ func (installer *baseInstaller) installerProps() []interface{} {
 }
 
 func (installer *baseInstaller) installDir(ctx ModuleContext) android.OutputPath {
-	subDir := installer.dir
+	dir := installer.dir
 	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
-		subDir = installer.dir64
+		dir = installer.dir64
 	}
 	if !ctx.Host() && !ctx.Arch().Native {
-		subDir = filepath.Join(subDir, ctx.Arch().ArchType.String())
+		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
-	return android.PathForModuleInstall(ctx, subDir, installer.Properties.Relative_install_path, installer.relative)
+	return android.PathForModuleInstall(ctx, dir, installer.subDir, installer.Properties.Relative_install_path, installer.relative)
 }
 
 func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
