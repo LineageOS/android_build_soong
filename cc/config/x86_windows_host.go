@@ -69,6 +69,7 @@ var (
 
 	windowsX86Ldflags = []string{
 		"-m32",
+		"-Wl,--large-address-aware",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib32",
 	}
 
