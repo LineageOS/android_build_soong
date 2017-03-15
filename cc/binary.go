@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"path/filepath"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -236,7 +238,22 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				if binary.Properties.DynamicLinker != "" {
 					flags.DynamicLinker = binary.Properties.DynamicLinker
 				} else {
-					flags.DynamicLinker = "/system/bin/linker"
+					switch ctx.Os() {
+					case android.Android:
+						flags.DynamicLinker = "/system/bin/linker"
+					case android.LinuxBionic:
+						// The linux kernel expects the linker to be an
+						// absolute path
+						path := android.PathForOutput(ctx,
+							"host", "linux_bionic-x86", "bin", "linker")
+						if p, err := filepath.Abs(path.String()); err == nil {
+							flags.DynamicLinker = p
+						} else {
+							ctx.ModuleErrorf("can't find path to dynamic linker: %q", err)
+						}
+					default:
+						ctx.ModuleErrorf("unknown dynamic linker")
+					}
 					if flags.Toolchain.Is64Bit() {
 						flags.DynamicLinker += "64"
 					}
