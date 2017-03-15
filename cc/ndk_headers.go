@@ -138,12 +138,7 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func ndkHeadersFactory() (blueprint.Module, []interface{}) {
 	module := &headerModule{}
-	// Host module rather than device module because device module install steps
-	// do not get run when embedded in make. We're not any of the existing
-	// module types that can be exposed via the Android.mk exporter, so just use
-	// a host module.
-	return android.InitAndroidArchModule(module, android.HostSupportedNoCross,
-		android.MultilibFirst, &module.properties)
+	return android.InitAndroidModule(module, &module.properties)
 }
 
 type preprocessedHeaderProperies struct {
