@@ -40,6 +40,7 @@ const productVariablesFileName = "soong.variables"
 type FileConfigurableOptions struct {
 	Mega_device *bool `json:",omitempty"`
 	Ndk_abis    *bool `json:",omitempty"`
+	Host_bionic *bool `json:",omitempty"`
 }
 
 func (f *FileConfigurableOptions) SetDefaultConfig() {

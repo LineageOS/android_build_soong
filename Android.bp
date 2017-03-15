@@ -95,6 +95,7 @@ bootstrap_go_package {
 
         "cc/config/x86_darwin_host.go",
         "cc/config/x86_linux_host.go",
+        "cc/config/x86_linux_bionic_host.go",
         "cc/config/x86_windows_host.go",
     ],
     testSrcs: [
