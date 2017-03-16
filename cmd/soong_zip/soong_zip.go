@@ -357,6 +357,7 @@ func (z *zipWriter) writeRelFile(root, file string) error {
 
 func (z *zipWriter) writeFile(rel, file string) error {
 	var fileSize int64
+	var executable bool
 
 	if s, err := os.Lstat(file); err != nil {
 		return err
@@ -371,6 +372,7 @@ func (z *zipWriter) writeFile(rel, file string) error {
 		return fmt.Errorf("%s is not a file, directory, or symlink", file)
 	} else {
 		fileSize = s.Size()
+		executable = s.Mode()&0100 != 0
 	}
 
 	if z.directories {
@@ -395,6 +397,9 @@ func (z *zipWriter) writeFile(rel, file string) error {
 		},
 	}
 	ze.fh.SetModTime(z.time)
+	if executable {
+		ze.fh.SetMode(0700)
+	}
 
 	r, err := os.Open(file)
 	if err != nil {
@@ -445,7 +450,7 @@ func (z *zipWriter) writeFile(rel, file string) error {
 			f.Close()
 		}(wg, r)
 	} else {
-		go z.compressWholeFile(rel, r, exec, compressChan)
+		go z.compressWholeFile(rel, r, executable, exec, compressChan)
 	}
 
 	return nil
@@ -514,7 +519,7 @@ func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.B
 	return buf, nil
 }
 
-func (z *zipWriter) compressWholeFile(rel string, r *os.File, exec Execution, compressChan chan *zipEntry) {
+func (z *zipWriter) compressWholeFile(rel string, r *os.File, executable bool, exec Execution, compressChan chan *zipEntry) {
 	var bufSize int
 
 	defer r.Close()
@@ -524,6 +529,9 @@ func (z *zipWriter) compressWholeFile(rel string, r *os.File, exec Execution, co
 		Method: zip.Deflate,
 	}
 	fileHeader.SetModTime(z.time)
+	if executable {
+		fileHeader.SetMode(0700)
+	}
 
 	crc := crc32.NewIEEE()
 	count, err := io.Copy(crc, r)
