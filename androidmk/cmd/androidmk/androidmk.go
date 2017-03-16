@@ -233,28 +233,16 @@ func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditio
 	appendVariable := assignment.Type == "+="
 
 	var err error
-	if prop, ok := standardProperties[name]; ok {
-		var val bpparser.Expression
-		val, err = makeVariableToBlueprint(file, assignment.Value, prop.Type)
-		if err == nil {
-			err = setVariable(file, appendVariable, prefix, prop.string, val, true)
-		}
-	} else if prop, ok := rewriteProperties[name]; ok {
-		err = prop.f(file, prefix, assignment.Value, appendVariable)
-	} else if _, ok := deleteProperties[name]; ok {
-		return
+	if prop, ok := rewriteProperties[name]; ok {
+		err = prop(variableAssignmentContext{file, prefix, assignment.Value, appendVariable})
 	} else {
 		switch {
-		case name == "LOCAL_PATH":
-			// Nothing to do, except maybe avoid the "./" in paths?
 		case name == "LOCAL_ARM_MODE":
 			// This is a hack to get the LOCAL_ARM_MODE value inside
 			// of an arch: { arm: {} } block.
 			armModeAssign := assignment
 			armModeAssign.Name = mkparser.SimpleMakeString("LOCAL_ARM_MODE_HACK_arm", assignment.Name.Pos())
 			handleAssignment(file, armModeAssign, c)
-		case name == "LOCAL_ADDITIONAL_DEPENDENCIES":
-			// TODO: check for only .mk files?
 		case strings.HasPrefix(name, "LOCAL_"):
 			file.errorf(assignment, "unsupported assignment to %s", name)
 			return
