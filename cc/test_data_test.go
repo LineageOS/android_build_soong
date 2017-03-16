@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/genrule"
+
 	"github.com/google/blueprint"
 )
 
@@ -121,13 +123,15 @@ func TestDataTests(t *testing.T) {
 
 	for _, test := range testDataTests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := android.NewContext()
+			ctx := blueprint.NewContext()
+			android.RegisterTestMutators(ctx)
 			ctx.MockFileSystem(map[string][]byte{
 				"Blueprints":     []byte(`subdirs = ["dir"]`),
 				"dir/Blueprints": []byte(test.modules),
 				"dir/baz":        nil,
 				"dir/bar/baz":    nil,
 			})
+			ctx.RegisterModuleType("filegroup", genrule.FileGroupFactory)
 			ctx.RegisterModuleType("test", newTest)
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
