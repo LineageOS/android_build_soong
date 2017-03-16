@@ -96,6 +96,7 @@ type PathDeps struct {
 
 type Flags struct {
 	GlobalFlags []string // Flags that apply to C, C++, and assembly source files
+	ArFlags     []string // Flags that apply to ar
 	AsFlags     []string // Flags that apply to assembly source files
 	CFlags      []string // Flags that apply to C and C++ source files
 	ConlyFlags  []string // Flags that apply to C source files
