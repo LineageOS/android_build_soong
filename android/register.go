@@ -15,8 +15,6 @@
 package android
 
 import (
-	"sync"
-
 	"github.com/google/blueprint"
 )
 
@@ -51,8 +49,6 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
-var registerMutatorsOnce sync.Once
-
 func NewContext() *blueprint.Context {
 	ctx := blueprint.NewContext()
 
@@ -64,19 +60,8 @@ func NewContext() *blueprint.Context {
 		ctx.RegisterSingletonType(t.name, t.factory)
 	}
 
-	registerMutatorsOnce.Do(registerMutators)
+	registerMutators(ctx)
 
-	for _, t := range mutators {
-		var handle blueprint.MutatorHandle
-		if t.bottomUpMutator != nil {
-			handle = ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
-		} else if t.topDownMutator != nil {
-			handle = ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
-		}
-		if t.parallel {
-			handle.Parallel()
-		}
-	}
 	ctx.RegisterSingletonType("env", EnvSingleton)
 
 	return ctx

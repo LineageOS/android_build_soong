@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("filegroup", fileGroupFactory)
+	android.RegisterModuleType("filegroup", FileGroupFactory)
 }
 
 type fileGroupProperties struct {
@@ -48,7 +48,7 @@ var _ android.SourceFileProducer = (*fileGroup)(nil)
 // filegroup modules contain a list of files, and can be used to export files across package
 // boundaries.  filegroups (and genrules) can be referenced from srcs properties of other modules
 // using the syntax ":module".
-func fileGroupFactory() (blueprint.Module, []interface{}) {
+func FileGroupFactory() (blueprint.Module, []interface{}) {
 	module := &fileGroup{}
 
 	return android.InitAndroidModule(module, &module.properties)
