@@ -14,7 +14,11 @@
 
 package android
 
-import "github.com/google/blueprint"
+import (
+	"sync"
+
+	"github.com/google/blueprint"
+)
 
 // Mutator phases:
 //   Pre-arch
@@ -23,36 +27,68 @@ import "github.com/google/blueprint"
 //   Deps
 //   PostDeps
 
-func registerMutators() {
-	ctx := registerMutatorsContext{}
+var registerMutatorsOnce sync.Once
+var registeredMutators []*mutator
 
-	register := func(funcs []RegisterMutatorFunc) {
-		for _, f := range funcs {
-			f(ctx)
+func registerMutatorsToContext(ctx *blueprint.Context, mutators []*mutator) {
+	for _, t := range mutators {
+		var handle blueprint.MutatorHandle
+		if t.bottomUpMutator != nil {
+			handle = ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
+		} else if t.topDownMutator != nil {
+			handle = ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
+		}
+		if t.parallel {
+			handle.Parallel()
 		}
 	}
-
-	ctx.TopDown("load_hooks", loadHookMutator).Parallel()
-	ctx.BottomUp("prebuilts", prebuiltMutator).Parallel()
-	ctx.BottomUp("defaults_deps", defaultsDepsMutator).Parallel()
-	ctx.TopDown("defaults", defaultsMutator).Parallel()
-
-	register(preArch)
-
-	ctx.BottomUp("arch", archMutator).Parallel()
-	ctx.TopDown("arch_hooks", archHookMutator).Parallel()
-
-	register(preDeps)
-
-	ctx.BottomUp("deps", depsMutator).Parallel()
-
-	ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
-	ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
-
-	register(postDeps)
 }
 
-type registerMutatorsContext struct{}
+func registerMutators(ctx *blueprint.Context) {
+
+	registerMutatorsOnce.Do(func() {
+		ctx := &registerMutatorsContext{}
+
+		register := func(funcs []RegisterMutatorFunc) {
+			for _, f := range funcs {
+				f(ctx)
+			}
+		}
+
+		ctx.TopDown("load_hooks", loadHookMutator).Parallel()
+		ctx.BottomUp("prebuilts", prebuiltMutator).Parallel()
+		ctx.BottomUp("defaults_deps", defaultsDepsMutator).Parallel()
+		ctx.TopDown("defaults", defaultsMutator).Parallel()
+
+		register(preArch)
+
+		ctx.BottomUp("arch", archMutator).Parallel()
+		ctx.TopDown("arch_hooks", archHookMutator).Parallel()
+
+		register(preDeps)
+
+		ctx.BottomUp("deps", depsMutator).Parallel()
+
+		ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
+		ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
+
+		register(postDeps)
+
+		registeredMutators = ctx.mutators
+	})
+
+	registerMutatorsToContext(ctx, registeredMutators)
+}
+
+func RegisterTestMutators(ctx *blueprint.Context) {
+	mutators := registerMutatorsContext{}
+	mutators.BottomUp("deps", depsMutator).Parallel()
+	registerMutatorsToContext(ctx, mutators.mutators)
+}
+
+type registerMutatorsContext struct {
+	mutators []*mutator
+}
 
 type RegisterMutatorsContext interface {
 	TopDown(name string, m AndroidTopDownMutator) MutatorHandle
@@ -99,7 +135,7 @@ type androidBottomUpMutatorContext struct {
 	androidBaseContextImpl
 }
 
-func (registerMutatorsContext) BottomUp(name string, m AndroidBottomUpMutator) MutatorHandle {
+func (x *registerMutatorsContext) BottomUp(name string, m AndroidBottomUpMutator) MutatorHandle {
 	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidBottomUpMutatorContext{
@@ -110,11 +146,11 @@ func (registerMutatorsContext) BottomUp(name string, m AndroidBottomUpMutator) M
 		}
 	}
 	mutator := &mutator{name: name, bottomUpMutator: f}
-	mutators = append(mutators, mutator)
+	x.mutators = append(x.mutators, mutator)
 	return mutator
 }
 
-func (registerMutatorsContext) TopDown(name string, m AndroidTopDownMutator) MutatorHandle {
+func (x *registerMutatorsContext) TopDown(name string, m AndroidTopDownMutator) MutatorHandle {
 	f := func(ctx blueprint.TopDownMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &androidTopDownMutatorContext{
@@ -125,7 +161,7 @@ func (registerMutatorsContext) TopDown(name string, m AndroidTopDownMutator) Mut
 		}
 	}
 	mutator := &mutator{name: name, topDownMutator: f}
-	mutators = append(mutators, mutator)
+	x.mutators = append(x.mutators, mutator)
 	return mutator
 }
 
