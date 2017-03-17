@@ -156,14 +156,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 	}
 }
 
-func (vndkLibrary *vndkExtLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
-		fmt.Fprintln(w, "LOCAL_EXTENDS_MODULE := ", vndkLibrary.properties.Extends)
-		return nil
-	})
-	vndkLibrary.libraryDecorator.AndroidMk(ctx, ret)
-}
-
 func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
 		out := ret.OutputFile.Path()

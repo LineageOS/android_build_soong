@@ -163,9 +163,6 @@ type ModuleContextIntf interface {
 	vndk() bool
 	selectedStl() string
 	baseModuleName() string
-	isNdk() bool
-	isVndk() bool
-	isSameProcessHal() bool
 }
 
 type ModuleContext interface {
@@ -406,18 +403,6 @@ func (ctx *moduleContextImpl) selectedStl() string {
 
 func (ctx *moduleContextImpl) baseModuleName() string {
 	return ctx.mod.ModuleBase.BaseModuleName()
-}
-
-func (ctx *moduleContextImpl) isNdk() bool {
-	return inList(ctx.baseModuleName(), ndkPrebuiltSharedLibraries)
-}
-
-func (ctx *moduleContextImpl) isVndk() bool {
-	return config.IsVndkLibrary(ctx.baseModuleName())
-}
-
-func (ctx *moduleContextImpl) isSameProcessHal() bool {
-	return inList(ctx.baseModuleName(), ctx.ctx.DeviceConfig().SameProcessHalDeps())
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
