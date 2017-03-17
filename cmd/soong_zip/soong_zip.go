@@ -22,6 +22,7 @@ import (
 	"hash/crc32"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -54,7 +55,11 @@ func (nopCloser) Close() error {
 }
 
 type fileArg struct {
-	relativeRoot, file string
+	rootPrefix, relativeRoot, file string
+}
+
+type pathMapping struct {
+	dest, src string
 }
 
 type fileArgs []fileArg
@@ -65,10 +70,13 @@ func (l *fileArgs) String() string {
 
 func (l *fileArgs) Set(s string) error {
 	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f")
+		return fmt.Errorf("must pass -C before -f or -l")
 	}
 
-	*l = append(*l, fileArg{filepath.Clean(*relativeRoot), s})
+	*l = append(*l,
+		fileArg{rootPrefix: filepath.Clean(*rootPrefix),
+			relativeRoot: filepath.Clean(*relativeRoot),
+			file:         s})
 	return nil
 }
 
@@ -80,11 +88,13 @@ var (
 	out          = flag.String("o", "", "file to write zip file to")
 	manifest     = flag.String("m", "", "input jar manifest file name")
 	directories  = flag.Bool("d", false, "include directories in zip")
+	rootPrefix   = flag.String("P", "", "path prefix within the zip at which to place files")
 	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
-	listFiles    fileArgs
-	files        fileArgs
+
+	listFiles fileArgs
+	files     fileArgs
 
 	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 	traceFile  = flag.String("trace", "", "write trace to file")
@@ -163,14 +173,66 @@ func main() {
 		compLevel:   *compLevel,
 	}
 
-	err := w.write(*out, listFiles, *manifest)
+	pathMappings := []pathMapping{}
+	set := make(map[string]string)
+
+	// load listFiles, which specify other files to include.
+	for _, l := range listFiles {
+		list, err := ioutil.ReadFile(l.file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		srcs := strings.Split(string(list), "\n")
+		for _, src := range srcs {
+			if err := fillPathPairs(l.rootPrefix, l.relativeRoot, src,
+				set, &pathMappings); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	// also include the usual files that are to be added directly.
+	for _, f := range files {
+		if err := fillPathPairs(f.rootPrefix, f.relativeRoot,
+			f.file, set, &pathMappings); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	err := w.write(*out, pathMappings, *manifest)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
 
-func (z *zipWriter) write(out string, listFiles fileArgs, manifest string) error {
+func fillPathPairs(prefix, rel, src string, set map[string]string, pathMappings *[]pathMapping) error {
+	src = strings.TrimSpace(src)
+	if src == "" {
+		return nil
+	}
+	src = filepath.Clean(src)
+	dest, err := filepath.Rel(rel, src)
+	if err != nil {
+		return err
+	}
+	dest = filepath.Join(prefix, dest)
+
+	if _, found := set[dest]; found {
+		return fmt.Errorf("found two file paths to be copied into dest path: %q,"+
+			" both [%q]%q and [%q]%q!",
+			dest, dest, src, dest, set[dest])
+	} else {
+		set[dest] = src
+	}
+
+	*pathMappings = append(*pathMappings, pathMapping{dest: dest, src: src})
+
+	return nil
+}
+
+func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest string) error {
 	f, err := os.Create(out)
 	if err != nil {
 		return err
@@ -206,16 +268,8 @@ func (z *zipWriter) write(out string, listFiles fileArgs, manifest string) error
 		var err error
 		defer close(z.writeOps)
 
-		for _, listFile := range listFiles {
-			err = z.writeListFile(listFile)
-			if err != nil {
-				z.errors <- err
-				return
-			}
-		}
-
-		for _, file := range files {
-			err = z.writeRelFile(file.relativeRoot, file.file)
+		for _, ele := range pathMappings {
+			err = z.writeFile(ele.dest, ele.src)
 			if err != nil {
 				z.errors <- err
 				return
@@ -317,66 +371,28 @@ func (z *zipWriter) write(out string, listFiles fileArgs, manifest string) error
 	}
 }
 
-func (z *zipWriter) writeListFile(listFile fileArg) error {
-	list, err := ioutil.ReadFile(listFile.file)
-	if err != nil {
-		return err
-	}
-
-	files := strings.Split(string(list), "\n")
-
-	for _, file := range files {
-		file = strings.TrimSpace(file)
-		if file == "" {
-			continue
-		}
-		err = z.writeRelFile(listFile.relativeRoot, file)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (z *zipWriter) writeRelFile(root, file string) error {
-	file = filepath.Clean(file)
-
-	rel, err := filepath.Rel(root, file)
-	if err != nil {
-		return err
-	}
-
-	err = z.writeFile(rel, file)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (z *zipWriter) writeFile(rel, file string) error {
+func (z *zipWriter) writeFile(dest, src string) error {
 	var fileSize int64
 	var executable bool
 
-	if s, err := os.Lstat(file); err != nil {
+	if s, err := os.Lstat(src); err != nil {
 		return err
 	} else if s.IsDir() {
 		if z.directories {
-			return z.writeDirectory(rel)
+			return z.writeDirectory(dest)
 		}
 		return nil
 	} else if s.Mode()&os.ModeSymlink != 0 {
-		return z.writeSymlink(rel, file)
+		return z.writeSymlink(dest, src)
 	} else if !s.Mode().IsRegular() {
-		return fmt.Errorf("%s is not a file, directory, or symlink", file)
+		return fmt.Errorf("%s is not a file, directory, or symlink", src)
 	} else {
 		fileSize = s.Size()
 		executable = s.Mode()&0100 != 0
 	}
 
 	if z.directories {
-		dir, _ := filepath.Split(rel)
+		dir, _ := filepath.Split(dest)
 		err := z.writeDirectory(dir)
 		if err != nil {
 			return err
@@ -390,7 +406,7 @@ func (z *zipWriter) writeFile(rel, file string) error {
 	// we're sure about the Method and CRC.
 	ze := &zipEntry{
 		fh: &zip.FileHeader{
-			Name:   rel,
+			Name:   dest,
 			Method: zip.Deflate,
 
 			UncompressedSize64: uint64(fileSize),
@@ -401,7 +417,7 @@ func (z *zipWriter) writeFile(rel, file string) error {
 		ze.fh.SetMode(0700)
 	}
 
-	r, err := os.Open(file)
+	r, err := os.Open(src)
 	if err != nil {
 		return err
 	}
