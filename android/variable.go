@@ -135,8 +135,6 @@ type productVariables struct {
 	ArtUseReadBarrier *bool `json:",omitempty"`
 
 	BtConfigIncludeDir *string `json:",omitempty"`
-
-	SameProcessHalDeps []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
