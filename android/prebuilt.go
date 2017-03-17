@@ -19,7 +19,11 @@ import "github.com/google/blueprint"
 // This file implements common functionality for handling modules that may exist as prebuilts,
 // source, or both.
 
-var prebuiltDependencyTag blueprint.BaseDependencyTag
+type prebuiltDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+var prebuiltDepTag prebuiltDependencyTag
 
 type Prebuilt struct {
 	Properties struct {
@@ -64,7 +68,7 @@ func prebuiltMutator(ctx BottomUpMutatorContext) {
 		p := m.Prebuilt()
 		name := m.base().BaseModuleName()
 		if ctx.OtherModuleExists(name) {
-			ctx.AddReverseDependency(ctx.Module(), prebuiltDependencyTag, name)
+			ctx.AddReverseDependency(ctx.Module(), prebuiltDepTag, name)
 			p.Properties.SourceExists = true
 		} else {
 			ctx.Rename(name)
@@ -77,7 +81,7 @@ func prebuiltMutator(ctx BottomUpMutatorContext) {
 func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 	if s, ok := ctx.Module().(Module); ok {
 		ctx.VisitDirectDeps(func(m blueprint.Module) {
-			if ctx.OtherModuleDependencyTag(m) == prebuiltDependencyTag {
+			if ctx.OtherModuleDependencyTag(m) == prebuiltDepTag {
 				p := m.(PrebuiltInterface).Prebuilt()
 				if p.usePrebuilt(ctx, s) {
 					p.Properties.UsePrebuilt = true
