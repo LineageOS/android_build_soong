@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("cc_prebuilt_shared_library", prebuiltSharedLibraryFactory)
+	android.RegisterModuleType("cc_prebuilt_library_shared", prebuiltSharedLibraryFactory)
 }
 
 type prebuiltLinkerInterface interface {
