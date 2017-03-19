@@ -176,3 +176,11 @@ func bionicHeaders(bionicArch, kernelArch string) string {
 func VndkLibraries() []string {
 	return []string{}
 }
+
+// This needs to be kept up to date with the list in system/core/rootdir/etc/ld.config.txt:
+// [vendor]
+// namespace.default.link.system.shared_libs
+func LLndkLibraries() []string {
+	return []string{"libc", "libm", "libdl", "liblog", "ld-android"}
+}
+

@@ -298,3 +298,19 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		return nil
 	})
 }
+
+func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Class = "SHARED_LIBRARIES"
+
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		c.libraryDecorator.androidMkWriteExportedFlags(w)
+
+		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+outputFile.Ext())
+		fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
+		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
+		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
+
+		return nil
+	})
+}
