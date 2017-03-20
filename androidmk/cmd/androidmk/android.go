@@ -68,6 +68,7 @@ func init() {
 			"LOCAL_MODULE_RELATIVE_PATH": "relative_install_path",
 			"LOCAL_PROTOC_OPTIMIZE_TYPE": "proto.type",
 			"LOCAL_HEADER_LIBRARIES":     "header_libs",
+			"LOCAL_MODULE_OWNER":         "owner",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
