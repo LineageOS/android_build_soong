@@ -137,6 +137,9 @@ type commonProperties struct {
 	// whether this is a proprietary vendor module, and should be installed into /vendor
 	Proprietary bool
 
+	// vendor who owns this module
+	Owner string
+
 	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
 	// file
 	Logtags []string
