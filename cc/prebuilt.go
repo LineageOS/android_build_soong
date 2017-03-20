@@ -21,7 +21,9 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("cc_prebuilt_shared_library", prebuiltSharedLibraryFactory)
+	android.RegisterModuleType("cc_prebuilt_library_shared", prebuiltSharedLibraryFactory)
+	android.RegisterModuleType("cc_prebuilt_library_static", prebuiltStaticLibraryFactory)
+	android.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
 }
 
 type prebuiltLinkerInterface interface {
@@ -29,16 +31,20 @@ type prebuiltLinkerInterface interface {
 	prebuilt() *android.Prebuilt
 }
 
-type prebuiltLibraryLinker struct {
-	*libraryDecorator
+type prebuiltLinker struct {
 	android.Prebuilt
 }
 
-var _ prebuiltLinkerInterface = (*prebuiltLibraryLinker)(nil)
-
-func (p *prebuiltLibraryLinker) prebuilt() *android.Prebuilt {
+func (p *prebuiltLinker) prebuilt() *android.Prebuilt {
 	return &p.Prebuilt
 }
+
+type prebuiltLibraryLinker struct {
+	*libraryDecorator
+	prebuiltLinker
+}
+
+var _ prebuiltLinkerInterface = (*prebuiltLibraryLinker)(nil)
 
 func (p *prebuiltLibraryLinker) linkerProps() []interface{} {
 	props := p.libraryDecorator.linkerProps()
@@ -61,13 +67,61 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 
 func prebuiltSharedLibraryFactory() (blueprint.Module, []interface{}) {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyShared()
 	module.compiler = nil
 
 	prebuilt := &prebuiltLibraryLinker{
 		libraryDecorator: library,
 	}
 	module.linker = prebuilt
-	module.installer = prebuilt
+
+	return module.Init()
+}
+
+func prebuiltStaticLibraryFactory() (blueprint.Module, []interface{}) {
+	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyStatic()
+	module.compiler = nil
+
+	prebuilt := &prebuiltLibraryLinker{
+		libraryDecorator: library,
+	}
+	module.linker = prebuilt
+
+	return module.Init()
+}
+
+type prebuiltBinaryLinker struct {
+	*binaryDecorator
+	prebuiltLinker
+}
+
+var _ prebuiltLinkerInterface = (*prebuiltBinaryLinker)(nil)
+
+func (p *prebuiltBinaryLinker) linkerProps() []interface{} {
+	props := p.binaryDecorator.linkerProps()
+	return append(props, &p.Prebuilt.Properties)
+}
+
+func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
+	flags Flags, deps PathDeps, objs Objects) android.Path {
+	// TODO(ccross): verify shared library dependencies
+	if len(p.Prebuilt.Properties.Srcs) > 0 {
+		// TODO(ccross): .toc optimization, stripping, packing
+		return p.Prebuilt.Path(ctx)
+	}
+
+	return nil
+}
+
+func prebuiltBinaryFactory() (blueprint.Module, []interface{}) {
+	module, binary := NewBinary(android.HostAndDeviceSupported)
+	module.compiler = nil
+
+	prebuilt := &prebuiltBinaryLinker{
+		binaryDecorator: binary,
+	}
+	module.linker = prebuilt
 
 	return module.Init()
 }
