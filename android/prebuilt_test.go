@@ -144,20 +144,33 @@ func TestPrebuilts(t *testing.T) {
 				t.Fatalf("failed to find module foo")
 			}
 
+			var dependsOnSourceModule, dependsOnPrebuiltModule bool
+			ctx.VisitDirectDeps(foo, func(m blueprint.Module) {
+				if _, ok := m.(*sourceModule); ok {
+					dependsOnSourceModule = true
+				}
+				if p, ok := m.(*prebuiltModule); ok {
+					dependsOnPrebuiltModule = true
+					if !p.Prebuilt().Properties.UsePrebuilt {
+						t.Errorf("dependency on prebuilt module not marked used")
+					}
+				}
+			})
+
 			if test.prebuilt {
-				if !foo.(*sourceModule).dependsOnPrebuiltModule {
+				if !dependsOnPrebuiltModule {
 					t.Errorf("doesn't depend on prebuilt module")
 				}
 
-				if foo.(*sourceModule).dependsOnSourceModule {
+				if dependsOnSourceModule {
 					t.Errorf("depends on source module")
 				}
 			} else {
-				if foo.(*sourceModule).dependsOnPrebuiltModule {
+				if dependsOnPrebuiltModule {
 					t.Errorf("depends on prebuilt module")
 				}
 
-				if !foo.(*sourceModule).dependsOnSourceModule {
+				if !dependsOnSourceModule {
 					t.Errorf("doens't depend on source module")
 				}
 			}
@@ -209,14 +222,6 @@ func (s *sourceModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (s *sourceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	ctx.VisitDirectDeps(func(m blueprint.Module) {
-		if _, ok := m.(*sourceModule); ok {
-			s.dependsOnSourceModule = true
-		}
-		if _, ok := m.(*prebuiltModule); ok {
-			s.dependsOnPrebuiltModule = true
-		}
-	})
 }
 
 func findModule(ctx *blueprint.Context, name string) blueprint.Module {
