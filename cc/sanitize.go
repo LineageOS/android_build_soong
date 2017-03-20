@@ -34,6 +34,7 @@ const (
 	// FIXME: revert the __cfi_check flag when clang is updated to r280031.
 	cfiLdflags = "-flto -fsanitize-cfi-cross-dso -fsanitize=cfi " +
 		"-Wl,-plugin-opt,O1 -Wl,-export-dynamic-symbol=__cfi_check"
+	cfiArflags = "--plugin ${config.ClangBin}/../lib64/LLVMgold.so"
 )
 
 type sanitizerType int
@@ -332,6 +333,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitizers = append(sanitizers, "cfi")
 		flags.CFlags = append(flags.CFlags, cfiCflags)
 		flags.LdFlags = append(flags.LdFlags, cfiLdflags)
+		flags.ArFlags = append(flags.ArFlags, cfiArflags)
 		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
 			diagSanitizers = append(diagSanitizers, "cfi")
 		}
