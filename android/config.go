@@ -439,7 +439,7 @@ func (c *config) LibartImgDeviceBaseAddress() string {
 	default:
 		return "0x70000000"
 	case Mips, Mips64:
-		return "0x30000000"
+		return "0x64000000"
 	}
 }
 
