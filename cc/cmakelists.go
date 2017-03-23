@@ -189,16 +189,26 @@ func buildCMakePath(p string) string {
 	return fmt.Sprintf("${ANDROID_ROOT}/%s", p)
 }
 
-func writeAllIncludeDirectories(includes map[string]bool, f *os.File) {
-	for include := range includes {
-		f.WriteString(fmt.Sprintf("include_directories(\"%s\")\n", buildCMakePath(include)))
+func writeAllIncludeDirectories(includes []string, f *os.File) {
+	if len(includes) == 0 {
+		return
 	}
+	f.WriteString("include_directories(\n")
+	for _, include := range includes {
+		f.WriteString(fmt.Sprintf("                    \"%s\"\n", buildCMakePath(include)))
+	}
+	f.WriteString(")\n")
 }
 
-func writeAllSystemDirectories(includes map[string]bool, f *os.File) {
-	for include := range includes {
-		f.WriteString(fmt.Sprintf("include_directories(SYSTEM \"%s\")\n", buildCMakePath(include)))
+func writeAllSystemDirectories(includes []string, f *os.File) {
+	if len(includes) == 0 {
+		return
 	}
+	f.WriteString("include_directories(SYSTEM \n")
+	for _, include := range includes {
+		f.WriteString(fmt.Sprintf("                           \"%s\"\n", buildCMakePath(include)))
+	}
+	f.WriteString(")\n")
 }
 
 func writeAllFlags(flags []string, f *os.File, tag string) {
@@ -218,17 +228,14 @@ const (
 )
 
 type compilerParameters struct {
-	headerSearchPath       map[string]bool
-	systemHeaderSearchPath map[string]bool
+	headerSearchPath       []string
+	systemHeaderSearchPath []string
 	flags                  []string
 	sysroot                string
 }
 
 func makeCompilerParameters() compilerParameters {
 	return compilerParameters{
-		headerSearchPath:       make(map[string]bool),
-		systemHeaderSearchPath: make(map[string]bool),
-		flags:   make([]string, 0),
 		sysroot: "",
 	}
 }
@@ -267,7 +274,8 @@ func parseCompilerParameters(params []string, ctx blueprint.SingletonContext, f 
 
 		switch categorizeParameter(param) {
 		case headerSearchPath:
-			compilerParameters.headerSearchPath[strings.TrimPrefix(param, "-I")] = true
+			compilerParameters.headerSearchPath =
+				append(compilerParameters.headerSearchPath, strings.TrimPrefix(param, "-I"))
 		case variable:
 			if evaluated, error := evalVariable(ctx, param); error == nil {
 				if outputDebugInfo {
@@ -284,7 +292,8 @@ func parseCompilerParameters(params []string, ctx blueprint.SingletonContext, f 
 			}
 		case systemHeaderSearchPath:
 			if i < len(params)-1 {
-				compilerParameters.systemHeaderSearchPath[params[i+1]] = true
+				compilerParameters.systemHeaderSearchPath =
+					append(compilerParameters.systemHeaderSearchPath, params[i+1])
 			} else if outputDebugInfo {
 				f.WriteString("# Found a header search path marker with no path")
 			}
@@ -343,8 +352,8 @@ func doubleEscape(s string) string {
 }
 
 func concatenateParams(c1 *compilerParameters, c2 compilerParameters) {
-	concatenateMaps(c1.headerSearchPath, c2.headerSearchPath)
-	concatenateMaps(c1.systemHeaderSearchPath, c2.systemHeaderSearchPath)
+	c1.headerSearchPath = append(c1.headerSearchPath, c2.headerSearchPath...)
+	c1.systemHeaderSearchPath = append(c1.systemHeaderSearchPath, c2.systemHeaderSearchPath...)
 	if c2.sysroot != "" {
 		c1.sysroot = c2.sysroot
 	}
@@ -357,13 +366,6 @@ func evalVariable(ctx blueprint.SingletonContext, str string) (string, error) {
 		return evaluated, nil
 	}
 	return "", err
-}
-
-// Concatenate two maps into one. Results are stored in first operand.
-func concatenateMaps(map1 map[string]bool, map2 map[string]bool) {
-	for key, value := range map2 {
-		map1[key] = value
-	}
 }
 
 func getCMakeListsForModule(module *Module, ctx blueprint.SingletonContext) string {
