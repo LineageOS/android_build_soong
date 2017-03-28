@@ -200,6 +200,14 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
 	}
 
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		if len(test.Properties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITES :=",
+				strings.Join(test.Properties.Test_suites, " "))
+		}
+		return nil
+	})
+
 	var testFiles []string
 	for _, d := range test.data {
 		rel := d.Rel()
