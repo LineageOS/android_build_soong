@@ -41,25 +41,54 @@ def logger():
     return logging.getLogger(__name__)
 
 
-def api_level_arg(api_str):
-    """Parses an API level, handling the "current" special case.
-
-    Args:
-        api_str: (string) Either a numeric API level or "current".
-
-    Returns:
-        (int) FUTURE_API_LEVEL if `api_str` is "current", else `api_str` parsed
-        as an integer.
-    """
-    if api_str == "current":
-        return FUTURE_API_LEVEL
-    return int(api_str)
-
-
 def get_tags(line):
     """Returns a list of all tags on this line."""
     _, _, all_tags = line.strip().partition('#')
     return [e for e in re.split(r'\s+', all_tags) if e.strip()]
+
+
+def is_api_level_tag(tag):
+    """Returns true if this tag has an API level that may need decoding."""
+    if tag.startswith('introduced='):
+        return True
+    if tag.startswith('introduced-'):
+        return True
+    if tag.startswith('versioned='):
+        return True
+    return False
+
+
+def decode_api_level_tags(tags, api_map):
+    """Decodes API level code names in a list of tags.
+
+    Raises:
+        ParseError: An unknown version name was found in a tag.
+    """
+    for idx, tag in enumerate(tags):
+        if not is_api_level_tag(tag):
+            continue
+        name, value = split_tag(tag)
+
+        try:
+            decoded = str(decode_api_level(value, api_map))
+            tags[idx] = '='.join([name, decoded])
+        except KeyError:
+            raise ParseError('Unknown version name in tag: {}'.format(tag))
+    return tags
+
+
+def split_tag(tag):
+    """Returns a key/value tuple of the tag.
+
+    Raises:
+        ValueError: Tag is not a key/value type tag.
+
+    Returns: Tuple of (key, value) of the tag. Both components are strings.
+    """
+    if '=' not in tag:
+        raise ValueError('Not a key/value tag: ' + tag)
+    key, _, value = tag.partition('=')
+    return key, value
 
 
 def get_tag_value(tag):
@@ -70,9 +99,7 @@ def get_tag_value(tag):
 
     Returns: Value part of tag as a string.
     """
-    if '=' not in tag:
-        raise ValueError('Not a key/value tag: ' + tag)
-    return tag.partition('=')[2]
+    return split_tag(tag)[1]
 
 
 def version_is_private(version):
@@ -194,8 +221,9 @@ class Symbol(object):
 
 class SymbolFileParser(object):
     """Parses NDK symbol files."""
-    def __init__(self, input_file):
+    def __init__(self, input_file, api_map):
         self.input_file = input_file
+        self.api_map = api_map
         self.current_line = None
 
     def parse(self):
@@ -213,6 +241,7 @@ class SymbolFileParser(object):
         """Parses a single version section and returns a Version object."""
         name = self.current_line.split('{')[0].strip()
         tags = get_tags(self.current_line)
+        tags = decode_api_level_tags(tags, self.api_map)
         symbols = []
         global_scope = True
         while self.next_line() != '':
@@ -254,6 +283,7 @@ class SymbolFileParser(object):
         # Line is now in the format "<symbol-name>; # tags"
         name, _, _ = self.current_line.strip().partition(';')
         tags = get_tags(self.current_line)
+        tags = decode_api_level_tags(tags, self.api_map)
         return Symbol(name, tags)
 
     def next_line(self):
@@ -342,10 +372,7 @@ def decode_api_level(api, api_map):
     if api == "current":
         return FUTURE_API_LEVEL
 
-    with open(api_map) as map_file:
-        api_levels = json.load(map_file)
-
-    return api_levels[api]
+    return api_map[api]
 
 
 def parse_args():
@@ -382,7 +409,9 @@ def main():
     """Program entry point."""
     args = parse_args()
 
-    api = decode_api_level(args.api, args.api_map)
+    with open(args.api_map) as map_file:
+        api_map = json.load(map_file)
+    api = decode_api_level(args.api, api_map)
 
     verbose_map = (logging.WARNING, logging.INFO, logging.DEBUG)
     verbosity = args.verbose
@@ -391,7 +420,7 @@ def main():
     logging.basicConfig(level=verbose_map[verbosity])
 
     with open(args.symbol_file) as symbol_file:
-        versions = SymbolFileParser(symbol_file).parse()
+        versions = SymbolFileParser(symbol_file, api_map).parse()
 
     with open(args.stub_src, 'w') as src_file:
         with open(args.version_script, 'w') as version_file:
