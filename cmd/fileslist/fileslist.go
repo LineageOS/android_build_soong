@@ -64,18 +64,26 @@ func (n *Node) scan() bool {
 	n.Size = n.stat.Size()
 
 	// Calculate SHA256.
-	f, err := os.Open(n.path)
-	if err != nil {
-		// If the file can't be read, it's probably a symlink to an absolute path...
-		// Returns the following to mimic the behavior of fileslist.py.
-		n.SHA256 = "----------------------------------------------------------------"
-		return true
-	}
-	defer f.Close()
-
 	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		panic(err)
+	if n.stat.Mode()&os.ModeSymlink == 0 {
+		f, err := os.Open(n.path)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		if _, err := io.Copy(h, f); err != nil {
+			panic(err)
+		}
+	} else {
+		// Hash the content of symlink, not the file it points to.
+		s, err := os.Readlink(n.path)
+		if err != nil {
+			panic(err)
+		}
+		if _, err := io.WriteString(h, s); err != nil {
+			panic(err)
+		}
 	}
 	n.SHA256 = fmt.Sprintf("%x", h.Sum(nil))
 	return true
