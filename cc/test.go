@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 )
 
@@ -41,6 +42,10 @@ type TestBinaryProperties struct {
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
 	Data []string
+
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string
 }
 
 func init() {
