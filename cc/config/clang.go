@@ -91,6 +91,10 @@ func init() {
 
 		// http://b/29823425 Disable -Wexpansion-to-defined for Clang update to r271374
 		"-Wno-expansion-to-defined",
+
+		// http://b/36463318 Clang executes with an absolute path, so clang-provided
+		// headers are now absolute.
+		"-fdebug-prefix-map=$$PWD/=",
 	}, " "))
 
 	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
