@@ -163,8 +163,14 @@ func generateCLionProject(compiledModule CompiledInterface, ctx blueprint.Single
 	translateToCMake(cppParameters, f, false, true)
 
 	// Add project executable.
-	f.WriteString(fmt.Sprintf("\nadd_executable(%s ${SOURCE_FILES})\n", ccModule.ModuleBase.Name()))
+	f.WriteString(fmt.Sprintf("\nadd_executable(%s ${SOURCE_FILES})\n",
+		cleanExecutableName(ccModule.ModuleBase.Name())))
 }
+
+func cleanExecutableName(s string) string {
+	return strings.Replace(s, "@", "-", -1)
+}
+
 
 func translateToCMake(c compilerParameters, f *os.File, cflags bool, cppflags bool) {
 	writeAllSystemDirectories(c.systemHeaderSearchPath, f)
