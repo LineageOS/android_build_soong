@@ -66,9 +66,6 @@ var (
 		"-fuse-ld=gold",
 		"-Wl,--icf=safe",
 		"-Wl,--no-undefined-version",
-
-		// Disable transitive dependency library symbol resolving.
-		"-Wl,--allow-shlib-undefined",
 	}
 
 	arm64Cppflags = []string{
