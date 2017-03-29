@@ -27,7 +27,7 @@ import (
 var (
 	preprocessBionicHeaders = pctx.AndroidStaticRule("preprocessBionicHeaders",
 		blueprint.RuleParams{
-			Command:     "$versionerCmd $srcDir $depsPath -o $out",
+			Command:     "$versionerCmd -o $out $srcDir $depsPath",
 			CommandDeps: []string{"$versionerCmd"},
 			Description: "versioner preprocess $in",
 		},
