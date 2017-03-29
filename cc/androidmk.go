@@ -59,9 +59,6 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 		if c.Target().Os == android.Android && c.Properties.Sdk_version != "" {
 			fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
 			fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
-		} else if c.Target().Os == android.Android && c.Properties.Use_vndk {
-			fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
-			fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
 		} else {
 			// These are already included in LOCAL_SHARED_LIBRARIES
 			fmt.Fprintln(w, "LOCAL_CXX_STL := none")
