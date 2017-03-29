@@ -462,11 +462,11 @@ func (c *deviceConfig) VendorPath() string {
 	return "vendor"
 }
 
-func (c *deviceConfig) VndkVersion() string {
+func (c *deviceConfig) CompileVndk() bool {
 	if c.config.ProductVariables.DeviceVndkVersion == nil {
-		return ""
+		return false
 	}
-	return *c.config.ProductVariables.DeviceVndkVersion
+	return *c.config.ProductVariables.DeviceVndkVersion == "current"
 }
 
 func (c *deviceConfig) BtConfigIncludeDir() string {
