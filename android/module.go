@@ -89,6 +89,7 @@ type ModuleContext interface {
 	AddMissingDependencies(deps []string)
 
 	InstallInData() bool
+	InstallInSanitizerDir() bool
 
 	RequiredModuleNames() []string
 }
@@ -103,6 +104,7 @@ type Module interface {
 	Enabled() bool
 	Target() Target
 	InstallInData() bool
+	InstallInSanitizerDir() bool
 	SkipInstall()
 }
 
@@ -399,6 +401,10 @@ func (p *ModuleBase) InstallInData() bool {
 	return false
 }
 
+func (p *ModuleBase) InstallInSanitizerDir() bool {
+	return false
+}
+
 func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
@@ -627,6 +633,10 @@ func (a *androidBaseContextImpl) Proprietary() bool {
 
 func (a *androidModuleContext) InstallInData() bool {
 	return a.module.InstallInData()
+}
+
+func (a *androidModuleContext) InstallInSanitizerDir() bool {
+	return a.module.InstallInSanitizerDir()
 }
 
 func (a *androidModuleContext) InstallFileName(installPath OutputPath, name string, srcPath Path,
