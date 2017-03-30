@@ -652,7 +652,10 @@ func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
 		if ctx.Proprietary() {
 			partition = ctx.DeviceConfig().VendorPath()
 		}
-		if ctx.InstallInData() {
+
+		if ctx.InstallInSanitizerDir() {
+			partition = "data/asan/" + partition
+		} else if ctx.InstallInData() {
 			partition = "data"
 		}
 		outPaths = []string{"target", "product", ctx.AConfig().DeviceName(), partition}
