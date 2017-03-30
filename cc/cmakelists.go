@@ -173,8 +173,8 @@ func cleanExecutableName(s string) string {
 
 
 func translateToCMake(c compilerParameters, f *os.File, cflags bool, cppflags bool) {
-	writeAllSystemDirectories(c.systemHeaderSearchPath, f)
-	writeAllIncludeDirectories(c.headerSearchPath, f)
+	writeAllIncludeDirectories(c.systemHeaderSearchPath, f, true)
+	writeAllIncludeDirectories(c.headerSearchPath, f, false)
 	if cflags {
 		writeAllFlags(c.flags, f, "CMAKE_C_FLAGS")
 	}
@@ -195,26 +195,30 @@ func buildCMakePath(p string) string {
 	return fmt.Sprintf("${ANDROID_ROOT}/%s", p)
 }
 
-func writeAllIncludeDirectories(includes []string, f *os.File) {
+func writeAllIncludeDirectories(includes []string, f *os.File, isSystem bool) {
 	if len(includes) == 0 {
 		return
 	}
-	f.WriteString("include_directories(\n")
-	for _, include := range includes {
-		f.WriteString(fmt.Sprintf("                    \"%s\"\n", buildCMakePath(include)))
-	}
-	f.WriteString(")\n")
-}
 
-func writeAllSystemDirectories(includes []string, f *os.File) {
-	if len(includes) == 0 {
-		return
+	system := ""
+        if isSystem {
+		system = "SYSTEM"
 	}
-	f.WriteString("include_directories(SYSTEM \n")
+
+	f.WriteString(fmt.Sprintf("include_directories(%s \n", system))
+
 	for _, include := range includes {
-		f.WriteString(fmt.Sprintf("                           \"%s\"\n", buildCMakePath(include)))
+		f.WriteString(fmt.Sprintf("    \"%s\"\n", buildCMakePath(include)))
+	}
+	f.WriteString(")\n\n")
+
+	// Also add all headers to source files.
+	f.WriteString("file (GLOB_RECURSE TMP_HEADERS\n");
+	for _, include := range includes {
+		f.WriteString(fmt.Sprintf("    \"%s/**/*.h\"\n", buildCMakePath(include)))
 	}
 	f.WriteString(")\n")
+	f.WriteString("list (APPEND SOURCE_FILES ${TMP_HEADERS})\n\n");
 }
 
 func writeAllFlags(flags []string, f *os.File, tag string) {
