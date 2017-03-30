@@ -27,11 +27,13 @@ import (
 var (
 	preprocessBionicHeaders = pctx.AndroidStaticRule("preprocessBionicHeaders",
 		blueprint.RuleParams{
-			Command:     "$versionerCmd -o $out $srcDir $depsPath",
+			// The `&& touch $out` isn't really necessary, but Blueprint won't
+			// let us have only implicit outputs.
+			Command:     "$versionerCmd -o $outDir $srcDir $depsPath && touch $out",
 			CommandDeps: []string{"$versionerCmd"},
 			Description: "versioner preprocess $in",
 		},
-		"depsPath", "srcDir")
+		"depsPath", "srcDir", "outDir")
 )
 
 func init() {
@@ -229,14 +231,16 @@ func (m *preprocessedHeaderModule) GenerateAndroidBuildActions(ctx android.Modul
 		}
 	}
 
+	timestampFile := android.PathForModuleOut(ctx, "versioner.timestamp")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:            preprocessBionicHeaders,
-		Output:          toOutputPath,
+		Output:          timestampFile,
 		Implicits:       append(srcFiles, depsGlob...),
 		ImplicitOutputs: installPaths,
 		Args: map[string]string{
 			"depsPath": depsPath.String(),
 			"srcDir":   fromSrcPath.String(),
+			"outDir":   toOutputPath.String(),
 		},
 	})
 }
