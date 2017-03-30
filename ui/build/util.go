@@ -50,6 +50,19 @@ func ensureDirectoriesExist(ctx Context, dirs ...string) {
 	}
 }
 
+// ensureEmptyDirectoriesExist ensures that the given directories exist and are empty
+func ensureEmptyDirectoriesExist(ctx Context, dirs ...string) {
+	// remove all the directories
+	for _, dir := range dirs {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			ctx.Fatalf("Error removing %s: %q\n", dir, err)
+		}
+	}
+	// recreate all the directories
+	ensureDirectoriesExist(ctx, dirs...)
+}
+
 // ensureEmptyFileExists ensures that the containing directory exists, and the
 // specified file exists. If it doesn't exist, it will write an empty file.
 func ensureEmptyFileExists(ctx Context, file string) {
