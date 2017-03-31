@@ -28,6 +28,7 @@ optional_subdirs = [
     "libcore",
     "libnativehelper",
     "packages/apps/HTMLViewer",
+    "prebuilts/clang/host/linux-x86",
     "prebuilts/ndk",
     "prebuilts/sdk",
     "system/*",
