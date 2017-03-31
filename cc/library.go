@@ -349,8 +349,8 @@ func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 
 func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 	location := InstallInSystem
-	if library.sanitize.inData() {
-		location = InstallInData
+	if library.sanitize.inSanitizerDir() {
+		location = InstallInSanitizerDir
 	}
 	library.baseInstaller.location = location
 

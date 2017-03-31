@@ -212,6 +212,7 @@ type installer interface {
 	installerProps() []interface{}
 	install(ctx ModuleContext, path android.Path)
 	inData() bool
+	inSanitizerDir() bool
 	hostToolPath() android.OptionalPath
 }
 
@@ -993,10 +994,17 @@ func (c *Module) InstallInData() bool {
 	if c.installer == nil {
 		return false
 	}
-	if c.sanitize != nil && c.sanitize.inData() {
+	return c.installer.inData()
+}
+
+func (c *Module) InstallInSanitizerDir() bool {
+	if c.installer == nil {
+		return false
+	}
+	if c.sanitize != nil && c.sanitize.inSanitizerDir() {
 		return true
 	}
-	return c.installer.inData()
+	return c.installer.inSanitizerDir()
 }
 
 func (c *Module) HostToolPath() android.OptionalPath {

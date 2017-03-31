@@ -30,8 +30,9 @@ type InstallerProperties struct {
 type installLocation int
 
 const (
-	InstallInSystem installLocation = 0
-	InstallInData                   = iota
+	InstallInSystem       installLocation = 0
+	InstallInData                         = iota
+	InstallInSanitizerDir                 = iota
 )
 
 func NewBaseInstaller(dir, dir64 string, location installLocation) *baseInstaller {
@@ -76,6 +77,10 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 
 func (installer *baseInstaller) inData() bool {
 	return installer.location == InstallInData
+}
+
+func (installer *baseInstaller) inSanitizerDir() bool {
+	return installer.location == InstallInSanitizerDir
 }
 
 func (installer *baseInstaller) hostToolPath() android.OptionalPath {
