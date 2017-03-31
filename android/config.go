@@ -353,6 +353,10 @@ func (c *config) PlatformSdkVersion() string {
 	return strconv.Itoa(c.PlatformSdkVersionInt())
 }
 
+func (c *config) PlatformVersionAllCodenames() []string {
+	return c.ProductVariables.Platform_version_all_codenames
+}
+
 func (c *config) BuildNumber() string {
 	return "000000"
 }
