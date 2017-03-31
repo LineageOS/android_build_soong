@@ -82,7 +82,8 @@ type productVariables struct {
 	// Suffix to add to generated Makefiles
 	Make_suffix *string `json:",omitempty"`
 
-	Platform_sdk_version *int `json:",omitempty"`
+	Platform_sdk_version           *int     `json:",omitempty"`
+	Platform_version_all_codenames []string `json:",omitempty"`
 
 	DeviceName        *string   `json:",omitempty"`
 	DeviceArch        *string   `json:",omitempty"`

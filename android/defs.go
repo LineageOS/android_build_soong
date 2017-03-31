@@ -80,6 +80,13 @@ var (
 			Description: "concatenate licenses $out",
 		})
 
+	WriteFile = pctx.AndroidStaticRule("WriteFile",
+		blueprint.RuleParams{
+			Command:     "echo '$content' > $out",
+			Description: "writing file $out",
+		},
+		"content")
+
 	// Used only when USE_GOMA=true is set, to restrict non-goma jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 )
