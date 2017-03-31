@@ -194,15 +194,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	}
 
 	if !ctx.noDefaultCompilerFlags() {
+		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
+
 		if !(ctx.sdk() || ctx.vndk()) || ctx.Host() {
-			flags.GlobalFlags = append(flags.GlobalFlags,
+			flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 				"${config.CommonGlobalIncludes}",
 				"${config.CommonGlobalSystemIncludes}",
 				tc.IncludeFlags(),
 				"${config.CommonNativehelperInclude}")
 		}
-
-		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
 	}
 
 	if ctx.sdk() || ctx.vndk() {
@@ -210,7 +210,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		// typical Soong approach would be to only make the headers for the
 		// library you're using available, we're trying to emulate the NDK
 		// behavior here, and the NDK always has all the NDK headers available.
-		flags.GlobalFlags = append(flags.GlobalFlags,
+		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 			"-isystem "+getCurrentIncludePath(ctx).String(),
 			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, tc.ClangTriple()).String())
 
@@ -230,7 +230,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		legacyIncludes := fmt.Sprintf(
 			"prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/include",
 			ctx.sdkVersion(), ctx.Arch().ArchType.String())
-		flags.GlobalFlags = append(flags.GlobalFlags, "-isystem "+legacyIncludes)
+		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags, "-isystem "+legacyIncludes)
 	}
 
 	instructionSet := compiler.Properties.Instruction_set

@@ -5,11 +5,12 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
-	"github.com/google/blueprint"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/blueprint"
 )
 
 // This singleton generates CMakeLists.txt files. It does so for each blueprint Android.bp resulting in a cc.Module
@@ -162,6 +163,10 @@ func generateCLionProject(compiledModule CompiledInterface, ctx blueprint.Single
 	cppParameters := parseCompilerParameters(ccModule.flags.CppFlags, ctx, f)
 	translateToCMake(cppParameters, f, false, true)
 
+	f.WriteString("\n# SYSTEM INCLUDE FLAGS:\n")
+	includeParameters := parseCompilerParameters(ccModule.flags.SystemIncludeFlags, ctx, f)
+	translateToCMake(includeParameters, f, true, true)
+
 	// Add project executable.
 	f.WriteString(fmt.Sprintf("\nadd_executable(%s ${SOURCE_FILES})\n",
 		cleanExecutableName(ccModule.ModuleBase.Name())))
@@ -170,7 +175,6 @@ func generateCLionProject(compiledModule CompiledInterface, ctx blueprint.Single
 func cleanExecutableName(s string) string {
 	return strings.Replace(s, "@", "-", -1)
 }
-
 
 func translateToCMake(c compilerParameters, f *os.File, cflags bool, cppflags bool) {
 	writeAllIncludeDirectories(c.systemHeaderSearchPath, f, true)
