@@ -236,10 +236,10 @@ func TestRebuildAfterGoChange(t *testing.T) {
 			t.Fatal("Error writing a/a.go:", err)
 		}
 	}, func(pkg *GoPackage) {
-		if !pkg.deps[0].rebuilt {
+		if !pkg.directDeps[0].rebuilt {
 			t.Fatal("android/soong/a should have rebuilt")
 		}
-		if !pkg.deps[1].rebuilt {
+		if !pkg.directDeps[1].rebuilt {
 			t.Fatal("android/soong/b should have rebuilt")
 		}
 	})
@@ -253,10 +253,10 @@ func TestRebuildAfterMainChange(t *testing.T) {
 			t.Fatal("Error writing main/main.go:", err)
 		}
 	}, func(pkg *GoPackage) {
-		if pkg.deps[0].rebuilt {
+		if pkg.directDeps[0].rebuilt {
 			t.Fatal("android/soong/a should not have rebuilt")
 		}
-		if pkg.deps[1].rebuilt {
+		if pkg.directDeps[1].rebuilt {
 			t.Fatal("android/soong/b should not have rebuilt")
 		}
 	})
