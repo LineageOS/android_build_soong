@@ -130,6 +130,16 @@ func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (string, error) {
 		"x86_64": 21,
 	}
 
+	archStr := arch.ArchType.String()
+	firstArchVersion, ok := firstArchVersions[archStr]
+	if !ok {
+		panic(fmt.Errorf("Arch %q not found in firstArchVersions", archStr))
+	}
+
+	if apiLevel == "minimum" {
+		return strconv.Itoa(firstArchVersion), nil
+	}
+
 	// If the NDK drops support for a platform version, we don't want to have to
 	// fix up every module that was using it as its SDK version. Clip to the
 	// supported version here instead.
@@ -138,12 +148,6 @@ func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (string, error) {
 		return "", fmt.Errorf("API level must be an integer (is %q)", apiLevel)
 	}
 	version = intMax(version, minVersion)
-
-	archStr := arch.ArchType.String()
-	firstArchVersion, ok := firstArchVersions[archStr]
-	if !ok {
-		panic(fmt.Errorf("Arch %q not found in firstArchVersions", archStr))
-	}
 
 	return strconv.Itoa(intMax(version, firstArchVersion)), nil
 }
