@@ -97,7 +97,7 @@ type SanitizeProperties struct {
 
 	SanitizerEnabled bool `blueprint:"mutated"`
 	SanitizeDep      bool `blueprint:"mutated"`
-	InData           bool `blueprint:"mutated"`
+	InSanitizerDir   bool `blueprint:"mutated"`
 }
 
 type sanitize struct {
@@ -383,8 +383,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (sanitize *sanitize) inData() bool {
-	return sanitize.Properties.InData
+func (sanitize *sanitize) inSanitizerDir() bool {
+	return sanitize.Properties.InSanitizerDir
 }
 
 func (sanitize *sanitize) Sanitizer(t sanitizerType) bool {
@@ -447,7 +447,7 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
 				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
 				if mctx.Device() {
-					modules[1].(*Module).sanitize.Properties.InData = true
+					modules[1].(*Module).sanitize.Properties.InSanitizerDir = true
 				} else {
 					modules[0].(*Module).Properties.PreventInstall = true
 				}
