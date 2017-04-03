@@ -107,27 +107,39 @@ class SymbolPresenceTest(unittest.TestCase):
 
 class OmitVersionTest(unittest.TestCase):
     def test_omit_private(self):
-        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9))
-
-        self.assertTrue(gsl.should_omit_version('foo_PRIVATE', [], 'arm', 9))
-        self.assertTrue(gsl.should_omit_version('foo_PLATFORM', [], 'arm', 9))
+        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9, False))
 
         self.assertTrue(gsl.should_omit_version(
-            'foo', ['platform-only'], 'arm', 9))
+            'foo_PRIVATE', [], 'arm', 9, False))
+        self.assertTrue(gsl.should_omit_version(
+            'foo_PLATFORM', [], 'arm', 9, False))
+
+        self.assertTrue(gsl.should_omit_version(
+            'foo', ['platform-only'], 'arm', 9, False))
+
+    def test_omit_vndk(self):
+        self.assertTrue(gsl.should_omit_version(
+            'foo', ['vndk'], 'arm', 9, False))
+
+        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9, True))
+        self.assertFalse(gsl.should_omit_version(
+            'foo', ['vndk'], 'arm', 9, True))
 
     def test_omit_arch(self):
-        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9))
-        self.assertFalse(gsl.should_omit_version('foo', ['arm'], 'arm', 9))
+        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9, False))
+        self.assertFalse(gsl.should_omit_version(
+            'foo', ['arm'], 'arm', 9, False))
 
-        self.assertTrue(gsl.should_omit_version('foo', ['x86'], 'arm', 9))
+        self.assertTrue(gsl.should_omit_version(
+            'foo', ['x86'], 'arm', 9, False))
 
     def test_omit_api(self):
-        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9))
+        self.assertFalse(gsl.should_omit_version('foo', [], 'arm', 9, False))
         self.assertFalse(
-            gsl.should_omit_version('foo', ['introduced=9'], 'arm', 9))
+            gsl.should_omit_version('foo', ['introduced=9'], 'arm', 9, False))
 
         self.assertTrue(
-            gsl.should_omit_version('foo', ['introduced=14'], 'arm', 9))
+            gsl.should_omit_version('foo', ['introduced=14'], 'arm', 9, False))
 
 
 class SymbolFileParseTest(unittest.TestCase):
@@ -302,7 +314,7 @@ class GeneratorTest(unittest.TestCase):
         # OmitVersionTest, PrivateVersionTest, and SymbolPresenceTest.
         src_file = cStringIO.StringIO()
         version_file = cStringIO.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
 
         version = gsl.Version('VERSION_PRIVATE', None, [], [
             gsl.Symbol('foo', []),
@@ -330,7 +342,7 @@ class GeneratorTest(unittest.TestCase):
         # SymbolPresenceTest.
         src_file = cStringIO.StringIO()
         version_file = cStringIO.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
 
         version = gsl.Version('VERSION_1', None, [], [
             gsl.Symbol('foo', ['x86']),
@@ -346,10 +358,17 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual('', src_file.getvalue())
         self.assertEqual('', version_file.getvalue())
 
+        version = gsl.Version('VERSION_1', None, [], [
+            gsl.Symbol('foo', ['vndk']),
+        ])
+        generator.write_version(version)
+        self.assertEqual('', src_file.getvalue())
+        self.assertEqual('', version_file.getvalue())
+
     def test_write(self):
         src_file = cStringIO.StringIO()
         version_file = cStringIO.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
 
         versions = [
             gsl.Version('VERSION_1', None, [], [
@@ -410,6 +429,7 @@ class IntegrationTest(unittest.TestCase):
 
             VERSION_4 { # versioned=9
                 wibble;
+                wizzes; # vndk
             } VERSION_2;
 
             VERSION_5 { # versioned=14
@@ -421,7 +441,7 @@ class IntegrationTest(unittest.TestCase):
 
         src_file = cStringIO.StringIO()
         version_file = cStringIO.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
         generator.write(versions)
 
         expected_src = textwrap.dedent("""\

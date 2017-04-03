@@ -79,7 +79,7 @@ def version_is_private(version):
     return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
 
 
-def should_omit_version(name, tags, arch, api):
+def should_omit_version(name, tags, arch, api, vndk):
     """Returns True if the version section should be ommitted.
 
     We want to omit any sections that do not have any symbols we'll have in the
@@ -89,6 +89,8 @@ def should_omit_version(name, tags, arch, api):
     if version_is_private(name):
         return True
     if 'platform-only' in tags:
+        return True
+    if 'vndk' in tags and not vndk:
         return True
     if not symbol_in_arch(tags, arch):
         return True
@@ -271,11 +273,12 @@ class SymbolFileParser(object):
 
 class Generator(object):
     """Output generator that writes stub source files and version scripts."""
-    def __init__(self, src_file, version_script, arch, api):
+    def __init__(self, src_file, version_script, arch, api, vndk):
         self.src_file = src_file
         self.version_script = version_script
         self.arch = arch
         self.api = api
+        self.vndk = vndk
 
     def write(self, versions):
         """Writes all symbol data to the output files."""
@@ -286,13 +289,15 @@ class Generator(object):
         """Writes a single version block's data to the output files."""
         name = version.name
         tags = version.tags
-        if should_omit_version(name, tags, self.arch, self.api):
+        if should_omit_version(name, tags, self.arch, self.api, self.vndk):
             return
 
         section_versioned = symbol_versioned_in_api(tags, self.api)
         version_empty = True
         pruned_symbols = []
         for symbol in version.symbols:
+            if not self.vndk and 'vndk' in symbol.tags:
+                continue
             if not symbol_in_arch(symbol.tags, self.arch):
                 continue
             if not symbol_in_api(symbol.tags, self.arch, self.api):
@@ -333,6 +338,8 @@ def parse_args():
     parser.add_argument(
         '--arch', choices=ALL_ARCHITECTURES, required=True,
         help='Architecture being targeted.')
+    parser.add_argument(
+        '--vndk', action='store_true', help='Use the VNDK variant.')
 
     parser.add_argument(
         'symbol_file', type=os.path.realpath, help='Path to symbol file.')
@@ -361,7 +368,8 @@ def main():
 
     with open(args.stub_src, 'w') as src_file:
         with open(args.version_script, 'w') as version_file:
-            generator = Generator(src_file, version_file, args.arch, args.api)
+            generator = Generator(src_file, version_file, args.arch, args.api,
+                                  args.vndk)
             generator.write(versions)
 
 
