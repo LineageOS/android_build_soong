@@ -201,6 +201,8 @@ type builderFlags struct {
 	tidy        bool
 	coverage    bool
 
+	systemIncludeFlags string
+
 	groupStaticLibs bool
 
 	stripKeepSymbols       bool
@@ -244,9 +246,25 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		coverageFiles = make(android.Paths, 0, len(srcFiles))
 	}
 
-	cflags := flags.globalFlags + " " + flags.cFlags + " " + flags.conlyFlags
-	cppflags := flags.globalFlags + " " + flags.cFlags + " " + flags.cppFlags
-	asflags := flags.globalFlags + " " + flags.asFlags
+	cflags := strings.Join([]string{
+		flags.globalFlags,
+		flags.systemIncludeFlags,
+		flags.cFlags,
+		flags.conlyFlags,
+	}, " ")
+
+	cppflags := strings.Join([]string{
+		flags.globalFlags,
+		flags.systemIncludeFlags,
+		flags.cFlags,
+		flags.cppFlags,
+	}, " ")
+
+	asflags := strings.Join([]string{
+		flags.globalFlags,
+		flags.systemIncludeFlags,
+		flags.asFlags,
+	}, " ")
 
 	if flags.clang {
 		cflags += " ${config.NoOverrideClangGlobalCflags}"

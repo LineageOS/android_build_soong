@@ -109,6 +109,10 @@ type Flags struct {
 	TidyFlags   []string // Flags that apply to clang-tidy
 	YasmFlags   []string // Flags that apply to yasm assembly source files
 
+	// Global include flags that apply to C, C++, and assembly source files
+	// These must be after any module include flags, which will be in GlobalFlags.
+	SystemIncludeFlags []string
+
 	Toolchain config.Toolchain
 	Clang     bool
 	Tidy      bool

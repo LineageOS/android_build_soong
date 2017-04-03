@@ -105,6 +105,7 @@ func init() {
 			"LOCAL_AIDL_INCLUDES":         "aidl_includes",
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
+			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
 		})
 	addStandardProperties(bpparser.BoolType,
 		map[string]string{

@@ -105,6 +105,8 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		coverage:    in.Coverage,
 		tidy:        in.Tidy,
 
+		systemIncludeFlags: strings.Join(in.SystemIncludeFlags, " "),
+
 		groupStaticLibs: in.GroupStaticLibs,
 	}
 }
