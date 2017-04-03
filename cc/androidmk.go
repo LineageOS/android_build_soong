@@ -199,7 +199,7 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		if len(test.Properties.Test_suites) > 0 {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITES :=",
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(test.Properties.Test_suites, " "))
 		}
 		return nil
