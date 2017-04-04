@@ -19,12 +19,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
@@ -84,9 +84,11 @@ func main() {
 
 	config := build.NewConfig(buildCtx)
 	if *outDir == "" {
-		var err error
-		*outDir, err = ioutil.TempDir(config.OutDir(), "multiproduct")
-		if err != nil {
+		name := "multiproduct-" + time.Now().Format("20060102150405")
+
+		*outDir = filepath.Join(config.OutDir(), name)
+
+		if err := os.MkdirAll(*outDir, 0777); err != nil {
 			log.Fatalf("Failed to create tempdir: %v", err)
 		}
 
