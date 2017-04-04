@@ -856,6 +856,7 @@ func getMegaDeviceConfig() []archConfig {
 		{"arm", "armv7-a-neon", "cortex-a53.a57", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "denver", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "krait", []string{"armeabi-v7a"}},
+		{"arm", "armv7-a-neon", "kryo", []string{"armeabi-v7a"}},
 		{"arm64", "armv8-a", "cortex-a53", []string{"arm64-v8a"}},
 		{"arm64", "armv8-a", "denver64", []string{"arm64-v8a"}},
 		{"mips", "mips32-fp", "", []string{"mips"}},
