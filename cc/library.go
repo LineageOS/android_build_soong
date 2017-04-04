@@ -228,7 +228,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
-	if ctx.Os() != android.Windows {
+	if !ctx.Windows() {
 		flags.CFlags = append(flags.CFlags, "-fPIC")
 	}
 
