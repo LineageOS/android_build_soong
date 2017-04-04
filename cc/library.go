@@ -462,7 +462,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	builderFlags := flagsToBuilderFlags(flags)
 
-	if !ctx.Darwin() {
+	if !ctx.Darwin() && !ctx.Windows() {
 		// Optimize out relinking against shared libraries whose interface hasn't changed by
 		// depending on a table of contents file instead of the library itself.
 		tocPath := outputFile.RelPathString()
