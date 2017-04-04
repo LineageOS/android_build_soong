@@ -87,8 +87,9 @@ type GoPackage struct {
 	Name string
 
 	// Inputs
-	deps  []*GoPackage
-	files []string
+	directDeps []*GoPackage // specified directly by the module
+	allDeps    []*GoPackage // direct dependencies and transitive dependencies
+	files      []string
 
 	// Outputs
 	pkgDir     string
@@ -102,17 +103,48 @@ type GoPackage struct {
 	rebuilt  bool
 }
 
+// LinkedHashMap<string, GoPackage>
+type linkedDepSet struct {
+	packageSet  map[string](*GoPackage)
+	packageList []*GoPackage
+}
+
+func newDepSet() *linkedDepSet {
+	return &linkedDepSet{packageSet: make(map[string]*GoPackage)}
+}
+func (s *linkedDepSet) tryGetByName(name string) (*GoPackage, bool) {
+	pkg, contained := s.packageSet[name]
+	return pkg, contained
+}
+func (s *linkedDepSet) getByName(name string) *GoPackage {
+	pkg, _ := s.tryGetByName(name)
+	return pkg
+}
+func (s *linkedDepSet) add(name string, goPackage *GoPackage) {
+	s.packageSet[name] = goPackage
+	s.packageList = append(s.packageList, goPackage)
+}
+func (s *linkedDepSet) ignore(name string) {
+	s.packageSet[name] = nil
+}
+
 // FindDeps searches all applicable go files in `path`, parses all of them
 // for import dependencies that exist in pkgMap, then recursively does the
 // same for all of those dependencies.
 func (p *GoPackage) FindDeps(path string, pkgMap *pkgPathMapping) error {
-	return p.findDeps(path, pkgMap, make(map[string]*GoPackage))
+	depSet := newDepSet()
+	err := p.findDeps(path, pkgMap, depSet)
+	if err != nil {
+		return err
+	}
+	p.allDeps = depSet.packageList
+	return nil
 }
 
 // findDeps is the recursive version of FindDeps. allPackages is the map of
 // all locally defined packages so that the same dependency of two different
 // packages is only resolved once.
-func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages map[string]*GoPackage) error {
+func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages *linkedDepSet) error {
 	// If this ever becomes too slow, we can look at reading the files once instead of twice
 	// But that just complicates things today, and we're already really fast.
 	foundPkgs, err := parser.ParseDir(token.NewFileSet(), path, func(fi os.FileInfo) bool {
@@ -154,7 +186,7 @@ func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages ma
 				return fmt.Errorf("%s: invalid quoted string: <%s> %v", filename, importSpec.Path.Value, err)
 			}
 
-			if pkg, ok := allPackages[name]; ok && pkg != nil {
+			if pkg, ok := allPackages.tryGetByName(name); ok {
 				if pkg != nil {
 					if _, ok := localDeps[name]; !ok {
 						deps = append(deps, name)
@@ -168,9 +200,9 @@ func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages ma
 			if path, ok, err := pkgMap.Path(name); err != nil {
 				return err
 			} else if !ok {
-				// Probably in the stdlib, compiler will fail we a reasonable error message otherwise.
+				// Probably in the stdlib, but if not, then the compiler will fail with a reasonable error message
 				// Mark it as such so that we don't try to decode its path again.
-				allPackages[name] = nil
+				allPackages.ignore(name)
 				continue
 			} else {
 				pkgPath = path
@@ -180,7 +212,7 @@ func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages ma
 				Name: name,
 			}
 			deps = append(deps, name)
-			allPackages[name] = pkg
+			allPackages.add(name, pkg)
 			localDeps[name] = true
 
 			if err := pkg.findDeps(pkgPath, pkgMap, allPackages); err != nil {
@@ -196,7 +228,7 @@ func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages ma
 	}
 
 	for _, dep := range deps {
-		p.deps = append(p.deps, allPackages[dep])
+		p.directDeps = append(p.directDeps, allPackages.getByName(dep))
 	}
 
 	return nil
@@ -212,7 +244,7 @@ func (p *GoPackage) Compile(outDir, trimPath string) error {
 
 	// Build all dependencies in parallel, then fail if any of them failed.
 	var wg sync.WaitGroup
-	for _, dep := range p.deps {
+	for _, dep := range p.directDeps {
 		wg.Add(1)
 		go func(dep *GoPackage) {
 			defer wg.Done()
@@ -220,7 +252,7 @@ func (p *GoPackage) Compile(outDir, trimPath string) error {
 		}(dep)
 	}
 	wg.Wait()
-	for _, dep := range p.deps {
+	for _, dep := range p.directDeps {
 		if dep.failed != nil {
 			p.failed = dep.failed
 			return p.failed
@@ -246,7 +278,7 @@ func (p *GoPackage) Compile(outDir, trimPath string) error {
 		cmd.Args = append(cmd.Args, "-trimpath", trimPath)
 		fmt.Fprintln(hash, trimPath)
 	}
-	for _, dep := range p.deps {
+	for _, dep := range p.directDeps {
 		cmd.Args = append(cmd.Args, "-I", dep.pkgDir)
 		hash.Write(dep.hashResult)
 	}
@@ -361,7 +393,7 @@ func (p *GoPackage) Link(out string) error {
 	if race {
 		cmd.Args = append(cmd.Args, "-race")
 	}
-	for _, dep := range p.deps {
+	for _, dep := range p.allDeps {
 		cmd.Args = append(cmd.Args, "-L", dep.pkgDir)
 	}
 	cmd.Args = append(cmd.Args, p.output)
@@ -373,7 +405,7 @@ func (p *GoPackage) Link(out string) error {
 	}
 	err = cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("command %s failed with error %v", cmd.Args, err)
 	}
 
 	return ioutil.WriteFile(shaFile, p.hashResult, 0666)
@@ -481,7 +513,7 @@ func main() {
 
 	err = mainPackage.Link(output)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to link:", err)
+		fmt.Fprintln(os.Stderr, "microfactory.go failed to link:", err)
 		os.Exit(1)
 	}
 }
