@@ -294,6 +294,7 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
 
 		// Prevent make from installing the libraries to obj/lib (since we have
 		// dozens of libraries with the same name, they'll clobber each other
