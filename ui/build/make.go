@@ -89,6 +89,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// compiler wrappers set up by make
 		"CC_WRAPPER",
 		"CXX_WRAPPER",
+		"JAVAC_WRAPPER",
 
 		// ccache settings
 		"CCACHE_COMPILERCHECK",
