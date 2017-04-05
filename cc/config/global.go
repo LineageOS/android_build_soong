@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"android/soong/android"
@@ -175,4 +176,11 @@ func bionicHeaders(bionicArch, kernelArch string) string {
 
 func VndkLibraries() []string {
 	return []string{}
+}
+
+func replaceFirst(slice []string, from, to string) {
+	if slice[0] != from {
+		panic(fmt.Errorf("Expected %q, found %q", from, to))
+	}
+	slice[0] = to
 }
