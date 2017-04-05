@@ -60,7 +60,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				ctx.ModuleErrorf("stl: %q is not a supported STL with sdk_version set", s)
 				return ""
 			}
-		} else if ctx.Os() == android.Windows {
+		} else if ctx.Windows() {
 			switch s {
 			case "libc++", "libc++_static", "libstdc++", "":
 				// libc++ is not supported on mingw

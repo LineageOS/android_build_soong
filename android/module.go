@@ -57,6 +57,7 @@ type androidBaseContext interface {
 	Host() bool
 	Device() bool
 	Darwin() bool
+	Windows() bool
 	Debug() bool
 	PrimaryArch() bool
 	Proprietary() bool
@@ -609,6 +610,10 @@ func (a *androidBaseContextImpl) Device() bool {
 
 func (a *androidBaseContextImpl) Darwin() bool {
 	return a.target.Os == Darwin
+}
+
+func (a *androidBaseContextImpl) Windows() bool {
+	return a.target.Os == Windows
 }
 
 func (a *androidBaseContextImpl) Debug() bool {
