@@ -228,7 +228,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	// MinGW spits out warnings about -fPIC even for -fpie?!) being ignored because
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
-	if ctx.Os() != android.Windows {
+	if !ctx.Windows() {
 		flags.CFlags = append(flags.CFlags, "-fPIC")
 	}
 
@@ -462,7 +462,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	builderFlags := flagsToBuilderFlags(flags)
 
-	if !ctx.Darwin() {
+	if !ctx.Darwin() && !ctx.Windows() {
 		// Optimize out relinking against shared libraries whose interface hasn't changed by
 		// depending on a table of contents file instead of the library itself.
 		tocPath := outputFile.RelPathString()
