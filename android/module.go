@@ -59,6 +59,7 @@ type androidBaseContext interface {
 	Darwin() bool
 	Debug() bool
 	PrimaryArch() bool
+	Proprietary() bool
 	AConfig() Config
 	DeviceConfig() DeviceConfig
 }
@@ -87,7 +88,6 @@ type ModuleContext interface {
 
 	AddMissingDependencies(deps []string)
 
-	Proprietary() bool
 	InstallInData() bool
 	InstallInSanitizerDir() bool
 
@@ -461,6 +461,7 @@ func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) 
 	return androidBaseContextImpl{
 		target:        a.commonProperties.CompileTarget,
 		targetPrimary: a.commonProperties.CompilePrimary,
+		proprietary:   a.commonProperties.Proprietary,
 		config:        ctx.Config().(Config),
 	}
 }
@@ -497,6 +498,7 @@ type androidBaseContextImpl struct {
 	target        Target
 	targetPrimary bool
 	debug         bool
+	proprietary   bool
 	config        Config
 }
 
@@ -625,8 +627,8 @@ func (a *androidBaseContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{a.config.deviceConfig}
 }
 
-func (a *androidModuleContext) Proprietary() bool {
-	return a.module.base().commonProperties.Proprietary
+func (a *androidBaseContextImpl) Proprietary() bool {
+	return a.proprietary
 }
 
 func (a *androidModuleContext) InstallInData() bool {
