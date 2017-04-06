@@ -35,6 +35,7 @@ func init() {
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("link", linkageMutator).Parallel()
+		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
 		ctx.BottomUp("begin", beginMutator).Parallel()
@@ -143,9 +144,24 @@ type BaseProperties struct {
 	// cppflags, conlyflags, ldflags, or include_dirs
 	No_default_compiler_flags *bool
 
+	// whether this module should be allowed to install onto /vendor as
+	// well as /system. The two variants will be built separately, one
+	// like normal, and the other limited to the set of libraries and
+	// headers that are exposed to /vendor modules.
+	//
+	// The vendor variant may be used with a different (newer) /system,
+	// so it shouldn't have any unversioned runtime dependencies, or
+	// make assumptions about the system that may not be true in the
+	// future.
+	//
+	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
+	Vendor_available *bool
+
 	AndroidMkSharedLibs []string `blueprint:"mutated"`
 	HideFromMake        bool     `blueprint:"mutated"`
 	PreventInstall      bool     `blueprint:"mutated"`
+
+	UseVndk bool `blueprint:"mutated"`
 }
 
 type UnusedProperties struct {
@@ -320,6 +336,10 @@ func (c *Module) isDependencyRoot() bool {
 	return false
 }
 
+func (c *Module) vndk() bool {
+	return c.Properties.UseVndk
+}
+
 type baseModuleContext struct {
 	android.BaseContext
 	moduleContextImpl
@@ -333,6 +353,12 @@ type depsContext struct {
 type moduleContext struct {
 	android.ModuleContext
 	moduleContextImpl
+}
+
+// Vendor returns true for vendor modules so that they get installed onto the
+// correct partition
+func (ctx *moduleContext) Vendor() bool {
+	return ctx.ModuleContext.Vendor() || ctx.moduleContextImpl.mod.Properties.UseVndk
 }
 
 type moduleContextImpl struct {
@@ -371,7 +397,7 @@ func (ctx *moduleContextImpl) noDefaultCompilerFlags() bool {
 }
 
 func (ctx *moduleContextImpl) sdk() bool {
-	if ctx.ctx.Device() {
+	if ctx.ctx.Device() && !ctx.vndk() {
 		return ctx.mod.Properties.Sdk_version != ""
 	}
 	return false
@@ -389,7 +415,7 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 }
 
 func (ctx *moduleContextImpl) vndk() bool {
-	return ctx.ctx.Os() == android.Android && ctx.ctx.Vendor() && ctx.ctx.DeviceConfig().CompileVndk()
+	return ctx.mod.vndk()
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -772,6 +798,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// Host code is not restricted
 			return
 		}
+		if from.Properties.UseVndk {
+			// Vendor code is already limited by the vendor mutator
+			return
+		}
 		if from.Properties.Sdk_version == "" {
 			// Platform code can link to anything
 			return
@@ -1058,6 +1088,57 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 	)
 
 	return android.InitDefaultsModule(module, module, props...)
+}
+
+const (
+	// coreMode is the variant used for framework-private libraries, or
+	// SDK libraries. (which framework-private libraries can use)
+	coreMode = "core"
+
+	// vendorMode is the variant used for /vendor code that compiles
+	// against the VNDK.
+	vendorMode = "vendor"
+)
+
+func vendorMutator(mctx android.BottomUpMutatorContext) {
+	if mctx.Os() != android.Android {
+		return
+	}
+
+	m, ok := mctx.Module().(*Module)
+	if !ok {
+		return
+	}
+
+	// Sanity check
+	if Bool(m.Properties.Vendor_available) && mctx.Vendor() {
+		mctx.PropertyErrorf("vendor_available",
+			"doesn't make sense at the same time as `vendor: true` or `proprietary: true`")
+		return
+	}
+
+	if !mctx.DeviceConfig().CompileVndk() {
+		// If the device isn't compiling against the VNDK, we always
+		// use the core mode.
+		mctx.CreateVariations(coreMode)
+	} else if _, ok := m.linker.(*llndkStubDecorator); ok {
+		// LL-NDK stubs only exist in the vendor variant, since the
+		// real libraries will be used in the core variant.
+		mctx.CreateVariations(vendorMode)
+	} else if Bool(m.Properties.Vendor_available) {
+		// This will be available in both /system and /vendor
+		mod := mctx.CreateVariations(coreMode, vendorMode)
+		mod[1].(*Module).Properties.UseVndk = true
+	} else if mctx.Vendor() && m.Properties.Sdk_version == "" {
+		// This will be available in /vendor only
+		mod := mctx.CreateVariations(vendorMode)
+		mod[0].(*Module).Properties.UseVndk = true
+	} else {
+		// This is either in /system (or similar: /data), or is a
+		// modules built with the NDK. Modules built with the NDK
+		// will be restricted using the existing link type checks.
+		mctx.CreateVariations(coreMode)
+	}
 }
 
 // lastUniqueElements returns all unique elements of a slice, keeping the last copy of each

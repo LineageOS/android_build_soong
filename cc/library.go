@@ -84,6 +84,16 @@ type FlagExporterProperties struct {
 	// be added to the include path (using -I) for this module and any module that links
 	// against this module
 	Export_include_dirs []string `android:"arch_variant"`
+
+	Target struct {
+		Vendor struct {
+			// list of exported include directories, like
+			// export_include_dirs, that will be applied to the
+			// vendor variant of this library. This will overwrite
+			// any other declarations.
+			Export_include_dirs []string
+		}
+	}
 }
 
 func init() {
@@ -144,8 +154,16 @@ type flagExporter struct {
 	flagsDeps android.Paths
 }
 
+func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
+	if ctx.Vendor() && f.Properties.Target.Vendor.Export_include_dirs != nil {
+		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Export_include_dirs)
+	} else {
+		return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
+	}
+}
+
 func (f *flagExporter) exportIncludes(ctx ModuleContext, inc string) {
-	includeDirs := android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
+	includeDirs := f.exportedIncludes(ctx)
 	for _, dir := range includeDirs.Strings() {
 		f.flags = append(f.flags, inc+dir)
 	}
@@ -277,7 +295,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 }
 
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
-	exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
+	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
 		flags.GlobalFlags = append(flags.GlobalFlags, includeDirsToFlags(exportIncludeDirs))
 	}
@@ -369,7 +387,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
 	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
-			if !ctx.sdk() && !ctx.vndk() {
+			if !ctx.sdk() {
 				deps.CrtBegin = "crtbegin_so"
 				deps.CrtEnd = "crtend_so"
 			} else {

@@ -26,6 +26,7 @@ import (
 type AndroidMkContext interface {
 	Target() android.Target
 	subAndroidMk(*android.AndroidMkData, interface{})
+	vndk() bool
 }
 
 type subAndroidMkProvider interface {
@@ -56,12 +57,15 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 		if len(c.Properties.AndroidMkSharedLibs) > 0 {
 			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 		}
-		if c.Target().Os == android.Android && c.Properties.Sdk_version != "" {
+		if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.vndk() {
 			fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
 			fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
 		} else {
 			// These are already included in LOCAL_SHARED_LIBRARIES
 			fmt.Fprintln(w, "LOCAL_CXX_STL := none")
+		}
+		if c.vndk() {
+			fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 		}
 		return nil
 	})
@@ -73,6 +77,10 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 	c.subAndroidMk(&ret, c.compiler)
 	c.subAndroidMk(&ret, c.linker)
 	c.subAndroidMk(&ret, c.installer)
+
+	if c.vndk() {
+		ret.SubName += ".vendor"
+	}
 
 	return ret, nil
 }
@@ -118,6 +126,8 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			if host {
 				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", ctx.Target().Os.String())
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			} else if ctx.vndk() {
+				fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 			}
 
 			library.androidMkWriteExportedFlags(w)
@@ -301,7 +311,7 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 
 func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Class = "SHARED_LIBRARIES"
-	ret.SubName = llndkLibrarySuffix
+	ret.SubName = ".vendor"
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
@@ -311,6 +321,7 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
+		fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 
 		return nil
 	})
