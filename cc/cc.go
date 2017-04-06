@@ -389,7 +389,7 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 }
 
 func (ctx *moduleContextImpl) vndk() bool {
-	return ctx.ctx.Os() == android.Android && ctx.ctx.Proprietary() && ctx.ctx.DeviceConfig().CompileVndk()
+	return ctx.ctx.Os() == android.Android && ctx.ctx.Vendor() && ctx.ctx.DeviceConfig().CompileVndk()
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
