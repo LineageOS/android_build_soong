@@ -205,7 +205,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		}
 	}
 
-	if ctx.sdk() || ctx.vndk() {
+	if ctx.sdk() {
 		// The NDK headers are installed to a common sysroot. While a more
 		// typical Soong approach would be to only make the headers for the
 		// library you're using available, we're trying to emulate the NDK
@@ -231,6 +231,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 			"prebuilts/ndk/current/platforms/android-%s/arch-%s/usr/include",
 			ctx.sdkVersion(), ctx.Arch().ArchType.String())
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags, "-isystem "+legacyIncludes)
+	}
+
+	if ctx.vndk() {
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			"-D__ANDROID_API__=__ANDROID_API_FUTURE__", "-D__ANDROID_VNDK__")
 	}
 
 	instructionSet := compiler.Properties.Instruction_set
@@ -412,7 +417,7 @@ func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")
 
 func ndkPathDeps(ctx ModuleContext) android.Paths {
-	if ctx.sdk() || ctx.vndk() {
+	if ctx.sdk() {
 		// The NDK sysroot timestamp file depends on all the NDK sysroot files
 		// (headers and libraries).
 		return android.Paths{getNdkSysrootTimestampFile(ctx)}
