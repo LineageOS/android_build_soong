@@ -136,6 +136,7 @@ var (
 		},
 		"kryo": []string{
 			"-mcpu=cortex-a15",
+			"-mfpu=neon-fp-armv8",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
 			// don't advertise.
 			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
@@ -179,7 +180,6 @@ func init() {
 	armClangCpuVariantCflags["krait"] = append(armClangCpuVariantCflags["krait"], "-mfpu=neon-vfpv4")
 
 	replaceFirst(armClangCpuVariantCflags["kryo"], "-mcpu=cortex-a15", "-mcpu=krait")
-	armClangCpuVariantCflags["kryo"] = append(armClangCpuVariantCflags["kryo"], "-mfpu=neon-vfpv4")
 
 	pctx.StaticVariable("armGccVersion", armGccVersion)
 
