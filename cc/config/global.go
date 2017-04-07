@@ -178,6 +178,13 @@ func VndkLibraries() []string {
 	return []string{}
 }
 
+// This needs to be kept up to date with the list in system/core/rootdir/etc/ld.config.txt:
+// [vendor]
+// namespace.default.link.system.shared_libs
+func LLndkLibraries() []string {
+	return []string{"libc", "libm", "libdl", "liblog", "ld-android"}
+}
+
 func replaceFirst(slice []string, from, to string) {
 	if slice[0] != from {
 		panic(fmt.Errorf("Expected %q, found %q", from, to))
