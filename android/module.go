@@ -60,7 +60,7 @@ type androidBaseContext interface {
 	Windows() bool
 	Debug() bool
 	PrimaryArch() bool
-	Proprietary() bool
+	Vendor() bool
 	AConfig() Config
 	DeviceConfig() DeviceConfig
 }
@@ -142,6 +142,9 @@ type commonProperties struct {
 
 	// vendor who owns this module
 	Owner string
+
+	// whether this module is device specific and should be installed into /vendor
+	Vendor bool
 
 	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
 	// file
@@ -462,7 +465,7 @@ func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) 
 	return androidBaseContextImpl{
 		target:        a.commonProperties.CompileTarget,
 		targetPrimary: a.commonProperties.CompilePrimary,
-		proprietary:   a.commonProperties.Proprietary,
+		vendor:        a.commonProperties.Proprietary || a.commonProperties.Vendor,
 		config:        ctx.Config().(Config),
 	}
 }
@@ -499,7 +502,7 @@ type androidBaseContextImpl struct {
 	target        Target
 	targetPrimary bool
 	debug         bool
-	proprietary   bool
+	vendor        bool
 	config        Config
 }
 
@@ -632,8 +635,8 @@ func (a *androidBaseContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{a.config.deviceConfig}
 }
 
-func (a *androidBaseContextImpl) Proprietary() bool {
-	return a.proprietary
+func (a *androidBaseContextImpl) Vendor() bool {
+	return a.vendor
 }
 
 func (a *androidModuleContext) InstallInData() bool {
