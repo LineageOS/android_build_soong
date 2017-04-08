@@ -69,12 +69,12 @@ func init() {
 			"LOCAL_PACKAGE_NAME":         "name",
 			"LOCAL_MODULE_RELATIVE_PATH": "relative_install_path",
 			"LOCAL_PROTOC_OPTIMIZE_TYPE": "proto.type",
-			"LOCAL_HEADER_LIBRARIES":     "header_libs",
 			"LOCAL_MODULE_OWNER":         "owner",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
 			"LOCAL_SRC_FILES_EXCLUDE":             "exclude_srcs",
+			"LOCAL_HEADER_LIBRARIES":              "header_libs",
 			"LOCAL_SHARED_LIBRARIES":              "shared_libs",
 			"LOCAL_STATIC_LIBRARIES":              "static_libs",
 			"LOCAL_WHOLE_STATIC_LIBRARIES":        "whole_static_libs",
@@ -90,6 +90,7 @@ func init() {
 			"LOCAL_YACCFLAGS":                     "yaccflags",
 			"LOCAL_SANITIZE_RECOVER":              "sanitize.recover",
 			"LOCAL_LOGTAGS_FILES":                 "logtags",
+			"LOCAL_EXPORT_HEADER_LIBRARY_HEADERS": "export_header_lib_headers",
 			"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": "export_shared_lib_headers",
 			"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": "export_static_lib_headers",
 			"LOCAL_INIT_RC":                       "init_rc",
@@ -121,6 +122,7 @@ func init() {
 			"LOCAL_PACK_MODULE_RELOCATIONS": "pack_relocations",
 			"LOCAL_TIDY":                    "tidy",
 			"LOCAL_PROPRIETARY_MODULE":      "proprietary",
+			"LOCAL_VENDOR_MODULE":           "vendor",
 
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
 		})
