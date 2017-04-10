@@ -120,16 +120,16 @@ func (p AndroidPackageContext) IntermediatesPathVariable(name, path string) blue
 	})
 }
 
-// PrefixedPathsForOptionalSourceVariable returns a Variable whose value is the
+// PrefixedExistentPathsForSourcesVariable returns a Variable whose value is the
 // list of present source paths prefixed with the supplied prefix. It may only
 // be called during a Go package's initialization - either from the init()
 // function or as part of a package-scoped variable's initialization.
-func (p AndroidPackageContext) PrefixedPathsForOptionalSourceVariable(
+func (p AndroidPackageContext) PrefixedExistentPathsForSourcesVariable(
 	name, prefix string, paths []string) blueprint.Variable {
 
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
 		ctx := &configErrorWrapper{p, config.(Config), []error{}}
-		paths := PathsForOptionalSource(ctx, "", paths)
+		paths := ExistentPathsForSources(ctx, "", paths)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
 		}
