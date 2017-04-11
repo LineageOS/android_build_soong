@@ -649,7 +649,7 @@ func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
 	var outPaths []string
 	if ctx.Device() {
 		partition := "system"
-		if ctx.Proprietary() {
+		if ctx.Vendor() {
 			partition = ctx.DeviceConfig().VendorPath()
 		}
 
