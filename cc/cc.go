@@ -430,7 +430,9 @@ func (c *Module) Prebuilt() *android.Prebuilt {
 
 func (c *Module) Name() string {
 	name := c.ModuleBase.Name()
-	if p, ok := c.linker.(prebuiltLinkerInterface); ok {
+	if p, ok := c.linker.(interface {
+		Name(string) string
+	}); ok {
 		name = p.Name(name)
 	}
 	return name

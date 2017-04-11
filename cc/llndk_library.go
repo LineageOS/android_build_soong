@@ -29,15 +29,10 @@ var (
 
 // Creates a stub shared library based on the provided version file.
 //
-// The name of the generated file will be based on the module name by stripping
-// the ".llndk" suffix from the module name. Module names must end with ".llndk"
-// (as a convention to allow soong to guess the LL-NDK name of a dependency when
-// needed). "libfoo.llndk" will generate "libfoo.so".
-//
 // Example:
 //
 // llndk_library {
-//     name: "libfoo.llndk",
+//     name: "libfoo",
 //     symbol_file: "libfoo.map.txt",
 //     export_include_dirs: ["include_vndk"],
 // }
@@ -69,10 +64,6 @@ type llndkStubDecorator struct {
 }
 
 func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	if !strings.HasSuffix(ctx.ModuleName(), llndkLibrarySuffix) {
-		ctx.ModuleErrorf("llndk_library modules names must be suffixed with %q\n",
-			llndkLibrarySuffix)
-	}
 	objs, versionScript := compileStubLibrary(ctx, flags, stub.Properties.Symbol_file, "current", "--vndk")
 	stub.versionScriptPath = versionScript
 	return objs
@@ -80,6 +71,10 @@ func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps Pat
 
 func (stub *llndkStubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return Deps{}
+}
+
+func (stub *llndkStubDecorator) Name(name string) string {
+	return name + llndkLibrarySuffix
 }
 
 func (stub *llndkStubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
