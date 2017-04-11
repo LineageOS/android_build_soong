@@ -65,15 +65,10 @@ var (
 
 // Creates a stub shared library based on the provided version file.
 //
-// The name of the generated file will be based on the module name by stripping
-// the ".ndk" suffix from the module name. Module names must end with ".ndk"
-// (as a convention to allow soong to guess the NDK name of a dependency when
-// needed). "libfoo.ndk" will generate "libfoo.so.
-//
 // Example:
 //
 // ndk_library {
-//     name: "libfoo.ndk",
+//     name: "libfoo",
 //     symbol_file: "libfoo.map.txt",
 //     first_version: "9",
 // }
@@ -230,7 +225,11 @@ func ndkApiMutator(mctx android.BottomUpMutatorContext) {
 func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	c.baseCompiler.compilerInit(ctx)
 
-	name := strings.TrimSuffix(ctx.ModuleName(), ".ndk")
+	name := ctx.baseModuleName()
+	if strings.HasSuffix(name, ndkLibrarySuffix) {
+		ctx.PropertyErrorf("name", "Do not append %q manually, just use the base name", ndkLibrarySuffix)
+	}
+
 	ndkMigratedLibsLock.Lock()
 	defer ndkMigratedLibsLock.Unlock()
 	for _, lib := range ndkMigratedLibs {
@@ -276,10 +275,6 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 }
 
 func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	if !strings.HasSuffix(ctx.ModuleName(), ndkLibrarySuffix) {
-		ctx.ModuleErrorf("ndk_library modules names must be suffixed with %q\n",
-			ndkLibrarySuffix)
-	}
 	objs, versionScript := compileStubLibrary(ctx, flags, c.properties.Symbol_file, c.properties.ApiLevel, "")
 	c.versionScriptPath = versionScript
 	return objs
@@ -289,9 +284,12 @@ func (linker *stubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return Deps{}
 }
 
+func (linker *stubDecorator) Name(name string) string {
+	return name + ndkLibrarySuffix
+}
+
 func (stub *stubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	stub.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(),
-		ndkLibrarySuffix)
+	stub.libraryDecorator.libName = ctx.baseModuleName()
 	return stub.libraryDecorator.linkerFlags(ctx, flags)
 }
 
