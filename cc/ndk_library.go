@@ -216,8 +216,10 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorat
 
 func ndkApiMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
-		if compiler, ok := m.compiler.(*stubDecorator); ok {
-			generateStubApiVariants(mctx, compiler)
+		if m.Enabled() {
+			if compiler, ok := m.compiler.(*stubDecorator); ok {
+				generateStubApiVariants(mctx, compiler)
+			}
 		}
 	}
 }
