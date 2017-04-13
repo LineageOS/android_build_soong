@@ -35,18 +35,20 @@ do_strip_keep_symbols() {
 }
 
 do_strip_keep_mini_debug_info() {
-    "${CROSS_COMPILE}nm" -D "${infile}" --format=posix --defined-only | awk '{ print $$1 }' | sort >"${outfile}.dynsyms"
-    "${CROSS_COMPILE}nm" "${infile}" --format=posix --defined-only | awk '{ if ($$2 == "T" || $$2 == "t" || $$2 == "D") print $$1 }' | sort > "${outfile}.funcsyms"
-    comm -13 "${outfile}.dynsyms" "${outfile}.funcsyms" > "${outfile}.keep_symbols"
-    "${CROSS_COMPILE}objcopy" --only-keep-debug "${infile}" "${outfile}.debug"
-    "${CROSS_COMPILE}objcopy" --rename-section .debug_frame=saved_debug_frame "${outfile}.debug" "${outfile}.mini_debuginfo"
-    "${CROSS_COMPILE}objcopy" -S --remove-section .gdb_index --remove-section .comment --keep-symbols="${outfile}.keep_symbols" "${outfile}.mini_debuginfo"
-    "${CROSS_COMPILE}objcopy" --rename-section saved_debug_frame=.debug_frame "${outfile}.mini_debuginfo"
-    "${CROSS_COMPILE}strip" --strip-all -R .comment "${infile}" -o "${outfile}.tmp"
-    rm -f "${outfile}.mini_debuginfo.xz"
-    xz "${outfile}.mini_debuginfo"
-    "${CROSS_COMPILE}objcopy" --add-section .gnu_debugdata="${outfile}.mini_debuginfo.xz" "${outfile}.tmp"
-    rm -f "${outfile}.dynsyms" "${outfile}.funcsyms" "${outfile}.keep_symbols" "${outfile}.debug" "${outfile}.mini_debuginfo.xz"
+    rm -f "${outfile}.dynsyms" "${outfile}.funcsyms" "${outfile}.keep_symbols" "${outfile}.debug" "${outfile}.mini_debuginfo" "${outfile}.mini_debuginfo.xz"
+    if "${CROSS_COMPILE}strip" --strip-all -R .comment "${infile}" -o "${outfile}.tmp"; then
+        "${CROSS_COMPILE}objcopy" --only-keep-debug "${infile}" "${outfile}.debug"
+        "${CROSS_COMPILE}nm" -D "${infile}" --format=posix --defined-only | awk '{ print $$1 }' | sort >"${outfile}.dynsyms"
+        "${CROSS_COMPILE}nm" "${infile}" --format=posix --defined-only | awk '{ if ($$2 == "T" || $$2 == "t" || $$2 == "D") print $$1 }' | sort > "${outfile}.funcsyms"
+        comm -13 "${outfile}.dynsyms" "${outfile}.funcsyms" > "${outfile}.keep_symbols"
+        "${CROSS_COMPILE}objcopy" --rename-section .debug_frame=saved_debug_frame "${outfile}.debug" "${outfile}.mini_debuginfo"
+        "${CROSS_COMPILE}objcopy" -S --remove-section .gdb_index --remove-section .comment --keep-symbols="${outfile}.keep_symbols" "${outfile}.mini_debuginfo"
+        "${CROSS_COMPILE}objcopy" --rename-section saved_debug_frame=.debug_frame "${outfile}.mini_debuginfo"
+        xz "${outfile}.mini_debuginfo"
+        "${CROSS_COMPILE}objcopy" --add-section .gnu_debugdata="${outfile}.mini_debuginfo.xz" "${outfile}.tmp"
+    else
+        cp -f "${infile}" "${outfile}.tmp"
+    fi
 }
 
 do_add_gnu_debuglink() {
