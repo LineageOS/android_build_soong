@@ -716,17 +716,19 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				prefix := "target.android32"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
-		}
 
-		if arch.ArchType == X86 && hasArmAbi(arch) {
-			field := "Arm_on_x86"
-			prefix := "target.arm_on_x86"
-			a.appendProperties(ctx, genProps, targetProp, field, prefix)
-		}
-		if arch.ArchType == X86_64 && hasArmAbi(arch) {
-			field := "Arm_on_x86_64"
-			prefix := "target.arm_on_x86_64"
-			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			if arch.ArchType == X86 && (hasArmAbi(arch) ||
+				hasArmAndroidArch(ctx.AConfig().Targets[Device])) {
+				field := "Arm_on_x86"
+				prefix := "target.arm_on_x86"
+				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
+			if arch.ArchType == X86_64 && (hasArmAbi(arch) ||
+				hasArmAndroidArch(ctx.AConfig().Targets[Device])) {
+				field := "Arm_on_x86_64"
+				prefix := "target.arm_on_x86_64"
+				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
 		}
 	}
 }
@@ -829,6 +831,16 @@ func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) 
 func hasArmAbi(arch Arch) bool {
 	for _, abi := range arch.Abi {
 		if strings.HasPrefix(abi, "arm") {
+			return true
+		}
+	}
+	return false
+}
+
+// hasArmArch returns true if targets has at least arm Android arch
+func hasArmAndroidArch(targets []Target) bool {
+	for _, target := range targets {
+		if target.Os == Android && target.Arch.ArchType == Arm {
 			return true
 		}
 	}
