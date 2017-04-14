@@ -116,19 +116,18 @@ func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (string, error) {
 	}
 
 	minVersion := 9 // Minimum version supported by the NDK.
-	firstArchVersions := map[string]int{
-		"arm":    9,
-		"arm64":  21,
-		"mips":   9,
-		"mips64": 21,
-		"x86":    9,
-		"x86_64": 21,
+	firstArchVersions := map[android.ArchType]int{
+		android.Arm:    9,
+		android.Arm64:  21,
+		android.Mips:   9,
+		android.Mips64: 21,
+		android.X86:    9,
+		android.X86_64: 21,
 	}
 
-	archStr := arch.ArchType.String()
-	firstArchVersion, ok := firstArchVersions[archStr]
+	firstArchVersion, ok := firstArchVersions[arch.ArchType]
 	if !ok {
-		panic(fmt.Errorf("Arch %q not found in firstArchVersions", archStr))
+		panic(fmt.Errorf("Arch %q not found in firstArchVersions", arch.ArchType))
 	}
 
 	if apiLevel == "minimum" {
