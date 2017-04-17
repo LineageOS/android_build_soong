@@ -49,6 +49,7 @@ func init() {
 		ctx.BottomUp("tsan", sanitizerMutator(tsan)).Parallel()
 
 		ctx.BottomUp("coverage", coverageLinkingMutator).Parallel()
+		ctx.TopDown("vndk_deps", sabiDepsMutator)
 	})
 
 	pctx.Import("android/soong/cc/config")
@@ -108,6 +109,7 @@ type Flags struct {
 	LdFlags     []string // Flags that apply to linker command lines
 	libFlags    []string // Flags to add libraries early to the link order
 	TidyFlags   []string // Flags that apply to clang-tidy
+	SAbiFlags   []string // Flags that apply to header-abi-dumper
 	YasmFlags   []string // Flags that apply to yasm assembly source files
 
 	// Global include flags that apply to C, C++, and assembly source files
@@ -118,6 +120,7 @@ type Flags struct {
 	Clang     bool
 	Tidy      bool
 	Coverage  bool
+	SAbiDump  bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string
@@ -177,6 +180,7 @@ type ModuleContextIntf interface {
 	sdk() bool
 	sdkVersion() string
 	vndk() bool
+	createVndkSourceAbiDump() bool
 	selectedStl() string
 	baseModuleName() string
 }
@@ -283,6 +287,7 @@ type Module struct {
 	stl       *stl
 	sanitize  *sanitize
 	coverage  *coverage
+	sabi      *sabi
 
 	androidMkSharedLibDeps []string
 
@@ -315,6 +320,9 @@ func (c *Module) Init() (blueprint.Module, []interface{}) {
 	}
 	if c.coverage != nil {
 		props = append(props, c.coverage.props()...)
+	}
+	if c.sabi != nil {
+		props = append(props, c.sabi.props()...)
 	}
 	for _, feature := range c.features {
 		props = append(props, feature.props()...)
@@ -418,6 +426,12 @@ func (ctx *moduleContextImpl) vndk() bool {
 	return ctx.mod.vndk()
 }
 
+// Create source abi dumps if the module belongs to the list of VndkLibraries.
+func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
+	return ctx.ctx.Device() && (inList(ctx.baseModuleName(), config.LLndkLibraries())) ||
+		(inList(ctx.baseModuleName(), config.VndkLibraries()))
+}
+
 func (ctx *moduleContextImpl) selectedStl() string {
 	if stl := ctx.mod.stl; stl != nil {
 		return stl.Properties.SelectedStl
@@ -444,6 +458,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.stl = &stl{}
 	module.sanitize = &sanitize{}
 	module.coverage = &coverage{}
+	module.sabi = &sabi{}
 	return module
 }
 
@@ -491,6 +506,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if c.coverage != nil {
 		flags = c.coverage.flags(ctx, flags)
+	}
+	if c.sabi != nil {
+		flags = c.sabi.flags(ctx, flags)
 	}
 	for _, feature := range c.features {
 		flags = feature.flags(ctx, flags)
@@ -566,6 +584,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	if c.coverage != nil {
 		c.coverage.begin(ctx)
 	}
+	if c.sabi != nil {
+		c.sabi.begin(ctx)
+	}
 	for _, feature := range c.features {
 		feature.begin(ctx)
 	}
@@ -595,6 +616,9 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	}
 	if c.coverage != nil {
 		deps = c.coverage.deps(ctx, deps)
+	}
+	if c.sabi != nil {
+		deps = c.sabi.deps(ctx, deps)
 	}
 	for _, feature := range c.features {
 		deps = feature.deps(ctx, deps)
@@ -999,9 +1023,12 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			// When combining coverage files for shared libraries and executables, coverage files
-			// in static libraries act as if they were whole static libraries.
+			// in static libraries act as if they were whole static libraries. The same goes for
+			// source based Abi dump files.
 			depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
 				staticLib.objs().coverageFiles...)
+			depPaths.StaticLibObjs.sAbiDumpFiles = append(depPaths.StaticLibObjs.sAbiDumpFiles,
+				staticLib.objs().sAbiDumpFiles...)
 		}
 
 		if ptr != nil {
@@ -1085,6 +1112,7 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&InstallerProperties{},
 		&TidyProperties{},
 		&CoverageProperties{},
+		&SAbiProperties{},
 	)
 
 	return android.InitDefaultsModule(module, module, props...)
