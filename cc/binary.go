@@ -214,7 +214,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
 	if !ctx.Windows() {
-		flags.CFlags = append(flags.CFlags, "-fpie")
+		flags.CFlags = append(flags.CFlags, "-fPIE")
 	}
 
 	if ctx.toolchain().Bionic() {
