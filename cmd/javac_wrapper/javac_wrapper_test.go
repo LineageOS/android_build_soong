@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 )
 
@@ -39,6 +40,10 @@ var testCases = []struct {
 		out: "\x1b[1mFile.java:398: \x1b[35mwarning:\x1b[0m\x1b[1m [RectIntersectReturnValueIgnored] Return value of com.blah.function() must be checked\x1b[0m\n",
 	},
 	{
+		in:  "warning: [options] bootstrap class path not set in conjunction with -source 1.7\n",
+		out: "\x1b[1m\x1b[35mwarning:\x1b[0m\x1b[1m [options] bootstrap class path not set in conjunction with -source 1.7\x1b[0m\n",
+	},
+	{
 		in:  "    (see http://go/errorprone/bugpattern/RectIntersectReturnValueIgnored.md)\n",
 		out: "    (see http://go/errorprone/bugpattern/RectIntersectReturnValueIgnored.md)\n",
 	},
@@ -60,15 +65,50 @@ Note: dir/file.java uses unchecked or unsafe operations.
 }
 
 func TestJavacColorize(t *testing.T) {
-	for _, test := range testCases {
-		buf := new(bytes.Buffer)
-		err := process(bytes.NewReader([]byte(test.in)), buf)
-		if err != nil {
-			t.Errorf("error: %q", err)
-		}
-		got := string(buf.Bytes())
-		if got != test.out {
-			t.Errorf("expected %q got %q", test.out, got)
-		}
+	for i, test := range testCases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			err := process(bytes.NewReader([]byte(test.in)), buf)
+			if err != nil {
+				t.Errorf("error: %q", err)
+			}
+			got := string(buf.Bytes())
+			if got != test.out {
+				t.Errorf("expected %q got %q", test.out, got)
+			}
+		})
 	}
+}
+
+func TestSubprocess(t *testing.T) {
+	t.Run("failure", func(t *testing.T) {
+		exitCode, err := Main("test", []string{"sh", "-c", "exit 9"})
+		if err != nil {
+			t.Fatal("unexpected error", err)
+		}
+		if exitCode != 9 {
+			t.Fatal("expected exit code 9, got", exitCode)
+		}
+	})
+
+	t.Run("signal", func(t *testing.T) {
+		exitCode, err := Main("test", []string{"sh", "-c", "kill -9 $$"})
+		if err != nil {
+			t.Fatal("unexpected error", err)
+		}
+		if exitCode != 137 {
+			t.Fatal("expected exit code 137, got", exitCode)
+		}
+	})
+
+	t.Run("success", func(t *testing.T) {
+		exitCode, err := Main("test", []string{"echo"})
+		if err != nil {
+			t.Fatal("unexpected error", err)
+		}
+		if exitCode != 0 {
+			t.Fatal("expected exit code 0, got", exitCode)
+		}
+	})
+
 }

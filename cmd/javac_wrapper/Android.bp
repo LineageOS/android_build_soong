@@ -13,11 +13,11 @@
 // limitations under the License.
 
 blueprint_go_binary {
-    name: "soong_javac_filter",
+    name: "soong_javac_wrapper",
     srcs: [
-        "javac_filter.go",
+        "javac_wrapper.go",
     ],
     testSrcs: [
-        "javac_filter_test.go",
+        "javac_wrapper_test.go",
     ],
 }
