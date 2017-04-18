@@ -65,6 +65,7 @@ type variableProperties struct {
 		Debuggable struct {
 			Cflags   []string
 			Cppflags []string
+			Init_rc  []string
 		}
 
 		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
