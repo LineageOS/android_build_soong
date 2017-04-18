@@ -173,7 +173,7 @@ var (
 
 	sAbiDump = pctx.AndroidStaticRule("sAbiDump",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -Wno-packed -isystem ${config.RSIncludePath}",
+			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -Wno-packed -Qunused-arguments -isystem ${config.RSIncludePath}",
 			CommandDeps: []string{"$sAbiDumper"},
 			Description: "header-abi-dumper $in -o $out $exportDirs",
 		},
@@ -192,13 +192,10 @@ var (
 		"symbolFile", "arch", "api", "exportedHeaderFlags")
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
-	// The output file is different from what the build system knows about.
-	// This is done since we have to create a report file even when builds
-	// fail in this case. Abidiff check turned on in advice-only mode. Builds
-	// will not fail on abi incompatibilties / extensions.
+	// Abidiff check turned on in advice-only mode. Builds will not fail on abi incompatibilties / extensions.
 	sAbiDiff = pctx.AndroidStaticRule("sAbiDiff",
 		blueprint.RuleParams{
-			Command:     "$sAbiDiffer -advice-only -o ${out}s -new $in -old $referenceDump",
+			Command:     "$sAbiDiffer -advice-only -o ${out} -new $in -old $referenceDump",
 			CommandDeps: []string{"$sAbiDiffer"},
 			Description: "header-abi-diff -o ${out} -new $in -old $referenceDump",
 		},
