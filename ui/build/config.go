@@ -83,6 +83,10 @@ func NewConfig(ctx Context, args ...string) Config {
 
 		// We handle this above
 		"OUT_DIR_COMMON_BASE",
+
+		// Variables that have caused problems in the past
+		"DISPLAY",
+		"GREP_OPTIONS",
 	)
 
 	// Tell python not to spam the source tree with .pyc files.
