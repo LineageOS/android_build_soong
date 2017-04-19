@@ -754,9 +754,16 @@ var SourceDepTag sourceDependencyTag
 // modules listed in srcFiles using ":module" syntax
 func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 	var deps []string
+	set := make(map[string]bool)
+
 	for _, s := range srcFiles {
 		if m := SrcIsModule(s); m != "" {
-			deps = append(deps, m)
+			if _, found := set[m]; found {
+				ctx.ModuleErrorf("found source dependency duplicate: %q!", m)
+			} else {
+				set[m] = true
+				deps = append(deps, m)
+			}
 		}
 	}
 
