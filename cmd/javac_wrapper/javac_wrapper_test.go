@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
 	"strconv"
 	"testing"
 )
@@ -82,7 +83,7 @@ func TestJavacColorize(t *testing.T) {
 
 func TestSubprocess(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
-		exitCode, err := Main("test", []string{"sh", "-c", "exit 9"})
+		exitCode, err := Main(ioutil.Discard, "test", []string{"sh", "-c", "exit 9"})
 		if err != nil {
 			t.Fatal("unexpected error", err)
 		}
@@ -92,7 +93,7 @@ func TestSubprocess(t *testing.T) {
 	})
 
 	t.Run("signal", func(t *testing.T) {
-		exitCode, err := Main("test", []string{"sh", "-c", "kill -9 $$"})
+		exitCode, err := Main(ioutil.Discard, "test", []string{"sh", "-c", "kill -9 $$"})
 		if err != nil {
 			t.Fatal("unexpected error", err)
 		}
@@ -102,7 +103,7 @@ func TestSubprocess(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		exitCode, err := Main("test", []string{"echo"})
+		exitCode, err := Main(ioutil.Discard, "test", []string{"echo"})
 		if err != nil {
 			t.Fatal("unexpected error", err)
 		}
