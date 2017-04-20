@@ -406,7 +406,11 @@ func (c *config) SanitizeDeviceArch() []string {
 }
 
 func (c *config) EnableCFI() bool {
-	return Bool(c.ProductVariables.EnableCFI)
+	if c.ProductVariables.EnableCFI == nil {
+		return true
+	} else {
+		return *c.ProductVariables.EnableCFI
+	}
 }
 
 func (c *config) Android64() bool {
