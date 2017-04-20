@@ -146,6 +146,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES += ", library.sAbiOutputFile.String())
 			if library.sAbiDiff.Valid() && !library.static() {
 				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES += ", library.sAbiDiff.String())
+				fmt.Fprintln(w, "HEADER_ABI_DIFFS += ", library.sAbiDiff.String())
 			}
 		}
 

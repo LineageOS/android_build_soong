@@ -171,9 +171,10 @@ var (
 
 	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
+	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
 	sAbiDump = pctx.AndroidStaticRule("sAbiDump",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -Wno-packed -Qunused-arguments -isystem ${config.RSIncludePath}",
+			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -w -isystem ${config.RSIncludePath}",
 			CommandDeps: []string{"$sAbiDumper"},
 			Description: "header-abi-dumper $in -o $out $exportDirs",
 		},
@@ -192,6 +193,7 @@ var (
 		"symbolFile", "arch", "api", "exportedHeaderFlags")
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
+
 	// Abidiff check turned on in advice-only mode. Builds will not fail on abi incompatibilties / extensions.
 	sAbiDiff = pctx.AndroidStaticRule("sAbiDiff",
 		blueprint.RuleParams{
@@ -200,6 +202,12 @@ var (
 			Description: "header-abi-diff -o ${out} -new $in -old $referenceDump",
 		},
 		"referenceDump", "libName", "arch")
+
+	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
+		blueprint.RuleParams{
+			Command:     "gunzip -c $in > $out",
+			Description: "gunzip $out",
+		})
 )
 
 func init() {
@@ -638,6 +646,16 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 		},
 	})
 	return android.OptionalPathForPath(outputFile)
+}
+
+func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseName string) android.Path {
+	outputFile := android.PathForModuleOut(ctx, baseName+"_ref.lsdump")
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:   unzipRefSAbiDump,
+		Output: outputFile,
+		Input:  zippedRefDump,
+	})
+	return outputFile
 }
 
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,

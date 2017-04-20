@@ -312,6 +312,27 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 	return library.baseCompiler.compilerFlags(ctx, flags)
 }
 
+func extractExportIncludesFromFlags(flags []string) []string {
+	// This method is used in the  generation of rules which produce
+	// abi-dumps for source files. Exported headers are needed to infer the
+	// abi exported by a library and filter out the rest of the abi dumped
+	// from a source. We extract the include flags exported by a library.
+	// This includes the flags exported which are re-exported from static
+	// library dependencies, exported header library dependencies and
+	// generated header dependencies. Re-exported shared library include
+	// flags are not in this set since shared library dependencies will
+	// themselves be included in the vndk. -isystem headers are not included
+	// since for bionic libraries, abi-filtering is taken care of by version
+	// scripts.
+	var exportedIncludes []string
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "-I") {
+			exportedIncludes = append(exportedIncludes, flag)
+		}
+	}
+	return exportedIncludes
+}
+
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	if !library.buildShared() && !library.buildStatic() {
 		if len(library.baseCompiler.Properties.Srcs) > 0 {
@@ -325,13 +346,15 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		}
 		return Objects{}
 	}
-	if ctx.createVndkSourceAbiDump() || (library.sabi.Properties.CreateSAbiDumps && ctx.Device()) {
+	if (ctx.createVndkSourceAbiDump() || (library.sabi.Properties.CreateSAbiDumps && ctx.Device())) && !ctx.Vendor() {
 		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
-			SourceAbiFlags = append(SourceAbiFlags, "-I "+dir)
+			SourceAbiFlags = append(SourceAbiFlags, "-I"+dir)
 		}
-
+		for _, reexportedInclude := range extractExportIncludesFromFlags(library.sabi.Properties.ReexportedIncludeFlags) {
+			SourceAbiFlags = append(SourceAbiFlags, reexportedInclude)
+		}
 		flags.SAbiFlags = SourceAbiFlags
 		total_length := len(library.baseCompiler.Properties.Srcs) + len(deps.GeneratedSources) + len(library.Properties.Shared.Srcs) +
 			len(library.Properties.Static.Srcs)
@@ -568,7 +591,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string) {
 	//Also take into account object re-use.
-	if len(objs.sAbiDumpFiles) > 0 && ctx.createVndkSourceAbiDump() {
+	if len(objs.sAbiDumpFiles) > 0 && ctx.createVndkSourceAbiDump() && !ctx.Vendor() {
 		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, "current", fileName, vndkVsNdk(ctx), true)
 		versionScript := android.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
 		var symbolFile android.OptionalPath
@@ -578,12 +601,16 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
-			SourceAbiFlags = append(SourceAbiFlags, "-I "+dir)
+			SourceAbiFlags = append(SourceAbiFlags, "-I"+dir)
+		}
+		for _, reexportedInclude := range extractExportIncludesFromFlags(library.sabi.Properties.ReexportedIncludeFlags) {
+			SourceAbiFlags = append(SourceAbiFlags, reexportedInclude)
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, symbolFile, "current", fileName, exportedHeaderFlags)
 		if refSourceDumpFile.Valid() {
-			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(), refSourceDumpFile.Path(), fileName)
+			unzippedRefDump := UnzipRefDump(ctx, refSourceDumpFile.Path(), fileName)
+			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(), unzippedRefDump, fileName)
 		}
 	}
 }

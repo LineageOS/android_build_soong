@@ -584,10 +584,10 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 	var vndkOrNdkDir string
 	var ext string
 	if isSourceDump {
-		ext = ".lsdump"
+		ext = ".lsdump.gz"
 		sourceOrBinaryDir = "source-based"
 	} else {
-		ext = ".bdump"
+		ext = ".bdump.gz"
 		sourceOrBinaryDir = "binary-based"
 	}
 	if vndkOrNdk {
