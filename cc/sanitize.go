@@ -186,6 +186,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
+	// Also disable CFI if ASAN is enabled.
+	if Bool(s.Address) {
+		s.Cfi = nil
+		s.Diag.Cfi = nil
+	}
+
 	if ctx.staticBinary() {
 		s.Address = nil
 		s.Coverage = nil
