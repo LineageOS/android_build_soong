@@ -198,6 +198,7 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if err != nil {
 		ctx.PropertyErrorf("cmd", "%s", err.Error())
+		return
 	}
 
 	ruleParams := blueprint.RuleParams{
