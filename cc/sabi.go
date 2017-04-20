@@ -22,7 +22,8 @@ import (
 )
 
 type SAbiProperties struct {
-	CreateSAbiDumps bool `blueprint:"mutated"`
+	CreateSAbiDumps        bool `blueprint:"mutated"`
+	ReexportedIncludeFlags []string
 }
 
 type sabi struct {
@@ -45,7 +46,7 @@ func (sabimod *sabi) flags(ctx ModuleContext, flags Flags) Flags {
 
 func sabiDepsMutator(mctx android.TopDownMutatorContext) {
 	if c, ok := mctx.Module().(*Module); ok &&
-		((inList(c.Name(), config.VndkLibraries())) || (inList(c.Name(), config.LLndkLibraries())) ||
+		(Bool(c.Properties.Vendor_available) || (inList(c.Name(), config.LLndkLibraries())) ||
 			(c.sabi != nil && c.sabi.Properties.CreateSAbiDumps)) {
 		mctx.VisitDirectDeps(func(m blueprint.Module) {
 			tag := mctx.OtherModuleDependencyTag(m)
