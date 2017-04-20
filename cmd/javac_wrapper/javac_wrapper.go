@@ -47,14 +47,14 @@ var (
 )
 
 func main() {
-	exitCode, err := Main(os.Args[0], os.Args[1:])
+	exitCode, err := Main(os.Stdout, os.Args[0], os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 	}
 	os.Exit(exitCode)
 }
 
-func Main(name string, args []string) (int, error) {
+func Main(out io.Writer, name string, args []string) (int, error) {
 	if len(args) < 1 {
 		return 1, fmt.Errorf("usage: %s javac ...", name)
 	}
@@ -78,7 +78,7 @@ func Main(name string, args []string) (int, error) {
 	// Process subprocess stdout asynchronously
 	errCh := make(chan error)
 	go func() {
-		errCh <- process(pr, os.Stdout)
+		errCh <- process(pr, out)
 	}()
 
 	// Wait for subprocess to finish
