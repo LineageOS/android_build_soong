@@ -198,15 +198,20 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	// Include dir cflags
 	localIncludeDirs := android.PathsForModuleSrc(ctx, compiler.Properties.Local_include_dirs)
 	if len(localIncludeDirs) > 0 {
-		flags.GlobalFlags = append(flags.GlobalFlags, includeDirsToFlags(localIncludeDirs))
+		f := includeDirsToFlags(localIncludeDirs)
+		flags.GlobalFlags = append(flags.GlobalFlags, f)
+		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 	rootIncludeDirs := android.PathsForSource(ctx, compiler.Properties.Include_dirs)
 	if len(rootIncludeDirs) > 0 {
-		flags.GlobalFlags = append(flags.GlobalFlags, includeDirsToFlags(rootIncludeDirs))
+		f := includeDirsToFlags(rootIncludeDirs)
+		flags.GlobalFlags = append(flags.GlobalFlags, f)
+		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
 	if !ctx.noDefaultCompilerFlags() {
 		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
+		flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
 
 		if !(ctx.sdk() || ctx.vndk()) || ctx.Host() {
 			flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,

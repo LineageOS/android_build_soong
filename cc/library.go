@@ -306,7 +306,9 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
-		flags.GlobalFlags = append(flags.GlobalFlags, includeDirsToFlags(exportIncludeDirs))
+		f := includeDirsToFlags(exportIncludeDirs)
+		flags.GlobalFlags = append(flags.GlobalFlags, f)
+		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
 	return library.baseCompiler.compilerFlags(ctx, flags)
