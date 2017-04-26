@@ -417,9 +417,11 @@ func createArchType(props reflect.Type) reflect.Type {
 		variants := []string{}
 
 		for _, archVariant := range archVariants[arch] {
+			archVariant := variantReplacer.Replace(archVariant)
 			variants = append(variants, proptools.FieldNameForProperty(archVariant))
 		}
 		for _, feature := range archFeatures[arch] {
+			feature := variantReplacer.Replace(feature)
 			variants = append(variants, proptools.FieldNameForProperty(feature))
 		}
 
