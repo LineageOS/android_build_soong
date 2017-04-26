@@ -154,19 +154,24 @@ const (
 )
 
 func init() {
+	android.RegisterArchFeatures(android.Arm,
+		"neon")
+
 	android.RegisterArchVariants(android.Arm,
 		"armv5te",
-		"armv7_a",
-		"armv7_a_neon",
-		"cortex_a7",
-		"cortex_a8",
-		"cortex_a9",
-		"cortex_a15",
-		"cortex_a53",
-		"cortex_a53_a57",
+		"armv7-a",
+		"armv7-a-neon",
+		"cortex-a7",
+		"cortex-a8",
+		"cortex-a9",
+		"cortex-a15",
+		"cortex-a53",
+		"cortex-a53-a57",
 		"krait",
 		"kryo",
 		"denver")
+
+	android.RegisterArchVariantFeatures(android.Arm, "armv7-a-neon", "neon")
 
 	replaceFirst(armClangCpuVariantCflags["krait"], "-mcpu=cortex-a15", "-mcpu=krait")
 	armClangCpuVariantCflags["krait"] = append(armClangCpuVariantCflags["krait"], "-mfpu=neon-vfpv4")

@@ -133,7 +133,11 @@ func init() {
 		"mips32r2dsp_fp",
 		"mips32r2dspr2_fp",
 		"mips32r6")
-	android.RegisterArchFeatures(android.Mips, "rev6")
+	android.RegisterArchFeatures(android.Mips,
+		"dspr2",
+		"rev6")
+	android.RegisterArchVariantFeatures(android.Mips, "mips32r2dspr2_fp",
+		"dspr2")
 	android.RegisterArchVariantFeatures(android.Mips, "mips32r6",
 		"rev6")
 
