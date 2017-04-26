@@ -836,12 +836,21 @@ func BuildTargetSingleton() blueprint.Singleton {
 	return &buildTargetSingleton{}
 }
 
+func parentDir(dir string) string {
+	dir, _ = filepath.Split(dir)
+	return filepath.Clean(dir)
+}
+
 type buildTargetSingleton struct{}
 
 func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	checkbuildDeps := []string{}
 
-	dirModules := make(map[string][]string)
+	mmTarget := func(dir string) string {
+		return filepath.Join("mm", dir)
+	}
+
+	modulesInDir := make(map[string][]string)
 
 	ctx.VisitAllModules(func(module blueprint.Module) {
 		if a, ok := module.(Module); ok {
@@ -851,11 +860,11 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 
 			if checkbuildTarget != "" {
 				checkbuildDeps = append(checkbuildDeps, checkbuildTarget)
-				dirModules[blueprintDir] = append(dirModules[blueprintDir], checkbuildTarget)
+				modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], checkbuildTarget)
 			}
 
 			if installTarget != "" {
-				dirModules[blueprintDir] = append(dirModules[blueprintDir], installTarget)
+				modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], installTarget)
 			}
 		}
 	})
@@ -873,13 +882,35 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		Optional:  true,
 	})
 
-	// Create a mm/<directory> target that depends on all modules in a directory
-	dirs := sortedKeys(dirModules)
+	// Ensure ancestor directories are in modulesInDir
+	dirs := sortedKeys(modulesInDir)
+	for _, dir := range dirs {
+		dir := parentDir(dir)
+		for dir != "." && dir != "/" {
+			if _, exists := modulesInDir[dir]; exists {
+				break
+			}
+			modulesInDir[dir] = nil
+			dir = parentDir(dir)
+		}
+	}
+
+	// Make directories build their direct subdirectories
+	dirs = sortedKeys(modulesInDir)
+	for _, dir := range dirs {
+		p := parentDir(dir)
+		if p != "." && p != "/" {
+			modulesInDir[p] = append(modulesInDir[p], mmTarget(dir))
+		}
+	}
+
+	// Create a mm/<directory> target that depends on all modules in a directory, and depends
+	// on the mm/* targets of all of its subdirectories that contain Android.bp files.
 	for _, dir := range dirs {
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{filepath.Join("mm", dir)},
-			Implicits: dirModules[dir],
+			Outputs:   []string{mmTarget(dir)},
+			Implicits: modulesInDir[dir],
 			// HACK: checkbuild should be an optional build, but force it
 			// enabled for now in standalone builds
 			Optional: ctx.Config().(Config).EmbeddedInMake(),
