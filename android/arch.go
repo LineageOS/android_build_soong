@@ -878,12 +878,8 @@ func getMegaDeviceConfig() []archConfig {
 		{"mips", "mips32r2-fp", "", []string{"mips"}},
 		{"mips", "mips32r2-fp-xburst", "", []string{"mips"}},
 		//{"mips", "mips32r6", "", []string{"mips"}},
-		// mips32r2dsp[r2]-fp fails in the assembler for divdf3.c in compiler-rt:
-		// (same errors in make and soong)
-		//   Error: invalid operands `mtlo $ac0,$11'
-		//   Error: invalid operands `mthi $ac0,$12'
-		//{"mips", "mips32r2dsp-fp", "", []string{"mips"}},
-		//{"mips", "mips32r2dspr2-fp", "", []string{"mips"}},
+		{"mips", "mips32r2dsp-fp", "", []string{"mips"}},
+		{"mips", "mips32r2dspr2-fp", "", []string{"mips"}},
 		// mips64r2 is mismatching 64r2 and 64r6 libraries during linking to libgcc
 		//{"mips64", "mips64r2", "", []string{"mips64"}},
 		{"mips64", "mips64r6", "", []string{"mips64"}},
