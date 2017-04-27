@@ -907,6 +907,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				} else {
 					ctx.ModuleErrorf("module %q is not a gensrcs or genrule", name)
 				}
+				// Support exported headers from a generated_sources dependency
+				fallthrough
 			case genHeaderDepTag, genHeaderExportDepTag:
 				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,

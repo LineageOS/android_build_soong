@@ -390,7 +390,12 @@ func (c *config) DevicePrefer32BitExecutables() bool {
 }
 
 func (c *config) SkipDeviceInstall() bool {
-	return c.EmbeddedInMake() || Bool(c.Mega_device)
+	return c.EmbeddedInMake()
+}
+
+func (c *config) SkipMegaDeviceInstall(path string) bool {
+	return Bool(c.Mega_device) &&
+		strings.HasPrefix(path, filepath.Join(c.buildDir, "target", "product"))
 }
 
 func (c *config) SanitizeHost() []string {
