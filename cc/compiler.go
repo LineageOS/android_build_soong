@@ -69,11 +69,11 @@ type BaseCompilerProperties struct {
 	// If possible, don't use this.  If adding paths from the current directory use
 	// local_include_dirs, if adding paths from other modules use export_include_dirs in
 	// that module.
-	Include_dirs []string `android:"arch_variant"`
+	Include_dirs []string `android:"arch_variant,variant_prepend"`
 
 	// list of directories relative to the Blueprints file that will
 	// be added to the include path using -I
-	Local_include_dirs []string `android:"arch_variant"`
+	Local_include_dirs []string `android:"arch_variant,variant_prepend",`
 
 	// list of generated sources to compile. These are the names of gensrcs or
 	// genrule modules.
