@@ -65,7 +65,7 @@ func runKati(ctx Context, config Config) {
 
 	genKatiSuffix(ctx, config)
 
-	executable := "prebuilts/build-tools/" + config.HostPrebuiltTag() + "/bin/ckati"
+	executable := config.PrebuiltBuildTool("ckati")
 	args := []string{
 		"--ninja",
 		"--ninja_dir=" + config.OutDir(),
