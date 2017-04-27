@@ -52,7 +52,7 @@ var (
 
 	mipsClangCflags = append(mipsCflags, []string{
 		"-fPIC",
-		"-fno-integrated-as",
+		"-fintegrated-as",
 	}...)
 
 	mipsCppflags = []string{
