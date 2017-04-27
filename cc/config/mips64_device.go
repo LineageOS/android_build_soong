@@ -55,6 +55,10 @@ var (
 		"-frename-registers",
 	}
 
+	mips64ClangCflags = append(mips64Cflags, []string{
+		"-fintegrated-as",
+	}...)
+
 	mips64Cppflags = []string{
 		"-fvisibility-inlines-hidden",
 	}
@@ -108,7 +112,7 @@ func init() {
 	pctx.StaticVariable("Mips64IncludeFlags", bionicHeaders("mips64", "mips"))
 
 	// Clang cflags
-	pctx.StaticVariable("Mips64ClangCflags", strings.Join(ClangFilterUnknownCflags(mips64Cflags), " "))
+	pctx.StaticVariable("Mips64ClangCflags", strings.Join(ClangFilterUnknownCflags(mips64ClangCflags), " "))
 	pctx.StaticVariable("Mips64ClangLdflags", strings.Join(ClangFilterUnknownCflags(mips64Ldflags), " "))
 	pctx.StaticVariable("Mips64ClangCppflags", strings.Join(ClangFilterUnknownCflags(mips64Cppflags), " "))
 
@@ -170,6 +174,10 @@ func (t *toolchainMips64) ClangTriple() string {
 
 func (t *toolchainMips64) ToolchainClangCflags() string {
 	return t.toolchainClangCflags
+}
+
+func (t *toolchainMips64) ClangAsflags() string {
+	return "-fno-integrated-as"
 }
 
 func (t *toolchainMips64) ClangCflags() string {
