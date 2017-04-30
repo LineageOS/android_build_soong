@@ -647,14 +647,31 @@ func (a *androidModuleContext) InstallInSanitizerDir() bool {
 	return a.module.InstallInSanitizerDir()
 }
 
+func (a *androidModuleContext) skipInstall(fullInstallPath OutputPath) bool {
+	if a.module.base().commonProperties.SkipInstall {
+		return true
+	}
+
+	if a.Device() {
+		if a.AConfig().SkipDeviceInstall() {
+			return true
+		}
+
+		if a.AConfig().SkipMegaDeviceInstall(fullInstallPath.String()) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (a *androidModuleContext) InstallFileName(installPath OutputPath, name string, srcPath Path,
 	deps ...Path) OutputPath {
 
 	fullInstallPath := installPath.Join(a, name)
 	a.module.base().hooks.runInstallHooks(a, fullInstallPath, false)
 
-	if !a.module.base().commonProperties.SkipInstall &&
-		(!a.Device() || !a.AConfig().SkipDeviceInstall()) {
+	if !a.skipInstall(fullInstallPath) {
 
 		deps = append(deps, a.installDeps...)
 
@@ -691,8 +708,7 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 	fullInstallPath := installPath.Join(a, name)
 	a.module.base().hooks.runInstallHooks(a, fullInstallPath, true)
 
-	if !a.module.base().commonProperties.SkipInstall &&
-		(!a.Device() || !a.AConfig().SkipDeviceInstall()) {
+	if !a.skipInstall(fullInstallPath) {
 
 		a.ModuleBuild(pctx, ModuleBuildParams{
 			Rule:      Symlink,
