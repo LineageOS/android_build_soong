@@ -58,6 +58,10 @@ type variableProperties struct {
 			Cflags []string
 		}
 
+		Device_uses_hwc2 struct {
+			Cflags []string
+		}
+
 		// debuggable is true for eng and userdebug builds, and can be used to turn on additional
 		// debugging features that don't significantly impact runtime behavior.  userdebug builds
 		// are used for dogfooding and performance testing, and should be as similar to user builds
@@ -116,6 +120,7 @@ type productVariables struct {
 	Debuggable                 *bool `json:",omitempty"`
 	Eng                        *bool `json:",omitempty"`
 	EnableCFI                  *bool `json:",omitempty"`
+	Device_uses_hwc2           *bool `json:",omitempty"`
 
 	VendorPath *string `json:",omitempty"`
 
