@@ -30,10 +30,11 @@ var (
 
 	genStubSrc = pctx.AndroidStaticRule("genStubSrc",
 		blueprint.RuleParams{
-			Command:     "$toolPath --arch $arch --api $apiLevel $vndk $in $out",
+			Command: "$toolPath --arch $arch --api $apiLevel --api-map " +
+				"$apiMap $vndk $in $out",
 			Description: "genStubSrc $out",
 			CommandDeps: []string{"$toolPath"},
-		}, "arch", "apiLevel", "vndk")
+		}, "arch", "apiLevel", "apiMap", "vndk")
 
 	ndkLibrarySuffix = ".ndk"
 
@@ -205,6 +206,7 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorat
 	for version := firstGenVersion; version <= platformVersion; version++ {
 		versionStrs = append(versionStrs, strconv.Itoa(version))
 	}
+	versionStrs = append(versionStrs, mctx.AConfig().PlatformVersionAllCodenames()...)
 	versionStrs = append(versionStrs, "current")
 
 	modules := mctx.CreateVariations(versionStrs...)
@@ -247,13 +249,16 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 	stubSrcPath := android.PathForModuleGen(ctx, "stub.c")
 	versionScriptPath := android.PathForModuleGen(ctx, "stub.map")
 	symbolFilePath := android.PathForModuleSrc(ctx, symbolFile)
+	apiLevelsJson := android.GetApiLevelsJson(ctx)
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:    genStubSrc,
-		Outputs: []android.WritablePath{stubSrcPath, versionScriptPath},
-		Input:   symbolFilePath,
+		Rule:      genStubSrc,
+		Outputs:   []android.WritablePath{stubSrcPath, versionScriptPath},
+		Input:     symbolFilePath,
+		Implicits: []android.Path{apiLevelsJson},
 		Args: map[string]string{
 			"arch":     arch,
 			"apiLevel": apiLevel,
+			"apiMap":   apiLevelsJson.String(),
 			"vndk":     vndk,
 		},
 	})

@@ -26,7 +26,7 @@ func runNinja(ctx Context, config Config) {
 	ctx.BeginTrace("ninja")
 	defer ctx.EndTrace()
 
-	executable := "prebuilts/build-tools/" + config.HostPrebuiltTag() + "/bin/ninja"
+	executable := config.PrebuiltBuildTool("ninja")
 	args := []string{
 		"-d", "keepdepfile",
 	}
