@@ -125,6 +125,9 @@ type BaseCompilerProperties struct {
 			Exclude_srcs []string
 		}
 	}
+
+	// Stores the original list of source files before being cleared by library reuse
+	OriginalSrcs []string `blueprint:"mutated"`
 }
 
 func NewBaseCompiler() *baseCompiler {
@@ -423,6 +426,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 
 func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 	for _, src := range compiler.Properties.Srcs {
+		if filepath.Ext(src) == ext {
+			return true
+		}
+	}
+	for _, src := range compiler.Properties.OriginalSrcs {
 		if filepath.Ext(src) == ext {
 			return true
 		}
