@@ -55,33 +55,76 @@ func (nopCloser) Close() error {
 }
 
 type fileArg struct {
-	rootPrefix, relativeRoot, file string
+	pathPrefixInZip, sourcePrefixToStrip string
+	sourceFiles                          []string
 }
 
 type pathMapping struct {
 	dest, src string
+	zipMethod uint16
+}
+
+type uniqueSet map[string]bool
+
+func (u *uniqueSet) String() string {
+	return `""`
+}
+
+func (u *uniqueSet) Set(s string) error {
+	if _, found := (*u)[s]; found {
+		return fmt.Errorf("File %q was specified twice as a file to not deflate", s)
+	} else {
+		(*u)[s] = true
+	}
+
+	return nil
 }
 
 type fileArgs []fileArg
 
-func (l *fileArgs) String() string {
+type file struct{}
+
+type listFiles struct{}
+
+func (f *file) String() string {
 	return `""`
 }
 
-func (l *fileArgs) Set(s string) error {
+func (f *file) Set(s string) error {
 	if *relativeRoot == "" {
 		return fmt.Errorf("must pass -C before -f or -l")
 	}
 
-	*l = append(*l,
-		fileArg{rootPrefix: filepath.Clean(*rootPrefix),
-			relativeRoot: filepath.Clean(*relativeRoot),
-			file:         s})
+	fArgs = append(fArgs, fileArg{
+		pathPrefixInZip:     filepath.Clean(*rootPrefix),
+		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		sourceFiles:         []string{s},
+	})
+
 	return nil
 }
 
-func (l *fileArgs) Get() interface{} {
-	return l
+func (l *listFiles) String() string {
+	return `""`
+}
+
+func (l *listFiles) Set(s string) error {
+	if *relativeRoot == "" {
+		return fmt.Errorf("must pass -C before -f or -l")
+	}
+
+	list, err := ioutil.ReadFile(s)
+	if err != nil {
+		return err
+	}
+
+	fArgs = append(fArgs, fileArg{
+		pathPrefixInZip:     filepath.Clean(*rootPrefix),
+		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		sourceFiles:         strings.Split(string(list), "\n"),
+	})
+
+	return nil
 }
 
 var (
@@ -93,16 +136,17 @@ var (
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
 
-	listFiles fileArgs
-	files     fileArgs
+	fArgs            fileArgs
+	nonDeflatedFiles = make(uniqueSet)
 
 	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 	traceFile  = flag.String("trace", "", "write trace to file")
 )
 
 func init() {
-	flag.Var(&listFiles, "l", "file containing list of .class files")
-	flag.Var(&files, "f", "file to include in zip")
+	flag.Var(&listFiles{}, "l", "file containing list of .class files")
+	flag.Var(&file{}, "f", "file to include in zip")
+	flag.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
 }
 
 func usage() {
@@ -176,27 +220,12 @@ func main() {
 	pathMappings := []pathMapping{}
 	set := make(map[string]string)
 
-	// load listFiles, which specify other files to include.
-	for _, l := range listFiles {
-		list, err := ioutil.ReadFile(l.file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		srcs := strings.Split(string(list), "\n")
-		for _, src := range srcs {
-			if err := fillPathPairs(l.rootPrefix, l.relativeRoot, src,
-				set, &pathMappings); err != nil {
+	for _, fa := range fArgs {
+		for _, src := range fa.sourceFiles {
+			if err := fillPathPairs(fa.pathPrefixInZip,
+				fa.sourcePrefixToStrip, src, set, &pathMappings); err != nil {
 				log.Fatal(err)
 			}
-		}
-	}
-
-	// also include the usual files that are to be added directly.
-	for _, f := range files {
-		if err := fillPathPairs(f.rootPrefix, f.relativeRoot,
-			f.file, set, &pathMappings); err != nil {
-			log.Fatal(err)
 		}
 	}
 
@@ -227,7 +256,12 @@ func fillPathPairs(prefix, rel, src string, set map[string]string, pathMappings 
 		set[dest] = src
 	}
 
-	*pathMappings = append(*pathMappings, pathMapping{dest: dest, src: src})
+	zipMethod := zip.Deflate
+	if _, found := nonDeflatedFiles[dest]; found {
+		zipMethod = zip.Store
+	}
+	*pathMappings = append(*pathMappings,
+		pathMapping{dest: dest, src: src, zipMethod: zipMethod})
 
 	return nil
 }
@@ -269,7 +303,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		defer close(z.writeOps)
 
 		for _, ele := range pathMappings {
-			err = z.writeFile(ele.dest, ele.src)
+			err = z.writeFile(ele.dest, ele.src, ele.zipMethod)
 			if err != nil {
 				z.errors <- err
 				return
@@ -277,7 +311,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		}
 
 		if manifest != "" {
-			err = z.writeFile("META-INF/MANIFEST.MF", manifest)
+			err = z.writeFile("META-INF/MANIFEST.MF", manifest, zip.Deflate)
 			if err != nil {
 				z.errors <- err
 				return
@@ -371,7 +405,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 	}
 }
 
-func (z *zipWriter) writeFile(dest, src string) error {
+func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 	var fileSize int64
 	var executable bool
 
@@ -407,7 +441,7 @@ func (z *zipWriter) writeFile(dest, src string) error {
 	ze := &zipEntry{
 		fh: &zip.FileHeader{
 			Name:   dest,
-			Method: zip.Deflate,
+			Method: method,
 
 			UncompressedSize64: uint64(fileSize),
 		},
@@ -424,7 +458,7 @@ func (z *zipWriter) writeFile(dest, src string) error {
 
 	exec := z.rateLimit.RequestExecution()
 
-	if fileSize >= minParallelFileSize {
+	if method == zip.Deflate && fileSize >= minParallelFileSize {
 		wg := new(sync.WaitGroup)
 
 		// Allocate enough buffer to hold all readers. We'll limit
@@ -555,33 +589,55 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, 
 		return
 	}
 
-	compressed, err := z.compressBlock(r, nil, true)
+	readFile := func(r *os.File) ([]byte, error) {
+		_, err = r.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		buf, err := ioutil.ReadAll(r)
+		if err != nil {
+			return nil, err
+		}
+
+		return buf, nil
+	}
 
 	ze.futureReaders = make(chan chan io.Reader, 1)
 	futureReader := make(chan io.Reader, 1)
 	ze.futureReaders <- futureReader
 	close(ze.futureReaders)
 
-	if uint64(compressed.Len()) < ze.fh.UncompressedSize64 {
-		futureReader <- compressed
-		bufSize = compressed.Len()
+	if ze.fh.Method == zip.Deflate {
+		compressed, err := z.compressBlock(r, nil, true)
+		if err != nil {
+			z.errors <- err
+			return
+		}
+		if uint64(compressed.Len()) < ze.fh.UncompressedSize64 {
+			futureReader <- compressed
+			bufSize = compressed.Len()
+		} else {
+			buf, err := readFile(r)
+			if err != nil {
+				z.errors <- err
+				return
+			}
+			ze.fh.Method = zip.Store
+			futureReader <- bytes.NewReader(buf)
+			bufSize = int(ze.fh.UncompressedSize64)
+		}
 	} else {
-		_, err = r.Seek(0, 0)
+		buf, err := readFile(r)
 		if err != nil {
 			z.errors <- err
 			return
 		}
-
-		buf, err := ioutil.ReadAll(r)
-		if err != nil {
-			z.errors <- err
-			return
-		}
-
 		ze.fh.Method = zip.Store
 		futureReader <- bytes.NewReader(buf)
 		bufSize = int(ze.fh.UncompressedSize64)
 	}
+
 	exec.Finish(bufSize)
 	close(futureReader)
 
