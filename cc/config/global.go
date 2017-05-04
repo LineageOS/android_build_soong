@@ -112,9 +112,6 @@ func init() {
 			"libnativehelper/include",
 			"frameworks/native/include",
 			"frameworks/native/opengl/include",
-		})
-	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalSystemIncludes", "-isystem ",
-		[]string{
 			"frameworks/av/include",
 		})
 	// This is used by non-NDK modules to get jni.h. export_include_dirs doesn't help
