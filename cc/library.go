@@ -202,6 +202,7 @@ type libraryDecorator struct {
 	// For reusing static library objects for shared library
 	reuseObjects       Objects
 	reuseExportedFlags []string
+	reuseExportedDeps  android.Paths
 
 	// table-of-contents file to optimize out relinking when possible
 	tocFile android.OptionalPath
@@ -364,7 +365,7 @@ type libraryInterface interface {
 	getWholeStaticMissingDeps() []string
 	static() bool
 	objs() Objects
-	reuseObjs() (Objects, []string)
+	reuseObjs() (Objects, []string, android.Paths)
 	toc() android.OptionalPath
 
 	// Returns true if the build options for the module have selected a static or shared build
@@ -623,6 +624,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			library.reexportFlags(flags)
 			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
 			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to aidl deps
+			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.deps...)
 		}
 	}
 
@@ -635,6 +637,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			library.reexportFlags(flags)
 			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
 			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to proto deps
+			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.deps...)
 		}
 	}
 
@@ -659,8 +662,8 @@ func (library *libraryDecorator) objs() Objects {
 	return library.objects
 }
 
-func (library *libraryDecorator) reuseObjs() (Objects, []string) {
-	return library.reuseObjects, library.reuseExportedFlags
+func (library *libraryDecorator) reuseObjs() (Objects, []string, android.Paths) {
+	return library.reuseObjects, library.reuseExportedFlags, library.reuseExportedDeps
 }
 
 func (library *libraryDecorator) toc() android.OptionalPath {
