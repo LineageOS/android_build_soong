@@ -950,7 +950,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		if tag == reuseObjTag {
 			if l, ok := cc.compiler.(libraryInterface); ok {
-				depPaths.Objs = depPaths.Objs.Append(l.reuseObjs())
+				objs, flags, deps := l.reuseObjs()
+				depPaths.Objs = depPaths.Objs.Append(objs)
+				depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
+				depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps, deps...)
 				return
 			}
 		}

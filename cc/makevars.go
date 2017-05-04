@@ -77,7 +77,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("AIDL_CPP", "${aidlCmd}")
 
-	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes} ${config.CommonGlobalSystemIncludes}")
+	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes}")
 	if err != nil {
 		panic(err)
 	}
