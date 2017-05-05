@@ -100,6 +100,9 @@ func runKati(ctx Context, config Config) {
 	}
 	cmd.Stderr = cmd.Stdout
 
+	// Kati leaks memory, so ensure leak detection is turned off
+	cmd.Environment.Set("ASAN_OPTIONS", "detect_leaks=0")
+
 	cmd.StartOrFatal()
 	katiRewriteOutput(ctx, pipe)
 	cmd.WaitOrFatal()
