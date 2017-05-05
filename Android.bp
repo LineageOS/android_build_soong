@@ -71,6 +71,7 @@ bootstrap_go_package {
         "android/expand_test.go",
         "android/paths_test.go",
         "android/prebuilt_test.go",
+        "android/variable_test.go",
     ],
 }
 
