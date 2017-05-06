@@ -16,7 +16,6 @@ package build
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"text/template"
 )
@@ -67,13 +66,12 @@ func Build(ctx Context, config Config, what int) {
 	ctx.Verboseln("Environment:", config.Environment().Environ())
 
 	if inList("help", config.Arguments()) {
-		cmd := exec.CommandContext(ctx.Context, "make", "-f", "build/core/help.mk")
-		cmd.Env = config.Environment().Environ()
+		cmd := Command(ctx, config, "make",
+			"make", "-f", "build/core/help.mk")
+		cmd.Sandbox = makeSandbox
 		cmd.Stdout = ctx.Stdout()
 		cmd.Stderr = ctx.Stderr()
-		if err := cmd.Run(); err != nil {
-			ctx.Fatalln("Failed to run make:", err)
-		}
+		cmd.RunOrFatal()
 		return
 	}
 
