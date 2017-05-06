@@ -62,6 +62,10 @@ type variableProperties struct {
 			Cflags []string
 		}
 
+		Override_rs_driver struct {
+			Cflags []string
+		}
+
 		// debuggable is true for eng and userdebug builds, and can be used to turn on additional
 		// debugging features that don't significantly impact runtime behavior.  userdebug builds
 		// are used for dogfooding and performance testing, and should be as similar to user builds
@@ -141,6 +145,8 @@ type productVariables struct {
 	ArtUseReadBarrier *bool `json:",omitempty"`
 
 	BtConfigIncludeDir *string `json:",omitempty"`
+
+	Override_rs_driver *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
