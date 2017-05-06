@@ -151,6 +151,12 @@ func init() {
 	pctx.StaticVariable("RSLLVMPrebuiltsPath", "${RSClangBase}/${HostPrebuiltTag}/${RSClangVersion}/bin")
 	pctx.StaticVariable("RSIncludePath", "${RSLLVMPrebuiltsPath}/../lib64/clang/${RSReleaseVersion}/include")
 
+	pctx.PrefixedPathsForOptionalSourceVariable("RsGlobalIncludes", "-I",
+		[]string{
+			"external/clang/lib/Headers",
+			"frameworks/rs/script_api/include",
+		})
+
 	pctx.VariableFunc("CcWrapper", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("CC_WRAPPER"); override != "" {
 			return override + " ", nil
