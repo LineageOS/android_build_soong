@@ -108,6 +108,17 @@ type BaseCompilerProperties struct {
 		Local_include_dirs []string
 	}
 
+	Renderscript struct {
+		// list of directories that will be added to the llvm-rs-cc include paths
+		Include_dirs []string
+
+		// list of flags that will be passed to llvm-rs-cc
+		Flags []string
+
+		// Renderscript API level to target
+		Target_api *string
+	}
+
 	Debug, Release struct {
 		// list of module-specific flags that will be used for C and C++ compiles in debug or
 		// release builds
@@ -418,6 +429,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 
 		flags.GlobalFlags = append(flags.GlobalFlags,
 			"-I"+android.PathForModuleGen(ctx, "aidl").String())
+	}
+
+	if compiler.hasSrcExt(".rs") || compiler.hasSrcExt(".fs") {
+		flags = rsFlags(ctx, flags, &compiler.Properties)
 	}
 
 	return flags
