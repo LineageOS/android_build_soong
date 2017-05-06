@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -93,28 +92,20 @@ func runKati(ctx Context, config Config) {
 		args = append(args, "-j"+strconv.Itoa(config.Parallel()))
 	}
 
-	cmd := exec.CommandContext(ctx.Context, executable, args...)
-	cmd.Env = config.Environment().Environ()
+	cmd := Command(ctx, config, "ckati", executable, args...)
+	cmd.Sandbox = katiSandbox
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		ctx.Fatalln("Error getting output pipe for ckati:", err)
 	}
 	cmd.Stderr = cmd.Stdout
 
-	ctx.Verboseln(cmd.Path, cmd.Args)
-	if err := cmd.Start(); err != nil {
-		ctx.Fatalln("Failed to run ckati:", err)
-	}
+	// Kati leaks memory, so ensure leak detection is turned off
+	cmd.Environment.Set("ASAN_OPTIONS", "detect_leaks=0")
 
+	cmd.StartOrFatal()
 	katiRewriteOutput(ctx, pipe)
-
-	if err := cmd.Wait(); err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			ctx.Fatalln("ckati failed with:", e.ProcessState.String())
-		} else {
-			ctx.Fatalln("Failed to run ckati:", err)
-		}
-	}
+	cmd.WaitOrFatal()
 }
 
 var katiIncludeRe = regexp.MustCompile(`^(\[\d+/\d+] )?including [^ ]+ ...$`)
