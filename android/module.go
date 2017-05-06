@@ -154,7 +154,7 @@ type commonProperties struct {
 	Init_rc []string
 
 	// names of other modules to install if this module is installed
-	Required []string
+	Required []string `android:"arch_variant"`
 
 	// Set by TargetMutator
 	CompileTarget  Target `blueprint:"mutated"`
