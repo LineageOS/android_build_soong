@@ -16,7 +16,6 @@ package build
 
 import (
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -38,7 +37,7 @@ func DumpMakeVars(ctx Context, config Config, goals, extra_targets, vars []strin
 	ctx.BeginTrace("dumpvars")
 	defer ctx.EndTrace()
 
-	cmd := exec.CommandContext(ctx.Context,
+	cmd := Command(ctx, config, "make",
 		"make",
 		"--no-print-directory",
 		"-f", "build/core/config.mk",
@@ -48,11 +47,10 @@ func DumpMakeVars(ctx Context, config Config, goals, extra_targets, vars []strin
 		"MAKECMDGOALS="+strings.Join(goals, " "),
 		"DUMP_MANY_VARS="+strings.Join(vars, " "),
 		"OUT_DIR="+config.OutDir())
-	cmd.Env = config.Environment().Environ()
 	cmd.Args = append(cmd.Args, extra_targets...)
+	cmd.Sandbox = makeSandbox
 	// TODO: error out when Stderr contains any content
 	cmd.Stderr = ctx.Stderr()
-	ctx.Verboseln(cmd.Path, cmd.Args)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err

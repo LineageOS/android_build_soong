@@ -15,7 +15,6 @@
 package build
 
 import (
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -51,35 +50,26 @@ func runNinja(ctx Context, config Config) {
 	}
 	args = append(args, "-w", "dupbuild=err")
 
-	env := config.Environment().Copy()
-	env.AppendFromKati(config.KatiEnvFile())
+	cmd := Command(ctx, config, "ninja", executable, args...)
+	cmd.Environment.AppendFromKati(config.KatiEnvFile())
 
 	// Allow both NINJA_ARGS and NINJA_EXTRA_ARGS, since both have been
 	// used in the past to specify extra ninja arguments.
-	if extra, ok := env.Get("NINJA_ARGS"); ok {
-		args = append(args, strings.Fields(extra)...)
+	if extra, ok := cmd.Environment.Get("NINJA_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extra)...)
 	}
-	if extra, ok := env.Get("NINJA_EXTRA_ARGS"); ok {
-		args = append(args, strings.Fields(extra)...)
-	}
-
-	if _, ok := env.Get("NINJA_STATUS"); !ok {
-		env.Set("NINJA_STATUS", "[%p %f/%t] ")
+	if extra, ok := cmd.Environment.Get("NINJA_EXTRA_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extra)...)
 	}
 
-	cmd := exec.CommandContext(ctx.Context, executable, args...)
-	cmd.Env = env.Environ()
+	if _, ok := cmd.Environment.Get("NINJA_STATUS"); !ok {
+		cmd.Environment.Set("NINJA_STATUS", "[%p %f/%t] ")
+	}
+
 	cmd.Stdin = ctx.Stdin()
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
-	ctx.Verboseln(cmd.Path, cmd.Args)
 	startTime := time.Now()
 	defer ctx.ImportNinjaLog(filepath.Join(config.OutDir(), ".ninja_log"), startTime)
-	if err := cmd.Run(); err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			ctx.Fatalln("ninja failed with:", e.ProcessState.String())
-		} else {
-			ctx.Fatalln("Failed to run ninja:", err)
-		}
-	}
+	cmd.RunOrFatal()
 }
