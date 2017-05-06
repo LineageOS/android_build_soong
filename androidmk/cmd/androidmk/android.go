@@ -637,8 +637,11 @@ var conditionalTranslations = map[string]map[bool]string{
 		true:  "target.linux",
 		false: "target.not_linux"},
 	"(,$(TARGET_BUILD_APPS))": {
-		false: "product_variables.unbundled_build",
-	},
+		false: "product_variables.unbundled_build"},
+	"($(TARGET_BUILD_PDK),true)": {
+		true: "product_variables.pdk"},
+	"($(TARGET_BUILD_PDK), true)": {
+		true: "product_variables.pdk"},
 }
 
 func mydir(args []string) string {
