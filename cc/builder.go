@@ -229,6 +229,7 @@ type builderFlags struct {
 	sAbiFlags   string
 	yasmFlags   string
 	aidlFlags   string
+	rsFlags     string
 	toolchain   config.Toolchain
 	clang       bool
 	tidy        bool
