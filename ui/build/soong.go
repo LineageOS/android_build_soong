@@ -15,7 +15,6 @@
 package build
 
 import (
-	"os/exec"
 	"path/filepath"
 )
 
@@ -23,42 +22,27 @@ func runSoongBootstrap(ctx Context, config Config) {
 	ctx.BeginTrace("bootstrap soong")
 	defer ctx.EndTrace()
 
-	cmd := exec.CommandContext(ctx.Context, "./bootstrap.bash")
-	env := config.Environment().Copy()
-	env.Set("BUILDDIR", config.SoongOutDir())
-	cmd.Env = env.Environ()
+	cmd := Command(ctx, config, "soong bootstrap", "./bootstrap.bash")
+	cmd.Environment.Set("BUILDDIR", config.SoongOutDir())
+	cmd.Sandbox = soongSandbox
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
-	ctx.Verboseln(cmd.Path, cmd.Args)
-	if err := cmd.Run(); err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			ctx.Fatalln("soong bootstrap failed with:", e.ProcessState.String())
-		} else {
-			ctx.Fatalln("Failed to run soong bootstrap:", err)
-		}
-	}
+	cmd.RunOrFatal()
 }
 
 func runSoong(ctx Context, config Config) {
 	ctx.BeginTrace("soong")
 	defer ctx.EndTrace()
 
-	cmd := exec.CommandContext(ctx.Context, filepath.Join(config.SoongOutDir(), "soong"), "-w", "dupbuild=err")
+	cmd := Command(ctx, config, "soong",
+		filepath.Join(config.SoongOutDir(), "soong"), "-w", "dupbuild=err")
 	if config.IsVerbose() {
 		cmd.Args = append(cmd.Args, "-v")
 	}
-	env := config.Environment().Copy()
-	env.Set("SKIP_NINJA", "true")
-	cmd.Env = env.Environ()
+	cmd.Environment.Set("SKIP_NINJA", "true")
+	cmd.Sandbox = soongSandbox
 	cmd.Stdin = ctx.Stdin()
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
-	ctx.Verboseln(cmd.Path, cmd.Args)
-	if err := cmd.Run(); err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			ctx.Fatalln("soong bootstrap failed with:", e.ProcessState.String())
-		} else {
-			ctx.Fatalln("Failed to run soong bootstrap:", err)
-		}
-	}
+	cmd.RunOrFatal()
 }

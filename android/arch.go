@@ -189,7 +189,8 @@ var BuildOs = func() OsType {
 }()
 
 var (
-	osTypeList []OsType
+	osTypeList      []OsType
+	commonTargetMap = make(map[string]Target)
 
 	NoOsType    OsType
 	Linux       = NewOsType("linux", Host, false)
@@ -236,6 +237,13 @@ func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 		DefaultDisabled: defDisabled,
 	}
 	osTypeList = append(osTypeList, os)
+
+	if _, found := commonTargetMap[name]; found {
+		panic(fmt.Errorf("Found Os type duplicate during OsType registration: %q", name))
+	} else {
+		commonTargetMap[name] = Target{Os: os, Arch: Arch{ArchType: Common}}
+	}
+
 	return os
 }
 
@@ -248,15 +256,6 @@ func osByName(name string) OsType {
 
 	return NoOsType
 }
-
-var (
-	commonTarget = Target{
-		Os: Android,
-		Arch: Arch{
-			ArchType: Common,
-		},
-	}
-)
 
 type Target struct {
 	Os   OsType
@@ -989,6 +988,20 @@ func filterMultilibTargets(targets []Target, multilib string) []Target {
 	return ret
 }
 
+func getCommonTargets(targets []Target) []Target {
+	var ret []Target
+	set := make(map[string]bool)
+
+	for _, t := range targets {
+		if _, found := set[t.Os.String()]; !found {
+			set[t.Os.String()] = true
+			ret = append(ret, commonTargetMap[t.Os.String()])
+		}
+	}
+
+	return ret
+}
+
 // Use the module multilib setting to select one or more targets from a target list
 func decodeMultilib(multilib string, targets []Target, prefer32 bool) ([]Target, error) {
 	buildTargets := []Target{}
@@ -1001,7 +1014,7 @@ func decodeMultilib(multilib string, targets []Target, prefer32 bool) ([]Target,
 	}
 	switch multilib {
 	case "common":
-		buildTargets = append(buildTargets, commonTarget)
+		buildTargets = append(buildTargets, getCommonTargets(targets)...)
 	case "both":
 		if prefer32 {
 			buildTargets = append(buildTargets, filterMultilibTargets(targets, "lib32")...)

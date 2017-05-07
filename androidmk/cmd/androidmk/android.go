@@ -56,20 +56,21 @@ func addStandardProperties(propertyType bpparser.Type, properties map[string]str
 func init() {
 	addStandardProperties(bpparser.StringType,
 		map[string]string{
-			"LOCAL_MODULE":               "name",
-			"LOCAL_CXX_STL":              "stl",
-			"LOCAL_STRIP_MODULE":         "strip",
-			"LOCAL_MULTILIB":             "compile_multilib",
-			"LOCAL_ARM_MODE_HACK":        "instruction_set",
-			"LOCAL_SDK_VERSION":          "sdk_version",
-			"LOCAL_NDK_STL_VARIANT":      "stl",
-			"LOCAL_JAR_MANIFEST":         "manifest",
-			"LOCAL_JARJAR_RULES":         "jarjar_rules",
-			"LOCAL_CERTIFICATE":          "certificate",
-			"LOCAL_PACKAGE_NAME":         "name",
-			"LOCAL_MODULE_RELATIVE_PATH": "relative_install_path",
-			"LOCAL_PROTOC_OPTIMIZE_TYPE": "proto.type",
-			"LOCAL_MODULE_OWNER":         "owner",
+			"LOCAL_MODULE":                  "name",
+			"LOCAL_CXX_STL":                 "stl",
+			"LOCAL_STRIP_MODULE":            "strip",
+			"LOCAL_MULTILIB":                "compile_multilib",
+			"LOCAL_ARM_MODE_HACK":           "instruction_set",
+			"LOCAL_SDK_VERSION":             "sdk_version",
+			"LOCAL_NDK_STL_VARIANT":         "stl",
+			"LOCAL_JAR_MANIFEST":            "manifest",
+			"LOCAL_JARJAR_RULES":            "jarjar_rules",
+			"LOCAL_CERTIFICATE":             "certificate",
+			"LOCAL_PACKAGE_NAME":            "name",
+			"LOCAL_MODULE_RELATIVE_PATH":    "relative_install_path",
+			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
+			"LOCAL_MODULE_OWNER":            "owner",
+			"LOCAL_RENDERSCRIPT_TARGET_API": "renderscript.target_api",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -96,7 +97,9 @@ func init() {
 			"LOCAL_INIT_RC":                       "init_rc",
 			"LOCAL_TIDY_FLAGS":                    "tidy_flags",
 			// TODO: This is comma-separated, not space-separated
-			"LOCAL_TIDY_CHECKS": "tidy_checks",
+			"LOCAL_TIDY_CHECKS":           "tidy_checks",
+			"LOCAL_RENDERSCRIPT_INCLUDES": "renderscript.include_dirs",
+			"LOCAL_RENDERSCRIPT_FLAGS":    "renderscript.flags",
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
@@ -634,8 +637,11 @@ var conditionalTranslations = map[string]map[bool]string{
 		true:  "target.linux",
 		false: "target.not_linux"},
 	"(,$(TARGET_BUILD_APPS))": {
-		false: "product_variables.unbundled_build",
-	},
+		false: "product_variables.unbundled_build"},
+	"($(TARGET_BUILD_PDK),true)": {
+		true: "product_variables.pdk"},
+	"($(TARGET_BUILD_PDK), true)": {
+		true: "product_variables.pdk"},
 }
 
 func mydir(args []string) string {

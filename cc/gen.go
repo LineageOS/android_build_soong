@@ -105,6 +105,8 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 
 	var deps android.Paths
 
+	var rsFiles android.Paths
+
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".y":
@@ -131,7 +133,15 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
 			srcFiles[i] = cppFile
 			deps = append(deps, genAidl(ctx, srcFile, cppFile, buildFlags.aidlFlags)...)
+		case ".rs", ".fs":
+			cppFile := rsGeneratedCppFile(ctx, srcFile)
+			rsFiles = append(rsFiles, srcFiles[i])
+			srcFiles[i] = cppFile
 		}
+	}
+
+	if len(rsFiles) > 0 {
+		deps = append(deps, rsGenerateCpp(ctx, rsFiles, buildFlags.rsFlags)...)
 	}
 
 	return srcFiles, deps
