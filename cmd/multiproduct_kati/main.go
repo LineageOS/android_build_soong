@@ -51,6 +51,8 @@ var outDir = flag.String("out", "", "path to store output directories (defaults 
 var onlyConfig = flag.Bool("only-config", false, "Only run product config (not Soong or Kati)")
 var onlySoong = flag.Bool("only-soong", false, "Only run product config and Soong (not Kati)")
 
+var buildVariant = flag.String("variant", "eng", "build variant to use")
+
 type Product struct {
 	ctx    build.Context
 	config build.Config
@@ -225,7 +227,7 @@ func main() {
 
 			productConfig := build.NewConfig(productCtx)
 			productConfig.Environment().Set("OUT_DIR", productOutDir)
-			productConfig.Lunch(productCtx, product, "eng")
+			productConfig.Lunch(productCtx, product, *buildVariant)
 
 			build.Build(productCtx, productConfig, build.BuildProductConfig)
 			productConfigs <- Product{productCtx, productConfig}
