@@ -90,6 +90,10 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	installPaths := []string{}
 	licensePaths := []string{}
 	ctx.VisitAllModules(func(module blueprint.Module) {
+		if m, ok := module.(android.Module); ok && !m.Enabled() {
+			return
+		}
+
 		if m, ok := module.(*headerModule); ok {
 			installPaths = append(installPaths, m.installPaths...)
 			licensePaths = append(licensePaths, m.licensePath.String())
