@@ -348,11 +348,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 	}
 
-	if sanitize.Properties.Sanitize.Recover != nil {
-		flags.CFlags = append(flags.CFlags, "-fsanitize-recover="+
-			strings.Join(sanitize.Properties.Sanitize.Recover, ","))
-	}
-
 	if len(sanitizers) > 0 {
 		sanitizeArg := "-fsanitize=" + strings.Join(sanitizers, ",")
 		flags.CFlags = append(flags.CFlags, sanitizeArg)
@@ -369,6 +364,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap="+strings.Join(diagSanitizers, ","))
 	}
 	// FIXME: enable RTTI if diag + (cfi or vptr)
+
+	if sanitize.Properties.Sanitize.Recover != nil {
+		flags.CFlags = append(flags.CFlags, "-fsanitize-recover="+
+			strings.Join(sanitize.Properties.Sanitize.Recover, ","))
+	}
 
 	// Link a runtime library if needed.
 	runtimeLibrary := ""
