@@ -285,17 +285,21 @@ cc_library_shared {
 		desc: "LOCAL_SANITIZE unknown parameter",
 		in: `
 include $(CLEAR_VARS)
-LOCAL_SANITIZE := integer asdf
+LOCAL_SANITIZE := integer cfi asdf
+LOCAL_SANITIZE_DIAG := cfi
 LOCAL_SANITIZE_RECOVER := qwert
 include $(BUILD_SHARED_LIBRARY)
 `,
 		expected: `
 cc_library_shared {
-    // ANDROIDMK TRANSLATION ERROR: unknown sanitize argument: asdf
-    // integer asdf
     sanitize: {
-	integer: true,
-	recover: ["qwert"],
+        integer: true,
+        cfi: true,
+        misc_undefined: ["asdf"],
+        diag: {
+            cfi: true,
+        },
+        recover: ["qwert"],
     },
 }
 `,
