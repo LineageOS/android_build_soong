@@ -76,6 +76,9 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 
 	c.subAndroidMk(&ret, c.compiler)
 	c.subAndroidMk(&ret, c.linker)
+	if c.sanitize != nil {
+		c.subAndroidMk(&ret, c.sanitize)
+	}
 	c.subAndroidMk(&ret, c.installer)
 
 	if c.vndk() {
