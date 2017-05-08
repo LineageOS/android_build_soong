@@ -33,7 +33,8 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_STEM":           stem,
 	"LOCAL_MODULE_HOST_OS":        hostOs,
 	"LOCAL_SRC_FILES":             srcFiles,
-	"LOCAL_SANITIZE":              sanitize,
+	"LOCAL_SANITIZE":              sanitize(""),
+	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -413,60 +414,50 @@ func srcFiles(ctx variableAssignmentContext) error {
 	return nil
 }
 
-func sanitize(ctx variableAssignmentContext) error {
-	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
-	if err != nil {
-		return err
-	}
-
-	lists, err := splitBpList(val, func(value bpparser.Expression) (string, bpparser.Expression, error) {
-		switch v := value.(type) {
-		case *bpparser.Variable:
-			return "vars", value, nil
-		case *bpparser.Operator:
-			ctx.file.errorf(ctx.mkvalue, "unknown sanitize expression")
-			return "unknown", value, nil
-		case *bpparser.String:
-			switch v.Value {
-			case "never", "address", "coverage", "integer", "thread", "undefined":
-				bpTrue := &bpparser.Bool{
-					Value: true,
-				}
-				return v.Value, bpTrue, nil
-			default:
-				ctx.file.errorf(ctx.mkvalue, "unknown sanitize argument: %s", v.Value)
-				return "unknown", value, nil
-			}
-		default:
-			return "", nil, fmt.Errorf("sanitize expected a string, got %s", value.Type())
-		}
-	})
-	if err != nil {
-		return err
-	}
-
-	for k, v := range lists {
-		if emptyList(v) {
-			continue
-		}
-
-		switch k {
-		case "never", "address", "coverage", "integer", "thread", "undefined":
-			err = setVariable(ctx.file, false, ctx.prefix, "sanitize."+k, lists[k].(*bpparser.List).Values[0], true)
-		case "unknown":
-		// Nothing, we already added the error above
-		case "vars":
-			fallthrough
-		default:
-			err = setVariable(ctx.file, true, ctx.prefix, "sanitize", v, true)
-		}
-
+func sanitize(sub string) func(ctx variableAssignmentContext) error {
+	return func(ctx variableAssignmentContext) error {
+		val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
 		if err != nil {
 			return err
 		}
-	}
 
-	return err
+		if _, ok := val.(*bpparser.List); !ok {
+			return fmt.Errorf("unsupported sanitize expression")
+		}
+
+		misc := &bpparser.List{}
+
+		for _, v := range val.(*bpparser.List).Values {
+			switch v := v.(type) {
+			case *bpparser.Variable, *bpparser.Operator:
+				ctx.file.errorf(ctx.mkvalue, "unsupported sanitize expression")
+			case *bpparser.String:
+				switch v.Value {
+				case "never", "address", "coverage", "thread", "undefined", "cfi":
+					bpTrue := &bpparser.Bool{
+						Value: true,
+					}
+					err = setVariable(ctx.file, false, ctx.prefix, "sanitize."+sub+v.Value, bpTrue, true)
+					if err != nil {
+						return err
+					}
+				default:
+					misc.Values = append(misc.Values, v)
+				}
+			default:
+				return fmt.Errorf("sanitize expected a string, got %s", v.Type())
+			}
+		}
+
+		if len(misc.Values) > 0 {
+			err = setVariable(ctx.file, false, ctx.prefix, "sanitize."+sub+"misc_undefined", misc, true)
+			if err != nil {
+				return err
+			}
+		}
+
+		return err
+	}
 }
 
 func prebuiltClass(ctx variableAssignmentContext) error {
