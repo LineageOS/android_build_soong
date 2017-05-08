@@ -212,7 +212,7 @@ func SanitizerRuntimeLibrary(t Toolchain, sanitizer string) string {
 	if arch == "" {
 		return ""
 	}
-	return "libclang_rt." + sanitizer + "-" + arch + "-android.so"
+	return "libclang_rt." + sanitizer + "-" + arch + "-android"
 }
 
 func AddressSanitizerRuntimeLibrary(t Toolchain) string {
