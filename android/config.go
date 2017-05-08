@@ -289,7 +289,7 @@ func (c *config) Getenv(key string) string {
 		if c.envFrozen {
 			panic("Cannot access new environment variables after envdeps are frozen")
 		}
-		val = os.Getenv(key)
+		val, _ = originalEnv[key]
 		c.envDeps[key] = val
 	}
 	return val
