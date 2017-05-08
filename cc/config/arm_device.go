@@ -126,6 +126,15 @@ var (
 			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
+		"cortex-a53": []string{
+			"-mcpu=cortex-a53",
+			"-mfpu=neon-fp-armv8",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
+		},
 		"krait": []string{
 			"-mcpu=cortex-a15",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
@@ -167,6 +176,7 @@ func init() {
 		"cortex-a15",
 		"cortex-a53",
 		"cortex-a53-a57",
+		"cortex-a73",
 		"krait",
 		"kryo",
 		"denver")
@@ -205,6 +215,7 @@ func init() {
 	pctx.StaticVariable("ArmCortexA7Cflags", strings.Join(armCpuVariantCflags["cortex-a7"], " "))
 	pctx.StaticVariable("ArmCortexA8Cflags", strings.Join(armCpuVariantCflags["cortex-a8"], " "))
 	pctx.StaticVariable("ArmCortexA15Cflags", strings.Join(armCpuVariantCflags["cortex-a15"], " "))
+	pctx.StaticVariable("ArmCortexA53Cflags", strings.Join(armCpuVariantCflags["cortex-a53"], " "))
 	pctx.StaticVariable("ArmKraitCflags", strings.Join(armCpuVariantCflags["krait"], " "))
 	pctx.StaticVariable("ArmKryoCflags", strings.Join(armCpuVariantCflags["kryo"], " "))
 
@@ -235,6 +246,8 @@ func init() {
 		strings.Join(armClangCpuVariantCflags["cortex-a8"], " "))
 	pctx.StaticVariable("ArmClangCortexA15Cflags",
 		strings.Join(armClangCpuVariantCflags["cortex-a15"], " "))
+	pctx.StaticVariable("ArmClangCortexA53Cflags",
+		strings.Join(armClangCpuVariantCflags["cortex-a53"], " "))
 	pctx.StaticVariable("ArmClangKraitCflags",
 		strings.Join(armClangCpuVariantCflags["krait"], " "))
 	pctx.StaticVariable("ArmClangKryoCflags",
@@ -253,8 +266,9 @@ var (
 		"cortex-a7":      "${config.ArmCortexA7Cflags}",
 		"cortex-a8":      "${config.ArmCortexA8Cflags}",
 		"cortex-a15":     "${config.ArmCortexA15Cflags}",
-		"cortex-a53":     "${config.ArmCortexA7Cflags}",
-		"cortex-a53.a57": "${config.ArmCortexA7Cflags}",
+		"cortex-a53":     "${config.ArmCortexA53Cflags}",
+		"cortex-a53.a57": "${config.ArmCortexA53Cflags}",
+		"cortex-a73":     "${config.ArmCortexA53Cflags}",
 		"krait":          "${config.ArmKraitCflags}",
 		"kryo":           "${config.ArmKryoCflags}",
 		"denver":         "${config.ArmCortexA15Cflags}",
@@ -271,8 +285,9 @@ var (
 		"cortex-a7":      "${config.ArmClangCortexA7Cflags}",
 		"cortex-a8":      "${config.ArmClangCortexA8Cflags}",
 		"cortex-a15":     "${config.ArmClangCortexA15Cflags}",
-		"cortex-a53":     "${config.ArmClangCortexA7Cflags}",
-		"cortex-a53.a57": "${config.ArmClangCortexA7Cflags}",
+		"cortex-a53":     "${config.ArmClangCortexA53Cflags}",
+		"cortex-a53.a57": "${config.ArmClangCortexA53Cflags}",
+		"cortex-a73":     "${config.ArmClangCortexA53Cflags}",
 		"krait":          "${config.ArmClangKraitCflags}",
 		"kryo":           "${config.ArmClangKryoCflags}",
 		"denver":         "${config.ArmClangCortexA15Cflags}",
