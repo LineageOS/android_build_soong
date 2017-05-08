@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -102,6 +103,8 @@ type SanitizeProperties struct {
 
 type sanitize struct {
 	Properties SanitizeProperties
+
+	runtimeLibrary string
 }
 
 func (sanitize *sanitize) props() []interface{} {
@@ -377,7 +380,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	// ASan runtime library must be the first in the link order.
 	if runtimeLibrary != "" {
-		flags.libFlags = append([]string{"${config.ClangAsanLibDir}/" + runtimeLibrary}, flags.libFlags...)
+		flags.libFlags = append([]string{
+			"${config.ClangAsanLibDir}/" + runtimeLibrary + ctx.toolchain().ShlibSuffix(),
+		}, flags.libFlags...)
+		sanitize.runtimeLibrary = runtimeLibrary
 	}
 
 	blacklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
@@ -387,6 +393,16 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	return flags
+}
+
+func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		if sanitize.runtimeLibrary != "" {
+			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES += "+sanitize.runtimeLibrary)
+		}
+
+		return nil
+	})
 }
 
 func (sanitize *sanitize) inSanitizerDir() bool {
