@@ -108,7 +108,10 @@ func rsFlags(ctx ModuleContext, flags Flags, properties *BaseCompilerProperties)
 	flags.rsFlags = append(flags.rsFlags, includeDirsToFlags(rootRsIncludeDirs))
 
 	flags.GlobalFlags = append(flags.GlobalFlags,
-		"-I"+android.PathForModuleGen(ctx, "rs").String())
+		"-I"+android.PathForModuleGen(ctx, "rs").String(),
+		"-Iframeworks/rs",
+		"-Iframeworks/rs/cpp",
+	)
 
 	return flags
 }
