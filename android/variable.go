@@ -33,6 +33,7 @@ type variableProperties struct {
 	Product_variables struct {
 		Platform_sdk_version struct {
 			Asflags []string
+			Cflags  []string
 		}
 
 		// unbundled_build is a catch-all property to annotate modules that don't build in one or
