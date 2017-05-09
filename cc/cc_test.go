@@ -1,6 +1,7 @@
 package cc
 
 import (
+	"android/soong/android"
 	"reflect"
 	"testing"
 )
@@ -142,13 +143,23 @@ var splitListForSizeTestCases = []struct {
 
 func TestSplitListForSize(t *testing.T) {
 	for _, testCase := range splitListForSizeTestCases {
-		out, _ := splitListForSize(testCase.in, testCase.size)
-		if !reflect.DeepEqual(out, testCase.out) {
+		out, _ := splitListForSize(android.PathsForTesting(testCase.in), testCase.size)
+
+		var outStrings [][]string
+
+		if len(out) > 0 {
+			outStrings = make([][]string, len(out))
+			for i, o := range out {
+				outStrings[i] = o.Strings()
+			}
+		}
+
+		if !reflect.DeepEqual(outStrings, testCase.out) {
 			t.Errorf("incorrect output:")
 			t.Errorf("     input: %#v", testCase.in)
 			t.Errorf("      size: %d", testCase.size)
 			t.Errorf("  expected: %#v", testCase.out)
-			t.Errorf("       got: %#v", out)
+			t.Errorf("       got: %#v", outStrings)
 		}
 	}
 }
