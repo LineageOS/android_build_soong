@@ -224,6 +224,21 @@ const (
 	HostCross
 )
 
+func (class OsClass) String() string {
+	switch class {
+	case Generic:
+		return "generic"
+	case Device:
+		return "device"
+	case Host:
+		return "host"
+	case HostCross:
+		return "host cross"
+	default:
+		panic(fmt.Errorf("unknown class %d", class))
+	}
+}
+
 func (os OsType) String() string {
 	return os.Name
 }
