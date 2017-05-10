@@ -32,7 +32,6 @@ var (
 		blueprint.RuleParams{
 			Command: "$toolPath --arch $arch --api $apiLevel --api-map " +
 				"$apiMap $vndk $in $out",
-			Description: "genStubSrc $out",
 			CommandDeps: []string{"$toolPath"},
 		}, "arch", "apiLevel", "apiMap", "vndk")
 
@@ -251,10 +250,11 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 	symbolFilePath := android.PathForModuleSrc(ctx, symbolFile)
 	apiLevelsJson := android.GetApiLevelsJson(ctx)
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:      genStubSrc,
-		Outputs:   []android.WritablePath{stubSrcPath, versionScriptPath},
-		Input:     symbolFilePath,
-		Implicits: []android.Path{apiLevelsJson},
+		Rule:        genStubSrc,
+		Description: "generate stubs " + symbolFilePath.Rel(),
+		Outputs:     []android.WritablePath{stubSrcPath, versionScriptPath},
+		Input:       symbolFilePath,
+		Implicits:   []android.Path{apiLevelsJson},
 		Args: map[string]string{
 			"arch":     arch,
 			"apiLevel": apiLevel,

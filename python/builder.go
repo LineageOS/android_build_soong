@@ -35,7 +35,6 @@ var (
 				`$parCmd -o $parFile $parArgs && echo '#!/usr/bin/env python' | cat - $parFile > $out && ` +
 				`chmod +x $out && (rm -f $initFile; rm -f $stub; rm -f $parFile)`,
 			CommandDeps: []string{"$parCmd", "$template"},
-			Description: "build par $out",
 		},
 		"initFile", "interp", "main", "template", "stub", "parCmd", "parFile", "parArgs")
 )
@@ -78,9 +77,10 @@ func registerBuildActionForModuleFileList(ctx android.ModuleContext,
 	}
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:      android.WriteFile,
-		Output:    fileList,
-		Implicits: files,
+		Rule:        android.WriteFile,
+		Description: "generate " + fileList.Rel(),
+		Output:      fileList,
+		Implicits:   files,
 		Args: map[string]string{
 			"content": strings.Join(content, "\n"),
 		},
@@ -126,9 +126,10 @@ func registerBuildActionForParFile(ctx android.ModuleContext,
 	}
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:      par,
-		Output:    binFile,
-		Implicits: implicits,
+		Rule:        par,
+		Description: "python archive",
+		Output:      binFile,
+		Implicits:   implicits,
 		Args: map[string]string{
 			"initFile": initFile,
 			// the "\" isn't being interpreted by regex parser, it's being

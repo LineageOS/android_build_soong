@@ -31,7 +31,6 @@ var (
 			// let us have only implicit outputs.
 			Command:     "$versionerCmd -o $outDir $srcDir $depsPath && touch $out",
 			CommandDeps: []string{"$versionerCmd"},
-			Description: "versioner preprocess $in",
 		},
 		"depsPath", "srcDir", "outDir")
 )
@@ -238,6 +237,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 	timestampFile := android.PathForModuleOut(ctx, "versioner.timestamp")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:            preprocessBionicHeaders,
+		Description:     "versioner preprocess " + srcDir.Rel(),
 		Output:          timestampFile,
 		Implicits:       append(srcFiles, depsGlob...),
 		ImplicitOutputs: installPaths,

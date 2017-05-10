@@ -30,7 +30,6 @@ var (
 		blueprint.RuleParams{
 			Command:     "$protocCmd --cpp_out=$outDir $protoFlags $in",
 			CommandDeps: []string{"$protocCmd"},
-			Description: "protoc $out",
 		}, "protoFlags", "outDir")
 )
 
@@ -48,9 +47,10 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 	outFile := android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
 	headerFile := android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:    proto,
-		Outputs: android.WritablePaths{outFile, headerFile},
-		Input:   protoFile,
+		Rule:        proto,
+		Description: "protoc " + protoFile.Rel(),
+		Outputs:     android.WritablePaths{outFile, headerFile},
+		Input:       protoFile,
 		Args: map[string]string{
 			"outDir":     protoDir(ctx).String(),
 			"protoFlags": protoFlags,
