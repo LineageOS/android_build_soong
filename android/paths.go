@@ -721,3 +721,25 @@ func validatePath(ctx PathContext, paths ...string) string {
 	}
 	return validateSafePath(ctx, paths...)
 }
+
+type testPath struct {
+	basePath
+}
+
+func (p testPath) String() string {
+	return p.path
+}
+
+func PathForTesting(paths ...string) Path {
+	p := validateSafePath(nil, paths...)
+	return testPath{basePath{path: p, rel: p}}
+}
+
+func PathsForTesting(strs []string) Paths {
+	p := make(Paths, len(strs))
+	for i, s := range strs {
+		p[i] = PathForTesting(s)
+	}
+
+	return p
+}
