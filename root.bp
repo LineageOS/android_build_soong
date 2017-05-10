@@ -11,6 +11,7 @@ subdirs = [
 optional_subdirs = [
     "art",
     "bionic",
+    "bootable/recovery",
     "build/kati",
     "build/tools/*",
     "dalvik",
