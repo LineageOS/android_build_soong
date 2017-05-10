@@ -122,7 +122,7 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 				// version.
 				version := ctx.sdkVersion()
 				if version == "current" {
-					version = ctx.AConfig().PlatformSdkVersion()
+					version = getCurrentNdkPrebuiltVersion(ctx)
 				}
 
 				if binary.static() {

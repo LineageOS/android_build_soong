@@ -424,7 +424,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 				// version.
 				version := ctx.sdkVersion()
 				if version == "current" {
-					version = ctx.AConfig().PlatformSdkVersion()
+					version = getCurrentNdkPrebuiltVersion(ctx)
 				}
 				deps.CrtBegin = "ndk_crtbegin_so." + version
 				deps.CrtEnd = "ndk_crtend_so." + version
