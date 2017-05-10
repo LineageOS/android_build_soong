@@ -1193,4 +1193,11 @@ func lastUniqueElements(list []string) []string {
 	return list[totalSkip:]
 }
 
+func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
+	if ctx.AConfig().PlatformSdkVersionInt() > config.NdkMaxPrebuiltVersionInt {
+		return strconv.Itoa(config.NdkMaxPrebuiltVersionInt)
+	}
+	return ctx.AConfig().PlatformSdkVersion()
+}
+
 var Bool = proptools.Bool
