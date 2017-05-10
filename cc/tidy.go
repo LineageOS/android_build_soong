@@ -77,6 +77,10 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.TidyFlags = append(flags.TidyFlags, headerFilter)
 	}
 
+	// We might be using the static analyzer through clang tidy.
+	// https://bugs.llvm.org/show_bug.cgi?id=32914
+	flags.TidyFlags = append(flags.TidyFlags, "-extra-arg-before=-D__clang_analyzer__")
+
 	tidyChecks := "-checks="
 	if checks := ctx.AConfig().TidyChecks(); len(checks) > 0 {
 		tidyChecks += checks
