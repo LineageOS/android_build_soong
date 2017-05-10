@@ -468,7 +468,7 @@ func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 // very small command line length limit, so we have to split the ar into multiple
 // steps, each appending to the previous one.
 func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
-	flags builderFlags, outputPath android.ModuleOutPath, deps android.Paths) {
+	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
 
 	arFlags := "cqs"
 
@@ -493,7 +493,7 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 
 		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:   darwinAppendAr,
-			Output: outputPath,
+			Output: outputFile,
 			Input:  dummy,
 			Args: map[string]string{
 				"arFlags": "d",
@@ -505,42 +505,33 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 	}
 
 	// ARG_MAX on darwin is 262144, use half that to be safe
-	objFilesLists, err := splitListForSize(objFiles.Strings(), 131072)
+	objFilesLists, err := splitListForSize(objFiles, 131072)
 	if err != nil {
 		ctx.ModuleErrorf("%s", err.Error())
 	}
 
-	outputFile := outputPath.String()
-
-	var in, out string
+	var in, out android.WritablePath
 	for i, l := range objFilesLists {
 		in = out
 		out = outputFile
 		if i != len(objFilesLists)-1 {
-			out += "." + strconv.Itoa(i)
+			out = android.PathForModuleOut(ctx, outputFile.Base()+strconv.Itoa(i))
 		}
 
-		if in == "" {
-			ctx.Build(pctx, blueprint.BuildParams{
-				Rule:      darwinAr,
-				Outputs:   []string{out},
-				Inputs:    l,
-				Implicits: deps.Strings(),
-				Args: map[string]string{
-					"arFlags": arFlags,
-				},
-			})
-		} else {
-			ctx.Build(pctx, blueprint.BuildParams{
-				Rule:    darwinAppendAr,
-				Outputs: []string{out},
-				Inputs:  l,
-				Args: map[string]string{
-					"arFlags": arFlags,
-					"inAr":    in,
-				},
-			})
+		build := android.ModuleBuildParams{
+			Rule:      darwinAr,
+			Output:    out,
+			Inputs:    l,
+			Implicits: deps,
+			Args: map[string]string{
+				"arFlags": arFlags,
+			},
 		}
+		if i != 0 {
+			build.Rule = darwinAppendAr
+			build.Args["inAr"] = in.String()
+		}
+		ctx.ModuleBuild(pctx, build)
 	}
 }
 
@@ -779,13 +770,13 @@ func gccCmd(toolchain config.Toolchain, cmd string) string {
 	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
 }
 
-func splitListForSize(list []string, limit int) (lists [][]string, err error) {
+func splitListForSize(list android.Paths, limit int) (lists []android.Paths, err error) {
 	var i int
 
 	start := 0
 	bytes := 0
 	for i = range list {
-		l := len(list[i])
+		l := len(list[i].String())
 		if l > limit {
 			return nil, fmt.Errorf("list element greater than size limit (%d)", limit)
 		}
