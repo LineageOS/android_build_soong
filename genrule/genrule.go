@@ -47,7 +47,7 @@ type generatorProperties struct {
 	// $(location <label>): the path to the tool or tool_file with name <label>
 	// $(in): one or more input files
 	// $(out): a single output file
-	// $(deps): a file to which dependencies will be written, if the depfile property is set to true
+	// $(depfile): a file to which dependencies will be written, if the depfile property is set to true
 	// $(genDir): the sandbox directory for this tool; contains $(out)
 	// $$: a literal $
 	//
