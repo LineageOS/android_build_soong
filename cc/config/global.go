@@ -71,6 +71,8 @@ var (
 	GccCppStdVersion          = "gnu++11"
 	ExperimentalCStdVersion   = "gnu11"
 	ExperimentalCppStdVersion = "gnu++1z"
+
+	NdkMaxPrebuiltVersionInt = 24
 )
 
 var pctx = android.NewPackageContext("android/soong/cc/config")
