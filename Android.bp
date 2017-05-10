@@ -219,10 +219,13 @@ bootstrap_go_package {
         "soong-android",
     ],
     srcs: [
+        "python/androidmk.go",
         "python/binary.go",
         "python/builder.go",
+        "python/installer.go",
         "python/library.go",
         "python/python.go",
+        "python/test.go",
     ],
     testSrcs: [
         "python/python_test.go",
