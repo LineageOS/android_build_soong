@@ -205,7 +205,7 @@ func writeAllIncludeDirectories(includes []string, f *os.File, isSystem bool) {
 	}
 
 	system := ""
-        if isSystem {
+	if isSystem {
 		system = "SYSTEM"
 	}
 
@@ -217,12 +217,12 @@ func writeAllIncludeDirectories(includes []string, f *os.File, isSystem bool) {
 	f.WriteString(")\n\n")
 
 	// Also add all headers to source files.
-	f.WriteString("file (GLOB_RECURSE TMP_HEADERS\n");
+	f.WriteString("file (GLOB_RECURSE TMP_HEADERS\n")
 	for _, include := range includes {
 		f.WriteString(fmt.Sprintf("    \"%s/**/*.h\"\n", buildCMakePath(include)))
 	}
 	f.WriteString(")\n")
-	f.WriteString("list (APPEND SOURCE_FILES ${TMP_HEADERS})\n\n");
+	f.WriteString("list (APPEND SOURCE_FILES ${TMP_HEADERS})\n\n")
 }
 
 func writeAllFlags(flags []string, f *os.File, tag string) {
