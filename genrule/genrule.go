@@ -218,11 +218,17 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask) {
+	desc := "generate"
+	if len(task.out) == 1 {
+		desc += " " + task.out[0].Base()
+	}
+
 	params := android.ModuleBuildParams{
-		Rule:      g.rule,
-		Outputs:   task.out,
-		Inputs:    task.in,
-		Implicits: g.deps,
+		Rule:        g.rule,
+		Description: "generate",
+		Outputs:     task.out,
+		Inputs:      task.in,
+		Implicits:   g.deps,
 	}
 	if g.properties.Depfile {
 		depfile := android.GenPathWithExt(ctx, "", task.out[0], task.out[0].Ext()+".d")

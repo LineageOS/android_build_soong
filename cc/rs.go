@@ -39,7 +39,6 @@ var (
 			CommandDeps: []string{"$rsCmd"},
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Description: "rsCpp $out",
 		},
 		"depFiles", "outDir", "rsFlags", "stampFile")
 )
@@ -67,6 +66,7 @@ func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags str
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:            rsCpp,
+		Description:     "llvm-rs-cc",
 		Output:          stampFile,
 		ImplicitOutputs: cppFiles,
 		Inputs:          rsFiles,
