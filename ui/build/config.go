@@ -51,7 +51,9 @@ func NewConfig(ctx Context, args ...string) Config {
 	}
 
 	// Make sure OUT_DIR is set appropriately
-	if _, ok := ret.environ.Get("OUT_DIR"); !ok {
+	if outDir, ok := ret.environ.Get("OUT_DIR"); ok {
+		ret.environ.Set("OUT_DIR", filepath.Clean(outDir))
+	} else {
 		outDir := "out"
 		if baseDir, ok := ret.environ.Get("OUT_DIR_COMMON_BASE"); ok {
 			if wd, err := os.Getwd(); err != nil {
