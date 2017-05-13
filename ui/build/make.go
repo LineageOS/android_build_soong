@@ -83,6 +83,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// So that we can use the correct TARGET_PRODUCT if it's been
 		// modified by PRODUCT-* arguments
 		"TARGET_PRODUCT",
+		"TARGET_BUILD_VARIANT",
 
 		// compiler wrappers set up by make
 		"CC_WRAPPER",
@@ -129,6 +130,9 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// Used to execute Kati and Ninja
 		"NINJA_GOALS",
 		"KATI_GOALS",
+
+		// To find target/product/<DEVICE>
+		"TARGET_DEVICE",
 	}, exportEnvVars...), bannerVars...)
 
 	make_vars, err := DumpMakeVars(ctx, config, config.Arguments(), []string{
@@ -159,4 +163,5 @@ func runMakeProductConfig(ctx Context, config Config) {
 
 	config.SetKatiArgs(strings.Fields(make_vars["KATI_GOALS"]))
 	config.SetNinjaArgs(strings.Fields(make_vars["NINJA_GOALS"]))
+	config.SetTargetDevice(make_vars["TARGET_DEVICE"])
 }
