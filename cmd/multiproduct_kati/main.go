@@ -51,9 +51,84 @@ var outDir = flag.String("out", "", "path to store output directories (defaults 
 var onlyConfig = flag.Bool("only-config", false, "Only run product config (not Soong or Kati)")
 var onlySoong = flag.Bool("only-soong", false, "Only run product config and Soong (not Kati)")
 
+var buildVariant = flag.String("variant", "eng", "build variant to use")
+
 type Product struct {
 	ctx    build.Context
 	config build.Config
+}
+
+type Status struct {
+	cur    int
+	total  int
+	failed int
+
+	ctx           build.Context
+	haveBlankLine bool
+	smartTerminal bool
+
+	lock sync.Mutex
+}
+
+func NewStatus(ctx build.Context) *Status {
+	return &Status{
+		ctx:           ctx,
+		haveBlankLine: true,
+		smartTerminal: ctx.IsTerminal(),
+	}
+}
+
+func (s *Status) SetTotal(total int) {
+	s.total = total
+}
+
+func (s *Status) Fail(product string, err error) {
+	s.Finish(product)
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.smartTerminal && !s.haveBlankLine {
+		fmt.Fprintln(s.ctx.Stdout())
+		s.haveBlankLine = true
+	}
+
+	s.failed++
+	fmt.Fprintln(s.ctx.Stderr(), "FAILED:", product)
+	s.ctx.Verboseln("FAILED:", product)
+	s.ctx.Println(err)
+}
+
+func (s *Status) Finish(product string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.cur++
+	line := fmt.Sprintf("[%d/%d] %s", s.cur, s.total, product)
+
+	if s.smartTerminal {
+		if max, ok := s.ctx.TermWidth(); ok {
+			if len(line) > max {
+				line = line[:max]
+			}
+		}
+
+		fmt.Fprint(s.ctx.Stdout(), "\r", line, "\x1b[K")
+		s.haveBlankLine = false
+	} else {
+		s.ctx.Println(line)
+	}
+}
+
+func (s *Status) Finished() int {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if !s.haveBlankLine {
+		fmt.Fprintln(s.ctx.Stdout())
+		s.haveBlankLine = true
+	}
+	return s.failed
 }
 
 func main() {
@@ -80,7 +155,7 @@ func main() {
 		StdioInterface: build.StdioImpl{},
 	}}
 
-	failed := false
+	status := NewStatus(buildCtx)
 
 	config := build.NewConfig(buildCtx)
 	if *outDir == "" {
@@ -94,7 +169,7 @@ func main() {
 
 		if !*keep {
 			defer func() {
-				if !failed {
+				if status.Finished() == 0 {
 					os.RemoveAll(*outDir)
 				}
 			}()
@@ -114,8 +189,9 @@ func main() {
 	products := strings.Fields(vars["all_named_products"])
 	log.Verbose("Got product list:", products)
 
+	status.SetTotal(len(products))
+
 	var wg sync.WaitGroup
-	errs := make(chan error, len(products))
 	productConfigs := make(chan Product, len(products))
 
 	// Run the product config for every product in parallel
@@ -124,7 +200,7 @@ func main() {
 		go func(product string) {
 			defer wg.Done()
 			defer logger.Recover(func(err error) {
-				errs <- fmt.Errorf("Error building %s: %v", product, err)
+				status.Fail(product, err)
 			})
 
 			productOutDir := filepath.Join(config.OutDir(), product)
@@ -151,7 +227,7 @@ func main() {
 
 			productConfig := build.NewConfig(productCtx)
 			productConfig.Environment().Set("OUT_DIR", productOutDir)
-			productConfig.Lunch(productCtx, product, "eng")
+			productConfig.Lunch(productCtx, product, *buildVariant)
 
 			build.Build(productCtx, productConfig, build.BuildProductConfig)
 			productConfigs <- Product{productCtx, productConfig}
@@ -171,7 +247,7 @@ func main() {
 			for product := range productConfigs {
 				func() {
 					defer logger.Recover(func(err error) {
-						errs <- fmt.Errorf("Error building %s: %v", product.config.TargetProduct(), err)
+						status.Fail(product.config.TargetProduct(), err)
 					})
 
 					buildWhat := 0
@@ -185,22 +261,14 @@ func main() {
 					if !*keep {
 						os.RemoveAll(product.config.OutDir())
 					}
-					log.Println("Finished running for", product.config.TargetProduct())
+					status.Finish(product.config.TargetProduct())
 				}()
 			}
 		}()
 	}
-	go func() {
-		wg2.Wait()
-		close(errs)
-	}()
+	wg2.Wait()
 
-	for err := range errs {
-		failed = true
-		log.Print(err)
-	}
-
-	if failed {
-		log.Fatalln("Failed")
+	if count := status.Finished(); count > 0 {
+		log.Fatalln(count, "products failed")
 	}
 }
