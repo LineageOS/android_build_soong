@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # To track how long we took to startup. %N isn't supported on Darwin, but
-# that's detected in the Go code, and skip calculating the startup time.
+# that's detected in the Go code, which skips calculating the startup time.
 export TRACE_BEGIN_SOONG=$(date +%s%N)
 
 # Function to find top of the source tree (if $TOP isn't set) by walking up the
@@ -47,63 +47,8 @@ function gettop
     fi
 }
 
-# Bootstrap microfactory from source if necessary and use it to build the
-# soong_ui binary, then run soong_ui.
-function run_go
-{
-    # Increment when microfactory changes enough that it cannot rebuild itself.
-    # For example, if we use a new command line argument that doesn't work on older versions.
-    local mf_version=2
-
-    local mf_src="${TOP}/build/soong/cmd/microfactory"
-
-    local out_dir="${OUT_DIR-}"
-    if [ -z "${out_dir}" ]; then
-        if [ "${OUT_DIR_COMMON_BASE-}" ]; then
-            out_dir="${OUT_DIR_COMMON_BASE}/$(basename ${TOP})"
-        else
-            out_dir="${TOP}/out"
-        fi
-    fi
-
-    local mf_bin="${out_dir}/microfactory_$(uname)"
-    local mf_version_file="${out_dir}/.microfactory_$(uname)_version"
-    local soong_ui_bin="${out_dir}/soong_ui"
-    local from_src=1
-
-    if [ -f "${mf_bin}" ] && [ -f "${mf_version_file}" ]; then
-        if [ "${mf_version}" -eq "$(cat "${mf_version_file}")" ]; then
-            from_src=0
-        fi
-    fi
-
-    local mf_cmd
-    if [ $from_src -eq 1 ]; then
-        mf_cmd="${GOROOT}/bin/go run ${mf_src}/microfactory.go"
-    else
-        mf_cmd="${mf_bin}"
-    fi
-
-    ${mf_cmd} -s "${mf_src}" -b "${mf_bin}" \
-            -pkg-path "android/soong=${TOP}/build/soong" -trimpath "${TOP}/build/soong" \
-            -o "${soong_ui_bin}" android/soong/cmd/soong_ui
-
-    if [ $from_src -eq 1 ]; then
-        echo "${mf_version}" >"${mf_version_file}"
-    fi
-
-    exec "${out_dir}/soong_ui" "$@"
-}
-
 export TOP=$(gettop)
-case $(uname) in
-    Linux)
-        export GOROOT="${TOP}/prebuilts/go/linux-x86/"
-        ;;
-    Darwin)
-        export GOROOT="${TOP}/prebuilts/go/darwin-x86/"
-        ;;
-    *) echo "unknown OS:" $(uname) >&2 && exit 1;;
-esac
+source build/soong/cmd/microfactory/microfactory.bash
 
-run_go "$@"
+build_go soong_ui android/soong/cmd/soong_ui
+exec "$(getoutdir)/soong_ui" "$@"

@@ -102,3 +102,7 @@ func (c ContextImpl) IsTerminal() bool {
 	}
 	return false
 }
+
+func (c ContextImpl) TermWidth() (int, bool) {
+	return termWidth(c.Stdout())
+}
