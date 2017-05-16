@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -91,6 +92,62 @@ func checkCaseSensitivity(ctx Context, config Config) {
 	}
 }
 
+// Since products and build variants (unfortunately) shared the same
+// PRODUCT_OUT staging directory, things can get out of sync if different
+// build configurations are built in the same tree. This function will
+// notice when the configuration has changed and call installclean to
+// remove the files necessary to keep things consistent.
+func installcleanIfNecessary(ctx Context, config Config) {
+	if inList("installclean", config.Arguments()) {
+		return
+	}
+
+	configFile := config.DevicePreviousProductConfig()
+	prefix := "PREVIOUS_BUILD_CONFIG := "
+	suffix := "\n"
+	currentProduct := prefix + config.TargetProduct() + "-" + config.TargetBuildVariant() + suffix
+
+	writeConfig := func() {
+		err := ioutil.WriteFile(configFile, []byte(currentProduct), 0777)
+		if err != nil {
+			ctx.Fatalln("Failed to write product config:", err)
+		}
+	}
+
+	prev, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeConfig()
+			return
+		} else {
+			ctx.Fatalln("Failed to read previous product config:", err)
+		}
+	} else if string(prev) == currentProduct {
+		return
+	}
+
+	if disable, _ := config.Environment().Get("DISABLE_AUTO_INSTALLCLEAN"); disable == "true" {
+		ctx.Println("DISABLE_AUTO_INSTALLCLEAN is set; skipping auto-clean. Your tree may be in an inconsistent state.")
+		return
+	}
+
+	ctx.BeginTrace("installclean")
+	defer ctx.EndTrace()
+
+	prevConfig := strings.TrimPrefix(strings.TrimSuffix(string(prev), suffix), prefix)
+	currentConfig := strings.TrimPrefix(strings.TrimSuffix(currentProduct, suffix), prefix)
+
+	ctx.Printf("Build configuration changed: %q -> %q, forcing installclean\n", prevConfig, currentConfig)
+
+	cleanConfig := CopyConfig(ctx, config, "installclean")
+	cleanConfig.SetKatiArgs([]string{"installclean"})
+	cleanConfig.SetNinjaArgs([]string{"installclean"})
+
+	Build(ctx, cleanConfig, BuildKati|BuildNinja)
+
+	writeConfig()
+}
+
 // Build the tree. The 'what' argument can be used to chose which components of
 // the build to run.
 func Build(ctx Context, config Config, what int) {
@@ -145,6 +202,8 @@ func Build(ctx Context, config Config, what int) {
 	}
 
 	if what&BuildNinja != 0 {
+		installcleanIfNecessary(ctx, config)
+
 		// Write combined ninja file
 		createCombinedBuildNinjaFile(ctx, config)
 

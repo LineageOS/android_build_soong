@@ -38,9 +38,10 @@ type configImpl struct {
 	dist      bool
 
 	// From the product config
-	katiArgs   []string
-	ninjaArgs  []string
-	katiSuffix string
+	katiArgs     []string
+	ninjaArgs    []string
+	katiSuffix   string
+	targetDevice string
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -166,6 +167,22 @@ func NewConfig(ctx Context, args ...string) Config {
 	return Config{ret}
 }
 
+// CopyConfig copies the configuration from an existing configuration, but replaces
+// the Arguments() list with a new set. Useful if you need to run a different build
+// with the same state as an existing build config.
+func CopyConfig(ctx Context, config Config, args ...string) Config {
+	return Config{&configImpl{
+		arguments: args,
+		goma:      config.goma,
+		environ:   config.environ.Copy(),
+
+		parallel:  config.parallel,
+		keepGoing: config.keepGoing,
+		verbose:   config.verbose,
+		dist:      config.dist,
+	}}
+}
+
 // Lunch configures the environment for a specific product similarly to the
 // `lunch` bash function.
 func (c *configImpl) Lunch(ctx Context, product, variant string) {
@@ -271,6 +288,21 @@ func (c *configImpl) TargetProduct() string {
 	panic("TARGET_PRODUCT is not defined")
 }
 
+func (c *configImpl) TargetDevice() string {
+	return c.targetDevice
+}
+
+func (c *configImpl) SetTargetDevice(device string) {
+	c.targetDevice = device
+}
+
+func (c *configImpl) TargetBuildVariant() string {
+	if v, ok := c.environ.Get("TARGET_BUILD_VARIANT"); ok {
+		return v
+	}
+	panic("TARGET_BUILD_VARIANT is not defined")
+}
+
 func (c *configImpl) KatiArgs() []string {
 	return c.katiArgs
 }
@@ -335,6 +367,10 @@ func (c *configImpl) SoongAndroidMk() string {
 
 func (c *configImpl) SoongMakeVarsMk() string {
 	return filepath.Join(c.SoongOutDir(), "make_vars-"+c.TargetProduct()+".mk")
+}
+
+func (c *configImpl) DevicePreviousProductConfig() string {
+	return filepath.Join(c.OutDir(), "target", "product", c.TargetDevice(), "previous_build_config.mk")
 }
 
 func (c *configImpl) HostPrebuiltTag() string {
