@@ -84,24 +84,38 @@ func (c *Cmd) StartOrFatal() {
 	}
 }
 
+func (c *Cmd) reportError(err error) {
+	if err == nil {
+		return
+	}
+	if e, ok := err.(*exec.ExitError); ok {
+		c.ctx.Fatalf("%s failed with: %v", c.name, e.ProcessState.String())
+	} else {
+		c.ctx.Fatalf("Failed to run %s: %v", c.name, err)
+	}
+}
+
 // RunOrFatal is equivalent to Run, but handles the error with a call to ctx.Fatal
 func (c *Cmd) RunOrFatal() {
-	if err := c.Run(); err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			c.ctx.Fatalf("%s failed with: %v", c.name, e.ProcessState.String())
-		} else {
-			c.ctx.Fatalf("Failed to run %s: %v", c.name, err)
-		}
-	}
+	c.reportError(c.Run())
 }
 
 // WaitOrFatal is equivalent to Wait, but handles the error with a call to ctx.Fatal
 func (c *Cmd) WaitOrFatal() {
-	if err := c.Wait(); err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			c.ctx.Fatalf("%s failed with: %v", c.name, e.ProcessState.String())
-		} else {
-			c.ctx.Fatalf("Failed to run %s: %v", c.name, err)
-		}
-	}
+	c.reportError(c.Wait())
+}
+
+// OutputOrFatal is equivalent to Output, but handles the error with a call to ctx.Fatal
+func (c *Cmd) OutputOrFatal() []byte {
+	ret, err := c.Output()
+	c.reportError(err)
+	return ret
+}
+
+// CombinedOutputOrFatal is equivalent to CombinedOutput, but handles the error with
+// a call to ctx.Fatal
+func (c *Cmd) CombinedOutputOrFatal() []byte {
+	ret, err := c.CombinedOutput()
+	c.reportError(err)
+	return ret
 }

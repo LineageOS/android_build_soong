@@ -15,6 +15,7 @@
 package build
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -59,6 +60,37 @@ const (
 	BuildAll           = BuildProductConfig | BuildSoong | BuildKati | BuildNinja
 )
 
+func checkCaseSensitivity(ctx Context, config Config) {
+	outDir := config.OutDir()
+	lowerCase := filepath.Join(outDir, "casecheck.txt")
+	upperCase := filepath.Join(outDir, "CaseCheck.txt")
+	lowerData := "a"
+	upperData := "B"
+
+	err := ioutil.WriteFile(lowerCase, []byte(lowerData), 0777)
+	if err != nil {
+		ctx.Fatalln("Failed to check case sensitivity:", err)
+	}
+
+	err = ioutil.WriteFile(upperCase, []byte(upperData), 0777)
+	if err != nil {
+		ctx.Fatalln("Failed to check case sensitivity:", err)
+	}
+
+	res, err := ioutil.ReadFile(lowerCase)
+	if err != nil {
+		ctx.Fatalln("Failed to check case sensitivity:", err)
+	}
+
+	if string(res) != lowerData {
+		ctx.Println("************************************************************")
+		ctx.Println("You are building on a case-insensitive filesystem.")
+		ctx.Println("Please move your source tree to a case-sensitive filesystem.")
+		ctx.Println("************************************************************")
+		ctx.Fatalln("Case-insensitive filesystems not supported")
+	}
+}
+
 // Build the tree. The 'what' argument can be used to chose which components of
 // the build to run.
 func Build(ctx Context, config Config, what int) {
@@ -86,7 +118,12 @@ func Build(ctx Context, config Config, what int) {
 		return
 	}
 
+	// Start getting java version as early as possible
+	getJavaVersions(ctx, config)
+
 	SetupOutDir(ctx, config)
+
+	checkCaseSensitivity(ctx, config)
 
 	if what&BuildProductConfig != 0 {
 		// Run make for product config
@@ -98,6 +135,9 @@ func Build(ctx Context, config Config, what int) {
 		runSoongBootstrap(ctx, config)
 		runSoong(ctx, config)
 	}
+
+	// Check the java versions we read earlier
+	checkJavaVersion(ctx, config)
 
 	if what&BuildKati != 0 {
 		// Run ckati
