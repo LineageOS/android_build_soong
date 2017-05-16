@@ -46,6 +46,8 @@ type Tracer interface {
 	Complete(name string, thread Thread, begin, end uint64)
 
 	ImportNinjaLog(thread Thread, filename string, startOffset time.Time)
+
+	NewThread(name string) Thread
 }
 
 type tracerImpl struct {
