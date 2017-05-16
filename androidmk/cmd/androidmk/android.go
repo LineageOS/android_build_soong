@@ -107,7 +107,7 @@ func init() {
 			"LOCAL_DX_FLAGS":              "dxflags",
 			"LOCAL_JAVA_LIBRARIES":        "java_libs",
 			"LOCAL_STATIC_JAVA_LIBRARIES": "java_static_libs",
-			"LOCAL_AIDL_INCLUDES":         "aidl_includes",
+			"LOCAL_AIDL_INCLUDES":         "aidl.include_dirs",
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
