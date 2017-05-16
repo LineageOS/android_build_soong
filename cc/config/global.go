@@ -104,7 +104,7 @@ func init() {
 
 	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
-	pctx.PrefixedPathsForOptionalSourceVariable("CommonGlobalIncludes", "-I",
+	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I",
 		[]string{
 			"system/core/include",
 			"system/media/audio/include",
@@ -118,7 +118,7 @@ func init() {
 		})
 	// This is used by non-NDK modules to get jni.h. export_include_dirs doesn't help
 	// with this, since there is no associated library.
-	pctx.PrefixedPathsForOptionalSourceVariable("CommonNativehelperInclude", "-I",
+	pctx.PrefixedExistentPathsForSourcesVariable("CommonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
 
 	pctx.SourcePathVariable("ClangDefaultBase", "prebuilts/clang/host")
@@ -153,7 +153,7 @@ func init() {
 	pctx.StaticVariable("RSLLVMPrebuiltsPath", "${RSClangBase}/${HostPrebuiltTag}/${RSClangVersion}/bin")
 	pctx.StaticVariable("RSIncludePath", "${RSLLVMPrebuiltsPath}/../lib64/clang/${RSReleaseVersion}/include")
 
-	pctx.PrefixedPathsForOptionalSourceVariable("RsGlobalIncludes", "-I",
+	pctx.PrefixedExistentPathsForSourcesVariable("RsGlobalIncludes", "-I",
 		[]string{
 			"external/clang/lib/Headers",
 			"frameworks/rs/script_api/include",
