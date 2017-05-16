@@ -73,6 +73,17 @@ func Build(ctx Context, config Config, what int) {
 		cmd.Stderr = ctx.Stderr()
 		cmd.RunOrFatal()
 		return
+	} else if inList("clean", config.Arguments()) || inList("clobber", config.Arguments()) {
+		// We can't use os.RemoveAll, since we don't want to remove the
+		// output directory itself, in case it's a symlink. So just do
+		// exactly what make used to do.
+		cmd := Command(ctx, config, "rm -rf $OUT_DIR/*",
+			"/bin/bash", "-c", "rm -rf "+config.OutDir()+"/*")
+		cmd.Stdout = ctx.Stdout()
+		cmd.Stderr = ctx.Stderr()
+		cmd.RunOrFatal()
+		ctx.Println("Entire build directory removed.")
+		return
 	}
 
 	SetupOutDir(ctx, config)
