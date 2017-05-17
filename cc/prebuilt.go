@@ -66,7 +66,12 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 }
 
 func prebuiltSharedLibraryFactory() (blueprint.Module, []interface{}) {
-	module, library := NewLibrary(android.HostAndDeviceSupported)
+	module, _ := NewPrebuiltSharedLibrary(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
+	module, library := NewLibrary(hod)
 	library.BuildOnlyShared()
 	module.compiler = nil
 
@@ -75,11 +80,16 @@ func prebuiltSharedLibraryFactory() (blueprint.Module, []interface{}) {
 	}
 	module.linker = prebuilt
 
-	return module.Init()
+	return module, library
 }
 
 func prebuiltStaticLibraryFactory() (blueprint.Module, []interface{}) {
-	module, library := NewLibrary(android.HostAndDeviceSupported)
+	module, _ := NewPrebuiltStaticLibrary(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
+	module, library := NewLibrary(hod)
 	library.BuildOnlyStatic()
 	module.compiler = nil
 
@@ -88,7 +98,7 @@ func prebuiltStaticLibraryFactory() (blueprint.Module, []interface{}) {
 	}
 	module.linker = prebuilt
 
-	return module.Init()
+	return module, library
 }
 
 type prebuiltBinaryLinker struct {
@@ -115,7 +125,12 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 }
 
 func prebuiltBinaryFactory() (blueprint.Module, []interface{}) {
-	module, binary := NewBinary(android.HostAndDeviceSupported)
+	module, _ := NewPrebuiltBinary(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
+	module, binary := NewBinary(hod)
 	module.compiler = nil
 
 	prebuilt := &prebuiltBinaryLinker{
@@ -123,5 +138,5 @@ func prebuiltBinaryFactory() (blueprint.Module, []interface{}) {
 	}
 	module.linker = prebuilt
 
-	return module.Init()
+	return module, binary
 }
