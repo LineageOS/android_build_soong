@@ -18,7 +18,6 @@ package python
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -31,7 +30,7 @@ func init() {
 	android.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
 }
 
-type PythonBinaryProperties struct {
+type PythonBinaryBaseProperties struct {
 	// the name of the source file that is the main entry point of the program.
 	// this file must also be listed in srcs.
 	// If left unspecified, module name is used instead.
@@ -45,40 +44,53 @@ type PythonBinaryProperties struct {
 	Suffix string
 }
 
-type PythonBinary struct {
+type pythonBinaryBase struct {
 	pythonBaseModule
 
-	binaryProperties PythonBinaryProperties
+	binaryProperties PythonBinaryBaseProperties
 
 	// soong_zip arguments from all its dependencies.
 	depsParSpecs []parSpec
 
 	// Python runfiles paths from all its dependencies.
 	depsPyRunfiles []string
-
-	// the installation path for Python binary.
-	installPath android.OutputPath
 }
 
-var _ PythonSubModule = (*PythonBinary)(nil)
+type PythonBinaryHost struct {
+	pythonBinaryBase
+}
+
+var _ PythonSubModule = (*PythonBinaryHost)(nil)
+
+type pythonBinaryHostDecorator struct {
+	pythonDecorator
+}
+
+func (p *pythonBinaryHostDecorator) install(ctx android.ModuleContext, file android.Path) {
+	p.pythonDecorator.baseInstaller.install(ctx, file)
+}
 
 var (
 	stubTemplateHost = "build/soong/python/scripts/stub_template_host.txt"
 )
 
 func PythonBinaryHostFactory() (blueprint.Module, []interface{}) {
-	module := &PythonBinary{}
+	decorator := &pythonBinaryHostDecorator{
+		pythonDecorator: pythonDecorator{baseInstaller: NewPythonInstaller("bin")}}
 
-	return InitPythonBaseModule(&module.pythonBaseModule, module, android.HostSupportedNoCross,
-		&module.binaryProperties)
+	module := &PythonBinaryHost{}
+	module.pythonBaseModule.installer = decorator
+
+	return InitPythonBaseModule(&module.pythonBinaryBase.pythonBaseModule,
+		&module.pythonBinaryBase, android.HostSupportedNoCross, &module.binaryProperties)
 }
 
-func (p *PythonBinary) GeneratePythonBuildActions(ctx android.ModuleContext) {
+func (p *pythonBinaryBase) GeneratePythonBuildActions(ctx android.ModuleContext) android.OptionalPath {
 	p.pythonBaseModule.GeneratePythonBuildActions(ctx)
 
 	// no Python source file for compiling par file.
 	if len(p.pythonBaseModule.srcsPathMappings) == 0 && len(p.depsPyRunfiles) == 0 {
-		return
+		return android.OptionalPath{}
 	}
 
 	// the runfiles packages needs to be populated with "__init__.py".
@@ -121,11 +133,11 @@ func (p *PythonBinary) GeneratePythonBuildActions(ctx android.ModuleContext) {
 
 	main := p.getPyMainFile(ctx)
 	if main == "" {
-		return
+		return android.OptionalPath{}
 	}
 	interp := p.getInterpreter(ctx)
 	if interp == "" {
-		return
+		return android.OptionalPath{}
 	}
 
 	// we need remove "runfiles/" suffix since stub script starts
@@ -134,13 +146,11 @@ func (p *PythonBinary) GeneratePythonBuildActions(ctx android.ModuleContext) {
 		strings.TrimPrefix(main, runFiles+"/"), p.getStem(ctx),
 		newPyPkgs, append(p.depsParSpecs, p.pythonBaseModule.parSpec))
 
-	// install par file.
-	p.installPath = ctx.InstallFile(
-		android.PathForModuleInstall(ctx, "bin"), binFile)
+	return android.OptionalPathForPath(binFile)
 }
 
 // get interpreter path.
-func (p *PythonBinary) getInterpreter(ctx android.ModuleContext) string {
+func (p *pythonBinaryBase) getInterpreter(ctx android.ModuleContext) string {
 	var interp string
 	switch p.pythonBaseModule.properties.ActualVersion {
 	case pyVersion2:
@@ -156,7 +166,7 @@ func (p *PythonBinary) getInterpreter(ctx android.ModuleContext) string {
 }
 
 // find main program path within runfiles tree.
-func (p *PythonBinary) getPyMainFile(ctx android.ModuleContext) string {
+func (p *pythonBinaryBase) getPyMainFile(ctx android.ModuleContext) string {
 	var main string
 	if p.binaryProperties.Main == "" {
 		main = p.BaseModuleName() + pyExt
@@ -174,7 +184,7 @@ func (p *PythonBinary) getPyMainFile(ctx android.ModuleContext) string {
 	return ""
 }
 
-func (p *PythonBinary) getStem(ctx android.ModuleContext) string {
+func (p *pythonBinaryBase) getStem(ctx android.ModuleContext) string {
 	stem := ctx.ModuleName()
 	if p.binaryProperties.Stem != "" {
 		stem = p.binaryProperties.Stem
@@ -208,28 +218,4 @@ func PathBeforeLastSlash(path string) string {
 		return path[:idx]
 	}
 	return ""
-}
-
-func (p *PythonBinary) GeneratePythonAndroidMk() (ret android.AndroidMkData, err error) {
-	// Soong installation is only supported for host modules. Have Make
-	// installation trigger Soong installation.
-	if p.pythonBaseModule.Target().Os.Class == android.Host {
-		ret.OutputFile = android.OptionalPathForPath(p.installPath)
-	}
-	ret.Class = "EXECUTABLES"
-
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
-		path := p.installPath.RelPathString()
-		dir, file := filepath.Split(path)
-		stem := strings.TrimSuffix(file, filepath.Ext(file))
-
-		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
-		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
-		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
-
-		return nil
-	})
-
-	return
-
 }
