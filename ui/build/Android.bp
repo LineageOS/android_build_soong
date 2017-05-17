@@ -24,6 +24,8 @@ bootstrap_go_package {
         "config.go",
         "context.go",
         "environment.go",
+        "exec.go",
+        "java.go",
         "kati.go",
         "make.go",
         "ninja.go",
@@ -36,9 +38,15 @@ bootstrap_go_package {
         "util_test.go",
     ],
     darwin: {
-        srcs: ["util_darwin.go"],
+        srcs: [
+            "sandbox_darwin.go",
+            "util_darwin.go"
+        ],
     },
     linux: {
-        srcs: ["util_linux.go"],
+        srcs: [
+            "sandbox_linux.go",
+            "util_linux.go"
+        ],
     },
 }

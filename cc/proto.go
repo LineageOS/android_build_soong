@@ -16,6 +16,7 @@ package cc
 
 import (
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -29,7 +30,6 @@ var (
 		blueprint.RuleParams{
 			Command:     "$protocCmd --cpp_out=$outDir $protoFlags $in",
 			CommandDeps: []string{"$protocCmd"},
-			Description: "protoc $out",
 		}, "protoFlags", "outDir")
 )
 
@@ -47,9 +47,10 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 	outFile := android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
 	headerFile := android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:    proto,
-		Outputs: android.WritablePaths{outFile, headerFile},
-		Input:   protoFile,
+		Rule:        proto,
+		Description: "protoc " + protoFile.Rel(),
+		Outputs:     android.WritablePaths{outFile, headerFile},
+		Input:       protoFile,
 		Args: map[string]string{
 			"outDir":     protoDir(ctx).String(),
 			"protoFlags": protoFlags,
@@ -72,17 +73,25 @@ func protoSubDir(ctx android.ModuleContext) android.ModuleGenPath {
 type ProtoProperties struct {
 	Proto struct {
 		// Proto generator type (full, lite)
-		Type string
+		Type *string `android:"arch_variant"`
+
 		// Link statically against the protobuf runtime
-		Static bool
-	}
+		Static bool `android:"arch_variant"`
+
+		// list of directories that will be added to the protoc include paths.
+		Include_dirs []string
+
+		// list of directories relative to the Android.bp file that will
+		// be added to the protoc include paths.
+		Local_include_dirs []string
+	} `android:"arch_variant"`
 }
 
 func protoDeps(ctx BaseModuleContext, deps Deps, p *ProtoProperties) Deps {
 	var lib string
 	var static bool
 
-	switch p.Proto.Type {
+	switch proptools.String(p.Proto.Type) {
 	case "full":
 		if ctx.sdk() {
 			lib = "libprotobuf-cpp-full-ndk"
@@ -101,7 +110,8 @@ func protoDeps(ctx BaseModuleContext, deps Deps, p *ProtoProperties) Deps {
 			}
 		}
 	default:
-		ctx.PropertyErrorf("proto.type", "unknown proto type %q", p.Proto.Type)
+		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
+			proptools.String(p.Proto.Type))
 	}
 
 	if static {
@@ -121,6 +131,17 @@ func protoFlags(ctx ModuleContext, flags Flags, p *ProtoProperties) Flags {
 		"-I"+protoSubDir(ctx).String(),
 		"-I"+protoDir(ctx).String(),
 	)
+
+	if len(p.Proto.Local_include_dirs) > 0 {
+		localProtoIncludeDirs := android.PathsForModuleSrc(ctx, p.Proto.Local_include_dirs)
+		flags.protoFlags = append(flags.protoFlags, includeDirsToFlags(localProtoIncludeDirs))
+	}
+	if len(p.Proto.Include_dirs) > 0 {
+		rootProtoIncludeDirs := android.PathsForSource(ctx, p.Proto.Include_dirs)
+		flags.protoFlags = append(flags.protoFlags, includeDirsToFlags(rootProtoIncludeDirs))
+	}
+
+	flags.protoFlags = append(flags.protoFlags, "-I .")
 
 	return flags
 }

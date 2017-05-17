@@ -81,8 +81,18 @@ func registerMutators(ctx *blueprint.Context) {
 }
 
 func RegisterTestMutators(ctx *blueprint.Context) {
-	mutators := registerMutatorsContext{}
+	mutators := &registerMutatorsContext{}
+
+	register := func(funcs []RegisterMutatorFunc) {
+		for _, f := range funcs {
+			f(mutators)
+		}
+	}
+
+	register(testPreDeps)
 	mutators.BottomUp("deps", depsMutator).Parallel()
+	register(testPostDeps)
+
 	registerMutatorsToContext(ctx, mutators.mutators)
 }
 
@@ -97,7 +107,7 @@ type RegisterMutatorsContext interface {
 
 type RegisterMutatorFunc func(RegisterMutatorsContext)
 
-var preArch, preDeps, postDeps []RegisterMutatorFunc
+var preArch, preDeps, postDeps, testPreDeps, testPostDeps []RegisterMutatorFunc
 
 func PreArchMutators(f RegisterMutatorFunc) {
 	preArch = append(preArch, f)
@@ -109,6 +119,14 @@ func PreDepsMutators(f RegisterMutatorFunc) {
 
 func PostDepsMutators(f RegisterMutatorFunc) {
 	postDeps = append(postDeps, f)
+}
+
+func TestPreDepsMutators(f RegisterMutatorFunc) {
+	testPreDeps = append(testPreDeps, f)
+}
+
+func TeststPostDepsMutators(f RegisterMutatorFunc) {
+	testPostDeps = append(testPostDeps, f)
 }
 
 type AndroidTopDownMutator func(TopDownMutatorContext)

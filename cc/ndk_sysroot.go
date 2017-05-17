@@ -90,6 +90,10 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	installPaths := []string{}
 	licensePaths := []string{}
 	ctx.VisitAllModules(func(module blueprint.Module) {
+		if m, ok := module.(android.Module); ok && !m.Enabled() {
+			return
+		}
+
 		if m, ok := module.(*headerModule); ok {
 			installPaths = append(installPaths, m.installPaths...)
 			licensePaths = append(licensePaths, m.licensePath.String())
@@ -109,10 +113,11 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 
 	combinedLicense := getNdkInstallBase(ctx).Join(ctx, "NOTICE")
 	ctx.Build(pctx, blueprint.BuildParams{
-		Rule:     android.Cat,
-		Outputs:  []string{combinedLicense.String()},
-		Inputs:   licensePaths,
-		Optional: true,
+		Rule:        android.Cat,
+		Description: "combine licenses",
+		Outputs:     []string{combinedLicense.String()},
+		Inputs:      licensePaths,
+		Optional:    true,
 	})
 
 	depPaths := append(installPaths, combinedLicense.String())

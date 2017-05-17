@@ -38,9 +38,10 @@ type configImpl struct {
 	dist      bool
 
 	// From the product config
-	katiArgs   []string
-	ninjaArgs  []string
-	katiSuffix string
+	katiArgs     []string
+	ninjaArgs    []string
+	katiSuffix   string
+	targetDevice string
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -51,7 +52,9 @@ func NewConfig(ctx Context, args ...string) Config {
 	}
 
 	// Make sure OUT_DIR is set appropriately
-	if _, ok := ret.environ.Get("OUT_DIR"); !ok {
+	if outDir, ok := ret.environ.Get("OUT_DIR"); ok {
+		ret.environ.Set("OUT_DIR", filepath.Clean(outDir))
+	} else {
 		outDir := "out"
 		if baseDir, ok := ret.environ.Get("OUT_DIR_COMMON_BASE"); ok {
 			if wd, err := os.Getwd(); err != nil {
@@ -104,6 +107,32 @@ func NewConfig(ctx Context, args ...string) Config {
 		log.Fatalln("Error verifying tree state:", err)
 	}
 
+	if srcDir, err := filepath.Abs("."); err == nil {
+		if strings.ContainsRune(srcDir, ' ') {
+			log.Println("You are building in a directory whose absolute path contains a space character:")
+			log.Println()
+			log.Printf("%q\n", srcDir)
+			log.Println()
+			log.Fatalln("Directory names containing spaces are not supported")
+		}
+	}
+
+	if outDir := ret.OutDir(); strings.ContainsRune(outDir, ' ') {
+		log.Println("The absolute path of your output directory ($OUT_DIR) contains a space character:")
+		log.Println()
+		log.Printf("%q\n", outDir)
+		log.Println()
+		log.Fatalln("Directory names containing spaces are not supported")
+	}
+
+	if distDir := ret.DistDir(); strings.ContainsRune(distDir, ' ') {
+		log.Println("The absolute path of your dist directory ($DIST_DIR) contains a space character:")
+		log.Println()
+		log.Printf("%q\n", distDir)
+		log.Println()
+		log.Fatalln("Directory names containing spaces are not supported")
+	}
+
 	for _, arg := range args {
 		arg = strings.TrimSpace(arg)
 		if arg == "--make-mode" {
@@ -136,6 +165,22 @@ func NewConfig(ctx Context, args ...string) Config {
 	}
 
 	return Config{ret}
+}
+
+// CopyConfig copies the configuration from an existing configuration, but replaces
+// the Arguments() list with a new set. Useful if you need to run a different build
+// with the same state as an existing build config.
+func CopyConfig(ctx Context, config Config, args ...string) Config {
+	return Config{&configImpl{
+		arguments: args,
+		goma:      config.goma,
+		environ:   config.environ.Copy(),
+
+		parallel:  config.parallel,
+		keepGoing: config.keepGoing,
+		verbose:   config.verbose,
+		dist:      config.dist,
+	}}
 }
 
 // Lunch configures the environment for a specific product similarly to the
@@ -243,6 +288,21 @@ func (c *configImpl) TargetProduct() string {
 	panic("TARGET_PRODUCT is not defined")
 }
 
+func (c *configImpl) TargetDevice() string {
+	return c.targetDevice
+}
+
+func (c *configImpl) SetTargetDevice(device string) {
+	c.targetDevice = device
+}
+
+func (c *configImpl) TargetBuildVariant() string {
+	if v, ok := c.environ.Get("TARGET_BUILD_VARIANT"); ok {
+		return v
+	}
+	panic("TARGET_BUILD_VARIANT is not defined")
+}
+
 func (c *configImpl) KatiArgs() []string {
 	return c.katiArgs
 }
@@ -309,6 +369,10 @@ func (c *configImpl) SoongMakeVarsMk() string {
 	return filepath.Join(c.SoongOutDir(), "make_vars-"+c.TargetProduct()+".mk")
 }
 
+func (c *configImpl) DevicePreviousProductConfig() string {
+	return filepath.Join(c.OutDir(), "target", "product", c.TargetDevice(), "previous_build_config.mk")
+}
+
 func (c *configImpl) HostPrebuiltTag() string {
 	if runtime.GOOS == "linux" {
 		return "linux-x86"
@@ -319,13 +383,21 @@ func (c *configImpl) HostPrebuiltTag() string {
 	}
 }
 
-func (c *configImpl) PrebuiltBuildTool(name string) string {
+func (c *configImpl) HostAsan() bool {
 	if v, ok := c.environ.Get("SANITIZE_HOST"); ok {
 		if sanitize := strings.Fields(v); inList("address", sanitize) {
-			asan := filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "asan/bin", name)
-			if _, err := os.Stat(asan); err == nil {
-				return asan
-			}
+			return true
+		}
+	}
+	return false
+}
+
+func (c *configImpl) PrebuiltBuildTool(name string) string {
+	// (b/36182021) We're seeing rare ckati crashes, so always enable asan kati on the build servers.
+	if c.HostAsan() || (c.Dist() && name == "ckati") {
+		asan := filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "asan/bin", name)
+		if _, err := os.Stat(asan); err == nil {
+			return asan
 		}
 	}
 	return filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "bin", name)

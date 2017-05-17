@@ -33,7 +33,8 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_STEM":           stem,
 	"LOCAL_MODULE_HOST_OS":        hostOs,
 	"LOCAL_SRC_FILES":             srcFiles,
-	"LOCAL_SANITIZE":              sanitize,
+	"LOCAL_SANITIZE":              sanitize(""),
+	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -56,20 +57,21 @@ func addStandardProperties(propertyType bpparser.Type, properties map[string]str
 func init() {
 	addStandardProperties(bpparser.StringType,
 		map[string]string{
-			"LOCAL_MODULE":               "name",
-			"LOCAL_CXX_STL":              "stl",
-			"LOCAL_STRIP_MODULE":         "strip",
-			"LOCAL_MULTILIB":             "compile_multilib",
-			"LOCAL_ARM_MODE_HACK":        "instruction_set",
-			"LOCAL_SDK_VERSION":          "sdk_version",
-			"LOCAL_NDK_STL_VARIANT":      "stl",
-			"LOCAL_JAR_MANIFEST":         "manifest",
-			"LOCAL_JARJAR_RULES":         "jarjar_rules",
-			"LOCAL_CERTIFICATE":          "certificate",
-			"LOCAL_PACKAGE_NAME":         "name",
-			"LOCAL_MODULE_RELATIVE_PATH": "relative_install_path",
-			"LOCAL_PROTOC_OPTIMIZE_TYPE": "proto.type",
-			"LOCAL_MODULE_OWNER":         "owner",
+			"LOCAL_MODULE":                  "name",
+			"LOCAL_CXX_STL":                 "stl",
+			"LOCAL_STRIP_MODULE":            "strip",
+			"LOCAL_MULTILIB":                "compile_multilib",
+			"LOCAL_ARM_MODE_HACK":           "instruction_set",
+			"LOCAL_SDK_VERSION":             "sdk_version",
+			"LOCAL_NDK_STL_VARIANT":         "stl",
+			"LOCAL_JAR_MANIFEST":            "manifest",
+			"LOCAL_JARJAR_RULES":            "jarjar_rules",
+			"LOCAL_CERTIFICATE":             "certificate",
+			"LOCAL_PACKAGE_NAME":            "name",
+			"LOCAL_MODULE_RELATIVE_PATH":    "relative_install_path",
+			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
+			"LOCAL_MODULE_OWNER":            "owner",
+			"LOCAL_RENDERSCRIPT_TARGET_API": "renderscript.target_api",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -96,14 +98,16 @@ func init() {
 			"LOCAL_INIT_RC":                       "init_rc",
 			"LOCAL_TIDY_FLAGS":                    "tidy_flags",
 			// TODO: This is comma-separated, not space-separated
-			"LOCAL_TIDY_CHECKS": "tidy_checks",
+			"LOCAL_TIDY_CHECKS":           "tidy_checks",
+			"LOCAL_RENDERSCRIPT_INCLUDES": "renderscript.include_dirs",
+			"LOCAL_RENDERSCRIPT_FLAGS":    "renderscript.flags",
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
 			"LOCAL_JAVA_LIBRARIES":        "java_libs",
 			"LOCAL_STATIC_JAVA_LIBRARIES": "java_static_libs",
-			"LOCAL_AIDL_INCLUDES":         "aidl_includes",
+			"LOCAL_AIDL_INCLUDES":         "aidl.include_dirs",
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
@@ -410,60 +414,50 @@ func srcFiles(ctx variableAssignmentContext) error {
 	return nil
 }
 
-func sanitize(ctx variableAssignmentContext) error {
-	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
-	if err != nil {
-		return err
-	}
-
-	lists, err := splitBpList(val, func(value bpparser.Expression) (string, bpparser.Expression, error) {
-		switch v := value.(type) {
-		case *bpparser.Variable:
-			return "vars", value, nil
-		case *bpparser.Operator:
-			ctx.file.errorf(ctx.mkvalue, "unknown sanitize expression")
-			return "unknown", value, nil
-		case *bpparser.String:
-			switch v.Value {
-			case "never", "address", "coverage", "integer", "thread", "undefined":
-				bpTrue := &bpparser.Bool{
-					Value: true,
-				}
-				return v.Value, bpTrue, nil
-			default:
-				ctx.file.errorf(ctx.mkvalue, "unknown sanitize argument: %s", v.Value)
-				return "unknown", value, nil
-			}
-		default:
-			return "", nil, fmt.Errorf("sanitize expected a string, got %s", value.Type())
-		}
-	})
-	if err != nil {
-		return err
-	}
-
-	for k, v := range lists {
-		if emptyList(v) {
-			continue
-		}
-
-		switch k {
-		case "never", "address", "coverage", "integer", "thread", "undefined":
-			err = setVariable(ctx.file, false, ctx.prefix, "sanitize."+k, lists[k].(*bpparser.List).Values[0], true)
-		case "unknown":
-		// Nothing, we already added the error above
-		case "vars":
-			fallthrough
-		default:
-			err = setVariable(ctx.file, true, ctx.prefix, "sanitize", v, true)
-		}
-
+func sanitize(sub string) func(ctx variableAssignmentContext) error {
+	return func(ctx variableAssignmentContext) error {
+		val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
 		if err != nil {
 			return err
 		}
-	}
 
-	return err
+		if _, ok := val.(*bpparser.List); !ok {
+			return fmt.Errorf("unsupported sanitize expression")
+		}
+
+		misc := &bpparser.List{}
+
+		for _, v := range val.(*bpparser.List).Values {
+			switch v := v.(type) {
+			case *bpparser.Variable, *bpparser.Operator:
+				ctx.file.errorf(ctx.mkvalue, "unsupported sanitize expression")
+			case *bpparser.String:
+				switch v.Value {
+				case "never", "address", "coverage", "thread", "undefined", "cfi":
+					bpTrue := &bpparser.Bool{
+						Value: true,
+					}
+					err = setVariable(ctx.file, false, ctx.prefix, "sanitize."+sub+v.Value, bpTrue, true)
+					if err != nil {
+						return err
+					}
+				default:
+					misc.Values = append(misc.Values, v)
+				}
+			default:
+				return fmt.Errorf("sanitize expected a string, got %s", v.Type())
+			}
+		}
+
+		if len(misc.Values) > 0 {
+			err = setVariable(ctx.file, false, ctx.prefix, "sanitize."+sub+"misc_undefined", misc, true)
+			if err != nil {
+				return err
+			}
+		}
+
+		return err
+	}
 }
 
 func prebuiltClass(ctx variableAssignmentContext) error {
@@ -634,8 +628,11 @@ var conditionalTranslations = map[string]map[bool]string{
 		true:  "target.linux",
 		false: "target.not_linux"},
 	"(,$(TARGET_BUILD_APPS))": {
-		false: "product_variables.unbundled_build",
-	},
+		false: "product_variables.unbundled_build"},
+	"($(TARGET_BUILD_PDK),true)": {
+		true: "product_variables.pdk"},
+	"($(TARGET_BUILD_PDK), true)": {
+		true: "product_variables.pdk"},
 }
 
 func mydir(args []string) string {

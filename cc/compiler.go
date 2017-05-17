@@ -108,6 +108,17 @@ type BaseCompilerProperties struct {
 		Local_include_dirs []string
 	}
 
+	Renderscript struct {
+		// list of directories that will be added to the llvm-rs-cc include paths
+		Include_dirs []string
+
+		// list of flags that will be passed to llvm-rs-cc
+		Flags []string
+
+		// Renderscript API level to target
+		Target_api *string
+	}
+
 	Debug, Release struct {
 		// list of module-specific flags that will be used for C and C++ compiles in debug or
 		// release builds
@@ -125,6 +136,9 @@ type BaseCompilerProperties struct {
 			Exclude_srcs []string
 		}
 	}
+
+	// Stores the original list of source files before being cleared by library reuse
+	OriginalSrcs []string `blueprint:"mutated"`
 }
 
 func NewBaseCompiler() *baseCompiler {
@@ -216,7 +230,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		if !(ctx.sdk() || ctx.vndk()) || ctx.Host() {
 			flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 				"${config.CommonGlobalIncludes}",
-				"${config.CommonGlobalSystemIncludes}",
 				tc.IncludeFlags(),
 				"${config.CommonNativehelperInclude}")
 		}
@@ -418,11 +431,20 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 			"-I"+android.PathForModuleGen(ctx, "aidl").String())
 	}
 
+	if compiler.hasSrcExt(".rs") || compiler.hasSrcExt(".fs") {
+		flags = rsFlags(ctx, flags, &compiler.Properties)
+	}
+
 	return flags
 }
 
 func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 	for _, src := range compiler.Properties.Srcs {
+		if filepath.Ext(src) == ext {
+			return true
+		}
+	}
+	for _, src := range compiler.Properties.OriginalSrcs {
 		if filepath.Ext(src) == ext {
 			return true
 		}

@@ -37,7 +37,6 @@ var (
 		blueprint.RuleParams{
 			Command:     "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags --defines=$hFile -o $out $in",
 			CommandDeps: []string{"$yaccCmd"},
-			Description: "yacc $out",
 		},
 		"yaccFlags", "hFile")
 
@@ -45,7 +44,6 @@ var (
 		blueprint.RuleParams{
 			Command:     "$lexCmd -o$out $in",
 			CommandDeps: []string{"$lexCmd"},
-			Description: "lex $out",
 		})
 
 	aidl = pctx.AndroidStaticRule("aidl",
@@ -54,7 +52,6 @@ var (
 			CommandDeps: []string{"$aidlCmd"},
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Description: "aidl $out",
 		},
 		"aidlFlags", "outDir")
 )
@@ -64,6 +61,7 @@ func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.M
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:           yacc,
+		Description:    "yacc " + yaccFile.Rel(),
 		Output:         outFile,
 		ImplicitOutput: headerFile,
 		Input:          yaccFile,
@@ -79,9 +77,10 @@ func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.M
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.ModuleGenPath, aidlFlags string) android.Paths {
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:   aidl,
-		Output: outFile,
-		Input:  aidlFile,
+		Rule:        aidl,
+		Description: "aidl " + aidlFile.Rel(),
+		Output:      outFile,
+		Input:       aidlFile,
 		Args: map[string]string{
 			"aidlFlags": aidlFlags,
 			"outDir":    android.PathForModuleGen(ctx, "aidl").String(),
@@ -94,9 +93,10 @@ func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.M
 
 func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:   lex,
-		Output: outFile,
-		Input:  lexFile,
+		Rule:        lex,
+		Description: "lex " + lexFile.Rel(),
+		Output:      outFile,
+		Input:       lexFile,
 	})
 }
 
@@ -104,6 +104,8 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	buildFlags builderFlags) (android.Paths, android.Paths) {
 
 	var deps android.Paths
+
+	var rsFiles android.Paths
 
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
@@ -131,7 +133,15 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
 			srcFiles[i] = cppFile
 			deps = append(deps, genAidl(ctx, srcFile, cppFile, buildFlags.aidlFlags)...)
+		case ".rs", ".fs":
+			cppFile := rsGeneratedCppFile(ctx, srcFile)
+			rsFiles = append(rsFiles, srcFiles[i])
+			srcFiles[i] = cppFile
 		}
+	}
+
+	if len(rsFiles) > 0 {
+		deps = append(deps, rsGenerateCpp(ctx, rsFiles, buildFlags.rsFlags)...)
 	}
 
 	return srcFiles, deps

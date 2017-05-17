@@ -106,6 +106,7 @@ type Flags struct {
 	YaccFlags   []string // Flags that apply to Yacc source files
 	protoFlags  []string // Flags that apply to proto source files
 	aidlFlags   []string // Flags that apply to aidl source files
+	rsFlags     []string // Flags that apply to renderscript source files
 	LdFlags     []string // Flags that apply to linker command lines
 	libFlags    []string // Flags to add libraries early to the link order
 	TidyFlags   []string // Flags that apply to clang-tidy
@@ -950,7 +951,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		if tag == reuseObjTag {
 			if l, ok := cc.compiler.(libraryInterface); ok {
-				depPaths.Objs = depPaths.Objs.Append(l.reuseObjs())
+				objs, flags, deps := l.reuseObjs()
+				depPaths.Objs = depPaths.Objs.Append(objs)
+				depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
+				depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps, deps...)
 				return
 			}
 		}
@@ -1187,6 +1191,13 @@ func lastUniqueElements(list []string) []string {
 		totalSkip += skip
 	}
 	return list[totalSkip:]
+}
+
+func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
+	if ctx.AConfig().PlatformSdkVersionInt() > config.NdkMaxPrebuiltVersionInt {
+		return strconv.Itoa(config.NdkMaxPrebuiltVersionInt)
+	}
+	return ctx.AConfig().PlatformSdkVersion()
 }
 
 var Bool = proptools.Bool

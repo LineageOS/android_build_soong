@@ -36,6 +36,7 @@ type ModuleBuildParams struct {
 	Rule            blueprint.Rule
 	Deps            blueprint.Deps
 	Depfile         WritablePath
+	Description     string
 	Output          WritablePath
 	Outputs         WritablePaths
 	ImplicitOutput  WritablePath
@@ -154,7 +155,7 @@ type commonProperties struct {
 	Init_rc []string
 
 	// names of other modules to install if this module is installed
-	Required []string
+	Required []string `android:"arch_variant"`
 
 	// Set by TargetMutator
 	CompileTarget  Target `blueprint:"mutated"`
@@ -480,6 +481,23 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		missingDeps:            ctx.GetMissingDependencies(),
 	}
 
+	desc := "//" + ctx.ModuleDir() + ":" + ctx.ModuleName() + " "
+	var suffix []string
+	if androidCtx.Os().Class != Device && androidCtx.Os().Class != Generic {
+		suffix = append(suffix, androidCtx.Os().String())
+	}
+	if !androidCtx.PrimaryArch() {
+		suffix = append(suffix, androidCtx.Arch().ArchType.String())
+	}
+
+	ctx.Variable(pctx, "moduleDesc", desc)
+
+	s := ""
+	if len(suffix) > 0 {
+		s = " [" + strings.Join(suffix, " ") + "]"
+	}
+	ctx.Variable(pctx, "moduleDescSuffix", s)
+
 	if a.Enabled() {
 		a.module.GenerateAndroidBuildActions(androidCtx)
 		if ctx.Failed() {
@@ -516,11 +534,12 @@ type androidModuleContext struct {
 	module          Module
 }
 
-func (a *androidModuleContext) ninjaError(outputs []string, err error) {
+func (a *androidModuleContext) ninjaError(desc string, outputs []string, err error) {
 	a.ModuleContext.Build(pctx, blueprint.BuildParams{
-		Rule:     ErrorRule,
-		Outputs:  outputs,
-		Optional: true,
+		Rule:        ErrorRule,
+		Description: desc,
+		Outputs:     outputs,
+		Optional:    true,
 		Args: map[string]string{
 			"error": err.Error(),
 		},
@@ -530,8 +549,9 @@ func (a *androidModuleContext) ninjaError(outputs []string, err error) {
 
 func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
 	if a.missingDeps != nil {
-		a.ninjaError(params.Outputs, fmt.Errorf("module %s missing dependencies: %s\n",
-			a.ModuleName(), strings.Join(a.missingDeps, ", ")))
+		a.ninjaError(params.Description, params.Outputs,
+			fmt.Errorf("module %s missing dependencies: %s\n",
+				a.ModuleName(), strings.Join(a.missingDeps, ", ")))
 		return
 	}
 
@@ -552,6 +572,10 @@ func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params
 		Optional:        !params.Default,
 	}
 
+	if params.Description != "" {
+		bparams.Description = "${moduleDesc}" + params.Description + "${moduleDescSuffix}"
+	}
+
 	if params.Depfile != nil {
 		bparams.Depfile = params.Depfile.String()
 	}
@@ -569,8 +593,9 @@ func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params
 	}
 
 	if a.missingDeps != nil {
-		a.ninjaError(bparams.Outputs, fmt.Errorf("module %s missing dependencies: %s\n",
-			a.ModuleName(), strings.Join(a.missingDeps, ", ")))
+		a.ninjaError(bparams.Description, bparams.Outputs,
+			fmt.Errorf("module %s missing dependencies: %s\n",
+				a.ModuleName(), strings.Join(a.missingDeps, ", ")))
 		return
 	}
 
@@ -624,6 +649,9 @@ func (a *androidBaseContextImpl) Debug() bool {
 }
 
 func (a *androidBaseContextImpl) PrimaryArch() bool {
+	if len(a.config.Targets[a.target.Os.Class]) <= 1 {
+		return true
+	}
 	return a.target.Arch.ArchType == a.config.Targets[a.target.Os.Class][0].Arch.ArchType
 }
 
@@ -686,12 +714,13 @@ func (a *androidModuleContext) InstallFileName(installPath OutputPath, name stri
 		}
 
 		a.ModuleBuild(pctx, ModuleBuildParams{
-			Rule:      Cp,
-			Output:    fullInstallPath,
-			Input:     srcPath,
-			Implicits: implicitDeps,
-			OrderOnly: orderOnlyDeps,
-			Default:   !a.AConfig().EmbeddedInMake(),
+			Rule:        Cp,
+			Description: "install " + fullInstallPath.Base(),
+			Output:      fullInstallPath,
+			Input:       srcPath,
+			Implicits:   implicitDeps,
+			OrderOnly:   orderOnlyDeps,
+			Default:     !a.AConfig().EmbeddedInMake(),
 		})
 
 		a.installFiles = append(a.installFiles, fullInstallPath)
@@ -711,10 +740,11 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 	if !a.skipInstall(fullInstallPath) {
 
 		a.ModuleBuild(pctx, ModuleBuildParams{
-			Rule:      Symlink,
-			Output:    fullInstallPath,
-			OrderOnly: Paths{srcPath},
-			Default:   !a.AConfig().EmbeddedInMake(),
+			Rule:        Symlink,
+			Description: "install symlink " + fullInstallPath.Base(),
+			Output:      fullInstallPath,
+			OrderOnly:   Paths{srcPath},
+			Default:     !a.AConfig().EmbeddedInMake(),
 			Args: map[string]string{
 				"fromPath": srcPath.String(),
 			},

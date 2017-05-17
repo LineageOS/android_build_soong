@@ -200,7 +200,10 @@ type libraryDecorator struct {
 	MutatedProperties LibraryMutatedProperties
 
 	// For reusing static library objects for shared library
-	reuseObjects Objects
+	reuseObjects       Objects
+	reuseExportedFlags []string
+	reuseExportedDeps  android.Paths
+
 	// table-of-contents file to optimize out relinking when possible
 	tocFile android.OptionalPath
 
@@ -362,7 +365,7 @@ type libraryInterface interface {
 	getWholeStaticMissingDeps() []string
 	static() bool
 	objs() Objects
-	reuseObjs() Objects
+	reuseObjs() (Objects, []string, android.Paths)
 	toc() android.OptionalPath
 
 	// Returns true if the build options for the module have selected a static or shared build
@@ -421,7 +424,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 				// version.
 				version := ctx.sdkVersion()
 				if version == "current" {
-					version = ctx.AConfig().PlatformSdkVersion()
+					version = getCurrentNdkPrebuiltVersion(ctx)
 				}
 				deps.CrtBegin = "ndk_crtbegin_so." + version
 				deps.CrtEnd = "ndk_crtend_so." + version
@@ -615,20 +618,26 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 	if library.Properties.Aidl.Export_aidl_headers {
 		if library.baseCompiler.hasSrcExt(".aidl") {
-			library.reexportFlags([]string{
+			flags := []string{
 				"-I" + android.PathForModuleGen(ctx, "aidl").String(),
-			})
+			}
+			library.reexportFlags(flags)
+			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
 			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to aidl deps
+			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.deps...)
 		}
 	}
 
 	if library.Properties.Proto.Export_proto_headers {
 		if library.baseCompiler.hasSrcExt(".proto") {
-			library.reexportFlags([]string{
+			flags := []string{
 				"-I" + protoSubDir(ctx).String(),
 				"-I" + protoDir(ctx).String(),
-			})
+			}
+			library.reexportFlags(flags)
+			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
 			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to proto deps
+			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.deps...)
 		}
 	}
 
@@ -653,8 +662,8 @@ func (library *libraryDecorator) objs() Objects {
 	return library.objects
 }
 
-func (library *libraryDecorator) reuseObjs() Objects {
-	return library.reuseObjects
+func (library *libraryDecorator) reuseObjs() (Objects, []string, android.Paths) {
+	return library.reuseObjects, library.reuseExportedFlags, library.reuseExportedDeps
 }
 
 func (library *libraryDecorator) toc() android.OptionalPath {
@@ -724,6 +733,23 @@ func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) 
 	return module, library
 }
 
+// connects a shared library to a static library in order to reuse its .o files to avoid
+// compiling source files twice.
+func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Module) {
+	if staticCompiler, ok := static.compiler.(*libraryDecorator); ok {
+		sharedCompiler := shared.compiler.(*libraryDecorator)
+		if len(staticCompiler.Properties.Static.Cflags) == 0 &&
+			len(sharedCompiler.Properties.Shared.Cflags) == 0 {
+
+			mctx.AddInterVariantDependency(reuseObjTag, shared, static)
+			sharedCompiler.baseCompiler.Properties.OriginalSrcs =
+				sharedCompiler.baseCompiler.Properties.Srcs
+			sharedCompiler.baseCompiler.Properties.Srcs = nil
+			sharedCompiler.baseCompiler.Properties.Generated_sources = nil
+		}
+	}
+}
+
 func linkageMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
 		if library, ok := m.linker.(libraryInterface); ok {
@@ -736,16 +762,8 @@ func linkageMutator(mctx android.BottomUpMutatorContext) {
 				static.linker.(libraryInterface).setStatic()
 				shared.linker.(libraryInterface).setShared()
 
-				if staticCompiler, ok := static.compiler.(*libraryDecorator); ok {
-					sharedCompiler := shared.compiler.(*libraryDecorator)
-					if len(staticCompiler.Properties.Static.Cflags) == 0 &&
-						len(sharedCompiler.Properties.Shared.Cflags) == 0 {
-						// Optimize out compiling common .o files twice for static+shared libraries
-						mctx.AddInterVariantDependency(reuseObjTag, shared, static)
-						sharedCompiler.baseCompiler.Properties.Srcs = nil
-						sharedCompiler.baseCompiler.Properties.Generated_sources = nil
-					}
-				}
+				reuseStaticLibrary(mctx, static, shared)
+
 			} else if library.buildStatic() {
 				modules = mctx.CreateLocalVariations("static")
 				modules[0].(*Module).linker.(libraryInterface).setStatic()

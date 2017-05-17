@@ -97,6 +97,8 @@ type Path interface {
 type WritablePath interface {
 	Path
 
+	// the writablePath method doesn't directly do anything,
+	// but it allows a struct to distinguish between whether or not it implements the WritablePath interface
 	writablePath()
 }
 
@@ -137,7 +139,7 @@ func ResPathWithName(ctx ModuleContext, p Path, name string) ModuleResPath {
 	if path, ok := p.(resPathProvider); ok {
 		return path.resPathWithName(ctx, name)
 	}
-	reportPathError(ctx, "Tried to create object file from unsupported path: %s (%s)", reflect.TypeOf(p).Name(), p)
+	reportPathError(ctx, "Tried to create res file from unsupported path: %s (%s)", reflect.TypeOf(p).Name(), p)
 	return PathForModuleRes(ctx)
 }
 
@@ -188,7 +190,7 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 			ret := make(Paths, 0, len(paths))
 			intermediates := filepath.Join(modCtx.ModuleDir(), modCtx.ModuleName(), modCtx.ModuleSubDir(), "missing")
 			for _, path := range paths {
-				p := OptionalPathForSource(ctx, intermediates, path)
+				p := ExistentPathForSource(ctx, intermediates, path)
 				if p.Valid() {
 					ret = append(ret, p.Path())
 				} else {
@@ -205,13 +207,13 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 	return ret
 }
 
-// PathsForOptionalSource returns a list of Paths rooted from SrcDir that are
+// ExistentPathsForSources returns a list of Paths rooted from SrcDir that are
 // found in the tree. If any are not found, they are omitted from the list,
 // and dependencies are added so that we're re-run when they are added.
-func PathsForOptionalSource(ctx PathContext, intermediates string, paths []string) Paths {
+func ExistentPathsForSources(ctx PathContext, intermediates string, paths []string) Paths {
 	ret := make(Paths, 0, len(paths))
 	for _, path := range paths {
-		p := OptionalPathForSource(ctx, intermediates, path)
+		p := ExistentPathForSource(ctx, intermediates, path)
 		if p.Valid() {
 			ret = append(ret, p.Path())
 		}
@@ -337,12 +339,11 @@ func safePathForSource(ctx PathContext, path string) SourcePath {
 	return ret
 }
 
-// PathForSource returns a SourcePath for the provided paths... (which are
-// joined together with filepath.Join). This also validates that the path
-// doesn't escape the source dir, or is contained in the build dir. On error, it
-// will return a usable, but invalid SourcePath, and report a ModuleError.
-func PathForSource(ctx PathContext, paths ...string) SourcePath {
-	p := validatePath(ctx, paths...)
+// PathForSource joins the provided path components and validates that the result
+// neither escapes the source dir nor is in the out dir.
+// On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
+func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
+	p := validatePath(ctx, pathComponents...)
 	ret := SourcePath{basePath{p, pathConfig(ctx), ""}}
 
 	abs, err := filepath.Abs(ret.String())
@@ -368,16 +369,16 @@ func PathForSource(ctx PathContext, paths ...string) SourcePath {
 	return ret
 }
 
-// OptionalPathForSource returns an OptionalPath with the SourcePath if the
+// ExistentPathForSource returns an OptionalPath with the SourcePath if the
 // path exists, or an empty OptionalPath if it doesn't exist. Dependencies are added
 // so that the ninja file will be regenerated if the state of the path changes.
-func OptionalPathForSource(ctx PathContext, intermediates string, paths ...string) OptionalPath {
-	if len(paths) == 0 {
+func ExistentPathForSource(ctx PathContext, intermediates string, pathComponents ...string) OptionalPath {
+	if len(pathComponents) == 0 {
 		// For when someone forgets the 'intermediates' argument
 		panic("Missing path(s)")
 	}
 
-	p := validatePath(ctx, paths...)
+	p := validatePath(ctx, pathComponents...)
 	path := SourcePath{basePath{p, pathConfig(ctx), ""}}
 
 	abs, err := filepath.Abs(path.String())
@@ -483,12 +484,11 @@ type OutputPath struct {
 
 var _ Path = OutputPath{}
 
-// PathForOutput returns an OutputPath for the provided paths... (which are
-// joined together with filepath.Join). This also validates that the path
-// does not escape the build dir. On error, it will return a usable, but invalid
-// OutputPath, and report a ModuleError.
-func PathForOutput(ctx PathContext, paths ...string) OutputPath {
-	path := validatePath(ctx, paths...)
+// PathForOutput joins the provided paths and returns an OutputPath that is
+// validated to not escape the build dir.
+// On error, it will return a usable, but invalid OutputPath, and report a ModuleError.
+func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
+	path := validatePath(ctx, pathComponents...)
 	return OutputPath{basePath{path, pathConfig(ctx), ""}}
 }
 
@@ -597,7 +597,7 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 	}
 	refDumpFileStr := "prebuilts/abi-dumps/" + vndkOrNdkDir + "/" + version + "/" +
 		archName + "/" + sourceOrBinaryDir + "/" + fileName + ext
-	return OptionalPathForSource(ctx, "", refDumpFileStr)
+	return ExistentPathForSource(ctx, "", refDumpFileStr)
 }
 
 // PathForModuleOut returns a Path representing the paths... under the module's
@@ -647,8 +647,8 @@ var _ Path = ModuleObjPath{}
 
 // PathForModuleObj returns a Path representing the paths... under the module's
 // 'obj' directory.
-func PathForModuleObj(ctx ModuleContext, paths ...string) ModuleObjPath {
-	p := validatePath(ctx, paths...)
+func PathForModuleObj(ctx ModuleContext, pathComponents ...string) ModuleObjPath {
+	p := validatePath(ctx, pathComponents...)
 	return ModuleObjPath{PathForModuleOut(ctx, "obj", p)}
 }
 
@@ -662,14 +662,14 @@ var _ Path = ModuleResPath{}
 
 // PathForModuleRes returns a Path representing the paths... under the module's
 // 'res' directory.
-func PathForModuleRes(ctx ModuleContext, paths ...string) ModuleResPath {
-	p := validatePath(ctx, paths...)
+func PathForModuleRes(ctx ModuleContext, pathComponents ...string) ModuleResPath {
+	p := validatePath(ctx, pathComponents...)
 	return ModuleResPath{PathForModuleOut(ctx, "res", p)}
 }
 
 // PathForModuleInstall returns a Path representing the install path for the
 // module appended with paths...
-func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
+func PathForModuleInstall(ctx ModuleContext, pathComponents ...string) OutputPath {
 	var outPaths []string
 	if ctx.Device() {
 		partition := "system"
@@ -689,14 +689,14 @@ func PathForModuleInstall(ctx ModuleContext, paths ...string) OutputPath {
 	if ctx.Debug() {
 		outPaths = append([]string{"debug"}, outPaths...)
 	}
-	outPaths = append(outPaths, paths...)
+	outPaths = append(outPaths, pathComponents...)
 	return PathForOutput(ctx, outPaths...)
 }
 
 // validateSafePath validates a path that we trust (may contain ninja variables).
 // Ensures that each path component does not attempt to leave its component.
-func validateSafePath(ctx PathContext, paths ...string) string {
-	for _, path := range paths {
+func validateSafePath(ctx PathContext, pathComponents ...string) string {
+	for _, path := range pathComponents {
 		path := filepath.Clean(path)
 		if path == ".." || strings.HasPrefix(path, "../") || strings.HasPrefix(path, "/") {
 			reportPathError(ctx, "Path is outside directory: %s", path)
@@ -706,18 +706,40 @@ func validateSafePath(ctx PathContext, paths ...string) string {
 	// TODO: filepath.Join isn't necessarily correct with embedded ninja
 	// variables. '..' may remove the entire ninja variable, even if it
 	// will be expanded to multiple nested directories.
-	return filepath.Join(paths...)
+	return filepath.Join(pathComponents...)
 }
 
 // validatePath validates that a path does not include ninja variables, and that
 // each path component does not attempt to leave its component. Returns a joined
 // version of each path component.
-func validatePath(ctx PathContext, paths ...string) string {
-	for _, path := range paths {
+func validatePath(ctx PathContext, pathComponents ...string) string {
+	for _, path := range pathComponents {
 		if strings.Contains(path, "$") {
 			reportPathError(ctx, "Path contains invalid character($): %s", path)
 			return ""
 		}
 	}
-	return validateSafePath(ctx, paths...)
+	return validateSafePath(ctx, pathComponents...)
+}
+
+type testPath struct {
+	basePath
+}
+
+func (p testPath) String() string {
+	return p.path
+}
+
+func PathForTesting(paths ...string) Path {
+	p := validateSafePath(nil, paths...)
+	return testPath{basePath{path: p, rel: p}}
+}
+
+func PathsForTesting(strs []string) Paths {
+	p := make(Paths, len(strs))
+	for i, s := range strs {
+		p[i] = PathForTesting(s)
+	}
+
+	return p
 }

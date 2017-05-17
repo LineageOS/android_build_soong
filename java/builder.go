@@ -45,7 +45,6 @@ var (
 				`find $outDir -name "*.class" > $out`,
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
-			Description:    "javac $outDir",
 		},
 		"javacCmd", "javacFlags", "bootClasspath", "classpath", "outDir")
 
@@ -53,7 +52,6 @@ var (
 		blueprint.RuleParams{
 			Command:     `$jarCmd -o $out $jarArgs`,
 			CommandDeps: []string{"$jarCmd"},
-			Description: "jar $out",
 		},
 		"jarCmd", "jarArgs")
 
@@ -63,7 +61,6 @@ var (
 				`$dxCmd --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
 				`find "$outDir" -name "classes*.dex" > $out`,
 			CommandDeps: []string{"$dxCmd"},
-			Description: "dex $out",
 		},
 		"outDir", "dxFlags")
 
@@ -71,7 +68,6 @@ var (
 		blueprint.RuleParams{
 			Command:     "java -jar $jarjarCmd process $rulesFile $in $out",
 			CommandDeps: []string{"$jarjarCmd", "$rulesFile"},
-			Description: "jarjar $out",
 		},
 		"rulesFile")
 
@@ -81,7 +77,6 @@ var (
 				`find $outDir -name "*.class" > $classFile && ` +
 				`find $outDir -type f -a \! -name "*.class" -a \! -name "MANIFEST.MF" > $resourceFile || ` +
 				`(rm -rf $outDir; exit 42)`,
-			Description: "extract java prebuilt $outDir",
 		},
 		"outDir", "classFile", "resourceFile")
 )
@@ -122,10 +117,11 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles android.Paths, s
 	deps = append(deps, srcFileLists...)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:      javac,
-		Output:    classFileList,
-		Inputs:    srcFiles,
-		Implicits: deps,
+		Rule:        javac,
+		Description: "javac",
+		Output:      classFileList,
+		Inputs:      srcFiles,
+		Implicits:   deps,
 		Args: map[string]string{
 			"javacFlags":    javacFlags,
 			"bootClasspath": flags.bootClasspath,
@@ -156,9 +152,10 @@ func TransformClassesToJar(ctx android.ModuleContext, classes []jarSpec,
 	}
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:      jar,
-		Output:    outputFile,
-		Implicits: deps,
+		Rule:        jar,
+		Description: "jar",
+		Output:      outputFile,
+		Implicits:   deps,
 		Args: map[string]string{
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
@@ -174,9 +171,10 @@ func TransformClassesJarToDex(ctx android.ModuleContext, classesJar android.Path
 	outputFile := android.PathForModuleOut(ctx, "dex.filelist")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:   dx,
-		Output: outputFile,
-		Input:  classesJar,
+		Rule:        dx,
+		Description: "dx",
+		Output:      outputFile,
+		Input:       classesJar,
 		Args: map[string]string{
 			"dxFlags": flags.dxFlags,
 			"outDir":  outDir.String(),
@@ -202,9 +200,10 @@ func TransformDexToJavaLib(ctx android.ModuleContext, resources []jarSpec,
 	jarArgs = append(jarArgs, dexJarSpec.soongJarArgs())
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:      jar,
-		Output:    outputFile,
-		Implicits: deps,
+		Rule:        jar,
+		Description: "jar",
+		Output:      outputFile,
+		Implicits:   deps,
 		Args: map[string]string{
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
@@ -216,10 +215,11 @@ func TransformDexToJavaLib(ctx android.ModuleContext, resources []jarSpec,
 func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFile android.Path) android.Path {
 	outputFile := android.PathForModuleOut(ctx, "classes-jarjar.jar")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:     jarjar,
-		Output:   outputFile,
-		Input:    classesJar,
-		Implicit: rulesFile,
+		Rule:        jarjar,
+		Description: "jarjar",
+		Output:      outputFile,
+		Input:       classesJar,
+		Implicit:    rulesFile,
 		Args: map[string]string{
 			"rulesFile": rulesFile.String(),
 		},
@@ -236,9 +236,10 @@ func TransformPrebuiltJarToClasses(ctx android.ModuleContext,
 	resourceFileList := android.PathForModuleOut(ctx, "extracted/resources.list")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:    extractPrebuilt,
-		Outputs: android.WritablePaths{classFileList, resourceFileList},
-		Input:   prebuilt,
+		Rule:        extractPrebuilt,
+		Description: "extract classes",
+		Outputs:     android.WritablePaths{classFileList, resourceFileList},
+		Input:       prebuilt,
 		Args: map[string]string{
 			"outDir":       classDir.String(),
 			"classFile":    classFileList.String(),
