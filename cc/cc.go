@@ -1054,6 +1054,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 	})
 
+	// Dedup exported flags from dependencies
+	depPaths.Flags = firstUniqueElements(depPaths.Flags)
+
 	return depPaths
 }
 
@@ -1173,6 +1176,23 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		// will be restricted using the existing link type checks.
 		mctx.CreateVariations(coreMode)
 	}
+}
+
+// firstUniqueElements returns all unique elements of a slice, keeping the first copy of each
+// modifies the slice contents in place, and returns a subslice of the original slice
+func firstUniqueElements(list []string) []string {
+	k := 0
+outer:
+	for i := 0; i < len(list); i++ {
+		for j := 0; j < k; j++ {
+			if list[i] == list[j] {
+				continue outer
+			}
+		}
+		list[k] = list[i]
+		k++
+	}
+	return list[:k]
 }
 
 // lastUniqueElements returns all unique elements of a slice, keeping the last copy of each
