@@ -178,6 +178,10 @@ func Build(ctx Context, config Config, what int) {
 	// Start getting java version as early as possible
 	getJavaVersions(ctx, config)
 
+	// Make sure that no other Soong process is running with the same output directory
+	buildLock := BecomeSingletonOrFail(ctx, config)
+	defer buildLock.Unlock()
+
 	SetupOutDir(ctx, config)
 
 	checkCaseSensitivity(ctx, config)
