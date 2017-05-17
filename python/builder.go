@@ -82,7 +82,7 @@ func registerBuildActionForModuleFileList(ctx android.ModuleContext,
 		Output:      fileList,
 		Implicits:   files,
 		Args: map[string]string{
-			"content": strings.Join(content, "\n"),
+			"content": strings.Join(content, `\n`),
 		},
 	})
 
