@@ -29,6 +29,7 @@ bootstrap_go_package {
         "kati.go",
         "make.go",
         "ninja.go",
+        "proc_sync.go",
         "signal.go",
         "soong.go",
         "util.go",
@@ -36,6 +37,7 @@ bootstrap_go_package {
     testSrcs: [
         "environment_test.go",
         "util_test.go",
+        "proc_sync_test.go",
     ],
     darwin: {
         srcs: [
