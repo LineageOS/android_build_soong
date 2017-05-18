@@ -370,7 +370,7 @@ func expectModule(t *testing.T, ctx *blueprint.Context, buildDir, name, variant 
 	if !baseOk {
 		t.Fatalf("%s is not Python module!", name)
 	}
-	sub, subOk := base.subModule.(*PythonBinary)
+	sub, subOk := base.subModule.(*pythonBinaryBase)
 	if !subOk {
 		t.Fatalf("%s is not Python binary!", name)
 	}

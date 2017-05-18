@@ -110,17 +110,29 @@ type pythonBaseModule struct {
 
 	// the soong_zip arguments for zipping current module source/data files.
 	parSpec parSpec
+
+	// the installer might be nil.
+	installer installer
+
+	subAndroidMkOnce map[subAndroidMkProvider]bool
 }
 
 type PythonSubModule interface {
-	GeneratePythonBuildActions(ctx android.ModuleContext)
-	GeneratePythonAndroidMk() (ret android.AndroidMkData, err error)
+	GeneratePythonBuildActions(ctx android.ModuleContext) android.OptionalPath
 }
 
 type PythonDependency interface {
 	GetSrcsPathMappings() []pathMapping
 	GetDataPathMappings() []pathMapping
 	GetParSpec() parSpec
+}
+
+type pythonDecorator struct {
+	baseInstaller *pythonInstaller
+}
+
+type installer interface {
+	install(ctx android.ModuleContext, path android.Path)
 }
 
 func (p *pythonBaseModule) GetSrcsPathMappings() []pathMapping {
@@ -246,10 +258,14 @@ func uniqueLibs(ctx android.BottomUpMutatorContext,
 }
 
 func (p *pythonBaseModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.subModule.GeneratePythonBuildActions(ctx)
+	installSource := p.subModule.GeneratePythonBuildActions(ctx)
+
+	if p.installer != nil && installSource.Valid() {
+		p.installer.install(ctx, installSource.Path())
+	}
 }
 
-func (p *pythonBaseModule) GeneratePythonBuildActions(ctx android.ModuleContext) {
+func (p *pythonBaseModule) GeneratePythonBuildActions(ctx android.ModuleContext) android.OptionalPath {
 	// expand python files from "srcs" property.
 	srcs := p.properties.Srcs
 	switch p.properties.ActualVersion {
@@ -277,7 +293,7 @@ func (p *pythonBaseModule) GeneratePythonBuildActions(ctx android.ModuleContext)
 			strings.HasPrefix(pkg_path, "/") {
 			ctx.PropertyErrorf("pkg_path", "%q is not a valid format.",
 				p.properties.Pkg_path)
-			return
+			return android.OptionalPath{}
 		}
 		// pkg_path starts from "runfiles/" implicitly.
 		pkg_path = filepath.Join(runFiles, pkg_path)
@@ -291,6 +307,8 @@ func (p *pythonBaseModule) GeneratePythonBuildActions(ctx android.ModuleContext)
 	p.parSpec = p.dumpFileList(ctx, pkg_path)
 
 	p.uniqWholeRunfilesTree(ctx)
+
+	return android.OptionalPath{}
 }
 
 // generate current module unique pathMappings: <dest: runfiles_path, src: source_path>
@@ -409,7 +427,7 @@ func (p *pythonBaseModule) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 				}
 				// binary needs the Python runfiles paths from all its
 				// dependencies to fill __init__.py in each runfiles dir.
-				if sub, ok := p.subModule.(*PythonBinary); ok {
+				if sub, ok := p.subModule.(*pythonBinaryBase); ok {
 					sub.depsPyRunfiles = append(sub.depsPyRunfiles, path.dest)
 				}
 			}
@@ -421,7 +439,7 @@ func (p *pythonBaseModule) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 			}
 			// binary needs the soong_zip arguments from all its
 			// dependencies to generate executable par file.
-			if sub, ok := p.subModule.(*PythonBinary); ok {
+			if sub, ok := p.subModule.(*pythonBinaryBase); ok {
 				sub.depsParSpecs = append(sub.depsParSpecs, dep.GetParSpec())
 			}
 		}
@@ -441,8 +459,4 @@ func fillInMap(ctx android.ModuleContext, m map[string]string,
 	}
 
 	return true
-}
-
-func (p *pythonBaseModule) AndroidMk() (ret android.AndroidMkData, err error) {
-	return p.subModule.GeneratePythonAndroidMk()
 }
