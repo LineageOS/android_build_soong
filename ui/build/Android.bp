@@ -21,6 +21,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "build.go",
+        "cleanbuild.go",
         "config.go",
         "context.go",
         "environment.go",
