@@ -14,26 +14,26 @@
 
 package python
 
-// This file contains the module types for building Python library.
-
 import (
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
-func init() {
-	android.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
+// This file handles installing python executables into their final location
+
+type pythonInstaller struct {
+	dir string
+
+	path android.OutputPath
 }
 
-type PythonLibrary struct {
-	pythonBaseModule
+func NewPythonInstaller(dir string) *pythonInstaller {
+	return &pythonInstaller{
+		dir: dir,
+	}
 }
 
-var _ PythonSubModule = (*PythonLibrary)(nil)
+var _ installer = (*pythonInstaller)(nil)
 
-func PythonLibraryHostFactory() (blueprint.Module, []interface{}) {
-	module := &PythonLibrary{}
-
-	return InitPythonBaseModule(&module.pythonBaseModule, module, android.HostSupportedNoCross)
+func (installer *pythonInstaller) install(ctx android.ModuleContext, file android.Path) {
+	installer.path = ctx.InstallFile(android.PathForModuleInstall(ctx, installer.dir), file)
 }
