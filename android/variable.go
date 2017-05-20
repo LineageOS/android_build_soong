@@ -67,6 +67,13 @@ type variableProperties struct {
 			Cflags []string
 		}
 
+		// treble is true when a build is a Treble compliant device.  This is automatically set when
+		// a build is shipped with Android O, but can be overriden.  This controls such things as
+		// the sepolicy split and enabling the Treble linker namespaces.
+		Treble struct {
+			Cflags []string
+		}
+
 		// debuggable is true for eng and userdebug builds, and can be used to turn on additional
 		// debugging features that don't significantly impact runtime behavior.  userdebug builds
 		// are used for dogfooding and performance testing, and should be as similar to user builds
@@ -130,6 +137,7 @@ type productVariables struct {
 	Eng                        *bool `json:",omitempty"`
 	EnableCFI                  *bool `json:",omitempty"`
 	Device_uses_hwc2           *bool `json:",omitempty"`
+	Treble                     *bool `json:",omitempty"`
 
 	VendorPath *string `json:",omitempty"`
 
