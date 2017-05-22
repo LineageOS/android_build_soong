@@ -21,9 +21,9 @@ import (
 	"android/soong/android"
 )
 
-// Flags used by lots of devices.  Putting them in package static variables will save bytes in
-// build.ninja so they aren't repeated for every file
 var (
+	// Flags used by lots of devices.  Putting them in package static variables
+	// will save bytes in build.ninja so they aren't repeated for every file
 	commonGlobalCflags = []string{
 		"-DANDROID",
 		"-fmessage-length=0",
@@ -73,6 +73,11 @@ var (
 	ExperimentalCppStdVersion = "gnu++1z"
 
 	NdkMaxPrebuiltVersionInt = 24
+
+	// prebuilts/clang default settings.
+	ClangDefaultBase         = "prebuilts/clang/host"
+	ClangDefaultVersion      = "clang-3859424"
+	ClangDefaultShortVersion = "4.0"
 )
 
 var pctx = android.NewPackageContext("android/soong/cc/config")
@@ -121,7 +126,7 @@ func init() {
 	pctx.PrefixedExistentPathsForSourcesVariable("CommonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
 
-	pctx.SourcePathVariable("ClangDefaultBase", "prebuilts/clang/host")
+	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)
 	pctx.VariableFunc("ClangBase", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
 			return override, nil
@@ -132,7 +137,7 @@ func init() {
 		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
-		return "clang-3859424", nil
+		return ClangDefaultVersion, nil
 	})
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
@@ -141,7 +146,7 @@ func init() {
 		if override := config.(android.Config).Getenv("LLVM_RELEASE_VERSION"); override != "" {
 			return override, nil
 		}
-		return "4.0", nil
+		return ClangDefaultShortVersion, nil
 	})
 	pctx.StaticVariable("ClangAsanLibDir", "${ClangPath}/lib64/clang/${ClangShortVersion}/lib/linux")
 
