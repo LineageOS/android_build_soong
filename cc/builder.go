@@ -180,10 +180,10 @@ var (
 	// Abidiff check turned on in advice-only mode. Builds will not fail on abi incompatibilties / extensions.
 	sAbiDiff = pctx.AndroidStaticRule("sAbiDiff",
 		blueprint.RuleParams{
-			Command:     "$sAbiDiffer -advice-only -o ${out} -new $in -old $referenceDump",
+			Command:     "$sAbiDiffer -lib $libName -arch $arch -advice-only -o ${out} -new $in -old $referenceDump",
 			CommandDeps: []string{"$sAbiDiffer"},
 		},
-		"referenceDump")
+		"referenceDump", "libName", "arch")
 )
 
 func init() {
@@ -642,6 +642,8 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 		Implicit:    referenceDump,
 		Args: map[string]string{
 			"referenceDump": referenceDump.String(),
+			"libName":       baseName,
+			"arch":          ctx.Arch().ArchType.Name,
 		},
 	})
 	return android.OptionalPathForPath(outputFile)

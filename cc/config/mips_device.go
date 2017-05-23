@@ -92,7 +92,6 @@ var (
 			"-mfp32",
 			"-modd-spreg",
 			"-mno-fused-madd",
-			"-Wa,-mmxu",
 			"-mno-synci",
 		},
 		"mips32r2dsp-fp": []string{
