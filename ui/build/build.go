@@ -18,7 +18,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 )
 
@@ -92,60 +91,13 @@ func checkCaseSensitivity(ctx Context, config Config) {
 	}
 }
 
-// Since products and build variants (unfortunately) shared the same
-// PRODUCT_OUT staging directory, things can get out of sync if different
-// build configurations are built in the same tree. This function will
-// notice when the configuration has changed and call installclean to
-// remove the files necessary to keep things consistent.
-func installcleanIfNecessary(ctx Context, config Config) {
-	if inList("installclean", config.Arguments()) {
-		return
-	}
-
-	configFile := config.DevicePreviousProductConfig()
-	prefix := "PREVIOUS_BUILD_CONFIG := "
-	suffix := "\n"
-	currentProduct := prefix + config.TargetProduct() + "-" + config.TargetBuildVariant() + suffix
-
-	writeConfig := func() {
-		err := ioutil.WriteFile(configFile, []byte(currentProduct), 0777)
-		if err != nil {
-			ctx.Fatalln("Failed to write product config:", err)
-		}
-	}
-
-	prev, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			writeConfig()
-			return
-		} else {
-			ctx.Fatalln("Failed to read previous product config:", err)
-		}
-	} else if string(prev) == currentProduct {
-		return
-	}
-
-	if disable, _ := config.Environment().Get("DISABLE_AUTO_INSTALLCLEAN"); disable == "true" {
-		ctx.Println("DISABLE_AUTO_INSTALLCLEAN is set; skipping auto-clean. Your tree may be in an inconsistent state.")
-		return
-	}
-
-	ctx.BeginTrace("installclean")
-	defer ctx.EndTrace()
-
-	prevConfig := strings.TrimPrefix(strings.TrimSuffix(string(prev), suffix), prefix)
-	currentConfig := strings.TrimPrefix(strings.TrimSuffix(currentProduct, suffix), prefix)
-
-	ctx.Printf("Build configuration changed: %q -> %q, forcing installclean\n", prevConfig, currentConfig)
-
-	cleanConfig := CopyConfig(ctx, config, "installclean")
-	cleanConfig.SetKatiArgs([]string{"installclean"})
-	cleanConfig.SetNinjaArgs([]string{"installclean"})
-
-	Build(ctx, cleanConfig, BuildKati|BuildNinja)
-
-	writeConfig()
+func help(ctx Context, config Config, what int) {
+	cmd := Command(ctx, config, "make",
+		"make", "-f", "build/core/help.mk")
+	cmd.Sandbox = makeSandbox
+	cmd.Stdout = ctx.Stdout()
+	cmd.Stderr = ctx.Stderr()
+	cmd.RunOrFatal()
 }
 
 // Build the tree. The 'what' argument can be used to chose which components of
@@ -155,23 +107,10 @@ func Build(ctx Context, config Config, what int) {
 	ctx.Verboseln("Environment:", config.Environment().Environ())
 
 	if inList("help", config.Arguments()) {
-		cmd := Command(ctx, config, "make",
-			"make", "-f", "build/core/help.mk")
-		cmd.Sandbox = makeSandbox
-		cmd.Stdout = ctx.Stdout()
-		cmd.Stderr = ctx.Stderr()
-		cmd.RunOrFatal()
+		help(ctx, config, what)
 		return
 	} else if inList("clean", config.Arguments()) || inList("clobber", config.Arguments()) {
-		// We can't use os.RemoveAll, since we don't want to remove the
-		// output directory itself, in case it's a symlink. So just do
-		// exactly what make used to do.
-		cmd := Command(ctx, config, "rm -rf $OUT_DIR/*",
-			"/bin/bash", "-c", "rm -rf "+config.OutDir()+"/*")
-		cmd.Stdout = ctx.Stdout()
-		cmd.Stderr = ctx.Stderr()
-		cmd.RunOrFatal()
-		ctx.Println("Entire build directory removed.")
+		clean(ctx, config, what)
 		return
 	}
 
@@ -185,6 +124,16 @@ func Build(ctx Context, config Config, what int) {
 	if what&BuildProductConfig != 0 {
 		// Run make for product config
 		runMakeProductConfig(ctx, config)
+	}
+
+	if inList("installclean", config.Arguments()) {
+		installClean(ctx, config, what)
+		ctx.Println("Deleted images and staging directories.")
+		return
+	} else if inList("dataclean", config.Arguments()) {
+		dataClean(ctx, config, what)
+		ctx.Println("Deleted data files.")
+		return
 	}
 
 	if what&BuildSoong != 0 {
@@ -202,7 +151,7 @@ func Build(ctx Context, config Config, what int) {
 	}
 
 	if what&BuildNinja != 0 {
-		installcleanIfNecessary(ctx, config)
+		installCleanIfNecessary(ctx, config)
 
 		// Write combined ninja file
 		createCombinedBuildNinjaFile(ctx, config)

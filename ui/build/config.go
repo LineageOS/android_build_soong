@@ -167,22 +167,6 @@ func NewConfig(ctx Context, args ...string) Config {
 	return Config{ret}
 }
 
-// CopyConfig copies the configuration from an existing configuration, but replaces
-// the Arguments() list with a new set. Useful if you need to run a different build
-// with the same state as an existing build config.
-func CopyConfig(ctx Context, config Config, args ...string) Config {
-	return Config{&configImpl{
-		arguments: args,
-		goma:      config.goma,
-		environ:   config.environ.Copy(),
-
-		parallel:  config.parallel,
-		keepGoing: config.keepGoing,
-		verbose:   config.verbose,
-		dist:      config.dist,
-	}}
-}
-
 // Lunch configures the environment for a specific product similarly to the
 // `lunch` bash function.
 func (c *configImpl) Lunch(ctx Context, product, variant string) {
@@ -369,8 +353,37 @@ func (c *configImpl) SoongMakeVarsMk() string {
 	return filepath.Join(c.SoongOutDir(), "make_vars-"+c.TargetProduct()+".mk")
 }
 
+func (c *configImpl) ProductOut() string {
+	if buildType, ok := c.environ.Get("TARGET_BUILD_TYPE"); ok && buildType == "debug" {
+		return filepath.Join(c.OutDir(), "debug", "target", "product", c.TargetDevice())
+	} else {
+		return filepath.Join(c.OutDir(), "target", "product", c.TargetDevice())
+	}
+}
+
 func (c *configImpl) DevicePreviousProductConfig() string {
-	return filepath.Join(c.OutDir(), "target", "product", c.TargetDevice(), "previous_build_config.mk")
+	return filepath.Join(c.ProductOut(), "previous_build_config.mk")
+}
+
+func (c *configImpl) hostOutRoot() string {
+	if buildType, ok := c.environ.Get("HOST_BUILD_TYPE"); ok && buildType == "debug" {
+		return filepath.Join(c.OutDir(), "debug", "host")
+	} else {
+		return filepath.Join(c.OutDir(), "host")
+	}
+}
+
+func (c *configImpl) HostOut() string {
+	return filepath.Join(c.hostOutRoot(), c.HostPrebuiltTag())
+}
+
+// This probably needs to be multi-valued, so not exporting it for now
+func (c *configImpl) hostCrossOut() string {
+	if runtime.GOOS == "linux" {
+		return filepath.Join(c.hostOutRoot(), "windows-x86")
+	} else {
+		return ""
+	}
 }
 
 func (c *configImpl) HostPrebuiltTag() string {
