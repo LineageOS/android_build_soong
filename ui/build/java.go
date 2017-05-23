@@ -66,15 +66,9 @@ func checkJavaVersion(ctx Context, config Config) {
 	var required_java_version string
 	var java_version_regexp *regexp.Regexp
 	var javac_version_regexp *regexp.Regexp
-	if legacy, _ := config.Environment().Get("LEGACY_USE_JAVA7"); legacy != "" {
-		required_java_version = "1.7"
-		java_version_regexp = regexp.MustCompile(`^java .*[ "]1\.7[\. "$]`)
-		javac_version_regexp = regexp.MustCompile(`[ "]1\.7[\. "$]`)
-	} else {
-		required_java_version = "1.8"
-		java_version_regexp = regexp.MustCompile(`[ "]1\.8[\. "$]`)
-		javac_version_regexp = java_version_regexp
-	}
+	required_java_version = "1.8"
+	java_version_regexp = regexp.MustCompile(`[ "]1\.8[\. "$]`)
+	javac_version_regexp = java_version_regexp
 
 	java_version := javaVersionInfo.java_version_output
 	javac_version := javaVersionInfo.javac_version_output
