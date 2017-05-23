@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,15 +48,20 @@ var numJobs = flag.Int("j", detectNumJobs(), "number of parallel kati jobs")
 var keep = flag.Bool("keep", false, "keep successful output files")
 
 var outDir = flag.String("out", "", "path to store output directories (defaults to tmpdir under $OUT when empty)")
+var alternateResultDir = flag.Bool("dist", false, "write select results to $DIST_DIR (or <out>/dist when empty)")
 
 var onlyConfig = flag.Bool("only-config", false, "Only run product config (not Soong or Kati)")
 var onlySoong = flag.Bool("only-soong", false, "Only run product config and Soong (not Kati)")
 
 var buildVariant = flag.String("variant", "eng", "build variant to use")
 
+const errorLeadingLines = 20
+const errorTrailingLines = 20
+
 type Product struct {
-	ctx    build.Context
-	config build.Config
+	ctx     build.Context
+	config  build.Config
+	logFile string
 }
 
 type Status struct {
@@ -82,7 +88,7 @@ func (s *Status) SetTotal(total int) {
 	s.total = total
 }
 
-func (s *Status) Fail(product string, err error) {
+func (s *Status) Fail(product string, err error, logFile string) {
 	s.Finish(product)
 
 	s.lock.Lock()
@@ -96,7 +102,26 @@ func (s *Status) Fail(product string, err error) {
 	s.failed++
 	fmt.Fprintln(s.ctx.Stderr(), "FAILED:", product)
 	s.ctx.Verboseln("FAILED:", product)
-	s.ctx.Println(err)
+
+	if logFile != "" {
+		data, err := ioutil.ReadFile(logFile)
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+			if len(lines) > errorLeadingLines+errorTrailingLines+1 {
+				lines[errorLeadingLines] = fmt.Sprintf("... skipping %d lines ...",
+					len(lines)-errorLeadingLines-errorTrailingLines)
+
+				lines = append(lines[:errorLeadingLines+1],
+					lines[len(lines)-errorTrailingLines:]...)
+			}
+			for _, line := range lines {
+				fmt.Fprintln(s.ctx.Stderr(), "> ", line)
+				s.ctx.Verboseln(line)
+			}
+		}
+	}
+
+	s.ctx.Print(err)
 }
 
 func (s *Status) Finish(product string) {
@@ -163,6 +188,13 @@ func main() {
 
 		*outDir = filepath.Join(config.OutDir(), name)
 
+		// Ensure the empty files exist in the output directory
+		// containing our output directory too. This is mostly for
+		// safety, but also triggers the ninja_build file so that our
+		// build servers know that they can parse the output as if it
+		// was ninja output.
+		build.SetupOutDir(buildCtx, config)
+
 		if err := os.MkdirAll(*outDir, 0777); err != nil {
 			log.Fatalf("Failed to create tempdir: %v", err)
 		}
@@ -179,8 +211,15 @@ func main() {
 	log.Println("Output directory:", *outDir)
 
 	build.SetupOutDir(buildCtx, config)
-	log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
-	trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
+	if *alternateResultDir {
+		logsDir := filepath.Join(config.DistDir(), "logs")
+		os.MkdirAll(logsDir, 0777)
+		log.SetOutput(filepath.Join(logsDir, "soong.log"))
+		trace.SetOutput(filepath.Join(logsDir, "build.trace"))
+	} else {
+		log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
+		trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
+	}
 
 	vars, err := build.DumpMakeVars(buildCtx, config, nil, nil, []string{"all_named_products"})
 	if err != nil {
@@ -198,24 +237,34 @@ func main() {
 	for _, product := range products {
 		wg.Add(1)
 		go func(product string) {
+			var stdLog string
+
 			defer wg.Done()
 			defer logger.Recover(func(err error) {
-				status.Fail(product, err)
+				status.Fail(product, err, stdLog)
 			})
 
 			productOutDir := filepath.Join(config.OutDir(), product)
+			productLogDir := productOutDir
+			if *alternateResultDir {
+				productLogDir = filepath.Join(config.DistDir(), product)
+				if err := os.MkdirAll(productLogDir, 0777); err != nil {
+					log.Fatalf("Error creating log directory: %v", err)
+				}
+			}
 
 			if err := os.MkdirAll(productOutDir, 0777); err != nil {
 				log.Fatalf("Error creating out directory: %v", err)
 			}
 
-			f, err := os.Create(filepath.Join(productOutDir, "std.log"))
+			stdLog = filepath.Join(productLogDir, "std.log")
+			f, err := os.Create(stdLog)
 			if err != nil {
 				log.Fatalf("Error creating std.log: %v", err)
 			}
 
 			productLog := logger.New(&bytes.Buffer{})
-			productLog.SetOutput(filepath.Join(productOutDir, "soong.log"))
+			productLog.SetOutput(filepath.Join(productLogDir, "soong.log"))
 
 			productCtx := build.Context{&build.ContextImpl{
 				Context:        ctx,
@@ -230,7 +279,7 @@ func main() {
 			productConfig.Lunch(productCtx, product, *buildVariant)
 
 			build.Build(productCtx, productConfig, build.BuildProductConfig)
-			productConfigs <- Product{productCtx, productConfig}
+			productConfigs <- Product{productCtx, productConfig, stdLog}
 		}(product)
 	}
 	go func() {
@@ -247,7 +296,7 @@ func main() {
 			for product := range productConfigs {
 				func() {
 					defer logger.Recover(func(err error) {
-						status.Fail(product.config.TargetProduct(), err)
+						status.Fail(product.config.TargetProduct(), err, product.logFile)
 					})
 
 					buildWhat := 0
