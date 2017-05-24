@@ -203,6 +203,7 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 
 func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, benchmark.binaryDecorator)
+	ret.Class = "NATIVE_TESTS"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
 		if len(benchmark.Properties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
