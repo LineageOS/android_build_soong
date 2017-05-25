@@ -65,6 +65,10 @@ type variableProperties struct {
 			Cflags []string
 		}
 
+		Override_rs_driver struct {
+			Cflags []string
+		}
+
 		// debuggable is true for eng and userdebug builds, and can be used to turn on additional
 		// debugging features that don't significantly impact runtime behavior.  userdebug builds
 		// are used for dogfooding and performance testing, and should be as similar to user builds
@@ -144,6 +148,8 @@ type productVariables struct {
 	ArtUseReadBarrier *bool `json:",omitempty"`
 
 	BtConfigIncludeDir *string `json:",omitempty"`
+
+	Override_rs_driver *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -227,7 +233,7 @@ func variableMutator(mctx BottomUpMutatorContext) {
 func (a *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
 
-	printfIntoProperties(productVariablePropertyValue, variableValue)
+	printfIntoProperties(ctx, prefix, productVariablePropertyValue, variableValue)
 
 	err := proptools.AppendMatchingProperties(a.generalProperties,
 		productVariablePropertyValue.Addr().Interface(), nil)
@@ -240,7 +246,17 @@ func (a *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 	}
 }
 
-func printfIntoProperties(productVariablePropertyValue reflect.Value, variableValue interface{}) {
+func printfIntoPropertiesError(ctx BottomUpMutatorContext, prefix string,
+	productVariablePropertyValue reflect.Value, i int, err error) {
+
+	field := productVariablePropertyValue.Type().Field(i).Name
+	property := prefix + "." + proptools.PropertyNameForField(field)
+	ctx.PropertyErrorf(property, "%s", err)
+}
+
+func printfIntoProperties(ctx BottomUpMutatorContext, prefix string,
+	productVariablePropertyValue reflect.Value, variableValue interface{}) {
+
 	for i := 0; i < productVariablePropertyValue.NumField(); i++ {
 		propertyValue := productVariablePropertyValue.Field(i)
 		kind := propertyValue.Kind()
@@ -252,36 +268,64 @@ func printfIntoProperties(productVariablePropertyValue reflect.Value, variableVa
 		}
 		switch propertyValue.Kind() {
 		case reflect.String:
-			printfIntoProperty(propertyValue, variableValue)
+			err := printfIntoProperty(propertyValue, variableValue)
+			if err != nil {
+				printfIntoPropertiesError(ctx, prefix, productVariablePropertyValue, i, err)
+			}
 		case reflect.Slice:
 			for j := 0; j < propertyValue.Len(); j++ {
-				printfIntoProperty(propertyValue.Index(j), variableValue)
+				err := printfIntoProperty(propertyValue.Index(j), variableValue)
+				if err != nil {
+					printfIntoPropertiesError(ctx, prefix, productVariablePropertyValue, i, err)
+				}
 			}
 		case reflect.Bool:
 			// Nothing
 		case reflect.Struct:
-			printfIntoProperties(propertyValue, variableValue)
+			printfIntoProperties(ctx, prefix, propertyValue, variableValue)
 		default:
 			panic(fmt.Errorf("unsupported field kind %q", propertyValue.Kind()))
 		}
 	}
 }
 
-func printfIntoProperty(propertyValue reflect.Value, variableValue interface{}) {
+func printfIntoProperty(propertyValue reflect.Value, variableValue interface{}) error {
 	s := propertyValue.String()
-	// For now, we only support int formats
-	var i int
+
+	count := strings.Count(s, "%")
+	if count == 0 {
+		return nil
+	}
+
+	if count > 1 {
+		return fmt.Errorf("product variable properties only support a single '%%'")
+	}
+
 	if strings.Contains(s, "%d") {
 		switch v := variableValue.(type) {
 		case int:
-			i = v
+			// Nothing
 		case bool:
 			if v {
-				i = 1
+				variableValue = 1
+			} else {
+				variableValue = 0
 			}
 		default:
-			panic(fmt.Errorf("unsupported type %T", variableValue))
+			return fmt.Errorf("unsupported type %T for %%d", variableValue)
 		}
-		propertyValue.Set(reflect.ValueOf(fmt.Sprintf(s, i)))
+	} else if strings.Contains(s, "%s") {
+		switch variableValue.(type) {
+		case string:
+			// Nothing
+		default:
+			return fmt.Errorf("unsupported type %T for %%s", variableValue)
+		}
+	} else {
+		return fmt.Errorf("unsupported %% in product variable property")
 	}
+
+	propertyValue.Set(reflect.ValueOf(fmt.Sprintf(s, variableValue)))
+
+	return nil
 }
