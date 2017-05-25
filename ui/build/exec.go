@@ -30,6 +30,9 @@ type Cmd struct {
 	ctx    Context
 	config Config
 	name   string
+
+	// doneChannel closes to signal the command's termination
+	doneChannel chan bool
 }
 
 func Command(ctx Context, config Config, name string, executable string, args ...string) *Cmd {
@@ -38,9 +41,10 @@ func Command(ctx Context, config Config, name string, executable string, args ..
 		Environment: config.Environment().Copy(),
 		Sandbox:     noSandbox,
 
-		ctx:    ctx,
-		config: config,
-		name:   name,
+		ctx:         ctx,
+		config:      config,
+		name:        name,
+		doneChannel: make(chan bool),
 	}
 
 	return ret
@@ -57,6 +61,10 @@ func (c *Cmd) prepare() {
 	c.ctx.Verboseln(c.Path, c.Args)
 }
 
+func (c *Cmd) teardown() {
+	close(c.doneChannel)
+}
+
 func (c *Cmd) Start() error {
 	c.prepare()
 	return c.Cmd.Start()
@@ -64,17 +72,23 @@ func (c *Cmd) Start() error {
 
 func (c *Cmd) Run() error {
 	c.prepare()
-	return c.Cmd.Run()
+	defer c.teardown()
+	err := c.Cmd.Run()
+	return err
 }
 
 func (c *Cmd) Output() ([]byte, error) {
 	c.prepare()
-	return c.Cmd.Output()
+	defer c.teardown()
+	bytes, err := c.Cmd.Output()
+	return bytes, err
 }
 
 func (c *Cmd) CombinedOutput() ([]byte, error) {
 	c.prepare()
-	return c.Cmd.CombinedOutput()
+	defer c.teardown()
+	bytes, err := c.Cmd.CombinedOutput()
+	return bytes, err
 }
 
 // StartOrFatal is equivalent to Start, but handles the error with a call to ctx.Fatal
@@ -118,4 +132,14 @@ func (c *Cmd) CombinedOutputOrFatal() []byte {
 	ret, err := c.CombinedOutput()
 	c.reportError(err)
 	return ret
+}
+
+// Done() tells whether this command has finished executing
+func (c *Cmd) Done() bool {
+	select {
+	case <-c.doneChannel:
+		return true
+	default:
+		return false
+	}
 }
