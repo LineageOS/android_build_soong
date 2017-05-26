@@ -12,7 +12,6 @@
 
 subdirs = [
     "androidmk",
-    "bpfix",
     "cmd/*",
     "third_party/zip",
     "ui/*",
