@@ -18,6 +18,7 @@ optional_subdirs = [
     "development/*",
     "device/*/*",
     "external/*",
+    "external/python/*",
     "frameworks/*",
     "frameworks/compile/*",
     "frameworks/hardware/interfaces",
