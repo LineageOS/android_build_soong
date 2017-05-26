@@ -193,7 +193,7 @@ func VndkLibraries() []string {
 // [vendor]
 // namespace.default.link.system.shared_libs
 func LLndkLibraries() []string {
-	return []string{"libc", "libm", "libdl", "liblog", "libandroid-net", "ld-android", "libvndksupport"}
+	return []string{"libc", "libm", "libdl", "liblog", "libandroid_net", "ld-android", "libvndksupport"}
 }
 
 func replaceFirst(slice []string, from, to string) {
