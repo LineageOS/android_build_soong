@@ -66,10 +66,14 @@ func checkJavaVersion(ctx Context, config Config) {
 	var required_java_version string
 	var java_version_regexp *regexp.Regexp
 	var javac_version_regexp *regexp.Regexp
-	if legacy, _ := config.Environment().Get("LEGACY_USE_JAVA7"); legacy != "" {
-		required_java_version = "1.7"
-		java_version_regexp = regexp.MustCompile(`^java .*[ "]1\.7[\. "$]`)
-		javac_version_regexp = regexp.MustCompile(`[ "]1\.7[\. "$]`)
+
+	oj9_env, _ := config.Environment().Get("EXPERIMENTAL_USE_OPENJDK9")
+	experimental_use_openjdk9 := oj9_env != ""
+
+	if experimental_use_openjdk9 {
+		required_java_version = "9"
+		java_version_regexp = regexp.MustCompile(`^java .* "9.*"`)
+		javac_version_regexp = regexp.MustCompile(`^javac 9`)
 	} else {
 		required_java_version = "1.8"
 		java_version_regexp = regexp.MustCompile(`[ "]1\.8[\. "$]`)
@@ -101,7 +105,10 @@ func checkJavaVersion(ctx Context, config Config) {
 	}
 
 	if runtime.GOOS == "linux" {
-		if !strings.Contains(java_version, "openjdk") {
+		// Early access builds of OpenJDK 9 do not contain the string "openjdk" in the
+		// version name. TODO(tobiast): Reconsider once the OpenJDK 9 toolchain is stable.
+		// http://b/62123342
+		if !strings.Contains(java_version, "openjdk") && !experimental_use_openjdk9 {
 			ctx.Println("*******************************************************")
 			ctx.Println("You are attempting to build with an unsupported JDK.")
 			ctx.Println()

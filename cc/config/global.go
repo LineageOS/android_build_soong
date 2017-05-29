@@ -180,6 +180,7 @@ func bionicHeaders(bionicArch, kernelArch string) string {
 		"-isystem bionic/libc/include",
 		"-isystem bionic/libc/kernel/uapi",
 		"-isystem bionic/libc/kernel/uapi/asm-" + kernelArch,
+		"-isystem bionic/libc/kernel/android/scsi",
 		"-isystem bionic/libc/kernel/android/uapi",
 	}, " ")
 }
@@ -192,7 +193,7 @@ func VndkLibraries() []string {
 // [vendor]
 // namespace.default.link.system.shared_libs
 func LLndkLibraries() []string {
-	return []string{"libc", "libm", "libdl", "liblog", "ld-android", "libvndksupport"}
+	return []string{"libc", "libm", "libdl", "liblog", "libandroid_net", "ld-android", "libvndksupport"}
 }
 
 func replaceFirst(slice []string, from, to string) {
