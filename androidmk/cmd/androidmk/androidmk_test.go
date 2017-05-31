@@ -374,6 +374,25 @@ cc_library_shared {
 }
 `,
 	},
+
+	{
+		desc: "Input containing escaped quotes",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE:= libsensorservice
+LOCAL_CFLAGS:= -DLOG_TAG=\"-DDontEscapeMe\"
+LOCAL_SRC_FILES := \"EscapeMe.cc\"
+include $(BUILD_SHARED_LIBRARY)
+`,
+
+		expected: `
+cc_library_shared {
+    name: "libsensorservice",
+    cflags: ["-DLOG_TAG=\"-DDontEscapeMe\""],
+    srcs: ["\\\"EscapeMe.cc\\\""],
+}
+`,
+	},
 }
 
 func reformatBlueprint(input string) string {
