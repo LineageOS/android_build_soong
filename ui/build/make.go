@@ -81,9 +81,10 @@ func runMakeProductConfig(ctx Context, config Config) {
 	// Variables to export into the environment of Kati/Ninja
 	exportEnvVars := []string{
 		// So that we can use the correct TARGET_PRODUCT if it's been
-		// modified by PRODUCT-* arguments
+		// modified by PRODUCT-*/APP-* arguments
 		"TARGET_PRODUCT",
 		"TARGET_BUILD_VARIANT",
+		"TARGET_BUILD_APPS",
 
 		// compiler wrappers set up by make
 		"CC_WRAPPER",
