@@ -15,6 +15,8 @@
 package build
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -69,7 +71,61 @@ func runNinja(ctx Context, config Config) {
 	cmd.Stdin = ctx.Stdin()
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
+	logPath := filepath.Join(config.OutDir(), ".ninja_log")
+	ninjaHeartbeatDuration := time.Minute * 5
+	if overrideText, ok := cmd.Environment.Get("NINJA_HEARTBEAT_INTERVAL"); ok {
+		// For example, "1m"
+		overrideDuration, err := time.ParseDuration(overrideText)
+		if err == nil && overrideDuration.Seconds() > 0 {
+			ninjaHeartbeatDuration = overrideDuration
+		}
+	}
+	// Poll the ninja log for updates; if it isn't updated enough, then we want to show some diagnostics
+	checker := &statusChecker{}
+	go func() {
+		for !cmd.Done() {
+			checker.check(ctx, config, logPath)
+			time.Sleep(ninjaHeartbeatDuration)
+		}
+	}()
+
 	startTime := time.Now()
-	defer ctx.ImportNinjaLog(filepath.Join(config.OutDir(), ".ninja_log"), startTime)
+	defer ctx.ImportNinjaLog(logPath, startTime)
+
 	cmd.RunOrFatal()
+}
+
+type statusChecker struct {
+	prevTime time.Time
+}
+
+func (c *statusChecker) check(ctx Context, config Config, pathToCheck string) {
+	info, err := os.Stat(pathToCheck)
+	var newTime time.Time
+	if err == nil {
+		newTime = info.ModTime()
+	}
+	if newTime == c.prevTime {
+		// ninja may be stuck
+		dumpStucknessDiagnostics(ctx, config, pathToCheck, newTime)
+	}
+	c.prevTime = newTime
+}
+
+// dumpStucknessDiagnostics gets called when it is suspected that Ninja is stuck and we want to output some diagnostics
+func dumpStucknessDiagnostics(ctx Context, config Config, statusPath string, lastUpdated time.Time) {
+
+	ctx.Verbosef("ninja may be stuck; last update to %v was %v. dumping process tree...", statusPath, lastUpdated)
+
+	// The "pstree" command doesn't exist on Mac, but "pstree" on Linux gives more convenient output than "ps"
+	// So, we try pstree first, and ps second
+	pstreeCommandText := fmt.Sprintf("pstree -pal %v", os.Getpid())
+	psCommandText := "ps -ef"
+	commandText := pstreeCommandText + " || " + psCommandText
+
+	cmd := Command(ctx, config, "dump process tree", "bash", "-c", commandText)
+	output := cmd.CombinedOutputOrFatal()
+	ctx.Verbose(string(output))
+
+	ctx.Printf("done\n")
 }
