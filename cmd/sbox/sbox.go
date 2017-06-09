@@ -44,6 +44,7 @@ func run() error {
 
 	var rawCommand string
 	var sandboxesRoot string
+	removeTempDir := true
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -82,7 +83,12 @@ func run() error {
 	// In the common case, the following line of code is what removes the sandbox
 	// If a fatal error occurs (such as if our Go process is killed unexpectedly),
 	// then at the beginning of the next build, Soong will retry the cleanup
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		// in some cases we decline to remove the temp dir, to facilitate debugging
+		if removeTempDir {
+			os.RemoveAll(tempDir)
+		}
+	}()
 
 	if strings.Contains(rawCommand, "__SBOX_OUT_DIR__") {
 		rawCommand = strings.Replace(rawCommand, "__SBOX_OUT_DIR__", tempDir, -1)
@@ -114,20 +120,34 @@ func run() error {
 		return err
 	}
 
+	// validate that all files are created properly
+	var outputErrors []error
 	for _, filePath := range outFiles {
 		tempPath := filepath.Join(tempDir, filePath)
 		fileInfo, err := os.Stat(tempPath)
 		if err != nil {
-			return fmt.Errorf("command run under sbox did not create expected output file %s", filePath)
+			outputErrors = append(outputErrors, fmt.Errorf("failed to create expected output file: %s\n", tempPath))
+			continue
 		}
 		if fileInfo.IsDir() {
-			return fmt.Errorf("Output path %s refers to a directory, not a file. This is not permitted because it prevents robust up-to-date checks", filePath)
+			outputErrors = append(outputErrors, fmt.Errorf("Output path %s refers to a directory, not a file. This is not permitted because it prevents robust up-to-date checks\n", filePath))
 		}
-		err = os.Rename(tempPath, filePath)
+	}
+	if len(outputErrors) > 0 {
+		// Keep the temporary output directory around in case a user wants to inspect it for debugging purposes.
+		// Soong will delete it later anyway.
+		removeTempDir = false
+		return fmt.Errorf("mismatch between declared and actual outputs in sbox command (%s):\n%v", rawCommand, outputErrors)
+	}
+	// the created files match the declared files; now move them
+	for _, filePath := range outFiles {
+		tempPath := filepath.Join(tempDir, filePath)
+		err := os.Rename(tempPath, filePath)
 		if err != nil {
 			return err
 		}
 	}
+
 	// TODO(jeffrygaston) if a process creates more output files than it declares, should there be a warning?
 	return nil
 }
