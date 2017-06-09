@@ -125,6 +125,8 @@ func Build(ctx Context, config Config, what int) {
 
 	checkCaseSensitivity(ctx, config)
 
+	ensureEmptyDirectoriesExist(ctx, config.TempDir())
+
 	if what&BuildProductConfig != 0 {
 		// Run make for product config
 		runMakeProductConfig(ctx, config)

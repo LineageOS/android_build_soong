@@ -52,6 +52,10 @@ type Config struct {
 	*config
 }
 
+func (c Config) BuildDir() string {
+	return c.buildDir
+}
+
 // A DeviceConfig object represents the configuration for a particular device being built.  For
 // now there will only be one of these, but in the future there may be multiple devices being
 // built
