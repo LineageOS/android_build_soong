@@ -1,15 +1,3 @@
-//
-// WARNING: Modifying this file will NOT automatically regenerate build.ninja.in!
-//
-// Before modifying this file make sure minibp is up to date:
-//    1) "repo sync build/soong" to make sure you have the latest build.ninja.in
-//    2) build minibp, which builds automicatically through the normal build steps. For example:
-//
-// After modifying this file regenerate build.ninja.in and build your changes:
-//    1) In your build directory, execute "../bootstrap.bash -r" to regenerate build.ninja.in
-//    2) Build again
-//
-
 subdirs = [
     "androidmk",
     "cmd/*",
@@ -168,6 +156,7 @@ bootstrap_go_package {
         "blueprint-pathtools",
         "soong",
         "soong-android",
+        "soong-shared",
     ],
     srcs: [
         "genrule/filegroup.go",
@@ -231,6 +220,14 @@ bootstrap_go_package {
         "python/python_test.go",
     ],
     pluginFor: ["soong_build"],
+}
+
+bootstrap_go_package {
+    name: "soong-shared",
+    pkgPath: "android/soong/shared",
+    srcs: [
+        "shared/paths.go",
+    ],
 }
 
 //
