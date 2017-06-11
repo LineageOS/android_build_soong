@@ -347,7 +347,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		if ctx.Host() {
 			flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover=all")
 			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
-			flags.LdFlags = append(flags.LdFlags, "-lrt", "-ldl")
+			if ctx.Os() == android.Linux {
+				flags.LdFlags = append(flags.LdFlags, "-lrt")
+			}
+			flags.LdFlags = append(flags.LdFlags, "-ldl")
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
