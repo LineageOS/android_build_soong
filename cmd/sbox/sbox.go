@@ -32,10 +32,14 @@ func main() {
 	}
 }
 
-var usage = "Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> <outputFiles>"
+var usage = "Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> <outputFile> [<outputFile>...]\n" +
+	"\n" +
+	"Runs <commandToRun> and moves each <outputFile> out of <sandboxPath>\n" +
+	"If any file in <outputFiles> is specified by absolute path, then <outputRoot> must be specified as well,\n" +
+	"to enable sbox to compute the relative path within the sandbox of the specified output files"
 
 func usageError(violation string) error {
-	return fmt.Errorf("Usage error: %s.\n %s", violation, usage)
+	return fmt.Errorf("Usage error: %s.\n\n%s", violation, usage)
 }
 
 func run() error {
@@ -45,6 +49,7 @@ func run() error {
 	var rawCommand string
 	var sandboxesRoot string
 	removeTempDir := true
+	var outputRoot string
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -54,6 +59,11 @@ func run() error {
 		} else if arg == "-c" {
 			rawCommand = args[i+1]
 			i++
+		} else if arg == "--output-root" {
+			outputRoot = args[i+1]
+			i++
+		} else if arg == "--keep-out-dir" {
+			removeTempDir = false
 		} else {
 			outFiles = append(outFiles, arg)
 		}
@@ -71,6 +81,21 @@ func run() error {
 		// However, Soong also needs to be able to separately remove the sandbox directory on startup (if it has anything left in it)
 		// and by passing it as a parameter we don't need to duplicate its value
 		return usageError("--sandbox-path <sandboxPath> is required and must be non-empty")
+	}
+
+	// Rewrite output file paths to be relative to output root
+	// This facilitates matching them up against the corresponding paths in the temporary directory in case they're absolute
+	for i, filePath := range outFiles {
+		if path.IsAbs(filePath) {
+			if len(outputRoot) == 0 {
+				return fmt.Errorf("Absolute path %s requires nonempty value for --output-root", filePath)
+			}
+		}
+		relativePath, err := filepath.Rel(outputRoot, filePath)
+		if err != nil {
+			return err
+		}
+		outFiles[i] = relativePath
 	}
 
 	os.MkdirAll(sandboxesRoot, 0777)
@@ -109,13 +134,16 @@ func run() error {
 		os.MkdirAll(path.Join(tempDir, filepath.Dir(filePath)), 0777)
 	}
 
+	commandDescription := rawCommand
+
 	cmd := exec.Command("bash", "-c", rawCommand)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
+
 	if exit, ok := err.(*exec.ExitError); ok && !exit.Success() {
-		return fmt.Errorf("sbox command %#v failed with err %#v\n", cmd, err)
+		return fmt.Errorf("sbox command (%s) failed with err %#v\n", commandDescription, err.Error())
 	} else if err != nil {
 		return err
 	}
@@ -137,12 +165,16 @@ func run() error {
 		// Keep the temporary output directory around in case a user wants to inspect it for debugging purposes.
 		// Soong will delete it later anyway.
 		removeTempDir = false
-		return fmt.Errorf("mismatch between declared and actual outputs in sbox command (%s):\n%v", rawCommand, outputErrors)
+		return fmt.Errorf("mismatch between declared and actual outputs in sbox command (%s):\n%v", commandDescription, outputErrors)
 	}
 	// the created files match the declared files; now move them
 	for _, filePath := range outFiles {
 		tempPath := filepath.Join(tempDir, filePath)
-		err := os.Rename(tempPath, filePath)
+		destPath := filePath
+		if len(outputRoot) != 0 {
+			destPath = filepath.Join(outputRoot, filePath)
+		}
+		err := os.Rename(tempPath, destPath)
 		if err != nil {
 			return err
 		}
