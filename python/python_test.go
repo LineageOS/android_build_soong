@@ -305,7 +305,7 @@ var (
 
 func TestPythonModule(t *testing.T) {
 	config, buildDir := setupBuildEnv(t)
-	defer tearDownBuildEnv()
+	defer tearDownBuildEnv(buildDir)
 	android.TestPreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("version_split", versionSplitMutator()).Parallel()
 	})
@@ -432,8 +432,8 @@ func setupBuildEnv(t *testing.T) (config android.Config, buildDir string) {
 	return
 }
 
-func tearDownBuildEnv() {
-	os.RemoveAll(buildNamePrefix)
+func tearDownBuildEnv(buildDir string) {
+	os.RemoveAll(buildDir)
 }
 
 func findModule(ctx *blueprint.Context, name, variant string) blueprint.Module {
