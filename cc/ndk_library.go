@@ -281,6 +281,10 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 }
 
 func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
+	if !strings.HasSuffix(c.properties.Symbol_file, ".map.txt") {
+		ctx.PropertyErrorf("symbol_file", "must end with .map.txt")
+	}
+
 	objs, versionScript := compileStubLibrary(ctx, flags, c.properties.Symbol_file, c.properties.ApiLevel, "")
 	c.versionScriptPath = versionScript
 	return objs
