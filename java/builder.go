@@ -37,10 +37,11 @@ var (
 	// this, all java rules write into separate directories and then a post-processing step lists
 	// the files in the the directory into a list file that later rules depend on (and sometimes
 	// read from directly using @<listfile>)
-	javac = pctx.AndroidStaticRule("javac",
+	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`$javacCmd -encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
+				`${config.JavacWrapper}$javacCmd ` +
+				`-encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
 				`-extdirs "" -d $outDir @$out.rsp || ( rm -rf "$outDir"; exit 41 ) && ` +
 				`find $outDir -name "*.class" > $out`,
 			Rspfile:        "$out.rsp",
@@ -88,6 +89,13 @@ func init() {
 	pctx.StaticVariable("jarCmd", filepath.Join("${bootstrap.ToolDir}", "soong_zip"))
 	pctx.HostBinToolVariable("dxCmd", "dx")
 	pctx.HostJavaToolVariable("jarjarCmd", "jarjar.jar")
+
+	pctx.VariableFunc("JavacWrapper", func(config interface{}) (string, error) {
+		if override := config.(android.Config).Getenv("JAVAC_WRAPPER"); override != "" {
+			return override + " ", nil
+		}
+		return "", nil
+	})
 }
 
 type javaBuilderFlags struct {
