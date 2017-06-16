@@ -87,6 +87,14 @@ type BaseLinkerProperties struct {
 	// group static libraries.  This can resolve missing symbols issues with interdependencies
 	// between static libraries, but it is generally better to order them correctly instead.
 	Group_static_libs *bool `android:"arch_variant"`
+
+	Target struct {
+		Vendor struct {
+			// list of shared libs that should not be used to build
+			// the vendor variant of the C/C++ module.
+			Exclude_shared_libs []string
+		}
+	}
 }
 
 func NewBaseLinker() *baseLinker {
@@ -122,6 +130,10 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Header_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Shared_libs...)
+
+	if ctx.vndk() {
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
+	}
 
 	deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders, linker.Properties.Export_header_lib_headers...)
 	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
