@@ -74,6 +74,7 @@ func runKati(ctx Context, config Config) {
 		"--detect_android_echo",
 		"--color_warnings",
 		"--gen_all_targets",
+		"--werror_find_emulator",
 		"-f", "build/core/main.mk",
 	}
 
