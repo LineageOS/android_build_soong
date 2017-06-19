@@ -29,6 +29,7 @@ blueprint_go_binary {
     deps: [
         "androidmk-parser",
         "blueprint-parser",
+        "bpfix-lib",
     ],
 }
 
