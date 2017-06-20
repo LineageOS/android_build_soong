@@ -85,8 +85,9 @@ type SanitizeProperties struct {
 		// Replaces abort() on error with a human-readable error message.
 		// Address and Thread sanitizers always run in diagnostic mode.
 		Diag struct {
-			Undefined *bool `android:"arch_variant"`
-			Cfi       *bool `android:"arch_variant"`
+			Undefined      *bool    `android:"arch_variant"`
+			Cfi            *bool    `android:"arch_variant"`
+			Misc_undefined []string `android:"arch_variant"`
 		}
 
 		// value to pass to -fsanitize-recover=
@@ -287,12 +288,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitizers = append(sanitizers, sanitize.Properties.Sanitize.Misc_undefined...)
 	}
 
-	if Bool(sanitize.Properties.Sanitize.Diag.Undefined) &&
-		(Bool(sanitize.Properties.Sanitize.All_undefined) ||
-			Bool(sanitize.Properties.Sanitize.Undefined) ||
-			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) {
+	if Bool(sanitize.Properties.Sanitize.Diag.Undefined) {
 		diagSanitizers = append(diagSanitizers, "undefined")
 	}
+
+	diagSanitizers = append(diagSanitizers, sanitize.Properties.Sanitize.Diag.Misc_undefined...)
 
 	if Bool(sanitize.Properties.Sanitize.Address) {
 		if ctx.Arch().ArchType == android.Arm {
