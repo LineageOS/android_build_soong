@@ -66,6 +66,16 @@ func filterList(list []string, filter []string) (remainder []string, filtered []
 	return
 }
 
+func removeListFromList(list []string, filter_out []string) (result []string) {
+	result = make([]string, 0, len(list))
+	for _, l := range list {
+		if !inList(l, filter_out) {
+			result = append(result, l)
+		}
+	}
+	return
+}
+
 func removeFromList(s string, list []string) (bool, []string) {
 	i := indexList(s, list)
 	if i != -1 {
