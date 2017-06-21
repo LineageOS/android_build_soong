@@ -30,5 +30,11 @@ export TRACE_BEGIN_SOONG=$(date +%s%N)
 export TOP=$(cd $(dirname ${BASH_SOURCE[0]})/../..; PWD= /bin/pwd)
 source "${TOP}/build/soong/cmd/microfactory/microfactory.bash"
 
+case $(uname) in
+  Linux)
+    export LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
+    ;;
+esac
+
 build_go multiproduct_kati android/soong/cmd/multiproduct_kati
 exec "$(getoutdir)/multiproduct_kati" "$@"
