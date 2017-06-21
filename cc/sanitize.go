@@ -25,17 +25,21 @@ import (
 	"android/soong/cc/config"
 )
 
-const (
-	asanCflags  = "-fno-omit-frame-pointer"
-	asanLdflags = "-Wl,-u,__asan_preinit"
-	asanLibs    = "libasan"
+var (
+	// Any C flags added by sanitizer which libTooling tools may not
+	// understand also need to be added to ClangLibToolingUnknownCflags in
+	// cc/config/clang.go
 
-	cfiCflags = "-flto -fsanitize-cfi-cross-dso -fvisibility=default " +
-		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"
+	asanCflags  = []string{"-fno-omit-frame-pointer"}
+	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
+	asanLibs    = []string{"libasan"}
+
+	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fvisibility=default",
+		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
 	// FIXME: revert the __cfi_check flag when clang is updated to r280031.
-	cfiLdflags = "-flto -fsanitize-cfi-cross-dso -fsanitize=cfi " +
-		"-Wl,-plugin-opt,O1 -Wl,-export-dynamic-symbol=__cfi_check"
-	cfiArflags = "--plugin ${config.ClangBin}/../lib64/LLVMgold.so"
+	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
+		"-Wl,-plugin-opt,O1 -Wl,-export-dynamic-symbol=__cfi_check"}
+	cfiArflags = []string{"--plugin ${config.ClangBin}/../lib64/LLVMgold.so"}
 )
 
 type sanitizerType int
@@ -232,7 +236,7 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 
 	if ctx.Device() {
 		if Bool(sanitize.Properties.Sanitize.Address) {
-			deps.StaticLibs = append(deps.StaticLibs, asanLibs)
+			deps.StaticLibs = append(deps.StaticLibs, asanLibs...)
 		}
 		if Bool(sanitize.Properties.Sanitize.Address) || Bool(sanitize.Properties.Sanitize.Thread) {
 			deps.SharedLibs = append(deps.SharedLibs, "libdl")
@@ -300,8 +304,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// TODO: put in flags?
 			flags.RequiredInstructionSet = "arm"
 		}
-		flags.CFlags = append(flags.CFlags, asanCflags)
-		flags.LdFlags = append(flags.LdFlags, asanLdflags)
+		flags.CFlags = append(flags.CFlags, asanCflags...)
+		flags.LdFlags = append(flags.LdFlags, asanLdflags...)
 
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking
@@ -337,9 +341,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, "-march=armv7-a")
 		}
 		sanitizers = append(sanitizers, "cfi")
-		flags.CFlags = append(flags.CFlags, cfiCflags)
-		flags.LdFlags = append(flags.LdFlags, cfiLdflags)
-		flags.ArFlags = append(flags.ArFlags, cfiArflags)
+		flags.CFlags = append(flags.CFlags, cfiCflags...)
+		flags.LdFlags = append(flags.LdFlags, cfiLdflags...)
+		flags.ArFlags = append(flags.ArFlags, cfiArflags...)
 		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
 			diagSanitizers = append(diagSanitizers, "cfi")
 		}
