@@ -117,6 +117,31 @@ var testCases = []struct {
 		},
 	},
 	{
+		name: "sort all implicit",
+
+		inputFiles: []string{
+			"RADIO/a",
+			"IMAGES/system.img",
+			"IMAGES/b.txt",
+			"IMAGES/recovery.img",
+			"IMAGES/vendor.img",
+			"OTA/b",
+			"OTA/android-info.txt",
+		},
+		sortGlobs: true,
+		args:      nil,
+
+		outputFiles: []string{
+			"IMAGES/b.txt",
+			"IMAGES/recovery.img",
+			"IMAGES/system.img",
+			"IMAGES/vendor.img",
+			"OTA/android-info.txt",
+			"OTA/b",
+			"RADIO/a",
+		},
+	},
+	{
 		name: "sort jar",
 
 		inputFiles: []string{

@@ -47,15 +47,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, "    <glob>:<out_dir>/")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "<glob> uses the rules at https://golang.org/pkg/path/filepath/#Match")
-		fmt.Fprintln(os.Stderr, "As a special exception, '**' is supported to specify all files in the input zip")
+		fmt.Fprintln(os.Stderr, "As a special exception, '**' is supported to specify all files in the input zip.")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Files will be copied with their existing compression from the input zipfile to")
-		fmt.Fprintln(os.Stderr, "the output zipfile, in the order of filespec arguments")
+		fmt.Fprintln(os.Stderr, "the output zipfile, in the order of filespec arguments.")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "If no filepsec is provided all files are copied (equivalent to '**').")
 	}
 
 	flag.Parse()
 
-	if flag.NArg() == 0 || *input == "" || *output == "" {
+	if *input == "" || *output == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -93,6 +95,10 @@ type pair struct {
 }
 
 func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, sortJava, setTime bool, args []string) error {
+	if len(args) == 0 {
+		// If no filespec is provided, default to copying everything
+		args = []string{"**"}
+	}
 	for _, arg := range args {
 		var input string
 		var output string
