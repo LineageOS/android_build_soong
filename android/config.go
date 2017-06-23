@@ -466,7 +466,11 @@ func (c *config) LibartImgHostBaseAddress() string {
 }
 
 func (c *config) LibartImgDeviceBaseAddress() string {
-	switch c.Targets[Device][0].Arch.ArchType {
+	archType := Common
+	if len(c.Targets[Device]) > 0 {
+		archType = c.Targets[Device][0].Arch.ArchType
+	}
+	switch archType {
 	default:
 		return "0x70000000"
 	case Mips, Mips64:
