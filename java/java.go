@@ -76,9 +76,6 @@ type compilerProperties struct {
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
 
-	// list of module-specific flags that will be used for dex compiles
-	Dxflags []string `android:"arch_variant"`
-
 	// list of of java libraries that will be in the classpath
 	Java_libs []string `android:"arch_variant"`
 
@@ -88,15 +85,20 @@ type compilerProperties struct {
 	// manifest file to be included in resulting jar
 	Manifest *string
 
+	// if not blank, run jarjar using the specified rules file
+	Jarjar_rules *string
+}
+
+type compilerDeviceProperties struct {
+	// list of module-specific flags that will be used for dex compiles
+	Dxflags []string `android:"arch_variant"`
+
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version string
 
 	// Set for device java libraries, and for host versions of device java libraries
 	// built for testing
 	Dex bool `blueprint:"mutated"`
-
-	// if not blank, run jarjar using the specified rules file
-	Jarjar_rules *string
 
 	// directories to pass to aidl tool
 	Aidl_includes []string
@@ -110,7 +112,8 @@ type compilerProperties struct {
 type Module struct {
 	android.ModuleBase
 
-	properties compilerProperties
+	properties       compilerProperties
+	deviceProperties compilerDeviceProperties
 
 	// output file suitable for inserting into the classpath of another compile
 	classpathFile android.Path
@@ -145,19 +148,20 @@ type JavaDependency interface {
 
 func (j *Module) BootClasspath(ctx android.BaseContext) string {
 	if ctx.Device() {
-		if j.properties.Sdk_version == "" {
+		switch j.deviceProperties.Sdk_version {
+		case "":
 			return "core-libart"
-		} else if j.properties.Sdk_version == "current" {
+		case "current":
 			// TODO: !TARGET_BUILD_APPS
 			// TODO: export preprocessed framework.aidl from android_stubs_current
 			return "android_stubs_current"
-		} else if j.properties.Sdk_version == "system_current" {
+		case "system_current":
 			return "android_system_stubs_current"
-		} else {
-			return "sdk_v" + j.properties.Sdk_version
+		default:
+			return "sdk_v" + j.deviceProperties.Sdk_version
 		}
 	} else {
-		if j.properties.Dex {
+		if j.deviceProperties.Dex {
 			return "core-libart"
 		} else {
 			return ""
@@ -175,7 +179,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		if bootClasspath != "" {
 			deps = append(deps, bootClasspath)
 		}
-		if ctx.Device() && j.properties.Sdk_version == "" {
+		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
 			deps = append(deps, defaultJavaLibraries...)
 		}
 	}
@@ -188,7 +192,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
 	aidlIncludeDirs android.Paths) []string {
 
-	localAidlIncludes := android.PathsForModuleSrc(ctx, j.properties.Aidl_includes)
+	localAidlIncludes := android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl_includes)
 
 	var flags []string
 	if aidlPreprocess.Valid() {
@@ -251,7 +255,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 
 func (j *Module) compile(ctx android.ModuleContext) {
 
-	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Export_aidl_include_dirs)
+	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Export_aidl_include_dirs)
 
 	classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
 		aidlIncludeDirs, srcFileLists := j.collectDeps(ctx)
@@ -334,8 +338,8 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.classJarSpecs = classJarSpecs
 	j.classpathFile = outputFile
 
-	if j.properties.Dex && len(srcFiles) > 0 {
-		dxFlags := j.properties.Dxflags
+	if j.deviceProperties.Dex && len(srcFiles) > 0 {
+		dxFlags := j.deviceProperties.Dxflags
 		if false /* emma enabled */ {
 			// If you instrument class files that have local variable debug information in
 			// them emma does not correctly maintain the local variable table.
@@ -418,17 +422,18 @@ func (j *JavaLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func JavaLibraryFactory() (blueprint.Module, []interface{}) {
 	module := &JavaLibrary{}
 
-	module.properties.Dex = true
+	module.deviceProperties.Dex = true
 
-	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported,
-		android.MultilibCommon, &module.Module.properties)
+	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon,
+		&module.Module.properties,
+		&module.Module.deviceProperties)
 }
 
 func JavaLibraryHostFactory() (blueprint.Module, []interface{}) {
 	module := &JavaLibrary{}
 
-	return android.InitAndroidArchModule(module, android.HostSupported,
-		android.MultilibCommon, &module.Module.properties)
+	return android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon,
+		&module.Module.properties)
 }
 
 //
@@ -462,17 +467,21 @@ func (j *JavaBinary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func JavaBinaryFactory() (blueprint.Module, []interface{}) {
 	module := &JavaBinary{}
 
-	module.properties.Dex = true
+	module.deviceProperties.Dex = true
 
-	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported,
-		android.MultilibCommon, &module.Module.properties, &module.binaryProperties)
+	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon,
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.binaryProperties)
 }
 
 func JavaBinaryHostFactory() (blueprint.Module, []interface{}) {
 	module := &JavaBinary{}
 
-	return android.InitAndroidArchModule(module, android.HostSupported,
-		android.MultilibCommon, &module.Module.properties, &module.binaryProperties)
+	return android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon,
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.binaryProperties)
 }
 
 //
