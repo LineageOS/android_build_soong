@@ -31,6 +31,7 @@ var (
 	input     = flag.String("i", "", "zip file to read from")
 	output    = flag.String("o", "", "output file")
 	sortGlobs = flag.Bool("s", false, "sort matches from each glob (defaults to the order from the input zip file)")
+	sortJava  = flag.Bool("j", false, "sort using jar ordering within each glob (META-INF/MANIFEST.MF first)")
 	setTime   = flag.Bool("t", false, "set timestamps to 2009-01-01 00:00:00")
 
 	staticTime = time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -38,7 +39,7 @@ var (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: zip2zip -i zipfile -o zipfile [-s] [-t] [filespec]...")
+		fmt.Fprintln(os.Stderr, "usage: zip2zip -i zipfile -o zipfile [-s|-j] [-t] [filespec]...")
 		flag.PrintDefaults()
 		fmt.Fprintln(os.Stderr, "  filespec:")
 		fmt.Fprintln(os.Stderr, "    <name>")
@@ -81,12 +82,17 @@ func main() {
 		}
 	}()
 
-	if err := zip2zip(&reader.Reader, writer, *sortGlobs, *setTime, flag.Args()); err != nil {
+	if err := zip2zip(&reader.Reader, writer, *sortGlobs, *sortJava, *setTime, flag.Args()); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, setTime bool, args []string) error {
+type pair struct {
+	*zip.File
+	newName string
+}
+
+func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, sortJava, setTime bool, args []string) error {
 	for _, arg := range args {
 		var input string
 		var output string
@@ -101,11 +107,6 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, setTime bool, ar
 		input = args[0]
 		if len(args) == 2 {
 			output = args[1]
-		}
-
-		type pair struct {
-			*zip.File
-			newName string
 		}
 
 		matches := []pair{}
@@ -138,7 +139,9 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, setTime bool, ar
 				}
 			}
 
-			if sortGlobs {
+			if sortJava {
+				jarSort(matches)
+			} else if sortGlobs {
 				sort.SliceStable(matches, func(i, j int) bool {
 					return matches[i].newName < matches[j].newName
 				})
@@ -166,4 +169,40 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, setTime bool, ar
 	}
 
 	return nil
+}
+
+func jarSort(files []pair) {
+	// Treats trailing * as a prefix match
+	match := func(pattern, name string) bool {
+		if strings.HasSuffix(pattern, "*") {
+			return strings.HasPrefix(name, strings.TrimSuffix(pattern, "*"))
+		} else {
+			return name == pattern
+		}
+	}
+
+	var jarOrder = []string{
+		"META-INF/",
+		"META-INF/MANIFEST.MF",
+		"META-INF/*",
+		"*",
+	}
+
+	index := func(name string) int {
+		for i, pattern := range jarOrder {
+			if match(pattern, name) {
+				return i
+			}
+		}
+		panic(fmt.Errorf("file %q did not match any pattern", name))
+	}
+
+	sort.SliceStable(files, func(i, j int) bool {
+		diff := index(files[i].newName) - index(files[j].newName)
+		if diff == 0 {
+			return files[i].newName < files[j].newName
+		} else {
+			return diff < 0
+		}
+	})
 }
