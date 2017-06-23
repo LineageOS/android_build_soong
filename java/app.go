@@ -70,7 +70,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	var deps []string
 	if !a.properties.No_standard_libraries {
-		switch a.properties.Sdk_version { // TODO: Res_sdk_version?
+		switch a.deviceProperties.Sdk_version { // TODO: Res_sdk_version?
 		case "current", "system_current", "":
 			deps = append(deps, "framework-res")
 		default:
@@ -248,7 +248,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 		}
 	})
 
-	sdkVersion := a.properties.Sdk_version
+	sdkVersion := a.deviceProperties.Sdk_version
 	if sdkVersion == "" {
 		sdkVersion = ctx.AConfig().PlatformSdkVersion()
 	}
@@ -277,8 +277,10 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 func AndroidAppFactory() (blueprint.Module, []interface{}) {
 	module := &AndroidApp{}
 
-	module.properties.Dex = true
+	module.deviceProperties.Dex = true
 
 	return android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon,
-		&module.Module.properties, &module.appProperties)
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.appProperties)
 }
