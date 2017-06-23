@@ -57,7 +57,7 @@ type androidAppProperties struct {
 }
 
 type AndroidApp struct {
-	javaBase
+	Module
 
 	appProperties androidAppProperties
 
@@ -65,9 +65,10 @@ type AndroidApp struct {
 	exportPackage    android.Path
 }
 
-func (a *AndroidApp) JavaDependencies(ctx AndroidJavaModuleContext) []string {
-	deps := a.javaBase.JavaDependencies(ctx)
+func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
+	a.Module.deps(ctx)
 
+	var deps []string
 	if !a.properties.No_standard_libraries {
 		switch a.properties.Sdk_version { // TODO: Res_sdk_version?
 		case "current", "system_current", "":
@@ -77,10 +78,10 @@ func (a *AndroidApp) JavaDependencies(ctx AndroidJavaModuleContext) []string {
 		}
 	}
 
-	return deps
+	ctx.AddDependency(ctx.Module(), nil, deps...)
 }
 
-func (a *AndroidApp) GenerateJavaBuildActions(ctx android.ModuleContext) {
+func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	aaptFlags, aaptDeps, hasResources := a.aaptFlags(ctx)
 
 	if hasResources {
@@ -114,14 +115,14 @@ func (a *AndroidApp) GenerateJavaBuildActions(ctx android.ModuleContext) {
 		ctx.CheckbuildFile(aaptJavaFileList)
 	}
 
-	// apps manifests are handled by aapt, don't let javaBase see them
+	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
 
 	//if !ctx.ContainsProperty("proguard.enabled") {
 	//	a.properties.Proguard.Enabled = true
 	//}
 
-	a.javaBase.GenerateJavaBuildActions(ctx)
+	a.Module.compile(ctx)
 
 	aaptPackageFlags := append([]string(nil), aaptFlags...)
 	var hasProduct bool
@@ -238,7 +239,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 			depFile = android.OptionalPathForPath(sdkDep.ClasspathFile())
 		} else if javaDep, ok := module.(JavaDependency); ok {
 			if ctx.OtherModuleName(module) == "framework-res" {
-				depFile = android.OptionalPathForPath(javaDep.(*javaBase).module.(*AndroidApp).exportPackage)
+				depFile = android.OptionalPathForPath(javaDep.(*AndroidApp).exportPackage)
 			}
 		}
 		if depFile.Valid() {
@@ -278,5 +279,6 @@ func AndroidAppFactory() (blueprint.Module, []interface{}) {
 
 	module.properties.Dex = true
 
-	return NewJavaBase(&module.javaBase, module, android.DeviceSupported, &module.appProperties)
+	return android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon,
+		&module.Module.properties, &module.appProperties)
 }
