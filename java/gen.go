@@ -84,7 +84,7 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 	return javaFile
 }
 
-func (j *javaBase) genSources(ctx android.ModuleContext, srcFiles android.Paths,
+func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	flags javaBuilderFlags) android.Paths {
 
 	for i, srcFile := range srcFiles {
