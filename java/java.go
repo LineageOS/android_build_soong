@@ -26,6 +26,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/genrule"
+	"android/soong/java/config"
 )
 
 func init() {
@@ -169,8 +170,6 @@ func (j *Module) BootClasspath(ctx android.BaseContext) string {
 	}
 }
 
-var defaultJavaLibraries = []string{"core-libart", "legacy-test", "ext", "framework"}
-
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	var deps []string
 
@@ -180,7 +179,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			deps = append(deps, bootClasspath)
 		}
 		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
-			deps = append(deps, defaultJavaLibraries...)
+			deps = append(deps, config.DefaultLibraries...)
 		}
 	}
 	deps = append(deps, j.properties.Java_libs...)
@@ -218,7 +217,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 		if javaDep, ok := module.(JavaDependency); ok {
 			if otherName == j.BootClasspath(ctx) {
 				bootClasspath = android.OptionalPathForPath(javaDep.ClasspathFile())
-			} else if inList(otherName, defaultJavaLibraries) {
+			} else if inList(otherName, config.DefaultLibraries) {
 				classpath = append(classpath, javaDep.ClasspathFile())
 			} else if inList(otherName, j.properties.Java_libs) {
 				classpath = append(classpath, javaDep.ClasspathFile())
