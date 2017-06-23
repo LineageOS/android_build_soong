@@ -28,6 +28,7 @@ var testCases = []struct {
 
 	inputFiles []string
 	sortGlobs  bool
+	sortJava   bool
 	args       []string
 
 	outputFiles []string
@@ -116,6 +117,35 @@ var testCases = []struct {
 		},
 	},
 	{
+		name: "sort jar",
+
+		inputFiles: []string{
+			"MANIFEST.MF",
+			"META-INF/MANIFEST.MF",
+			"META-INF/aaa/",
+			"META-INF/aaa/aaa",
+			"META-INF/AAA",
+			"META-INF.txt",
+			"META-INF/",
+			"AAA",
+			"aaa",
+		},
+		sortJava: true,
+		args:     nil,
+
+		outputFiles: []string{
+			"META-INF/",
+			"META-INF/MANIFEST.MF",
+			"META-INF/AAA",
+			"META-INF/aaa/",
+			"META-INF/aaa/aaa",
+			"AAA",
+			"MANIFEST.MF",
+			"META-INF.txt",
+			"aaa",
+		},
+	},
+	{
 		name: "double input",
 
 		inputFiles: []string{
@@ -161,7 +191,7 @@ func TestZip2Zip(t *testing.T) {
 			}
 
 			outputWriter := zip.NewWriter(outputBuf)
-			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, false, testCase.args)
+			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, testCase.sortJava, false, testCase.args)
 			if errorString(testCase.err) != errorString(err) {
 				t.Fatalf("Unexpected error:\n got: %q\nwant: %q", errorString(err), errorString(testCase.err))
 			}
