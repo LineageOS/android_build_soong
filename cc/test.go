@@ -20,8 +20,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
 type TestProperties struct {
@@ -57,31 +55,31 @@ func init() {
 }
 
 // Module factory for tests
-func testFactory() (blueprint.Module, []interface{}) {
+func testFactory() android.Module {
 	module := NewTest(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for test libraries
-func testLibraryFactory() (blueprint.Module, []interface{}) {
+func testLibraryFactory() android.Module {
 	module := NewTestLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for benchmarks
-func benchmarkFactory() (blueprint.Module, []interface{}) {
+func benchmarkFactory() android.Module {
 	module := NewBenchmark(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for host tests
-func testHostFactory() (blueprint.Module, []interface{}) {
+func testHostFactory() android.Module {
 	module := NewTest(android.HostSupported)
 	return module.Init()
 }
 
 // Module factory for host benchmarks
-func benchmarkHostFactory() (blueprint.Module, []interface{}) {
+func benchmarkHostFactory() android.Module {
 	module := NewBenchmark(android.HostSupported)
 	return module.Init()
 }

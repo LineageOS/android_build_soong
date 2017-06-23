@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -38,7 +37,7 @@ func (*toolchainLibraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func toolchainLibraryFactory() (blueprint.Module, []interface{}) {
+func toolchainLibraryFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	toolchainLibrary := &toolchainLibraryDecorator{

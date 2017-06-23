@@ -123,8 +123,8 @@ func TestPrebuilts(t *testing.T) {
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := NewContext()
-			ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
-			ctx.RegisterModuleType("source", newSourceModule)
+			ctx.RegisterModuleType("prebuilt", ModuleFactoryAdaptor(newPrebuiltModule))
+			ctx.RegisterModuleType("source", ModuleFactoryAdaptor(newSourceModule))
 			ctx.MockFileSystem(map[string][]byte{
 				"Blueprints": []byte(`
 					source {
@@ -183,9 +183,11 @@ type prebuiltModule struct {
 	prebuilt Prebuilt
 }
 
-func newPrebuiltModule() (blueprint.Module, []interface{}) {
+func newPrebuiltModule() Module {
 	m := &prebuiltModule{}
-	return InitAndroidModule(m, &m.prebuilt.Properties)
+	m.AddProperties(&m.prebuilt.Properties)
+	InitAndroidModule(m)
+	return m
 }
 
 func (p *prebuiltModule) Name() string {
@@ -210,9 +212,11 @@ type sourceModule struct {
 	dependsOnSourceModule, dependsOnPrebuiltModule bool
 }
 
-func newSourceModule() (blueprint.Module, []interface{}) {
+func newSourceModule() Module {
 	m := &sourceModule{}
-	return InitAndroidModule(m, &m.properties)
+	m.AddProperties(&m.properties)
+	InitAndroidModule(m)
+	return m
 }
 
 func (s *sourceModule) DepsMutator(ctx BottomUpMutatorContext) {
