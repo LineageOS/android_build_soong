@@ -47,11 +47,10 @@ func init() {
 //  Renderscript
 // Post-jar passes:
 //  Proguard
-//  Emma
+//  Jacoco
 //  Jarjar
 //  Dex
 // Rmtypedefs
-// Jack
 // DroidDoc
 // Findbugs
 
@@ -76,9 +75,6 @@ type javaBaseProperties struct {
 
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
-
-	// list of module-specific flags that will be used for jack compiles
-	Jack_flags []string `android:"arch_variant"`
 
 	// list of module-specific flags that will be used for dex compiles
 	Dxflags []string `android:"arch_variant"`
