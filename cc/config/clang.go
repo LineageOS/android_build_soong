@@ -65,6 +65,11 @@ var ClangUnknownCflags = sorted([]string{
 	"-mbionic",
 })
 
+var ClangLibToolingUnknownCflags = []string{
+	"-flto",
+	"-fsanitize*",
+}
+
 func init() {
 	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
 		"-D__compiler_offsetof=__builtin_offsetof",
