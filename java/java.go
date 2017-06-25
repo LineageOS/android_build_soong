@@ -15,7 +15,7 @@
 package java
 
 // This file contains the module types for compiling Java for Android, and converts the properties
-// into the flags and filenames necessary to pass to the compiler.  The final creation of the rules
+// into the flags and filenames necessary to pass to the Module.  The final creation of the rules
 // is handled in builder.go
 
 import (
@@ -26,6 +26,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/genrule"
+	"android/soong/java/config"
 )
 
 func init() {
@@ -47,15 +48,14 @@ func init() {
 //  Renderscript
 // Post-jar passes:
 //  Proguard
-//  Emma
+//  Jacoco
 //  Jarjar
 //  Dex
 // Rmtypedefs
-// Jack
 // DroidDoc
 // Findbugs
 
-type javaBaseProperties struct {
+type compilerProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
 	// or .aidl files.
 	Srcs []string `android:"arch_variant"`
@@ -77,12 +77,6 @@ type javaBaseProperties struct {
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
 
-	// list of module-specific flags that will be used for jack compiles
-	Jack_flags []string `android:"arch_variant"`
-
-	// list of module-specific flags that will be used for dex compiles
-	Dxflags []string `android:"arch_variant"`
-
 	// list of of java libraries that will be in the classpath
 	Java_libs []string `android:"arch_variant"`
 
@@ -92,15 +86,20 @@ type javaBaseProperties struct {
 	// manifest file to be included in resulting jar
 	Manifest *string
 
+	// if not blank, run jarjar using the specified rules file
+	Jarjar_rules *string
+}
+
+type compilerDeviceProperties struct {
+	// list of module-specific flags that will be used for dex compiles
+	Dxflags []string `android:"arch_variant"`
+
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version string
 
 	// Set for device java libraries, and for host versions of device java libraries
 	// built for testing
 	Dex bool `blueprint:"mutated"`
-
-	// if not blank, run jarjar using the specified rules file
-	Jarjar_rules *string
 
 	// directories to pass to aidl tool
 	Aidl_includes []string
@@ -110,13 +109,12 @@ type javaBaseProperties struct {
 	Export_aidl_include_dirs []string
 }
 
-// javaBase contains the properties and members used by all java module types, and implements
-// the blueprint.Module interface.
-type javaBase struct {
+// Module contains the properties and members used by all java module types
+type Module struct {
 	android.ModuleBase
-	module JavaModuleType
 
-	properties javaBaseProperties
+	properties       compilerProperties
+	deviceProperties compilerDeviceProperties
 
 	// output file suitable for inserting into the classpath of another compile
 	classpathFile android.Path
@@ -142,13 +140,6 @@ type javaBase struct {
 	installFile android.Path
 }
 
-type AndroidJavaModuleContext android.BaseContext
-
-type JavaModuleType interface {
-	GenerateJavaBuildActions(ctx android.ModuleContext)
-	JavaDependencies(ctx AndroidJavaModuleContext) []string
-}
-
 type JavaDependency interface {
 	ClasspathFile() android.Path
 	ClassJarSpecs() []jarSpec
@@ -156,31 +147,22 @@ type JavaDependency interface {
 	AidlIncludeDirs() android.Paths
 }
 
-func NewJavaBase(base *javaBase, module JavaModuleType, hod android.HostOrDeviceSupported,
-	props ...interface{}) (blueprint.Module, []interface{}) {
-
-	base.module = module
-
-	props = append(props, &base.properties)
-
-	return android.InitAndroidArchModule(base, hod, android.MultilibCommon, props...)
-}
-
-func (j *javaBase) BootClasspath(ctx android.BaseContext) string {
+func (j *Module) BootClasspath(ctx android.BaseContext) string {
 	if ctx.Device() {
-		if j.properties.Sdk_version == "" {
+		switch j.deviceProperties.Sdk_version {
+		case "":
 			return "core-libart"
-		} else if j.properties.Sdk_version == "current" {
+		case "current":
 			// TODO: !TARGET_BUILD_APPS
 			// TODO: export preprocessed framework.aidl from android_stubs_current
 			return "android_stubs_current"
-		} else if j.properties.Sdk_version == "system_current" {
+		case "system_current":
 			return "android_system_stubs_current"
-		} else {
-			return "sdk_v" + j.properties.Sdk_version
+		default:
+			return "sdk_v" + j.deviceProperties.Sdk_version
 		}
 	} else {
-		if j.properties.Dex {
+		if j.deviceProperties.Dex {
 			return "core-libart"
 		} else {
 			return ""
@@ -188,15 +170,7 @@ func (j *javaBase) BootClasspath(ctx android.BaseContext) string {
 	}
 }
 
-var defaultJavaLibraries = []string{"core-libart", "legacy-test", "ext", "framework"}
-
-func (j *javaBase) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if j, ok := ctx.Module().(JavaModuleType); ok {
-		ctx.AddDependency(ctx.Module(), nil, j.JavaDependencies(ctx)...)
-	}
-}
-
-func (j *javaBase) JavaDependencies(ctx AndroidJavaModuleContext) []string {
+func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	var deps []string
 
 	if !j.properties.No_standard_libraries {
@@ -204,20 +178,20 @@ func (j *javaBase) JavaDependencies(ctx AndroidJavaModuleContext) []string {
 		if bootClasspath != "" {
 			deps = append(deps, bootClasspath)
 		}
-		if ctx.Device() && j.properties.Sdk_version == "" {
-			deps = append(deps, defaultJavaLibraries...)
+		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
+			deps = append(deps, config.DefaultLibraries...)
 		}
 	}
 	deps = append(deps, j.properties.Java_libs...)
 	deps = append(deps, j.properties.Java_static_libs...)
 
-	return deps
+	ctx.AddDependency(ctx.Module(), nil, deps...)
 }
 
-func (j *javaBase) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
+func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
 	aidlIncludeDirs android.Paths) []string {
 
-	localAidlIncludes := android.PathsForModuleSrc(ctx, j.properties.Aidl_includes)
+	localAidlIncludes := android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl_includes)
 
 	var flags []string
 	if aidlPreprocess.Valid() {
@@ -234,7 +208,7 @@ func (j *javaBase) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.O
 	return flags
 }
 
-func (j *javaBase) collectDeps(ctx android.ModuleContext) (classpath android.Paths,
+func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths,
 	bootClasspath android.OptionalPath, classJarSpecs, resourceJarSpecs []jarSpec, aidlPreprocess android.OptionalPath,
 	aidlIncludeDirs android.Paths, srcFileLists android.Paths) {
 
@@ -243,7 +217,7 @@ func (j *javaBase) collectDeps(ctx android.ModuleContext) (classpath android.Pat
 		if javaDep, ok := module.(JavaDependency); ok {
 			if otherName == j.BootClasspath(ctx) {
 				bootClasspath = android.OptionalPathForPath(javaDep.ClasspathFile())
-			} else if inList(otherName, defaultJavaLibraries) {
+			} else if inList(otherName, config.DefaultLibraries) {
 				classpath = append(classpath, javaDep.ClasspathFile())
 			} else if inList(otherName, j.properties.Java_libs) {
 				classpath = append(classpath, javaDep.ClasspathFile())
@@ -255,7 +229,7 @@ func (j *javaBase) collectDeps(ctx android.ModuleContext) (classpath android.Pat
 				if ctx.ModuleName() == "framework" {
 					// framework.jar has a one-off dependency on the R.java and Manifest.java files
 					// generated by framework-res.apk
-					srcFileLists = append(srcFileLists, module.(*javaBase).module.(*AndroidApp).aaptJavaFileList)
+					srcFileLists = append(srcFileLists, module.(*AndroidApp).aaptJavaFileList)
 				}
 			} else {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
@@ -278,13 +252,9 @@ func (j *javaBase) collectDeps(ctx android.ModuleContext) (classpath android.Pat
 		aidlIncludeDirs, srcFileLists
 }
 
-func (j *javaBase) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.module.GenerateJavaBuildActions(ctx)
-}
+func (j *Module) compile(ctx android.ModuleContext) {
 
-func (j *javaBase) GenerateJavaBuildActions(ctx android.ModuleContext) {
-
-	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Export_aidl_include_dirs)
+	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Export_aidl_include_dirs)
 
 	classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
 		aidlIncludeDirs, srcFileLists := j.collectDeps(ctx)
@@ -367,8 +337,8 @@ func (j *javaBase) GenerateJavaBuildActions(ctx android.ModuleContext) {
 	j.classJarSpecs = classJarSpecs
 	j.classpathFile = outputFile
 
-	if j.properties.Dex && len(srcFiles) > 0 {
-		dxFlags := j.properties.Dxflags
+	if j.deviceProperties.Dex && len(srcFiles) > 0 {
+		dxFlags := j.deviceProperties.Dxflags
 		if false /* emma enabled */ {
 			// If you instrument class files that have local variable debug information in
 			// them emma does not correctly maintain the local variable table.
@@ -408,25 +378,25 @@ func (j *javaBase) GenerateJavaBuildActions(ctx android.ModuleContext) {
 
 var _ JavaDependency = (*JavaLibrary)(nil)
 
-func (j *javaBase) ClasspathFile() android.Path {
+func (j *Module) ClasspathFile() android.Path {
 	return j.classpathFile
 }
 
-func (j *javaBase) ClassJarSpecs() []jarSpec {
+func (j *Module) ClassJarSpecs() []jarSpec {
 	return j.classJarSpecs
 }
 
-func (j *javaBase) ResourceJarSpecs() []jarSpec {
+func (j *Module) ResourceJarSpecs() []jarSpec {
 	return j.resourceJarSpecs
 }
 
-func (j *javaBase) AidlIncludeDirs() android.Paths {
+func (j *Module) AidlIncludeDirs() android.Paths {
 	return j.exportAidlIncludeDirs
 }
 
-var _ logtagsProducer = (*javaBase)(nil)
+var _ logtagsProducer = (*Module)(nil)
 
-func (j *javaBase) logtags() android.Paths {
+func (j *Module) logtags() android.Paths {
 	return j.logtagsSrcs
 }
 
@@ -435,27 +405,34 @@ func (j *javaBase) logtags() android.Paths {
 //
 
 type JavaLibrary struct {
-	javaBase
+	Module
 }
 
-func (j *JavaLibrary) GenerateJavaBuildActions(ctx android.ModuleContext) {
-	j.javaBase.GenerateJavaBuildActions(ctx)
+func (j *JavaLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.compile(ctx)
 
 	j.installFile = ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.outputFile)
+}
+
+func (j *JavaLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	j.deps(ctx)
 }
 
 func JavaLibraryFactory() (blueprint.Module, []interface{}) {
 	module := &JavaLibrary{}
 
-	module.properties.Dex = true
+	module.deviceProperties.Dex = true
 
-	return NewJavaBase(&module.javaBase, module, android.HostAndDeviceSupported)
+	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon,
+		&module.Module.properties,
+		&module.Module.deviceProperties)
 }
 
 func JavaLibraryHostFactory() (blueprint.Module, []interface{}) {
 	module := &JavaLibrary{}
 
-	return NewJavaBase(&module.javaBase, module, android.HostSupported)
+	return android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon,
+		&module.Module.properties)
 }
 
 //
@@ -473,8 +450,8 @@ type JavaBinary struct {
 	binaryProperties javaBinaryProperties
 }
 
-func (j *JavaBinary) GenerateJavaBuildActions(ctx android.ModuleContext) {
-	j.JavaLibrary.GenerateJavaBuildActions(ctx)
+func (j *JavaBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.JavaLibrary.GenerateAndroidBuildActions(ctx)
 
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
@@ -482,18 +459,28 @@ func (j *JavaBinary) GenerateJavaBuildActions(ctx android.ModuleContext) {
 		j.installFile)
 }
 
+func (j *JavaBinary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	j.deps(ctx)
+}
+
 func JavaBinaryFactory() (blueprint.Module, []interface{}) {
 	module := &JavaBinary{}
 
-	module.properties.Dex = true
+	module.deviceProperties.Dex = true
 
-	return NewJavaBase(&module.javaBase, module, android.HostAndDeviceSupported, &module.binaryProperties)
+	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon,
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.binaryProperties)
 }
 
 func JavaBinaryHostFactory() (blueprint.Module, []interface{}) {
 	module := &JavaBinary{}
 
-	return NewJavaBase(&module.javaBase, module, android.HostSupported, &module.binaryProperties)
+	return android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon,
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.binaryProperties)
 }
 
 //

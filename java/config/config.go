@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All rights reserved.
+// Copyright 2017 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-blueprint_go_binary {
-    name: "zip2zip",
-    deps: ["android-archive-zip"],
-    srcs: [
-        "zip2zip.go",
-    ],
-    testSrcs: ["zip2zip_test.go"],
-}
+package config
 
+import "android/soong/android"
+
+var (
+	DefaultLibraries = []string{"core-oj", "core-libart", "ext", "framework", "okhttp"}
+)
+
+var pctx = android.NewPackageContext("android/soong/java/config")
