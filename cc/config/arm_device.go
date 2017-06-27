@@ -67,6 +67,7 @@ var (
 		"-Wl,--icf=safe",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--no-undefined-version",
+		"-Wl,-m,armelf",
 	}
 
 	armArmCflags = []string{
