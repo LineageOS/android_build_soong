@@ -113,9 +113,6 @@ var (
 			"-mfp64",
 			"-mno-odd-spreg",
 			"-msynci",
-
-			// revert once clang picks up r278824
-			"-mcompact-branches=never",
 		},
 	}
 )
