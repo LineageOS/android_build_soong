@@ -324,7 +324,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Coverage) {
-		flags.CFlags = append(flags.CFlags, "-fsanitize-coverage=edge,indirect-calls,8bit-counters,trace-cmp")
+		flags.CFlags = append(flags.CFlags, "-fsanitize-coverage=trace-pc-guard")
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Safestack) {
