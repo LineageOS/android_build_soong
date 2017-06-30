@@ -304,36 +304,38 @@ type Module struct {
 	flags Flags
 }
 
-func (c *Module) Init() (blueprint.Module, []interface{}) {
-	props := []interface{}{&c.Properties, &c.unused}
+func (c *Module) Init() android.Module {
+	c.AddProperties(&c.Properties, &c.unused)
 	if c.compiler != nil {
-		props = append(props, c.compiler.compilerProps()...)
+		c.AddProperties(c.compiler.compilerProps()...)
 	}
 	if c.linker != nil {
-		props = append(props, c.linker.linkerProps()...)
+		c.AddProperties(c.linker.linkerProps()...)
 	}
 	if c.installer != nil {
-		props = append(props, c.installer.installerProps()...)
+		c.AddProperties(c.installer.installerProps()...)
 	}
 	if c.stl != nil {
-		props = append(props, c.stl.props()...)
+		c.AddProperties(c.stl.props()...)
 	}
 	if c.sanitize != nil {
-		props = append(props, c.sanitize.props()...)
+		c.AddProperties(c.sanitize.props()...)
 	}
 	if c.coverage != nil {
-		props = append(props, c.coverage.props()...)
+		c.AddProperties(c.coverage.props()...)
 	}
 	if c.sabi != nil {
-		props = append(props, c.sabi.props()...)
+		c.AddProperties(c.sabi.props()...)
 	}
 	for _, feature := range c.features {
-		props = append(props, feature.props()...)
+		c.AddProperties(feature.props()...)
 	}
 
-	_, props = android.InitAndroidArchModule(c, c.hod, c.multilib, props...)
+	android.InitAndroidArchModule(c, c.hod, c.multilib)
 
-	return android.InitDefaultableModule(c, c, props...)
+	android.InitDefaultableModule(c, c)
+
+	return c
 }
 
 // Returns true for dependency roots (binaries)
@@ -1108,14 +1110,15 @@ func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (d *Defaults) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
-func defaultsFactory() (blueprint.Module, []interface{}) {
+func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }
 
-func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
+func DefaultsFactory(props ...interface{}) android.Module {
 	module := &Defaults{}
 
-	props = append(props,
+	module.AddProperties(props...)
+	module.AddProperties(
 		&BaseProperties{},
 		&BaseCompilerProperties{},
 		&BaseLinkerProperties{},
@@ -1134,7 +1137,9 @@ func DefaultsFactory(props ...interface{}) (blueprint.Module, []interface{}) {
 		&SAbiProperties{},
 	)
 
-	return android.InitDefaultsModule(module, module, props...)
+	android.InitDefaultsModule(module, module)
+
+	return module
 }
 
 const (
