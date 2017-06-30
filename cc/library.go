@@ -589,12 +589,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
 	library.coverageOutputFile = TransformCoverageFilesToLib(ctx, objs, builderFlags, library.getLibName(ctx))
-	library.linkSAbiDumpFiles(ctx, objs, fileName)
+	library.linkSAbiDumpFiles(ctx, objs, fileName, ret)
 
 	return ret
 }
 
-func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string) {
+func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
 	//Also take into account object re-use.
 	if len(objs.sAbiDumpFiles) > 0 && ctx.createVndkSourceAbiDump() && !ctx.Vendor() {
 		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, "current", fileName, vndkVsNdk(ctx), true)
@@ -612,7 +612,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			SourceAbiFlags = append(SourceAbiFlags, reexportedInclude)
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
-		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, symbolFile, "current", fileName, exportedHeaderFlags)
+		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, symbolFile, "current", fileName, exportedHeaderFlags)
 		if refSourceDumpFile.Valid() {
 			unzippedRefDump := UnzipRefDump(ctx, refSourceDumpFile.Path(), fileName)
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(), unzippedRefDump, fileName)
