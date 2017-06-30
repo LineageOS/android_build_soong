@@ -17,7 +17,6 @@ package cc
 import (
 	"path/filepath"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -55,13 +54,13 @@ func init() {
 }
 
 // Module factory for binaries
-func binaryFactory() (blueprint.Module, []interface{}) {
+func binaryFactory() android.Module {
 	module, _ := NewBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for host binaries
-func binaryHostFactory() (blueprint.Module, []interface{}) {
+func binaryHostFactory() android.Module {
 	module, _ := NewBinary(android.HostSupported)
 	return module.Init()
 }

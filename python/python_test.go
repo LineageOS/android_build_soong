@@ -313,8 +313,10 @@ func TestPythonModule(t *testing.T) {
 		t.Run(d.desc, func(t *testing.T) {
 			ctx := blueprint.NewContext()
 			android.RegisterTestMutators(ctx)
-			ctx.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
-			ctx.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
+			ctx.RegisterModuleType("python_library_host",
+				android.ModuleFactoryAdaptor(PythonLibraryHostFactory))
+			ctx.RegisterModuleType("python_binary_host",
+				android.ModuleFactoryAdaptor(PythonBinaryHostFactory))
 			ctx.MockFileSystem(d.mockFiles)
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
 			fail(t, testErrs)

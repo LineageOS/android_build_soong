@@ -131,8 +131,10 @@ func TestDataTests(t *testing.T) {
 				"dir/baz":        nil,
 				"dir/bar/baz":    nil,
 			})
-			ctx.RegisterModuleType("filegroup", genrule.FileGroupFactory)
-			ctx.RegisterModuleType("test", newTest)
+			ctx.RegisterModuleType("filegroup",
+				android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
+			ctx.RegisterModuleType("test",
+				android.ModuleFactoryAdaptor(newTest))
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
 			fail(t, errs)
@@ -175,9 +177,11 @@ type testDataTest struct {
 	}
 }
 
-func newTest() (blueprint.Module, []interface{}) {
+func newTest() android.Module {
 	m := &testDataTest{}
-	return android.InitAndroidModule(m, &m.Properties)
+	m.AddProperties(&m.Properties)
+	android.InitAndroidModule(m)
+	return m
 }
 
 func (test *testDataTest) DepsMutator(ctx android.BottomUpMutatorContext) {
