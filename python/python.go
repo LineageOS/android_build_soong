@@ -152,14 +152,15 @@ var _ PythonDependency = (*pythonBaseModule)(nil)
 var _ android.AndroidMkDataProvider = (*pythonBaseModule)(nil)
 
 func InitPythonBaseModule(baseModule *pythonBaseModule, subModule PythonSubModule,
-	hod android.HostOrDeviceSupported,
-	props ...interface{}) (blueprint.Module, []interface{}) {
+	hod android.HostOrDeviceSupported) android.Module {
 
 	baseModule.subModule = subModule
 
-	props = append(props, &baseModule.properties)
+	baseModule.AddProperties(&baseModule.properties)
 
-	return android.InitAndroidArchModule(baseModule, hod, android.MultilibCommon, props...)
+	android.InitAndroidArchModule(baseModule, hod, android.MultilibCommon)
+
+	return baseModule
 }
 
 // the tag used to mark dependencies within "py_libs" attribute.

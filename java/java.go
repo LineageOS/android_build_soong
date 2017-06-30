@@ -418,21 +418,26 @@ func (j *JavaLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
-func JavaLibraryFactory() (blueprint.Module, []interface{}) {
+func JavaLibraryFactory() android.Module {
 	module := &JavaLibrary{}
 
 	module.deviceProperties.Dex = true
 
-	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon,
+	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties)
+
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	return module
 }
 
-func JavaLibraryHostFactory() (blueprint.Module, []interface{}) {
+func JavaLibraryHostFactory() android.Module {
 	module := &JavaLibrary{}
 
-	return android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon,
-		&module.Module.properties)
+	module.AddProperties(&module.Module.properties)
+
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	return module
 }
 
 //
@@ -463,24 +468,30 @@ func (j *JavaBinary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
-func JavaBinaryFactory() (blueprint.Module, []interface{}) {
+func JavaBinaryFactory() android.Module {
 	module := &JavaBinary{}
 
 	module.deviceProperties.Dex = true
 
-	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon,
+	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
 		&module.binaryProperties)
+
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	return module
 }
 
-func JavaBinaryHostFactory() (blueprint.Module, []interface{}) {
+func JavaBinaryHostFactory() android.Module {
 	module := &JavaBinary{}
 
-	return android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon,
+	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
 		&module.binaryProperties)
+
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	return module
 }
 
 //
@@ -536,11 +547,13 @@ func (j *JavaPrebuilt) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func JavaPrebuiltFactory() (blueprint.Module, []interface{}) {
+func JavaPrebuiltFactory() android.Module {
 	module := &JavaPrebuilt{}
 
-	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported,
-		android.MultilibCommon, &module.properties)
+	module.AddProperties(&module.properties)
+
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	return module
 }
 
 //
@@ -576,11 +589,15 @@ func (j *sdkPrebuilt) AidlPreprocessed() android.OptionalPath {
 	return j.aidlPreprocessed
 }
 
-func SdkPrebuiltFactory() (blueprint.Module, []interface{}) {
+func SdkPrebuiltFactory() android.Module {
 	module := &sdkPrebuilt{}
 
-	return android.InitAndroidArchModule(module, android.HostAndDeviceSupported,
-		android.MultilibCommon, &module.properties, &module.sdkProperties)
+	module.AddProperties(
+		&module.properties,
+		&module.sdkProperties)
+
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	return module
 }
 
 func inList(s string, l []string) bool {

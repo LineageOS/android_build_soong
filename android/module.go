@@ -108,6 +108,9 @@ type Module interface {
 	InstallInData() bool
 	InstallInSanitizerDir() bool
 	SkipInstall()
+
+	AddProperties(props ...interface{})
+	GetProperties() []interface{}
 }
 
 type nameProperties struct {
@@ -194,24 +197,18 @@ const (
 	NeitherHostNorDeviceSupported
 )
 
-func InitAndroidModule(m Module,
-	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
-
+func InitAndroidModule(m Module) {
 	base := m.base()
 	base.module = m
 
-	propertyStructs = append(propertyStructs,
+	m.AddProperties(
 		&base.nameProperties,
 		&base.commonProperties,
 		&base.variableProperties)
-
-	return m, propertyStructs
 }
 
-func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib,
-	propertyStructs ...interface{}) (blueprint.Module, []interface{}) {
-
-	_, propertyStructs = InitAndroidModule(m, propertyStructs...)
+func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
+	InitAndroidModule(m)
 
 	base := m.base()
 	base.commonProperties.HostOrDeviceSupported = hod
@@ -225,10 +222,10 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 		base.hostAndDeviceProperties.Device_supported = boolPtr(true)
 		fallthrough
 	case HostAndDeviceDefault:
-		propertyStructs = append(propertyStructs, &base.hostAndDeviceProperties)
+		m.AddProperties(&base.hostAndDeviceProperties)
 	}
 
-	return InitArchModule(m, propertyStructs...)
+	InitArchModule(m)
 }
 
 // A ModuleBase object contains the properties that are common to all Android
@@ -250,7 +247,6 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 //
 //     import (
 //         "android/soong/android"
-//         "github.com/google/blueprint"
 //     )
 //
 //     type myModule struct {
@@ -260,9 +256,11 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 //         }
 //     }
 //
-//     func NewMyModule() (blueprint.Module, []interface{}) {
+//     func NewMyModule() android.Module) {
 //         m := &myModule{}
-//         return android.InitAndroidModule(m, &m.properties)
+//         m.AddProperties(&m.properties)
+//         android.InitAndroidModule(m)
+//         return m
 //     }
 //
 //     func (m *myModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -274,6 +272,7 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 type ModuleBase struct {
 	// Putting the curiously recurring thing pointing to the thing that contains
 	// the thing pattern to good use.
+	// TODO: remove this
 	module Module
 
 	nameProperties          nameProperties
@@ -295,6 +294,16 @@ type ModuleBase struct {
 	blueprintDir     string
 
 	hooks hooks
+
+	registerProps []interface{}
+}
+
+func (a *ModuleBase) AddProperties(props ...interface{}) {
+	a.registerProps = append(a.registerProps, props...)
+}
+
+func (a *ModuleBase) GetProperties() []interface{} {
+	return a.registerProps
 }
 
 // Name returns the name of the module.  It may be overridden by individual module types, for

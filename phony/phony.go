@@ -19,8 +19,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -33,10 +31,11 @@ type phony struct {
 	requiredModuleNames []string
 }
 
-func phonyFactory() (blueprint.Module, []interface{}) {
+func phonyFactory() android.Module {
 	module := &phony{}
 
-	return android.InitAndroidModule(module)
+	android.InitAndroidModule(module)
+	return module
 }
 
 func (p *phony) DepsMutator(ctx android.BottomUpMutatorContext) {

@@ -16,8 +16,6 @@ package cc
 
 import (
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
 func init() {
@@ -65,7 +63,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	return nil
 }
 
-func prebuiltSharedLibraryFactory() (blueprint.Module, []interface{}) {
+func prebuiltSharedLibraryFactory() android.Module {
 	module, _ := NewPrebuiltSharedLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
@@ -83,7 +81,7 @@ func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 	return module, library
 }
 
-func prebuiltStaticLibraryFactory() (blueprint.Module, []interface{}) {
+func prebuiltStaticLibraryFactory() android.Module {
 	module, _ := NewPrebuiltStaticLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
@@ -124,7 +122,7 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 	return nil
 }
 
-func prebuiltBinaryFactory() (blueprint.Module, []interface{}) {
+func prebuiltBinaryFactory() android.Module {
 	module, _ := NewPrebuiltBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }

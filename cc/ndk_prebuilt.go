@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 	"android/soong/cc/config"
 )
@@ -67,7 +65,7 @@ func (*ndkPrebuiltObjectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func ndkPrebuiltObjectFactory() (blueprint.Module, []interface{}) {
+func ndkPrebuiltObjectFactory() android.Module {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.linker = &ndkPrebuiltObjectLinker{
 		objectLinker: objectLinker{
@@ -101,7 +99,7 @@ func (*ndkPrebuiltLibraryLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func ndkPrebuiltLibraryFactory() (blueprint.Module, []interface{}) {
+func ndkPrebuiltLibraryFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyShared()
 	linker := &ndkPrebuiltLibraryLinker{
@@ -132,7 +130,7 @@ type ndkPrebuiltStlLinker struct {
 	ndkPrebuiltLibraryLinker
 }
 
-func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
+func ndkPrebuiltSharedStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyShared()
 	linker := &ndkPrebuiltStlLinker{
@@ -147,7 +145,7 @@ func ndkPrebuiltSharedStlFactory() (blueprint.Module, []interface{}) {
 	return module.Init()
 }
 
-func ndkPrebuiltStaticStlFactory() (blueprint.Module, []interface{}) {
+func ndkPrebuiltStaticStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyStatic()
 	linker := &ndkPrebuiltStlLinker{

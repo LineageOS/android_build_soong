@@ -274,13 +274,16 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 	return aaptFlags, aaptDeps, hasResources
 }
 
-func AndroidAppFactory() (blueprint.Module, []interface{}) {
+func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
 
 	module.deviceProperties.Dex = true
 
-	return android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon,
+	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
 		&module.appProperties)
+
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
 }
