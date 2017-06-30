@@ -17,8 +17,6 @@ package python
 // This file contains the module types for building Python library.
 
 import (
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -32,7 +30,7 @@ type PythonLibrary struct {
 
 var _ PythonSubModule = (*PythonLibrary)(nil)
 
-func PythonLibraryHostFactory() (blueprint.Module, []interface{}) {
+func PythonLibraryHostFactory() android.Module {
 	module := &PythonLibrary{}
 
 	return InitPythonBaseModule(&module.pythonBaseModule, module, android.HostSupportedNoCross)

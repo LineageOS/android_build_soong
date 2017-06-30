@@ -268,17 +268,20 @@ func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateT
 	}
 }
 
-func generatorFactory(tasks taskFunc, props ...interface{}) (blueprint.Module, []interface{}) {
+func generatorFactory(tasks taskFunc, props ...interface{}) android.Module {
 	module := &generator{
 		tasks: tasks,
 	}
 
-	props = append(props, &module.properties)
+	module.AddProperties(props...)
+	module.AddProperties(&module.properties)
 
-	return android.InitAndroidModule(module, props...)
+	android.InitAndroidModule(module)
+
+	return module
 }
 
-func GenSrcsFactory() (blueprint.Module, []interface{}) {
+func GenSrcsFactory() android.Module {
 	properties := &genSrcsProperties{}
 
 	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
@@ -300,7 +303,7 @@ type genSrcsProperties struct {
 	Output_extension string
 }
 
-func GenRuleFactory() (blueprint.Module, []interface{}) {
+func GenRuleFactory() android.Module {
 	properties := &genRuleProperties{}
 
 	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {

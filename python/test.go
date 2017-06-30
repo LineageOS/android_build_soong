@@ -17,8 +17,6 @@ package python
 import (
 	"android/soong/android"
 	"path/filepath"
-
-	"github.com/google/blueprint"
 )
 
 // This file contains the module types for building Python test.
@@ -42,13 +40,15 @@ func (p *pythonTestHostDecorator) install(ctx android.ModuleContext, file androi
 	p.pythonDecorator.baseInstaller.install(ctx, file)
 }
 
-func PythonTestHostFactory() (blueprint.Module, []interface{}) {
+func PythonTestHostFactory() android.Module {
 	decorator := &pythonTestHostDecorator{
 		pythonDecorator: pythonDecorator{baseInstaller: NewPythonInstaller("nativetest")}}
 
 	module := &PythonBinaryHost{}
 	module.pythonBaseModule.installer = decorator
 
+	module.AddProperties(&module.binaryProperties)
+
 	return InitPythonBaseModule(&module.pythonBinaryBase.pythonBaseModule,
-		&module.pythonBinaryBase, android.HostSupportedNoCross, &module.binaryProperties)
+		&module.pythonBinaryBase, android.HostSupportedNoCross)
 }

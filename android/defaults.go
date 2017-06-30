@@ -50,14 +50,11 @@ type Defaultable interface {
 
 var _ Defaultable = (*DefaultableModule)(nil)
 
-func InitDefaultableModule(module Module, d Defaultable,
-	props ...interface{}) (blueprint.Module, []interface{}) {
+func InitDefaultableModule(module Module, d Defaultable) {
 
-	d.setProperties(props)
+	d.setProperties(module.GetProperties())
 
-	props = append(props, d.defaults())
-
-	return module, props
+	module.AddProperties(d.defaults())
 }
 
 type DefaultsModule struct {
@@ -79,21 +76,18 @@ func (d *DefaultsModule) properties() []interface{} {
 	return d.defaultableProperties
 }
 
-func InitDefaultsModule(module Module, d Defaults, props ...interface{}) (blueprint.Module, []interface{}) {
-	props = append(props,
+func InitDefaultsModule(module Module, d Defaults) {
+	module.AddProperties(
 		&hostAndDeviceProperties{},
 		&commonProperties{},
 		&variableProperties{})
 
-	_, props = InitArchModule(module, props...)
+	InitArchModule(module)
+	InitDefaultableModule(module, d)
 
-	_, props = InitDefaultableModule(module, d, props...)
-
-	props = append(props, &module.base().nameProperties)
+	module.AddProperties(&module.base().nameProperties)
 
 	module.base().module = module
-
-	return module, props
 }
 
 var _ Defaults = (*DefaultsModule)(nil)

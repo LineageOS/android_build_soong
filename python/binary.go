@@ -21,8 +21,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -74,15 +72,16 @@ var (
 	stubTemplateHost = "build/soong/python/scripts/stub_template_host.txt"
 )
 
-func PythonBinaryHostFactory() (blueprint.Module, []interface{}) {
+func PythonBinaryHostFactory() android.Module {
 	decorator := &pythonBinaryHostDecorator{
 		pythonDecorator: pythonDecorator{baseInstaller: NewPythonInstaller("bin")}}
 
 	module := &PythonBinaryHost{}
 	module.pythonBaseModule.installer = decorator
+	module.AddProperties(&module.binaryProperties)
 
 	return InitPythonBaseModule(&module.pythonBinaryBase.pythonBaseModule,
-		&module.pythonBinaryBase, android.HostSupportedNoCross, &module.binaryProperties)
+		&module.pythonBinaryBase, android.HostSupportedNoCross)
 }
 
 func (p *pythonBinaryBase) GeneratePythonBuildActions(ctx android.ModuleContext) android.OptionalPath {

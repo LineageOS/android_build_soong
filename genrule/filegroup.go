@@ -15,8 +15,6 @@
 package genrule
 
 import (
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -48,10 +46,11 @@ var _ android.SourceFileProducer = (*fileGroup)(nil)
 // filegroup modules contain a list of files, and can be used to export files across package
 // boundaries.  filegroups (and genrules) can be referenced from srcs properties of other modules
 // using the syntax ":module".
-func FileGroupFactory() (blueprint.Module, []interface{}) {
+func FileGroupFactory() android.Module {
 	module := &fileGroup{}
-
-	return android.InitAndroidModule(module, &module.properties)
+	module.AddProperties(&module.properties)
+	android.InitAndroidModule(module)
+	return module
 }
 
 func (fg *fileGroup) DepsMutator(ctx android.BottomUpMutatorContext) {
