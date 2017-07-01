@@ -64,6 +64,11 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 	if Bool(lto.Properties.Lto) {
 		flags.CFlags = append(flags.CFlags, "-flto")
 		flags.LdFlags = append(flags.LdFlags, "-flto")
+		if ctx.Device() {
+			// Work around bug in Clang that doesn't pass correct emulated
+			// TLS option to target
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-emulated-tls")
+		}
 		flags.ArFlags = append(flags.ArFlags, " --plugin ${config.LLVMGoldPlugin}")
 	}
 	return flags
