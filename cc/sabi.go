@@ -17,9 +17,9 @@ package cc
 import (
 	"strings"
 
-	"android/soong/android"
 	"github.com/google/blueprint"
 
+	"android/soong/android"
 	"android/soong/cc/config"
 )
 

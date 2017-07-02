@@ -41,8 +41,19 @@ type mutator struct {
 
 var mutators []*mutator
 
-func RegisterModuleType(name string, factory blueprint.ModuleFactory) {
-	moduleTypes = append(moduleTypes, moduleType{name, factory})
+type ModuleFactory func() Module
+
+// ModuleFactoryAdapter Wraps a ModuleFactory into a blueprint.ModuleFactory by converting an Module
+// into a blueprint.Module and a list of property structs
+func ModuleFactoryAdaptor(factory ModuleFactory) blueprint.ModuleFactory {
+	return func() (blueprint.Module, []interface{}) {
+		module := factory()
+		return module, module.GetProperties()
+	}
+}
+
+func RegisterModuleType(name string, factory ModuleFactory) {
+	moduleTypes = append(moduleTypes, moduleType{name, ModuleFactoryAdaptor(factory)})
 }
 
 func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {

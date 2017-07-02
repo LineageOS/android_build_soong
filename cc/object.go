@@ -17,8 +17,6 @@ package cc
 import (
 	"fmt"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -35,7 +33,7 @@ type objectLinker struct {
 	Properties ObjectLinkerProperties
 }
 
-func objectFactory() (blueprint.Module, []interface{}) {
+func objectFactory() android.Module {
 	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
 	module.linker = &objectLinker{
 		baseLinker: NewBaseLinker(),
