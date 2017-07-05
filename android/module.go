@@ -216,12 +216,7 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	base.commonProperties.ArchSpecific = true
 
 	switch hod {
-	case HostAndDeviceSupported:
-		// Default to module to device supported, host not supported, can override in module
-		// properties
-		base.hostAndDeviceProperties.Device_supported = boolPtr(true)
-		fallthrough
-	case HostAndDeviceDefault:
+	case HostAndDeviceSupported, HostAndDeviceDefault:
 		m.AddProperties(&base.hostAndDeviceProperties)
 	}
 
@@ -363,7 +358,8 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 		if Bool(a.hostAndDeviceProperties.Host_supported) {
 			supported = append(supported, Host, HostCross)
 		}
-		if Bool(a.hostAndDeviceProperties.Device_supported) {
+		if a.hostAndDeviceProperties.Device_supported == nil ||
+			*a.hostAndDeviceProperties.Device_supported {
 			supported = append(supported, Device)
 		}
 		return supported
@@ -375,7 +371,8 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 func (a *ModuleBase) DeviceSupported() bool {
 	return a.commonProperties.HostOrDeviceSupported == DeviceSupported ||
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
-			Bool(a.hostAndDeviceProperties.Device_supported)
+			(a.hostAndDeviceProperties.Device_supported == nil ||
+				*a.hostAndDeviceProperties.Device_supported)
 }
 
 func (a *ModuleBase) Enabled() bool {
