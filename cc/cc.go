@@ -728,6 +728,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 		deps.SharedLibs, variantNdkLibs = rewriteNdkLibs(deps.SharedLibs)
 		deps.LateSharedLibs, variantLateNdkLibs = rewriteNdkLibs(deps.LateSharedLibs)
+		deps.ReexportSharedLibHeaders, _ = rewriteNdkLibs(deps.ReexportSharedLibHeaders)
 	}
 
 	for _, lib := range deps.HeaderLibs {
