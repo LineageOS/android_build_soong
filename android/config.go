@@ -428,6 +428,10 @@ func (c *config) SanitizeDevice() []string {
 	return append([]string(nil), c.ProductVariables.SanitizeDevice...)
 }
 
+func (c *config) SanitizeDeviceDiag() []string {
+	return append([]string(nil), c.ProductVariables.SanitizeDeviceDiag...)
+}
+
 func (c *config) SanitizeDeviceArch() []string {
 	return append([]string(nil), c.ProductVariables.SanitizeDeviceArch...)
 }
