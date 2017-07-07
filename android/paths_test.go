@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/google/blueprint/pathtools"
 )
 
 type strsTestCase struct {
@@ -178,5 +180,163 @@ func p(in interface{}) string {
 		return "[" + strings.Join(s, ", ") + "]"
 	} else {
 		return fmt.Sprintf("%#v", in)
+	}
+}
+
+type moduleInstallPathContextImpl struct {
+	androidBaseContextImpl
+
+	inData         bool
+	inSanitizerDir bool
+}
+
+func (moduleInstallPathContextImpl) Fs() pathtools.FileSystem {
+	return pathtools.MockFs(nil)
+}
+
+func (m moduleInstallPathContextImpl) Config() interface{} {
+	return m.androidBaseContextImpl.config
+}
+
+func (moduleInstallPathContextImpl) AddNinjaFileDeps(deps ...string) {}
+
+func (m moduleInstallPathContextImpl) InstallInData() bool {
+	return m.inData
+}
+
+func (m moduleInstallPathContextImpl) InstallInSanitizerDir() bool {
+	return m.inSanitizerDir
+}
+
+func TestPathForModuleInstall(t *testing.T) {
+	testConfig := TestConfig("")
+
+	hostTarget := Target{Os: Linux}
+	deviceTarget := Target{Os: Android}
+
+	testCases := []struct {
+		name string
+		ctx  *moduleInstallPathContextImpl
+		in   []string
+		out  string
+	}{
+		{
+			name: "host binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: hostTarget,
+				},
+			},
+			in:  []string{"bin", "my_test"},
+			out: "host/linux-x86/bin/my_test",
+		},
+
+		{
+			name: "system binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+				},
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/system/bin/my_test",
+		},
+		{
+			name: "vendor binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					vendor: true,
+				},
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/vendor/bin/my_test",
+		},
+
+		{
+			name: "system native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+				},
+				inData: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/nativetest/my_test",
+		},
+		{
+			name: "vendor native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					vendor: true,
+				},
+				inData: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/nativetest/my_test",
+		},
+
+		{
+			name: "sanitized system binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+				},
+				inSanitizerDir: true,
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/data/asan/system/bin/my_test",
+		},
+		{
+			name: "sanitized vendor binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					vendor: true,
+				},
+				inSanitizerDir: true,
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/data/asan/vendor/bin/my_test",
+		},
+
+		{
+			name: "sanitized system native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+				},
+				inData:         true,
+				inSanitizerDir: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+		},
+		{
+			name: "sanitized vendor native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					vendor: true,
+				},
+				inData:         true,
+				inSanitizerDir: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.ctx.androidBaseContextImpl.config = testConfig
+			output := PathForModuleInstall(tc.ctx, tc.in...)
+			if output.basePath.path != tc.out {
+				t.Errorf("unexpected path:\n got: %q\nwant: %q\n",
+					output.basePath.path,
+					tc.out)
+			}
+		})
 	}
 }
