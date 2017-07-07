@@ -88,8 +88,7 @@ type config struct {
 }
 
 type deviceConfig struct {
-	config  *config
-	targets []Arch
+	config *config
 	OncePer
 }
 
@@ -167,9 +166,18 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 
 // TestConfig returns a Config object suitable for using for tests
 func TestConfig(buildDir string) Config {
-	return Config{&config{
+	config := &config{
+		ProductVariables: productVariables{
+			DeviceName: stringPtr("test_device"),
+		},
+
 		buildDir: buildDir,
-	}}
+	}
+	config.deviceConfig = &deviceConfig{
+		config: config,
+	}
+
+	return Config{config}
 }
 
 // New creates a new Config object.  The srcDir argument specifies the path to
@@ -182,15 +190,11 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 
 		srcDir:   srcDir,
 		buildDir: buildDir,
-
-		deviceConfig: &deviceConfig{},
 	}
 
-	deviceConfig := &deviceConfig{
+	config.deviceConfig = &deviceConfig{
 		config: config,
 	}
-
-	config.deviceConfig = deviceConfig
 
 	// Sanity check the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious cases.
@@ -422,6 +426,10 @@ func (c *config) SanitizeHost() []string {
 
 func (c *config) SanitizeDevice() []string {
 	return append([]string(nil), c.ProductVariables.SanitizeDevice...)
+}
+
+func (c *config) SanitizeDeviceDiag() []string {
+	return append([]string(nil), c.ProductVariables.SanitizeDeviceDiag...)
 }
 
 func (c *config) SanitizeDeviceArch() []string {
