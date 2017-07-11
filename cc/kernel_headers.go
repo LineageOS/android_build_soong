@@ -40,12 +40,9 @@ func kernelHeadersFactory() android.Module {
 		libraryDecorator: library,
 	}
 
-	module.compiler = nil
 	module.linker = stub
-	module.installer = nil
 
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
-	return module
+	return module.Init()
 }
 
 func init() {
