@@ -37,6 +37,7 @@ bootstrap_go_package {
         "util.go",
     ],
     testSrcs: [
+        "config_test.go",
         "environment_test.go",
         "util_test.go",
         "proc_sync_test.go",
