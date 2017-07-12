@@ -24,14 +24,8 @@ func init() {
 	android.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
 }
 
-type PythonLibrary struct {
-	pythonBaseModule
-}
-
-var _ PythonSubModule = (*PythonLibrary)(nil)
-
 func PythonLibraryHostFactory() android.Module {
-	module := &PythonLibrary{}
+	module := newModule(android.HostSupportedNoCross, android.MultilibFirst)
 
-	return InitPythonBaseModule(&module.pythonBaseModule, module, android.HostSupportedNoCross)
+	return module.Init()
 }
