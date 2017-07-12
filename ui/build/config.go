@@ -98,6 +98,11 @@ func NewConfig(ctx Context, args ...string) Config {
 		// Variables that have caused problems in the past
 		"DISPLAY",
 		"GREP_OPTIONS",
+
+		// Drop make flags
+		"MAKEFLAGS",
+		"MAKELEVEL",
+		"MFLAGS",
 	)
 
 	// Tell python not to spam the source tree with .pyc files.
