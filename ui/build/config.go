@@ -176,6 +176,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			} else {
 				ctx.Fatalln("Unknown option:", arg)
 			}
+		} else if k, v, ok := decodeKeyValue(arg); ok && len(k) > 0 {
+			c.environ.Set(k, v)
 		} else {
 			c.arguments = append(c.arguments, arg)
 		}
