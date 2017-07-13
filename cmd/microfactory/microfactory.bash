@@ -39,8 +39,11 @@ function getoutdir
         if [ "${OUT_DIR_COMMON_BASE-}" ]; then
             out_dir="${OUT_DIR_COMMON_BASE}/$(basename ${TOP})"
         else
-            out_dir="${TOP}/out"
+            out_dir="out"
         fi
+    fi
+    if [[ "${out_dir}" != /* ]]; then
+        out_dir="${TOP}/${out_dir}"
     fi
     echo "${out_dir}"
 }
