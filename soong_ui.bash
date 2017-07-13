@@ -47,8 +47,12 @@ function gettop
     fi
 }
 
+# Save the current PWD for use in soong_ui
+export ORIGINAL_PWD=${PWD}
 export TOP=$(gettop)
-source build/soong/cmd/microfactory/microfactory.bash
+source ${TOP}/build/soong/cmd/microfactory/microfactory.bash
 
 build_go soong_ui android/soong/cmd/soong_ui
+
+cd ${TOP}
 exec "$(getoutdir)/soong_ui" "$@"
