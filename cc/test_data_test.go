@@ -23,8 +23,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/genrule"
-
-	"github.com/google/blueprint"
 )
 
 type dataFile struct {
@@ -123,8 +121,7 @@ func TestDataTests(t *testing.T) {
 
 	for _, test := range testDataTests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := blueprint.NewContext()
-			android.RegisterTestMutators(ctx)
+			ctx := android.NewTestContext()
 			ctx.MockFileSystem(map[string][]byte{
 				"Blueprints":     []byte(`subdirs = ["dir"]`),
 				"dir/Blueprints": []byte(test.modules),
@@ -135,18 +132,16 @@ func TestDataTests(t *testing.T) {
 				android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 			ctx.RegisterModuleType("test",
 				android.ModuleFactoryAdaptor(newTest))
+			ctx.Register()
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
 			fail(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)
 			fail(t, errs)
 
-			foo := findModule(ctx, "foo")
-			if foo == nil {
-				t.Fatalf("failed to find module foo")
-			}
+			foo := ctx.ModuleForTests("foo", "")
 
-			got := foo.(*testDataTest).data
+			got := foo.Module().(*testDataTest).data
 			if len(got) != len(test.data) {
 				t.Errorf("expected %d data files, got %d",
 					len(test.data), len(got))
@@ -190,16 +185,6 @@ func (test *testDataTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (test *testDataTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	test.data = ctx.ExpandSources(test.Properties.Data, nil)
-}
-
-func findModule(ctx *blueprint.Context, name string) blueprint.Module {
-	var ret blueprint.Module
-	ctx.VisitAllModules(func(m blueprint.Module) {
-		if ctx.ModuleName(m) == name {
-			ret = m
-		}
-	})
-	return ret
 }
 
 func fail(t *testing.T, errs []error) {
