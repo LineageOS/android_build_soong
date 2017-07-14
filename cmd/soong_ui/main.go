@@ -89,6 +89,10 @@ func main() {
 				buildCtx.CompleteTrace("startup", start_time, uint64(time.Now().UnixNano()))
 			}
 		}
+
+		if executable, err := os.Executable(); err == nil {
+			trace.ImportMicrofactoryLog(filepath.Join(filepath.Dir(executable), "."+filepath.Base(executable)+".trace"))
+		}
 	}
 
 	build.Build(buildCtx, config, build.BuildAll)
