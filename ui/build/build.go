@@ -104,7 +104,7 @@ func checkCaseSensitivity(ctx Context, config Config) {
 
 func help(ctx Context, config Config, what int) {
 	cmd := Command(ctx, config, "help.sh", "build/make/help.sh")
-	cmd.Sandbox = makeSandbox
+	cmd.Sandbox = dumpvarsSandbox
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
 	cmd.RunOrFatal()
