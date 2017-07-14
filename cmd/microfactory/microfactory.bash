@@ -81,6 +81,7 @@ function build_go
         mf_cmd="${mf_bin}"
     fi
 
+    rm -f "${out_dir}/.$1.trace"
     ${mf_cmd} -s "${mf_src}" -b "${mf_bin}" \
             -pkg-path "android/soong=${TOP}/build/soong" -trimpath "${TOP}/build/soong" \
             -o "${built_bin}" $2
