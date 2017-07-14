@@ -230,6 +230,7 @@ func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages *l
 		fmt.Fprintf(os.Stderr, "Package %q depends on %v\n", p.Name, deps)
 	}
 
+	sort.Strings(deps)
 	for _, dep := range deps {
 		p.directDeps = append(p.directDeps, allPackages.getByName(dep))
 	}
