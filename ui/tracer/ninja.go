@@ -23,16 +23,42 @@ import (
 	"time"
 )
 
-type ninjaLogEntry struct {
+type eventEntry struct {
 	Name  string
-	Begin int
-	End   int
+	Begin uint64
+	End   uint64
 }
-type ninjaLogEntries []*ninjaLogEntry
 
-func (n ninjaLogEntries) Len() int           { return len(n) }
-func (n ninjaLogEntries) Less(i, j int) bool { return n[i].Begin < n[j].Begin }
-func (n ninjaLogEntries) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (t *tracerImpl) importEvents(entries []*eventEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Begin < entries[j].Begin
+	})
+
+	cpus := []uint64{}
+	for _, entry := range entries {
+		tid := -1
+		for cpu, endTime := range cpus {
+			if endTime <= entry.Begin {
+				tid = cpu
+				cpus[cpu] = entry.End
+				break
+			}
+		}
+		if tid == -1 {
+			tid = len(cpus)
+			cpus = append(cpus, entry.End)
+		}
+
+		t.writeEvent(&viewerEvent{
+			Name:  entry.Name,
+			Phase: "X",
+			Time:  entry.Begin,
+			Dur:   entry.End - entry.Begin,
+			Pid:   1,
+			Tid:   uint64(tid),
+		})
+	}
+}
 
 // ImportNinjaLog reads a .ninja_log file from ninja and writes the events out
 // to the trace.
@@ -61,8 +87,9 @@ func (t *tracerImpl) ImportNinjaLog(thread Thread, filename string, startOffset 
 
 	s := bufio.NewScanner(f)
 	header := true
-	entries := ninjaLogEntries{}
+	entries := []*eventEntry{}
 	prevEnd := 0
+	offset := uint64(startOffset.UnixNano()) / 1000
 	for s.Scan() {
 		if header {
 			hdr := s.Text()
@@ -89,10 +116,10 @@ func (t *tracerImpl) ImportNinjaLog(thread Thread, filename string, startOffset 
 			entries = nil
 		}
 		prevEnd = end
-		entries = append(entries, &ninjaLogEntry{
+		entries = append(entries, &eventEntry{
 			Name:  fields[3],
-			Begin: begin,
-			End:   end,
+			Begin: offset + uint64(begin)*1000,
+			End:   offset + uint64(end)*1000,
 		})
 	}
 	if err := s.Err(); err != nil {
@@ -100,31 +127,5 @@ func (t *tracerImpl) ImportNinjaLog(thread Thread, filename string, startOffset 
 		return
 	}
 
-	sort.Sort(entries)
-
-	cpus := []int{}
-	offset := uint64(startOffset.UnixNano()) / 1000
-	for _, entry := range entries {
-		tid := -1
-		for cpu, endTime := range cpus {
-			if endTime <= entry.Begin {
-				tid = cpu
-				cpus[cpu] = entry.End
-				break
-			}
-		}
-		if tid == -1 {
-			tid = len(cpus)
-			cpus = append(cpus, entry.End)
-		}
-
-		t.writeEvent(&viewerEvent{
-			Name:  entry.Name,
-			Phase: "X",
-			Time:  offset + uint64(entry.Begin)*1000,
-			Dur:   uint64(entry.End-entry.Begin) * 1000,
-			Pid:   1,
-			Tid:   uint64(tid),
-		})
-	}
+	t.importEvents(entries)
 }
