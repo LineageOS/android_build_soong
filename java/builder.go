@@ -40,7 +40,7 @@ var (
 	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${config.JavacWrapper}$javacCmd ` +
+				`${JavacWrapper}$javacCmd ` +
 				`-encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
 				`-extdirs "" -d $outDir @$out.rsp || ( rm -rf "$outDir"; exit 41 ) && ` +
 				`find $outDir -name "*.class" > $out`,
