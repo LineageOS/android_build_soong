@@ -556,7 +556,7 @@ default ${g.bootstrap.buildDir}/.bootstrap/build.ninja
 build ${g.bootstrap.buildDir}/.minibootstrap/build.ninja.in: $
         g.bootstrap.build.ninja ${g.bootstrap.srcDir}/Android.bp | ${builder}
     builder = ${g.bootstrap.BinDir}/minibp
-    extra =  -t
+    extra = $ -t
 default ${g.bootstrap.buildDir}/.minibootstrap/build.ninja.in
 
 build ${g.bootstrap.buildDir}/.minibootstrap/build.ninja: $

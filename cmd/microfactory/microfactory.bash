@@ -39,8 +39,11 @@ function getoutdir
         if [ "${OUT_DIR_COMMON_BASE-}" ]; then
             out_dir="${OUT_DIR_COMMON_BASE}/$(basename ${TOP})"
         else
-            out_dir="${TOP}/out"
+            out_dir="out"
         fi
+    fi
+    if [[ "${out_dir}" != /* ]]; then
+        out_dir="${TOP}/${out_dir}"
     fi
     echo "${out_dir}"
 }
@@ -78,6 +81,7 @@ function build_go
         mf_cmd="${mf_bin}"
     fi
 
+    rm -f "${out_dir}/.$1.trace"
     ${mf_cmd} -s "${mf_src}" -b "${mf_bin}" \
             -pkg-path "android/soong=${TOP}/build/soong" -trimpath "${TOP}/build/soong" \
             -o "${built_bin}" $2

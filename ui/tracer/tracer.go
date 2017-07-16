@@ -45,6 +45,7 @@ type Tracer interface {
 	End(thread Thread)
 	Complete(name string, thread Thread, begin, end uint64)
 
+	ImportMicrofactoryLog(filename string)
 	ImportNinjaLog(thread Thread, filename string, startOffset time.Time)
 
 	NewThread(name string) Thread

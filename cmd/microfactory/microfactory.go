@@ -60,6 +60,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
@@ -132,6 +133,8 @@ func (s *linkedDepSet) ignore(name string) {
 // for import dependencies that exist in pkgMap, then recursively does the
 // same for all of those dependencies.
 func (p *GoPackage) FindDeps(path string, pkgMap *pkgPathMapping) error {
+	defer un(trace("findDeps"))
+
 	depSet := newDepSet()
 	err := p.findDeps(path, pkgMap, depSet)
 	if err != nil {
@@ -227,6 +230,7 @@ func (p *GoPackage) findDeps(path string, pkgMap *pkgPathMapping, allPackages *l
 		fmt.Fprintf(os.Stderr, "Package %q depends on %v\n", p.Name, deps)
 	}
 
+	sort.Strings(deps)
 	for _, dep := range deps {
 		p.directDeps = append(p.directDeps, allPackages.getByName(dep))
 	}
@@ -258,6 +262,8 @@ func (p *GoPackage) Compile(outDir, trimPath string) error {
 			return p.failed
 		}
 	}
+
+	endTrace := trace("check compile %s", p.Name)
 
 	p.pkgDir = filepath.Join(outDir, p.Name)
 	p.output = filepath.Join(p.pkgDir, p.Name) + ".a"
@@ -317,9 +323,11 @@ func (p *GoPackage) Compile(outDir, trimPath string) error {
 		}
 	}
 
+	endTrace()
 	if !rebuild {
 		return nil
 	}
+	defer un(trace("compile %s", p.Name))
 
 	err := os.RemoveAll(p.pkgDir)
 	if err != nil {
@@ -364,6 +372,7 @@ func (p *GoPackage) Link(out string) error {
 	if p.Name != "main" {
 		return fmt.Errorf("Can only link main package")
 	}
+	endTrace := trace("check link %s", p.Name)
 
 	shaFile := filepath.Join(filepath.Dir(out), "."+filepath.Base(out)+"_hash")
 
@@ -376,9 +385,11 @@ func (p *GoPackage) Link(out string) error {
 			p.rebuilt = !bytes.Equal(oldSha, p.hashResult)
 		}
 	}
+	endTrace()
 	if !p.rebuilt {
 		return nil
 	}
+	defer un(trace("link %s", p.Name))
 
 	err := os.Remove(shaFile)
 	if err != nil && !os.IsNotExist(err) {
@@ -412,8 +423,9 @@ func (p *GoPackage) Link(out string) error {
 }
 
 // rebuildMicrofactory checks to see if microfactory itself needs to be rebuilt,
-// and if does, it will launch a new copy instead of returning.
-func rebuildMicrofactory(mybin, mysrc string, pkgMap *pkgPathMapping) {
+// and if does, it will launch a new copy and return true. Otherwise it will return
+// false to continue executing.
+func rebuildMicrofactory(mybin, mysrc string, pkgMap *pkgPathMapping) bool {
 	intermediates := filepath.Join(filepath.Dir(mybin), "."+filepath.Base(mybin)+"_intermediates")
 
 	err := os.MkdirAll(intermediates, 0777)
@@ -442,7 +454,7 @@ func rebuildMicrofactory(mybin, mysrc string, pkgMap *pkgPathMapping) {
 	}
 
 	if !pkg.rebuilt {
-		return
+		return false
 	}
 
 	cmd := exec.Command(mybin, os.Args[1:]...)
@@ -450,11 +462,29 @@ func rebuildMicrofactory(mybin, mysrc string, pkgMap *pkgPathMapping) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err == nil {
-		os.Exit(0)
+		return true
 	} else if e, ok := err.(*exec.ExitError); ok {
 		os.Exit(e.ProcessState.Sys().(syscall.WaitStatus).ExitStatus())
 	}
 	os.Exit(1)
+	return true
+}
+
+var traceFile *os.File
+
+func trace(format string, a ...interface{}) func() {
+	if traceFile == nil {
+		return func() {}
+	}
+	s := strings.TrimSpace(fmt.Sprintf(format, a...))
+	fmt.Fprintf(traceFile, "%d B %s\n", time.Now().UnixNano()/1000, s)
+	return func() {
+		fmt.Fprintf(traceFile, "%d E %s\n", time.Now().UnixNano()/1000, s)
+	}
+}
+
+func un(f func()) {
+	f()
 }
 
 func main() {
@@ -477,8 +507,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	tracePath := filepath.Join(filepath.Dir(output), "."+filepath.Base(output)+".trace")
+	traceFile, err = os.OpenFile(tracePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		traceFile = nil
+	}
+	if executable, err := os.Executable(); err == nil {
+		defer un(trace("microfactory %s", executable))
+	} else {
+		defer un(trace("microfactory <unknown>"))
+	}
+
 	if mybin != "" && mysrc != "" {
-		rebuildMicrofactory(mybin, mysrc, &pkgMap)
+		if rebuildMicrofactory(mybin, mysrc, &pkgMap) {
+			return
+		}
 	}
 
 	mainPackage := &GoPackage{
