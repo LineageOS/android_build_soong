@@ -113,6 +113,11 @@ func (defaultable *DefaultableModule) applyDefaults(ctx TopDownMutatorContext,
 	}
 }
 
+func registerDefaultsPreArchMutators(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("defaults_deps", defaultsDepsMutator).Parallel()
+	ctx.TopDown("defaults", defaultsMutator).Parallel()
+}
+
 func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
 		ctx.AddDependency(ctx.Module(), DefaultsDepTag, defaultable.defaults().Defaults...)

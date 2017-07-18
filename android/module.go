@@ -111,6 +111,8 @@ type Module interface {
 
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
+
+	BuildParamsForTests() []ModuleBuildParams
 }
 
 type nameProperties struct {
@@ -291,6 +293,9 @@ type ModuleBase struct {
 	hooks hooks
 
 	registerProps []interface{}
+
+	// For tests
+	buildParams []ModuleBuildParams
 }
 
 func (a *ModuleBase) AddProperties(props ...interface{}) {
@@ -299,6 +304,10 @@ func (a *ModuleBase) AddProperties(props ...interface{}) {
 
 func (a *ModuleBase) GetProperties() []interface{} {
 	return a.registerProps
+}
+
+func (a *ModuleBase) BuildParamsForTests() []ModuleBuildParams {
+	return a.buildParams
 }
 
 // Name returns the name of the module.  It may be overridden by individual module types, for
@@ -520,6 +529,8 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 			return
 		}
 	}
+
+	a.buildParams = androidCtx.buildParams
 }
 
 type androidBaseContextImpl struct {
@@ -538,6 +549,9 @@ type androidModuleContext struct {
 	checkbuildFiles Paths
 	missingDeps     []string
 	module          Module
+
+	// For tests
+	buildParams []ModuleBuildParams
 }
 
 func (a *androidModuleContext) ninjaError(desc string, outputs []string, err error) {
@@ -566,6 +580,10 @@ func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params bluep
 }
 
 func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+	if a.config.captureBuild {
+		a.buildParams = append(a.buildParams, params)
+	}
+
 	bparams := blueprint.BuildParams{
 		Rule:            params.Rule,
 		Deps:            params.Deps,
