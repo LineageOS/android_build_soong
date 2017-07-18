@@ -122,9 +122,12 @@ func TestPrebuilts(t *testing.T) {
 
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := NewContext()
+			ctx := NewTestContext()
+			ctx.PreArchMutators(registerPrebuiltsPreArchMutators)
+			ctx.PostDepsMutators(registerPrebuiltsPostDepsMutators)
 			ctx.RegisterModuleType("prebuilt", ModuleFactoryAdaptor(newPrebuiltModule))
 			ctx.RegisterModuleType("source", ModuleFactoryAdaptor(newSourceModule))
+			ctx.Register()
 			ctx.MockFileSystem(map[string][]byte{
 				"Blueprints": []byte(`
 					source {
@@ -139,13 +142,10 @@ func TestPrebuilts(t *testing.T) {
 			_, errs = ctx.PrepareBuildActions(config)
 			fail(t, errs)
 
-			foo := findModule(ctx, "foo")
-			if foo == nil {
-				t.Fatalf("failed to find module foo")
-			}
+			foo := ctx.ModuleForTests("foo", "")
 
 			var dependsOnSourceModule, dependsOnPrebuiltModule bool
-			ctx.VisitDirectDeps(foo, func(m blueprint.Module) {
+			ctx.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
 				if _, ok := m.(*sourceModule); ok {
 					dependsOnSourceModule = true
 				}
@@ -226,16 +226,6 @@ func (s *sourceModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (s *sourceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-}
-
-func findModule(ctx *blueprint.Context, name string) blueprint.Module {
-	var ret blueprint.Module
-	ctx.VisitAllModules(func(m blueprint.Module) {
-		if ctx.ModuleName(m) == name {
-			ret = m
-		}
-	})
-	return ret
 }
 
 func fail(t *testing.T, errs []error) {
