@@ -720,9 +720,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	deps := c.deps(ctx)
 
-	c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, deps.SharedLibs...)
-	c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, deps.LateSharedLibs...)
-
 	variantNdkLibs := []string{}
 	variantLateNdkLibs := []string{}
 	if ctx.Os() == android.Android {
@@ -1100,6 +1097,26 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				dep = linkFile
 			}
 			*depPtr = append(*depPtr, dep.Path())
+		}
+
+		// Export the shared libs to the make world. In doing so, .vendor suffix
+		// is added if the lib has both core and vendor variants and this module
+		// is building against vndk. This is because the vendor variant will be
+		// have .vendor suffix in its name in the make world. However, if the
+		// lib is a vendor-only lib or this lib is not building against vndk,
+		// then the suffix is not added.
+		switch tag {
+		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
+			libName := strings.TrimSuffix(name, llndkLibrarySuffix)
+			libName = strings.TrimPrefix(libName, "prebuilt_")
+			isLLndk := inList(libName, config.LLndkLibraries())
+			if c.vndk() && (Bool(cc.Properties.Vendor_available) || isLLndk) {
+				libName += vendorSuffix
+			}
+			// Note: the order of libs in this list is not important because
+			// they merely serve as dependencies in the make world and do not
+			// affect this lib itself.
+			c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, libName)
 		}
 	})
 
