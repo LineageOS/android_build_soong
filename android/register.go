@@ -60,9 +60,15 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
-func NewContext() *blueprint.Context {
-	ctx := blueprint.NewContext()
+type Context struct {
+	*blueprint.Context
+}
 
+func NewContext() *Context {
+	return &Context{blueprint.NewContext()}
+}
+
+func (ctx *Context) Register() {
 	for _, t := range moduleTypes {
 		ctx.RegisterModuleType(t.name, t.factory)
 	}
@@ -71,9 +77,7 @@ func NewContext() *blueprint.Context {
 		ctx.RegisterSingletonType(t.name, t.factory)
 	}
 
-	registerMutators(ctx)
+	registerMutators(ctx.Context, preArch, preDeps, postDeps)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
-
-	return ctx
 }
