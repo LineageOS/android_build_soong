@@ -84,6 +84,8 @@ type config struct {
 
 	inMake bool
 
+	captureBuild bool // true for tests, saves build parameters for each module
+
 	OncePer
 }
 
@@ -171,7 +173,8 @@ func TestConfig(buildDir string) Config {
 			DeviceName: stringPtr("test_device"),
 		},
 
-		buildDir: buildDir,
+		buildDir:     buildDir,
+		captureBuild: true,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,

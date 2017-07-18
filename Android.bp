@@ -51,6 +51,7 @@ bootstrap_go_package {
         "android/paths.go",
         "android/prebuilt.go",
         "android/register.go",
+        "android/testing.go",
         "android/util.go",
         "android/variable.go",
 
