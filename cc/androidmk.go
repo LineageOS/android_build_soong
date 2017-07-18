@@ -88,6 +88,25 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 	return ret, nil
 }
 
+func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, ret *android.AndroidMkData) {
+	var testFiles []string
+	for _, d := range data {
+		rel := d.Rel()
+		path := d.String()
+		if !strings.HasSuffix(path, rel) {
+			panic(fmt.Errorf("path %q does not end with %q", path, rel))
+		}
+		path = strings.TrimSuffix(path, rel)
+		testFiles = append(testFiles, path+":"+rel)
+	}
+	if len(testFiles) > 0 {
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(testFiles, " "))
+			return nil
+		})
+	}
+}
+
 func (library *libraryDecorator) androidMkWriteExportedFlags(w io.Writer) {
 	exportedFlags := library.exportedFlags()
 	if len(exportedFlags) > 0 {
@@ -212,6 +231,8 @@ func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 		}
 		return nil
 	})
+
+	androidMkWriteTestData(benchmark.data, ctx, ret)
 }
 
 func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
@@ -229,22 +250,7 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		return nil
 	})
 
-	var testFiles []string
-	for _, d := range test.data {
-		rel := d.Rel()
-		path := d.String()
-		if !strings.HasSuffix(path, rel) {
-			panic(fmt.Errorf("path %q does not end with %q", path, rel))
-		}
-		path = strings.TrimSuffix(path, rel)
-		testFiles = append(testFiles, path+":"+rel)
-	}
-	if len(testFiles) > 0 {
-		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
-			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(testFiles, " "))
-			return nil
-		})
-	}
+	androidMkWriteTestData(test.data, ctx, ret)
 }
 
 func (test *testLibrary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
