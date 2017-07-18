@@ -32,6 +32,7 @@ func main() {
 	srcDir := filepath.Dir(flag.Arg(0))
 
 	ctx := android.NewContext()
+	ctx.Register()
 
 	configuration, err := android.NewConfig(srcDir, bootstrap.BuildDir)
 	if err != nil {
@@ -44,5 +45,5 @@ func main() {
 
 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 
-	bootstrap.Main(ctx, configuration, configuration.ConfigFileName, configuration.ProductVariablesFileName)
+	bootstrap.Main(ctx.Context, configuration, configuration.ConfigFileName, configuration.ProductVariablesFileName)
 }

@@ -61,6 +61,15 @@ type PrebuiltInterface interface {
 	Prebuilt() *Prebuilt
 }
 
+func registerPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("prebuilts", prebuiltMutator).Parallel()
+}
+
+func registerPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
+	ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
+	ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
+}
+
 // prebuiltMutator ensures that there is always a module with an undecorated name, and marks
 // prebuilt modules that have both a prebuilt and a source module.
 func prebuiltMutator(ctx BottomUpMutatorContext) {
