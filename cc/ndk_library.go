@@ -242,6 +242,25 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	ndkMigratedLibs = append(ndkMigratedLibs, name)
 }
 
+func addStubLibraryCompilerFlags(flags Flags) Flags {
+	flags.CFlags = append(flags.CFlags,
+		// We're knowingly doing some otherwise unsightly things with builtin
+		// functions here. We're just generating stub libraries, so ignore it.
+		"-Wno-incompatible-library-redeclaration",
+		"-Wno-builtin-requires-header",
+		"-Wno-invalid-noreturn",
+		// These libraries aren't actually used. Don't worry about unwinding
+		// (avoids the need to link an unwinder into a fake library).
+		"-fno-unwind-tables",
+	)
+	return flags
+}
+
+func (stub *stubDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = stub.baseCompiler.compilerFlags(ctx, flags)
+	return addStubLibraryCompilerFlags(flags)
+}
+
 func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vndk string) (Objects, android.ModuleGenPath) {
 	arch := ctx.Arch().ArchType.String()
 
@@ -262,18 +281,6 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 			"vndk":     vndk,
 		},
 	})
-
-	flags.CFlags = append(flags.CFlags,
-		// We're knowingly doing some otherwise unsightly things with builtin
-		// functions here. We're just generating stub libraries, so ignore it.
-		"-Wno-incompatible-library-redeclaration",
-		"-Wno-builtin-requires-header",
-		"-Wno-invalid-noreturn",
-
-		// These libraries aren't actually used. Don't worry about unwinding
-		// (avoids the need to link an unwinder into a fake library).
-		"-fno-unwind-tables",
-	)
 
 	subdir := ""
 	srcs := []android.Path{stubSrcPath}
