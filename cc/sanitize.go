@@ -188,7 +188,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		if found, globalSanitizers = removeFromList("integer_overflow", globalSanitizers); found && s.Integer_overflow == nil {
-			s.Integer_overflow = boolPtr(true)
+			if !ctx.AConfig().IntegerOverflowDisabledForPath(ctx.ModuleDir()) {
+				s.Integer_overflow = boolPtr(true)
+			}
 		}
 
 		if len(globalSanitizers) > 0 {
