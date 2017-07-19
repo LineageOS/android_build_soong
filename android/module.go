@@ -147,7 +147,7 @@ type commonProperties struct {
 	Proprietary bool
 
 	// vendor who owns this module
-	Owner string
+	Owner *string
 
 	// whether this module is device specific and should be installed into /vendor
 	Vendor bool
