@@ -27,7 +27,6 @@ bootstrap_go_package {
         "context.go",
         "environment.go",
         "exec.go",
-        "java.go",
         "kati.go",
         "make.go",
         "ninja.go",
