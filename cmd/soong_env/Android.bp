@@ -20,5 +20,6 @@ bootstrap_go_binary {
     srcs: [
         "soong_env.go",
     ],
+    default: true,
 }
 

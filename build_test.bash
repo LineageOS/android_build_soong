@@ -28,7 +28,7 @@
 export TRACE_BEGIN_SOONG=$(date +%s%N)
 
 export TOP=$(cd $(dirname ${BASH_SOURCE[0]})/../..; PWD= /bin/pwd)
-source "${TOP}/build/soong/cmd/microfactory/microfactory.bash"
+source "${TOP}/build/soong/scripts/microfactory.bash"
 
 case $(uname) in
   Linux)
@@ -36,5 +36,5 @@ case $(uname) in
     ;;
 esac
 
-build_go multiproduct_kati android/soong/cmd/multiproduct_kati
+soong_build_go multiproduct_kati android/soong/cmd/multiproduct_kati
 exec "$(getoutdir)/multiproduct_kati" "$@"
