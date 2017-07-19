@@ -68,6 +68,15 @@ func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
 }
 
+func prefixInList(s string, list []string) bool {
+	for _, prefix := range list {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // checkCalledFromInit panics if a Go package's init function is not on the
 // call stack.
 func checkCalledFromInit() {
