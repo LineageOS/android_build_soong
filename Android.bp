@@ -124,6 +124,7 @@ bootstrap_go_package {
         "cc/strip.go",
         "cc/tidy.go",
         "cc/util.go",
+        "cc/vndk.go",
 
         "cc/cmakelists.go",
         "cc/compiler.go",
