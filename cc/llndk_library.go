@@ -61,6 +61,11 @@ type llndkStubDecorator struct {
 	versionScriptPath      android.ModuleGenPath
 }
 
+func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = stub.baseCompiler.compilerFlags(ctx, flags)
+	return addStubLibraryCompilerFlags(flags)
+}
+
 func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	objs, versionScript := compileStubLibrary(ctx, flags, stub.Properties.Symbol_file, "current", "--vndk")
 	stub.versionScriptPath = versionScript
