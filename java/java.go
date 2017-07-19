@@ -32,12 +32,12 @@ import (
 func init() {
 	android.RegisterModuleType("java_defaults", defaultsFactory)
 
-	android.RegisterModuleType("java_library", JavaLibraryFactory)
-	android.RegisterModuleType("java_library_static", JavaLibraryFactory)
-	android.RegisterModuleType("java_library_host", JavaLibraryHostFactory)
-	android.RegisterModuleType("java_binary", JavaBinaryFactory)
-	android.RegisterModuleType("java_binary_host", JavaBinaryHostFactory)
-	android.RegisterModuleType("java_prebuilt_library", JavaPrebuiltFactory)
+	android.RegisterModuleType("java_library", LibraryFactory)
+	android.RegisterModuleType("java_library_static", LibraryFactory)
+	android.RegisterModuleType("java_library_host", LibraryHostFactory)
+	android.RegisterModuleType("java_binary", BinaryFactory)
+	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
+	android.RegisterModuleType("java_prebuilt_library", PrebuiltFactory)
 	android.RegisterModuleType("android_prebuilt_sdk", SdkPrebuiltFactory)
 	android.RegisterModuleType("android_app", AndroidAppFactory)
 
@@ -143,7 +143,7 @@ type Module struct {
 	installFile android.Path
 }
 
-type JavaDependency interface {
+type Dependency interface {
 	ClasspathFile() android.Path
 	ClassJarSpecs() []jarSpec
 	ResourceJarSpecs() []jarSpec
@@ -161,8 +161,8 @@ type dependencyTag struct {
 }
 
 var (
-	javaStaticLibTag = dependencyTag{name: "staticlib"}
-	javaLibTag       = dependencyTag{name: "javalib"}
+	staticLibTag     = dependencyTag{name: "staticlib"}
+	libTag           = dependencyTag{name: "javalib"}
 	bootClasspathTag = dependencyTag{name: "bootclasspath"}
 	frameworkResTag  = dependencyTag{name: "framework-res"}
 	sdkDependencyTag = dependencyTag{name: "sdk"}
@@ -190,11 +190,11 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 
 		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
-			ctx.AddDependency(ctx.Module(), javaLibTag, config.DefaultLibraries...)
+			ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 		}
 	}
-	ctx.AddDependency(ctx.Module(), javaLibTag, j.properties.Libs...)
-	ctx.AddDependency(ctx.Module(), javaStaticLibTag, j.properties.Static_libs...)
+	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
+	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
@@ -227,8 +227,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		javaDep, _ := module.(JavaDependency)
-		if javaDep == nil {
+		dep, _ := module.(Dependency)
+		if dep == nil {
 			switch tag {
 			case android.DefaultsDepTag, android.SourceDepTag:
 			default:
@@ -239,13 +239,13 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 
 		switch tag {
 		case bootClasspathTag:
-			bootClasspath = android.OptionalPathForPath(javaDep.ClasspathFile())
-		case javaLibTag:
-			classpath = append(classpath, javaDep.ClasspathFile())
-		case javaStaticLibTag:
-			classpath = append(classpath, javaDep.ClasspathFile())
-			classJarSpecs = append(classJarSpecs, javaDep.ClassJarSpecs()...)
-			resourceJarSpecs = append(resourceJarSpecs, javaDep.ResourceJarSpecs()...)
+			bootClasspath = android.OptionalPathForPath(dep.ClasspathFile())
+		case libTag:
+			classpath = append(classpath, dep.ClasspathFile())
+		case staticLibTag:
+			classpath = append(classpath, dep.ClasspathFile())
+			classJarSpecs = append(classJarSpecs, dep.ClassJarSpecs()...)
+			resourceJarSpecs = append(resourceJarSpecs, dep.ResourceJarSpecs()...)
 		case frameworkResTag:
 			if ctx.ModuleName() == "framework" {
 				// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -266,7 +266,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 			panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 		}
 
-		aidlIncludeDirs = append(aidlIncludeDirs, javaDep.AidlIncludeDirs()...)
+		aidlIncludeDirs = append(aidlIncludeDirs, dep.AidlIncludeDirs()...)
 	})
 
 	return classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
@@ -294,16 +294,16 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags.aidlFlags = "$aidlFlags"
 	}
 
-	var javacDeps android.Paths
+	var deps android.Paths
 
 	if bootClasspath.Valid() {
 		flags.bootClasspath = "-bootclasspath " + bootClasspath.String()
-		javacDeps = append(javacDeps, bootClasspath.Path())
+		deps = append(deps, bootClasspath.Path())
 	}
 
 	if len(classpath) > 0 {
 		flags.classpath = "-classpath " + strings.Join(classpath.Strings(), ":")
-		javacDeps = append(javacDeps, classpath...)
+		deps = append(deps, classpath...)
 	}
 
 	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
@@ -320,7 +320,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	if len(srcFiles) > 0 {
 		// Compile java sources into .class files
-		classes := TransformJavaToClasses(ctx, srcFiles, srcFileLists, flags, javacDeps)
+		classes := TransformJavaToClasses(ctx, srcFiles, srcFileLists, flags, deps)
 		if ctx.Failed() {
 			return
 		}
@@ -397,7 +397,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.outputFile = outputFile
 }
 
-var _ JavaDependency = (*JavaLibrary)(nil)
+var _ Dependency = (*Library)(nil)
 
 func (j *Module) ClasspathFile() android.Path {
 	return j.classpathFile
@@ -425,22 +425,22 @@ func (j *Module) logtags() android.Paths {
 // Java libraries (.jar file)
 //
 
-type JavaLibrary struct {
+type Library struct {
 	Module
 }
 
-func (j *JavaLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
 	j.installFile = ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.outputFile)
 }
 
-func (j *JavaLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
-func JavaLibraryFactory() android.Module {
-	module := &JavaLibrary{}
+func LibraryFactory() android.Module {
+	module := &Library{}
 
 	module.deviceProperties.Dex = true
 
@@ -452,8 +452,8 @@ func JavaLibraryFactory() android.Module {
 	return module
 }
 
-func JavaLibraryHostFactory() android.Module {
-	module := &JavaLibrary{}
+func LibraryHostFactory() android.Module {
+	module := &Library{}
 
 	module.AddProperties(&module.Module.properties)
 
@@ -465,19 +465,19 @@ func JavaLibraryHostFactory() android.Module {
 // Java Binaries (.jar file plus wrapper script)
 //
 
-type javaBinaryProperties struct {
+type binaryProperties struct {
 	// installable script to execute the resulting jar
 	Wrapper string
 }
 
-type JavaBinary struct {
-	JavaLibrary
+type Binary struct {
+	Library
 
-	binaryProperties javaBinaryProperties
+	binaryProperties binaryProperties
 }
 
-func (j *JavaBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.JavaLibrary.GenerateAndroidBuildActions(ctx)
+func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.Library.GenerateAndroidBuildActions(ctx)
 
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
@@ -485,12 +485,12 @@ func (j *JavaBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.installFile)
 }
 
-func (j *JavaBinary) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
-func JavaBinaryFactory() android.Module {
-	module := &JavaBinary{}
+func BinaryFactory() android.Module {
+	module := &Binary{}
 
 	module.deviceProperties.Dex = true
 
@@ -503,8 +503,8 @@ func JavaBinaryFactory() android.Module {
 	return module
 }
 
-func JavaBinaryHostFactory() android.Module {
-	module := &JavaBinary{}
+func BinaryHostFactory() android.Module {
+	module := &Binary{}
 
 	module.AddProperties(
 		&module.Module.properties,
@@ -519,7 +519,7 @@ func JavaBinaryHostFactory() android.Module {
 // Java prebuilts
 //
 
-type JavaPrebuilt struct {
+type Prebuilt struct {
 	android.ModuleBase
 	prebuilt android.Prebuilt
 
@@ -527,14 +527,14 @@ type JavaPrebuilt struct {
 	classJarSpecs, resourceJarSpecs []jarSpec
 }
 
-func (j *JavaPrebuilt) Prebuilt() *android.Prebuilt {
+func (j *Prebuilt) Prebuilt() *android.Prebuilt {
 	return &j.prebuilt
 }
 
-func (j *JavaPrebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (j *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
-func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (j *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	prebuilt := j.prebuilt.Path(ctx)
 
 	classJarSpec, resourceJarSpec := TransformPrebuiltJarToClasses(ctx, prebuilt)
@@ -545,26 +545,26 @@ func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.classpathFile)
 }
 
-var _ JavaDependency = (*JavaPrebuilt)(nil)
+var _ Dependency = (*Prebuilt)(nil)
 
-func (j *JavaPrebuilt) ClasspathFile() android.Path {
+func (j *Prebuilt) ClasspathFile() android.Path {
 	return j.classpathFile
 }
 
-func (j *JavaPrebuilt) ClassJarSpecs() []jarSpec {
+func (j *Prebuilt) ClassJarSpecs() []jarSpec {
 	return j.classJarSpecs
 }
 
-func (j *JavaPrebuilt) ResourceJarSpecs() []jarSpec {
+func (j *Prebuilt) ResourceJarSpecs() []jarSpec {
 	return j.resourceJarSpecs
 }
 
-func (j *JavaPrebuilt) AidlIncludeDirs() android.Paths {
+func (j *Prebuilt) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func JavaPrebuiltFactory() android.Module {
-	module := &JavaPrebuilt{}
+func PrebuiltFactory() android.Module {
+	module := &Prebuilt{}
 
 	module.AddProperties(&module.prebuilt.Properties)
 
@@ -577,7 +577,7 @@ func JavaPrebuiltFactory() android.Module {
 //
 
 type sdkDependency interface {
-	JavaDependency
+	Dependency
 	AidlPreprocessed() android.OptionalPath
 }
 
@@ -588,7 +588,7 @@ type sdkPrebuiltProperties struct {
 }
 
 type sdkPrebuilt struct {
-	JavaPrebuilt
+	Prebuilt
 
 	sdkProperties sdkPrebuiltProperties
 
@@ -596,7 +596,7 @@ type sdkPrebuilt struct {
 }
 
 func (j *sdkPrebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.JavaPrebuilt.GenerateAndroidBuildActions(ctx)
+	j.Prebuilt.GenerateAndroidBuildActions(ctx)
 
 	j.aidlPreprocessed = android.OptionalPathForModuleSrc(ctx, j.sdkProperties.Aidl_preprocessed)
 }
