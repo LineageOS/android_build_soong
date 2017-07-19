@@ -140,6 +140,8 @@ type productVariables struct {
 	Treble                     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
 
+	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
+
 	VendorPath *string `json:",omitempty"`
 
 	ClangTidy  *bool   `json:",omitempty"`

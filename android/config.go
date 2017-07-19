@@ -530,20 +530,21 @@ func (c *deviceConfig) NativeCoverageEnabled() bool {
 func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	coverage := false
 	if c.config.ProductVariables.CoveragePaths != nil {
-		for _, prefix := range *c.config.ProductVariables.CoveragePaths {
-			if strings.HasPrefix(path, prefix) {
-				coverage = true
-				break
-			}
+		if prefixInList(path, *c.config.ProductVariables.CoveragePaths) {
+			coverage = true
 		}
 	}
 	if coverage && c.config.ProductVariables.CoverageExcludePaths != nil {
-		for _, prefix := range *c.config.ProductVariables.CoverageExcludePaths {
-			if strings.HasPrefix(path, prefix) {
-				coverage = false
-				break
-			}
+		if prefixInList(path, *c.config.ProductVariables.CoverageExcludePaths) {
+			coverage = false
 		}
 	}
 	return coverage
+}
+
+func (c *config) IntegerOverflowDisabledForPath(path string) bool {
+	if c.ProductVariables.IntegerOverflowExcludePaths == nil {
+		return false
+	}
+	return prefixInList(path, *c.ProductVariables.IntegerOverflowExcludePaths)
 }
