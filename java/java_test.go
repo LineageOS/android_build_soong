@@ -55,7 +55,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx := android.NewTestContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(JavaLibraryFactory))
-	ctx.RegisterModuleType("prebuilt_java_library", android.ModuleFactoryAdaptor(JavaPrebuiltFactory))
+	ctx.RegisterModuleType("java_prebuilt_library", android.ModuleFactoryAdaptor(JavaPrebuiltFactory))
 	ctx.Register()
 
 	extraModules := []string{"core-libart", "frameworks", "sdk_v14"}
@@ -91,8 +91,8 @@ func TestSimple(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
-			java_libs: ["bar"],
-			java_static_libs: ["baz"],
+			libs: ["bar"],
+			static_libs: ["baz"],
 		}
 
 		java_library {
@@ -201,16 +201,16 @@ func TestPrebuilts(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
-			java_libs: ["bar"],
-			java_static_libs: ["baz"],
+			libs: ["bar"],
+			static_libs: ["baz"],
 		}
 
-		prebuilt_java_library {
+		java_prebuilt_library {
 			name: "bar",
 			srcs: ["a.jar"],
 		}
 
-		prebuilt_java_library {
+		java_prebuilt_library {
 			name: "baz",
 			srcs: ["b.jar"],
 		}
