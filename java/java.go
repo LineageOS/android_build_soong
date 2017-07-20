@@ -35,8 +35,8 @@ func init() {
 	android.RegisterModuleType("java_library_host", JavaLibraryHostFactory)
 	android.RegisterModuleType("java_binary", JavaBinaryFactory)
 	android.RegisterModuleType("java_binary_host", JavaBinaryHostFactory)
-	android.RegisterModuleType("prebuilt_java_library", JavaPrebuiltFactory)
-	android.RegisterModuleType("prebuilt_sdk", SdkPrebuiltFactory)
+	android.RegisterModuleType("java_prebuilt_library", JavaPrebuiltFactory)
+	android.RegisterModuleType("android_prebuilt_sdk", SdkPrebuiltFactory)
 	android.RegisterModuleType("android_app", AndroidAppFactory)
 
 	android.RegisterSingletonType("logtags", LogtagsSingleton)
@@ -65,10 +65,10 @@ type compilerProperties struct {
 	Exclude_srcs []string `android:"arch_variant"`
 
 	// list of directories containing Java resources
-	Java_resource_dirs []string `android:"arch_variant"`
+	Resource_dirs []string `android:"arch_variant"`
 
-	// list of directories that should be excluded from java_resource_dirs
-	Exclude_java_resource_dirs []string `android:"arch_variant"`
+	// list of directories that should be excluded from resource_dirs
+	Exclude_resource_dirs []string `android:"arch_variant"`
 
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
@@ -78,10 +78,10 @@ type compilerProperties struct {
 	Javacflags []string `android:"arch_variant"`
 
 	// list of of java libraries that will be in the classpath
-	Java_libs []string `android:"arch_variant"`
+	Libs []string `android:"arch_variant"`
 
 	// list of java libraries that will be compiled into the resulting jar
-	Java_static_libs []string `android:"arch_variant"`
+	Static_libs []string `android:"arch_variant"`
 
 	// manifest file to be included in resulting jar
 	Manifest *string
@@ -185,8 +185,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			ctx.AddDependency(ctx.Module(), javaLibTag, config.DefaultLibraries...)
 		}
 	}
-	ctx.AddDependency(ctx.Module(), javaLibTag, j.properties.Java_libs...)
-	ctx.AddDependency(ctx.Module(), javaStaticLibTag, j.properties.Java_static_libs...)
+	ctx.AddDependency(ctx.Module(), javaLibTag, j.properties.Libs...)
+	ctx.AddDependency(ctx.Module(), javaStaticLibTag, j.properties.Static_libs...)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
@@ -320,7 +320,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
 	}
 
-	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs),
+	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs, j.properties.Exclude_resource_dirs),
 		resourceJarSpecs...)
 
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
