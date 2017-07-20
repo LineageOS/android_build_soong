@@ -30,6 +30,8 @@ import (
 )
 
 func init() {
+	android.RegisterModuleType("java_defaults", defaultsFactory)
+
 	android.RegisterModuleType("java_library", JavaLibraryFactory)
 	android.RegisterModuleType("java_library_static", JavaLibraryFactory)
 	android.RegisterModuleType("java_library_host", JavaLibraryHostFactory)
@@ -55,7 +57,7 @@ func init() {
 // DroidDoc
 // Findbugs
 
-type compilerProperties struct {
+type CompilerProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
 	// or .aidl files.
 	Srcs []string `android:"arch_variant"`
@@ -90,7 +92,7 @@ type compilerProperties struct {
 	Jarjar_rules *string
 }
 
-type compilerDeviceProperties struct {
+type CompilerDeviceProperties struct {
 	// list of module-specific flags that will be used for dex compiles
 	Dxflags []string `android:"arch_variant"`
 
@@ -112,9 +114,10 @@ type compilerDeviceProperties struct {
 // Module contains the properties and members used by all java module types
 type Module struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
-	properties       compilerProperties
-	deviceProperties compilerDeviceProperties
+	properties       CompilerProperties
+	deviceProperties CompilerDeviceProperties
 
 	// output file suitable for inserting into the classpath of another compile
 	classpathFile android.Path
@@ -145,6 +148,11 @@ type JavaDependency interface {
 	ClassJarSpecs() []jarSpec
 	ResourceJarSpecs() []jarSpec
 	AidlIncludeDirs() android.Paths
+}
+
+func InitJavaModule(module android.DefaultableModule, hod android.HostOrDeviceSupported) {
+	android.InitAndroidArchModule(module, hod, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 }
 
 type dependencyTag struct {
@@ -440,7 +448,7 @@ func JavaLibraryFactory() android.Module {
 		&module.Module.properties,
 		&module.Module.deviceProperties)
 
-	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
 
@@ -449,7 +457,7 @@ func JavaLibraryHostFactory() android.Module {
 
 	module.AddProperties(&module.Module.properties)
 
-	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	InitJavaModule(module, android.HostSupported)
 	return module
 }
 
@@ -491,7 +499,7 @@ func JavaBinaryFactory() android.Module {
 		&module.Module.deviceProperties,
 		&module.binaryProperties)
 
-	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
 
@@ -503,7 +511,7 @@ func JavaBinaryHostFactory() android.Module {
 		&module.Module.deviceProperties,
 		&module.binaryProperties)
 
-	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	InitJavaModule(module, android.HostSupported)
 	return module
 }
 
@@ -615,4 +623,36 @@ func inList(s string, l []string) bool {
 		}
 	}
 	return false
+}
+
+//
+// Defaults
+//
+type Defaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+}
+
+func (d *Defaults) DepsMutator(ctx android.BottomUpMutatorContext) {
+}
+
+func defaultsFactory() android.Module {
+	return DefaultsFactory()
+}
+
+func DefaultsFactory(props ...interface{}) android.Module {
+	module := &Defaults{}
+
+	module.AddProperties(props...)
+	module.AddProperties(
+		&CompilerProperties{},
+		&CompilerDeviceProperties{},
+	)
+
+	android.InitDefaultsModule(module)
+
+	return module
 }
