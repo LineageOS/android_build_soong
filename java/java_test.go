@@ -56,6 +56,8 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(JavaLibraryFactory))
 	ctx.RegisterModuleType("java_prebuilt_library", android.ModuleFactoryAdaptor(JavaPrebuiltFactory))
+	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
 
 	extraModules := []string{"core-libart", "frameworks", "sdk_v14"}
@@ -225,6 +227,49 @@ func TestPrebuilts(t *testing.T) {
 	}
 
 	baz := filepath.Join(buildDir, ".intermediates", "baz", "extracted", "classes.list")
+	if !strings.Contains(jar.Args["jarArgs"], baz) {
+		t.Errorf("foo jarArgs %v does not contain %q", jar.Args["jarArgs"], baz)
+	}
+}
+
+func TestDefaults(t *testing.T) {
+	ctx := testJava(t, `
+		java_defaults {
+			name: "defaults",
+			srcs: ["a.java"],
+			libs: ["bar"],
+			static_libs: ["baz"],
+		}
+
+		java_library {
+			name: "foo",
+			defaults: ["defaults"],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["c.java"],
+		}
+		`)
+
+	javac := ctx.ModuleForTests("foo", "").Rule("javac")
+	jar := ctx.ModuleForTests("foo", "").Rule("jar")
+
+	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
+		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
+	}
+
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-full-debug.jar")
+	if !strings.Contains(javac.Args["classpath"], bar) {
+		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
+	}
+
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes.list")
 	if !strings.Contains(jar.Args["jarArgs"], baz) {
 		t.Errorf("foo jarArgs %v does not contain %q", jar.Args["jarArgs"], baz)
 	}
