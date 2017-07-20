@@ -35,8 +35,8 @@ func init() {
 	android.RegisterModuleType("java_library_host", JavaLibraryHostFactory)
 	android.RegisterModuleType("java_binary", JavaBinaryFactory)
 	android.RegisterModuleType("java_binary_host", JavaBinaryHostFactory)
-	android.RegisterModuleType("prebuilt_java_library", JavaPrebuiltFactory)
-	android.RegisterModuleType("prebuilt_sdk", SdkPrebuiltFactory)
+	android.RegisterModuleType("java_prebuilt_library", JavaPrebuiltFactory)
+	android.RegisterModuleType("android_prebuilt_sdk", SdkPrebuiltFactory)
 	android.RegisterModuleType("android_app", AndroidAppFactory)
 
 	android.RegisterSingletonType("logtags", LogtagsSingleton)
@@ -65,10 +65,10 @@ type compilerProperties struct {
 	Exclude_srcs []string `android:"arch_variant"`
 
 	// list of directories containing Java resources
-	Java_resource_dirs []string `android:"arch_variant"`
+	Resource_dirs []string `android:"arch_variant"`
 
-	// list of directories that should be excluded from java_resource_dirs
-	Exclude_java_resource_dirs []string `android:"arch_variant"`
+	// list of directories that should be excluded from resource_dirs
+	Exclude_resource_dirs []string `android:"arch_variant"`
 
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
@@ -78,10 +78,10 @@ type compilerProperties struct {
 	Javacflags []string `android:"arch_variant"`
 
 	// list of of java libraries that will be in the classpath
-	Java_libs []string `android:"arch_variant"`
+	Libs []string `android:"arch_variant"`
 
 	// list of java libraries that will be compiled into the resulting jar
-	Java_static_libs []string `android:"arch_variant"`
+	Static_libs []string `android:"arch_variant"`
 
 	// manifest file to be included in resulting jar
 	Manifest *string
@@ -147,45 +147,46 @@ type JavaDependency interface {
 	AidlIncludeDirs() android.Paths
 }
 
-func (j *Module) BootClasspath(ctx android.BaseContext) string {
-	if ctx.Device() {
-		switch j.deviceProperties.Sdk_version {
-		case "":
-			return "core-libart"
-		case "current":
-			// TODO: !TARGET_BUILD_APPS
-			// TODO: export preprocessed framework.aidl from android_stubs_current
-			return "android_stubs_current"
-		case "system_current":
-			return "android_system_stubs_current"
-		default:
-			return "sdk_v" + j.deviceProperties.Sdk_version
-		}
-	} else {
-		if j.deviceProperties.Dex {
-			return "core-libart"
-		} else {
-			return ""
-		}
-	}
+type dependencyTag struct {
+	blueprint.BaseDependencyTag
+	name string
 }
 
-func (j *Module) deps(ctx android.BottomUpMutatorContext) {
-	var deps []string
+var (
+	javaStaticLibTag = dependencyTag{name: "staticlib"}
+	javaLibTag       = dependencyTag{name: "javalib"}
+	bootClasspathTag = dependencyTag{name: "bootclasspath"}
+	frameworkResTag  = dependencyTag{name: "framework-res"}
+	sdkDependencyTag = dependencyTag{name: "sdk"}
+)
 
+func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if !j.properties.No_standard_libraries {
-		bootClasspath := j.BootClasspath(ctx)
-		if bootClasspath != "" {
-			deps = append(deps, bootClasspath)
+		if ctx.Device() {
+			switch j.deviceProperties.Sdk_version {
+			case "":
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-libart")
+			case "current":
+				// TODO: !TARGET_BUILD_APPS
+				// TODO: export preprocessed framework.aidl from android_stubs_current
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_stubs_current")
+			case "system_current":
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_system_stubs_current")
+			default:
+				ctx.AddDependency(ctx.Module(), sdkDependencyTag, "sdk_v"+j.deviceProperties.Sdk_version)
+			}
+		} else {
+			if j.deviceProperties.Dex {
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-libart")
+			}
 		}
+
 		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
-			deps = append(deps, config.DefaultLibraries...)
+			ctx.AddDependency(ctx.Module(), javaLibTag, config.DefaultLibraries...)
 		}
 	}
-	deps = append(deps, j.properties.Java_libs...)
-	deps = append(deps, j.properties.Java_static_libs...)
-
-	ctx.AddDependency(ctx.Module(), nil, deps...)
+	ctx.AddDependency(ctx.Module(), javaLibTag, j.properties.Libs...)
+	ctx.AddDependency(ctx.Module(), javaStaticLibTag, j.properties.Static_libs...)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
@@ -216,38 +217,48 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		otherName := ctx.OtherModuleName(module)
-		if javaDep, ok := module.(JavaDependency); ok {
-			if otherName == j.BootClasspath(ctx) {
-				bootClasspath = android.OptionalPathForPath(javaDep.ClasspathFile())
-			} else if inList(otherName, config.DefaultLibraries) {
-				classpath = append(classpath, javaDep.ClasspathFile())
-			} else if inList(otherName, j.properties.Java_libs) {
-				classpath = append(classpath, javaDep.ClasspathFile())
-			} else if inList(otherName, j.properties.Java_static_libs) {
-				classpath = append(classpath, javaDep.ClasspathFile())
-				classJarSpecs = append(classJarSpecs, javaDep.ClassJarSpecs()...)
-				resourceJarSpecs = append(resourceJarSpecs, javaDep.ResourceJarSpecs()...)
-			} else if otherName == "framework-res" {
-				if ctx.ModuleName() == "framework" {
-					// framework.jar has a one-off dependency on the R.java and Manifest.java files
-					// generated by framework-res.apk
-					srcFileLists = append(srcFileLists, module.(*AndroidApp).aaptJavaFileList)
-				}
-			} else {
-				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
+		tag := ctx.OtherModuleDependencyTag(module)
+
+		javaDep, _ := module.(JavaDependency)
+		if javaDep == nil {
+			switch tag {
+			case android.DefaultsDepTag, android.SourceDepTag:
+			default:
+				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
-			aidlIncludeDirs = append(aidlIncludeDirs, javaDep.AidlIncludeDirs()...)
-			if sdkDep, ok := module.(sdkDependency); ok {
-				if sdkDep.AidlPreprocessed().Valid() {
-					if aidlPreprocess.Valid() {
-						ctx.ModuleErrorf("multiple dependencies with preprocessed aidls:\n %q\n %q",
-							aidlPreprocess, sdkDep.AidlPreprocessed())
-					} else {
-						aidlPreprocess = sdkDep.AidlPreprocessed()
-					}
-				}
-			}
+			return
 		}
+
+		switch tag {
+		case bootClasspathTag:
+			bootClasspath = android.OptionalPathForPath(javaDep.ClasspathFile())
+		case javaLibTag:
+			classpath = append(classpath, javaDep.ClasspathFile())
+		case javaStaticLibTag:
+			classpath = append(classpath, javaDep.ClasspathFile())
+			classJarSpecs = append(classJarSpecs, javaDep.ClassJarSpecs()...)
+			resourceJarSpecs = append(resourceJarSpecs, javaDep.ResourceJarSpecs()...)
+		case frameworkResTag:
+			if ctx.ModuleName() == "framework" {
+				// framework.jar has a one-off dependency on the R.java and Manifest.java files
+				// generated by framework-res.apk
+				srcFileLists = append(srcFileLists, module.(*AndroidApp).aaptJavaFileList)
+			}
+		case sdkDependencyTag:
+			sdkDep := module.(sdkDependency)
+			if sdkDep.AidlPreprocessed().Valid() {
+				if aidlPreprocess.Valid() {
+					ctx.ModuleErrorf("multiple dependencies with preprocessed aidls:\n %q\n %q",
+						aidlPreprocess, sdkDep.AidlPreprocessed())
+				} else {
+					aidlPreprocess = sdkDep.AidlPreprocessed()
+				}
+			}
+		default:
+			panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
+		}
+
+		aidlIncludeDirs = append(aidlIncludeDirs, javaDep.AidlIncludeDirs()...)
 	})
 
 	return classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
@@ -309,7 +320,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
 	}
 
-	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs),
+	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs, j.properties.Exclude_resource_dirs),
 		resourceJarSpecs...)
 
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
@@ -500,28 +511,23 @@ func JavaBinaryHostFactory() android.Module {
 // Java prebuilts
 //
 
-type javaPrebuiltProperties struct {
-	Srcs []string
-}
-
 type JavaPrebuilt struct {
 	android.ModuleBase
-
-	properties javaPrebuiltProperties
+	prebuilt android.Prebuilt
 
 	classpathFile                   android.Path
 	classJarSpecs, resourceJarSpecs []jarSpec
+}
+
+func (j *JavaPrebuilt) Prebuilt() *android.Prebuilt {
+	return &j.prebuilt
 }
 
 func (j *JavaPrebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *JavaPrebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if len(j.properties.Srcs) != 1 {
-		ctx.ModuleErrorf("expected exactly one jar in srcs")
-		return
-	}
-	prebuilt := android.PathForModuleSrc(ctx, j.properties.Srcs[0])
+	prebuilt := j.prebuilt.Path(ctx)
 
 	classJarSpec, resourceJarSpec := TransformPrebuiltJarToClasses(ctx, prebuilt)
 
@@ -552,7 +558,7 @@ func (j *JavaPrebuilt) AidlIncludeDirs() android.Paths {
 func JavaPrebuiltFactory() android.Module {
 	module := &JavaPrebuilt{}
 
-	module.AddProperties(&module.properties)
+	module.AddProperties(&module.prebuilt.Properties)
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	return module
@@ -595,7 +601,7 @@ func SdkPrebuiltFactory() android.Module {
 	module := &sdkPrebuilt{}
 
 	module.AddProperties(
-		&module.properties,
+		&module.prebuilt.Properties,
 		&module.sdkProperties)
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)

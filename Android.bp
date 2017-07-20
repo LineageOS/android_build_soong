@@ -203,6 +203,9 @@ bootstrap_go_package {
         "java/java.go",
         "java/resources.go",
     ],
+    testSrcs: [
+        "java/java_test.go",
+    ],
     pluginFor: ["soong_build"],
 }
 
