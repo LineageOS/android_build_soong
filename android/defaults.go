@@ -29,16 +29,16 @@ type defaultsProperties struct {
 	Defaults []string
 }
 
-type DefaultableModule struct {
+type DefaultableModuleBase struct {
 	defaultsProperties    defaultsProperties
 	defaultableProperties []interface{}
 }
 
-func (d *DefaultableModule) defaults() *defaultsProperties {
+func (d *DefaultableModuleBase) defaults() *defaultsProperties {
 	return &d.defaultsProperties
 }
 
-func (d *DefaultableModule) setProperties(props []interface{}) {
+func (d *DefaultableModuleBase) setProperties(props []interface{}) {
 	d.defaultableProperties = props
 }
 
@@ -48,17 +48,21 @@ type Defaultable interface {
 	applyDefaults(TopDownMutatorContext, []Defaults)
 }
 
-var _ Defaultable = (*DefaultableModule)(nil)
-
-func InitDefaultableModule(module Module, d Defaultable) {
-
-	d.setProperties(module.GetProperties())
-
-	module.AddProperties(d.defaults())
+type DefaultableModule interface {
+	Module
+	Defaultable
 }
 
-type DefaultsModule struct {
-	DefaultableModule
+var _ Defaultable = (*DefaultableModuleBase)(nil)
+
+func InitDefaultableModule(module DefaultableModule) {
+	module.(Defaultable).setProperties(module.(Module).GetProperties())
+
+	module.AddProperties(module.defaults())
+}
+
+type DefaultsModuleBase struct {
+	DefaultableModuleBase
 	defaultProperties []interface{}
 }
 
@@ -68,31 +72,31 @@ type Defaults interface {
 	properties() []interface{}
 }
 
-func (d *DefaultsModule) isDefaults() bool {
+func (d *DefaultsModuleBase) isDefaults() bool {
 	return true
 }
 
-func (d *DefaultsModule) properties() []interface{} {
+func (d *DefaultsModuleBase) properties() []interface{} {
 	return d.defaultableProperties
 }
 
-func InitDefaultsModule(module Module, d Defaults) {
+func InitDefaultsModule(module DefaultableModule) {
 	module.AddProperties(
 		&hostAndDeviceProperties{},
 		&commonProperties{},
 		&variableProperties{})
 
 	InitArchModule(module)
-	InitDefaultableModule(module, d)
+	InitDefaultableModule(module)
 
 	module.AddProperties(&module.base().nameProperties)
 
 	module.base().module = module
 }
 
-var _ Defaults = (*DefaultsModule)(nil)
+var _ Defaults = (*DefaultsModuleBase)(nil)
 
-func (defaultable *DefaultableModule) applyDefaults(ctx TopDownMutatorContext,
+func (defaultable *DefaultableModuleBase) applyDefaults(ctx TopDownMutatorContext,
 	defaultsList []Defaults) {
 
 	for _, defaults := range defaultsList {
