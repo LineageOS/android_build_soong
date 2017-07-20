@@ -68,17 +68,14 @@ type AndroidApp struct {
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
 
-	var deps []string
 	if !a.properties.No_standard_libraries {
 		switch a.deviceProperties.Sdk_version { // TODO: Res_sdk_version?
 		case "current", "system_current", "":
-			deps = append(deps, "framework-res")
+			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
 		default:
 			// We'll already have a dependency on an sdk prebuilt android.jar
 		}
 	}
-
-	ctx.AddDependency(ctx.Module(), nil, deps...)
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
