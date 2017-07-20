@@ -117,7 +117,7 @@ func (defaultable *DefaultableModuleBase) applyDefaults(ctx TopDownMutatorContex
 	}
 }
 
-func registerDefaultsPreArchMutators(ctx RegisterMutatorsContext) {
+func RegisterDefaultsPreArchMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("defaults_deps", defaultsDepsMutator).Parallel()
 	ctx.TopDown("defaults", defaultsMutator).Parallel()
 }
