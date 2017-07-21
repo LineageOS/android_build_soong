@@ -54,8 +54,8 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 
 	ctx := android.NewTestContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
-	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(JavaLibraryFactory))
-	ctx.RegisterModuleType("java_prebuilt_library", android.ModuleFactoryAdaptor(JavaPrebuiltFactory))
+	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory))
+	ctx.RegisterModuleType("java_prebuilt_library", android.ModuleFactoryAdaptor(PrebuiltFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
