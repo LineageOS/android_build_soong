@@ -23,7 +23,7 @@ type StlProperties struct {
 	// select the STL library to use.  Possible values are "libc++", "libc++_static",
 	// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
 	// default
-	Stl *string
+	Stl *string `android:"arch_variant"`
 
 	SelectedStl string `blueprint:"mutated"`
 }
