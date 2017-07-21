@@ -234,7 +234,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 		var depFile android.OptionalPath
 		if sdkDep, ok := module.(sdkDependency); ok {
 			depFile = android.OptionalPathForPath(sdkDep.ClasspathFile())
-		} else if javaDep, ok := module.(JavaDependency); ok {
+		} else if javaDep, ok := module.(Dependency); ok {
 			if ctx.OtherModuleName(module) == "framework-res" {
 				depFile = android.OptionalPathForPath(javaDep.(*AndroidApp).exportPackage)
 			}

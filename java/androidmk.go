@@ -20,14 +20,14 @@ import (
 	"android/soong/android"
 )
 
-func (*JavaLibrary) AndroidMk() (ret android.AndroidMkData, err error) {
+func (*Library) AndroidMk() (ret android.AndroidMkData, err error) {
 	ret.Class = "JAVA_LIBRARIES"
 	// TODO
 	err = fmt.Errorf("Not yet implemented")
 	return
 }
 
-func (*JavaPrebuilt) AndroidMk() (ret android.AndroidMkData, err error) {
+func (*Prebuilt) AndroidMk() (ret android.AndroidMkData, err error) {
 	ret.Class = "JAVA_LIBRARIES"
 	// TODO
 	err = fmt.Errorf("Not yet implemented")
