@@ -81,6 +81,9 @@ var (
 			// don't support a Kryo specific target yet.
 			"-mcpu=cortex-a57",
 		},
+		"exynos-m2": []string{
+			"-mcpu=exynos-m2",
+		},
 	}
 
 	arm64ClangCpuVariantCflags = copyVariantFlags(arm64CpuVariantCflags)
@@ -96,6 +99,7 @@ func init() {
 		"cortex-a53",
 		"cortex-a73",
 		"kryo",
+		"exynos-m2",
 		"denver64")
 
 	// Clang supports specific Kryo targeting
@@ -124,6 +128,11 @@ func init() {
 		strings.Join(arm64CpuVariantCflags["kryo"], " "))
 	pctx.StaticVariable("Arm64ClangKryoCflags",
 		strings.Join(arm64ClangCpuVariantCflags["kryo"], " "))
+
+	pctx.StaticVariable("Arm64ExynosM2Cflags",
+		strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
+	pctx.StaticVariable("Arm64ClangExynosM2Cflags",
+		strings.Join(arm64ClangCpuVariantCflags["exynos-m2"], " "))
 }
 
 var (
@@ -132,6 +141,7 @@ var (
 		"cortex-a53": "${config.Arm64CortexA53Cflags}",
 		"cortex-a73": "${config.Arm64CortexA53Cflags}",
 		"kryo":       "${config.Arm64KryoCflags}",
+		"exynos-m2":  "${config.Arm64ExynosM2Cflags}",
 	}
 
 	arm64ClangCpuVariantCflagsVar = map[string]string{
@@ -139,6 +149,7 @@ var (
 		"cortex-a53": "${config.Arm64ClangCortexA53Cflags}",
 		"cortex-a73": "${config.Arm64ClangCortexA53Cflags}",
 		"kryo":       "${config.Arm64ClangKryoCflags}",
+		"exynos-m2":  "${config.Arm64ClangExynosM2Cflags}",
 	}
 )
 
