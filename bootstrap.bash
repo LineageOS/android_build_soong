@@ -17,25 +17,21 @@ if [[ -z "$BUILDDIR" ]]; then
 fi
 export SRCDIR="."
 export BOOTSTRAP="${SRCDIR}/bootstrap.bash"
+export BLUEPRINTDIR="${SRCDIR}/build/blueprint"
 
 export TOPNAME="Android.bp"
-export BOOTSTRAP_MANIFEST="${SRCDIR}/build/soong/build.ninja.in"
 export RUN_TESTS="-t"
 
 case $(uname) in
     Linux)
-	export GOOS="linux"
 	export PREBUILTOS="linux-x86"
 	;;
     Darwin)
-	export GOOS="darwin"
 	export PREBUILTOS="darwin-x86"
 	;;
     *) echo "unknown OS:" $(uname) && exit 1;;
 esac
-export GOROOT="${SRCDIR}/prebuilts/go/$PREBUILTOS/"
-export GOARCH="amd64"
-export GOCHAR="6"
+export GOROOT="${SRCDIR}/prebuilts/go/$PREBUILTOS"
 
 if [[ $# -eq 0 ]]; then
     mkdir -p $BUILDDIR
