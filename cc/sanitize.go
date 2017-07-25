@@ -285,9 +285,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanitize.Properties.Sanitize.All_undefined) {
 		sanitizers = append(sanitizers, "undefined")
-		if ctx.Device() {
-			ctx.ModuleErrorf("ubsan is not yet supported on the device")
-		}
 	} else {
 		if Bool(sanitize.Properties.Sanitize.Undefined) {
 			sanitizers = append(sanitizers,
