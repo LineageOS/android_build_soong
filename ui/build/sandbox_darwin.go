@@ -22,11 +22,12 @@ import (
 type Sandbox string
 
 const (
-	noSandbox     = ""
-	globalSandbox = "build/soong/ui/build/sandbox/darwin/global.sb"
-	makeSandbox   = globalSandbox
-	soongSandbox  = globalSandbox
-	katiSandbox   = globalSandbox
+	noSandbox            = ""
+	globalSandbox        = "build/soong/ui/build/sandbox/darwin/global.sb"
+	makeSandbox          = globalSandbox
+	soongSandbox         = globalSandbox
+	katiSandbox          = globalSandbox
+	katiCleanSpecSandbox = globalSandbox
 )
 
 var sandboxExecPath string
