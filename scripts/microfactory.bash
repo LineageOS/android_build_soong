@@ -54,39 +54,13 @@ function getoutdir
 # Arguments:
 #  $1: name of the requested binary
 #  $2: package name
-function build_go
+function soong_build_go
 {
-    # Increment when microfactory changes enough that it cannot rebuild itself.
-    # For example, if we use a new command line argument that doesn't work on older versions.
-    local mf_version=2
-
-    local mf_src="${TOP}/build/soong/cmd/microfactory"
-
-    local out_dir=$(getoutdir)
-    local mf_bin="${out_dir}/microfactory_$(uname)"
-    local mf_version_file="${out_dir}/.microfactory_$(uname)_version"
-    local built_bin="${out_dir}/$1"
-    local from_src=1
-
-    if [ -f "${mf_bin}" ] && [ -f "${mf_version_file}" ]; then
-        if [ "${mf_version}" -eq "$(cat "${mf_version_file}")" ]; then
-            from_src=0
-        fi
-    fi
-
-    local mf_cmd
-    if [ $from_src -eq 1 ]; then
-        mf_cmd="${GOROOT}/bin/go run ${mf_src}/microfactory.go"
-    else
-        mf_cmd="${mf_bin}"
-    fi
-
-    rm -f "${out_dir}/.$1.trace"
-    ${mf_cmd} -s "${mf_src}" -b "${mf_bin}" \
-            -pkg-path "android/soong=${TOP}/build/soong" -trimpath "${TOP}/build/soong" \
-            -o "${built_bin}" $2
-
-    if [ $from_src -eq 1 ]; then
-        echo "${mf_version}" >"${mf_version_file}"
-    fi
+    BUILDDIR=$(getoutdir) \
+      SRCDIR=${TOP} \
+      BLUEPRINTDIR=${TOP}/build/blueprint \
+      EXTRA_ARGS="-pkg-path android/soong=${TOP}/build/soong" \
+      build_go $@
 }
+
+source ${TOP}/build/blueprint/microfactory/microfactory.bash
