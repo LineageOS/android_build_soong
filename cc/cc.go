@@ -1172,6 +1172,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&TidyProperties{},
 		&CoverageProperties{},
 		&SAbiProperties{},
+		&VndkProperties{},
 	)
 
 	android.InitDefaultsModule(module)
