@@ -365,11 +365,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 			cStd = compiler.Properties.C_std
 		}
 
-		cppStd := config.CppStdVersion
-		if compiler.Properties.Cpp_std == "experimental" {
+		cppStd := compiler.Properties.Cpp_std
+		switch compiler.Properties.Cpp_std {
+		case "":
+			cppStd = config.CppStdVersion
+		case "experimental":
 			cppStd = config.ExperimentalCppStdVersion
-		} else if compiler.Properties.Cpp_std != "" {
-			cppStd = compiler.Properties.Cpp_std
+		case "c++17", "gnu++17":
+			// Map c++17 and gnu++17 to their 1z equivalents, until 17 is finalized.
+			cppStd = strings.Replace(compiler.Properties.Cpp_std, "17", "1z", 1)
 		}
 
 		if !flags.Clang {
