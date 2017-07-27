@@ -23,6 +23,10 @@ import (
 	"android/soong/android"
 )
 
+var (
+	vendorSuffix = ".vendor"
+)
+
 type AndroidMkContext interface {
 	Target() android.Target
 	subAndroidMk(*android.AndroidMkData, interface{})
@@ -81,8 +85,10 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 	}
 	c.subAndroidMk(&ret, c.installer)
 
-	if c.vndk() {
-		ret.SubName += ".vendor"
+	if c.vndk() && Bool(c.Properties.Vendor_available) {
+		// .vendor suffix is added only when we will have two variants: core and vendor.
+		// The suffix is not added for vendor-only module.
+		ret.SubName += vendorSuffix
 	}
 
 	return ret, nil
