@@ -116,7 +116,8 @@ type SanitizeProperties struct {
 type sanitize struct {
 	Properties SanitizeProperties
 
-	runtimeLibrary string
+	runtimeLibrary          string
+	androidMkRuntimeLibrary string
 }
 
 func (sanitize *sanitize) props() []interface{} {
@@ -419,12 +420,18 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(ctx.toolchain())
 	}
 
-	// ASan runtime library must be the first in the link order.
 	if runtimeLibrary != "" {
+		// ASan runtime library must be the first in the link order.
 		flags.libFlags = append([]string{
 			"${config.ClangAsanLibDir}/" + runtimeLibrary + ctx.toolchain().ShlibSuffix(),
 		}, flags.libFlags...)
 		sanitize.runtimeLibrary = runtimeLibrary
+
+		// When linking against VNDK, use the vendor variant of the runtime lib
+		sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary
+		if ctx.vndk() {
+			sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary + vendorSuffix
+		}
 	}
 
 	blacklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
@@ -438,8 +445,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
-		if sanitize.runtimeLibrary != "" {
-			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES += "+sanitize.runtimeLibrary)
+		if sanitize.androidMkRuntimeLibrary != "" {
+			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES += "+sanitize.androidMkRuntimeLibrary)
 		}
 
 		return nil
