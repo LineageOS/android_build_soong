@@ -347,10 +347,16 @@ class Generator(object):
                 if section_versioned and emit_version:
                     self.version_script.write('        ' + symbol.name + ';\n')
 
+                weak = ''
+                if 'weak' in symbol.tags:
+                    weak = '__attribute__((weak)) '
+
                 if 'var' in symbol.tags:
-                    self.src_file.write('int {} = 0;\n'.format(symbol.name))
+                    self.src_file.write('{}int {} = 0;\n'.format(
+                        weak, symbol.name))
                 else:
-                    self.src_file.write('void {}() {{}}\n'.format(symbol.name))
+                    self.src_file.write('{}void {}() {{}}\n'.format(
+                        weak, symbol.name))
 
             if not version_empty and section_versioned:
                 base = '' if version.base is None else ' ' + version.base
