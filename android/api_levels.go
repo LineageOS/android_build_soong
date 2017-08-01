@@ -55,7 +55,19 @@ func GetApiLevelsJson(ctx PathContext) Path {
 
 func (a *apiLevelsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	baseApiLevel := 9000
-	apiLevelsMap := map[string]int{}
+	apiLevelsMap := map[string]int{
+		"G":     9,
+		"I":     14,
+		"J":     16,
+		"J-MR1": 17,
+		"J-MR2": 18,
+		"K":     19,
+		"L":     21,
+		"L-MR1": 22,
+		"M":     23,
+		"N":     24,
+		"N-MR1": 25,
+	}
 	for i, codename := range ctx.Config().(Config).PlatformVersionAllCodenames() {
 		apiLevelsMap[codename] = baseApiLevel + i
 	}
