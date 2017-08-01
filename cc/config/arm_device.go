@@ -182,6 +182,7 @@ func init() {
 		"cortex-a73",
 		"krait",
 		"kryo",
+		"exynos-m1",
 		"exynos-m2",
 		"denver")
 
@@ -275,6 +276,7 @@ var (
 		"cortex-a73":     "${config.ArmCortexA53Cflags}",
 		"krait":          "${config.ArmKraitCflags}",
 		"kryo":           "${config.ArmKryoCflags}",
+		"exynos-m1":      "${config.ArmCortexA53Cflags}",
 		"exynos-m2":      "${config.ArmCortexA53Cflags}",
 		"denver":         "${config.ArmCortexA15Cflags}",
 	}
@@ -295,6 +297,7 @@ var (
 		"cortex-a73":     "${config.ArmClangCortexA53Cflags}",
 		"krait":          "${config.ArmClangKraitCflags}",
 		"kryo":           "${config.ArmClangKryoCflags}",
+		"exynos-m1":      "${config.ArmClangCortexA53Cflags}",
 		"exynos-m2":      "${config.ArmClangCortexA53Cflags}",
 		"denver":         "${config.ArmClangCortexA15Cflags}",
 	}
