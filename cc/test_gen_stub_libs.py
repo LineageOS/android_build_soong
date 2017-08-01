@@ -430,6 +430,8 @@ class GeneratorTest(unittest.TestCase):
             gsl.Version('VERSION_1', None, [], [
                 gsl.Symbol('foo', []),
                 gsl.Symbol('bar', ['var']),
+                gsl.Symbol('woodly', ['weak']),
+                gsl.Symbol('doodly', ['weak', 'var']),
             ]),
             gsl.Version('VERSION_2', 'VERSION_1', [], [
                 gsl.Symbol('baz', []),
@@ -443,6 +445,8 @@ class GeneratorTest(unittest.TestCase):
         expected_src = textwrap.dedent("""\
             void foo() {}
             int bar = 0;
+            __attribute__((weak)) void woodly() {}
+            __attribute__((weak)) int doodly = 0;
             void baz() {}
             void qux() {}
         """)
@@ -453,6 +457,8 @@ class GeneratorTest(unittest.TestCase):
                 global:
                     foo;
                     bar;
+                    woodly;
+                    doodly;
             };
             VERSION_2 {
                 global:
