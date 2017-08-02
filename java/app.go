@@ -231,18 +231,19 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 	aaptFlags = append(aaptFlags, android.JoinWithPrefix(resourceDirs.Strings(), "-S "))
 
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
-		var depFile android.OptionalPath
+		var depFiles android.Paths
 		if sdkDep, ok := module.(sdkDependency); ok {
-			depFile = android.OptionalPathForPath(sdkDep.ClasspathFile())
+			depFiles = sdkDep.ClasspathFiles()
 		} else if javaDep, ok := module.(Dependency); ok {
 			if ctx.OtherModuleName(module) == "framework-res" {
-				depFile = android.OptionalPathForPath(javaDep.(*AndroidApp).exportPackage)
+				depFiles = android.Paths{javaDep.(*AndroidApp).exportPackage}
 			}
 		}
-		if depFile.Valid() {
-			aaptFlags = append(aaptFlags, "-I "+depFile.String())
-			aaptDeps = append(aaptDeps, depFile.Path())
+
+		for _, dep := range depFiles {
+			aaptFlags = append(aaptFlags, "-I "+dep.String())
 		}
+		aaptDeps = append(aaptDeps, depFiles...)
 	})
 
 	sdkVersion := a.deviceProperties.Sdk_version

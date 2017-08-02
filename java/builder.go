@@ -237,11 +237,11 @@ func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFi
 }
 
 func TransformPrebuiltJarToClasses(ctx android.ModuleContext,
-	prebuilt android.Path) (classJarSpec, resourceJarSpec jarSpec) {
+	subdir string, prebuilt android.Path) (classJarSpec, resourceJarSpec jarSpec) {
 
-	classDir := android.PathForModuleOut(ctx, "extracted/classes")
-	classFileList := android.PathForModuleOut(ctx, "extracted/classes.list")
-	resourceFileList := android.PathForModuleOut(ctx, "extracted/resources.list")
+	classDir := android.PathForModuleOut(ctx, subdir, "classes")
+	classFileList := android.PathForModuleOut(ctx, subdir, "classes.list")
+	resourceFileList := android.PathForModuleOut(ctx, subdir, "resources.list")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        extractPrebuilt,
