@@ -378,8 +378,25 @@ func (c *config) PlatformSdkVersion() string {
 	return strconv.Itoa(c.PlatformSdkVersionInt())
 }
 
-func (c *config) PlatformVersionAllCodenames() []string {
-	return c.ProductVariables.Platform_version_all_codenames
+// Codenames that are active in the current lunch target.
+func (c *config) PlatformVersionActiveCodenames() []string {
+	return c.ProductVariables.Platform_version_active_codenames
+}
+
+// Codenames that are available in the branch but not included in the current
+// lunch target.
+func (c *config) PlatformVersionFutureCodenames() []string {
+	return c.ProductVariables.Platform_version_future_codenames
+}
+
+// All possible codenames in the current branch. NB: Not named AllCodenames
+// because "all" has historically meant "active" in make, and still does in
+// build.prop.
+func (c *config) PlatformVersionCombinedCodenames() []string {
+	combined := []string{}
+	combined = append(combined, c.PlatformVersionActiveCodenames()...)
+	combined = append(combined, c.PlatformVersionFutureCodenames()...)
+	return combined
 }
 
 func (c *config) BuildNumber() string {
