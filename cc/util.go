@@ -131,3 +131,10 @@ func addPrefix(list []string, prefix string) []string {
 	}
 	return list
 }
+
+func addSuffix(list []string, suffix string) []string {
+	for i := range list {
+		list[i] = list[i] + suffix
+	}
+	return list
+}
