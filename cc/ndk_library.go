@@ -205,7 +205,7 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorat
 	for version := firstGenVersion; version <= platformVersion; version++ {
 		versionStrs = append(versionStrs, strconv.Itoa(version))
 	}
-	versionStrs = append(versionStrs, mctx.AConfig().PlatformVersionAllCodenames()...)
+	versionStrs = append(versionStrs, mctx.AConfig().PlatformVersionActiveCodenames()...)
 	versionStrs = append(versionStrs, "current")
 
 	modules := mctx.CreateVariations(versionStrs...)
