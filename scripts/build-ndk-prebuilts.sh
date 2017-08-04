@@ -54,8 +54,7 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "Safestack": false
 }
 EOF
-BUILDDIR=${SOONG_OUT} ./bootstrap.bash
-${SOONG_OUT}/soong ${SOONG_OUT}/ndk.timestamp
+m --skip-make ${SOONG_OUT}/ndk.timestamp
 
 if [ -n "${DIST_DIR}" ]; then
     mkdir -p ${DIST_DIR} || true
