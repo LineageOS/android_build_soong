@@ -123,8 +123,8 @@ func TestPrebuilts(t *testing.T) {
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := NewTestContext()
-			ctx.PreArchMutators(registerPrebuiltsPreArchMutators)
-			ctx.PostDepsMutators(registerPrebuiltsPostDepsMutators)
+			ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
+			ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
 			ctx.RegisterModuleType("prebuilt", ModuleFactoryAdaptor(newPrebuiltModule))
 			ctx.RegisterModuleType("source", ModuleFactoryAdaptor(newSourceModule))
 			ctx.Register()

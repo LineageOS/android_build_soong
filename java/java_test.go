@@ -57,6 +57,8 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("java_prebuilt_library", android.ModuleFactoryAdaptor(PrebuiltFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
+	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
 

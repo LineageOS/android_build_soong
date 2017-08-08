@@ -61,11 +61,11 @@ type PrebuiltInterface interface {
 	Prebuilt() *Prebuilt
 }
 
-func registerPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
+func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilts", prebuiltMutator).Parallel()
 }
 
-func registerPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
+func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
 	ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
 }
