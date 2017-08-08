@@ -351,7 +351,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		}
 		return Objects{}
 	}
-	if ctx.createVndkSourceAbiDump() {
+	if ctx.createVndkSourceAbiDump() || library.sabi.Properties.CreateSAbiDumps {
 		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
