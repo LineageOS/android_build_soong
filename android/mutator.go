@@ -74,7 +74,7 @@ var preArch = []RegisterMutatorFunc{
 	func(ctx RegisterMutatorsContext) {
 		ctx.TopDown("load_hooks", loadHookMutator).Parallel()
 	},
-	registerPrebuiltsPreArchMutators,
+	RegisterPrebuiltsPreArchMutators,
 	RegisterDefaultsPreArchMutators,
 }
 
@@ -86,7 +86,7 @@ var preDeps = []RegisterMutatorFunc{
 }
 
 var postDeps = []RegisterMutatorFunc{
-	registerPrebuiltsPostDepsMutators,
+	RegisterPrebuiltsPostDepsMutators,
 }
 
 func PreArchMutators(f RegisterMutatorFunc) {

@@ -15,21 +15,17 @@
 package java
 
 import (
-	"fmt"
-
 	"android/soong/android"
 )
 
-func (*Library) AndroidMk() (ret android.AndroidMkData, err error) {
+func (library *Library) AndroidMk() (ret android.AndroidMkData, err error) {
 	ret.Class = "JAVA_LIBRARIES"
-	// TODO
-	err = fmt.Errorf("Not yet implemented")
+	ret.OutputFile = android.OptionalPathForPath(library.outputFile)
 	return
 }
 
-func (*Prebuilt) AndroidMk() (ret android.AndroidMkData, err error) {
+func (prebuilt *Prebuilt) AndroidMk() (ret android.AndroidMkData, err error) {
 	ret.Class = "JAVA_LIBRARIES"
-	// TODO
-	err = fmt.Errorf("Not yet implemented")
+	ret.OutputFile = android.OptionalPathForPath(prebuilt.classpathFile)
 	return
 }
