@@ -29,6 +29,7 @@ optional_subdirs = [
     "prebuilts/clang/host/linux-x86",
     "prebuilts/ndk",
     "prebuilts/sdk",
+    "prebuilts/misc",
     "system/*",
     "system/hardware/interfaces",
     "system/tools/*",
