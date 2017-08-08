@@ -531,6 +531,10 @@ func (j *Prebuilt) Prebuilt() *android.Prebuilt {
 	return &j.prebuilt
 }
 
+func (j *Prebuilt) Name() string {
+	return j.prebuilt.Name(j.ModuleBase.Name())
+}
+
 func (j *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
