@@ -19,13 +19,11 @@ package java
 // functions.
 
 import (
-	"path/filepath"
 	"strings"
 
 	"android/soong/android"
 
 	"github.com/google/blueprint"
-	_ "github.com/google/blueprint/bootstrap"
 )
 
 var (
@@ -39,36 +37,37 @@ var (
 	// read from directly using @<listfile>)
 	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${JavacWrapper}$javacCmd ` +
-				`-encoding UTF-8 $javacFlags $bootClasspath $classpath ` +
-				`-extdirs "" -d $outDir @$out.rsp || ( rm -rf "$outDir"; exit 41 ) && ` +
+			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
+				`${config.JavacWrapper}${config.JavacCmd} ${config.CommonJdkFlags} ` +
+				`$javacFlags $bootClasspath $classpath ` +
+				`-source $javaVersion -target $javaVersion ` +
+				`-d $outDir -s $annoDir @$out.rsp || ( rm -rf "$outDir"; exit 41 ) && ` +
 				`find $outDir -name "*.class" > $out`,
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 		},
-		"javacCmd", "javacFlags", "bootClasspath", "classpath", "outDir")
+		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
-			Command:     `$jarCmd -o $out $jarArgs`,
-			CommandDeps: []string{"$jarCmd"},
+			Command:     `${config.SoongZipCmd} -o $out -d $jarArgs`,
+			CommandDeps: []string{"${config.SoongZipCmd}"},
 		},
 		"jarCmd", "jarArgs")
 
 	dx = pctx.AndroidStaticRule("dx",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`$dxCmd --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
-				`find "$outDir" -name "classes*.dex" > $out`,
-			CommandDeps: []string{"$dxCmd"},
+				`${config.DxCmd} --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
+				`find "$outDir" -name "classes*.dex" | sort > $out`,
+			CommandDeps: []string{"${config.DxCmd}"},
 		},
 		"outDir", "dxFlags")
 
 	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
-			Command:     "java -jar $jarjarCmd process $rulesFile $in $out",
-			CommandDeps: []string{"$jarjarCmd", "$rulesFile"},
+			Command:     "${config.JavaCmd} -jar ${config.JarjarCmd} process $rulesFile $in $out",
+			CommandDeps: []string{"${config.JavaCmd}", "${config.JarjarCmd}", "$rulesFile"},
 		},
 		"rulesFile")
 
@@ -83,19 +82,7 @@ var (
 )
 
 func init() {
-	pctx.Import("github.com/google/blueprint/bootstrap")
-	pctx.StaticVariable("commonJdkFlags", "-source 1.7 -target 1.7 -Xmaxerrs 9999999")
-	pctx.StaticVariable("javacCmd", "javac -J-Xmx1024M $commonJdkFlags")
-	pctx.StaticVariable("jarCmd", filepath.Join("${bootstrap.ToolDir}", "soong_zip"))
-	pctx.HostBinToolVariable("dxCmd", "dx")
-	pctx.HostJavaToolVariable("jarjarCmd", "jarjar.jar")
-
-	pctx.VariableFunc("JavacWrapper", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("JAVAC_WRAPPER"); override != "" {
-			return override + " ", nil
-		}
-		return "", nil
-	})
+	pctx.Import("android/soong/java/config")
 }
 
 type javaBuilderFlags struct {
@@ -104,6 +91,7 @@ type javaBuilderFlags struct {
 	bootClasspath string
 	classpath     string
 	aidlFlags     string
+	javaVersion   string
 }
 
 type jarSpec struct {
@@ -118,6 +106,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles android.Paths, s
 	flags javaBuilderFlags, deps android.Paths) jarSpec {
 
 	classDir := android.PathForModuleOut(ctx, "classes")
+	annoDir := android.PathForModuleOut(ctx, "anno")
 	classFileList := android.PathForModuleOut(ctx, "classes.list")
 
 	javacFlags := flags.javacFlags + android.JoinWithPrefix(srcFileLists.Strings(), "@")
@@ -135,6 +124,8 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles android.Paths, s
 			"bootClasspath": flags.bootClasspath,
 			"classpath":     flags.classpath,
 			"outDir":        classDir.String(),
+			"annoDir":       annoDir.String(),
+			"javaVersion":   flags.javaVersion,
 		},
 	})
 

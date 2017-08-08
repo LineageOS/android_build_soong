@@ -92,6 +92,9 @@ type CompilerProperties struct {
 
 	// if not blank, run jarjar using the specified rules file
 	Jarjar_rules *string
+
+	// If not blank, set the java version passed to javac as -source and -target
+	Java_version *string
 }
 
 type CompilerDeviceProperties struct {
@@ -285,6 +288,13 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	var flags javaBuilderFlags
 
 	javacFlags := j.properties.Javacflags
+
+	if j.properties.Java_version != nil {
+		flags.javaVersion = *j.properties.Java_version
+	} else {
+		flags.javaVersion = "${config.DefaultJavaVersion}"
+	}
+
 	if len(javacFlags) > 0 {
 		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
 		flags.javacFlags = "$javacFlags"
