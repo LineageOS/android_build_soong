@@ -13,7 +13,7 @@ optional_subdirs = [
     "bionic",
     "bootable/recovery",
     "build/kati",
-    "build/tools/*",
+    "build/make/tools/*",
     "dalvik",
     "development/*",
     "device/*/*",
