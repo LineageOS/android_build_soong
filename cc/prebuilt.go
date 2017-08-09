@@ -116,7 +116,19 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 	// TODO(ccross): verify shared library dependencies
 	if len(p.Prebuilt.Properties.Srcs) > 0 {
 		// TODO(ccross): .toc optimization, stripping, packing
-		return p.Prebuilt.Path(ctx)
+
+		// Copy binaries to a name matching the final installed name
+		fileName := p.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
+		outputFile := android.PathForModuleOut(ctx, fileName)
+
+		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+			Rule:        android.Cp,
+			Description: "prebuilt",
+			Output:      outputFile,
+			Input:       p.Prebuilt.Path(ctx),
+		})
+
+		return outputFile
 	}
 
 	return nil
