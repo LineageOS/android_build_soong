@@ -2,6 +2,14 @@
 
 set -e
 
+if [ -z "$NO_DEPRECATION_WARNING" ]; then
+    echo '== WARNING: bootstrap.bash & ./soong are deprecated ==' >&2
+    echo 'Use `m --skip-make` with a standalone OUT_DIR instead.' >&2
+    echo 'Without envsetup.sh, use:' >&2
+    echo '  build/soong/soong_ui.bash --make-mode --skip-make' >&2
+    echo '======================================================' >&2
+fi
+
 ORIG_SRCDIR=$(dirname "${BASH_SOURCE[0]}")
 if [[ "$ORIG_SRCDIR" != "." ]]; then
   if [[ ! -z "$BUILDDIR" ]]; then

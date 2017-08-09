@@ -53,7 +53,9 @@ func runNinja(ctx Context, config Config) {
 	args = append(args, "-w", "dupbuild=err")
 
 	cmd := Command(ctx, config, "ninja", executable, args...)
-	cmd.Environment.AppendFromKati(config.KatiEnvFile())
+	if config.HasKatiSuffix() {
+		cmd.Environment.AppendFromKati(config.KatiEnvFile())
+	}
 
 	// Allow both NINJA_ARGS and NINJA_EXTRA_ARGS, since both have been
 	// used in the past to specify extra ninja arguments.

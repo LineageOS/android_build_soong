@@ -129,6 +129,8 @@ func installCleanIfNecessary(ctx Context, config Config) {
 	suffix := "\n"
 	currentProduct := prefix + config.TargetProduct() + "-" + config.TargetBuildVariant() + suffix
 
+	ensureDirectoriesExist(ctx, filepath.Dir(configFile))
+
 	writeConfig := func() {
 		err := ioutil.WriteFile(configFile, []byte(currentProduct), 0666)
 		if err != nil {
