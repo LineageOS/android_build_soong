@@ -5,6 +5,14 @@ set -e
 # Switch to the build directory
 cd $(dirname "${BASH_SOURCE[0]}")
 
+if [ -z "$NO_DEPRECATION_WARNING" ]; then
+    echo '== WARNING: bootstrap.bash & ./soong are deprecated ==' >&2
+    echo 'Use `m --skip-make` with a standalone OUT_DIR instead.' >&2
+    echo 'Without envsetup.sh, use:' >&2
+    echo '  build/soong/soong_ui.bash --make-mode --skip-make' >&2
+    echo '======================================================' >&2
+fi
+
 # The source directory path and operating system will get written to
 # .soong.bootstrap by the bootstrap script.
 
