@@ -15,6 +15,9 @@
 package cc
 
 import (
+	"strings"
+	"sync"
+
 	"android/soong/android"
 )
 
@@ -94,5 +97,40 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module) {
 		ctx.ModuleErrorf("(%s) should not link to %q(%s)",
 			vndk.typeName(), to.Name(), to.vndkdep.typeName())
 		return
+	}
+}
+
+var (
+	vndkCoreLibraries []string
+	vndkSpLibraries   []string
+	llndkLibraries    []string
+	vndkLibrariesLock sync.Mutex
+)
+
+// gather list of vndk-core, vndk-sp, and ll-ndk libs
+func vndkMutator(mctx android.BottomUpMutatorContext) {
+	if m, ok := mctx.Module().(*Module); ok {
+		if _, ok := m.linker.(*llndkStubDecorator); ok {
+			vndkLibrariesLock.Lock()
+			defer vndkLibrariesLock.Unlock()
+			name := strings.TrimSuffix(m.Name(), llndkLibrarySuffix)
+			if !inList(name, llndkLibraries) {
+				llndkLibraries = append(llndkLibraries, name)
+			}
+		} else if lib, ok := m.linker.(*libraryDecorator); ok && lib.shared() {
+			if m.vndkdep.isVndk() {
+				vndkLibrariesLock.Lock()
+				defer vndkLibrariesLock.Unlock()
+				if m.vndkdep.isVndkSp() {
+					if !inList(m.Name(), vndkSpLibraries) {
+						vndkSpLibraries = append(vndkSpLibraries, m.Name())
+					}
+				} else {
+					if !inList(m.Name(), vndkCoreLibraries) {
+						vndkCoreLibraries = append(vndkCoreLibraries, m.Name())
+					}
+				}
+			}
+		}
 	}
 }
