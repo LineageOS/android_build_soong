@@ -22,6 +22,15 @@ bootstrap_go_package {
     srcs: [
         "fs.go",
     ],
+    darwin: {
+        srcs: [
+            "fs_darwin.go",
+        ],
+    },
+    linux: {
+        srcs: [
+            "fs_linux.go",
+        ],
+    },
 }
-
 

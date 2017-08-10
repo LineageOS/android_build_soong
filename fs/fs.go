@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All rights reserved.
+// Copyright 2017 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -75,33 +74,6 @@ func (osFs) Open(name string) (io.ReadCloser, error) { return os.Open(name) }
 
 func (osFs) Lstat(path string) (stats os.FileInfo, err error) {
 	return os.Lstat(path)
-}
-
-func (osFs) InodeNumber(info os.FileInfo) (number uint64, err error) {
-	sys := info.Sys()
-	linuxStats, ok := sys.(*syscall.Stat_t)
-	if ok {
-		return linuxStats.Ino, nil
-	}
-	return 0, fmt.Errorf("%v is not a *syscall.Stat_t", sys)
-}
-
-func (osFs) DeviceNumber(info os.FileInfo) (number uint64, err error) {
-	sys := info.Sys()
-	linuxStats, ok := sys.(*syscall.Stat_t)
-	if ok {
-		return linuxStats.Dev, nil
-	}
-	return 0, fmt.Errorf("%v is not a *syscall.Stat_t", sys)
-}
-
-func (osFs) PermTime(info os.FileInfo) (when time.Time, err error) {
-	sys := info.Sys()
-	linuxStats, ok := sys.(*syscall.Stat_t)
-	if ok {
-		return time.Unix(linuxStats.Ctim.Sec, linuxStats.Ctim.Nsec), nil
-	}
-	return time.Date(0, 0, 0, 0, 0, 0, 0, nil), fmt.Errorf("%v is not a *syscall.Stat_t", sys)
 }
 
 func (osFs) ReadDir(path string) (contents []os.FileInfo, err error) {
