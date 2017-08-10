@@ -61,7 +61,7 @@ func (installer *pythonInstaller) AndroidMk(base *pythonBaseModule, ret *android
 		ret.OutputFile = android.OptionalPathForPath(installer.path)
 	}
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
@@ -69,6 +69,5 @@ func (installer *pythonInstaller) AndroidMk(base *pythonBaseModule, ret *android
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
-		return nil
 	})
 }

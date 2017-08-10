@@ -45,8 +45,10 @@ type AndroidMkData struct {
 
 	Custom func(w io.Writer, name, prefix, moduleDir string) error
 
-	Extra []func(w io.Writer, outputFile Path) error
+	Extra []AndroidMkExtraFunc
 }
+
+type AndroidMkExtraFunc func(w io.Writer, outputFile Path)
 
 func AndroidMkSingleton() blueprint.Singleton {
 	return &androidMkSingleton{}
@@ -255,10 +257,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	}
 
 	for _, extra := range data.Extra {
-		err = extra(w, data.OutputFile.Path())
-		if err != nil {
-			return err
-		}
+		extra(w, data.OutputFile.Path())
 	}
 
 	fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
