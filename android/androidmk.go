@@ -43,7 +43,7 @@ type AndroidMkData struct {
 	OutputFile OptionalPath
 	Disabled   bool
 
-	Custom func(w io.Writer, name, prefix, moduleDir string) error
+	Custom func(w io.Writer, name, prefix, moduleDir string)
 
 	Extra []AndroidMkExtraFunc
 }
@@ -159,10 +159,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		return nil
 	}
 
-	data, err := provider.AndroidMk()
-	if err != nil {
-		return err
-	}
+	data := provider.AndroidMk()
 
 	// Make does not understand LinuxBionic
 	if amod.Os() == LinuxBionic {
@@ -192,7 +189,9 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 			}
 		}
 
-		return data.Custom(w, name, prefix, filepath.Dir(ctx.BlueprintFile(mod)))
+		data.Custom(w, name, prefix, filepath.Dir(ctx.BlueprintFile(mod)))
+
+		return nil
 	}
 
 	if data.Disabled {
@@ -200,7 +199,7 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	}
 
 	if !data.OutputFile.Valid() {
-		return err
+		return nil
 	}
 
 	fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
@@ -262,5 +261,5 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 
 	fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
-	return err
+	return nil
 }

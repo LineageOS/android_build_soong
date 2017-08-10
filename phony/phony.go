@@ -49,14 +49,12 @@ func (p *phony) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (p *phony) AndroidMk() (ret android.AndroidMkData, err error) {
-	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
+	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) {
 		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(p.requiredModuleNames, " "))
 		fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
-
-		return nil
 	}
 	return
 }

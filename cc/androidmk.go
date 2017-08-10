@@ -131,7 +131,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 		ret.Class = "SHARED_LIBRARIES"
 	} else if library.header() {
-		ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
+		ret.Custom = func(w io.Writer, name, prefix, moduleDir string) {
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
@@ -158,8 +158,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 			library.androidMkWriteExportedFlags(w)
 			fmt.Fprintln(w, "include $(BUILD_HEADER_LIBRARY)")
-
-			return nil
 		}
 
 		return
@@ -191,13 +189,11 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 }
 
 func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
+	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) {
 		out := ret.OutputFile.Path()
 
 		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+":", out.String())
 		fmt.Fprintln(w, "\t$(copy-file-to-target)")
-
-		return nil
 	}
 }
 
