@@ -145,14 +145,13 @@ func New(out io.Writer) *stdLogger {
 
 // SetVerbose controls whether Verbose[f|ln] logs to stderr as well as the
 // file-backed log.
-func (s *stdLogger) SetVerbose(v bool) *stdLogger {
+func (s *stdLogger) SetVerbose(v bool) {
 	s.verbose = v
-	return s
 }
 
 // SetOutput controls where the file-backed log will be saved. It will keep
 // some number of backups of old log files.
-func (s *stdLogger) SetOutput(path string) *stdLogger {
+func (s *stdLogger) SetOutput(path string) {
 	if f, err := CreateFileWithRotation(path, 5); err == nil {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
@@ -165,7 +164,6 @@ func (s *stdLogger) SetOutput(path string) *stdLogger {
 	} else {
 		s.Fatal(err.Error())
 	}
-	return s
 }
 
 // Close disables logging to the file and closes the file handle.
