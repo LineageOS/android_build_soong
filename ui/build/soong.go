@@ -25,6 +25,7 @@ func runSoongBootstrap(ctx Context, config Config) {
 	cmd := Command(ctx, config, "soong bootstrap", "./bootstrap.bash")
 	cmd.Environment.Set("BUILDDIR", config.SoongOutDir())
 	cmd.Environment.Set("NINJA_BUILDDIR", config.OutDir())
+	cmd.Environment.Set("NO_DEPRECATION_WARNING", "true")
 	cmd.Sandbox = soongSandbox
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
@@ -41,6 +42,7 @@ func runSoong(ctx Context, config Config) {
 		cmd.Args = append(cmd.Args, "-v")
 	}
 	cmd.Environment.Set("SKIP_NINJA", "true")
+	cmd.Environment.Set("NO_DEPRECATION_WARNING", "true")
 	cmd.Sandbox = soongSandbox
 	cmd.Stdin = ctx.Stdin()
 	cmd.Stdout = ctx.Stdout()

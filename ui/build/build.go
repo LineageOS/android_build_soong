@@ -26,7 +26,9 @@ import (
 func SetupOutDir(ctx Context, config Config) {
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "Android.mk"))
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "CleanSpec.mk"))
-	ensureEmptyFileExists(ctx, filepath.Join(config.SoongOutDir(), ".soong.in_make"))
+	if !config.SkipMake() {
+		ensureEmptyFileExists(ctx, filepath.Join(config.SoongOutDir(), ".soong.in_make"))
+	}
 	// The ninja_build file is used by our buildbots to understand that the output
 	// can be parsed as ninja output.
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "ninja_build"))
@@ -34,12 +36,20 @@ func SetupOutDir(ctx Context, config Config) {
 
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
 builddir = {{.OutDir}}
-include {{.KatiNinjaFile}}
+{{if .HasKatiSuffix}}include {{.KatiNinjaFile}}
+{{end -}}
 include {{.SoongNinjaFile}}
 build {{.CombinedNinjaFile}}: phony {{.SoongNinjaFile}}
 `))
 
 func createCombinedBuildNinjaFile(ctx Context, config Config) {
+	// If we're in SkipMake mode, skip creating this file if it already exists
+	if config.SkipMake() {
+		if _, err := os.Stat(config.CombinedNinjaFile()); err == nil || !os.IsNotExist(err) {
+			return
+		}
+	}
+
 	file, err := os.Create(config.CombinedNinjaFile())
 	if err != nil {
 		ctx.Fatalln("Failed to create combined ninja file:", err)
@@ -92,8 +102,7 @@ func checkCaseSensitivity(ctx Context, config Config) {
 }
 
 func help(ctx Context, config Config, what int) {
-	cmd := Command(ctx, config, "make",
-		"make", "-f", "build/core/help.mk")
+	cmd := Command(ctx, config, "help.sh", "build/make/help.sh")
 	cmd.Sandbox = makeSandbox
 	cmd.Stdout = ctx.Stdout()
 	cmd.Stderr = ctx.Stderr()
@@ -105,6 +114,11 @@ func help(ctx Context, config Config, what int) {
 func Build(ctx Context, config Config, what int) {
 	ctx.Verboseln("Starting build with args:", config.Arguments())
 	ctx.Verboseln("Environment:", config.Environment().Environ())
+
+	if config.SkipMake() {
+		ctx.Verboseln("Skipping Make/Kati as requested")
+		what = what & (BuildSoong | BuildNinja)
+	}
 
 	if inList("help", config.Arguments()) {
 		help(ctx, config, what)
@@ -148,10 +162,20 @@ func Build(ctx Context, config Config, what int) {
 	if what&BuildKati != 0 {
 		// Run ckati
 		runKati(ctx, config)
+
+		ioutil.WriteFile(config.LastKatiSuffixFile(), []byte(config.KatiSuffix()), 0777)
+	} else {
+		// Load last Kati Suffix if it exists
+		if katiSuffix, err := ioutil.ReadFile(config.LastKatiSuffixFile()); err == nil {
+			ctx.Verboseln("Loaded previous kati config:", string(katiSuffix))
+			config.SetKatiSuffix(string(katiSuffix))
+		}
 	}
 
 	if what&BuildNinja != 0 {
-		installCleanIfNecessary(ctx, config)
+		if !config.SkipMake() {
+			installCleanIfNecessary(ctx, config)
+		}
 
 		// Write combined ninja file
 		createCombinedBuildNinjaFile(ctx, config)
