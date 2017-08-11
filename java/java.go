@@ -486,6 +486,9 @@ type Binary struct {
 	Library
 
 	binaryProperties binaryProperties
+
+	wrapperFile android.ModuleSrcPath
+	binaryFile  android.OutputPath
 }
 
 func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -493,8 +496,9 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
-	ctx.InstallFile(android.PathForModuleInstall(ctx, "bin"), android.PathForModuleSrc(ctx, j.binaryProperties.Wrapper),
-		j.installFile)
+	j.wrapperFile = android.PathForModuleSrc(ctx, j.binaryProperties.Wrapper)
+	j.binaryFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "bin"),
+		j.wrapperFile, j.installFile)
 }
 
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
