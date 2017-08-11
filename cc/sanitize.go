@@ -527,7 +527,7 @@ func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 // Create asan variants for modules that need them
 func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
-		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil && !c.Host() {
+		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
 			if c.isDependencyRoot() && c.sanitize.isSanitizerExplicitlyEnabled(t) {
 				modules := mctx.CreateVariations(t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
@@ -537,8 +537,15 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				modules[1].(*Module).sanitize.SetSanitizer(t, true)
 				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
 				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
-				modules[1].(*Module).sanitize.Properties.InSanitizerDir = true
-
+				if mctx.Device() {
+					modules[1].(*Module).sanitize.Properties.InSanitizerDir = true
+				} else {
+					if c.sanitize.isSanitizerExplicitlyEnabled(t) {
+						modules[0].(*Module).Properties.PreventInstall = true
+					} else {
+						modules[1].(*Module).Properties.PreventInstall = true
+					}
+				}
 				if mctx.AConfig().EmbeddedInMake() {
 					if c.sanitize.isSanitizerExplicitlyEnabled(t) {
 						modules[0].(*Module).Properties.HideFromMake = true
