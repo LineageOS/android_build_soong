@@ -35,6 +35,7 @@ func init() {
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("link", linkageMutator).Parallel()
+		ctx.BottomUp("vndk", vndkMutator).Parallel()
 		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
@@ -457,7 +458,7 @@ func (ctx *moduleContextImpl) isVndkSp() bool {
 
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
 func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
-	return ctx.ctx.Device() && (ctx.mod.isVndk() || inList(ctx.baseModuleName(), config.LLndkLibraries()))
+	return ctx.ctx.Device() && (ctx.mod.isVndk() || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -745,7 +746,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					} else {
 						variantLibs = append(variantLibs, entry+ndkLibrarySuffix)
 					}
-				} else if ctx.vndk() && inList(entry, config.LLndkLibraries()) {
+				} else if ctx.vndk() && inList(entry, llndkLibraries) {
 					nonvariantLibs = append(nonvariantLibs, entry+llndkLibrarySuffix)
 				} else {
 					nonvariantLibs = append(nonvariantLibs, entry)
@@ -1109,7 +1110,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
 			libName := strings.TrimSuffix(name, llndkLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
-			isLLndk := inList(libName, config.LLndkLibraries())
+			isLLndk := inList(libName, llndkLibraries)
 			if c.vndk() && (Bool(cc.Properties.Vendor_available) || isLLndk) {
 				libName += vendorSuffix
 			}
