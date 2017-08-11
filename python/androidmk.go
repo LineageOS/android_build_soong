@@ -38,10 +38,12 @@ func (p *pythonBaseModule) subAndroidMk(data *android.AndroidMkData, obj interfa
 	}
 }
 
-func (p *pythonBaseModule) AndroidMk() (ret android.AndroidMkData, err error) {
+func (p *pythonBaseModule) AndroidMk() android.AndroidMkData {
+	ret := android.AndroidMkData{}
+
 	p.subAndroidMk(&ret, p.installer)
 
-	return ret, nil
+	return ret
 }
 
 func (p *pythonBinaryHostDecorator) AndroidMk(base *pythonBaseModule, ret *android.AndroidMkData) {

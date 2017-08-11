@@ -21,20 +21,26 @@ import (
 	"android/soong/android"
 )
 
-func (library *Library) AndroidMk() (ret android.AndroidMkData, err error) {
-	ret.Class = "JAVA_LIBRARIES"
-	ret.OutputFile = android.OptionalPathForPath(library.outputFile)
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
-	})
-	return
+func (library *Library) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(library.outputFile),
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
+			},
+		},
+	}
 }
 
-func (prebuilt *Import) AndroidMk() (ret android.AndroidMkData, err error) {
-	ret.Class = "JAVA_LIBRARIES"
-	ret.OutputFile = android.OptionalPathForPath(prebuilt.combinedClasspathFile)
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
-	})
-	return
+func (prebuilt *Import) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(prebuilt.combinedClasspathFile),
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
+			},
+		},
+	}
 }

@@ -49,29 +49,34 @@ func (c *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
 	}
 }
 
-func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
+func (c *Module) AndroidMk() android.AndroidMkData {
 	if c.Properties.HideFromMake {
-		ret.Disabled = true
-		return ret, nil
+		return android.AndroidMkData{
+			Disabled: true,
+		}
 	}
 
-	ret.OutputFile = c.outputFile
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_SANITIZE := never")
-		if len(c.Properties.AndroidMkSharedLibs) > 0 {
-			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
-		}
-		if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.vndk() {
-			fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
-			fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
-		} else {
-			// These are already included in LOCAL_SHARED_LIBRARIES
-			fmt.Fprintln(w, "LOCAL_CXX_STL := none")
-		}
-		if c.vndk() {
-			fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
-		}
-	})
+	ret := android.AndroidMkData{
+		OutputFile: c.outputFile,
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_SANITIZE := never")
+				if len(c.Properties.AndroidMkSharedLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
+				}
+				if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.vndk() {
+					fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
+					fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
+				} else {
+					// These are already included in LOCAL_SHARED_LIBRARIES
+					fmt.Fprintln(w, "LOCAL_CXX_STL := none")
+				}
+				if c.vndk() {
+					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
+				}
+			},
+		},
+	}
 
 	for _, feature := range c.features {
 		c.subAndroidMk(&ret, feature)
@@ -90,7 +95,7 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 		ret.SubName += vendorSuffix
 	}
 
-	return ret, nil
+	return ret
 }
 
 func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, ret *android.AndroidMkData) {

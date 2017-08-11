@@ -33,7 +33,7 @@ func init() {
 }
 
 type AndroidMkDataProvider interface {
-	AndroidMk() (AndroidMkData, error)
+	AndroidMk() AndroidMkData
 	BaseModuleName() string
 }
 
