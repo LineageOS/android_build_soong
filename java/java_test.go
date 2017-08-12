@@ -55,7 +55,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx := android.NewTestContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory))
-	ctx.RegisterModuleType("java_prebuilt_library", android.ModuleFactoryAdaptor(PrebuiltFactory))
+	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
@@ -209,14 +209,14 @@ func TestPrebuilts(t *testing.T) {
 			static_libs: ["baz"],
 		}
 
-		java_prebuilt_library {
+		java_import {
 			name: "bar",
-			srcs: ["a.jar"],
+			jars: ["a.jar"],
 		}
 
-		java_prebuilt_library {
+		java_import {
 			name: "baz",
-			srcs: ["b.jar"],
+			jars: ["b.jar"],
 		}
 		`)
 
@@ -228,7 +228,7 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "extracted", "classes.list")
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "extracted0", "classes.list")
 	if !strings.Contains(jar.Args["jarArgs"], baz) {
 		t.Errorf("foo jarArgs %v does not contain %q", jar.Args["jarArgs"], baz)
 	}
