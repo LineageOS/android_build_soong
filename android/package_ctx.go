@@ -75,6 +75,22 @@ func (p AndroidPackageContext) SourcePathVariable(name, path string) blueprint.V
 	})
 }
 
+// SourcePathVariableWithEnvOverride returns a Variable whose value is the source directory
+// appended with the supplied path, or the value of the given environment variable if it is set.
+// The environment variable is not required to point to a path inside the source tree.
+// It may only be called during a Go package's initialization - either from the init() function or
+// as part of a package-scoped variable's initialization.
+func (p AndroidPackageContext) SourcePathVariableWithEnvOverride(name, path, env string) blueprint.Variable {
+	return p.VariableFunc(name, func(config interface{}) (string, error) {
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
+		p := safePathForSource(ctx, path)
+		if len(ctx.errors) > 0 {
+			return "", ctx.errors[0]
+		}
+		return config.(Config).GetenvWithDefault(env, p.String()), nil
+	})
+}
+
 // HostBinVariable returns a Variable whose value is the path to a host tool
 // in the bin directory for host targets. It may only be called during a Go
 // package's initialization - either from the init() function or as part of a
