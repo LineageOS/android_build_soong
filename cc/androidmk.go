@@ -49,30 +49,34 @@ func (c *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
 	}
 }
 
-func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
+func (c *Module) AndroidMk() android.AndroidMkData {
 	if c.Properties.HideFromMake {
-		ret.Disabled = true
-		return ret, nil
+		return android.AndroidMkData{
+			Disabled: true,
+		}
 	}
 
-	ret.OutputFile = c.outputFile
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) (err error) {
-		fmt.Fprintln(w, "LOCAL_SANITIZE := never")
-		if len(c.Properties.AndroidMkSharedLibs) > 0 {
-			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
-		}
-		if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.vndk() {
-			fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
-			fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
-		} else {
-			// These are already included in LOCAL_SHARED_LIBRARIES
-			fmt.Fprintln(w, "LOCAL_CXX_STL := none")
-		}
-		if c.vndk() {
-			fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
-		}
-		return nil
-	})
+	ret := android.AndroidMkData{
+		OutputFile: c.outputFile,
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_SANITIZE := never")
+				if len(c.Properties.AndroidMkSharedLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
+				}
+				if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.vndk() {
+					fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
+					fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
+				} else {
+					// These are already included in LOCAL_SHARED_LIBRARIES
+					fmt.Fprintln(w, "LOCAL_CXX_STL := none")
+				}
+				if c.vndk() {
+					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
+				}
+			},
+		},
+	}
 
 	for _, feature := range c.features {
 		c.subAndroidMk(&ret, feature)
@@ -91,7 +95,7 @@ func (c *Module) AndroidMk() (ret android.AndroidMkData, err error) {
 		ret.SubName += vendorSuffix
 	}
 
-	return ret, nil
+	return ret
 }
 
 func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, ret *android.AndroidMkData) {
@@ -106,9 +110,8 @@ func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, ret *andro
 		testFiles = append(testFiles, path+":"+rel)
 	}
 	if len(testFiles) > 0 {
-		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(testFiles, " "))
-			return nil
 		})
 	}
 }
@@ -133,10 +136,10 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 		ret.Class = "SHARED_LIBRARIES"
 	} else if library.header() {
-		ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
+		ret.Custom = func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+			fmt.Fprintln(w, "LOCAL_MODULE :=", name+data.SubName)
 
 			archStr := ctx.Target().Arch.ArchType.String()
 			var host bool
@@ -160,14 +163,12 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 			library.androidMkWriteExportedFlags(w)
 			fmt.Fprintln(w, "include $(BUILD_HEADER_LIBRARY)")
-
-			return nil
 		}
 
 		return
 	}
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		library.androidMkWriteExportedFlags(w)
 		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := ")
 		if library.sAbiOutputFile.Valid() {
@@ -185,8 +186,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		if library.coverageOutputFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", library.coverageOutputFile.String())
 		}
-
-		return nil
 	})
 
 	if library.shared() {
@@ -195,13 +194,11 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 }
 
 func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Custom = func(w io.Writer, name, prefix, moduleDir string) error {
+	ret.Custom = func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 		out := ret.OutputFile.Path()
 
-		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+objectExtension+":", out.String())
+		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+data.SubName+objectExtension+":", out.String())
 		fmt.Fprintln(w, "\t$(copy-file-to-target)")
-
-		return nil
 	}
 }
 
@@ -210,7 +207,7 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 	ctx.subAndroidMk(ret, &binary.stripper)
 
 	ret.Class = "EXECUTABLES"
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		if Bool(binary.Properties.Static_executable) {
 			fmt.Fprintln(w, "LOCAL_FORCE_STATIC_EXECUTABLE := true")
@@ -223,19 +220,17 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 		if binary.coverageOutputFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", binary.coverageOutputFile.String())
 		}
-		return nil
 	})
 }
 
 func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, benchmark.binaryDecorator)
 	ret.Class = "NATIVE_TESTS"
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if len(benchmark.Properties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(benchmark.Properties.Test_suites, " "))
 		}
-		return nil
 	})
 
 	androidMkWriteTestData(benchmark.data, ctx, ret)
@@ -248,12 +243,11 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
 	}
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if len(test.Properties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(test.Properties.Test_suites, " "))
 		}
-		return nil
 	})
 
 	androidMkWriteTestData(test.data, ctx, ret)
@@ -265,11 +259,9 @@ func (test *testLibrary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkD
 
 func (library *toolchainLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Class = "STATIC_LIBRARIES"
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
-
-		return nil
 	})
 }
 
@@ -279,7 +271,7 @@ func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMk
 		return
 	}
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if stripper.StripProperties.Strip.None {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
 		} else if stripper.StripProperties.Strip.Keep_symbols {
@@ -287,17 +279,14 @@ func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMk
 		} else {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := mini-debug-info")
 		}
-
-		return nil
 	})
 }
 
 func (packer *relocationPacker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if packer.Properties.PackingRelocations {
 			fmt.Fprintln(w, "LOCAL_PACK_MODULE_RELOCATIONS := true")
 		}
-		return nil
 	})
 }
 
@@ -308,14 +297,13 @@ func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.And
 		ret.OutputFile = android.OptionalPathForPath(installer.path)
 	}
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
-		return nil
 	})
 }
 
@@ -323,7 +311,7 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	ret.SubName = ndkLibrarySuffix + "." + c.properties.ApiLevel
 	ret.Class = "SHARED_LIBRARIES"
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path, file := filepath.Split(c.installPath)
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
@@ -336,7 +324,6 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		// dozens of libraries with the same name, they'll clobber each other
 		// and the real versions of the libraries from the platform).
 		fmt.Fprintln(w, "LOCAL_COPY_TO_INTERMEDIATE_LIBRARIES := false")
-		return nil
 	})
 }
 
@@ -344,7 +331,7 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 	ret.Class = "SHARED_LIBRARIES"
 	ret.SubName = ".vendor"
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+outputFile.Ext())
@@ -353,7 +340,5 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
 		fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
-
-		return nil
 	})
 }
