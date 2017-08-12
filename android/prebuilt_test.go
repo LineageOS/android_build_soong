@@ -151,7 +151,7 @@ func TestPrebuilts(t *testing.T) {
 				}
 				if p, ok := m.(*prebuiltModule); ok {
 					dependsOnPrebuiltModule = true
-					if !p.Prebuilt().Properties.UsePrebuilt {
+					if !p.Prebuilt().properties.UsePrebuilt {
 						t.Errorf("dependency on prebuilt module not marked used")
 					}
 				}
@@ -180,12 +180,16 @@ func TestPrebuilts(t *testing.T) {
 
 type prebuiltModule struct {
 	ModuleBase
-	prebuilt Prebuilt
+	prebuilt   Prebuilt
+	properties struct {
+		Srcs []string
+	}
 }
 
 func newPrebuiltModule() Module {
 	m := &prebuiltModule{}
-	m.AddProperties(&m.prebuilt.Properties)
+	m.AddProperties(&m.properties)
+	InitPrebuiltModule(m, &m.properties.Srcs)
 	InitAndroidModule(m)
 	return m
 }

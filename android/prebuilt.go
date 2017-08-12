@@ -14,7 +14,11 @@
 
 package android
 
-import "github.com/google/blueprint"
+import (
+	"fmt"
+
+	"github.com/google/blueprint"
+)
 
 // This file implements common functionality for handling modules that may exist as prebuilts,
 // source, or both.
@@ -25,35 +29,43 @@ type prebuiltDependencyTag struct {
 
 var prebuiltDepTag prebuiltDependencyTag
 
-type Prebuilt struct {
-	Properties struct {
-		Srcs []string `android:"arch_variant"`
-		// When prefer is set to true the prebuilt will be used instead of any source module with
-		// a matching name.
-		Prefer bool `android:"arch_variant"`
+type PrebuiltProperties struct {
+	// When prefer is set to true the prebuilt will be used instead of any source module with
+	// a matching name.
+	Prefer bool `android:"arch_variant"`
 
-		SourceExists bool `blueprint:"mutated"`
-		UsePrebuilt  bool `blueprint:"mutated"`
-	}
-	module Module
+	SourceExists bool `blueprint:"mutated"`
+	UsePrebuilt  bool `blueprint:"mutated"`
+}
+
+type Prebuilt struct {
+	properties PrebuiltProperties
+	module     Module
+	srcs       *[]string
 }
 
 func (p *Prebuilt) Name(name string) string {
 	return "prebuilt_" + name
 }
 
-func (p *Prebuilt) Path(ctx ModuleContext) Path {
-	if len(p.Properties.Srcs) == 0 {
+func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
+	if len(*p.srcs) == 0 {
 		ctx.PropertyErrorf("srcs", "missing prebuilt source file")
 		return nil
 	}
 
-	if len(p.Properties.Srcs) > 1 {
+	if len(*p.srcs) > 1 {
 		ctx.PropertyErrorf("srcs", "multiple prebuilt source files")
 		return nil
 	}
 
-	return PathForModuleSrc(ctx, p.Properties.Srcs[0])
+	return PathForModuleSrc(ctx, (*p.srcs)[0])
+}
+
+func InitPrebuiltModule(module PrebuiltInterface, srcs *[]string) {
+	p := module.Prebuilt()
+	module.AddProperties(&p.properties)
+	p.srcs = srcs
 }
 
 type PrebuiltInterface interface {
@@ -78,7 +90,7 @@ func prebuiltMutator(ctx BottomUpMutatorContext) {
 		name := m.base().BaseModuleName()
 		if ctx.OtherModuleExists(name) {
 			ctx.AddReverseDependency(ctx.Module(), prebuiltDepTag, name)
-			p.Properties.SourceExists = true
+			p.properties.SourceExists = true
 		} else {
 			ctx.Rename(name)
 		}
@@ -90,15 +102,18 @@ func prebuiltMutator(ctx BottomUpMutatorContext) {
 func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
 		p := m.Prebuilt()
-		if !p.Properties.SourceExists {
-			p.Properties.UsePrebuilt = p.usePrebuilt(ctx, nil)
+		if p.srcs == nil {
+			panic(fmt.Errorf("prebuilt module did not have InitPrebuiltModule called on it"))
+		}
+		if !p.properties.SourceExists {
+			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil)
 		}
 	} else if s, ok := ctx.Module().(Module); ok {
 		ctx.VisitDirectDeps(func(m blueprint.Module) {
 			if ctx.OtherModuleDependencyTag(m) == prebuiltDepTag {
 				p := m.(PrebuiltInterface).Prebuilt()
 				if p.usePrebuilt(ctx, s) {
-					p.Properties.UsePrebuilt = true
+					p.properties.UsePrebuilt = true
 					s.SkipInstall()
 				}
 			}
@@ -113,8 +128,8 @@ func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
 		p := m.Prebuilt()
 		name := m.base().BaseModuleName()
-		if p.Properties.UsePrebuilt {
-			if p.Properties.SourceExists {
+		if p.properties.UsePrebuilt {
+			if p.properties.SourceExists {
 				ctx.ReplaceDependencies(name)
 			}
 		} else {
@@ -126,12 +141,12 @@ func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
-	if len(p.Properties.Srcs) == 0 {
+	if len(*p.srcs) == 0 {
 		return false
 	}
 
 	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
-	if p.Properties.Prefer {
+	if p.properties.Prefer {
 		return true
 	}
 
