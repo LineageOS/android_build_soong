@@ -444,17 +444,32 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) error {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if sanitize.androidMkRuntimeLibrary != "" {
 			fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES += "+sanitize.androidMkRuntimeLibrary)
 		}
-
-		return nil
 	})
 }
 
 func (sanitize *sanitize) inSanitizerDir() bool {
 	return sanitize.Properties.InSanitizerDir
+}
+
+func (sanitize *sanitize) Sanitizer(t sanitizerType) bool {
+	if sanitize == nil {
+		return false
+	}
+
+	switch t {
+	case asan:
+		return Bool(sanitize.Properties.Sanitize.Address)
+	case tsan:
+		return Bool(sanitize.Properties.Sanitize.Thread)
+	case intOverflow:
+		return Bool(sanitize.Properties.Sanitize.Integer_overflow)
+	default:
+		panic(fmt.Errorf("unknown sanitizerType %d", t))
+	}
 }
 
 func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
@@ -476,47 +491,13 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 	}
 }
 
-func (sanitize *sanitize) getSanitizerBoolPtr(t sanitizerType) *bool {
-	switch t {
-	case asan:
-		return sanitize.Properties.Sanitize.Address
-	case tsan:
-		return sanitize.Properties.Sanitize.Thread
-	case intOverflow:
-		return sanitize.Properties.Sanitize.Integer_overflow
-	default:
-		panic(fmt.Errorf("unknown sanitizerType %d", t))
-	}
-}
-
-// Check if the sanitizer is explicitly disabled (as opposed to nil by
-// virtue of not being set).
-func (sanitize *sanitize) isSanitizerExplicitlyDisabled(t sanitizerType) bool {
-	if sanitize == nil {
-		return false
-	}
-
-	sanitizerVal := sanitize.getSanitizerBoolPtr(t)
-	return sanitizerVal != nil && *sanitizerVal == false
-}
-
-func (sanitize *sanitize) isSanitizerExplicitlyEnabled(t sanitizerType) bool {
-	if sanitize == nil {
-		return false
-	}
-
-	sanitizerVal := sanitize.getSanitizerBoolPtr(t)
-	return sanitizerVal != nil && *sanitizerVal == true
-}
-
 // Propagate asan requirements down from binaries
 func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 	return func(mctx android.TopDownMutatorContext) {
-		if c, ok := mctx.Module().(*Module); ok && c.sanitize.isSanitizerExplicitlyEnabled(t) {
+		if c, ok := mctx.Module().(*Module); ok && c.sanitize.Sanitizer(t) {
 			mctx.VisitDepsDepthFirst(func(module blueprint.Module) {
-				if d, ok := module.(*Module); ok && d.sanitize != nil &&
-					!d.sanitize.Properties.Sanitize.Never &&
-					!d.sanitize.isSanitizerExplicitlyDisabled(t) {
+				if d, ok := mctx.Module().(*Module); ok && c.sanitize != nil &&
+					!c.sanitize.Properties.Sanitize.Never {
 					d.sanitize.Properties.SanitizeDep = true
 				}
 			})
@@ -528,10 +509,10 @@ func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
-			if c.isDependencyRoot() && c.sanitize.isSanitizerExplicitlyEnabled(t) {
+			if c.isDependencyRoot() && c.sanitize.Sanitizer(t) {
 				modules := mctx.CreateVariations(t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
-			} else if c.sanitize.isSanitizerExplicitlyEnabled(t) || c.sanitize.Properties.SanitizeDep {
+			} else if c.sanitize.Properties.SanitizeDep {
 				modules := mctx.CreateVariations("", t.String())
 				modules[0].(*Module).sanitize.SetSanitizer(t, false)
 				modules[1].(*Module).sanitize.SetSanitizer(t, true)
@@ -540,18 +521,10 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				if mctx.Device() {
 					modules[1].(*Module).sanitize.Properties.InSanitizerDir = true
 				} else {
-					if c.sanitize.isSanitizerExplicitlyEnabled(t) {
-						modules[0].(*Module).Properties.PreventInstall = true
-					} else {
-						modules[1].(*Module).Properties.PreventInstall = true
-					}
+					modules[0].(*Module).Properties.PreventInstall = true
 				}
 				if mctx.AConfig().EmbeddedInMake() {
-					if c.sanitize.isSanitizerExplicitlyEnabled(t) {
-						modules[0].(*Module).Properties.HideFromMake = true
-					} else {
-						modules[1].(*Module).Properties.HideFromMake = true
-					}
+					modules[0].(*Module).Properties.HideFromMake = true
 				}
 			}
 			c.sanitize.Properties.SanitizeDep = false

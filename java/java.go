@@ -20,6 +20,7 @@ package java
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -37,7 +38,8 @@ func init() {
 	android.RegisterModuleType("java_library_host", LibraryHostFactory)
 	android.RegisterModuleType("java_binary", BinaryFactory)
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
-	android.RegisterModuleType("java_prebuilt_library", PrebuiltFactory)
+	android.RegisterModuleType("java_import", ImportFactory)
+	android.RegisterModuleType("java_import_host", ImportFactoryHost)
 	android.RegisterModuleType("android_prebuilt_sdk", SdkPrebuiltFactory)
 	android.RegisterModuleType("android_app", AndroidAppFactory)
 
@@ -90,6 +92,9 @@ type CompilerProperties struct {
 
 	// if not blank, run jarjar using the specified rules file
 	Jarjar_rules *string
+
+	// If not blank, set the java version passed to javac as -source and -target
+	Java_version *string
 }
 
 type CompilerDeviceProperties struct {
@@ -144,7 +149,7 @@ type Module struct {
 }
 
 type Dependency interface {
-	ClasspathFile() android.Path
+	ClasspathFiles() android.Paths
 	ClassJarSpecs() []jarSpec
 	ResourceJarSpecs() []jarSpec
 	AidlIncludeDirs() android.Paths
@@ -220,7 +225,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 }
 
 func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths,
-	bootClasspath android.OptionalPath, classJarSpecs, resourceJarSpecs []jarSpec, aidlPreprocess android.OptionalPath,
+	bootClasspath android.Paths, classJarSpecs, resourceJarSpecs []jarSpec, aidlPreprocess android.OptionalPath,
 	aidlIncludeDirs android.Paths, srcFileLists android.Paths) {
 
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
@@ -239,11 +244,11 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 
 		switch tag {
 		case bootClasspathTag:
-			bootClasspath = android.OptionalPathForPath(dep.ClasspathFile())
+			bootClasspath = append(bootClasspath, dep.ClasspathFiles()...)
 		case libTag:
-			classpath = append(classpath, dep.ClasspathFile())
+			classpath = append(classpath, dep.ClasspathFiles()...)
 		case staticLibTag:
-			classpath = append(classpath, dep.ClasspathFile())
+			classpath = append(classpath, dep.ClasspathFiles()...)
 			classJarSpecs = append(classJarSpecs, dep.ClassJarSpecs()...)
 			resourceJarSpecs = append(resourceJarSpecs, dep.ResourceJarSpecs()...)
 		case frameworkResTag:
@@ -283,6 +288,13 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	var flags javaBuilderFlags
 
 	javacFlags := j.properties.Javacflags
+
+	if j.properties.Java_version != nil {
+		flags.javaVersion = *j.properties.Java_version
+	} else {
+		flags.javaVersion = "${config.DefaultJavaVersion}"
+	}
+
 	if len(javacFlags) > 0 {
 		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
 		flags.javacFlags = "$javacFlags"
@@ -296,9 +308,9 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	var deps android.Paths
 
-	if bootClasspath.Valid() {
-		flags.bootClasspath = "-bootclasspath " + bootClasspath.String()
-		deps = append(deps, bootClasspath.Path())
+	if len(bootClasspath) > 0 {
+		flags.bootClasspath = "-bootclasspath " + strings.Join(bootClasspath.Strings(), ":")
+		deps = append(deps, bootClasspath...)
 	}
 
 	if len(classpath) > 0 {
@@ -350,7 +362,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			return
 		}
 
-		classes, _ := TransformPrebuiltJarToClasses(ctx, outputFile)
+		classes, _ := TransformPrebuiltJarToClasses(ctx, "jarjar_extracted", outputFile)
 		classJarSpecs = []jarSpec{classes}
 	}
 
@@ -399,8 +411,8 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 var _ Dependency = (*Library)(nil)
 
-func (j *Module) ClasspathFile() android.Path {
-	return j.classpathFile
+func (j *Module) ClasspathFiles() android.Paths {
+	return android.Paths{j.classpathFile}
 }
 
 func (j *Module) ClassJarSpecs() []jarSpec {
@@ -519,60 +531,89 @@ func BinaryHostFactory() android.Module {
 // Java prebuilts
 //
 
-type Prebuilt struct {
+type ImportProperties struct {
+	Jars []string
+}
+
+type Import struct {
 	android.ModuleBase
 	prebuilt android.Prebuilt
 
-	classpathFile                   android.Path
+	properties ImportProperties
+
+	classpathFiles                  android.Paths
+	combinedClasspathFile           android.Path
 	classJarSpecs, resourceJarSpecs []jarSpec
 }
 
-func (j *Prebuilt) Prebuilt() *android.Prebuilt {
+func (j *Import) Prebuilt() *android.Prebuilt {
 	return &j.prebuilt
 }
 
-func (j *Prebuilt) Name() string {
+func (j *Import) PrebuiltSrcs() []string {
+	return j.properties.Jars
+}
+
+func (j *Import) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
 }
 
-func (j *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
-func (j *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	prebuilt := j.prebuilt.Path(ctx)
+func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.classpathFiles = android.PathsForModuleSrc(ctx, j.properties.Jars)
 
-	classJarSpec, resourceJarSpec := TransformPrebuiltJarToClasses(ctx, prebuilt)
+	for i, prebuilt := range j.classpathFiles {
+		subdir := "extracted" + strconv.Itoa(i)
+		classJarSpec, resourceJarSpec := TransformPrebuiltJarToClasses(ctx, subdir, prebuilt)
+		j.classJarSpecs = append(j.classJarSpecs, classJarSpec)
+		j.resourceJarSpecs = append(j.resourceJarSpecs, resourceJarSpec)
+	}
 
-	j.classpathFile = prebuilt
-	j.classJarSpecs = []jarSpec{classJarSpec}
-	j.resourceJarSpecs = []jarSpec{resourceJarSpec}
-	ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.classpathFile)
+	j.combinedClasspathFile = TransformClassesToJar(ctx, j.classJarSpecs, android.OptionalPath{})
+
+	ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"),
+		ctx.ModuleName()+".jar", j.combinedClasspathFile)
 }
 
-var _ Dependency = (*Prebuilt)(nil)
+var _ Dependency = (*Import)(nil)
 
-func (j *Prebuilt) ClasspathFile() android.Path {
-	return j.classpathFile
+func (j *Import) ClasspathFiles() android.Paths {
+	return j.classpathFiles
 }
 
-func (j *Prebuilt) ClassJarSpecs() []jarSpec {
+func (j *Import) ClassJarSpecs() []jarSpec {
 	return j.classJarSpecs
 }
 
-func (j *Prebuilt) ResourceJarSpecs() []jarSpec {
+func (j *Import) ResourceJarSpecs() []jarSpec {
 	return j.resourceJarSpecs
 }
 
-func (j *Prebuilt) AidlIncludeDirs() android.Paths {
+func (j *Import) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func PrebuiltFactory() android.Module {
-	module := &Prebuilt{}
+var _ android.PrebuiltInterface = (*Import)(nil)
 
-	module.AddProperties(&module.prebuilt.Properties)
+func ImportFactory() android.Module {
+	module := &Import{}
 
+	module.AddProperties(&module.properties)
+
+	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	return module
+}
+
+func ImportFactoryHost() android.Module {
+	module := &Import{}
+
+	module.AddProperties(&module.properties)
+
+	android.InitPrebuiltModule(module, &module.properties.Jars)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	return module
 }
 
@@ -592,7 +633,7 @@ type sdkPrebuiltProperties struct {
 }
 
 type sdkPrebuilt struct {
-	Prebuilt
+	Import
 
 	sdkProperties sdkPrebuiltProperties
 
@@ -600,7 +641,7 @@ type sdkPrebuilt struct {
 }
 
 func (j *sdkPrebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.Prebuilt.GenerateAndroidBuildActions(ctx)
+	j.Import.GenerateAndroidBuildActions(ctx)
 
 	j.aidlPreprocessed = android.OptionalPathForModuleSrc(ctx, j.sdkProperties.Aidl_preprocessed)
 }
@@ -612,10 +653,9 @@ func (j *sdkPrebuilt) AidlPreprocessed() android.OptionalPath {
 func SdkPrebuiltFactory() android.Module {
 	module := &sdkPrebuilt{}
 
-	module.AddProperties(
-		&module.prebuilt.Properties,
-		&module.sdkProperties)
+	module.AddProperties(&module.sdkProperties)
 
+	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	return module
 }
