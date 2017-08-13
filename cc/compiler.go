@@ -134,6 +134,10 @@ type BaseCompilerProperties struct {
 			// list of source files that should not be used to
 			// build the vendor variant of the C/C++ module.
 			Exclude_srcs []string
+
+			// List of additional cflags that should be used to build the vendor
+			// variant of the C/C++ module.
+			Cflags []string
 		}
 	}
 
@@ -390,6 +394,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 
 		flags.ConlyFlags = append([]string{"-std=" + cStd}, flags.ConlyFlags...)
 		flags.CppFlags = append([]string{"-std=" + cppStd}, flags.CppFlags...)
+	}
+
+	if ctx.vndk() {
+		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
 	}
 
 	// We can enforce some rules more strictly in the code we own. strict
