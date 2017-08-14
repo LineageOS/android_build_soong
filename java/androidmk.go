@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"android/soong/android"
 )
@@ -41,6 +42,28 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
 			},
+		},
+	}
+}
+
+func (binary *Binary) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(binary.outputFile),
+		SubName:    ".jar",
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			android.WriteAndroidMkData(w, data)
+
+			fmt.Fprintln(w, "include $(CLEAR_VARS)")
+			fmt.Fprintln(w, "LOCAL_MODULE := "+name)
+			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := EXECUTABLES")
+			if strings.Contains(prefix, "HOST_") {
+				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			}
+			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
+			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+name+".jar")
+			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE := "+binary.wrapperFile.String())
+			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		},
 	}
 }
