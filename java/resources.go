@@ -63,7 +63,7 @@ func ResourceDirsToJarSpecs(ctx android.ModuleContext, resourceDirs, excludeDirs
 
 			pattern := filepath.Join(dir.String(), "**/*")
 			bootstrap.GlobFile(ctx, pattern, excludes, fileListFile.String(), depFile)
-			jarSpecs = append(jarSpecs, jarSpec{fileListFile, dir})
+			jarSpecs = append(jarSpecs, TransformFileListToJarSpec(ctx, dir, fileListFile))
 		}
 	}
 
