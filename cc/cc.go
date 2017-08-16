@@ -168,15 +168,20 @@ type BaseProperties struct {
 }
 
 type VendorProperties struct {
-	// whether this module should be allowed to install onto /vendor as
-	// well as /system. The two variants will be built separately, one
-	// like normal, and the other limited to the set of libraries and
-	// headers that are exposed to /vendor modules.
+	// whether this module should be allowed to be directly depended by other
+	// modules with `vendor: true`, `proprietary: true`, or `vendor_available:true`.
+	// If set to true, two variants will be built separately, one like
+	// normal, and the other limited to the set of libraries and headers
+	// that are exposed to /vendor modules.
 	//
 	// The vendor variant may be used with a different (newer) /system,
 	// so it shouldn't have any unversioned runtime dependencies, or
 	// make assumptions about the system that may not be true in the
 	// future.
+	//
+	// If set to false, this module becomes inaccessible from /vendor modules.
+	//
+	// Default value is true when vndk: {enabled: true} or vendor: true.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	Vendor_available *bool
@@ -386,6 +391,12 @@ func (c *Module) isVndk() bool {
 		return c.vndkdep.isVndk()
 	}
 	return false
+}
+
+// Returns true only when this module is configured to have core and vendor
+// variants.
+func (c *Module) hasVendorVariant() bool {
+	return c.isVndk() || Bool(c.VendorProperties.Vendor_available)
 }
 
 type baseModuleContext struct {
@@ -1159,7 +1170,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		// Export the shared libs to the make world. In doing so, .vendor suffix
 		// is added if the lib has both core and vendor variants and this module
-		// is building against vndk. This is because the vendor variant will be
+		// is building against vndk. This is because the vendor variant will
 		// have .vendor suffix in its name in the make world. However, if the
 		// lib is a vendor-only lib or this lib is not building against vndk,
 		// then the suffix is not added.
@@ -1168,7 +1179,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			libName := strings.TrimSuffix(name, llndkLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
 			isLLndk := inList(libName, llndkLibraries)
-			if c.vndk() && (Bool(cc.VendorProperties.Vendor_available) || isLLndk) {
+			if c.vndk() && (cc.hasVendorVariant() || isLLndk) {
 				libName += vendorSuffix
 			}
 			// Note: the order of libs in this list is not important because
@@ -1311,15 +1322,15 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 	}
 
 	// Sanity check
-	if Bool(m.VendorProperties.Vendor_available) && mctx.Vendor() {
+	if m.VendorProperties.Vendor_available != nil && mctx.Vendor() {
 		mctx.PropertyErrorf("vendor_available",
 			"doesn't make sense at the same time as `vendor: true` or `proprietary: true`")
 		return
 	}
 	if vndk := m.vndkdep; vndk != nil {
-		if vndk.isVndk() && !Bool(m.VendorProperties.Vendor_available) {
+		if vndk.isVndk() && m.VendorProperties.Vendor_available == nil {
 			mctx.PropertyErrorf("vndk",
-				"has to define `vendor_available: true` to enable vndk")
+				"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
 			return
 		}
 		if !vndk.isVndk() && vndk.isVndkSp() {
@@ -1337,7 +1348,7 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		// LL-NDK stubs only exist in the vendor variant, since the
 		// real libraries will be used in the core variant.
 		mctx.CreateVariations(vendorMode)
-	} else if Bool(m.VendorProperties.Vendor_available) {
+	} else if m.hasVendorVariant() {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
 		mod := mctx.CreateVariations(coreMode, vendorMode)
