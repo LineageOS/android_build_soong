@@ -150,6 +150,8 @@ type Finder struct {
 	// temporary state
 	threadPool *threadPool
 	mutex      sync.Mutex
+	fsErrs     []fsErr
+	errlock    sync.Mutex
 
 	// non-temporary state
 	modifiedFlag int32
@@ -158,7 +160,7 @@ type Finder struct {
 
 // New creates a new Finder for use
 func New(cacheParams CacheParams, filesystem fs.FileSystem,
-	logger Logger, dbPath string) *Finder {
+	logger Logger, dbPath string) (f *Finder, err error) {
 
 	numThreads := runtime.NumCPU() * 2
 	numDbLoadingThreads := numThreads
@@ -172,7 +174,7 @@ func New(cacheParams CacheParams, filesystem fs.FileSystem,
 		},
 	}
 
-	finder := &Finder{
+	f = &Finder{
 		numDbLoadingThreads: numDbLoadingThreads,
 		numSearchingThreads: numSearchingThreads,
 		cacheMetadata:       metadata,
@@ -183,10 +185,23 @@ func New(cacheParams CacheParams, filesystem fs.FileSystem,
 		DbPath: dbPath,
 	}
 
-	finder.loadFromFilesystem()
+	f.loadFromFilesystem()
 
-	finder.verbosef("Done parsing db\n")
-	return finder
+	// check for any filesystem errors
+	err = f.getErr()
+	if err != nil {
+		return nil, err
+	}
+
+	// confirm that every path mentioned in the CacheConfig exists
+	for _, path := range cacheParams.RootDirs {
+		node := f.nodes.GetNode(filepath.Clean(path), false)
+		if node == nil || node.ModTime == 0 {
+			return nil, fmt.Errorf("%v does not exist\n", path)
+		}
+	}
+
+	return f, nil
 }
 
 // FindNamed searches for every cached file
@@ -338,10 +353,6 @@ func (f *Finder) loadFromFilesystem() {
 		f.startWithoutExternalCache()
 	}
 
-	startTime := time.Now()
-	f.verbosef("Waiting for pending requests to complete\n")
-	f.threadPool.Wait()
-	f.verbosef("Is idle after %v\n", time.Now().Sub(startTime))
 	f.threadPool = nil
 }
 
@@ -596,6 +607,15 @@ func (p *threadPool) Run(function func()) {
 // Wait waits until all goroutines are done, just like sync.WaitGroup's Wait
 func (p *threadPool) Wait() {
 	p.receivedRequests.Wait()
+}
+
+type fsErr struct {
+	path string
+	err  error
+}
+
+func (e fsErr) String() string {
+	return e.path + ": " + e.err.Error()
 }
 
 func (f *Finder) serializeCacheEntry(dirInfos []dirFullInfo) ([]byte, error) {
@@ -943,13 +963,17 @@ func (f *Finder) startFromExternalCache() (err error) {
 	for i := range nodesToWalk {
 		f.listDirsAsync(nodesToWalk[i])
 	}
-	f.verbosef("Loaded db and statted its contents in %v\n", time.Since(startTime))
+	f.verbosef("Loaded db and statted known dirs in %v\n", time.Since(startTime))
+	f.threadPool.Wait()
+	f.verbosef("Loaded db and statted all dirs in %v\n", time.Now().Sub(startTime))
+
 	return err
 }
 
 // startWithoutExternalCache starts scanning the filesystem according to the cache config
 // startWithoutExternalCache should be called if startFromExternalCache is not applicable
 func (f *Finder) startWithoutExternalCache() {
+	startTime := time.Now()
 	configDirs := f.cacheMetadata.Config.RootDirs
 
 	// clean paths
@@ -977,6 +1001,10 @@ func (f *Finder) startWithoutExternalCache() {
 		f.verbosef("Starting find of %v\n", path)
 		f.startFind(path)
 	}
+
+	f.threadPool.Wait()
+
+	f.verbosef("Scanned filesystem (not using cache) in %v\n", time.Now().Sub(startTime))
 }
 
 // isInfoUpToDate tells whether <new> can confirm that results computed at <old> are still valid
@@ -1114,6 +1142,79 @@ func (f *Finder) dumpDb() error {
 
 	f.verbosef("Wrote db in %v\n", time.Now().Sub(serializeDate))
 	return nil
+
+}
+
+// canIgnoreFsErr checks for certain classes of filesystem errors that are safe to ignore
+func (f *Finder) canIgnoreFsErr(err error) bool {
+	pathErr, isPathErr := err.(*os.PathError)
+	if !isPathErr {
+		// Don't recognize this error
+		return false
+	}
+	if pathErr.Err == os.ErrPermission {
+		// Permission errors are ignored:
+		// https://issuetracker.google.com/37553659
+		// https://github.com/google/kati/pull/116
+		return true
+	}
+	if pathErr.Err == os.ErrNotExist {
+		// If a directory doesn't exist, that generally means the cache is out-of-date
+		return true
+	}
+	// Don't recognize this error
+	return false
+}
+
+// onFsError should be called whenever a potentially fatal error is returned from a filesystem call
+func (f *Finder) onFsError(path string, err error) {
+	if !f.canIgnoreFsErr(err) {
+		// We could send the errors through a channel instead, although that would cause this call
+		// to block unless we preallocated a sufficient buffer or spawned a reader thread.
+		// Although it wouldn't be too complicated to spawn a reader thread, it's still slightly
+		// more convenient to use a lock. Only in an unusual situation should this code be
+		// invoked anyway.
+		f.errlock.Lock()
+		f.fsErrs = append(f.fsErrs, fsErr{path: path, err: err})
+		f.errlock.Unlock()
+	}
+}
+
+// discardErrsForPrunedPaths removes any errors for paths that are no longer included in the cache
+func (f *Finder) discardErrsForPrunedPaths() {
+	// This function could be somewhat inefficient due to being single-threaded,
+	// but the length of f.fsErrs should be approximately 0, so it shouldn't take long anyway.
+	relevantErrs := make([]fsErr, 0, len(f.fsErrs))
+	for _, fsErr := range f.fsErrs {
+		path := fsErr.path
+		node := f.nodes.GetNode(path, false)
+		if node != nil {
+			// The path in question wasn't pruned due to a failure to process a parent directory.
+			// So, the failure to process this path is important
+			relevantErrs = append(relevantErrs, fsErr)
+		}
+	}
+	f.fsErrs = relevantErrs
+}
+
+// getErr returns an error based on previous calls to onFsErr, if any
+func (f *Finder) getErr() error {
+	f.discardErrsForPrunedPaths()
+
+	numErrs := len(f.fsErrs)
+	if numErrs < 1 {
+		return nil
+	}
+
+	maxNumErrsToInclude := 10
+	message := ""
+	if numErrs > maxNumErrsToInclude {
+		message = fmt.Sprintf("finder encountered %v errors: %v...", numErrs, f.fsErrs[:maxNumErrsToInclude])
+	} else {
+		message = fmt.Sprintf("finder encountered %v errors: %v", numErrs, f.fsErrs)
+	}
+
+	return errors.New(message)
 }
 
 func (f *Finder) statDirAsync(dir *pathMap) {
@@ -1145,6 +1246,8 @@ func (f *Finder) statDirSync(path string) statResponse {
 
 	var stats statResponse
 	if err != nil {
+		// possibly record this error
+		f.onFsError(path, err)
 		// in case of a failure to stat the directory, treat the directory as missing (modTime = 0)
 		return stats
 	}
@@ -1248,6 +1351,8 @@ func (f *Finder) listDirSync(dir *pathMap) {
 	children, err := f.filesystem.ReadDir(path)
 
 	if err != nil {
+		// possibly record this error
+		f.onFsError(path, err)
 		// if listing the contents of the directory fails (presumably due to
 		// permission denied), then treat the directory as empty
 		children = []os.FileInfo{}
