@@ -159,7 +159,7 @@ type mockInode struct {
 	permTime    time.Time
 	sys         interface{}
 	inodeNumber uint64
-	readable    bool
+	readErr     error
 }
 
 func (m mockInode) ModTime() time.Time {
@@ -221,11 +221,11 @@ func (m *MockFs) followLinks(path string, followLastLink bool, count int) (canon
 	if err != nil {
 		return "", err
 	}
-	if !parentNode.readable {
+	if parentNode.readErr != nil {
 		return "", &os.PathError{
 			Op:   "read",
 			Path: path,
-			Err:  os.ErrPermission,
+			Err:  parentNode.readErr,
 		}
 	}
 
@@ -240,11 +240,11 @@ func (m *MockFs) followLinks(path string, followLastLink bool, count int) (canon
 			}
 		}
 
-		if !link.readable {
+		if link.readErr != nil {
 			return "", &os.PathError{
 				Op:   "read",
 				Path: path,
-				Err:  os.ErrPermission,
+				Err:  link.readErr,
 			}
 		}
 
@@ -277,11 +277,11 @@ func (m *MockFs) getFile(parentDir *mockDir, fileName string) (file *mockFile, e
 			Err:  os.ErrNotExist,
 		}
 	}
-	if !file.readable {
+	if file.readErr != nil {
 		return nil, &os.PathError{
 			Op:   "open",
 			Path: fileName,
-			Err:  os.ErrPermission,
+			Err:  file.readErr,
 		}
 	}
 	return file, nil
@@ -491,11 +491,11 @@ func (m *MockFs) ReadDir(path string) (contents []os.FileInfo, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if !dir.readable {
+	if dir.readErr != nil {
 		return nil, &os.PathError{
 			Op:   "read",
 			Path: path,
-			Err:  os.ErrPermission,
+			Err:  dir.readErr,
 		}
 	}
 	// describe its contents
@@ -532,11 +532,11 @@ func (m *MockFs) Rename(sourcePath string, destPath string) error {
 			Err:  os.ErrNotExist,
 		}
 	}
-	if !sourceParentDir.readable {
+	if sourceParentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "move",
 			Path: sourcePath,
-			Err:  os.ErrPermission,
+			Err:  sourceParentDir.readErr,
 		}
 	}
 
@@ -554,11 +554,11 @@ func (m *MockFs) Rename(sourcePath string, destPath string) error {
 			Err:  os.ErrNotExist,
 		}
 	}
-	if !destParentDir.readable {
+	if destParentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "move",
 			Path: destParentPath,
-			Err:  os.ErrPermission,
+			Err:  destParentDir.readErr,
 		}
 	}
 	// check the source and dest themselves
@@ -648,11 +648,11 @@ func (m *MockFs) WriteFile(filePath string, data []byte, perm os.FileMode) error
 			Err:  os.ErrNotExist,
 		}
 	}
-	if !parentDir.readable {
+	if parentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "write",
 			Path: parentPath,
-			Err:  os.ErrPermission,
+			Err:  parentDir.readErr,
 		}
 	}
 
@@ -662,11 +662,12 @@ func (m *MockFs) WriteFile(filePath string, data []byte, perm os.FileMode) error
 		parentDir.modTime = m.Clock.Time()
 		parentDir.files[baseName] = m.newFile()
 	} else {
-		if !parentDir.files[baseName].readable {
+		readErr := parentDir.files[baseName].readErr
+		if readErr != nil {
 			return &os.PathError{
 				Op:   "write",
 				Path: filePath,
-				Err:  os.ErrPermission,
+				Err:  readErr,
 			}
 		}
 	}
@@ -681,7 +682,6 @@ func (m *MockFs) newFile() *mockFile {
 	newFile.inodeNumber = m.newInodeNumber()
 	newFile.modTime = m.Clock.Time()
 	newFile.permTime = newFile.modTime
-	newFile.readable = true
 	return newFile
 }
 
@@ -694,7 +694,6 @@ func (m *MockFs) newDir() *mockDir {
 	newDir.inodeNumber = m.newInodeNumber()
 	newDir.modTime = m.Clock.Time()
 	newDir.permTime = newDir.modTime
-	newDir.readable = true
 	return newDir
 }
 
@@ -705,7 +704,6 @@ func (m *MockFs) newLink(target string) *mockLink {
 	newLink.inodeNumber = m.newInodeNumber()
 	newLink.modTime = m.Clock.Time()
 	newLink.permTime = newLink.modTime
-	newLink.readable = true
 
 	return newLink
 }
@@ -729,11 +727,11 @@ func (m *MockFs) getDir(path string, createIfMissing bool) (dir *mockDir, err er
 	if err != nil {
 		return nil, err
 	}
-	if !parent.readable {
+	if parent.readErr != nil {
 		return nil, &os.PathError{
 			Op:   "stat",
 			Path: path,
-			Err:  os.ErrPermission,
+			Err:  parent.readErr,
 		}
 	}
 	childDir, dirExists := parent.subdirs[leaf]
@@ -781,11 +779,11 @@ func (m *MockFs) Remove(path string) (err error) {
 			Err:  os.ErrNotExist,
 		}
 	}
-	if !parentDir.readable {
+	if parentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "remove",
 			Path: path,
-			Err:  os.ErrPermission,
+			Err:  parentDir.readErr,
 		}
 	}
 	_, isDir := parentDir.subdirs[leaf]
@@ -822,11 +820,11 @@ func (m *MockFs) Symlink(oldPath string, newPath string) (err error) {
 
 	newParentPath, leaf := pathSplit(newPath)
 	newParentDir, err := m.getDir(newParentPath, false)
-	if !newParentDir.readable {
+	if newParentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "link",
 			Path: newPath,
-			Err:  os.ErrPermission,
+			Err:  newParentDir.readErr,
 		}
 	}
 	if err != nil {
@@ -856,11 +854,11 @@ func (m *MockFs) RemoveAll(path string) (err error) {
 			Err:  os.ErrNotExist,
 		}
 	}
-	if !parentDir.readable {
+	if parentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "removeAll",
 			Path: path,
-			Err:  os.ErrPermission,
+			Err:  parentDir.readErr,
 		}
 
 	}
@@ -886,6 +884,14 @@ func (m *MockFs) RemoveAll(path string) (err error) {
 }
 
 func (m *MockFs) SetReadable(path string, readable bool) error {
+	var readErr error
+	if !readable {
+		readErr = os.ErrPermission
+	}
+	return m.SetReadErr(path, readErr)
+}
+
+func (m *MockFs) SetReadErr(path string, readErr error) error {
 	path, err := m.resolve(path, false)
 	if err != nil {
 		return err
@@ -895,11 +901,11 @@ func (m *MockFs) SetReadable(path string, readable bool) error {
 	if err != nil {
 		return err
 	}
-	if !parentDir.readable {
+	if parentDir.readErr != nil {
 		return &os.PathError{
 			Op:   "chmod",
 			Path: parentPath,
-			Err:  os.ErrPermission,
+			Err:  parentDir.readErr,
 		}
 	}
 
@@ -907,7 +913,7 @@ func (m *MockFs) SetReadable(path string, readable bool) error {
 	if err != nil {
 		return err
 	}
-	inode.readable = readable
+	inode.readErr = readErr
 	inode.permTime = m.Clock.Time()
 	return nil
 }
