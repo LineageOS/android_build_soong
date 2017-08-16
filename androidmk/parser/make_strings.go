@@ -29,6 +29,11 @@ func SimpleMakeString(s string, pos Pos) *MakeString {
 	}
 }
 
+func (ms *MakeString) Clone() (result *MakeString) {
+	clone := *ms
+	return &clone
+}
+
 func (ms *MakeString) Pos() Pos {
 	return ms.StringPos
 }
@@ -162,6 +167,12 @@ func (ms *MakeString) TrimRightOne() {
 func (ms *MakeString) EndsWith(ch rune) bool {
 	s := ms.Strings[len(ms.Strings)-1]
 	return s[len(s)-1] == uint8(ch)
+}
+
+func (ms *MakeString) ReplaceLiteral(input string, output string) {
+	for i := range ms.Strings {
+		ms.Strings[i] = strings.Replace(ms.Strings[i], input, output, -1)
+	}
 }
 
 func splitAnyN(s, sep string, n int) []string {
