@@ -127,9 +127,13 @@ func run() error {
 		usage()
 		return errors.New("Param 'db' must be nonempty")
 	}
+
 	matches := []string{}
 	for i := 0; i < numIterations; i++ {
-		matches = runFind(params, logger)
+		matches, err = runFind(params, logger)
+		if err != nil {
+			return err
+		}
 	}
 	findDuration := time.Since(startTime)
 	logger.Printf("Found these %v inodes in %v :\n", len(matches), findDuration)
@@ -142,8 +146,11 @@ func run() error {
 	return nil
 }
 
-func runFind(params finder.CacheParams, logger *log.Logger) (paths []string) {
-	service := finder.New(params, fs.OsFs, logger, dbPath)
+func runFind(params finder.CacheParams, logger *log.Logger) (paths []string, err error) {
+	service, err := finder.New(params, fs.OsFs, logger, dbPath)
+	if err != nil {
+		return []string{}, err
+	}
 	defer service.Shutdown()
-	return service.FindAll()
+	return service.FindAll(), nil
 }
