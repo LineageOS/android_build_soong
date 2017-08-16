@@ -118,6 +118,9 @@ var (
 		"cortex-a8": []string{
 			"-mcpu=cortex-a8",
 		},
+		"cortex-a9": []string{
+			"-mcpu=cortex-a9",
+		},
 		"cortex-a15": []string{
 			"-mcpu=cortex-a15",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
@@ -195,6 +198,7 @@ func init() {
 	pctx.StaticVariable("ArmGenericCflags", strings.Join(armCpuVariantCflags[""], " "))
 	pctx.StaticVariable("ArmCortexA7Cflags", strings.Join(armCpuVariantCflags["cortex-a7"], " "))
 	pctx.StaticVariable("ArmCortexA8Cflags", strings.Join(armCpuVariantCflags["cortex-a8"], " "))
+	pctx.StaticVariable("ArmCortexA9Cflags", strings.Join(armCpuVariantCflags["cortex-a9"], " "))
 	pctx.StaticVariable("ArmCortexA15Cflags", strings.Join(armCpuVariantCflags["cortex-a15"], " "))
 	pctx.StaticVariable("ArmKraitCflags", strings.Join(armCpuVariantCflags["krait"], " "))
 
@@ -223,6 +227,8 @@ func init() {
 		strings.Join(armClangCpuVariantCflags["cortex-a7"], " "))
 	pctx.StaticVariable("ArmClangCortexA8Cflags",
 		strings.Join(armClangCpuVariantCflags["cortex-a8"], " "))
+	pctx.StaticVariable("ArmClangCortexA9Cflags",
+		strings.Join(armClangCpuVariantCflags["cortex-a9"], " "))
 	pctx.StaticVariable("ArmClangCortexA15Cflags",
 		strings.Join(armClangCpuVariantCflags["cortex-a15"], " "))
 	pctx.StaticVariable("ArmClangKraitCflags",
@@ -240,6 +246,7 @@ var (
 		"":               "${config.ArmGenericCflags}",
 		"cortex-a7":      "${config.ArmCortexA7Cflags}",
 		"cortex-a8":      "${config.ArmCortexA8Cflags}",
+		"cortex-a9":      "${config.ArmCortexA9Cflags}",
 		"cortex-a15":     "${config.ArmCortexA15Cflags}",
 		"cortex-a53":     "${config.ArmCortexA7Cflags}",
 		"cortex-a53.a57": "${config.ArmCortexA7Cflags}",
@@ -257,6 +264,7 @@ var (
 		"":               "${config.ArmClangGenericCflags}",
 		"cortex-a7":      "${config.ArmClangCortexA7Cflags}",
 		"cortex-a8":      "${config.ArmClangCortexA8Cflags}",
+		"cortex-a9":      "${config.ArmClangCortexA9Cflags}",
 		"cortex-a15":     "${config.ArmClangCortexA15Cflags}",
 		"cortex-a53":     "${config.ArmClangCortexA7Cflags}",
 		"cortex-a53.a57": "${config.ArmClangCortexA7Cflags}",
