@@ -60,7 +60,7 @@ var (
 		"-Wl,--build-id=md5",
 		"-Wl,--warn-shared-textrel",
 		"-Wl,--fatal-warnings",
-		"-Wl,-maarch64linux",
+		"-Wl,-m,aarch64_elf64_le_vec",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--fix-cortex-a53-843419",
 		"-fuse-ld=gold",
