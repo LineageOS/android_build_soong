@@ -35,6 +35,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_SRC_FILES":             srcFiles,
 	"LOCAL_SANITIZE":              sanitize(""),
 	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
+	"LOCAL_CFLAGS":                cflags,
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -83,7 +84,6 @@ func init() {
 			"LOCAL_SYSTEM_SHARED_LIBRARIES":       "system_shared_libs",
 			"LOCAL_ASFLAGS":                       "asflags",
 			"LOCAL_CLANG_ASFLAGS":                 "clang_asflags",
-			"LOCAL_CFLAGS":                        "cflags",
 			"LOCAL_CONLYFLAGS":                    "conlyflags",
 			"LOCAL_CPPFLAGS":                      "cppflags",
 			"LOCAL_REQUIRED_MODULES":              "required",
@@ -530,6 +530,13 @@ func ldflags(ctx variableAssignmentContext) error {
 	}
 
 	return nil
+}
+
+func cflags(ctx variableAssignmentContext) error {
+	// The Soong replacement for CFLAGS doesn't need the same extra escaped quotes that were present in Make
+	ctx.mkvalue = ctx.mkvalue.Clone()
+	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
+	return includeVariableNow(bpVariable{"cflags", bpparser.ListType}, ctx)
 }
 
 // given a conditional, returns a function that will insert a variable assignment or not, based on the conditional
