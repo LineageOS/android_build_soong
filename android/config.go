@@ -378,6 +378,10 @@ func (c *config) PlatformSdkVersion() string {
 	return strconv.Itoa(c.PlatformSdkVersionInt())
 }
 
+func (c *config) MinSupportedSdkVersion() int {
+	return 9
+}
+
 // Codenames that are active in the current lunch target.
 func (c *config) PlatformVersionActiveCodenames() []string {
 	return c.ProductVariables.Platform_version_active_codenames
