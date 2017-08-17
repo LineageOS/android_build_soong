@@ -163,7 +163,8 @@ type zipWriter struct {
 	errors   chan error
 	writeOps chan chan *zipEntry
 
-	rateLimit *RateLimit
+	cpuRateLimiter    *CPURateLimiter
+	memoryRateLimiter *MemoryRateLimiter
 
 	compressorPool sync.Pool
 	compLevel      int
@@ -295,8 +296,12 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 	// The RateLimit object will put the upper bounds on the number of
 	// parallel compressions and outstanding buffers.
 	z.writeOps = make(chan chan *zipEntry, 1000)
-	z.rateLimit = NewRateLimit(*parallelJobs, 0)
-	defer z.rateLimit.Stop()
+	z.cpuRateLimiter = NewCPURateLimiter(int64(*parallelJobs))
+	z.memoryRateLimiter = NewMemoryRateLimiter(0)
+	defer func() {
+		z.cpuRateLimiter.Stop()
+		z.memoryRateLimiter.Stop()
+	}()
 
 	go func() {
 		var err error
@@ -386,7 +391,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 			if err != nil {
 				return err
 			}
-			z.rateLimit.Release(int(count))
+			z.memoryRateLimiter.Finish(count)
 
 			currentReader = nil
 
@@ -456,7 +461,7 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		return err
 	}
 
-	exec := z.rateLimit.RequestExecution()
+	z.cpuRateLimiter.Request()
 
 	if method == zip.Deflate && fileSize >= minParallelFileSize {
 		wg := new(sync.WaitGroup)
@@ -473,14 +478,14 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		// know the result before we can begin writing the compressed
 		// data out to the zipfile.
 		wg.Add(1)
-		go z.crcFile(r, ze, exec, compressChan, wg)
+		go z.crcFile(r, ze, compressChan, wg)
 
 		for start := int64(0); start < fileSize; start += parallelBlockSize {
 			sr := io.NewSectionReader(r, start, parallelBlockSize)
 			resultChan := make(chan io.Reader, 1)
 			ze.futureReaders <- resultChan
 
-			exec := z.rateLimit.RequestExecution()
+			z.cpuRateLimiter.Request()
 
 			last := !(start+parallelBlockSize < fileSize)
 			var dict []byte
@@ -489,7 +494,7 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 			}
 
 			wg.Add(1)
-			go z.compressPartialFile(sr, dict, last, exec, resultChan, wg)
+			go z.compressPartialFile(sr, dict, last, resultChan, wg)
 		}
 
 		close(ze.futureReaders)
@@ -500,15 +505,15 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 			f.Close()
 		}(wg, r)
 	} else {
-		go z.compressWholeFile(ze, r, exec, compressChan)
+		go z.compressWholeFile(ze, r, compressChan)
 	}
 
 	return nil
 }
 
-func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, exec Execution, resultChan chan *zipEntry, wg *sync.WaitGroup) {
+func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, resultChan chan *zipEntry, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer exec.Finish(0)
+	defer z.cpuRateLimiter.Finish()
 
 	crc := crc32.NewIEEE()
 	_, err := io.Copy(crc, r)
@@ -522,7 +527,7 @@ func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, exec Execution, resultCha
 	close(resultChan)
 }
 
-func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, exec Execution, resultChan chan io.Reader, wg *sync.WaitGroup) {
+func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, resultChan chan io.Reader, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	result, err := z.compressBlock(r, dict, last)
@@ -531,7 +536,9 @@ func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, exe
 		return
 	}
 
-	exec.Finish(result.Len())
+	z.memoryRateLimiter.Request(int64(result.Len()))
+	z.cpuRateLimiter.Finish()
+
 	resultChan <- result
 }
 
@@ -569,7 +576,7 @@ func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.B
 	return buf, nil
 }
 
-func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, compressChan chan *zipEntry) {
+func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, compressChan chan *zipEntry) {
 	var bufSize int
 
 	defer r.Close()
@@ -638,7 +645,9 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, 
 		bufSize = int(ze.fh.UncompressedSize64)
 	}
 
-	exec.Finish(bufSize)
+	z.memoryRateLimiter.Request(int64(bufSize))
+	z.cpuRateLimiter.Finish()
+
 	close(futureReader)
 
 	compressChan <- ze
@@ -709,7 +718,7 @@ func (z *zipWriter) writeSymlink(rel, file string) error {
 	// We didn't ask permission to execute, since this should be very short
 	// but we still need to increment the outstanding buffer sizes, since
 	// the read will decrement the buffer size.
-	z.rateLimit.Release(-len(dest))
+	z.memoryRateLimiter.Finish(int64(-len(dest)))
 
 	ze <- &zipEntry{
 		fh:            fileHeader,
