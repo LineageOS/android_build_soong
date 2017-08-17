@@ -148,10 +148,11 @@ type Finder struct {
 	filesystem          fs.FileSystem
 
 	// temporary state
-	threadPool *threadPool
-	mutex      sync.Mutex
-	fsErrs     []fsErr
-	errlock    sync.Mutex
+	threadPool        *threadPool
+	mutex             sync.Mutex
+	fsErrs            []fsErr
+	errlock           sync.Mutex
+	shutdownWaitgroup sync.WaitGroup
 
 	// non-temporary state
 	modifiedFlag int32
@@ -183,6 +184,8 @@ func New(cacheParams CacheParams, filesystem fs.FileSystem,
 
 		nodes:  *newPathMap("/"),
 		DbPath: dbPath,
+
+		shutdownWaitgroup: sync.WaitGroup{},
 	}
 
 	f.loadFromFilesystem()
@@ -195,9 +198,12 @@ func New(cacheParams CacheParams, filesystem fs.FileSystem,
 
 	// confirm that every path mentioned in the CacheConfig exists
 	for _, path := range cacheParams.RootDirs {
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(f.cacheMetadata.Config.WorkingDirectory, path)
+		}
 		node := f.nodes.GetNode(filepath.Clean(path), false)
 		if node == nil || node.ModTime == 0 {
-			return nil, fmt.Errorf("%v does not exist\n", path)
+			return nil, fmt.Errorf("path %v was specified to be included in the cache but does not exist\n", path)
 		}
 	}
 
@@ -310,20 +316,32 @@ func (f *Finder) FindMatching(rootPath string, filter WalkFunc) []string {
 	return results
 }
 
-// Shutdown saves the contents of the Finder to its database file
+// Shutdown declares that the finder is no longer needed and waits for its cleanup to complete
+// Currently, that only entails waiting for the database dump to complete.
 func (f *Finder) Shutdown() {
-	f.verbosef("Shutting down\n")
+	f.waitForDbDump()
+}
+
+// End of public api
+
+func (f *Finder) goDumpDb() {
 	if f.wasModified() {
-		err := f.dumpDb()
-		if err != nil {
-			f.verbosef("%v\n", err)
-		}
+		f.shutdownWaitgroup.Add(1)
+		go func() {
+			err := f.dumpDb()
+			if err != nil {
+				f.verbosef("%v\n", err)
+			}
+			f.shutdownWaitgroup.Done()
+		}()
 	} else {
 		f.verbosef("Skipping dumping unmodified db\n")
 	}
 }
 
-// End of public api
+func (f *Finder) waitForDbDump() {
+	f.shutdownWaitgroup.Wait()
+}
 
 // joinCleanPaths is like filepath.Join but is faster because
 // joinCleanPaths doesn't have to support paths ending in "/" or containing ".."
@@ -352,6 +370,8 @@ func (f *Finder) loadFromFilesystem() {
 	if err != nil {
 		f.startWithoutExternalCache()
 	}
+
+	f.goDumpDb()
 
 	f.threadPool = nil
 }
