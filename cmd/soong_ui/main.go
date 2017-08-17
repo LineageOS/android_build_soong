@@ -95,5 +95,9 @@ func main() {
 		}
 	}
 
+	f := build.NewSourceFinder(buildCtx, config)
+	defer f.Shutdown()
+	build.FindSources(buildCtx, config, f)
+
 	build.Build(buildCtx, config, build.BuildAll)
 }

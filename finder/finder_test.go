@@ -466,12 +466,13 @@ func TestRelativeFilePaths(t *testing.T) {
 	create(t, "/cwd/hi.txt", filesystem)
 	create(t, "/cwd/a/hi.txt", filesystem)
 	create(t, "/cwd/a/a/hi.txt", filesystem)
+	create(t, "/rel/a/hi.txt", filesystem)
 
 	finder := newFinder(
 		t,
 		filesystem,
 		CacheParams{
-			RootDirs:     []string{"/cwd", "/tmp/include"},
+			RootDirs:     []string{"/cwd", "../rel", "/tmp/include"},
 			IncludeFiles: []string{"hi.txt"},
 		},
 	)
@@ -490,6 +491,10 @@ func TestRelativeFilePaths(t *testing.T) {
 		[]string{"hi.txt",
 			"a/hi.txt",
 			"a/a/hi.txt"})
+
+	foundPaths = finder.FindNamedAt("/rel", "hi.txt")
+	assertSameResponse(t, foundPaths,
+		[]string{"/rel/a/hi.txt"})
 
 	foundPaths = finder.FindNamedAt("/tmp/include", "hi.txt")
 	assertSameResponse(t, foundPaths, []string{"/tmp/include/hi.txt"})
