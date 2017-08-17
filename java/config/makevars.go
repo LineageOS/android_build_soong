@@ -34,6 +34,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("JAVA", "${JavaCmd}")
 	ctx.Strict("JAVAC", "${JavacCmd}")
 	ctx.Strict("JAR", "${JarCmd}")
+	ctx.Strict("JAR_ARGS", "${JarArgsCmd}")
 	ctx.Strict("JAVADOC", "${JavadocCmd}")
 	ctx.Strict("COMMON_JDK_FLAGS", "${CommonJdkFlags}")
 }
