@@ -32,6 +32,7 @@ func SetupOutDir(ctx Context, config Config) {
 	// The ninja_build file is used by our buildbots to understand that the output
 	// can be parsed as ninja output.
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "ninja_build"))
+	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), ".out-dir"))
 }
 
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
