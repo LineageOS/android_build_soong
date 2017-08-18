@@ -638,7 +638,7 @@ func (c *Module) begin(ctx BaseModuleContext) {
 		feature.begin(ctx)
 	}
 	if ctx.sdk() {
-		version, err := normalizeNdkApiLevel(ctx.sdkVersion(), ctx.Arch())
+		version, err := normalizeNdkApiLevel(ctx, ctx.sdkVersion(), ctx.Arch())
 		if err != nil {
 			ctx.PropertyErrorf("sdk_version", err.Error())
 		}
