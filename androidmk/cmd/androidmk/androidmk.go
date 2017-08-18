@@ -48,15 +48,27 @@ func (f *bpFile) insertExtraComment(s string) {
 	f.bpPos.Line++
 }
 
-func (f *bpFile) errorf(node mkparser.Node, s string, args ...interface{}) {
-	orig := node.Dump()
-	s = fmt.Sprintf(s, args...)
-	f.insertExtraComment(fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", s))
+// records that the given node failed to be converted and includes an explanatory message
+func (f *bpFile) errorf(failedNode mkparser.Node, message string, args ...interface{}) {
+	orig := failedNode.Dump()
+	message = fmt.Sprintf(message, args...)
+	f.addErrorText(fmt.Sprintf("// ANDROIDMK TRANSLATION ERROR: %s", message))
 
 	lines := strings.Split(orig, "\n")
 	for _, l := range lines {
 		f.insertExtraComment("// " + l)
 	}
+}
+
+// records that something unexpected occurred
+func (f *bpFile) warnf(message string, args ...interface{}) {
+	message = fmt.Sprintf(message, args...)
+	f.addErrorText(fmt.Sprintf("// ANDROIDMK TRANSLATION WARNING: %s", message))
+}
+
+// adds the given error message as-is to the bottom of the (in-progress) file
+func (f *bpFile) addErrorText(message string) {
+	f.insertExtraComment(message)
 }
 
 func (f *bpFile) setMkPos(pos, end scanner.Position) {
@@ -358,6 +370,10 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 			*oldValue = val
 		} else {
 			names := strings.Split(name, ".")
+			if file.module == nil {
+				file.warnf("No 'include $(CLEAR_VARS)' detected before first assignment; clearing vars now")
+				resetModule(file)
+			}
 			container := &file.module.Properties
 
 			for i, n := range names[:len(names)-1] {
