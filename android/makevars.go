@@ -19,10 +19,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
+
+func init() {
+	RegisterMakeVarsProvider(pctx, androidMakeVarsProvider)
+}
+
+func androidMakeVarsProvider(ctx MakeVarsContext) {
+	ctx.Strict("MIN_SUPPORTED_SDK_VERSION", strconv.Itoa(ctx.Config().MinSupportedSdkVersion()))
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface for other packages to use to declare make variables
