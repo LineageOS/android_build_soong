@@ -264,9 +264,6 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 		if Bool(sanitize.Properties.Sanitize.Address) {
 			deps.StaticLibs = append(deps.StaticLibs, asanLibs...)
 		}
-		if Bool(sanitize.Properties.Sanitize.Address) || Bool(sanitize.Properties.Sanitize.Thread) {
-			deps.SharedLibs = append(deps.SharedLibs, "libdl")
-		}
 	}
 
 	return deps
