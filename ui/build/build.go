@@ -156,7 +156,6 @@ func Build(ctx Context, config Config, what int) {
 
 	if what&BuildSoong != 0 {
 		// Run Soong
-		runSoongBootstrap(ctx, config)
 		runSoong(ctx, config)
 	}
 
