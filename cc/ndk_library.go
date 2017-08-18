@@ -110,18 +110,20 @@ func intMax(a int, b int) int {
 	}
 }
 
-func normalizeNdkApiLevel(apiLevel string, arch android.Arch) (string, error) {
+func normalizeNdkApiLevel(ctx android.BaseContext, apiLevel string,
+	arch android.Arch) (string, error) {
+
 	if apiLevel == "current" {
 		return apiLevel, nil
 	}
 
-	minVersion := 9 // Minimum version supported by the NDK.
+	minVersion := ctx.AConfig().MinSupportedSdkVersion()
 	firstArchVersions := map[android.ArchType]int{
-		android.Arm:    9,
+		android.Arm:    minVersion,
 		android.Arm64:  21,
-		android.Mips:   9,
+		android.Mips:   minVersion,
 		android.Mips64: 21,
-		android.X86:    9,
+		android.X86:    minVersion,
 		android.X86_64: 21,
 	}
 
@@ -188,7 +190,7 @@ func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
 func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
 	platformVersion := mctx.AConfig().PlatformSdkVersionInt()
 
-	firstSupportedVersion, err := normalizeNdkApiLevel(c.properties.First_version,
+	firstSupportedVersion, err := normalizeNdkApiLevel(mctx, c.properties.First_version,
 		mctx.Arch())
 	if err != nil {
 		mctx.PropertyErrorf("first_version", err.Error())
