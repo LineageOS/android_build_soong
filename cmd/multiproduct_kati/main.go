@@ -233,6 +233,9 @@ func main() {
 	var wg sync.WaitGroup
 	productConfigs := make(chan Product, len(products))
 
+	finder := build.NewSourceFinder(buildCtx, config)
+	defer finder.Shutdown()
+
 	// Run the product config for every product in parallel
 	for _, product := range products {
 		wg.Add(1)
@@ -276,6 +279,7 @@ func main() {
 
 			productConfig := build.NewConfig(productCtx)
 			productConfig.Environment().Set("OUT_DIR", productOutDir)
+			build.FindSources(productCtx, productConfig, finder)
 			productConfig.Lunch(productCtx, product, *buildVariant)
 
 			build.Build(productCtx, productConfig, build.BuildProductConfig)

@@ -19,6 +19,8 @@ bootstrap_go_package {
         "soong-ui-logger",
         "soong-ui-tracer",
         "soong-shared",
+        "soong-finder",
+        "blueprint-microfactory",
     ],
     srcs: [
         "build.go",
@@ -27,6 +29,7 @@ bootstrap_go_package {
         "context.go",
         "environment.go",
         "exec.go",
+        "finder.go",
         "kati.go",
         "make.go",
         "ninja.go",

@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"sort"
 	"strings"
 	"sync"
 
@@ -116,6 +117,7 @@ func vndkMutator(mctx android.BottomUpMutatorContext) {
 			name := strings.TrimSuffix(m.Name(), llndkLibrarySuffix)
 			if !inList(name, llndkLibraries) {
 				llndkLibraries = append(llndkLibraries, name)
+				sort.Strings(llndkLibraries)
 			}
 		} else if lib, ok := m.linker.(*libraryDecorator); ok && lib.shared() {
 			if m.vndkdep.isVndk() {
@@ -124,10 +126,12 @@ func vndkMutator(mctx android.BottomUpMutatorContext) {
 				if m.vndkdep.isVndkSp() {
 					if !inList(m.Name(), vndkSpLibraries) {
 						vndkSpLibraries = append(vndkSpLibraries, m.Name())
+						sort.Strings(vndkSpLibraries)
 					}
 				} else {
 					if !inList(m.Name(), vndkCoreLibraries) {
 						vndkCoreLibraries = append(vndkCoreLibraries, m.Name())
+						sort.Strings(vndkCoreLibraries)
 					}
 				}
 			}
