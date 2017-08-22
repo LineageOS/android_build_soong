@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"android/soong/jar"
 	"android/soong/third_party/zip"
 )
 
@@ -178,37 +179,7 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortGlobs, sortJava, setTim
 }
 
 func jarSort(files []pair) {
-	// Treats trailing * as a prefix match
-	match := func(pattern, name string) bool {
-		if strings.HasSuffix(pattern, "*") {
-			return strings.HasPrefix(name, strings.TrimSuffix(pattern, "*"))
-		} else {
-			return name == pattern
-		}
-	}
-
-	var jarOrder = []string{
-		"META-INF/",
-		"META-INF/MANIFEST.MF",
-		"META-INF/*",
-		"*",
-	}
-
-	index := func(name string) int {
-		for i, pattern := range jarOrder {
-			if match(pattern, name) {
-				return i
-			}
-		}
-		panic(fmt.Errorf("file %q did not match any pattern", name))
-	}
-
 	sort.SliceStable(files, func(i, j int) bool {
-		diff := index(files[i].newName) - index(files[j].newName)
-		if diff == 0 {
-			return files[i].newName < files[j].newName
-		} else {
-			return diff < 0
-		}
+		return jar.EntryNamesLess(files[i].newName, files[j].newName)
 	})
 }
