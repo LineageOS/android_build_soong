@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 
+    "lineage/soong/android"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -31,6 +33,7 @@ func init() {
 
 type variableProperties struct {
 	Product_variables struct {
+        *android.Product_variables
 		Platform_sdk_version struct {
 			Asflags []string
 		}
@@ -91,6 +94,7 @@ type variableProperties struct {
 var zeroProductVariables variableProperties
 
 type productVariables struct {
+    *android.ProductVariables
 	// Suffix to add to generated Makefiles
 	Make_suffix *string `json:",omitempty"`
 

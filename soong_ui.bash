@@ -86,6 +86,7 @@ function run_go
 
     ${mf_cmd} -s "${mf_src}" -b "${mf_bin}" \
             -pkg-path "android/soong=${TOP}/build/soong" -trimpath "${TOP}/build/soong" \
+            -pkg-path "lineage/soong=${TOP}/vendor/lineage/build/soong" \
             -o "${soong_ui_bin}" android/soong/cmd/soong_ui
 
     if [ $from_src -eq 1 ]; then
