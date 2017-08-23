@@ -57,6 +57,14 @@ func (nopCloser) Close() error {
 	return nil
 }
 
+type byteReaderCloser struct {
+	bytes.Reader
+	io.Closer
+}
+
+// the file path in the zip at which a Java manifest file gets written
+const manifestDest = "META-INF/MANIFEST.MF"
+
 type fileArg struct {
 	pathPrefixInZip, sourcePrefixToStrip string
 	sourceFiles                          []string
@@ -333,7 +341,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		if !*emulateJar {
 			return errors.New("must specify --jar when specifying a manifest via -m")
 		}
-		pathMappings = append(pathMappings, pathMapping{"META-INF/MANIFEST.MF", manifest, zip.Deflate})
+		pathMappings = append(pathMappings, pathMapping{manifestDest, manifest, zip.Deflate})
 	}
 
 	if *emulateJar {
@@ -345,7 +353,11 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		defer close(z.writeOps)
 
 		for _, ele := range pathMappings {
-			err = z.writeFile(ele.dest, ele.src, ele.zipMethod)
+			if *emulateJar && ele.dest == manifestDest {
+				err = z.addManifest(ele.dest, ele.src, ele.zipMethod)
+			} else {
+				err = z.addFile(ele.dest, ele.src, ele.zipMethod)
+			}
 			if err != nil {
 				z.errors <- err
 				return
@@ -442,7 +454,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 }
 
 // imports (possibly with compression) <src> into the zip at sub-path <dest>
-func (z *zipWriter) writeFile(dest, src string, method uint16) error {
+func (z *zipWriter) addFile(dest, src string, method uint16) error {
 	var fileSize int64
 	var executable bool
 
@@ -481,6 +493,35 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 }
 
 // writes the contents of r according to the specifications in header
+func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
+	givenBytes, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	manifestMarker := []byte("Manifest-Version:")
+	header := append(manifestMarker, []byte(" 1.0\nCreated-By: soong_zip\n")...)
+
+	var finalBytes []byte
+	if !bytes.Contains(givenBytes, manifestMarker) {
+		finalBytes = append(append(header, givenBytes...), byte('\n'))
+	} else {
+		finalBytes = givenBytes
+	}
+
+	byteReader := bytes.NewReader(finalBytes)
+
+	reader := &byteReaderCloser{*byteReader, ioutil.NopCloser(nil)}
+
+	fileHeader := &zip.FileHeader{
+		Name:               dest,
+		Method:             zip.Store,
+		UncompressedSize64: uint64(byteReader.Len()),
+	}
+
+	return z.writeFileContents(fileHeader, reader)
+}
+
 func (z *zipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerCloser) (err error) {
 
 	header.SetModTime(z.time)
