@@ -70,6 +70,8 @@ func NewConfig(ctx Context, args ...string) Config {
 			} else {
 				outDir = filepath.Join(baseDir, filepath.Base(wd))
 			}
+		} else {
+			outDir = filepath.Join(os.Getenv("TOP"), outDir)
 		}
 		ret.environ.Set("OUT_DIR", outDir)
 	}
