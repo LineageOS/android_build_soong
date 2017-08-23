@@ -1028,11 +1028,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
 					depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps, deps...)
 					// Add these re-exported flags to help header-abi-dumper to infer the abi exported by a library.
-					// Re-exported flags from shared library dependencies are not included as those shared libraries
-					// will be included in the vndk set.
-					if tag == staticExportDepTag || tag == headerExportDepTag {
-						c.sabi.Properties.ReexportedIncludeFlags = append(c.sabi.Properties.ReexportedIncludeFlags, flags...)
-					}
+					// Re-exported shared library headers must be included as well since they can help us with type information
+					// about template instantiations (instantiated from their headers).
+					c.sabi.Properties.ReexportedIncludeFlags = append(c.sabi.Properties.ReexportedIncludeFlags, flags...)
 				}
 			}
 

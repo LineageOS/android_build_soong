@@ -323,9 +323,7 @@ func extractExportIncludesFromFlags(flags []string) []string {
 	// from a source. We extract the include flags exported by a library.
 	// This includes the flags exported which are re-exported from static
 	// library dependencies, exported header library dependencies and
-	// generated header dependencies. Re-exported shared library include
-	// flags are not in this set since shared library dependencies will
-	// themselves be included in the vndk. -isystem headers are not included
+	// generated header dependencies. -isystem headers are not included
 	// since for bionic libraries, abi-filtering is taken care of by version
 	// scripts.
 	var exportedIncludes []string
