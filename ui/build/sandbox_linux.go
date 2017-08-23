@@ -17,11 +17,12 @@ package build
 type Sandbox bool
 
 const (
-	noSandbox     = false
-	globalSandbox = false
-	makeSandbox   = false
-	soongSandbox  = false
-	katiSandbox   = false
+	noSandbox            = false
+	globalSandbox        = false
+	makeSandbox          = false
+	soongSandbox         = false
+	katiSandbox          = false
+	katiCleanSpecSandbox = false
 )
 
 func (c *Cmd) sandboxSupported() bool {
