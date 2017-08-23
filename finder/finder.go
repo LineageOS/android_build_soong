@@ -661,6 +661,9 @@ func (f *Finder) serializeCacheEntry(dirInfos []dirFullInfo) ([]byte, error) {
 		for _, info := range infos {
 			for !strings.HasPrefix(info.P+"/", prefix+"/") {
 				prefix = filepath.Dir(prefix)
+				if prefix == "/" {
+					break
+				}
 			}
 		}
 		// remove common prefix
