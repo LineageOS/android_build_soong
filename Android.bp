@@ -15,6 +15,7 @@ bootstrap_go_package {
     pkgPath: "android/soong",
     deps: [
         "blueprint",
+       "soong-lineage",
     ],
     srcs: [
         "doc.go",
