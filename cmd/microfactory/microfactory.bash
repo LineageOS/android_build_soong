@@ -80,6 +80,7 @@ function build_go
 
     ${mf_cmd} -s "${mf_src}" -b "${mf_bin}" \
             -pkg-path "android/soong=${TOP}/build/soong" -trimpath "${TOP}/build/soong" \
+            -pkg-path "lineage/soong=${TOP}/vendor/lineage/build/soong" \
             -o "${built_bin}" $2
 
     if [ $from_src -eq 1 ]; then
