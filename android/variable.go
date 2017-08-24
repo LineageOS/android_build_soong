@@ -94,6 +94,10 @@ type variableProperties struct {
 		Pdk struct {
 			Enabled *bool
 		}
+
+		Uml struct {
+			Cppflags []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -141,6 +145,7 @@ type productVariables struct {
 	Device_uses_hwc2           *bool `json:",omitempty"`
 	Treble                     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
+	Uml                        *bool `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
 
