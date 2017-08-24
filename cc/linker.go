@@ -48,8 +48,8 @@ type BaseLinkerProperties struct {
 	No_default_compiler_flags *bool
 
 	// list of system libraries that will be dynamically linked to
-	// shared library and executable modules.  If unset, generally defaults to libc
-	// and libm.  Set to [] to prevent linking against libc and libm.
+	// shared library and executable modules.  If unset, generally defaults to libc,
+	// libm, and libdl.  Set to [] to prevent linking against the defaults.
 	System_shared_libs []string
 
 	// allow the module to contain undefined symbols.  By default,
@@ -153,34 +153,32 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 		}
 
 		if !ctx.static() {
-			// libdl should always appear after libc in dt_needed list - see below
-			// the only exception is when libc is not in linker.Properties.System_shared_libs
-			// such as for libc module itself
-			if inList("libc", linker.Properties.System_shared_libs) {
-				_, deps.SharedLibs = removeFromList("libdl", deps.SharedLibs)
+			systemSharedLibs := linker.Properties.System_shared_libs
+			if systemSharedLibs == nil {
+				systemSharedLibs = []string{"libc", "libm", "libdl"}
 			}
 
-			if linker.Properties.System_shared_libs != nil {
-				if !inList("libdl", linker.Properties.System_shared_libs) &&
-					inList("libc", linker.Properties.System_shared_libs) {
-					linker.Properties.System_shared_libs = append(linker.Properties.System_shared_libs,
-						"libdl")
+			if inList("libdl", deps.SharedLibs) {
+				// If system_shared_libs has libc but not libdl, make sure shared_libs does not
+				// have libdl to avoid loading libdl before libc.
+				if inList("libc", systemSharedLibs) {
+					if !inList("libdl", systemSharedLibs) {
+						ctx.PropertyErrorf("shared_libs",
+							"libdl must be in system_shared_libs, not shared_libs")
+					}
+					_, deps.SharedLibs = removeFromList("libdl", deps.SharedLibs)
 				}
-				deps.LateSharedLibs = append(deps.LateSharedLibs,
-					linker.Properties.System_shared_libs...)
-			} else if !ctx.sdk() && !ctx.vndk() {
-				deps.LateSharedLibs = append(deps.LateSharedLibs, "libc", "libm", "libdl")
 			}
-		}
 
-		if ctx.sdk() {
-			deps.SharedLibs = append(deps.SharedLibs,
-				"libc",
-				"libm",
-				"libdl",
-			)
-		}
-		if ctx.vndk() {
+			// If libc and libdl are both in system_shared_libs make sure libd comes after libc
+			// to avoid loading libdl before libc.
+			if inList("libdl", systemSharedLibs) && inList("libc", systemSharedLibs) &&
+				indexList("libdl", systemSharedLibs) < indexList("libc", systemSharedLibs) {
+				ctx.PropertyErrorf("system_shared_libs", "libdl must be after libc")
+			}
+
+			deps.LateSharedLibs = append(deps.LateSharedLibs, systemSharedLibs...)
+		} else if ctx.sdk() || ctx.vndk() {
 			deps.LateSharedLibs = append(deps.LateSharedLibs, "libc", "libm", "libdl")
 		}
 	}
