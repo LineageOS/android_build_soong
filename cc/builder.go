@@ -151,8 +151,10 @@ var (
 
 	yasm = pctx.AndroidStaticRule("yasm",
 		blueprint.RuleParams{
-			Command:     "$yasmCmd $asFlags -o $out $in",
+			Command:     "$yasmCmd $asFlags -o $out $in && $yasmCmd $asFlags -M $in >$out.d",
 			CommandDeps: []string{"$yasmCmd"},
+			Depfile:     "$out.d",
+			Deps:        blueprint.DepsGCC,
 		},
 		"asFlags")
 
