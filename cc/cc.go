@@ -953,6 +953,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if c.sanitize != nil {
 		flags = c.sanitize.flags(ctx, flags)
+	} else {
+		flags.CFlags = append(flags.CFlags, "-fwrapv")
 	}
 	if c.coverage != nil {
 		flags = c.coverage.flags(ctx, flags)
