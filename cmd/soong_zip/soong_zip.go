@@ -365,7 +365,10 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 				currentWriter, err = zipw.CreateCompressedHeader(op.fh)
 			} else {
 				var zw io.Writer
-				zw, err = zipw.CreateHeader(op.fh)
+
+				op.fh.CompressedSize64 = op.fh.UncompressedSize64
+
+				zw, err = zipw.CreateHeaderAndroid(op.fh)
 				currentWriter = nopCloser{zw}
 			}
 			if err != nil {
