@@ -19,6 +19,8 @@ import (
 	"io"
 )
 
+const DataDescriptorFlag = 0x8
+
 func (w *Writer) CopyFrom(orig *File, newName string) error {
 	if w.last != nil && !w.last.closed {
 		if err := w.last.close(); err != nil {
@@ -30,7 +32,7 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	fileHeader := orig.FileHeader
 	fileHeader.Name = newName
 	fh := &fileHeader
-	fh.Flags |= 0x8
+	fh.Flags |= DataDescriptorFlag
 
 	// The zip64 extras change between the Central Directory and Local File Header, while we use
 	// the same structure for both. The Local File Haeder is taken care of by us writing a data
@@ -122,7 +124,7 @@ func (w *Writer) CreateCompressedHeader(fh *FileHeader) (io.WriteCloser, error) 
 		return nil, errors.New("archive/zip: invalid duplicate FileHeader")
 	}
 
-	fh.Flags |= 0x8 // we will write a data descriptor
+	fh.Flags |= DataDescriptorFlag // we will write a data descriptor
 
 	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
 	fh.ReaderVersion = zipVersion20
@@ -147,6 +149,17 @@ func (w *Writer) CreateCompressedHeader(fh *FileHeader) (io.WriteCloser, error) 
 
 	w.last = &fw.fileWriter
 	return fw, nil
+}
+
+// Updated version of CreateHeader that doesn't enforce writing a data descriptor
+func (w *Writer) CreateHeaderAndroid(fh *FileHeader) (io.Writer, error) {
+	writeDataDescriptor := fh.Method != Store
+	if writeDataDescriptor {
+		fh.Flags &= DataDescriptorFlag
+	} else {
+		fh.Flags &= ^uint16(DataDescriptorFlag)
+	}
+	return w.createHeaderImpl(fh)
 }
 
 type compressedFileWriter struct {
