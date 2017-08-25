@@ -449,7 +449,7 @@ func sanitize(sub string) func(ctx variableAssignmentContext) error {
 }
 
 func prebuiltClass(ctx variableAssignmentContext) error {
-	class := ctx.mkvalue.Value(nil)
+	class := ctx.mkvalue.Value(ctx.file.scope)
 	if v, ok := prebuiltTypes[class]; ok {
 		ctx.file.scope.Set("BUILD_PREBUILT", v)
 	} else {
