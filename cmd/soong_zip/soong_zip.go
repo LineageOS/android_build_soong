@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"compress/flate"
+	"errors"
 	"flag"
 	"fmt"
 	"hash/crc32"
@@ -28,10 +29,12 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"android/soong/jar"
 	"android/soong/third_party/zip"
 )
 
@@ -135,6 +138,7 @@ var (
 	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
+	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 
 	fArgs            fileArgs
 	nonDeflatedFiles = make(uniqueSet)
@@ -271,6 +275,13 @@ func fillPathPairs(prefix, rel, src string, set map[string]string, pathMappings 
 	return nil
 }
 
+func jarSort(mappings []pathMapping) {
+	less := func(i int, j int) (smaller bool) {
+		return jar.EntryNamesLess(mappings[i].dest, mappings[j].dest)
+	}
+	sort.SliceStable(mappings, less)
+}
+
 func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest string) error {
 	f, err := os.Create(out)
 	if err != nil {
@@ -306,20 +317,24 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		z.cpuRateLimiter.Stop()
 		z.memoryRateLimiter.Stop()
 	}()
+
+	if manifest != "" {
+		if !*emulateJar {
+			return errors.New("must specify --jar when specifying a manifest via -m")
+		}
+		pathMappings = append(pathMappings, pathMapping{"META-INF/MANIFEST.MF", manifest, zip.Deflate})
+	}
+
+	if *emulateJar {
+		jarSort(pathMappings)
+	}
+
 	go func() {
 		var err error
 		defer close(z.writeOps)
 
 		for _, ele := range pathMappings {
 			err = z.writeFile(ele.dest, ele.src, ele.zipMethod)
-			if err != nil {
-				z.errors <- err
-				return
-			}
-		}
-
-		if manifest != "" {
-			err = z.writeFile("META-INF/MANIFEST.MF", manifest, zip.Deflate)
 			if err != nil {
 				z.errors <- err
 				return
