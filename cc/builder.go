@@ -184,7 +184,7 @@ var (
 	// Abidiff check turned on in advice-only mode. Builds will not fail on abi incompatibilties / extensions.
 	sAbiDiff = pctx.AndroidStaticRule("sAbiDiff",
 		blueprint.RuleParams{
-			Command:     "$sAbiDiffer -lib $libName -arch $arch -advice-only -o ${out} -new $in -old $referenceDump",
+			Command:     "$sAbiDiffer -lib $libName -arch $arch -advice-only -check-all-apis -o ${out} -new $in -old $referenceDump",
 			CommandDeps: []string{"$sAbiDiffer"},
 		},
 		"referenceDump", "libName", "arch")
