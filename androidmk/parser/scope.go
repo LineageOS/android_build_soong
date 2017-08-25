@@ -1,6 +1,8 @@
 package parser
 
-import "strings"
+import (
+	"strings"
+)
 
 type Scope interface {
 	Get(name string) string
@@ -83,6 +85,9 @@ func (v Variable) EvalFunction(scope Scope) (string, bool) {
 func (v Variable) Value(scope Scope) string {
 	if ret, ok := v.EvalFunction(scope); ok {
 		return ret
+	}
+	if scope == nil {
+		panic("Cannot take the value of a variable in a nil scope")
 	}
 	return scope.Get(v.Name.Value(scope))
 }
