@@ -31,15 +31,9 @@ import (
 	"android/soong/ui/tracer"
 )
 
-// We default to number of cpus / 4, which seems to be the sweet spot for my
-// system. I suspect this is mostly due to memory or disk bandwidth though, and
-// may depend on the size ofthe source tree, so this probably isn't a great
-// default.
+// We default to number of cpus.
 func detectNumJobs() int {
-	if runtime.NumCPU() < 4 {
-		return 1
-	}
-	return runtime.NumCPU() / 4
+	return runtime.NumCPU()
 }
 
 var numJobs = flag.Int("j", detectNumJobs(), "number of parallel kati jobs")
