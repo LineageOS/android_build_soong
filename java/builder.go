@@ -49,6 +49,25 @@ var (
 		},
 		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
+	errorprone = pctx.AndroidStaticRule("errorprone",
+		blueprint.RuleParams{
+			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
+				`${config.ErrorProneCmd}` +
+				`$javacFlags $bootClasspath $classpath ` +
+				`-source $javaVersion -target $javaVersion ` +
+				`-d $outDir -s $annoDir @$out.rsp && ` +
+				`find $outDir -type f | sort | ${config.JarArgsCmd} $outDir > $out`,
+			CommandDeps: []string{
+				"${config.JavaCmd}",
+				"${config.ErrorProneJavacJar}",
+				"${config.ErrorProneJar}",
+				"${config.JarArgsCmd}",
+			},
+			Rspfile:        "$out.rsp",
+			RspfileContent: "$in",
+		},
+		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
 			Command:     `${config.JarCmd} $operation ${out}.tmp $manifest $jarArgs && ${config.Zip2ZipCmd} -t -i ${out}.tmp -o ${out} && rm ${out}.tmp`,
@@ -144,12 +163,41 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles android.Paths, s
 	return jarSpec{classFileList}
 }
 
+func RunErrorProne(ctx android.ModuleContext, srcFiles android.Paths, srcFileLists android.Paths,
+	flags javaBuilderFlags, deps android.Paths) android.Path {
+
+	classDir := android.PathForModuleOut(ctx, "classes-errorprone")
+	annoDir := android.PathForModuleOut(ctx, "anno-errorprone")
+	classFileList := android.PathForModuleOut(ctx, "classes-errorprone.list")
+
+	javacFlags := flags.javacFlags + android.JoinWithPrefix(srcFileLists.Strings(), "@")
+
+	deps = append(deps, srcFileLists...)
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:        errorprone,
+		Description: "errorprone",
+		Output:      classFileList,
+		Inputs:      srcFiles,
+		Implicits:   deps,
+		Args: map[string]string{
+			"javacFlags":    javacFlags,
+			"bootClasspath": flags.bootClasspath,
+			"classpath":     flags.classpath,
+			"outDir":        classDir.String(),
+			"annoDir":       annoDir.String(),
+			"javaVersion":   flags.javaVersion,
+		},
+	})
+
+	return classFileList
+}
+
 func TransformClassesToJar(ctx android.ModuleContext, classes []jarSpec,
-	manifest android.OptionalPath) android.Path {
+	manifest android.OptionalPath, deps android.Paths) android.Path {
 
 	outputFile := android.PathForModuleOut(ctx, "classes-full-debug.jar")
 
-	deps := android.Paths{}
 	jarArgs := []string{}
 
 	for _, j := range classes {
