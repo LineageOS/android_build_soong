@@ -3,6 +3,7 @@ package main
 import (
 	mkparser "android/soong/androidmk/parser"
 	"fmt"
+	"sort"
 	"strings"
 
 	bpparser "github.com/google/blueprint/parser"
@@ -207,7 +208,9 @@ func splitBpList(val bpparser.Expression, keyFunc listSplitFunc) (lists map[stri
 	return lists, nil
 }
 
-func splitLocalGlobalPath(value bpparser.Expression) (string, bpparser.Expression, error) {
+// classifyLocalOrGlobalPath tells whether a file path should be interpreted relative to the current module (local)
+// or relative to the root of the source checkout (global)
+func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expression, error) {
 	switch v := value.(type) {
 	case *bpparser.Variable:
 		if v.Name == "LOCAL_PATH" {
@@ -220,7 +223,7 @@ func splitLocalGlobalPath(value bpparser.Expression) (string, bpparser.Expressio
 		}
 	case *bpparser.Operator:
 		if v.Type() != bpparser.StringType {
-			return "", nil, fmt.Errorf("splitLocalGlobalPath expected a string, got %s", value.Type)
+			return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", value.Type)
 		}
 
 		if v.Operator != '+' {
@@ -251,68 +254,53 @@ func splitLocalGlobalPath(value bpparser.Expression) (string, bpparser.Expressio
 	case *bpparser.String:
 		return "global", value, nil
 	default:
-		return "", nil, fmt.Errorf("splitLocalGlobalPath expected a string, got %s", value.Type)
+		return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", value.Type)
 
 	}
+}
+
+func sortedMapKeys(inputMap map[string]string) (sortedKeys []string) {
+	keys := make([]string, 0, len(inputMap))
+	for key := range inputMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// splitAndAssign splits a Make list into components and then
+// creates the corresponding variable assignments.
+func splitAndAssign(ctx variableAssignmentContext, splitFunc listSplitFunc, namesByClassification map[string]string) error {
+	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
+	if err != nil {
+		return err
+	}
+
+	lists, err := splitBpList(val, splitFunc)
+	if err != nil {
+		return err
+	}
+
+	for _, nameClassification := range sortedMapKeys(namesByClassification) {
+		name := namesByClassification[nameClassification]
+		if component, ok := lists[nameClassification]; ok && !emptyList(component) {
+			err = setVariable(ctx.file, ctx.append, ctx.prefix, name, component, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func localIncludeDirs(ctx variableAssignmentContext) error {
-	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
-	if err != nil {
-		return err
-	}
-
-	lists, err := splitBpList(val, splitLocalGlobalPath)
-	if err != nil {
-		return err
-	}
-
-	if global, ok := lists["global"]; ok && !emptyList(global) {
-		err = setVariable(ctx.file, ctx.append, ctx.prefix, "include_dirs", global, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	if local, ok := lists["local"]; ok && !emptyList(local) {
-		err = setVariable(ctx.file, ctx.append, ctx.prefix, "local_include_dirs", local, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return splitAndAssign(ctx, classifyLocalOrGlobalPath, map[string]string{"global": "include_dirs", "local": "local_include_dirs"})
 }
 
 func exportIncludeDirs(ctx variableAssignmentContext) error {
-	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
-	if err != nil {
-		return err
-	}
-
-	lists, err := splitBpList(val, splitLocalGlobalPath)
-	if err != nil {
-		return err
-	}
-
-	if local, ok := lists["local"]; ok && !emptyList(local) {
-		err = setVariable(ctx.file, ctx.append, ctx.prefix, "export_include_dirs", local, true)
-		if err != nil {
-			return err
-		}
-		ctx.append = true
-	}
-
 	// Add any paths that could not be converted to local relative paths to export_include_dirs
 	// anyways, they will cause an error if they don't exist and can be fixed manually.
-	if global, ok := lists["global"]; ok && !emptyList(global) {
-		err = setVariable(ctx.file, ctx.append, ctx.prefix, "export_include_dirs", global, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return splitAndAssign(ctx, classifyLocalOrGlobalPath, map[string]string{"global": "export_include_dirs", "local": "export_include_dirs"})
 }
 
 func stem(ctx variableAssignmentContext) error {
@@ -461,7 +449,7 @@ func sanitize(sub string) func(ctx variableAssignmentContext) error {
 }
 
 func prebuiltClass(ctx variableAssignmentContext) error {
-	class := ctx.mkvalue.Value(nil)
+	class := ctx.mkvalue.Value(ctx.file.scope)
 	if v, ok := prebuiltTypes[class]; ok {
 		ctx.file.scope.Set("BUILD_PREBUILT", v)
 	} else {

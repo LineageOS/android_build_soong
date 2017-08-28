@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"compress/flate"
+	"errors"
 	"flag"
 	"fmt"
 	"hash/crc32"
@@ -28,10 +29,12 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"android/soong/jar"
 	"android/soong/third_party/zip"
 )
 
@@ -135,6 +138,7 @@ var (
 	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
+	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 
 	fArgs            fileArgs
 	nonDeflatedFiles = make(uniqueSet)
@@ -163,7 +167,8 @@ type zipWriter struct {
 	errors   chan error
 	writeOps chan chan *zipEntry
 
-	rateLimit *RateLimit
+	cpuRateLimiter    *CPURateLimiter
+	memoryRateLimiter *MemoryRateLimiter
 
 	compressorPool sync.Pool
 	compLevel      int
@@ -174,6 +179,10 @@ type zipEntry struct {
 
 	// List of delayed io.Reader
 	futureReaders chan chan io.Reader
+
+	// Only used for passing into the MemoryRateLimiter to ensure we
+	// release as much memory as much as we request
+	allocatedSize int64
 }
 
 func main() {
@@ -208,6 +217,10 @@ func main() {
 	if *out == "" {
 		fmt.Fprintf(os.Stderr, "error: -o is required\n")
 		usage()
+	}
+
+	if *emulateJar {
+		*directories = true
 	}
 
 	w := &zipWriter{
@@ -266,6 +279,13 @@ func fillPathPairs(prefix, rel, src string, set map[string]string, pathMappings 
 	return nil
 }
 
+func jarSort(mappings []pathMapping) {
+	less := func(i int, j int) (smaller bool) {
+		return jar.EntryNamesLess(mappings[i].dest, mappings[j].dest)
+	}
+	sort.SliceStable(mappings, less)
+}
+
 func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest string) error {
 	f, err := os.Create(out)
 	if err != nil {
@@ -295,8 +315,23 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 	// The RateLimit object will put the upper bounds on the number of
 	// parallel compressions and outstanding buffers.
 	z.writeOps = make(chan chan *zipEntry, 1000)
-	z.rateLimit = NewRateLimit(*parallelJobs, 0)
-	defer z.rateLimit.Stop()
+	z.cpuRateLimiter = NewCPURateLimiter(int64(*parallelJobs))
+	z.memoryRateLimiter = NewMemoryRateLimiter(0)
+	defer func() {
+		z.cpuRateLimiter.Stop()
+		z.memoryRateLimiter.Stop()
+	}()
+
+	if manifest != "" {
+		if !*emulateJar {
+			return errors.New("must specify --jar when specifying a manifest via -m")
+		}
+		pathMappings = append(pathMappings, pathMapping{"META-INF/MANIFEST.MF", manifest, zip.Deflate})
+	}
+
+	if *emulateJar {
+		jarSort(pathMappings)
+	}
 
 	go func() {
 		var err error
@@ -304,14 +339,6 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 
 		for _, ele := range pathMappings {
 			err = z.writeFile(ele.dest, ele.src, ele.zipMethod)
-			if err != nil {
-				z.errors <- err
-				return
-			}
-		}
-
-		if manifest != "" {
-			err = z.writeFile("META-INF/MANIFEST.MF", manifest, zip.Deflate)
 			if err != nil {
 				z.errors <- err
 				return
@@ -357,7 +384,10 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 				currentWriter, err = zipw.CreateCompressedHeader(op.fh)
 			} else {
 				var zw io.Writer
-				zw, err = zipw.CreateHeader(op.fh)
+
+				op.fh.CompressedSize64 = op.fh.UncompressedSize64
+
+				zw, err = zipw.CreateHeaderAndroid(op.fh)
 				currentWriter = nopCloser{zw}
 			}
 			if err != nil {
@@ -369,6 +399,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 				currentWriter.Close()
 				currentWriter = nil
 			}
+			z.memoryRateLimiter.Finish(op.allocatedSize)
 
 		case futureReader, ok := <-readersChan:
 			if !ok {
@@ -381,12 +412,10 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 			currentReader = futureReader
 
 		case reader := <-currentReader:
-			var count int64
-			count, err = io.Copy(currentWriter, reader)
+			_, err = io.Copy(currentWriter, reader)
 			if err != nil {
 				return err
 			}
-			z.rateLimit.Release(int(count))
 
 			currentReader = nil
 
@@ -456,7 +485,9 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		return err
 	}
 
-	exec := z.rateLimit.RequestExecution()
+	ze.allocatedSize = fileSize
+	z.cpuRateLimiter.Request()
+	z.memoryRateLimiter.Request(ze.allocatedSize)
 
 	if method == zip.Deflate && fileSize >= minParallelFileSize {
 		wg := new(sync.WaitGroup)
@@ -473,14 +504,14 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		// know the result before we can begin writing the compressed
 		// data out to the zipfile.
 		wg.Add(1)
-		go z.crcFile(r, ze, exec, compressChan, wg)
+		go z.crcFile(r, ze, compressChan, wg)
 
 		for start := int64(0); start < fileSize; start += parallelBlockSize {
 			sr := io.NewSectionReader(r, start, parallelBlockSize)
 			resultChan := make(chan io.Reader, 1)
 			ze.futureReaders <- resultChan
 
-			exec := z.rateLimit.RequestExecution()
+			z.cpuRateLimiter.Request()
 
 			last := !(start+parallelBlockSize < fileSize)
 			var dict []byte
@@ -489,7 +520,7 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 			}
 
 			wg.Add(1)
-			go z.compressPartialFile(sr, dict, last, exec, resultChan, wg)
+			go z.compressPartialFile(sr, dict, last, resultChan, wg)
 		}
 
 		close(ze.futureReaders)
@@ -500,15 +531,15 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 			f.Close()
 		}(wg, r)
 	} else {
-		go z.compressWholeFile(ze, r, exec, compressChan)
+		go z.compressWholeFile(ze, r, compressChan)
 	}
 
 	return nil
 }
 
-func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, exec Execution, resultChan chan *zipEntry, wg *sync.WaitGroup) {
+func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, resultChan chan *zipEntry, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer exec.Finish(0)
+	defer z.cpuRateLimiter.Finish()
 
 	crc := crc32.NewIEEE()
 	_, err := io.Copy(crc, r)
@@ -522,7 +553,7 @@ func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, exec Execution, resultCha
 	close(resultChan)
 }
 
-func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, exec Execution, resultChan chan io.Reader, wg *sync.WaitGroup) {
+func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, resultChan chan io.Reader, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	result, err := z.compressBlock(r, dict, last)
@@ -531,7 +562,8 @@ func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, exe
 		return
 	}
 
-	exec.Finish(result.Len())
+	z.cpuRateLimiter.Finish()
+
 	resultChan <- result
 }
 
@@ -569,9 +601,7 @@ func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.B
 	return buf, nil
 }
 
-func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, compressChan chan *zipEntry) {
-	var bufSize int
-
+func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, compressChan chan *zipEntry) {
 	defer r.Close()
 
 	crc := crc32.NewIEEE()
@@ -616,7 +646,6 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, 
 		}
 		if uint64(compressed.Len()) < ze.fh.UncompressedSize64 {
 			futureReader <- compressed
-			bufSize = compressed.Len()
 		} else {
 			buf, err := readFile(r)
 			if err != nil {
@@ -625,7 +654,6 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, 
 			}
 			ze.fh.Method = zip.Store
 			futureReader <- bytes.NewReader(buf)
-			bufSize = int(ze.fh.UncompressedSize64)
 		}
 	} else {
 		buf, err := readFile(r)
@@ -635,14 +663,27 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, exec Execution, 
 		}
 		ze.fh.Method = zip.Store
 		futureReader <- bytes.NewReader(buf)
-		bufSize = int(ze.fh.UncompressedSize64)
 	}
 
-	exec.Finish(bufSize)
+	z.cpuRateLimiter.Finish()
+
 	close(futureReader)
 
 	compressChan <- ze
 	close(compressChan)
+}
+
+func (z *zipWriter) addExtraField(zipHeader *zip.FileHeader, fieldHeader [2]byte, data []byte) {
+	// add the field header in little-endian order
+	zipHeader.Extra = append(zipHeader.Extra, fieldHeader[1], fieldHeader[0])
+
+	// specify the length of the data (in little-endian order)
+	dataLength := len(data)
+	lengthBytes := []byte{byte(dataLength % 256), byte(dataLength / 256)}
+	zipHeader.Extra = append(zipHeader.Extra, lengthBytes...)
+
+	// add the contents of the extra field
+	zipHeader.Extra = append(zipHeader.Extra, data...)
 }
 
 func (z *zipWriter) writeDirectory(dir string) error {
@@ -667,6 +708,11 @@ func (z *zipWriter) writeDirectory(dir string) error {
 		}
 		dirHeader.SetMode(0700 | os.ModeDir)
 		dirHeader.SetModTime(z.time)
+
+		if *emulateJar && dir == "META-INF/" {
+			// Jar files have a 0-length extra field with header "CAFE"
+			z.addExtraField(dirHeader, [2]byte{0xca, 0xfe}, []byte{})
+		}
 
 		ze := make(chan *zipEntry, 1)
 		ze <- &zipEntry{
@@ -705,11 +751,6 @@ func (z *zipWriter) writeSymlink(rel, file string) error {
 	close(futureReaders)
 	futureReader <- bytes.NewBufferString(dest)
 	close(futureReader)
-
-	// We didn't ask permission to execute, since this should be very short
-	// but we still need to increment the outstanding buffer sizes, since
-	// the read will decrement the buffer size.
-	z.rateLimit.Release(-len(dest))
 
 	ze <- &zipEntry{
 		fh:            fileHeader,

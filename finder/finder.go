@@ -1181,7 +1181,7 @@ func (f *Finder) canIgnoreFsErr(err error) bool {
 		// Don't recognize this error
 		return false
 	}
-	if pathErr.Err == os.ErrPermission {
+	if os.IsPermission(pathErr) {
 		// Permission errors are ignored:
 		// https://issuetracker.google.com/37553659
 		// https://github.com/google/kati/pull/116

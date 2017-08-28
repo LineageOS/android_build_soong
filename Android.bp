@@ -4,6 +4,7 @@ subdirs = [
     "cmd/*",
     "fs",
     "finder",
+    "jar",
     "third_party/zip",
     "ui/*",
 ]
