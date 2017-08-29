@@ -35,6 +35,9 @@ type BinaryLinkerProperties struct {
 	// if set, add an extra objcopy --prefix-symbols= step
 	Prefix_symbols string
 
+	// local file name to pass to the linker as --version_script
+	Version_script *string `android:"arch_variant"`
+
 	// if set, install a symlink to the preferred architecture
 	Symlink_preferred_arch bool
 
@@ -231,7 +234,6 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				"-Bstatic",
 				"-Wl,--gc-sections",
 			)
-
 		} else {
 			if flags.DynamicLinker == "" {
 				if binary.Properties.DynamicLinker != "" {
@@ -266,6 +268,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				"-Wl,--gc-sections",
 				"-Wl,-z,nocopyreloc",
 			)
+
 		}
 	} else {
 		if binary.static() {
@@ -282,6 +285,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 func (binary *binaryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
+	versionScript := android.OptionalPathForModuleSrc(ctx, binary.Properties.Version_script)
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
@@ -290,6 +294,15 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	sharedLibs := deps.SharedLibs
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
+
+	if versionScript.Valid() {
+		if ctx.Darwin() {
+			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
+		} else {
+			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
+			linkerDeps = append(linkerDeps, versionScript.Path())
+		}
+	}
 
 	if flags.DynamicLinker != "" {
 		flags.LdFlags = append(flags.LdFlags, " -Wl,-dynamic-linker,"+flags.DynamicLinker)
