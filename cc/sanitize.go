@@ -34,9 +34,8 @@ var (
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
-	// FIXME: revert the __cfi_check flag when clang is updated to r280031.
 	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
-		"-Wl,-plugin-opt,O1 -Wl,-export-dynamic-symbol=__cfi_check"}
+		"-Wl,-plugin-opt,O1"}
 	cfiArflags        = []string{"--plugin ${config.ClangBin}/../lib64/LLVMgold.so"}
 	cfiExportsMapPath = "build/soong/cc/config/cfi_exports.map"
 	cfiExportsMap     android.Path
@@ -364,9 +363,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// __cfi_check needs to be built as Thumb (see the code in linker_cfi.cpp). LLVM is not set up
 			// to do this on a function basis, so force Thumb on the entire module.
 			flags.RequiredInstructionSet = "thumb"
-			// Workaround for b/33678192. CFI jumptables need Thumb2 codegen.  Revert when
-			// Clang is updated past r290384.
-			flags.LdFlags = append(flags.LdFlags, "-march=armv7-a")
 		}
 		sanitizers = append(sanitizers, "cfi")
 
