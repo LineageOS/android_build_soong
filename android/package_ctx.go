@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
@@ -72,6 +73,25 @@ func (p AndroidPackageContext) SourcePathVariable(name, path string) blueprint.V
 			return "", ctx.errors[0]
 		}
 		return p.String(), nil
+	})
+}
+
+// SourcePathsVariable returns a Variable whose value is the source directory
+// appended with the supplied paths, joined with separator. It may only be
+// called during a Go package's initialization - either from the init()
+// function or as part of a package-scoped variable's initialization.
+func (p AndroidPackageContext) SourcePathsVariable(name, separator string, paths ...string) blueprint.Variable {
+	return p.VariableFunc(name, func(config interface{}) (string, error) {
+		ctx := &configErrorWrapper{p, config.(Config), []error{}}
+		var ret []string
+		for _, path := range paths {
+			p := safePathForSource(ctx, path)
+			if len(ctx.errors) > 0 {
+				return "", ctx.errors[0]
+			}
+			ret = append(ret, p.String())
+		}
+		return strings.Join(ret, separator), nil
 	})
 }
 

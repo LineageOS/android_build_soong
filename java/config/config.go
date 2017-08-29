@@ -26,14 +26,17 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/java/config")
 
+	JavacHeapSize = "2048M"
+
 	DefaultLibraries = []string{"core-oj", "core-libart", "ext", "framework", "okhttp"}
 )
 
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
 
+	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx"+JavacHeapSize)
+
 	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
-		`-J-Xmx2048M`,
 		`-Xmaxerrs 9999999`,
 		`-encoding UTF-8`,
 		`-sourcepath ""`,

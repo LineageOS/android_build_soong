@@ -330,11 +330,24 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	srcFileLists = append(srcFileLists, j.ExtraSrcLists...)
 
+	var extraJarDeps android.Paths
+
 	if len(srcFiles) > 0 {
 		// Compile java sources into .class files
 		classes := TransformJavaToClasses(ctx, srcFiles, srcFileLists, flags, deps)
 		if ctx.Failed() {
 			return
+		}
+
+		if ctx.AConfig().IsEnvTrue("RUN_ERROR_PRONE") {
+			// If error-prone is enabled, add an additional rule to compile the java files into
+			// a separate set of classes (so that they don't overwrite the normal ones and require
+			// a rebuild when error-prone is turned off).  Add the classes as a dependency to
+			// the jar command so the two compiles can run in parallel.
+			// TODO(ccross): Once we always compile with javac9 we may be able to conditionally
+			//    enable error-prone without affecting the output class files.
+			errorprone := RunErrorProne(ctx, srcFiles, srcFileLists, flags, deps)
+			extraJarDeps = append(extraJarDeps, errorprone)
 		}
 
 		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
@@ -349,7 +362,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	allJarSpecs = append(allJarSpecs, resourceJarSpecs...)
 
 	// Combine classes + resources into classes-full-debug.jar
-	outputFile := TransformClassesToJar(ctx, allJarSpecs, manifest)
+	outputFile := TransformClassesToJar(ctx, allJarSpecs, manifest, extraJarDeps)
 	if ctx.Failed() {
 		return
 	}
@@ -575,7 +588,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.resourceJarSpecs = append(j.resourceJarSpecs, resourceJarSpec)
 	}
 
-	j.combinedClasspathFile = TransformClassesToJar(ctx, j.classJarSpecs, android.OptionalPath{})
+	j.combinedClasspathFile = TransformClassesToJar(ctx, j.classJarSpecs, android.OptionalPath{}, nil)
 
 	ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"),
 		ctx.ModuleName()+".jar", j.combinedClasspathFile)

@@ -57,6 +57,14 @@ func (nopCloser) Close() error {
 	return nil
 }
 
+type byteReaderCloser struct {
+	bytes.Reader
+	io.Closer
+}
+
+// the file path in the zip at which a Java manifest file gets written
+const manifestDest = "META-INF/MANIFEST.MF"
+
 type fileArg struct {
 	pathPrefixInZip, sourcePrefixToStrip string
 	sourceFiles                          []string
@@ -286,6 +294,13 @@ func jarSort(mappings []pathMapping) {
 	sort.SliceStable(mappings, less)
 }
 
+type readerSeekerCloser interface {
+	io.Reader
+	io.ReaderAt
+	io.Closer
+	io.Seeker
+}
+
 func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest string) error {
 	f, err := os.Create(out)
 	if err != nil {
@@ -326,7 +341,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		if !*emulateJar {
 			return errors.New("must specify --jar when specifying a manifest via -m")
 		}
-		pathMappings = append(pathMappings, pathMapping{"META-INF/MANIFEST.MF", manifest, zip.Deflate})
+		pathMappings = append(pathMappings, pathMapping{manifestDest, manifest, zip.Deflate})
 	}
 
 	if *emulateJar {
@@ -338,7 +353,11 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		defer close(z.writeOps)
 
 		for _, ele := range pathMappings {
-			err = z.writeFile(ele.dest, ele.src, ele.zipMethod)
+			if *emulateJar && ele.dest == manifestDest {
+				err = z.addManifest(ele.dest, ele.src, ele.zipMethod)
+			} else {
+				err = z.addFile(ele.dest, ele.src, ele.zipMethod)
+			}
 			if err != nil {
 				z.errors <- err
 				return
@@ -434,7 +453,8 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 	}
 }
 
-func (z *zipWriter) writeFile(dest, src string, method uint16) error {
+// imports (possibly with compression) <src> into the zip at sub-path <dest>
+func (z *zipWriter) addFile(dest, src string, method uint16) error {
 	var fileSize int64
 	var executable bool
 
@@ -454,7 +474,60 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		executable = s.Mode()&0100 != 0
 	}
 
+	r, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+
+	header := &zip.FileHeader{
+		Name:               dest,
+		Method:             method,
+		UncompressedSize64: uint64(fileSize),
+	}
+
+	if executable {
+		header.SetMode(0700)
+	}
+
+	return z.writeFileContents(header, r)
+}
+
+// writes the contents of r according to the specifications in header
+func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
+	givenBytes, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	manifestMarker := []byte("Manifest-Version:")
+	header := append(manifestMarker, []byte(" 1.0\nCreated-By: soong_zip\n")...)
+
+	var finalBytes []byte
+	if !bytes.Contains(givenBytes, manifestMarker) {
+		finalBytes = append(append(header, givenBytes...), byte('\n'))
+	} else {
+		finalBytes = givenBytes
+	}
+
+	byteReader := bytes.NewReader(finalBytes)
+
+	reader := &byteReaderCloser{*byteReader, ioutil.NopCloser(nil)}
+
+	fileHeader := &zip.FileHeader{
+		Name:               dest,
+		Method:             zip.Store,
+		UncompressedSize64: uint64(byteReader.Len()),
+	}
+
+	return z.writeFileContents(fileHeader, reader)
+}
+
+func (z *zipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerCloser) (err error) {
+
+	header.SetModTime(z.time)
+
 	if z.directories {
+		dest := header.Name
 		dir, _ := filepath.Split(dest)
 		err := z.writeDirectory(dir)
 		if err != nil {
@@ -468,28 +541,19 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 	// Pre-fill a zipEntry, it will be sent in the compressChan once
 	// we're sure about the Method and CRC.
 	ze := &zipEntry{
-		fh: &zip.FileHeader{
-			Name:   dest,
-			Method: method,
-
-			UncompressedSize64: uint64(fileSize),
-		},
-	}
-	ze.fh.SetModTime(z.time)
-	if executable {
-		ze.fh.SetMode(0700)
+		fh: header,
 	}
 
-	r, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-
-	ze.allocatedSize = fileSize
+	ze.allocatedSize = int64(header.UncompressedSize64)
 	z.cpuRateLimiter.Request()
 	z.memoryRateLimiter.Request(ze.allocatedSize)
 
-	if method == zip.Deflate && fileSize >= minParallelFileSize {
+	fileSize := int64(header.UncompressedSize64)
+	if fileSize == 0 {
+		fileSize = int64(header.UncompressedSize)
+	}
+
+	if header.Method == zip.Deflate && fileSize >= minParallelFileSize {
 		wg := new(sync.WaitGroup)
 
 		// Allocate enough buffer to hold all readers. We'll limit
@@ -499,7 +563,7 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		// Calculate the CRC in the background, since reading the entire
 		// file could take a while.
 		//
-		// We could split this up into chuncks as well, but it's faster
+		// We could split this up into chunks as well, but it's faster
 		// than the compression. Due to the Go Zip API, we also need to
 		// know the result before we can begin writing the compressed
 		// data out to the zipfile.
@@ -517,6 +581,9 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 			var dict []byte
 			if start >= windowSize {
 				dict, err = ioutil.ReadAll(io.NewSectionReader(r, start-windowSize, windowSize))
+				if err != nil {
+					return err
+				}
 			}
 
 			wg.Add(1)
@@ -526,12 +593,15 @@ func (z *zipWriter) writeFile(dest, src string, method uint16) error {
 		close(ze.futureReaders)
 
 		// Close the file handle after all readers are done
-		go func(wg *sync.WaitGroup, f *os.File) {
+		go func(wg *sync.WaitGroup, closer io.Closer) {
 			wg.Wait()
-			f.Close()
+			closer.Close()
 		}(wg, r)
 	} else {
-		go z.compressWholeFile(ze, r, compressChan)
+		go func() {
+			z.compressWholeFile(ze, r, compressChan)
+			r.Close()
+		}()
 	}
 
 	return nil
@@ -601,8 +671,7 @@ func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.B
 	return buf, nil
 }
 
-func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, compressChan chan *zipEntry) {
-	defer r.Close()
+func (z *zipWriter) compressWholeFile(ze *zipEntry, r io.ReadSeeker, compressChan chan *zipEntry) {
 
 	crc := crc32.NewIEEE()
 	_, err := io.Copy(crc, r)
@@ -619,13 +688,13 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r *os.File, compressChan cha
 		return
 	}
 
-	readFile := func(r *os.File) ([]byte, error) {
-		_, err = r.Seek(0, 0)
+	readFile := func(reader io.ReadSeeker) ([]byte, error) {
+		_, err := reader.Seek(0, 0)
 		if err != nil {
 			return nil, err
 		}
 
-		buf, err := ioutil.ReadAll(r)
+		buf, err := ioutil.ReadAll(reader)
 		if err != nil {
 			return nil, err
 		}
