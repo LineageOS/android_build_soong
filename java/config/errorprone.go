@@ -78,6 +78,8 @@ func init() {
 		"-Xep:UnusedAnonymousClass:ERROR",
 	}, " "))
 
+	pctx.StaticVariable("ErrorProneHeapFlags", "-Xmx"+JavacHeapSize)
+
 	pctx.StaticVariable("ErrorProneFlags", strings.Join([]string{
 		"com.google.errorprone.ErrorProneCompiler",
 		"-Xdiags:verbose",
@@ -87,11 +89,12 @@ func init() {
 		"-XDuseStrictMethodClashCheck=true",
 		"-XDuseStructuralMostSpecificResolution=true",
 		"-XDuseGraphInference=true",
-		"-Xmaxwarns 100000",
 		"-XDandroidCompatible=true",
 		"-XepAllErrorsAsWarnings",
 	}, " "))
 
 	pctx.StaticVariable("ErrorProneCmd",
-		"${JavaCmd} -Xbootclasspath/p:${ErrorProneJavacJar} -cp ${ErrorProneJar}:${ErrorProneClasspath} ${ErrorProneFlags} ${ErrorProneChecksError}")
+		"${JavaCmd} ${ErrorProneHeapFlags} -Xbootclasspath/p:${ErrorProneJavacJar} "+
+			"-cp ${ErrorProneJar}:${ErrorProneClasspath} "+
+			"${ErrorProneFlags} ${CommonJdkFlags} ${ErrorProneChecksError}")
 }

@@ -38,7 +38,7 @@ var (
 	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
-				`${config.JavacWrapper}${config.JavacCmd} ${config.CommonJdkFlags} ` +
+				`${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
 				`$javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
