@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/genrule"
@@ -76,7 +77,7 @@ type CompilerProperties struct {
 
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
-	No_standard_libraries bool
+	No_standard_libs *bool
 
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
@@ -174,7 +175,7 @@ var (
 )
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
-	if !j.properties.No_standard_libraries {
+	if !proptools.Bool(j.properties.No_standard_libs) {
 		if ctx.Device() {
 			switch j.deviceProperties.Sdk_version {
 			case "":
