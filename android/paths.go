@@ -283,6 +283,23 @@ func (p Paths) Strings() []string {
 	return ret
 }
 
+// FirstUniqueElements returns all unique elements of a slice, keeping the first copy of each
+// modifies the slice contents in place, and returns a subslice of the original slice
+func FirstUniquePaths(list Paths) Paths {
+	k := 0
+outer:
+	for i := 0; i < len(list); i++ {
+		for j := 0; j < k; j++ {
+			if list[i] == list[j] {
+				continue outer
+			}
+		}
+		list[k] = list[i]
+		k++
+	}
+	return list[:k]
+}
+
 // WritablePaths is a slice of WritablePaths, used for multiple outputs.
 type WritablePaths []WritablePath
 
