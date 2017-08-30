@@ -37,4 +37,12 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("JAR_ARGS", "${JarArgsCmd}")
 	ctx.Strict("JAVADOC", "${JavadocCmd}")
 	ctx.Strict("COMMON_JDK_FLAGS", "${CommonJdkFlags}")
+
+	if ctx.Config().IsEnvTrue("RUN_ERROR_PRONE") {
+		ctx.Strict("TARGET_JAVAC", "${ErrorProneCmd}")
+		ctx.Strict("HOST_JAVAC", "${ErrorProneCmd}")
+	} else {
+		ctx.Strict("TARGET_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
+		ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
+	}
 }
