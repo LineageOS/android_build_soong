@@ -68,6 +68,7 @@ const manifestDest = "META-INF/MANIFEST.MF"
 type fileArg struct {
 	pathPrefixInZip, sourcePrefixToStrip string
 	sourceFiles                          []string
+	globDir                              string
 }
 
 type pathMapping struct {
@@ -97,13 +98,15 @@ type file struct{}
 
 type listFiles struct{}
 
+type dir struct{}
+
 func (f *file) String() string {
 	return `""`
 }
 
 func (f *file) Set(s string) error {
 	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f or -l")
+		return fmt.Errorf("must pass -C before -f")
 	}
 
 	fArgs = append(fArgs, fileArg{
@@ -121,7 +124,7 @@ func (l *listFiles) String() string {
 
 func (l *listFiles) Set(s string) error {
 	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f or -l")
+		return fmt.Errorf("must pass -C before -l")
 	}
 
 	list, err := ioutil.ReadFile(s)
@@ -138,12 +141,30 @@ func (l *listFiles) Set(s string) error {
 	return nil
 }
 
+func (d *dir) String() string {
+	return `""`
+}
+
+func (d *dir) Set(s string) error {
+	if *relativeRoot == "" {
+		return fmt.Errorf("must pass -C before -D")
+	}
+
+	fArgs = append(fArgs, fileArg{
+		pathPrefixInZip:     filepath.Clean(*rootPrefix),
+		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		globDir:             filepath.Clean(s),
+	})
+
+	return nil
+}
+
 var (
 	out          = flag.String("o", "", "file to write zip file to")
 	manifest     = flag.String("m", "", "input jar manifest file name")
 	directories  = flag.Bool("d", false, "include directories in zip")
 	rootPrefix   = flag.String("P", "", "path prefix within the zip at which to place files")
-	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
+	relativeRoot = flag.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
@@ -157,6 +178,7 @@ var (
 
 func init() {
 	flag.Var(&listFiles{}, "l", "file containing list of .class files")
+	flag.Var(&dir{}, "D", "directory to include in zip")
 	flag.Var(&file{}, "f", "file to include in zip")
 	flag.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
 }
@@ -242,7 +264,11 @@ func main() {
 	set := make(map[string]string)
 
 	for _, fa := range fArgs {
-		for _, src := range fa.sourceFiles {
+		srcs := fa.sourceFiles
+		if fa.globDir != "" {
+			srcs = append(srcs, recursiveGlobFiles(fa.globDir)...)
+		}
+		for _, src := range srcs {
 			if err := fillPathPairs(fa.pathPrefixInZip,
 				fa.sourcePrefixToStrip, src, set, &pathMappings); err != nil {
 				log.Fatal(err)
@@ -829,4 +855,16 @@ func (z *zipWriter) writeSymlink(rel, file string) error {
 	z.writeOps <- ze
 
 	return nil
+}
+
+func recursiveGlobFiles(path string) []string {
+	var files []string
+	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+		return nil
+	})
+
+	return files
 }
