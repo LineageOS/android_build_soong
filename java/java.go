@@ -200,6 +200,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
+
+	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
