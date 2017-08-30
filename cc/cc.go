@@ -1138,6 +1138,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	// Dedup exported flags from dependencies
 	depPaths.Flags = firstUniqueElements(depPaths.Flags)
+	depPaths.GeneratedHeaders = android.FirstUniquePaths(depPaths.GeneratedHeaders)
+	depPaths.ReexportedFlags = firstUniqueElements(depPaths.ReexportedFlags)
+	depPaths.ReexportedFlagsDeps = android.FirstUniquePaths(depPaths.ReexportedFlagsDeps)
+
+	if c.sabi != nil {
+		c.sabi.Properties.ReexportedIncludeFlags = firstUniqueElements(c.sabi.Properties.ReexportedIncludeFlags)
+	}
 
 	return depPaths
 }
