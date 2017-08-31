@@ -74,6 +74,7 @@ func init() {
 			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
 			"LOCAL_MODULE_OWNER":            "owner",
 			"LOCAL_RENDERSCRIPT_TARGET_API": "renderscript.target_api",
+			"LOCAL_NOTICE_FILE":             "notice",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
