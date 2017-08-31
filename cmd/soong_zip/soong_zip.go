@@ -68,6 +68,7 @@ const manifestDest = "META-INF/MANIFEST.MF"
 type fileArg struct {
 	pathPrefixInZip, sourcePrefixToStrip string
 	sourceFiles                          []string
+	globDir                              string
 }
 
 type pathMapping struct {
@@ -97,13 +98,15 @@ type file struct{}
 
 type listFiles struct{}
 
+type dir struct{}
+
 func (f *file) String() string {
 	return `""`
 }
 
 func (f *file) Set(s string) error {
 	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f or -l")
+		return fmt.Errorf("must pass -C before -f")
 	}
 
 	fArgs = append(fArgs, fileArg{
@@ -121,7 +124,7 @@ func (l *listFiles) String() string {
 
 func (l *listFiles) Set(s string) error {
 	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f or -l")
+		return fmt.Errorf("must pass -C before -l")
 	}
 
 	list, err := ioutil.ReadFile(s)
@@ -138,12 +141,30 @@ func (l *listFiles) Set(s string) error {
 	return nil
 }
 
+func (d *dir) String() string {
+	return `""`
+}
+
+func (d *dir) Set(s string) error {
+	if *relativeRoot == "" {
+		return fmt.Errorf("must pass -C before -D")
+	}
+
+	fArgs = append(fArgs, fileArg{
+		pathPrefixInZip:     filepath.Clean(*rootPrefix),
+		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		globDir:             filepath.Clean(s),
+	})
+
+	return nil
+}
+
 var (
 	out          = flag.String("o", "", "file to write zip file to")
 	manifest     = flag.String("m", "", "input jar manifest file name")
 	directories  = flag.Bool("d", false, "include directories in zip")
 	rootPrefix   = flag.String("P", "", "path prefix within the zip at which to place files")
-	relativeRoot = flag.String("C", "", "path to use as relative root of files in next -f or -l argument")
+	relativeRoot = flag.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
 	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
@@ -157,6 +178,7 @@ var (
 
 func init() {
 	flag.Var(&listFiles{}, "l", "file containing list of .class files")
+	flag.Var(&dir{}, "D", "directory to include in zip")
 	flag.Var(&file{}, "f", "file to include in zip")
 	flag.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
 }
@@ -168,9 +190,10 @@ func usage() {
 }
 
 type zipWriter struct {
-	time        time.Time
-	createdDirs map[string]bool
-	directories bool
+	time         time.Time
+	createdFiles map[string]string
+	createdDirs  map[string]string
+	directories  bool
 
 	errors   chan error
 	writeOps chan chan *zipEntry
@@ -232,19 +255,23 @@ func main() {
 	}
 
 	w := &zipWriter{
-		time:        time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC),
-		createdDirs: make(map[string]bool),
-		directories: *directories,
-		compLevel:   *compLevel,
+		time:         time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC),
+		createdDirs:  make(map[string]string),
+		createdFiles: make(map[string]string),
+		directories:  *directories,
+		compLevel:    *compLevel,
 	}
 
 	pathMappings := []pathMapping{}
-	set := make(map[string]string)
 
 	for _, fa := range fArgs {
-		for _, src := range fa.sourceFiles {
+		srcs := fa.sourceFiles
+		if fa.globDir != "" {
+			srcs = append(srcs, recursiveGlobFiles(fa.globDir)...)
+		}
+		for _, src := range srcs {
 			if err := fillPathPairs(fa.pathPrefixInZip,
-				fa.sourcePrefixToStrip, src, set, &pathMappings); err != nil {
+				fa.sourcePrefixToStrip, src, &pathMappings); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -257,7 +284,7 @@ func main() {
 	}
 }
 
-func fillPathPairs(prefix, rel, src string, set map[string]string, pathMappings *[]pathMapping) error {
+func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping) error {
 	src = strings.TrimSpace(src)
 	if src == "" {
 		return nil
@@ -268,14 +295,6 @@ func fillPathPairs(prefix, rel, src string, set map[string]string, pathMappings 
 		return err
 	}
 	dest = filepath.Join(prefix, dest)
-
-	if _, found := set[dest]; found {
-		return fmt.Errorf("found two file paths to be copied into dest path: %q,"+
-			" both [%q]%q and [%q]%q!",
-			dest, dest, src, dest, set[dest])
-	} else {
-		set[dest] = src
-	}
 
 	zipMethod := zip.Deflate
 	if _, found := nonDeflatedFiles[dest]; found {
@@ -462,14 +481,29 @@ func (z *zipWriter) addFile(dest, src string, method uint16) error {
 		return err
 	} else if s.IsDir() {
 		if z.directories {
-			return z.writeDirectory(dest)
+			return z.writeDirectory(dest, src)
 		}
 		return nil
-	} else if s.Mode()&os.ModeSymlink != 0 {
-		return z.writeSymlink(dest, src)
-	} else if !s.Mode().IsRegular() {
-		return fmt.Errorf("%s is not a file, directory, or symlink", src)
 	} else {
+		if err := z.writeDirectory(filepath.Dir(dest), src); err != nil {
+			return err
+		}
+
+		if prev, exists := z.createdDirs[dest]; exists {
+			return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
+		}
+		if prev, exists := z.createdFiles[dest]; exists {
+			return fmt.Errorf("destination %q has two files %q and %q", dest, prev, src)
+		}
+
+		z.createdFiles[dest] = src
+
+		if s.Mode()&os.ModeSymlink != 0 {
+			return z.writeSymlink(dest, src)
+		} else if !s.Mode().IsRegular() {
+			return fmt.Errorf("%s is not a file, directory, or symlink", src)
+		}
+
 		fileSize = s.Size()
 		executable = s.Mode()&0100 != 0
 	}
@@ -492,11 +526,17 @@ func (z *zipWriter) addFile(dest, src string, method uint16) error {
 	return z.writeFileContents(header, r)
 }
 
-// writes the contents of r according to the specifications in header
 func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
 	givenBytes, err := ioutil.ReadFile(src)
 	if err != nil {
 		return err
+	}
+
+	if prev, exists := z.createdDirs[dest]; exists {
+		return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
+	}
+	if prev, exists := z.createdFiles[dest]; exists {
+		return fmt.Errorf("destination %q has two files %q and %q", dest, prev, src)
 	}
 
 	manifestMarker := []byte("Manifest-Version:")
@@ -525,15 +565,6 @@ func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
 func (z *zipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerCloser) (err error) {
 
 	header.SetModTime(z.time)
-
-	if z.directories {
-		dest := header.Name
-		dir, _ := filepath.Split(dest)
-		err := z.writeDirectory(dir)
-		if err != nil {
-			return err
-		}
-	}
 
 	compressChan := make(chan *zipEntry, 1)
 	z.writeOps <- compressChan
@@ -755,53 +786,57 @@ func (z *zipWriter) addExtraField(zipHeader *zip.FileHeader, fieldHeader [2]byte
 	zipHeader.Extra = append(zipHeader.Extra, data...)
 }
 
-func (z *zipWriter) writeDirectory(dir string) error {
+// writeDirectory annotates that dir is a directory created for the src file or directory, and adds
+// the directory entry to the zip file if directories are enabled.
+func (z *zipWriter) writeDirectory(dir, src string) error {
 	// clean the input
-	cleanDir := filepath.Clean(dir)
+	dir = filepath.Clean(dir)
 
 	// discover any uncreated directories in the path
 	zipDirs := []string{}
-	for cleanDir != "" && cleanDir != "." && !z.createdDirs[cleanDir] {
+	for dir != "" && dir != "." {
+		if _, exists := z.createdDirs[dir]; exists {
+			break
+		}
 
-		z.createdDirs[cleanDir] = true
+		if prev, exists := z.createdFiles[dir]; exists {
+			return fmt.Errorf("destination %q is both a directory %q and a file %q", dir, src, prev)
+		}
+
+		z.createdDirs[dir] = src
 		// parent directories precede their children
-		zipDirs = append([]string{cleanDir}, zipDirs...)
+		zipDirs = append([]string{dir}, zipDirs...)
 
-		cleanDir = filepath.Dir(cleanDir)
+		dir = filepath.Dir(dir)
 	}
 
-	// make a directory entry for each uncreated directory
-	for _, cleanDir := range zipDirs {
-		dirHeader := &zip.FileHeader{
-			Name: cleanDir + "/",
-		}
-		dirHeader.SetMode(0700 | os.ModeDir)
-		dirHeader.SetModTime(z.time)
+	if z.directories {
+		// make a directory entry for each uncreated directory
+		for _, cleanDir := range zipDirs {
+			dirHeader := &zip.FileHeader{
+				Name: cleanDir + "/",
+			}
+			dirHeader.SetMode(0700 | os.ModeDir)
+			dirHeader.SetModTime(z.time)
 
-		if *emulateJar && dir == "META-INF/" {
-			// Jar files have a 0-length extra field with header "CAFE"
-			z.addExtraField(dirHeader, [2]byte{0xca, 0xfe}, []byte{})
-		}
+			if *emulateJar && dir == "META-INF/" {
+				// Jar files have a 0-length extra field with header "CAFE"
+				z.addExtraField(dirHeader, [2]byte{0xca, 0xfe}, []byte{})
+			}
 
-		ze := make(chan *zipEntry, 1)
-		ze <- &zipEntry{
-			fh: dirHeader,
+			ze := make(chan *zipEntry, 1)
+			ze <- &zipEntry{
+				fh: dirHeader,
+			}
+			close(ze)
+			z.writeOps <- ze
 		}
-		close(ze)
-		z.writeOps <- ze
 	}
 
 	return nil
 }
 
 func (z *zipWriter) writeSymlink(rel, file string) error {
-	if z.directories {
-		dir, _ := filepath.Split(rel)
-		if err := z.writeDirectory(dir); err != nil {
-			return err
-		}
-	}
-
 	fileHeader := &zip.FileHeader{
 		Name: rel,
 	}
@@ -829,4 +864,16 @@ func (z *zipWriter) writeSymlink(rel, file string) error {
 	z.writeOps <- ze
 
 	return nil
+}
+
+func recursiveGlobFiles(path string) []string {
+	var files []string
+	filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+		return nil
+	})
+
+	return files
 }
