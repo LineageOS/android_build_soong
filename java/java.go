@@ -407,6 +407,16 @@ func (j *Module) compile(ctx android.ModuleContext) {
 				"--dump-width=1000")
 		}
 
+		var minSdkVersion string
+		switch j.deviceProperties.Sdk_version {
+		case "", "current", "test_current", "system_current":
+			minSdkVersion = strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
+		default:
+			minSdkVersion = j.deviceProperties.Sdk_version
+		}
+
+		dxFlags = append(dxFlags, "--min-sdk-version="+minSdkVersion)
+
 		flags.dxFlags = strings.Join(dxFlags, " ")
 
 		// Compile classes.jar into classes.dex
