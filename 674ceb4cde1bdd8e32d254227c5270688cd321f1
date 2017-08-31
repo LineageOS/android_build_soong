@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "e77ccac6_90fc37a0",
+        "filename": "android/config.go",
+        "patchSetId": 2
+      },
+      "lineNbr": 476,
+      "author": {
+        "id": 16130
+      },
+      "writtenOn": "2017-08-31T09:53:28Z",
+      "side": 1,
+      "message": "should match the \"lineage naming\" of soong vars, Linker_force_shim_lib",
+      "revId": "674ceb4cde1bdd8e32d254227c5270688cd321f1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "90c241bb_4467e64d",
+        "filename": "android/variable.go",
+        "patchSetId": 2
+      },
+      "lineNbr": 152,
+      "author": {
+        "id": 16130
+      },
+      "writtenOn": "2017-08-31T09:53:28Z",
+      "side": 1,
+      "message": "same",
+      "revId": "674ceb4cde1bdd8e32d254227c5270688cd321f1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
