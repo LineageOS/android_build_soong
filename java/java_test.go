@@ -69,7 +69,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		bp += fmt.Sprintf(`
 			java_library {
 				name: "%s",
-				no_standard_libraries: true,
+				no_standard_libs: true,
 			}
 		`, extra)
 	}
