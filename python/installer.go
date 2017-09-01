@@ -35,5 +35,6 @@ func NewPythonInstaller(dir string) *pythonInstaller {
 var _ installer = (*pythonInstaller)(nil)
 
 func (installer *pythonInstaller) install(ctx android.ModuleContext, file android.Path) {
-	installer.path = ctx.InstallFile(android.PathForModuleInstall(ctx, installer.dir), file)
+	installer.path = ctx.InstallFile(android.PathForModuleInstall(ctx, installer.dir),
+		file.Base(), file)
 }

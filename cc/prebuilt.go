@@ -125,7 +125,7 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 		outputFile := android.PathForModuleOut(ctx, fileName)
 
 		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-			Rule:        android.Cp,
+			Rule:        android.CpExecutable,
 			Description: "prebuilt",
 			Output:      outputFile,
 			Input:       p.Prebuilt.SingleSourcePath(ctx),

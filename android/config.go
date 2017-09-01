@@ -382,6 +382,14 @@ func (c *config) MinSupportedSdkVersion() int {
 	return 14
 }
 
+func (c *config) DefaultAppTargetSdkInt() int {
+	if Bool(c.ProductVariables.Platform_sdk_final) {
+		return c.PlatformSdkVersionInt()
+	} else {
+		return 10000
+	}
+}
+
 // Codenames that are active in the current lunch target.
 func (c *config) PlatformVersionActiveCodenames() []string {
 	return c.ProductVariables.Platform_version_active_codenames
