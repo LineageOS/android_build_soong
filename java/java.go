@@ -178,11 +178,14 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		if ctx.Device() {
 			switch j.deviceProperties.Sdk_version {
 			case "":
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-libart")
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-oj", "core-libart")
+				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 			case "current":
 				// TODO: !TARGET_BUILD_APPS
 				// TODO: export preprocessed framework.aidl from android_stubs_current
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_stubs_current")
+			case "test_current":
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_test_stubs_current")
 			case "system_current":
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_system_stubs_current")
 			default:
@@ -190,12 +193,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			}
 		} else {
 			if j.deviceProperties.Dex {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-libart")
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-oj", "core-libart")
 			}
-		}
-
-		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
-			ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 		}
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
@@ -259,6 +258,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 			}
 		case sdkDependencyTag:
 			sdkDep := module.(sdkDependency)
+			bootClasspath = append(bootClasspath, sdkDep.ClasspathFiles()...)
 			if sdkDep.AidlPreprocessed().Valid() {
 				if aidlPreprocess.Valid() {
 					ctx.ModuleErrorf("multiple dependencies with preprocessed aidls:\n %q\n %q",
@@ -311,6 +311,9 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	if len(bootClasspath) > 0 {
 		flags.bootClasspath = "-bootclasspath " + strings.Join(bootClasspath.Strings(), ":")
 		deps = append(deps, bootClasspath...)
+	} else if ctx.Device() {
+		// Explicitly clear the bootclasspath for device builds
+		flags.bootClasspath = `-bootclasspath ""`
 	}
 
 	if len(classpath) > 0 {
