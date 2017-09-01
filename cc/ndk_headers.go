@@ -122,7 +122,7 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	srcFiles := ctx.ExpandSources(m.properties.Srcs, nil)
 	for _, header := range srcFiles {
 		installDir := getHeaderInstallDir(ctx, header, m.properties.From, m.properties.To)
-		installedPath := ctx.InstallFile(installDir, header)
+		installedPath := ctx.InstallFile(installDir, header.Base(), header)
 		installPath := installDir.Join(ctx, header.Base())
 		if installPath != installedPath {
 			panic(fmt.Sprintf(

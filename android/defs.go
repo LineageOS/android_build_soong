@@ -52,6 +52,13 @@ var (
 		},
 		"cpFlags")
 
+	CpExecutable = pctx.AndroidStaticRule("CpExecutable",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && cp $cpPreserveSymlinks $cpFlags $in $out && chmod +x $out",
+			Description: "cp $out",
+		},
+		"cpFlags")
+
 	// A timestamp touch rule.
 	Touch = pctx.AndroidStaticRule("Touch",
 		blueprint.RuleParams{
