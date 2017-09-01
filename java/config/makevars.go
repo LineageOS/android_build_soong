@@ -45,4 +45,9 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		ctx.Strict("TARGET_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
 		ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
 	}
+
+	if ctx.Config().IsEnvTrue("EXPERIMENTAL_USE_OPENJDK9") {
+		ctx.Strict("JLINK", "${JlinkCmd}")
+		ctx.Strict("JMOD", "${JmodCmd}")
+	}
 }
