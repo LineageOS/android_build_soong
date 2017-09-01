@@ -55,6 +55,8 @@ func init() {
 	pctx.SourcePathVariable("JavaCmd", "${JavaToolchain}/java")
 	pctx.SourcePathVariable("JarCmd", "${JavaToolchain}/jar")
 	pctx.SourcePathVariable("JavadocCmd", "${JavaToolchain}/javadoc")
+	pctx.SourcePathVariable("JlinkCmd", "${JavaToolchain}/jlink")
+	pctx.SourcePathVariable("JmodCmd", "${JavaToolchain}/jmod")
 
 	pctx.StaticVariable("Zip2ZipCmd", filepath.Join("${bootstrap.ToolDir}", "zip2zip"))
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
