@@ -76,7 +76,7 @@ func (installer *baseInstaller) installDir(ctx ModuleContext) android.OutputPath
 }
 
 func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
-	installer.path = ctx.InstallFile(installer.installDir(ctx), file)
+	installer.path = ctx.InstallFile(installer.installDir(ctx), file.Base(), file)
 }
 
 func (installer *baseInstaller) inData() bool {
