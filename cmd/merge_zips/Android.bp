@@ -12,29 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package python
-
-import (
-	"android/soong/android"
-)
-
-// This file handles installing python executables into their final location
-
-type pythonInstaller struct {
-	dir string
-
-	path android.OutputPath
+blueprint_go_binary {
+    name: "merge_zips",
+    deps: [
+      "android-archive-zip",
+      "soong-jar",
+    ],
+    srcs: [
+        "merge_zips.go",
+    ],
 }
 
-func NewPythonInstaller(dir string) *pythonInstaller {
-	return &pythonInstaller{
-		dir: dir,
-	}
-}
-
-var _ installer = (*pythonInstaller)(nil)
-
-func (installer *pythonInstaller) install(ctx android.ModuleContext, file android.Path) {
-	installer.path = ctx.InstallFile(android.PathForModuleInstall(ctx, installer.dir),
-		file.Base(), file)
-}

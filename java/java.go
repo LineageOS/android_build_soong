@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/genrule"
@@ -76,7 +77,7 @@ type CompilerProperties struct {
 
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
-	No_standard_libraries bool
+	No_standard_libs *bool
 
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
@@ -174,15 +175,18 @@ var (
 )
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
-	if !j.properties.No_standard_libraries {
+	if !proptools.Bool(j.properties.No_standard_libs) {
 		if ctx.Device() {
 			switch j.deviceProperties.Sdk_version {
 			case "":
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-libart")
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-oj", "core-libart")
+				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 			case "current":
 				// TODO: !TARGET_BUILD_APPS
 				// TODO: export preprocessed framework.aidl from android_stubs_current
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_stubs_current")
+			case "test_current":
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_test_stubs_current")
 			case "system_current":
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, "android_system_stubs_current")
 			default:
@@ -190,16 +194,14 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			}
 		} else {
 			if j.deviceProperties.Dex {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-libart")
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-oj", "core-libart")
 			}
-		}
-
-		if ctx.Device() && j.deviceProperties.Sdk_version == "" {
-			ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 		}
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
+
+	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
@@ -259,6 +261,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 			}
 		case sdkDependencyTag:
 			sdkDep := module.(sdkDependency)
+			bootClasspath = append(bootClasspath, sdkDep.ClasspathFiles()...)
 			if sdkDep.AidlPreprocessed().Valid() {
 				if aidlPreprocess.Valid() {
 					ctx.ModuleErrorf("multiple dependencies with preprocessed aidls:\n %q\n %q",
@@ -311,6 +314,9 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	if len(bootClasspath) > 0 {
 		flags.bootClasspath = "-bootclasspath " + strings.Join(bootClasspath.Strings(), ":")
 		deps = append(deps, bootClasspath...)
+	} else if ctx.Device() {
+		// Explicitly clear the bootclasspath for device builds
+		flags.bootClasspath = `-bootclasspath ""`
 	}
 
 	if len(classpath) > 0 {
@@ -407,6 +413,16 @@ func (j *Module) compile(ctx android.ModuleContext) {
 				"--dump-width=1000")
 		}
 
+		var minSdkVersion string
+		switch j.deviceProperties.Sdk_version {
+		case "", "current", "test_current", "system_current":
+			minSdkVersion = strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
+		default:
+			minSdkVersion = j.deviceProperties.Sdk_version
+		}
+
+		dxFlags = append(dxFlags, "--min-sdk-version="+minSdkVersion)
+
 		flags.dxFlags = strings.Join(dxFlags, " ")
 
 		// Compile classes.jar into classes.dex
@@ -457,7 +473,7 @@ type Library struct {
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
-	j.installFile = ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.outputFile)
+	j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".jar", j.outputFile)
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -510,8 +526,8 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
 	j.wrapperFile = android.PathForModuleSrc(ctx, j.binaryProperties.Wrapper)
-	j.binaryFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "bin"),
-		j.wrapperFile, j.installFile)
+	j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
+		ctx.ModuleName(), j.wrapperFile, j.installFile)
 }
 
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -590,7 +606,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.combinedClasspathFile = TransformClassesToJar(ctx, j.classJarSpecs, android.OptionalPath{}, nil)
 
-	ctx.InstallFileName(android.PathForModuleInstall(ctx, "framework"),
+	ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 		ctx.ModuleName()+".jar", j.combinedClasspathFile)
 }
 

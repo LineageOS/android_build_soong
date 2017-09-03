@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -62,13 +63,13 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
 
-	extraModules := []string{"core-libart", "frameworks", "sdk_v14"}
+	extraModules := []string{"core-oj", "core-libart", "frameworks", "sdk_v14"}
 
 	for _, extra := range extraModules {
 		bp += fmt.Sprintf(`
 			java_library {
 				name: "%s",
-				no_standard_libraries: true,
+				no_standard_libs: true,
 			}
 		`, extra)
 	}
@@ -173,10 +174,11 @@ func TestSdk(t *testing.T) {
 		bootclasspathLib
 	)
 
-	check := func(module, dep string, depType depType) {
-		if dep != "" {
-			dep = filepath.Join(buildDir, ".intermediates", dep, "classes-full-debug.jar")
+	check := func(module string, depType depType, deps ...string) {
+		for i := range deps {
+			deps[i] = filepath.Join(buildDir, ".intermediates", deps[i], "classes-full-debug.jar")
 		}
+		dep := strings.Join(deps, ":")
 
 		javac := ctx.ModuleForTests(module, "").Rule("javac")
 
@@ -192,12 +194,18 @@ func TestSdk(t *testing.T) {
 			}
 		}
 
-		if len(javac.Implicits) != 1 || javac.Implicits[0].String() != dep {
-			t.Errorf("module %q implicits != [%q]", dep)
+		if !reflect.DeepEqual(javac.Implicits.Strings(), deps) {
+			t.Errorf("module %q implicits %q != %q", module, javac.Implicits.Strings(), deps)
 		}
 	}
 
-	check("foo1", "core-libart", bootclasspathLib)
+	check("foo1", bootclasspathLib, "core-oj", "core-libart")
+	check("foo2", bootclasspathLib, "core-oj", "core-libart")
+	// TODO(ccross): these need the arch mutator to run to work correctly
+	//check("foo3", bootclasspathLib, "sdk_v14")
+	//check("foo4", bootclasspathLib, "android_stubs_current")
+	//check("foo5", bootclasspathLib, "android_system_stubs_current")
+	//check("foo6", bootclasspathLib, "android_test_stubs_current")
 }
 
 func TestPrebuilts(t *testing.T) {
