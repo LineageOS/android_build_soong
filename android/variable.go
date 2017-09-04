@@ -412,15 +412,23 @@ func VariableMutator(mctx BottomUpMutatorContext) {
 	}
 
 	variableValues := reflect.ValueOf(a.variableProperties).Elem().FieldByName("Product_variables")
+	valStruct := reflect.ValueOf(mctx.Config().productVariables)
 
+	doVariableMutation(mctx, a, variableValues, valStruct)
+}
+
+func doVariableMutation(mctx BottomUpMutatorContext, a *ModuleBase, variableValues reflect.Value, valStruct reflect.Value) {
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
 		name := variableValues.Type().Field(i).Name
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
 		// Check that the variable was set for the product
-		val := reflect.ValueOf(mctx.Config().productVariables).FieldByName(name)
-		if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
+		val := valStruct.FieldByName(name)
+		if val.IsValid() && val.Kind() == reflect.Struct {
+			doVariableMutation(mctx, a, variableValue, val)
+			continue
+		} else if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
 			continue
 		}
 
