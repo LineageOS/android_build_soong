@@ -162,6 +162,9 @@ type commonProperties struct {
 	// names of other modules to install if this module is installed
 	Required []string `android:"arch_variant"`
 
+	// relative path to a file to include in the list of notices for the device
+	Notice *string
+
 	// Set by TargetMutator
 	CompileTarget  Target `blueprint:"mutated"`
 	CompilePrimary bool   `blueprint:"mutated"`

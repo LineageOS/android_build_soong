@@ -37,6 +37,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_SANITIZE":              sanitize(""),
 	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
 	"LOCAL_CFLAGS":                cflags,
+	"LOCAL_UNINSTALLABLE_MODULE":  invert("installable"),
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -74,6 +75,7 @@ func init() {
 			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
 			"LOCAL_MODULE_OWNER":            "owner",
 			"LOCAL_RENDERSCRIPT_TARGET_API": "renderscript.target_api",
+			"LOCAL_NOTICE_FILE":             "notice",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -116,19 +118,18 @@ func init() {
 	addStandardProperties(bpparser.BoolType,
 		map[string]string{
 			// Bool properties
-			"LOCAL_IS_HOST_MODULE":          "host",
-			"LOCAL_CLANG":                   "clang",
-			"LOCAL_FORCE_STATIC_EXECUTABLE": "static_executable",
-			"LOCAL_NATIVE_COVERAGE":         "native_coverage",
-			"LOCAL_NO_CRT":                  "nocrt",
-			"LOCAL_ALLOW_UNDEFINED_SYMBOLS": "allow_undefined_symbols",
-			"LOCAL_RTTI_FLAG":               "rtti",
-			"LOCAL_NO_STANDARD_LIBRARIES":   "no_standard_libs",
-			"LOCAL_PACK_MODULE_RELOCATIONS": "pack_relocations",
-			"LOCAL_TIDY":                    "tidy",
-			"LOCAL_PROPRIETARY_MODULE":      "proprietary",
-			"LOCAL_VENDOR_MODULE":           "vendor",
-
+			"LOCAL_IS_HOST_MODULE":           "host",
+			"LOCAL_CLANG":                    "clang",
+			"LOCAL_FORCE_STATIC_EXECUTABLE":  "static_executable",
+			"LOCAL_NATIVE_COVERAGE":          "native_coverage",
+			"LOCAL_NO_CRT":                   "nocrt",
+			"LOCAL_ALLOW_UNDEFINED_SYMBOLS":  "allow_undefined_symbols",
+			"LOCAL_RTTI_FLAG":                "rtti",
+			"LOCAL_NO_STANDARD_LIBRARIES":    "no_standard_libs",
+			"LOCAL_PACK_MODULE_RELOCATIONS":  "pack_relocations",
+			"LOCAL_TIDY":                     "tidy",
+			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
+			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
 		})
 }
@@ -525,6 +526,19 @@ func cflags(ctx variableAssignmentContext) error {
 	ctx.mkvalue = ctx.mkvalue.Clone()
 	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
 	return includeVariableNow(bpVariable{"cflags", bpparser.ListType}, ctx)
+}
+
+func invert(name string) func(ctx variableAssignmentContext) error {
+	return func(ctx variableAssignmentContext) error {
+		val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.BoolType)
+		if err != nil {
+			return err
+		}
+
+		val.(*bpparser.Bool).Value = !val.(*bpparser.Bool).Value
+
+		return setVariable(ctx.file, ctx.append, ctx.prefix, name, val, true)
+	}
 }
 
 // given a conditional, returns a function that will insert a variable assignment or not, based on the conditional
