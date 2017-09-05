@@ -29,6 +29,9 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
+				if library.properties.Installable != nil && *library.properties.Installable == false {
+					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+				}
 			},
 		},
 	}
@@ -41,6 +44,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 			},
 		},
 	}
