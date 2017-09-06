@@ -222,7 +222,28 @@ var (
 			mockFiles: map[string][]byte{
 				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
-					`python_library_host {
+					`python_defaults {
+						name: "default_lib",
+						srcs: [
+							"default.py",
+						],
+						version: {
+							py2: {
+								enabled: true,
+								srcs: [
+									"default_py2.py",
+								],
+							},
+							py3: {
+								enabled: false,
+								srcs: [
+									"default_py3.py",
+								],
+							},
+						},
+					}
+
+					python_library_host {
 						name: "lib5",
 						pkg_path: "a/b/",
 						srcs: [
@@ -251,6 +272,7 @@ var (
 
 					python_binary_host {
 						name: "bin",
+						defaults: ["default_lib"],
 						pkg_path: "e/",
 						srcs: [
 							"bin.py",
@@ -271,10 +293,13 @@ var (
 						},
 					}`,
 				),
-				filepath.Join("dir", "file1.py"): nil,
-				filepath.Join("dir", "file2.py"): nil,
-				filepath.Join("dir", "bin.py"):   nil,
-				filepath.Join("dir", "file4.py"): nil,
+				filepath.Join("dir", "default.py"):     nil,
+				filepath.Join("dir", "default_py2.py"): nil,
+				filepath.Join("dir", "default_py3.py"): nil,
+				filepath.Join("dir", "file1.py"):       nil,
+				filepath.Join("dir", "file2.py"):       nil,
+				filepath.Join("dir", "bin.py"):         nil,
+				filepath.Join("dir", "file4.py"):       nil,
 				stubTemplateHost: []byte(`PYTHON_BINARY = '%interpreter%'
 				MAIN_FILE = '%main%'`),
 			},
@@ -283,7 +308,9 @@ var (
 					name:          "bin",
 					actualVersion: "PY3",
 					pyRunfiles: []string{
+						"runfiles/e/default.py",
 						"runfiles/e/bin.py",
+						"runfiles/e/default_py3.py",
 						"runfiles/e/file4.py",
 					},
 					depsPyRunfiles: []string{
@@ -314,6 +341,9 @@ func TestPythonModule(t *testing.T) {
 				android.ModuleFactoryAdaptor(PythonLibraryHostFactory))
 			ctx.RegisterModuleType("python_binary_host",
 				android.ModuleFactoryAdaptor(PythonBinaryHostFactory))
+			ctx.RegisterModuleType("python_defaults",
+				android.ModuleFactoryAdaptor(defaultsFactory))
+			ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 			ctx.Register()
 			ctx.MockFileSystem(d.mockFiles)
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
