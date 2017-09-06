@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/blueprint"
+
 	"android/soong/android"
 )
 
@@ -28,67 +30,63 @@ func init() {
 	android.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
 }
 
-type PythonBinaryBaseProperties struct {
+type BinaryProperties struct {
 	// the name of the source file that is the main entry point of the program.
 	// this file must also be listed in srcs.
 	// If left unspecified, module name is used instead.
 	// If name doesn’t match any filename in srcs, main must be specified.
-	Main string
+	Main string `android:"arch_variant"`
 
 	// set the name of the output binary.
-	Stem string
+	Stem string `android:"arch_variant"`
 
 	// append to the name of the output binary.
-	Suffix string
+	Suffix string `android:"arch_variant"`
 }
 
-type pythonBinaryBase struct {
-	pythonBaseModule
+type binaryDecorator struct {
+	binaryProperties BinaryProperties
 
-	binaryProperties PythonBinaryBaseProperties
-
-	// soong_zip arguments from all its dependencies.
-	depsParSpecs []parSpec
-
-	// Python runfiles paths from all its dependencies.
-	depsPyRunfiles []string
+	baseInstaller *pythonInstaller
 }
 
-type PythonBinaryHost struct {
-	pythonBinaryBase
+type IntermPathProvider interface {
+	IntermPathForModuleOut() android.OptionalPath
 }
 
-var _ PythonSubModule = (*PythonBinaryHost)(nil)
-
-type pythonBinaryHostDecorator struct {
-	pythonDecorator
-}
-
-func (p *pythonBinaryHostDecorator) install(ctx android.ModuleContext, file android.Path) {
-	p.pythonDecorator.baseInstaller.install(ctx, file)
+func (binary *binaryDecorator) install(ctx android.ModuleContext, file android.Path) {
+	binary.baseInstaller.install(ctx, file)
 }
 
 var (
 	stubTemplateHost = "build/soong/python/scripts/stub_template_host.txt"
 )
 
-func PythonBinaryHostFactory() android.Module {
-	decorator := &pythonBinaryHostDecorator{
-		pythonDecorator: pythonDecorator{baseInstaller: NewPythonInstaller("bin")}}
+func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
+	module := newModule(hod, android.MultilibFirst)
+	decorator := &binaryDecorator{baseInstaller: NewPythonInstaller("bin")}
 
-	module := &PythonBinaryHost{}
-	module.pythonBaseModule.installer = decorator
-	module.AddProperties(&module.binaryProperties)
+	module.bootstrapper = decorator
+	module.installer = decorator
 
-	return InitPythonBaseModule(&module.pythonBinaryBase.pythonBaseModule,
-		&module.pythonBinaryBase, android.HostSupportedNoCross)
+	return module, decorator
 }
 
-func (p *pythonBinaryBase) GeneratePythonBuildActions(ctx android.ModuleContext) android.OptionalPath {
-	p.pythonBaseModule.GeneratePythonBuildActions(ctx)
+func PythonBinaryHostFactory() android.Module {
+	module, _ := NewBinary(android.HostSupportedNoCross)
 
-	// no Python source file for compiling par file.
-	if len(p.pythonBaseModule.srcsPathMappings) == 0 && len(p.depsPyRunfiles) == 0 {
+	return module.Init()
+}
+
+func (binary *binaryDecorator) bootstrapperProps() []interface{} {
+	return []interface{}{&binary.binaryProperties}
+}
+
+func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actual_version string,
+	embedded_launcher bool, srcsPathMappings []pathMapping, parSpec parSpec,
+	depsPyRunfiles []string, depsParSpecs []parSpec) android.OptionalPath {
+	// no Python source file for compiling .par file.
+	if len(srcsPathMappings) == 0 {
 		return android.OptionalPath{}
 	}
 
@@ -100,10 +98,10 @@ func (p *pythonBinaryBase) GeneratePythonBuildActions(ctx android.ModuleContext)
 	existingPyPkgSet := make(map[string]bool)
 
 	wholePyRunfiles := []string{}
-	for _, path := range p.pythonBaseModule.srcsPathMappings {
+	for _, path := range srcsPathMappings {
 		wholePyRunfiles = append(wholePyRunfiles, path.dest)
 	}
-	wholePyRunfiles = append(wholePyRunfiles, p.depsPyRunfiles...)
+	wholePyRunfiles = append(wholePyRunfiles, depsPyRunfiles...)
 
 	// find all the runfiles dirs which have been treated as packages.
 	for _, path := range wholePyRunfiles {
@@ -130,50 +128,62 @@ func (p *pythonBinaryBase) GeneratePythonBuildActions(ctx android.ModuleContext)
 		populateNewPyPkgs(parentPath, existingPyPkgSet, newPyPkgSet, &newPyPkgs)
 	}
 
-	main := p.getPyMainFile(ctx)
+	main := binary.getPyMainFile(ctx, srcsPathMappings)
 	if main == "" {
 		return android.OptionalPath{}
 	}
-	interp := p.getInterpreter(ctx)
-	if interp == "" {
-		return android.OptionalPath{}
+
+	var launcher_path android.Path
+	if embedded_launcher {
+		ctx.VisitDirectDeps(func(m blueprint.Module) {
+			if ctx.OtherModuleDependencyTag(m) != launcherTag {
+				return
+			}
+			if provider, ok := m.(IntermPathProvider); ok {
+				if launcher_path != nil {
+					panic(fmt.Errorf("launcher path was found before: %q",
+						launcher_path))
+				}
+				launcher_path = provider.IntermPathForModuleOut().Path()
+			}
+		})
 	}
 
-	// we need remove "runfiles/" suffix since stub script starts
-	// searching for main file in each sub-dir of "runfiles" directory tree.
-	binFile := registerBuildActionForParFile(ctx, p.getInterpreter(ctx),
-		strings.TrimPrefix(main, runFiles+"/"), p.getStem(ctx),
-		newPyPkgs, append(p.depsParSpecs, p.pythonBaseModule.parSpec))
+	binFile := registerBuildActionForParFile(ctx, embedded_launcher, launcher_path,
+		binary.getHostInterpreterName(ctx, actual_version),
+		main, binary.getStem(ctx), newPyPkgs, append(depsParSpecs, parSpec))
 
 	return android.OptionalPathForPath(binFile)
 }
 
-// get interpreter path.
-func (p *pythonBinaryBase) getInterpreter(ctx android.ModuleContext) string {
+// get host interpreter name.
+func (binary *binaryDecorator) getHostInterpreterName(ctx android.ModuleContext,
+	actual_version string) string {
 	var interp string
-	switch p.pythonBaseModule.properties.ActualVersion {
+	switch actual_version {
 	case pyVersion2:
 		interp = "python2"
 	case pyVersion3:
 		interp = "python3"
 	default:
 		panic(fmt.Errorf("unknown Python actualVersion: %q for module: %q.",
-			p.properties.ActualVersion, ctx.ModuleName()))
+			actual_version, ctx.ModuleName()))
 	}
 
 	return interp
 }
 
 // find main program path within runfiles tree.
-func (p *pythonBinaryBase) getPyMainFile(ctx android.ModuleContext) string {
+func (binary *binaryDecorator) getPyMainFile(ctx android.ModuleContext,
+	srcsPathMappings []pathMapping) string {
 	var main string
-	if p.binaryProperties.Main == "" {
-		main = p.BaseModuleName() + pyExt
+	if binary.binaryProperties.Main == "" {
+		main = ctx.ModuleName() + pyExt
 	} else {
-		main = p.binaryProperties.Main
+		main = binary.binaryProperties.Main
 	}
 
-	for _, path := range p.pythonBaseModule.srcsPathMappings {
+	for _, path := range srcsPathMappings {
 		if main == path.src.Rel() {
 			return path.dest
 		}
@@ -183,13 +193,13 @@ func (p *pythonBinaryBase) getPyMainFile(ctx android.ModuleContext) string {
 	return ""
 }
 
-func (p *pythonBinaryBase) getStem(ctx android.ModuleContext) string {
+func (binary *binaryDecorator) getStem(ctx android.ModuleContext) string {
 	stem := ctx.ModuleName()
-	if p.binaryProperties.Stem != "" {
-		stem = p.binaryProperties.Stem
+	if binary.binaryProperties.Stem != "" {
+		stem = binary.binaryProperties.Stem
 	}
 
-	return stem + p.binaryProperties.Suffix
+	return stem + binary.binaryProperties.Suffix
 }
 
 // Sets the given directory and all its ancestor directories as Python packages.

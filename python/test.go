@@ -16,7 +16,6 @@ package python
 
 import (
 	"android/soong/android"
-	"path/filepath"
 )
 
 // This file contains the module types for building Python test.
@@ -25,30 +24,29 @@ func init() {
 	android.RegisterModuleType("python_test_host", PythonTestHostFactory)
 }
 
-type PythonTestHost struct {
-	pythonBinaryBase
+type testDecorator struct {
+	*binaryDecorator
 }
 
-var _ PythonSubModule = (*PythonTestHost)(nil)
-
-type pythonTestHostDecorator struct {
-	pythonDecorator
+func (test *testDecorator) install(ctx android.ModuleContext, file android.Path) {
+	test.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
-func (p *pythonTestHostDecorator) install(ctx android.ModuleContext, file android.Path) {
-	p.pythonDecorator.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
-	p.pythonDecorator.baseInstaller.install(ctx, file)
+func NewTest(hod android.HostOrDeviceSupported) *Module {
+	module, binary := NewBinary(hod)
+
+	binary.baseInstaller = NewPythonInstaller("nativetest")
+
+	test := &testDecorator{binaryDecorator: binary}
+
+	module.bootstrapper = test
+	module.installer = test
+
+	return module
 }
 
 func PythonTestHostFactory() android.Module {
-	decorator := &pythonTestHostDecorator{
-		pythonDecorator: pythonDecorator{baseInstaller: NewPythonInstaller("nativetest")}}
+	module := NewTest(android.HostSupportedNoCross)
 
-	module := &PythonBinaryHost{}
-	module.pythonBaseModule.installer = decorator
-
-	module.AddProperties(&module.binaryProperties)
-
-	return InitPythonBaseModule(&module.pythonBinaryBase.pythonBaseModule,
-		&module.pythonBinaryBase, android.HostSupportedNoCross)
+	return module.Init()
 }
