@@ -23,10 +23,10 @@ import (
 )
 
 type subAndroidMkProvider interface {
-	AndroidMk(*pythonBaseModule, *android.AndroidMkData)
+	AndroidMk(*Module, *android.AndroidMkData)
 }
 
-func (p *pythonBaseModule) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
+func (p *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
 	if p.subAndroidMkOnce == nil {
 		p.subAndroidMkOnce = make(map[subAndroidMkProvider]bool)
 	}
@@ -38,7 +38,7 @@ func (p *pythonBaseModule) subAndroidMk(data *android.AndroidMkData, obj interfa
 	}
 }
 
-func (p *pythonBaseModule) AndroidMk() android.AndroidMkData {
+func (p *Module) AndroidMk() android.AndroidMkData {
 	ret := android.AndroidMkData{}
 
 	p.subAndroidMk(&ret, p.installer)
@@ -46,17 +46,17 @@ func (p *pythonBaseModule) AndroidMk() android.AndroidMkData {
 	return ret
 }
 
-func (p *pythonBinaryHostDecorator) AndroidMk(base *pythonBaseModule, ret *android.AndroidMkData) {
+func (p *binaryDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 	ret.Class = "EXECUTABLES"
-	base.subAndroidMk(ret, p.pythonDecorator.baseInstaller)
+	base.subAndroidMk(ret, p.baseInstaller)
 }
 
-func (p *pythonTestHostDecorator) AndroidMk(base *pythonBaseModule, ret *android.AndroidMkData) {
+func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 	ret.Class = "NATIVE_TESTS"
-	base.subAndroidMk(ret, p.pythonDecorator.baseInstaller)
+	base.subAndroidMk(ret, p.binaryDecorator.baseInstaller)
 }
 
-func (installer *pythonInstaller) AndroidMk(base *pythonBaseModule, ret *android.AndroidMkData) {
+func (installer *pythonInstaller) AndroidMk(base *Module, ret *android.AndroidMkData) {
 	// Soong installation is only supported for host modules. Have Make
 	// installation trigger Soong installation.
 	if base.Target().Os.Class == android.Host {
