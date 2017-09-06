@@ -84,7 +84,8 @@ type config struct {
 
 	inMake bool
 
-	captureBuild bool // true for tests, saves build parameters for each module
+	captureBuild      bool // true for tests, saves build parameters for each module
+	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
 
 	OncePer
 }
@@ -173,8 +174,9 @@ func TestConfig(buildDir string) Config {
 			DeviceName: stringPtr("test_device"),
 		},
 
-		buildDir:     buildDir,
-		captureBuild: true,
+		buildDir:          buildDir,
+		captureBuild:      true,
+		ignoreEnvironment: true,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
@@ -314,7 +316,9 @@ func (c *config) Getenv(key string) string {
 		if c.envFrozen {
 			panic("Cannot access new environment variables after envdeps are frozen")
 		}
-		val, _ = originalEnv[key]
+		if !c.ignoreEnvironment {
+			val, _ = originalEnv[key]
+		}
 		c.envDeps[key] = val
 	}
 	return val
