@@ -21,9 +21,10 @@ package java
 import (
 	"strings"
 
-	"android/soong/android"
-
 	"github.com/google/blueprint"
+
+	"android/soong/android"
+	"android/soong/java/config"
 )
 
 var (
@@ -165,6 +166,11 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles android.Paths, s
 
 func RunErrorProne(ctx android.ModuleContext, srcFiles android.Paths, srcFileLists android.Paths,
 	flags javaBuilderFlags, deps android.Paths) android.Path {
+
+	if config.ErrorProneJar == "" {
+		ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
+		return nil
+	}
 
 	classDir := android.PathForModuleOut(ctx, "classes-errorprone")
 	annoDir := android.PathForModuleOut(ctx, "anno-errorprone")
