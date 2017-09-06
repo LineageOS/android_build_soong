@@ -28,7 +28,7 @@ import (
 	"android/soong/android"
 )
 
-type pyBinary struct {
+type pyModule struct {
 	name           string
 	actualVersion  string
 	pyRunfiles     []string
@@ -41,7 +41,7 @@ var (
 	buildNamePrefix          = "soong_python_test"
 	moduleVariantErrTemplate = "%s: module %q variant %q: "
 	pkgPathErrTemplate       = moduleVariantErrTemplate +
-		"pkg_path: %q is not a valid format."
+		"pkg_path: %q must be a relative path contained in par file."
 	badIdentifierErrTemplate = moduleVariantErrTemplate +
 		"srcs: the path %q contains invalid token %q."
 	dupRunfileErrTemplate = moduleVariantErrTemplate +
@@ -58,7 +58,7 @@ var (
 		mockFiles map[string][]byte
 
 		errors           []string
-		expectedBinaries []pyBinary
+		expectedBinaries []pyModule
 	}{
 		{
 			desc: "module without any src files",
@@ -222,7 +222,28 @@ var (
 			mockFiles: map[string][]byte{
 				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
-					`python_library_host {
+					`python_defaults {
+						name: "default_lib",
+						srcs: [
+							"default.py",
+						],
+						version: {
+							py2: {
+								enabled: true,
+								srcs: [
+									"default_py2.py",
+								],
+							},
+							py3: {
+								enabled: false,
+								srcs: [
+									"default_py3.py",
+								],
+							},
+						},
+					}
+
+					python_library_host {
 						name: "lib5",
 						pkg_path: "a/b/",
 						srcs: [
@@ -251,6 +272,7 @@ var (
 
 					python_binary_host {
 						name: "bin",
+						defaults: ["default_lib"],
 						pkg_path: "e/",
 						srcs: [
 							"bin.py",
@@ -271,19 +293,24 @@ var (
 						},
 					}`,
 				),
-				filepath.Join("dir", "file1.py"): nil,
-				filepath.Join("dir", "file2.py"): nil,
-				filepath.Join("dir", "bin.py"):   nil,
-				filepath.Join("dir", "file4.py"): nil,
+				filepath.Join("dir", "default.py"):     nil,
+				filepath.Join("dir", "default_py2.py"): nil,
+				filepath.Join("dir", "default_py3.py"): nil,
+				filepath.Join("dir", "file1.py"):       nil,
+				filepath.Join("dir", "file2.py"):       nil,
+				filepath.Join("dir", "bin.py"):         nil,
+				filepath.Join("dir", "file4.py"):       nil,
 				stubTemplateHost: []byte(`PYTHON_BINARY = '%interpreter%'
 				MAIN_FILE = '%main%'`),
 			},
-			expectedBinaries: []pyBinary{
+			expectedBinaries: []pyModule{
 				{
 					name:          "bin",
 					actualVersion: "PY3",
 					pyRunfiles: []string{
+						"runfiles/e/default.py",
 						"runfiles/e/bin.py",
+						"runfiles/e/default_py3.py",
 						"runfiles/e/file4.py",
 					},
 					depsPyRunfiles: []string{
@@ -314,6 +341,9 @@ func TestPythonModule(t *testing.T) {
 				android.ModuleFactoryAdaptor(PythonLibraryHostFactory))
 			ctx.RegisterModuleType("python_binary_host",
 				android.ModuleFactoryAdaptor(PythonBinaryHostFactory))
+			ctx.RegisterModuleType("python_defaults",
+				android.ModuleFactoryAdaptor(defaultsFactory))
+			ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 			ctx.Register()
 			ctx.MockFileSystem(d.mockFiles)
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
@@ -363,13 +393,9 @@ func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, varian
 	expParSpec string, expDepsParSpecs []string) (testErrs []error) {
 	module := ctx.ModuleForTests(name, variant)
 
-	base, baseOk := module.Module().(*pythonBaseModule)
+	base, baseOk := module.Module().(*Module)
 	if !baseOk {
 		t.Fatalf("%s is not Python module!", name)
-	}
-	sub, subOk := base.subModule.(*pythonBinaryBase)
-	if !subOk {
-		t.Fatalf("%s is not Python binary!", name)
 	}
 
 	actPyRunfiles := []string{}
@@ -381,28 +407,28 @@ func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, varian
 		testErrs = append(testErrs, errors.New(fmt.Sprintf(
 			`binary "%s" variant "%s" has unexpected pyRunfiles: %q!`,
 			base.Name(),
-			base.properties.ActualVersion,
+			base.properties.Actual_version,
 			actPyRunfiles)))
 	}
 
-	if !reflect.DeepEqual(sub.depsPyRunfiles, expDepsPyRunfiles) {
+	if !reflect.DeepEqual(base.depsPyRunfiles, expDepsPyRunfiles) {
 		testErrs = append(testErrs, errors.New(fmt.Sprintf(
 			`binary "%s" variant "%s" has unexpected depsPyRunfiles: %q!`,
 			base.Name(),
-			base.properties.ActualVersion,
-			sub.depsPyRunfiles)))
+			base.properties.Actual_version,
+			base.depsPyRunfiles)))
 	}
 
 	if base.parSpec.soongParArgs() != strings.Replace(expParSpec, "@prefix@", buildDir, 1) {
 		testErrs = append(testErrs, errors.New(fmt.Sprintf(
 			`binary "%s" variant "%s" has unexpected parSpec: %q!`,
 			base.Name(),
-			base.properties.ActualVersion,
+			base.properties.Actual_version,
 			base.parSpec.soongParArgs())))
 	}
 
 	actDepsParSpecs := []string{}
-	for i, p := range sub.depsParSpecs {
+	for i, p := range base.depsParSpecs {
 		actDepsParSpecs = append(actDepsParSpecs, p.soongParArgs())
 		expDepsParSpecs[i] = strings.Replace(expDepsParSpecs[i], "@prefix@", buildDir, 1)
 	}
@@ -411,7 +437,7 @@ func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, varian
 		testErrs = append(testErrs, errors.New(fmt.Sprintf(
 			`binary "%s" variant "%s" has unexpected depsParSpecs: %q!`,
 			base.Name(),
-			base.properties.ActualVersion,
+			base.properties.Actual_version,
 			actDepsParSpecs)))
 	}
 

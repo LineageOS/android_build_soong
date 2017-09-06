@@ -238,6 +238,7 @@ bootstrap_go_package {
         "python/androidmk.go",
         "python/binary.go",
         "python/builder.go",
+        "python/defaults.go",
         "python/installer.go",
         "python/library.go",
         "python/python.go",
