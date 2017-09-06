@@ -301,6 +301,9 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	var flags javaBuilderFlags
 
 	javacFlags := j.properties.Javacflags
+	if ctx.AConfig().Getenv("EXPERIMENTAL_USE_OPENJDK9") == "" {
+		javacFlags = config.StripJavac9Flags(javacFlags)
+	}
 
 	if len(deps.annotationProcessors) > 0 {
 		javacFlags = append(javacFlags,
