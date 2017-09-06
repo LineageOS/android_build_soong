@@ -134,12 +134,6 @@ type Module struct {
 	// output file suitable for installing or running
 	outputFile android.Path
 
-	// jarSpecs suitable for inserting classes from a static library into another jar
-	classJarSpecs []jarSpec
-
-	// jarSpecs suitable for inserting resources from a static library into another jar
-	resourceJarSpecs []jarSpec
-
 	exportAidlIncludeDirs android.Paths
 
 	logtagsSrcs android.Paths
@@ -154,8 +148,6 @@ type Module struct {
 
 type Dependency interface {
 	ClasspathFiles() android.Paths
-	ClassJarSpecs() []jarSpec
-	ResourceJarSpecs() []jarSpec
 	AidlIncludeDirs() android.Paths
 }
 
@@ -229,9 +221,8 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	return flags
 }
 
-func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths,
-	bootClasspath android.Paths, classJarSpecs, resourceJarSpecs []jarSpec, aidlPreprocess android.OptionalPath,
-	aidlIncludeDirs android.Paths, srcFileLists android.Paths) {
+func (j *Module) collectDeps(ctx android.ModuleContext) (classpath, bootClasspath, staticJars,
+	aidlIncludeDirs, srcFileLists android.Paths, aidlPreprocess android.OptionalPath) {
 
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		otherName := ctx.OtherModuleName(module)
@@ -254,8 +245,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 			classpath = append(classpath, dep.ClasspathFiles()...)
 		case staticLibTag:
 			classpath = append(classpath, dep.ClasspathFiles()...)
-			classJarSpecs = append(classJarSpecs, dep.ClassJarSpecs()...)
-			resourceJarSpecs = append(resourceJarSpecs, dep.ResourceJarSpecs()...)
+			staticJars = append(staticJars, dep.ClasspathFiles()...)
 		case frameworkResTag:
 			if ctx.ModuleName() == "framework" {
 				// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -280,16 +270,15 @@ func (j *Module) collectDeps(ctx android.ModuleContext) (classpath android.Paths
 		aidlIncludeDirs = append(aidlIncludeDirs, dep.AidlIncludeDirs()...)
 	})
 
-	return classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
-		aidlIncludeDirs, srcFileLists
+	return
 }
 
 func (j *Module) compile(ctx android.ModuleContext) {
 
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Export_aidl_include_dirs)
 
-	classpath, bootClasspath, classJarSpecs, resourceJarSpecs, aidlPreprocess,
-		aidlIncludeDirs, srcFileLists := j.collectDeps(ctx)
+	classpath, bootClasspath, staticJars, aidlIncludeDirs, srcFileLists,
+		aidlPreprocess := j.collectDeps(ctx)
 
 	var flags javaBuilderFlags
 
@@ -341,6 +330,8 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	var extraJarDeps android.Paths
 
+	var jars android.Paths
+
 	if len(srcFiles) > 0 {
 		// Compile java sources into .class files
 		classes := TransformJavaToClasses(ctx, srcFiles, srcFileLists, flags, deps)
@@ -359,37 +350,37 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			extraJarDeps = append(extraJarDeps, errorprone)
 		}
 
-		classJarSpecs = append([]jarSpec{classes}, classJarSpecs...)
+		jars = append(jars, classes)
 	}
 
-	resourceJarSpecs = append(ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs, j.properties.Exclude_resource_dirs),
-		resourceJarSpecs...)
-
+	resourceJarSpecs := ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs, j.properties.Exclude_resource_dirs)
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
 
-	allJarSpecs := append([]jarSpec(nil), classJarSpecs...)
-	allJarSpecs = append(allJarSpecs, resourceJarSpecs...)
-
-	// Combine classes + resources into classes-full-debug.jar
-	outputFile := TransformClassesToJar(ctx, allJarSpecs, manifest, extraJarDeps)
-	if ctx.Failed() {
-		return
-	}
-
-	if j.properties.Jarjar_rules != nil {
-		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
-		// Transform classes-full-debug.jar into classes-jarjar.jar
-		outputFile = TransformJarJar(ctx, outputFile, jarjar_rules)
+	if len(resourceJarSpecs) > 0 || manifest.Valid() {
+		// Combine classes + resources into classes-full-debug.jar
+		resourceJar := TransformResourcesToJar(ctx, resourceJarSpecs, manifest, extraJarDeps)
 		if ctx.Failed() {
 			return
 		}
 
-		classes, _ := TransformPrebuiltJarToClasses(ctx, "jarjar_extracted", outputFile)
-		classJarSpecs = []jarSpec{classes}
+		jars = append(jars, resourceJar)
 	}
 
-	j.resourceJarSpecs = resourceJarSpecs
-	j.classJarSpecs = classJarSpecs
+	jars = append(jars, staticJars...)
+
+	// Combine the classes built from sources, any manifests, and any static libraries into
+	// classes-combined.jar.  If there is only one input jar this step will be skipped.
+	outputFile := TransformJarsToJar(ctx, "classes-combined.jar", jars)
+
+	if j.properties.Jarjar_rules != nil {
+		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
+		// Transform classes-combined.jar into classes-jarjar.jar
+		outputFile = TransformJarJar(ctx, outputFile, jarjar_rules)
+		if ctx.Failed() {
+			return
+		}
+	}
+
 	j.classpathFile = outputFile
 
 	if j.deviceProperties.Dex && len(srcFiles) > 0 {
@@ -445,14 +436,6 @@ var _ Dependency = (*Library)(nil)
 
 func (j *Module) ClasspathFiles() android.Paths {
 	return android.Paths{j.classpathFile}
-}
-
-func (j *Module) ClassJarSpecs() []jarSpec {
-	return j.classJarSpecs
-}
-
-func (j *Module) ResourceJarSpecs() []jarSpec {
-	return j.resourceJarSpecs
 }
 
 func (j *Module) AidlIncludeDirs() android.Paths {
@@ -580,9 +563,8 @@ type Import struct {
 
 	properties ImportProperties
 
-	classpathFiles                  android.Paths
-	combinedClasspathFile           android.Path
-	classJarSpecs, resourceJarSpecs []jarSpec
+	classpathFiles        android.Paths
+	combinedClasspathFile android.Path
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
@@ -603,28 +585,13 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.classpathFiles = android.PathsForModuleSrc(ctx, j.properties.Jars)
 
-	for i, prebuilt := range j.classpathFiles {
-		subdir := "extracted" + strconv.Itoa(i)
-		classJarSpec, resourceJarSpec := TransformPrebuiltJarToClasses(ctx, subdir, prebuilt)
-		j.classJarSpecs = append(j.classJarSpecs, classJarSpec)
-		j.resourceJarSpecs = append(j.resourceJarSpecs, resourceJarSpec)
-	}
-
-	j.combinedClasspathFile = TransformClassesToJar(ctx, j.classJarSpecs, android.OptionalPath{}, nil)
+	j.combinedClasspathFile = TransformJarsToJar(ctx, "classes.jar", j.classpathFiles)
 }
 
 var _ Dependency = (*Import)(nil)
 
 func (j *Import) ClasspathFiles() android.Paths {
 	return j.classpathFiles
-}
-
-func (j *Import) ClassJarSpecs() []jarSpec {
-	return j.classJarSpecs
-}
-
-func (j *Import) ResourceJarSpecs() []jarSpec {
-	return j.resourceJarSpecs
 }
 
 func (j *Import) AidlIncludeDirs() android.Paths {
