@@ -232,6 +232,9 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		if amod.commonProperties.Owner != nil {
 			fmt.Fprintln(&data.preamble, "LOCAL_MODULE_OWNER :=", *amod.commonProperties.Owner)
 		}
+		if amod.commonProperties.Notice != nil {
+			fmt.Fprintln(&data.preamble, "LOCAL_NOTICE_FILE :=", "$(LOCAL_PATH)/"+*amod.commonProperties.Notice)
+		}
 	}
 
 	if host {
