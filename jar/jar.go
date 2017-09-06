@@ -19,6 +19,12 @@ import (
 	"strings"
 )
 
+const (
+	MetaDir         = "META-INF/"
+	ManifestFile    = MetaDir + "MANIFEST.MF"
+	ModuleInfoClass = "module-info.class"
+)
+
 // EntryNamesLess tells whether <filepathA> should precede <filepathB> in
 // the order of files with a .jar
 func EntryNamesLess(filepathA string, filepathB string) (less bool) {
@@ -39,9 +45,9 @@ func patternMatch(pattern, name string) bool {
 }
 
 var jarOrder = []string{
-	"META-INF/",
-	"META-INF/MANIFEST.MF",
-	"META-INF/*",
+	MetaDir,
+	ManifestFile,
+	MetaDir + "*",
 	"*",
 }
 
