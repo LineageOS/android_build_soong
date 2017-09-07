@@ -69,6 +69,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		bp += fmt.Sprintf(`
 			java_library {
 				name: "%s",
+				srcs: ["a.java"],
 				no_standard_libs: true,
 			}
 		`, extra)
@@ -112,20 +113,25 @@ func TestSimple(t *testing.T) {
 		`)
 
 	javac := ctx.ModuleForTests("foo", "").Rule("javac")
-	jar := ctx.ModuleForTests("foo", "").Rule("jar")
+	combineJar := ctx.ModuleForTests("foo", "").Rule("combineJar")
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-full-debug.jar")
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes.jar")
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes.jar")
+
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes.list")
-	if !strings.Contains(jar.Args["jarArgs"], baz) {
-		t.Errorf("foo jarArgs %v does not contain %q", jar.Args["jarArgs"], baz)
+	if !strings.Contains(javac.Args["classpath"], baz) {
+		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], baz)
+	}
+
+	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
+		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
 	}
 }
 
@@ -176,7 +182,7 @@ func TestSdk(t *testing.T) {
 
 	check := func(module string, depType depType, deps ...string) {
 		for i := range deps {
-			deps[i] = filepath.Join(buildDir, ".intermediates", deps[i], "classes-full-debug.jar")
+			deps[i] = filepath.Join(buildDir, ".intermediates", deps[i], "classes.jar")
 		}
 		dep := strings.Join(deps, ":")
 
@@ -229,16 +235,15 @@ func TestPrebuilts(t *testing.T) {
 		`)
 
 	javac := ctx.ModuleForTests("foo", "").Rule("javac")
-	jar := ctx.ModuleForTests("foo", "").Rule("jar")
+	combineJar := ctx.ModuleForTests("foo", "").Rule("combineJar")
 
 	bar := "a.jar"
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "extracted0", "classes.list")
-	if !strings.Contains(jar.Args["jarArgs"], baz) {
-		t.Errorf("foo jarArgs %v does not contain %q", jar.Args["jarArgs"], baz)
+	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != "b.jar" {
+		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, "b.jar")
 	}
 }
 
@@ -268,20 +273,20 @@ func TestDefaults(t *testing.T) {
 		`)
 
 	javac := ctx.ModuleForTests("foo", "").Rule("javac")
-	jar := ctx.ModuleForTests("foo", "").Rule("jar")
+	combineJar := ctx.ModuleForTests("foo", "").Rule("combineJar")
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-full-debug.jar")
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes.jar")
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes.list")
-	if !strings.Contains(jar.Args["jarArgs"], baz) {
-		t.Errorf("foo jarArgs %v does not contain %q", jar.Args["jarArgs"], baz)
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes.jar")
+	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
+		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
 	}
 }
 

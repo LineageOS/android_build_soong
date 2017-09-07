@@ -26,15 +26,14 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/java/config")
 
-	JavacHeapSize = "2048M"
-
 	DefaultLibraries = []string{"core-oj", "core-libart", "ext", "framework", "okhttp"}
 )
 
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
 
-	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx"+JavacHeapSize)
+	pctx.StaticVariable("JavacHeapSize", "2048M")
+	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
 
 	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
 		`-Xmaxerrs 9999999`,
@@ -58,8 +57,9 @@ func init() {
 	pctx.SourcePathVariable("JlinkCmd", "${JavaToolchain}/jlink")
 	pctx.SourcePathVariable("JmodCmd", "${JavaToolchain}/jmod")
 
-	pctx.StaticVariable("Zip2ZipCmd", filepath.Join("${bootstrap.ToolDir}", "zip2zip"))
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
+	pctx.StaticVariable("SoongZipCmd", filepath.Join("${bootstrap.ToolDir}", "soong_zip"))
+	pctx.StaticVariable("MergeZipsCmd", filepath.Join("${bootstrap.ToolDir}", "merge_zips"))
 	pctx.HostBinToolVariable("DxCmd", "dx")
 	pctx.HostJavaToolVariable("JarjarCmd", "jarjar.jar")
 
