@@ -26,6 +26,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(library.outputFile),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
@@ -41,6 +42,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.combinedClasspathFile),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
@@ -54,6 +56,7 @@ func (binary *Binary) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(binary.outputFile),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		SubName:    ".jar",
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			android.WriteAndroidMkData(w, data)
