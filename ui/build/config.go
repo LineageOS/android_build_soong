@@ -403,11 +403,7 @@ func (c *configImpl) SoongMakeVarsMk() string {
 }
 
 func (c *configImpl) ProductOut() string {
-	if buildType, ok := c.environ.Get("TARGET_BUILD_TYPE"); ok && buildType == "debug" {
-		return filepath.Join(c.OutDir(), "debug", "target", "product", c.TargetDevice())
-	} else {
-		return filepath.Join(c.OutDir(), "target", "product", c.TargetDevice())
-	}
+	return filepath.Join(c.OutDir(), "target", "product", c.TargetDevice())
 }
 
 func (c *configImpl) DevicePreviousProductConfig() string {
@@ -415,11 +411,7 @@ func (c *configImpl) DevicePreviousProductConfig() string {
 }
 
 func (c *configImpl) hostOutRoot() string {
-	if buildType, ok := c.environ.Get("HOST_BUILD_TYPE"); ok && buildType == "debug" {
-		return filepath.Join(c.OutDir(), "debug", "host")
-	} else {
-		return filepath.Join(c.OutDir(), "host")
-	}
+	return filepath.Join(c.OutDir(), "host")
 }
 
 func (c *configImpl) HostOut() string {
