@@ -28,7 +28,7 @@ import (
 
 var (
 	sortEntries = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
-	sortJava    = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
+	emulateJar  = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
 )
 
 func main() {
@@ -76,7 +76,7 @@ func main() {
 	}
 
 	// do merge
-	if err := mergeZips(readers, writer, *sortEntries, *sortJava); err != nil {
+	if err := mergeZips(readers, writer, *sortEntries, *emulateJar); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -109,7 +109,7 @@ type fileMapping struct {
 	dest   string
 }
 
-func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, sortJava bool) error {
+func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, emulateJar bool) error {
 
 	mappingsByDest := make(map[string]fileMapping, 0)
 	orderedMappings := []fileMapping{}
@@ -128,24 +128,33 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, s
 			source := zipEntry{path: zipEntryPath{zipName: namedReader.path, entryName: file.Name}, content: file}
 			newMapping := fileMapping{source: source, dest: dest}
 
-			// handle duplicates
 			if exists {
+				// handle duplicates
 				wasDir := existingMapping.source.content.FileHeader.FileInfo().IsDir()
 				isDir := newMapping.source.content.FileHeader.FileInfo().IsDir()
-				if !wasDir || !isDir {
+				if wasDir != isDir {
+					return fmt.Errorf("Directory/file mismatch at %v from %v and %v\n",
+						dest, existingMapping.source.path, newMapping.source.path)
+				}
+				if emulateJar &&
+					file.Name == jar.ManifestFile || file.Name == jar.ModuleInfoClass {
+					// Skip manifest and module info files that are not from the first input file
+					continue
+				}
+				if !isDir {
 					return fmt.Errorf("Duplicate path %v found in %v and %v\n",
 						dest, existingMapping.source.path, newMapping.source.path)
 				}
+			} else {
+				// save entry
+				mappingsByDest[mapKey] = newMapping
+				orderedMappings = append(orderedMappings, newMapping)
 			}
-
-			// save entry
-			mappingsByDest[mapKey] = newMapping
-			orderedMappings = append(orderedMappings, newMapping)
 		}
 
 	}
 
-	if sortJava {
+	if emulateJar {
 		jarSort(orderedMappings)
 	} else if sortEntries {
 		alphanumericSort(orderedMappings)
