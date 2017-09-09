@@ -81,7 +81,10 @@ var (
 	windowsAvailableLibraries = addPrefix([]string{
 		"gdi32",
 		"imagehlp",
+		"iphlpapi",
+		"netapi32",
 		"ole32",
+		"powrprof",
 		"psapi",
 		"pthread",
 		"userenv",
