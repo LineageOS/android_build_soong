@@ -337,8 +337,8 @@ func (benchmark *benchmarkDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps
 
 func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Path) {
 	benchmark.data = ctx.ExpandSources(benchmark.Properties.Data, nil)
-	benchmark.binaryDecorator.baseInstaller.dir = filepath.Join("nativetest", ctx.ModuleName())
-	benchmark.binaryDecorator.baseInstaller.dir64 = filepath.Join("nativetest64", ctx.ModuleName())
+	benchmark.binaryDecorator.baseInstaller.dir = filepath.Join("benchmarktest", ctx.ModuleName())
+	benchmark.binaryDecorator.baseInstaller.dir64 = filepath.Join("benchmarktest64", ctx.ModuleName())
 	benchmark.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
@@ -355,7 +355,7 @@ func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
 
 	module, binary := NewBinary(hod)
 	module.multilib = android.MultilibBoth
-	binary.baseInstaller = NewTestInstaller()
+	binary.baseInstaller = NewBaseInstaller("benchmarktest", "benchmarktest64", InstallInData)
 
 	benchmark := &benchmarkDecorator{
 		binaryDecorator: binary,
