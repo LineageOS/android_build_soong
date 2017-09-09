@@ -158,6 +158,13 @@ var (
 		},
 		"asFlags")
 
+	windres = pctx.AndroidStaticRule("windres",
+		blueprint.RuleParams{
+			Command:     "$windresCmd $flags -I$$(dirname $in) -i $in -o $out",
+			CommandDeps: []string{"$windresCmd"},
+		},
+		"windresCmd", "flags")
+
 	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
 	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
@@ -332,7 +339,8 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 
 		objFiles[i] = objFile
 
-		if srcFile.Ext() == ".asm" {
+		switch srcFile.Ext() {
+		case ".asm":
 			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 				Rule:        yasm,
 				Description: "yasm " + srcFile.Rel(),
@@ -341,6 +349,19 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				OrderOnly:   deps,
 				Args: map[string]string{
 					"asFlags": flags.yasmFlags,
+				},
+			})
+			continue
+		case ".rc":
+			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+				Rule:        windres,
+				Description: "windres " + srcFile.Rel(),
+				Output:      objFile,
+				Input:       srcFile,
+				OrderOnly:   deps,
+				Args: map[string]string{
+					"windresCmd": gccCmd(flags.toolchain, "windres"),
+					"flags":      flags.toolchain.WindresFlags(),
 				},
 			})
 			continue
