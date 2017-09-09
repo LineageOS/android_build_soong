@@ -29,7 +29,6 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
 				if library.properties.Installable != nil && *library.properties.Installable == false {
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				}
@@ -45,7 +44,6 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := .jar")
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 			},
 		},
@@ -57,10 +55,10 @@ func (binary *Binary) AndroidMk() android.AndroidMkData {
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(binary.outputFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
-		SubName:    ".jar",
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			android.WriteAndroidMkData(w, data)
 
+			fmt.Fprintln(w, "jar_installed_module := $(LOCAL_INSTALLED_MODULE)")
 			fmt.Fprintln(w, "include $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_MODULE := "+name)
 			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := EXECUTABLES")
@@ -68,9 +66,12 @@ func (binary *Binary) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 			}
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
-			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+name+".jar")
-			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE := "+binary.wrapperFile.String())
+			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", binary.wrapperFile.String())
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
+
+			// Ensure that the wrapper script timestamp is always updated when the jar is updated
+			fmt.Fprintln(w, "$(LOCAL_INSTALLED_MODULE): $(jar_installed_module)")
+			fmt.Fprintln(w, "jar_installed_module :=")
 		},
 	}
 }
