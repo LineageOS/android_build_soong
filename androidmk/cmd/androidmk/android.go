@@ -76,6 +76,7 @@ func init() {
 			"LOCAL_MODULE_OWNER":            "owner",
 			"LOCAL_RENDERSCRIPT_TARGET_API": "renderscript.target_api",
 			"LOCAL_NOTICE_FILE":             "notice",
+			"LOCAL_JAVA_LANGUAGE_VERSION":   "java_version",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -114,6 +115,9 @@ func init() {
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
+
+			"LOCAL_ANNOTATION_PROCESSORS":        "annotation_processors",
+			"LOCAL_ANNOTATION_PROCESSOR_CLASSES": "annotation_processor_classes",
 		})
 	addStandardProperties(bpparser.BoolType,
 		map[string]string{
@@ -685,7 +689,7 @@ var prebuiltTypes = map[string]string{
 	"SHARED_LIBRARIES": "cc_prebuilt_library_shared",
 	"STATIC_LIBRARIES": "cc_prebuilt_library_static",
 	"EXECUTABLES":      "cc_prebuilt_binary",
-	"JAVA_LIBRARIES":   "prebuilt_java_library",
+	"JAVA_LIBRARIES":   "java_import",
 }
 
 var soongModuleTypes = map[string]bool{}
