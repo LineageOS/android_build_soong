@@ -429,6 +429,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 			"-I"+android.PathForModuleGen(ctx, "yacc", ctx.ModuleDir()).String())
 	}
 
+	if compiler.hasSrcExt(".mc") {
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			"-I"+android.PathForModuleGen(ctx, "windmc", ctx.ModuleDir()).String())
+	}
+
 	if compiler.hasSrcExt(".aidl") {
 		if len(compiler.Properties.Aidl.Local_include_dirs) > 0 {
 			localAidlIncludeDirs := android.PathsForModuleSrc(ctx, compiler.Properties.Aidl.Local_include_dirs)
