@@ -62,9 +62,6 @@ type byteReaderCloser struct {
 	io.Closer
 }
 
-// the file path in the zip at which a Java manifest file gets written
-const manifestDest = "META-INF/MANIFEST.MF"
-
 type fileArg struct {
 	pathPrefixInZip, sourcePrefixToStrip string
 	sourceFiles                          []string
@@ -360,7 +357,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		if !*emulateJar {
 			return errors.New("must specify --jar when specifying a manifest via -m")
 		}
-		pathMappings = append(pathMappings, pathMapping{manifestDest, manifest, zip.Deflate})
+		pathMappings = append(pathMappings, pathMapping{jar.ManifestFile, manifest, zip.Deflate})
 	}
 
 	if *emulateJar {
@@ -372,7 +369,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		defer close(z.writeOps)
 
 		for _, ele := range pathMappings {
-			if *emulateJar && ele.dest == manifestDest {
+			if *emulateJar && ele.dest == jar.ManifestFile {
 				err = z.addManifest(ele.dest, ele.src, ele.zipMethod)
 			} else {
 				err = z.addFile(ele.dest, ele.src, ele.zipMethod)
