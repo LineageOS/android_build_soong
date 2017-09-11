@@ -70,3 +70,17 @@ func init() {
 		return "", nil
 	})
 }
+
+func StripJavac9Flags(flags []string) []string {
+	var ret []string
+	for _, f := range flags {
+		switch {
+		case strings.HasPrefix(f, "-J--add-modules="):
+			// drop
+		default:
+			ret = append(ret, f)
+		}
+	}
+
+	return ret
+}
