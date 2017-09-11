@@ -89,7 +89,8 @@ func init() {
 	android.RegisterArchVariants(android.Arm64,
 		"armv8_a",
 		"cortex_a53",
-		"denver64")
+		"denver64",
+		"kryo")
 
 	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
