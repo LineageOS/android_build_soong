@@ -655,8 +655,8 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	if library.Properties.Proto.Export_proto_headers {
 		if library.baseCompiler.hasSrcExt(".proto") {
 			flags := []string{
-				"-I" + protoSubDir(ctx).String(),
-				"-I" + protoDir(ctx).String(),
+				"-I" + android.ProtoSubDir(ctx).String(),
+				"-I" + android.ProtoDir(ctx).String(),
 			}
 			library.reexportFlags(flags)
 			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)

@@ -141,6 +141,11 @@ type BaseCompilerProperties struct {
 		}
 	}
 
+	Proto struct {
+		// Link statically against the protobuf runtime
+		Static bool `android:"arch_variant"`
+	} `android:"arch_variant"`
+
 	// Stores the original list of source files before being cleared by library reuse
 	OriginalSrcs []string `blueprint:"mutated"`
 }
@@ -151,7 +156,7 @@ func NewBaseCompiler() *baseCompiler {
 
 type baseCompiler struct {
 	Properties BaseCompilerProperties
-	Proto      ProtoProperties
+	Proto      android.ProtoProperties
 	deps       android.Paths
 	srcs       android.Paths
 	flags      builderFlags
@@ -188,7 +193,7 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	android.ExtractSourcesDeps(ctx, compiler.Properties.Srcs)
 
 	if compiler.hasSrcExt(".proto") {
-		deps = protoDeps(ctx, deps, &compiler.Proto)
+		deps = protoDeps(ctx, deps, &compiler.Proto, compiler.Properties.Proto.Static)
 	}
 
 	return deps
