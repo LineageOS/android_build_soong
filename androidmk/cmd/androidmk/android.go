@@ -661,6 +661,15 @@ func allJavaFilesUnder(args []string) string {
 	return fmt.Sprintf("%s/**/*.java", dir)
 }
 
+func allProtoFilesUnder(args []string) string {
+	dir := ""
+	if len(args) > 0 {
+		dir = strings.TrimSpace(args[0])
+	}
+
+	return fmt.Sprintf("%s/**/*.proto", dir)
+}
+
 func allSubdirJavaFiles(args []string) string {
 	return "**/*.java"
 }
@@ -699,6 +708,7 @@ func androidScope() mkparser.Scope {
 	globalScope.Set("CLEAR_VARS", clear_vars)
 	globalScope.SetFunc("my-dir", mydir)
 	globalScope.SetFunc("all-java-files-under", allJavaFilesUnder)
+	globalScope.SetFunc("all-proto-files-under", allProtoFilesUnder)
 	globalScope.SetFunc("all-subdir-java-files", allSubdirJavaFiles)
 
 	for k, v := range moduleTypes {

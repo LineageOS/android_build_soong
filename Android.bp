@@ -53,6 +53,7 @@ bootstrap_go_package {
         "android/package_ctx.go",
         "android/paths.go",
         "android/prebuilt.go",
+        "android/proto.go",
         "android/register.go",
         "android/testing.go",
         "android/util.go",
