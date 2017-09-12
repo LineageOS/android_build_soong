@@ -465,7 +465,7 @@ func (ctx *moduleContextImpl) isVndkSp() bool {
 
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
 func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
-	return ctx.ctx.Device() && (ctx.mod.isVndk() || inList(ctx.baseModuleName(), llndkLibraries))
+	return ctx.ctx.Device() && ((ctx.vndk() && ctx.isVndk()) || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
