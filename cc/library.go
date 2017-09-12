@@ -349,7 +349,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		return Objects{}
 	}
 	if ctx.createVndkSourceAbiDump() || library.sabi.Properties.CreateSAbiDumps {
-		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
+		exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
 			SourceAbiFlags = append(SourceAbiFlags, "-I"+dir)
@@ -600,7 +600,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		if versionScript.Valid() {
 			symbolFile = versionScript
 		}
-		exportIncludeDirs := android.PathsForModuleSrc(ctx, library.flagExporter.Properties.Export_include_dirs)
+		exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
 			SourceAbiFlags = append(SourceAbiFlags, "-I"+dir)
