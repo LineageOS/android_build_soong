@@ -16,6 +16,9 @@ package genrule
 
 import (
 	"android/soong/android"
+	"io"
+	"strings"
+	"text/template"
 )
 
 func init() {
@@ -33,6 +36,10 @@ type fileGroupProperties struct {
 	// the base path is stripped off the path and the remaining path is used as the
 	// installation directory.
 	Path string
+
+	// Create a make variable with the specified name that contains the list of files in the
+	// filegroup, relative to the root of the source tree.
+	Export_to_make_var string
 }
 
 type fileGroup struct {
@@ -63,4 +70,25 @@ func (fg *fileGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (fg *fileGroup) Srcs() android.Paths {
 	return fg.srcs
+}
+
+var androidMkTemplate = template.Must(template.New("filegroup").Parse(`
+ifdef {{.makeVar}}
+  $(error variable {{.makeVar}} set by soong module is already set in make)
+endif
+{{.makeVar}} := {{.value}}
+.KATI_READONLY := {{.makeVar}}
+`))
+
+func (fg *fileGroup) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			if makeVar := fg.properties.Export_to_make_var; makeVar != "" {
+				androidMkTemplate.Execute(w, map[string]string{
+					"makeVar": makeVar,
+					"value":   strings.Join(fg.srcs.Strings(), " "),
+				})
+			}
+		},
+	}
 }
