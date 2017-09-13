@@ -32,7 +32,6 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	fileHeader := orig.FileHeader
 	fileHeader.Name = newName
 	fh := &fileHeader
-	fh.Flags |= DataDescriptorFlag
 
 	// The zip64 extras change between the Central Directory and Local File Header, while we use
 	// the same structure for both. The Local File Haeder is taken care of by us writing a data
@@ -57,24 +56,26 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	}
 	io.Copy(w.cw, io.NewSectionReader(orig.zipr, dataOffset, int64(orig.CompressedSize64)))
 
-	// Write data descriptor.
-	var buf []byte
-	if fh.isZip64() {
-		buf = make([]byte, dataDescriptor64Len)
-	} else {
-		buf = make([]byte, dataDescriptorLen)
+	if orig.hasDataDescriptor() {
+		// Write data descriptor.
+		var buf []byte
+		if fh.isZip64() {
+			buf = make([]byte, dataDescriptor64Len)
+		} else {
+			buf = make([]byte, dataDescriptorLen)
+		}
+		b := writeBuf(buf)
+		b.uint32(dataDescriptorSignature)
+		b.uint32(fh.CRC32)
+		if fh.isZip64() {
+			b.uint64(fh.CompressedSize64)
+			b.uint64(fh.UncompressedSize64)
+		} else {
+			b.uint32(fh.CompressedSize)
+			b.uint32(fh.UncompressedSize)
+		}
+		_, err = w.cw.Write(buf)
 	}
-	b := writeBuf(buf)
-	b.uint32(dataDescriptorSignature)
-	b.uint32(fh.CRC32)
-	if fh.isZip64() {
-		b.uint64(fh.CompressedSize64)
-		b.uint64(fh.UncompressedSize64)
-	} else {
-		b.uint32(fh.CompressedSize)
-		b.uint32(fh.UncompressedSize)
-	}
-	_, err = w.cw.Write(buf)
 	return err
 }
 

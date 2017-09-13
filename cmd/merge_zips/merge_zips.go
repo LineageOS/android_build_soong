@@ -26,10 +26,27 @@ import (
 	"android/soong/third_party/zip"
 )
 
+type strip struct{}
+
+func (s *strip) String() string {
+	return `""`
+}
+
+func (s *strip) Set(path_prefix string) error {
+	strippings = append(strippings, path_prefix)
+
+	return nil
+}
+
 var (
 	sortEntries = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
 	emulateJar  = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
+	strippings  []string
 )
+
+func init() {
+	flag.Var(&strip{}, "strip", "the prefix of file path to be excluded from the output zip")
+}
 
 func main() {
 	flag.Usage = func() {
@@ -115,7 +132,13 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, e
 	orderedMappings := []fileMapping{}
 
 	for _, namedReader := range readers {
+	FileLoop:
 		for _, file := range namedReader.reader.File {
+			for _, path_prefix := range strippings {
+				if strings.HasPrefix(file.Name, path_prefix) {
+					continue FileLoop
+				}
+			}
 			// check for other files or directories destined for the same path
 			dest := file.Name
 			mapKey := dest
@@ -142,8 +165,15 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, e
 					continue
 				}
 				if !isDir {
-					return fmt.Errorf("Duplicate path %v found in %v and %v\n",
-						dest, existingMapping.source.path, newMapping.source.path)
+					if emulateJar {
+						if existingMapping.source.content.CRC32 != newMapping.source.content.CRC32 {
+							fmt.Fprintf(os.Stdout, "WARNING: Duplicate path %v found in %v and %v\n",
+								dest, existingMapping.source.path, newMapping.source.path)
+						}
+					} else {
+						return fmt.Errorf("Duplicate path %v found in %v and %v\n",
+							dest, existingMapping.source.path, newMapping.source.path)
+					}
 				}
 			} else {
 				// save entry
@@ -151,7 +181,6 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, e
 				orderedMappings = append(orderedMappings, newMapping)
 			}
 		}
-
 	}
 
 	if emulateJar {
