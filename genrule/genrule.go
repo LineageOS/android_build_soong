@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
 	"android/soong/shared"
@@ -158,21 +159,31 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				// Nothing to do
 			case hostToolDepTag:
 				tool := ctx.OtherModuleName(module)
+				var path android.OptionalPath
 
 				if t, ok := module.(HostToolProvider); ok {
-					p := t.HostToolPath()
-					if p.Valid() {
-						g.deps = append(g.deps, p.Path())
-						if _, exists := tools[tool]; !exists {
-							tools[tool] = p.Path()
-						} else {
-							ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], p.Path().String())
-						}
+					path = t.HostToolPath()
+				} else if t, ok := module.(bootstrap.GoBinaryTool); ok {
+					if s, err := filepath.Rel(android.PathForOutput(ctx).String(), t.InstallPath()); err == nil {
+						path = android.OptionalPathForPath(android.PathForOutput(ctx, s))
 					} else {
-						ctx.ModuleErrorf("host tool %q missing output file", tool)
+						ctx.ModuleErrorf("cannot find path for %q: %v", tool, err)
+						break
 					}
 				} else {
 					ctx.ModuleErrorf("%q is not a host tool provider", tool)
+					break
+				}
+
+				if path.Valid() {
+					g.deps = append(g.deps, path.Path())
+					if _, exists := tools[tool]; !exists {
+						tools[tool] = path.Path()
+					} else {
+						ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], path.Path().String())
+					}
+				} else {
+					ctx.ModuleErrorf("host tool %q missing output file", tool)
 				}
 			default:
 				ctx.ModuleErrorf("unknown dependency on %q", ctx.OtherModuleName(module))
