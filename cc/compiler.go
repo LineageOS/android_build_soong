@@ -23,6 +23,8 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
+
+	"lineage/soong/android"
 )
 
 // This file contains the basic C/C++/assembly to .o compliation steps
@@ -313,6 +315,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		if Bool(ctx.AConfig().ProductVariables.Brillo) {
 			flags.GlobalFlags = append(flags.GlobalFlags, "-D__BRILLO__")
 		}
+
+		cc.compilerFlagsLineage
 
 		if ctx.Device() {
 			if Bool(compiler.Properties.Rtti) {
