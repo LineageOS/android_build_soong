@@ -41,8 +41,11 @@ import (
 type LTOProperties struct {
 	// Lto must violate capitialization style for acronyms so that it can be
 	// referred to in blueprint files as "lto"
-	Lto    *bool `android:"arch_variant"`
-	LTODep bool  `blueprint:"mutated"`
+	Lto struct {
+		Full *bool `android:"arch_variant"`
+		Thin *bool `android:"arch_variant"`
+	} `android:"arch_variant"`
+	LTODep bool `blueprint:"mutated"`
 }
 
 type lto struct {
@@ -61,9 +64,16 @@ func (lto *lto) deps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
-	if Bool(lto.Properties.Lto) {
-		flags.CFlags = append(flags.CFlags, "-flto")
-		flags.LdFlags = append(flags.LdFlags, "-flto")
+	if lto.LTO() {
+		var ltoFlag string
+		if Bool(lto.Properties.Lto.Thin) {
+			ltoFlag = "-flto=thin"
+		} else {
+			ltoFlag = "-flto"
+		}
+
+		flags.CFlags = append(flags.CFlags, ltoFlag)
+		flags.LdFlags = append(flags.LdFlags, ltoFlag)
 		if ctx.Device() {
 			// Work around bug in Clang that doesn't pass correct emulated
 			// TLS option to target
@@ -80,12 +90,20 @@ func (lto *lto) LTO() bool {
 		return false
 	}
 
-	return Bool(lto.Properties.Lto)
+	full := Bool(lto.Properties.Lto.Full)
+	thin := Bool(lto.Properties.Lto.Thin)
+	return full || thin
 }
 
 // Propagate lto requirements down from binaries
 func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 	if c, ok := mctx.Module().(*Module); ok && c.lto.LTO() {
+		full := Bool(c.lto.Properties.Lto.Full)
+		thin := Bool(c.lto.Properties.Lto.Thin)
+		if full && thin {
+			mctx.PropertyErrorf("LTO", "FullLTO and ThinLTO are mutually exclusive")
+		}
+
 		mctx.VisitDepsDepthFirst(func(m blueprint.Module) {
 			tag := mctx.OtherModuleDependencyTag(m)
 			switch tag {
@@ -105,8 +123,8 @@ func ltoMutator(mctx android.BottomUpMutatorContext) {
 			mctx.SetDependencyVariation("lto")
 		} else if c.lto.Properties.LTODep {
 			modules := mctx.CreateVariations("", "lto")
-			modules[0].(*Module).lto.Properties.Lto = boolPtr(false)
-			modules[1].(*Module).lto.Properties.Lto = boolPtr(true)
+			modules[0].(*Module).lto.Properties.Lto.Full = boolPtr(false)
+			modules[0].(*Module).lto.Properties.Lto.Thin = boolPtr(false)
 			modules[0].(*Module).lto.Properties.LTODep = false
 			modules[1].(*Module).lto.Properties.LTODep = false
 			modules[1].(*Module).Properties.PreventInstall = true
