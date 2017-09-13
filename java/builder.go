@@ -78,10 +78,10 @@ var (
 
 	combineJar = pctx.AndroidStaticRule("combineJar",
 		blueprint.RuleParams{
-			Command:     `${config.MergeZipsCmd} -j $out $in`,
+			Command:     `${config.MergeZipsCmd} -j $jarArgs $out $in`,
 			CommandDeps: []string{"${config.MergeZipsCmd}"},
 		},
-		"outDir")
+		"jarArgs")
 
 	dx = pctx.AndroidStaticRule("dx",
 		blueprint.RuleParams{
@@ -126,7 +126,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists an
 
 	classDir := android.PathForModuleOut(ctx, "classes")
 	annoDir := android.PathForModuleOut(ctx, "anno")
-	classJar := android.PathForModuleOut(ctx, "classes.jar")
+	classJar := android.PathForModuleOut(ctx, "classes-compiled.jar")
 
 	javacFlags := flags.javacFlags + android.JoinWithPrefix(srcFileLists.Strings(), "@")
 
@@ -187,7 +187,7 @@ func RunErrorProne(ctx android.ModuleContext, srcFiles android.Paths, srcFileLis
 }
 
 func TransformResourcesToJar(ctx android.ModuleContext, resources []jarSpec,
-	manifest android.OptionalPath, deps android.Paths) android.Path {
+	deps android.Paths) android.Path {
 
 	outputFile := android.PathForModuleOut(ctx, "res.jar")
 
@@ -196,11 +196,6 @@ func TransformResourcesToJar(ctx android.ModuleContext, resources []jarSpec,
 	for _, j := range resources {
 		deps = append(deps, j.fileList)
 		jarArgs = append(jarArgs, j.soongJarArgs())
-	}
-
-	if manifest.Valid() {
-		deps = append(deps, manifest.Path())
-		jarArgs = append(jarArgs, "-m "+manifest.String())
 	}
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
@@ -216,12 +211,25 @@ func TransformResourcesToJar(ctx android.ModuleContext, resources []jarSpec,
 	return outputFile
 }
 
-func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Paths) android.Path {
+func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Paths,
+	manifest android.OptionalPath, stripDirs bool) android.Path {
 
 	outputFile := android.PathForModuleOut(ctx, stem)
 
-	if len(jars) == 1 {
+	if len(jars) == 1 && !manifest.Valid() {
 		return jars[0]
+	}
+
+	var deps android.Paths
+
+	var jarArgs []string
+	if manifest.Valid() {
+		jarArgs = append(jarArgs, "-m "+manifest.String())
+		deps = append(deps, manifest.Path())
+	}
+
+	if stripDirs {
+		jarArgs = append(jarArgs, "-D")
 	}
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
@@ -229,6 +237,10 @@ func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Pat
 		Description: "combine jars",
 		Output:      outputFile,
 		Inputs:      jars,
+		Implicits:   deps,
+		Args: map[string]string{
+			"jarArgs": strings.Join(jarArgs, " "),
+		},
 	})
 
 	return outputFile
