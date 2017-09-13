@@ -407,6 +407,24 @@ cc_library_shared {
 
 }`,
 	},
+	{
+
+		desc: "LOCAL_AIDL_INCLUDES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := iAmAModule
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/src/main/java system/core
+include $(BUILD_SHARED_LIBRARY)`,
+
+		expected: `
+cc_library_shared {
+  name: "iAmAModule",
+  aidl: {
+    include_dirs: ["system/core"],
+    local_include_dirs: ["src/main/java"],
+  }
+}`,
+	},
 }
 
 func reformatBlueprint(input string) string {
