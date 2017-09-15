@@ -25,13 +25,17 @@ import (
 func (library *Library) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(library.outputFile),
+		OutputFile: android.OptionalPathForPath(library.classpathFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if library.properties.Installable != nil && *library.properties.Installable == false {
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				}
+				if library.dexJarFile != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
+				}
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", library.deviceProperties.Sdk_version)
 			},
 		},
 	}
@@ -53,7 +57,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 func (binary *Binary) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(binary.outputFile),
+		OutputFile: android.OptionalPathForPath(binary.classpathFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			android.WriteAndroidMkData(w, data)
