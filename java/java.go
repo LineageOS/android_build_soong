@@ -249,6 +249,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		if dep == nil {
 			switch tag {
 			case android.DefaultsDepTag, android.SourceDepTag:
+				// Nothing to do
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
