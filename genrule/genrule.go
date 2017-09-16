@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
 	"android/soong/shared"
@@ -47,6 +48,12 @@ type SourceFileGenerator interface {
 type HostToolProvider interface {
 	HostToolPath() android.OptionalPath
 }
+
+type hostToolDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+var hostToolDepTag hostToolDependencyTag
 
 type generatorProperties struct {
 	// The command to run on one or more input files. Cmd supports substitution of a few variables
@@ -123,7 +130,7 @@ func (g *generator) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{"arch", ctx.AConfig().BuildOsVariant},
-			}, nil, g.properties.Tools...)
+			}, hostToolDepTag, g.properties.Tools...)
 		}
 	}
 }
@@ -147,21 +154,45 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if len(g.properties.Tools) > 0 {
 		ctx.VisitDirectDeps(func(module blueprint.Module) {
-			if t, ok := module.(HostToolProvider); ok {
-				p := t.HostToolPath()
-				if p.Valid() {
-					g.deps = append(g.deps, p.Path())
-					tool := ctx.OtherModuleName(module)
-					if _, exists := tools[tool]; !exists {
-						tools[tool] = p.Path()
+			switch ctx.OtherModuleDependencyTag(module) {
+			case android.SourceDepTag:
+				// Nothing to do
+			case hostToolDepTag:
+				tool := ctx.OtherModuleName(module)
+				var path android.OptionalPath
+
+				if t, ok := module.(HostToolProvider); ok {
+					path = t.HostToolPath()
+				} else if t, ok := module.(bootstrap.GoBinaryTool); ok {
+					if s, err := filepath.Rel(android.PathForOutput(ctx).String(), t.InstallPath()); err == nil {
+						path = android.OptionalPathForPath(android.PathForOutput(ctx, s))
 					} else {
-						ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], p.Path().String())
+						ctx.ModuleErrorf("cannot find path for %q: %v", tool, err)
+						break
 					}
 				} else {
-					ctx.ModuleErrorf("host tool %q missing output file", ctx.OtherModuleName(module))
+					ctx.ModuleErrorf("%q is not a host tool provider", tool)
+					break
 				}
+
+				if path.Valid() {
+					g.deps = append(g.deps, path.Path())
+					if _, exists := tools[tool]; !exists {
+						tools[tool] = path.Path()
+					} else {
+						ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], path.Path().String())
+					}
+				} else {
+					ctx.ModuleErrorf("host tool %q missing output file", tool)
+				}
+			default:
+				ctx.ModuleErrorf("unknown dependency on %q", ctx.OtherModuleName(module))
 			}
 		})
+	}
+
+	if ctx.Failed() {
+		return
 	}
 
 	for _, tool := range g.properties.Tool_files {
