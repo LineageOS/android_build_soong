@@ -40,6 +40,12 @@ func init() {
 		`-encoding UTF-8`,
 		`-sourcepath ""`,
 		`-g`,
+		// Turbine leaves out bridges which can cause javac to unnecessarily insert them into
+		// subclasses (b/65645120).  Setting this flag causes our custom javac to assume that
+		// the missing bridges will exist at runtime and not recreate them in subclasses.
+		// If a different javac is used the flag will be ignored and extra bridges will be inserted.
+		// The flag is implemented by https://android-review.googlesource.com/c/486427
+		`-XDskipDuplicateBridges=true`,
 	}, " "))
 
 	pctx.StaticVariable("DefaultJavaVersion", "1.8")
