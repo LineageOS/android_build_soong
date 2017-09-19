@@ -53,6 +53,11 @@ func (object *objectLinker) linkerProps() []interface{} {
 func (*objectLinker) linkerInit(ctx BaseModuleContext) {}
 
 func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
+	if !ctx.noDefaultCompilerFlags() && ctx.toolchain().Bionic() {
+		// Needed for VNDK builds where bionic headers aren't automatically added.
+		deps.LateSharedLibs = append(deps.LateSharedLibs, "libc")
+	}
+
 	deps.ObjFiles = append(deps.ObjFiles, object.Properties.Objs...)
 	return deps
 }
