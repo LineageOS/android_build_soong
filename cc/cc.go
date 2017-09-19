@@ -140,6 +140,9 @@ type Flags struct {
 type ObjectLinkerProperties struct {
 	// names of other cc_object modules to link into this module using partial linking
 	Objs []string `android:"arch_variant"`
+
+	// if set, add an extra objcopy --prefix-symbols= step
+	Prefix_symbols string
 }
 
 // Properties used to compile all C or C++ modules
