@@ -28,8 +28,8 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("gensrcs", GenSrcsFactory)
-	android.RegisterModuleType("genrule", GenRuleFactory)
+	android.RegisterModuleType("gensrcs", genSrcsFactory)
+	android.RegisterModuleType("genrule", genRuleFactory)
 }
 
 var (
@@ -90,8 +90,12 @@ type generatorProperties struct {
 	Srcs []string
 }
 
-type generator struct {
+type Module struct {
 	android.ModuleBase
+
+	// For other packages to make their own genrules with extra
+	// properties
+	Extra interface{}
 
 	properties generatorProperties
 
@@ -112,21 +116,21 @@ type generateTask struct {
 	out android.WritablePaths
 }
 
-func (g *generator) GeneratedSourceFiles() android.Paths {
+func (g *Module) GeneratedSourceFiles() android.Paths {
 	return g.outputFiles
 }
 
-func (g *generator) Srcs() android.Paths {
+func (g *Module) Srcs() android.Paths {
 	return g.outputFiles
 }
 
-func (g *generator) GeneratedHeaderDirs() android.Paths {
+func (g *Module) GeneratedHeaderDirs() android.Paths {
 	return g.exportedIncludeDirs
 }
 
-func (g *generator) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, g.properties.Srcs)
-	if g, ok := ctx.Module().(*generator); ok {
+	if g, ok := ctx.Module().(*Module); ok {
 		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{"arch", ctx.AConfig().BuildOsVariant},
@@ -135,7 +139,7 @@ func (g *generator) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
 		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
 		return
@@ -275,7 +279,7 @@ func (g *generator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateTask) {
+func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask) {
 	desc := "generate"
 	if len(task.out) == 1 {
 		desc += " " + task.out[0].Base()
@@ -299,20 +303,18 @@ func (g *generator) generateSourceFile(ctx android.ModuleContext, task generateT
 	}
 }
 
-func generatorFactory(tasks taskFunc, props ...interface{}) android.Module {
-	module := &generator{
+func generatorFactory(tasks taskFunc, props ...interface{}) *Module {
+	module := &Module{
 		tasks: tasks,
 	}
 
 	module.AddProperties(props...)
 	module.AddProperties(&module.properties)
 
-	android.InitAndroidModule(module)
-
 	return module
 }
 
-func GenSrcsFactory() android.Module {
+func NewGenSrcs() *Module {
 	properties := &genSrcsProperties{}
 
 	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
@@ -329,12 +331,18 @@ func GenSrcsFactory() android.Module {
 	return generatorFactory(tasks, properties)
 }
 
+func genSrcsFactory() android.Module {
+	m := NewGenSrcs()
+	android.InitAndroidModule(m)
+	return m
+}
+
 type genSrcsProperties struct {
 	// extension that will be substituted for each output file
 	Output_extension string
 }
 
-func GenRuleFactory() android.Module {
+func NewGenRule() *Module {
 	properties := &genRuleProperties{}
 
 	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
@@ -351,6 +359,12 @@ func GenRuleFactory() android.Module {
 	}
 
 	return generatorFactory(tasks, properties)
+}
+
+func genRuleFactory() android.Module {
+	m := NewGenRule()
+	android.InitAndroidModule(m)
+	return m
 }
 
 type genRuleProperties struct {
