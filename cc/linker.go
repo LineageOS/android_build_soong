@@ -43,10 +43,6 @@ type BaseLinkerProperties struct {
 	// list of module-specific flags that will be used for all link steps
 	Ldflags []string `android:"arch_variant"`
 
-	// don't insert default compiler flags into asflags, cflags,
-	// cppflags, conlyflags, ldflags, or include_dirs
-	No_default_compiler_flags *bool
-
 	// list of system libraries that will be dynamically linked to
 	// shared library and executable modules.  If unset, generally defaults to libc,
 	// libm, and libdl.  Set to [] to prevent linking against the defaults.
