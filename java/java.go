@@ -713,9 +713,11 @@ func (j *sdkPrebuilt) AidlPreprocessed() android.OptionalPath {
 func SdkPrebuiltFactory() android.Module {
 	module := &sdkPrebuilt{}
 
-	module.AddProperties(&module.sdkProperties)
+	module.AddProperties(
+		&module.sdkProperties,
+		&module.Import.properties)
 
-	android.InitPrebuiltModule(module, &module.properties.Jars)
+	android.InitPrebuiltModule(module, &module.Import.properties.Jars)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	return module
 }
