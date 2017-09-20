@@ -154,6 +154,14 @@ type BaseProperties struct {
 	// cppflags, conlyflags, ldflags, or include_dirs
 	No_default_compiler_flags *bool
 
+	AndroidMkSharedLibs []string `blueprint:"mutated"`
+	HideFromMake        bool     `blueprint:"mutated"`
+	PreventInstall      bool     `blueprint:"mutated"`
+
+	UseVndk bool `blueprint:"mutated"`
+}
+
+type VendorProperties struct {
 	// whether this module should be allowed to install onto /vendor as
 	// well as /system. The two variants will be built separately, one
 	// like normal, and the other limited to the set of libraries and
@@ -166,12 +174,6 @@ type BaseProperties struct {
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	Vendor_available *bool
-
-	AndroidMkSharedLibs []string `blueprint:"mutated"`
-	HideFromMake        bool     `blueprint:"mutated"`
-	PreventInstall      bool     `blueprint:"mutated"`
-
-	UseVndk bool `blueprint:"mutated"`
 }
 
 type UnusedProperties struct {
@@ -281,8 +283,9 @@ type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
-	Properties BaseProperties
-	unused     UnusedProperties
+	Properties       BaseProperties
+	VendorProperties VendorProperties
+	unused           UnusedProperties
 
 	// initialize before calling Init
 	hod      android.HostOrDeviceSupported
@@ -313,7 +316,7 @@ type Module struct {
 }
 
 func (c *Module) Init() android.Module {
-	c.AddProperties(&c.Properties, &c.unused)
+	c.AddProperties(&c.Properties, &c.VendorProperties, &c.unused)
 	if c.compiler != nil {
 		c.AddProperties(c.compiler.compilerProps()...)
 	}
@@ -1127,7 +1130,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			libName := strings.TrimSuffix(name, llndkLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
 			isLLndk := inList(libName, llndkLibraries)
-			if c.vndk() && (Bool(cc.Properties.Vendor_available) || isLLndk) {
+			if c.vndk() && (Bool(cc.VendorProperties.Vendor_available) || isLLndk) {
 				libName += vendorSuffix
 			}
 			// Note: the order of libs in this list is not important because
@@ -1178,6 +1181,13 @@ func (c *Module) IntermPathForModuleOut() android.OptionalPath {
 	return c.outputFile
 }
 
+func (c *Module) Srcs() android.Paths {
+	if c.outputFile.Valid() {
+		return android.Paths{c.outputFile.Path()}
+	}
+	return android.Paths{}
+}
+
 //
 // Defaults
 //
@@ -1202,6 +1212,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(props...)
 	module.AddProperties(
 		&BaseProperties{},
+		&VendorProperties{},
 		&BaseCompilerProperties{},
 		&BaseLinkerProperties{},
 		&LibraryProperties{},
@@ -1241,19 +1252,33 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 
+	if genrule, ok := mctx.Module().(*genrule.Module); ok {
+		if props, ok := genrule.Extra.(*VendorProperties); ok {
+			if !mctx.DeviceConfig().CompileVndk() {
+				mctx.CreateVariations(coreMode)
+			} else if Bool(props.Vendor_available) {
+				mctx.CreateVariations(coreMode, vendorMode)
+			} else if mctx.Vendor() {
+				mctx.CreateVariations(vendorMode)
+			} else {
+				mctx.CreateVariations(coreMode)
+			}
+		}
+	}
+
 	m, ok := mctx.Module().(*Module)
 	if !ok {
 		return
 	}
 
 	// Sanity check
-	if Bool(m.Properties.Vendor_available) && mctx.Vendor() {
+	if Bool(m.VendorProperties.Vendor_available) && mctx.Vendor() {
 		mctx.PropertyErrorf("vendor_available",
 			"doesn't make sense at the same time as `vendor: true` or `proprietary: true`")
 		return
 	}
 	if vndk := m.vndkdep; vndk != nil {
-		if vndk.isVndk() && !Bool(m.Properties.Vendor_available) {
+		if vndk.isVndk() && !Bool(m.VendorProperties.Vendor_available) {
 			mctx.PropertyErrorf("vndk",
 				"has to define `vendor_available: true` to enable vndk")
 			return
@@ -1273,7 +1298,7 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		// LL-NDK stubs only exist in the vendor variant, since the
 		// real libraries will be used in the core variant.
 		mctx.CreateVariations(vendorMode)
-	} else if Bool(m.Properties.Vendor_available) {
+	} else if Bool(m.VendorProperties.Vendor_available) {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
 		mod := mctx.CreateVariations(coreMode, vendorMode)

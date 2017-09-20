@@ -150,6 +150,8 @@ bootstrap_go_package {
         "cc/llndk_library.go",
 
         "cc/kernel_headers.go",
+
+        "cc/genrule.go",
     ],
     testSrcs: [
         "cc/cc_test.go",
