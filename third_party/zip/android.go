@@ -20,6 +20,7 @@ import (
 )
 
 const DataDescriptorFlag = 0x8
+const ExtendedTimeStampTag = 0x5455
 
 func (w *Writer) CopyFrom(orig *File, newName string) error {
 	if w.last != nil && !w.last.closed {
@@ -33,11 +34,9 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	fileHeader.Name = newName
 	fh := &fileHeader
 
-	// The zip64 extras change between the Central Directory and Local File Header, while we use
-	// the same structure for both. The Local File Haeder is taken care of by us writing a data
-	// descriptor with the zip64 values. The Central Directory Entry is written by Close(), where
-	// the zip64 extra is automatically created and appended when necessary.
-	fh.Extra = stripZip64Extras(fh.Extra)
+	// In some cases, we need strip the extras if it change between Central Directory
+	// and Local File Header.
+	fh.Extra = stripExtras(fh.Extra)
 
 	h := &header{
 		FileHeader: fh,
@@ -48,8 +47,6 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	if err := writeHeader(w.cw, fh); err != nil {
 		return err
 	}
-
-	// Copy data
 	dataOffset, err := orig.DataOffset()
 	if err != nil {
 		return err
@@ -79,8 +76,16 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	return err
 }
 
-// Strip any Zip64 extra fields
-func stripZip64Extras(input []byte) []byte {
+// The zip64 extras change between the Central Directory and Local File Header, while we use
+// the same structure for both. The Local File Haeder is taken care of by us writing a data
+// descriptor with the zip64 values. The Central Directory Entry is written by Close(), where
+// the zip64 extra is automatically created and appended when necessary.
+//
+// The extended-timestamp extra block changes between the Central Directory Header and Local
+// File Header.
+// Extended-Timestamp extra(LFH): <tag-size-flag-modtime-actime-changetime>
+// Extended-Timestamp extra(CDH): <tag-size-flag-modtime>
+func stripExtras(input []byte) []byte {
 	ret := []byte{}
 
 	for len(input) >= 4 {
@@ -90,7 +95,7 @@ func stripZip64Extras(input []byte) []byte {
 		if int(size) > len(r) {
 			break
 		}
-		if tag != zip64ExtraId {
+		if tag != zip64ExtraId && tag != ExtendedTimeStampTag {
 			ret = append(ret, input[:4+size]...)
 		}
 		input = input[4+size:]
