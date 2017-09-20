@@ -15,10 +15,45 @@
 package cc
 
 import (
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
+
+func init() {
+	pctx.HostBinToolVariable("protocCmd", "aprotoc")
+}
+
+var (
+	proto = pctx.AndroidStaticRule("protoc",
+		blueprint.RuleParams{
+			Command:     "$protocCmd --cpp_out=$outDir $protoFlags $in",
+			CommandDeps: []string{"$protocCmd"},
+		}, "protoFlags", "outDir")
+)
+
+// genProto creates a rule to convert a .proto file to generated .pb.cc and .pb.h files and returns
+// the paths to the generated files.
+func genProto(ctx android.ModuleContext, protoFile android.Path,
+	protoFlags string) (ccFile, headerFile android.WritablePath) {
+
+	ccFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
+	headerFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:        proto,
+		Description: "protoc " + protoFile.Rel(),
+		Outputs:     android.WritablePaths{ccFile, headerFile},
+		Input:       protoFile,
+		Args: map[string]string{
+			"outDir":     android.ProtoDir(ctx).String(),
+			"protoFlags": protoFlags,
+		},
+	})
+
+	return ccFile, headerFile
+}
 
 func protoDeps(ctx BaseModuleContext, deps Deps, p *android.ProtoProperties, static bool) Deps {
 	var lib string
