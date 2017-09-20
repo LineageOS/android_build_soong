@@ -59,11 +59,16 @@ var stripZip64Testcases = []struct {
 		in:   []byte{0, 0, 8, 0, 0, 0},
 		out:  []byte{0, 0, 8, 0, 0, 0},
 	},
+	{
+		name: "zip64 extra and extended-timestamp extra and valid non-zip64 extra",
+		in:   []byte{1, 0, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 85, 84, 5, 0, 1, 1, 2, 3, 4, 2, 0, 0, 0},
+		out:  []byte{2, 0, 0, 0},
+	},
 }
 
 func TestStripZip64Extras(t *testing.T) {
 	for _, testcase := range stripZip64Testcases {
-		got := stripZip64Extras(testcase.in)
+		got := stripExtras(testcase.in)
 		if !bytes.Equal(got, testcase.out) {
 			t.Errorf("Failed testcase %s\ninput: %v\n want: %v\n  got: %v\n", testcase.name, testcase.in, testcase.out, got)
 		}
