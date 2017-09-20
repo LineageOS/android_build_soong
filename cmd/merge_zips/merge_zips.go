@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -26,26 +27,40 @@ import (
 	"android/soong/third_party/zip"
 )
 
-type strip struct{}
+type stripDir struct{}
 
-func (s *strip) String() string {
+func (s *stripDir) String() string {
 	return `""`
 }
 
-func (s *strip) Set(path_prefix string) error {
-	strippings = append(strippings, path_prefix)
+func (s *stripDir) Set(dir string) error {
+	stripDirs = append(stripDirs, filepath.Clean(dir))
+
+	return nil
+}
+
+type zipToNotStrip struct{}
+
+func (s *zipToNotStrip) String() string {
+	return `""`
+}
+
+func (s *zipToNotStrip) Set(zip_path string) error {
+	zipsToNotStrip[zip_path] = true
 
 	return nil
 }
 
 var (
-	sortEntries = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
-	emulateJar  = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
-	strippings  []string
+	sortEntries    = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
+	emulateJar     = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
+	stripDirs      []string
+	zipsToNotStrip = make(map[string]bool)
 )
 
 func init() {
-	flag.Var(&strip{}, "strip", "the prefix of file path to be excluded from the output zip")
+	flag.Var(&stripDir{}, "stripDir", "the prefix of file path to be excluded from the output zip")
+	flag.Var(&zipToNotStrip{}, "zipToNotStrip", "the input zip file which is not applicable for stripping")
 }
 
 func main() {
@@ -132,11 +147,20 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, sortEntries bool, e
 	orderedMappings := []fileMapping{}
 
 	for _, namedReader := range readers {
+		_, skipStripThisZip := zipsToNotStrip[namedReader.path]
 	FileLoop:
 		for _, file := range namedReader.reader.File {
-			for _, path_prefix := range strippings {
-				if strings.HasPrefix(file.Name, path_prefix) {
-					continue FileLoop
+			if !skipStripThisZip {
+				for _, dir := range stripDirs {
+					if strings.HasPrefix(file.Name, dir+"/") {
+						if emulateJar {
+							if file.Name != jar.MetaDir && file.Name != jar.ManifestFile {
+								continue FileLoop
+							}
+						} else {
+							continue FileLoop
+						}
+					}
 				}
 			}
 			// check for other files or directories destined for the same path
