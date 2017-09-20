@@ -18,5 +18,8 @@ bootstrap_go_package {
     srcs: [
         "jar.go",
     ],
+    deps: [
+        "android-archive-zip",
+    ],
 }
 
