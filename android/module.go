@@ -926,7 +926,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 	checkbuildDeps := []string{}
 
 	mmTarget := func(dir string) string {
-		return filepath.Join("mm", dir)
+		return "MODULES-IN-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
 	}
 
 	modulesInDir := make(map[string][]string)
@@ -961,6 +961,11 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		Optional:  true,
 	})
 
+	// Make will generate the MODULES-IN-* targets
+	if ctx.Config().(Config).EmbeddedInMake() {
+		return
+	}
+
 	// Ensure ancestor directories are in modulesInDir
 	dirs := sortedKeys(modulesInDir)
 	for _, dir := range dirs {
@@ -983,8 +988,9 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		}
 	}
 
-	// Create a mm/<directory> target that depends on all modules in a directory, and depends
-	// on the mm/* targets of all of its subdirectories that contain Android.bp files.
+	// Create a MODULES-IN-<directory> target that depends on all modules in a directory, and
+	// depends on the MODULES-IN-* targets of all of its subdirectories that contain Android.bp
+	// files.
 	for _, dir := range dirs {
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
