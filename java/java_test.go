@@ -56,8 +56,10 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory))
+	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.RegisterModuleType("android_prebuilt_sdk", android.ModuleFactoryAdaptor(SdkPrebuiltFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -69,7 +71,9 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		"framework",
 		"ext",
 		"okhttp",
-		"sdk_v14",
+		"android_stubs_current",
+		"android_system_stubs_current",
+		"android_test_stubs_current",
 	}
 
 	for _, extra := range extraModules {
@@ -82,13 +86,21 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		`, extra)
 	}
 
+	bp += `
+		android_prebuilt_sdk {
+			name: "sdk_v14",
+			jars: ["sdk_v14.jar"],
+		}
+	`
+
 	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp": []byte(bp),
-		"a.java":     nil,
-		"b.java":     nil,
-		"c.java":     nil,
-		"a.jar":      nil,
-		"b.jar":      nil,
+		"Android.bp":  []byte(bp),
+		"a.java":      nil,
+		"b.java":      nil,
+		"c.java":      nil,
+		"a.jar":       nil,
+		"b.jar":       nil,
+		"sdk_v14.jar": nil,
 	})
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -97,6 +109,17 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	fail(t, errs)
 
 	return ctx
+}
+
+func moduleToPath(name string) string {
+	switch {
+	case name == `""`:
+		return name
+	case strings.HasPrefix(name, "sdk_v"):
+		return name + ".jar"
+	default:
+		return filepath.Join(buildDir, ".intermediates", name, "android_common", "classes-desugar.jar")
+	}
 }
 
 func TestSimple(t *testing.T) {
@@ -142,85 +165,130 @@ func TestSimple(t *testing.T) {
 	}
 }
 
-func TestSdk(t *testing.T) {
-	t.Skip("not working yet")
+var classpathTestcases = []struct {
+	name          string
+	host          android.OsClass
+	properties    string
+	bootclasspath []string
+	classpath     []string
+}{
+	{
+		name:          "default",
+		bootclasspath: []string{"core-oj", "core-libart"},
+		classpath:     []string{"ext", "framework", "okhttp"},
+	},
+	{
+		name:          "blank sdk version",
+		properties:    `sdk_version: "",`,
+		bootclasspath: []string{"core-oj", "core-libart"},
+		classpath:     []string{"ext", "framework", "okhttp"},
+	},
+	{
 
-	ctx := testJava(t, `
-		java_library {
-			name: "foo1",
-			srcs: ["a.java"],
-		}
+		name:          "sdk v14",
+		properties:    `sdk_version: "14",`,
+		bootclasspath: []string{"sdk_v14"},
+		classpath:     []string{},
+	},
+	{
 
-		java_library {
-			name: "foo2",
-			srcs: ["a.java"],
-			sdk_version: "",
-		}
+		name:          "current",
+		properties:    `sdk_version: "current",`,
+		bootclasspath: []string{"android_stubs_current"},
+		classpath:     []string{},
+	},
+	{
 
-		java_library {
-			name: "foo3",
-			srcs: ["a.java"],
-			sdk_version: "14",
-		}
+		name:          "system_current",
+		properties:    `sdk_version: "system_current",`,
+		bootclasspath: []string{"android_system_stubs_current"},
+		classpath:     []string{},
+	},
+	{
 
-		java_library {
-			name: "foo4",
-			srcs: ["a.java"],
-			sdk_version: "current",
-		}
+		name:          "test_current",
+		properties:    `sdk_version: "test_current",`,
+		bootclasspath: []string{"android_test_stubs_current"},
+		classpath:     []string{},
+	},
+	{
 
-		java_library {
-			name: "foo5",
-			srcs: ["a.java"],
-			sdk_version: "system_current",
-		}
+		name:          "nostdlib",
+		properties:    `no_standard_libs: true`,
+		bootclasspath: []string{`""`},
+		classpath:     []string{},
+	},
+	{
 
-		java_library {
-			name: "foo6",
-			srcs: ["a.java"],
-			sdk_version: "test_current",
-		}
-		`)
+		name:       "host default",
+		host:       android.Host,
+		properties: ``,
+		classpath:  []string{},
+	},
+	{
+		name:       "host nostdlib",
+		host:       android.Host,
+		properties: `no_standard_libs: true`,
+		classpath:  []string{},
+	},
+}
 
-	type depType int
-	const (
-		staticLib = iota
-		classpathLib
-		bootclasspathLib
-	)
+func TestClasspath(t *testing.T) {
+	for _, testcase := range classpathTestcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			hostExtra := ""
+			if testcase.host == android.Host {
+				hostExtra = "_host"
+			}
+			ctx := testJava(t, `
+			java_library`+hostExtra+` {
+				name: "foo",
+				srcs: ["a.java"],
+				`+testcase.properties+`
+			}
+			`)
 
-	check := func(module string, depType depType, deps ...string) {
-		for i := range deps {
-			deps[i] = filepath.Join(buildDir, ".intermediates", deps[i], "classes-desugar.jar")
-		}
-		dep := strings.Join(deps, ":")
+			convertModulesToPaths := func(cp []string) []string {
+				ret := make([]string, len(cp))
+				for i, e := range cp {
+					ret[i] = moduleToPath(e)
+				}
+				return ret
+			}
 
-		javac := ctx.ModuleForTests(module, "").Rule("javac")
+			bootclasspath := convertModulesToPaths(testcase.bootclasspath)
+			classpath := convertModulesToPaths(testcase.classpath)
 
-		if depType == bootclasspathLib {
+			variant := "android_common"
+			if testcase.host == android.Host {
+				variant = android.BuildOs.String() + "_common"
+			}
+			javac := ctx.ModuleForTests("foo", variant).Rule("javac")
+
 			got := strings.TrimPrefix(javac.Args["bootClasspath"], "-bootclasspath ")
-			if got != dep {
-				t.Errorf("module %q bootclasspath %q != %q", module, got, dep)
+			bc := strings.Join(bootclasspath, ":")
+			if got != bc {
+				t.Errorf("bootclasspath expected %q != got %q", bc, got)
 			}
-		} else if depType == classpathLib {
-			got := strings.TrimPrefix(javac.Args["classpath"], "-classpath ")
-			if got != dep {
-				t.Errorf("module %q classpath %q != %q", module, got, dep)
-			}
-		}
 
-		if !reflect.DeepEqual(javac.Implicits.Strings(), deps) {
-			t.Errorf("module %q implicits %q != %q", module, javac.Implicits.Strings(), deps)
-		}
+			got = strings.TrimPrefix(javac.Args["classpath"], "-classpath ")
+			c := strings.Join(classpath, ":")
+			if got != c {
+				t.Errorf("classpath expected %q != got %q", c, got)
+			}
+
+			var deps []string
+			if len(bootclasspath) > 0 && bootclasspath[0] != `""` {
+				deps = append(deps, bootclasspath...)
+			}
+			deps = append(deps, classpath...)
+
+			if !reflect.DeepEqual(javac.Implicits.Strings(), deps) {
+				t.Errorf("implicits expected %q != got %q", deps, javac.Implicits.Strings())
+			}
+		})
 	}
 
-	check("foo1", bootclasspathLib, "core-oj", "core-libart")
-	check("foo2", bootclasspathLib, "core-oj", "core-libart")
-	// TODO(ccross): these need the arch mutator to run to work correctly
-	//check("foo3", bootclasspathLib, "sdk_v14")
-	//check("foo4", bootclasspathLib, "android_stubs_current")
-	//check("foo5", bootclasspathLib, "android_system_stubs_current")
-	//check("foo6", bootclasspathLib, "android_test_stubs_current")
 }
 
 func TestPrebuilts(t *testing.T) {
