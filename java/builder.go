@@ -83,12 +83,27 @@ var (
 		},
 		"jarArgs")
 
+	desugar = pctx.AndroidStaticRule("desugar",
+		blueprint.RuleParams{
+			Command: `rm -rf $dumpDir && mkdir -p $dumpDir && ` +
+				`${config.JavaCmd} ` +
+				`-Djdk.internal.lambda.dumpProxyClasses=$$(cd $dumpDir && pwd) ` +
+				`$javaFlags ` +
+				`-jar ${config.DesugarJar} $classpathFlags $desugarFlags ` +
+				`-i $in -o $out`,
+			CommandDeps: []string{"${config.DesugarJar}"},
+		},
+		"javaFlags", "classpathFlags", "desugarFlags", "dumpDir")
+
 	dx = pctx.AndroidStaticRule("dx",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${config.DxCmd} --dex --output=$outDir $dxFlags $in || ( rm -rf "$outDir"; exit 41 ) && ` +
-				`find "$outDir" -name "classes*.dex" | sort > $out`,
-			CommandDeps: []string{"${config.DxCmd}"},
+				`${config.DxCmd} --dex --output=$outDir $dxFlags $in && ` +
+				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+			CommandDeps: []string{
+				"${config.DxCmd}",
+				"${config.SoongZipCmd}",
+			},
 		},
 		"outDir", "dxFlags")
 
@@ -107,8 +122,9 @@ func init() {
 type javaBuilderFlags struct {
 	javacFlags    string
 	dxFlags       string
-	bootClasspath string
-	classpath     string
+	bootClasspath classpath
+	classpath     classpath
+	desugarFlags  string
 	aidlFlags     string
 	javaVersion   string
 }
@@ -131,6 +147,8 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists an
 	javacFlags := flags.javacFlags + android.JoinWithPrefix(srcFileLists.Strings(), "@")
 
 	deps = append(deps, srcFileLists...)
+	deps = append(deps, flags.bootClasspath...)
+	deps = append(deps, flags.classpath...)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        javac,
@@ -140,8 +158,8 @@ func TransformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists an
 		Implicits:   deps,
 		Args: map[string]string{
 			"javacFlags":    javacFlags,
-			"bootClasspath": flags.bootClasspath,
-			"classpath":     flags.classpath,
+			"bootClasspath": flags.bootClasspath.JavaBootClasspath(ctx.Device()),
+			"classpath":     flags.classpath.JavaClasspath(),
 			"outDir":        classDir.String(),
 			"annoDir":       annoDir.String(),
 			"javaVersion":   flags.javaVersion,
@@ -166,6 +184,8 @@ func RunErrorProne(ctx android.ModuleContext, srcFiles android.Paths, srcFileLis
 	javacFlags := flags.javacFlags + android.JoinWithPrefix(srcFileLists.Strings(), "@")
 
 	deps = append(deps, srcFileLists...)
+	deps = append(deps, flags.bootClasspath...)
+	deps = append(deps, flags.classpath...)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        errorprone,
@@ -175,8 +195,8 @@ func RunErrorProne(ctx android.ModuleContext, srcFiles android.Paths, srcFileLis
 		Implicits:   deps,
 		Args: map[string]string{
 			"javacFlags":    javacFlags,
-			"bootClasspath": flags.bootClasspath,
-			"classpath":     flags.classpath,
+			"bootClasspath": flags.bootClasspath.JavaBootClasspath(ctx.Device()),
+			"classpath":     flags.classpath.JavaClasspath(),
 			"outDir":        classDir.String(),
 			"annoDir":       annoDir.String(),
 			"javaVersion":   flags.javaVersion,
@@ -246,11 +266,47 @@ func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Pat
 	return outputFile
 }
 
-func TransformClassesJarToDex(ctx android.ModuleContext, classesJar android.Path,
-	flags javaBuilderFlags) jarSpec {
+func TransformDesugar(ctx android.ModuleContext, classesJar android.Path,
+	flags javaBuilderFlags) android.Path {
+
+	outputFile := android.PathForModuleOut(ctx, "classes-desugar.jar")
+	dumpDir := android.PathForModuleOut(ctx, "desugar_dumped_classes")
+
+	javaFlags := ""
+	if ctx.AConfig().Getenv("EXPERIMENTAL_USE_OPENJDK9") != "" {
+		javaFlags = "--add-opens java.base/java.lang.invoke=ALL-UNNAMED"
+	}
+
+	var desugarFlags []string
+	desugarFlags = append(desugarFlags, flags.bootClasspath.DesugarBootClasspath()...)
+	desugarFlags = append(desugarFlags, flags.classpath.DesugarClasspath()...)
+
+	var deps android.Paths
+	deps = append(deps, flags.bootClasspath...)
+	deps = append(deps, flags.classpath...)
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:        desugar,
+		Description: "desugar",
+		Output:      outputFile,
+		Input:       classesJar,
+		Implicits:   deps,
+		Args: map[string]string{
+			"dumpDir":        dumpDir.String(),
+			"javaFlags":      javaFlags,
+			"classpathFlags": strings.Join(desugarFlags, " "),
+			"desugarFlags":   flags.desugarFlags,
+		},
+	})
+
+	return outputFile
+}
+
+func TransformClassesJarToDexJar(ctx android.ModuleContext, classesJar android.Path,
+	flags javaBuilderFlags) android.Path {
 
 	outDir := android.PathForModuleOut(ctx, "dex")
-	outputFile := android.PathForModuleOut(ctx, "dex.filelist")
+	outputFile := android.PathForModuleOut(ctx, "classes.dex.jar")
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        dx,
@@ -260,34 +316,6 @@ func TransformClassesJarToDex(ctx android.ModuleContext, classesJar android.Path
 		Args: map[string]string{
 			"dxFlags": flags.dxFlags,
 			"outDir":  outDir.String(),
-		},
-	})
-
-	return jarSpec{outputFile, outDir}
-}
-
-func TransformDexToJavaLib(ctx android.ModuleContext, resources []jarSpec,
-	dexJarSpec jarSpec) android.Path {
-
-	outputFile := android.PathForModuleOut(ctx, "javalib.jar")
-	var deps android.Paths
-	var jarArgs []string
-
-	for _, j := range resources {
-		deps = append(deps, j.fileList)
-		jarArgs = append(jarArgs, j.soongJarArgs())
-	}
-
-	deps = append(deps, dexJarSpec.fileList)
-	jarArgs = append(jarArgs, dexJarSpec.soongJarArgs())
-
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
-		Rule:        jar,
-		Description: "jar",
-		Output:      outputFile,
-		Implicits:   deps,
-		Args: map[string]string{
-			"jarArgs": strings.Join(jarArgs, " "),
 		},
 	})
 
@@ -308,4 +336,84 @@ func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFi
 	})
 
 	return outputFile
+}
+
+type classpath []android.Path
+
+// Returns a -classpath argument in the form java or javac expects
+func (x *classpath) JavaClasspath() string {
+	if len(*x) > 0 {
+		return "-classpath " + strings.Join(x.Strings(), ":")
+	} else {
+		return ""
+	}
+}
+
+// Returns a -processorpath argument in the form java or javac expects
+func (x *classpath) JavaProcessorpath() string {
+	if len(*x) > 0 {
+		return "-processorpath " + strings.Join(x.Strings(), ":")
+	} else {
+		return ""
+	}
+}
+
+// Returns a -bootclasspath argument in the form java or javac expects.  If forceEmpty is true,
+// returns -bootclasspath "" if the bootclasspath is empty to ensure javac does not fall back to the
+// default bootclasspath.
+func (x *classpath) JavaBootClasspath(forceEmpty bool) string {
+	if len(*x) > 0 {
+		return "-bootclasspath " + strings.Join(x.Strings(), ":")
+	} else if forceEmpty {
+		return `-bootclasspath ""`
+	} else {
+		return ""
+	}
+}
+
+func (x *classpath) DesugarBootClasspath() []string {
+	if x == nil || *x == nil {
+		return nil
+	}
+	flags := make([]string, len(*x))
+	for i, v := range *x {
+		flags[i] = "--bootclasspath_entry " + v.String()
+	}
+
+	return flags
+}
+
+func (x *classpath) DesugarClasspath() []string {
+	if x == nil || *x == nil {
+		return nil
+	}
+	flags := make([]string, len(*x))
+	for i, v := range *x {
+		flags[i] = "--classpath_entry " + v.String()
+	}
+
+	return flags
+}
+
+// Append an android.Paths to the end of the classpath list
+func (x *classpath) AddPaths(paths android.Paths) {
+	for _, path := range paths {
+		*x = append(*x, path)
+	}
+}
+
+// Convert a classpath to an android.Paths
+func (x *classpath) Paths() android.Paths {
+	return append(android.Paths(nil), (*x)...)
+}
+
+func (x *classpath) Strings() []string {
+	if x == nil {
+		return nil
+	}
+	ret := make([]string, len(*x))
+	for i, path := range *x {
+		ret[i] = path.String()
+	}
+	return ret
 }
