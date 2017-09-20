@@ -78,11 +78,13 @@ var preArch = []RegisterMutatorFunc{
 	RegisterDefaultsPreArchMutators,
 }
 
+func registerArchMutator(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("arch", archMutator).Parallel()
+	ctx.TopDown("arch_hooks", archHookMutator).Parallel()
+}
+
 var preDeps = []RegisterMutatorFunc{
-	func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("arch", archMutator).Parallel()
-		ctx.TopDown("arch_hooks", archHookMutator).Parallel()
-	},
+	registerArchMutator,
 }
 
 var postDeps = []RegisterMutatorFunc{
