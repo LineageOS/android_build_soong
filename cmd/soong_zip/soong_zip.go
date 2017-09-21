@@ -58,7 +58,7 @@ func (nopCloser) Close() error {
 }
 
 type byteReaderCloser struct {
-	bytes.Reader
+	*bytes.Reader
 	io.Closer
 }
 
@@ -252,7 +252,7 @@ func main() {
 	}
 
 	w := &zipWriter{
-		time:         time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC),
+		time:         jar.DefaultTime,
 		createdDirs:  make(map[string]string),
 		createdFiles: make(map[string]string),
 		directories:  *directories,
@@ -353,14 +353,14 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		z.memoryRateLimiter.Stop()
 	}()
 
-	if manifest != "" {
-		if !*emulateJar {
-			return errors.New("must specify --jar when specifying a manifest via -m")
-		}
-		pathMappings = append(pathMappings, pathMapping{jar.ManifestFile, manifest, zip.Deflate})
+	if manifest != "" && !*emulateJar {
+		return errors.New("must specify --jar when specifying a manifest via -m")
 	}
 
 	if *emulateJar {
+		// manifest may be empty, in which case addManifest will fill in a default
+		pathMappings = append(pathMappings, pathMapping{jar.ManifestFile, manifest, zip.Deflate})
+
 		jarSort(pathMappings)
 	}
 
@@ -524,11 +524,6 @@ func (z *zipWriter) addFile(dest, src string, method uint16) error {
 }
 
 func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
-	givenBytes, err := ioutil.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
 	if prev, exists := z.createdDirs[dest]; exists {
 		return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
 	}
@@ -536,27 +531,18 @@ func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
 		return fmt.Errorf("destination %q has two files %q and %q", dest, prev, src)
 	}
 
-	manifestMarker := []byte("Manifest-Version:")
-	header := append(manifestMarker, []byte(" 1.0\nCreated-By: soong_zip\n")...)
-
-	var finalBytes []byte
-	if !bytes.Contains(givenBytes, manifestMarker) {
-		finalBytes = append(append(header, givenBytes...), byte('\n'))
-	} else {
-		finalBytes = givenBytes
+	if err := z.writeDirectory(filepath.Dir(dest), src); err != nil {
+		return err
 	}
 
-	byteReader := bytes.NewReader(finalBytes)
-
-	reader := &byteReaderCloser{*byteReader, ioutil.NopCloser(nil)}
-
-	fileHeader := &zip.FileHeader{
-		Name:               dest,
-		Method:             zip.Store,
-		UncompressedSize64: uint64(byteReader.Len()),
+	fh, buf, err := jar.ManifestFileContents(src)
+	if err != nil {
+		return err
 	}
 
-	return z.writeFileContents(fileHeader, reader)
+	reader := &byteReaderCloser{bytes.NewReader(buf), ioutil.NopCloser(nil)}
+
+	return z.writeFileContents(fh, reader)
 }
 
 func (z *zipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerCloser) (err error) {
@@ -770,19 +756,6 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r io.ReadSeeker, compressCha
 	close(compressChan)
 }
 
-func (z *zipWriter) addExtraField(zipHeader *zip.FileHeader, fieldHeader [2]byte, data []byte) {
-	// add the field header in little-endian order
-	zipHeader.Extra = append(zipHeader.Extra, fieldHeader[1], fieldHeader[0])
-
-	// specify the length of the data (in little-endian order)
-	dataLength := len(data)
-	lengthBytes := []byte{byte(dataLength % 256), byte(dataLength / 256)}
-	zipHeader.Extra = append(zipHeader.Extra, lengthBytes...)
-
-	// add the contents of the extra field
-	zipHeader.Extra = append(zipHeader.Extra, data...)
-}
-
 // writeDirectory annotates that dir is a directory created for the src file or directory, and adds
 // the directory entry to the zip file if directories are enabled.
 func (z *zipWriter) writeDirectory(dir, src string) error {
@@ -810,16 +783,18 @@ func (z *zipWriter) writeDirectory(dir, src string) error {
 	if z.directories {
 		// make a directory entry for each uncreated directory
 		for _, cleanDir := range zipDirs {
-			dirHeader := &zip.FileHeader{
-				Name: cleanDir + "/",
-			}
-			dirHeader.SetMode(0700 | os.ModeDir)
-			dirHeader.SetModTime(z.time)
+			var dirHeader *zip.FileHeader
 
-			if *emulateJar && dir == "META-INF/" {
-				// Jar files have a 0-length extra field with header "CAFE"
-				z.addExtraField(dirHeader, [2]byte{0xca, 0xfe}, []byte{})
+			if *emulateJar && cleanDir+"/" == jar.MetaDir {
+				dirHeader = jar.MetaDirFileHeader()
+			} else {
+				dirHeader = &zip.FileHeader{
+					Name: cleanDir + "/",
+				}
+				dirHeader.SetMode(0700 | os.ModeDir)
 			}
+
+			dirHeader.SetModTime(z.time)
 
 			ze := make(chan *zipEntry, 1)
 			ze <- &zipEntry{
