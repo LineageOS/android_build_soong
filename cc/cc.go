@@ -74,6 +74,7 @@ type Deps struct {
 	ReexportGeneratedHeaders []string
 
 	CrtBegin, CrtEnd string
+	LinkerScript     string
 }
 
 type PathDeps struct {
@@ -98,6 +99,7 @@ type PathDeps struct {
 
 	// Paths to crt*.o files
 	CrtBegin, CrtEnd android.OptionalPath
+	LinkerScript     android.OptionalPath
 }
 
 type Flags struct {
@@ -140,6 +142,9 @@ type Flags struct {
 type ObjectLinkerProperties struct {
 	// names of other cc_object modules to link into this module using partial linking
 	Objs []string `android:"arch_variant"`
+
+	// if set, add an extra objcopy --prefix-symbols= step
+	Prefix_symbols string
 }
 
 // Properties used to compile all C or C++ modules
@@ -271,6 +276,7 @@ var (
 	objDepTag             = dependencyTag{name: "obj"}
 	crtBeginDepTag        = dependencyTag{name: "crtbegin"}
 	crtEndDepTag          = dependencyTag{name: "crtend"}
+	linkerScriptDepTag    = dependencyTag{name: "linker script"}
 	reuseObjTag           = dependencyTag{name: "reuse objects"}
 	ndkStubDepTag         = dependencyTag{name: "ndk stub", library: true}
 	ndkLateStubDepTag     = dependencyTag{name: "ndk late stub", library: true}
@@ -831,6 +837,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if deps.CrtEnd != "" {
 		actx.AddDependency(c, crtEndDepTag, deps.CrtEnd)
 	}
+	if deps.LinkerScript != "" {
+		actx.AddDependency(c, linkerScriptDepTag, deps.LinkerScript)
+	}
 
 	version := ctx.sdkVersion()
 	actx.AddVariationDependencies([]blueprint.Variation{
@@ -982,6 +991,17 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// Add these re-exported flags to help header-abi-dumper to infer the abi exported by a library.
 						c.sabi.Properties.ReexportedIncludeFlags = append(c.sabi.Properties.ReexportedIncludeFlags, flags)
 
+					}
+				} else {
+					ctx.ModuleErrorf("module %q is not a genrule", name)
+				}
+			case linkerScriptDepTag:
+				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
+					files := genRule.GeneratedSourceFiles()
+					if len(files) == 1 {
+						depPaths.LinkerScript = android.OptionalPathForPath(files[0])
+					} else if len(files) > 1 {
+						ctx.ModuleErrorf("module %q can only generate a single file if used for a linker script", name)
 					}
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", name)
