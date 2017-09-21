@@ -137,6 +137,12 @@ type Module struct {
 	// output file suitable for inserting into the classpath of another compile
 	classpathFile android.Path
 
+	// output file containing classes.dex
+	dexJarFile android.Path
+
+	// output files containing resources
+	resourceJarFiles android.Paths
+
 	// output file suitable for installing or running
 	outputFile android.Path
 
@@ -154,6 +160,7 @@ type Module struct {
 
 type Dependency interface {
 	ClasspathFiles() android.Paths
+	ResourceJarFiles() android.Paths
 	AidlIncludeDirs() android.Paths
 }
 
@@ -168,12 +175,11 @@ type dependencyTag struct {
 }
 
 var (
-	staticLibTag           = dependencyTag{name: "staticlib"}
-	libTag                 = dependencyTag{name: "javalib"}
-	bootClasspathTag       = dependencyTag{name: "bootclasspath"}
-	frameworkResTag        = dependencyTag{name: "framework-res"}
-	sdkDependencyTag       = dependencyTag{name: "sdk"}
-	annotationProcessorTag = dependencyTag{name: "annotation processor"}
+	staticLibTag     = dependencyTag{name: "staticlib"}
+	libTag           = dependencyTag{name: "javalib"}
+	bootClasspathTag = dependencyTag{name: "bootclasspath"}
+	frameworkResTag  = dependencyTag{name: "framework-res"}
+	sdkDependencyTag = dependencyTag{name: "sdk"}
 )
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
@@ -202,7 +208,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
-	ctx.AddDependency(ctx.Module(), annotationProcessorTag, j.properties.Annotation_processors...)
+	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 }
@@ -230,13 +236,13 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 }
 
 type deps struct {
-	classpath            android.Paths
-	bootClasspath        android.Paths
-	staticJars           android.Paths
-	aidlIncludeDirs      android.Paths
-	srcFileLists         android.Paths
-	annotationProcessors android.Paths
-	aidlPreprocess       android.OptionalPath
+	classpath          android.Paths
+	bootClasspath      android.Paths
+	staticJars         android.Paths
+	staticJarResources android.Paths
+	aidlIncludeDirs    android.Paths
+	srcFileLists       android.Paths
+	aidlPreprocess     android.OptionalPath
 }
 
 func (j *Module) collectDeps(ctx android.ModuleContext) deps {
@@ -264,8 +270,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		case staticLibTag:
 			deps.classpath = append(deps.classpath, dep.ClasspathFiles()...)
 			deps.staticJars = append(deps.staticJars, dep.ClasspathFiles()...)
-		case annotationProcessorTag:
-			deps.annotationProcessors = append(deps.annotationProcessors, dep.ClasspathFiles()...)
+			deps.staticJarResources = append(deps.staticJarResources, dep.ResourceJarFiles()...)
 		case frameworkResTag:
 			if ctx.ModuleName() == "framework" {
 				// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -306,20 +311,16 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		javacFlags = config.StripJavac9Flags(javacFlags)
 	}
 
-	if len(deps.annotationProcessors) > 0 {
-		javacFlags = append(javacFlags,
-			"-processorpath "+strings.Join(deps.annotationProcessors.Strings(), ":"))
-	}
-
-	for _, c := range j.properties.Annotation_processor_classes {
-		javacFlags = append(javacFlags, "-processor "+c)
-	}
-
 	if j.properties.Java_version != nil {
 		flags.javaVersion = *j.properties.Java_version
 	} else {
 		flags.javaVersion = "${config.DefaultJavaVersion}"
 	}
+
+	var extraDeps android.Paths
+
+	flags.bootClasspath.AddPaths(deps.bootClasspath)
+	flags.classpath.AddPaths(deps.classpath)
 
 	if len(javacFlags) > 0 {
 		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
@@ -330,21 +331,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	if len(aidlFlags) > 0 {
 		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
 		flags.aidlFlags = "$aidlFlags"
-	}
-
-	var extraDeps android.Paths
-
-	if len(deps.bootClasspath) > 0 {
-		flags.bootClasspath = "-bootclasspath " + strings.Join(deps.bootClasspath.Strings(), ":")
-		extraDeps = append(extraDeps, deps.bootClasspath...)
-	} else if ctx.Device() {
-		// Explicitly clear the bootclasspath for device builds
-		flags.bootClasspath = `-bootclasspath ""`
-	}
-
-	if len(deps.classpath) > 0 {
-		flags.classpath = "-classpath " + strings.Join(deps.classpath.Strings(), ":")
-		extraDeps = append(extraDeps, deps.classpath...)
 	}
 
 	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
@@ -392,9 +378,15 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			return
 		}
 
+		j.resourceJarFiles = append(j.resourceJarFiles, resourceJar)
 		jars = append(jars, resourceJar)
 	}
 
+	// Propagate the resources from the transitive closure of static dependencies for copying
+	// into dex jars
+	j.resourceJarFiles = append(j.resourceJarFiles, deps.staticJarResources...)
+
+	// static classpath jars have the resources in them, so the resource jars aren't necessary here
 	jars = append(jars, deps.staticJars...)
 
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
@@ -450,14 +442,39 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 		flags.dxFlags = strings.Join(dxFlags, " ")
 
-		// Compile classes.jar into classes.dex
-		dexJarSpec := TransformClassesJarToDex(ctx, outputFile, flags)
+		desugarFlags := []string{
+			"--min_sdk_version " + minSdkVersion,
+			"--desugar_try_with_resources_if_needed=false",
+			"--allow_empty_bootclasspath",
+		}
+
+		if inList("--core-library", dxFlags) {
+			desugarFlags = append(desugarFlags, "--core_library")
+		}
+
+		flags.desugarFlags = strings.Join(desugarFlags, " ")
+
+		desugarJar := TransformDesugar(ctx, outputFile, flags)
 		if ctx.Failed() {
 			return
 		}
 
-		// Combine classes.dex + resources into javalib.jar
-		outputFile = TransformDexToJavaLib(ctx, resourceJarSpecs, dexJarSpec)
+		// TODO(ccross): For now, use the desugared jar as the classpath file.  Eventually this
+		// might cause problems because desugar wants non-desugared jars in its class path.
+		j.classpathFile = desugarJar
+
+		// Compile classes.jar into classes.dex
+		dexJarFile := TransformClassesJarToDexJar(ctx, desugarJar, flags)
+		if ctx.Failed() {
+			return
+		}
+
+		jars := android.Paths{dexJarFile}
+		jars = append(jars, j.resourceJarFiles...)
+
+		outputFile = TransformJarsToJar(ctx, "javalib.jar", jars, android.OptionalPath{}, true)
+
+		j.dexJarFile = outputFile
 	}
 	ctx.CheckbuildFile(outputFile)
 	j.outputFile = outputFile
@@ -467,6 +484,10 @@ var _ Dependency = (*Library)(nil)
 
 func (j *Module) ClasspathFiles() android.Paths {
 	return android.Paths{j.classpathFile}
+}
+
+func (j *Module) ResourceJarFiles() android.Paths {
+	return j.resourceJarFiles
 }
 
 func (j *Module) AidlIncludeDirs() android.Paths {
@@ -623,6 +644,11 @@ var _ Dependency = (*Import)(nil)
 
 func (j *Import) ClasspathFiles() android.Paths {
 	return j.classpathFiles
+}
+
+func (j *Import) ResourceJarFiles() android.Paths {
+	// resources are in the ClasspathFiles
+	return nil
 }
 
 func (j *Import) AidlIncludeDirs() android.Paths {

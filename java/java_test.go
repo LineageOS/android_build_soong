@@ -119,8 +119,8 @@ func TestSimple(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-compiled.jar")
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes-compiled.jar")
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-desugar.jar")
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes-desugar.jar")
 
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
@@ -182,7 +182,7 @@ func TestSdk(t *testing.T) {
 
 	check := func(module string, depType depType, deps ...string) {
 		for i := range deps {
-			deps[i] = filepath.Join(buildDir, ".intermediates", deps[i], "classes-compiled.jar")
+			deps[i] = filepath.Join(buildDir, ".intermediates", deps[i], "classes-desugar.jar")
 		}
 		dep := strings.Join(deps, ":")
 
@@ -279,12 +279,12 @@ func TestDefaults(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-compiled.jar")
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "classes-desugar.jar")
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes-compiled.jar")
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "classes-desugar.jar")
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
 	}
