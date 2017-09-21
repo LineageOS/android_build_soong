@@ -59,7 +59,6 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
-	ctx.RegisterModuleType("android_prebuilt_sdk", android.ModuleFactoryAdaptor(SdkPrebuiltFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -86,21 +85,15 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		`, extra)
 	}
 
-	bp += `
-		android_prebuilt_sdk {
-			name: "sdk_v14",
-			jars: ["sdk_v14.jar"],
-		}
-	`
-
 	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp":  []byte(bp),
-		"a.java":      nil,
-		"b.java":      nil,
-		"c.java":      nil,
-		"a.jar":       nil,
-		"b.jar":       nil,
-		"sdk_v14.jar": nil,
+		"Android.bp": []byte(bp),
+		"a.java":     nil,
+		"b.java":     nil,
+		"c.java":     nil,
+		"a.jar":      nil,
+		"b.jar":      nil,
+		"prebuilts/sdk/14/android.jar":    nil,
+		"prebuilts/sdk/14/framework.aidl": nil,
 	})
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -115,8 +108,8 @@ func moduleToPath(name string) string {
 	switch {
 	case name == `""`:
 		return name
-	case strings.HasPrefix(name, "sdk_v"):
-		return name + ".jar"
+	case strings.HasSuffix(name, ".jar"):
+		return name
 	default:
 		return filepath.Join(buildDir, ".intermediates", name, "android_common", "classes-desugar.jar")
 	}
@@ -187,8 +180,8 @@ var classpathTestcases = []struct {
 
 		name:          "sdk v14",
 		properties:    `sdk_version: "14",`,
-		bootclasspath: []string{"sdk_v14"},
-		classpath:     []string{},
+		bootclasspath: []string{`""`},
+		classpath:     []string{"prebuilts/sdk/14/android.jar"},
 	},
 	{
 

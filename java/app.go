@@ -233,9 +233,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		var depFiles android.Paths
-		if sdkDep, ok := module.(sdkDependency); ok {
-			depFiles = sdkDep.ClasspathFiles()
-		} else if javaDep, ok := module.(Dependency); ok {
+		if javaDep, ok := module.(Dependency); ok {
 			if ctx.OtherModuleName(module) == "framework-res" {
 				depFiles = android.Paths{javaDep.(*AndroidApp).exportPackage}
 			}
