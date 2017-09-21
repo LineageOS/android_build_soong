@@ -462,6 +462,10 @@ func (c *config) AllowMissingDependencies() bool {
 	return Bool(c.ProductVariables.Allow_missing_dependencies)
 }
 
+func (c *config) UnbundledBuild() bool {
+	return Bool(c.ProductVariables.Unbundled_build)
+}
+
 func (c *config) DevicePrefer32BitExecutables() bool {
 	return Bool(c.ProductVariables.DevicePrefer32BitExecutables)
 }
