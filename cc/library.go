@@ -484,6 +484,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	var linkerDeps android.Paths
+	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
 	versionScript := android.OptionalPathForModuleSrc(ctx, library.Properties.Version_script)
 	unexportedSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Unexported_symbols_list)
@@ -628,7 +629,6 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	objs = objs.Append(deps.Objs)
-
 	var out android.Path
 	if library.static() || library.header() {
 		out = library.linkStatic(ctx, flags, deps, objs)
