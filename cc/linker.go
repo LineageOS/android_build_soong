@@ -234,8 +234,10 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			rpath_prefix = "@loader_path/"
 		}
 
-		for _, rpath := range linker.dynamicProperties.RunPaths {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
+		if !ctx.static() {
+			for _, rpath := range linker.dynamicProperties.RunPaths {
+				flags.LdFlags = append(flags.LdFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
+			}
 		}
 	}
 
