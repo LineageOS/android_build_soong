@@ -185,6 +185,25 @@ func TestConfig(buildDir string) Config {
 	return Config{config}
 }
 
+// TestConfig returns a Config object suitable for using for tests that need to run the arch mutator
+func TestArchConfig(buildDir string) Config {
+	testConfig := TestConfig(buildDir)
+	config := testConfig.config
+
+	config.Targets = map[OsClass][]Target{
+		Device: []Target{
+			{Android, Arch{ArchType: Arm64, Native: true}},
+			{Android, Arch{ArchType: Arm, Native: true}},
+		},
+		Host: []Target{
+			{BuildOs, Arch{ArchType: X86_64}},
+			{BuildOs, Arch{ArchType: X86}},
+		},
+	}
+
+	return testConfig
+}
+
 // New creates a new Config object.  The srcDir argument specifies the path to
 // the root source directory. It also loads the config file, if found.
 func NewConfig(srcDir, buildDir string) (Config, error) {
