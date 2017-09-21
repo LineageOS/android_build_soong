@@ -119,6 +119,7 @@ bootstrap_go_package {
         "cc/gen.go",
         "cc/lto.go",
         "cc/makevars.go",
+        "cc/pgo.go",
         "cc/prebuilt.go",
         "cc/proto.go",
         "cc/relocation_packer.go",
