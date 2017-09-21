@@ -54,10 +54,6 @@ var (
 		// Tell clang where the gcc toolchain is
 		"--gcc-toolchain=${LinuxBionicGccRoot}",
 
-		// TODO: We're not really android, but we don't have a triple yet b/31393676
-		"-U__ANDROID__",
-		"-fno-emulated-tls",
-
 		// This is normally in ClangExtraTargetCflags, but this is considered host
 		"-nostdlibinc",
 	})
@@ -142,7 +138,9 @@ func (t *toolchainLinuxBionic) ClangLdflags() string {
 }
 
 func (t *toolchainLinuxBionic) ToolchainClangCflags() string {
-	return "-m64 -march=x86-64"
+	return "-m64 -march=x86-64" +
+		// TODO: We're not really android, but we don't have a triple yet b/31393676
+		" -U__ANDROID__ -fno-emulated-tls"
 }
 
 func (t *toolchainLinuxBionic) ToolchainClangLdflags() string {
