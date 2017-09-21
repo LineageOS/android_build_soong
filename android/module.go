@@ -1001,6 +1001,54 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			Optional: ctx.Config().(Config).EmbeddedInMake(),
 		})
 	}
+
+	// Create (host|host-cross|target)-<OS> phony rules to build a reduced checkbuild.
+	osDeps := map[OsType]Paths{}
+	ctx.VisitAllModules(func(module blueprint.Module) {
+		if a, ok := module.(Module); ok {
+			if a.Enabled() {
+				os := a.Target().Os
+				osDeps[os] = append(osDeps[os], a.base().checkbuildFiles...)
+			}
+		}
+	})
+
+	osClass := make(map[string][]string)
+	for os, deps := range osDeps {
+		var className string
+
+		switch os.Class {
+		case Host:
+			className = "host"
+		case HostCross:
+			className = "host-cross"
+		case Device:
+			className = "target"
+		default:
+			continue
+		}
+
+		name := className + "-" + os.Name
+		osClass[className] = append(osClass[className], name)
+
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{name},
+			Implicits: deps.Strings(),
+			Optional:  true,
+		})
+	}
+
+	// Wrap those into host|host-cross|target phony rules
+	osClasses := sortedKeys(osClass)
+	for _, class := range osClasses {
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{class},
+			Implicits: osClass[class],
+			Optional:  true,
+		})
+	}
 }
 
 type AndroidModulesByName struct {
