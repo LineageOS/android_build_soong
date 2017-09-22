@@ -27,6 +27,12 @@ func NewTestContext() *TestContext {
 	}
 }
 
+func NewTestArchContext() *TestContext {
+	ctx := NewTestContext()
+	ctx.preDeps = append(ctx.preDeps, registerArchMutator)
+	return ctx
+}
+
 type TestContext struct {
 	*blueprint.Context
 	preArch, preDeps, postDeps []RegisterMutatorFunc

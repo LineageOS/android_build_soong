@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"path/filepath"
-
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -152,6 +150,10 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 				[]string{"libc", "libc_nomalloc", "libcompiler_rt"})
 			deps.LateStaticLibs = append(groupLibs, deps.LateStaticLibs...)
 		}
+
+		if ctx.Os() == android.LinuxBionic && !binary.static() {
+			deps.LinkerScript = "host_bionic_linker_script"
+		}
 	}
 
 	if !binary.static() && inList("libc", deps.StaticLibs) {
@@ -243,15 +245,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 					case android.Android:
 						flags.DynamicLinker = "/system/bin/linker"
 					case android.LinuxBionic:
-						// The linux kernel expects the linker to be an
-						// absolute path
-						path := android.PathForOutput(ctx,
-							"host", "linux_bionic-x86", "bin", "linker")
-						if p, err := filepath.Abs(path.String()); err == nil {
-							flags.DynamicLinker = p
-						} else {
-							ctx.ModuleErrorf("can't find path to dynamic linker: %q", err)
-						}
+						flags.DynamicLinker = ""
 					default:
 						ctx.ModuleErrorf("unknown dynamic linker")
 					}
@@ -304,6 +298,11 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	if deps.LinkerScript.Valid() {
+		flags.LdFlags = append(flags.LdFlags, "-Wl,-T,"+deps.LinkerScript.String())
+		linkerDeps = append(linkerDeps, deps.LinkerScript.Path())
+	}
+
 	if flags.DynamicLinker != "" {
 		flags.LdFlags = append(flags.LdFlags, " -Wl,-dynamic-linker,"+flags.DynamicLinker)
 	}
@@ -326,6 +325,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)
+	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,

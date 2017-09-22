@@ -12,14 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-bootstrap_go_package {
-    name: "soong-jar",
-    pkgPath: "android/soong/jar",
-    srcs: [
-        "jar.go",
-    ],
-    deps: [
-        "android-archive-zip",
-    ],
+blueprint_go_binary {
+    name: "extract_linker",
+    srcs: ["main.go"],
+    testSrcs: ["main_test.go"],
 }
 
