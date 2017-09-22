@@ -259,6 +259,10 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"NDK_TRIPLE", toolchain.ClangTriple())
 	}
 
+	if target.Os.Class == android.Host || target.Os.Class == android.HostCross {
+		ctx.Strict(makePrefix+"AVAILABLE_LIBRARIES", strings.Join(toolchain.AvailableLibraries(), " "))
+	}
+
 	ctx.Strict(makePrefix+"TOOLCHAIN_ROOT", toolchain.GccRoot())
 	ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 	ctx.Strict(makePrefix+"SHLIB_SUFFIX", toolchain.ShlibSuffix())
