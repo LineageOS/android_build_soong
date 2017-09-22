@@ -926,7 +926,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 	checkbuildDeps := []string{}
 
 	mmTarget := func(dir string) string {
-		return filepath.Join("mm", dir)
+		return "MODULES-IN-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
 	}
 
 	modulesInDir := make(map[string][]string)
@@ -961,6 +961,11 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		Optional:  true,
 	})
 
+	// Make will generate the MODULES-IN-* targets
+	if ctx.Config().(Config).EmbeddedInMake() {
+		return
+	}
+
 	// Ensure ancestor directories are in modulesInDir
 	dirs := sortedKeys(modulesInDir)
 	for _, dir := range dirs {
@@ -983,8 +988,9 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 		}
 	}
 
-	// Create a mm/<directory> target that depends on all modules in a directory, and depends
-	// on the mm/* targets of all of its subdirectories that contain Android.bp files.
+	// Create a MODULES-IN-<directory> target that depends on all modules in a directory, and
+	// depends on the MODULES-IN-* targets of all of its subdirectories that contain Android.bp
+	// files.
 	for _, dir := range dirs {
 		ctx.Build(pctx, blueprint.BuildParams{
 			Rule:      blueprint.Phony,
@@ -993,6 +999,54 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			// HACK: checkbuild should be an optional build, but force it
 			// enabled for now in standalone builds
 			Optional: ctx.Config().(Config).EmbeddedInMake(),
+		})
+	}
+
+	// Create (host|host-cross|target)-<OS> phony rules to build a reduced checkbuild.
+	osDeps := map[OsType]Paths{}
+	ctx.VisitAllModules(func(module blueprint.Module) {
+		if a, ok := module.(Module); ok {
+			if a.Enabled() {
+				os := a.Target().Os
+				osDeps[os] = append(osDeps[os], a.base().checkbuildFiles...)
+			}
+		}
+	})
+
+	osClass := make(map[string][]string)
+	for os, deps := range osDeps {
+		var className string
+
+		switch os.Class {
+		case Host:
+			className = "host"
+		case HostCross:
+			className = "host-cross"
+		case Device:
+			className = "target"
+		default:
+			continue
+		}
+
+		name := className + "-" + os.Name
+		osClass[className] = append(osClass[className], name)
+
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{name},
+			Implicits: deps.Strings(),
+			Optional:  true,
+		})
+	}
+
+	// Wrap those into host|host-cross|target phony rules
+	osClasses := sortedKeys(osClass)
+	for _, class := range osClasses {
+		ctx.Build(pctx, blueprint.BuildParams{
+			Rule:      blueprint.Phony,
+			Outputs:   []string{class},
+			Implicits: osClass[class],
+			Optional:  true,
 		})
 	}
 }
