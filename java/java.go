@@ -258,7 +258,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		if ctx.Device() {
 			sdkDep := decodeSdkDep(ctx, j.deviceProperties.Sdk_version)
 			if sdkDep.useDefaultLibs {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-oj", "core-libart")
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 			}
 			if sdkDep.useModule {
@@ -266,7 +266,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			}
 		} else {
 			if j.deviceProperties.Dex {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, "core-oj", "core-libart")
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
 			}
 		}
 	}
