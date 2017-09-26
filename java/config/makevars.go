@@ -26,6 +26,7 @@ func init() {
 
 func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("TARGET_DEFAULT_JAVA_LIBRARIES", strings.Join(DefaultLibraries, " "))
+	ctx.Strict("TARGET_DEFAULT_BOOTCLASSPATH_LIBRARIES", strings.Join(DefaultBootclasspathLibraries, " "))
 
 	ctx.Strict("DEFAULT_JAVA_LANGUAGE_VERSION", "${DefaultJavaVersion}")
 
