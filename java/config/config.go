@@ -26,7 +26,8 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/java/config")
 
-	DefaultLibraries = []string{"core-oj", "core-libart", "ext", "framework", "okhttp"}
+	DefaultBootclasspathLibraries = []string{"core-oj", "core-libart"}
+	DefaultLibraries              = []string{"ext", "framework", "okhttp"}
 )
 
 func init() {
