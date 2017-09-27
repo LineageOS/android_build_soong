@@ -145,10 +145,8 @@ func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_WINDOWS")
 		case android.Linux:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX")
-			flags.LdFlags = append(flags.LdFlags, "-lpthread")
 		case android.Darwin:
 			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_MAC")
-			flags.LdFlags = append(flags.LdFlags, "-lpthread")
 		}
 	} else {
 		flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX_ANDROID")
