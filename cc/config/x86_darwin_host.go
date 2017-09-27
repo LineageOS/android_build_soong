@@ -100,7 +100,6 @@ var (
 			"ncurses",
 			"objc",
 			"pthread",
-			"z",
 		}, "-l"),
 		"-framework AppKit",
 		"-framework CoreFoundation",
