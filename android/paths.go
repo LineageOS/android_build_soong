@@ -714,7 +714,15 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 		}
 		outPaths = []string{"target", "product", ctx.AConfig().DeviceName(), partition}
 	} else {
-		outPaths = []string{"host", ctx.Os().String() + "-x86"}
+		switch ctx.Os() {
+		case Linux:
+			outPaths = []string{"host", "linux-x86"}
+		case LinuxBionic:
+			// TODO: should this be a separate top level, or shared with linux-x86?
+			outPaths = []string{"host", "linux_bionic-x86"}
+		default:
+			outPaths = []string{"host", ctx.Os().String() + "-x86"}
+		}
 	}
 	if ctx.Debug() {
 		outPaths = append([]string{"debug"}, outPaths...)
