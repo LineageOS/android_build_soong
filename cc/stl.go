@@ -134,7 +134,6 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
-			flags.LdFlags = append(flags.LdFlags, "-lpthread", "-lm")
 			if ctx.staticBinary() {
 				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.Os()]...)
 			} else {
