@@ -192,7 +192,7 @@ var (
 	commonTargetMap = make(map[string]Target)
 
 	NoOsType    OsType
-	Linux       = NewOsType("linux", Host, false)
+	Linux       = NewOsType("linux_glibc", Host, false)
 	Darwin      = NewOsType("darwin", Host, false)
 	LinuxBionic = NewOsType("linux_bionic", Host, true)
 	Windows     = NewOsType("windows", HostCross, true)
@@ -240,6 +240,14 @@ func (class OsClass) String() string {
 
 func (os OsType) String() string {
 	return os.Name
+}
+
+func (os OsType) Bionic() bool {
+	return os == Android || os == LinuxBionic
+}
+
+func (os OsType) Linux() bool {
+	return os == Android || os == Linux || os == LinuxBionic
 }
 
 func NewOsType(name string, class OsClass, defDisabled bool) OsType {
@@ -459,6 +467,8 @@ func createArchType(props reflect.Type) reflect.Type {
 		"Host",
 		"Android64",
 		"Android32",
+		"Bionic",
+		"Linux",
 		"Not_windows",
 		"Arm_on_x86",
 		"Arm_on_x86_64",
@@ -468,6 +478,19 @@ func createArchType(props reflect.Type) reflect.Type {
 
 		for _, archType := range osArchTypeMap[os] {
 			targets = append(targets, os.Field+"_"+archType.Name)
+
+			if os == Linux { // TODO(dwillemsen): os.Linux()
+				target := "Linux_" + archType.Name
+				if !inList(target, targets) {
+					targets = append(targets, target)
+				}
+			}
+			if os.Bionic() {
+				target := "Bionic_" + archType.Name
+				if !inList(target, targets) {
+					targets = append(targets, target)
+				}
+			}
 		}
 	}
 
@@ -663,18 +686,47 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			a.appendProperties(ctx, genProps, targetProp, field, prefix)
 		}
 
+		// Handle target OS generalities of the form:
+		// target: {
+		//     bionic: {
+		//         key: value,
+		//     },
+		//     bionic_x86: {
+		//         key: value,
+		//     },
+		// }
+		if os == Linux { // TODO(dwillemsen): os.Linux()
+			field = "Linux"
+			prefix = "target.linux"
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+
+			field = "Linux_" + t.Name
+			prefix = "target.linux_" + t.Name
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+		}
+
+		if os.Bionic() {
+			field = "Bionic"
+			prefix = "target.bionic"
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+
+			field = "Bionic_" + t.Name
+			prefix = "target.bionic_" + t.Name
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+		}
+
 		// Handle target OS properties in the form:
 		// target: {
-		//     linux: {
+		//     linux_glibc: {
 		//         key: value,
 		//     },
 		//     not_windows: {
 		//         key: value,
 		//     },
-		//     linux_x86: {
+		//     linux_glibc_x86: {
 		//         key: value,
 		//     },
-		//     linux_arm: {
+		//     linux_glibc_arm: {
 		//         key: value,
 		//     },
 		//     android {
@@ -686,7 +738,6 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		//     android_x86 {
 		//         key: value,
 		//     },
-		// },
 		// },
 		field = os.Field
 		prefix = "target." + os.Name

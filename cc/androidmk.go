@@ -155,7 +155,11 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			}
 
 			if host {
-				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", ctx.Target().Os.String())
+				makeOs := ctx.Target().Os.String()
+				if ctx.Target().Os == android.Linux || ctx.Target().Os == android.LinuxBionic {
+					makeOs = "linux"
+				}
+				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 			} else if ctx.vndk() {
 				fmt.Fprintln(w, "LOCAL_USE_VNDK := true")

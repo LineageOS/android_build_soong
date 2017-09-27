@@ -243,7 +243,11 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	}
 
 	if host {
-		fmt.Fprintln(&data.preamble, "LOCAL_MODULE_HOST_OS :=", amod.Os().String())
+		makeOs := amod.Os().String()
+		if amod.Os() == Linux || amod.Os() == LinuxBionic {
+			makeOs = "linux"
+		}
+		fmt.Fprintln(&data.preamble, "LOCAL_MODULE_HOST_OS :=", makeOs)
 		fmt.Fprintln(&data.preamble, "LOCAL_IS_HOST_MODULE := true")
 	}
 
