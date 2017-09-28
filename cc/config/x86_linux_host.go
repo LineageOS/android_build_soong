@@ -123,7 +123,6 @@ var (
 		"resolv",
 		"rt",
 		"util",
-		"z",
 	}, "-l")
 )
 
