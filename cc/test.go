@@ -157,7 +157,7 @@ func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 func (test *testDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	if test.gtest() {
-		if ctx.sdk() && ctx.Device() {
+		if ctx.useSdk() && ctx.Device() {
 			switch ctx.selectedStl() {
 			case "ndk_libc++_shared", "ndk_libc++_static":
 				deps.StaticLibs = append(deps.StaticLibs, "libgtest_main_ndk_libcxx", "libgtest_ndk_libcxx")

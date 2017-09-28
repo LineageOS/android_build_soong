@@ -61,7 +61,7 @@ type androidBaseContext interface {
 	Windows() bool
 	Debug() bool
 	PrimaryArch() bool
-	Vendor() bool
+	InstallOnVendorPartition() bool
 	AConfig() Config
 	DeviceConfig() DeviceConfig
 }
@@ -99,7 +99,11 @@ type ModuleContext interface {
 type Module interface {
 	blueprint.Module
 
+	// GenerateAndroidBuildActions is analogous to Blueprints' GenerateBuildActions,
+	// but GenerateAndroidBuildActions also has access to Android-specific information.
+	// For more information, see Module.GenerateBuildActions within Blueprint's module_ctx.go
 	GenerateAndroidBuildActions(ModuleContext)
+
 	DepsMutator(BottomUpMutatorContext)
 
 	base() *ModuleBase
@@ -690,7 +694,7 @@ func (a *androidBaseContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{a.config.deviceConfig}
 }
 
-func (a *androidBaseContextImpl) Vendor() bool {
+func (a *androidBaseContextImpl) InstallOnVendorPartition() bool {
 	return a.vendor
 }
 
