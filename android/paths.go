@@ -247,6 +247,9 @@ func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 // each string.
 func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string) Paths {
 	prefix := filepath.Join(ctx.AConfig().srcDir, ctx.ModuleDir()) + "/"
+	if prefix == "./" {
+		prefix = ""
+	}
 	ret := make(Paths, 0, len(paths))
 	for _, p := range paths {
 		path := filepath.Clean(p)
