@@ -421,7 +421,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 		// When linking against VNDK, use the vendor variant of the runtime lib
 		sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary
-		if ctx.vndk() {
+		if ctx.useVndk() {
 			sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary + vendorSuffix
 		}
 	}
