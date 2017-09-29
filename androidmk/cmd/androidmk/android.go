@@ -107,7 +107,7 @@ func init() {
 			"LOCAL_RENDERSCRIPT_INCLUDES": "renderscript.include_dirs",
 			"LOCAL_RENDERSCRIPT_FLAGS":    "renderscript.flags",
 
-			"LOCAL_JAVA_RESOURCE_DIRS":    "resource_dirs",
+			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
 			"LOCAL_JAVA_LIBRARIES":        "libs",

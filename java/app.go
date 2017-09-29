@@ -53,8 +53,8 @@ type androidAppProperties struct {
 	Asset_dirs []string
 
 	// list of directories relative to the Blueprints file containing
-	// Java resources
-	Android_resource_dirs []string
+	// Android resources
+	Resource_dirs []string
 }
 
 type AndroidApp struct {
@@ -183,7 +183,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 	}
 
 	assetDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Asset_dirs, "assets")
-	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Android_resource_dirs, "res")
+	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.appProperties.Resource_dirs, "res")
 
 	var overlayResourceDirs android.Paths
 	// For every resource directory, check if there is an overlay directory with the same path.
