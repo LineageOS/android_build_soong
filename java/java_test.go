@@ -111,7 +111,7 @@ func moduleToPath(name string) string {
 	case strings.HasSuffix(name, ".jar"):
 		return name
 	default:
-		return filepath.Join(buildDir, ".intermediates", name, "android_common", "classes-desugar.jar")
+		return filepath.Join(buildDir, ".intermediates", name, "android_common", "classes-compiled.jar")
 	}
 }
 
@@ -142,8 +142,8 @@ func TestSimple(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "classes-desugar.jar")
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-desugar.jar")
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "classes-compiled.jar")
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-compiled.jar")
 
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
@@ -349,12 +349,12 @@ func TestDefaults(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "classes-desugar.jar")
+	bar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "classes-compiled.jar")
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-desugar.jar")
+	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-compiled.jar")
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
 	}
