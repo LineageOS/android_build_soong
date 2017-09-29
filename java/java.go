@@ -377,8 +377,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags.javaVersion = "${config.DefaultJavaVersion}"
 	}
 
-	var extraDeps android.Paths
-
 	flags.bootClasspath.AddPaths(deps.bootClasspath)
 	flags.classpath.AddPaths(deps.classpath)
 
@@ -405,26 +403,24 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	deps.srcFileLists = append(deps.srcFileLists, j.ExtraSrcLists...)
 
-	var extraJarDeps android.Paths
-
 	var jars android.Paths
 
 	if len(srcFiles) > 0 {
-		// Compile java sources into .class files
-		classes := TransformJavaToClasses(ctx, srcFiles, deps.srcFileLists, flags, extraDeps)
-		if ctx.Failed() {
-			return
-		}
-
+		var extraJarDeps android.Paths
 		if ctx.AConfig().IsEnvTrue("RUN_ERROR_PRONE") {
 			// If error-prone is enabled, add an additional rule to compile the java files into
 			// a separate set of classes (so that they don't overwrite the normal ones and require
-			// a rebuild when error-prone is turned off).  Add the classes as a dependency to
-			// the jar command so the two compiles can run in parallel.
+			// a rebuild when error-prone is turned off).
 			// TODO(ccross): Once we always compile with javac9 we may be able to conditionally
 			//    enable error-prone without affecting the output class files.
-			errorprone := RunErrorProne(ctx, srcFiles, deps.srcFileLists, flags, extraDeps)
+			errorprone := RunErrorProne(ctx, srcFiles, deps.srcFileLists, flags, nil)
 			extraJarDeps = append(extraJarDeps, errorprone)
+		}
+
+		// Compile java sources into .class files
+		classes := TransformJavaToClasses(ctx, srcFiles, deps.srcFileLists, flags, extraJarDeps)
+		if ctx.Failed() {
+			return
 		}
 
 		jars = append(jars, classes)
