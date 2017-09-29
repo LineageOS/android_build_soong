@@ -464,7 +464,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.classpathFile = outputFile
 
 	// TODO(ccross): handle hostdex
-	if ctx.Device() && len(srcFiles) > 0 {
+	if ctx.Device() && len(srcFiles) > 0 && j.installable() {
 		dxFlags := j.deviceProperties.Dxflags
 		if false /* emma enabled */ {
 			// If you instrument class files that have local variable debug information in
@@ -538,6 +538,10 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.outputFile = outputFile
 }
 
+func (j *Module) installable() bool {
+	return j.properties.Installable == nil || *j.properties.Installable
+}
+
 var _ Dependency = (*Library)(nil)
 
 func (j *Module) ClasspathFiles() android.Paths {
@@ -569,7 +573,7 @@ type Library struct {
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
-	if j.properties.Installable == nil || *j.properties.Installable == true {
+	if j.installable() {
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			ctx.ModuleName()+".jar", j.outputFile)
 	}
