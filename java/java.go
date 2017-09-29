@@ -70,10 +70,10 @@ type CompilerProperties struct {
 	Exclude_srcs []string `android:"arch_variant"`
 
 	// list of directories containing Java resources
-	Resource_dirs []string `android:"arch_variant"`
+	Java_resource_dirs []string `android:"arch_variant"`
 
-	// list of directories that should be excluded from resource_dirs
-	Exclude_resource_dirs []string `android:"arch_variant"`
+	// list of directories that should be excluded from java_resource_dirs
+	Exclude_java_resource_dirs []string `android:"arch_variant"`
 
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
@@ -430,7 +430,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		jars = append(jars, classes)
 	}
 
-	resourceJarSpecs := ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs, j.properties.Exclude_resource_dirs)
+	resourceJarSpecs := ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
 	if len(resourceJarSpecs) > 0 {
 		// Combine classes + resources into classes-full-debug.jar
 		resourceJar := TransformResourcesToJar(ctx, resourceJarSpecs, extraJarDeps)
