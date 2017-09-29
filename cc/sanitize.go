@@ -330,7 +330,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
-			flags.LdFlags = append(flags.LdFlags, "-lm", "-lpthread")
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
 		} else {
 			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
@@ -387,10 +386,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		if ctx.Host() {
 			flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover=all")
 			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
-			if ctx.Os() == android.Linux {
-				flags.LdFlags = append(flags.LdFlags, "-lrt")
-			}
-			flags.LdFlags = append(flags.LdFlags, "-ldl")
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
