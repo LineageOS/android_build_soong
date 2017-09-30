@@ -70,10 +70,16 @@ type CompilerProperties struct {
 	Exclude_srcs []string `android:"arch_variant"`
 
 	// list of directories containing Java resources
-	Resource_dirs []string `android:"arch_variant"`
+	Java_resource_dirs []string `android:"arch_variant"`
 
-	// list of directories that should be excluded from resource_dirs
-	Exclude_resource_dirs []string `android:"arch_variant"`
+	// list of directories that should be excluded from java_resource_dirs
+	Exclude_java_resource_dirs []string `android:"arch_variant"`
+
+	// list of files to use as Java resources
+	Java_resources []string `android:"arch_variant"`
+
+	// list of files that should be excluded from java_resources
+	Exclude_java_resources []string `android:"arch_variant"`
 
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
@@ -99,6 +105,9 @@ type CompilerProperties struct {
 
 	// If set to false, don't allow this module to be installed.  Defaults to true.
 	Installable *bool
+
+	// If set to true, include sources used to compile the module in to the final jar
+	Include_srcs *bool
 
 	// List of modules to use as annotation processors
 	Annotation_processors []string
@@ -227,13 +236,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		}
 	}
 
-	if ctx.AConfig().UnbundledBuild() {
-		if v == "" {
-			if ctx, ok := ctx.(android.ModuleContext); ok {
-				ctx.AddMissingDependencies([]string{"sdk_version_must_be_set_for_modules_used_in_unbundled_builds"})
-			}
-			return sdkDep{}
-		}
+	if ctx.AConfig().UnbundledBuild() && v != "" {
 		return toFile(v)
 	}
 
@@ -275,6 +278,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
+	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
@@ -377,8 +381,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags.javaVersion = "${config.DefaultJavaVersion}"
 	}
 
-	var extraDeps android.Paths
-
 	flags.bootClasspath.AddPaths(deps.bootClasspath)
 	flags.classpath.AddPaths(deps.classpath)
 
@@ -405,35 +407,50 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	deps.srcFileLists = append(deps.srcFileLists, j.ExtraSrcLists...)
 
-	var extraJarDeps android.Paths
-
 	var jars android.Paths
 
 	if len(srcFiles) > 0 {
-		// Compile java sources into .class files
-		classes := TransformJavaToClasses(ctx, srcFiles, deps.srcFileLists, flags, extraDeps)
-		if ctx.Failed() {
-			return
-		}
-
+		var extraJarDeps android.Paths
 		if ctx.AConfig().IsEnvTrue("RUN_ERROR_PRONE") {
 			// If error-prone is enabled, add an additional rule to compile the java files into
 			// a separate set of classes (so that they don't overwrite the normal ones and require
-			// a rebuild when error-prone is turned off).  Add the classes as a dependency to
-			// the jar command so the two compiles can run in parallel.
+			// a rebuild when error-prone is turned off).
 			// TODO(ccross): Once we always compile with javac9 we may be able to conditionally
 			//    enable error-prone without affecting the output class files.
-			errorprone := RunErrorProne(ctx, srcFiles, deps.srcFileLists, flags, extraDeps)
+			errorprone := RunErrorProne(ctx, srcFiles, deps.srcFileLists, flags, nil)
 			extraJarDeps = append(extraJarDeps, errorprone)
+		}
+
+		// Compile java sources into .class files
+		classes := TransformJavaToClasses(ctx, srcFiles, deps.srcFileLists, flags, extraJarDeps)
+		if ctx.Failed() {
+			return
 		}
 
 		jars = append(jars, classes)
 	}
 
-	resourceJarSpecs := ResourceDirsToJarSpecs(ctx, j.properties.Resource_dirs, j.properties.Exclude_resource_dirs)
-	if len(resourceJarSpecs) > 0 {
+	dirArgs, dirDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
+	fileArgs, fileDeps := ResourceFilesToJarArgs(ctx, j.properties.Java_resources, j.properties.Exclude_java_resources)
+
+	var resArgs []string
+	var resDeps android.Paths
+
+	resArgs = append(resArgs, dirArgs...)
+	resDeps = append(resDeps, dirDeps...)
+
+	resArgs = append(resArgs, fileArgs...)
+	resDeps = append(resDeps, fileDeps...)
+
+	if proptools.Bool(j.properties.Include_srcs) {
+		srcArgs, srcDeps := ResourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+		resArgs = append(resArgs, srcArgs...)
+		resDeps = append(resDeps, srcDeps...)
+	}
+
+	if len(resArgs) > 0 {
 		// Combine classes + resources into classes-full-debug.jar
-		resourceJar := TransformResourcesToJar(ctx, resourceJarSpecs, extraJarDeps)
+		resourceJar := TransformResourcesToJar(ctx, resArgs, resDeps)
 		if ctx.Failed() {
 			return
 		}
@@ -452,12 +469,12 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
-	// classes-combined.jar.  If there is only one input jar this step will be skipped.
+	// classes.jar.  If there is only one input jar this step will be skipped.
 	outputFile := TransformJarsToJar(ctx, "classes.jar", jars, manifest, false)
 
 	if j.properties.Jarjar_rules != nil {
 		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
-		// Transform classes-combined.jar into classes-jarjar.jar
+		// Transform classes.jar into classes-jarjar.jar
 		outputFile = TransformJarJar(ctx, outputFile, jarjar_rules)
 		if ctx.Failed() {
 			return
@@ -467,7 +484,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.classpathFile = outputFile
 
 	// TODO(ccross): handle hostdex
-	if ctx.Device() && len(srcFiles) > 0 {
+	if ctx.Device() && len(srcFiles) > 0 && j.installable() {
 		dxFlags := j.deviceProperties.Dxflags
 		if false /* emma enabled */ {
 			// If you instrument class files that have local variable debug information in
@@ -520,10 +537,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			return
 		}
 
-		// TODO(ccross): For now, use the desugared jar as the classpath file.  Eventually this
-		// might cause problems because desugar wants non-desugared jars in its class path.
-		j.classpathFile = desugarJar
-
 		// Compile classes.jar into classes.dex
 		dexJarFile := TransformClassesJarToDexJar(ctx, desugarJar, flags)
 		if ctx.Failed() {
@@ -539,6 +552,10 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	}
 	ctx.CheckbuildFile(outputFile)
 	j.outputFile = outputFile
+}
+
+func (j *Module) installable() bool {
+	return j.properties.Installable == nil || *j.properties.Installable
 }
 
 var _ Dependency = (*Library)(nil)
@@ -572,7 +589,7 @@ type Library struct {
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
-	if j.properties.Installable == nil || *j.properties.Installable == true {
+	if j.installable() {
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			ctx.ModuleName()+".jar", j.outputFile)
 	}

@@ -15,7 +15,9 @@
 package java
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint/bootstrap"
 
@@ -40,7 +42,8 @@ func isStringInSlice(str string, slice []string) bool {
 	return false
 }
 
-func ResourceDirsToJarSpecs(ctx android.ModuleContext, resourceDirs, excludeDirs []string) []jarSpec {
+func ResourceDirsToJarArgs(ctx android.ModuleContext,
+	resourceDirs, excludeDirs []string) (args []string, deps android.Paths) {
 	var excludes []string
 
 	for _, exclude := range excludeDirs {
@@ -48,8 +51,6 @@ func ResourceDirsToJarSpecs(ctx android.ModuleContext, resourceDirs, excludeDirs
 	}
 
 	excludes = append(excludes, resourceExcludes...)
-
-	var jarSpecs []jarSpec
 
 	for _, resourceDir := range resourceDirs {
 		if isStringInSlice(resourceDir, excludeDirs) {
@@ -63,9 +64,29 @@ func ResourceDirsToJarSpecs(ctx android.ModuleContext, resourceDirs, excludeDirs
 
 			pattern := filepath.Join(dir.String(), "**/*")
 			bootstrap.GlobFile(ctx, pattern, excludes, fileListFile.String(), depFile)
-			jarSpecs = append(jarSpecs, jarSpec{fileListFile, dir})
+			args = append(args,
+				"-C", dir.String(),
+				"-l", fileListFile.String())
+			deps = append(deps, fileListFile)
 		}
 	}
 
-	return jarSpecs
+	return args, deps
+}
+
+func ResourceFilesToJarArgs(ctx android.ModuleContext,
+	res, exclude []string) (args []string, deps android.Paths) {
+	files := ctx.ExpandSources(res, exclude)
+
+	for _, f := range files {
+		rel := f.Rel()
+		path := f.String()
+		if !strings.HasSuffix(path, rel) {
+			panic(fmt.Errorf("path %q does not end with %q", path, rel))
+		}
+		path = filepath.Clean(strings.TrimSuffix(path, rel))
+		args = append(args, "-C", filepath.Clean(path), "-f", f.String())
+	}
+
+	return args, files
 }
