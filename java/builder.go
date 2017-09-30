@@ -129,14 +129,6 @@ type javaBuilderFlags struct {
 	javaVersion   string
 }
 
-type jarSpec struct {
-	fileList, dir android.Path
-}
-
-func (j jarSpec) soongJarArgs() string {
-	return "-C " + j.dir.String() + " -l " + j.fileList.String()
-}
-
 func TransformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
 	flags javaBuilderFlags, deps android.Paths) android.ModuleOutPath {
 
@@ -206,17 +198,10 @@ func RunErrorProne(ctx android.ModuleContext, srcFiles android.Paths, srcFileLis
 	return classFileList
 }
 
-func TransformResourcesToJar(ctx android.ModuleContext, resources []jarSpec,
+func TransformResourcesToJar(ctx android.ModuleContext, jarArgs []string,
 	deps android.Paths) android.Path {
 
 	outputFile := android.PathForModuleOut(ctx, "res.jar")
-
-	jarArgs := []string{}
-
-	for _, j := range resources {
-		deps = append(deps, j.fileList)
-		jarArgs = append(jarArgs, j.soongJarArgs())
-	}
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        jar,
