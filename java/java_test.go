@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -59,6 +60,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -92,6 +94,8 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		"c.java":     nil,
 		"a.jar":      nil,
 		"b.jar":      nil,
+		"res/a":      nil,
+		"res/b":      nil,
 		"prebuilts/sdk/14/android.jar":    nil,
 		"prebuilts/sdk/14/framework.aidl": nil,
 	})
@@ -357,6 +361,76 @@ func TestDefaults(t *testing.T) {
 	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-compiled.jar")
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
+	}
+}
+
+func TestResources(t *testing.T) {
+	var table = []struct {
+		name  string
+		prop  string
+		extra string
+		args  string
+	}{
+		{
+			// Test that a module with java_resource_dirs includes a file list file
+			name: "resource dirs",
+			prop: `java_resource_dirs: ["res"]`,
+			args: "-C res -l ",
+		},
+		{
+			// Test that a module with java_resources includes the files
+			name: "resource files",
+			prop: `java_resources: ["res/a", "res/b"]`,
+			args: "-C . -f res/a -C . -f res/b",
+		},
+		{
+			// Test that a module with a filegroup in java_resources includes the files with the
+			// path prefix
+			name: "resource filegroup",
+			prop: `java_resources: [":foo-res"]`,
+			extra: `
+				filegroup {
+					name: "foo-res",
+					path: "res",
+					srcs: ["res/a", "res/b"],
+				}`,
+			args: "-C res -f res/a -C res -f res/b",
+		},
+		{
+			// Test that a module with "include_srcs: true" includes its source files in the resources jar
+			name: "include sources",
+			prop: `include_srcs: true`,
+			args: "-C . -f a.java -C . -f b.java -C . -f c.java",
+		},
+	}
+
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := testJava(t, `
+				java_library {
+					name: "foo",
+					srcs: [
+						"a.java",
+						"b.java",
+						"c.java",
+					],
+					`+test.prop+`,
+				}
+			`+test.extra)
+
+			foo := ctx.ModuleForTests("foo", "android_common").Output("classes.jar")
+			fooRes := ctx.ModuleForTests("foo", "android_common").Output("res.jar")
+
+			if !inList(fooRes.Output.String(), foo.Inputs.Strings()) {
+				t.Errorf("foo combined jars %v does not contain %q",
+					foo.Inputs.Strings(), fooRes.Output.String())
+			}
+
+			if !strings.Contains(fooRes.Args["jarArgs"], test.args) {
+				t.Errorf("foo resource jar args %q does not contain %q",
+					fooRes.Args["jarArgs"], test.args)
+			}
+		})
 	}
 }
 
