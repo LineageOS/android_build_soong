@@ -94,6 +94,8 @@ func ManifestFileContents(src string) (*zip.FileHeader, []byte, error) {
 		Method:             zip.Store,
 		UncompressedSize64: uint64(len(b)),
 	}
+	fh.SetMode(0700)
+	fh.SetModTime(DefaultTime)
 
 	return fh, b, nil
 }
