@@ -75,6 +75,12 @@ type CompilerProperties struct {
 	// list of directories that should be excluded from java_resource_dirs
 	Exclude_java_resource_dirs []string `android:"arch_variant"`
 
+	// list of files to use as Java resources
+	Java_resources []string `android:"arch_variant"`
+
+	// list of files that should be excluded from java_resources
+	Exclude_java_resources []string `android:"arch_variant"`
+
 	// don't build against the default libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
 	No_standard_libs *bool
@@ -99,6 +105,9 @@ type CompilerProperties struct {
 
 	// If set to false, don't allow this module to be installed.  Defaults to true.
 	Installable *bool
+
+	// If set to true, include sources used to compile the module in to the final jar
+	Include_srcs *bool
 
 	// List of modules to use as annotation processors
 	Annotation_processors []string
@@ -275,6 +284,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
+	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
@@ -426,7 +436,23 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		jars = append(jars, classes)
 	}
 
-	resArgs, resDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
+	dirArgs, dirDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
+	fileArgs, fileDeps := ResourceFilesToJarArgs(ctx, j.properties.Java_resources, j.properties.Exclude_java_resources)
+
+	var resArgs []string
+	var resDeps android.Paths
+
+	resArgs = append(resArgs, dirArgs...)
+	resDeps = append(resDeps, dirDeps...)
+
+	resArgs = append(resArgs, fileArgs...)
+	resDeps = append(resDeps, fileDeps...)
+
+	if proptools.Bool(j.properties.Include_srcs) {
+		srcArgs, srcDeps := ResourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+		resArgs = append(resArgs, srcArgs...)
+		resDeps = append(resDeps, srcDeps...)
+	}
 
 	if len(resArgs) > 0 {
 		// Combine classes + resources into classes-full-debug.jar

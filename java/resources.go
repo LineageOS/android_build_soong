@@ -15,7 +15,9 @@
 package java
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint/bootstrap"
 
@@ -70,4 +72,21 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 	}
 
 	return args, deps
+}
+
+func ResourceFilesToJarArgs(ctx android.ModuleContext,
+	res, exclude []string) (args []string, deps android.Paths) {
+	files := ctx.ExpandSources(res, exclude)
+
+	for _, f := range files {
+		rel := f.Rel()
+		path := f.String()
+		if !strings.HasSuffix(path, rel) {
+			panic(fmt.Errorf("path %q does not end with %q", path, rel))
+		}
+		path = filepath.Clean(strings.TrimSuffix(path, rel))
+		args = append(args, "-C", filepath.Clean(path), "-f", f.String())
+	}
+
+	return args, files
 }
