@@ -116,6 +116,14 @@ type CompilerProperties struct {
 
 	// List of classes to pass to javac to use as annotation processors
 	Annotation_processor_classes []string
+
+	Openjdk9 struct {
+		// List of source files that should only be used when passing -source 1.9
+		Srcs []string
+
+		// List of javac flags that should only be used when passing -source 1.9
+		Javacflags []string
+	}
 }
 
 type CompilerDeviceProperties struct {
@@ -134,6 +142,9 @@ type CompilerDeviceProperties struct {
 
 	// If true, export a copy of the module as a -hostdex module for host testing.
 	Hostdex *bool
+
+	// When targeting 1.9, override the modules to use with --system
+	System_modules *string
 }
 
 // Module contains the properties and members used by all java module types
@@ -185,26 +196,39 @@ var (
 	staticLibTag     = dependencyTag{name: "staticlib"}
 	libTag           = dependencyTag{name: "javalib"}
 	bootClasspathTag = dependencyTag{name: "bootclasspath"}
+	systemModulesTag = dependencyTag{name: "system modules"}
 	frameworkResTag  = dependencyTag{name: "framework-res"}
 )
 
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
-	module string
-	jar    android.Path
-	aidl   android.Path
+	module        string
+	systemModules string
+
+	jar  android.Path
+	aidl android.Path
+}
+
+func sdkStringToNumber(ctx android.BaseContext, v string) int {
+	switch v {
+	case "", "current", "system_current", "test_current":
+		return 10000
+	default:
+		if i, err := strconv.Atoi(v); err != nil {
+			ctx.PropertyErrorf("sdk_version", "invalid sdk version")
+			return -1
+		} else {
+			return i
+		}
+	}
 }
 
 func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
-	switch v {
-	case "", "current", "system_current", "test_current":
-		// OK
-	default:
-		if _, err := strconv.Atoi(v); err != nil {
-			ctx.PropertyErrorf("sdk_version", "invalid sdk version")
-			return sdkDep{}
-		}
+	i := sdkStringToNumber(ctx, v)
+	if i == -1 {
+		// Invalid sdk version, error handled by sdkStringToNumber.
+		return sdkDep{}
 	}
 
 	toFile := func(v string) sdkDep {
@@ -240,8 +264,9 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 
 	toModule := func(m string) sdkDep {
 		return sdkDep{
-			useModule: true,
-			module:    m,
+			useModule:     true,
+			module:        m,
+			systemModules: m + "_system_modules",
 		}
 	}
 
@@ -266,20 +291,31 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 }
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
-	if !proptools.Bool(j.properties.No_standard_libs) {
-		if ctx.Device() {
+	if ctx.Device() {
+		if !proptools.Bool(j.properties.No_standard_libs) {
 			sdkDep := decodeSdkDep(ctx, j.deviceProperties.Sdk_version)
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
+				if ctx.AConfig().TargetOpenJDK9() {
+					ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
+				}
 				if !proptools.Bool(j.properties.No_framework_libs) {
 					ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 				}
-			}
-			if sdkDep.useModule {
+			} else if sdkDep.useModule {
+				if ctx.AConfig().TargetOpenJDK9() {
+					ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
+				}
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
 			}
+		} else if j.deviceProperties.System_modules == nil {
+			ctx.PropertyErrorf("no_standard_libs",
+				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
+		} else if *j.deviceProperties.System_modules != "none" && ctx.AConfig().TargetOpenJDK9() {
+			ctx.AddDependency(ctx.Module(), systemModulesTag, *j.deviceProperties.System_modules)
 		}
 	}
+
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
@@ -335,6 +371,7 @@ type deps struct {
 	staticJarResources android.Paths
 	aidlIncludeDirs    android.Paths
 	srcFileLists       android.Paths
+	systemModules      android.Path
 	aidlPreprocess     android.OptionalPath
 }
 
@@ -358,6 +395,15 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			switch tag {
 			case android.DefaultsDepTag, android.SourceDepTag:
 				// Nothing to do
+			case systemModulesTag:
+				if deps.systemModules != nil {
+					panic("Found two system module dependencies")
+				}
+				sm := module.(*SystemModules)
+				if sm.outputFile == nil {
+					panic("Missing directory for system module dependency")
+				}
+				deps.systemModules = sm.outputFile
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
@@ -397,18 +443,28 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	var flags javaBuilderFlags
 
 	javacFlags := j.properties.Javacflags
-	if ctx.AConfig().Getenv("EXPERIMENTAL_USE_OPENJDK9") == "" {
-		javacFlags = config.StripJavac9Flags(javacFlags)
+	if ctx.AConfig().TargetOpenJDK9() {
+		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
+		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
 	}
 
+	sdk := sdkStringToNumber(ctx, j.deviceProperties.Sdk_version)
 	if j.properties.Java_version != nil {
 		flags.javaVersion = *j.properties.Java_version
+	} else if ctx.Device() && sdk <= 23 {
+		flags.javaVersion = "1.7"
+	} else if ctx.Device() && sdk <= 26 || !ctx.AConfig().TargetOpenJDK9() {
+		flags.javaVersion = "1.8"
 	} else {
-		flags.javaVersion = "${config.DefaultJavaVersion}"
+		flags.javaVersion = "1.9"
 	}
 
 	flags.bootClasspath.AddPaths(deps.bootClasspath)
 	flags.classpath.AddPaths(deps.classpath)
+
+	if deps.systemModules != nil {
+		flags.systemModules = append(flags.systemModules, deps.systemModules)
+	}
 
 	if len(javacFlags) > 0 {
 		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
