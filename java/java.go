@@ -426,10 +426,11 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		jars = append(jars, classes)
 	}
 
-	resourceJarSpecs := ResourceDirsToJarSpecs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
-	if len(resourceJarSpecs) > 0 {
+	resArgs, resDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
+
+	if len(resArgs) > 0 {
 		// Combine classes + resources into classes-full-debug.jar
-		resourceJar := TransformResourcesToJar(ctx, resourceJarSpecs, extraJarDeps)
+		resourceJar := TransformResourcesToJar(ctx, resArgs, resDeps)
 		if ctx.Failed() {
 			return
 		}
