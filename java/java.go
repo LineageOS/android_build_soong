@@ -449,12 +449,12 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
-	// classes-combined.jar.  If there is only one input jar this step will be skipped.
+	// classes.jar.  If there is only one input jar this step will be skipped.
 	outputFile := TransformJarsToJar(ctx, "classes.jar", jars, manifest, false)
 
 	if j.properties.Jarjar_rules != nil {
 		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
-		// Transform classes-combined.jar into classes-jarjar.jar
+		// Transform classes.jar into classes-jarjar.jar
 		outputFile = TransformJarJar(ctx, outputFile, jarjar_rules)
 		if ctx.Failed() {
 			return
@@ -516,10 +516,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		if ctx.Failed() {
 			return
 		}
-
-		// TODO(ccross): For now, use the desugared jar as the classpath file.  Eventually this
-		// might cause problems because desugar wants non-desugared jars in its class path.
-		j.classpathFile = desugarJar
 
 		// Compile classes.jar into classes.dex
 		dexJarFile := TransformClassesJarToDexJar(ctx, desugarJar, flags)
