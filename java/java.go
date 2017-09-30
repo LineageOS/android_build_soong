@@ -236,13 +236,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		}
 	}
 
-	if ctx.AConfig().UnbundledBuild() {
-		if v == "" {
-			if ctx, ok := ctx.(android.ModuleContext); ok {
-				ctx.AddMissingDependencies([]string{"sdk_version_must_be_set_for_modules_used_in_unbundled_builds"})
-			}
-			return sdkDep{}
-		}
+	if ctx.AConfig().UnbundledBuild() && v != "" {
 		return toFile(v)
 	}
 
