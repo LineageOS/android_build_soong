@@ -162,7 +162,7 @@ func (binary *binaryDecorator) getHostInterpreterName(ctx android.ModuleContext,
 	var interp string
 	switch actual_version {
 	case pyVersion2:
-		interp = "python2"
+		interp = "python2.7"
 	case pyVersion3:
 		interp = "python3"
 	default:
