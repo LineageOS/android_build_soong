@@ -14,22 +14,6 @@
 
 package android
 
-import (
-	"github.com/google/blueprint"
-)
-
-func init() {
-	pctx.HostBinToolVariable("protocCmd", "aprotoc")
-}
-
-var (
-	proto = pctx.AndroidStaticRule("protoc",
-		blueprint.RuleParams{
-			Command:     "$protocCmd $protoOut=$protoOutFlags:$outDir $protoFlags $in",
-			CommandDeps: []string{"$protocCmd"},
-		}, "protoFlags", "protoOut", "protoOutFlags", "outDir")
-)
-
 // TODO(ccross): protos are often used to communicate between multiple modules.  If the only
 // way to convert a proto to source is to reference it as a source file, and external modules cannot
 // reference source files in other modules, then every module that owns a proto file will need to
@@ -37,30 +21,6 @@ var (
 // be better to support a proto module type that exported a proto file along with some include dirs,
 // and then external modules could depend on the proto module but use their own settings to
 // generate the source.
-
-func GenProto(ctx ModuleContext, protoFile Path,
-	protoFlags string, protoOut, protoOutFlags string, extensions []string) WritablePaths {
-
-	var outFiles WritablePaths
-	for _, ext := range extensions {
-		outFiles = append(outFiles, GenPathWithExt(ctx, "proto", protoFile, ext))
-	}
-
-	ctx.ModuleBuild(pctx, ModuleBuildParams{
-		Rule:        proto,
-		Description: "protoc " + protoFile.Rel(),
-		Outputs:     outFiles,
-		Input:       protoFile,
-		Args: map[string]string{
-			"outDir":        ProtoDir(ctx).String(),
-			"protoOut":      protoOut,
-			"protoOutFlags": protoOutFlags,
-			"protoFlags":    protoFlags,
-		},
-	})
-
-	return outFiles
-}
 
 func ProtoFlags(ctx ModuleContext, p *ProtoProperties) []string {
 	var protoFlags []string
