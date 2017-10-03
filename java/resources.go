@@ -47,7 +47,8 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 	var excludes []string
 
 	for _, exclude := range excludeDirs {
-		excludes = append(excludes, android.PathForModuleSrc(ctx, exclude, "**/*").String())
+		excludes = append(excludes,
+			filepath.Join(android.PathForModuleSrc(ctx, exclude).String(), "**/*"))
 	}
 
 	excludes = append(excludes, resourceExcludes...)
