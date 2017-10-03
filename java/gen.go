@@ -85,21 +85,37 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 }
 
 func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
-	flags javaBuilderFlags) android.Paths {
+	flags javaBuilderFlags) (android.Paths, android.Paths) {
 
-	for i, srcFile := range srcFiles {
+	var protoFiles android.Paths
+	outSrcFiles := make(android.Paths, 0, len(srcFiles))
+
+	for _, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".aidl":
 			javaFile := genAidl(ctx, srcFile, flags.aidlFlags)
-			srcFiles[i] = javaFile
+			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".logtags":
 			j.logtagsSrcs = append(j.logtagsSrcs, srcFile)
 			javaFile := genLogtags(ctx, srcFile)
-			srcFiles[i] = javaFile
+			outSrcFiles = append(outSrcFiles, javaFile)
+		case ".proto":
+			protoFiles = append(protoFiles, srcFile)
+		default:
+			outSrcFiles = append(outSrcFiles, srcFile)
 		}
 	}
 
-	return srcFiles
+	var outSrcFileLists android.Paths
+
+	if len(protoFiles) > 0 {
+		protoFileList := genProto(ctx, protoFiles,
+			flags.protoFlags, flags.protoOutFlag, "")
+
+		outSrcFileLists = append(outSrcFileLists, protoFileList)
+	}
+
+	return outSrcFiles, outSrcFileLists
 }
 
 func LogtagsSingleton() blueprint.Singleton {
