@@ -81,9 +81,13 @@ type CompilerProperties struct {
 	// list of files that should be excluded from java_resources
 	Exclude_java_resources []string `android:"arch_variant"`
 
-	// don't build against the default libraries (legacy-test, core-junit,
+	// don't build against the default libraries (bootclasspath, legacy-test, core-junit,
 	// ext, and framework for device targets)
 	No_standard_libs *bool
+
+	// don't build against the framework libraries (legacy-test, core-junit,
+	// ext, and framework for device targets)
+	No_framework_libs *bool
 
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
@@ -262,7 +266,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			sdkDep := decodeSdkDep(ctx, j.deviceProperties.Sdk_version)
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
-				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
+				if !proptools.Bool(j.properties.No_framework_libs) {
+					ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
+				}
 			}
 			if sdkDep.useModule {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
