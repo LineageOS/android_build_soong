@@ -87,7 +87,7 @@ module {
         host: {
             // Host variants
         },
-        linux: {
+        linux_glibc: {
             // Linux host variants
         },
         darwin: {
@@ -468,7 +468,7 @@ func createArchType(props reflect.Type) reflect.Type {
 		"Android64",
 		"Android32",
 		"Bionic",
-		"Linux",
+		// TODO(dwillemsen): "Linux",
 		"Not_windows",
 		"Arm_on_x86",
 		"Arm_on_x86_64",
@@ -479,7 +479,7 @@ func createArchType(props reflect.Type) reflect.Type {
 		for _, archType := range osArchTypeMap[os] {
 			targets = append(targets, os.Field+"_"+archType.Name)
 
-			if os == Linux { // TODO(dwillemsen): os.Linux()
+			if false { // TODO(dwillemsen): os.Linux()
 				target := "Linux_" + archType.Name
 				if !inList(target, targets) {
 					targets = append(targets, target)
@@ -696,7 +696,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		//         key: value,
 		//     },
 		// }
-		if os == Linux { // TODO(dwillemsen): os.Linux()
+		if false { // TODO(dwillemsen): os.Linux()
 			field = "Linux"
 			prefix = "target.linux"
 			a.appendProperties(ctx, genProps, targetProp, field, prefix)
