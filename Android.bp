@@ -339,7 +339,7 @@ cc_genrule {
         linux_bionic: {
             enabled: true,
         },
-        linux: {
+        linux_glibc: {
             enabled: false,
         },
         darwin: {
@@ -360,7 +360,7 @@ cc_genrule {
         linux_bionic: {
             enabled: true,
         },
-        linux: {
+        linux_glibc: {
             enabled: false,
         },
         darwin: {
