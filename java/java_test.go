@@ -96,6 +96,8 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 		"b.jar":      nil,
 		"res/a":      nil,
 		"res/b":      nil,
+		"res2/a":     nil,
+
 		"prebuilts/sdk/14/android.jar":    nil,
 		"prebuilts/sdk/14/framework.aidl": nil,
 	})
@@ -431,6 +433,42 @@ func TestResources(t *testing.T) {
 					fooRes.Args["jarArgs"], test.args)
 			}
 		})
+	}
+}
+
+func TestExcludeResources(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			java_resource_dirs: ["res", "res2"],
+			exclude_java_resource_dirs: ["res2"],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			java_resources: ["res/*"],
+			exclude_java_resources: ["res/b"],
+		}
+	`)
+
+	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res.jar")
+
+	expected := "-C res -l " + fooRes.Implicits[0].String()
+	if fooRes.Args["jarArgs"] != expected {
+		t.Errorf("foo resource jar args %q is not %q",
+			fooRes.Args["jarArgs"], expected)
+
+	}
+
+	barRes := ctx.ModuleForTests("bar", "android_common").Output("res.jar")
+
+	expected = "-C . -f res/a"
+	if barRes.Args["jarArgs"] != expected {
+		t.Errorf("bar resource jar args %q is not %q",
+			barRes.Args["jarArgs"], expected)
+
 	}
 }
 
