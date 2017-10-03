@@ -357,7 +357,7 @@ func hostOs(ctx variableAssignmentContext) error {
 	}
 
 	if !inList("linux") && err == nil {
-		err = setVariable(ctx.file, ctx.append, "target.linux", "enabled", falseValue, true)
+		err = setVariable(ctx.file, ctx.append, "target.linux_glibc", "enabled", falseValue, true)
 	}
 
 	if !inList("darwin") && err == nil {
@@ -609,7 +609,7 @@ var propertyPrefixes = []struct{ mk, bp string }{
 	// 64 must be after x86_64
 	{"64", "multilib.lib64"},
 	{"darwin", "target.darwin"},
-	{"linux", "target.linux"},
+	{"linux", "target.linux_glibc"},
 	{"windows", "target.windows"},
 }
 
@@ -627,11 +627,11 @@ var conditionalTranslations = map[string]map[bool]string{
 		true:  "target.windows",
 		false: "target.not_windows"},
 	"($(HOST_OS),linux)": {
-		true:  "target.linux",
-		false: "target.not_linux"},
+		true:  "target.linux_glibc",
+		false: "target.not_linux_glibc"},
 	"($(HOST_OS), linux)": {
-		true:  "target.linux",
-		false: "target.not_linux"},
+		true:  "target.linux_glibc",
+		false: "target.not_linux_glibc"},
 	"($(BUILD_OS),darwin)": {
 		true:  "target.darwin",
 		false: "target.not_darwin"},
@@ -639,11 +639,11 @@ var conditionalTranslations = map[string]map[bool]string{
 		true:  "target.darwin",
 		false: "target.not_darwin"},
 	"($(BUILD_OS),linux)": {
-		true:  "target.linux",
-		false: "target.not_linux"},
+		true:  "target.linux_glibc",
+		false: "target.not_linux_glibc"},
 	"($(BUILD_OS), linux)": {
-		true:  "target.linux",
-		false: "target.not_linux"},
+		true:  "target.linux_glibc",
+		false: "target.not_linux_glibc"},
 	"(,$(TARGET_BUILD_APPS))": {
 		false: "product_variables.unbundled_build"},
 	"($(TARGET_BUILD_PDK),true)": {
