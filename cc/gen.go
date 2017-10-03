@@ -153,10 +153,9 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			srcFiles[i] = cppFile
 			genLex(ctx, srcFile, cppFile)
 		case ".proto":
-			protoFiles := android.GenProto(ctx, srcFile, buildFlags.protoFlags,
-				"--cpp_out", "", []string{"pb.cc", "pb.h"})
-			srcFiles[i] = protoFiles[0]
-			deps = append(deps, protoFiles[1])
+			ccFile, headerFile := genProto(ctx, srcFile, buildFlags.protoFlags)
+			srcFiles[i] = ccFile
+			deps = append(deps, headerFile)
 		case ".aidl":
 			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
 			srcFiles[i] = cppFile
