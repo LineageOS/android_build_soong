@@ -35,8 +35,8 @@ import (
 func init() {
 	android.RegisterModuleType("java_defaults", defaultsFactory)
 
-	android.RegisterModuleType("java_library", LibraryFactory)
-	android.RegisterModuleType("java_library_static", LibraryFactory)
+	android.RegisterModuleType("java_library", LibraryFactory(true))
+	android.RegisterModuleType("java_library_static", LibraryFactory(false))
 	android.RegisterModuleType("java_library_host", LibraryHostFactory)
 	android.RegisterModuleType("java_binary", BinaryFactory)
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
@@ -605,17 +605,22 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
-func LibraryFactory() android.Module {
-	module := &Library{}
+func LibraryFactory(installable bool) func() android.Module {
+	return func() android.Module {
+		module := &Library{}
 
-	module.deviceProperties.Dex = true
+		if !installable {
+			module.properties.Installable = proptools.BoolPtr(false)
+		}
+		module.deviceProperties.Dex = true
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties)
+		module.AddProperties(
+			&module.Module.properties,
+			&module.Module.deviceProperties)
 
-	InitJavaModule(module, android.HostAndDeviceSupported)
-	return module
+		InitJavaModule(module, android.HostAndDeviceSupported)
+		return module
+	}
 }
 
 func LibraryHostFactory() android.Module {
