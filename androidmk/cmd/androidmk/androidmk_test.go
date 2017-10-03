@@ -256,7 +256,7 @@ cc_library_shared {
         darwin: {
             srcs: ["darwin.c"],
         },
-        linux: {
+        linux_glibc: {
             srcs: ["linux.c"],
         },
         windows: {
