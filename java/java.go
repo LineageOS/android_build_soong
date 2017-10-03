@@ -195,10 +195,11 @@ var (
 )
 
 type sdkDep struct {
-	useModule, useFiles, useDefaultLibs bool
-	module                              string
-	jar                                 android.Path
-	aidl                                android.Path
+	useModule, useFiles, useDefaultLibs, invalidVersion bool
+
+	module string
+	jar    android.Path
+	aidl   android.Path
 }
 
 func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
@@ -218,14 +219,24 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		aidl := filepath.Join(dir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, "sdkdir", jar)
 		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
+
+		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.AConfig().AllowMissingDependencies() {
+			return sdkDep{
+				invalidVersion: true,
+				module:         "sdk_v" + v,
+			}
+		}
+
 		if !jarPath.Valid() {
 			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", v, jar)
 			return sdkDep{}
 		}
+
 		if !aidlPath.Valid() {
 			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", v, aidl)
 			return sdkDep{}
 		}
+
 		return sdkDep{
 			useFiles: true,
 			jar:      jarPath.Path(),
@@ -323,7 +334,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
 	sdkDep := decodeSdkDep(ctx, j.deviceProperties.Sdk_version)
-	if sdkDep.useFiles {
+	if sdkDep.invalidVersion {
+		ctx.AddMissingDependencies([]string{sdkDep.module})
+	} else if sdkDep.useFiles {
 		deps.classpath = append(deps.classpath, sdkDep.jar)
 		deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, sdkDep.aidl)
 	}
