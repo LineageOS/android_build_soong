@@ -30,7 +30,7 @@ var (
 type AndroidMkContext interface {
 	Target() android.Target
 	subAndroidMk(*android.AndroidMkData, interface{})
-	useVndk() bool
+	vndk() bool
 }
 
 type subAndroidMkProvider interface {
@@ -64,14 +64,14 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 				}
-				if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.useVndk() {
+				if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.vndk() {
 					fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
 					fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
 				} else {
 					// These are already included in LOCAL_SHARED_LIBRARIES
 					fmt.Fprintln(w, "LOCAL_CXX_STL := none")
 				}
-				if c.useVndk() {
+				if c.vndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 				}
 			},
@@ -89,7 +89,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 	}
 	c.subAndroidMk(&ret, c.installer)
 
-	if c.useVndk() && Bool(c.VendorProperties.Vendor_available) {
+	if c.vndk() && Bool(c.VendorProperties.Vendor_available) {
 		// .vendor suffix is added only when we will have two variants: core and vendor.
 		// The suffix is not added for vendor-only module.
 		ret.SubName += vendorSuffix
@@ -161,7 +161,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 				}
 				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
-			} else if ctx.useVndk() {
+			} else if ctx.vndk() {
 				fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 			}
 
