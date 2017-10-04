@@ -285,9 +285,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
 			}
 		} else {
-			if j.deviceProperties.Dex {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			}
+			// TODO(ccross): add hostdex support
 		}
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)

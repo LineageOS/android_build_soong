@@ -185,6 +185,7 @@ func TestArchSpecific(t *testing.T) {
 
 var classpathTestcases = []struct {
 	name          string
+	moduleType    string
 	host          android.OsClass
 	properties    string
 	bootclasspath []string
@@ -239,14 +240,29 @@ var classpathTestcases = []struct {
 	{
 
 		name:       "host default",
-		host:       android.Host,
+		moduleType: "java_library_host",
 		properties: ``,
+		host:       android.Host,
 		classpath:  []string{},
 	},
 	{
 		name:       "host nostdlib",
+		moduleType: "java_library_host",
 		host:       android.Host,
 		properties: `no_standard_libs: true`,
+		classpath:  []string{},
+	},
+	{
+
+		name:       "host supported default",
+		host:       android.Host,
+		properties: `host_supported: true,`,
+		classpath:  []string{},
+	},
+	{
+		name:       "host supported nostdlib",
+		host:       android.Host,
+		properties: `host_supported: true, no_standard_libs: true`,
 		classpath:  []string{},
 	},
 }
@@ -254,12 +270,11 @@ var classpathTestcases = []struct {
 func TestClasspath(t *testing.T) {
 	for _, testcase := range classpathTestcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			hostExtra := ""
-			if testcase.host == android.Host {
-				hostExtra = "_host"
+			moduleType := "java_library"
+			if testcase.moduleType != "" {
+				moduleType = testcase.moduleType
 			}
-			ctx := testJava(t, `
-			java_library`+hostExtra+` {
+			ctx := testJava(t, moduleType+` {
 				name: "foo",
 				srcs: ["a.java"],
 				`+testcase.properties+`
