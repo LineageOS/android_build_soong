@@ -132,7 +132,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
 	deps.ReexportGeneratedHeaders = append(deps.ReexportGeneratedHeaders, linker.Properties.Export_generated_headers...)
 
-	if ctx.vndk() {
+	if ctx.useVndk() {
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Vendor.Exclude_shared_libs)
 	}
@@ -174,7 +174,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 			}
 
 			deps.LateSharedLibs = append(deps.LateSharedLibs, systemSharedLibs...)
-		} else if ctx.sdk() || ctx.vndk() {
+		} else if ctx.sdk() || ctx.useVndk() {
 			deps.LateSharedLibs = append(deps.LateSharedLibs, "libc", "libm", "libdl")
 		}
 	}
