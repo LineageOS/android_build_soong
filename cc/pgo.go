@@ -24,7 +24,7 @@ import (
 var (
 	// Add flags to ignore warnings that profiles are old or missing for
 	// some functions
-	profileUseOtherFlags = []string{}
+	profileUseOtherFlags = []string{"-Wno-backend-plugin"}
 )
 
 const pgoProfileProject = "toolchain/pgo-profiles"
