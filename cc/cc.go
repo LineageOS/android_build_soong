@@ -194,7 +194,7 @@ type ModuleContextIntf interface {
 	noDefaultCompilerFlags() bool
 	sdk() bool
 	sdkVersion() string
-	vndk() bool
+	useVndk() bool
 	isVndk() bool
 	isVndkSp() bool
 	createVndkSourceAbiDump() bool
@@ -377,7 +377,7 @@ func (c *Module) isDependencyRoot() bool {
 	return false
 }
 
-func (c *Module) vndk() bool {
+func (c *Module) useVndk() bool {
 	return c.Properties.UseVndk
 }
 
@@ -403,10 +403,8 @@ type moduleContext struct {
 	moduleContextImpl
 }
 
-// Vendor returns true for vendor modules excluding VNDK libraries so that
-// they get installed onto the correct partition
-func (ctx *moduleContext) Vendor() bool {
-	return ctx.ModuleContext.Vendor() || (ctx.mod.vndk() && !ctx.mod.isVndk())
+func (ctx *moduleContext) InstallOnVendorPartition() bool {
+	return ctx.ModuleContext.Vendor() || (ctx.mod.useVndk() && !ctx.mod.isVndk())
 }
 
 type moduleContextImpl struct {
@@ -445,7 +443,7 @@ func (ctx *moduleContextImpl) noDefaultCompilerFlags() bool {
 }
 
 func (ctx *moduleContextImpl) sdk() bool {
-	if ctx.ctx.Device() && !ctx.vndk() {
+	if ctx.ctx.Device() && !ctx.useVndk() {
 		return ctx.mod.Properties.Sdk_version != ""
 	}
 	return false
@@ -453,7 +451,7 @@ func (ctx *moduleContextImpl) sdk() bool {
 
 func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
-		if ctx.vndk() {
+		if ctx.useVndk() {
 			return "current"
 		} else {
 			return ctx.mod.Properties.Sdk_version
@@ -462,12 +460,11 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 	return ""
 }
 
-func (ctx *moduleContextImpl) vndk() bool {
-	return ctx.mod.vndk()
-}
-
 func (ctx *moduleContextImpl) isVndk() bool {
 	return ctx.mod.isVndk()
+}
+func (ctx *moduleContextImpl) useVndk() bool {
+	return ctx.mod.useVndk()
 }
 
 func (ctx *moduleContextImpl) isVndkSp() bool {
@@ -479,7 +476,7 @@ func (ctx *moduleContextImpl) isVndkSp() bool {
 
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
 func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
-	return ctx.ctx.Device() && ((ctx.vndk() && ctx.isVndk()) || inList(ctx.baseModuleName(), llndkLibraries))
+	return ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk()) || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -533,6 +530,7 @@ func (c *Module) Name() string {
 }
 
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+
 	ctx := &moduleContext{
 		ModuleContext: actx,
 		moduleContextImpl: moduleContextImpl{
@@ -764,19 +762,23 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if ctx.Os() == android.Android {
 		version := ctx.sdkVersion()
 
-		// Rewrites the names of shared libraries into the names of the NDK
-		// libraries where appropriate. This returns two slices.
+		// rewriteNdkLibs takes a list of names of shared libraries and scans it for three types
+		// of names:
 		//
-		// The first is a list of non-variant shared libraries (either rewritten
-		// NDK libraries to the modules in prebuilts/ndk, or not rewritten
-		// because they are not NDK libraries).
+		// 1. Name of an NDK library that refers to a prebuilt module.
+		//    For each of these, it adds the name of the prebuilt module (which will be in
+		//    prebuilts/ndk) to the list of nonvariant libs.
+		// 2. Name of an NDK library that refers to an ndk_library module.
+		//    For each of these, it adds the name of the ndk_library module to the list of
+		//    variant libs.
+		// 3. Anything else (so anything that isn't an NDK library).
+		//    It adds these to the nonvariantLibs list.
 		//
-		// The second is a list of ndk_library modules. These need to be
-		// separated because they are a variation dependency and must be added
-		// in a different manner.
-		rewriteNdkLibs := func(list []string) ([]string, []string) {
-			variantLibs := []string{}
-			nonvariantLibs := []string{}
+		// The caller can then know to add the variantLibs dependencies differently from the
+		// nonvariantLibs
+		rewriteNdkLibs := func(list []string) (nonvariantLibs []string, variantLibs []string) {
+			variantLibs = []string{}
+			nonvariantLibs = []string{}
 			for _, entry := range list {
 				if ctx.sdk() && inList(entry, ndkPrebuiltSharedLibraries) {
 					if !inList(entry, ndkMigratedLibs) {
@@ -784,7 +786,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					} else {
 						variantLibs = append(variantLibs, entry+ndkLibrarySuffix)
 					}
-				} else if ctx.vndk() && inList(entry, llndkLibraries) {
+				} else if ctx.useVndk() && inList(entry, llndkLibraries) {
 					nonvariantLibs = append(nonvariantLibs, entry+llndkLibrarySuffix)
 				} else {
 					nonvariantLibs = append(nonvariantLibs, entry)
@@ -886,117 +888,118 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 	return clang
 }
 
+// Whether a module can link to another module, taking into
+// account NDK linking.
+func checkLinkType(ctx android.ModuleContext, from *Module, to *Module) {
+	if from.Target().Os != android.Android {
+		// Host code is not restricted
+		return
+	}
+	if from.Properties.UseVndk {
+		// Though vendor code is limited by the vendor mutator,
+		// each vendor-available module needs to check
+		// link-type for VNDK.
+		if from.vndkdep != nil {
+			from.vndkdep.vndkCheckLinkType(ctx, to)
+		}
+		return
+	}
+	if from.Properties.Sdk_version == "" {
+		// Platform code can link to anything
+		return
+	}
+	if _, ok := to.linker.(*toolchainLibraryDecorator); ok {
+		// These are always allowed
+		return
+	}
+	if _, ok := to.linker.(*ndkPrebuiltLibraryLinker); ok {
+		// These are allowed, but they don't set sdk_version
+		return
+	}
+	if _, ok := to.linker.(*ndkPrebuiltStlLinker); ok {
+		// These are allowed, but they don't set sdk_version
+		return
+	}
+	if _, ok := to.linker.(*stubDecorator); ok {
+		// These aren't real libraries, but are the stub shared libraries that are included in
+		// the NDK.
+		return
+	}
+	if to.Properties.Sdk_version == "" {
+		// NDK code linking to platform code is never okay.
+		ctx.ModuleErrorf("depends on non-NDK-built library %q",
+			ctx.OtherModuleName(to))
+	}
+
+	// At this point we know we have two NDK libraries, but we need to
+	// check that we're not linking against anything built against a higher
+	// API level, as it is only valid to link against older or equivalent
+	// APIs.
+
+	if from.Properties.Sdk_version == "current" {
+		// Current can link against anything.
+		return
+	} else if to.Properties.Sdk_version == "current" {
+		// Current can't be linked against by anything else.
+		ctx.ModuleErrorf("links %q built against newer API version %q",
+			ctx.OtherModuleName(to), "current")
+	}
+
+	fromApi, err := strconv.Atoi(from.Properties.Sdk_version)
+	if err != nil {
+		ctx.PropertyErrorf("sdk_version",
+			"Invalid sdk_version value (must be int): %q",
+			from.Properties.Sdk_version)
+	}
+	toApi, err := strconv.Atoi(to.Properties.Sdk_version)
+	if err != nil {
+		ctx.PropertyErrorf("sdk_version",
+			"Invalid sdk_version value (must be int): %q",
+			to.Properties.Sdk_version)
+	}
+
+	if toApi > fromApi {
+		ctx.ModuleErrorf("links %q built against newer API version %q",
+			ctx.OtherModuleName(to), to.Properties.Sdk_version)
+	}
+}
+
 // Convert dependencies to paths.  Returns a PathDeps containing paths
 func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
-	// Whether a module can link to another module, taking into
-	// account NDK linking.
-	checkLinkType := func(from, to *Module) {
-		if from.Target().Os != android.Android {
-			// Host code is not restricted
-			return
-		}
-		if from.Properties.UseVndk {
-			// Though vendor code is limited by the vendor mutator,
-			// each vendor-available module needs to check
-			// link-type for VNDK.
-			if from.vndkdep != nil {
-				from.vndkdep.vndkCheckLinkType(ctx, to)
-			}
-			return
-		}
-		if from.Properties.Sdk_version == "" {
-			// Platform code can link to anything
-			return
-		}
-		if _, ok := to.linker.(*toolchainLibraryDecorator); ok {
-			// These are always allowed
-			return
-		}
-		if _, ok := to.linker.(*ndkPrebuiltLibraryLinker); ok {
-			// These are allowed, but don't set sdk_version
-			return
-		}
-		if _, ok := to.linker.(*ndkPrebuiltStlLinker); ok {
-			// These are allowed, but don't set sdk_version
-			return
-		}
-		if _, ok := to.linker.(*stubDecorator); ok {
-			// These aren't real libraries, but are the stub shared libraries that are included in
-			// the NDK.
-			return
-		}
-		if to.Properties.Sdk_version == "" {
-			// NDK code linking to platform code is never okay.
-			ctx.ModuleErrorf("depends on non-NDK-built library %q",
-				ctx.OtherModuleName(to))
-		}
+	ctx.VisitDirectDeps(func(dep blueprint.Module) {
+		depName := ctx.OtherModuleName(dep)
+		depTag := ctx.OtherModuleDependencyTag(dep)
 
-		// All this point we know we have two NDK libraries, but we need to
-		// check that we're not linking against anything built against a higher
-		// API level, as it is only valid to link against older or equivalent
-		// APIs.
-
-		if from.Properties.Sdk_version == "current" {
-			// Current can link against anything.
-			return
-		} else if to.Properties.Sdk_version == "current" {
-			// Current can't be linked against by anything else.
-			ctx.ModuleErrorf("links %q built against newer API version %q",
-				ctx.OtherModuleName(to), "current")
-		}
-
-		fromApi, err := strconv.Atoi(from.Properties.Sdk_version)
-		if err != nil {
-			ctx.PropertyErrorf("sdk_version",
-				"Invalid sdk_version value (must be int): %q",
-				from.Properties.Sdk_version)
-		}
-		toApi, err := strconv.Atoi(to.Properties.Sdk_version)
-		if err != nil {
-			ctx.PropertyErrorf("sdk_version",
-				"Invalid sdk_version value (must be int): %q",
-				to.Properties.Sdk_version)
-		}
-
-		if toApi > fromApi {
-			ctx.ModuleErrorf("links %q built against newer API version %q",
-				ctx.OtherModuleName(to), to.Properties.Sdk_version)
-		}
-	}
-
-	ctx.VisitDirectDeps(func(m blueprint.Module) {
-		name := ctx.OtherModuleName(m)
-		tag := ctx.OtherModuleDependencyTag(m)
-
-		a, _ := m.(android.Module)
-		if a == nil {
-			ctx.ModuleErrorf("module %q not an android module", name)
+		aDep, _ := dep.(android.Module)
+		if aDep == nil {
+			ctx.ModuleErrorf("module %q not an android module", depName)
 			return
 		}
 
-		cc, _ := m.(*Module)
-		if cc == nil {
-			switch tag {
+		ccDep, _ := dep.(*Module)
+		if ccDep == nil {
+			// handling for a few module types that aren't cc Module but that are also supported
+			switch depTag {
 			case android.DefaultsDepTag, android.SourceDepTag:
 				// Nothing to do
 			case genSourceDepTag:
-				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
+				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedSources = append(depPaths.GeneratedSources,
 						genRule.GeneratedSourceFiles()...)
 				} else {
-					ctx.ModuleErrorf("module %q is not a gensrcs or genrule", name)
+					ctx.ModuleErrorf("module %q is not a gensrcs or genrule", depName)
 				}
 				// Support exported headers from a generated_sources dependency
 				fallthrough
 			case genHeaderDepTag, genHeaderExportDepTag:
-				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
+				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
 						genRule.GeneratedSourceFiles()...)
 					flags := includeDirsToFlags(genRule.GeneratedHeaderDirs())
 					depPaths.Flags = append(depPaths.Flags, flags)
-					if tag == genHeaderExportDepTag {
+					if depTag == genHeaderExportDepTag {
 						depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags)
 						depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps,
 							genRule.GeneratedSourceFiles()...)
@@ -1005,46 +1008,46 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 					}
 				} else {
-					ctx.ModuleErrorf("module %q is not a genrule", name)
+					ctx.ModuleErrorf("module %q is not a genrule", depName)
 				}
 			case linkerScriptDepTag:
-				if genRule, ok := m.(genrule.SourceFileGenerator); ok {
+				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
 					files := genRule.GeneratedSourceFiles()
 					if len(files) == 1 {
 						depPaths.LinkerScript = android.OptionalPathForPath(files[0])
 					} else if len(files) > 1 {
-						ctx.ModuleErrorf("module %q can only generate a single file if used for a linker script", name)
+						ctx.ModuleErrorf("module %q can only generate a single file if used for a linker script", depName)
 					}
 				} else {
-					ctx.ModuleErrorf("module %q is not a genrule", name)
+					ctx.ModuleErrorf("module %q is not a genrule", depName)
 				}
 			default:
-				ctx.ModuleErrorf("depends on non-cc module %q", name)
+				ctx.ModuleErrorf("depends on non-cc module %q", depName)
 			}
 			return
 		}
 
-		if !a.Enabled() {
+		// some validation
+		if !aDep.Enabled() {
 			if ctx.AConfig().AllowMissingDependencies() {
-				ctx.AddMissingDependencies([]string{name})
+				ctx.AddMissingDependencies([]string{depName})
 			} else {
-				ctx.ModuleErrorf("depends on disabled module %q", name)
+				ctx.ModuleErrorf("depends on disabled module %q", depName)
 			}
 			return
 		}
-
-		if a.Target().Os != ctx.Os() {
-			ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), name)
+		if aDep.Target().Os != ctx.Os() {
+			ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
+			return
+		}
+		if aDep.Target().Arch.ArchType != ctx.Arch().ArchType {
+			ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
 			return
 		}
 
-		if a.Target().Arch.ArchType != ctx.Arch().ArchType {
-			ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), name)
-			return
-		}
-
-		if tag == reuseObjTag {
-			if l, ok := cc.compiler.(libraryInterface); ok {
+		// re-exporting flags
+		if depTag == reuseObjTag {
+			if l, ok := ccDep.compiler.(libraryInterface); ok {
 				objs, flags, deps := l.reuseObjs()
 				depPaths.Objs = depPaths.Objs.Append(objs)
 				depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
@@ -1052,9 +1055,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				return
 			}
 		}
-
-		if t, ok := tag.(dependencyTag); ok && t.library {
-			if i, ok := cc.linker.(exportedFlagsProducer); ok {
+		if t, ok := depTag.(dependencyTag); ok && t.library {
+			if i, ok := ccDep.linker.(exportedFlagsProducer); ok {
 				flags := i.exportedFlags()
 				deps := i.exportedFlagsDeps()
 				depPaths.Flags = append(depPaths.Flags, flags...)
@@ -1070,38 +1072,38 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 
-			checkLinkType(c, cc)
+			checkLinkType(ctx, c, ccDep)
 		}
 
 		var ptr *android.Paths
 		var depPtr *android.Paths
 
-		linkFile := cc.outputFile
+		linkFile := ccDep.outputFile
 		depFile := android.OptionalPath{}
 
-		switch tag {
+		switch depTag {
 		case ndkStubDepTag, sharedDepTag, sharedExportDepTag:
 			ptr = &depPaths.SharedLibs
 			depPtr = &depPaths.SharedLibsDeps
-			depFile = cc.linker.(libraryInterface).toc()
+			depFile = ccDep.linker.(libraryInterface).toc()
 		case lateSharedDepTag, ndkLateStubDepTag:
 			ptr = &depPaths.LateSharedLibs
 			depPtr = &depPaths.LateSharedLibsDeps
-			depFile = cc.linker.(libraryInterface).toc()
+			depFile = ccDep.linker.(libraryInterface).toc()
 		case staticDepTag, staticExportDepTag:
 			ptr = &depPaths.StaticLibs
 		case lateStaticDepTag:
 			ptr = &depPaths.LateStaticLibs
 		case wholeStaticDepTag:
 			ptr = &depPaths.WholeStaticLibs
-			staticLib, ok := cc.linker.(libraryInterface)
+			staticLib, ok := ccDep.linker.(libraryInterface)
 			if !ok || !staticLib.static() {
-				ctx.ModuleErrorf("module %q not a static library", name)
+				ctx.ModuleErrorf("module %q not a static library", depName)
 				return
 			}
 
 			if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
-				postfix := " (required by " + ctx.OtherModuleName(m) + ")"
+				postfix := " (required by " + ctx.OtherModuleName(dep) + ")"
 				for i := range missingDeps {
 					missingDeps[i] += postfix
 				}
@@ -1118,11 +1120,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPaths.CrtEnd = linkFile
 		}
 
-		switch tag {
+		switch depTag {
 		case staticDepTag, staticExportDepTag, lateStaticDepTag:
-			staticLib, ok := cc.linker.(libraryInterface)
+			staticLib, ok := ccDep.linker.(libraryInterface)
 			if !ok || !staticLib.static() {
-				ctx.ModuleErrorf("module %q not a static library", name)
+				ctx.ModuleErrorf("module %q not a static library", depName)
 				return
 			}
 
@@ -1133,11 +1135,12 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				staticLib.objs().coverageFiles...)
 			depPaths.StaticLibObjs.sAbiDumpFiles = append(depPaths.StaticLibObjs.sAbiDumpFiles,
 				staticLib.objs().sAbiDumpFiles...)
+
 		}
 
 		if ptr != nil {
 			if !linkFile.Valid() {
-				ctx.ModuleErrorf("module %q missing output file", name)
+				ctx.ModuleErrorf("module %q missing output file", depName)
 				return
 			}
 			*ptr = append(*ptr, linkFile.Path())
@@ -1151,24 +1154,24 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			*depPtr = append(*depPtr, dep.Path())
 		}
 
-		// Export the shared libs to the make world. In doing so, .vendor suffix
-		// is added if the lib has both core and vendor variants and this module
-		// is building against vndk. This is because the vendor variant will be
-		// have .vendor suffix in its name in the make world. However, if the
-		// lib is a vendor-only lib or this lib is not building against vndk,
-		// then the suffix is not added.
-		switch tag {
+		// Export the shared libs to Make.
+		switch depTag {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
-			libName := strings.TrimSuffix(name, llndkLibrarySuffix)
+			libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
 			isLLndk := inList(libName, llndkLibraries)
-			if c.vndk() && (Bool(cc.VendorProperties.Vendor_available) || isLLndk) {
-				libName += vendorSuffix
+			var makeLibName string
+			bothVendorAndCoreVariantsExist := Bool(ccDep.VendorProperties.Vendor_available) || isLLndk
+			if c.useVndk() && bothVendorAndCoreVariantsExist {
+				// The vendor module in Make will have been renamed to not conflict with the core
+				// module, so update the dependency name here accordingly.
+				makeLibName = libName + vendorSuffix
+			} else {
+				makeLibName = libName
 			}
 			// Note: the order of libs in this list is not important because
-			// they merely serve as dependencies in the make world and do not
-			// affect this lib itself.
-			c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, libName)
+			// they merely serve as Make dependencies and do not affect this lib itself.
+			c.Properties.AndroidMkSharedLibs = append(c.Properties.AndroidMkSharedLibs, makeLibName)
 		}
 	})
 
@@ -1365,8 +1368,8 @@ outer:
 	return list[:k]
 }
 
-// lastUniqueElements returns all unique elements of a slice, keeping the last copy of each
-// modifies the slice contents in place, and returns a subslice of the original slice
+// lastUniqueElements returns all unique elements of a slice, keeping the last copy of each.
+// It modifies the slice contents in place, and returns a subslice of the original slice
 func lastUniqueElements(list []string) []string {
 	totalSkip := 0
 	for i := len(list) - 1; i >= totalSkip; i-- {

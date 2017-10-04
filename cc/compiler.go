@@ -236,7 +236,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
 		flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
 
-		if !(ctx.sdk() || ctx.vndk()) || ctx.Host() {
+		if !(ctx.sdk() || ctx.useVndk()) || ctx.Host() {
 			flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 				"${config.CommonGlobalIncludes}",
 				tc.IncludeFlags(),
@@ -272,7 +272,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags, "-isystem "+legacyIncludes)
 	}
 
-	if ctx.vndk() {
+	if ctx.useVndk() {
 		flags.GlobalFlags = append(flags.GlobalFlags,
 			"-D__ANDROID_API__=__ANDROID_API_FUTURE__", "-D__ANDROID_VNDK__")
 	}
@@ -405,7 +405,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.CppFlags = append([]string{"-std=" + cppStd}, flags.CppFlags...)
 	}
 
-	if ctx.vndk() {
+	if ctx.useVndk() {
 		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
 	}
 
@@ -490,7 +490,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	pathDeps := deps.GeneratedHeaders
 	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
 
-	if ctx.vndk() {
+	if ctx.useVndk() {
 		compiler.Properties.Srcs = append(compiler.Properties.Srcs,
 			compiler.Properties.Target.Vendor.Srcs...)
 
