@@ -43,7 +43,7 @@ func objectFactory() android.Module {
 }
 
 func (object *objectLinker) appendLdflags(flags []string) {
-	panic(fmt.Errorf("appendLdflags on objectLinker not supported"))
+	panic(fmt.Errorf("appendLdflags on object Linker not supported"))
 }
 
 func (object *objectLinker) linkerProps() []interface{} {
