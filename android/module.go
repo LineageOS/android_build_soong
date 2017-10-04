@@ -99,11 +99,7 @@ type ModuleContext interface {
 type Module interface {
 	blueprint.Module
 
-	// GenerateAndroidBuildActions is analogous to Blueprints' GenerateBuildActions,
-	// but GenerateAndroidBuildActions also has access to Android-specific information.
-	// For more information, see Module.GenerateBuildActions within Blueprint's module_ctx.go
 	GenerateAndroidBuildActions(ModuleContext)
-
 	DepsMutator(BottomUpMutatorContext)
 
 	base() *ModuleBase
