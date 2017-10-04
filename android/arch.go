@@ -87,7 +87,7 @@ module {
         host: {
             // Host variants
         },
-        linux: {
+        linux_glibc: {
             // Linux host variants
         },
         darwin: {
@@ -468,7 +468,7 @@ func createArchType(props reflect.Type) reflect.Type {
 		"Android64",
 		"Android32",
 		"Bionic",
-		"Linux",
+		// TODO(dwillemsen): "Linux",
 		"Not_windows",
 		"Arm_on_x86",
 		"Arm_on_x86_64",
@@ -479,7 +479,7 @@ func createArchType(props reflect.Type) reflect.Type {
 		for _, archType := range osArchTypeMap[os] {
 			targets = append(targets, os.Field+"_"+archType.Name)
 
-			if os == Linux { // TODO(dwillemsen): os.Linux()
+			if false { // TODO(dwillemsen): os.Linux()
 				target := "Linux_" + archType.Name
 				if !inList(target, targets) {
 					targets = append(targets, target)
@@ -597,10 +597,6 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	arch := a.Arch()
 	os := a.Os()
 
-	if arch.ArchType == Common {
-		return
-	}
-
 	for i := range a.generalProperties {
 		genProps := a.generalProperties[i]
 		if a.archProperties[i] == nil {
@@ -612,6 +608,9 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		multilibProp := archProps.FieldByName("Multilib")
 		targetProp := archProps.FieldByName("Target")
 
+		var field string
+		var prefix string
+
 		// Handle arch-specific properties in the form:
 		// arch: {
 		//     arm64: {
@@ -620,59 +619,61 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		// },
 		t := arch.ArchType
 
-		field := proptools.FieldNameForProperty(t.Name)
-		prefix := "arch." + t.Name
-		archStruct := a.appendProperties(ctx, genProps, archProp, field, prefix)
+		if arch.ArchType != Common {
+			field := proptools.FieldNameForProperty(t.Name)
+			prefix := "arch." + t.Name
+			archStruct := a.appendProperties(ctx, genProps, archProp, field, prefix)
 
-		// Handle arch-variant-specific properties in the form:
-		// arch: {
-		//     variant: {
-		//         key: value,
-		//     },
-		// },
-		v := variantReplacer.Replace(arch.ArchVariant)
-		if v != "" {
-			field := proptools.FieldNameForProperty(v)
-			prefix := "arch." + t.Name + "." + v
-			a.appendProperties(ctx, genProps, archStruct, field, prefix)
-		}
-
-		// Handle cpu-variant-specific properties in the form:
-		// arch: {
-		//     variant: {
-		//         key: value,
-		//     },
-		// },
-		if arch.CpuVariant != arch.ArchVariant {
-			c := variantReplacer.Replace(arch.CpuVariant)
-			if c != "" {
-				field := proptools.FieldNameForProperty(c)
-				prefix := "arch." + t.Name + "." + c
+			// Handle arch-variant-specific properties in the form:
+			// arch: {
+			//     variant: {
+			//         key: value,
+			//     },
+			// },
+			v := variantReplacer.Replace(arch.ArchVariant)
+			if v != "" {
+				field := proptools.FieldNameForProperty(v)
+				prefix := "arch." + t.Name + "." + v
 				a.appendProperties(ctx, genProps, archStruct, field, prefix)
 			}
-		}
 
-		// Handle arch-feature-specific properties in the form:
-		// arch: {
-		//     feature: {
-		//         key: value,
-		//     },
-		// },
-		for _, feature := range arch.ArchFeatures {
-			field := proptools.FieldNameForProperty(feature)
-			prefix := "arch." + t.Name + "." + feature
-			a.appendProperties(ctx, genProps, archStruct, field, prefix)
-		}
+			// Handle cpu-variant-specific properties in the form:
+			// arch: {
+			//     variant: {
+			//         key: value,
+			//     },
+			// },
+			if arch.CpuVariant != arch.ArchVariant {
+				c := variantReplacer.Replace(arch.CpuVariant)
+				if c != "" {
+					field := proptools.FieldNameForProperty(c)
+					prefix := "arch." + t.Name + "." + c
+					a.appendProperties(ctx, genProps, archStruct, field, prefix)
+				}
+			}
 
-		// Handle multilib-specific properties in the form:
-		// multilib: {
-		//     lib32: {
-		//         key: value,
-		//     },
-		// },
-		field = proptools.FieldNameForProperty(t.Multilib)
-		prefix = "multilib." + t.Multilib
-		a.appendProperties(ctx, genProps, multilibProp, field, prefix)
+			// Handle arch-feature-specific properties in the form:
+			// arch: {
+			//     feature: {
+			//         key: value,
+			//     },
+			// },
+			for _, feature := range arch.ArchFeatures {
+				field := proptools.FieldNameForProperty(feature)
+				prefix := "arch." + t.Name + "." + feature
+				a.appendProperties(ctx, genProps, archStruct, field, prefix)
+			}
+
+			// Handle multilib-specific properties in the form:
+			// multilib: {
+			//     lib32: {
+			//         key: value,
+			//     },
+			// },
+			field = proptools.FieldNameForProperty(t.Multilib)
+			prefix = "multilib." + t.Multilib
+			a.appendProperties(ctx, genProps, multilibProp, field, prefix)
+		}
 
 		// Handle host-specific properties in the form:
 		// target: {
@@ -695,14 +696,16 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		//         key: value,
 		//     },
 		// }
-		if os == Linux { // TODO(dwillemsen): os.Linux()
+		if false { // TODO(dwillemsen): os.Linux()
 			field = "Linux"
 			prefix = "target.linux"
 			a.appendProperties(ctx, genProps, targetProp, field, prefix)
 
-			field = "Linux_" + t.Name
-			prefix = "target.linux_" + t.Name
-			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			if arch.ArchType != Common {
+				field = "Linux_" + arch.ArchType.Name
+				prefix = "target.linux_" + arch.ArchType.Name
+				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
 		}
 
 		if os.Bionic() {
@@ -710,9 +713,11 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			prefix = "target.bionic"
 			a.appendProperties(ctx, genProps, targetProp, field, prefix)
 
-			field = "Bionic_" + t.Name
-			prefix = "target.bionic_" + t.Name
-			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			if arch.ArchType != Common {
+				field = "Bionic_" + t.Name
+				prefix = "target.bionic_" + t.Name
+				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
 		}
 
 		// Handle target OS properties in the form:
@@ -743,9 +748,11 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		prefix = "target." + os.Name
 		a.appendProperties(ctx, genProps, targetProp, field, prefix)
 
-		field = os.Field + "_" + t.Name
-		prefix = "target." + os.Name + "_" + t.Name
-		a.appendProperties(ctx, genProps, targetProp, field, prefix)
+		if arch.ArchType != Common {
+			field = os.Field + "_" + t.Name
+			prefix = "target." + os.Name + "_" + t.Name
+			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+		}
 
 		if (os.Class == Host || os.Class == HostCross) && os != Windows {
 			field := "Not_windows"
