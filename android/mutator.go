@@ -18,13 +18,12 @@ import (
 	"github.com/google/blueprint"
 )
 
-// Phases:
-//   run Pre-arch mutators
-//   run archMutator
-//   run Pre-deps mutators
-//   run depsMutator
-//   run PostDeps mutators
-//   continue on to GenerateAndroidBuildActions
+// Mutator phases:
+//   Pre-arch
+//   Arch
+//   Pre-deps
+//   Deps
+//   PostDeps
 
 func registerMutatorsToContext(ctx *blueprint.Context, mutators []*mutator) {
 	for _, t := range mutators {
