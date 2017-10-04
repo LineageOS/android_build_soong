@@ -219,7 +219,7 @@ type builderFlags struct {
 	arFlags       string
 	asFlags       string
 	cFlags        string
-	toolingCFlags string // A separate set of Cflags for clang LibTooling tools
+	toolingCFlags string // Seperate set of Cflags for clang LibTooling tools
 	conlyFlags    string
 	cppFlags      string
 	ldFlags       string
@@ -584,7 +584,7 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 }
 
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
-// and shared libraries, to a shared library (.so) or dynamic executable
+// and shared libraires, to a shared library (.so) or dynamic executable
 func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps android.Paths,
 	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags, outputFile android.WritablePath) {
@@ -714,8 +714,8 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 	return android.OptionalPathForPath(outputFile)
 }
 
-// Generate a rule for extracting a table of contents from a shared library (.so)
-func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Path,
+// Generate a rule for extract a table of contents from a shared library (.so)
+func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.WritablePath,
 	outputFile android.WritablePath, flags builderFlags) {
 
 	crossCompile := gccCmd(flags.toolchain, "")
