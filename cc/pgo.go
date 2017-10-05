@@ -124,11 +124,12 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 	}
 
 	// Sampling not supported yet
-	//
-	// TODO When sampling support is turned on, check that instrumentation and
-	// sampling are not simultaneously specified
 	if isSampling {
 		ctx.PropertyErrorf("pgo.sampling", "\"sampling\" is not supported yet)")
+	}
+
+	if isSampling && isInstrumentation {
+		ctx.PropertyErrorf("pgo", "Exactly one of \"instrumentation\" and \"sampling\" properties must be set")
 	}
 
 	return true
