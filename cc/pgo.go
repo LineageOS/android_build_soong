@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 var (
@@ -50,25 +51,38 @@ type pgo struct {
 	Properties PgoProperties
 }
 
+func (props *PgoProperties) isInstrumentation() bool {
+	return props.Pgo.Instrumentation != nil && *props.Pgo.Instrumentation == true
+}
+
+func (props *PgoProperties) isSampling() bool {
+	return props.Pgo.Sampling != nil && *props.Pgo.Sampling == true
+}
+
 func (pgo *pgo) props() []interface{} {
 	return []interface{}{&pgo.Properties}
 }
 
-func (pgo *pgo) profileGatherFlags(ctx ModuleContext) string {
-	if *pgo.Properties.Pgo.Instrumentation {
-		return profileInstrumentFlag
+func (pgo *pgo) addProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
+	if pgo.Properties.isInstrumentation() {
+		flags.CFlags = append(flags.CFlags, profileInstrumentFlag)
+		// The profile runtime is added below in deps().  Add the below
+		// flag, which is the only other link-time action performed by
+		// the Clang driver during link.
+		flags.LdFlags = append(flags.LdFlags, "-u__llvm_profile_runtime")
 	}
-	if *pgo.Properties.Pgo.Sampling {
-		return profileSamplingFlag
+	if pgo.Properties.isSampling() {
+		flags.CFlags = append(flags.CFlags, profileSamplingFlag)
+		flags.LdFlags = append(flags.LdFlags, profileSamplingFlag)
 	}
-	return ""
+	return flags
 }
 
 func (pgo *pgo) profileUseFlag(ctx ModuleContext, file string) string {
-	if *pgo.Properties.Pgo.Instrumentation {
+	if pgo.Properties.isInstrumentation() {
 		return fmt.Sprintf(profileUseInstrumentFormat, file)
 	}
-	if *pgo.Properties.Pgo.Sampling {
+	if pgo.Properties.isSampling() {
 		return fmt.Sprintf(profileUseSamplingFormat, file)
 	}
 	return ""
@@ -81,8 +95,8 @@ func (pgo *pgo) profileUseFlags(ctx ModuleContext, file string) []string {
 }
 
 func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
-	isInstrumentation := props.Pgo.Instrumentation != nil
-	isSampling := props.Pgo.Sampling != nil
+	isInstrumentation := props.isInstrumentation()
+	isSampling := props.isSampling()
 
 	profileKindPresent := isInstrumentation || isSampling
 	filePresent := props.Pgo.Profile_file != nil
@@ -156,6 +170,14 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 	}
 }
 
+func (pgo *pgo) deps(ctx BaseModuleContext, deps Deps) Deps {
+	if pgo.Properties.ShouldProfileModule {
+		runtimeLibrary := config.ProfileRuntimeLibrary(ctx.toolchain())
+		deps.LateStaticLibs = append(deps.LateStaticLibs, runtimeLibrary)
+	}
+	return deps
+}
+
 func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 	if ctx.Host() {
 		return flags
@@ -165,10 +187,7 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 
 	// Add flags to profile this module based on its profile_kind
 	if props.ShouldProfileModule {
-		profileGatherFlags := pgo.profileGatherFlags(ctx)
-		flags.LdFlags = append(flags.LdFlags, profileGatherFlags)
-		flags.CFlags = append(flags.CFlags, profileGatherFlags)
-		return flags
+		return pgo.addProfileGatherFlags(ctx, flags)
 	}
 
 	// If the PGO profiles project is found, and this module has PGO
