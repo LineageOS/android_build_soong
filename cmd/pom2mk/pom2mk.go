@@ -84,6 +84,8 @@ func (d ExtraDeps) Set(v string) error {
 
 var extraDeps = make(ExtraDeps)
 
+var useVersion string
+
 type Dependency struct {
 	XMLName xml.Name `xml:"dependency"`
 
@@ -152,6 +154,10 @@ func convert(filename string, out io.Writer) error {
 		return err
 	}
 
+	if useVersion != "" && pom.Version != useVersion {
+		return nil
+	}
+
 	if pom.Packaging == "" {
 		pom.Packaging = "jar"
 	}
@@ -178,6 +184,9 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
      Some Android.mk modules have transitive dependencies that must be specified when they are
      depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
      This may be specified multiple times to declare these dependencies.
+  -use-version <version>
+     If the maven directory contains multiple versions of artifacts and their pom files,
+     -use-version can be used to only write makefiles for a specific version of those artifacts.
   <dir>
      The directory to search for *.pom files under.
 
@@ -187,6 +196,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 	flag.Var(&extraDeps, "extra-deps", "Extra dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
+	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
