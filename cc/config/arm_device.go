@@ -98,6 +98,7 @@ var (
 			"-mfpu=vfpv3-d16",
 		},
 		"armv7-a-neon": []string{
+			"-march=armv7-a",
 			"-mfloat-abi=softfp",
 			"-mfpu=neon",
 		},
@@ -109,9 +110,6 @@ var (
 	}
 
 	armCpuVariantCflags = map[string][]string{
-		"": []string{
-			"-march=armv7-a",
-		},
 		"cortex-a7": []string{
 			"-mcpu=cortex-a7",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
