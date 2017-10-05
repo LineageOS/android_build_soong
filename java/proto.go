@@ -88,7 +88,7 @@ func protoFlags(ctx android.ModuleContext, p *android.ProtoProperties, flags jav
 		flags.protoOutFlag = "--javanano_out"
 	case "stream":
 		flags.protoOutFlag = "--javastream_out"
-	case "lite", "":
+	case "lite", "full", "":
 		flags.protoOutFlag = "--java_out"
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
