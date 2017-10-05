@@ -18,7 +18,6 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -100,6 +99,7 @@ type Dependency struct {
 type Pom struct {
 	XMLName xml.Name `xml:"http://maven.apache.org/POM/4.0.0 project"`
 
+	PomFile      string `xml:"-"`
 	ArtifactFile string `xml:"-"`
 
 	GroupId    string `xml:"groupId"`
@@ -107,7 +107,7 @@ type Pom struct {
 	Version    string `xml:"version"`
 	Packaging  string `xml:"packaging"`
 
-	Dependencies []Dependency `xml:"dependencies>dependency"`
+	Dependencies []*Dependency `xml:"dependencies>dependency"`
 }
 
 func (p Pom) MkName() string {
@@ -127,6 +127,17 @@ func (p Pom) MkDeps() []string {
 	return ret
 }
 
+func (p *Pom) FixDepTypes(modules map[string]*Pom) {
+	for _, d := range p.Dependencies {
+		if d.Type != "" {
+			continue
+		}
+		if depPom, ok := modules[d.ArtifactId]; ok {
+			d.Type = depPom.Packaging
+		}
+	}
+}
+
 var mkTemplate = template.Must(template.New("mk").Parse(`
 include $(CLEAR_VARS)
 LOCAL_MODULE := {{.MkName}}
@@ -142,29 +153,30 @@ LOCAL_STATIC_ANDROID_LIBRARIES := \
 include $(BUILD_PREBUILT)
 `))
 
-func convert(filename string, out io.Writer) error {
+func parse(filename string) (*Pom, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var pom Pom
 	err = xml.Unmarshal(data, &pom)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if useVersion != "" && pom.Version != useVersion {
-		return nil
+		return nil, nil
 	}
 
 	if pom.Packaging == "" {
 		pom.Packaging = "jar"
 	}
 
+	pom.PomFile = filename
 	pom.ArtifactFile = strings.TrimSuffix(filename, ".pom") + "." + pom.Packaging
 
-	return mkTemplate.Execute(out, pom)
+	return &pom, nil
 }
 
 func main() {
@@ -250,14 +262,39 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 	sort.Strings(filenames)
 
+	poms := []*Pom{}
+	modules := make(map[string]*Pom)
+	for _, filename := range filenames {
+		pom, err := parse(filename)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error converting", filename, err)
+			os.Exit(1)
+		}
+
+		if pom != nil {
+			poms = append(poms, pom)
+
+			if old, ok := modules[pom.ArtifactId]; ok {
+				fmt.Fprintln(os.Stderr, "Module", pom.ArtifactId, "defined twice:", old.PomFile, pom.PomFile)
+				os.Exit(1)
+			}
+
+			modules[pom.ArtifactId] = pom
+		}
+	}
+
+	for _, pom := range poms {
+		pom.FixDepTypes(modules)
+	}
+
 	fmt.Println("# Automatically generated with:")
 	fmt.Println("# pom2mk", strings.Join(proptools.ShellEscape(os.Args[1:]), " "))
 	fmt.Println("LOCAL_PATH := $(call my-dir)")
 
-	for _, filename := range filenames {
-		err := convert(filename, os.Stdout)
+	for _, pom := range poms {
+		err := mkTemplate.Execute(os.Stdout, pom)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error converting", filename, err)
+			fmt.Fprintln(os.Stderr, "Error writing", pom.PomFile, pom.MkName(), err)
 			os.Exit(1)
 		}
 	}
