@@ -29,26 +29,26 @@ import (
 	"android/soong/third_party/zip"
 )
 
-type stripDir struct{}
+type fileList []string
 
-func (s *stripDir) String() string {
+func (f *fileList) String() string {
 	return `""`
 }
 
-func (s *stripDir) Set(dir string) error {
-	stripDirs = append(stripDirs, filepath.Clean(dir))
+func (f *fileList) Set(name string) error {
+	*f = append(*f, filepath.Clean(name))
 
 	return nil
 }
 
-type zipToNotStrip struct{}
+type zipsToNotStripSet map[string]bool
 
-func (s *zipToNotStrip) String() string {
+func (s zipsToNotStripSet) String() string {
 	return `""`
 }
 
-func (s *zipToNotStrip) Set(zip_path string) error {
-	zipsToNotStrip[zip_path] = true
+func (s zipsToNotStripSet) Set(zip_path string) error {
+	s[zip_path] = true
 
 	return nil
 }
@@ -56,15 +56,17 @@ func (s *zipToNotStrip) Set(zip_path string) error {
 var (
 	sortEntries     = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
 	emulateJar      = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
-	stripDirs       []string
-	zipsToNotStrip  = make(map[string]bool)
+	stripDirs       fileList
+	stripFiles      fileList
+	zipsToNotStrip  = make(zipsToNotStripSet)
 	stripDirEntries = flag.Bool("D", false, "strip directory entries from the output zip file")
 	manifest        = flag.String("m", "", "manifest file to insert in jar")
 )
 
 func init() {
-	flag.Var(&stripDir{}, "stripDir", "the prefix of file path to be excluded from the output zip")
-	flag.Var(&zipToNotStrip{}, "zipToNotStrip", "the input zip file which is not applicable for stripping")
+	flag.Var(&stripDirs, "stripDir", "the prefix of file path to be excluded from the output zip")
+	flag.Var(&stripFiles, "stripFile", "filenames to be excluded from the output zip, accepts wildcards")
+	flag.Var(&zipsToNotStrip, "zipToNotStrip", "the input zip file which is not applicable for stripping")
 }
 
 func main() {
@@ -243,20 +245,9 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
 
 	for _, namedReader := range readers {
 		_, skipStripThisZip := zipsToNotStrip[namedReader.path]
-	FileLoop:
 		for _, file := range namedReader.reader.File {
-			if !skipStripThisZip {
-				for _, dir := range stripDirs {
-					if strings.HasPrefix(file.Name, dir+"/") {
-						if emulateJar {
-							if file.Name != jar.MetaDir && file.Name != jar.ManifestFile {
-								continue FileLoop
-							}
-						} else {
-							continue FileLoop
-						}
-					}
-				}
+			if !skipStripThisZip && shouldStripFile(emulateJar, file.Name) {
+				continue
 			}
 
 			if stripDirEntries && file.FileInfo().IsDir() {
@@ -308,6 +299,28 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
 	}
 
 	return nil
+}
+
+func shouldStripFile(emulateJar bool, name string) bool {
+	for _, dir := range stripDirs {
+		if strings.HasPrefix(name, dir+"/") {
+			if emulateJar {
+				if name != jar.MetaDir && name != jar.ManifestFile {
+					return true
+				}
+			} else {
+				return true
+			}
+		}
+	}
+	for _, pattern := range stripFiles {
+		if match, err := filepath.Match(pattern, filepath.Base(name)); err != nil {
+			panic(fmt.Errorf("%s: %s", err.Error(), pattern))
+		} else if match {
+			return true
+		}
+	}
+	return false
 }
 
 func jarSort(files []fileMapping) {
