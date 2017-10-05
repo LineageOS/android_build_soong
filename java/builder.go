@@ -99,10 +99,12 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 				`${config.DxCmd} --dex --output=$outDir $dxFlags $in && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+				`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
+				`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
 			CommandDeps: []string{
 				"${config.DxCmd}",
 				"${config.SoongZipCmd}",
+				"${config.MergeZipsCmd}",
 			},
 		},
 		"outDir", "dxFlags")
@@ -298,11 +300,13 @@ func TransformDesugar(ctx android.ModuleContext, classesJar android.Path,
 	return outputFile
 }
 
-func TransformClassesJarToDexJar(ctx android.ModuleContext, classesJar android.Path,
+// Converts a classes.jar file to classes*.dex, then combines the dex files with any resources
+// in the classes.jar file into a dex jar.
+func TransformClassesJarToDexJar(ctx android.ModuleContext, stem string, classesJar android.Path,
 	flags javaBuilderFlags) android.Path {
 
 	outDir := android.PathForModuleOut(ctx, "dex")
-	outputFile := android.PathForModuleOut(ctx, "classes.dex.jar")
+	outputFile := android.PathForModuleOut(ctx, stem)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        dx,
