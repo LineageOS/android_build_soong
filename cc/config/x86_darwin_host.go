@@ -159,6 +159,8 @@ func init() {
 		strings.Join(ClangFilterUnknownCflags(darwinX8664Cflags), " "))
 	pctx.StaticVariable("DarwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
 	pctx.StaticVariable("DarwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
+	pctx.StaticVariable("DarwinX86YasmFlags", "-f macho -m x86")
+	pctx.StaticVariable("DarwinX8664YasmFlags", "-f macho -m amd64")
 }
 
 func xcrun(config android.Config, args ...string) (string, error) {
@@ -274,6 +276,14 @@ func (t *toolchainDarwinX86) ClangLdflags() string {
 
 func (t *toolchainDarwinX8664) ClangLdflags() string {
 	return "${config.DarwinClangLdflags} ${config.DarwinX8664ClangLdflags}"
+}
+
+func (t *toolchainDarwinX86) YasmFlags() string {
+	return "${config.DarwinX86YasmFlags}"
+}
+
+func (t *toolchainDarwinX8664) YasmFlags() string {
+	return "${config.DarwinX8664YasmFlags}"
 }
 
 func (t *toolchainDarwin) ShlibSuffix() string {
