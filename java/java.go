@@ -481,7 +481,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	resDeps = append(resDeps, fileDeps...)
 
 	if proptools.Bool(j.properties.Include_srcs) {
-		srcArgs, srcDeps := ResourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+		srcArgs, srcDeps := SourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 		resArgs = append(resArgs, srcArgs...)
 		resDeps = append(resDeps, srcDeps...)
 	}
