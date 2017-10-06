@@ -75,8 +75,27 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 	return args, deps
 }
 
+// Convert java_resources properties to arguments to soong_zip -jar, ignoring common patterns
+// that should not be treated as resources (including *.java).
 func ResourceFilesToJarArgs(ctx android.ModuleContext,
 	res, exclude []string) (args []string, deps android.Paths) {
+
+	exclude = append([]string(nil), exclude...)
+	exclude = append(exclude, resourceExcludes...)
+	return resourceFilesToJarArgs(ctx, res, exclude)
+}
+
+// Convert java_resources properties to arguments to soong_zip -jar, keeping files that should
+// normally not used as resources like *.java
+func SourceFilesToJarArgs(ctx android.ModuleContext,
+	res, exclude []string) (args []string, deps android.Paths) {
+
+	return resourceFilesToJarArgs(ctx, res, exclude)
+}
+
+func resourceFilesToJarArgs(ctx android.ModuleContext,
+	res, exclude []string) (args []string, deps android.Paths) {
+
 	files := ctx.ExpandSources(res, exclude)
 
 	for _, f := range files {
