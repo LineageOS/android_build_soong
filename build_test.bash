@@ -28,6 +28,7 @@
 export TRACE_BEGIN_SOONG=$(date +%s%N)
 
 export TOP=$(cd $(dirname ${BASH_SOURCE[0]})/../..; PWD= /bin/pwd)
+cd "${TOP}"
 source "${TOP}/build/soong/scripts/microfactory.bash"
 
 case $(uname) in
