@@ -19,8 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint/bootstrap"
-
 	"android/soong/android"
 )
 
@@ -31,15 +29,6 @@ var resourceExcludes = []string{
 	"**/.*.swp",
 	"**/.DS_Store",
 	"**/*~",
-}
-
-func isStringInSlice(str string, slice []string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }
 
 func ResourceDirsToJarArgs(ctx android.ModuleContext,
@@ -53,22 +42,22 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 
 	excludes = append(excludes, resourceExcludes...)
 
-	for _, resourceDir := range resourceDirs {
-		if isStringInSlice(resourceDir, excludeDirs) {
-			continue
-		}
-		resourceDir := android.PathForModuleSrc(ctx, resourceDir)
-		dirs := ctx.Glob(resourceDir.String(), nil)
-		for _, dir := range dirs {
-			fileListFile := android.ResPathWithName(ctx, dir, "resources.list")
-			depFile := fileListFile.String() + ".d"
+	for _, dir := range resourceDirs {
+		dir := android.PathForModuleSrc(ctx, dir).String()
+		files := ctx.Glob(filepath.Join(dir, "**/*"), excludes)
 
-			pattern := filepath.Join(dir.String(), "**/*")
-			bootstrap.GlobFile(ctx, pattern, excludes, fileListFile.String(), depFile)
-			args = append(args,
-				"-C", dir.String(),
-				"-l", fileListFile.String())
-			deps = append(deps, fileListFile)
+		deps = append(deps, files...)
+
+		if len(files) > 0 {
+			args = append(args, "-C", dir)
+
+			for _, f := range files {
+				path := f.String()
+				if !strings.HasPrefix(path, dir) {
+					panic(fmt.Errorf("path %q does not start with %q", path, dir))
+				}
+				args = append(args, "-f", path)
+			}
 		}
 	}
 
@@ -98,14 +87,19 @@ func resourceFilesToJarArgs(ctx android.ModuleContext,
 
 	files := ctx.ExpandSources(res, exclude)
 
-	for _, f := range files {
+	lastDir := ""
+	for i, f := range files {
 		rel := f.Rel()
 		path := f.String()
 		if !strings.HasSuffix(path, rel) {
 			panic(fmt.Errorf("path %q does not end with %q", path, rel))
 		}
-		path = filepath.Clean(strings.TrimSuffix(path, rel))
-		args = append(args, "-C", filepath.Clean(path), "-f", f.String())
+		dir := filepath.Clean(strings.TrimSuffix(path, rel))
+		if i == 0 || dir != lastDir {
+			args = append(args, "-C", dir)
+		}
+		args = append(args, "-f", path)
+		lastDir = dir
 	}
 
 	return args, files
