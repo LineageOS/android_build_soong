@@ -53,8 +53,16 @@ func init() {
 
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 
-	pctx.SourcePathVariableWithEnvOverride("JavaHome",
-		"prebuilts/jdk/jdk8/${hostPrebuiltTag}", "OVERRIDE_ANDROID_JAVA_HOME")
+	pctx.VariableFunc("JavaHome", func(config interface{}) (string, error) {
+		if override := config.(android.Config).Getenv("OVERRIDE_ANDROID_JAVA_HOME"); override != "" {
+			return override, nil
+		}
+		if jdk9 := config.(android.Config).Getenv("EXPERIMENTAL_USE_OPENJDK9"); jdk9 != "" {
+			return "prebuilts/jdk/jdk9/${hostPrebuiltTag}", nil
+		}
+		return "prebuilts/jdk/jdk8/${hostPrebuiltTag}", nil
+	})
+
 	pctx.SourcePathVariable("JavaToolchain", "${JavaHome}/bin")
 	pctx.SourcePathVariableWithEnvOverride("JavacCmd",
 		"${JavaToolchain}/javac", "ALTERNATE_JAVAC")
