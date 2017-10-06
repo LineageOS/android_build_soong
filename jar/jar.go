@@ -31,7 +31,7 @@ const (
 	ModuleInfoClass = "module-info.class"
 )
 
-var DefaultTime = time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC)
+var DefaultTime = time.Date(2008, 1, 1, 0, 0, 0, 0, time.UTC)
 
 var MetaDirExtra = [2]byte{0xca, 0xfe}
 

@@ -153,9 +153,6 @@ type Module struct {
 	// output file containing classes.dex
 	dexJarFile android.Path
 
-	// output files containing resources
-	resourceJarFiles android.Paths
-
 	// output file suitable for installing or running
 	outputFile android.Path
 
@@ -173,7 +170,6 @@ type Module struct {
 
 type Dependency interface {
 	ClasspathFiles() android.Paths
-	ResourceJarFiles() android.Paths
 	AidlIncludeDirs() android.Paths
 }
 
@@ -285,9 +281,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
 			}
 		} else {
-			if j.deviceProperties.Dex {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			}
+			// TODO(ccross): add hostdex support
 		}
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
@@ -382,7 +376,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		case staticLibTag:
 			deps.classpath = append(deps.classpath, dep.ClasspathFiles()...)
 			deps.staticJars = append(deps.staticJars, dep.ClasspathFiles()...)
-			deps.staticJarResources = append(deps.staticJarResources, dep.ResourceJarFiles()...)
 		case frameworkResTag:
 			if ctx.ModuleName() == "framework" {
 				// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -488,25 +481,19 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	resDeps = append(resDeps, fileDeps...)
 
 	if proptools.Bool(j.properties.Include_srcs) {
-		srcArgs, srcDeps := ResourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+		srcArgs, srcDeps := SourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 		resArgs = append(resArgs, srcArgs...)
 		resDeps = append(resDeps, srcDeps...)
 	}
 
 	if len(resArgs) > 0 {
-		// Combine classes + resources into classes-full-debug.jar
 		resourceJar := TransformResourcesToJar(ctx, resArgs, resDeps)
 		if ctx.Failed() {
 			return
 		}
 
-		j.resourceJarFiles = append(j.resourceJarFiles, resourceJar)
 		jars = append(jars, resourceJar)
 	}
-
-	// Propagate the resources from the transitive closure of static dependencies for copying
-	// into dex jars
-	j.resourceJarFiles = append(j.resourceJarFiles, deps.staticJarResources...)
 
 	// static classpath jars have the resources in them, so the resource jars aren't necessary here
 	jars = append(jars, deps.staticJars...)
@@ -529,7 +516,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.classpathFile = outputFile
 
 	// TODO(ccross): handle hostdex
-	if ctx.Device() && len(srcFiles) > 0 && j.installable() {
+	if ctx.Device() && j.installable() {
 		dxFlags := j.deviceProperties.Dxflags
 		if false /* emma enabled */ {
 			// If you instrument class files that have local variable debug information in
@@ -582,16 +569,11 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			return
 		}
 
-		// Compile classes.jar into classes.dex
-		dexJarFile := TransformClassesJarToDexJar(ctx, desugarJar, flags)
+		// Compile classes.jar into classes.dex and then javalib.jar
+		outputFile = TransformClassesJarToDexJar(ctx, "javalib.jar", desugarJar, flags)
 		if ctx.Failed() {
 			return
 		}
-
-		jars := android.Paths{dexJarFile}
-		jars = append(jars, j.resourceJarFiles...)
-
-		outputFile = TransformJarsToJar(ctx, "javalib.jar", jars, android.OptionalPath{}, true)
 
 		j.dexJarFile = outputFile
 	}
@@ -607,10 +589,6 @@ var _ Dependency = (*Library)(nil)
 
 func (j *Module) ClasspathFiles() android.Paths {
 	return android.Paths{j.classpathFile}
-}
-
-func (j *Module) ResourceJarFiles() android.Paths {
-	return j.resourceJarFiles
 }
 
 func (j *Module) AidlIncludeDirs() android.Paths {
@@ -777,11 +755,6 @@ var _ Dependency = (*Import)(nil)
 
 func (j *Import) ClasspathFiles() android.Paths {
 	return j.classpathFiles
-}
-
-func (j *Import) ResourceJarFiles() android.Paths {
-	// resources are in the ClasspathFiles
-	return nil
 }
 
 func (j *Import) AidlIncludeDirs() android.Paths {

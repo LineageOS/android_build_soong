@@ -185,6 +185,7 @@ func TestArchSpecific(t *testing.T) {
 
 var classpathTestcases = []struct {
 	name          string
+	moduleType    string
 	host          android.OsClass
 	properties    string
 	bootclasspath []string
@@ -239,14 +240,29 @@ var classpathTestcases = []struct {
 	{
 
 		name:       "host default",
-		host:       android.Host,
+		moduleType: "java_library_host",
 		properties: ``,
+		host:       android.Host,
 		classpath:  []string{},
 	},
 	{
 		name:       "host nostdlib",
+		moduleType: "java_library_host",
 		host:       android.Host,
 		properties: `no_standard_libs: true`,
+		classpath:  []string{},
+	},
+	{
+
+		name:       "host supported default",
+		host:       android.Host,
+		properties: `host_supported: true,`,
+		classpath:  []string{},
+	},
+	{
+		name:       "host supported nostdlib",
+		host:       android.Host,
+		properties: `host_supported: true, no_standard_libs: true`,
 		classpath:  []string{},
 	},
 }
@@ -254,12 +270,11 @@ var classpathTestcases = []struct {
 func TestClasspath(t *testing.T) {
 	for _, testcase := range classpathTestcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			hostExtra := ""
-			if testcase.host == android.Host {
-				hostExtra = "_host"
+			moduleType := "java_library"
+			if testcase.moduleType != "" {
+				moduleType = testcase.moduleType
 			}
-			ctx := testJava(t, `
-			java_library`+hostExtra+` {
+			ctx := testJava(t, moduleType+` {
 				name: "foo",
 				srcs: ["a.java"],
 				`+testcase.properties+`
@@ -393,16 +408,16 @@ func TestResources(t *testing.T) {
 		args  string
 	}{
 		{
-			// Test that a module with java_resource_dirs includes a file list file
+			// Test that a module with java_resource_dirs includes the files
 			name: "resource dirs",
 			prop: `java_resource_dirs: ["res"]`,
-			args: "-C res -l ",
+			args: "-C res -f res/a -f res/b",
 		},
 		{
 			// Test that a module with java_resources includes the files
 			name: "resource files",
 			prop: `java_resources: ["res/a", "res/b"]`,
-			args: "-C . -f res/a -C . -f res/b",
+			args: "-C . -f res/a -f res/b",
 		},
 		{
 			// Test that a module with a filegroup in java_resources includes the files with the
@@ -415,13 +430,13 @@ func TestResources(t *testing.T) {
 					path: "res",
 					srcs: ["res/a", "res/b"],
 				}`,
-			args: "-C res -f res/a -C res -f res/b",
+			args: "-C res -f res/a -f res/b",
 		},
 		{
 			// Test that a module with "include_srcs: true" includes its source files in the resources jar
 			name: "include sources",
 			prop: `include_srcs: true`,
-			args: "-C . -f a.java -C . -f b.java -C . -f c.java",
+			args: "-C . -f a.java -f b.java -f c.java",
 		},
 	}
 
@@ -447,8 +462,8 @@ func TestResources(t *testing.T) {
 					foo.Inputs.Strings(), fooRes.Output.String())
 			}
 
-			if !strings.Contains(fooRes.Args["jarArgs"], test.args) {
-				t.Errorf("foo resource jar args %q does not contain %q",
+			if fooRes.Args["jarArgs"] != test.args {
+				t.Errorf("foo resource jar args %q is not %q",
 					fooRes.Args["jarArgs"], test.args)
 			}
 		})
@@ -474,7 +489,7 @@ func TestExcludeResources(t *testing.T) {
 
 	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res.jar")
 
-	expected := "-C res -l " + fooRes.Implicits[0].String()
+	expected := "-C res -f res/a -f res/b"
 	if fooRes.Args["jarArgs"] != expected {
 		t.Errorf("foo resource jar args %q is not %q",
 			fooRes.Args["jarArgs"], expected)
