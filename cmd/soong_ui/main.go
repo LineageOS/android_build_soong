@@ -114,7 +114,11 @@ func main() {
 	} else if os.Args[1] == "--dumpvars-mode" {
 		dumpVars(buildCtx, config, os.Args[2:])
 	} else {
-		build.Build(buildCtx, config, build.BuildAll)
+		toBuild := build.BuildAll
+		if config.Checkbuild() {
+			toBuild |= build.RunBuildTests
+		}
+		build.Build(buildCtx, config, toBuild)
 	}
 }
 
