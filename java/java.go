@@ -28,7 +28,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/genrule"
 	"android/soong/java/config"
 )
 
@@ -436,12 +435,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	srcFiles, srcFileLists = j.genSources(ctx, srcFiles, flags)
 
 	srcFileLists = append(srcFileLists, deps.srcFileLists...)
-
-	ctx.VisitDirectDeps(func(module blueprint.Module) {
-		if gen, ok := module.(genrule.SourceFileGenerator); ok {
-			srcFiles = append(srcFiles, gen.GeneratedSourceFiles()...)
-		}
-	})
 
 	srcFileLists = append(srcFileLists, j.ExtraSrcLists...)
 
