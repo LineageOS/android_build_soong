@@ -28,11 +28,14 @@
 export TRACE_BEGIN_SOONG=$(date +%s%N)
 
 export TOP=$(cd $(dirname ${BASH_SOURCE[0]})/../..; PWD= /bin/pwd)
+cd "${TOP}"
 source "${TOP}/build/soong/scripts/microfactory.bash"
 
 case $(uname) in
   Linux)
     export LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
+    export SEGFAULT_USE_ALTSTACK=1
+    ulimit -a
     ;;
 esac
 
