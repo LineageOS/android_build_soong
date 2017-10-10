@@ -28,8 +28,8 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("gensrcs", genSrcsFactory)
-	android.RegisterModuleType("genrule", genRuleFactory)
+	android.RegisterModuleType("gensrcs", GenSrcsFactory)
+	android.RegisterModuleType("genrule", GenRuleFactory)
 }
 
 var (
@@ -331,7 +331,7 @@ func NewGenSrcs() *Module {
 	return generatorFactory(tasks, properties)
 }
 
-func genSrcsFactory() android.Module {
+func GenSrcsFactory() android.Module {
 	m := NewGenSrcs()
 	android.InitAndroidModule(m)
 	return m
@@ -361,7 +361,7 @@ func NewGenRule() *Module {
 	return generatorFactory(tasks, properties)
 }
 
-func genRuleFactory() android.Module {
+func GenRuleFactory() android.Module {
 	m := NewGenRule()
 	android.InitAndroidModule(m)
 	return m
