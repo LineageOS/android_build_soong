@@ -882,10 +882,10 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 			}
 		} else if pathtools.IsGlob(s) {
 			globbedSrcFiles := ctx.Glob(filepath.Join(prefix, s), excludes)
-			expandedSrcFiles = append(expandedSrcFiles, globbedSrcFiles...)
-			for i, s := range expandedSrcFiles {
-				expandedSrcFiles[i] = s.(ModuleSrcPath).WithSubDir(ctx, subDir)
+			for i, s := range globbedSrcFiles {
+				globbedSrcFiles[i] = s.(ModuleSrcPath).WithSubDir(ctx, subDir)
 			}
+			expandedSrcFiles = append(expandedSrcFiles, globbedSrcFiles...)
 		} else {
 			s := PathForModuleSrc(ctx, s).WithSubDir(ctx, subDir)
 			expandedSrcFiles = append(expandedSrcFiles, s)
