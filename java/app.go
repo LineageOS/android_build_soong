@@ -274,8 +274,6 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
 
-	module.deviceProperties.Dex = true
-
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
