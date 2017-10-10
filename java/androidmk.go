@@ -19,6 +19,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 )
 
@@ -37,6 +39,25 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 				}
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", library.deviceProperties.Sdk_version)
 			},
+		},
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			android.WriteAndroidMkData(w, data)
+
+			if proptools.Bool(library.deviceProperties.Hostdex) && !library.Host() {
+				fmt.Fprintln(w, "include $(CLEAR_VARS)")
+				fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
+				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := JAVA_LIBRARIES")
+				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.classpathFile.String())
+				if library.properties.Installable != nil && *library.properties.Installable == false {
+					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+				}
+				if library.dexJarFile != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
+				}
+				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(data.Required, " "))
+				fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+			}
 		},
 	}
 }

@@ -125,16 +125,15 @@ type CompilerDeviceProperties struct {
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version string
 
-	// Set for device java libraries, and for host versions of device java libraries
-	// built for testing
-	Dex bool `blueprint:"mutated"`
-
 	// directories to pass to aidl tool
 	Aidl_includes []string
 
 	// directories that should be added as include directories
 	// for any aidl sources of modules that depend on this module
 	Export_aidl_include_dirs []string
+
+	// If true, export a copy of the module as a -hostdex module for host testing.
+	Hostdex *bool
 }
 
 // Module contains the properties and members used by all java module types
@@ -279,8 +278,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			if sdkDep.useModule {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
 			}
-		} else {
-			// TODO(ccross): add hostdex support
 		}
 	}
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
@@ -508,7 +505,6 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	j.classpathFile = outputFile
 
-	// TODO(ccross): handle hostdex
 	if ctx.Device() && j.installable() {
 		dxFlags := j.deviceProperties.Dxflags
 		if false /* emma enabled */ {
@@ -622,7 +618,6 @@ func LibraryFactory(installable bool) func() android.Module {
 		if !installable {
 			module.properties.Installable = proptools.BoolPtr(false)
 		}
-		module.deviceProperties.Dex = true
 
 		module.AddProperties(
 			&module.Module.properties,
@@ -679,8 +674,6 @@ func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func BinaryFactory() android.Module {
 	module := &Binary{}
-
-	module.deviceProperties.Dex = true
 
 	module.AddProperties(
 		&module.Module.properties,

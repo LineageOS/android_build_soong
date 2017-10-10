@@ -43,6 +43,7 @@ type AndroidMkData struct {
 	OutputFile OptionalPath
 	Disabled   bool
 	Include    string
+	Required   []string
 
 	Custom func(w io.Writer, name, prefix, moduleDir string, data AndroidMkData)
 
@@ -168,6 +169,8 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		data.Include = "$(BUILD_PREBUILT)"
 	}
 
+	data.Required = amod.commonProperties.Required
+
 	// Make does not understand LinuxBionic
 	if amod.Os() == LinuxBionic {
 		return nil
@@ -197,8 +200,8 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 	fmt.Fprintln(&data.preamble, "LOCAL_MODULE_CLASS :=", data.Class)
 	fmt.Fprintln(&data.preamble, "LOCAL_PREBUILT_MODULE_FILE :=", data.OutputFile.String())
 
-	if len(amod.commonProperties.Required) > 0 {
-		fmt.Fprintln(&data.preamble, "LOCAL_REQUIRED_MODULES := "+strings.Join(amod.commonProperties.Required, " "))
+	if len(data.Required) > 0 {
+		fmt.Fprintln(&data.preamble, "LOCAL_REQUIRED_MODULES := "+strings.Join(data.Required, " "))
 	}
 
 	archStr := amod.Arch().ArchType.String()
