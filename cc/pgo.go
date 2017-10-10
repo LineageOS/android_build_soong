@@ -28,7 +28,7 @@ var (
 	profileUseOtherFlags = []string{"-Wno-backend-plugin"}
 )
 
-const pgoProfileProject = "toolchain/pgo-profiles"
+const pgoProfileProject = "vendor/google_data/pgo_profile"
 
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
 const profileSamplingFlag = "-gline-tables-only"
