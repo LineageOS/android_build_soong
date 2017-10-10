@@ -61,6 +61,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
+	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -503,6 +504,39 @@ func TestExcludeResources(t *testing.T) {
 		t.Errorf("bar resource jar args %q is not %q",
 			barRes.Args["jarArgs"], expected)
 
+	}
+}
+
+func TestGeneratedSources(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: [
+				"a*.java",
+				":gen",
+				"b*.java",
+			],
+		}
+
+		genrule {
+			name: "gen",
+			tool_files: ["res/a"],
+			out: ["gen.java"],
+		}
+	`)
+
+	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+	genrule := ctx.ModuleForTests("gen", "").Rule("generator")
+
+	if len(genrule.Outputs) != 1 || filepath.Base(genrule.Outputs[0].String()) != "gen.java" {
+		t.Fatalf(`gen output file %v is not [".../gen.java"]`, genrule.Outputs.Strings())
+	}
+
+	if len(javac.Inputs) != 3 ||
+		javac.Inputs[0].String() != "a.java" ||
+		javac.Inputs[1].String() != genrule.Outputs[0].String() ||
+		javac.Inputs[2].String() != "b.java" {
+		t.Errorf(`foo inputs %v != ["a.java", ".../gen.java", "b.java"]`, javac.Inputs)
 	}
 }
 
