@@ -63,33 +63,33 @@ func (pgo *pgo) props() []interface{} {
 	return []interface{}{&pgo.Properties}
 }
 
-func (pgo *pgo) addProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
-	if pgo.Properties.isInstrumentation() {
+func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
+	if props.isInstrumentation() {
 		flags.CFlags = append(flags.CFlags, profileInstrumentFlag)
 		// The profile runtime is added below in deps().  Add the below
 		// flag, which is the only other link-time action performed by
 		// the Clang driver during link.
 		flags.LdFlags = append(flags.LdFlags, "-u__llvm_profile_runtime")
 	}
-	if pgo.Properties.isSampling() {
+	if props.isSampling() {
 		flags.CFlags = append(flags.CFlags, profileSamplingFlag)
 		flags.LdFlags = append(flags.LdFlags, profileSamplingFlag)
 	}
 	return flags
 }
 
-func (pgo *pgo) profileUseFlag(ctx ModuleContext, file string) string {
-	if pgo.Properties.isInstrumentation() {
+func (props *PgoProperties) profileUseFlag(ctx ModuleContext, file string) string {
+	if props.isInstrumentation() {
 		return fmt.Sprintf(profileUseInstrumentFormat, file)
 	}
-	if pgo.Properties.isSampling() {
+	if props.isSampling() {
 		return fmt.Sprintf(profileUseSamplingFormat, file)
 	}
 	return ""
 }
 
-func (pgo *pgo) profileUseFlags(ctx ModuleContext, file string) []string {
-	flags := []string{pgo.profileUseFlag(ctx, file)}
+func (props *PgoProperties) profileUseFlags(ctx ModuleContext, file string) []string {
+	flags := []string{props.profileUseFlag(ctx, file)}
 	flags = append(flags, profileUseOtherFlags...)
 	return flags
 }
@@ -188,14 +188,14 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 
 	// Add flags to profile this module based on its profile_kind
 	if props.ShouldProfileModule {
-		return pgo.addProfileGatherFlags(ctx, flags)
+		return props.addProfileGatherFlags(ctx, flags)
 	}
 
 	// If the PGO profiles project is found, and this module has PGO
 	// enabled, add flags to use the profile
 	if profilesDir := getPgoProfilesDir(ctx); props.PgoPresent && profilesDir.Valid() {
 		profileFile := android.PathForSource(ctx, profilesDir.String(), *(props.Pgo.Profile_file))
-		profileUseFlags := pgo.profileUseFlags(ctx, profileFile.String())
+		profileUseFlags := props.profileUseFlags(ctx, profileFile.String())
 
 		flags.CFlags = append(flags.CFlags, profileUseFlags...)
 		flags.LdFlags = append(flags.LdFlags, profileUseFlags...)
