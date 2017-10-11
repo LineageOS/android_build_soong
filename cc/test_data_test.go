@@ -117,7 +117,7 @@ func TestDataTests(t *testing.T) {
 	}
 	defer os.RemoveAll(buildDir)
 
-	config := android.TestConfig(buildDir)
+	config := android.TestConfig(buildDir, nil)
 
 	for _, test := range testDataTests {
 		t.Run(test.name, func(t *testing.T) {

@@ -78,6 +78,7 @@ type config struct {
 	srcDir   string // the path of the root source directory
 	buildDir string // the path of the build output directory
 
+	env       map[string]string
 	envLock   sync.Mutex
 	envDeps   map[string]string
 	envFrozen bool
@@ -168,15 +169,15 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 }
 
 // TestConfig returns a Config object suitable for using for tests
-func TestConfig(buildDir string) Config {
+func TestConfig(buildDir string, env map[string]string) Config {
 	config := &config{
 		ProductVariables: productVariables{
 			DeviceName: stringPtr("test_device"),
 		},
 
-		buildDir:          buildDir,
-		captureBuild:      true,
-		ignoreEnvironment: true,
+		buildDir:     buildDir,
+		captureBuild: true,
+		env:          env,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
@@ -186,8 +187,8 @@ func TestConfig(buildDir string) Config {
 }
 
 // TestConfig returns a Config object suitable for using for tests that need to run the arch mutator
-func TestArchConfig(buildDir string) Config {
-	testConfig := TestConfig(buildDir)
+func TestArchConfig(buildDir string, env map[string]string) Config {
+	testConfig := TestConfig(buildDir, env)
 	config := testConfig.config
 
 	config.Targets = map[OsClass][]Target{
@@ -211,6 +212,8 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	config := &config{
 		ConfigFileName:           filepath.Join(buildDir, configFileName),
 		ProductVariablesFileName: filepath.Join(buildDir, productVariablesFileName),
+
+		env: originalEnv,
 
 		srcDir:   srcDir,
 		buildDir: buildDir,
@@ -335,9 +338,7 @@ func (c *config) Getenv(key string) string {
 		if c.envFrozen {
 			panic("Cannot access new environment variables after envdeps are frozen")
 		}
-		if !c.ignoreEnvironment {
-			val, _ = originalEnv[key]
-		}
+		val, _ = c.env[key]
 		c.envDeps[key] = val
 	}
 	return val
