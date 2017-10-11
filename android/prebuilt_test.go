@@ -118,7 +118,7 @@ func TestPrebuilts(t *testing.T) {
 	}
 	defer os.RemoveAll(buildDir)
 
-	config := TestConfig(buildDir)
+	config := TestConfig(buildDir, nil)
 
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
