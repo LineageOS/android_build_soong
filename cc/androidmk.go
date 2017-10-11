@@ -89,7 +89,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 	}
 	c.subAndroidMk(&ret, c.installer)
 
-	if c.vndk() && Bool(c.VendorProperties.Vendor_available) {
+	if c.vndk() && c.hasVendorVariant() {
 		// .vendor suffix is added only when we will have two variants: core and vendor.
 		// The suffix is not added for vendor-only module.
 		ret.SubName += vendorSuffix
