@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 }
 
 func testJava(t *testing.T, bp string) *android.TestContext {
-	config := android.TestArchConfig(buildDir)
+	config := android.TestArchConfig(buildDir, nil)
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
