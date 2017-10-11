@@ -50,6 +50,11 @@ type llndkLibraryProperties struct {
 
 	// Whether the system library uses symbol versions.
 	Unversioned bool
+
+	// whether this module can be directly depended upon by libs that are installed to /vendor.
+	// When set to false, this module can only be depended on by VNDK libraries, not vendor
+	// libraries. This effectively hides this module from vendors. Default value is true.
+	Vendor_available bool
 }
 
 type llndkStubDecorator struct {
@@ -149,6 +154,7 @@ func newLLndkStubLibrary() *Module {
 	stub := &llndkStubDecorator{
 		libraryDecorator: library,
 	}
+	stub.Properties.Vendor_available = true
 	module.compiler = stub
 	module.linker = stub
 	module.installer = nil
