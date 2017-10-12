@@ -216,7 +216,7 @@ func init() {
 	pctx.StaticVariable("ArmCflags", strings.Join(armCflags, " "))
 	pctx.StaticVariable("ArmLdflags", strings.Join(armLdflags, " "))
 	pctx.StaticVariable("ArmCppflags", strings.Join(armCppflags, " "))
-	pctx.StaticVariable("ArmIncludeFlags", bionicHeaders("arm", "arm"))
+	pctx.StaticVariable("ArmIncludeFlags", bionicHeaders("arm"))
 
 	// Extended cflags
 
