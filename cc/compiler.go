@@ -490,14 +490,6 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	pathDeps := deps.GeneratedHeaders
 	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
 
-	if ctx.vndk() {
-		compiler.Properties.Srcs = append(compiler.Properties.Srcs,
-			compiler.Properties.Target.Vendor.Srcs...)
-
-		compiler.Properties.Exclude_srcs = append(compiler.Properties.Exclude_srcs,
-			compiler.Properties.Target.Vendor.Exclude_srcs...)
-	}
-
 	srcs := ctx.ExpandSources(compiler.Properties.Srcs, compiler.Properties.Exclude_srcs)
 	srcs = append(srcs, deps.GeneratedSources...)
 

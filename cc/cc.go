@@ -34,9 +34,9 @@ func init() {
 	android.RegisterModuleType("cc_defaults", defaultsFactory)
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("link", linkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
-		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
 		ctx.BottomUp("begin", beginMutator).Parallel()
@@ -1297,6 +1297,16 @@ const (
 	vendorMode = "vendor"
 )
 
+func squashVendorSrcs(m *Module) {
+	if lib, ok := m.compiler.(*libraryDecorator); ok {
+		lib.baseCompiler.Properties.Srcs = append(lib.baseCompiler.Properties.Srcs,
+			lib.baseCompiler.Properties.Target.Vendor.Srcs...)
+
+		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs,
+			lib.baseCompiler.Properties.Target.Vendor.Exclude_srcs...)
+	}
+}
+
 func vendorMutator(mctx android.BottomUpMutatorContext) {
 	if mctx.Os() != android.Android {
 		return
@@ -1352,11 +1362,15 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
 		mod := mctx.CreateVariations(coreMode, vendorMode)
-		mod[1].(*Module).Properties.UseVndk = true
+		vendor := mod[1].(*Module)
+		vendor.Properties.UseVndk = true
+		squashVendorSrcs(vendor)
 	} else if mctx.Vendor() && m.Properties.Sdk_version == "" {
 		// This will be available in /vendor only
 		mod := mctx.CreateVariations(vendorMode)
-		mod[0].(*Module).Properties.UseVndk = true
+		vendor := mod[0].(*Module)
+		vendor.Properties.UseVndk = true
+		squashVendorSrcs(vendor)
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK
