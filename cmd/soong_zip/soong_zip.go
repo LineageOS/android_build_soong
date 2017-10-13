@@ -62,12 +62,6 @@ type byteReaderCloser struct {
 	io.Closer
 }
 
-type fileArg struct {
-	pathPrefixInZip, sourcePrefixToStrip string
-	sourceFiles                          []string
-	globDir                              string
-}
-
 type pathMapping struct {
 	dest, src string
 	zipMethod uint16
@@ -89,8 +83,6 @@ func (u *uniqueSet) Set(s string) error {
 	return nil
 }
 
-type fileArgs []fileArg
-
 type file struct{}
 
 type listFiles struct{}
@@ -106,10 +98,10 @@ func (f *file) Set(s string) error {
 		return fmt.Errorf("must pass -C before -f")
 	}
 
-	fArgs = append(fArgs, fileArg{
-		pathPrefixInZip:     filepath.Clean(*rootPrefix),
-		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		sourceFiles:         []string{s},
+	fArgs = append(fArgs, FileArg{
+		PathPrefixInZip:     filepath.Clean(*rootPrefix),
+		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		SourceFiles:         []string{s},
 	})
 
 	return nil
@@ -129,10 +121,10 @@ func (l *listFiles) Set(s string) error {
 		return err
 	}
 
-	fArgs = append(fArgs, fileArg{
-		pathPrefixInZip:     filepath.Clean(*rootPrefix),
-		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		sourceFiles:         strings.Split(string(list), "\n"),
+	fArgs = append(fArgs, FileArg{
+		PathPrefixInZip:     filepath.Clean(*rootPrefix),
+		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		SourceFiles:         strings.Split(string(list), "\n"),
 	})
 
 	return nil
@@ -147,10 +139,10 @@ func (d *dir) Set(s string) error {
 		return fmt.Errorf("must pass -C before -D")
 	}
 
-	fArgs = append(fArgs, fileArg{
-		pathPrefixInZip:     filepath.Clean(*rootPrefix),
-		sourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		globDir:             filepath.Clean(s),
+	fArgs = append(fArgs, FileArg{
+		PathPrefixInZip:     filepath.Clean(*rootPrefix),
+		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		GlobDir:             filepath.Clean(s),
 	})
 
 	return nil
@@ -166,7 +158,7 @@ var (
 	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 
-	fArgs            fileArgs
+	fArgs            FileArgs
 	nonDeflatedFiles = make(uniqueSet)
 
 	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -186,7 +178,36 @@ func usage() {
 	os.Exit(2)
 }
 
-type zipWriter struct {
+func main() {
+	flag.Parse()
+
+	err := Run(ZipArgs{
+		FileArgs:                 fArgs,
+		OutputFilePath:           *out,
+		CpuProfileFilePath:       *cpuProfile,
+		TraceFilePath:            *traceFile,
+		EmulateJar:               *emulateJar,
+		AddDirectoryEntriesToZip: *directories,
+		CompressionLevel:         *compLevel,
+		ManifestSourcePath:       *manifest,
+		NumParallelJobs:          *parallelJobs,
+		NonDeflatedFiles:         nonDeflatedFiles,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+}
+
+type FileArg struct {
+	PathPrefixInZip, SourcePrefixToStrip string
+	SourceFiles                          []string
+	GlobDir                              string
+}
+
+type FileArgs []FileArg
+
+type ZipWriter struct {
 	time         time.Time
 	createdFiles map[string]string
 	createdDirs  map[string]string
@@ -213,11 +234,22 @@ type zipEntry struct {
 	allocatedSize int64
 }
 
-func main() {
-	flag.Parse()
+type ZipArgs struct {
+	FileArgs                 FileArgs
+	OutputFilePath           string
+	CpuProfileFilePath       string
+	TraceFilePath            string
+	EmulateJar               bool
+	AddDirectoryEntriesToZip bool
+	CompressionLevel         int
+	ManifestSourcePath       string
+	NumParallelJobs          int
+	NonDeflatedFiles         map[string]bool
+}
 
-	if *cpuProfile != "" {
-		f, err := os.Create(*cpuProfile)
+func Run(args ZipArgs) (err error) {
+	if args.CpuProfileFilePath != "" {
+		f, err := os.Create(args.CpuProfileFilePath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
@@ -227,8 +259,8 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	if *traceFile != "" {
-		f, err := os.Create(*traceFile)
+	if args.TraceFilePath != "" {
+		f, err := os.Create(args.TraceFilePath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
@@ -242,46 +274,41 @@ func main() {
 		defer trace.Stop()
 	}
 
-	if *out == "" {
-		fmt.Fprintf(os.Stderr, "error: -o is required\n")
-		usage()
+	if args.OutputFilePath == "" {
+		return fmt.Errorf("output file path must be nonempty")
 	}
 
-	if *emulateJar {
-		*directories = true
+	if args.EmulateJar {
+		args.AddDirectoryEntriesToZip = true
 	}
 
-	w := &zipWriter{
+	w := &ZipWriter{
 		time:         jar.DefaultTime,
 		createdDirs:  make(map[string]string),
 		createdFiles: make(map[string]string),
-		directories:  *directories,
-		compLevel:    *compLevel,
+		directories:  args.AddDirectoryEntriesToZip,
+		compLevel:    args.CompressionLevel,
 	}
-
 	pathMappings := []pathMapping{}
 
-	for _, fa := range fArgs {
-		srcs := fa.sourceFiles
-		if fa.globDir != "" {
-			srcs = append(srcs, recursiveGlobFiles(fa.globDir)...)
+	for _, fa := range args.FileArgs {
+		srcs := fa.SourceFiles
+		if fa.GlobDir != "" {
+			srcs = append(srcs, recursiveGlobFiles(fa.GlobDir)...)
 		}
 		for _, src := range srcs {
-			if err := fillPathPairs(fa.pathPrefixInZip,
-				fa.sourcePrefixToStrip, src, &pathMappings); err != nil {
+			if err := fillPathPairs(fa.PathPrefixInZip,
+				fa.SourcePrefixToStrip, src, &pathMappings, args.NonDeflatedFiles); err != nil {
 				log.Fatal(err)
 			}
 		}
 	}
 
-	err := w.write(*out, pathMappings, *manifest)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
+	return w.write(args.OutputFilePath, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.NumParallelJobs)
+
 }
 
-func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping) error {
+func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping, nonDeflatedFiles map[string]bool) error {
 	src = strings.TrimSpace(src)
 	if src == "" {
 		return nil
@@ -317,7 +344,7 @@ type readerSeekerCloser interface {
 	io.Seeker
 }
 
-func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest string) error {
+func (z *ZipWriter) write(out string, pathMappings []pathMapping, manifest string, emulateJar bool, parallelJobs int) error {
 	f, err := os.Create(out)
 	if err != nil {
 		return err
@@ -346,18 +373,18 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 	// The RateLimit object will put the upper bounds on the number of
 	// parallel compressions and outstanding buffers.
 	z.writeOps = make(chan chan *zipEntry, 1000)
-	z.cpuRateLimiter = NewCPURateLimiter(int64(*parallelJobs))
+	z.cpuRateLimiter = NewCPURateLimiter(int64(parallelJobs))
 	z.memoryRateLimiter = NewMemoryRateLimiter(0)
 	defer func() {
 		z.cpuRateLimiter.Stop()
 		z.memoryRateLimiter.Stop()
 	}()
 
-	if manifest != "" && !*emulateJar {
+	if manifest != "" && !emulateJar {
 		return errors.New("must specify --jar when specifying a manifest via -m")
 	}
 
-	if *emulateJar {
+	if emulateJar {
 		// manifest may be empty, in which case addManifest will fill in a default
 		pathMappings = append(pathMappings, pathMapping{jar.ManifestFile, manifest, zip.Deflate})
 
@@ -369,10 +396,10 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		defer close(z.writeOps)
 
 		for _, ele := range pathMappings {
-			if *emulateJar && ele.dest == jar.ManifestFile {
+			if emulateJar && ele.dest == jar.ManifestFile {
 				err = z.addManifest(ele.dest, ele.src, ele.zipMethod)
 			} else {
-				err = z.addFile(ele.dest, ele.src, ele.zipMethod)
+				err = z.addFile(ele.dest, ele.src, ele.zipMethod, emulateJar)
 			}
 			if err != nil {
 				z.errors <- err
@@ -470,7 +497,7 @@ func (z *zipWriter) write(out string, pathMappings []pathMapping, manifest strin
 }
 
 // imports (possibly with compression) <src> into the zip at sub-path <dest>
-func (z *zipWriter) addFile(dest, src string, method uint16) error {
+func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar bool) error {
 	var fileSize int64
 	var executable bool
 
@@ -478,11 +505,11 @@ func (z *zipWriter) addFile(dest, src string, method uint16) error {
 		return err
 	} else if s.IsDir() {
 		if z.directories {
-			return z.writeDirectory(dest, src)
+			return z.writeDirectory(dest, src, emulateJar)
 		}
 		return nil
 	} else {
-		if err := z.writeDirectory(filepath.Dir(dest), src); err != nil {
+		if err := z.writeDirectory(filepath.Dir(dest), src, emulateJar); err != nil {
 			return err
 		}
 
@@ -523,7 +550,7 @@ func (z *zipWriter) addFile(dest, src string, method uint16) error {
 	return z.writeFileContents(header, r)
 }
 
-func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
+func (z *ZipWriter) addManifest(dest string, src string, method uint16) error {
 	if prev, exists := z.createdDirs[dest]; exists {
 		return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
 	}
@@ -531,7 +558,7 @@ func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
 		return fmt.Errorf("destination %q has two files %q and %q", dest, prev, src)
 	}
 
-	if err := z.writeDirectory(filepath.Dir(dest), src); err != nil {
+	if err := z.writeDirectory(filepath.Dir(dest), src, true); err != nil {
 		return err
 	}
 
@@ -545,7 +572,7 @@ func (z *zipWriter) addManifest(dest string, src string, method uint16) error {
 	return z.writeFileContents(fh, reader)
 }
 
-func (z *zipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerCloser) (err error) {
+func (z *ZipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerCloser) (err error) {
 
 	header.SetModTime(z.time)
 
@@ -621,7 +648,7 @@ func (z *zipWriter) writeFileContents(header *zip.FileHeader, r readerSeekerClos
 	return nil
 }
 
-func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, resultChan chan *zipEntry, wg *sync.WaitGroup) {
+func (z *ZipWriter) crcFile(r io.Reader, ze *zipEntry, resultChan chan *zipEntry, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer z.cpuRateLimiter.Finish()
 
@@ -637,7 +664,7 @@ func (z *zipWriter) crcFile(r io.Reader, ze *zipEntry, resultChan chan *zipEntry
 	close(resultChan)
 }
 
-func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, resultChan chan io.Reader, wg *sync.WaitGroup) {
+func (z *ZipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, resultChan chan io.Reader, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	result, err := z.compressBlock(r, dict, last)
@@ -651,7 +678,7 @@ func (z *zipWriter) compressPartialFile(r io.Reader, dict []byte, last bool, res
 	resultChan <- result
 }
 
-func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.Buffer, error) {
+func (z *ZipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 	var fw *flate.Writer
 	var err error
@@ -685,7 +712,7 @@ func (z *zipWriter) compressBlock(r io.Reader, dict []byte, last bool) (*bytes.B
 	return buf, nil
 }
 
-func (z *zipWriter) compressWholeFile(ze *zipEntry, r io.ReadSeeker, compressChan chan *zipEntry) {
+func (z *ZipWriter) compressWholeFile(ze *zipEntry, r io.ReadSeeker, compressChan chan *zipEntry) {
 
 	crc := crc32.NewIEEE()
 	_, err := io.Copy(crc, r)
@@ -758,7 +785,7 @@ func (z *zipWriter) compressWholeFile(ze *zipEntry, r io.ReadSeeker, compressCha
 
 // writeDirectory annotates that dir is a directory created for the src file or directory, and adds
 // the directory entry to the zip file if directories are enabled.
-func (z *zipWriter) writeDirectory(dir, src string) error {
+func (z *ZipWriter) writeDirectory(dir string, src string, emulateJar bool) error {
 	// clean the input
 	dir = filepath.Clean(dir)
 
@@ -785,7 +812,7 @@ func (z *zipWriter) writeDirectory(dir, src string) error {
 		for _, cleanDir := range zipDirs {
 			var dirHeader *zip.FileHeader
 
-			if *emulateJar && cleanDir+"/" == jar.MetaDir {
+			if emulateJar && cleanDir+"/" == jar.MetaDir {
 				dirHeader = jar.MetaDirFileHeader()
 			} else {
 				dirHeader = &zip.FileHeader{
@@ -808,7 +835,7 @@ func (z *zipWriter) writeDirectory(dir, src string) error {
 	return nil
 }
 
-func (z *zipWriter) writeSymlink(rel, file string) error {
+func (z *ZipWriter) writeSymlink(rel, file string) error {
 	fileHeader := &zip.FileHeader{
 		Name: rel,
 	}
