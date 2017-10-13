@@ -108,6 +108,12 @@ func (n *ndkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
 			if installer, ok := m.installer.(*stubDecorator); ok {
 				installPaths = append(installPaths, installer.installPath)
 			}
+
+			if library, ok := m.linker.(*libraryDecorator); ok {
+				if library.MutatedProperties.NdkSysrootPath != "" {
+					installPaths = append(installPaths, library.MutatedProperties.NdkSysrootPath)
+				}
+			}
 		}
 	})
 
