@@ -78,7 +78,7 @@ func init() {
 	pctx.StaticVariable("LinuxBionicCflags", strings.Join(linuxBionicCflags, " "))
 	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
 
-	pctx.StaticVariable("LinuxBionicIncludeFlags", bionicHeaders("x86_64", "x86"))
+	pctx.StaticVariable("LinuxBionicIncludeFlags", bionicHeaders("x86"))
 
 	// Use the device gcc toolchain for now
 	pctx.StaticVariable("LinuxBionicGccRoot", "${X86_64GccRoot}")
