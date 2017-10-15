@@ -2,9 +2,135 @@ package cc
 
 import (
 	"android/soong/android"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
+
+var buildDir string
+
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_cc_test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func tearDown() {
+	os.RemoveAll(buildDir)
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
+}
+
+func testCc(t *testing.T, bp string) *android.TestContext {
+	config := android.TestArchConfig(buildDir, nil)
+	config.ProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
+
+	ctx := android.NewTestArchContext()
+	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(libraryFactory))
+	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(toolchainLibraryFactory))
+	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(llndkLibraryFactory))
+	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("image", vendorMutator).Parallel()
+		ctx.BottomUp("link", linkageMutator).Parallel()
+		ctx.BottomUp("vndk", vndkMutator).Parallel()
+	})
+	ctx.Register()
+
+	ctx.MockFileSystem(map[string][]byte{
+		"Android.bp": []byte(bp),
+		"foo.c":      nil,
+		"bar.c":      nil,
+	})
+
+	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
+	fail(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	fail(t, errs)
+
+	return ctx
+}
+
+func TestVendorSrc(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library {
+			name: "libTest",
+			srcs: ["foo.c"],
+			no_libgcc : true,
+			nocrt : true,
+			system_shared_libs : [],
+			vendor_available: true,
+			target: {
+				vendor: {
+					srcs: ["bar.c"],
+				},
+			},
+		}
+		toolchain_library {
+			name: "libatomic",
+			vendor_available: true,
+		}
+		toolchain_library {
+			name: "libcompiler_rt-extras",
+			vendor_available: true,
+		}
+		cc_library {
+			name: "libc",
+			no_libgcc : true,
+			nocrt : true,
+			system_shared_libs: [],
+		}
+		llndk_library {
+			name: "libc",
+			symbol_file: "",
+		}
+		cc_library {
+			name: "libm",
+			no_libgcc : true,
+			nocrt : true,
+			system_shared_libs: [],
+		}
+		llndk_library {
+			name: "libm",
+			symbol_file: "",
+		}
+		cc_library {
+			name: "libdl",
+			no_libgcc : true,
+			nocrt : true,
+			system_shared_libs: [],
+		}
+		llndk_library {
+			name: "libdl",
+			symbol_file: "",
+		}
+	`)
+
+	ld := ctx.ModuleForTests("libTest", "android_arm_armv7-a-neon_vendor_shared").Rule("ld")
+	var objs []string
+	for _, o := range ld.Inputs {
+		objs = append(objs, o.Base())
+	}
+	if len(objs) != 2 {
+		t.Errorf("inputs of libTest is expected to 2, but was %d.", len(objs))
+	}
+	if objs[0] != "foo.o" || objs[1] != "bar.o" {
+		t.Errorf("inputs of libTest must be []string{\"foo.o\", \"bar.o\"}, but was %#v.", objs)
+	}
+}
 
 var firstUniqueElementsTestCases = []struct {
 	in  []string
