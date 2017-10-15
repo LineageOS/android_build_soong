@@ -223,7 +223,7 @@ func main() {
 		trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
 	}
 
-	vars, err := build.DumpMakeVars(buildCtx, config, nil, nil, []string{"all_named_products"})
+	vars, err := build.DumpMakeVars(buildCtx, config, nil, []string{"all_named_products"})
 	if err != nil {
 		log.Fatal(err)
 	}
