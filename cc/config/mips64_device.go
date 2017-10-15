@@ -108,7 +108,7 @@ func init() {
 	pctx.StaticVariable("Mips64Cflags", strings.Join(mips64Cflags, " "))
 	pctx.StaticVariable("Mips64Ldflags", strings.Join(mips64Ldflags, " "))
 	pctx.StaticVariable("Mips64Cppflags", strings.Join(mips64Cppflags, " "))
-	pctx.StaticVariable("Mips64IncludeFlags", bionicHeaders("mips64", "mips"))
+	pctx.StaticVariable("Mips64IncludeFlags", bionicHeaders("mips"))
 
 	// Clang cflags
 	pctx.StaticVariable("Mips64ClangCflags", strings.Join(ClangFilterUnknownCflags(mips64ClangCflags), " "))
