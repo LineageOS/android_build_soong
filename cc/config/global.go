@@ -180,9 +180,8 @@ func init() {
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
 
-func bionicHeaders(bionicArch, kernelArch string) string {
+func bionicHeaders(kernelArch string) string {
 	return strings.Join([]string{
-		"-isystem bionic/libc/arch-" + bionicArch + "/include",
 		"-isystem bionic/libc/include",
 		"-isystem bionic/libc/kernel/uapi",
 		"-isystem bionic/libc/kernel/uapi/asm-" + kernelArch,
