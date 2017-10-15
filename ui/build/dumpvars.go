@@ -16,7 +16,6 @@ package build
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -28,27 +27,29 @@ import (
 // Make without actually building them. So all the variables based on
 // MAKECMDGOALS can be read.
 //
-// extra_targets adds real arguments to the make command, in case other targets
-// actually need to be run (like the Soong config generator).
-//
 // vars is the list of variables to read. The values will be put in the
 // returned map.
-func DumpMakeVars(ctx Context, config Config, goals, extra_targets, vars []string) (map[string]string, error) {
+func DumpMakeVars(ctx Context, config Config, goals, vars []string) (map[string]string, error) {
+	return dumpMakeVars(ctx, config, goals, vars, false)
+}
+
+func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_vars bool) (map[string]string, error) {
 	ctx.BeginTrace("dumpvars")
 	defer ctx.EndTrace()
 
-	cmd := Command(ctx, config, "make",
-		"make",
-		"--no-print-directory",
-		"-f", "build/core/config.mk",
+	cmd := Command(ctx, config, "dumpvars",
+		config.PrebuiltBuildTool("ckati"),
+		"-f", "build/make/core/config.mk",
+		"--color_warnings",
 		"dump-many-vars",
-		"CALLED_FROM_SETUP=true",
-		"BUILD_SYSTEM=build/core",
-		"MAKECMDGOALS="+strings.Join(goals, " "),
-		"DUMP_MANY_VARS="+strings.Join(vars, " "),
-		"OUT_DIR="+config.OutDir())
-	cmd.Args = append(cmd.Args, extra_targets...)
-	cmd.Sandbox = makeSandbox
+		"MAKECMDGOALS="+strings.Join(goals, " "))
+	cmd.Environment.Set("CALLED_FROM_SETUP", "true")
+	cmd.Environment.Set("BUILD_SYSTEM", "build/make/core")
+	if write_soong_vars {
+		cmd.Environment.Set("WRITE_SOONG_VARIABLES", "true")
+	}
+	cmd.Environment.Set("DUMP_MANY_VARS", strings.Join(vars, " "))
+	cmd.Sandbox = dumpvarsSandbox
 	// TODO: error out when Stderr contains any content
 	cmd.Stderr = ctx.Stderr()
 	output, err := cmd.Output()
@@ -136,9 +137,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"TARGET_DEVICE",
 	}, exportEnvVars...), bannerVars...)
 
-	make_vars, err := DumpMakeVars(ctx, config, config.Arguments(), []string{
-		filepath.Join(config.SoongOutDir(), "soong.variables"),
-	}, allVars)
+	make_vars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true)
 	if err != nil {
 		ctx.Fatalln("Error dumping make vars:", err)
 	}
