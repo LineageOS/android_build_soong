@@ -159,7 +159,7 @@ func init() {
 	pctx.StaticVariable("X86_64Cflags", strings.Join(x86_64Cflags, " "))
 	pctx.StaticVariable("X86_64Ldflags", strings.Join(x86_64Ldflags, " "))
 	pctx.StaticVariable("X86_64Cppflags", strings.Join(x86_64Cppflags, " "))
-	pctx.StaticVariable("X86_64IncludeFlags", bionicHeaders("x86_64", "x86"))
+	pctx.StaticVariable("X86_64IncludeFlags", bionicHeaders("x86"))
 
 	// Clang cflags
 	pctx.StaticVariable("X86_64ClangCflags", strings.Join(ClangFilterUnknownCflags(x86_64Cflags), " "))
