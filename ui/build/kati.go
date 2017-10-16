@@ -77,6 +77,7 @@ func runKati(ctx Context, config Config) {
 		"--color_warnings",
 		"--gen_all_targets",
 		"--werror_find_emulator",
+		"--kati_stats",
 		"-f", "build/make/core/main.mk",
 	}
 
@@ -109,6 +110,7 @@ func runKati(ctx Context, config Config) {
 }
 
 var katiIncludeRe = regexp.MustCompile(`^(\[\d+/\d+] )?including [^ ]+ ...$`)
+var katiLogRe = regexp.MustCompile(`^\*kati\*: `)
 
 func katiRewriteOutput(ctx Context, pipe io.ReadCloser) {
 	haveBlankLine := true
@@ -118,6 +120,12 @@ func katiRewriteOutput(ctx Context, pipe io.ReadCloser) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		verbose := katiIncludeRe.MatchString(line)
+
+		// Only put kati debug/stat lines in our verbose log
+		if katiLogRe.MatchString(line) {
+			ctx.Verbose(line)
+			continue
+		}
 
 		// For verbose lines, write them on the current line without a newline,
 		// then overwrite them if the next thing we're printing is another
