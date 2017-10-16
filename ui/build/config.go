@@ -437,21 +437,13 @@ func (c *configImpl) HostPrebuiltTag() string {
 	}
 }
 
-func (c *configImpl) HostAsan() bool {
+func (c *configImpl) PrebuiltBuildTool(name string) string {
 	if v, ok := c.environ.Get("SANITIZE_HOST"); ok {
 		if sanitize := strings.Fields(v); inList("address", sanitize) {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) PrebuiltBuildTool(name string) string {
-	// (b/36182021) We're seeing rare ckati crashes, so always enable asan kati on the build servers.
-	if c.HostAsan() || (c.Dist() && name == "ckati") {
-		asan := filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "asan/bin", name)
-		if _, err := os.Stat(asan); err == nil {
-			return asan
+			asan := filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "asan/bin", name)
+			if _, err := os.Stat(asan); err == nil {
+				return asan
+			}
 		}
 	}
 	return filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "bin", name)
