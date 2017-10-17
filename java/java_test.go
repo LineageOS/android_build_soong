@@ -50,9 +50,12 @@ func TestMain(m *testing.M) {
 
 	os.Exit(run())
 }
-
 func testJava(t *testing.T, bp string) *android.TestContext {
-	config := android.TestArchConfig(buildDir, nil)
+	return testJavaWithEnv(t, bp, nil)
+}
+
+func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.TestContext {
+	config := android.TestArchConfig(buildDir, env)
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
@@ -60,6 +63,7 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(SystemModulesFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
@@ -84,8 +88,26 @@ func testJava(t *testing.T, bp string) *android.TestContext {
 				name: "%s",
 				srcs: ["a.java"],
 				no_standard_libs: true,
+				system_modules: "core-system-modules",
 			}
 		`, extra)
+	}
+
+	if config.TargetOpenJDK9() {
+		systemModules := []string{
+			"core-system-modules",
+			"android_stubs_current_system_modules",
+			"android_system_stubs_current_system_modules",
+			"android_test_stubs_current_system_modules",
+		}
+
+		for _, extra := range systemModules {
+			bp += fmt.Sprintf(`
+			java_system_modules {
+				name: "%s",
+			}
+		`, extra)
+		}
 	}
 
 	ctx.MockFileSystem(map[string][]byte{
@@ -190,17 +212,20 @@ var classpathTestcases = []struct {
 	host          android.OsClass
 	properties    string
 	bootclasspath []string
+	system        string
 	classpath     []string
 }{
 	{
 		name:          "default",
 		bootclasspath: []string{"core-oj", "core-libart"},
+		system:        "core-system-modules",
 		classpath:     []string{"ext", "framework", "okhttp"},
 	},
 	{
 		name:          "blank sdk version",
 		properties:    `sdk_version: "",`,
 		bootclasspath: []string{"core-oj", "core-libart"},
+		system:        "core-system-modules",
 		classpath:     []string{"ext", "framework", "okhttp"},
 	},
 	{
@@ -208,6 +233,7 @@ var classpathTestcases = []struct {
 		name:          "sdk v14",
 		properties:    `sdk_version: "14",`,
 		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 		classpath:     []string{"prebuilts/sdk/14/android.jar"},
 	},
 	{
@@ -215,6 +241,7 @@ var classpathTestcases = []struct {
 		name:          "current",
 		properties:    `sdk_version: "current",`,
 		bootclasspath: []string{"android_stubs_current"},
+		system:        "android_stubs_current_system_modules",
 		classpath:     []string{},
 	},
 	{
@@ -222,6 +249,7 @@ var classpathTestcases = []struct {
 		name:          "system_current",
 		properties:    `sdk_version: "system_current",`,
 		bootclasspath: []string{"android_system_stubs_current"},
+		system:        "android_system_stubs_current_system_modules",
 		classpath:     []string{},
 	},
 	{
@@ -229,12 +257,22 @@ var classpathTestcases = []struct {
 		name:          "test_current",
 		properties:    `sdk_version: "test_current",`,
 		bootclasspath: []string{"android_test_stubs_current"},
+		system:        "android_test_stubs_current_system_modules",
 		classpath:     []string{},
 	},
 	{
 
 		name:          "nostdlib",
-		properties:    `no_standard_libs: true`,
+		properties:    `no_standard_libs: true, system_modules: "none"`,
+		system:        "none",
+		bootclasspath: []string{`""`},
+		classpath:     []string{},
+	},
+	{
+
+		name:          "nostdlib system_modules",
+		properties:    `no_standard_libs: true, system_modules: "core-system-modules"`,
+		system:        "core-system-modules",
 		bootclasspath: []string{`""`},
 		classpath:     []string{},
 	},
@@ -263,7 +301,7 @@ var classpathTestcases = []struct {
 	{
 		name:       "host supported nostdlib",
 		host:       android.Host,
-		properties: `host_supported: true, no_standard_libs: true`,
+		properties: `host_supported: true, no_standard_libs: true, system_modules: "none"`,
 		classpath:  []string{},
 	},
 }
@@ -275,12 +313,17 @@ func TestClasspath(t *testing.T) {
 			if testcase.moduleType != "" {
 				moduleType = testcase.moduleType
 			}
-			ctx := testJava(t, moduleType+` {
+
+			bp := moduleType + ` {
 				name: "foo",
 				srcs: ["a.java"],
-				`+testcase.properties+`
+				` + testcase.properties + `
+			}`
+
+			variant := "android_common"
+			if testcase.host == android.Host {
+				variant = android.BuildOs.String() + "_common"
 			}
-			`)
 
 			convertModulesToPaths := func(cp []string) []string {
 				ret := make([]string, len(cp))
@@ -293,33 +336,63 @@ func TestClasspath(t *testing.T) {
 			bootclasspath := convertModulesToPaths(testcase.bootclasspath)
 			classpath := convertModulesToPaths(testcase.classpath)
 
-			variant := "android_common"
-			if testcase.host == android.Host {
-				variant = android.BuildOs.String() + "_common"
-			}
-			javac := ctx.ModuleForTests("foo", variant).Rule("javac")
-
-			got := strings.TrimPrefix(javac.Args["bootClasspath"], "-bootclasspath ")
 			bc := strings.Join(bootclasspath, ":")
-			if got != bc {
-				t.Errorf("bootclasspath expected %q != got %q", bc, got)
+			if bc != "" {
+				bc = "-bootclasspath " + bc
 			}
 
-			got = strings.TrimPrefix(javac.Args["classpath"], "-classpath ")
 			c := strings.Join(classpath, ":")
-			if got != c {
-				t.Errorf("classpath expected %q != got %q", c, got)
+			if c != "" {
+				c = "-classpath " + c
+			}
+			system := ""
+			if testcase.system == "none" {
+				system = "--system=none"
+			} else if testcase.system != "" {
+				system = "--system=" + filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system") + "/"
 			}
 
-			var deps []string
-			if len(bootclasspath) > 0 && bootclasspath[0] != `""` {
-				deps = append(deps, bootclasspath...)
-			}
-			deps = append(deps, classpath...)
+			t.Run("1.8", func(t *testing.T) {
+				// Test default javac 1.8
+				ctx := testJava(t, bp)
 
-			if !reflect.DeepEqual(javac.Implicits.Strings(), deps) {
-				t.Errorf("implicits expected %q != got %q", deps, javac.Implicits.Strings())
-			}
+				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
+
+				got := javac.Args["bootClasspath"]
+				if got != bc {
+					t.Errorf("bootclasspath expected %q != got %q", bc, got)
+				}
+
+				got = javac.Args["classpath"]
+				if got != c {
+					t.Errorf("classpath expected %q != got %q", c, got)
+				}
+
+				var deps []string
+				if len(bootclasspath) > 0 && bootclasspath[0] != `""` {
+					deps = append(deps, bootclasspath...)
+				}
+				deps = append(deps, classpath...)
+
+				if !reflect.DeepEqual(javac.Implicits.Strings(), deps) {
+					t.Errorf("implicits expected %q != got %q", deps, javac.Implicits.Strings())
+				}
+			})
+
+			// Test again with javac 1.9
+			t.Run("1.9", func(t *testing.T) {
+				ctx := testJavaWithEnv(t, bp, map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
+
+				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
+				got := javac.Args["bootClasspath"]
+				expected := system
+				if testcase.system == "bootclasspath" {
+					expected = bc
+				}
+				if got != expected {
+					t.Errorf("bootclasspath expected %q != got %q", expected, got)
+				}
+			})
 		})
 	}
 

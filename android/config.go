@@ -88,6 +88,9 @@ type config struct {
 	captureBuild      bool // true for tests, saves build parameters for each module
 	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
 
+	useOpenJDK9    bool // Use OpenJDK9, but possibly target 1.8
+	targetOpenJDK9 bool // Use OpenJDK9 and target 1.9
+
 	OncePer
 }
 
@@ -183,6 +186,10 @@ func TestConfig(buildDir string, env map[string]string) Config {
 		config: config,
 	}
 
+	if err := config.fromEnv(); err != nil {
+		panic(err)
+	}
+
 	return Config{config}
 }
 
@@ -273,7 +280,29 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	config.Targets = targets
 	config.BuildOsVariant = targets[Host][0].String()
 
+	if err := config.fromEnv(); err != nil {
+		return Config{}, err
+	}
+
 	return Config{config}, nil
+}
+
+func (c *config) fromEnv() error {
+	switch c.Getenv("EXPERIMENTAL_USE_OPENJDK9") {
+	case "":
+		// Use OpenJDK8
+	case "1.8":
+		// Use OpenJDK9, but target 1.8
+		c.useOpenJDK9 = true
+	case "true":
+		// Use OpenJDK9 and target 1.9
+		c.useOpenJDK9 = true
+		c.targetOpenJDK9 = true
+	default:
+		return fmt.Errorf(`Invalid value for EXPERIMENTAL_USE_OPENJDK9, should be "", "1.8", or "true"`)
+	}
+
+	return nil
 }
 
 func (c *config) RemoveAbandonedFiles() bool {
@@ -516,6 +545,16 @@ func (c *config) Android64() bool {
 
 func (c *config) UseGoma() bool {
 	return Bool(c.ProductVariables.UseGoma)
+}
+
+// Returns true if OpenJDK9 prebuilts are being used
+func (c *config) UseOpenJDK9() bool {
+	return c.useOpenJDK9
+}
+
+// Returns true if -source 1.9 -target 1.9 is being passed to javac
+func (c *config) TargetOpenJDK9() bool {
+	return c.targetOpenJDK9
 }
 
 func (c *config) ClangTidy() bool {
