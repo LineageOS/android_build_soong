@@ -37,10 +37,11 @@ const profileUseSamplingFormat = "-fprofile-sample-use=%s"
 
 type PgoProperties struct {
 	Pgo struct {
-		Instrumentation *bool
-		Sampling        *bool
-		Profile_file    *string `android:"arch_variant"`
-		Benchmarks      []string
+		Instrumentation    *bool
+		Sampling           *bool
+		Profile_file       *string `android:"arch_variant"`
+		Benchmarks         []string
+		Enable_profile_use *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
 
 	PgoPresent          bool `blueprint:"mutated"`
@@ -95,6 +96,11 @@ func (props *PgoProperties) profileUseFlags(ctx ModuleContext, file string) []st
 }
 
 func (props *PgoProperties) addProfileUseFlags(ctx ModuleContext, flags Flags) Flags {
+	// Skip -fprofile-use if 'enable_profile_use' property is set
+	if props.Pgo.Enable_profile_use != nil && *props.Pgo.Enable_profile_use == false {
+		return flags
+	}
+
 	// If the PGO profiles project is found, and this module has PGO
 	// enabled, add flags to use the profile
 	if profilesDir := getPgoProfilesDir(ctx); props.PgoPresent && profilesDir.Valid() {
