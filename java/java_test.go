@@ -132,6 +132,8 @@ func testJavaWithEnvFs(t *testing.T, bp string,
 		"prebuilts/sdk/current/framework.aidl":        nil,
 		"prebuilts/sdk/system_current/android.jar":    nil,
 		"prebuilts/sdk/system_current/framework.aidl": nil,
+		"prebuilts/sdk/system_14/android.jar":         nil,
+		"prebuilts/sdk/system_14/framework.aidl":      nil,
 		"prebuilts/sdk/test_current/android.jar":      nil,
 		"prebuilts/sdk/test_current/framework.aidl":   nil,
 	}
@@ -272,6 +274,14 @@ var classpathTestcases = []struct {
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 		classpath:     []string{"prebuilts/sdk/system_current/android.jar"},
+	},
+	{
+
+		name:          "system_14",
+		properties:    `sdk_version: "system_14",`,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/system_14/android.jar"},
 	},
 	{
 
