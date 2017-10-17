@@ -56,4 +56,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		ctx.Strict("JLINK", "${JlinkCmd}")
 		ctx.Strict("JMOD", "${JmodCmd}")
 	}
+
+	ctx.Strict("SOONG_JAVAC_WRAPPER", "${SoongJavacWrapper}")
 }

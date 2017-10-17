@@ -39,14 +39,15 @@ var (
 	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
-				`${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
+				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
 				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
-			CommandDeps:    []string{"${config.JavacCmd}", "${config.SoongZipCmd}"},
-			Rspfile:        "$out.rsp",
-			RspfileContent: "$in",
+			CommandDeps:      []string{"${config.JavacCmd}", "${config.SoongZipCmd}"},
+			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Rspfile:          "$out.rsp",
+			RspfileContent:   "$in",
 		},
 		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
@@ -69,7 +70,7 @@ var (
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
-				`${config.ErrorProneCmd} ` +
+				`${config.SoongJavacWrapper} ${config.ErrorProneCmd} ` +
 				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
@@ -80,8 +81,9 @@ var (
 				"${config.ErrorProneJar}",
 				"${config.SoongZipCmd}",
 			},
-			Rspfile:        "$out.rsp",
-			RspfileContent: "$in",
+			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Rspfile:          "$out.rsp",
+			RspfileContent:   "$in",
 		},
 		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
