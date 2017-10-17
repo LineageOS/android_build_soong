@@ -89,7 +89,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		publicResourcesFile, proguardOptionsFile, aaptJavaFileList :=
 			CreateResourceJavaFiles(ctx, aaptRJavaFlags, aaptDeps)
 		a.aaptJavaFileList = aaptJavaFileList
-		a.ExtraSrcLists = append(a.ExtraSrcLists, aaptJavaFileList)
+		// TODO(ccross):  export aapt generated java files as a src jar
 
 		if a.appProperties.Export_package_resources {
 			aaptPackageFlags := append([]string(nil), aaptFlags...)

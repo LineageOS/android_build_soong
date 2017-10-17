@@ -40,7 +40,7 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
 				`${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
-				`$javacFlags $bootClasspath $classpath ` +
+				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -48,13 +48,13 @@ var (
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
 				`${config.ErrorProneCmd} ` +
-				`$javacFlags $bootClasspath $classpath ` +
+				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -67,7 +67,7 @@ var (
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
@@ -136,31 +136,28 @@ type javaBuilderFlags struct {
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcFileLists android.Paths,
+	srcFiles android.Paths, srcJars classpath,
 	flags javaBuilderFlags, deps android.Paths) {
 
-	transformJavaToClasses(ctx, outputFile, srcFiles, srcFileLists, flags, deps,
+	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, deps,
 		"", "javac", javac)
 }
 
 func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcFileLists android.Paths,
+	srcFiles android.Paths, srcJars classpath,
 	flags javaBuilderFlags) {
 
 	if config.ErrorProneJar == "" {
 		ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
 	}
 
-	transformJavaToClasses(ctx, outputFile, srcFiles, srcFileLists, flags, nil,
+	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, nil,
 		"-errorprone", "errorprone", errorprone)
 }
 
 // transformJavaToClasses takes source files and converts them to a jar containing .class files.
-// srcFiles is a list of paths to sources, srcFileLists is a list of paths to files that contain
-// paths to sources.  There is no dependency on the sources passed through srcFileLists, those
-// must be added through the deps argument, which contains a list of paths that should be added
-// as implicit dependencies.  flags contains various command line flags to be passed to the
-// compiler.
+// srcFiles is a list of paths to sources, srcJars is a list of paths to jar files that contain
+// sources.  flags contains various command line flags to be passed to the compiler.
 //
 // This method may be used for different compilers, including javac and Error Prone.  The rule
 // argument specifies which command line to use and desc sets the description of the rule that will
@@ -168,16 +165,11 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 // suffix will be appended to various intermediate files and directories to avoid collisions when
 // this function is called twice in the same module directory.
 func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcFileLists android.Paths,
+	srcFiles android.Paths, srcJars classpath,
 	flags javaBuilderFlags, deps android.Paths,
 	intermediatesSuffix, desc string, rule blueprint.Rule) {
 
-	javacFlags := flags.javacFlags
-	if len(srcFileLists) > 0 {
-		javacFlags += " " + android.JoinWithPrefix(srcFileLists.Strings(), "@")
-	}
-
-	deps = append(deps, srcFileLists...)
+	deps = append(deps, srcJars...)
 
 	var bootClasspath string
 	if flags.javaVersion == "1.9" {
@@ -197,8 +189,9 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		Inputs:      srcFiles,
 		Implicits:   deps,
 		Args: map[string]string{
-			"javacFlags":    javacFlags,
+			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
+			"sourcepath":    srcJars.JavaSourcepath(),
 			"classpath":     flags.classpath.JavaClasspath(),
 			"outDir":        android.PathForModuleOut(ctx, "classes"+intermediatesSuffix).String(),
 			"annoDir":       android.PathForModuleOut(ctx, "anno"+intermediatesSuffix).String(),
@@ -315,6 +308,16 @@ func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 }
 
 type classpath []android.Path
+
+// Returns a -sourcepath argument in the form javac expects.  If the list is empty returns
+// -sourcepath "" to ensure javac does not fall back to searching the classpath for sources.
+func (x *classpath) JavaSourcepath() string {
+	if len(*x) > 0 {
+		return "-sourcepath " + strings.Join(x.Strings(), ":")
+	} else {
+		return `-sourcepath ""`
+	}
+}
 
 // Returns a -classpath argument in the form java or javac expects
 func (x *classpath) JavaClasspath() string {
