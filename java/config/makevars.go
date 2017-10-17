@@ -27,8 +27,13 @@ func init() {
 func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("TARGET_DEFAULT_JAVA_LIBRARIES", strings.Join(DefaultLibraries, " "))
 	ctx.Strict("TARGET_DEFAULT_BOOTCLASSPATH_LIBRARIES", strings.Join(DefaultBootclasspathLibraries, " "))
+	ctx.Strict("DEFAULT_SYSTEM_MODULES", DefaultSystemModules)
 
-	ctx.Strict("DEFAULT_JAVA_LANGUAGE_VERSION", "${DefaultJavaVersion}")
+	if ctx.Config().TargetOpenJDK9() {
+		ctx.Strict("DEFAULT_JAVA_LANGUAGE_VERSION", "1.9")
+	} else {
+		ctx.Strict("DEFAULT_JAVA_LANGUAGE_VERSION", "1.8")
+	}
 
 	ctx.Strict("ANDROID_JAVA_HOME", "${JavaHome}")
 	ctx.Strict("ANDROID_JAVA_TOOLCHAIN", "${JavaToolchain}")
@@ -47,7 +52,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
 	}
 
-	if ctx.Config().IsEnvTrue("EXPERIMENTAL_USE_OPENJDK9") {
+	if ctx.Config().UseOpenJDK9() {
 		ctx.Strict("JLINK", "${JlinkCmd}")
 		ctx.Strict("JMOD", "${JmodCmd}")
 	}
