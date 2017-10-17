@@ -85,7 +85,7 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 }
 
 func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
-	flags javaBuilderFlags) (android.Paths, android.Paths) {
+	flags javaBuilderFlags) (android.Paths, classpath) {
 
 	var protoFiles android.Paths
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
@@ -106,16 +106,17 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		}
 	}
 
-	var outSrcFileLists android.Paths
+	var outSrcJars classpath
 
 	if len(protoFiles) > 0 {
-		protoFileList := genProto(ctx, protoFiles,
+		protoSrcJar := android.PathForModuleGen(ctx, "proto.src.jar")
+		genProto(ctx, protoSrcJar, protoFiles,
 			flags.protoFlags, flags.protoOutFlag, "")
 
-		outSrcFileLists = append(outSrcFileLists, protoFileList)
+		outSrcJars = append(outSrcJars, protoSrcJar)
 	}
 
-	return outSrcFiles, outSrcFileLists
+	return outSrcFiles, outSrcJars
 }
 
 func LogtagsSingleton() blueprint.Singleton {
