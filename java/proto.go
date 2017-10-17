@@ -30,20 +30,21 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf $outDir && mkdir -p $outDir && ` +
 				`$protocCmd $protoOut=$protoOutFlags:$outDir $protoFlags $in && ` +
-				`find $outDir -name "*.java" > $out`,
-			CommandDeps: []string{"$protocCmd"},
+				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+			CommandDeps: []string{
+				"$protocCmd",
+				"${config.SoongZipCmd}",
+			},
 		}, "protoFlags", "protoOut", "protoOutFlags", "outDir")
 )
 
-func genProto(ctx android.ModuleContext, protoFiles android.Paths,
-	protoFlags string, protoOut, protoOutFlags string) android.WritablePath {
-
-	protoFileList := android.PathForModuleGen(ctx, "proto.filelist")
+func genProto(ctx android.ModuleContext, outputSrcJar android.WritablePath,
+	protoFiles android.Paths, protoFlags string, protoOut, protoOutFlags string) {
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        proto,
 		Description: "protoc " + protoFiles[0].Rel(),
-		Output:      protoFileList,
+		Output:      outputSrcJar,
 		Inputs:      protoFiles,
 		Args: map[string]string{
 			"outDir":        android.ProtoDir(ctx).String(),
@@ -52,8 +53,6 @@ func genProto(ctx android.ModuleContext, protoFiles android.Paths,
 			"protoFlags":    protoFlags,
 		},
 	})
-
-	return protoFileList
 }
 
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
