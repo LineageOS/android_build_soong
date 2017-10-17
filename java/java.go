@@ -501,12 +501,14 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			// a rebuild when error-prone is turned off).
 			// TODO(ccross): Once we always compile with javac9 we may be able to conditionally
 			//    enable error-prone without affecting the output class files.
-			errorprone := RunErrorProne(ctx, srcFiles, srcFileLists, flags)
+			errorprone := android.PathForModuleOut(ctx, "classes-errorprone.list")
+			RunErrorProne(ctx, errorprone, srcFiles, srcFileLists, flags)
 			extraJarDeps = append(extraJarDeps, errorprone)
 		}
 
 		// Compile java sources into .class files
-		classes := TransformJavaToClasses(ctx, srcFiles, srcFileLists, flags, extraJarDeps)
+		classes := android.PathForModuleOut(ctx, "classes-compiled.jar")
+		TransformJavaToClasses(ctx, classes, srcFiles, srcFileLists, flags, extraJarDeps)
 		if ctx.Failed() {
 			return
 		}
@@ -533,7 +535,8 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	}
 
 	if len(resArgs) > 0 {
-		resourceJar := TransformResourcesToJar(ctx, resArgs, resDeps)
+		resourceJar := android.PathForModuleOut(ctx, "res.jar")
+		TransformResourcesToJar(ctx, resourceJar, resArgs, resDeps)
 		if ctx.Failed() {
 			return
 		}
@@ -548,12 +551,23 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar.  If there is only one input jar this step will be skipped.
-	outputFile := TransformJarsToJar(ctx, "classes.jar", jars, manifest, false)
+	var outputFile android.Path
+
+	if len(jars) == 1 && !manifest.Valid() {
+		// Optimization: skip the combine step if there is nothing to do
+		outputFile = jars[0]
+	} else {
+		combinedJar := android.PathForModuleOut(ctx, "classes.jar")
+		TransformJarsToJar(ctx, combinedJar, jars, manifest, false)
+		outputFile = combinedJar
+	}
 
 	if j.properties.Jarjar_rules != nil {
 		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
 		// Transform classes.jar into classes-jarjar.jar
-		outputFile = TransformJarJar(ctx, outputFile, jarjar_rules)
+		jarjarFile := android.PathForModuleOut(ctx, "classes-jarjar.jar")
+		TransformJarJar(ctx, jarjarFile, outputFile, jarjar_rules)
+		outputFile = jarjarFile
 		if ctx.Failed() {
 			return
 		}
@@ -609,13 +623,17 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 		flags.desugarFlags = strings.Join(desugarFlags, " ")
 
-		desugarJar := TransformDesugar(ctx, outputFile, flags)
+		desugarJar := android.PathForModuleOut(ctx, "classes-desugar.jar")
+		TransformDesugar(ctx, desugarJar, outputFile, flags)
+		outputFile = desugarJar
 		if ctx.Failed() {
 			return
 		}
 
 		// Compile classes.jar into classes.dex and then javalib.jar
-		outputFile = TransformClassesJarToDexJar(ctx, "javalib.jar", desugarJar, flags)
+		javalibJar := android.PathForModuleOut(ctx, "javalib.jar")
+		TransformClassesJarToDexJar(ctx, javalibJar, desugarJar, flags)
+		outputFile = javalibJar
 		if ctx.Failed() {
 			return
 		}
@@ -790,7 +808,9 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.classpathFiles = android.PathsForModuleSrc(ctx, j.properties.Jars)
 
-	j.combinedClasspathFile = TransformJarsToJar(ctx, "classes.jar", j.classpathFiles, android.OptionalPath{}, false)
+	outputFile := android.PathForModuleOut(ctx, "classes.jar")
+	TransformJarsToJar(ctx, outputFile, j.classpathFiles, android.OptionalPath{}, false)
+	j.combinedClasspathFile = outputFile
 }
 
 var _ Dependency = (*Import)(nil)

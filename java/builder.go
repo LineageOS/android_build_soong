@@ -135,23 +135,24 @@ type javaBuilderFlags struct {
 	protoOutFlag string
 }
 
-func TransformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
-	flags javaBuilderFlags, deps android.Paths) android.ModuleOutPath {
+func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles, srcFileLists android.Paths,
+	flags javaBuilderFlags, deps android.Paths) {
 
-	return transformJavaToClasses(ctx, srcFiles, srcFileLists, flags, deps,
-		"classes-compiled.jar", "", "javac", javac)
+	transformJavaToClasses(ctx, outputFile, srcFiles, srcFileLists, flags, deps,
+		"", "javac", javac)
 }
 
-func RunErrorProne(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
-	flags javaBuilderFlags) android.Path {
+func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles, srcFileLists android.Paths,
+	flags javaBuilderFlags) {
 
 	if config.ErrorProneJar == "" {
 		ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
-		return nil
 	}
 
-	return transformJavaToClasses(ctx, srcFiles, srcFileLists, flags, nil,
-		"classes-errorprone.list", "-errorprone", "errorprone", errorprone)
+	transformJavaToClasses(ctx, outputFile, srcFiles, srcFileLists, flags, nil,
+		"-errorprone", "errorprone", errorprone)
 }
 
 // transformJavaToClasses takes source files and converts them to a jar containing .class files.
@@ -166,11 +167,10 @@ func RunErrorProne(ctx android.ModuleContext, srcFiles, srcFileLists android.Pat
 // be printed at build time.  The stem argument provides the file name of the output jar, and
 // suffix will be appended to various intermediate files and directories to avoid collisions when
 // this function is called twice in the same module directory.
-func transformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
-	flags javaBuilderFlags, deps android.Paths, stem, suffix, desc string,
-	rule blueprint.Rule) android.ModuleOutPath {
-
-	outputFile := android.PathForModuleOut(ctx, stem)
+func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles, srcFileLists android.Paths,
+	flags javaBuilderFlags, deps android.Paths,
+	intermediatesSuffix, desc string, rule blueprint.Rule) {
 
 	javacFlags := flags.javacFlags
 	if len(srcFileLists) > 0 {
@@ -200,19 +200,15 @@ func transformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists an
 			"javacFlags":    javacFlags,
 			"bootClasspath": bootClasspath,
 			"classpath":     flags.classpath.JavaClasspath(),
-			"outDir":        android.PathForModuleOut(ctx, "classes"+suffix).String(),
-			"annoDir":       android.PathForModuleOut(ctx, "anno"+suffix).String(),
+			"outDir":        android.PathForModuleOut(ctx, "classes"+intermediatesSuffix).String(),
+			"annoDir":       android.PathForModuleOut(ctx, "anno"+intermediatesSuffix).String(),
 			"javaVersion":   flags.javaVersion,
 		},
 	})
-
-	return outputFile
 }
 
-func TransformResourcesToJar(ctx android.ModuleContext, jarArgs []string,
-	deps android.Paths) android.Path {
-
-	outputFile := android.PathForModuleOut(ctx, "res.jar")
+func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	jarArgs []string, deps android.Paths) {
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        jar,
@@ -223,18 +219,10 @@ func TransformResourcesToJar(ctx android.ModuleContext, jarArgs []string,
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
 	})
-
-	return outputFile
 }
 
-func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Paths,
-	manifest android.OptionalPath, stripDirs bool) android.Path {
-
-	outputFile := android.PathForModuleOut(ctx, stem)
-
-	if len(jars) == 1 && !manifest.Valid() {
-		return jars[0]
-	}
+func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	jars android.Paths, manifest android.OptionalPath, stripDirs bool) {
 
 	var deps android.Paths
 
@@ -258,14 +246,11 @@ func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Pat
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
 	})
-
-	return outputFile
 }
 
-func TransformDesugar(ctx android.ModuleContext, classesJar android.Path,
-	flags javaBuilderFlags) android.Path {
+func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, flags javaBuilderFlags) {
 
-	outputFile := android.PathForModuleOut(ctx, "classes-desugar.jar")
 	dumpDir := android.PathForModuleOut(ctx, "desugar_dumped_classes")
 
 	javaFlags := ""
@@ -294,17 +279,14 @@ func TransformDesugar(ctx android.ModuleContext, classesJar android.Path,
 			"desugarFlags":   flags.desugarFlags,
 		},
 	})
-
-	return outputFile
 }
 
 // Converts a classes.jar file to classes*.dex, then combines the dex files with any resources
 // in the classes.jar file into a dex jar.
-func TransformClassesJarToDexJar(ctx android.ModuleContext, stem string, classesJar android.Path,
-	flags javaBuilderFlags) android.Path {
+func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, flags javaBuilderFlags) {
 
 	outDir := android.PathForModuleOut(ctx, "dex")
-	outputFile := android.PathForModuleOut(ctx, stem)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        dx,
@@ -316,12 +298,10 @@ func TransformClassesJarToDexJar(ctx android.ModuleContext, stem string, classes
 			"outDir":  outDir.String(),
 		},
 	})
-
-	return outputFile
 }
 
-func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFile android.Path) android.ModuleOutPath {
-	outputFile := android.PathForModuleOut(ctx, "classes-jarjar.jar")
+func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, rulesFile android.Path) {
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        jarjar,
 		Description: "jarjar",
@@ -332,8 +312,6 @@ func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFi
 			"rulesFile": rulesFile.String(),
 		},
 	})
-
-	return outputFile
 }
 
 type classpath []android.Path
