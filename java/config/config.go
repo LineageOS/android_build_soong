@@ -15,7 +15,6 @@
 package config
 
 import (
-	"path/filepath"
 	"strings"
 
 	_ "github.com/google/blueprint/bootstrap"
@@ -76,11 +75,13 @@ func init() {
 	pctx.SourcePathVariable("JrtFsJar", "${JavaHome}/lib/jrt-fs.jar")
 
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
-	pctx.StaticVariable("SoongZipCmd", filepath.Join("${bootstrap.ToolDir}", "soong_zip"))
-	pctx.StaticVariable("MergeZipsCmd", filepath.Join("${bootstrap.ToolDir}", "merge_zips"))
+	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
+	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 	pctx.HostBinToolVariable("DxCmd", "dx")
 	pctx.HostJavaToolVariable("JarjarCmd", "jarjar.jar")
 	pctx.HostJavaToolVariable("DesugarJar", "desugar.jar")
+
+	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 
 	pctx.VariableFunc("JavacWrapper", func(config interface{}) (string, error) {
 		if override := config.(android.Config).Getenv("JAVAC_WRAPPER"); override != "" {
