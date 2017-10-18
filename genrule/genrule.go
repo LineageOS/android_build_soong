@@ -61,13 +61,13 @@ type generatorProperties struct {
 	//
 	// Available variables for substitution:
 	//
-	// $(location): the path to the first entry in tools or tool_files
-	// $(location <label>): the path to the tool or tool_file with name <label>
-	// $(in): one or more input files
-	// $(out): a single output file
-	// $(depfile): a file to which dependencies will be written, if the depfile property is set to true
-	// $(genDir): the sandbox directory for this tool; contains $(out)
-	// $$: a literal $
+	//  $(location): the path to the first entry in tools or tool_files
+	//  $(location <label>): the path to the tool or tool_file with name <label>
+	//  $(in): one or more input files
+	//  $(out): a single output file
+	//  $(depfile): a file to which dependencies will be written, if the depfile property is set to true
+	//  $(genDir): the sandbox directory for this tool; contains $(out)
+	//  $$: a literal $
 	//
 	// All files used must be declared as inputs (to ensure proper up-to-date checks).
 	// Use "$(in)" directly in Cmd to ensure that all inputs used are declared.
