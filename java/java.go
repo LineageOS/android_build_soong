@@ -100,7 +100,7 @@ type CompilerProperties struct {
 	Manifest *string
 
 	// if not blank, run jarjar using the specified rules file
-	Jarjar_rules *string
+	Jarjar_rules *string `android:"arch_variant"`
 
 	// If not blank, set the java version passed to javac as -source and -target
 	Java_version *string
