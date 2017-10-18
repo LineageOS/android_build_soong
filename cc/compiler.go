@@ -236,7 +236,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
 		flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
 
-		if !(ctx.sdk() || ctx.vndk()) || ctx.Host() {
+		if !(ctx.useSdk() || ctx.useVndk()) || ctx.Host() {
 			flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 				"${config.CommonGlobalIncludes}",
 				tc.IncludeFlags(),
@@ -244,7 +244,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		}
 	}
 
-	if ctx.sdk() {
+	if ctx.useSdk() {
 		// The NDK headers are installed to a common sysroot. While a more
 		// typical Soong approach would be to only make the headers for the
 		// library you're using available, we're trying to emulate the NDK
@@ -272,7 +272,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags, "-isystem "+legacyIncludes)
 	}
 
-	if ctx.vndk() {
+	if ctx.useVndk() {
 		flags.GlobalFlags = append(flags.GlobalFlags,
 			"-D__ANDROID_API__=__ANDROID_API_FUTURE__", "-D__ANDROID_VNDK__")
 	}
@@ -366,7 +366,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainCflags())
 	}
 
-	if !ctx.sdk() {
+	if !ctx.useSdk() {
 		cStd := config.CStdVersion
 		if compiler.Properties.C_std == "experimental" {
 			cStd = config.ExperimentalCStdVersion
@@ -405,7 +405,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.CppFlags = append([]string{"-std=" + cppStd}, flags.CppFlags...)
 	}
 
-	if ctx.vndk() {
+	if ctx.useVndk() {
 		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
 	}
 
@@ -478,7 +478,7 @@ func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")
 
 func ndkPathDeps(ctx ModuleContext) android.Paths {
-	if ctx.sdk() {
+	if ctx.useSdk() {
 		// The NDK sysroot timestamp file depends on all the NDK sysroot files
 		// (headers and libraries).
 		return android.Paths{getNdkSysrootTimestampFile(ctx)}
