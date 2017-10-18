@@ -154,7 +154,7 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.verbose = true
 		} else if arg == "--skip-make" {
 			c.skipMake = true
-		} else if arg[0] == '-' {
+		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
 					p, err := strconv.ParseUint(arg[2:], 10, 31)
@@ -172,9 +172,9 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 				return def
 			}
 
-			if arg[1] == 'j' {
+			if len(arg) > 1 && arg[1] == 'j' {
 				c.parallel = parseArgNum(c.parallel)
-			} else if arg[1] == 'k' {
+			} else if len(arg) > 1 && arg[1] == 'k' {
 				c.keepGoing = parseArgNum(0)
 			} else {
 				ctx.Fatalln("Unknown option:", arg)
