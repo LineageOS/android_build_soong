@@ -156,7 +156,7 @@ type flagExporter struct {
 }
 
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
-	if ctx.vndk() && f.Properties.Target.Vendor.Export_include_dirs != nil {
+	if ctx.useVndk() && f.Properties.Target.Vendor.Export_include_dirs != nil {
 		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Export_include_dirs)
 	} else {
 		return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
@@ -435,7 +435,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
 	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
-			if !ctx.sdk() {
+			if !ctx.useSdk() {
 				deps.CrtBegin = "crtbegin_so"
 				deps.CrtEnd = "crtend_so"
 			} else {
@@ -698,7 +698,7 @@ func (library *libraryDecorator) toc() android.OptionalPath {
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if library.shared() {
 		if ctx.Device() {
-			if ctx.vndk() {
+			if ctx.useVndk() {
 				if ctx.isVndkSp() {
 					library.baseInstaller.subDir = "vndk-sp"
 				} else if ctx.isVndk() {

@@ -82,7 +82,7 @@ func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags str
 
 func rsFlags(ctx ModuleContext, flags Flags, properties *BaseCompilerProperties) Flags {
 	targetApi := proptools.String(properties.Renderscript.Target_api)
-	if targetApi == "" && ctx.sdk() {
+	if targetApi == "" && ctx.useSdk() {
 		switch ctx.sdkVersion() {
 		case "current", "system_current", "test_current":
 			// Nothing

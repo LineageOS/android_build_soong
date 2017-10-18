@@ -56,7 +56,7 @@ func (p *relocationPacker) packingInit(ctx BaseModuleContext) {
 	if ctx.AConfig().Getenv("DISABLE_RELOCATION_PACKER") == "true" {
 		enabled = false
 	}
-	if ctx.sdk() {
+	if ctx.useSdk() {
 		enabled = false
 	}
 	if p.Properties.Pack_relocations != nil &&
