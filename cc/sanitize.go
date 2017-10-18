@@ -128,7 +128,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	s := &sanitize.Properties.Sanitize
 
 	// Don't apply sanitizers to NDK code.
-	if ctx.sdk() {
+	if ctx.useSdk() {
 		s.Never = true
 	}
 
@@ -421,7 +421,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 		// When linking against VNDK, use the vendor variant of the runtime lib
 		sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary
-		if ctx.vndk() {
+		if ctx.useVndk() {
 			sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary + vendorSuffix
 		}
 	}

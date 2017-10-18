@@ -108,7 +108,7 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseLinker.linkerDeps(ctx, deps)
 	if ctx.toolchain().Bionic() {
 		if !Bool(binary.baseLinker.Properties.Nocrt) {
-			if !ctx.sdk() {
+			if !ctx.useSdk() {
 				if binary.static() {
 					deps.CrtBegin = "crtbegin_static"
 				} else {

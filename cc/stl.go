@@ -42,7 +42,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 		if stl.Properties.Stl != nil {
 			s = *stl.Properties.Stl
 		}
-		if ctx.sdk() && ctx.Device() {
+		if ctx.useSdk() && ctx.Device() {
 			switch s {
 			case "":
 				return "ndk_system"
