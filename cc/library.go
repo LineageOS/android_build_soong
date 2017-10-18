@@ -82,7 +82,8 @@ type LibraryMutatedProperties struct {
 type FlagExporterProperties struct {
 	// list of directories relative to the Blueprints file that will
 	// be added to the include path (using -I) for this module and any module that links
-	// against this module
+	// against this module.  Directories listed in export_include_dirs do not need to be
+	// listed in local_include_dirs.
 	Export_include_dirs []string `android:"arch_variant"`
 
 	Target struct {
