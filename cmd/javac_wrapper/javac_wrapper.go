@@ -17,6 +17,11 @@
 //
 // It also hides the unhelpful and unhideable "warning there is a warning"
 // messages.
+//
+// Each javac build statement has an order-only dependency on the
+// soong_javac_wrapper tool, which means the javac command will not be rerun
+// if soong_javac_wrapper changes.  That means that soong_javac_wrapper must
+// not do anything that will affect the results of the build.
 package main
 
 import (
