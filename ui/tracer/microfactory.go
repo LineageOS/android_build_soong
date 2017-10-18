@@ -28,7 +28,7 @@ func (t *tracerImpl) ImportMicrofactoryLog(filename string) {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		t.log.Println("Error opening microfactory trace:", err)
+		t.log.Verboseln("Error opening microfactory trace:", err)
 		return
 	}
 	defer f.Close()
