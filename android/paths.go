@@ -303,6 +303,32 @@ outer:
 	return list[:k]
 }
 
+func indexPathList(s Path, list []Path) int {
+	for i, l := range list {
+		if l == s {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func inPathList(p Path, list []Path) bool {
+	return indexPathList(p, list) != -1
+}
+
+func FilterPathList(list []Path, filter []Path) (remainder []Path, filtered []Path) {
+	for _, l := range list {
+		if inPathList(l, filter) {
+			filtered = append(filtered, l)
+		} else {
+			remainder = append(remainder, l)
+		}
+	}
+
+	return
+}
+
 // HasExt returns true of any of the paths have extension ext, otherwise false
 func (p Paths) HasExt(ext string) bool {
 	for _, path := range p {
