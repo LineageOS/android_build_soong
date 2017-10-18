@@ -170,4 +170,5 @@ var filters = []*regexp.Regexp{
 	regexp.MustCompile(`Note: Recompile with -Xlint:deprecation for details.`),
 	regexp.MustCompile(`Note: (Some input files|.*\.java) uses? unchecked or unsafe operations.`),
 	regexp.MustCompile(`Note: Recompile with -Xlint:unchecked for details.`),
+	regexp.MustCompile(`bootstrap class path not set in conjunction with -source`),
 }
