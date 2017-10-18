@@ -229,6 +229,7 @@ bootstrap_go_package {
     srcs: [
         "java/config/config.go",
         "java/config/error_prone.go",
+        "java/config/kotlin.go",
         "java/config/makevars.go",
     ],
 }

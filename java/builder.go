@@ -50,6 +50,22 @@ var (
 		},
 		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
+	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
+		blueprint.RuleParams{
+			// TODO(ccross): kotlinc doesn't support @ file for arguments, which will limit the
+			// maximum number of input files, especially on darwin.
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+				`${config.KotlincCmd} $classpath $kotlincFlags ` +
+				`-jvm-target $javaVersion -d $outDir $in && ` +
+				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+			CommandDeps: []string{
+				"${config.KotlincCmd}",
+				"${config.KotlinCompilerJar}",
+				"${config.SoongZipCmd}",
+			},
+		},
+		"kotlincFlags", "classpath", "outDir", "javaVersion")
+
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
@@ -131,8 +147,34 @@ type javaBuilderFlags struct {
 	aidlFlags     string
 	javaVersion   string
 
+	kotlincFlags     string
+	kotlincClasspath classpath
+
 	protoFlags   string
 	protoOutFlag string
+}
+
+func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles android.Paths, srcJars classpath,
+	flags javaBuilderFlags) {
+
+	classDir := android.PathForModuleOut(ctx, "classes-kt")
+
+	inputs := append(android.Paths(nil), srcFiles...)
+	inputs = append(inputs, srcJars...)
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:        kotlinc,
+		Description: "kotlinc",
+		Output:      outputFile,
+		Inputs:      inputs,
+		Args: map[string]string{
+			"classpath":    flags.kotlincClasspath.JavaClasspath(),
+			"kotlincFlags": flags.kotlincFlags,
+			"outDir":       classDir.String(),
+			"javaVersion":  flags.javaVersion,
+		},
+	})
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,

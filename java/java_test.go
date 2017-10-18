@@ -80,6 +80,7 @@ func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.Te
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
+		"kotlin-stdlib",
 	}
 
 	for _, extra := range extraModules {
@@ -115,6 +116,7 @@ func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.Te
 		"a.java":     nil,
 		"b.java":     nil,
 		"c.java":     nil,
+		"b.kt":       nil,
 		"a.jar":      nil,
 		"b.jar":      nil,
 		"res/a":      nil,
@@ -610,6 +612,38 @@ func TestGeneratedSources(t *testing.T) {
 		javac.Inputs[1].String() != genrule.Outputs[0].String() ||
 		javac.Inputs[2].String() != "b.java" {
 		t.Errorf(`foo inputs %v != ["a.java", ".../gen.java", "b.java"]`, javac.Inputs)
+	}
+}
+
+func TestKotlin(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+                        srcs: ["a.java", "b.kt"],
+		}
+		`)
+
+	kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
+	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+	jar := ctx.ModuleForTests("foo", "android_common").Output("classes.jar")
+
+	if len(kotlinc.Inputs) != 2 || kotlinc.Inputs[0].String() != "a.java" ||
+		kotlinc.Inputs[1].String() != "b.kt" {
+		t.Errorf(`foo kotlinc inputs %v != ["a.java", "b.kt"]`, kotlinc.Inputs)
+	}
+
+	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
+		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
+	}
+
+	if !strings.Contains(javac.Args["classpath"], kotlinc.Output.String()) {
+		t.Errorf("foo classpath %v does not contain %q",
+			javac.Args["classpath"], kotlinc.Output.String())
+	}
+
+	if !inList(kotlinc.Output.String(), jar.Inputs.Strings()) {
+		t.Errorf("foo jar inputs %v does not contain %q",
+			jar.Inputs.Strings(), kotlinc.Output.String())
 	}
 }
 
