@@ -41,8 +41,8 @@ var testCases = []struct {
 		out: "\x1b[1mFile.java:398: \x1b[35mwarning:\x1b[0m\x1b[1m [RectIntersectReturnValueIgnored] Return value of com.blah.function() must be checked\x1b[0m\n",
 	},
 	{
-		in:  "warning: [options] bootstrap class path not set in conjunction with -source 1.7\n",
-		out: "\x1b[1m\x1b[35mwarning:\x1b[0m\x1b[1m [options] bootstrap class path not set in conjunction with -source 1.7\x1b[0m\n",
+		in:  "warning: [options] blah\n",
+		out: "\x1b[1m\x1b[35mwarning:\x1b[0m\x1b[1m [options] blah\x1b[0m\n",
 	},
 	{
 		in:  "    (see http://go/errorprone/bugpattern/RectIntersectReturnValueIgnored.md)\n",
@@ -56,6 +56,7 @@ Note: Some input files use unchecked or unsafe operations.
 Note: Recompile with -Xlint:unchecked for details.
 Note: dir/file.java uses or overrides a deprecated API.
 Note: dir/file.java uses unchecked or unsafe operations.
+warning: [options] bootstrap class path not set in conjunction with -source 1.7
 `,
 		out: "\n",
 	},
