@@ -19,6 +19,7 @@ package bpfix
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/google/blueprint/parser"
 )
 
@@ -26,7 +27,6 @@ import (
 // A FixRequest doesn't specify whether to do a dry run or where to write the results; that's in cmd/bpfix.go
 type FixRequest struct {
 	simplifyKnownRedundantVariables bool
-	removeEmptyLists                bool
 }
 
 func NewFixRequest() FixRequest {
@@ -36,7 +36,6 @@ func NewFixRequest() FixRequest {
 func (r FixRequest) AddAll() (result FixRequest) {
 	result = r
 	result.simplifyKnownRedundantVariables = true
-	result.removeEmptyLists = true
 	return result
 }
 
@@ -85,12 +84,6 @@ func fingerprint(tree *parser.File) (fingerprint []byte, err error) {
 func fixTreeOnce(tree *parser.File, config FixRequest) (fixed *parser.File, err error) {
 	if config.simplifyKnownRedundantVariables {
 		tree, err = simplifyKnownPropertiesDuplicatingEachOther(tree)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if config.removeEmptyLists {
-		tree, err = removePropertiesHavingTheirDefaultValues(tree)
 		if err != nil {
 			return nil, err
 		}
@@ -151,35 +144,6 @@ func removeMatchingModuleListProperties(tree *parser.File, canonicalName string,
 			continue
 		}
 		filterExpressionList(legacyList, canonicalList)
-	}
-	return tree, nil
-}
-
-func removePropertiesHavingTheirDefaultValues(tree *parser.File) (fixed *parser.File, err error) {
-	for _, def := range tree.Defs {
-		mod, ok := def.(*parser.Module)
-		if !ok {
-			continue
-		}
-		writeIndex := 0
-		for _, prop := range mod.Properties {
-			val := prop.Value
-			keep := true
-			switch val := val.(type) {
-			case *parser.List:
-				if len(val.Values) == 0 {
-					keep = false
-				}
-				break
-			default:
-				keep = true
-			}
-			if keep {
-				mod.Properties[writeIndex] = prop
-				writeIndex++
-			}
-		}
-		mod.Properties = mod.Properties[:writeIndex]
 	}
 	return tree, nil
 }
