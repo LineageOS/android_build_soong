@@ -40,7 +40,7 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
 				`${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
-				`$javacFlags $bootClasspath $classpath ` +
+				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -48,13 +48,29 @@ var (
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+
+	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
+		blueprint.RuleParams{
+			// TODO(ccross): kotlinc doesn't support @ file for arguments, which will limit the
+			// maximum number of input files, especially on darwin.
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+				`${config.KotlincCmd} $classpath $kotlincFlags ` +
+				`-jvm-target $javaVersion -d $outDir $in && ` +
+				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+			CommandDeps: []string{
+				"${config.KotlincCmd}",
+				"${config.KotlinCompilerJar}",
+				"${config.SoongZipCmd}",
+			},
+		},
+		"kotlincFlags", "classpath", "outDir", "javaVersion")
 
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
 				`${config.ErrorProneCmd} ` +
-				`$javacFlags $bootClasspath $classpath ` +
+				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -67,7 +83,7 @@ var (
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
@@ -126,58 +142,86 @@ type javaBuilderFlags struct {
 	dxFlags       string
 	bootClasspath classpath
 	classpath     classpath
+	systemModules classpath
 	desugarFlags  string
 	aidlFlags     string
 	javaVersion   string
+
+	kotlincFlags     string
+	kotlincClasspath classpath
 
 	protoFlags   string
 	protoOutFlag string
 }
 
-func TransformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
-	flags javaBuilderFlags, deps android.Paths) android.ModuleOutPath {
+func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles android.Paths, srcJars classpath,
+	flags javaBuilderFlags) {
 
-	return transformJavaToClasses(ctx, srcFiles, srcFileLists, flags, deps,
-		"classes-compiled.jar", "", "javac", javac)
+	classDir := android.PathForModuleOut(ctx, "classes-kt")
+
+	inputs := append(android.Paths(nil), srcFiles...)
+	inputs = append(inputs, srcJars...)
+
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:        kotlinc,
+		Description: "kotlinc",
+		Output:      outputFile,
+		Inputs:      inputs,
+		Args: map[string]string{
+			"classpath":    flags.kotlincClasspath.JavaClasspath(),
+			"kotlincFlags": flags.kotlincFlags,
+			"outDir":       classDir.String(),
+			"javaVersion":  flags.javaVersion,
+		},
+	})
 }
 
-func RunErrorProne(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
-	flags javaBuilderFlags) android.Path {
+func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles android.Paths, srcJars classpath,
+	flags javaBuilderFlags, deps android.Paths) {
+
+	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, deps,
+		"", "javac", javac)
+}
+
+func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles android.Paths, srcJars classpath,
+	flags javaBuilderFlags) {
 
 	if config.ErrorProneJar == "" {
 		ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
-		return nil
 	}
 
-	return transformJavaToClasses(ctx, srcFiles, srcFileLists, flags, nil,
-		"classes-errorprone.list", "-errorprone", "errorprone", errorprone)
+	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, nil,
+		"-errorprone", "errorprone", errorprone)
 }
 
 // transformJavaToClasses takes source files and converts them to a jar containing .class files.
-// srcFiles is a list of paths to sources, srcFileLists is a list of paths to files that contain
-// paths to sources.  There is no dependency on the sources passed through srcFileLists, those
-// must be added through the deps argument, which contains a list of paths that should be added
-// as implicit dependencies.  flags contains various command line flags to be passed to the
-// compiler.
+// srcFiles is a list of paths to sources, srcJars is a list of paths to jar files that contain
+// sources.  flags contains various command line flags to be passed to the compiler.
 //
 // This method may be used for different compilers, including javac and Error Prone.  The rule
 // argument specifies which command line to use and desc sets the description of the rule that will
 // be printed at build time.  The stem argument provides the file name of the output jar, and
 // suffix will be appended to various intermediate files and directories to avoid collisions when
 // this function is called twice in the same module directory.
-func transformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists android.Paths,
-	flags javaBuilderFlags, deps android.Paths, stem, suffix, desc string,
-	rule blueprint.Rule) android.ModuleOutPath {
+func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles android.Paths, srcJars classpath,
+	flags javaBuilderFlags, deps android.Paths,
+	intermediatesSuffix, desc string, rule blueprint.Rule) {
 
-	outputFile := android.PathForModuleOut(ctx, stem)
+	deps = append(deps, srcJars...)
 
-	javacFlags := flags.javacFlags
-	if len(srcFileLists) > 0 {
-		javacFlags += " " + android.JoinWithPrefix(srcFileLists.Strings(), "@")
+	var bootClasspath string
+	if flags.javaVersion == "1.9" {
+		deps = append(deps, flags.systemModules...)
+		bootClasspath = flags.systemModules.JavaSystemModules(ctx.Device())
+	} else {
+		deps = append(deps, flags.bootClasspath...)
+		bootClasspath = flags.bootClasspath.JavaBootClasspath(ctx.Device())
 	}
 
-	deps = append(deps, srcFileLists...)
-	deps = append(deps, flags.bootClasspath...)
 	deps = append(deps, flags.classpath...)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
@@ -187,22 +231,19 @@ func transformJavaToClasses(ctx android.ModuleContext, srcFiles, srcFileLists an
 		Inputs:      srcFiles,
 		Implicits:   deps,
 		Args: map[string]string{
-			"javacFlags":    javacFlags,
-			"bootClasspath": flags.bootClasspath.JavaBootClasspath(ctx.Device()),
+			"javacFlags":    flags.javacFlags,
+			"bootClasspath": bootClasspath,
+			"sourcepath":    srcJars.JavaSourcepath(),
 			"classpath":     flags.classpath.JavaClasspath(),
-			"outDir":        android.PathForModuleOut(ctx, "classes"+suffix).String(),
-			"annoDir":       android.PathForModuleOut(ctx, "anno"+suffix).String(),
+			"outDir":        android.PathForModuleOut(ctx, "classes"+intermediatesSuffix).String(),
+			"annoDir":       android.PathForModuleOut(ctx, "anno"+intermediatesSuffix).String(),
 			"javaVersion":   flags.javaVersion,
 		},
 	})
-
-	return outputFile
 }
 
-func TransformResourcesToJar(ctx android.ModuleContext, jarArgs []string,
-	deps android.Paths) android.Path {
-
-	outputFile := android.PathForModuleOut(ctx, "res.jar")
+func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	jarArgs []string, deps android.Paths) {
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        jar,
@@ -213,18 +254,10 @@ func TransformResourcesToJar(ctx android.ModuleContext, jarArgs []string,
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
 	})
-
-	return outputFile
 }
 
-func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Paths,
-	manifest android.OptionalPath, stripDirs bool) android.Path {
-
-	outputFile := android.PathForModuleOut(ctx, stem)
-
-	if len(jars) == 1 && !manifest.Valid() {
-		return jars[0]
-	}
+func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	jars android.Paths, manifest android.OptionalPath, stripDirs bool) {
 
 	var deps android.Paths
 
@@ -248,18 +281,15 @@ func TransformJarsToJar(ctx android.ModuleContext, stem string, jars android.Pat
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
 	})
-
-	return outputFile
 }
 
-func TransformDesugar(ctx android.ModuleContext, classesJar android.Path,
-	flags javaBuilderFlags) android.Path {
+func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, flags javaBuilderFlags) {
 
-	outputFile := android.PathForModuleOut(ctx, "classes-desugar.jar")
 	dumpDir := android.PathForModuleOut(ctx, "desugar_dumped_classes")
 
 	javaFlags := ""
-	if ctx.AConfig().Getenv("EXPERIMENTAL_USE_OPENJDK9") != "" {
+	if ctx.AConfig().UseOpenJDK9() {
 		javaFlags = "--add-opens java.base/java.lang.invoke=ALL-UNNAMED"
 	}
 
@@ -284,17 +314,14 @@ func TransformDesugar(ctx android.ModuleContext, classesJar android.Path,
 			"desugarFlags":   flags.desugarFlags,
 		},
 	})
-
-	return outputFile
 }
 
 // Converts a classes.jar file to classes*.dex, then combines the dex files with any resources
 // in the classes.jar file into a dex jar.
-func TransformClassesJarToDexJar(ctx android.ModuleContext, stem string, classesJar android.Path,
-	flags javaBuilderFlags) android.Path {
+func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, flags javaBuilderFlags) {
 
 	outDir := android.PathForModuleOut(ctx, "dex")
-	outputFile := android.PathForModuleOut(ctx, stem)
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        dx,
@@ -306,12 +333,10 @@ func TransformClassesJarToDexJar(ctx android.ModuleContext, stem string, classes
 			"outDir":  outDir.String(),
 		},
 	})
-
-	return outputFile
 }
 
-func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFile android.Path) android.ModuleOutPath {
-	outputFile := android.PathForModuleOut(ctx, "classes-jarjar.jar")
+func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, rulesFile android.Path) {
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        jarjar,
 		Description: "jarjar",
@@ -322,11 +347,19 @@ func TransformJarJar(ctx android.ModuleContext, classesJar android.Path, rulesFi
 			"rulesFile": rulesFile.String(),
 		},
 	})
-
-	return outputFile
 }
 
 type classpath []android.Path
+
+// Returns a -sourcepath argument in the form javac expects.  If the list is empty returns
+// -sourcepath "" to ensure javac does not fall back to searching the classpath for sources.
+func (x *classpath) JavaSourcepath() string {
+	if len(*x) > 0 {
+		return "-sourcepath " + strings.Join(x.Strings(), ":")
+	} else {
+		return `-sourcepath ""`
+	}
+}
 
 // Returns a -classpath argument in the form java or javac expects
 func (x *classpath) JavaClasspath() string {
@@ -354,6 +387,21 @@ func (x *classpath) JavaBootClasspath(forceEmpty bool) string {
 		return "-bootclasspath " + strings.Join(x.Strings(), ":")
 	} else if forceEmpty {
 		return `-bootclasspath ""`
+	} else {
+		return ""
+	}
+}
+
+// Returns a --system argument in the form javac expects with -source 1.9.  If forceEmpty is true,
+// returns --system=none if the list is empty to ensure javac does not fall back to the default
+// system modules.
+func (x *classpath) JavaSystemModules(forceEmpty bool) string {
+	if len(*x) > 1 {
+		panic("more than one system module")
+	} else if len(*x) == 1 {
+		return "--system=" + strings.TrimSuffix((*x)[0].String(), "lib/modules")
+	} else if forceEmpty {
+		return "--system=none"
 	} else {
 		return ""
 	}

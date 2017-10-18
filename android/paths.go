@@ -303,6 +303,39 @@ outer:
 	return list[:k]
 }
 
+// HasExt returns true of any of the paths have extension ext, otherwise false
+func (p Paths) HasExt(ext string) bool {
+	for _, path := range p {
+		if path.Ext() == ext {
+			return true
+		}
+	}
+
+	return false
+}
+
+// FilterByExt returns the subset of the paths that have extension ext
+func (p Paths) FilterByExt(ext string) Paths {
+	ret := make(Paths, 0, len(p))
+	for _, path := range p {
+		if path.Ext() == ext {
+			ret = append(ret, path)
+		}
+	}
+	return ret
+}
+
+// FilterOutByExt returns the subset of the paths that do not have extension ext
+func (p Paths) FilterOutByExt(ext string) Paths {
+	ret := make(Paths, 0, len(p))
+	for _, path := range p {
+		if path.Ext() != ext {
+			ret = append(ret, path)
+		}
+	}
+	return ret
+}
+
 // WritablePaths is a slice of WritablePaths, used for multiple outputs.
 type WritablePaths []WritablePath
 
