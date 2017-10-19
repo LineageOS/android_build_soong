@@ -80,11 +80,23 @@ func (f *bpFile) addErrorText(message string) {
 }
 
 func (f *bpFile) setMkPos(pos, end scanner.Position) {
-	if pos.Line < f.mkPos.Line {
-		panic(fmt.Errorf("out of order lines, %q after %q", pos, f.mkPos))
+	// It is unusual but not forbidden for pos.Line to be smaller than f.mkPos.Line
+	// For example:
+	//
+	// if true                       # this line is emitted 1st
+	// if true                       # this line is emitted 2nd
+	// some-target: some-file        # this line is emitted 3rd
+	//         echo doing something  # this recipe is emitted 6th
+	// endif #some comment           # this endif is emitted 4th; this comment is part of the recipe
+	//         echo doing more stuff # this is part of the recipe
+	// endif                         # this endif is emitted 5th
+	//
+	// However, if pos.Line < f.mkPos.Line, we treat it as though it were equal
+	if pos.Line >= f.mkPos.Line {
+		f.bpPos.Line += (pos.Line - f.mkPos.Line)
+		f.mkPos = end
 	}
-	f.bpPos.Line += (pos.Line - f.mkPos.Line)
-	f.mkPos = end
+
 }
 
 type conditional struct {
