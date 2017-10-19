@@ -23,6 +23,7 @@ import (
 
 var (
 	llndkLibrarySuffix = ".llndk"
+	llndkHeadersSuffix = ".llndk"
 )
 
 // Creates a stub shared library based on the provided version file.
@@ -55,6 +56,9 @@ type llndkLibraryProperties struct {
 	// When set to false, this module can only be depended on by VNDK libraries, not vendor
 	// libraries. This effectively hides this module from vendors. Default value is true.
 	Vendor_available bool
+
+	// list of llndk headers to re-export include directories from.
+	Export_llndk_headers []string `android:"arch_variant"`
 }
 
 type llndkStubDecorator struct {
@@ -78,7 +82,10 @@ func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps Pat
 }
 
 func (stub *llndkStubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
-	return Deps{}
+	headers := addSuffix(stub.Properties.Export_llndk_headers, llndkHeadersSuffix)
+	deps.HeaderLibs = append(deps.HeaderLibs, headers...)
+	deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders, headers...)
+	return deps
 }
 
 func (stub *llndkStubDecorator) Name(name string) string {
@@ -173,6 +180,35 @@ func llndkLibraryFactory() android.Module {
 	return module
 }
 
+type llndkHeadersDecorator struct {
+	*libraryDecorator
+}
+
+func (headers *llndkHeadersDecorator) Name(name string) string {
+	return name + llndkHeadersSuffix
+}
+
+func llndkHeadersFactory() android.Module {
+	module, library := NewLibrary(android.DeviceSupported)
+	library.HeaderOnly()
+	library.setStatic()
+
+	decorator := &llndkHeadersDecorator{
+		libraryDecorator: library,
+	}
+
+	module.compiler = nil
+	module.linker = decorator
+	module.installer = nil
+
+	module.AddProperties(&library.MutatedProperties, &library.flagExporter.Properties)
+
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
+
+	return module
+}
+
 func init() {
 	android.RegisterModuleType("llndk_library", llndkLibraryFactory)
+	android.RegisterModuleType("llndk_headers", llndkHeadersFactory)
 }
