@@ -143,6 +143,10 @@ type CompilerDeviceProperties struct {
 	// If true, export a copy of the module as a -hostdex module for host testing.
 	Hostdex *bool
 
+	// If false, prevent dexpreopting and stripping the dex file from the final jar.  Defaults to
+	// true.
+	Dex_preopt *bool
+
 	// When targeting 1.9, override the modules to use with --system
 	System_modules *string
 }

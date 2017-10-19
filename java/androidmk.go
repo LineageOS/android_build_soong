@@ -36,6 +36,9 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 				}
 				if library.dexJarFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
+					if library.deviceProperties.Dex_preopt == nil || *library.deviceProperties.Dex_preopt == false {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+					}
 				}
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", library.deviceProperties.Sdk_version)
 			},
