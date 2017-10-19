@@ -102,7 +102,7 @@ func (m TestingModule) Output(file string) ModuleBuildParams {
 			outputs = append(outputs, p.Output)
 		}
 		for _, f := range outputs {
-			if f.Base() == file {
+			if f.Rel() == file {
 				return p
 			}
 		}
