@@ -160,8 +160,11 @@ type Module struct {
 	protoProperties  android.ProtoProperties
 	deviceProperties CompilerDeviceProperties
 
-	// output file suitable for inserting into the classpath of another compile
-	classpathFile android.Path
+	// header jar file suitable for inserting into the bootclasspath/classpath of another compile
+	headerJarFile android.Path
+
+	// full implementation jar file suitable for static dependency of another module compile
+	implementationJarFile android.Path
 
 	// output file containing classes.dex
 	dexJarFile android.Path
@@ -182,7 +185,8 @@ type Module struct {
 }
 
 type Dependency interface {
-	ClasspathFiles() android.Paths
+	HeaderJars() android.Paths
+	ImplementationJars() android.Paths
 	AidlIncludeDirs() android.Paths
 }
 
@@ -379,6 +383,7 @@ type deps struct {
 	classpath          android.Paths
 	bootClasspath      android.Paths
 	staticJars         android.Paths
+	staticHeaderJars   android.Paths
 	staticJarResources android.Paths
 	aidlIncludeDirs    android.Paths
 	srcJars            android.Paths
@@ -394,6 +399,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	if sdkDep.invalidVersion {
 		ctx.AddMissingDependencies([]string{sdkDep.module})
 	} else if sdkDep.useFiles {
+		// sdkDep.jar is actually equivalent to turbine header.jar.
 		deps.classpath = append(deps.classpath, sdkDep.jar)
 		deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, sdkDep.aidl)
 	}
@@ -424,12 +430,13 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 
 		switch tag {
 		case bootClasspathTag:
-			deps.bootClasspath = append(deps.bootClasspath, dep.ClasspathFiles()...)
+			deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars()...)
 		case libTag:
-			deps.classpath = append(deps.classpath, dep.ClasspathFiles()...)
+			deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 		case staticLibTag:
-			deps.classpath = append(deps.classpath, dep.ClasspathFiles()...)
-			deps.staticJars = append(deps.staticJars, dep.ClasspathFiles()...)
+			deps.classpath = append(deps.classpath, dep.HeaderJars()...)
+			deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
+			deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
 		case frameworkResTag:
 			if ctx.ModuleName() == "framework" {
 				// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -437,7 +444,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				// TODO(ccross): aapt java files should go in a src jar
 			}
 		case kotlinStdlibTag:
-			deps.kotlinStdlib = dep.ClasspathFiles()
+			deps.kotlinStdlib = dep.HeaderJars()
 		default:
 			panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 		}
@@ -448,20 +455,22 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	return deps
 }
 
-func (j *Module) compile(ctx android.ModuleContext) {
-
-	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Export_aidl_include_dirs)
-
-	deps := j.collectDeps(ctx)
+func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaBuilderFlags {
 
 	var flags javaBuilderFlags
 
+	// javac flags.
 	javacFlags := j.properties.Javacflags
 	if ctx.AConfig().TargetOpenJDK9() {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
-		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
+	}
+	if len(javacFlags) > 0 {
+		// optimization.
+		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
+		flags.javacFlags = "$javacFlags"
 	}
 
+	// javaVersion flag.
 	sdk := sdkStringToNumber(ctx, j.deviceProperties.Sdk_version)
 	if j.properties.Java_version != nil {
 		flags.javaVersion = *j.properties.Java_version
@@ -473,35 +482,43 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags.javaVersion = "1.9"
 	}
 
+	// classpath
 	flags.bootClasspath.AddPaths(deps.bootClasspath)
 	flags.classpath.AddPaths(deps.classpath)
-
+	// systemModules
 	if deps.systemModules != nil {
 		flags.systemModules = append(flags.systemModules, deps.systemModules)
 	}
 
-	if len(javacFlags) > 0 {
-		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
-		flags.javacFlags = "$javacFlags"
-	}
-
+	// aidl flags.
 	aidlFlags := j.aidlFlags(ctx, deps.aidlPreprocess, deps.aidlIncludeDirs)
 	if len(aidlFlags) > 0 {
+		// optimization.
 		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
 		flags.aidlFlags = "$aidlFlags"
 	}
 
-	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
+	return flags
+}
 
+func (j *Module) compile(ctx android.ModuleContext) {
+
+	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Export_aidl_include_dirs)
+
+	deps := j.collectDeps(ctx)
+	flags := j.collectBuilderFlags(ctx, deps)
+
+	if ctx.AConfig().TargetOpenJDK9() {
+		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
+	}
+	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
 	if hasSrcExt(srcFiles.Strings(), ".proto") {
 		flags = protoFlags(ctx, &j.protoProperties, flags)
 	}
 
 	var srcJars classpath
 	srcFiles, srcJars = j.genSources(ctx, srcFiles, flags)
-
 	srcJars = append(srcJars, deps.srcJars...)
-
 	srcJars = append(srcJars, j.ExtraSrcJars...)
 
 	var jars android.Paths
@@ -534,7 +551,27 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		jars = append(jars, deps.kotlinStdlib...)
 	}
 
-	if javaSrcFiles := srcFiles.FilterByExt(".java"); len(javaSrcFiles) > 0 {
+	javaSrcFiles := srcFiles.FilterByExt(".java")
+	var uniqueSrcFiles android.Paths
+	set := make(map[string]bool)
+	for _, v := range javaSrcFiles {
+		if _, found := set[v.String()]; !found {
+			set[v.String()] = true
+			uniqueSrcFiles = append(uniqueSrcFiles, v)
+		}
+	}
+
+	if ctx.Device() && !ctx.AConfig().IsEnvFalse("TURBINE_ENABLED") {
+		// If sdk jar is java module, then directly return classesJar as header.jar
+		if j.Name() != "android_stubs_current" && j.Name() != "android_system_stubs_current" &&
+			j.Name() != "android_test_stubs_current" {
+			j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName)
+			if ctx.Failed() {
+				return
+			}
+		}
+	}
+	if len(uniqueSrcFiles) > 0 {
 		var extraJarDeps android.Paths
 		if ctx.AConfig().IsEnvTrue("RUN_ERROR_PRONE") {
 			// If error-prone is enabled, add an additional rule to compile the java files into
@@ -591,7 +628,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
-	// classes.jar.  If there is only one input jar this step will be skipped.
+	// classes.jar. If there is only one input jar this step will be skipped.
 	var outputFile android.Path
 
 	if len(jars) == 1 && !manifest.Valid() {
@@ -599,7 +636,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		outputFile = jars[0]
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
-		TransformJarsToJar(ctx, combinedJar, jars, manifest, false)
+		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest, false, nil)
 		outputFile = combinedJar
 	}
 
@@ -613,76 +650,129 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			return
 		}
 	}
-
-	j.classpathFile = outputFile
+	j.implementationJarFile = outputFile
+	if j.headerJarFile == nil {
+		j.headerJarFile = j.implementationJarFile
+	}
 
 	if ctx.Device() && j.installable() {
-		dxFlags := j.deviceProperties.Dxflags
-		if false /* emma enabled */ {
-			// If you instrument class files that have local variable debug information in
-			// them emma does not correctly maintain the local variable table.
-			// This will cause an error when you try to convert the class files for Android.
-			// The workaround here is to build different dex file here based on emma switch
-			// then later copy into classes.dex. When emma is on, dx is run with --no-locals
-			// option to remove local variable information
-			dxFlags = append(dxFlags, "--no-locals")
-		}
-
-		if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {
-			dxFlags = append(dxFlags, "--no-optimize")
-		}
-
-		if ctx.AConfig().Getenv("GENERATE_DEX_DEBUG") != "" {
-			dxFlags = append(dxFlags,
-				"--debug",
-				"--verbose",
-				"--dump-to="+android.PathForModuleOut(ctx, "classes.lst").String(),
-				"--dump-width=1000")
-		}
-
-		var minSdkVersion string
-		switch j.deviceProperties.Sdk_version {
-		case "", "current", "test_current", "system_current":
-			minSdkVersion = strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
-		default:
-			minSdkVersion = j.deviceProperties.Sdk_version
-		}
-
-		dxFlags = append(dxFlags, "--min-sdk-version="+minSdkVersion)
-
-		flags.dxFlags = strings.Join(dxFlags, " ")
-
-		desugarFlags := []string{
-			"--min_sdk_version " + minSdkVersion,
-			"--desugar_try_with_resources_if_needed=false",
-			"--allow_empty_bootclasspath",
-		}
-
-		if inList("--core-library", dxFlags) {
-			desugarFlags = append(desugarFlags, "--core_library")
-		}
-
-		flags.desugarFlags = strings.Join(desugarFlags, " ")
-
-		desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
-		TransformDesugar(ctx, desugarJar, outputFile, flags)
-		outputFile = desugarJar
+		outputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
 		}
-
-		// Compile classes.jar into classes.dex and then a dex jar
-		dexJar := android.PathForModuleOut(ctx, "dex", jarName)
-		TransformClassesJarToDexJar(ctx, dexJar, desugarJar, flags)
-		outputFile = dexJar
-		if ctx.Failed() {
-			return
-		}
-
-		j.dexJarFile = outputFile
 	}
 	ctx.CheckbuildFile(outputFile)
 	j.outputFile = outputFile
+}
+
+func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles android.Paths, srcJars classpath,
+	deps deps, flags javaBuilderFlags, jarName string) android.Path {
+
+	var jars android.Paths
+	if len(srcFiles) > 0 {
+		// Compile java sources into turbine.jar.
+		turbineJar := android.PathForModuleOut(ctx, "turbine", jarName)
+		TransformJavaToHeaderClasses(ctx, turbineJar, srcFiles, srcJars, flags)
+		if ctx.Failed() {
+			return nil
+		}
+		jars = append(jars, turbineJar)
+	}
+
+	// Combine any static header libraries into classes-header.jar. If there is only
+	// one input jar this step will be skipped.
+	var headerJar android.Path
+	jars = append(jars, deps.staticHeaderJars...)
+
+	if len(jars) == 0 {
+		panic("The turbine.jar is empty without any sources and static libs.")
+	} else {
+		// we cannot skip the combine step for now if there is only one jar
+		// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
+		combinedJar := android.PathForModuleOut(ctx, "turbine-combined", jarName)
+		TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{}, false, []string{"META-INF"})
+		headerJar = combinedJar
+	}
+
+	if j.properties.Jarjar_rules != nil {
+		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
+		// Transform classes.jar into classes-jarjar.jar
+		jarjarFile := android.PathForModuleOut(ctx, "turbine-jarjar", jarName)
+		TransformJarJar(ctx, jarjarFile, headerJar, jarjar_rules)
+		headerJar = jarjarFile
+		if ctx.Failed() {
+			return nil
+		}
+	}
+
+	return headerJar
+}
+
+func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
+	classesJar android.Path, jarName string) android.Path {
+
+	dxFlags := j.deviceProperties.Dxflags
+	if false /* emma enabled */ {
+		// If you instrument class files that have local variable debug information in
+		// them emma does not correctly maintain the local variable table.
+		// This will cause an error when you try to convert the class files for Android.
+		// The workaround here is to build different dex file here based on emma switch
+		// then later copy into classes.dex. When emma is on, dx is run with --no-locals
+		// option to remove local variable information
+		dxFlags = append(dxFlags, "--no-locals")
+	}
+
+	if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {
+		dxFlags = append(dxFlags, "--no-optimize")
+	}
+
+	if ctx.AConfig().Getenv("GENERATE_DEX_DEBUG") != "" {
+		dxFlags = append(dxFlags,
+			"--debug",
+			"--verbose",
+			"--dump-to="+android.PathForModuleOut(ctx, "classes.lst").String(),
+			"--dump-width=1000")
+	}
+
+	var minSdkVersion string
+	switch j.deviceProperties.Sdk_version {
+	case "", "current", "test_current", "system_current":
+		minSdkVersion = strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
+	default:
+		minSdkVersion = j.deviceProperties.Sdk_version
+	}
+
+	dxFlags = append(dxFlags, "--min-sdk-version="+minSdkVersion)
+
+	flags.dxFlags = strings.Join(dxFlags, " ")
+
+	desugarFlags := []string{
+		"--min_sdk_version " + minSdkVersion,
+		"--desugar_try_with_resources_if_needed=false",
+		"--allow_empty_bootclasspath",
+	}
+
+	if inList("--core-library", dxFlags) {
+		desugarFlags = append(desugarFlags, "--core_library")
+	}
+
+	flags.desugarFlags = strings.Join(desugarFlags, " ")
+
+	desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
+	TransformDesugar(ctx, desugarJar, classesJar, flags)
+	if ctx.Failed() {
+		return nil
+	}
+
+	// Compile classes.jar into classes.dex and then javalib.jar
+	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
+	TransformClassesJarToDexJar(ctx, javalibJar, desugarJar, flags)
+	if ctx.Failed() {
+		return nil
+	}
+
+	j.dexJarFile = javalibJar
+	return javalibJar
 }
 
 func (j *Module) installable() bool {
@@ -691,8 +781,12 @@ func (j *Module) installable() bool {
 
 var _ Dependency = (*Library)(nil)
 
-func (j *Module) ClasspathFiles() android.Paths {
-	return android.Paths{j.classpathFile}
+func (j *Module) HeaderJars() android.Paths {
+	return android.Paths{j.headerJarFile}
+}
+
+func (j *Module) ImplementationJars() android.Paths {
+	return android.Paths{j.implementationJarFile}
 }
 
 func (j *Module) AidlIncludeDirs() android.Paths {
@@ -850,13 +944,17 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.classpathFiles = android.PathsForModuleSrc(ctx, j.properties.Jars)
 
 	outputFile := android.PathForModuleOut(ctx, "classes.jar")
-	TransformJarsToJar(ctx, outputFile, j.classpathFiles, android.OptionalPath{}, false)
+	TransformJarsToJar(ctx, outputFile, "for prebuilts", j.classpathFiles, android.OptionalPath{}, false, nil)
 	j.combinedClasspathFile = outputFile
 }
 
 var _ Dependency = (*Import)(nil)
 
-func (j *Import) ClasspathFiles() android.Paths {
+func (j *Import) HeaderJars() android.Paths {
+	return j.classpathFiles
+}
+
+func (j *Import) ImplementationJars() android.Paths {
 	return j.classpathFiles
 }
 
