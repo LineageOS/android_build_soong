@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package zip
 
 import (
 	"bytes"
 	"compress/flate"
 	"errors"
-	"flag"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -26,7 +25,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
 	"sort"
@@ -81,122 +79,6 @@ func (u *uniqueSet) Set(s string) error {
 	}
 
 	return nil
-}
-
-type file struct{}
-
-type listFiles struct{}
-
-type dir struct{}
-
-func (f *file) String() string {
-	return `""`
-}
-
-func (f *file) Set(s string) error {
-	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f")
-	}
-
-	fArgs = append(fArgs, FileArg{
-		PathPrefixInZip:     filepath.Clean(*rootPrefix),
-		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		SourceFiles:         []string{s},
-	})
-
-	return nil
-}
-
-func (l *listFiles) String() string {
-	return `""`
-}
-
-func (l *listFiles) Set(s string) error {
-	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -l")
-	}
-
-	list, err := ioutil.ReadFile(s)
-	if err != nil {
-		return err
-	}
-
-	fArgs = append(fArgs, FileArg{
-		PathPrefixInZip:     filepath.Clean(*rootPrefix),
-		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		SourceFiles:         strings.Split(string(list), "\n"),
-	})
-
-	return nil
-}
-
-func (d *dir) String() string {
-	return `""`
-}
-
-func (d *dir) Set(s string) error {
-	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -D")
-	}
-
-	fArgs = append(fArgs, FileArg{
-		PathPrefixInZip:     filepath.Clean(*rootPrefix),
-		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		GlobDir:             filepath.Clean(s),
-	})
-
-	return nil
-}
-
-var (
-	out          = flag.String("o", "", "file to write zip file to")
-	manifest     = flag.String("m", "", "input jar manifest file name")
-	directories  = flag.Bool("d", false, "include directories in zip")
-	rootPrefix   = flag.String("P", "", "path prefix within the zip at which to place files")
-	relativeRoot = flag.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
-	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
-	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
-	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
-
-	fArgs            FileArgs
-	nonDeflatedFiles = make(uniqueSet)
-
-	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
-	traceFile  = flag.String("trace", "", "write trace to file")
-)
-
-func init() {
-	flag.Var(&listFiles{}, "l", "file containing list of .class files")
-	flag.Var(&dir{}, "D", "directory to include in zip")
-	flag.Var(&file{}, "f", "file to include in zip")
-	flag.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
-}
-
-func usage() {
-	fmt.Fprintf(os.Stderr, "usage: soong_zip -o zipfile [-m manifest] -C dir [-f|-l file]...\n")
-	flag.PrintDefaults()
-	os.Exit(2)
-}
-
-func main() {
-	flag.Parse()
-
-	err := Run(ZipArgs{
-		FileArgs:                 fArgs,
-		OutputFilePath:           *out,
-		CpuProfileFilePath:       *cpuProfile,
-		TraceFilePath:            *traceFile,
-		EmulateJar:               *emulateJar,
-		AddDirectoryEntriesToZip: *directories,
-		CompressionLevel:         *compLevel,
-		ManifestSourcePath:       *manifest,
-		NumParallelJobs:          *parallelJobs,
-		NonDeflatedFiles:         nonDeflatedFiles,
-	})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
 }
 
 type FileArg struct {
