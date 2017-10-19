@@ -425,6 +425,41 @@ cc_library_shared {
   }
 }`,
 	},
+	{
+		// the important part of this test case is that it confirms that androidmk doesn't
+		// panic in this case
+		desc: "multiple directives inside recipe",
+		in: `
+ifeq ($(a),true)
+ifeq ($(b),false)
+imABuildStatement: somefile
+	echo begin
+endif # a==true
+	echo middle
+endif # b==false
+	echo end
+`,
+		expected: `
+// ANDROIDMK TRANSLATION ERROR: unsupported conditional
+// ifeq ($(a),true)
+
+// ANDROIDMK TRANSLATION ERROR: unsupported conditional
+// ifeq ($(b),false)
+
+// ANDROIDMK TRANSLATION ERROR: unsupported line
+// rule:       imABuildStatement: somefile
+// echo begin
+//  # a==true
+// echo middle
+//  # b==false
+// echo end
+//
+// ANDROIDMK TRANSLATION ERROR: endif from unsupported contitional
+// endif
+// ANDROIDMK TRANSLATION ERROR: endif from unsupported contitional
+// endif
+		`,
+	},
 }
 
 func reformatBlueprint(input string) string {
