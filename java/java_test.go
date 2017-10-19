@@ -142,7 +142,7 @@ func moduleToPath(name string) string {
 	case strings.HasSuffix(name, ".jar"):
 		return name
 	default:
-		return filepath.Join(buildDir, ".intermediates", name, "android_common", "classes-compiled.jar")
+		return filepath.Join(buildDir, ".intermediates", name, "android_common", "javac", name+".jar")
 	}
 }
 
@@ -173,8 +173,8 @@ func TestSimple(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "classes-compiled.jar")
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-compiled.jar")
+	bar := ctx.ModuleForTests("bar", "android_common").Rule("javac").Output.String()
+	baz := ctx.ModuleForTests("baz", "android_common").Rule("javac").Output.String()
 
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
@@ -465,12 +465,12 @@ func TestDefaults(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	bar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "classes-compiled.jar")
+	bar := ctx.ModuleForTests("bar", "android_common").Rule("javac").Output.String()
 	if !strings.Contains(javac.Args["classpath"], bar) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
 	}
 
-	baz := filepath.Join(buildDir, ".intermediates", "baz", "android_common", "classes-compiled.jar")
+	baz := ctx.ModuleForTests("baz", "android_common").Rule("javac").Output.String()
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
 	}
@@ -530,8 +530,8 @@ func TestResources(t *testing.T) {
 				}
 			`+test.extra)
 
-			foo := ctx.ModuleForTests("foo", "android_common").Output("classes.jar")
-			fooRes := ctx.ModuleForTests("foo", "android_common").Output("res.jar")
+			foo := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
+			fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
 
 			if !inList(fooRes.Output.String(), foo.Inputs.Strings()) {
 				t.Errorf("foo combined jars %v does not contain %q",
@@ -563,7 +563,7 @@ func TestExcludeResources(t *testing.T) {
 		}
 	`)
 
-	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res.jar")
+	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
 
 	expected := "-C res -f res/a -f res/b"
 	if fooRes.Args["jarArgs"] != expected {
@@ -572,7 +572,7 @@ func TestExcludeResources(t *testing.T) {
 
 	}
 
-	barRes := ctx.ModuleForTests("bar", "android_common").Output("res.jar")
+	barRes := ctx.ModuleForTests("bar", "android_common").Output("res/bar.jar")
 
 	expected = "-C . -f res/a"
 	if barRes.Args["jarArgs"] != expected {
@@ -625,7 +625,7 @@ func TestKotlin(t *testing.T) {
 
 	kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	jar := ctx.ModuleForTests("foo", "android_common").Output("classes.jar")
+	jar := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
 
 	if len(kotlinc.Inputs) != 2 || kotlinc.Inputs[0].String() != "a.java" ||
 		kotlinc.Inputs[1].String() != "b.kt" {
