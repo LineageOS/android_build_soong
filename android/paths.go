@@ -199,9 +199,9 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 	if pathConfig(ctx).AllowMissingDependencies() {
 		if modCtx, ok := ctx.(ModuleContext); ok {
 			ret := make(Paths, 0, len(paths))
-			intermediates := filepath.Join(modCtx.ModuleDir(), modCtx.ModuleName(), modCtx.ModuleSubDir(), "missing")
+			intermediates := pathForModule(modCtx).withRel("missing")
 			for _, path := range paths {
-				p := ExistentPathForSource(ctx, intermediates, path)
+				p := ExistentPathForSource(ctx, intermediates.String(), path)
 				if p.Valid() {
 					ret = append(ret, p.Path())
 				} else {
@@ -572,6 +572,12 @@ type OutputPath struct {
 	basePath
 }
 
+func (p OutputPath) withRel(rel string) OutputPath {
+	p.basePath.path = filepath.Join(p.basePath.path, rel)
+	p.basePath.rel = rel
+	return p
+}
+
 var _ Path = OutputPath{}
 
 // PathForOutput joins the provided paths and returns an OutputPath that is
@@ -666,6 +672,10 @@ type ModuleOutPath struct {
 
 var _ Path = ModuleOutPath{}
 
+func pathForModule(ctx ModuleContext) OutputPath {
+	return PathForOutput(ctx, ".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
+}
+
 // PathForVndkRefDump returns an OptionalPath representing the path of the reference
 // abi dump for the given module. This is not guaranteed to be valid.
 func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNdk, isSourceDump bool) OptionalPath {
@@ -694,14 +704,15 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 // output directory.
 func PathForModuleOut(ctx ModuleContext, paths ...string) ModuleOutPath {
 	p := validatePath(ctx, paths...)
-	return ModuleOutPath{PathForOutput(ctx, ".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir(), p)}
+	return ModuleOutPath{
+		OutputPath: pathForModule(ctx).withRel(p),
+	}
 }
 
 // ModuleGenPath is a Path representing the 'gen' directory in a module's output
 // directory. Mainly used for generated sources.
 type ModuleGenPath struct {
 	ModuleOutPath
-	path string
 }
 
 var _ Path = ModuleGenPath{}
@@ -713,8 +724,9 @@ var _ objPathProvider = ModuleGenPath{}
 func PathForModuleGen(ctx ModuleContext, paths ...string) ModuleGenPath {
 	p := validatePath(ctx, paths...)
 	return ModuleGenPath{
-		PathForModuleOut(ctx, "gen", p),
-		p,
+		ModuleOutPath: ModuleOutPath{
+			OutputPath: pathForModule(ctx).withRel("gen").withRel(p),
+		},
 	}
 }
 
