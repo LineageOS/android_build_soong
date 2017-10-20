@@ -117,13 +117,21 @@ func (p AndroidPackageContext) SourcePathVariableWithEnvOverride(name, path, env
 // package-scoped variable's initialization.
 func (p AndroidPackageContext) HostBinToolVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(config interface{}) (string, error) {
-		ctx := &configErrorWrapper{p, config.(Config), []error{}}
-		p := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "bin", path)
-		if len(ctx.errors) > 0 {
-			return "", ctx.errors[0]
+		po, err := p.HostBinToolPath(config, path)
+		if err != nil {
+			return "", err
 		}
-		return p.String(), nil
+		return po.String(), nil
 	})
+}
+
+func (p AndroidPackageContext) HostBinToolPath(config interface{}, path string) (Path, error) {
+	ctx := &configErrorWrapper{p, config.(Config), []error{}}
+	pa := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "bin", path)
+	if len(ctx.errors) > 0 {
+		return nil, ctx.errors[0]
+	}
+	return pa, nil
 }
 
 // HostJavaToolVariable returns a Variable whose value is the path to a host
