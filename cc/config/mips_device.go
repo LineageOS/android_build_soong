@@ -28,8 +28,6 @@ var (
 		"-fomit-frame-pointer",
 		"-fno-strict-aliasing",
 		"-funswitch-loops",
-		"-U__unix",
-		"-U__unix__",
 		"-Umips",
 		"-ffunction-sections",
 		"-fdata-sections",

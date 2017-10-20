@@ -64,6 +64,12 @@ type LibraryProperties struct {
 		// export headers generated from .proto sources
 		Export_proto_headers bool
 	}
+	Target struct {
+		Vendor struct {
+			// version script for this vendor variant
+			Version_script *string `android:"arch_variant"`
+		}
+	}
 }
 
 type LibraryMutatedProperties struct {
@@ -82,7 +88,8 @@ type LibraryMutatedProperties struct {
 type FlagExporterProperties struct {
 	// list of directories relative to the Blueprints file that will
 	// be added to the include path (using -I) for this module and any module that links
-	// against this module
+	// against this module.  Directories listed in export_include_dirs do not need to be
+	// listed in local_include_dirs.
 	Export_include_dirs []string `android:"arch_variant"`
 
 	Target struct {
@@ -155,7 +162,7 @@ type flagExporter struct {
 }
 
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
-	if ctx.vndk() && f.Properties.Target.Vendor.Export_include_dirs != nil {
+	if ctx.useVndk() && f.Properties.Target.Vendor.Export_include_dirs != nil {
 		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Export_include_dirs)
 	} else {
 		return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
@@ -434,7 +441,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
 	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
-			if !ctx.sdk() {
+			if !ctx.useSdk() {
 				deps.CrtBegin = "crtbegin_so"
 				deps.CrtEnd = "crtend_so"
 			} else {
@@ -454,7 +461,11 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Shared.Static_libs...)
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Shared.Shared_libs...)
 	}
-
+	if ctx.useVndk() {
+		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, library.baseLinker.Properties.Target.Vendor.Exclude_shared_libs)
+		deps.StaticLibs = removeListFromList(deps.StaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
+	}
 	return deps
 }
 
@@ -490,6 +501,9 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	unexportedSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Unexported_symbols_list)
 	forceNotWeakSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_not_weak_list)
 	forceWeakSymbols := android.OptionalPathForModuleSrc(ctx, library.Properties.Force_symbols_weak_list)
+	if ctx.useVndk() && library.Properties.Target.Vendor.Version_script != nil {
+		versionScript = android.OptionalPathForModuleSrc(ctx, library.Properties.Target.Vendor.Version_script)
+	}
 	if !ctx.Darwin() {
 		if versionScript.Valid() {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
@@ -697,7 +711,7 @@ func (library *libraryDecorator) toc() android.OptionalPath {
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if library.shared() {
 		if ctx.Device() {
-			if ctx.vndk() {
+			if ctx.useVndk() {
 				if ctx.isVndkSp() {
 					library.baseInstaller.subDir = "vndk-sp"
 				} else if ctx.isVndk() {

@@ -60,14 +60,14 @@ func protoDeps(ctx BaseModuleContext, deps Deps, p *android.ProtoProperties, sta
 
 	switch proptools.String(p.Proto.Type) {
 	case "full":
-		if ctx.sdk() {
+		if ctx.useSdk() {
 			lib = "libprotobuf-cpp-full-ndk"
 			static = true
 		} else {
 			lib = "libprotobuf-cpp-full"
 		}
 	case "lite", "":
-		if ctx.sdk() {
+		if ctx.useSdk() {
 			lib = "libprotobuf-cpp-lite-ndk"
 			static = true
 		} else {

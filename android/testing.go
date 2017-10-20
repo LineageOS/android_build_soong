@@ -65,7 +65,14 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 	})
 
 	if module == nil {
-		panic(fmt.Errorf("failed to find module %q variant %q", name, variant))
+		// find all the modules that do exist
+		allModuleNames := []string{}
+		ctx.VisitAllModules(func(m blueprint.Module) {
+			allModuleNames = append(allModuleNames, m.(Module).Name()+"("+ctx.ModuleSubDir(m)+")")
+		})
+
+		panic(fmt.Errorf("failed to find module %q variant %q."+
+			"\nall modules: %v", name, variant, allModuleNames))
 	}
 
 	return TestingModule{module}
@@ -95,7 +102,7 @@ func (m TestingModule) Output(file string) ModuleBuildParams {
 			outputs = append(outputs, p.Output)
 		}
 		for _, f := range outputs {
-			if f.Base() == file {
+			if f.Rel() == file {
 				return p
 			}
 		}

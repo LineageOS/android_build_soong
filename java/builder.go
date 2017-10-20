@@ -39,14 +39,15 @@ var (
 	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
-				`${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
+				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
 				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
-			CommandDeps:    []string{"${config.JavacCmd}", "${config.SoongZipCmd}"},
-			Rspfile:        "$out.rsp",
-			RspfileContent: "$in",
+			CommandDeps:      []string{"${config.JavacCmd}", "${config.SoongZipCmd}"},
+			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Rspfile:          "$out.rsp",
+			RspfileContent:   "$in",
 		},
 		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
@@ -69,7 +70,7 @@ var (
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
-				`${config.ErrorProneCmd} ` +
+				`${config.SoongJavacWrapper} ${config.ErrorProneCmd} ` +
 				`$javacFlags $sourcepath $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp && ` +
@@ -80,8 +81,9 @@ var (
 				"${config.ErrorProneJar}",
 				"${config.SoongZipCmd}",
 			},
-			Rspfile:        "$out.rsp",
-			RspfileContent: "$in",
+			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Rspfile:          "$out.rsp",
+			RspfileContent:   "$in",
 		},
 		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
@@ -158,7 +160,7 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 	srcFiles android.Paths, srcJars classpath,
 	flags javaBuilderFlags) {
 
-	classDir := android.PathForModuleOut(ctx, "classes-kt")
+	classDir := android.PathForModuleOut(ctx, "kotlinc", "classes")
 
 	inputs := append(android.Paths(nil), srcFiles...)
 	inputs = append(inputs, srcJars...)
@@ -182,7 +184,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	flags javaBuilderFlags, deps android.Paths) {
 
 	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, deps,
-		"", "javac", javac)
+		"javac", "javac", javac)
 }
 
 func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
@@ -194,7 +196,7 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 	}
 
 	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, nil,
-		"-errorprone", "errorprone", errorprone)
+		"errorprone", "errorprone", errorprone)
 }
 
 // transformJavaToClasses takes source files and converts them to a jar containing .class files.
@@ -209,7 +211,7 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
 	srcFiles android.Paths, srcJars classpath,
 	flags javaBuilderFlags, deps android.Paths,
-	intermediatesSuffix, desc string, rule blueprint.Rule) {
+	intermediatesDir, desc string, rule blueprint.Rule) {
 
 	deps = append(deps, srcJars...)
 
@@ -235,8 +237,8 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"bootClasspath": bootClasspath,
 			"sourcepath":    srcJars.JavaSourcepath(),
 			"classpath":     flags.classpath.JavaClasspath(),
-			"outDir":        android.PathForModuleOut(ctx, "classes"+intermediatesSuffix).String(),
-			"annoDir":       android.PathForModuleOut(ctx, "anno"+intermediatesSuffix).String(),
+			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, "classes").String(),
+			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
 			"javaVersion":   flags.javaVersion,
 		},
 	})
@@ -286,7 +288,7 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath,
 	classesJar android.Path, flags javaBuilderFlags) {
 
-	dumpDir := android.PathForModuleOut(ctx, "desugar_dumped_classes")
+	dumpDir := android.PathForModuleOut(ctx, "desugar", "classes")
 
 	javaFlags := ""
 	if ctx.AConfig().UseOpenJDK9() {

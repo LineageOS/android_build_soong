@@ -100,7 +100,7 @@ type CompilerProperties struct {
 	Manifest *string
 
 	// if not blank, run jarjar using the specified rules file
-	Jarjar_rules *string
+	Jarjar_rules *string `android:"arch_variant"`
 
 	// If not blank, set the java version passed to javac as -source and -target
 	Java_version *string
@@ -142,6 +142,10 @@ type CompilerDeviceProperties struct {
 
 	// If true, export a copy of the module as a -hostdex module for host testing.
 	Hostdex *bool
+
+	// If false, prevent dexpreopting and stripping the dex file from the final jar.  Defaults to
+	// true.
+	Dex_preopt *bool
 
 	// When targeting 1.9, override the modules to use with --system
 	System_modules *string
@@ -502,6 +506,8 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 	var jars android.Paths
 
+	jarName := ctx.ModuleName() + ".jar"
+
 	if srcFiles.HasExt(".kt") {
 		// If there are kotlin files, compile them first but pass all the kotlin and java files
 		// kotlinc will use the java files to resolve types referenced by the kotlin files, but
@@ -515,7 +521,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.kotlinStdlib...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.classpath...)
 
-		kotlinJar := android.PathForModuleOut(ctx, "classes-kt.jar")
+		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
 		TransformKotlinToClasses(ctx, kotlinJar, srcFiles, srcJars, flags)
 		if ctx.Failed() {
 			return
@@ -536,13 +542,13 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			// a rebuild when error-prone is turned off).
 			// TODO(ccross): Once we always compile with javac9 we may be able to conditionally
 			//    enable error-prone without affecting the output class files.
-			errorprone := android.PathForModuleOut(ctx, "classes-errorprone.list")
+			errorprone := android.PathForModuleOut(ctx, "errorprone", jarName)
 			RunErrorProne(ctx, errorprone, javaSrcFiles, srcJars, flags)
 			extraJarDeps = append(extraJarDeps, errorprone)
 		}
 
 		// Compile java sources into .class files
-		classes := android.PathForModuleOut(ctx, "classes-compiled.jar")
+		classes := android.PathForModuleOut(ctx, "javac", jarName)
 		TransformJavaToClasses(ctx, classes, javaSrcFiles, srcJars, flags, extraJarDeps)
 		if ctx.Failed() {
 			return
@@ -570,7 +576,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	}
 
 	if len(resArgs) > 0 {
-		resourceJar := android.PathForModuleOut(ctx, "res.jar")
+		resourceJar := android.PathForModuleOut(ctx, "res", jarName)
 		TransformResourcesToJar(ctx, resourceJar, resArgs, resDeps)
 		if ctx.Failed() {
 			return
@@ -592,7 +598,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		// Optimization: skip the combine step if there is nothing to do
 		outputFile = jars[0]
 	} else {
-		combinedJar := android.PathForModuleOut(ctx, "classes.jar")
+		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
 		TransformJarsToJar(ctx, combinedJar, jars, manifest, false)
 		outputFile = combinedJar
 	}
@@ -600,7 +606,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	if j.properties.Jarjar_rules != nil {
 		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
 		// Transform classes.jar into classes-jarjar.jar
-		jarjarFile := android.PathForModuleOut(ctx, "classes-jarjar.jar")
+		jarjarFile := android.PathForModuleOut(ctx, "jarjar", jarName)
 		TransformJarJar(ctx, jarjarFile, outputFile, jarjar_rules)
 		outputFile = jarjarFile
 		if ctx.Failed() {
@@ -658,17 +664,17 @@ func (j *Module) compile(ctx android.ModuleContext) {
 
 		flags.desugarFlags = strings.Join(desugarFlags, " ")
 
-		desugarJar := android.PathForModuleOut(ctx, "classes-desugar.jar")
+		desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
 		TransformDesugar(ctx, desugarJar, outputFile, flags)
 		outputFile = desugarJar
 		if ctx.Failed() {
 			return
 		}
 
-		// Compile classes.jar into classes.dex and then javalib.jar
-		javalibJar := android.PathForModuleOut(ctx, "javalib.jar")
-		TransformClassesJarToDexJar(ctx, javalibJar, desugarJar, flags)
-		outputFile = javalibJar
+		// Compile classes.jar into classes.dex and then a dex jar
+		dexJar := android.PathForModuleOut(ctx, "dex", jarName)
+		TransformClassesJarToDexJar(ctx, dexJar, desugarJar, flags)
+		outputFile = dexJar
 		if ctx.Failed() {
 			return
 		}
