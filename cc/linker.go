@@ -89,6 +89,10 @@ type BaseLinkerProperties struct {
 			// list of shared libs that should not be used to build
 			// the vendor variant of the C/C++ module.
 			Exclude_shared_libs []string
+
+			// list of static libs that should not be used to build
+			// the vendor variant of the C/C++ module.
+			Exclude_static_libs []string
 		}
 	}
 }
@@ -135,6 +139,9 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	if ctx.useVndk() {
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Vendor.Exclude_shared_libs)
+		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
 	}
 
 	if ctx.ModuleName() != "libcompiler_rt-extras" {
