@@ -613,13 +613,13 @@ func TestGeneratedSources(t *testing.T) {
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	genrule := ctx.ModuleForTests("gen", "").Rule("generator")
 
-	if len(genrule.Outputs) != 1 || filepath.Base(genrule.Outputs[0].String()) != "gen.java" {
-		t.Fatalf(`gen output file %v is not [".../gen.java"]`, genrule.Outputs.Strings())
+	if filepath.Base(genrule.Output.String()) != "gen.java" {
+		t.Fatalf(`gen output file %v is not ".../gen.java"`, genrule.Output.String())
 	}
 
 	if len(javac.Inputs) != 3 ||
 		javac.Inputs[0].String() != "a.java" ||
-		javac.Inputs[1].String() != genrule.Outputs[0].String() ||
+		javac.Inputs[1].String() != genrule.Output.String() ||
 		javac.Inputs[2].String() != "b.java" {
 		t.Errorf(`foo inputs %v != ["a.java", ".../gen.java", "b.java"]`, javac.Inputs)
 	}
