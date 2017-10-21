@@ -76,6 +76,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.combinedClasspathFile.String())
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", prebuilt.properties.Sdk_version)
 			},
 		},
 	}
