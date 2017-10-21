@@ -913,6 +913,8 @@ func BinaryHostFactory() android.Module {
 
 type ImportProperties struct {
 	Jars []string
+
+	Sdk_version string
 }
 
 type Import struct {
