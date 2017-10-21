@@ -271,13 +271,13 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		}
 	}
 
-	toModule := func(m string) sdkDep {
-		return sdkDep{
-			useModule:     true,
-			module:        m,
-			systemModules: m + "_system_modules",
-		}
-	}
+	//toModule := func(m string) sdkDep {
+	//	return sdkDep{
+	//		useModule:     true,
+	//		module:        m,
+	//		systemModules: m + "_system_modules",
+	//	}
+	//}
 
 	if ctx.AConfig().UnbundledBuild() && v != "" {
 		return toFile(v)
@@ -288,12 +288,14 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		return sdkDep{
 			useDefaultLibs: true,
 		}
-	case "current":
-		return toModule("android_stubs_current")
-	case "system_current":
-		return toModule("android_system_stubs_current")
-	case "test_current":
-		return toModule("android_test_stubs_current")
+	// TODO(ccross): re-enable these once we generate stubs, until then
+	// use the stubs in prebuilts/sdk/*current
+	//case "current":
+	//	return toModule("android_stubs_current")
+	//case "system_current":
+	//	return toModule("android_system_stubs_current")
+	//case "test_current":
+	//	return toModule("android_test_stubs_current")
 	default:
 		return toFile(v)
 	}
@@ -477,6 +479,9 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	} else if ctx.Device() && sdk <= 23 {
 		flags.javaVersion = "1.7"
 	} else if ctx.Device() && sdk <= 26 || !ctx.AConfig().TargetOpenJDK9() {
+		flags.javaVersion = "1.8"
+	} else if ctx.Device() && j.deviceProperties.Sdk_version != "" && sdk == 10000 {
+		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
 		flags.javaVersion = "1.8"
 	} else {
 		flags.javaVersion = "1.9"
