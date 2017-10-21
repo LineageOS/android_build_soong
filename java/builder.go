@@ -87,6 +87,22 @@ var (
 		},
 		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
 
+	turbine = pctx.AndroidStaticRule("turbine",
+		blueprint.RuleParams{
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+				`${config.JavaCmd} -jar ${config.TurbineJar} --output $out.tmp ` +
+				`--temp_dir "$outDir" --sources @$out.rsp $sourcepath ` +
+				`--javacopts ${config.CommonJdkFlags} ` +
+				`$javacFlags -source $javaVersion -target $javaVersion $bootClasspath $classpath && ` +
+				`${config.Ziptime} $out.tmp && ` +
+				`(if cmp -s $out.tmp $out ; then rm $out.tmp ; else mv $out.tmp $out ; fi )`,
+			CommandDeps:    []string{"${config.TurbineJar}", "${config.JavaCmd}", "${config.Ziptime}"},
+			Rspfile:        "$out.rsp",
+			RspfileContent: "$in",
+			Restat:         true,
+		},
+		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "javaVersion")
+
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
 			Command:     `${config.SoongZipCmd} -jar -o $out $jarArgs`,
@@ -109,7 +125,7 @@ var (
 				`$javaFlags ` +
 				`-jar ${config.DesugarJar} $classpathFlags $desugarFlags ` +
 				`-i $in -o $out`,
-			CommandDeps: []string{"${config.DesugarJar}"},
+			CommandDeps: []string{"${config.DesugarJar}", "${config.JavaCmd}"},
 		},
 		"javaFlags", "classpathFlags", "desugarFlags", "dumpDir")
 
@@ -171,7 +187,7 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 		Output:      outputFile,
 		Inputs:      inputs,
 		Args: map[string]string{
-			"classpath":    flags.kotlincClasspath.JavaClasspath(),
+			"classpath":    flags.kotlincClasspath.FormJavaClassPath("--classpath"),
 			"kotlincFlags": flags.kotlincFlags,
 			"outDir":       classDir.String(),
 			"javaVersion":  flags.javaVersion,
@@ -188,8 +204,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 }
 
 func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles android.Paths, srcJars classpath,
-	flags javaBuilderFlags) {
+	srcFiles android.Paths, srcJars classpath, flags javaBuilderFlags) {
 
 	if config.ErrorProneJar == "" {
 		ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
@@ -197,6 +212,45 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 
 	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, nil,
 		"errorprone", "errorprone", errorprone)
+}
+
+func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.WritablePath,
+	srcFiles android.Paths, srcJars classpath, flags javaBuilderFlags) {
+
+	var deps android.Paths
+	deps = append(deps, srcJars...)
+	deps = append(deps, flags.bootClasspath...)
+	deps = append(deps, flags.classpath...)
+
+	var bootClasspath string
+	if len(flags.bootClasspath) == 0 && ctx.Device() {
+		// explicitly specify -bootclasspath "" if the bootclasspath is empty to
+		// ensure java does not fall back to the default bootclasspath.
+		bootClasspath = `--bootclasspath ""`
+	} else {
+		bootClasspath = flags.bootClasspath.FormJavaClassPath("--bootclasspath")
+	}
+	var sourcepath string
+	if len(srcJars) > 0 {
+		sourcepath = "--sourcepath_jars" + " " + strings.Join(srcJars.Strings(), " ")
+	} else {
+		sourcepath = ""
+	}
+	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		Rule:        turbine,
+		Description: "turbine",
+		Output:      outputFile,
+		Inputs:      srcFiles,
+		Implicits:   deps,
+		Args: map[string]string{
+			"javacFlags":    flags.javacFlags,
+			"bootClasspath": bootClasspath,
+			"sourcepath":    sourcepath,
+			"classpath":     flags.classpath.FormJavaClassPath("--classpath"),
+			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
+			"javaVersion":   flags.javaVersion,
+		},
+	})
 }
 
 // transformJavaToClasses takes source files and converts them to a jar containing .class files.
@@ -218,10 +272,16 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	var bootClasspath string
 	if flags.javaVersion == "1.9" {
 		deps = append(deps, flags.systemModules...)
-		bootClasspath = flags.systemModules.JavaSystemModules(ctx.Device())
+		bootClasspath = flags.systemModules.FormJavaSystemModulesPath("--system=", ctx.Device())
 	} else {
 		deps = append(deps, flags.bootClasspath...)
-		bootClasspath = flags.bootClasspath.JavaBootClasspath(ctx.Device())
+		if len(flags.bootClasspath) == 0 && ctx.Device() {
+			// explicitly specify -bootclasspath "" if the bootclasspath is empty to
+			// ensure java does not fall back to the default bootclasspath.
+			bootClasspath = `-bootclasspath ""`
+		} else {
+			bootClasspath = flags.bootClasspath.FormJavaClassPath("-bootclasspath")
+		}
 	}
 
 	deps = append(deps, flags.classpath...)
@@ -235,11 +295,13 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
-			"sourcepath":    srcJars.JavaSourcepath(),
-			"classpath":     flags.classpath.JavaClasspath(),
-			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, "classes").String(),
-			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
-			"javaVersion":   flags.javaVersion,
+			// Returns a -sourcepath argument in the form javac expects.  If the list is empty returns
+			// -sourcepath "" to ensure javac does not fall back to searching the classpath for sources.
+			"sourcepath":  srcJars.FormJavaClassPath("-sourcepath"),
+			"classpath":   flags.classpath.FormJavaClassPath("-classpath"),
+			"outDir":      android.PathForModuleOut(ctx, intermediatesDir, "classes").String(),
+			"annoDir":     android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
+			"javaVersion": flags.javaVersion,
 		},
 	})
 }
@@ -258,15 +320,21 @@ func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.Writa
 	})
 }
 
-func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePath,
-	jars android.Paths, manifest android.OptionalPath, stripDirs bool) {
+func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePath, desc string,
+	jars android.Paths, manifest android.OptionalPath, stripDirs bool, dirsToStrip []string) {
 
 	var deps android.Paths
 
 	var jarArgs []string
 	if manifest.Valid() {
-		jarArgs = append(jarArgs, "-m "+manifest.String())
+		jarArgs = append(jarArgs, "-m ", manifest.String())
 		deps = append(deps, manifest.Path())
+	}
+
+	if dirsToStrip != nil {
+		for _, dir := range dirsToStrip {
+			jarArgs = append(jarArgs, "-stripDir ", dir)
+		}
 	}
 
 	if stripDirs {
@@ -275,7 +343,7 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:        combineJar,
-		Description: "combine jars",
+		Description: desc,
 		Output:      outputFile,
 		Inputs:      jars,
 		Implicits:   deps,
@@ -296,8 +364,8 @@ func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath
 	}
 
 	var desugarFlags []string
-	desugarFlags = append(desugarFlags, flags.bootClasspath.DesugarBootClasspath()...)
-	desugarFlags = append(desugarFlags, flags.classpath.DesugarClasspath()...)
+	desugarFlags = append(desugarFlags, flags.bootClasspath.FormDesugarClasspath("--bootclasspath_entry")...)
+	desugarFlags = append(desugarFlags, flags.classpath.FormDesugarClasspath("--classpath_entry")...)
 
 	var deps android.Paths
 	deps = append(deps, flags.bootClasspath...)
@@ -353,42 +421,9 @@ func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 
 type classpath []android.Path
 
-// Returns a -sourcepath argument in the form javac expects.  If the list is empty returns
-// -sourcepath "" to ensure javac does not fall back to searching the classpath for sources.
-func (x *classpath) JavaSourcepath() string {
+func (x *classpath) FormJavaClassPath(optName string) string {
 	if len(*x) > 0 {
-		return "-sourcepath " + strings.Join(x.Strings(), ":")
-	} else {
-		return `-sourcepath ""`
-	}
-}
-
-// Returns a -classpath argument in the form java or javac expects
-func (x *classpath) JavaClasspath() string {
-	if len(*x) > 0 {
-		return "-classpath " + strings.Join(x.Strings(), ":")
-	} else {
-		return ""
-	}
-}
-
-// Returns a -processorpath argument in the form java or javac expects
-func (x *classpath) JavaProcessorpath() string {
-	if len(*x) > 0 {
-		return "-processorpath " + strings.Join(x.Strings(), ":")
-	} else {
-		return ""
-	}
-}
-
-// Returns a -bootclasspath argument in the form java or javac expects.  If forceEmpty is true,
-// returns -bootclasspath "" if the bootclasspath is empty to ensure javac does not fall back to the
-// default bootclasspath.
-func (x *classpath) JavaBootClasspath(forceEmpty bool) string {
-	if len(*x) > 0 {
-		return "-bootclasspath " + strings.Join(x.Strings(), ":")
-	} else if forceEmpty {
-		return `-bootclasspath ""`
+		return optName + " " + strings.Join(x.Strings(), ":")
 	} else {
 		return ""
 	}
@@ -397,37 +432,25 @@ func (x *classpath) JavaBootClasspath(forceEmpty bool) string {
 // Returns a --system argument in the form javac expects with -source 1.9.  If forceEmpty is true,
 // returns --system=none if the list is empty to ensure javac does not fall back to the default
 // system modules.
-func (x *classpath) JavaSystemModules(forceEmpty bool) string {
+func (x *classpath) FormJavaSystemModulesPath(optName string, forceEmpty bool) string {
 	if len(*x) > 1 {
 		panic("more than one system module")
 	} else if len(*x) == 1 {
-		return "--system=" + strings.TrimSuffix((*x)[0].String(), "lib/modules")
+		return optName + strings.TrimSuffix((*x)[0].String(), "lib/modules")
 	} else if forceEmpty {
-		return "--system=none"
+		return optName + "none"
 	} else {
 		return ""
 	}
 }
 
-func (x *classpath) DesugarBootClasspath() []string {
+func (x *classpath) FormDesugarClasspath(optName string) []string {
 	if x == nil || *x == nil {
 		return nil
 	}
 	flags := make([]string, len(*x))
 	for i, v := range *x {
-		flags[i] = "--bootclasspath_entry " + v.String()
-	}
-
-	return flags
-}
-
-func (x *classpath) DesugarClasspath() []string {
-	if x == nil || *x == nil {
-		return nil
-	}
-	flags := make([]string, len(*x))
-	for i, v := range *x {
-		flags[i] = "--classpath_entry " + v.String()
+		flags[i] = optName + " " + v.String()
 	}
 
 	return flags
