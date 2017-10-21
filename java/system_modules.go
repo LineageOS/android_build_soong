@@ -115,7 +115,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		if ctx.OtherModuleDependencyTag(module) == libTag {
 			dep, _ := module.(Dependency)
-			jars = append(jars, dep.ClasspathFiles()...)
+			jars = append(jars, dep.HeaderJars()...)
 		}
 	})
 
