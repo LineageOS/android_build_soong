@@ -123,8 +123,14 @@ func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.Te
 		"res/b":      nil,
 		"res2/a":     nil,
 
-		"prebuilts/sdk/14/android.jar":    nil,
-		"prebuilts/sdk/14/framework.aidl": nil,
+		"prebuilts/sdk/14/android.jar":                nil,
+		"prebuilts/sdk/14/framework.aidl":             nil,
+		"prebuilts/sdk/current/android.jar":           nil,
+		"prebuilts/sdk/current/framework.aidl":        nil,
+		"prebuilts/sdk/system_current/android.jar":    nil,
+		"prebuilts/sdk/system_current/framework.aidl": nil,
+		"prebuilts/sdk/test_current/android.jar":      nil,
+		"prebuilts/sdk/test_current/framework.aidl":   nil,
 	})
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -246,25 +252,25 @@ var classpathTestcases = []struct {
 
 		name:          "current",
 		properties:    `sdk_version: "current",`,
-		bootclasspath: []string{"android_stubs_current"},
-		system:        "android_stubs_current_system_modules",
-		classpath:     []string{},
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/current/android.jar"},
 	},
 	{
 
 		name:          "system_current",
 		properties:    `sdk_version: "system_current",`,
-		bootclasspath: []string{"android_system_stubs_current"},
-		system:        "android_system_stubs_current_system_modules",
-		classpath:     []string{},
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/system_current/android.jar"},
 	},
 	{
 
 		name:          "test_current",
 		properties:    `sdk_version: "test_current",`,
-		bootclasspath: []string{"android_test_stubs_current"},
-		system:        "android_test_stubs_current_system_modules",
-		classpath:     []string{},
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/test_current/android.jar"},
 	},
 	{
 
