@@ -342,6 +342,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		diagSanitizers = append(diagSanitizers, "address")
 	}
 
+	if Bool(sanitize.Properties.Sanitize.Thread) {
+		sanitizers = append(sanitizers, "thread")
+	}
+
 	if Bool(sanitize.Properties.Sanitize.Coverage) {
 		flags.CFlags = append(flags.CFlags, "-fsanitize-coverage=trace-pc-guard,indirect-calls,trace-cmp")
 	}
@@ -408,6 +412,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	runtimeLibrary := ""
 	if Bool(sanitize.Properties.Sanitize.Address) {
 		runtimeLibrary = config.AddressSanitizerRuntimeLibrary(ctx.toolchain())
+	} else if Bool(sanitize.Properties.Sanitize.Thread) {
+		runtimeLibrary = config.ThreadSanitizerRuntimeLibrary(ctx.toolchain())
 	} else if len(diagSanitizers) > 0 {
 		runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(ctx.toolchain())
 	}

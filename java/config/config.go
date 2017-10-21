@@ -73,13 +73,30 @@ func init() {
 	pctx.SourcePathVariable("JlinkCmd", "${JavaToolchain}/jlink")
 	pctx.SourcePathVariable("JmodCmd", "${JavaToolchain}/jmod")
 	pctx.SourcePathVariable("JrtFsJar", "${JavaHome}/lib/jrt-fs.jar")
+	pctx.SourcePathVariable("Ziptime", "prebuilts/build-tools/${hostPrebuiltTag}/bin/ziptime")
 
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
-	pctx.HostBinToolVariable("DxCmd", "dx")
+	pctx.VariableFunc("DxCmd", func(config interface{}) (string, error) {
+		dexer := "dx"
+		if config.(android.Config).Getenv("USE_D8") == "true" {
+			dexer = "d8"
+		}
+		if config.(android.Config).UnbundledBuild() {
+			return "prebuilts/build-tools/common/bin/" + dexer, nil
+		} else {
+			path, err := pctx.HostBinToolPath(config, dexer)
+			if err != nil {
+				return "", err
+			}
+			return path.String(), nil
+		}
+	})
+
 	pctx.HostJavaToolVariable("JarjarCmd", "jarjar.jar")
 	pctx.HostJavaToolVariable("DesugarJar", "desugar.jar")
+	pctx.HostJavaToolVariable("TurbineJar", "turbine.jar")
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 
