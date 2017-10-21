@@ -95,6 +95,15 @@ func (m TestingModule) Rule(rule string) ModuleBuildParams {
 	panic(fmt.Errorf("couldn't find rule %q", rule))
 }
 
+func (m TestingModule) Description(desc string) ModuleBuildParams {
+	for _, p := range m.module.BuildParamsForTests() {
+		if p.Description == desc {
+			return p
+		}
+	}
+	panic(fmt.Errorf("couldn't find description %q", desc))
+}
+
 func (m TestingModule) Output(file string) ModuleBuildParams {
 	for _, p := range m.module.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
