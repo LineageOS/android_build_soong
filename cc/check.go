@@ -50,6 +50,11 @@ func CheckBadCompilerFlags(ctx BaseModuleContext, prop string, flags []string) {
 				} else if strings.HasPrefix("../", path) {
 					ctx.PropertyErrorf(prop, "Path must not start with `../`: `%s`. Use include_dirs to -include from a different directory", flag)
 				}
+			} else if strings.HasPrefix(flag, "-D") && strings.Contains(flag, "=") {
+				// Do nothing in this case.
+				// For now, we allow space characters in -DNAME=def form to allow use cases
+				// like -DNAME="value with string". Later, this check should be done more
+				// correctly to prevent multi flag cases like -DNAME=value -O2.
 			} else {
 				ctx.PropertyErrorf(prop, "Bad flag: `%s` is not an allowed multi-word flag. Should it be split into multiple flags?", flag)
 			}
