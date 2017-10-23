@@ -74,7 +74,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !proptools.Bool(prebuilt.properties.Installable))
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.combinedClasspathFile.String())
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", prebuilt.properties.Sdk_version)
 			},
