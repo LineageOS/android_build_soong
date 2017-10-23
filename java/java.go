@@ -410,6 +410,21 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
+		aDep, _ := module.(android.Module)
+		if aDep == nil {
+			ctx.ModuleErrorf("module %q not an android module", ctx.OtherModuleName(aDep))
+			return
+		}
+
+		if !aDep.Enabled() {
+			if ctx.AConfig().AllowMissingDependencies() {
+				ctx.AddMissingDependencies([]string{ctx.OtherModuleName(aDep)})
+			} else {
+				ctx.ModuleErrorf("depends on disabled module %q", ctx.OtherModuleName(aDep))
+			}
+			return
+		}
+
 		dep, _ := module.(Dependency)
 		if dep == nil {
 			switch tag {
