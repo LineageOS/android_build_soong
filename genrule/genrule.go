@@ -260,13 +260,13 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// recall that Sprintf replaces percent sign expressions, whereas dollar signs expressions remain as written,
 	// to be replaced later by ninja_strings.go
-	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q $out", sandboxPath, buildDir, rawCommand)
+	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q $allouts", sandboxPath, buildDir, rawCommand)
 
 	ruleParams := blueprint.RuleParams{
 		Command:     sandboxCommand,
 		CommandDeps: []string{"$sboxCmd"},
 	}
-	var args []string
+	args := []string{"allouts"}
 	if g.properties.Depfile {
 		ruleParams.Deps = blueprint.DepsGCC
 		args = append(args, "depfile")
@@ -281,16 +281,24 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask) {
 	desc := "generate"
+	if len(task.out) == 0 {
+		ctx.ModuleErrorf("must have at least one output file")
+		return
+	}
 	if len(task.out) == 1 {
 		desc += " " + task.out[0].Base()
 	}
 
 	params := android.ModuleBuildParams{
-		Rule:        g.rule,
-		Description: "generate",
-		Outputs:     task.out,
-		Inputs:      task.in,
-		Implicits:   g.deps,
+		Rule:            g.rule,
+		Description:     "generate",
+		Output:          task.out[0],
+		ImplicitOutputs: task.out[1:],
+		Inputs:          task.in,
+		Implicits:       g.deps,
+		Args: map[string]string{
+			"allouts": strings.Join(task.out.Strings(), " "),
+		},
 	}
 	if g.properties.Depfile {
 		depfile := android.GenPathWithExt(ctx, "", task.out[0], task.out[0].Ext()+".d")
