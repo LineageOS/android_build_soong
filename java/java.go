@@ -374,7 +374,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	flags = append(flags, android.JoinWithPrefix(j.exportAidlIncludeDirs.Strings(), "-I"))
 	flags = append(flags, android.JoinWithPrefix(localAidlIncludes.Strings(), "-I"))
 	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
-	if src := android.ExistentPathForSource(ctx, "", "src"); src.Valid() {
+	if src := android.ExistentPathForSource(ctx, "", ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
 	}
 
@@ -409,6 +409,21 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	ctx.VisitDirectDeps(func(module blueprint.Module) {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
+
+		aDep, _ := module.(android.Module)
+		if aDep == nil {
+			ctx.ModuleErrorf("module %q not an android module", ctx.OtherModuleName(aDep))
+			return
+		}
+
+		if !aDep.Enabled() {
+			if ctx.AConfig().AllowMissingDependencies() {
+				ctx.AddMissingDependencies([]string{ctx.OtherModuleName(aDep)})
+			} else {
+				ctx.ModuleErrorf("depends on disabled module %q", ctx.OtherModuleName(aDep))
+			}
+			return
+		}
 
 		dep, _ := module.(Dependency)
 		if dep == nil {
@@ -920,6 +935,8 @@ type ImportProperties struct {
 	Jars []string
 
 	Sdk_version string
+
+	Installable *bool
 }
 
 type Import struct {
