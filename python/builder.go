@@ -87,7 +87,7 @@ func registerBuildActionForModuleFileList(ctx android.ModuleContext,
 		content = append(content, file.String())
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.WriteFile,
 		Description: "generate " + fileList.Rel(),
 		Output:      fileList,
@@ -140,7 +140,7 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embedded_launcher 
 		// added stub file to the soong_zip args.
 		parArgs = append(parArgs, `-P "" `+`-C `+strings.TrimSuffix(stub, mainFileName)+` -f `+stub)
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:        host_par,
 			Description: "host python archive",
 			Output:      binFile,
@@ -169,7 +169,7 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embedded_launcher 
 		parArgs = append(parArgs, `-P "" `+`-C `+fmt.Sprintf(
 			"%q", strings.TrimSuffix(entryPoint, entryPointFile))+` -f `+entryPoint)
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:        embedded_par,
 			Description: "embedded python archive",
 			Output:      binFile,

@@ -341,7 +341,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 
 		switch srcFile.Ext() {
 		case ".asm":
-			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+			ctx.Build(pctx, android.BuildParams{
 				Rule:        yasm,
 				Description: "yasm " + srcFile.Rel(),
 				Output:      objFile,
@@ -353,7 +353,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			})
 			continue
 		case ".rc":
-			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+			ctx.Build(pctx, android.BuildParams{
 				Rule:        windres,
 				Description: "windres " + srcFile.Rel(),
 				Output:      objFile,
@@ -420,7 +420,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			coverageFiles = append(coverageFiles, gcnoFile)
 		}
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:            cc,
 			Description:     ccDesc + " " + srcFile.Rel(),
 			Output:          objFile,
@@ -437,7 +437,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			tidyFile := android.ObjPathWithExt(ctx, subdir, srcFile, "tidy")
 			tidyFiles = append(tidyFiles, tidyFile)
 
-			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+			ctx.Build(pctx, android.BuildParams{
 				Rule:        clangTidy,
 				Description: "clang-tidy " + srcFile.Rel(),
 				Output:      tidyFile,
@@ -456,7 +456,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			sAbiDumpFile := android.ObjPathWithExt(ctx, subdir, srcFile, "sdump")
 			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
 
-			ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+			ctx.Build(pctx, android.BuildParams{
 				Rule:        sAbiDump,
 				Description: "header-abi-dumper " + srcFile.Rel(),
 				Output:      sAbiDumpFile,
@@ -494,7 +494,7 @@ func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 		arFlags += " " + flags.arFlags
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        ar,
 		Description: "static link " + outputFile.Base(),
 		Output:      outputFile,
@@ -520,14 +520,14 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 		dummy := android.PathForModuleOut(ctx, "dummy"+objectExtension)
 		dummyAr := android.PathForModuleOut(ctx, "dummy"+staticLibraryExtension)
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:        emptyFile,
 			Description: "empty object file",
 			Output:      dummy,
 			Implicits:   deps,
 		})
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:        darwinAr,
 			Description: "empty static archive",
 			Output:      dummyAr,
@@ -537,7 +537,7 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 			},
 		})
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:        darwinAppendAr,
 			Description: "static link " + outputFile.Base(),
 			Output:      outputFile,
@@ -565,7 +565,7 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 			out = android.PathForModuleOut(ctx, outputFile.Base()+strconv.Itoa(i))
 		}
 
-		build := android.ModuleBuildParams{
+		build := android.BuildParams{
 			Rule:        darwinAr,
 			Description: "static link " + out.Base(),
 			Output:      out,
@@ -579,7 +579,7 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 			build.Rule = darwinAppendAr
 			build.Args["inAr"] = in.String()
 		}
-		ctx.ModuleBuild(pctx, build)
+		ctx.Build(pctx, build)
 	}
 }
 
@@ -639,7 +639,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		deps = append(deps, crtBegin.Path(), crtEnd.Path())
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        ld,
 		Description: "link " + outputFile.Base(),
 		Output:      outputFile,
@@ -669,7 +669,7 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 		linkedDumpDep = soFile
 		symbolFilterStr = "-so " + soFile.String()
 	}
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiLink,
 		Description: "header-abi-linker " + outputFile.Base(),
 		Output:      outputFile,
@@ -687,7 +687,7 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 
 func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseName string) android.Path {
 	outputFile := android.PathForModuleOut(ctx, baseName+"_ref.lsdump")
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipRefSAbiDump,
 		Description: "gunzip" + outputFile.Base(),
 		Output:      outputFile,
@@ -699,7 +699,7 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
 	baseName string) android.OptionalPath {
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiDiff,
 		Description: "header-abi-diff " + outputFile.Base(),
 		Output:      outputFile,
@@ -720,7 +720,7 @@ func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Pat
 
 	crossCompile := gccCmd(flags.toolchain, "")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        toc,
 		Description: "generate toc " + inputFile.Base(),
 		Output:      outputFile,
@@ -742,7 +742,7 @@ func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 		ldCmd = gccCmd(flags.toolchain, "g++")
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        partialLd,
 		Description: "link " + outputFile.Base(),
 		Output:      outputFile,
@@ -760,7 +760,7 @@ func TransformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inpu
 
 	objcopyCmd := gccCmd(flags.toolchain, "objcopy")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        prefixSymbols,
 		Description: "prefix symbols " + outputFile.Base(),
 		Output:      outputFile,
@@ -787,7 +787,7 @@ func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
 		args += " --keep-symbols"
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        strip,
 		Description: "strip " + outputFile.Base(),
 		Output:      outputFile,
@@ -802,7 +802,7 @@ func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
 func TransformDarwinStrip(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath) {
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        darwinStrip,
 		Description: "strip " + outputFile.Base(),
 		Output:      outputFile,
@@ -827,7 +827,7 @@ func TransformCoverageFilesToLib(ctx android.ModuleContext,
 func CopyGccLib(ctx android.ModuleContext, libName string,
 	flags builderFlags, outputFile android.WritablePath) {
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        copyGccLib,
 		Description: "copy gcc library " + libName,
 		Output:      outputFile,

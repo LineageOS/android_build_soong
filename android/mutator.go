@@ -107,8 +107,27 @@ func PostDepsMutators(f RegisterMutatorFunc) {
 type AndroidTopDownMutator func(TopDownMutatorContext)
 
 type TopDownMutatorContext interface {
-	blueprint.TopDownMutatorContext
+	blueprint.BaseModuleContext
 	androidBaseContext
+
+	OtherModuleExists(name string) bool
+	Rename(name string)
+	Module() blueprint.Module
+
+	OtherModuleName(m blueprint.Module) string
+	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
+	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
+
+	CreateModule(blueprint.ModuleFactory, ...interface{})
+
+	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
+	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+
+	VisitDirectDeps(visit func(Module))
+	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
+	VisitDepsDepthFirst(visit func(Module))
+	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
+	WalkDeps(visit func(Module, Module) bool)
 }
 
 type androidTopDownMutatorContext struct {
@@ -171,4 +190,64 @@ func depsMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
 		m.DepsMutator(ctx)
 	}
+}
+
+func (a *androidTopDownMutatorContext) VisitDirectDeps(visit func(Module)) {
+	a.TopDownMutatorContext.VisitDirectDeps(func(module blueprint.Module) {
+		if aModule, _ := module.(Module); aModule != nil {
+			visit(aModule)
+		}
+	})
+}
+
+func (a *androidTopDownMutatorContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
+	a.TopDownMutatorContext.VisitDirectDepsIf(
+		// pred
+		func(module blueprint.Module) bool {
+			if aModule, _ := module.(Module); aModule != nil {
+				return pred(aModule)
+			} else {
+				return false
+			}
+		},
+		// visit
+		func(module blueprint.Module) {
+			visit(module.(Module))
+		})
+}
+
+func (a *androidTopDownMutatorContext) VisitDepsDepthFirst(visit func(Module)) {
+	a.TopDownMutatorContext.VisitDepsDepthFirst(func(module blueprint.Module) {
+		if aModule, _ := module.(Module); aModule != nil {
+			visit(aModule)
+		}
+	})
+}
+
+func (a *androidTopDownMutatorContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
+	a.TopDownMutatorContext.VisitDepsDepthFirstIf(
+		// pred
+		func(module blueprint.Module) bool {
+			if aModule, _ := module.(Module); aModule != nil {
+				return pred(aModule)
+			} else {
+				return false
+			}
+		},
+		// visit
+		func(module blueprint.Module) {
+			visit(module.(Module))
+		})
+}
+
+func (a *androidTopDownMutatorContext) WalkDeps(visit func(Module, Module) bool) {
+	a.TopDownMutatorContext.WalkDeps(func(child, parent blueprint.Module) bool {
+		childAndroidModule, _ := child.(Module)
+		parentAndroidModule, _ := parent.(Module)
+		if childAndroidModule != nil && parentAndroidModule != nil {
+			return visit(childAndroidModule, parentAndroidModule)
+		} else {
+			return false
+		}
+	})
 }

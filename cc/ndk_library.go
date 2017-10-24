@@ -270,7 +270,7 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 	versionScriptPath := android.PathForModuleGen(ctx, "stub.map")
 	symbolFilePath := android.PathForModuleSrc(ctx, symbolFile)
 	apiLevelsJson := android.GetApiLevelsJson(ctx)
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        genStubSrc,
 		Description: "generate stubs " + symbolFilePath.Rel(),
 		Outputs:     []android.WritablePath{stubSrcPath, versionScriptPath},

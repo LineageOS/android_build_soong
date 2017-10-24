@@ -32,7 +32,7 @@ var (
 	HostExecutable      = "host_executable"
 )
 
-type ModuleBuildParams struct {
+type BuildParams struct {
 	Rule            blueprint.Rule
 	Deps            blueprint.Deps
 	Depfile         WritablePath
@@ -49,6 +49,8 @@ type ModuleBuildParams struct {
 	Default         bool
 	Args            map[string]string
 }
+
+type ModuleBuildParams BuildParams
 
 type androidBaseContext interface {
 	Target() Target
@@ -72,11 +74,10 @@ type BaseContext interface {
 }
 
 type ModuleContext interface {
-	blueprint.ModuleContext
 	androidBaseContext
+	blueprint.BaseModuleContext
 
-	// Similar to Build, but takes Paths instead of []string,
-	// and performs more verification.
+	// Deprecated: use ModuleContext.Build instead.
 	ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams)
 
 	ExpandSources(srcFiles, excludes []string) Paths
@@ -94,6 +95,36 @@ type ModuleContext interface {
 	InstallInSanitizerDir() bool
 
 	RequiredModuleNames() []string
+
+	// android.ModuleContext methods
+	// These are duplicated instead of embedded so that can eventually be wrapped to take an
+	// android.Module instead of a blueprint.Module
+	OtherModuleName(m blueprint.Module) string
+	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
+	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
+
+	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
+	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+
+	ModuleSubDir() string
+
+	VisitDirectDeps(visit func(Module))
+	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
+	VisitDepsDepthFirst(visit func(Module))
+	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
+	WalkDeps(visit func(Module, Module) bool)
+
+	Variable(pctx blueprint.PackageContext, name, value string)
+	Rule(pctx blueprint.PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
+	// Similar to blueprint.ModuleContext.Build, but takes Paths instead of []string,
+	// and performs more verification.
+	Build(pctx blueprint.PackageContext, params BuildParams)
+
+	PrimaryModule() blueprint.Module
+	FinalModule() blueprint.Module
+	VisitAllModuleVariants(visit func(blueprint.Module))
+
+	GetMissingDependencies() []string
 }
 
 type Module interface {
@@ -116,7 +147,7 @@ type Module interface {
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
 
-	BuildParamsForTests() []ModuleBuildParams
+	BuildParamsForTests() []BuildParams
 }
 
 type nameProperties struct {
@@ -302,7 +333,7 @@ type ModuleBase struct {
 	registerProps []interface{}
 
 	// For tests
-	buildParams []ModuleBuildParams
+	buildParams []BuildParams
 }
 
 func (a *ModuleBase) AddProperties(props ...interface{}) {
@@ -313,7 +344,7 @@ func (a *ModuleBase) GetProperties() []interface{} {
 	return a.registerProps
 }
 
-func (a *ModuleBase) BuildParamsForTests() []ModuleBuildParams {
+func (a *ModuleBase) BuildParamsForTests() []BuildParams {
 	return a.buildParams
 }
 
@@ -558,7 +589,7 @@ type androidModuleContext struct {
 	module          Module
 
 	// For tests
-	buildParams []ModuleBuildParams
+	buildParams []BuildParams
 }
 
 func (a *androidModuleContext) ninjaError(desc string, outputs []string, err error) {
@@ -574,19 +605,11 @@ func (a *androidModuleContext) ninjaError(desc string, outputs []string, err err
 	return
 }
 
-func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
-	if a.missingDeps != nil {
-		a.ninjaError(params.Description, params.Outputs,
-			fmt.Errorf("module %s missing dependencies: %s\n",
-				a.ModuleName(), strings.Join(a.missingDeps, ", ")))
-		return
-	}
-
-	params.Optional = true
-	a.ModuleContext.Build(pctx, params)
+func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+	a.Build(pctx, BuildParams(params))
 }
 
-func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params BuildParams) {
 	if a.config.captureBuild {
 		a.buildParams = append(a.buildParams, params)
 	}
@@ -640,7 +663,87 @@ func (a *androidModuleContext) GetMissingDependencies() []string {
 func (a *androidModuleContext) AddMissingDependencies(deps []string) {
 	if deps != nil {
 		a.missingDeps = append(a.missingDeps, deps...)
+		a.missingDeps = FirstUniqueStrings(a.missingDeps)
 	}
+}
+
+func (a *androidModuleContext) validateAndroidModule(module blueprint.Module) Module {
+	aModule, _ := module.(Module)
+	if aModule == nil {
+		a.ModuleErrorf("module %q not an android module", a.OtherModuleName(aModule))
+		return nil
+	}
+
+	if !aModule.Enabled() {
+		if a.AConfig().AllowMissingDependencies() {
+			a.AddMissingDependencies([]string{a.OtherModuleName(aModule)})
+		} else {
+			a.ModuleErrorf("depends on disabled module %q", a.OtherModuleName(aModule))
+		}
+		return nil
+	}
+
+	return aModule
+}
+
+func (a *androidModuleContext) VisitDirectDeps(visit func(Module)) {
+	a.ModuleContext.VisitDirectDeps(func(module blueprint.Module) {
+		if aModule := a.validateAndroidModule(module); aModule != nil {
+			visit(aModule)
+		}
+	})
+}
+
+func (a *androidModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
+	a.ModuleContext.VisitDirectDepsIf(
+		// pred
+		func(module blueprint.Module) bool {
+			if aModule := a.validateAndroidModule(module); aModule != nil {
+				return pred(aModule)
+			} else {
+				return false
+			}
+		},
+		// visit
+		func(module blueprint.Module) {
+			visit(module.(Module))
+		})
+}
+
+func (a *androidModuleContext) VisitDepsDepthFirst(visit func(Module)) {
+	a.ModuleContext.VisitDepsDepthFirst(func(module blueprint.Module) {
+		if aModule := a.validateAndroidModule(module); aModule != nil {
+			visit(aModule)
+		}
+	})
+}
+
+func (a *androidModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
+	a.ModuleContext.VisitDepsDepthFirstIf(
+		// pred
+		func(module blueprint.Module) bool {
+			if aModule := a.validateAndroidModule(module); aModule != nil {
+				return pred(aModule)
+			} else {
+				return false
+			}
+		},
+		// visit
+		func(module blueprint.Module) {
+			visit(module.(Module))
+		})
+}
+
+func (a *androidModuleContext) WalkDeps(visit func(Module, Module) bool) {
+	a.ModuleContext.WalkDeps(func(child, parent blueprint.Module) bool {
+		childAndroidModule := a.validateAndroidModule(child)
+		parentAndroidModule := a.validateAndroidModule(parent)
+		if childAndroidModule != nil && parentAndroidModule != nil {
+			return visit(childAndroidModule, parentAndroidModule)
+		} else {
+			return false
+		}
+	})
 }
 
 func (a *androidBaseContextImpl) Target() Target {
@@ -754,7 +857,7 @@ func (a *androidModuleContext) installFile(installPath OutputPath, name string, 
 			orderOnlyDeps = deps
 		}
 
-		a.ModuleBuild(pctx, ModuleBuildParams{
+		a.Build(pctx, BuildParams{
 			Rule:        rule,
 			Description: "install " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
@@ -776,7 +879,7 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 
 	if !a.skipInstall(fullInstallPath) {
 
-		a.ModuleBuild(pctx, ModuleBuildParams{
+		a.Build(pctx, BuildParams{
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
@@ -879,6 +982,10 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 	for _, s := range srcFiles {
 		if m := SrcIsModule(s); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
+			if module == nil {
+				// Error will have been handled by ExtractSourcesDeps
+				continue
+			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
 				expandedSrcFiles = append(expandedSrcFiles, srcProducer.Srcs()...)
 			} else {
