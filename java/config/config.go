@@ -83,7 +83,7 @@ func init() {
 		if config.(android.Config).Getenv("USE_D8") == "true" {
 			dexer = "d8"
 		}
-		if config.(android.Config).UnbundledBuild() {
+		if config.(android.Config).UnbundledBuild() || config.(android.Config).IsPdkBuild() {
 			return "prebuilts/build-tools/common/bin/" + dexer, nil
 		} else {
 			path, err := pctx.HostBinToolPath(config, dexer)
