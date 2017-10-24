@@ -496,6 +496,10 @@ func (c *config) UnbundledBuild() bool {
 	return Bool(c.ProductVariables.Unbundled_build)
 }
 
+func (c *config) IsPdkBuild() bool {
+	return Bool(c.ProductVariables.Pdk)
+}
+
 func (c *config) DevicePrefer32BitExecutables() bool {
 	return Bool(c.ProductVariables.DevicePrefer32BitExecutables)
 }
