@@ -41,7 +41,7 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 	ccFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
 	headerFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        proto,
 		Description: "protoc " + protoFile.Rel(),
 		Outputs:     android.WritablePaths{ccFile, headerFile},

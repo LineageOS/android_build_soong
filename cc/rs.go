@@ -64,7 +64,7 @@ func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags str
 		cppFiles[i] = rsGeneratedCppFile(ctx, rsFile)
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:            rsCpp,
 		Description:     "llvm-rs-cc",
 		Output:          stampFile,

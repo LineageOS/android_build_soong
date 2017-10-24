@@ -19,8 +19,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 	"android/soong/cc/config"
 )
@@ -493,7 +491,7 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 	return func(mctx android.TopDownMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize.Sanitizer(t) {
-			mctx.VisitDepsDepthFirst(func(module blueprint.Module) {
+			mctx.VisitDepsDepthFirst(func(module android.Module) {
 				if d, ok := mctx.Module().(*Module); ok && c.sanitize != nil &&
 					!c.sanitize.Properties.Sanitize.Never {
 					d.sanitize.Properties.SanitizeDep = true

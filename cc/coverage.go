@@ -16,8 +16,6 @@ package cc
 
 import (
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
 type CoverageProperties struct {
@@ -61,7 +59,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags) Flags {
 			// For static libraries, the only thing that changes our object files
 			// are included whole static libraries, so check to see if any of
 			// those have coverage enabled.
-			ctx.VisitDirectDeps(func(m blueprint.Module) {
+			ctx.VisitDirectDeps(func(m android.Module) {
 				if ctx.OtherModuleDependencyTag(m) != wholeStaticDepTag {
 					return
 				}
@@ -75,7 +73,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags) Flags {
 		} else {
 			// For executables and shared libraries, we need to check all of
 			// our static dependencies.
-			ctx.VisitDirectDeps(func(m blueprint.Module) {
+			ctx.VisitDirectDeps(func(m android.Module) {
 				cc, ok := m.(*Module)
 				if !ok || cc.coverage == nil {
 					return
