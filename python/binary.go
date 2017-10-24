@@ -21,8 +21,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -135,7 +133,7 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actual_versi
 
 	var launcher_path android.Path
 	if embedded_launcher {
-		ctx.VisitDirectDeps(func(m blueprint.Module) {
+		ctx.VisitDirectDeps(func(m android.Module) {
 			if ctx.OtherModuleDependencyTag(m) != launcherTag {
 				return
 			}

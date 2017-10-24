@@ -1037,15 +1037,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	directStaticDeps := []*Module{}
 
-	ctx.VisitDirectDeps(func(dep blueprint.Module) {
+	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
-
-		aDep, _ := dep.(android.Module)
-		if aDep == nil {
-			ctx.ModuleErrorf("module %q not an android module", depName)
-			return
-		}
 
 		ccDep, _ := dep.(*Module)
 		if ccDep == nil {
@@ -1096,20 +1090,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		// some validation
-		if !aDep.Enabled() {
-			if ctx.AConfig().AllowMissingDependencies() {
-				ctx.AddMissingDependencies([]string{depName})
-			} else {
-				ctx.ModuleErrorf("depends on disabled module %q", depName)
-			}
-			return
-		}
-		if aDep.Target().Os != ctx.Os() {
+		if dep.Target().Os != ctx.Os() {
 			ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
 			return
 		}
-		if aDep.Target().Arch.ArchType != ctx.Arch().ArchType {
+		if dep.Target().Arch.ArchType != ctx.Arch().ArchType {
 			ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
 			return
 		}

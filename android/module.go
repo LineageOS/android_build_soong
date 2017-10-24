@@ -108,11 +108,11 @@ type ModuleContext interface {
 
 	ModuleSubDir() string
 
-	VisitDirectDeps(visit func(blueprint.Module))
-	VisitDirectDepsIf(pred func(blueprint.Module) bool, visit func(blueprint.Module))
-	VisitDepsDepthFirst(visit func(blueprint.Module))
-	VisitDepsDepthFirstIf(pred func(blueprint.Module) bool, visit func(blueprint.Module))
-	WalkDeps(visit func(blueprint.Module, blueprint.Module) bool)
+	VisitDirectDeps(visit func(Module))
+	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
+	VisitDepsDepthFirst(visit func(Module))
+	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
+	WalkDeps(visit func(Module, Module) bool)
 
 	Variable(pctx blueprint.PackageContext, name, value string)
 	Rule(pctx blueprint.PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
@@ -663,7 +663,87 @@ func (a *androidModuleContext) GetMissingDependencies() []string {
 func (a *androidModuleContext) AddMissingDependencies(deps []string) {
 	if deps != nil {
 		a.missingDeps = append(a.missingDeps, deps...)
+		a.missingDeps = FirstUniqueStrings(a.missingDeps)
 	}
+}
+
+func (a *androidModuleContext) validateAndroidModule(module blueprint.Module) Module {
+	aModule, _ := module.(Module)
+	if aModule == nil {
+		a.ModuleErrorf("module %q not an android module", a.OtherModuleName(aModule))
+		return nil
+	}
+
+	if !aModule.Enabled() {
+		if a.AConfig().AllowMissingDependencies() {
+			a.AddMissingDependencies([]string{a.OtherModuleName(aModule)})
+		} else {
+			a.ModuleErrorf("depends on disabled module %q", a.OtherModuleName(aModule))
+		}
+		return nil
+	}
+
+	return aModule
+}
+
+func (a *androidModuleContext) VisitDirectDeps(visit func(Module)) {
+	a.ModuleContext.VisitDirectDeps(func(module blueprint.Module) {
+		if aModule := a.validateAndroidModule(module); aModule != nil {
+			visit(aModule)
+		}
+	})
+}
+
+func (a *androidModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
+	a.ModuleContext.VisitDirectDepsIf(
+		// pred
+		func(module blueprint.Module) bool {
+			if aModule := a.validateAndroidModule(module); aModule != nil {
+				return pred(aModule)
+			} else {
+				return false
+			}
+		},
+		// visit
+		func(module blueprint.Module) {
+			visit(module.(Module))
+		})
+}
+
+func (a *androidModuleContext) VisitDepsDepthFirst(visit func(Module)) {
+	a.ModuleContext.VisitDepsDepthFirst(func(module blueprint.Module) {
+		if aModule := a.validateAndroidModule(module); aModule != nil {
+			visit(aModule)
+		}
+	})
+}
+
+func (a *androidModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
+	a.ModuleContext.VisitDepsDepthFirstIf(
+		// pred
+		func(module blueprint.Module) bool {
+			if aModule := a.validateAndroidModule(module); aModule != nil {
+				return pred(aModule)
+			} else {
+				return false
+			}
+		},
+		// visit
+		func(module blueprint.Module) {
+			visit(module.(Module))
+		})
+}
+
+func (a *androidModuleContext) WalkDeps(visit func(Module, Module) bool) {
+	a.ModuleContext.WalkDeps(func(child, parent blueprint.Module) bool {
+		childAndroidModule := a.validateAndroidModule(child)
+		parentAndroidModule := a.validateAndroidModule(parent)
+		if childAndroidModule != nil && parentAndroidModule != nil {
+			return visit(childAndroidModule, parentAndroidModule)
+		} else {
+			return false
+		}
+	})
 }
 
 func (a *androidBaseContextImpl) Target() Target {
