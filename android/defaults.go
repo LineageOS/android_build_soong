@@ -131,7 +131,7 @@ func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 func defaultsMutator(ctx TopDownMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok && len(defaultable.defaults().Defaults) > 0 {
 		var defaultsList []Defaults
-		ctx.WalkDeps(func(module, parent blueprint.Module) bool {
+		ctx.WalkDeps(func(module, parent Module) bool {
 			if ctx.OtherModuleDependencyTag(module) == DefaultsDepTag {
 				if defaults, ok := module.(Defaults); ok {
 					defaultsList = append(defaultsList, defaults)

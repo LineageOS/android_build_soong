@@ -17,8 +17,6 @@ package cc
 import (
 	"strings"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 	"android/soong/cc/config"
 )
@@ -81,7 +79,7 @@ func sabiDepsMutator(mctx android.TopDownMutatorContext) {
 	if c, ok := mctx.Module().(*Module); ok &&
 		((c.isVndk() && c.useVndk()) || inList(c.Name(), llndkLibraries) ||
 			(c.sabi != nil && c.sabi.Properties.CreateSAbiDumps)) {
-		mctx.VisitDirectDeps(func(m blueprint.Module) {
+		mctx.VisitDirectDeps(func(m android.Module) {
 			tag := mctx.OtherModuleDependencyTag(m)
 			switch tag {
 			case staticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag:

@@ -75,7 +75,7 @@ func (p *relocationPacker) needsPacking(ctx ModuleContext) bool {
 }
 
 func (p *relocationPacker) pack(ctx ModuleContext, in, out android.ModuleOutPath, flags builderFlags) {
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        relocationPackerRule,
 		Description: "pack relocations",
 		Output:      out,
