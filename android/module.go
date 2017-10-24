@@ -72,8 +72,8 @@ type BaseContext interface {
 }
 
 type ModuleContext interface {
-	blueprint.ModuleContext
 	androidBaseContext
+	blueprint.BaseModuleContext
 
 	// Similar to Build, but takes Paths instead of []string,
 	// and performs more verification.
@@ -94,6 +94,34 @@ type ModuleContext interface {
 	InstallInSanitizerDir() bool
 
 	RequiredModuleNames() []string
+
+	// android.ModuleContext methods
+	// These are duplicated instead of embedded so that can eventually be wrapped to take an
+	// android.Module instead of a blueprint.Module
+	OtherModuleName(m blueprint.Module) string
+	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
+	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
+
+	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
+	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+
+	ModuleSubDir() string
+
+	VisitDirectDeps(visit func(blueprint.Module))
+	VisitDirectDepsIf(pred func(blueprint.Module) bool, visit func(blueprint.Module))
+	VisitDepsDepthFirst(visit func(blueprint.Module))
+	VisitDepsDepthFirstIf(pred func(blueprint.Module) bool, visit func(blueprint.Module))
+	WalkDeps(visit func(blueprint.Module, blueprint.Module) bool)
+
+	Variable(pctx blueprint.PackageContext, name, value string)
+	Rule(pctx blueprint.PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
+	Build(pctx blueprint.PackageContext, params blueprint.BuildParams)
+
+	PrimaryModule() blueprint.Module
+	FinalModule() blueprint.Module
+	VisitAllModuleVariants(visit func(blueprint.Module))
+
+	GetMissingDependencies() []string
 }
 
 type Module interface {

@@ -107,8 +107,27 @@ func PostDepsMutators(f RegisterMutatorFunc) {
 type AndroidTopDownMutator func(TopDownMutatorContext)
 
 type TopDownMutatorContext interface {
-	blueprint.TopDownMutatorContext
+	blueprint.BaseModuleContext
 	androidBaseContext
+
+	OtherModuleExists(name string) bool
+	Rename(name string)
+	Module() blueprint.Module
+
+	OtherModuleName(m blueprint.Module) string
+	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
+	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
+
+	CreateModule(blueprint.ModuleFactory, ...interface{})
+
+	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
+	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+
+	VisitDirectDeps(visit func(blueprint.Module))
+	VisitDirectDepsIf(pred func(blueprint.Module) bool, visit func(blueprint.Module))
+	VisitDepsDepthFirst(visit func(blueprint.Module))
+	VisitDepsDepthFirstIf(pred func(blueprint.Module) bool, visit func(blueprint.Module))
+	WalkDeps(visit func(blueprint.Module, blueprint.Module) bool)
 }
 
 type androidTopDownMutatorContext struct {
