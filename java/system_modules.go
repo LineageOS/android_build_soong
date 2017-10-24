@@ -67,7 +67,7 @@ func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, 
 		android.PathForModuleOut(ctx, "system/release"),
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        jarsTosystemModules,
 		Description: "system modules",
 		Outputs:     outputs,

@@ -32,7 +32,7 @@ var (
 	HostExecutable      = "host_executable"
 )
 
-type ModuleBuildParams struct {
+type BuildParams struct {
 	Rule            blueprint.Rule
 	Deps            blueprint.Deps
 	Depfile         WritablePath
@@ -49,6 +49,8 @@ type ModuleBuildParams struct {
 	Default         bool
 	Args            map[string]string
 }
+
+type ModuleBuildParams BuildParams
 
 type androidBaseContext interface {
 	Target() Target
@@ -75,8 +77,7 @@ type ModuleContext interface {
 	androidBaseContext
 	blueprint.BaseModuleContext
 
-	// Similar to Build, but takes Paths instead of []string,
-	// and performs more verification.
+	// Deprecated: use ModuleContext.Build instead.
 	ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams)
 
 	ExpandSources(srcFiles, excludes []string) Paths
@@ -115,7 +116,9 @@ type ModuleContext interface {
 
 	Variable(pctx blueprint.PackageContext, name, value string)
 	Rule(pctx blueprint.PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
-	Build(pctx blueprint.PackageContext, params blueprint.BuildParams)
+	// Similar to blueprint.ModuleContext.Build, but takes Paths instead of []string,
+	// and performs more verification.
+	Build(pctx blueprint.PackageContext, params BuildParams)
 
 	PrimaryModule() blueprint.Module
 	FinalModule() blueprint.Module
@@ -144,7 +147,7 @@ type Module interface {
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
 
-	BuildParamsForTests() []ModuleBuildParams
+	BuildParamsForTests() []BuildParams
 }
 
 type nameProperties struct {
@@ -330,7 +333,7 @@ type ModuleBase struct {
 	registerProps []interface{}
 
 	// For tests
-	buildParams []ModuleBuildParams
+	buildParams []BuildParams
 }
 
 func (a *ModuleBase) AddProperties(props ...interface{}) {
@@ -341,7 +344,7 @@ func (a *ModuleBase) GetProperties() []interface{} {
 	return a.registerProps
 }
 
-func (a *ModuleBase) BuildParamsForTests() []ModuleBuildParams {
+func (a *ModuleBase) BuildParamsForTests() []BuildParams {
 	return a.buildParams
 }
 
@@ -586,7 +589,7 @@ type androidModuleContext struct {
 	module          Module
 
 	// For tests
-	buildParams []ModuleBuildParams
+	buildParams []BuildParams
 }
 
 func (a *androidModuleContext) ninjaError(desc string, outputs []string, err error) {
@@ -602,19 +605,11 @@ func (a *androidModuleContext) ninjaError(desc string, outputs []string, err err
 	return
 }
 
-func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params blueprint.BuildParams) {
-	if a.missingDeps != nil {
-		a.ninjaError(params.Description, params.Outputs,
-			fmt.Errorf("module %s missing dependencies: %s\n",
-				a.ModuleName(), strings.Join(a.missingDeps, ", ")))
-		return
-	}
-
-	params.Optional = true
-	a.ModuleContext.Build(pctx, params)
+func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+	a.Build(pctx, BuildParams(params))
 }
 
-func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params BuildParams) {
 	if a.config.captureBuild {
 		a.buildParams = append(a.buildParams, params)
 	}
@@ -782,7 +777,7 @@ func (a *androidModuleContext) installFile(installPath OutputPath, name string, 
 			orderOnlyDeps = deps
 		}
 
-		a.ModuleBuild(pctx, ModuleBuildParams{
+		a.Build(pctx, BuildParams{
 			Rule:        rule,
 			Description: "install " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
@@ -804,7 +799,7 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 
 	if !a.skipInstall(fullInstallPath) {
 
-		a.ModuleBuild(pctx, ModuleBuildParams{
+		a.Build(pctx, BuildParams{
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base(),
 			Output:      fullInstallPath,

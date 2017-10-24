@@ -289,7 +289,7 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 		desc += " " + task.out[0].Base()
 	}
 
-	params := android.ModuleBuildParams{
+	params := android.BuildParams{
 		Rule:            g.rule,
 		Description:     "generate",
 		Output:          task.out[0],
@@ -304,7 +304,7 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 		depfile := android.GenPathWithExt(ctx, "", task.out[0], task.out[0].Ext()+".d")
 		params.Depfile = depfile
 	}
-	ctx.ModuleBuild(pctx, params)
+	ctx.Build(pctx, params)
 
 	for _, outputFile := range task.out {
 		g.outputFiles = append(g.outputFiles, outputFile)
