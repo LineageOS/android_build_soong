@@ -286,8 +286,8 @@ func (p Paths) Strings() []string {
 	return ret
 }
 
-// FirstUniqueElements returns all unique elements of a slice, keeping the first copy of each
-// modifies the slice contents in place, and returns a subslice of the original slice
+// FirstUniquePaths returns all unique elements of a Paths, keeping the first copy of each.  It
+// modifies the Paths slice contents in place, and returns a subslice of the original slice.
 func FirstUniquePaths(list Paths) Paths {
 	k := 0
 outer:
@@ -301,6 +301,24 @@ outer:
 		k++
 	}
 	return list[:k]
+}
+
+// LastUniquePaths returns all unique elements of a Paths, keeping the last copy of each.  It
+// modifies the Paths slice contents in place, and returns a subslice of the original slice.
+func LastUniquePaths(list Paths) Paths {
+	totalSkip := 0
+	for i := len(list) - 1; i >= totalSkip; i-- {
+		skip := 0
+		for j := i - 1; j >= totalSkip; j-- {
+			if list[i] == list[j] {
+				skip++
+			} else {
+				list[j+skip] = list[j]
+			}
+		}
+		totalSkip += skip
+	}
+	return list[totalSkip:]
 }
 
 func indexPathList(s Path, list []Path) int {

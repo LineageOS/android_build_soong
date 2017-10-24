@@ -561,7 +561,7 @@ func orderDeps(directDeps []android.Path, transitiveDeps map[android.Path][]andr
 		orderedAllDeps = append(orderedAllDeps, transitiveDeps[dep]...)
 	}
 
-	orderedAllDeps = lastUniquePaths(orderedAllDeps)
+	orderedAllDeps = android.LastUniquePaths(orderedAllDeps)
 
 	// We don't want to add any new dependencies into directDeps (to allow the caller to
 	// intentionally exclude or replace any unwanted transitive dependencies), so we limit the
@@ -763,12 +763,12 @@ func (c *Module) deps(ctx DepsContext) Deps {
 		deps = feature.deps(ctx, deps)
 	}
 
-	deps.WholeStaticLibs = lastUniqueElements(deps.WholeStaticLibs)
-	deps.StaticLibs = lastUniqueElements(deps.StaticLibs)
-	deps.LateStaticLibs = lastUniqueElements(deps.LateStaticLibs)
-	deps.SharedLibs = lastUniqueElements(deps.SharedLibs)
-	deps.LateSharedLibs = lastUniqueElements(deps.LateSharedLibs)
-	deps.HeaderLibs = lastUniqueElements(deps.HeaderLibs)
+	deps.WholeStaticLibs = android.LastUniqueStrings(deps.WholeStaticLibs)
+	deps.StaticLibs = android.LastUniqueStrings(deps.StaticLibs)
+	deps.LateStaticLibs = android.LastUniqueStrings(deps.LateStaticLibs)
+	deps.SharedLibs = android.LastUniqueStrings(deps.SharedLibs)
+	deps.LateSharedLibs = android.LastUniqueStrings(deps.LateSharedLibs)
+	deps.HeaderLibs = android.LastUniqueStrings(deps.HeaderLibs)
 
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
@@ -1249,13 +1249,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	depPaths.StaticLibs = append(depPaths.StaticLibs, orderStaticModuleDeps(c, directStaticDeps)...)
 
 	// Dedup exported flags from dependencies
-	depPaths.Flags = firstUniqueElements(depPaths.Flags)
+	depPaths.Flags = android.FirstUniqueStrings(depPaths.Flags)
 	depPaths.GeneratedHeaders = android.FirstUniquePaths(depPaths.GeneratedHeaders)
-	depPaths.ReexportedFlags = firstUniqueElements(depPaths.ReexportedFlags)
+	depPaths.ReexportedFlags = android.FirstUniqueStrings(depPaths.ReexportedFlags)
 	depPaths.ReexportedFlagsDeps = android.FirstUniquePaths(depPaths.ReexportedFlagsDeps)
 
 	if c.sabi != nil {
-		c.sabi.Properties.ReexportedIncludeFlags = firstUniqueElements(c.sabi.Properties.ReexportedIncludeFlags)
+		c.sabi.Properties.ReexportedIncludeFlags = android.FirstUniqueStrings(c.sabi.Properties.ReexportedIncludeFlags)
 	}
 
 	return depPaths
@@ -1436,58 +1436,6 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		// will be restricted using the existing link type checks.
 		mctx.CreateVariations(coreMode)
 	}
-}
-
-// firstUniqueElements returns all unique elements of a slice, keeping the first copy of each
-// modifies the slice contents in place, and returns a subslice of the original slice
-func firstUniqueElements(list []string) []string {
-	k := 0
-outer:
-	for i := 0; i < len(list); i++ {
-		for j := 0; j < k; j++ {
-			if list[i] == list[j] {
-				continue outer
-			}
-		}
-		list[k] = list[i]
-		k++
-	}
-	return list[:k]
-}
-
-// lastUniqueElements returns all unique elements of a slice, keeping the last copy of each.
-// It modifies the slice contents in place, and returns a subslice of the original slice
-func lastUniqueElements(list []string) []string {
-	totalSkip := 0
-	for i := len(list) - 1; i >= totalSkip; i-- {
-		skip := 0
-		for j := i - 1; j >= totalSkip; j-- {
-			if list[i] == list[j] {
-				skip++
-			} else {
-				list[j+skip] = list[j]
-			}
-		}
-		totalSkip += skip
-	}
-	return list[totalSkip:]
-}
-
-// lastUniquePaths is the same as lastUniqueElements but uses Path structs
-func lastUniquePaths(list []android.Path) []android.Path {
-	totalSkip := 0
-	for i := len(list) - 1; i >= totalSkip; i-- {
-		skip := 0
-		for j := i - 1; j >= totalSkip; j-- {
-			if list[i] == list[j] {
-				skip++
-			} else {
-				list[j+skip] = list[j]
-			}
-		}
-		totalSkip += skip
-	}
-	return list[totalSkip:]
 }
 
 func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
