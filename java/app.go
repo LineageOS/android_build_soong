@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -231,7 +230,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 	aaptFlags = append(aaptFlags, android.JoinWithPrefix(assetDirs.Strings(), "-A "))
 	aaptFlags = append(aaptFlags, android.JoinWithPrefix(resourceDirs.Strings(), "-S "))
 
-	ctx.VisitDirectDeps(func(module blueprint.Module) {
+	ctx.VisitDirectDeps(func(module android.Module) {
 		var depFiles android.Paths
 		if javaDep, ok := module.(Dependency); ok {
 			if ctx.OtherModuleName(module) == "framework-res" {

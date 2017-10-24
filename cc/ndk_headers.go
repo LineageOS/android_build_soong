@@ -237,7 +237,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 	}
 
 	timestampFile := android.PathForModuleOut(ctx, "versioner.timestamp")
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:            preprocessBionicHeaders,
 		Description:     "versioner preprocess " + srcDir.Rel(),
 		Output:          timestampFile,

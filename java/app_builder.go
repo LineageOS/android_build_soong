@@ -82,7 +82,7 @@ func CreateResourceJavaFiles(ctx android.ModuleContext, flags []string,
 	publicResourcesFile := android.PathForModuleOut(ctx, "public_resources.xml")
 	proguardOptionsFile := android.PathForModuleOut(ctx, "proguard.options")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        aaptCreateResourceJavaFile,
 		Description: "aapt create R.java",
 		Outputs:     android.WritablePaths{publicResourcesFile, proguardOptionsFile, javaFileList},
@@ -102,7 +102,7 @@ func CreateResourceJavaFiles(ctx android.ModuleContext, flags []string,
 func CreateExportPackage(ctx android.ModuleContext, flags []string, deps android.Paths) android.ModuleOutPath {
 	outputFile := android.PathForModuleOut(ctx, "package-export.apk")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        aaptCreateAssetsPackage,
 		Description: "aapt export package",
 		Output:      outputFile,
@@ -120,7 +120,7 @@ func CreateAppPackage(ctx android.ModuleContext, flags []string, jarFile android
 
 	resourceApk := android.PathForModuleOut(ctx, "resources.apk")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        aaptAddResources,
 		Description: "aapt package",
 		Output:      resourceApk,
@@ -137,7 +137,7 @@ func CreateAppPackage(ctx android.ModuleContext, flags []string, jarFile android
 		certificateArgs = append(certificateArgs, c+".x509.pem", c+".pk8")
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        signapk,
 		Description: "signapk",
 		Output:      outputFile,

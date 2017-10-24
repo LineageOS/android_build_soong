@@ -181,7 +181,7 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 	inputs := append(android.Paths(nil), srcFiles...)
 	inputs = append(inputs, srcJars...)
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        kotlinc,
 		Description: "kotlinc",
 		Output:      outputFile,
@@ -236,7 +236,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 	} else {
 		sourcepath = ""
 	}
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        turbine,
 		Description: "turbine",
 		Output:      outputFile,
@@ -286,7 +286,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 
 	deps = append(deps, flags.classpath...)
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        rule,
 		Description: desc,
 		Output:      outputFile,
@@ -309,7 +309,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.WritablePath,
 	jarArgs []string, deps android.Paths) {
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        jar,
 		Description: "jar",
 		Output:      outputFile,
@@ -341,7 +341,7 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 		jarArgs = append(jarArgs, "-D")
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        combineJar,
 		Description: desc,
 		Output:      outputFile,
@@ -371,7 +371,7 @@ func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath
 	deps = append(deps, flags.bootClasspath...)
 	deps = append(deps, flags.classpath...)
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        desugar,
 		Description: "desugar",
 		Output:      outputFile,
@@ -393,7 +393,7 @@ func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.W
 
 	outDir := android.PathForModuleOut(ctx, "dex")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        dx,
 		Description: "dx",
 		Output:      outputFile,
@@ -407,7 +407,7 @@ func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.W
 
 func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 	classesJar android.Path, rulesFile android.Path) {
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        jarjar,
 		Description: "jarjar",
 		Output:      outputFile,
