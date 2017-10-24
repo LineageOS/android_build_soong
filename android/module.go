@@ -982,6 +982,10 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 	for _, s := range srcFiles {
 		if m := SrcIsModule(s); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
+			if module == nil {
+				// Error will have been handled by ExtractSourcesDeps
+				continue
+			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
 				expandedSrcFiles = append(expandedSrcFiles, srcProducer.Srcs()...)
 			} else {
