@@ -93,10 +93,21 @@ func init() {
 			return path.String(), nil
 		}
 	})
+	pctx.VariableFunc("TurbineJar", func(config interface{}) (string, error) {
+		turbine := "turbine.jar"
+		if config.(android.Config).UnbundledBuild() {
+			return "prebuilts/build-tools/common/framework/" + turbine, nil
+		} else {
+			path, err := pctx.HostJavaToolPath(config, turbine)
+			if err != nil {
+				return "", err
+			}
+			return path.String(), nil
+		}
+	})
 
 	pctx.HostJavaToolVariable("JarjarCmd", "jarjar.jar")
 	pctx.HostJavaToolVariable("DesugarJar", "desugar.jar")
-	pctx.HostJavaToolVariable("TurbineJar", "turbine.jar")
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 
