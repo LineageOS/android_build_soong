@@ -138,6 +138,7 @@ func (system *SystemModules) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w)
 				fmt.Fprintln(w, makevar, ":=", system.outputFile.String())
 				fmt.Fprintln(w, ".KATI_READONLY", ":=", makevar)
+				fmt.Fprintln(w, name+":", "$("+makevar+")")
 			}
 		},
 	}

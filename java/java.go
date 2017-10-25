@@ -689,15 +689,11 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles android.P
 	var headerJar android.Path
 	jars = append(jars, deps.staticHeaderJars...)
 
-	if len(jars) == 0 {
-		panic("The turbine.jar is empty without any sources and static libs.")
-	} else {
-		// we cannot skip the combine step for now if there is only one jar
-		// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
-		combinedJar := android.PathForModuleOut(ctx, "turbine-combined", jarName)
-		TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{}, false, []string{"META-INF"})
-		headerJar = combinedJar
-	}
+	// we cannot skip the combine step for now if there is only one jar
+	// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
+	combinedJar := android.PathForModuleOut(ctx, "turbine-combined", jarName)
+	TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{}, false, []string{"META-INF"})
+	headerJar = combinedJar
 
 	if j.properties.Jarjar_rules != nil {
 		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)

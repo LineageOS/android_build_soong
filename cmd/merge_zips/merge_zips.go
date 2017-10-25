@@ -78,7 +78,7 @@ func main() {
 	// parse args
 	flag.Parse()
 	args := flag.Args()
-	if len(args) < 2 {
+	if len(args) < 1 {
 		flag.Usage()
 		os.Exit(1)
 	}
