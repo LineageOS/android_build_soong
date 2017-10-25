@@ -1402,6 +1402,9 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		// LL-NDK stubs only exist in the vendor variant, since the
 		// real libraries will be used in the core variant.
 		mctx.CreateVariations(vendorMode)
+	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
+		// ... and LL-NDK headers as well
+		mctx.CreateVariations(vendorMode)
 	} else if m.hasVendorVariant() {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
