@@ -66,7 +66,7 @@ var (
 func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.ModuleGenPath, yaccFlags string) (headerFile android.ModuleGenPath) {
 	headerFile = android.GenPathWithExt(ctx, "yacc", yaccFile, "h")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:           yacc,
 		Description:    "yacc " + yaccFile.Rel(),
 		Output:         outFile,
@@ -83,7 +83,7 @@ func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.M
 
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.ModuleGenPath, aidlFlags string) android.Paths {
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        aidl,
 		Description: "aidl " + aidlFile.Rel(),
 		Output:      outFile,
@@ -99,7 +99,7 @@ func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.M
 }
 
 func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        lex,
 		Description: "lex " + lexFile.Rel(),
 		Output:      outFile,
@@ -113,7 +113,7 @@ func genWinMsg(ctx android.ModuleContext, srcFile android.Path, flags builderFla
 
 	windmcCmd := gccCmd(flags.toolchain, "windmc")
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:           windmc,
 		Description:    "windmc " + srcFile.Rel(),
 		Output:         rcFile,

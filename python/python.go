@@ -508,7 +508,7 @@ func (p *Module) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 	}
 
 	// visit all its dependencies in depth first.
-	ctx.VisitDepsDepthFirst(func(module blueprint.Module) {
+	ctx.VisitDepsDepthFirst(func(module android.Module) {
 		if ctx.OtherModuleDependencyTag(module) != pythonLibTag {
 			return
 		}

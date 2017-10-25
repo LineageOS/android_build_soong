@@ -67,7 +67,7 @@ func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, 
 		android.PathForModuleOut(ctx, "system/release"),
 	}
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        jarsTosystemModules,
 		Description: "system modules",
 		Outputs:     outputs,
@@ -112,7 +112,7 @@ type SystemModulesProperties struct {
 func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var jars android.Paths
 
-	ctx.VisitDirectDeps(func(module blueprint.Module) {
+	ctx.VisitDirectDeps(func(module android.Module) {
 		if ctx.OtherModuleDependencyTag(module) == libTag {
 			dep, _ := module.(Dependency)
 			jars = append(jars, dep.HeaderJars()...)

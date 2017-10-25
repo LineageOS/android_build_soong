@@ -41,7 +41,7 @@ var (
 func genProto(ctx android.ModuleContext, outputSrcJar android.WritablePath,
 	protoFiles android.Paths, protoFlags string, protoOut, protoOutFlags string) {
 
-	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        proto,
 		Description: "protoc " + protoFiles[0].Rel(),
 		Output:      outputSrcJar,

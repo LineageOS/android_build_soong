@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -104,7 +102,7 @@ func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 			mctx.PropertyErrorf("LTO", "FullLTO and ThinLTO are mutually exclusive")
 		}
 
-		mctx.VisitDepsDepthFirst(func(m blueprint.Module) {
+		mctx.VisitDepsDepthFirst(func(m android.Module) {
 			tag := mctx.OtherModuleDependencyTag(m)
 			switch tag {
 			case staticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag, objDepTag, reuseObjTag:
