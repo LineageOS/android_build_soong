@@ -62,7 +62,7 @@ type BaseCompilerProperties struct {
 
 	// the instruction set architecture to use to compile the C/C++
 	// module.
-	Instruction_set string `android:"arch_variant"`
+	Instruction_set *string `android:"arch_variant"`
 
 	// list of directories relative to the root of the source tree that will
 	// be added to the include path using -I.
@@ -277,7 +277,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 			"-D__ANDROID_API__=__ANDROID_API_FUTURE__", "-D__ANDROID_VNDK__")
 	}
 
-	instructionSet := compiler.Properties.Instruction_set
+	instructionSet := proptools.String(compiler.Properties.Instruction_set)
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
 	}
