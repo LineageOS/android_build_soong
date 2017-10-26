@@ -521,7 +521,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags = protoFlags(ctx, &j.protoProperties, flags)
 	}
 
-	var srcJars classpath
+	var srcJars android.Paths
 	srcFiles, srcJars = j.genSources(ctx, srcFiles, flags)
 	srcJars = append(srcJars, deps.srcJars...)
 	srcJars = append(srcJars, j.ExtraSrcJars...)
@@ -576,7 +576,7 @@ func (j *Module) compile(ctx android.ModuleContext) {
 			}
 		}
 	}
-	if len(uniqueSrcFiles) > 0 {
+	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
 		var extraJarDeps android.Paths
 		if ctx.AConfig().IsEnvTrue("RUN_ERROR_PRONE") {
 			// If error-prone is enabled, add an additional rule to compile the java files into
@@ -670,11 +670,11 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	j.outputFile = outputFile
 }
 
-func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles android.Paths, srcJars classpath,
+func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars android.Paths,
 	deps deps, flags javaBuilderFlags, jarName string) android.Path {
 
 	var jars android.Paths
-	if len(srcFiles) > 0 {
+	if len(srcFiles) > 0 || len(srcJars) > 0 {
 		// Compile java sources into turbine.jar.
 		turbineJar := android.PathForModuleOut(ctx, "turbine", jarName)
 		TransformJavaToHeaderClasses(ctx, turbineJar, srcFiles, srcJars, flags)
