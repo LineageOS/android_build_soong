@@ -631,6 +631,11 @@ func TestKotlin(t *testing.T) {
 			name: "foo",
                         srcs: ["a.java", "b.kt"],
 		}
+
+		java_library {
+			name: "bar",
+                        srcs: ["b.kt"],
+		}
 		`)
 
 	kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
@@ -654,6 +659,13 @@ func TestKotlin(t *testing.T) {
 	if !inList(kotlinc.Output.String(), jar.Inputs.Strings()) {
 		t.Errorf("foo jar inputs %v does not contain %q",
 			jar.Inputs.Strings(), kotlinc.Output.String())
+	}
+
+	kotlinc = ctx.ModuleForTests("bar", "android_common").Rule("kotlinc")
+	jar = ctx.ModuleForTests("bar", "android_common").Output("combined/bar.jar")
+
+	if len(kotlinc.Inputs) != 1 || kotlinc.Inputs[0].String() != "b.kt" {
+		t.Errorf(`bar kotlinc inputs %v != ["b.kt"]`, kotlinc.Inputs)
 	}
 }
 
