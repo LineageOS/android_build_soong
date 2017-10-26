@@ -85,7 +85,7 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 }
 
 func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
-	flags javaBuilderFlags) (android.Paths, classpath) {
+	flags javaBuilderFlags) (android.Paths, android.Paths) {
 
 	var protoFiles android.Paths
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
@@ -106,7 +106,7 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		}
 	}
 
-	var outSrcJars classpath
+	var outSrcJars android.Paths
 
 	if len(protoFiles) > 0 {
 		protoSrcJar := android.PathForModuleGen(ctx, "proto.src.jar")

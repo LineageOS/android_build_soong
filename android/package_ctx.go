@@ -149,6 +149,15 @@ func (p AndroidPackageContext) HostJavaToolVariable(name, path string) blueprint
 	})
 }
 
+func (p AndroidPackageContext) HostJavaToolPath(config interface{}, path string) (Path, error) {
+	ctx := &configErrorWrapper{p, config.(Config), []error{}}
+	pa := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "framework", path)
+	if len(ctx.errors) > 0 {
+		return nil, ctx.errors[0]
+	}
+	return pa, nil
+}
+
 // IntermediatesPathVariable returns a Variable whose value is the intermediate
 // directory appended with the supplied path. It may only be called during a Go
 // package's initialization - either from the init() function or as part of a

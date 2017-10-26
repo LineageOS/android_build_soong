@@ -38,18 +38,24 @@ var (
 	// read from directly using @<listfile>)
 	javac = pctx.AndroidGomaStaticRule("javac",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
+			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
+				`${config.ExtractSrcJarsCmd} $srcJarDir $srcJarDir/list $srcJars && ` +
 				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
-				`$javacFlags $sourcepath $bootClasspath $classpath ` +
+				`$javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
-				`-d $outDir -s $annoDir @$out.rsp && ` +
+				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
-			CommandDeps:      []string{"${config.JavacCmd}", "${config.SoongZipCmd}"},
+			CommandDeps: []string{
+				"${config.JavacCmd}",
+				"${config.SoongZipCmd}",
+				"${config.ExtractSrcJarsCmd}",
+			},
 			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
 		},
-		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+		"javacFlags", "bootClasspath", "classpath", "srcJars", "srcJarDir",
+		"outDir", "annoDir", "javaVersion")
 
 	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 		blueprint.RuleParams{
@@ -69,39 +75,49 @@ var (
 
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$annoDir" && mkdir -p "$outDir" "$annoDir" && ` +
+			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
+				`${config.ExtractSrcJarsCmd} $srcJarDir $srcJarDir/list $srcJars && ` +
 				`${config.SoongJavacWrapper} ${config.ErrorProneCmd} ` +
-				`$javacFlags $sourcepath $bootClasspath $classpath ` +
+				`$javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
-				`-d $outDir -s $annoDir @$out.rsp && ` +
+				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
 			CommandDeps: []string{
 				"${config.JavaCmd}",
 				"${config.ErrorProneJavacJar}",
 				"${config.ErrorProneJar}",
 				"${config.SoongZipCmd}",
+				"${config.ExtractSrcJarsCmd}",
 			},
 			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
 		},
-		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "annoDir", "javaVersion")
+		"javacFlags", "bootClasspath", "classpath", "srcJars", "srcJarDir",
+		"outDir", "annoDir", "javaVersion")
 
 	turbine = pctx.AndroidStaticRule("turbine",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+			Command: `rm -rf "$outDir" "$srcJarDir" && mkdir -p "$outDir" "$srcJarDir" && ` +
+				`${config.ExtractSrcJarsCmd} $srcJarDir $srcJarDir/list $srcJars && ` +
 				`${config.JavaCmd} -jar ${config.TurbineJar} --output $out.tmp ` +
-				`--temp_dir "$outDir" --sources @$out.rsp $sourcepath ` +
+				`--temp_dir "$outDir" --sources @$out.rsp @$srcJarDir/list ` +
 				`--javacopts ${config.CommonJdkFlags} ` +
 				`$javacFlags -source $javaVersion -target $javaVersion $bootClasspath $classpath && ` +
 				`${config.Ziptime} $out.tmp && ` +
 				`(if cmp -s $out.tmp $out ; then rm $out.tmp ; else mv $out.tmp $out ; fi )`,
-			CommandDeps:    []string{"${config.TurbineJar}", "${config.JavaCmd}", "${config.Ziptime}"},
+			CommandDeps: []string{
+				"${config.TurbineJar}",
+				"${config.JavaCmd}",
+				"${config.Ziptime}",
+				"${config.ExtractSrcJarsCmd}",
+			},
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 			Restat:         true,
 		},
-		"javacFlags", "sourcepath", "bootClasspath", "classpath", "outDir", "javaVersion")
+		"javacFlags", "bootClasspath", "classpath", "srcJars", "srcJarDir",
+		"outDir", "javaVersion")
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
@@ -173,7 +189,7 @@ type javaBuilderFlags struct {
 }
 
 func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles android.Paths, srcJars classpath,
+	srcFiles, srcJars android.Paths,
 	flags javaBuilderFlags) {
 
 	classDir := android.PathForModuleOut(ctx, "kotlinc", "classes")
@@ -196,7 +212,7 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles android.Paths, srcJars classpath,
+	srcFiles, srcJars android.Paths,
 	flags javaBuilderFlags, deps android.Paths) {
 
 	transformJavaToClasses(ctx, outputFile, srcFiles, srcJars, flags, deps,
@@ -204,7 +220,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 }
 
 func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles android.Paths, srcJars classpath, flags javaBuilderFlags) {
+	srcFiles, srcJars android.Paths, flags javaBuilderFlags) {
 
 	if config.ErrorProneJar == "" {
 		ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
@@ -215,7 +231,7 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 }
 
 func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles android.Paths, srcJars classpath, flags javaBuilderFlags) {
+	srcFiles, srcJars android.Paths, flags javaBuilderFlags) {
 
 	var deps android.Paths
 	deps = append(deps, srcJars...)
@@ -230,12 +246,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 	} else {
 		bootClasspath = flags.bootClasspath.FormJavaClassPath("--bootclasspath")
 	}
-	var sourcepath string
-	if len(srcJars) > 0 {
-		sourcepath = "--sourcepath_jars" + " " + strings.Join(srcJars.Strings(), " ")
-	} else {
-		sourcepath = ""
-	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        turbine,
 		Description: "turbine",
@@ -245,7 +256,8 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
-			"sourcepath":    sourcepath,
+			"srcJars":       strings.Join(srcJars.Strings(), " "),
+			"srcJarDir":     android.PathForModuleOut(ctx, "turbine", "srcjars").String(),
 			"classpath":     flags.classpath.FormJavaClassPath("--classpath"),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 			"javaVersion":   flags.javaVersion,
@@ -263,7 +275,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 // suffix will be appended to various intermediate files and directories to avoid collisions when
 // this function is called twice in the same module directory.
 func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles android.Paths, srcJars classpath,
+	srcFiles, srcJars android.Paths,
 	flags javaBuilderFlags, deps android.Paths,
 	intermediatesDir, desc string, rule blueprint.Rule) {
 
@@ -295,13 +307,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
-			// Returns a -sourcepath argument in the form javac expects.  If the list is empty returns
-			// -sourcepath "" to ensure javac does not fall back to searching the classpath for sources.
-			"sourcepath":  srcJars.FormJavaClassPath("-sourcepath"),
-			"classpath":   flags.classpath.FormJavaClassPath("-classpath"),
-			"outDir":      android.PathForModuleOut(ctx, intermediatesDir, "classes").String(),
-			"annoDir":     android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
-			"javaVersion": flags.javaVersion,
+			"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
+			"srcJars":       strings.Join(srcJars.Strings(), " "),
+			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, "srcjars").String(),
+			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, "classes").String(),
+			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
+			"javaVersion":   flags.javaVersion,
 		},
 	})
 }
