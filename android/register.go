@@ -43,7 +43,7 @@ var mutators []*mutator
 
 type ModuleFactory func() Module
 
-// ModuleFactoryAdapter Wraps a ModuleFactory into a blueprint.ModuleFactory by converting an Module
+// ModuleFactoryAdaptor Wraps a ModuleFactory into a blueprint.ModuleFactory by converting an Module
 // into a blueprint.Module and a list of property structs
 func ModuleFactoryAdaptor(factory ModuleFactory) blueprint.ModuleFactory {
 	return func() (blueprint.Module, []interface{}) {
