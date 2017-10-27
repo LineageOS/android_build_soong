@@ -16,7 +16,6 @@ package genrule
 
 import (
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -139,6 +138,17 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+// Given an output file, returns an expression for the corresponding file path within the sandbox
+func sandboxPathForOutput(ctx android.ModuleContext, outputFile string) (relative string, err error) {
+	var relativePath string
+	basedir := ctx.AConfig().BuildDir()
+	relativePath, err = filepath.Rel(basedir, outputFile)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join("__SBOX_OUT_DIR__", relativePath), nil
+}
+
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
 		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
@@ -209,6 +219,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
+	referencedDepfile := false
+
 	rawCommand, err := android.Expand(g.properties.Cmd, func(name string) (string, error) {
 		switch name {
 		case "location":
@@ -222,20 +234,17 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		case "out":
 			return "__SBOX_OUT_FILES__", nil
 		case "depfile":
+			referencedDepfile = true
 			if !g.properties.Depfile {
 				return "", fmt.Errorf("$(depfile) used without depfile property")
 			}
-			return "${depfile}", nil
+			return "__SBOX_DEPFILE__", nil
 		case "genDir":
-			genPath := android.PathForModuleGen(ctx, "").String()
-			var relativePath string
-			var err error
-			outputPath := android.PathForOutput(ctx).String()
-			relativePath, err = filepath.Rel(outputPath, genPath)
+			path, err := sandboxPathForOutput(ctx, android.PathForModuleGen(ctx, "").String())
 			if err != nil {
-				panic(err)
+				return "", err
 			}
-			return path.Join("__SBOX_OUT_DIR__", relativePath), nil
+			return path, nil
 		default:
 			if strings.HasPrefix(name, "location ") {
 				label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
@@ -249,6 +258,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	})
 
+	if g.properties.Depfile && !referencedDepfile {
+		ctx.PropertyErrorf("cmd", "specified depfile=true but did not include a reference to '${depfile}' in cmd")
+	}
+
 	if err != nil {
 		ctx.PropertyErrorf("cmd", "%s", err.Error())
 		return
@@ -260,7 +273,11 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// recall that Sprintf replaces percent sign expressions, whereas dollar signs expressions remain as written,
 	// to be replaced later by ninja_strings.go
-	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q $allouts", sandboxPath, buildDir, rawCommand)
+	depfilePlaceholder := ""
+	if g.properties.Depfile {
+		depfilePlaceholder = "$depfileArgs"
+	}
+	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, buildDir, rawCommand, depfilePlaceholder)
 
 	ruleParams := blueprint.RuleParams{
 		Command:     sandboxCommand,
@@ -269,7 +286,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	args := []string{"allouts"}
 	if g.properties.Depfile {
 		ruleParams.Deps = blueprint.DepsGCC
-		args = append(args, "depfile")
+		args = append(args, "depfileArgs")
 	}
 	g.rule = ctx.Rule(pctx, "generator", ruleParams, args...)
 
@@ -289,6 +306,11 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 		desc += " " + task.out[0].Base()
 	}
 
+	var depFile android.ModuleGenPath
+	if g.properties.Depfile {
+		depFile = android.PathForModuleGen(ctx, task.out[0].Rel()+".d")
+	}
+
 	params := android.BuildParams{
 		Rule:            g.rule,
 		Description:     "generate",
@@ -301,9 +323,10 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 		},
 	}
 	if g.properties.Depfile {
-		depfile := android.GenPathWithExt(ctx, "", task.out[0], task.out[0].Ext()+".d")
-		params.Depfile = depfile
+		params.Depfile = android.PathForModuleGen(ctx, task.out[0].Rel()+".d")
+		params.Args["depfileArgs"] = "--depfile-out " + depFile.String()
 	}
+
 	ctx.Build(pctx, params)
 
 	for _, outputFile := range task.out {
