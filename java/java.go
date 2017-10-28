@@ -868,6 +868,10 @@ type Binary struct {
 	binaryFile  android.OutputPath
 }
 
+func (j *Binary) HostToolPath() android.OptionalPath {
+	return android.OptionalPathForPath(j.binaryFile)
+}
+
 func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.Library.GenerateAndroidBuildActions(ctx)
 
