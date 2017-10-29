@@ -203,7 +203,7 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 		Output:      outputFile,
 		Inputs:      inputs,
 		Args: map[string]string{
-			"classpath":    flags.kotlincClasspath.FormJavaClassPath("--classpath"),
+			"classpath":    flags.kotlincClasspath.FormJavaClassPath("-classpath"),
 			"kotlincFlags": flags.kotlincFlags,
 			"outDir":       classDir.String(),
 			"javaVersion":  flags.javaVersion,

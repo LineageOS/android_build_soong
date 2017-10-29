@@ -80,9 +80,9 @@ func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 	pctx.VariableFunc("DxCmd", func(config interface{}) (string, error) {
-		dexer := "dx"
-		if config.(android.Config).Getenv("USE_D8") == "true" {
-			dexer = "d8"
+		dexer := "d8"
+		if config.(android.Config).IsEnvFalse("USE_D8") {
+			dexer = "dx"
 		}
 		if config.(android.Config).UnbundledBuild() || config.(android.Config).IsPdkBuild() {
 			return "prebuilts/build-tools/common/bin/" + dexer, nil
