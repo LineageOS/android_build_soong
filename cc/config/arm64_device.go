@@ -96,6 +96,7 @@ func init() {
 		"cortex-a53",
 		"cortex-a73",
 		"kryo",
+		"kryo300",
 		"denver64")
 
 	// Clang supports specific Kryo targeting
