@@ -468,16 +468,20 @@ func (c *config) BuildNumber() string {
 	return "000000"
 }
 
-func (c *config) ProductAaptConfig() []string {
-	return []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"}
+func (c *config) ProductAAPTConfig() []string {
+	return *c.ProductVariables.AAPTConfig
 }
 
-func (c *config) ProductAaptPreferredConfig() string {
-	return "xhdpi"
+func (c *config) ProductAAPTPreferredConfig() string {
+	return *c.ProductVariables.AAPTPreferredConfig
 }
 
-func (c *config) ProductAaptCharacteristics() string {
-	return "nosdcard"
+func (c *config) ProductAAPTCharacteristics() string {
+	return *c.ProductVariables.AAPTCharacteristics
+}
+
+func (c *config) ProductAAPTPrebuiltDPI() []string {
+	return *c.ProductVariables.AAPTPrebuiltDPI
 }
 
 func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
