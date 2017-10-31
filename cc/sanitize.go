@@ -574,22 +574,22 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 						modules[1].(*Module).sanitize.Properties.InSanitizerDir = true
 						modules[1].(*Module).sanitize.SetSanitizer(cfi, false)
 					}
-				} else {
+				}
+				if mctx.AConfig().EmbeddedInMake() && !mctx.Device() {
+					if isSanitizerEnabled {
+						modules[0].(*Module).Properties.HideFromMake = true
+					} else {
+						modules[1].(*Module).Properties.HideFromMake = true
+					}
+				}
+				if !mctx.AConfig().EmbeddedInMake() || !mctx.Device() {
 					if isSanitizerEnabled {
 						modules[0].(*Module).Properties.PreventInstall = true
 					} else {
 						modules[1].(*Module).Properties.PreventInstall = true
 					}
 				}
-				if mctx.AConfig().EmbeddedInMake() {
-					if !mctx.Device() {
-						if isSanitizerEnabled {
-							modules[0].(*Module).Properties.HideFromMake = true
-						} else {
-							modules[1].(*Module).Properties.HideFromMake = true
-						}
-					}
-				}
+
 			}
 			c.sanitize.Properties.SanitizeDep = false
 		}
