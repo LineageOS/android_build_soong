@@ -32,7 +32,7 @@ func main() {
 	}
 }
 
-var usage = "Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> <outputFile> [<outputFile>...]\n" +
+var usage = "Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> [--depfile-out depFile] <outputFile> [<outputFile>...]\n" +
 	"\n" +
 	"Runs <commandToRun> and moves each <outputFile> out of <sandboxPath>\n" +
 	"If any file in <outputFiles> is specified by absolute path, then <outputRoot> must be specified as well,\n" +
@@ -43,13 +43,18 @@ func usageError(violation string) error {
 }
 
 func run() error {
-	var outFiles []string
+	// the contents of the __SBOX_OUT_FILES__ variable
+	var outputsVarEntries []string
+	// all outputs
+	var allOutputs []string
+
 	args := os.Args[1:]
 
 	var rawCommand string
 	var sandboxesRoot string
 	removeTempDir := true
 	var outputRoot string
+	var depfile string
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -64,17 +69,20 @@ func run() error {
 			i++
 		} else if arg == "--keep-out-dir" {
 			removeTempDir = false
+		} else if arg == "--depfile-out" {
+			depfile = args[i+1]
+			i++
 		} else {
-			outFiles = append(outFiles, arg)
+			outputsVarEntries = append(outputsVarEntries, arg)
 		}
 	}
-	if len(rawCommand) == 0 {
+	if rawCommand == "" {
 		return usageError("-c <commandToRun> is required and must be non-empty")
 	}
-	if outFiles == nil {
+	if len(outputsVarEntries) == 0 {
 		return usageError("at least one output file must be given")
 	}
-	if len(sandboxesRoot) == 0 {
+	if sandboxesRoot == "" {
 		// In practice, the value of sandboxesRoot will mostly likely be at a fixed location relative to OUT_DIR,
 		// and the sbox executable will most likely be at a fixed location relative to OUT_DIR too, so
 		// the value of sandboxesRoot will most likely be at a fixed location relative to the sbox executable
@@ -82,25 +90,39 @@ func run() error {
 		// and by passing it as a parameter we don't need to duplicate its value
 		return usageError("--sandbox-path <sandboxPath> is required and must be non-empty")
 	}
-
-	// Rewrite output file paths to be relative to output root
-	// This facilitates matching them up against the corresponding paths in the temporary directory in case they're absolute
-	for i, filePath := range outFiles {
-		if path.IsAbs(filePath) {
-			if len(outputRoot) == 0 {
-				return fmt.Errorf("Absolute path %s requires nonempty value for --output-root", filePath)
-			}
-		}
-		relativePath, err := filepath.Rel(outputRoot, filePath)
-		if err != nil {
-			return err
-		}
-		outFiles[i] = relativePath
+	if len(outputRoot) == 0 {
+		return usageError("--output-root <outputRoot> is required and must be non-empty")
 	}
 
 	os.MkdirAll(sandboxesRoot, 0777)
 
 	tempDir, err := ioutil.TempDir(sandboxesRoot, "sbox")
+
+	// Rewrite output file paths to be relative to output root
+	// This facilitates matching them up against the corresponding paths in the temporary directory in case they're absolute
+	for i, filePath := range outputsVarEntries {
+		relativePath, err := filepath.Rel(outputRoot, filePath)
+		if err != nil {
+			return err
+		}
+		outputsVarEntries[i] = relativePath
+	}
+
+	allOutputs = append([]string(nil), outputsVarEntries...)
+
+	if depfile != "" {
+		sandboxedDepfile, err := filepath.Rel(outputRoot, depfile)
+		if err != nil {
+			return err
+		}
+		allOutputs = append(allOutputs, sandboxedDepfile)
+		if !strings.Contains(rawCommand, "__SBOX_DEPFILE__") {
+			return fmt.Errorf("the --depfile-out argument only makes sense if the command contains the text __SBOX_DEPFILE__")
+		}
+		rawCommand = strings.Replace(rawCommand, "__SBOX_DEPFILE__", filepath.Join(tempDir, sandboxedDepfile), -1)
+
+	}
+
 	if err != nil {
 		return fmt.Errorf("Failed to create temp dir: %s", err)
 	}
@@ -122,7 +144,7 @@ func run() error {
 	if strings.Contains(rawCommand, "__SBOX_OUT_FILES__") {
 		// expands into a space-separated list of output files to be generated into the sandbox directory
 		tempOutPaths := []string{}
-		for _, outputPath := range outFiles {
+		for _, outputPath := range outputsVarEntries {
 			tempOutPath := path.Join(tempDir, outputPath)
 			tempOutPaths = append(tempOutPaths, tempOutPath)
 		}
@@ -130,8 +152,12 @@ func run() error {
 		rawCommand = strings.Replace(rawCommand, "__SBOX_OUT_FILES__", pathsText, -1)
 	}
 
-	for _, filePath := range outFiles {
-		os.MkdirAll(path.Join(tempDir, filepath.Dir(filePath)), 0777)
+	for _, filePath := range allOutputs {
+		dir := path.Join(tempDir, filepath.Dir(filePath))
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			return err
+		}
 	}
 
 	commandDescription := rawCommand
@@ -150,7 +176,7 @@ func run() error {
 
 	// validate that all files are created properly
 	var outputErrors []error
-	for _, filePath := range outFiles {
+	for _, filePath := range allOutputs {
 		tempPath := filepath.Join(tempDir, filePath)
 		fileInfo, err := os.Stat(tempPath)
 		if err != nil {
@@ -168,7 +194,7 @@ func run() error {
 		return fmt.Errorf("mismatch between declared and actual outputs in sbox command (%s):\n%v", commandDescription, outputErrors)
 	}
 	// the created files match the declared files; now move them
-	for _, filePath := range outFiles {
+	for _, filePath := range allOutputs {
 		tempPath := filepath.Join(tempDir, filePath)
 		destPath := filePath
 		if len(outputRoot) != 0 {
