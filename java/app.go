@@ -102,7 +102,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 			if !hasProduct {
 				aaptPackageFlags = append(aaptPackageFlags,
-					"--product "+ctx.AConfig().ProductAaptCharacteristics())
+					"--product "+ctx.AConfig().ProductAAPTCharacteristics())
 			}
 			a.exportPackage = CreateExportPackage(ctx, aaptPackageFlags, aaptDeps)
 			ctx.CheckbuildFile(a.exportPackage)
@@ -132,7 +132,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if !hasProduct {
 		aaptPackageFlags = append(aaptPackageFlags,
-			"--product "+ctx.AConfig().ProductAaptCharacteristics())
+			"--product "+ctx.AConfig().ProductAAPTCharacteristics())
 	}
 
 	certificate := a.appProperties.Certificate
