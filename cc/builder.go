@@ -38,7 +38,6 @@ const (
 
 var (
 	abiCheckAllowFlags = []string{
-		"-allow-extensions",
 		"-allow-unreferenced-changes",
 		"-allow-unreferenced-elf-symbol-changes",
 	}
@@ -711,12 +710,18 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 }
 
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string) android.OptionalPath {
+	baseName, exportedHeaderFlags string, isVndkExt bool) android.OptionalPath {
+
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
+
 	localAbiCheckAllowFlags := append([]string(nil), abiCheckAllowFlags...)
 	if exportedHeaderFlags == "" {
 		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-advice-only")
 	}
+	if isVndkExt {
+		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-allow-extensions")
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiDiff,
 		Description: "header-abi-diff " + outputFile.Base(),
