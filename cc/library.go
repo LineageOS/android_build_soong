@@ -513,10 +513,6 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		if versionScript.Valid() {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
 			linkerDeps = append(linkerDeps, versionScript.Path())
-			if library.sanitize.isSanitizerEnabled(cfi) {
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+cfiExportsMap.String())
-				linkerDeps = append(linkerDeps, cfiExportsMap)
-			}
 		}
 		if unexportedSymbols.Valid() {
 			ctx.PropertyErrorf("unexported_symbols_list", "Only supported on Darwin")
