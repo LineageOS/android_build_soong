@@ -1,4 +1,0 @@
-{
-  global:
-    __cfi_check;
-};

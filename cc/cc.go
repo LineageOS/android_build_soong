@@ -46,9 +46,6 @@ func init() {
 		ctx.TopDown("asan_deps", sanitizerDepsMutator(asan))
 		ctx.BottomUp("asan", sanitizerMutator(asan)).Parallel()
 
-		ctx.TopDown("cfi_deps", sanitizerDepsMutator(cfi))
-		ctx.BottomUp("cfi", sanitizerMutator(cfi)).Parallel()
-
 		ctx.TopDown("tsan_deps", sanitizerDepsMutator(tsan))
 		ctx.BottomUp("tsan", sanitizerMutator(tsan)).Parallel()
 
@@ -440,7 +437,12 @@ func (ctx *moduleContextImpl) toolchain() config.Toolchain {
 }
 
 func (ctx *moduleContextImpl) static() bool {
-	return ctx.mod.static()
+	if static, ok := ctx.mod.linker.(interface {
+		static() bool
+	}); ok {
+		return static.static()
+	}
+	return false
 }
 
 func (ctx *moduleContextImpl) staticBinary() bool {
@@ -1277,15 +1279,6 @@ func (c *Module) Srcs() android.Paths {
 		return android.Paths{c.outputFile.Path()}
 	}
 	return android.Paths{}
-}
-
-func (c *Module) static() bool {
-	if static, ok := c.linker.(interface {
-		static() bool
-	}); ok {
-		return static.static()
-	}
-	return false
 }
 
 //

@@ -86,11 +86,6 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 	c.subAndroidMk(&ret, c.linker)
 	if c.sanitize != nil {
 		c.subAndroidMk(&ret, c.sanitize)
-		if Bool(c.sanitize.Properties.Sanitize.Cfi) {
-			ret.SubName += ".cfi"
-		} else if Bool(c.sanitize.Properties.Sanitize.Address) {
-			ret.SubName += ".asan"
-		}
 	}
 	c.subAndroidMk(&ret, c.installer)
 
