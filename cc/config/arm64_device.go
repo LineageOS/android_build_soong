@@ -89,6 +89,7 @@ func init() {
 		"cortex-a73",
 		"cortex-a75",
 		"kryo",
+		"kryo300",
 		"exynos-m1",
 		"exynos-m2",
 		"denver64")
