@@ -231,10 +231,10 @@ func translateAndroidMkModule(ctx blueprint.SingletonContext, w io.Writer, mod b
 		if len(amod.commonProperties.Init_rc) > 0 {
 			fmt.Fprintln(&data.preamble, "LOCAL_INIT_RC := ", strings.Join(amod.commonProperties.Init_rc, " "))
 		}
-		if Bool(amod.commonProperties.Proprietary) {
+		if amod.commonProperties.Proprietary {
 			fmt.Fprintln(&data.preamble, "LOCAL_PROPRIETARY_MODULE := true")
 		}
-		if Bool(amod.commonProperties.Vendor) {
+		if amod.commonProperties.Vendor {
 			fmt.Fprintln(&data.preamble, "LOCAL_VENDOR_MODULE := true")
 		}
 		if amod.commonProperties.Owner != nil {
