@@ -132,6 +132,17 @@ type productVariables struct {
 	CrossHostArch          *string `json:",omitempty"`
 	CrossHostSecondaryArch *string `json:",omitempty"`
 
+	ResourceOverlays           *[]string `json:",omitempty"`
+	EnforceRROTargets          *[]string `json:",omitempty"`
+	EnforceRROExcludedOverlays *[]string `json:",omitempty"`
+
+	AAPTCharacteristics *string   `json:",omitempty"`
+	AAPTConfig          *[]string `json:",omitempty"`
+	AAPTPreferredConfig *string   `json:",omitempty"`
+	AAPTPrebuiltDPI     *[]string `json:",omitempty"`
+
+	AppsDefaultVersionName *string `json:",omitempty"`
+
 	Allow_missing_dependencies *bool `json:",omitempty"`
 	Unbundled_build            *bool `json:",omitempty"`
 	Brillo                     *bool `json:",omitempty"`
@@ -203,8 +214,14 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
 		DeviceSecondaryCpuVariant:  stringPtr("denver"),
 		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
-		Malloc_not_svelte:          boolPtr(false),
-		Safestack:                  boolPtr(false),
+
+		AAPTConfig:          &[]string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+		AAPTPreferredConfig: stringPtr("xhdpi"),
+		AAPTCharacteristics: stringPtr("nosdcard"),
+		AAPTPrebuiltDPI:     &[]string{"xhdpi", "xxhdpi"},
+
+		Malloc_not_svelte: boolPtr(false),
+		Safestack:         boolPtr(false),
 	}
 
 	if runtime.GOOS == "linux" {
