@@ -1067,6 +1067,11 @@ func (c *deviceConfig) JavaCoverageEnabledForPath(path string) bool {
 }
 
 // Returns true if gcov or clang coverage is enabled.
+
+func (c *deviceConfig) SpecificCameraParametersLibrary() string {
+	return String(c.config.productVariables.Lineage.Specific_camera_parameter_library)
+}
+
 func (c *deviceConfig) NativeCoverageEnabled() bool {
 	return Bool(c.config.productVariables.GcovCoverage) ||
 		Bool(c.config.productVariables.ClangCoverage)
