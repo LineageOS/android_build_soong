@@ -312,12 +312,12 @@ func archMutator(mctx BottomUpMutatorContext) {
 		var multilib string
 		switch class {
 		case Device:
-			multilib = module.base().commonProperties.Target.Android.Compile_multilib
+			multilib = String(module.base().commonProperties.Target.Android.Compile_multilib)
 		case Host, HostCross:
-			multilib = module.base().commonProperties.Target.Host.Compile_multilib
+			multilib = String(module.base().commonProperties.Target.Host.Compile_multilib)
 		}
 		if multilib == "" {
-			multilib = module.base().commonProperties.Compile_multilib
+			multilib = String(module.base().commonProperties.Compile_multilib)
 		}
 		if multilib == "" {
 			multilib = module.base().commonProperties.Default_multilib

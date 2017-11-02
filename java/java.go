@@ -466,6 +466,11 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	if ctx.AConfig().TargetOpenJDK9() {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
 	}
+	if ctx.AConfig().MinimizeJavaDebugInfo() {
+		// Override the -g flag passed globally to remove local variable debug info to reduce
+		// disk and memory usage.
+		javacFlags = append(javacFlags, "-g:source,lines")
+	}
 	if len(javacFlags) > 0 {
 		// optimization.
 		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
