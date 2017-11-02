@@ -16,7 +16,6 @@ package android
 
 import (
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 // This file implements hooks that external module types can use to inject logic into existing
@@ -31,6 +30,7 @@ type LoadHookContext interface {
 	BaseContext
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
+	CreateModule(blueprint.ModuleFactory, ...interface{})
 }
 
 // Arch hooks are run after the module has been split into architecture variants, and can be used
@@ -51,62 +51,22 @@ func AddArchHook(m blueprint.Module, hook func(ArchHookContext)) {
 	h.arch = append(h.arch, hook)
 }
 
-type propertyHookContext struct {
-	BaseContext
-
-	module *ModuleBase
-}
-
-func (ctx *propertyHookContext) AppendProperties(props ...interface{}) {
-	for _, p := range props {
-		err := proptools.AppendMatchingProperties(ctx.module.customizableProperties, p, nil)
-		if err != nil {
-			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-				ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
-			} else {
-				panic(err)
-			}
-		}
-	}
-}
-
-func (ctx *propertyHookContext) PrependProperties(props ...interface{}) {
-	for _, p := range props {
-		err := proptools.PrependMatchingProperties(ctx.module.customizableProperties, p, nil)
-		if err != nil {
-			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-				ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
-			} else {
-				panic(err)
-			}
-		}
-	}
-}
-
-func (x *hooks) runLoadHooks(ctx BaseContext, m *ModuleBase) {
+func (x *hooks) runLoadHooks(ctx LoadHookContext, m *ModuleBase) {
 	if len(x.load) > 0 {
-		mctx := &propertyHookContext{
-			BaseContext: ctx,
-			module:      m,
-		}
 		for _, x := range x.load {
-			x(mctx)
-			if mctx.Failed() {
+			x(ctx)
+			if ctx.Failed() {
 				return
 			}
 		}
 	}
 }
 
-func (x *hooks) runArchHooks(ctx BaseContext, m *ModuleBase) {
+func (x *hooks) runArchHooks(ctx ArchHookContext, m *ModuleBase) {
 	if len(x.arch) > 0 {
-		mctx := &propertyHookContext{
-			BaseContext: ctx,
-			module:      m,
-		}
 		for _, x := range x.arch {
-			x(mctx)
-			if mctx.Failed() {
+			x(ctx)
+			if ctx.Failed() {
 				return
 			}
 		}
@@ -165,12 +125,18 @@ type hooks struct {
 
 func loadHookMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
-		m.base().hooks.runLoadHooks(ctx, m.base())
+		// Cast through *androidTopDownMutatorContext because AppendProperties is implemented
+		// on *androidTopDownMutatorContext but not exposed through TopDownMutatorContext
+		var loadHookCtx LoadHookContext = ctx.(*androidTopDownMutatorContext)
+		m.base().hooks.runLoadHooks(loadHookCtx, m.base())
 	}
 }
 
 func archHookMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
-		m.base().hooks.runArchHooks(ctx, m.base())
+		// Cast through *androidTopDownMutatorContext because AppendProperties is implemented
+		// on *androidTopDownMutatorContext but not exposed through TopDownMutatorContext
+		var archHookCtx ArchHookContext = ctx.(*androidTopDownMutatorContext)
+		m.base().hooks.runArchHooks(archHookCtx, m.base())
 	}
 }

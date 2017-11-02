@@ -16,6 +16,7 @@ package android
 
 import (
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // Phases:
@@ -112,7 +113,7 @@ type TopDownMutatorContext interface {
 
 	OtherModuleExists(name string) bool
 	Rename(name string)
-	Module() blueprint.Module
+	Module() Module
 
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
@@ -192,6 +193,11 @@ func depsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+func (a *androidTopDownMutatorContext) Module() Module {
+	module, _ := a.TopDownMutatorContext.Module().(Module)
+	return module
+}
+
 func (a *androidTopDownMutatorContext) VisitDirectDeps(visit func(Module)) {
 	a.TopDownMutatorContext.VisitDirectDeps(func(module blueprint.Module) {
 		if aModule, _ := module.(Module); aModule != nil {
@@ -250,4 +256,32 @@ func (a *androidTopDownMutatorContext) WalkDeps(visit func(Module, Module) bool)
 			return false
 		}
 	})
+}
+
+func (a *androidTopDownMutatorContext) AppendProperties(props ...interface{}) {
+	for _, p := range props {
+		err := proptools.AppendMatchingProperties(a.Module().base().customizableProperties,
+			p, nil)
+		if err != nil {
+			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+				a.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+			} else {
+				panic(err)
+			}
+		}
+	}
+}
+
+func (a *androidTopDownMutatorContext) PrependProperties(props ...interface{}) {
+	for _, p := range props {
+		err := proptools.PrependMatchingProperties(a.Module().base().customizableProperties,
+			p, nil)
+		if err != nil {
+			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+				a.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+			} else {
+				panic(err)
+			}
+		}
+	}
 }
