@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -666,6 +667,71 @@ func TestKotlin(t *testing.T) {
 
 	if len(kotlinc.Inputs) != 1 || kotlinc.Inputs[0].String() != "b.kt" {
 		t.Errorf(`bar kotlinc inputs %v != ["b.kt"]`, kotlinc.Inputs)
+	}
+}
+
+func TestTurbine(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		java_library {
+			name: "bar",
+                        srcs: ["b.java"],
+			static_libs: ["foo"],
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["c.java"],
+			libs: ["bar"],
+			sdk_version: "14",
+		}
+		`)
+
+	fooTurbine := ctx.ModuleForTests("foo", "android_common").Rule("turbine")
+	barTurbine := ctx.ModuleForTests("bar", "android_common").Rule("turbine")
+	barJavac := ctx.ModuleForTests("bar", "android_common").Rule("javac")
+	barTurbineCombined := ctx.ModuleForTests("bar", "android_common").Description("for turbine")
+	bazJavac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
+
+	if len(fooTurbine.Inputs) != 1 || fooTurbine.Inputs[0].String() != "a.java" {
+		t.Errorf(`foo inputs %v != ["a.java"]`, fooTurbine.Inputs)
+	}
+
+	fooHeaderJar := filepath.Join(buildDir, ".intermediates", "foo", "android_common", "turbine-combined", "foo.jar")
+	if !strings.Contains(barTurbine.Args["classpath"], fooHeaderJar) {
+		t.Errorf("bar turbine classpath %v does not contain %q", barTurbine.Args["classpath"], fooHeaderJar)
+	}
+	if !strings.Contains(barJavac.Args["classpath"], fooHeaderJar) {
+		t.Errorf("bar javac classpath %v does not contain %q", barJavac.Args["classpath"], fooHeaderJar)
+	}
+	if len(barTurbineCombined.Inputs) != 2 || barTurbineCombined.Inputs[1].String() != fooHeaderJar {
+		t.Errorf("bar turbine combineJar inputs %v does not contain %q", barTurbineCombined.Inputs, fooHeaderJar)
+	}
+	if !strings.Contains(bazJavac.Args["classpath"], "prebuilts/sdk/14/android.jar") {
+		t.Errorf("baz javac classpath %v does not contain %q", bazJavac.Args["classpath"],
+			"prebuilts/sdk/14/android.jar")
+	}
+}
+
+func TestSharding(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "bar",
+			srcs: ["a.java","b.java","c.java"],
+			javac_shard_size: 1
+		}
+		`)
+
+	barHeaderJar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "turbine-combined", "bar.jar")
+	for i := 0; i < 3; i++ {
+		barJavac := ctx.ModuleForTests("bar", "android_common").Description("javac" + strconv.Itoa(i))
+		if !strings.Contains(barJavac.Args["classpath"], barHeaderJar) {
+			t.Errorf("bar javac classpath %v does not contain %q", barJavac.Args["classpath"], barHeaderJar)
+		}
 	}
 }
 
