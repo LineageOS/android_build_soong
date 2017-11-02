@@ -504,6 +504,10 @@ func (c *config) IsPdkBuild() bool {
 	return Bool(c.ProductVariables.Pdk)
 }
 
+func (c *config) MinimizeJavaDebugInfo() bool {
+	return Bool(c.ProductVariables.MinimizeJavaDebugInfo) && !Bool(c.ProductVariables.Eng)
+}
+
 func (c *config) DevicePrefer32BitExecutables() bool {
 	return Bool(c.ProductVariables.DevicePrefer32BitExecutables)
 }
