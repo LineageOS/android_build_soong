@@ -40,7 +40,6 @@ var (
 		"-Wl,--build-id=md5",
 		"-Wl,--warn-shared-textrel",
 		"-Wl,--fatal-warnings",
-		"-Wl,--gc-sections",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--no-undefined-version",
 	}
