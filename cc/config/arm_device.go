@@ -28,21 +28,13 @@ var (
 	}
 
 	armCflags = []string{
-		"-ffunction-sections",
 		"-fdata-sections",
-		"-funwind-tables",
-		"-fstack-protector-strong",
-		"-Wa,--noexecstack",
-		"-Werror=format-security",
-		"-D_FORTIFY_SOURCE=2",
 		"-fno-short-enums",
-		"-fno-canonical-system-headers",
 
 		"-fno-builtin-sin",
 		"-fno-strict-volatile-bitfields",
 
 		// TARGET_RELEASE_CFLAGS
-		"-Wstrict-aliasing=2",
 		"-fgcse-after-reload",
 		"-frerun-cse-after-loop",
 		"-frename-registers",

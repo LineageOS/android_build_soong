@@ -54,12 +54,21 @@ var (
 	deviceGlobalCflags = []string{
 		"-fdiagnostics-color",
 
-		// TARGET_ERROR_FLAGS
+		"-fno-canonical-system-headers",
+		"-ffunction-sections",
+		"-funwind-tables",
+		"-fstack-protector-strong",
+		"-Wa,--noexecstack",
+		"-D_FORTIFY_SOURCE=2",
+
+		"-Wstrict-aliasing=2",
+
 		"-Werror=return-type",
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
 		"-Werror=date-time",
+		"-Werror=format-security",
 	}
 
 	hostGlobalCflags = []string{}

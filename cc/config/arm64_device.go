@@ -23,15 +23,8 @@ import (
 
 var (
 	arm64Cflags = []string{
-		"-fstack-protector-strong",
-		"-ffunction-sections",
 		"-fdata-sections",
-		"-funwind-tables",
-		"-Wa,--noexecstack",
-		"-Werror=format-security",
-		"-D_FORTIFY_SOURCE=2",
 		"-fno-short-enums",
-		"-fno-canonical-system-headers",
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
@@ -39,7 +32,6 @@ var (
 		"-fno-strict-volatile-bitfields",
 
 		// TARGET_RELEASE_CFLAGS
-		"-Wstrict-aliasing=2",
 		"-fgcse-after-reload",
 		"-frerun-cse-after-loop",
 		"-frename-registers",

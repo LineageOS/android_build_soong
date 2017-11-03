@@ -22,18 +22,10 @@ import (
 
 var (
 	x86_64Cflags = []string{
-		"-Wa,--noexecstack",
-		"-Werror=format-security",
-		"-D_FORTIFY_SOURCE=2",
-		"-Wstrict-aliasing=2",
-		"-ffunction-sections",
 		"-finline-functions",
 		"-finline-limit=300",
 		"-fno-short-enums",
 		"-funswitch-loops",
-		"-funwind-tables",
-		"-fstack-protector-strong",
-		"-fno-canonical-system-headers",
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
