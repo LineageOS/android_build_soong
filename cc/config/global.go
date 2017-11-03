@@ -34,9 +34,19 @@ var (
 		"-Winit-self",
 		"-Wpointer-arith",
 
-		// COMMON_RELEASE_CFLAGS
+		// Make paths in deps files relative
+		"-no-canonical-prefixes",
+
 		"-DNDEBUG",
 		"-UDEBUG",
+
+		"-fno-exceptions",
+		"-Wno-multichar",
+
+		"-O2",
+		"-g",
+
+		"-fno-strict-aliasing",
 	}
 
 	commonGlobalConlyflags = []string{}

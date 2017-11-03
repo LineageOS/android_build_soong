@@ -22,9 +22,6 @@ import (
 
 var (
 	x86_64Cflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-O2",
 		"-Wa,--noexecstack",
 		"-Werror=format-security",
 		"-D_FORTIFY_SOURCE=2",
@@ -33,22 +30,13 @@ var (
 		"-finline-functions",
 		"-finline-limit=300",
 		"-fno-short-enums",
-		"-fstrict-aliasing",
 		"-funswitch-loops",
 		"-funwind-tables",
 		"-fstack-protector-strong",
-		"-no-canonical-prefixes",
 		"-fno-canonical-system-headers",
 
 		// Help catch common 32/64-bit errors.
-		"-Werror=pointer-to-int-cast",
-		"-Werror=int-to-pointer-cast",
 		"-Werror=implicit-function-declaration",
-
-		// TARGET_RELEASE_CFLAGS from build/core/combo/select.mk
-		"-O2",
-		"-g",
-		"-fno-strict-aliasing",
 	}
 
 	x86_64Cppflags = []string{}

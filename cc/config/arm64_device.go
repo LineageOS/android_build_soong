@@ -23,9 +23,6 @@ import (
 
 var (
 	arm64Cflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-fno-strict-aliasing",
 		"-fstack-protector-strong",
 		"-ffunction-sections",
 		"-fdata-sections",
@@ -34,19 +31,14 @@ var (
 		"-Werror=format-security",
 		"-D_FORTIFY_SOURCE=2",
 		"-fno-short-enums",
-		"-no-canonical-prefixes",
 		"-fno-canonical-system-headers",
 
 		// Help catch common 32/64-bit errors.
-		"-Werror=pointer-to-int-cast",
-		"-Werror=int-to-pointer-cast",
 		"-Werror=implicit-function-declaration",
 
 		"-fno-strict-volatile-bitfields",
 
 		// TARGET_RELEASE_CFLAGS
-		"-DNDEBUG",
-		"-O2 -g",
 		"-Wstrict-aliasing=2",
 		"-fgcse-after-reload",
 		"-frerun-cse-after-loop",
