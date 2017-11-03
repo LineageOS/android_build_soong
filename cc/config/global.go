@@ -71,7 +71,19 @@ var (
 		"-Werror=format-security",
 	}
 
+	deviceGlobalLdflags = []string{
+		"-Wl,-z,noexecstack",
+		"-Wl,-z,relro",
+		"-Wl,-z,now",
+		"-Wl,--build-id=md5",
+		"-Wl,--warn-shared-textrel",
+		"-Wl,--fatal-warnings",
+		"-Wl,--no-undefined-version",
+	}
+
 	hostGlobalCflags = []string{}
+
+	hostGlobalLdflags = []string{}
 
 	commonGlobalCppflags = []string{
 		"-Wsign-promo",
@@ -110,7 +122,9 @@ func init() {
 	pctx.StaticVariable("CommonGlobalCflags", strings.Join(commonGlobalCflags, " "))
 	pctx.StaticVariable("CommonGlobalConlyflags", strings.Join(commonGlobalConlyflags, " "))
 	pctx.StaticVariable("DeviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
+	pctx.StaticVariable("DeviceGlobalLdflags", strings.Join(deviceGlobalLdflags, " "))
 	pctx.StaticVariable("HostGlobalCflags", strings.Join(hostGlobalCflags, " "))
+	pctx.StaticVariable("HostGlobalLdflags", strings.Join(hostGlobalLdflags, " "))
 	pctx.StaticVariable("NoOverrideGlobalCflags", strings.Join(noOverrideGlobalCflags, " "))
 
 	pctx.StaticVariable("CommonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))

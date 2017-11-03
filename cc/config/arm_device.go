@@ -45,15 +45,8 @@ var (
 	}
 
 	armLdflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
 		"-Wl,--icf=safe",
 		"-Wl,--hash-style=gnu",
-		"-Wl,--no-undefined-version",
 		"-Wl,-m,armelf",
 	}
 

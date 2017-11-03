@@ -45,14 +45,7 @@ var (
 	}
 
 	mips64Ldflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
 		"-Wl,--allow-shlib-undefined",
-		"-Wl,--no-undefined-version",
 	}
 
 	mips64ArchVariantCflags = map[string][]string{

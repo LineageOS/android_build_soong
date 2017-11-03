@@ -196,7 +196,13 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
+	hod := "Host"
+	if ctx.Os().Class == android.Device {
+		hod = "Device"
+	}
+
 	if !ctx.noDefaultCompilerFlags() {
+		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
 		if Bool(linker.Properties.Allow_undefined_symbols) {
 			if ctx.Darwin() {
 				// darwin defaults to treating undefined symbols as errors

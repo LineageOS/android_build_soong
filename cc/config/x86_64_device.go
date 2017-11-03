@@ -34,14 +34,7 @@ var (
 	x86_64Cppflags = []string{}
 
 	x86_64Ldflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
 		"-Wl,--hash-style=gnu",
-		"-Wl,--no-undefined-version",
 	}
 
 	x86_64ArchVariantCflags = map[string][]string{

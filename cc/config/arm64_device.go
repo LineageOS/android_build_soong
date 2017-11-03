@@ -38,18 +38,11 @@ var (
 	}
 
 	arm64Ldflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
 		"-Wl,-m,aarch64_elf64_le_vec",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--fix-cortex-a53-843419",
 		"-fuse-ld=gold",
 		"-Wl,--icf=safe",
-		"-Wl,--no-undefined-version",
 	}
 
 	arm64Cppflags = []string{
