@@ -47,39 +47,39 @@ type TestBinaryProperties struct {
 }
 
 func init() {
-	android.RegisterModuleType("cc_test", testFactory)
-	android.RegisterModuleType("cc_test_library", testLibraryFactory)
-	android.RegisterModuleType("cc_benchmark", benchmarkFactory)
-	android.RegisterModuleType("cc_test_host", testHostFactory)
-	android.RegisterModuleType("cc_benchmark_host", benchmarkHostFactory)
+	android.RegisterModuleType("cc_test", TestFactory)
+	android.RegisterModuleType("cc_test_library", TestLibraryFactory)
+	android.RegisterModuleType("cc_benchmark", BenchmarkFactory)
+	android.RegisterModuleType("cc_test_host", TestHostFactory)
+	android.RegisterModuleType("cc_benchmark_host", BenchmarkHostFactory)
 }
 
 // Module factory for tests
-func testFactory() android.Module {
+func TestFactory() android.Module {
 	module := NewTest(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for test libraries
-func testLibraryFactory() android.Module {
+func TestLibraryFactory() android.Module {
 	module := NewTestLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for benchmarks
-func benchmarkFactory() android.Module {
+func BenchmarkFactory() android.Module {
 	module := NewBenchmark(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for host tests
-func testHostFactory() android.Module {
+func TestHostFactory() android.Module {
 	module := NewTest(android.HostSupported)
 	return module.Init()
 }
 
 // Module factory for host benchmarks
-func benchmarkHostFactory() android.Module {
+func BenchmarkHostFactory() android.Module {
 	module := NewBenchmark(android.HostSupported)
 	return module.Init()
 }
