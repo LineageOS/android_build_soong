@@ -109,51 +109,51 @@ type FlagExporterProperties struct {
 }
 
 func init() {
-	android.RegisterModuleType("cc_library_static", libraryStaticFactory)
-	android.RegisterModuleType("cc_library_shared", librarySharedFactory)
-	android.RegisterModuleType("cc_library", libraryFactory)
-	android.RegisterModuleType("cc_library_host_static", libraryHostStaticFactory)
-	android.RegisterModuleType("cc_library_host_shared", libraryHostSharedFactory)
-	android.RegisterModuleType("cc_library_headers", libraryHeaderFactory)
+	android.RegisterModuleType("cc_library_static", LibraryStaticFactory)
+	android.RegisterModuleType("cc_library_shared", LibrarySharedFactory)
+	android.RegisterModuleType("cc_library", LibraryFactory)
+	android.RegisterModuleType("cc_library_host_static", LibraryHostStaticFactory)
+	android.RegisterModuleType("cc_library_host_shared", LibraryHostSharedFactory)
+	android.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 }
 
 // Module factory for combined static + shared libraries, device by default but with possible host
 // support
-func libraryFactory() android.Module {
+func LibraryFactory() android.Module {
 	module, _ := NewLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // Module factory for static libraries
-func libraryStaticFactory() android.Module {
+func LibraryStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
 // Module factory for shared libraries
-func librarySharedFactory() android.Module {
+func LibrarySharedFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
 // Module factory for host static libraries
-func libraryHostStaticFactory() android.Module {
+func LibraryHostStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
 // Module factory for host shared libraries
-func libraryHostSharedFactory() android.Module {
+func LibraryHostSharedFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
 // Module factory for header-only libraries
-func libraryHeaderFactory() android.Module {
+func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
 	return module.Init()

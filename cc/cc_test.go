@@ -43,7 +43,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 	config.ProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
 
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(libraryFactory))
+	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(toolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(llndkLibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(objectFactory))
