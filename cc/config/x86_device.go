@@ -22,28 +22,10 @@ import (
 
 var (
 	x86Cflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-O2",
-		"-Wa,--noexecstack",
-		"-Werror=format-security",
-		"-D_FORTIFY_SOURCE=2",
-		"-Wstrict-aliasing=2",
-		"-ffunction-sections",
 		"-finline-functions",
 		"-finline-limit=300",
 		"-fno-short-enums",
-		"-fstrict-aliasing",
 		"-funswitch-loops",
-		"-funwind-tables",
-		"-fstack-protector-strong",
-		"-no-canonical-prefixes",
-		"-fno-canonical-system-headers",
-
-		// TARGET_RELEASE_CFLAGS from build/core/combo/select.mk
-		"-O2",
-		"-g",
-		"-fno-strict-aliasing",
 	}
 
 	x86ClangCflags = append(x86Cflags, []string{
@@ -58,15 +40,7 @@ var (
 	x86Cppflags = []string{}
 
 	x86Ldflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
-		"-Wl,--gc-sections",
 		"-Wl,--hash-style=gnu",
-		"-Wl,--no-undefined-version",
 	}
 
 	x86ArchVariantCflags = map[string][]string{

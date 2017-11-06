@@ -196,38 +196,42 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
-	if !ctx.noDefaultCompilerFlags() {
-		if Bool(linker.Properties.Allow_undefined_symbols) {
-			if ctx.Darwin() {
-				// darwin defaults to treating undefined symbols as errors
-				flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
-			}
-		} else if !ctx.Darwin() {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
+	hod := "Host"
+	if ctx.Os().Class == android.Device {
+		hod = "Device"
+	}
+
+	flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
+	if Bool(linker.Properties.Allow_undefined_symbols) {
+		if ctx.Darwin() {
+			// darwin defaults to treating undefined symbols as errors
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
 		}
+	} else if !ctx.Darwin() {
+		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
+	}
 
-		if flags.Clang {
-			flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
-		} else {
-			flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
-		}
+	if flags.Clang {
+		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
+	} else {
+		flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
+	}
 
-		if !ctx.toolchain().Bionic() {
-			CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
+	if !ctx.toolchain().Bionic() {
+		CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
 
-			flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
+		flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
 
-			if !ctx.Windows() {
-				// Add -ldl, -lpthread, -lm and -lrt to host builds to match the default behavior of device
-				// builds
-				flags.LdFlags = append(flags.LdFlags,
-					"-ldl",
-					"-lpthread",
-					"-lm",
-				)
-				if !ctx.Darwin() {
-					flags.LdFlags = append(flags.LdFlags, "-lrt")
-				}
+		if !ctx.Windows() {
+			// Add -ldl, -lpthread, -lm and -lrt to host builds to match the default behavior of device
+			// builds
+			flags.LdFlags = append(flags.LdFlags,
+				"-ldl",
+				"-lpthread",
+				"-lm",
+			)
+			if !ctx.Darwin() {
+				flags.LdFlags = append(flags.LdFlags, "-lrt")
 			}
 		}
 	}

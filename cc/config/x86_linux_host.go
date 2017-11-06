@@ -22,15 +22,11 @@ import (
 
 var (
 	linuxCflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-
 		"-fdiagnostics-color",
 
 		"-Wa,--noexecstack",
 
 		"-fPIC",
-		"-no-canonical-prefixes",
 
 		"-U_FORTIFY_SOURCE",
 		"-D_FORTIFY_SOURCE=2",
@@ -40,11 +36,6 @@ var (
 		//See bug 12708004.
 		"-D__STDC_FORMAT_MACROS",
 		"-D__STDC_CONSTANT_MACROS",
-
-		// HOST_RELEASE_CFLAGS
-		"-O2", // from build/core/combo/select.mk
-		"-g",  // from build/core/combo/select.mk
-		"-fno-strict-aliasing", // from build/core/combo/select.mk
 	}
 
 	linuxLdflags = []string{

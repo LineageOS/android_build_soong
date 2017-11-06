@@ -22,27 +22,12 @@ import (
 
 var (
 	mipsCflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-O2",
 		"-fomit-frame-pointer",
-		"-fno-strict-aliasing",
 		"-funswitch-loops",
 		"-Umips",
-		"-ffunction-sections",
 		"-fdata-sections",
-		"-funwind-tables",
-		"-fstack-protector-strong",
-		"-Wa,--noexecstack",
-		"-Werror=format-security",
-		"-D_FORTIFY_SOURCE=2",
-		"-no-canonical-prefixes",
-		"-fno-canonical-system-headers",
 
 		// TARGET_RELEASE_CFLAGS
-		"-DNDEBUG",
-		"-g",
-		"-Wstrict-aliasing=2",
 		"-fgcse-after-reload",
 		"-frerun-cse-after-loop",
 		"-frename-registers",
@@ -58,14 +43,7 @@ var (
 	}
 
 	mipsLdflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
 		"-Wl,--allow-shlib-undefined",
-		"-Wl,--no-undefined-version",
 	}
 
 	mipsToolchainLdflags = []string{

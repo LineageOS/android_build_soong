@@ -23,49 +23,26 @@ import (
 
 var (
 	arm64Cflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-		"-fno-strict-aliasing",
-		"-fstack-protector-strong",
-		"-ffunction-sections",
 		"-fdata-sections",
-		"-funwind-tables",
-		"-Wa,--noexecstack",
-		"-Werror=format-security",
-		"-D_FORTIFY_SOURCE=2",
 		"-fno-short-enums",
-		"-no-canonical-prefixes",
-		"-fno-canonical-system-headers",
 
 		// Help catch common 32/64-bit errors.
-		"-Werror=pointer-to-int-cast",
-		"-Werror=int-to-pointer-cast",
 		"-Werror=implicit-function-declaration",
 
 		"-fno-strict-volatile-bitfields",
 
 		// TARGET_RELEASE_CFLAGS
-		"-DNDEBUG",
-		"-O2 -g",
-		"-Wstrict-aliasing=2",
 		"-fgcse-after-reload",
 		"-frerun-cse-after-loop",
 		"-frename-registers",
 	}
 
 	arm64Ldflags = []string{
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
 		"-Wl,-m,aarch64_elf64_le_vec",
 		"-Wl,--hash-style=gnu",
 		"-Wl,--fix-cortex-a53-843419",
 		"-fuse-ld=gold",
 		"-Wl,--icf=safe",
-		"-Wl,--no-undefined-version",
 	}
 
 	arm64Cppflags = []string{
