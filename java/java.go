@@ -869,7 +869,7 @@ type Binary struct {
 
 	binaryProperties binaryProperties
 
-	wrapperFile android.ModuleSrcPath
+	wrapperFile android.SourcePath
 	binaryFile  android.OutputPath
 }
 
@@ -882,7 +882,11 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
-	j.wrapperFile = android.PathForModuleSrc(ctx, j.binaryProperties.Wrapper)
+	if j.binaryProperties.Wrapper != "" {
+		j.wrapperFile = android.PathForModuleSrc(ctx, j.binaryProperties.Wrapper).SourcePath
+	} else {
+		j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
+	}
 	j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
 		ctx.ModuleName(), j.wrapperFile, j.installFile)
 }
