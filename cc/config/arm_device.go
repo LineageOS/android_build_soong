@@ -42,9 +42,7 @@ var (
 		"-fomit-frame-pointer",
 	}
 
-	armCppflags = []string{
-		"-fvisibility-inlines-hidden",
-	}
+	armCppflags = []string{}
 
 	armLdflags = []string{
 		"-Wl,--icf=safe",

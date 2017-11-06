@@ -318,6 +318,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 
 	flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
 	flags.ConlyFlags = append([]string{"${config.CommonGlobalConlyflags}"}, flags.ConlyFlags...)
+	flags.CppFlags = append([]string{fmt.Sprintf("${config.%sGlobalCppflags}", hod)}, flags.CppFlags...)
 
 	if flags.Clang {
 		flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())

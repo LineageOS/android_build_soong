@@ -45,9 +45,7 @@ var (
 		"-Wl,--icf=safe",
 	}
 
-	arm64Cppflags = []string{
-		"-fvisibility-inlines-hidden",
-	}
+	arm64Cppflags = []string{}
 
 	arm64CpuVariantCflags = map[string][]string{
 		"cortex-a53": []string{

@@ -40,9 +40,7 @@ var (
 		"-fintegrated-as",
 	}...)
 
-	mips64Cppflags = []string{
-		"-fvisibility-inlines-hidden",
-	}
+	mips64Cppflags = []string{}
 
 	mips64Ldflags = []string{
 		"-Wl,--allow-shlib-undefined",
