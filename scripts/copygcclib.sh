@@ -2,6 +2,6 @@
 
 OUT=$1
 shift
-LIBPATH=$($@)
+LIBPATH=$($@ | sed -e "s|^$PWD/||")
 cp -f $LIBPATH $OUT
 echo "$OUT: $LIBPATH" > ${OUT}.d
