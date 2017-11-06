@@ -28,9 +28,6 @@ var (
 	}
 
 	armCflags = []string{
-		"-fdata-sections",
-		"-fno-short-enums",
-
 		"-fno-builtin-sin",
 		"-fno-strict-volatile-bitfields",
 

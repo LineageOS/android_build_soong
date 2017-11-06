@@ -24,7 +24,6 @@ var (
 	x86Cflags = []string{
 		"-finline-functions",
 		"-finline-limit=300",
-		"-fno-short-enums",
 		"-funswitch-loops",
 	}
 

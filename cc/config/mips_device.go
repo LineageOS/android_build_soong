@@ -25,7 +25,6 @@ var (
 		"-fomit-frame-pointer",
 		"-funswitch-loops",
 		"-Umips",
-		"-fdata-sections",
 
 		// TARGET_RELEASE_CFLAGS
 		"-fgcse-after-reload",

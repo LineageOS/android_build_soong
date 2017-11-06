@@ -24,7 +24,6 @@ var (
 	x86_64Cflags = []string{
 		"-finline-functions",
 		"-finline-limit=300",
-		"-fno-short-enums",
 		"-funswitch-loops",
 
 		// Help catch common 32/64-bit errors.

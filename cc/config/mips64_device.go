@@ -25,7 +25,6 @@ var (
 		"-fomit-frame-pointer",
 		"-funswitch-loops",
 		"-Umips",
-		"-fdata-sections",
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
