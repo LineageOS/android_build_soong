@@ -36,6 +36,7 @@ var (
 
 		// Make paths in deps files relative
 		"-no-canonical-prefixes",
+		"-fno-canonical-system-headers",
 
 		"-DNDEBUG",
 		"-UDEBUG",
@@ -54,7 +55,6 @@ var (
 	deviceGlobalCflags = []string{
 		"-fdiagnostics-color",
 
-		"-fno-canonical-system-headers",
 		"-ffunction-sections",
 		"-funwind-tables",
 		"-fstack-protector-strong",
