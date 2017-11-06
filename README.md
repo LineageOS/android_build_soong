@@ -61,6 +61,7 @@ Variables and properties are strongly typed, variables dynamically based on the
 first assignment, and properties statically by the module type.  The supported
 types are:
 * Bool (`true` or `false`)
+* Integers (`int`)
 * Strings (`"string"`)
 * Lists of strings (`["string1", "string2"]`)
 * Maps (`{key1: "value1", key2: ["value2"]}`)
@@ -71,8 +72,9 @@ trailing commas after the last value.
 ### Operators
 
 Strings, lists of strings, and maps can be appended using the `+` operator.
-Appending a map produces the union of keys in both maps, appending the values
-of any keys that are present in both maps.
+Integers can be summed up using the `+` operator. Appending a map produces the
+union of keys in both maps, appending the values of any keys that are present
+in both maps.
 
 ### Defaults modules
 
