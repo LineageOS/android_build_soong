@@ -23,13 +23,7 @@ import (
 var (
 	mipsCflags = []string{
 		"-fomit-frame-pointer",
-		"-funswitch-loops",
 		"-Umips",
-
-		// TARGET_RELEASE_CFLAGS
-		"-fgcse-after-reload",
-		"-frerun-cse-after-loop",
-		"-frename-registers",
 	}
 
 	mipsClangCflags = append(mipsCflags, []string{
