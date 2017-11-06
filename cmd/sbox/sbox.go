@@ -15,6 +15,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,7 +25,50 @@ import (
 	"strings"
 )
 
+var (
+	sandboxesRoot string
+	rawCommand    string
+	outputRoot    string
+	keepOutDir    bool
+	depfileOut    string
+)
+
+func init() {
+	flag.StringVar(&sandboxesRoot, "sandbox-path", "",
+		"root of temp directory to put the sandbox into")
+	flag.StringVar(&rawCommand, "c", "",
+		"command to run")
+	flag.StringVar(&outputRoot, "output-root", "",
+		"root of directory to copy outputs into")
+	flag.BoolVar(&keepOutDir, "keep-out-dir", false,
+		"whether to keep the sandbox directory when done")
+
+	flag.StringVar(&depfileOut, "depfile-out", "",
+		"file path of the depfile to generate. This value will replace '__SBOX_DEPFILE__' in the command and will be treated as an output but won't be added to __SBOX_OUT_FILES__")
+}
+
+func usageViolation(violation string) {
+	if violation != "" {
+		fmt.Fprintf(os.Stderr, "Usage error: %s.\n\n", violation)
+	}
+
+	fmt.Fprintf(os.Stderr,
+		"Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> [--depfile-out depFile] <outputFile> [<outputFile>...]\n"+
+			"\n"+
+			"Runs <commandToRun> and moves each <outputFile> out of <sandboxPath>\n"+
+			"and into <outputRoot>\n")
+
+	flag.PrintDefaults()
+
+	os.Exit(1)
+}
+
 func main() {
+	flag.Usage = func() {
+		usageViolation("")
+	}
+	flag.Parse()
+
 	error := run()
 	if error != nil {
 		fmt.Fprintln(os.Stderr, error)
@@ -32,55 +76,9 @@ func main() {
 	}
 }
 
-var usage = "Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> [--depfile-out depFile] <outputFile> [<outputFile>...]\n" +
-	"\n" +
-	"Runs <commandToRun> and moves each <outputFile> out of <sandboxPath>\n" +
-	"If any file in <outputFiles> is specified by absolute path, then <outputRoot> must be specified as well,\n" +
-	"to enable sbox to compute the relative path within the sandbox of the specified output files"
-
-func usageError(violation string) error {
-	return fmt.Errorf("Usage error: %s.\n\n%s", violation, usage)
-}
-
 func run() error {
-	// the contents of the __SBOX_OUT_FILES__ variable
-	var outputsVarEntries []string
-	// all outputs
-	var allOutputs []string
-
-	args := os.Args[1:]
-
-	var rawCommand string
-	var sandboxesRoot string
-	removeTempDir := true
-	var outputRoot string
-	var depfile string
-
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if arg == "--sandbox-path" {
-			sandboxesRoot = args[i+1]
-			i++
-		} else if arg == "-c" {
-			rawCommand = args[i+1]
-			i++
-		} else if arg == "--output-root" {
-			outputRoot = args[i+1]
-			i++
-		} else if arg == "--keep-out-dir" {
-			removeTempDir = false
-		} else if arg == "--depfile-out" {
-			depfile = args[i+1]
-			i++
-		} else {
-			outputsVarEntries = append(outputsVarEntries, arg)
-		}
-	}
 	if rawCommand == "" {
-		return usageError("-c <commandToRun> is required and must be non-empty")
-	}
-	if len(outputsVarEntries) == 0 {
-		return usageError("at least one output file must be given")
+		usageViolation("-c <commandToRun> is required and must be non-empty")
 	}
 	if sandboxesRoot == "" {
 		// In practice, the value of sandboxesRoot will mostly likely be at a fixed location relative to OUT_DIR,
@@ -88,11 +86,20 @@ func run() error {
 		// the value of sandboxesRoot will most likely be at a fixed location relative to the sbox executable
 		// However, Soong also needs to be able to separately remove the sandbox directory on startup (if it has anything left in it)
 		// and by passing it as a parameter we don't need to duplicate its value
-		return usageError("--sandbox-path <sandboxPath> is required and must be non-empty")
+		usageViolation("--sandbox-path <sandboxPath> is required and must be non-empty")
 	}
 	if len(outputRoot) == 0 {
-		return usageError("--output-root <outputRoot> is required and must be non-empty")
+		usageViolation("--output-root <outputRoot> is required and must be non-empty")
 	}
+
+	// the contents of the __SBOX_OUT_FILES__ variable
+	outputsVarEntries := flag.Args()
+	if len(outputsVarEntries) == 0 {
+		usageViolation("at least one output file must be given")
+	}
+
+	// all outputs
+	var allOutputs []string
 
 	os.MkdirAll(sandboxesRoot, 0777)
 
@@ -110,8 +117,8 @@ func run() error {
 
 	allOutputs = append([]string(nil), outputsVarEntries...)
 
-	if depfile != "" {
-		sandboxedDepfile, err := filepath.Rel(outputRoot, depfile)
+	if depfileOut != "" {
+		sandboxedDepfile, err := filepath.Rel(outputRoot, depfileOut)
 		if err != nil {
 			return err
 		}
@@ -132,7 +139,7 @@ func run() error {
 	// then at the beginning of the next build, Soong will retry the cleanup
 	defer func() {
 		// in some cases we decline to remove the temp dir, to facilitate debugging
-		if removeTempDir {
+		if !keepOutDir {
 			os.RemoveAll(tempDir)
 		}
 	}()
@@ -190,7 +197,7 @@ func run() error {
 	if len(outputErrors) > 0 {
 		// Keep the temporary output directory around in case a user wants to inspect it for debugging purposes.
 		// Soong will delete it later anyway.
-		removeTempDir = false
+		keepOutDir = true
 		return fmt.Errorf("mismatch between declared and actual outputs in sbox command (%s):\n%v", commandDescription, outputErrors)
 	}
 	// the created files match the declared files; now move them
