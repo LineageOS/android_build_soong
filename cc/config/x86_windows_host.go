@@ -22,9 +22,6 @@ import (
 
 var (
 	windowsCflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-
 		"-DUSE_MINGW",
 		"-DWIN32_LEAN_AND_MEAN",
 		"-Wno-unused-parameter",
@@ -43,11 +40,6 @@ var (
 		"-D_FILE_OFFSET_BITS=64",
 
 		"--sysroot ${WindowsGccRoot}/${WindowsGccTriple}",
-
-		// HOST_RELEASE_CFLAGS
-		"-O2", // from build/core/combo/select.mk
-		"-g",  // from build/core/combo/select.mk
-		"-fno-strict-aliasing", // from build/core/combo/select.mk
 	}
 
 	windowsIncludeFlags = []string{

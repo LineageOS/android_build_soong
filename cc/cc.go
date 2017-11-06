@@ -159,10 +159,6 @@ type BaseProperties struct {
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version string
 
-	// don't insert default compiler flags into asflags, cflags,
-	// cppflags, conlyflags, ldflags, or include_dirs
-	No_default_compiler_flags *bool
-
 	AndroidMkSharedLibs []string `blueprint:"mutated"`
 	HideFromMake        bool     `blueprint:"mutated"`
 	PreventInstall      bool     `blueprint:"mutated"`
@@ -199,7 +195,6 @@ type ModuleContextIntf interface {
 	staticBinary() bool
 	clang() bool
 	toolchain() config.Toolchain
-	noDefaultCompilerFlags() bool
 	useSdk() bool
 	sdkVersion() string
 	useVndk() bool
@@ -450,10 +445,6 @@ func (ctx *moduleContextImpl) staticBinary() bool {
 		return static.staticBinary()
 	}
 	return false
-}
-
-func (ctx *moduleContextImpl) noDefaultCompilerFlags() bool {
-	return Bool(ctx.mod.Properties.No_default_compiler_flags)
 }
 
 func (ctx *moduleContextImpl) useSdk() bool {
