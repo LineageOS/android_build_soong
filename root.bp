@@ -29,6 +29,7 @@ optional_subdirs = [
     "packages/apps/*",
     "prebuilts/clang/host/linux-x86",
     "prebuilts/ndk",
+    "prebuilts/r8",
     "prebuilts/sdk",
     "prebuilts/misc",
     "system/*",
