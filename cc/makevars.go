@@ -174,6 +174,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.Cppflags(),
 	}, " "))
 	ctx.Strict(makePrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+		fmt.Sprintf("${config.%sGlobalLdflags}", hod),
 		toolchain.Ldflags(),
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
@@ -219,6 +220,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 			toolchain.ClangCppflags(),
 		}, " "))
 		ctx.Strict(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
+			fmt.Sprintf("${config.%sGlobalLdflags}", hod),
 			toolchain.ClangLdflags(),
 			toolchain.ToolchainClangLdflags(),
 			productExtraLdflags,
