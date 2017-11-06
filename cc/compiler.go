@@ -232,16 +232,14 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
-	if !ctx.noDefaultCompilerFlags() {
-		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
-		flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
+	flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
+	flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
 
-		if !(ctx.useSdk() || ctx.useVndk()) || ctx.Host() {
-			flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
-				"${config.CommonGlobalIncludes}",
-				tc.IncludeFlags(),
-				"${config.CommonNativehelperInclude}")
-		}
+	if !(ctx.useSdk() || ctx.useVndk()) || ctx.Host() {
+		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
+			"${config.CommonGlobalIncludes}",
+			tc.IncludeFlags(),
+			"${config.CommonNativehelperInclude}")
 	}
 
 	if ctx.useSdk() {
@@ -318,47 +316,45 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		hod = "Device"
 	}
 
-	if !ctx.noDefaultCompilerFlags() {
-		flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
-		flags.ConlyFlags = append([]string{"${config.CommonGlobalConlyflags}"}, flags.ConlyFlags...)
+	flags.GlobalFlags = append(flags.GlobalFlags, instructionSetFlags)
+	flags.ConlyFlags = append([]string{"${config.CommonGlobalConlyflags}"}, flags.ConlyFlags...)
 
-		if flags.Clang {
-			flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())
-			flags.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.CppFlags...)
-			flags.GlobalFlags = append(flags.GlobalFlags,
-				tc.ClangCflags(),
-				"${config.CommonClangGlobalCflags}",
-				fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
-		} else {
-			flags.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.CppFlags...)
-			flags.GlobalFlags = append(flags.GlobalFlags,
-				tc.Cflags(),
-				"${config.CommonGlobalCflags}",
-				fmt.Sprintf("${config.%sGlobalCflags}", hod))
-		}
-
-		if Bool(ctx.AConfig().ProductVariables.Brillo) {
-			flags.GlobalFlags = append(flags.GlobalFlags, "-D__BRILLO__")
-		}
-
-		if ctx.Device() {
-			if Bool(compiler.Properties.Rtti) {
-				flags.CppFlags = append(flags.CppFlags, "-frtti")
-			} else {
-				flags.CppFlags = append(flags.CppFlags, "-fno-rtti")
-			}
-		}
-
-		flags.AsFlags = append(flags.AsFlags, "-D__ASSEMBLY__")
-
-		if flags.Clang {
-			flags.CppFlags = append(flags.CppFlags, tc.ClangCppflags())
-		} else {
-			flags.CppFlags = append(flags.CppFlags, tc.Cppflags())
-		}
-
-		flags.YasmFlags = append(flags.YasmFlags, tc.YasmFlags())
+	if flags.Clang {
+		flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())
+		flags.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.CppFlags...)
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			tc.ClangCflags(),
+			"${config.CommonClangGlobalCflags}",
+			fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
+	} else {
+		flags.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.CppFlags...)
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			tc.Cflags(),
+			"${config.CommonGlobalCflags}",
+			fmt.Sprintf("${config.%sGlobalCflags}", hod))
 	}
+
+	if Bool(ctx.AConfig().ProductVariables.Brillo) {
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__BRILLO__")
+	}
+
+	if ctx.Device() {
+		if Bool(compiler.Properties.Rtti) {
+			flags.CppFlags = append(flags.CppFlags, "-frtti")
+		} else {
+			flags.CppFlags = append(flags.CppFlags, "-fno-rtti")
+		}
+	}
+
+	flags.AsFlags = append(flags.AsFlags, "-D__ASSEMBLY__")
+
+	if flags.Clang {
+		flags.CppFlags = append(flags.CppFlags, tc.ClangCppflags())
+	} else {
+		flags.CppFlags = append(flags.CppFlags, tc.Cppflags())
+	}
+
+	flags.YasmFlags = append(flags.YasmFlags, tc.YasmFlags())
 
 	if flags.Clang {
 		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainClangCflags())
