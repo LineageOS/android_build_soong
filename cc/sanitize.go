@@ -78,7 +78,7 @@ func (t sanitizerType) String() string {
 type SanitizeProperties struct {
 	// enable AddressSanitizer, ThreadSanitizer, or UndefinedBehaviorSanitizer
 	Sanitize struct {
-		Never bool `android:"arch_variant"`
+		Never *bool `android:"arch_variant"`
 
 		// main sanitizers
 		Address *bool `android:"arch_variant"`
@@ -131,11 +131,11 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Don't apply sanitizers to NDK code.
 	if ctx.useSdk() {
-		s.Never = true
+		s.Never = BoolPtr(true)
 	}
 
 	// Never always wins.
-	if s.Never {
+	if Bool(s.Never) {
 		return
 	}
 
@@ -540,7 +540,7 @@ func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(t) {
 			mctx.VisitDepsDepthFirst(func(module android.Module) {
 				if d, ok := module.(*Module); ok && d.sanitize != nil &&
-					!d.sanitize.Properties.Sanitize.Never &&
+					!Bool(d.sanitize.Properties.Sanitize.Never) &&
 					!d.sanitize.isSanitizerExplicitlyDisabled(t) {
 					if (t == cfi && d.static()) || t != cfi {
 						d.sanitize.Properties.SanitizeDep = true

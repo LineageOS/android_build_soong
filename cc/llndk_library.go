@@ -39,23 +39,23 @@ var (
 type llndkLibraryProperties struct {
 	// Relative path to the symbol map.
 	// An example file can be seen here: TODO(danalbert): Make an example.
-	Symbol_file string
+	Symbol_file *string
 
 	// Whether to export any headers as -isystem instead of -I. Mainly for use by
 	// bionic/libc.
-	Export_headers_as_system bool
+	Export_headers_as_system *bool
 
 	// Which headers to process with versioner. This really only handles
 	// bionic/libc/include right now.
 	Export_preprocessed_headers []string
 
 	// Whether the system library uses symbol versions.
-	Unversioned bool
+	Unversioned *bool
 
 	// whether this module can be directly depended upon by libs that are installed to /vendor.
 	// When set to false, this module can only be depended on by VNDK libraries, not vendor
 	// libraries. This effectively hides this module from vendors. Default value is true.
-	Vendor_available bool
+	Vendor_available *bool
 
 	// list of llndk headers to re-export include directories from.
 	Export_llndk_headers []string `android:"arch_variant"`
@@ -76,7 +76,7 @@ func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fl
 }
 
 func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	objs, versionScript := compileStubLibrary(ctx, flags, stub.Properties.Symbol_file, "current", "--vndk")
+	objs, versionScript := compileStubLibrary(ctx, flags, String(stub.Properties.Symbol_file), "current", "--vndk")
 	stub.versionScriptPath = versionScript
 	return objs
 }
@@ -121,7 +121,7 @@ func (stub *llndkStubDecorator) processHeaders(ctx ModuleContext, srcHeaderDir s
 func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
 
-	if !stub.Properties.Unversioned {
+	if !Bool(stub.Properties.Unversioned) {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
 		flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
 	}
@@ -135,7 +135,7 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 		}
 
 		includePrefix := "-I "
-		if stub.Properties.Export_headers_as_system {
+		if Bool(stub.Properties.Export_headers_as_system) {
 			includePrefix = "-isystem "
 		}
 
@@ -143,7 +143,7 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 		stub.reexportDeps(timestampFiles)
 	}
 
-	if stub.Properties.Export_headers_as_system {
+	if Bool(stub.Properties.Export_headers_as_system) {
 		stub.exportIncludes(ctx, "-isystem")
 		stub.libraryDecorator.flagExporter.Properties.Export_include_dirs = []string{}
 	}
@@ -156,12 +156,12 @@ func newLLndkStubLibrary() *Module {
 	library.BuildOnlyShared()
 	module.stl = nil
 	module.sanitize = nil
-	library.StripProperties.Strip.None = true
+	library.StripProperties.Strip.None = BoolPtr(true)
 
 	stub := &llndkStubDecorator{
 		libraryDecorator: library,
 	}
-	stub.Properties.Vendor_available = true
+	stub.Properties.Vendor_available = BoolPtr(true)
 	module.compiler = stub
 	module.linker = stub
 	module.installer = nil

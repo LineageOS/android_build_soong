@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
@@ -45,7 +43,7 @@ func toolchainLibraryFactory() android.Module {
 	}
 	module.compiler = toolchainLibrary
 	module.linker = toolchainLibrary
-	module.Properties.Clang = proptools.BoolPtr(false)
+	module.Properties.Clang = BoolPtr(false)
 	module.stl = nil
 	module.sanitize = nil
 	module.installer = nil
