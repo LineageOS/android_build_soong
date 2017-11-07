@@ -34,9 +34,20 @@ var (
 		"-Winit-self",
 		"-Wpointer-arith",
 
-		// COMMON_RELEASE_CFLAGS
+		// Make paths in deps files relative
+		"-no-canonical-prefixes",
+		"-fno-canonical-system-headers",
+
 		"-DNDEBUG",
 		"-UDEBUG",
+
+		"-fno-exceptions",
+		"-Wno-multichar",
+
+		"-O2",
+		"-g",
+
+		"-fno-strict-aliasing",
 	}
 
 	commonGlobalConlyflags = []string{}
@@ -44,15 +55,35 @@ var (
 	deviceGlobalCflags = []string{
 		"-fdiagnostics-color",
 
-		// TARGET_ERROR_FLAGS
+		"-ffunction-sections",
+		"-funwind-tables",
+		"-fstack-protector-strong",
+		"-Wa,--noexecstack",
+		"-D_FORTIFY_SOURCE=2",
+
+		"-Wstrict-aliasing=2",
+
 		"-Werror=return-type",
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
 		"-Werror=date-time",
+		"-Werror=format-security",
+	}
+
+	deviceGlobalLdflags = []string{
+		"-Wl,-z,noexecstack",
+		"-Wl,-z,relro",
+		"-Wl,-z,now",
+		"-Wl,--build-id=md5",
+		"-Wl,--warn-shared-textrel",
+		"-Wl,--fatal-warnings",
+		"-Wl,--no-undefined-version",
 	}
 
 	hostGlobalCflags = []string{}
+
+	hostGlobalLdflags = []string{}
 
 	commonGlobalCppflags = []string{
 		"-Wsign-promo",
@@ -91,7 +122,9 @@ func init() {
 	pctx.StaticVariable("CommonGlobalCflags", strings.Join(commonGlobalCflags, " "))
 	pctx.StaticVariable("CommonGlobalConlyflags", strings.Join(commonGlobalConlyflags, " "))
 	pctx.StaticVariable("DeviceGlobalCflags", strings.Join(deviceGlobalCflags, " "))
+	pctx.StaticVariable("DeviceGlobalLdflags", strings.Join(deviceGlobalLdflags, " "))
 	pctx.StaticVariable("HostGlobalCflags", strings.Join(hostGlobalCflags, " "))
+	pctx.StaticVariable("HostGlobalLdflags", strings.Join(hostGlobalLdflags, " "))
 	pctx.StaticVariable("NoOverrideGlobalCflags", strings.Join(noOverrideGlobalCflags, " "))
 
 	pctx.StaticVariable("CommonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))

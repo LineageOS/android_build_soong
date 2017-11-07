@@ -25,9 +25,6 @@ import (
 
 var (
 	darwinCflags = []string{
-		"-fno-exceptions", // from build/core/combo/select.mk
-		"-Wno-multichar",  // from build/core/combo/select.mk
-
 		"-fdiagnostics-color",
 
 		"-fPIC",
@@ -38,10 +35,6 @@ var (
 		"-D__STDC_FORMAT_MACROS",
 		"-D__STDC_CONSTANT_MACROS",
 
-		// HOST_RELEASE_CFLAGS
-		"-O2", // from build/core/combo/select.mk
-		"-g",  // from build/core/combo/select.mk
-		"-fno-strict-aliasing", // from build/core/combo/select.mk
 		"-isysroot ${macSdkRoot}",
 		"-mmacosx-version-min=${macMinVersion}",
 		"-DMACOSX_DEPLOYMENT_TARGET=${macMinVersion}",
