@@ -77,9 +77,7 @@ func runSoong(ctx Context, config Config) {
 		var cfg microfactory.Config
 		cfg.Map("github.com/google/blueprint", "build/blueprint")
 
-		if absPath, err := filepath.Abs("."); err == nil {
-			cfg.TrimPath = absPath
-		}
+		cfg.TrimPath = absPath(ctx, ".")
 
 		minibp := filepath.Join(config.SoongOutDir(), ".minibootstrap/minibp")
 		if _, err := microfactory.Build(&cfg, minibp, "github.com/google/blueprint/bootstrap/minibp"); err != nil {
