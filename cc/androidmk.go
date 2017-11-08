@@ -64,8 +64,9 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 				}
-				if c.Target().Os == android.Android && c.Properties.Sdk_version != "" && !c.useVndk() {
-					fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+c.Properties.Sdk_version)
+				if c.Target().Os == android.Android &&
+					String(c.Properties.Sdk_version) != "" && !c.useVndk() {
+					fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+String(c.Properties.Sdk_version))
 					fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
 				} else {
 					// These are already included in LOCAL_SHARED_LIBRARIES
@@ -244,7 +245,7 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	ctx.subAndroidMk(ret, test.binaryDecorator)
 	ret.Class = "NATIVE_TESTS"
 	if Bool(test.Properties.Test_per_src) {
-		ret.SubName = "_" + test.binaryDecorator.Properties.Stem
+		ret.SubName = "_" + String(test.binaryDecorator.Properties.Stem)
 	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
@@ -276,9 +277,10 @@ func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMk
 	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		if stripper.StripProperties.Strip.None {
+		if Bool(stripper.StripProperties.Strip.None) {
+
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
-		} else if stripper.StripProperties.Strip.Keep_symbols {
+		} else if Bool(stripper.StripProperties.Strip.Keep_symbols) {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := keep_symbols")
 		} else {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := mini-debug-info")

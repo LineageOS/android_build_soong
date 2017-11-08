@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/google/blueprint/proptools"
 )
 
 var buildDir string
@@ -40,7 +38,7 @@ func TestMain(m *testing.M) {
 
 func testCc(t *testing.T, bp string) *android.TestContext {
 	config := android.TestArchConfig(buildDir, nil)
-	config.ProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
+	config.ProductVariables.DeviceVndkVersion = StringPtr("current")
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
