@@ -16,7 +16,6 @@ package build
 
 import (
 	"os/exec"
-	"path/filepath"
 )
 
 type Sandbox string
