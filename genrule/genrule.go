@@ -138,17 +138,6 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-// Given an output file, returns an expression for the corresponding file path within the sandbox
-func sandboxPathForOutput(ctx android.ModuleContext, outputFile string) (relative string, err error) {
-	var relativePath string
-	basedir := ctx.AConfig().BuildDir()
-	relativePath, err = filepath.Rel(basedir, outputFile)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join("__SBOX_OUT_DIR__", relativePath), nil
-}
-
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
 		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
@@ -221,6 +210,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	referencedDepfile := false
 
+	ruleOutputDir := android.PathForModuleGen(ctx, "").String()
+
 	rawCommand, err := android.Expand(g.properties.Cmd, func(name string) (string, error) {
 		switch name {
 		case "location":
@@ -240,11 +231,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 			return "__SBOX_DEPFILE__", nil
 		case "genDir":
-			path, err := sandboxPathForOutput(ctx, android.PathForModuleGen(ctx, "").String())
-			if err != nil {
-				return "", err
-			}
-			return path, nil
+			return "__SBOX_OUT_DIR__", nil
 		default:
 			if strings.HasPrefix(name, "location ") {
 				label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
@@ -277,7 +264,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if g.properties.Depfile {
 		depfilePlaceholder = "$depfileArgs"
 	}
-	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, buildDir, rawCommand, depfilePlaceholder)
+
+	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, ruleOutputDir, rawCommand, depfilePlaceholder)
 
 	ruleParams := blueprint.RuleParams{
 		Command:     sandboxCommand,
