@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -77,7 +76,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 
 	sort.Sort(AndroidModulesByName{androidMkModulesList, ctx})
 
-	transMk := PathForOutput(ctx, "Android"+proptools.String(config.ProductVariables.Make_suffix)+".mk")
+	transMk := PathForOutput(ctx, "Android"+String(config.ProductVariables.Make_suffix)+".mk")
 	if ctx.Failed() {
 		return
 	}
