@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
@@ -25,19 +23,19 @@ type BinaryLinkerProperties struct {
 	Static_executable *bool `android:"arch_variant"`
 
 	// set the name of the output
-	Stem string `android:"arch_variant"`
+	Stem *string `android:"arch_variant"`
 
 	// append to the name of the output
-	Suffix string `android:"arch_variant"`
+	Suffix *string `android:"arch_variant"`
 
 	// if set, add an extra objcopy --prefix-symbols= step
-	Prefix_symbols string
+	Prefix_symbols *string
 
 	// local file name to pass to the linker as --version_script
 	Version_script *string `android:"arch_variant"`
 
 	// if set, install a symlink to the preferred architecture
-	Symlink_preferred_arch bool
+	Symlink_preferred_arch *bool
 
 	// install symlinks to the binary.  Symlink names will have the suffix and the binary
 	// extension (if any) appended
@@ -97,11 +95,11 @@ func (binary *binaryDecorator) linkerProps() []interface{} {
 
 func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
 	stem := ctx.baseModuleName()
-	if binary.Properties.Stem != "" {
-		stem = binary.Properties.Stem
+	if String(binary.Properties.Stem) != "" {
+		stem = String(binary.Properties.Stem)
 	}
 
-	return stem + binary.Properties.Suffix
+	return stem + String(binary.Properties.Suffix)
 }
 
 func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
@@ -185,7 +183,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 	if !ctx.toolchain().Bionic() {
 		if ctx.Os() == android.Linux {
 			if binary.Properties.Static_executable == nil && Bool(ctx.AConfig().ProductVariables.HostStaticBinaries) {
-				binary.Properties.Static_executable = proptools.BoolPtr(true)
+				binary.Properties.Static_executable = BoolPtr(true)
 			}
 		} else {
 			// Static executables are not supported on Darwin or Windows
@@ -315,10 +313,10 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		binary.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
 
-	if binary.Properties.Prefix_symbols != "" {
+	if String(binary.Properties.Prefix_symbols) != "" {
 		afterPrefixSymbols := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unprefixed", fileName)
-		TransformBinaryPrefixSymbols(ctx, binary.Properties.Prefix_symbols, outputFile,
+		TransformBinaryPrefixSymbols(ctx, String(binary.Properties.Prefix_symbols), outputFile,
 			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
@@ -342,11 +340,11 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 	binary.baseInstaller.install(ctx, file)
 	for _, symlink := range binary.Properties.Symlinks {
 		binary.symlinks = append(binary.symlinks,
-			symlink+binary.Properties.Suffix+ctx.toolchain().ExecutableSuffix())
+			symlink+String(binary.Properties.Suffix)+ctx.toolchain().ExecutableSuffix())
 	}
 
-	if binary.Properties.Symlink_preferred_arch {
-		if binary.Properties.Stem == "" && binary.Properties.Suffix == "" {
+	if Bool(binary.Properties.Symlink_preferred_arch) {
+		if String(binary.Properties.Stem) == "" && String(binary.Properties.Suffix) == "" {
 			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify stem or suffix")
 		}
 		if ctx.TargetPrimary() {

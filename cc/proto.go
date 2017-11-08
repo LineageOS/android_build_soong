@@ -16,7 +16,6 @@ package cc
 
 import (
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -58,7 +57,7 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 func protoDeps(ctx BaseModuleContext, deps Deps, p *android.ProtoProperties, static bool) Deps {
 	var lib string
 
-	switch proptools.String(p.Proto.Type) {
+	switch String(p.Proto.Type) {
 	case "full":
 		if ctx.useSdk() {
 			lib = "libprotobuf-cpp-full-ndk"
@@ -75,7 +74,7 @@ func protoDeps(ctx BaseModuleContext, deps Deps, p *android.ProtoProperties, sta
 		}
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
-			proptools.String(p.Proto.Type))
+			String(p.Proto.Type))
 	}
 
 	if static {
