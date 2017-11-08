@@ -104,6 +104,9 @@ func NewConfig(ctx Context, args ...string) Config {
 		"MAKEFLAGS",
 		"MAKELEVEL",
 		"MFLAGS",
+
+		// Set in envsetup.sh, reset in makefiles
+		"ANDROID_JAVA_TOOLCHAIN",
 	)
 
 	// Tell python not to spam the source tree with .pyc files.
@@ -117,14 +120,12 @@ func NewConfig(ctx Context, args ...string) Config {
 		log.Fatalln("Error verifying tree state:", err)
 	}
 
-	if srcDir, err := filepath.Abs("."); err == nil {
-		if strings.ContainsRune(srcDir, ' ') {
-			log.Println("You are building in a directory whose absolute path contains a space character:")
-			log.Println()
-			log.Printf("%q\n", srcDir)
-			log.Println()
-			log.Fatalln("Directory names containing spaces are not supported")
-		}
+	if srcDir := absPath(ctx, "."); strings.ContainsRune(srcDir, ' ') {
+		log.Println("You are building in a directory whose absolute path contains a space character:")
+		log.Println()
+		log.Printf("%q\n", srcDir)
+		log.Println()
+		log.Fatalln("Directory names containing spaces are not supported")
 	}
 
 	if outDir := ret.OutDir(); strings.ContainsRune(outDir, ' ') {
@@ -142,6 +143,27 @@ func NewConfig(ctx Context, args ...string) Config {
 		log.Println()
 		log.Fatalln("Directory names containing spaces are not supported")
 	}
+
+	// Configure Java-related variables, including adding it to $PATH
+	javaHome := func() string {
+		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
+			return override
+		}
+		if v, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK9"); ok && v != "" {
+			return filepath.Join("prebuilts/jdk/jdk9", ret.HostPrebuiltTag())
+		}
+		return filepath.Join("prebuilts/jdk/jdk8", ret.HostPrebuiltTag())
+	}()
+	absJavaHome := absPath(ctx, javaHome)
+
+	newPath := []string{filepath.Join(absJavaHome, "bin")}
+	if path, ok := ret.environ.Get("PATH"); ok && path != "" {
+		newPath = append(newPath, path)
+	}
+	ret.environ.Unset("OVERRIDE_ANDROID_JAVA_HOME")
+	ret.environ.Set("JAVA_HOME", absJavaHome)
+	ret.environ.Set("ANDROID_JAVA_HOME", javaHome)
+	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
 
 	return Config{ret}
 }

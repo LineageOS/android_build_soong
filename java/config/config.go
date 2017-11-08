@@ -55,13 +55,8 @@ func init() {
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 
 	pctx.VariableFunc("JavaHome", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("OVERRIDE_ANDROID_JAVA_HOME"); override != "" {
-			return override, nil
-		}
-		if config.(android.Config).UseOpenJDK9() {
-			return "prebuilts/jdk/jdk9/${hostPrebuiltTag}", nil
-		}
-		return "prebuilts/jdk/jdk8/${hostPrebuiltTag}", nil
+		// This is set up and guaranteed by soong_ui
+		return config.(android.Config).Getenv("ANDROID_JAVA_HOME"), nil
 	})
 
 	pctx.SourcePathVariable("JavaToolchain", "${JavaHome}/bin")
