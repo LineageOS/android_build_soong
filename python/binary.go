@@ -40,6 +40,10 @@ type BinaryProperties struct {
 
 	// append to the name of the output binary.
 	Suffix string `android:"arch_variant"`
+
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
 }
 
 type binaryDecorator struct {
