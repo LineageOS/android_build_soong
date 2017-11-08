@@ -152,7 +152,7 @@ type Module interface {
 
 type nameProperties struct {
 	// The name of the module.  Must be unique across all modules.
-	Name string
+	Name *string
 }
 
 type commonProperties struct {
@@ -351,12 +351,12 @@ func (a *ModuleBase) BuildParamsForTests() []BuildParams {
 // Name returns the name of the module.  It may be overridden by individual module types, for
 // example prebuilts will prepend prebuilt_ to the name.
 func (a *ModuleBase) Name() string {
-	return a.nameProperties.Name
+	return String(a.nameProperties.Name)
 }
 
 // BaseModuleName returns the name of the module as specified in the blueprints file.
 func (a *ModuleBase) BaseModuleName() string {
-	return a.nameProperties.Name
+	return String(a.nameProperties.Name)
 }
 
 func (a *ModuleBase) base() *ModuleBase {

@@ -76,17 +76,17 @@ var (
 type libraryProperties struct {
 	// Relative path to the symbol map.
 	// An example file can be seen here: TODO(danalbert): Make an example.
-	Symbol_file string
+	Symbol_file *string
 
 	// The first API level a library was available. A library will be generated
 	// for every API level beginning with this one.
-	First_version string
+	First_version *string
 
 	// The first API level that library should have the version script applied.
 	// This defaults to the value of first_version, and should almost never be
 	// used. This is only needed to work around platform bugs like
 	// https://github.com/android-ndk/ndk/issues/265.
-	Unversioned_until string
+	Unversioned_until *string
 
 	// Private property for use by the mutator that splits per-API level.
 	ApiLevel string `blueprint:"mutated"`
@@ -158,11 +158,11 @@ func getFirstGeneratedVersion(firstSupportedVersion string, platformVersion int)
 
 func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
 	// unversioned_until is normally empty, in which case we should use the version script.
-	if stub.properties.Unversioned_until == "" {
+	if String(stub.properties.Unversioned_until) == "" {
 		return true, nil
 	}
 
-	if stub.properties.Unversioned_until == "current" {
+	if String(stub.properties.Unversioned_until) == "current" {
 		if stub.properties.ApiLevel == "current" {
 			return true, nil
 		} else {
@@ -174,7 +174,7 @@ func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
 		return true, nil
 	}
 
-	unversionedUntil, err := strconv.Atoi(stub.properties.Unversioned_until)
+	unversionedUntil, err := strconv.Atoi(String(stub.properties.Unversioned_until))
 	if err != nil {
 		return true, err
 	}
@@ -190,7 +190,7 @@ func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
 func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
 	platformVersion := mctx.AConfig().PlatformSdkVersionInt()
 
-	firstSupportedVersion, err := normalizeNdkApiLevel(mctx, c.properties.First_version,
+	firstSupportedVersion, err := normalizeNdkApiLevel(mctx, String(c.properties.First_version),
 		mctx.Arch())
 	if err != nil {
 		mctx.PropertyErrorf("first_version", err.Error())
@@ -290,11 +290,12 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 }
 
 func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	if !strings.HasSuffix(c.properties.Symbol_file, ".map.txt") {
+	if !strings.HasSuffix(String(c.properties.Symbol_file), ".map.txt") {
 		ctx.PropertyErrorf("symbol_file", "must end with .map.txt")
 	}
 
-	objs, versionScript := compileStubLibrary(ctx, flags, c.properties.Symbol_file, c.properties.ApiLevel, "")
+	objs, versionScript := compileStubLibrary(ctx, flags, String(c.properties.Symbol_file),
+		c.properties.ApiLevel, "")
 	c.versionScriptPath = versionScript
 	return objs
 }
@@ -349,7 +350,7 @@ func newStubLibrary() *Module {
 	library.BuildOnlyShared()
 	module.stl = nil
 	module.sanitize = nil
-	library.StripProperties.Strip.None = true
+	library.StripProperties.Strip.None = BoolPtr(true)
 
 	stub := &stubDecorator{
 		libraryDecorator: library,

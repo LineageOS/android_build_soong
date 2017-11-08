@@ -14,12 +14,14 @@
 
 package cc
 
-import "android/soong/android"
+import (
+	"android/soong/android"
+)
 
 type StripProperties struct {
 	Strip struct {
-		None         bool
-		Keep_symbols bool
+		None         *bool
+		Keep_symbols *bool
 	}
 }
 
@@ -28,7 +30,7 @@ type stripper struct {
 }
 
 func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
-	return !ctx.AConfig().EmbeddedInMake() && !stripper.StripProperties.Strip.None
+	return !ctx.AConfig().EmbeddedInMake() && !Bool(stripper.StripProperties.Strip.None)
 }
 
 func (stripper *stripper) strip(ctx ModuleContext, in, out android.ModuleOutPath,
@@ -36,7 +38,7 @@ func (stripper *stripper) strip(ctx ModuleContext, in, out android.ModuleOutPath
 	if ctx.Darwin() {
 		TransformDarwinStrip(ctx, in, out)
 	} else {
-		flags.stripKeepSymbols = stripper.StripProperties.Strip.Keep_symbols
+		flags.stripKeepSymbols = Bool(stripper.StripProperties.Strip.Keep_symbols)
 		// TODO(ccross): don't add gnu debuglink for user builds
 		flags.stripAddGnuDebuglink = true
 		TransformStrip(ctx, in, out, flags)

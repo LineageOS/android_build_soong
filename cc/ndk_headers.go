@@ -56,16 +56,16 @@ type headerProperies struct {
 	//
 	// Will install $SYSROOT/usr/include/foo/bar/baz.h. If `from` were instead
 	// "include/foo", it would have installed $SYSROOT/usr/include/bar/baz.h.
-	From string
+	From *string
 
 	// Install path within the sysroot. This is relative to usr/include.
-	To string
+	To *string
 
 	// List of headers to install. Glob compatible. Common case is "include/**/*.h".
 	Srcs []string
 
 	// Path to the NOTICE file associated with the headers.
-	License string
+	License *string
 }
 
 type headerModule struct {
@@ -113,15 +113,16 @@ func getHeaderInstallDir(ctx android.ModuleContext, header android.Path, from st
 }
 
 func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if m.properties.License == "" {
+	if String(m.properties.License) == "" {
 		ctx.PropertyErrorf("license", "field is required")
 	}
 
-	m.licensePath = android.PathForModuleSrc(ctx, m.properties.License)
+	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
 
 	srcFiles := ctx.ExpandSources(m.properties.Srcs, nil)
 	for _, header := range srcFiles {
-		installDir := getHeaderInstallDir(ctx, header, m.properties.From, m.properties.To)
+		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From),
+			String(m.properties.To))
 		installedPath := ctx.InstallFile(installDir, header.Base(), header)
 		installPath := installDir.Join(ctx, header.Base())
 		if installPath != installedPath {
