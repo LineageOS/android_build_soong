@@ -116,7 +116,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 		"bar.c":      nil,
 	})
 
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	failIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	failIfErrored(t, errs)
