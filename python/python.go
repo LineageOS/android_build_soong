@@ -65,7 +65,7 @@ type BaseProperties struct {
 	// (from a.b.c import ...) statement.
 	// if left unspecified, all the source/data files of current module are copied to
 	// "runfiles/" tree directory directly.
-	Pkg_path string `android:"arch_variant"`
+	Pkg_path *string `android:"arch_variant"`
 
 	// true, if the Python module is used internally, eg, Python std libs.
 	Is_internal *bool `android:"arch_variant"`
@@ -367,14 +367,14 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 	expandedData := ctx.ExpandSources(p.properties.Data, nil)
 
 	// sanitize pkg_path.
-	pkg_path := p.properties.Pkg_path
+	pkg_path := String(p.properties.Pkg_path)
 	if pkg_path != "" {
-		pkg_path = filepath.Clean(p.properties.Pkg_path)
+		pkg_path = filepath.Clean(String(p.properties.Pkg_path))
 		if pkg_path == ".." || strings.HasPrefix(pkg_path, "../") ||
 			strings.HasPrefix(pkg_path, "/") {
 			ctx.PropertyErrorf("pkg_path",
 				"%q must be a relative path contained in par file.",
-				p.properties.Pkg_path)
+				String(p.properties.Pkg_path))
 			return
 		}
 		if p.properties.Is_internal != nil && *p.properties.Is_internal {
@@ -557,3 +557,6 @@ func fillInMap(ctx android.ModuleContext, m map[string]string,
 
 	return true
 }
+
+var Bool = proptools.Bool
+var String = proptools.String

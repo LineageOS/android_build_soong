@@ -134,7 +134,7 @@ type CompilerDeviceProperties struct {
 	Dxflags []string `android:"arch_variant"`
 
 	// if not blank, set to the version of the sdk to compile against
-	Sdk_version string
+	Sdk_version *string
 
 	// directories to pass to aidl tool
 	Aidl_includes []string
@@ -307,7 +307,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		if !proptools.Bool(j.properties.No_standard_libs) {
-			sdkDep := decodeSdkDep(ctx, j.deviceProperties.Sdk_version)
+			sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				if ctx.AConfig().TargetOpenJDK9() {
@@ -412,7 +412,7 @@ type deps struct {
 func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
-	sdkDep := decodeSdkDep(ctx, j.deviceProperties.Sdk_version)
+	sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 	if sdkDep.invalidVersion {
 		ctx.AddMissingDependencies([]string{sdkDep.module})
 	} else if sdkDep.useFiles {
@@ -493,14 +493,14 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	}
 
 	// javaVersion flag.
-	sdk := sdkStringToNumber(ctx, j.deviceProperties.Sdk_version)
+	sdk := sdkStringToNumber(ctx, String(j.deviceProperties.Sdk_version))
 	if j.properties.Java_version != nil {
 		flags.javaVersion = *j.properties.Java_version
 	} else if ctx.Device() && sdk <= 23 {
 		flags.javaVersion = "1.7"
 	} else if ctx.Device() && sdk <= 26 || !ctx.AConfig().TargetOpenJDK9() {
 		flags.javaVersion = "1.8"
-	} else if ctx.Device() && j.deviceProperties.Sdk_version != "" && sdk == 10000 {
+	} else if ctx.Device() && String(j.deviceProperties.Sdk_version) != "" && sdk == 10000 {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
 		flags.javaVersion = "1.8"
 	} else {
@@ -783,11 +783,11 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	}
 
 	var minSdkVersion string
-	switch j.deviceProperties.Sdk_version {
+	switch String(j.deviceProperties.Sdk_version) {
 	case "", "current", "test_current", "system_current":
 		minSdkVersion = strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
 	default:
-		minSdkVersion = j.deviceProperties.Sdk_version
+		minSdkVersion = String(j.deviceProperties.Sdk_version)
 	}
 
 	dxFlags = append(dxFlags, "--min-sdk-version="+minSdkVersion)
@@ -903,7 +903,7 @@ func LibraryHostFactory() android.Module {
 
 type binaryProperties struct {
 	// installable script to execute the resulting jar
-	Wrapper string
+	Wrapper *string
 }
 
 type Binary struct {
@@ -924,8 +924,8 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
 	// another build rule before the jar has been installed.
-	if j.binaryProperties.Wrapper != "" {
-		j.wrapperFile = android.PathForModuleSrc(ctx, j.binaryProperties.Wrapper).SourcePath
+	if String(j.binaryProperties.Wrapper) != "" {
+		j.wrapperFile = android.PathForModuleSrc(ctx, String(j.binaryProperties.Wrapper)).SourcePath
 	} else {
 		j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 	}
@@ -970,7 +970,7 @@ func BinaryHostFactory() android.Module {
 type ImportProperties struct {
 	Jars []string
 
-	Sdk_version string
+	Sdk_version *string
 
 	Installable *bool
 }
@@ -1084,3 +1084,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 
 	return module
 }
+
+var Bool = proptools.Bool
+var String = proptools.String
