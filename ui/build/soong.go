@@ -36,6 +36,7 @@ func runSoong(ctx Context, config Config) {
 		cmd.Environment.Set("BOOTSTRAP", "./build/blueprint/bootstrap.bash")
 		cmd.Environment.Set("BUILDDIR", config.SoongOutDir())
 		cmd.Environment.Set("GOROOT", filepath.Join("./prebuilts/go", config.HostPrebuiltTag()))
+		cmd.Environment.Set("BLUEPRINT_LIST_FILE", filepath.Join(config.FileListDir(), "Android.bp.list"))
 		cmd.Environment.Set("NINJA_BUILDDIR", config.OutDir())
 		cmd.Environment.Set("SRCDIR", ".")
 		cmd.Environment.Set("TOPNAME", "Android.bp")
@@ -77,9 +78,7 @@ func runSoong(ctx Context, config Config) {
 		var cfg microfactory.Config
 		cfg.Map("github.com/google/blueprint", "build/blueprint")
 
-		if absPath, err := filepath.Abs("."); err == nil {
-			cfg.TrimPath = absPath
-		}
+		cfg.TrimPath = absPath(ctx, ".")
 
 		minibp := filepath.Join(config.SoongOutDir(), ".minibootstrap/minibp")
 		if _, err := microfactory.Build(&cfg, minibp, "github.com/google/blueprint/bootstrap/minibp"); err != nil {

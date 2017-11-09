@@ -78,7 +78,7 @@ func (t sanitizerType) String() string {
 type SanitizeProperties struct {
 	// enable AddressSanitizer, ThreadSanitizer, or UndefinedBehaviorSanitizer
 	Sanitize struct {
-		Never bool `android:"arch_variant"`
+		Never *bool `android:"arch_variant"`
 
 		// main sanitizers
 		Address *bool `android:"arch_variant"`
@@ -131,11 +131,11 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Don't apply sanitizers to NDK code.
 	if ctx.useSdk() {
-		s.Never = true
+		s.Never = BoolPtr(true)
 	}
 
 	// Never always wins.
-	if s.Never {
+	if Bool(s.Never) {
 		return
 	}
 
@@ -187,7 +187,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		if found, globalSanitizers = removeFromList("cfi", globalSanitizers); found && s.Cfi == nil {
-			s.Cfi = boolPtr(true)
+			if !ctx.AConfig().CFIDisabledForPath(ctx.ModuleDir()) {
+				s.Cfi = boolPtr(true)
+			}
 		}
 
 		if found, globalSanitizers = removeFromList("integer_overflow", globalSanitizers); found && s.Integer_overflow == nil {
@@ -205,8 +207,21 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Diag.Integer_overflow = boolPtr(true)
 		}
 
+		if found, globalSanitizersDiag = removeFromList("cfi", globalSanitizersDiag); found &&
+			s.Diag.Cfi == nil && Bool(s.Cfi) {
+			s.Diag.Cfi = boolPtr(true)
+		}
+
 		if len(globalSanitizersDiag) > 0 {
 			ctx.ModuleErrorf("unknown global sanitizer diagnostics option %s", globalSanitizersDiag[0])
+		}
+	}
+
+	// Enable CFI for all components in the include paths
+	if s.Cfi == nil && ctx.AConfig().CFIEnabledForPath(ctx.ModuleDir()) {
+		s.Cfi = boolPtr(true)
+		if inList("cfi", ctx.AConfig().SanitizeDeviceDiag()) {
+			s.Diag.Cfi = boolPtr(true)
 		}
 	}
 
@@ -540,7 +555,7 @@ func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(t) {
 			mctx.VisitDepsDepthFirst(func(module android.Module) {
 				if d, ok := module.(*Module); ok && d.sanitize != nil &&
-					!d.sanitize.Properties.Sanitize.Never &&
+					!Bool(d.sanitize.Properties.Sanitize.Never) &&
 					!d.sanitize.isSanitizerExplicitlyDisabled(t) {
 					if (t == cfi && d.static()) || t != cfi {
 						d.sanitize.Properties.SanitizeDep = true

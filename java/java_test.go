@@ -134,7 +134,7 @@ func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.Te
 		"prebuilts/sdk/test_current/framework.aidl":   nil,
 	})
 
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	fail(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	fail(t, errs)

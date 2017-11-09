@@ -24,6 +24,14 @@ import (
 	"unsafe"
 )
 
+func absPath(ctx Context, p string) string {
+	ret, err := filepath.Abs(p)
+	if err != nil {
+		ctx.Fatalf("Failed to get absolute path: %v", err)
+	}
+	return ret
+}
+
 // indexList finds the index of a string in a []string
 func indexList(s string, list []string) int {
 	for i, l := range list {
