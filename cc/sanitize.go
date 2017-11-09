@@ -187,7 +187,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		if found, globalSanitizers = removeFromList("cfi", globalSanitizers); found && s.Cfi == nil {
-			s.Cfi = boolPtr(true)
+			if !ctx.AConfig().CFIDisabledForPath(ctx.ModuleDir()) {
+				s.Cfi = boolPtr(true)
+			}
 		}
 
 		if found, globalSanitizers = removeFromList("integer_overflow", globalSanitizers); found && s.Integer_overflow == nil {
@@ -205,8 +207,21 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Diag.Integer_overflow = boolPtr(true)
 		}
 
+		if found, globalSanitizersDiag = removeFromList("cfi", globalSanitizersDiag); found &&
+			s.Diag.Cfi == nil && Bool(s.Cfi) {
+			s.Diag.Cfi = boolPtr(true)
+		}
+
 		if len(globalSanitizersDiag) > 0 {
 			ctx.ModuleErrorf("unknown global sanitizer diagnostics option %s", globalSanitizersDiag[0])
+		}
+	}
+
+	// Enable CFI for all components in the include paths
+	if s.Cfi == nil && ctx.AConfig().CFIEnabledForPath(ctx.ModuleDir()) {
+		s.Cfi = boolPtr(true)
+		if inList("cfi", ctx.AConfig().SanitizeDeviceDiag()) {
+			s.Diag.Cfi = boolPtr(true)
 		}
 	}
 
