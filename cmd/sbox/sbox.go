@@ -45,6 +45,7 @@ func init() {
 
 	flag.StringVar(&depfileOut, "depfile-out", "",
 		"file path of the depfile to generate. This value will replace '__SBOX_DEPFILE__' in the command and will be treated as an output but won't be added to __SBOX_OUT_FILES__")
+
 }
 
 func usageViolation(violation string) {
@@ -53,10 +54,11 @@ func usageViolation(violation string) {
 	}
 
 	fmt.Fprintf(os.Stderr,
-		"Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> [--depfile-out depFile] <outputFile> [<outputFile>...]\n"+
+		"Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> --overwrite [--depfile-out depFile] <outputFile> [<outputFile>...]\n"+
 			"\n"+
-			"Runs <commandToRun> and moves each <outputFile> out of <sandboxPath>\n"+
-			"and into <outputRoot>\n")
+			"Deletes <outputRoot>,"+
+			"runs <commandToRun>,"+
+			"and moves each <outputFile> out of <sandboxPath> and into <outputRoot>\n")
 
 	flag.PrintDefaults()
 
@@ -101,7 +103,19 @@ func run() error {
 	// all outputs
 	var allOutputs []string
 
-	os.MkdirAll(sandboxesRoot, 0777)
+	// setup directories
+	err := os.MkdirAll(sandboxesRoot, 0777)
+	if err != nil {
+		return err
+	}
+	err = os.RemoveAll(outputRoot)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(outputRoot, 0777)
+	if err != nil {
+		return err
+	}
 
 	tempDir, err := ioutil.TempDir(sandboxesRoot, "sbox")
 
@@ -207,7 +221,11 @@ func run() error {
 		if len(outputRoot) != 0 {
 			destPath = filepath.Join(outputRoot, filePath)
 		}
-		err := os.Rename(tempPath, destPath)
+		err := os.MkdirAll(filepath.Dir(destPath), 0777)
+		if err != nil {
+			return err
+		}
+		err = os.Rename(tempPath, destPath)
 		if err != nil {
 			return err
 		}

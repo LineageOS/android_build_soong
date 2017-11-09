@@ -24,6 +24,8 @@ import (
 	"android/soong/android"
 	"android/soong/shared"
 	"path/filepath"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -98,7 +100,7 @@ type Module struct {
 
 	properties generatorProperties
 
-	tasks taskFunc
+	taskGenerator taskFunc
 
 	deps android.Paths
 	rule blueprint.Rule
@@ -108,11 +110,12 @@ type Module struct {
 	outputFiles android.Paths
 }
 
-type taskFunc func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask
+type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) generateTask
 
 type generateTask struct {
 	in  android.Paths
 	out android.WritablePaths
+	cmd string
 }
 
 func (g *Module) GeneratedSourceFiles() android.Paths {
@@ -210,9 +213,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	referencedDepfile := false
 
-	ruleOutputDir := android.PathForModuleGen(ctx, "").String()
+	srcFiles := ctx.ExpandSources(g.properties.Srcs, nil)
+	task := g.taskGenerator(ctx, g.properties.Cmd, srcFiles)
 
-	rawCommand, err := android.Expand(g.properties.Cmd, func(name string) (string, error) {
+	rawCommand, err := android.Expand(task.cmd, func(name string) (string, error) {
 		switch name {
 		case "location":
 			if len(g.properties.Tools) > 0 {
@@ -265,7 +269,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		depfilePlaceholder = "$depfileArgs"
 	}
 
-	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, ruleOutputDir, rawCommand, depfilePlaceholder)
+	genDir := android.PathForModuleGen(ctx)
+	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, genDir, rawCommand, depfilePlaceholder)
 
 	ruleParams := blueprint.RuleParams{
 		Command:     sandboxCommand,
@@ -278,10 +283,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	g.rule = ctx.Rule(pctx, "generator", ruleParams, args...)
 
-	srcFiles := ctx.ExpandSources(g.properties.Srcs, nil)
-	for _, task := range g.tasks(ctx, srcFiles) {
-		g.generateSourceFile(ctx, task)
-	}
+	g.generateSourceFile(ctx, task)
+
 }
 
 func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask) {
@@ -322,9 +325,9 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 	}
 }
 
-func generatorFactory(tasks taskFunc, props ...interface{}) *Module {
+func generatorFactory(taskGenerator taskFunc, props ...interface{}) *Module {
 	module := &Module{
-		tasks: tasks,
+		taskGenerator: taskGenerator,
 	}
 
 	module.AddProperties(props...)
@@ -336,18 +339,48 @@ func generatorFactory(tasks taskFunc, props ...interface{}) *Module {
 func NewGenSrcs() *Module {
 	properties := &genSrcsProperties{}
 
-	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
-		tasks := make([]generateTask, 0, len(srcFiles))
+	taskGenerator := func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) generateTask {
+		commands := []string{}
+		outFiles := android.WritablePaths{}
+		genPath := android.PathForModuleGen(ctx).String()
 		for _, in := range srcFiles {
-			tasks = append(tasks, generateTask{
-				in:  android.Paths{in},
-				out: android.WritablePaths{android.GenPathWithExt(ctx, "", in, properties.Output_extension)},
+			outFile := android.GenPathWithExt(ctx, "", in, properties.Output_extension)
+			outFiles = append(outFiles, outFile)
+
+			// replace "out" with "__SBOX_OUT_DIR__/<the value of ${out}>"
+			relOut, err := filepath.Rel(genPath, outFile.String())
+			if err != nil {
+				panic(fmt.Sprintf("Could not make ${out} relative: %v", err))
+			}
+			sandboxOutfile := filepath.Join("__SBOX_OUT_DIR__", relOut)
+			command, err := android.Expand(rawCommand, func(name string) (string, error) {
+				switch name {
+				case "in":
+					return in.String(), nil
+				case "out":
+					return sandboxOutfile, nil
+				default:
+					return "$(" + name + ")", nil
+				}
 			})
+			if err != nil {
+				ctx.PropertyErrorf("cmd", err.Error())
+			}
+
+			// escape the command in case for example it contains '#', an odd number of '"', etc
+			command = fmt.Sprintf("bash -c %v", proptools.ShellEscape([]string{command})[0])
+			commands = append(commands, command)
 		}
-		return tasks
+		fullCommand := strings.Join(commands, " && ")
+
+		return generateTask{
+			in:  srcFiles,
+			out: outFiles,
+			cmd: fullCommand,
+		}
 	}
 
-	return generatorFactory(tasks, properties)
+	return generatorFactory(taskGenerator, properties)
 }
 
 func GenSrcsFactory() android.Module {
@@ -364,20 +397,19 @@ type genSrcsProperties struct {
 func NewGenRule() *Module {
 	properties := &genRuleProperties{}
 
-	tasks := func(ctx android.ModuleContext, srcFiles android.Paths) []generateTask {
+	taskGenerator := func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) generateTask {
 		outs := make(android.WritablePaths, len(properties.Out))
 		for i, out := range properties.Out {
 			outs[i] = android.PathForModuleGen(ctx, out)
 		}
-		return []generateTask{
-			{
-				in:  srcFiles,
-				out: outs,
-			},
+		return generateTask{
+			in:  srcFiles,
+			out: outs,
+			cmd: rawCommand,
 		}
 	}
 
-	return generatorFactory(tasks, properties)
+	return generatorFactory(taskGenerator, properties)
 }
 
 func GenRuleFactory() android.Module {
