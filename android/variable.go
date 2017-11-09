@@ -153,7 +153,6 @@ type productVariables struct {
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
 	Eng                        *bool `json:",omitempty"`
-	EnableCFI                  *bool `json:",omitempty"`
 	Device_uses_hwc2           *bool `json:",omitempty"`
 	Treble                     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
@@ -161,6 +160,10 @@ type productVariables struct {
 	MinimizeJavaDebugInfo      *bool `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
+
+	EnableCFI       *bool     `json:",omitempty"`
+	CFIExcludePaths *[]string `json:",omitempty"`
+	CFIIncludePaths *[]string `json:",omitempty"`
 
 	VendorPath *string `json:",omitempty"`
 
