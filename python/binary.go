@@ -33,13 +33,13 @@ type BinaryProperties struct {
 	// this file must also be listed in srcs.
 	// If left unspecified, module name is used instead.
 	// If name doesn’t match any filename in srcs, main must be specified.
-	Main string `android:"arch_variant"`
+	Main *string `android:"arch_variant"`
 
 	// set the name of the output binary.
-	Stem string `android:"arch_variant"`
+	Stem *string `android:"arch_variant"`
 
 	// append to the name of the output binary.
-	Suffix string `android:"arch_variant"`
+	Suffix *string `android:"arch_variant"`
 
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
@@ -179,10 +179,10 @@ func (binary *binaryDecorator) getHostInterpreterName(ctx android.ModuleContext,
 func (binary *binaryDecorator) getPyMainFile(ctx android.ModuleContext,
 	srcsPathMappings []pathMapping) string {
 	var main string
-	if binary.binaryProperties.Main == "" {
+	if String(binary.binaryProperties.Main) == "" {
 		main = ctx.ModuleName() + pyExt
 	} else {
-		main = binary.binaryProperties.Main
+		main = String(binary.binaryProperties.Main)
 	}
 
 	for _, path := range srcsPathMappings {
@@ -197,11 +197,11 @@ func (binary *binaryDecorator) getPyMainFile(ctx android.ModuleContext,
 
 func (binary *binaryDecorator) getStem(ctx android.ModuleContext) string {
 	stem := ctx.ModuleName()
-	if binary.binaryProperties.Stem != "" {
-		stem = binary.binaryProperties.Stem
+	if String(binary.binaryProperties.Stem) != "" {
+		stem = String(binary.binaryProperties.Stem)
 	}
 
-	return stem + binary.binaryProperties.Suffix
+	return stem + String(binary.binaryProperties.Suffix)
 }
 
 // Sets the given directory and all its ancestor directories as Python packages.
