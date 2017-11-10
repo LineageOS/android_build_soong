@@ -120,14 +120,15 @@ func (d *dir) Set(s string) error {
 }
 
 var (
-	out          = flag.String("o", "", "file to write zip file to")
-	manifest     = flag.String("m", "", "input jar manifest file name")
-	directories  = flag.Bool("d", false, "include directories in zip")
-	rootPrefix   = flag.String("P", "", "path prefix within the zip at which to place files")
-	relativeRoot = flag.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
-	parallelJobs = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
-	compLevel    = flag.Int("L", 5, "deflate compression level (0-9)")
-	emulateJar   = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
+	out            = flag.String("o", "", "file to write zip file to")
+	manifest       = flag.String("m", "", "input jar manifest file name")
+	directories    = flag.Bool("d", false, "include directories in zip")
+	rootPrefix     = flag.String("P", "", "path prefix within the zip at which to place files")
+	relativeRoot   = flag.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
+	parallelJobs   = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
+	compLevel      = flag.Int("L", 5, "deflate compression level (0-9)")
+	emulateJar     = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
+	writeIfChanged = flag.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
 
 	fArgs            zip.FileArgs
 	nonDeflatedFiles = make(uniqueSet)
@@ -163,6 +164,7 @@ func main() {
 		ManifestSourcePath:       *manifest,
 		NumParallelJobs:          *parallelJobs,
 		NonDeflatedFiles:         nonDeflatedFiles,
+		WriteIfChanged:           *writeIfChanged,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
