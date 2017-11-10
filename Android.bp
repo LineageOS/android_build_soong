@@ -50,6 +50,7 @@ bootstrap_go_package {
         "android/makevars.go",
         "android/module.go",
         "android/mutator.go",
+        "android/namespace.go",
         "android/onceper.go",
         "android/package_ctx.go",
         "android/paths.go",
@@ -67,6 +68,7 @@ bootstrap_go_package {
     testSrcs: [
         "android/config_test.go",
         "android/expand_test.go",
+        "android/namespace_test.go",
         "android/paths_test.go",
         "android/prebuilt_test.go",
         "android/util_test.go",

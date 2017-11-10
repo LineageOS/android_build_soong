@@ -190,6 +190,8 @@ type productVariables struct {
 
 	DeviceKernelHeaders []string `json:",omitempty"`
 	DistDir             *string  `json:",omitempty"`
+
+	NamespacesToExport []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
