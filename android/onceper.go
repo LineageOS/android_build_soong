@@ -15,12 +15,12 @@
 package android
 
 import (
+	"fmt"
 	"sync"
-	"sync/atomic"
 )
 
 type OncePer struct {
-	values     atomic.Value
+	values     sync.Map
 	valuesLock sync.Mutex
 }
 
@@ -29,33 +29,32 @@ type valueMap map[interface{}]interface{}
 // Once computes a value the first time it is called with a given key per OncePer, and returns the
 // value without recomputing when called with the same key.  key must be hashable.
 func (once *OncePer) Once(key interface{}, value func() interface{}) interface{} {
-	// Atomically load the map without locking.  If this is the first call Load() will return nil
-	// and the type assertion will fail, leaving a nil map in m, but that's OK since m is only used
-	// for reads.
-	m, _ := once.values.Load().(valueMap)
-	if v, ok := m[key]; ok {
+	// Fast path: check if the key is already in the map
+	if v, ok := once.values.Load(key); ok {
 		return v
 	}
 
+	// Slow path: lock so that we don't call the value function twice concurrently
 	once.valuesLock.Lock()
 	defer once.valuesLock.Unlock()
 
 	// Check again with the lock held
-	m, _ = once.values.Load().(valueMap)
-	if v, ok := m[key]; ok {
+	if v, ok := once.values.Load(key); ok {
 		return v
 	}
 
-	// Copy the existing map
-	newMap := make(valueMap, len(m))
-	for k, v := range m {
-		newMap[k] = v
-	}
-
+	// Still not in the map, call the value function and store it
 	v := value()
+	once.values.Store(key, v)
 
-	newMap[key] = v
-	once.values.Store(newMap)
+	return v
+}
+
+func (once *OncePer) Get(key interface{}) interface{} {
+	v, ok := once.values.Load(key)
+	if !ok {
+		panic(fmt.Errorf("Get() called before Once()"))
+	}
 
 	return v
 }
