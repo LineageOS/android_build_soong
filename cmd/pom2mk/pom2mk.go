@@ -83,6 +83,7 @@ func (d ExtraDeps) Set(v string) error {
 
 var extraDeps = make(ExtraDeps)
 
+var sdkVersion string
 var useVersion string
 
 type Dependency struct {
@@ -127,6 +128,10 @@ func (p Pom) MkDeps() []string {
 	return ret
 }
 
+func (p Pom) SdkVersion() string {
+	return sdkVersion
+}
+
 func (p *Pom) FixDepTypes(modules map[string]*Pom) {
 	for _, d := range p.Dependencies {
 		if d.Type != "" {
@@ -147,6 +152,7 @@ LOCAL_SRC_FILES := {{.ArtifactFile}}
 LOCAL_BUILT_MODULE_STEM := javalib.jar
 LOCAL_MODULE_SUFFIX := .{{.Packaging}}
 LOCAL_USE_AAPT2 := true
+LOCAL_SDK_VERSION := {{.SdkVersion}}
 LOCAL_STATIC_ANDROID_LIBRARIES := \
 {{range .MkDeps}}  {{.}} \
 {{end}}
@@ -196,6 +202,8 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
      Some Android.mk modules have transitive dependencies that must be specified when they are
      depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
      This may be specified multiple times to declare these dependencies.
+  -sdk-version <version>
+     Sets LOCAL_SDK_VERSION := <version> for all modules.
   -use-version <version>
      If the maven directory contains multiple versions of artifacts and their pom files,
      -use-version can be used to only write makefiles for a specific version of those artifacts.
@@ -208,6 +216,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 	flag.Var(&extraDeps, "extra-deps", "Extra dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
+	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.Parse()
 
