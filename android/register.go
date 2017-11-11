@@ -31,6 +31,7 @@ type singleton struct {
 }
 
 var singletons []singleton
+var preSingletons []singleton
 
 type mutator struct {
 	name            string
@@ -60,6 +61,10 @@ func RegisterSingletonType(name string, factory blueprint.SingletonFactory) {
 	singletons = append(singletons, singleton{name, factory})
 }
 
+func RegisterPreSingletonType(name string, factory blueprint.SingletonFactory) {
+	preSingletons = append(preSingletons, singleton{name, factory})
+}
+
 type Context struct {
 	*blueprint.Context
 }
@@ -69,6 +74,10 @@ func NewContext() *Context {
 }
 
 func (ctx *Context) Register() {
+	for _, t := range preSingletons {
+		ctx.RegisterPreSingletonType(t.name, t.factory)
+	}
+
 	for _, t := range moduleTypes {
 		ctx.RegisterModuleType(t.name, t.factory)
 	}
