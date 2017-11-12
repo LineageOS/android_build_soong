@@ -35,11 +35,11 @@ type fileGroupProperties struct {
 	// of the path to use.  For example, when a filegroup is used as data in a cc_test rule,
 	// the base path is stripped off the path and the remaining path is used as the
 	// installation directory.
-	Path string
+	Path *string
 
 	// Create a make variable with the specified name that contains the list of files in the
 	// filegroup, relative to the root of the source tree.
-	Export_to_make_var string
+	Export_to_make_var *string
 }
 
 type fileGroup struct {
@@ -65,7 +65,7 @@ func (fg *fileGroup) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	fg.srcs = ctx.ExpandSourcesSubDir(fg.properties.Srcs, fg.properties.Exclude_srcs, fg.properties.Path)
+	fg.srcs = ctx.ExpandSourcesSubDir(fg.properties.Srcs, fg.properties.Exclude_srcs, String(fg.properties.Path))
 }
 
 func (fg *fileGroup) Srcs() android.Paths {
@@ -83,7 +83,7 @@ endif
 func (fg *fileGroup) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			if makeVar := fg.properties.Export_to_make_var; makeVar != "" {
+			if makeVar := String(fg.properties.Export_to_make_var); makeVar != "" {
 				androidMkTemplate.Execute(w, map[string]string{
 					"makeVar": makeVar,
 					"value":   strings.Join(fg.srcs.Strings(), " "),

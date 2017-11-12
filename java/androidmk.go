@@ -40,7 +40,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
 					}
 				}
-				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", library.deviceProperties.Sdk_version)
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(library.deviceProperties.Sdk_version))
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", library.headerJarFile.String())
 			},
 		},
@@ -76,7 +76,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !proptools.Bool(prebuilt.properties.Installable))
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.combinedClasspathFile.String())
-				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", prebuilt.properties.Sdk_version)
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
 			},
 		},
 	}

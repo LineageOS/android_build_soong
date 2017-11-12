@@ -32,14 +32,14 @@ import (
 type androidAppProperties struct {
 	// path to a certificate, or the name of a certificate in the default
 	// certificate directory, or blank to use the default product certificate
-	Certificate string
+	Certificate *string
 
 	// paths to extra certificates to sign the apk with
 	Additional_certificates []string
 
 	// If set, create package-export.apk, which other packages can
 	// use to get PRODUCT-agnostic resource data like IDs and type definitions.
-	Export_package_resources bool
+	Export_package_resources *bool
 
 	// flags passed to aapt when creating the apk
 	Aaptflags []string
@@ -69,7 +69,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
 
 	if !proptools.Bool(a.properties.No_standard_libs) {
-		switch a.deviceProperties.Sdk_version { // TODO: Res_sdk_version?
+		switch String(a.deviceProperties.Sdk_version) { // TODO: Res_sdk_version?
 		case "current", "system_current", "":
 			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
 		default:
@@ -90,7 +90,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.aaptJavaFileList = aaptJavaFileList
 		// TODO(ccross):  export aapt generated java files as a src jar
 
-		if a.appProperties.Export_package_resources {
+		if Bool(a.appProperties.Export_package_resources) {
 			aaptPackageFlags := append([]string(nil), aaptFlags...)
 			var hasProduct bool
 			for _, f := range aaptPackageFlags {
@@ -135,7 +135,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"--product "+ctx.AConfig().ProductAAPTCharacteristics())
 	}
 
-	certificate := a.appProperties.Certificate
+	certificate := String(a.appProperties.Certificate)
 	if certificate == "" {
 		certificate = ctx.AConfig().DefaultAppCertificate(ctx).String()
 	} else if dir, _ := filepath.Split(certificate); dir == "" {
@@ -244,7 +244,7 @@ func (a *AndroidApp) aaptFlags(ctx android.ModuleContext) ([]string, android.Pat
 		aaptDeps = append(aaptDeps, depFiles...)
 	})
 
-	sdkVersion := a.deviceProperties.Sdk_version
+	sdkVersion := String(a.deviceProperties.Sdk_version)
 	if sdkVersion == "" {
 		sdkVersion = ctx.AConfig().PlatformSdkVersion()
 	}
