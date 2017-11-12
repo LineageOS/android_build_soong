@@ -15,7 +15,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -280,7 +279,7 @@ func main() {
 				log.Fatalf("Error creating std.log: %v", err)
 			}
 
-			productLog := logger.New(&bytes.Buffer{})
+			productLog := logger.New(f)
 			productLog.SetOutput(filepath.Join(productLogDir, "soong.log"))
 
 			productCtx := build.Context{&build.ContextImpl{
