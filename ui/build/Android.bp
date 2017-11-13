@@ -36,7 +36,6 @@ bootstrap_go_package {
         "proc_sync.go",
         "signal.go",
         "soong.go",
-        "test_build.go",
         "util.go",
     ],
     testSrcs: [
