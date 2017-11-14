@@ -343,7 +343,7 @@ func NewGenSrcs() *Module {
 		outFiles := android.WritablePaths{}
 		genPath := android.PathForModuleGen(ctx).String()
 		for _, in := range srcFiles {
-			outFile := android.GenPathWithExt(ctx, "", in, properties.Output_extension)
+			outFile := android.GenPathWithExt(ctx, "", in, String(properties.Output_extension))
 			outFiles = append(outFiles, outFile)
 
 			// replace "out" with "__SBOX_OUT_DIR__/<the value of ${out}>"
@@ -390,7 +390,7 @@ func GenSrcsFactory() android.Module {
 
 type genSrcsProperties struct {
 	// extension that will be substituted for each output file
-	Output_extension string
+	Output_extension *string
 }
 
 func NewGenRule() *Module {
