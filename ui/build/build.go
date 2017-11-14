@@ -68,7 +68,6 @@ const (
 	BuildSoong         = 1 << iota
 	BuildKati          = 1 << iota
 	BuildNinja         = 1 << iota
-	RunBuildTests      = 1 << iota
 	BuildAll           = BuildProductConfig | BuildSoong | BuildKati | BuildNinja
 )
 
@@ -173,17 +172,13 @@ func Build(ctx Context, config Config, what int) {
 		}
 	}
 
-	// Write combined ninja file
-	createCombinedBuildNinjaFile(ctx, config)
-
-	if what&RunBuildTests != 0 {
-		testForDanglingRules(ctx, config)
-	}
-
 	if what&BuildNinja != 0 {
 		if !config.SkipMake() {
 			installCleanIfNecessary(ctx, config)
 		}
+
+		// Write combined ninja file
+		createCombinedBuildNinjaFile(ctx, config)
 
 		// Run ninja
 		runNinja(ctx, config)
