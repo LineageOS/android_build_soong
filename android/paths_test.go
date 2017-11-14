@@ -340,3 +340,75 @@ func TestPathForModuleInstall(t *testing.T) {
 		})
 	}
 }
+
+func TestDirectorySortedPaths(t *testing.T) {
+	makePaths := func() Paths {
+		return Paths{
+			PathForTesting("a.txt"),
+			PathForTesting("a/txt"),
+			PathForTesting("a/b/c"),
+			PathForTesting("a/b/d"),
+			PathForTesting("b"),
+			PathForTesting("b/b.txt"),
+			PathForTesting("a/a.txt"),
+		}
+	}
+
+	expected := []string{
+		"a.txt",
+		"a/a.txt",
+		"a/b/c",
+		"a/b/d",
+		"a/txt",
+		"b",
+		"b/b.txt",
+	}
+
+	paths := makePaths()
+	reversePaths := make(Paths, len(paths))
+	for i, v := range paths {
+		reversePaths[len(paths)-i-1] = v
+	}
+
+	sortedPaths := PathsToDirectorySortedPaths(paths)
+	reverseSortedPaths := PathsToDirectorySortedPaths(reversePaths)
+
+	if !reflect.DeepEqual(Paths(sortedPaths).Strings(), expected) {
+		t.Fatalf("sorted paths:\n %#v\n != \n %#v", paths.Strings(), expected)
+	}
+
+	if !reflect.DeepEqual(Paths(reverseSortedPaths).Strings(), expected) {
+		t.Fatalf("sorted reversed paths:\n %#v\n !=\n %#v", reversePaths.Strings(), expected)
+	}
+
+	expectedA := []string{
+		"a/a.txt",
+		"a/b/c",
+		"a/b/d",
+		"a/txt",
+	}
+
+	inA := sortedPaths.PathsInDirectory("a")
+	if !reflect.DeepEqual(inA.Strings(), expectedA) {
+		t.Errorf("FilesInDirectory(a):\n %#v\n != \n %#v", inA.Strings(), expectedA)
+	}
+
+	expectedA_B := []string{
+		"a/b/c",
+		"a/b/d",
+	}
+
+	inA_B := sortedPaths.PathsInDirectory("a/b")
+	if !reflect.DeepEqual(inA_B.Strings(), expectedA_B) {
+		t.Errorf("FilesInDirectory(a/b):\n %#v\n != \n %#v", inA_B.Strings(), expectedA_B)
+	}
+
+	expectedB := []string{
+		"b/b.txt",
+	}
+
+	inB := sortedPaths.PathsInDirectory("b")
+	if !reflect.DeepEqual(inB.Strings(), expectedB) {
+		t.Errorf("FilesInDirectory(b):\n %#v\n != \n %#v", inA.Strings(), expectedA)
+	}
+}
