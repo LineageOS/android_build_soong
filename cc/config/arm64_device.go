@@ -23,18 +23,8 @@ import (
 
 var (
 	arm64Cflags = []string{
-		"-fdata-sections",
-		"-fno-short-enums",
-
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
-
-		"-fno-strict-volatile-bitfields",
-
-		// TARGET_RELEASE_CFLAGS
-		"-fgcse-after-reload",
-		"-frerun-cse-after-loop",
-		"-frename-registers",
 	}
 
 	arm64Ldflags = []string{
@@ -45,9 +35,7 @@ var (
 		"-Wl,--icf=safe",
 	}
 
-	arm64Cppflags = []string{
-		"-fvisibility-inlines-hidden",
-	}
+	arm64Cppflags = []string{}
 
 	arm64CpuVariantCflags = map[string][]string{
 		"cortex-a53": []string{

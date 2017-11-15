@@ -28,23 +28,10 @@ var (
 	}
 
 	armCflags = []string{
-		"-fdata-sections",
-		"-fno-short-enums",
-
-		"-fno-builtin-sin",
-		"-fno-strict-volatile-bitfields",
-
-		// TARGET_RELEASE_CFLAGS
-		"-fgcse-after-reload",
-		"-frerun-cse-after-loop",
-		"-frename-registers",
-
 		"-fomit-frame-pointer",
 	}
 
-	armCppflags = []string{
-		"-fvisibility-inlines-hidden",
-	}
+	armCppflags = []string{}
 
 	armLdflags = []string{
 		"-Wl,--icf=safe",
@@ -54,7 +41,6 @@ var (
 
 	armArmCflags = []string{
 		"-fstrict-aliasing",
-		"-funswitch-loops",
 	}
 
 	armThumbCflags = []string{
