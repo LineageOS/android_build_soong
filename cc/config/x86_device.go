@@ -21,12 +21,7 @@ import (
 )
 
 var (
-	x86Cflags = []string{
-		"-finline-functions",
-		"-finline-limit=300",
-		"-fno-short-enums",
-		"-funswitch-loops",
-	}
+	x86Cflags = []string{}
 
 	x86ClangCflags = append(x86Cflags, []string{
 		"-msse3",
