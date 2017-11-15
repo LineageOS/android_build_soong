@@ -23,14 +23,7 @@ import (
 var (
 	mipsCflags = []string{
 		"-fomit-frame-pointer",
-		"-funswitch-loops",
 		"-Umips",
-		"-fdata-sections",
-
-		// TARGET_RELEASE_CFLAGS
-		"-fgcse-after-reload",
-		"-frerun-cse-after-loop",
-		"-frename-registers",
 	}
 
 	mipsClangCflags = append(mipsCflags, []string{
@@ -38,9 +31,7 @@ var (
 		"-fintegrated-as",
 	}...)
 
-	mipsCppflags = []string{
-		"-fvisibility-inlines-hidden",
-	}
+	mipsCppflags = []string{}
 
 	mipsLdflags = []string{
 		"-Wl,--allow-shlib-undefined",

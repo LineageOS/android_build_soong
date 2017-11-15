@@ -205,26 +205,29 @@ func stringPtr(v string) *string {
 
 func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
-		Platform_sdk_version:       intPtr(24),
+		Platform_sdk_version:              intPtr(26),
+		Platform_version_active_codenames: []string{"P"},
+		Platform_version_future_codenames: []string{"P"},
+
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),
-		DeviceName:                 stringPtr("flounder"),
+		DeviceName:                 stringPtr("generic_arm64"),
 		DeviceArch:                 stringPtr("arm64"),
 		DeviceArchVariant:          stringPtr("armv8-a"),
-		DeviceCpuVariant:           stringPtr("denver64"),
+		DeviceCpuVariant:           stringPtr("generic"),
 		DeviceAbi:                  &[]string{"arm64-v8a"},
 		DeviceUsesClang:            boolPtr(true),
 		DeviceSecondaryArch:        stringPtr("arm"),
-		DeviceSecondaryArchVariant: stringPtr("armv7-a-neon"),
-		DeviceSecondaryCpuVariant:  stringPtr("denver"),
-		DeviceSecondaryAbi:         &[]string{"armeabi-v7a"},
+		DeviceSecondaryArchVariant: stringPtr("armv8-a"),
+		DeviceSecondaryCpuVariant:  stringPtr("generic"),
+		DeviceSecondaryAbi:         &[]string{"armeabi-v7a", "armeabi"},
 
 		AAPTConfig:          &[]string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 		AAPTPreferredConfig: stringPtr("xhdpi"),
 		AAPTCharacteristics: stringPtr("nosdcard"),
 		AAPTPrebuiltDPI:     &[]string{"xhdpi", "xxhdpi"},
 
-		Malloc_not_svelte: boolPtr(false),
+		Malloc_not_svelte: boolPtr(true),
 		Safestack:         boolPtr(false),
 	}
 
