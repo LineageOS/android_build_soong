@@ -19,6 +19,7 @@ bootstrap_go_package {
     pkgPath: "android/soong/zip",
     deps: [
         "android-archive-zip",
+        "blueprint-pathtools",
         "soong-jar",
     ],
     srcs: [
