@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/blueprint/pathtools"
+
 	"android/soong/jar"
 	"android/soong/third_party/zip"
 )
@@ -127,6 +129,7 @@ type ZipArgs struct {
 	ManifestSourcePath       string
 	NumParallelJobs          int
 	NonDeflatedFiles         map[string]bool
+	WriteIfChanged           bool
 }
 
 func Run(args ZipArgs) (err error) {
@@ -186,8 +189,38 @@ func Run(args ZipArgs) (err error) {
 		}
 	}
 
-	return w.write(args.OutputFilePath, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.NumParallelJobs)
+	buf := &bytes.Buffer{}
+	var out io.Writer = buf
 
+	if !args.WriteIfChanged {
+		f, err := os.Create(args.OutputFilePath)
+		if err != nil {
+			return err
+		}
+
+		defer f.Close()
+		defer func() {
+			if err != nil {
+				os.Remove(args.OutputFilePath)
+			}
+		}()
+
+		out = f
+	}
+
+	err = w.write(out, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.NumParallelJobs)
+	if err != nil {
+		return err
+	}
+
+	if args.WriteIfChanged {
+		err := pathtools.WriteFileIfChanged(args.OutputFilePath, buf.Bytes(), 0666)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping, nonDeflatedFiles map[string]bool) error {
@@ -226,19 +259,7 @@ type readerSeekerCloser interface {
 	io.Seeker
 }
 
-func (z *ZipWriter) write(out string, pathMappings []pathMapping, manifest string, emulateJar bool, parallelJobs int) error {
-	f, err := os.Create(out)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-	defer func() {
-		if err != nil {
-			os.Remove(out)
-		}
-	}()
-
+func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest string, emulateJar bool, parallelJobs int) error {
 	z.errors = make(chan error)
 	defer close(z.errors)
 
@@ -324,6 +345,7 @@ func (z *ZipWriter) write(out string, pathMappings []pathMapping, manifest strin
 		case op := <-writeOpChan:
 			currentWriteOpChan = nil
 
+			var err error
 			if op.fh.Method == zip.Deflate {
 				currentWriter, err = zipw.CreateCompressedHeader(op.fh)
 			} else {
@@ -356,21 +378,21 @@ func (z *ZipWriter) write(out string, pathMappings []pathMapping, manifest strin
 			currentReader = futureReader
 
 		case reader := <-currentReader:
-			_, err = io.Copy(currentWriter, reader)
+			_, err := io.Copy(currentWriter, reader)
 			if err != nil {
 				return err
 			}
 
 			currentReader = nil
 
-		case err = <-z.errors:
+		case err := <-z.errors:
 			return err
 		}
 	}
 
 	// One last chance to catch an error
 	select {
-	case err = <-z.errors:
+	case err := <-z.errors:
 		return err
 	default:
 		zipw.Close()
