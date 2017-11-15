@@ -22,7 +22,6 @@ import (
 
 var (
 	mipsCflags = []string{
-		"-fomit-frame-pointer",
 		"-Umips",
 	}
 
