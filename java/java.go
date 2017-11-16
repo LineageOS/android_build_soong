@@ -550,8 +550,9 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags = protoFlags(ctx, &j.protoProperties, flags)
 	}
 
-	var srcJars android.Paths
-	srcFiles, srcJars = j.genSources(ctx, srcFiles, flags)
+	srcFiles = j.genSources(ctx, srcFiles, flags)
+
+	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
 	srcJars = append(srcJars, j.ExtraSrcJars...)
 
