@@ -42,7 +42,7 @@ var (
 
 	logtags = pctx.AndroidStaticRule("logtags",
 		blueprint.RuleParams{
-			Command:     "$logtagsCmd -o $out $in $allLogtagsFile",
+			Command:     "$logtagsCmd -o $out $in",
 			CommandDeps: []string{"$logtagsCmd"},
 		})
 
