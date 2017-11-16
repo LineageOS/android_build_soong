@@ -2,6 +2,8 @@ package cc
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
+
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -42,9 +44,11 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
+	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(toolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(llndkLibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(objectFactory))
+	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("link", linkageMutator).Parallel()
@@ -119,6 +123,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 		"foo.c":      nil,
 		"bar.c":      nil,
 		"a.proto":    nil,
+		"b.aidl":     nil,
 	})
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})

@@ -230,7 +230,7 @@ type feature interface {
 type compiler interface {
 	compilerInit(ctx BaseModuleContext)
 	compilerDeps(ctx DepsContext, deps Deps) Deps
-	compilerFlags(ctx ModuleContext, flags Flags) Flags
+	compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags
 	compilerProps() []interface{}
 
 	appendCflags([]string)
@@ -589,12 +589,17 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	ctx.ctx = ctx
 
+	deps := c.depsToPaths(ctx)
+	if ctx.Failed() {
+		return
+	}
+
 	flags := Flags{
 		Toolchain: c.toolchain(ctx),
 		Clang:     c.clang(ctx),
 	}
 	if c.compiler != nil {
-		flags = c.compiler.compilerFlags(ctx, flags)
+		flags = c.compiler.compilerFlags(ctx, flags, deps)
 	}
 	if c.linker != nil {
 		flags = c.linker.linkerFlags(ctx, flags)
@@ -625,10 +630,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	flags.CppFlags, _ = filterList(flags.CppFlags, config.IllegalFlags)
 	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, config.IllegalFlags)
 
-	deps := c.depsToPaths(ctx)
-	if ctx.Failed() {
-		return
-	}
 	flags.GlobalFlags = append(flags.GlobalFlags, deps.Flags...)
 	c.flags = flags
 	// We need access to all the flags seen by a source file.

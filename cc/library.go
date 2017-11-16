@@ -317,7 +317,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	return flags
 }
 
-func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
 		f := includeDirsToFlags(exportIncludeDirs)
@@ -325,7 +325,7 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
-	return library.baseCompiler.compilerFlags(ctx, flags)
+	return library.baseCompiler.compilerFlags(ctx, flags, deps)
 }
 
 func extractExportIncludesFromFlags(flags []string) []string {

@@ -158,6 +158,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "cc/cc_test.go",
+        "cc/gen_test.go",
         "cc/library_test.go",
         "cc/test_data_test.go",
     ],
