@@ -651,7 +651,7 @@ func vndkVsNdk(ctx ModuleContext) bool {
 func (library *libraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	objs = objs.Append(deps.Objs)
+	objs = deps.Objs.Copy().Append(objs)
 	var out android.Path
 	if library.static() || library.header() {
 		out = library.linkStatic(ctx, flags, deps, objs)

@@ -108,12 +108,17 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 			name: "crtend_so",
 		}
 
+		cc_library {
+			name: "libprotobuf-cpp-lite",
+		}
+
 `
 
 	ctx.MockFileSystem(map[string][]byte{
 		"Android.bp": []byte(bp),
 		"foo.c":      nil,
 		"bar.c":      nil,
+		"a.proto":    nil,
 	})
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
