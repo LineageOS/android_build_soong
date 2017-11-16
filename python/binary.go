@@ -49,15 +49,11 @@ type BinaryProperties struct {
 type binaryDecorator struct {
 	binaryProperties BinaryProperties
 
-	baseInstaller *pythonInstaller
+	*pythonInstaller
 }
 
 type IntermPathProvider interface {
 	IntermPathForModuleOut() android.OptionalPath
-}
-
-func (binary *binaryDecorator) install(ctx android.ModuleContext, file android.Path) {
-	binary.baseInstaller.install(ctx, file)
 }
 
 var (
@@ -66,7 +62,7 @@ var (
 
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
-	decorator := &binaryDecorator{baseInstaller: NewPythonInstaller("bin")}
+	decorator := &binaryDecorator{pythonInstaller: NewPythonInstaller("bin", "")}
 
 	module.bootstrapper = decorator
 	module.installer = decorator
