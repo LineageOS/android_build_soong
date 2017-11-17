@@ -42,7 +42,7 @@ var (
 
 	logtags = pctx.AndroidStaticRule("logtags",
 		blueprint.RuleParams{
-			Command:     "$logtagsCmd -o $out $in $allLogtagsFile",
+			Command:     "$logtagsCmd -o $out $in",
 			CommandDeps: []string{"$logtagsCmd"},
 		})
 
@@ -85,7 +85,7 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 }
 
 func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
-	flags javaBuilderFlags) (android.Paths, android.Paths) {
+	flags javaBuilderFlags) android.Paths {
 
 	var protoFiles android.Paths
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
@@ -106,17 +106,15 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		}
 	}
 
-	var outSrcJars android.Paths
-
 	if len(protoFiles) > 0 {
-		protoSrcJar := android.PathForModuleGen(ctx, "proto.src.jar")
+		protoSrcJar := android.PathForModuleGen(ctx, "proto.srcjar")
 		genProto(ctx, protoSrcJar, protoFiles,
 			flags.protoFlags, flags.protoOutFlag, "")
 
-		outSrcJars = append(outSrcJars, protoSrcJar)
+		outSrcFiles = append(outSrcFiles, protoSrcJar)
 	}
 
-	return outSrcFiles, outSrcJars
+	return outSrcFiles
 }
 
 func LogtagsSingleton() blueprint.Singleton {
