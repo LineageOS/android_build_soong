@@ -317,7 +317,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	return flags
 }
 
-func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
 		f := includeDirsToFlags(exportIncludeDirs)
@@ -325,7 +325,7 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
-	return library.baseCompiler.compilerFlags(ctx, flags)
+	return library.baseCompiler.compilerFlags(ctx, flags, deps)
 }
 
 func extractExportIncludesFromFlags(flags []string) []string {
@@ -651,7 +651,7 @@ func vndkVsNdk(ctx ModuleContext) bool {
 func (library *libraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	objs = objs.Append(deps.Objs)
+	objs = deps.Objs.Copy().Append(objs)
 	var out android.Path
 	if library.static() || library.header() {
 		out = library.linkStatic(ctx, flags, deps, objs)
