@@ -63,10 +63,6 @@ func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-micro")
 	case "nano":
 		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-nano")
-	case "stream":
-		// TODO(ccross): add dependency on protoc-gen-java-stream binary
-		ctx.PropertyErrorf("proto.type", `"stream" not supported yet`)
-		// No library for stream protobufs
 	case "lite", "":
 		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-lite")
 	case "full":
@@ -87,8 +83,6 @@ func protoFlags(ctx android.ModuleContext, p *android.ProtoProperties, flags jav
 		flags.protoOutFlag = "--javamicro_out"
 	case "nano":
 		flags.protoOutFlag = "--javanano_out"
-	case "stream":
-		flags.protoOutFlag = "--javastream_out"
 	case "lite", "full", "":
 		flags.protoOutFlag = "--java_out"
 	default:
