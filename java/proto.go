@@ -15,6 +15,8 @@
 package java
 
 import (
+	"strings"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -39,7 +41,7 @@ var (
 )
 
 func genProto(ctx android.ModuleContext, outputSrcJar android.WritablePath,
-	protoFiles android.Paths, protoFlags string, protoOut, protoOutFlags string) {
+	protoFiles android.Paths, protoFlags []string, protoOut, protoOutFlags string) {
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        proto,
@@ -50,7 +52,7 @@ func genProto(ctx android.ModuleContext, outputSrcJar android.WritablePath,
 			"outDir":        android.ProtoDir(ctx).String(),
 			"protoOut":      protoOut,
 			"protoOutFlags": protoOutFlags,
-			"protoFlags":    protoFlags,
+			"protoFlags":    strings.Join(protoFlags, " "),
 		},
 	})
 }
@@ -93,5 +95,8 @@ func protoFlags(ctx android.ModuleContext, p *android.ProtoProperties, flags jav
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
 			proptools.String(p.Proto.Type))
 	}
+
+	flags.protoFlags = android.ProtoFlags(ctx, p)
+
 	return flags
 }
