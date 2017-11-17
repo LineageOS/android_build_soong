@@ -158,7 +158,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	tools := map[string]android.Path{}
 
 	if len(g.properties.Tools) > 0 {
-		ctx.VisitDirectDeps(func(module android.Module) {
+		ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
 			switch ctx.OtherModuleDependencyTag(module) {
 			case android.SourceDepTag:
 				// Nothing to do
@@ -167,6 +167,14 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				var path android.OptionalPath
 
 				if t, ok := module.(HostToolProvider); ok {
+					if !t.(android.Module).Enabled() {
+						if ctx.AConfig().AllowMissingDependencies() {
+							ctx.AddMissingDependencies([]string{tool})
+						} else {
+							ctx.ModuleErrorf("depends on disabled module %q", tool)
+						}
+						break
+					}
 					path = t.HostToolPath()
 				} else if t, ok := module.(bootstrap.GoBinaryTool); ok {
 					if s, err := filepath.Rel(android.PathForOutput(ctx).String(), t.InstallPath()); err == nil {
