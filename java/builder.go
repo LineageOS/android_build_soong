@@ -186,7 +186,7 @@ type javaBuilderFlags struct {
 	kotlincFlags     string
 	kotlincClasspath classpath
 
-	protoFlags   string
+	protoFlags   []string
 	protoOutFlag string
 }
 
