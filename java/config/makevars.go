@@ -61,4 +61,5 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	}
 
 	ctx.Strict("SOONG_JAVAC_WRAPPER", "${SoongJavacWrapper}")
+	ctx.Strict("EXTRACT_SRCJARS", "${ExtractSrcJarsCmd}")
 }
