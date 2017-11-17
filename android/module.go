@@ -108,6 +108,7 @@ type ModuleContext interface {
 
 	ModuleSubDir() string
 
+	VisitDirectDepsBlueprint(visit func(blueprint.Module))
 	VisitDirectDeps(visit func(Module))
 	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
 	VisitDepsDepthFirst(visit func(Module))
@@ -684,6 +685,10 @@ func (a *androidModuleContext) validateAndroidModule(module blueprint.Module) Mo
 	}
 
 	return aModule
+}
+
+func (a *androidModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {
+	a.ModuleContext.VisitDirectDeps(visit)
 }
 
 func (a *androidModuleContext) VisitDirectDeps(visit func(Module)) {
