@@ -1,44 +1,4 @@
-subname = "Android.bp"
-
-build = [
-    "build/blueprint/Blueprints",
-]
-
-subdirs = [
-    "build/soong",
-]
-
-optional_subdirs = [
-    "art",
-    "bionic",
-    "bootable/recovery",
-    "build/kati",
-    "build/make/tools/*",
-    "dalvik",
-    "development/*",
-    "device/*/*",
-    "external/*",
-    "external/python/*",
-    "frameworks/*",
-    "frameworks/compile/*",
-    "frameworks/hardware/interfaces",
-    "frameworks/opt/net/wifi",
-    "hardware/*",
-    "libcore",
-    "libnativehelper",
-    "packages/apps/*",
-    "prebuilts/clang/host/linux-x86",
-    "prebuilts/ndk",
-    "prebuilts/r8",
-    "prebuilts/sdk",
-    "prebuilts/misc",
-    "system/*",
-    "system/hardware/interfaces",
-    "system/tools/*",
-    "test/vts",
-    "test/vts-testcase/*",
-    "tools/*",
-    "tools/tradefederation/*",
-    "toolchain/*",
-    "vendor/*/*",
-]
+// Soong finds all Android.bp and Blueprints files in the source tree,
+// subdirs= and optional_subdirs= are obsolete and this file no longer
+// needs a list of the top level directories that may contain Android.bp
+// files.
