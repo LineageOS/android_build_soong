@@ -70,8 +70,8 @@ type llndkStubDecorator struct {
 	versionScriptPath      android.ModuleGenPath
 }
 
-func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
-	flags = stub.baseCompiler.compilerFlags(ctx, flags)
+func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
+	flags = stub.baseCompiler.compilerFlags(ctx, flags, deps)
 	return addStubLibraryCompilerFlags(flags)
 }
 
