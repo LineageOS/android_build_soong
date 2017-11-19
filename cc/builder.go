@@ -231,27 +231,28 @@ func init() {
 }
 
 type builderFlags struct {
-	globalFlags   string
-	arFlags       string
-	asFlags       string
-	cFlags        string
-	toolingCFlags string // A separate set of Cflags for clang LibTooling tools
-	conlyFlags    string
-	cppFlags      string
-	ldFlags       string
-	libFlags      string
-	yaccFlags     string
-	protoFlags    string
-	tidyFlags     string
-	sAbiFlags     string
-	yasmFlags     string
-	aidlFlags     string
-	rsFlags       string
-	toolchain     config.Toolchain
-	clang         bool
-	tidy          bool
-	coverage      bool
-	sAbiDump      bool
+	globalFlags    string
+	arFlags        string
+	asFlags        string
+	cFlags         string
+	toolingCFlags  string // A separate set of Cflags for clang LibTooling tools
+	conlyFlags     string
+	cppFlags       string
+	ldFlags        string
+	libFlags       string
+	yaccFlags      string
+	protoFlags     string
+	protoOutParams string
+	tidyFlags      string
+	sAbiFlags      string
+	yasmFlags      string
+	aidlFlags      string
+	rsFlags        string
+	toolchain      config.Toolchain
+	clang          bool
+	tidy           bool
+	coverage       bool
+	sAbiDump       bool
 
 	systemIncludeFlags string
 
