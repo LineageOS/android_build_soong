@@ -116,6 +116,7 @@ type Flags struct {
 	ToolingCppFlags []string // Flags that apply to C++ source files parsed by clang LibTooling tools
 	YaccFlags       []string // Flags that apply to Yacc source files
 	protoFlags      []string // Flags that apply to proto source files
+	protoOutParams  []string // Flags that modify the output of proto generated files
 	aidlFlags       []string // Flags that apply to aidl source files
 	rsFlags         []string // Flags that apply to renderscript source files
 	LdFlags         []string // Flags that apply to linker command lines

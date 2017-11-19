@@ -16,6 +16,7 @@ package cc
 
 import (
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -27,15 +28,15 @@ func init() {
 var (
 	proto = pctx.AndroidStaticRule("protoc",
 		blueprint.RuleParams{
-			Command:     "$protocCmd --cpp_out=$outDir $protoFlags $in",
+			Command:     "$protocCmd --cpp_out=$protoOutParams:$outDir $protoFlags $in",
 			CommandDeps: []string{"$protocCmd"},
-		}, "protoFlags", "outDir")
+		}, "protoFlags", "protoOutParams", "outDir")
 )
 
 // genProto creates a rule to convert a .proto file to generated .pb.cc and .pb.h files and returns
 // the paths to the generated files.
 func genProto(ctx android.ModuleContext, protoFile android.Path,
-	protoFlags string) (ccFile, headerFile android.WritablePath) {
+	protoFlags string, protoOutParams string) (ccFile, headerFile android.WritablePath) {
 
 	ccFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
 	headerFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
@@ -46,8 +47,9 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 		Outputs:     android.WritablePaths{ccFile, headerFile},
 		Input:       protoFile,
 		Args: map[string]string{
-			"outDir":     android.ProtoDir(ctx).String(),
-			"protoFlags": protoFlags,
+			"outDir":         android.ProtoDir(ctx).String(),
+			"protoFlags":     protoFlags,
+			"protoOutParams": protoOutParams,
 		},
 	})
 
@@ -96,6 +98,10 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 	)
 
 	flags.protoFlags = android.ProtoFlags(ctx, p)
+
+	if proptools.String(p.Proto.Type) == "lite" {
+		flags.protoOutParams = []string{"lite"}
+	}
 
 	return flags
 }
