@@ -62,7 +62,6 @@ var (
 		"-fstack-protector-strong",
 		"-Wa,--noexecstack",
 		"-D_FORTIFY_SOURCE=2",
-		"-fomit-frame-pointer",
 
 		"-Wstrict-aliasing=2",
 

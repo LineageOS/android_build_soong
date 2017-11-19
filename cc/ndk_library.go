@@ -258,8 +258,8 @@ func addStubLibraryCompilerFlags(flags Flags) Flags {
 	return flags
 }
 
-func (stub *stubDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
-	flags = stub.baseCompiler.compilerFlags(ctx, flags)
+func (stub *stubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
+	flags = stub.baseCompiler.compilerFlags(ctx, flags, deps)
 	return addStubLibraryCompilerFlags(flags)
 }
 

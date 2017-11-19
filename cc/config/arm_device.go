@@ -27,7 +27,9 @@ var (
 		"-msoft-float",
 	}
 
-	armCflags = []string{}
+	armCflags = []string{
+		"-fomit-frame-pointer",
+	}
 
 	armCppflags = []string{}
 

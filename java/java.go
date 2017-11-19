@@ -136,12 +136,17 @@ type CompilerDeviceProperties struct {
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version *string
 
-	// directories to pass to aidl tool
-	Aidl_includes []string
+	Aidl struct {
+		// Top level directories to pass to aidl tool
+		Include_dirs []string
 
-	// directories that should be added as include directories
-	// for any aidl sources of modules that depend on this module
-	Export_aidl_include_dirs []string
+		// Directories rooted at the Android.bp file to pass to aidl tool
+		Local_include_dirs []string
+
+		// directories that should be added as include directories for any aidl sources of modules
+		// that depend on this module, as well as to aidl for this module.
+		Export_include_dirs []string
+	}
 
 	// If true, export a copy of the module as a -hostdex module for host testing.
 	Hostdex *bool
@@ -377,7 +382,11 @@ func (j *Module) hasSrcExt(ext string) bool {
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
 	aidlIncludeDirs android.Paths) []string {
 
-	localAidlIncludes := android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl_includes)
+	aidlIncludes := android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Local_include_dirs)
+	aidlIncludes = append(aidlIncludes,
+		android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)...)
+	aidlIncludes = append(aidlIncludes,
+		android.PathsForSource(ctx, j.deviceProperties.Aidl.Include_dirs)...)
 
 	var flags []string
 	if aidlPreprocess.Valid() {
@@ -387,7 +396,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	}
 
 	flags = append(flags, android.JoinWithPrefix(j.exportAidlIncludeDirs.Strings(), "-I"))
-	flags = append(flags, android.JoinWithPrefix(localAidlIncludes.Strings(), "-I"))
+	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
 	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
 	if src := android.ExistentPathForSource(ctx, "", ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
@@ -528,7 +537,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 func (j *Module) compile(ctx android.ModuleContext) {
 
-	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Export_aidl_include_dirs)
+	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)
 
 	deps := j.collectDeps(ctx)
 	flags := j.collectBuilderFlags(ctx, deps)
@@ -541,8 +550,9 @@ func (j *Module) compile(ctx android.ModuleContext) {
 		flags = protoFlags(ctx, &j.protoProperties, flags)
 	}
 
-	var srcJars android.Paths
-	srcFiles, srcJars = j.genSources(ctx, srcFiles, flags)
+	srcFiles = j.genSources(ctx, srcFiles, flags)
+
+	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
 	srcJars = append(srcJars, j.ExtraSrcJars...)
 
