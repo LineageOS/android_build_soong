@@ -206,6 +206,21 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
+// Return true if the module is in the WarningAllowedProjects.
+func warningsAreAllowed(subdir string) bool {
+	subdir += "/"
+	for _, prefix := range config.WarningAllowedProjects {
+		if strings.HasPrefix(subdir, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func addToModuleList(ctx ModuleContext, list string, module string) {
+	getWallWerrorMap(ctx.AConfig(), list).Store(module, true)
+}
+
 // Create a Flags struct that collects the compile flags from global values,
 // per-target values, module type values, and per-module Blueprints properties
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
@@ -462,6 +477,21 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if compiler.hasSrcExt(".rs") || compiler.hasSrcExt(".fs") {
 		flags = rsFlags(ctx, flags, &compiler.Properties)
+	}
+
+	if len(compiler.Properties.Srcs) > 0 {
+		module := ctx.ModuleDir() + "/Android.bp:" + ctx.ModuleName()
+		if inList("-Wno-error", flags.CFlags) || inList("-Wno-error", flags.CppFlags) {
+			addToModuleList(ctx, modulesUsingWnoError, module)
+		} else if !inList("-Werror", flags.CFlags) && !inList("-Werror", flags.CppFlags) {
+			if warningsAreAllowed(ctx.ModuleDir()) {
+				addToModuleList(ctx, modulesAddedWall, module)
+				flags.CFlags = append([]string{"-Wall"}, flags.CFlags...)
+			} else {
+				addToModuleList(ctx, modulesAddedWerror, module)
+				flags.CFlags = append([]string{"-Wall", "-Werror"}, flags.CFlags...)
+			}
+		}
 	}
 
 	return flags
