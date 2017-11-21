@@ -65,7 +65,7 @@ var (
 			// maximum number of input files, especially on darwin.
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 				`${config.KotlincCmd} $classpath $kotlincFlags ` +
-				`-jvm-target $javaVersion -d $outDir $in && ` +
+				`-jvm-target $kotlinJvmTarget -d $outDir $in && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
 			CommandDeps: []string{
 				"${config.KotlincCmd}",
@@ -73,7 +73,7 @@ var (
 				"${config.SoongZipCmd}",
 			},
 		},
-		"kotlincFlags", "classpath", "outDir", "javaVersion")
+		"kotlincFlags", "classpath", "outDir", "kotlinJvmTarget")
 
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
@@ -208,7 +208,8 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 			"classpath":    flags.kotlincClasspath.FormJavaClassPath("-classpath"),
 			"kotlincFlags": flags.kotlincFlags,
 			"outDir":       classDir.String(),
-			"javaVersion":  flags.javaVersion,
+			// http://b/69160377 kotlinc only supports -jvm-target 1.6 and 1.8
+			"kotlinJvmTarget": "1.8",
 		},
 	})
 }

@@ -198,7 +198,7 @@ type RuleParams struct {
 // AndroidStaticRule wraps blueprint.StaticRule and provides a default Pool if none is specified
 func (p AndroidPackageContext) AndroidStaticRule(name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
-	return p.AndroidRuleFunc(name, func(interface{}) (blueprint.RuleParams, error) {
+	return p.AndroidRuleFunc(name, func(Config) (blueprint.RuleParams, error) {
 		return params, nil
 	}, argNames...)
 }
@@ -210,9 +210,9 @@ func (p AndroidPackageContext) AndroidGomaStaticRule(name string, params bluepri
 }
 
 func (p AndroidPackageContext) AndroidRuleFunc(name string,
-	f func(interface{}) (blueprint.RuleParams, error), argNames ...string) blueprint.Rule {
+	f func(Config) (blueprint.RuleParams, error), argNames ...string) blueprint.Rule {
 	return p.PackageContext.RuleFunc(name, func(config interface{}) (blueprint.RuleParams, error) {
-		params, err := f(config)
+		params, err := f(config.(Config))
 		if config.(Config).UseGoma() && params.Pool == nil {
 			// When USE_GOMA=true is set and the rule is not supported by goma, restrict jobs to the
 			// local parallelism value
