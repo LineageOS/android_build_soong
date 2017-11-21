@@ -251,6 +251,8 @@ func addStubLibraryCompilerFlags(flags Flags) Flags {
 		"-Wno-incompatible-library-redeclaration",
 		"-Wno-builtin-requires-header",
 		"-Wno-invalid-noreturn",
+		"-Wall",
+		"-Werror",
 		// These libraries aren't actually used. Don't worry about unwinding
 		// (avoids the need to link an unwinder into a fake library).
 		"-fno-unwind-tables",
