@@ -30,6 +30,7 @@ var testCases = []struct {
 	sortGlobs  bool
 	sortJava   bool
 	args       []string
+	excludes   []string
 
 	outputFiles []string
 	err         error
@@ -40,13 +41,6 @@ var testCases = []struct {
 		args: []string{"a\\b:b"},
 
 		err: fmt.Errorf("\\ characters are not currently supported"),
-	},
-	{
-		name: "unsupported **",
-
-		args: []string{"a/**:b"},
-
-		err: fmt.Errorf("** is only supported on its own, not with other characters"),
 	},
 	{ // This is modelled after the update package build rules in build/make/core/Makefile
 		name: "filter globs",
@@ -95,16 +89,19 @@ var testCases = []struct {
 		name: "sort all",
 
 		inputFiles: []string{
+			"RADIO/",
 			"RADIO/a",
+			"IMAGES/",
 			"IMAGES/system.img",
 			"IMAGES/b.txt",
 			"IMAGES/recovery.img",
 			"IMAGES/vendor.img",
+			"OTA/",
 			"OTA/b",
 			"OTA/android-info.txt",
 		},
 		sortGlobs: true,
-		args:      []string{"**"},
+		args:      []string{"**/*"},
 
 		outputFiles: []string{
 			"IMAGES/b.txt",
@@ -120,11 +117,14 @@ var testCases = []struct {
 		name: "sort all implicit",
 
 		inputFiles: []string{
+			"RADIO/",
 			"RADIO/a",
+			"IMAGES/",
 			"IMAGES/system.img",
 			"IMAGES/b.txt",
 			"IMAGES/recovery.img",
 			"IMAGES/vendor.img",
+			"OTA/",
 			"OTA/b",
 			"OTA/android-info.txt",
 		},
@@ -132,12 +132,15 @@ var testCases = []struct {
 		args:      nil,
 
 		outputFiles: []string{
+			"IMAGES/",
 			"IMAGES/b.txt",
 			"IMAGES/recovery.img",
 			"IMAGES/system.img",
 			"IMAGES/vendor.img",
+			"OTA/",
 			"OTA/android-info.txt",
 			"OTA/b",
+			"RADIO/",
 			"RADIO/a",
 		},
 	},
@@ -177,13 +180,76 @@ var testCases = []struct {
 			"b",
 			"a",
 		},
-		args: []string{"a:a2", "**"},
+		args: []string{"a:a2", "**/*"},
 
 		outputFiles: []string{
 			"a2",
 			"b",
 			"a",
 		},
+	},
+	{
+		name: "multiple matches",
+
+		inputFiles: []string{
+			"a/a",
+		},
+		args: []string{"a/a", "a/*"},
+
+		outputFiles: []string{
+			"a/a",
+		},
+	},
+	{
+		name: "multiple conflicting matches",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		args: []string{"a/b:a/a", "a/*"},
+
+		err: fmt.Errorf(`multiple entries for "a/a" with different contents`),
+	},
+	{
+		name: "excludes",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		args:     nil,
+		excludes: []string{"a/a"},
+
+		outputFiles: []string{
+			"a/b",
+		},
+	},
+	{
+		name: "excludes with include",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		args:     []string{"a/*"},
+		excludes: []string{"a/a"},
+
+		outputFiles: []string{
+			"a/b",
+		},
+	},
+	{
+		name: "excludes with glob",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		args:     []string{"a/*"},
+		excludes: []string{"a/*"},
+
+		outputFiles: nil,
 	},
 }
 
@@ -216,7 +282,7 @@ func TestZip2Zip(t *testing.T) {
 			}
 
 			outputWriter := zip.NewWriter(outputBuf)
-			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, testCase.sortJava, false, testCase.args)
+			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, testCase.sortJava, false, testCase.args, testCase.excludes)
 			if errorString(testCase.err) != errorString(err) {
 				t.Fatalf("Unexpected error:\n got: %q\nwant: %q", errorString(err), errorString(testCase.err))
 			}
