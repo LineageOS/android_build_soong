@@ -118,6 +118,51 @@ var (
 	ClangDefaultBase         = "prebuilts/clang/host"
 	ClangDefaultVersion      = "clang-4393122"
 	ClangDefaultShortVersion = "5.0.1"
+
+	WarningAllowedProjects = []string{
+		"external/boringssl/",
+		"external/libese/third_party/NXPNFC_P61_JCOP_Kit/",
+		"external/mdnsresponder/",
+		"external/protobuf/",
+		"external/skia/",
+		"device/",
+		"frameworks/av/media/libeffects/factory/",
+		"frameworks/av/media/libstagefright/codecs/",
+		"frameworks/base/tools/streaming_proto/",
+		"frameworks/ml/nn/",
+		"frameworks/native/libs/vr/libbufferhub/",
+		"frameworks/native/libs/vr/libbufferhubqueue/",
+		"frameworks/native/libs/vr/libdvr/tests/",
+		"frameworks/native/services/surfaceflinger/tests/",
+		"frameworks/native/services/vr/",
+		"hardware/interfaces/audio/effect/",
+		"hardware/interfaces/biometrics/fingerprint/",
+		"vendor/",
+	}
+
+	// Some Android.mk files still have warnings.
+	WarningAllowedOldProjects = []string{
+		"cts/hostsidetests/security/securityPatch/",
+		"cts/tests/tests/permission/jni/",
+		"development/tutorials/ReverseDebug/",
+		"external/freetype/",
+		"frameworks/av/drm/mediacas/plugins/",
+		"frameworks/av/media/libaaudio/examples/",
+		"frameworks/av/services/mediaextractor/",
+		"frameworks/base/core/tests/webkit/apk_with_native_libs/jni/",
+		"frameworks/base/tests/backup/",
+		"frameworks/native/cmds/cmd/",
+		"frameworks/webview/chromium/",
+		"hardware/interfaces/audio/2.0/",
+		"hardware/libhardware/modules/",
+		"hardware/libhardware/tests/",
+		"hardware/qcom/",
+		"sdk/emulator/mksdcard/",
+		"system/vold/tests/",
+		"test/vts-testcase/kernel/api/qtaguid/",
+		"test/vts-testcase/security/poc/target/",
+		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
+	}
 )
 
 var pctx = android.NewPackageContext("android/soong/cc/config")
