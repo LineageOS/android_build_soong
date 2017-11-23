@@ -175,7 +175,12 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 func TestConfig(buildDir string, env map[string]string) Config {
 	config := &config{
 		ProductVariables: productVariables{
-			DeviceName: stringPtr("test_device"),
+			DeviceName:           stringPtr("test_device"),
+			Platform_sdk_version: intPtr(26),
+			AAPTConfig:           &[]string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+			AAPTPreferredConfig:  stringPtr("xhdpi"),
+			AAPTCharacteristics:  stringPtr("nosdcard"),
+			AAPTPrebuiltDPI:      &[]string{"xhdpi", "xxhdpi"},
 		},
 
 		buildDir:     buildDir,
@@ -417,12 +422,11 @@ func (c *config) DeviceUsesClang() bool {
 	return true
 }
 
-func (c *config) ResourceOverlays() []SourcePath {
-	return nil
-}
-
-func (c *config) PlatformVersion() string {
-	return "M"
+func (c *config) ResourceOverlays() []string {
+	if c.ProductVariables.ResourceOverlays == nil {
+		return nil
+	}
+	return *c.ProductVariables.ResourceOverlays
 }
 
 func (c *config) PlatformSdkVersionInt() int {
@@ -445,6 +449,10 @@ func (c *config) DefaultAppTargetSdkInt() int {
 	}
 }
 
+func (c *config) AppsDefaultVersionName() string {
+	return String(c.ProductVariables.AppsDefaultVersionName)
+}
+
 // Codenames that are active in the current lunch target.
 func (c *config) PlatformVersionActiveCodenames() []string {
 	return c.ProductVariables.Platform_version_active_codenames
@@ -464,10 +472,6 @@ func (c *config) PlatformVersionCombinedCodenames() []string {
 	combined = append(combined, c.PlatformVersionActiveCodenames()...)
 	combined = append(combined, c.PlatformVersionFutureCodenames()...)
 	return combined
-}
-
-func (c *config) BuildNumber() string {
-	return "000000"
 }
 
 func (c *config) ProductAAPTConfig() []string {
