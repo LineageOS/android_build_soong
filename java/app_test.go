@@ -35,17 +35,7 @@ var (
 )
 
 func testApp(t *testing.T, bp string) *android.TestContext {
-	bp += `
-		android_app {
-			name: "framework-res",
-			no_framework_libs: true,
-		}
-	`
-
-	appFs := map[string][]byte{
-		"AndroidManifest.xml":                   nil,
-		"build/target/product/security/testkey": nil,
-	}
+	appFs := map[string][]byte{}
 
 	for _, file := range resourceFiles {
 		appFs[file] = nil

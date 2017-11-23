@@ -27,6 +27,7 @@ import (
 
 func init() {
 	android.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
+	android.RegisterModuleType("android_app", AndroidAppFactory)
 }
 
 // AAR prebuilts
@@ -76,7 +77,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	if !Bool(a.properties.No_framework_libs) && !Bool(a.properties.No_standard_libs) {
 		switch String(a.deviceProperties.Sdk_version) { // TODO: Res_sdk_version?
-		case "current", "system_current", "":
+		case "current", "system_current", "test_current", "":
 			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
 		default:
 			// We'll already have a dependency on an sdk prebuilt android.jar
@@ -116,7 +117,13 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	//	a.properties.Proguard.Enabled = true
 	//}
 
-	a.Module.compile(ctx)
+	if String(a.appProperties.Instrumentation_for) == "" {
+		a.properties.Instrument = true
+	}
+
+	if ctx.ModuleName() != "framework-res" {
+		a.Module.compile(ctx, a.aaptSrcJar)
+	}
 
 	certificate := String(a.appProperties.Certificate)
 	if certificate == "" {
@@ -138,7 +145,12 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.outputFile = packageFile
 
-	ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
+	if ctx.ModuleName() == "framework-res" {
+		// framework-res.apk is installed as system/framework/framework-res.apk
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
+	} else {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
+	}
 }
 
 var aaptIgnoreFilenames = []string{
