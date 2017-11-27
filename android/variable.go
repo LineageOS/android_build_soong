@@ -98,6 +98,11 @@ type variableProperties struct {
 		Uml struct {
 			Cppflags []string
 		}
+
+		Arc struct {
+			Exclude_srcs []string
+			Static_libs  []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -157,6 +162,7 @@ type productVariables struct {
 	Treble                     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
 	Uml                        *bool `json:",omitempty"`
+	Arc                        *bool `json:",omitempty"`
 	MinimizeJavaDebugInfo      *bool `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
