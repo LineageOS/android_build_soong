@@ -54,6 +54,8 @@ type androidAppProperties struct {
 	// list of directories relative to the Blueprints file containing
 	// Android resources
 	Resource_dirs []string
+
+	Instrumentation_for *string
 }
 
 type AndroidApp struct {
@@ -118,6 +120,10 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	//if !ctx.ContainsProperty("proguard.enabled") {
 	//	a.properties.Proguard.Enabled = true
 	//}
+
+	if String(a.appProperties.Instrumentation_for) == "" {
+		a.properties.Instrument = true
+	}
 
 	a.Module.compile(ctx)
 
