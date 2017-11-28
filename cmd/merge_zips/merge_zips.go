@@ -54,13 +54,14 @@ func (s zipsToNotStripSet) Set(zip_path string) error {
 }
 
 var (
-	sortEntries     = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
-	emulateJar      = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
-	stripDirs       fileList
-	stripFiles      fileList
-	zipsToNotStrip  = make(zipsToNotStripSet)
-	stripDirEntries = flag.Bool("D", false, "strip directory entries from the output zip file")
-	manifest        = flag.String("m", "", "manifest file to insert in jar")
+	sortEntries      = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
+	emulateJar       = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
+	stripDirs        fileList
+	stripFiles       fileList
+	zipsToNotStrip   = make(zipsToNotStripSet)
+	stripDirEntries  = flag.Bool("D", false, "strip directory entries from the output zip file")
+	manifest         = flag.String("m", "", "manifest file to insert in jar")
+	ignoreDuplicates = flag.Bool("ignore-duplicates", false, "take each entry from the first zip it exists in and don't warn")
 )
 
 func init() {
@@ -118,7 +119,7 @@ func main() {
 	}
 
 	// do merge
-	err = mergeZips(readers, writer, *manifest, *sortEntries, *emulateJar, *stripDirEntries)
+	err = mergeZips(readers, writer, *manifest, *sortEntries, *emulateJar, *stripDirEntries, *ignoreDuplicates)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -210,7 +211,7 @@ type fileMapping struct {
 }
 
 func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
-	sortEntries, emulateJar, stripDirEntries bool) error {
+	sortEntries, emulateJar, stripDirEntries, ignoreDuplicates bool) error {
 
 	sourceByDest := make(map[string]zipSource, 0)
 	orderedMappings := []fileMapping{}
@@ -265,6 +266,9 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
 				if existingSource.IsDir() != source.IsDir() {
 					return fmt.Errorf("Directory/file mismatch at %v from %v and %v\n",
 						dest, existingSource, source)
+				}
+				if ignoreDuplicates {
+					continue
 				}
 				if emulateJar &&
 					file.Name == jar.ManifestFile || file.Name == jar.ModuleInfoClass {
