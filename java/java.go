@@ -51,9 +51,6 @@ func init() {
 //  Renderscript
 // Post-jar passes:
 //  Proguard
-//  Jacoco
-//  Jarjar
-//  Dex
 // Rmtypedefs
 // DroidDoc
 // Findbugs
@@ -127,6 +124,26 @@ type CompilerProperties struct {
 		// List of javac flags that should only be used when passing -source 1.9
 		Javacflags []string
 	}
+
+	Jacoco struct {
+		// List of classes to include for instrumentation with jacoco to collect coverage
+		// information at runtime when building with coverage enabled.  If unset defaults to all
+		// classes.
+		// Supports '*' as the last character of an entry in the list as a wildcard match.
+		// If preceded by '.' it matches all classes in the package and subpackages, otherwise
+		// it matches classes in the package that have the class name as a prefix.
+		Include_filter []string
+
+		// List of classes to exclude from instrumentation with jacoco to collect coverage
+		// information at runtime when building with coverage enabled.  Overrides classes selected
+		// by the include_filter property.
+		// Supports '*' as the last character of an entry in the list as a wildcard match.
+		// If preceded by '.' it matches all classes in the package and subpackages, otherwise
+		// it matches classes in the package that have the class name as a prefix.
+		Exclude_filter []string
+	}
+
+	Instrument bool `blueprint:"mutated"`
 }
 
 type CompilerDeviceProperties struct {
@@ -176,6 +193,9 @@ type Module struct {
 
 	// output file containing classes.dex
 	dexJarFile android.Path
+
+	// output file containing uninstrumented classes that will be instrumented by jacoco
+	jacocoReportClassesFile android.Path
 
 	// output file suitable for installing or running
 	outputFile android.Path
@@ -718,6 +738,20 @@ func (j *Module) compile(ctx android.ModuleContext) {
 	}
 
 	if ctx.Device() && j.installable() {
+		outputFile = j.desugar(ctx, flags, outputFile, jarName)
+	}
+
+	if ctx.AConfig().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+		if inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
+			j.properties.Instrument = true
+		}
+	}
+
+	if ctx.AConfig().IsEnvTrue("EMMA_INSTRUMENT") && j.properties.Instrument {
+		outputFile = j.instrument(ctx, flags, outputFile, jarName)
+	}
+
+	if ctx.Device() && j.installable() {
 		outputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
@@ -766,6 +800,42 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	return headerJar
 }
 
+func (j *Module) desugar(ctx android.ModuleContext, flags javaBuilderFlags,
+	classesJar android.Path, jarName string) android.Path {
+
+	desugarFlags := []string{
+		"--min_sdk_version " + j.minSdkVersionNumber(ctx),
+		"--desugar_try_with_resources_if_needed=false",
+		"--allow_empty_bootclasspath",
+	}
+
+	if inList("--core-library", j.deviceProperties.Dxflags) {
+		desugarFlags = append(desugarFlags, "--core_library")
+	}
+
+	flags.desugarFlags = strings.Join(desugarFlags, " ")
+
+	desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
+	TransformDesugar(ctx, desugarJar, classesJar, flags)
+
+	return desugarJar
+}
+
+func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
+	classesJar android.Path, jarName string) android.Path {
+
+	specs := j.jacocoStripSpecs(ctx)
+
+	jacocoReportClassesFile := android.PathForModuleOut(ctx, "jacoco", "jacoco-report-classes.jar")
+	instrumentedJar := android.PathForModuleOut(ctx, "jacoco", jarName)
+
+	jacocoInstrumentJar(ctx, instrumentedJar, jacocoReportClassesFile, classesJar, specs)
+
+	j.jacocoReportClassesFile = jacocoReportClassesFile
+
+	return instrumentedJar
+}
+
 func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
@@ -792,45 +862,27 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			"--dump-width=1000")
 	}
 
-	var minSdkVersion string
-	switch String(j.deviceProperties.Sdk_version) {
-	case "", "current", "test_current", "system_current":
-		minSdkVersion = strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
-	default:
-		minSdkVersion = String(j.deviceProperties.Sdk_version)
-	}
-
-	dxFlags = append(dxFlags, "--min-sdk-version="+minSdkVersion)
+	dxFlags = append(dxFlags, "--min-sdk-version="+j.minSdkVersionNumber(ctx))
 
 	flags.dxFlags = strings.Join(dxFlags, " ")
 
-	desugarFlags := []string{
-		"--min_sdk_version " + minSdkVersion,
-		"--desugar_try_with_resources_if_needed=false",
-		"--allow_empty_bootclasspath",
-	}
-
-	if inList("--core-library", dxFlags) {
-		desugarFlags = append(desugarFlags, "--core_library")
-	}
-
-	flags.desugarFlags = strings.Join(desugarFlags, " ")
-
-	desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
-	TransformDesugar(ctx, desugarJar, classesJar, flags)
-	if ctx.Failed() {
-		return nil
-	}
-
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
-	TransformClassesJarToDexJar(ctx, javalibJar, desugarJar, flags)
-	if ctx.Failed() {
-		return nil
-	}
+	TransformClassesJarToDexJar(ctx, javalibJar, classesJar, flags)
 
 	j.dexJarFile = javalibJar
 	return javalibJar
+}
+
+// Returns a sdk version as a string that is guaranteed to be a parseable as a number.  For
+// modules targeting an unreleased SDK (meaning it does not yet have a number) it returns "10000".
+func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
+	switch String(j.deviceProperties.Sdk_version) {
+	case "", "current", "test_current", "system_current":
+		return strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
+	default:
+		return String(j.deviceProperties.Sdk_version)
+	}
 }
 
 func (j *Module) installable() bool {
