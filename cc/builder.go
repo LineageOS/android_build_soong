@@ -196,11 +196,19 @@ var (
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
-	// Abidiff check turned on in advice-only mode. Builds will not fail on abi incompatibilties / extensions.
-	sAbiDiff = pctx.AndroidStaticRule("sAbiDiff",
-		blueprint.RuleParams{
-			Command:     "$sAbiDiffer $allowFlags -lib $libName -arch $arch -check-all-apis -o ${out} -new $in -old $referenceDump",
-			CommandDeps: []string{"$sAbiDiffer"},
+	sAbiDiff = pctx.AndroidRuleFunc("sAbiDiff",
+		func(config android.Config) (blueprint.RuleParams, error) {
+
+			commandStr := "($sAbiDiffer $allowFlags -lib $libName -arch $arch -check-all-apis -o ${out} -new $in -old $referenceDump)"
+			distDir := config.ProductVariables.DistDir
+			if distDir != nil && *distDir != "" {
+				distAbiDiffDir := *distDir + "/abidiffs/"
+				commandStr += "  || (mkdir -p " + distAbiDiffDir + " && cp ${out} " + distAbiDiffDir + " && exit 1)"
+			}
+			return blueprint.RuleParams{
+				Command:     commandStr,
+				CommandDeps: []string{"$sAbiDiffer"},
+			}, nil
 		},
 		"allowFlags", "referenceDump", "libName", "arch")
 
