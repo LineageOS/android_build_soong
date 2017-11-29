@@ -23,16 +23,9 @@ import (
 )
 
 func NewTestContext() *TestContext {
-	ctx := &TestContext{
+	return &TestContext{
 		Context: blueprint.NewContext(),
 	}
-
-	namespaceExportFilter := func(namespace *Namespace) bool {
-		return true
-	}
-	ctx.SetNameInterface(NewNameResolver(namespaceExportFilter))
-
-	return ctx
 }
 
 func NewTestArchContext() *TestContext {

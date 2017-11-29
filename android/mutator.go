@@ -86,7 +86,6 @@ func registerArchMutator(ctx RegisterMutatorsContext) {
 }
 
 var preDeps = []RegisterMutatorFunc{
-	RegisterNamespaceMutator,
 	registerArchMutator,
 }
 
