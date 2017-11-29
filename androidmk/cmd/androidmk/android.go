@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	clear_vars = "__android_mk_clear_vars"
+	clear_vars      = "__android_mk_clear_vars"
+	include_ignored = "__android_mk_include_ignored"
 )
 
 type bpVariable struct {
@@ -693,6 +694,10 @@ func allSubdirJavaFiles(args []string) string {
 	return "**/*.java"
 }
 
+func includeIgnored(args []string) string {
+	return include_ignored
+}
+
 var moduleTypes = map[string]string{
 	"BUILD_SHARED_LIBRARY":        "cc_library_shared",
 	"BUILD_STATIC_LIBRARY":        "cc_library_static",
@@ -729,6 +734,10 @@ func androidScope() mkparser.Scope {
 	globalScope.SetFunc("all-java-files-under", allJavaFilesUnder)
 	globalScope.SetFunc("all-proto-files-under", allProtoFilesUnder)
 	globalScope.SetFunc("all-subdir-java-files", allSubdirJavaFiles)
+	globalScope.SetFunc("all-makefiles-under", includeIgnored)
+	globalScope.SetFunc("first-makefiles-under", includeIgnored)
+	globalScope.SetFunc("all-named-subdir-makefiles", includeIgnored)
+	globalScope.SetFunc("all-subdir-makefiles", includeIgnored)
 
 	for k, v := range moduleTypes {
 		globalScope.Set(k, v)
