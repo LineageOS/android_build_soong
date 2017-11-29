@@ -211,6 +211,8 @@ type commonProperties struct {
 	ArchSpecific          bool                  `blueprint:"mutated"`
 
 	SkipInstall bool `blueprint:"mutated"`
+
+	NamespaceExportedToMake bool `blueprint:"mutated"`
 }
 
 type hostAndDeviceProperties struct {
@@ -476,8 +478,13 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 
 	var deps Paths
 
+	namespacePrefix := ctx.Namespace().(*Namespace).id
+	if namespacePrefix != "" {
+		namespacePrefix = namespacePrefix + "-"
+	}
+
 	if len(allInstalledFiles) > 0 {
-		name := PathForPhony(ctx, ctx.ModuleName()+"-install")
+		name := PathForPhony(ctx, namespacePrefix+ctx.ModuleName()+"-install")
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
 			Output:    name,
@@ -489,7 +496,7 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	}
 
 	if len(allCheckbuildFiles) > 0 {
-		name := PathForPhony(ctx, ctx.ModuleName()+"-checkbuild")
+		name := PathForPhony(ctx, namespacePrefix+ctx.ModuleName()+"-checkbuild")
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
 			Output:    name,
@@ -505,9 +512,10 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 			suffix = "-soong"
 		}
 
+		name := PathForPhony(ctx, namespacePrefix+ctx.ModuleName()+suffix)
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Output:    PathForPhony(ctx, ctx.ModuleName()+suffix),
+			Outputs:   []WritablePath{name},
 			Implicits: deps,
 		})
 

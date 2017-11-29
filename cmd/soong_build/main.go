@@ -25,6 +25,22 @@ import (
 	"android/soong/android"
 )
 
+func newNameResolver(config android.Config) *android.NameResolver {
+	namespacePathsToExport := make(map[string]bool)
+
+	for _, namespaceName := range config.ProductVariables.NamespacesToExport {
+		namespacePathsToExport[namespaceName] = true
+	}
+
+	namespacePathsToExport["."] = true // always export the root namespace
+
+	exportFilter := func(namespace *android.Namespace) bool {
+		return namespacePathsToExport[namespace.Path]
+	}
+
+	return android.NewNameResolver(exportFilter)
+}
+
 func main() {
 	flag.Parse()
 
@@ -40,8 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Temporary hack
-	//ctx.SetIgnoreUnknownModuleTypes(true)
+	ctx.SetNameInterface(newNameResolver(configuration))
 
 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 
