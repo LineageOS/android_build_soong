@@ -428,6 +428,18 @@ func (p WritablePaths) Strings() []string {
 	return ret
 }
 
+// Paths returns the WritablePaths as a Paths
+func (p WritablePaths) Paths() Paths {
+	if p == nil {
+		return nil
+	}
+	ret := make(Paths, len(p))
+	for i, path := range p {
+		ret[i] = path
+	}
+	return ret
+}
+
 type basePath struct {
 	path   string
 	config Config
