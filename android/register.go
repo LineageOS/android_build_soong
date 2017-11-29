@@ -99,5 +99,5 @@ func (ctx *Context) Register() {
 
 	registerMutators(ctx.Context, preArch, preDeps, postDeps)
 
-	ctx.RegisterSingletonType("env", EnvSingleton)
+	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
 }
