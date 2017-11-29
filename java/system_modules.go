@@ -121,7 +121,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 
 	jars = append(jars, android.PathsForModuleSrc(ctx, system.properties.Jars)...)
 
-	if ctx.AConfig().TargetOpenJDK9() {
+	if ctx.Config().TargetOpenJDK9() {
 		system.outputFile = TransformJarsToSystemModules(ctx, "java.base", jars)
 	}
 }

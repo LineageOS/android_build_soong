@@ -117,7 +117,7 @@ func normalizeNdkApiLevel(ctx android.BaseContext, apiLevel string,
 		return apiLevel, nil
 	}
 
-	minVersion := ctx.AConfig().MinSupportedSdkVersion()
+	minVersion := ctx.Config().MinSupportedSdkVersion()
 	firstArchVersions := map[android.ArchType]int{
 		android.Arm:    minVersion,
 		android.Arm64:  21,
@@ -188,7 +188,7 @@ func shouldUseVersionScript(stub *stubDecorator) (bool, error) {
 }
 
 func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
-	platformVersion := mctx.AConfig().PlatformSdkVersionInt()
+	platformVersion := mctx.Config().PlatformSdkVersionInt()
 
 	firstSupportedVersion, err := normalizeNdkApiLevel(mctx, String(c.properties.First_version),
 		mctx.Arch())
@@ -207,7 +207,7 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorat
 	for version := firstGenVersion; version <= platformVersion; version++ {
 		versionStrs = append(versionStrs, strconv.Itoa(version))
 	}
-	versionStrs = append(versionStrs, mctx.AConfig().PlatformVersionActiveCodenames()...)
+	versionStrs = append(versionStrs, mctx.Config().PlatformVersionActiveCodenames()...)
 	versionStrs = append(versionStrs, "current")
 
 	modules := mctx.CreateVariations(versionStrs...)

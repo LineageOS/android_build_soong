@@ -238,7 +238,7 @@ func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 // source directory, but strip the local source directory from the beginning of
 // each string.
 func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string) Paths {
-	prefix := filepath.Join(ctx.AConfig().srcDir, ctx.ModuleDir()) + "/"
+	prefix := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir()) + "/"
 	if prefix == "./" {
 		prefix = ""
 	}
@@ -262,7 +262,7 @@ func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def
 	}
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
 	// is created, we're run again.
-	path := filepath.Join(ctx.AConfig().srcDir, ctx.ModuleDir(), def)
+	path := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir(), def)
 	return ctx.Glob(path, []string{})
 }
 
@@ -844,7 +844,7 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 		if ctx.InstallInSanitizerDir() {
 			partition = "data/asan/" + partition
 		}
-		outPaths = []string{"target", "product", ctx.AConfig().DeviceName(), partition}
+		outPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
 		switch ctx.Os() {
 		case Linux:

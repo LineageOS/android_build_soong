@@ -720,7 +720,7 @@ func (a *androidModuleContext) validateAndroidModule(module blueprint.Module) Mo
 	}
 
 	if !aModule.Enabled() {
-		if a.AConfig().AllowMissingDependencies() {
+		if a.Config().AllowMissingDependencies() {
 			a.AddMissingDependencies([]string{a.OtherModuleName(aModule)})
 		} else {
 			a.ModuleErrorf("depends on disabled module %q", a.OtherModuleName(aModule))
@@ -878,11 +878,11 @@ func (a *androidModuleContext) skipInstall(fullInstallPath OutputPath) bool {
 	}
 
 	if a.Device() {
-		if a.AConfig().SkipDeviceInstall() {
+		if a.Config().SkipDeviceInstall() {
 			return true
 		}
 
-		if a.AConfig().SkipMegaDeviceInstall(fullInstallPath.String()) {
+		if a.Config().SkipMegaDeviceInstall(fullInstallPath.String()) {
 			return true
 		}
 	}
@@ -927,7 +927,7 @@ func (a *androidModuleContext) installFile(installPath OutputPath, name string, 
 			Input:       srcPath,
 			Implicits:   implicitDeps,
 			OrderOnly:   orderOnlyDeps,
-			Default:     !a.AConfig().EmbeddedInMake(),
+			Default:     !a.Config().EmbeddedInMake(),
 		})
 
 		a.installFiles = append(a.installFiles, fullInstallPath)
@@ -947,7 +947,7 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 			Description: "install symlink " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
 			OrderOnly:   Paths{srcPath},
-			Default:     !a.AConfig().EmbeddedInMake(),
+			Default:     !a.Config().EmbeddedInMake(),
 			Args: map[string]string{
 				"fromPath": srcPath.String(),
 			},

@@ -26,7 +26,7 @@ import (
 // before the module has been split into architecture variants, and before defaults modules have
 // been applied.
 type LoadHookContext interface {
-	// TODO: a new context that includes AConfig() but not Target(), etc.?
+	// TODO: a new context that includes Config() but not Target(), etc.?
 	BaseContext
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
