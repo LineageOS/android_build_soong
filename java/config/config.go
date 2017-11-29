@@ -15,6 +15,8 @@
 package config
 
 import (
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	_ "github.com/google/blueprint/bootstrap"
@@ -130,4 +132,20 @@ func init() {
 	})
 
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
+
+	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {
+		pctx.VariableFunc(name, func(config android.Config) (string, error) {
+			if config.UnbundledBuild() || config.IsPdkBuild() {
+				return filepath.Join(prebuiltDir, runtime.GOOS, "bin", tool), nil
+			} else {
+				if path, err := pctx.HostBinToolPath(config, tool); err != nil {
+					return "", err
+				} else {
+					return path.String(), nil
+				}
+			}
+		})
+	}
+
+	hostBinToolVariableWithPrebuilt("Aapt2Cmd", "prebuilt/sdk/tools", "aapt2")
 }
