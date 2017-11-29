@@ -120,6 +120,9 @@ func init() {
 	// with this, since there is no associated library.
 	pctx.PrefixedPathsForOptionalSourceVariable("CommonNativehelperInclude", "-I",
 		[]string{"libnativehelper/include/nativehelper"})
+	// This is used by Lineage-specific libraries
+	pctx.PrefixedPathsForOptionalSourceVariable("CommonLineageIncludes", "-I",
+		[]string{"vendor/lineage/include"})
 
 	pctx.SourcePathVariable("ClangDefaultBase", "prebuilts/clang/host")
 	pctx.VariableFunc("ClangBase", func(config interface{}) (string, error) {

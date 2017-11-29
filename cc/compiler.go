@@ -213,6 +213,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 				"${config.CommonGlobalIncludes}",
 				"${config.CommonGlobalSystemIncludes}",
 				tc.IncludeFlags(),
+				"${config.CommonLineageIncludes}",
 				"${config.CommonNativehelperInclude}")
 		}
 	}
