@@ -17,6 +17,7 @@ package cc
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 
@@ -649,5 +650,6 @@ func cfiStaticLibs(config android.Config) *[]string {
 
 func cfiMakeVarsProvider(ctx android.MakeVarsContext) {
 	cfiStaticLibs := cfiStaticLibs(ctx.Config())
+	sort.Strings(*cfiStaticLibs)
 	ctx.Strict("SOONG_CFI_STATIC_LIBRARIES", strings.Join(*cfiStaticLibs, " "))
 }
