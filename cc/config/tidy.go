@@ -25,8 +25,8 @@ func init() {
 	// Global tidy checks include only google*, performance*,
 	// and misc-macro-parentheses, but not google-readability*
 	// or google-runtime-references.
-	pctx.VariableFunc("TidyDefaultGlobalChecks", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
+	pctx.VariableFunc("TidyDefaultGlobalChecks", func(config android.Config) (string, error) {
+		if override := config.Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override, nil
 		}
 		return strings.Join([]string{
@@ -41,8 +41,8 @@ func init() {
 
 	// There are too many clang-tidy warnings in external and vendor projects.
 	// Enable only some google checks for these projects.
-	pctx.VariableFunc("TidyExternalVendorChecks", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("DEFAULT_EXTERNAL_VENDOR_TIDY_CHECKS"); override != "" {
+	pctx.VariableFunc("TidyExternalVendorChecks", func(config android.Config) (string, error) {
+		if override := config.Getenv("DEFAULT_EXTERNAL_VENDOR_TIDY_CHECKS"); override != "" {
 			return override, nil
 		}
 		return strings.Join([]string{

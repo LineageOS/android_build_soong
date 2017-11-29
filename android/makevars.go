@@ -21,7 +21,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -66,7 +65,7 @@ type MakeVarsContext interface {
 
 type MakeVarsProvider func(ctx MakeVarsContext)
 
-func RegisterMakeVarsProvider(pctx blueprint.PackageContext, provider MakeVarsProvider) {
+func RegisterMakeVarsProvider(pctx PackageContext, provider MakeVarsProvider) {
 	makeVarsProviders = append(makeVarsProviders, makeVarsProvider{pctx, provider})
 }
 
@@ -76,14 +75,14 @@ func init() {
 	RegisterSingletonType("makevars", makeVarsSingletonFunc)
 }
 
-func makeVarsSingletonFunc() blueprint.Singleton {
+func makeVarsSingletonFunc() Singleton {
 	return &makeVarsSingleton{}
 }
 
 type makeVarsSingleton struct{}
 
 type makeVarsProvider struct {
-	pctx blueprint.PackageContext
+	pctx PackageContext
 	call MakeVarsProvider
 }
 
@@ -91,8 +90,8 @@ var makeVarsProviders []makeVarsProvider
 
 type makeVarsContext struct {
 	config Config
-	ctx    blueprint.SingletonContext
-	pctx   blueprint.PackageContext
+	ctx    SingletonContext
+	pctx   PackageContext
 	vars   []makeVarsVariable
 }
 
@@ -105,7 +104,7 @@ type makeVarsVariable struct {
 	strict bool
 }
 
-func (s *makeVarsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
+func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	config := ctx.Config().(Config)
 
 	if !config.EmbeddedInMake() {

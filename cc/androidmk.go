@@ -318,7 +318,7 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	ret.Class = "SHARED_LIBRARIES"
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		path, file := filepath.Split(c.installPath)
+		path, file := filepath.Split(c.installPath.String())
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+outputFile.Ext())

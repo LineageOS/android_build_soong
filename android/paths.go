@@ -449,6 +449,10 @@ func (p basePath) Rel() string {
 	return p.path
 }
 
+func (p basePath) String() string {
+	return p.path
+}
+
 // SourcePath is a Path representing a file path rooted from SrcDir
 type SourcePath struct {
 	basePath
@@ -883,6 +887,13 @@ func validatePath(ctx PathContext, pathComponents ...string) string {
 		}
 	}
 	return validateSafePath(ctx, pathComponents...)
+}
+
+func PathForPhony(ctx PathContext, phony string) WritablePath {
+	if strings.ContainsAny(phony, "$/") {
+		reportPathError(ctx, "Phony target contains invalid character ($ or /): %s", phony)
+	}
+	return OutputPath{basePath{phony, pathConfig(ctx), ""}}
 }
 
 type testPath struct {
