@@ -98,7 +98,7 @@ type stubDecorator struct {
 	properties libraryProperties
 
 	versionScriptPath android.ModuleGenPath
-	installPath       string
+	installPath       android.Path
 }
 
 // OMG GO
@@ -344,7 +344,7 @@ func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 
 	installDir := getNdkInstallBase(ctx).Join(ctx, fmt.Sprintf(
 		"platforms/android-%s/arch-%s/usr/%s", apiLevel, arch, libDir))
-	stub.installPath = ctx.InstallFile(installDir, path.Base(), path).String()
+	stub.installPath = ctx.InstallFile(installDir, path.Base(), path)
 }
 
 func newStubLibrary() *Module {
