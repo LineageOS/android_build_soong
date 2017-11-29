@@ -43,7 +43,7 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 		RootDirs:         []string{"."},
 		ExcludeDirs:      []string{".git", ".repo"},
 		PruneFiles:       []string{".out-dir", ".find-ignore"},
-		IncludeFiles:     []string{"Android.mk", "Android.bp", "Blueprints", "CleanSpec.mk"},
+		IncludeFiles:     []string{"Android.mk", "Android.bp", "Blueprints", "CleanSpec.mk", "TEST_MAPPING"},
 	}
 	dumpDir := config.FileListDir()
 	f, err = finder.New(cacheParams, fs.OsFs, logger.New(ioutil.Discard),
@@ -72,6 +72,12 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	dumpListToFile(cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export module list: %v", err)
+	}
+
+	testMappings := f.FindNamedAt(".", "TEST_MAPPING")
+	err = dumpListToFile(testMappings, filepath.Join(dumpDir, "TEST_MAPPING.list"))
+	if err != nil {
+		ctx.Fatalf("Could not find modules: %v", err)
 	}
 
 	isBlueprintFile := func(dir finder.DirEntries) (dirs []string, files []string) {
