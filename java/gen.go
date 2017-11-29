@@ -28,8 +28,6 @@ func init() {
 	pctx.HostBinToolVariable("aidlCmd", "aidl")
 	pctx.SourcePathVariable("logtagsCmd", "build/tools/java-event-log-tags.py")
 	pctx.SourcePathVariable("mergeLogtagsCmd", "build/tools/merge-event-log-tags.py")
-
-	pctx.IntermediatesPathVariable("allLogtagsFile", "all-event-log-tags.txt")
 }
 
 var (
@@ -117,7 +115,7 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	return outSrcFiles
 }
 
-func LogtagsSingleton() blueprint.Singleton {
+func LogtagsSingleton() android.Singleton {
 	return &logtagsSingleton{}
 }
 
@@ -127,18 +125,18 @@ type logtagsProducer interface {
 
 type logtagsSingleton struct{}
 
-func (l *logtagsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
+func (l *logtagsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var allLogtags android.Paths
-	ctx.VisitAllModules(func(module blueprint.Module) {
+	ctx.VisitAllModules(func(module android.Module) {
 		if logtags, ok := module.(logtagsProducer); ok {
 			allLogtags = append(allLogtags, logtags.logtags()...)
 		}
 	})
 
-	ctx.Build(pctx, blueprint.BuildParams{
+	ctx.Build(pctx, android.BuildParams{
 		Rule:        mergeLogtags,
 		Description: "merge logtags",
-		Outputs:     []string{"$allLogtagsFile"},
-		Inputs:      allLogtags.Strings(),
+		Output:      android.PathForIntermediates(ctx, "all-event-log-tags.txt"),
+		Inputs:      allLogtags,
 	})
 }

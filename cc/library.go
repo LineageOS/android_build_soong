@@ -85,9 +85,6 @@ type LibraryMutatedProperties struct {
 	VariantIsShared bool `blueprint:"mutated"`
 	// This variant is static
 	VariantIsStatic bool `blueprint:"mutated"`
-	// Location of the static library in the sysroot. Empty if the library is
-	// not included in the NDK.
-	NdkSysrootPath string `blueprint:"mutated"`
 }
 
 type FlagExporterProperties struct {
@@ -245,6 +242,10 @@ type libraryDecorator struct {
 
 	// Source Abi Diff
 	sAbiDiff android.OptionalPath
+
+	// Location of the static library in the sysroot. Empty if the library is
+	// not included in the NDK.
+	ndkSysrootPath android.Path
 
 	// Decorated interafaces
 	*baseCompiler
@@ -742,7 +743,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			Input:       file,
 		})
 
-		library.MutatedProperties.NdkSysrootPath = installPath.String()
+		library.ndkSysrootPath = installPath
 	}
 }
 

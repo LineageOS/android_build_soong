@@ -64,9 +64,9 @@ func init() {
 
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 
-	pctx.VariableFunc("JavaHome", func(config interface{}) (string, error) {
+	pctx.VariableFunc("JavaHome", func(config android.Config) (string, error) {
 		// This is set up and guaranteed by soong_ui
-		return config.(android.Config).Getenv("ANDROID_JAVA_HOME"), nil
+		return config.Getenv("ANDROID_JAVA_HOME"), nil
 	})
 
 	pctx.SourcePathVariable("JavaToolchain", "${JavaHome}/bin")
@@ -85,9 +85,9 @@ func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 	pctx.HostBinToolVariable("Zip2ZipCmd", "zip2zip")
-	pctx.VariableFunc("DxCmd", func(config interface{}) (string, error) {
-		if config.(android.Config).IsEnvFalse("USE_D8") {
-			if config.(android.Config).UnbundledBuild() || config.(android.Config).IsPdkBuild() {
+	pctx.VariableFunc("DxCmd", func(config android.Config) (string, error) {
+		if config.IsEnvFalse("USE_D8") {
+			if config.UnbundledBuild() || config.IsPdkBuild() {
 				return "prebuilts/build-tools/common/bin/dx", nil
 			} else {
 				path, err := pctx.HostBinToolPath(config, "dx")
@@ -104,9 +104,9 @@ func init() {
 			return path.String(), nil
 		}
 	})
-	pctx.VariableFunc("TurbineJar", func(config interface{}) (string, error) {
+	pctx.VariableFunc("TurbineJar", func(config android.Config) (string, error) {
 		turbine := "turbine.jar"
-		if config.(android.Config).UnbundledBuild() {
+		if config.UnbundledBuild() {
 			return "prebuilts/build-tools/common/framework/" + turbine, nil
 		} else {
 			path, err := pctx.HostJavaToolPath(config, turbine)
@@ -122,8 +122,8 @@ func init() {
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 
-	pctx.VariableFunc("JavacWrapper", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("JAVAC_WRAPPER"); override != "" {
+	pctx.VariableFunc("JavacWrapper", func(config android.Config) (string, error) {
+		if override := config.Getenv("JAVAC_WRAPPER"); override != "" {
 			return override + " ", nil
 		}
 		return "", nil
