@@ -216,14 +216,14 @@ func init() {
 		[]string{"libnativehelper/include_deprecated"})
 
 	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)
-	pctx.VariableFunc("ClangBase", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
+	pctx.VariableFunc("ClangBase", func(config android.Config) (string, error) {
+		if override := config.Getenv("LLVM_PREBUILTS_BASE"); override != "" {
 			return override, nil
 		}
 		return "${ClangDefaultBase}", nil
 	})
-	pctx.VariableFunc("ClangVersion", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
+	pctx.VariableFunc("ClangVersion", func(config android.Config) (string, error) {
+		if override := config.Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
 		return ClangDefaultVersion, nil
@@ -231,8 +231,8 @@ func init() {
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
 
-	pctx.VariableFunc("ClangShortVersion", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("LLVM_RELEASE_VERSION"); override != "" {
+	pctx.VariableFunc("ClangShortVersion", func(config android.Config) (string, error) {
+		if override := config.Getenv("LLVM_RELEASE_VERSION"); override != "" {
 			return override, nil
 		}
 		return ClangDefaultShortVersion, nil
@@ -258,8 +258,8 @@ func init() {
 			"frameworks/rs/script_api/include",
 		})
 
-	pctx.VariableFunc("CcWrapper", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("CC_WRAPPER"); override != "" {
+	pctx.VariableFunc("CcWrapper", func(config android.Config) (string, error) {
+		if override := config.Getenv("CC_WRAPPER"); override != "" {
 			return override + " ", nil
 		}
 		return "", nil
