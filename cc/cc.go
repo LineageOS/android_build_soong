@@ -326,9 +326,12 @@ type Module struct {
 	flags Flags
 
 	// When calling a linker, if module A depends on module B, then A must precede B in its command
-	// line invocation. staticDepsInLinkOrder stores the proper ordering of all of the transitive
+	// line invocation. depsInLinkOrder stores the proper ordering of all of the transitive
 	// deps of this module
-	staticDepsInLinkOrder android.Paths
+	depsInLinkOrder android.Paths
+
+	// only non-nil when this is a shared library that reuses the objects of a static library
+	staticVariant *Module
 }
 
 func (c *Module) Init() android.Module {
@@ -537,7 +540,8 @@ func (c *Module) Name() string {
 // orderDeps reorders dependencies into a list such that if module A depends on B, then
 // A will precede B in the resultant list.
 // This is convenient for passing into a linker.
-func orderDeps(directDeps []android.Path, transitiveDeps map[android.Path][]android.Path) (orderedAllDeps []android.Path, orderedDeclaredDeps []android.Path) {
+// Note that directSharedDeps should be the analogous static library for each shared lib dep
+func orderDeps(directStaticDeps []android.Path, directSharedDeps []android.Path, allTransitiveDeps map[android.Path][]android.Path) (orderedAllDeps []android.Path, orderedDeclaredDeps []android.Path) {
 	// If A depends on B, then
 	//   Every list containing A will also contain B later in the list
 	//   So, after concatenating all lists, the final instance of B will have come from the same
@@ -545,38 +549,46 @@ func orderDeps(directDeps []android.Path, transitiveDeps map[android.Path][]andr
 	//   So, the final instance of B will be later in the concatenation than the final A
 	//   So, keeping only the final instance of A and of B ensures that A is earlier in the output
 	//     list than B
-	for _, dep := range directDeps {
+	for _, dep := range directStaticDeps {
 		orderedAllDeps = append(orderedAllDeps, dep)
-		orderedAllDeps = append(orderedAllDeps, transitiveDeps[dep]...)
+		orderedAllDeps = append(orderedAllDeps, allTransitiveDeps[dep]...)
+	}
+	for _, dep := range directSharedDeps {
+		orderedAllDeps = append(orderedAllDeps, dep)
+		orderedAllDeps = append(orderedAllDeps, allTransitiveDeps[dep]...)
 	}
 
 	orderedAllDeps = android.LastUniquePaths(orderedAllDeps)
 
-	// We don't want to add any new dependencies into directDeps (to allow the caller to
+	// We don't want to add any new dependencies into directStaticDeps (to allow the caller to
 	// intentionally exclude or replace any unwanted transitive dependencies), so we limit the
-	// resultant list to only what the caller has chosen to include in directDeps
-	_, orderedDeclaredDeps = android.FilterPathList(orderedAllDeps, directDeps)
+	// resultant list to only what the caller has chosen to include in directStaticDeps
+	_, orderedDeclaredDeps = android.FilterPathList(orderedAllDeps, directStaticDeps)
 
 	return orderedAllDeps, orderedDeclaredDeps
 }
 
-func orderStaticModuleDeps(module *Module, deps []*Module) (results []android.Path) {
-	// make map of transitive dependencies
-	transitiveStaticDepNames := make(map[android.Path][]android.Path, len(deps))
-	for _, dep := range deps {
-		transitiveStaticDepNames[dep.outputFile.Path()] = dep.staticDepsInLinkOrder
+func orderStaticModuleDeps(module *Module, staticDeps []*Module, sharedDeps []*Module) (results []android.Path) {
+	// convert Module to Path
+	allTransitiveDeps := make(map[android.Path][]android.Path, len(staticDeps))
+	staticDepFiles := []android.Path{}
+	for _, dep := range staticDeps {
+		allTransitiveDeps[dep.outputFile.Path()] = dep.depsInLinkOrder
+		staticDepFiles = append(staticDepFiles, dep.outputFile.Path())
 	}
-	// get the output file for each declared dependency
-	depFiles := []android.Path{}
-	for _, dep := range deps {
-		depFiles = append(depFiles, dep.outputFile.Path())
+	sharedDepFiles := []android.Path{}
+	for _, sharedDep := range sharedDeps {
+		staticAnalogue := sharedDep.staticVariant
+		if staticAnalogue != nil {
+			allTransitiveDeps[staticAnalogue.outputFile.Path()] = staticAnalogue.depsInLinkOrder
+			sharedDepFiles = append(sharedDepFiles, staticAnalogue.outputFile.Path())
+		}
 	}
 
 	// reorder the dependencies based on transitive dependencies
-	module.staticDepsInLinkOrder, results = orderDeps(depFiles, transitiveStaticDepNames)
+	module.depsInLinkOrder, results = orderDeps(staticDepFiles, sharedDepFiles, allTransitiveDeps)
 
 	return results
-
 }
 
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
@@ -1026,6 +1038,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
 	directStaticDeps := []*Module{}
+	directSharedDeps := []*Module{}
 
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
@@ -1092,6 +1105,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		// re-exporting flags
 		if depTag == reuseObjTag {
 			if l, ok := ccDep.compiler.(libraryInterface); ok {
+				c.staticVariant = ccDep
 				objs, flags, deps := l.reuseObjs()
 				depPaths.Objs = depPaths.Objs.Append(objs)
 				depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
@@ -1130,6 +1144,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			ptr = &depPaths.SharedLibs
 			depPtr = &depPaths.SharedLibsDeps
 			depFile = ccDep.linker.(libraryInterface).toc()
+			directSharedDeps = append(directSharedDeps, ccDep)
 		case lateSharedDepTag, ndkLateStubDepTag:
 			ptr = &depPaths.LateSharedLibs
 			depPtr = &depPaths.LateSharedLibsDeps
@@ -1221,7 +1236,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	})
 
 	// use the ordered dependencies as this module's dependencies
-	depPaths.StaticLibs = append(depPaths.StaticLibs, orderStaticModuleDeps(c, directStaticDeps)...)
+	depPaths.StaticLibs = append(depPaths.StaticLibs, orderStaticModuleDeps(c, directStaticDeps, directSharedDeps)...)
 
 	// Dedup exported flags from dependencies
 	depPaths.Flags = android.FirstUniqueStrings(depPaths.Flags)

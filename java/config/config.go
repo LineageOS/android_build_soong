@@ -28,6 +28,16 @@ var (
 	DefaultBootclasspathLibraries = []string{"core-oj", "core-libart"}
 	DefaultSystemModules          = "core-system-modules"
 	DefaultLibraries              = []string{"ext", "framework", "okhttp"}
+
+	DefaultJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
+
+	InstrumentFrameworkModules = []string{
+		"framework",
+		"telephony-common",
+		"services",
+		"android.car",
+		"android.car7",
+	}
 )
 
 func init() {
@@ -74,6 +84,7 @@ func init() {
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
+	pctx.HostBinToolVariable("Zip2ZipCmd", "zip2zip")
 	pctx.VariableFunc("DxCmd", func(config interface{}) (string, error) {
 		if config.(android.Config).IsEnvFalse("USE_D8") {
 			if config.(android.Config).UnbundledBuild() || config.(android.Config).IsPdkBuild() {
@@ -117,4 +128,6 @@ func init() {
 		}
 		return "", nil
 	})
+
+	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 }

@@ -52,10 +52,11 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 func testJava(t *testing.T, bp string) *android.TestContext {
-	return testJavaWithEnv(t, bp, nil)
+	return testJavaWithEnvFs(t, bp, nil, nil)
 }
 
-func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.TestContext {
+func testJavaWithEnvFs(t *testing.T, bp string,
+	env map[string]string, fs map[string][]byte) *android.TestContext {
 	config := android.TestArchConfig(buildDir, env)
 
 	ctx := android.NewTestArchContext()
@@ -112,17 +113,17 @@ func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.Te
 		}
 	}
 
-	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp": []byte(bp),
-		"a.java":     nil,
-		"b.java":     nil,
-		"c.java":     nil,
-		"b.kt":       nil,
-		"a.jar":      nil,
-		"b.jar":      nil,
-		"res/a":      nil,
-		"res/b":      nil,
-		"res2/a":     nil,
+	mockFS := map[string][]byte{
+		"Android.bp":  []byte(bp),
+		"a.java":      nil,
+		"b.java":      nil,
+		"c.java":      nil,
+		"b.kt":        nil,
+		"a.jar":       nil,
+		"b.jar":       nil,
+		"java-res/a":  nil,
+		"java-res/b":  nil,
+		"java-res2/a": nil,
 
 		"prebuilts/sdk/14/android.jar":                nil,
 		"prebuilts/sdk/14/framework.aidl":             nil,
@@ -132,7 +133,13 @@ func testJavaWithEnv(t *testing.T, bp string, env map[string]string) *android.Te
 		"prebuilts/sdk/system_current/framework.aidl": nil,
 		"prebuilts/sdk/test_current/android.jar":      nil,
 		"prebuilts/sdk/test_current/framework.aidl":   nil,
-	})
+	}
+
+	for k, v := range fs {
+		mockFS[k] = v
+	}
+
+	ctx.MockFileSystem(mockFS)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	fail(t, errs)
@@ -394,7 +401,7 @@ func TestClasspath(t *testing.T) {
 
 			// Test again with javac 1.9
 			t.Run("1.9", func(t *testing.T) {
-				ctx := testJavaWithEnv(t, bp, map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
+				ctx := testJavaWithEnvFs(t, bp, map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"}, nil)
 
 				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
 				got := javac.Args["bootClasspath"]
@@ -497,14 +504,14 @@ func TestResources(t *testing.T) {
 		{
 			// Test that a module with java_resource_dirs includes the files
 			name: "resource dirs",
-			prop: `java_resource_dirs: ["res"]`,
-			args: "-C res -f res/a -f res/b",
+			prop: `java_resource_dirs: ["java-res"]`,
+			args: "-C java-res -f java-res/a -f java-res/b",
 		},
 		{
 			// Test that a module with java_resources includes the files
 			name: "resource files",
-			prop: `java_resources: ["res/a", "res/b"]`,
-			args: "-C . -f res/a -f res/b",
+			prop: `java_resources: ["java-res/a", "java-res/b"]`,
+			args: "-C . -f java-res/a -f java-res/b",
 		},
 		{
 			// Test that a module with a filegroup in java_resources includes the files with the
@@ -514,10 +521,10 @@ func TestResources(t *testing.T) {
 			extra: `
 				filegroup {
 					name: "foo-res",
-					path: "res",
-					srcs: ["res/a", "res/b"],
+					path: "java-res",
+					srcs: ["java-res/a", "java-res/b"],
 				}`,
-			args: "-C res -f res/a -f res/b",
+			args: "-C java-res -f java-res/a -f java-res/b",
 		},
 		{
 			// Test that a module with "include_srcs: true" includes its source files in the resources jar
@@ -562,21 +569,21 @@ func TestExcludeResources(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
-			java_resource_dirs: ["res", "res2"],
-			exclude_java_resource_dirs: ["res2"],
+			java_resource_dirs: ["java-res", "java-res2"],
+			exclude_java_resource_dirs: ["java-res2"],
 		}
 
 		java_library {
 			name: "bar",
 			srcs: ["a.java"],
-			java_resources: ["res/*"],
-			exclude_java_resources: ["res/b"],
+			java_resources: ["java-res/*"],
+			exclude_java_resources: ["java-res/b"],
 		}
 	`)
 
 	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
 
-	expected := "-C res -f res/a -f res/b"
+	expected := "-C java-res -f java-res/a -f java-res/b"
 	if fooRes.Args["jarArgs"] != expected {
 		t.Errorf("foo resource jar args %q is not %q",
 			fooRes.Args["jarArgs"], expected)
@@ -585,7 +592,7 @@ func TestExcludeResources(t *testing.T) {
 
 	barRes := ctx.ModuleForTests("bar", "android_common").Output("res/bar.jar")
 
-	expected = "-C . -f res/a"
+	expected = "-C . -f java-res/a"
 	if barRes.Args["jarArgs"] != expected {
 		t.Errorf("bar resource jar args %q is not %q",
 			barRes.Args["jarArgs"], expected)
@@ -606,7 +613,7 @@ func TestGeneratedSources(t *testing.T) {
 
 		genrule {
 			name: "gen",
-			tool_files: ["res/a"],
+			tool_files: ["java-res/a"],
 			out: ["gen.java"],
 		}
 	`)
