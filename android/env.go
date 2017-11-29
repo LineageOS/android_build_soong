@@ -48,7 +48,7 @@ func EnvSingleton() Singleton {
 type envSingleton struct{}
 
 func (c *envSingleton) GenerateBuildActions(ctx SingletonContext) {
-	envDeps := ctx.Config().(Config).EnvDeps()
+	envDeps := ctx.Config().EnvDeps()
 
 	envFile := PathForOutput(ctx, ".soong.environment")
 	if ctx.Failed() {

@@ -108,7 +108,7 @@ func PostDepsMutators(f RegisterMutatorFunc) {
 type AndroidTopDownMutator func(TopDownMutatorContext)
 
 type TopDownMutatorContext interface {
-	blueprint.BaseModuleContext
+	BaseModuleContext
 	androidBaseContext
 
 	OtherModuleExists(name string) bool
@@ -139,8 +139,22 @@ type androidTopDownMutatorContext struct {
 type AndroidBottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
-	blueprint.BottomUpMutatorContext
+	BaseModuleContext
 	androidBaseContext
+
+	OtherModuleExists(name string) bool
+	Rename(name string)
+	Module() blueprint.Module
+
+	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string)
+	AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string)
+	CreateVariations(...string) []blueprint.Module
+	CreateLocalVariations(...string) []blueprint.Module
+	SetDependencyVariation(string)
+	AddVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string)
+	AddFarVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string)
+	AddInterVariantDependency(tag blueprint.DependencyTag, from, to blueprint.Module)
+	ReplaceDependencies(string)
 }
 
 type androidBottomUpMutatorContext struct {
@@ -191,6 +205,14 @@ func depsMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
 		m.DepsMutator(ctx)
 	}
+}
+
+func (a *androidTopDownMutatorContext) Config() Config {
+	return a.config
+}
+
+func (a *androidBottomUpMutatorContext) Config() Config {
+	return a.config
 }
 
 func (a *androidTopDownMutatorContext) Module() Module {

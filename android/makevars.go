@@ -105,13 +105,11 @@ type makeVarsVariable struct {
 }
 
 func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
-	config := ctx.Config().(Config)
-
-	if !config.EmbeddedInMake() {
+	if !ctx.Config().EmbeddedInMake() {
 		return
 	}
 
-	outFile := PathForOutput(ctx, "make_vars"+proptools.String(config.ProductVariables.Make_suffix)+".mk").String()
+	outFile := PathForOutput(ctx, "make_vars"+proptools.String(ctx.Config().ProductVariables.Make_suffix)+".mk").String()
 
 	if ctx.Failed() {
 		return
@@ -120,7 +118,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	vars := []makeVarsVariable{}
 	for _, provider := range makeVarsProviders {
 		mctx := &makeVarsContext{
-			config: config,
+			config: ctx.Config(),
 			ctx:    ctx,
 			pctx:   provider.pctx,
 		}

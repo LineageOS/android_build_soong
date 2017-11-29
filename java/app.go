@@ -338,7 +338,7 @@ type overlaySingleton struct{}
 
 func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var overlayData []overlayGlobResult
-	for _, overlay := range ctx.Config().(android.Config).ResourceOverlays() {
+	for _, overlay := range ctx.Config().ResourceOverlays() {
 		var result overlayGlobResult
 		result.dir = overlay
 		files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), aaptIgnoreFilenames)
@@ -359,7 +359,7 @@ func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		overlayData = append(overlayData, result)
 	}
 
-	ctx.Config().(android.Config).Once(overlayDataKey, func() interface{} {
+	ctx.Config().Once(overlayDataKey, func() interface{} {
 		return overlayData
 	})
 }

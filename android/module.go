@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/scanner"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
@@ -70,13 +71,36 @@ type androidBaseContext interface {
 }
 
 type BaseContext interface {
-	blueprint.BaseModuleContext
+	BaseModuleContext
 	androidBaseContext
+}
+
+// BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
+// a Config instead of an interface{}.
+type BaseModuleContext interface {
+	ModuleName() string
+	ModuleDir() string
+	Config() Config
+
+	ContainsProperty(name string) bool
+	Errorf(pos scanner.Position, fmt string, args ...interface{})
+	ModuleErrorf(fmt string, args ...interface{})
+	PropertyErrorf(property, fmt string, args ...interface{})
+	Failed() bool
+
+	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
+	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
+	// builder whenever a file matching the pattern as added or removed, without rerunning if a
+	// file that does not match the pattern is added to a searched directory.
+	GlobWithDeps(pattern string, excludes []string) ([]string, error)
+
+	Fs() pathtools.FileSystem
+	AddNinjaFileDeps(deps ...string)
 }
 
 type ModuleContext interface {
 	androidBaseContext
-	blueprint.BaseModuleContext
+	BaseModuleContext
 
 	// Deprecated: use ModuleContext.Build instead.
 	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
@@ -482,7 +506,7 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 			Rule:      blueprint.Phony,
 			Output:    name,
 			Implicits: allInstalledFiles,
-			Default:   !ctx.Config().(Config).EmbeddedInMake(),
+			Default:   !ctx.Config().EmbeddedInMake(),
 		})
 		deps = append(deps, name)
 		a.installTarget = name
@@ -501,7 +525,7 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 
 	if len(deps) > 0 {
 		suffix := ""
-		if ctx.Config().(Config).EmbeddedInMake() {
+		if ctx.Config().EmbeddedInMake() {
 			suffix = "-soong"
 		}
 
@@ -603,6 +627,10 @@ func (a *androidModuleContext) ninjaError(desc string, outputs []string, err err
 		},
 	})
 	return
+}
+
+func (a *androidModuleContext) Config() Config {
+	return a.ModuleContext.Config().(Config)
 }
 
 func (a *androidModuleContext) ModuleBuild(pctx PackageContext, params ModuleBuildParams) {
@@ -1094,7 +1122,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 
 	suffix := ""
-	if ctx.Config().(Config).EmbeddedInMake() {
+	if ctx.Config().EmbeddedInMake() {
 		suffix = "-soong"
 	}
 
@@ -1106,7 +1134,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 
 	// Make will generate the MODULES-IN-* targets
-	if ctx.Config().(Config).EmbeddedInMake() {
+	if ctx.Config().EmbeddedInMake() {
 		return
 	}
 
@@ -1151,7 +1179,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 			Implicits: modulesInDir[dir],
 			// HACK: checkbuild should be an optional build, but force it
 			// enabled for now in standalone builds
-			Default: !ctx.Config().(Config).EmbeddedInMake(),
+			Default: !ctx.Config().EmbeddedInMake(),
 		})
 	}
 

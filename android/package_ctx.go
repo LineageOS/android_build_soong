@@ -47,7 +47,7 @@ type configErrorWrapper struct {
 var _ PathContext = &configErrorWrapper{}
 var _ errorfContext = &configErrorWrapper{}
 
-func (e *configErrorWrapper) Config() interface{} {
+func (e *configErrorWrapper) Config() Config {
 	return e.config
 }
 func (e *configErrorWrapper) Errorf(format string, args ...interface{}) {
