@@ -279,6 +279,10 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		// This is used by external/gentoo/...
 		ctx.Strict("CLANG_CONFIG_"+target.Arch.ArchType.Name+"_"+typePrefix+"TRIPLE",
 			toolchain.ClangTriple())
+
+		ctx.Strict(makePrefix+"CLANG_SUPPORTED", "true")
+	} else {
+		ctx.Strict(makePrefix+"CLANG_SUPPORTED", "")
 	}
 
 	ctx.Strict(makePrefix+"CC", gccCmd(toolchain, "gcc"))
