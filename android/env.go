@@ -19,8 +19,6 @@ import (
 	"strings"
 
 	"android/soong/env"
-
-	"github.com/google/blueprint"
 )
 
 // This file supports dependencies on environment variables.  During build manifest generation,
@@ -43,13 +41,13 @@ func init() {
 	os.Clearenv()
 }
 
-func EnvSingleton() blueprint.Singleton {
+func EnvSingleton() Singleton {
 	return &envSingleton{}
 }
 
 type envSingleton struct{}
 
-func (c *envSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
+func (c *envSingleton) GenerateBuildActions(ctx SingletonContext) {
 	envDeps := ctx.Config().(Config).EnvDeps()
 
 	envFile := PathForOutput(ctx, ".soong.environment")
