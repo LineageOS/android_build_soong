@@ -151,12 +151,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	if ctx.clang() {
 		if ctx.Host() {
-			globalSanitizers = ctx.AConfig().SanitizeHost()
+			globalSanitizers = ctx.Config().SanitizeHost()
 		} else {
-			arches := ctx.AConfig().SanitizeDeviceArch()
+			arches := ctx.Config().SanitizeDeviceArch()
 			if len(arches) == 0 || inList(ctx.Arch().ArchType.Name, arches) {
-				globalSanitizers = ctx.AConfig().SanitizeDevice()
-				globalSanitizersDiag = ctx.AConfig().SanitizeDeviceDiag()
+				globalSanitizers = ctx.Config().SanitizeDevice()
+				globalSanitizersDiag = ctx.Config().SanitizeDeviceDiag()
 			}
 		}
 	}
@@ -194,13 +194,13 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		if found, globalSanitizers = removeFromList("cfi", globalSanitizers); found && s.Cfi == nil {
-			if !ctx.AConfig().CFIDisabledForPath(ctx.ModuleDir()) {
+			if !ctx.Config().CFIDisabledForPath(ctx.ModuleDir()) {
 				s.Cfi = boolPtr(true)
 			}
 		}
 
 		if found, globalSanitizers = removeFromList("integer_overflow", globalSanitizers); found && s.Integer_overflow == nil {
-			if !ctx.AConfig().IntegerOverflowDisabledForPath(ctx.ModuleDir()) {
+			if !ctx.Config().IntegerOverflowDisabledForPath(ctx.ModuleDir()) {
 				s.Integer_overflow = boolPtr(true)
 			}
 		}
@@ -225,15 +225,15 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// Enable CFI for all components in the include paths
-	if s.Cfi == nil && ctx.AConfig().CFIEnabledForPath(ctx.ModuleDir()) {
+	if s.Cfi == nil && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
 		s.Cfi = boolPtr(true)
-		if inList("cfi", ctx.AConfig().SanitizeDeviceDiag()) {
+		if inList("cfi", ctx.Config().SanitizeDeviceDiag()) {
 			s.Diag.Cfi = boolPtr(true)
 		}
 	}
 
 	// CFI needs gold linker, and mips toolchain does not have one.
-	if !ctx.AConfig().EnableCFI() || ctx.Arch().ArchType == android.Mips || ctx.Arch().ArchType == android.Mips64 {
+	if !ctx.Config().EnableCFI() || ctx.Arch().ArchType == android.Mips || ctx.Arch().ArchType == android.Mips64 {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 	}
@@ -611,7 +611,7 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 								modules[1].(*Module).Properties.HideFromMake = true
 							}
 						} else {
-							cfiStaticLibs := cfiStaticLibs(mctx.AConfig())
+							cfiStaticLibs := cfiStaticLibs(mctx.Config())
 
 							cfiStaticLibsMutex.Lock()
 							*cfiStaticLibs = append(*cfiStaticLibs, c.Name())

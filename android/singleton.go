@@ -21,8 +21,7 @@ import (
 
 // SingletonContext
 type SingletonContext interface {
-	// TODO(ccross): make this return an android.Config
-	Config() interface{}
+	Config() Config
 
 	ModuleName(module blueprint.Module) string
 	ModuleDir(module blueprint.Module) string
@@ -85,6 +84,10 @@ type Singleton interface {
 
 type singletonContextAdaptor struct {
 	blueprint.SingletonContext
+}
+
+func (s singletonContextAdaptor) Config() Config {
+	return s.SingletonContext.Config().(Config)
 }
 
 func (s singletonContextAdaptor) Variable(pctx PackageContext, name, value string) {
