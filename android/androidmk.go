@@ -159,12 +159,6 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 		return nil
 	}
 
-	if !amod.commonProperties.NamespaceExportedToMake {
-		// TODO(jeffrygaston) do we want to validate that there are no modules being
-		// exported to Kati that depend on this module?
-		return nil
-	}
-
 	data := provider.AndroidMk()
 
 	if data.Include == "" {
