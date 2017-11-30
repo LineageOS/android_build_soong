@@ -82,7 +82,7 @@ func (c *cmakelistsGeneratorSingleton) GenerateBuildActions(ctx android.Singleto
 func getEnvVariable(name string, ctx android.SingletonContext) string {
 	// Using android.Config.Getenv instead of os.getEnv to guarantee soong will
 	// re-run in case this environment variable changes.
-	return ctx.Config().(android.Config).Getenv(name)
+	return ctx.Config().Getenv(name)
 }
 
 func exists(path string) bool {

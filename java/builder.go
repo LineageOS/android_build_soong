@@ -386,7 +386,7 @@ func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath
 	dumpDir := android.PathForModuleOut(ctx, "desugar", "classes")
 
 	javaFlags := ""
-	if ctx.AConfig().UseOpenJDK9() {
+	if ctx.Config().UseOpenJDK9() {
 		javaFlags = "--add-opens java.base/java.lang.invoke=ALL-UNNAMED"
 	}
 

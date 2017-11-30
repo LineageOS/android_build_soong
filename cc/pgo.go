@@ -181,7 +181,7 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 	//
 	// TODO Validate that each benchmark instruments at least one module
 	pgo.Properties.ShouldProfileModule = false
-	pgoBenchmarks := ctx.AConfig().Getenv("ANDROID_PGO_INSTRUMENT")
+	pgoBenchmarks := ctx.Config().Getenv("ANDROID_PGO_INSTRUMENT")
 	pgoBenchmarksMap := make(map[string]bool)
 	for _, b := range strings.Split(pgoBenchmarks, ",") {
 		pgoBenchmarksMap[b] = true
@@ -215,7 +215,7 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 		return props.addProfileGatherFlags(ctx, flags)
 	}
 
-	if !ctx.AConfig().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") {
+	if !ctx.Config().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") {
 		return props.addProfileUseFlags(ctx, flags)
 	}
 
