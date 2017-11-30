@@ -97,6 +97,13 @@ func testJavaWithEnvFs(t *testing.T, bp string,
 		`, extra)
 	}
 
+	bp += `
+		android_app {
+			name: "framework-res",
+			no_framework_libs: true,
+		}
+	`
+
 	if config.TargetOpenJDK9() {
 		systemModules := []string{
 			"core-system-modules",
@@ -134,6 +141,10 @@ func testJavaWithEnvFs(t *testing.T, bp string,
 		"prebuilts/sdk/system_current/framework.aidl": nil,
 		"prebuilts/sdk/test_current/android.jar":      nil,
 		"prebuilts/sdk/test_current/framework.aidl":   nil,
+
+		// For framework-res, which is an implicit dependency for framework
+		"AndroidManifest.xml":                   nil,
+		"build/target/product/security/testkey": nil,
 	}
 
 	for k, v := range fs {
