@@ -945,7 +945,7 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 			clang = true
 		}
 
-		if ctx.Device() && ctx.AConfig().DeviceUsesClang() {
+		if ctx.Device() && ctx.Config().DeviceUsesClang() {
 			clang = true
 		}
 	}
@@ -1441,10 +1441,10 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 }
 
 func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
-	if ctx.AConfig().PlatformSdkVersionInt() > config.NdkMaxPrebuiltVersionInt {
+	if ctx.Config().PlatformSdkVersionInt() > config.NdkMaxPrebuiltVersionInt {
 		return strconv.Itoa(config.NdkMaxPrebuiltVersionInt)
 	}
-	return ctx.AConfig().PlatformSdkVersion()
+	return ctx.Config().PlatformSdkVersion()
 }
 
 var Bool = proptools.Bool

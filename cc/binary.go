@@ -182,7 +182,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 
 	if !ctx.toolchain().Bionic() {
 		if ctx.Os() == android.Linux {
-			if binary.Properties.Static_executable == nil && Bool(ctx.AConfig().ProductVariables.HostStaticBinaries) {
+			if binary.Properties.Static_executable == nil && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
 				binary.Properties.Static_executable = BoolPtr(true)
 			}
 		} else {
@@ -204,7 +204,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 	flags = binary.baseLinker.linkerFlags(ctx, flags)
 
 	if ctx.Host() && !binary.static() {
-		if !ctx.AConfig().IsEnvTrue("DISABLE_HOST_PIE") {
+		if !ctx.Config().IsEnvTrue("DISABLE_HOST_PIE") {
 			flags.LdFlags = append(flags.LdFlags, "-pie")
 			if ctx.Windows() {
 				flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
