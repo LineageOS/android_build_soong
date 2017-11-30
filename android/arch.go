@@ -305,7 +305,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 	primaryModules := make(map[int]bool)
 
 	for _, class := range osClasses {
-		targets := mctx.AConfig().Targets[class]
+		targets := mctx.Config().Targets[class]
 		if len(targets) == 0 {
 			continue
 		}
@@ -325,7 +325,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 		var prefer32 bool
 		switch class {
 		case Device:
-			prefer32 = mctx.AConfig().DevicePrefer32BitExecutables()
+			prefer32 = mctx.Config().DevicePrefer32BitExecutables()
 		case HostCross:
 			// Windows builds always prefer 32-bit
 			prefer32 = true
@@ -774,7 +774,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		// that are being compiled for 64-bit.  Its expected use case is binaries like linker and
 		// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
 		if os.Class == Device {
-			if ctx.AConfig().Android64() {
+			if ctx.Config().Android64() {
 				field := "Android64"
 				prefix := "target.android64"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
@@ -785,13 +785,13 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			}
 
 			if arch.ArchType == X86 && (hasArmAbi(arch) ||
-				hasArmAndroidArch(ctx.AConfig().Targets[Device])) {
+				hasArmAndroidArch(ctx.Config().Targets[Device])) {
 				field := "Arm_on_x86"
 				prefix := "target.arm_on_x86"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 			if arch.ArchType == X86_64 && (hasArmAbi(arch) ||
-				hasArmAndroidArch(ctx.AConfig().Targets[Device])) {
+				hasArmAndroidArch(ctx.Config().Targets[Device])) {
 				field := "Arm_on_x86_64"
 				prefix := "target.arm_on_x86_64"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)

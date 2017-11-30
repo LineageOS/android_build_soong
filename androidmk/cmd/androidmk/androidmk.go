@@ -177,6 +177,9 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 					makeModule(file, val)
 				case val == clear_vars:
 					resetModule(file)
+				case val == include_ignored:
+					// subdirs are already automatically included in Soong
+					continue
 				default:
 					file.errorf(x, "unsupported include")
 					continue

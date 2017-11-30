@@ -157,3 +157,10 @@ func callerName(skip int) (pkgPath, funcName string, ok bool) {
 	ok = true
 	return
 }
+
+func GetNumericSdkVersion(v string) string {
+	if strings.Contains(v, "system_") {
+		return strings.Replace(v, "system_", "", 1)
+	}
+	return v
+}

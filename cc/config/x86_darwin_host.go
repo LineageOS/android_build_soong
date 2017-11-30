@@ -107,25 +107,25 @@ const (
 )
 
 func init() {
-	pctx.VariableFunc("macSdkPath", func(config interface{}) (string, error) {
-		xcodeselect := config.(android.Config).HostSystemTool("xcode-select")
+	pctx.VariableFunc("macSdkPath", func(config android.Config) (string, error) {
+		xcodeselect := config.HostSystemTool("xcode-select")
 		bytes, err := exec.Command(xcodeselect, "--print-path").Output()
 		return strings.TrimSpace(string(bytes)), err
 	})
-	pctx.VariableFunc("macSdkRoot", func(config interface{}) (string, error) {
-		return xcrunSdk(config.(android.Config), "--show-sdk-path")
+	pctx.VariableFunc("macSdkRoot", func(config android.Config) (string, error) {
+		return xcrunSdk(config, "--show-sdk-path")
 	})
 	pctx.StaticVariable("macMinVersion", "10.8")
-	pctx.VariableFunc("MacArPath", func(config interface{}) (string, error) {
-		return xcrun(config.(android.Config), "--find", "ar")
+	pctx.VariableFunc("MacArPath", func(config android.Config) (string, error) {
+		return xcrun(config, "--find", "ar")
 	})
 
-	pctx.VariableFunc("MacStripPath", func(config interface{}) (string, error) {
-		return xcrun(config.(android.Config), "--find", "strip")
+	pctx.VariableFunc("MacStripPath", func(config android.Config) (string, error) {
+		return xcrun(config, "--find", "strip")
 	})
 
-	pctx.VariableFunc("MacToolPath", func(config interface{}) (string, error) {
-		path, err := xcrun(config.(android.Config), "--find", "ld")
+	pctx.VariableFunc("MacToolPath", func(config android.Config) (string, error) {
+		path, err := xcrun(config, "--find", "ld")
 		return filepath.Dir(path), err
 	})
 

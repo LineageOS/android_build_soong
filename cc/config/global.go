@@ -120,10 +120,7 @@ var (
 	ClangDefaultShortVersion = "5.0.1"
 
 	WarningAllowedProjects = []string{
-		"external/boringssl/",
 		"external/libese/third_party/NXPNFC_P61_JCOP_Kit/",
-		"external/mdnsresponder/",
-		"external/protobuf/",
 		"external/skia/",
 		"device/",
 		"frameworks/av/media/libeffects/factory/",
@@ -135,8 +132,6 @@ var (
 		"frameworks/native/libs/vr/libdvr/tests/",
 		"frameworks/native/services/surfaceflinger/tests/",
 		"frameworks/native/services/vr/",
-		"hardware/interfaces/audio/effect/",
-		"hardware/interfaces/biometrics/fingerprint/",
 		"vendor/",
 	}
 
@@ -145,15 +140,12 @@ var (
 		"cts/hostsidetests/security/securityPatch/",
 		"cts/tests/tests/permission/jni/",
 		"development/tutorials/ReverseDebug/",
-		"external/freetype/",
 		"frameworks/av/drm/mediacas/plugins/",
-		"frameworks/av/media/libaaudio/examples/",
 		"frameworks/av/services/mediaextractor/",
 		"frameworks/base/core/tests/webkit/apk_with_native_libs/jni/",
 		"frameworks/base/tests/backup/",
 		"frameworks/native/cmds/cmd/",
 		"frameworks/webview/chromium/",
-		"hardware/interfaces/audio/2.0/",
 		"hardware/libhardware/modules/",
 		"hardware/libhardware/tests/",
 		"hardware/qcom/",
@@ -216,14 +208,14 @@ func init() {
 		[]string{"libnativehelper/include_jni"})
 
 	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)
-	pctx.VariableFunc("ClangBase", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_BASE"); override != "" {
+	pctx.VariableFunc("ClangBase", func(config android.Config) (string, error) {
+		if override := config.Getenv("LLVM_PREBUILTS_BASE"); override != "" {
 			return override, nil
 		}
 		return "${ClangDefaultBase}", nil
 	})
-	pctx.VariableFunc("ClangVersion", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
+	pctx.VariableFunc("ClangVersion", func(config android.Config) (string, error) {
+		if override := config.Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			return override, nil
 		}
 		return ClangDefaultVersion, nil
@@ -231,8 +223,8 @@ func init() {
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
 
-	pctx.VariableFunc("ClangShortVersion", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("LLVM_RELEASE_VERSION"); override != "" {
+	pctx.VariableFunc("ClangShortVersion", func(config android.Config) (string, error) {
+		if override := config.Getenv("LLVM_RELEASE_VERSION"); override != "" {
 			return override, nil
 		}
 		return ClangDefaultShortVersion, nil
@@ -258,8 +250,8 @@ func init() {
 			"frameworks/rs/script_api/include",
 		})
 
-	pctx.VariableFunc("CcWrapper", func(config interface{}) (string, error) {
-		if override := config.(android.Config).Getenv("CC_WRAPPER"); override != "" {
+	pctx.VariableFunc("CcWrapper", func(config android.Config) (string, error) {
+		if override := config.Getenv("CC_WRAPPER"); override != "" {
 			return override + " ", nil
 		}
 		return "", nil

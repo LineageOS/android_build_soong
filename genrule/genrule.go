@@ -134,7 +134,7 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*Module); ok {
 		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{"arch", ctx.AConfig().BuildOsVariant},
+				{"arch", ctx.Config().BuildOsVariant},
 			}, hostToolDepTag, g.properties.Tools...)
 		}
 	}
@@ -168,7 +168,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 				if t, ok := module.(HostToolProvider); ok {
 					if !t.(android.Module).Enabled() {
-						if ctx.AConfig().AllowMissingDependencies() {
+						if ctx.Config().AllowMissingDependencies() {
 							ctx.AddMissingDependencies([]string{tool})
 						} else {
 							ctx.ModuleErrorf("depends on disabled module %q", tool)

@@ -98,6 +98,11 @@ type variableProperties struct {
 		Uml struct {
 			Cppflags []string
 		}
+
+		Arc struct {
+			Exclude_srcs []string
+			Static_libs  []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -157,6 +162,7 @@ type productVariables struct {
 	Treble                     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
 	Uml                        *bool `json:",omitempty"`
+	Arc                        *bool `json:",omitempty"`
 	MinimizeJavaDebugInfo      *bool `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
@@ -258,7 +264,7 @@ func variableMutator(mctx BottomUpMutatorContext) {
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
 		// Check that the variable was set for the product
-		val := reflect.ValueOf(mctx.Config().(Config).ProductVariables).FieldByName(name)
+		val := reflect.ValueOf(mctx.Config().ProductVariables).FieldByName(name)
 		if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
 			continue
 		}

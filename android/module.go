@@ -17,7 +17,9 @@ package android
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
+	"text/scanner"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
@@ -69,16 +71,39 @@ type androidBaseContext interface {
 }
 
 type BaseContext interface {
-	blueprint.BaseModuleContext
+	BaseModuleContext
 	androidBaseContext
+}
+
+// BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
+// a Config instead of an interface{}.
+type BaseModuleContext interface {
+	ModuleName() string
+	ModuleDir() string
+	Config() Config
+
+	ContainsProperty(name string) bool
+	Errorf(pos scanner.Position, fmt string, args ...interface{})
+	ModuleErrorf(fmt string, args ...interface{})
+	PropertyErrorf(property, fmt string, args ...interface{})
+	Failed() bool
+
+	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
+	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
+	// builder whenever a file matching the pattern as added or removed, without rerunning if a
+	// file that does not match the pattern is added to a searched directory.
+	GlobWithDeps(pattern string, excludes []string) ([]string, error)
+
+	Fs() pathtools.FileSystem
+	AddNinjaFileDeps(deps ...string)
 }
 
 type ModuleContext interface {
 	androidBaseContext
-	blueprint.BaseModuleContext
+	BaseModuleContext
 
 	// Deprecated: use ModuleContext.Build instead.
-	ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams)
+	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
 
 	ExpandSources(srcFiles, excludes []string) Paths
 	ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths
@@ -115,15 +140,15 @@ type ModuleContext interface {
 	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
 	WalkDeps(visit func(Module, Module) bool)
 
-	Variable(pctx blueprint.PackageContext, name, value string)
-	Rule(pctx blueprint.PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
+	Variable(pctx PackageContext, name, value string)
+	Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
 	// Similar to blueprint.ModuleContext.Build, but takes Paths instead of []string,
 	// and performs more verification.
-	Build(pctx blueprint.PackageContext, params BuildParams)
+	Build(pctx PackageContext, params BuildParams)
 
-	PrimaryModule() blueprint.Module
-	FinalModule() blueprint.Module
-	VisitAllModuleVariants(visit func(blueprint.Module))
+	PrimaryModule() Module
+	FinalModule() Module
+	VisitAllModuleVariants(visit func(Module))
 
 	GetMissingDependencies() []string
 }
@@ -325,8 +350,8 @@ type ModuleBase struct {
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
-	installTarget    string
-	checkbuildTarget string
+	installTarget    WritablePath
+	checkbuildTarget WritablePath
 	blueprintDir     string
 
 	hooks hooks
@@ -464,36 +489,35 @@ func (p *ModuleBase) InstallInSanitizerDir() bool {
 	return false
 }
 
-func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
+func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
-	ctx.VisitAllModuleVariants(func(module blueprint.Module) {
-		a := module.(Module).base()
+	ctx.VisitAllModuleVariants(func(module Module) {
+		a := module.base()
 		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
 		allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
 	})
 
-	deps := []string{}
+	var deps Paths
 
 	if len(allInstalledFiles) > 0 {
-		name := ctx.ModuleName() + "-install"
-		ctx.Build(pctx, blueprint.BuildParams{
+		name := PathForPhony(ctx, ctx.ModuleName()+"-install")
+		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{name},
-			Implicits: allInstalledFiles.Strings(),
-			Optional:  ctx.Config().(Config).EmbeddedInMake(),
+			Output:    name,
+			Implicits: allInstalledFiles,
+			Default:   !ctx.Config().EmbeddedInMake(),
 		})
 		deps = append(deps, name)
 		a.installTarget = name
 	}
 
 	if len(allCheckbuildFiles) > 0 {
-		name := ctx.ModuleName() + "-checkbuild"
-		ctx.Build(pctx, blueprint.BuildParams{
+		name := PathForPhony(ctx, ctx.ModuleName()+"-checkbuild")
+		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{name},
-			Implicits: allCheckbuildFiles.Strings(),
-			Optional:  true,
+			Output:    name,
+			Implicits: allCheckbuildFiles,
 		})
 		deps = append(deps, name)
 		a.checkbuildTarget = name
@@ -501,15 +525,14 @@ func (a *ModuleBase) generateModuleTarget(ctx blueprint.ModuleContext) {
 
 	if len(deps) > 0 {
 		suffix := ""
-		if ctx.Config().(Config).EmbeddedInMake() {
+		if ctx.Config().EmbeddedInMake() {
 			suffix = "-soong"
 		}
 
-		ctx.Build(pctx, blueprint.BuildParams{
+		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{ctx.ModuleName() + suffix},
+			Output:    PathForPhony(ctx, ctx.ModuleName()+suffix),
 			Implicits: deps,
-			Optional:  true,
 		})
 
 		a.blueprintDir = ctx.ModuleDir()
@@ -525,23 +548,23 @@ func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) 
 	}
 }
 
-func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
-	androidCtx := &androidModuleContext{
+func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) {
+	ctx := &androidModuleContext{
 		module:                 a.module,
-		ModuleContext:          ctx,
-		androidBaseContextImpl: a.androidBaseContextFactory(ctx),
-		installDeps:            a.computeInstallDeps(ctx),
+		ModuleContext:          blueprintCtx,
+		androidBaseContextImpl: a.androidBaseContextFactory(blueprintCtx),
+		installDeps:            a.computeInstallDeps(blueprintCtx),
 		installFiles:           a.installFiles,
-		missingDeps:            ctx.GetMissingDependencies(),
+		missingDeps:            blueprintCtx.GetMissingDependencies(),
 	}
 
 	desc := "//" + ctx.ModuleDir() + ":" + ctx.ModuleName() + " "
 	var suffix []string
-	if androidCtx.Os().Class != Device && androidCtx.Os().Class != Generic {
-		suffix = append(suffix, androidCtx.Os().String())
+	if ctx.Os().Class != Device && ctx.Os().Class != Generic {
+		suffix = append(suffix, ctx.Os().String())
 	}
-	if !androidCtx.PrimaryArch() {
-		suffix = append(suffix, androidCtx.Arch().ArchType.String())
+	if !ctx.PrimaryArch() {
+		suffix = append(suffix, ctx.Arch().ArchType.String())
 	}
 
 	ctx.Variable(pctx, "moduleDesc", desc)
@@ -553,13 +576,13 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	ctx.Variable(pctx, "moduleDescSuffix", s)
 
 	if a.Enabled() {
-		a.module.GenerateAndroidBuildActions(androidCtx)
+		a.module.GenerateAndroidBuildActions(ctx)
 		if ctx.Failed() {
 			return
 		}
 
-		a.installFiles = append(a.installFiles, androidCtx.installFiles...)
-		a.checkbuildFiles = append(a.checkbuildFiles, androidCtx.checkbuildFiles...)
+		a.installFiles = append(a.installFiles, ctx.installFiles...)
+		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
 	}
 
 	if a == ctx.FinalModule().(Module).base() {
@@ -569,7 +592,7 @@ func (a *ModuleBase) GenerateBuildActions(ctx blueprint.ModuleContext) {
 		}
 	}
 
-	a.buildParams = androidCtx.buildParams
+	a.buildParams = ctx.buildParams
 }
 
 type androidBaseContextImpl struct {
@@ -594,7 +617,7 @@ type androidModuleContext struct {
 }
 
 func (a *androidModuleContext) ninjaError(desc string, outputs []string, err error) {
-	a.ModuleContext.Build(pctx, blueprint.BuildParams{
+	a.ModuleContext.Build(pctx.PackageContext, blueprint.BuildParams{
 		Rule:        ErrorRule,
 		Description: desc,
 		Outputs:     outputs,
@@ -606,17 +629,18 @@ func (a *androidModuleContext) ninjaError(desc string, outputs []string, err err
 	return
 }
 
-func (a *androidModuleContext) ModuleBuild(pctx blueprint.PackageContext, params ModuleBuildParams) {
+func (a *androidModuleContext) Config() Config {
+	return a.ModuleContext.Config().(Config)
+}
+
+func (a *androidModuleContext) ModuleBuild(pctx PackageContext, params ModuleBuildParams) {
 	a.Build(pctx, BuildParams(params))
 }
 
-func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params BuildParams) {
-	if a.config.captureBuild {
-		a.buildParams = append(a.buildParams, params)
-	}
-
+func convertBuildParams(params BuildParams) blueprint.BuildParams {
 	bparams := blueprint.BuildParams{
 		Rule:            params.Rule,
+		Description:     params.Description,
 		Deps:            params.Deps,
 		Outputs:         params.Outputs.Strings(),
 		ImplicitOutputs: params.ImplicitOutputs.Strings(),
@@ -625,10 +649,6 @@ func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params Build
 		OrderOnly:       params.OrderOnly.Strings(),
 		Args:            params.Args,
 		Optional:        !params.Default,
-	}
-
-	if params.Description != "" {
-		bparams.Description = "${moduleDesc}" + params.Description + "${moduleDescSuffix}"
 	}
 
 	if params.Depfile != nil {
@@ -647,6 +667,30 @@ func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params Build
 		bparams.Implicits = append(bparams.Implicits, params.Implicit.String())
 	}
 
+	return bparams
+}
+
+func (a *androidModuleContext) Variable(pctx PackageContext, name, value string) {
+	a.ModuleContext.Variable(pctx.PackageContext, name, value)
+}
+
+func (a *androidModuleContext) Rule(pctx PackageContext, name string, params blueprint.RuleParams,
+	argNames ...string) blueprint.Rule {
+
+	return a.ModuleContext.Rule(pctx.PackageContext, name, params, argNames...)
+}
+
+func (a *androidModuleContext) Build(pctx PackageContext, params BuildParams) {
+	if a.config.captureBuild {
+		a.buildParams = append(a.buildParams, params)
+	}
+
+	bparams := convertBuildParams(params)
+
+	if bparams.Description != "" {
+		bparams.Description = "${moduleDesc}" + params.Description + "${moduleDescSuffix}"
+	}
+
 	if a.missingDeps != nil {
 		a.ninjaError(bparams.Description, bparams.Outputs,
 			fmt.Errorf("module %s missing dependencies: %s\n",
@@ -654,7 +698,7 @@ func (a *androidModuleContext) Build(pctx blueprint.PackageContext, params Build
 		return
 	}
 
-	a.ModuleContext.Build(pctx, bparams)
+	a.ModuleContext.Build(pctx.PackageContext, bparams)
 }
 
 func (a *androidModuleContext) GetMissingDependencies() []string {
@@ -676,7 +720,7 @@ func (a *androidModuleContext) validateAndroidModule(module blueprint.Module) Mo
 	}
 
 	if !aModule.Enabled() {
-		if a.AConfig().AllowMissingDependencies() {
+		if a.Config().AllowMissingDependencies() {
 			a.AddMissingDependencies([]string{a.OtherModuleName(aModule)})
 		} else {
 			a.ModuleErrorf("depends on disabled module %q", a.OtherModuleName(aModule))
@@ -751,6 +795,20 @@ func (a *androidModuleContext) WalkDeps(visit func(Module, Module) bool) {
 	})
 }
 
+func (a *androidModuleContext) VisitAllModuleVariants(visit func(Module)) {
+	a.ModuleContext.VisitAllModuleVariants(func(module blueprint.Module) {
+		visit(module.(Module))
+	})
+}
+
+func (a *androidModuleContext) PrimaryModule() Module {
+	return a.ModuleContext.PrimaryModule().(Module)
+}
+
+func (a *androidModuleContext) FinalModule() Module {
+	return a.ModuleContext.FinalModule().(Module)
+}
+
 func (a *androidBaseContextImpl) Target() Target {
 	return a.target
 }
@@ -820,11 +878,11 @@ func (a *androidModuleContext) skipInstall(fullInstallPath OutputPath) bool {
 	}
 
 	if a.Device() {
-		if a.AConfig().SkipDeviceInstall() {
+		if a.Config().SkipDeviceInstall() {
 			return true
 		}
 
-		if a.AConfig().SkipMegaDeviceInstall(fullInstallPath.String()) {
+		if a.Config().SkipMegaDeviceInstall(fullInstallPath.String()) {
 			return true
 		}
 	}
@@ -869,7 +927,7 @@ func (a *androidModuleContext) installFile(installPath OutputPath, name string, 
 			Input:       srcPath,
 			Implicits:   implicitDeps,
 			OrderOnly:   orderOnlyDeps,
-			Default:     !a.AConfig().EmbeddedInMake(),
+			Default:     !a.Config().EmbeddedInMake(),
 		})
 
 		a.installFiles = append(a.installFiles, fullInstallPath)
@@ -889,7 +947,7 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 			Description: "install symlink " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
 			OrderOnly:   Paths{srcPath},
-			Default:     !a.AConfig().EmbeddedInMake(),
+			Default:     !a.Config().EmbeddedInMake(),
 			Args: map[string]string{
 				"fromPath": srcPath.String(),
 			},
@@ -1027,7 +1085,7 @@ func init() {
 	RegisterSingletonType("buildtarget", BuildTargetSingleton)
 }
 
-func BuildTargetSingleton() blueprint.Singleton {
+func BuildTargetSingleton() Singleton {
 	return &buildTargetSingleton{}
 }
 
@@ -1038,48 +1096,55 @@ func parentDir(dir string) string {
 
 type buildTargetSingleton struct{}
 
-func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	checkbuildDeps := []string{}
+func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
+	var checkbuildDeps Paths
 
-	mmTarget := func(dir string) string {
-		return "MODULES-IN-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
+	mmTarget := func(dir string) WritablePath {
+		return PathForPhony(ctx,
+			"MODULES-IN-"+strings.Replace(filepath.Clean(dir), "/", "-", -1))
 	}
 
-	modulesInDir := make(map[string][]string)
+	modulesInDir := make(map[string]Paths)
 
-	ctx.VisitAllModules(func(module blueprint.Module) {
-		if a, ok := module.(Module); ok {
-			blueprintDir := a.base().blueprintDir
-			installTarget := a.base().installTarget
-			checkbuildTarget := a.base().checkbuildTarget
+	ctx.VisitAllModules(func(module Module) {
+		blueprintDir := module.base().blueprintDir
+		installTarget := module.base().installTarget
+		checkbuildTarget := module.base().checkbuildTarget
 
-			if checkbuildTarget != "" {
-				checkbuildDeps = append(checkbuildDeps, checkbuildTarget)
-				modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], checkbuildTarget)
-			}
+		if checkbuildTarget != nil {
+			checkbuildDeps = append(checkbuildDeps, checkbuildTarget)
+			modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], checkbuildTarget)
+		}
 
-			if installTarget != "" {
-				modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], installTarget)
-			}
+		if installTarget != nil {
+			modulesInDir[blueprintDir] = append(modulesInDir[blueprintDir], installTarget)
 		}
 	})
 
 	suffix := ""
-	if ctx.Config().(Config).EmbeddedInMake() {
+	if ctx.Config().EmbeddedInMake() {
 		suffix = "-soong"
 	}
 
 	// Create a top-level checkbuild target that depends on all modules
-	ctx.Build(pctx, blueprint.BuildParams{
+	ctx.Build(pctx, BuildParams{
 		Rule:      blueprint.Phony,
-		Outputs:   []string{"checkbuild" + suffix},
+		Output:    PathForPhony(ctx, "checkbuild"+suffix),
 		Implicits: checkbuildDeps,
-		Optional:  true,
 	})
 
 	// Make will generate the MODULES-IN-* targets
-	if ctx.Config().(Config).EmbeddedInMake() {
+	if ctx.Config().EmbeddedInMake() {
 		return
+	}
+
+	sortedKeys := func(m map[string]Paths) []string {
+		s := make([]string, 0, len(m))
+		for k := range m {
+			s = append(s, k)
+		}
+		sort.Strings(s)
+		return s
 	}
 
 	// Ensure ancestor directories are in modulesInDir
@@ -1108,28 +1173,26 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 	// depends on the MODULES-IN-* targets of all of its subdirectories that contain Android.bp
 	// files.
 	for _, dir := range dirs {
-		ctx.Build(pctx, blueprint.BuildParams{
+		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{mmTarget(dir)},
+			Output:    mmTarget(dir),
 			Implicits: modulesInDir[dir],
 			// HACK: checkbuild should be an optional build, but force it
 			// enabled for now in standalone builds
-			Optional: ctx.Config().(Config).EmbeddedInMake(),
+			Default: !ctx.Config().EmbeddedInMake(),
 		})
 	}
 
 	// Create (host|host-cross|target)-<OS> phony rules to build a reduced checkbuild.
 	osDeps := map[OsType]Paths{}
-	ctx.VisitAllModules(func(module blueprint.Module) {
-		if a, ok := module.(Module); ok {
-			if a.Enabled() {
-				os := a.Target().Os
-				osDeps[os] = append(osDeps[os], a.base().checkbuildFiles...)
-			}
+	ctx.VisitAllModules(func(module Module) {
+		if module.Enabled() {
+			os := module.Target().Os
+			osDeps[os] = append(osDeps[os], module.base().checkbuildFiles...)
 		}
 	})
 
-	osClass := make(map[string][]string)
+	osClass := make(map[string]Paths)
 	for os, deps := range osDeps {
 		var className string
 
@@ -1144,25 +1207,23 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx blueprint.SingletonConte
 			continue
 		}
 
-		name := className + "-" + os.Name
+		name := PathForPhony(ctx, className+"-"+os.Name)
 		osClass[className] = append(osClass[className], name)
 
-		ctx.Build(pctx, blueprint.BuildParams{
+		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{name},
-			Implicits: deps.Strings(),
-			Optional:  true,
+			Output:    name,
+			Implicits: deps,
 		})
 	}
 
 	// Wrap those into host|host-cross|target phony rules
 	osClasses := sortedKeys(osClass)
 	for _, class := range osClasses {
-		ctx.Build(pctx, blueprint.BuildParams{
+		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
-			Outputs:   []string{class},
+			Output:    PathForPhony(ctx, class),
 			Implicits: osClass[class],
-			Optional:  true,
 		})
 	}
 }

@@ -86,7 +86,7 @@ func rsFlags(ctx ModuleContext, flags Flags, properties *BaseCompilerProperties)
 		case "current", "system_current", "test_current":
 			// Nothing
 		default:
-			targetApi = ctx.sdkVersion()
+			targetApi = android.GetNumericSdkVersion(ctx.sdkVersion())
 		}
 	}
 

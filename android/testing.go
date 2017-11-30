@@ -54,7 +54,7 @@ func (ctx *TestContext) PostDepsMutators(f RegisterMutatorFunc) {
 func (ctx *TestContext) Register() {
 	registerMutators(ctx.Context, ctx.preArch, ctx.preDeps, ctx.postDeps)
 
-	ctx.RegisterSingletonType("env", EnvSingleton)
+	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
 }
 
 func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {

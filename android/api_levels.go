@@ -16,22 +16,19 @@ package android
 
 import (
 	"encoding/json"
-	"path/filepath"
-
-	"github.com/google/blueprint"
 )
 
 func init() {
 	RegisterSingletonType("api_levels", ApiLevelsSingleton)
 }
 
-func ApiLevelsSingleton() blueprint.Singleton {
+func ApiLevelsSingleton() Singleton {
 	return &apiLevelsSingleton{}
 }
 
 type apiLevelsSingleton struct{}
 
-func createApiLevelsJson(ctx blueprint.SingletonContext, file string,
+func createApiLevelsJson(ctx SingletonContext, file WritablePath,
 	apiLevelsMap map[string]int) {
 
 	jsonStr, err := json.Marshal(apiLevelsMap)
@@ -39,21 +36,21 @@ func createApiLevelsJson(ctx blueprint.SingletonContext, file string,
 		ctx.Errorf(err.Error())
 	}
 
-	ctx.Build(pctx, blueprint.BuildParams{
+	ctx.Build(pctx, BuildParams{
 		Rule:        WriteFile,
-		Description: "generate " + filepath.Base(file),
-		Outputs:     []string{file},
+		Description: "generate " + file.Base(),
+		Output:      file,
 		Args: map[string]string{
 			"content": string(jsonStr[:]),
 		},
 	})
 }
 
-func GetApiLevelsJson(ctx PathContext) Path {
+func GetApiLevelsJson(ctx PathContext) WritablePath {
 	return PathForOutput(ctx, "api_levels.json")
 }
 
-func (a *apiLevelsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext) {
+func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	baseApiLevel := 9000
 	apiLevelsMap := map[string]int{
 		"G":     9,
@@ -69,10 +66,10 @@ func (a *apiLevelsSingleton) GenerateBuildActions(ctx blueprint.SingletonContext
 		"N-MR1": 25,
 		"O":     26,
 	}
-	for i, codename := range ctx.Config().(Config).PlatformVersionCombinedCodenames() {
+	for i, codename := range ctx.Config().PlatformVersionCombinedCodenames() {
 		apiLevelsMap[codename] = baseApiLevel + i
 	}
 
 	apiLevelsJson := GetApiLevelsJson(ctx)
-	createApiLevelsJson(ctx, apiLevelsJson.String(), apiLevelsMap)
+	createApiLevelsJson(ctx, apiLevelsJson, apiLevelsMap)
 }

@@ -14,6 +14,8 @@
 
 package config
 
+import "android/soong/android"
+
 var (
 	// These will be filled out by external/error_prone/soong/error_prone.go if it is available
 	ErrorProneJavacJar    string
@@ -25,7 +27,7 @@ var (
 
 // Wrapper that grabs value of val late so it can be initialized by a later module's init function
 func errorProneVar(name string, val *string) {
-	pctx.VariableFunc(name, func(config interface{}) (string, error) {
+	pctx.VariableFunc(name, func(config android.Config) (string, error) {
 		return *val, nil
 	})
 }

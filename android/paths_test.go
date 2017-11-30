@@ -194,7 +194,7 @@ func (moduleInstallPathContextImpl) Fs() pathtools.FileSystem {
 	return pathtools.MockFs(nil)
 }
 
-func (m moduleInstallPathContextImpl) Config() interface{} {
+func (m moduleInstallPathContextImpl) Config() Config {
 	return m.androidBaseContextImpl.config
 }
 
