@@ -29,8 +29,9 @@ import (
 var (
 	signapk = pctx.AndroidStaticRule("signapk",
 		blueprint.RuleParams{
-			Command:     `java -jar $signapkCmd $certificates $in $out`,
-			CommandDeps: []string{"$signapkCmd"},
+			Command: `${config.JavaCmd} -Djava.library.path=$$(dirname $signapkJniLibrary) ` +
+				`-jar $signapkCmd $certificates $in $out`,
+			CommandDeps: []string{"$signapkCmd", "$signapkJniLibrary"},
 		},
 		"certificates")
 
@@ -48,6 +49,9 @@ func init() {
 	pctx.SourcePathVariable("androidManifestMergerCmd", "prebuilts/devtools/tools/lib/manifest-merger.jar")
 	pctx.HostBinToolVariable("aaptCmd", "aapt")
 	pctx.HostJavaToolVariable("signapkCmd", "signapk.jar")
+	// TODO(ccross): this should come from the signapk dependencies, but we don't have any way
+	// to express host JNI dependencies yet.
+	pctx.HostJNIToolVariable("signapkJniLibrary", "libconscrypt_openjdk_jni")
 }
 
 var combineApk = pctx.AndroidStaticRule("combineApk",
@@ -78,6 +82,9 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 	for _, c := range certificates {
 		certificateArgs = append(certificateArgs, c+".x509.pem", c+".pk8")
 	}
+
+	// TODO(ccross): sometimes uncompress dex
+	// TODO(ccross): sometimes strip dex
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        signapk,
