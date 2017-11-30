@@ -41,7 +41,6 @@ func init() {
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
 	android.RegisterModuleType("java_import", ImportFactory)
 	android.RegisterModuleType("java_import_host", ImportFactoryHost)
-	android.RegisterModuleType("android_app", AndroidAppFactory)
 
 	android.RegisterSingletonType("logtags", LogtagsSingleton)
 }
@@ -206,6 +205,10 @@ type Module struct {
 
 	// installed file for binary dependency
 	installFile android.Path
+
+	// list of .java files and srcjars that was passed to javac
+	compiledJavaSrcs android.Paths
+	compiledSrcJars  android.Paths
 }
 
 type Dependency interface {
@@ -348,6 +351,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
 		} else if *j.deviceProperties.System_modules != "none" && ctx.Config().TargetOpenJDK9() {
 			ctx.AddDependency(ctx.Module(), systemModulesTag, *j.deviceProperties.System_modules)
+		}
+		if ctx.ModuleName() == "framework" {
+			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
 		}
 	}
 
@@ -611,6 +617,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			uniqueSrcFiles = append(uniqueSrcFiles, v)
 		}
 	}
+
+	// Store the list of .java files that was passed to javac
+	j.compiledJavaSrcs = uniqueSrcFiles
+	j.compiledSrcJars = srcJars
 
 	enable_sharding := false
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
