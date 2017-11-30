@@ -60,9 +60,7 @@ func AndroidMkSingleton() Singleton {
 type androidMkSingleton struct{}
 
 func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
-	config := ctx.Config().(Config)
-
-	if !config.EmbeddedInMake() {
+	if !ctx.Config().EmbeddedInMake() {
 		return
 	}
 
@@ -74,7 +72,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	sort.Sort(AndroidModulesByName{androidMkModulesList, ctx})
 
-	transMk := PathForOutput(ctx, "Android"+String(config.ProductVariables.Make_suffix)+".mk")
+	transMk := PathForOutput(ctx, "Android"+String(ctx.Config().ProductVariables.Make_suffix)+".mk")
 	if ctx.Failed() {
 		return
 	}
@@ -184,8 +182,7 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 
 		}
 
-		config := ctx.Config().(Config)
-		if amod.Arch().ArchType != config.Targets[amod.Os().Class][0].Arch.ArchType {
+		if amod.Arch().ArchType != ctx.Config().Targets[amod.Os().Class][0].Arch.ArchType {
 			prefix = "2ND_" + prefix
 		}
 	}

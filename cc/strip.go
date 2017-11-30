@@ -30,7 +30,7 @@ type stripper struct {
 }
 
 func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
-	return !ctx.AConfig().EmbeddedInMake() && !Bool(stripper.StripProperties.Strip.None)
+	return !ctx.Config().EmbeddedInMake() && !Bool(stripper.StripProperties.Strip.None)
 }
 
 func (stripper *stripper) strip(ctx ModuleContext, in, out android.ModuleOutPath,

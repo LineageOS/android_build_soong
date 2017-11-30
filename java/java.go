@@ -271,7 +271,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		jarPath := android.ExistentPathForSource(ctx, "sdkdir", jar)
 		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
 
-		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.AConfig().AllowMissingDependencies() {
+		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
 				invalidVersion: true,
 				module:         "sdk_v" + v,
@@ -303,7 +303,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	//	}
 	//}
 
-	if ctx.AConfig().UnbundledBuild() && v != "" {
+	if ctx.Config().UnbundledBuild() && v != "" {
 		return toFile(v)
 	}
 
@@ -331,14 +331,14 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
-				if ctx.AConfig().TargetOpenJDK9() {
+				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
 				}
 				if !proptools.Bool(j.properties.No_framework_libs) {
 					ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
-				if ctx.AConfig().TargetOpenJDK9() {
+				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
 				}
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
@@ -346,7 +346,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		} else if j.deviceProperties.System_modules == nil {
 			ctx.PropertyErrorf("no_standard_libs",
 				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
-		} else if *j.deviceProperties.System_modules != "none" && ctx.AConfig().TargetOpenJDK9() {
+		} else if *j.deviceProperties.System_modules != "none" && ctx.Config().TargetOpenJDK9() {
 			ctx.AddDependency(ctx.Module(), systemModulesTag, *j.deviceProperties.System_modules)
 		}
 	}
@@ -503,10 +503,10 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 	// javac flags.
 	javacFlags := j.properties.Javacflags
-	if ctx.AConfig().TargetOpenJDK9() {
+	if ctx.Config().TargetOpenJDK9() {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
 	}
-	if ctx.AConfig().MinimizeJavaDebugInfo() {
+	if ctx.Config().MinimizeJavaDebugInfo() {
 		// Override the -g flag passed globally to remove local variable debug info to reduce
 		// disk and memory usage.
 		javacFlags = append(javacFlags, "-g:source,lines")
@@ -523,7 +523,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.javaVersion = *j.properties.Java_version
 	} else if ctx.Device() && sdk <= 23 {
 		flags.javaVersion = "1.7"
-	} else if ctx.Device() && sdk <= 26 || !ctx.AConfig().TargetOpenJDK9() {
+	} else if ctx.Device() && sdk <= 26 || !ctx.Config().TargetOpenJDK9() {
 		flags.javaVersion = "1.8"
 	} else if ctx.Device() && String(j.deviceProperties.Sdk_version) != "" && sdk == 10000 {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
@@ -558,7 +558,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	deps := j.collectDeps(ctx)
 	flags := j.collectBuilderFlags(ctx, deps)
 
-	if ctx.AConfig().TargetOpenJDK9() {
+	if ctx.Config().TargetOpenJDK9() {
 		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
 	}
 	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
@@ -613,7 +613,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	enable_sharding := false
-	if ctx.Device() && !ctx.AConfig().IsEnvFalse("TURBINE_ENABLED") {
+	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enable_sharding = true
 			if len(j.properties.Annotation_processors) != 0 ||
@@ -634,7 +634,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
 		var extraJarDeps android.Paths
-		if ctx.AConfig().IsEnvTrue("RUN_ERROR_PRONE") {
+		if ctx.Config().IsEnvTrue("RUN_ERROR_PRONE") {
 			// If error-prone is enabled, add an additional rule to compile the java files into
 			// a separate set of classes (so that they don't overwrite the normal ones and require
 			// a rebuild when error-prone is turned off).
@@ -737,13 +737,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		outputFile = j.desugar(ctx, flags, outputFile, jarName)
 	}
 
-	if ctx.AConfig().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
 		if inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
 			j.properties.Instrument = true
 		}
 	}
 
-	if ctx.AConfig().IsEnvTrue("EMMA_INSTRUMENT") && j.properties.Instrument {
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") && j.properties.Instrument {
 		outputFile = j.instrument(ctx, flags, outputFile, jarName)
 	}
 
@@ -846,11 +846,11 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 		dxFlags = append(dxFlags, "--no-locals")
 	}
 
-	if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {
+	if ctx.Config().Getenv("NO_OPTIMIZE_DX") != "" {
 		dxFlags = append(dxFlags, "--no-optimize")
 	}
 
-	if ctx.AConfig().Getenv("GENERATE_DEX_DEBUG") != "" {
+	if ctx.Config().Getenv("GENERATE_DEX_DEBUG") != "" {
 		dxFlags = append(dxFlags,
 			"--debug",
 			"--verbose",
@@ -875,7 +875,7 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
 	switch String(j.deviceProperties.Sdk_version) {
 	case "", "current", "test_current", "system_current":
-		return strconv.Itoa(ctx.AConfig().DefaultAppTargetSdkInt())
+		return strconv.Itoa(ctx.Config().DefaultAppTargetSdkInt())
 	default:
 		return String(j.deviceProperties.Sdk_version)
 	}

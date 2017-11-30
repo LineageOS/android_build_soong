@@ -120,9 +120,9 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	certificate := String(a.appProperties.Certificate)
 	if certificate == "" {
-		certificate = ctx.AConfig().DefaultAppCertificate(ctx).String()
+		certificate = ctx.Config().DefaultAppCertificate(ctx).String()
 	} else if dir, _ := filepath.Split(certificate); dir == "" {
-		certificate = filepath.Join(ctx.AConfig().DefaultAppCertificateDir(ctx).String(), certificate)
+		certificate = filepath.Join(ctx.Config().DefaultAppCertificateDir(ctx).String(), certificate)
 	} else {
 		certificate = filepath.Join(android.PathForSource(ctx).String(), certificate)
 	}
@@ -236,34 +236,34 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 	sdkVersion := String(a.deviceProperties.Sdk_version)
 	switch sdkVersion {
 	case "", "current", "system_current", "test_current":
-		sdkVersion = ctx.AConfig().AppsDefaultVersionName()
+		sdkVersion = ctx.Config().AppsDefaultVersionName()
 	}
 
 	linkFlags = append(linkFlags, "--min-sdk-version "+sdkVersion)
 	linkFlags = append(linkFlags, "--target-sdk-version "+sdkVersion)
 
 	// Product characteristics
-	if !hasProduct && len(ctx.AConfig().ProductAAPTCharacteristics()) > 0 {
-		linkFlags = append(linkFlags, "--product", ctx.AConfig().ProductAAPTCharacteristics())
+	if !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
+		linkFlags = append(linkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
 	}
 
 	// Product AAPT config
-	for _, aaptConfig := range ctx.AConfig().ProductAAPTConfig() {
+	for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
 		linkFlags = append(linkFlags, "-c", aaptConfig)
 	}
 
 	// Product AAPT preferred config
-	if len(ctx.AConfig().ProductAAPTPreferredConfig()) > 0 {
-		linkFlags = append(linkFlags, "--preferred-density", ctx.AConfig().ProductAAPTPreferredConfig())
+	if len(ctx.Config().ProductAAPTPreferredConfig()) > 0 {
+		linkFlags = append(linkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
 	}
 
 	// Version code
 	if !hasVersionCode {
-		linkFlags = append(linkFlags, "--version-code", ctx.AConfig().PlatformSdkVersion())
+		linkFlags = append(linkFlags, "--version-code", ctx.Config().PlatformSdkVersion())
 	}
 
 	if !hasVersionName {
-		versionName := proptools.NinjaEscape([]string{ctx.AConfig().AppsDefaultVersionName()})[0]
+		versionName := proptools.NinjaEscape([]string{ctx.Config().AppsDefaultVersionName()})[0]
 		linkFlags = append(linkFlags, "--version-name ", versionName)
 	}
 
@@ -313,7 +313,7 @@ type overlayGlobResult struct {
 const overlayDataKey = "overlayDataKey"
 
 func overlayResourceGlob(ctx android.ModuleContext, dir android.Path) []globbedResourceDir {
-	overlayData := ctx.AConfig().Get(overlayDataKey).([]overlayGlobResult)
+	overlayData := ctx.Config().Get(overlayDataKey).([]overlayGlobResult)
 
 	var ret []globbedResourceDir
 
@@ -338,7 +338,7 @@ type overlaySingleton struct{}
 
 func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var overlayData []overlayGlobResult
-	for _, overlay := range ctx.Config().(android.Config).ResourceOverlays() {
+	for _, overlay := range ctx.Config().ResourceOverlays() {
 		var result overlayGlobResult
 		result.dir = overlay
 		files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), aaptIgnoreFilenames)
@@ -359,7 +359,7 @@ func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		overlayData = append(overlayData, result)
 	}
 
-	ctx.Config().(android.Config).Once(overlayDataKey, func() interface{} {
+	ctx.Config().Once(overlayDataKey, func() interface{} {
 		return overlayData
 	})
 }

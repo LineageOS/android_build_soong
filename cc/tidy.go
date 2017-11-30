@@ -58,7 +58,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	// If not explicitly set, check the global tidy flag
-	if tidy.Properties.Tidy == nil && !ctx.AConfig().ClangTidy() {
+	if tidy.Properties.Tidy == nil && !ctx.Config().ClangTidy() {
 		return flags
 	}
 
@@ -82,7 +82,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	flags.TidyFlags = append(flags.TidyFlags, "-extra-arg-before=-D__clang_analyzer__")
 
 	tidyChecks := "-checks="
-	if checks := ctx.AConfig().TidyChecks(); len(checks) > 0 {
+	if checks := ctx.Config().TidyChecks(); len(checks) > 0 {
 		tidyChecks += checks
 	} else {
 		tidyChecks += config.TidyChecksForDir(ctx.ModuleDir())
