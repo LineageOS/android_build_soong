@@ -143,6 +143,13 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 						// framework_res.
 						fmt.Fprintln(w, "LOCAL_NO_STANDARD_LIBRARIES := true")
 					}
+
+					if len(app.rroDirs) > 0 {
+						fmt.Fprintln(w, "LOCAL_SOONG_RRO_DIRS :=", strings.Join(app.rroDirs.Strings(), " "))
+					}
+					fmt.Fprintln(w, "LOCAL_EXPORT_PACKAGE_RESOURCES :=",
+						Bool(app.appProperties.Export_package_resources))
+					fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", app.manifestPath.String())
 				}
 			},
 		},
