@@ -51,13 +51,14 @@ func TestMain(m *testing.M) {
 
 	os.Exit(run())
 }
-func testJava(t *testing.T, bp string) *android.TestContext {
-	return testJavaWithEnvFs(t, bp, nil, nil)
+
+func testConfig(env map[string]string) android.Config {
+	return android.TestArchConfig(buildDir, env)
+
 }
 
-func testJavaWithEnvFs(t *testing.T, bp string,
-	env map[string]string, fs map[string][]byte) *android.TestContext {
-	config := android.TestArchConfig(buildDir, env)
+func testContext(config android.Config, bp string,
+	fs map[string][]byte) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
@@ -104,21 +105,19 @@ func testJavaWithEnvFs(t *testing.T, bp string,
 		}
 	`
 
-	if config.TargetOpenJDK9() {
-		systemModules := []string{
-			"core-system-modules",
-			"android_stubs_current_system_modules",
-			"android_system_stubs_current_system_modules",
-			"android_test_stubs_current_system_modules",
-		}
+	systemModules := []string{
+		"core-system-modules",
+		"android_stubs_current_system_modules",
+		"android_system_stubs_current_system_modules",
+		"android_test_stubs_current_system_modules",
+	}
 
-		for _, extra := range systemModules {
-			bp += fmt.Sprintf(`
+	for _, extra := range systemModules {
+		bp += fmt.Sprintf(`
 			java_system_modules {
 				name: "%s",
 			}
 		`, extra)
-		}
 	}
 
 	mockFS := map[string][]byte{
@@ -155,10 +154,20 @@ func testJavaWithEnvFs(t *testing.T, bp string,
 
 	ctx.MockFileSystem(mockFS)
 
+	return ctx
+}
+
+func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	fail(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	fail(t, errs)
+}
+
+func testJava(t *testing.T, bp string) *android.TestContext {
+	config := testConfig(nil)
+	ctx := testContext(config, bp, nil)
+	run(t, ctx, config)
 
 	return ctx
 }
@@ -423,7 +432,9 @@ func TestClasspath(t *testing.T) {
 
 			// Test again with javac 1.9
 			t.Run("1.9", func(t *testing.T) {
-				ctx := testJavaWithEnvFs(t, bp, map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"}, nil)
+				config := testConfig(map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
+				ctx := testContext(config, bp, nil)
+				run(t, ctx, config)
 
 				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
 				got := javac.Args["bootClasspath"]
