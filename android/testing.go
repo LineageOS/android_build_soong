@@ -131,7 +131,7 @@ func (m TestingModule) Output(file string) BuildParams {
 			outputs = append(outputs, p.Output)
 		}
 		for _, f := range outputs {
-			if f.Rel() == file {
+			if f.String() == file || f.Rel() == file {
 				return p
 			}
 		}
