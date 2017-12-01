@@ -558,9 +558,5 @@ func fillInMap(ctx android.ModuleContext, m map[string]string,
 	return true
 }
 
-func (p *Module) InstallInData() bool {
-	return true
-}
-
 var Bool = proptools.Bool
 var String = proptools.String
