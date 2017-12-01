@@ -34,14 +34,27 @@ var (
 	}
 )
 
-func testApp(t *testing.T, bp string) *android.TestContext {
-	appFs := map[string][]byte{}
-
-	for _, file := range resourceFiles {
-		appFs[file] = nil
+func testAppContext(config android.Config, bp string, fs map[string][]byte) *android.TestContext {
+	appFS := map[string][]byte{}
+	for k, v := range fs {
+		appFS[k] = v
 	}
 
-	return testJavaWithEnvFs(t, bp, nil, appFs)
+	for _, file := range resourceFiles {
+		appFS[file] = nil
+	}
+
+	return testContext(config, bp, appFS)
+}
+
+func testApp(t *testing.T, bp string) *android.TestContext {
+	config := testConfig(nil)
+
+	ctx := testAppContext(config, bp, nil)
+
+	run(t, ctx, config)
+
+	return ctx
 }
 
 func TestApp(t *testing.T) {
