@@ -39,7 +39,7 @@ func (p *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
 }
 
 func (p *Module) AndroidMk() android.AndroidMkData {
-	ret := android.AndroidMkData{}
+	ret := android.AndroidMkData{OutputFile: p.installSource}
 
 	p.subAndroidMk(&ret, p.installer)
 
@@ -55,7 +55,7 @@ func (p *binaryDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 				strings.Join(p.binaryProperties.Test_suites, " "))
 		}
 	})
-	base.subAndroidMk(ret, p.baseInstaller)
+	base.subAndroidMk(ret, p.pythonInstaller)
 }
 
 func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
@@ -67,7 +67,7 @@ func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 				strings.Join(p.binaryDecorator.binaryProperties.Test_suites, " "))
 		}
 	})
-	base.subAndroidMk(ret, p.binaryDecorator.baseInstaller)
+	base.subAndroidMk(ret, p.binaryDecorator.pythonInstaller)
 }
 
 func (installer *pythonInstaller) AndroidMk(base *Module, ret *android.AndroidMkData) {
