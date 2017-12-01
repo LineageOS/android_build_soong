@@ -151,7 +151,7 @@ func TestDependingOnModuleInNonImportedNamespace(t *testing.T) {
 
 	expectedErrors := []error{
 		errors.New(
-			`dir3/Blueprints:4:4: "b" depends on undefined module "a"
+			`dir3/Android.bp:4:4: "b" depends on undefined module "a"
 Module "b" is defined in namespace "dir3" which can read these 2 namespaces: ["dir3" "."]
 Module "a" can be found in these namespaces: ["dir1" "dir2"]`),
 	}
@@ -373,7 +373,7 @@ func TestImportingNonexistentNamespace(t *testing.T) {
 
 	// should complain about the missing namespace and not complain about the unresolvable dependency
 	expectedErrors := []error{
-		errors.New(`dir1/Blueprints:2:4: module "soong_namespace": namespace a_nonexistent_namespace does not exist`),
+		errors.New(`dir1/Android.bp:2:4: module "soong_namespace": namespace a_nonexistent_namespace does not exist`),
 	}
 	if len(errs) != 1 || errs[0].Error() != expectedErrors[0].Error() {
 		t.Errorf("Incorrect errors. Expected:\n%v\n, got:\n%v\n", expectedErrors, errs)
@@ -402,7 +402,7 @@ func TestNamespacesDontInheritParentNamespaces(t *testing.T) {
 	)
 
 	expectedErrors := []error{
-		errors.New(`dir1/subdir1/Blueprints:4:4: "b" depends on undefined module "a"
+		errors.New(`dir1/subdir1/Android.bp:4:4: "b" depends on undefined module "a"
 Module "b" is defined in namespace "dir1/subdir1" which can read these 2 namespaces: ["dir1/subdir1" "."]
 Module "a" can be found in these namespaces: ["dir1"]`),
 	}
@@ -465,7 +465,7 @@ func TestNamespaceImportsNotTransitive(t *testing.T) {
 	)
 
 	expectedErrors := []error{
-		errors.New(`dir3/Blueprints:5:4: "c" depends on undefined module "a"
+		errors.New(`dir3/Android.bp:5:4: "c" depends on undefined module "a"
 Module "c" is defined in namespace "dir3" which can read these 3 namespaces: ["dir3" "dir2" "."]
 Module "a" can be found in these namespaces: ["dir1"]`),
 	}
@@ -487,7 +487,7 @@ func TestTwoNamepacesInSameDir(t *testing.T) {
 	)
 
 	expectedErrors := []error{
-		errors.New(`dir1/Blueprints:4:4: namespace dir1 already exists`),
+		errors.New(`dir1/Android.bp:4:4: namespace dir1 already exists`),
 	}
 	if len(errs) != 1 || errs[0].Error() != expectedErrors[0].Error() {
 		t.Errorf("Incorrect errors. Expected:\n%v\n, got:\n%v\n", expectedErrors, errs)
@@ -508,7 +508,7 @@ func TestNamespaceNotAtTopOfFile(t *testing.T) {
 	)
 
 	expectedErrors := []error{
-		errors.New(`dir1/Blueprints:5:4: a namespace must be the first module in the file`),
+		errors.New(`dir1/Android.bp:5:4: a namespace must be the first module in the file`),
 	}
 	if len(errs) != 1 || errs[0].Error() != expectedErrors[0].Error() {
 		t.Errorf("Incorrect errors. Expected:\n%v\n, got:\n%v\n", expectedErrors, errs)
@@ -532,9 +532,31 @@ func TestTwoModulesWithSameNameInSameNamespace(t *testing.T) {
 	)
 
 	expectedErrors := []error{
-		errors.New(`dir1/Blueprints:7:4: module "a" already defined
-       dir1/Blueprints:4:4 <-- previous definition here`),
+		errors.New(`dir1/Android.bp:7:4: module "a" already defined
+       dir1/Android.bp:4:4 <-- previous definition here`),
 	}
+	if len(errs) != 1 || errs[0].Error() != expectedErrors[0].Error() {
+		t.Errorf("Incorrect errors. Expected:\n%v\n, got:\n%v\n", expectedErrors, errs)
+	}
+}
+
+func TestDeclaringNamespaceInNonAndroidBpFile(t *testing.T) {
+	_, errs := setupTestFromFiles(
+		map[string][]byte{
+			"Android.bp": []byte(`
+				build = ["include.bp"]
+			`),
+			"include.bp": []byte(`
+				soong_namespace {
+				}
+			`),
+		},
+	)
+
+	expectedErrors := []error{
+		errors.New(`include.bp:2:5: A namespace may only be declared in a file named Android.bp`),
+	}
+
 	if len(errs) != 1 || errs[0].Error() != expectedErrors[0].Error() {
 		t.Errorf("Incorrect errors. Expected:\n%v\n, got:\n%v\n", expectedErrors, errs)
 	}
@@ -544,14 +566,14 @@ func TestTwoModulesWithSameNameInSameNamespace(t *testing.T) {
 
 func mockFiles(bps map[string]string) (files map[string][]byte) {
 	files = make(map[string][]byte, len(bps))
-	files["Blueprints"] = []byte("")
+	files["Android.bp"] = []byte("")
 	for dir, text := range bps {
-		files[filepath.Join(dir, "Blueprints")] = []byte(text)
+		files[filepath.Join(dir, "Android.bp")] = []byte(text)
 	}
 	return files
 }
 
-func setupTestExpectErrs(bps map[string]string) (ctx *TestContext, errs []error) {
+func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) {
 	buildDir, err := ioutil.TempDir("", "soong_namespace_test")
 	if err != nil {
 		return nil, []error{err}
@@ -561,18 +583,27 @@ func setupTestExpectErrs(bps map[string]string) (ctx *TestContext, errs []error)
 	config := TestConfig(buildDir, nil)
 
 	ctx = NewTestContext()
-	ctx.MockFileSystem(mockFiles(bps))
+	ctx.MockFileSystem(bps)
 	ctx.RegisterModuleType("test_module", ModuleFactoryAdaptor(newTestModule))
 	ctx.RegisterModuleType("soong_namespace", ModuleFactoryAdaptor(NamespaceFactory))
 	ctx.PreDepsMutators(RegisterNamespaceMutator)
 	ctx.Register()
 
-	_, errs = ctx.ParseBlueprintsFiles("Blueprints")
+	_, errs = ctx.ParseBlueprintsFiles("Android.bp")
 	if len(errs) > 0 {
 		return ctx, errs
 	}
 	_, errs = ctx.PrepareBuildActions(config)
 	return ctx, errs
+}
+
+func setupTestExpectErrs(bps map[string]string) (ctx *TestContext, errs []error) {
+	files := make(map[string][]byte, len(bps))
+	files["Android.bp"] = []byte("")
+	for dir, text := range bps {
+		files[filepath.Join(dir, "Android.bp")] = []byte(text)
+	}
+	return setupTestFromFiles(files)
 }
 
 func setupTest(t *testing.T, bps map[string]string) (ctx *TestContext) {
