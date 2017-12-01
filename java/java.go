@@ -251,7 +251,7 @@ func sdkStringToNumber(ctx android.BaseContext, v string) int {
 	case "", "current", "system_current", "test_current":
 		return 10000
 	default:
-		if i, err := strconv.Atoi(v); err != nil {
+		if i, err := strconv.Atoi(android.GetNumericSdkVersion(v)); err != nil {
 			ctx.PropertyErrorf("sdk_version", "invalid sdk version")
 			return -1
 		} else {
@@ -275,6 +275,12 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
+			if strings.Contains(v, "system_") {
+				return sdkDep{
+					invalidVersion: true,
+					module:         "vsdk_v" + strings.Replace(v, "system_", "", 1),
+				}
+			}
 			return sdkDep{
 				invalidVersion: true,
 				module:         "sdk_v" + v,
@@ -887,7 +893,7 @@ func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
 	case "", "current", "test_current", "system_current":
 		return strconv.Itoa(ctx.Config().DefaultAppTargetSdkInt())
 	default:
-		return String(j.deviceProperties.Sdk_version)
+		return android.GetNumericSdkVersion(String(j.deviceProperties.Sdk_version))
 	}
 }
 
