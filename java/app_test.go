@@ -17,6 +17,7 @@ package java
 import (
 	"android/soong/android"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -79,7 +80,11 @@ func TestApp(t *testing.T) {
 		t.Errorf("expected aapt2 compile inputs expected:\n  %#v\n got:\n  %#v",
 			resourceFiles, compile.Inputs.Strings())
 	}
-	expectedLinkImplicits = append(expectedLinkImplicits, compile.Outputs.Strings()...)
+
+	compiledResourceOutputs := compile.Outputs.Strings()
+	sort.Strings(compiledResourceOutputs)
+
+	expectedLinkImplicits = append(expectedLinkImplicits, compiledResourceOutputs...)
 
 	list := foo.Output("aapt2/res.list")
 	expectedLinkImplicits = append(expectedLinkImplicits, list.Output.String())
