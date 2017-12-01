@@ -70,6 +70,8 @@ type AndroidApp struct {
 
 	aaptSrcJar    android.Path
 	exportPackage android.Path
+	rroDirs       android.Paths
+	manifestPath  android.Path
 }
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -86,7 +88,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	linkFlags, linkDeps, resDirs, overlayDirs := a.aapt2Flags(ctx)
+	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, manifestPath := a.aapt2Flags(ctx)
 
 	packageRes := android.PathForModuleOut(ctx, "package-res.apk")
 	srcJar := android.PathForModuleGen(ctx, "R.jar")
@@ -144,6 +146,8 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	CreateAppPackage(ctx, packageFile, a.exportPackage, a.outputFile, certificates)
 
 	a.outputFile = packageFile
+	a.rroDirs = rroDirs
+	a.manifestPath = manifestPath
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
@@ -171,7 +175,7 @@ type globbedResourceDir struct {
 }
 
 func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps android.Paths,
-	resDirs, overlayDirs []globbedResourceDir) {
+	resDirs, overlayDirs []globbedResourceDir, rroDirs android.Paths, manifestPath android.Path) {
 
 	hasVersionCode := false
 	hasVersionName := false
@@ -205,7 +209,9 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 			dir:   dir,
 			files: resourceGlob(ctx, dir),
 		})
-		overlayDirs = append(overlayDirs, overlayResourceGlob(ctx, dir)...)
+		resOverlayDirs, resRRODirs := overlayResourceGlob(ctx, dir)
+		overlayDirs = append(overlayDirs, resOverlayDirs...)
+		rroDirs = append(rroDirs, resRRODirs...)
 	}
 
 	var assetFiles android.Paths
@@ -221,7 +227,7 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 		manifestFile = *a.properties.Manifest
 	}
 
-	manifestPath := android.PathForModuleSrc(ctx, manifestFile)
+	manifestPath = android.PathForModuleSrc(ctx, manifestFile)
 	linkFlags = append(linkFlags, "--manifest "+manifestPath.String())
 	linkDeps = append(linkDeps, manifestPath)
 
@@ -288,7 +294,7 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 	// TODO: LOCAL_PACKAGE_OVERRIDES
 	//    $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
 
-	return linkFlags, linkDeps, resDirs, overlayDirs
+	return linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, manifestPath
 }
 
 func AndroidAppFactory() android.Module {
@@ -320,26 +326,49 @@ func resourceGlob(ctx android.ModuleContext, dir android.Path) android.Paths {
 type overlayGlobResult struct {
 	dir   string
 	paths android.DirectorySortedPaths
+
+	// Set to true of the product has selected that values in this overlay should not be moved to
+	// Runtime Resource Overlay (RRO) packages.
+	excludeFromRRO bool
 }
 
 const overlayDataKey = "overlayDataKey"
 
-func overlayResourceGlob(ctx android.ModuleContext, dir android.Path) []globbedResourceDir {
+func overlayResourceGlob(ctx android.ModuleContext, dir android.Path) (res []globbedResourceDir,
+	rroDirs android.Paths) {
+
 	overlayData := ctx.Config().Get(overlayDataKey).([]overlayGlobResult)
 
-	var ret []globbedResourceDir
+	// Runtime resource overlays (RRO) may be turned on by the product config for some modules
+	rroEnabled := false
+	enforceRROTargets := ctx.Config().ProductVariables.EnforceRROTargets
+	if enforceRROTargets != nil {
+		if len(*enforceRROTargets) == 1 && (*enforceRROTargets)[0] == "*" {
+			rroEnabled = true
+		} else if inList(ctx.ModuleName(), *enforceRROTargets) {
+			rroEnabled = true
+		}
+	}
 
 	for _, data := range overlayData {
 		files := data.paths.PathsInDirectory(filepath.Join(data.dir, dir.String()))
 		if len(files) > 0 {
-			ret = append(ret, globbedResourceDir{
-				dir:   android.PathForSource(ctx, data.dir, dir.String()),
-				files: files,
-			})
+			overlayModuleDir := android.PathForSource(ctx, data.dir, dir.String())
+			// If enforce RRO is enabled for this module and this overlay is not in the
+			// exclusion list, ignore the overlay.  The list of ignored overlays will be
+			// passed to Make to be turned into an RRO package.
+			if rroEnabled && !data.excludeFromRRO {
+				rroDirs = append(rroDirs, overlayModuleDir)
+			} else {
+				res = append(res, globbedResourceDir{
+					dir:   overlayModuleDir,
+					files: files,
+				})
+			}
 		}
 	}
 
-	return ret
+	return res, rroDirs
 }
 
 func OverlaySingletonFactory() android.Singleton {
@@ -349,10 +378,25 @@ func OverlaySingletonFactory() android.Singleton {
 type overlaySingleton struct{}
 
 func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
+
+	// Specific overlays may be excluded from Runtime Resource Overlays by the product config
+	var rroExcludedOverlays []string
+	if ctx.Config().ProductVariables.EnforceRROExcludedOverlays != nil {
+		rroExcludedOverlays = *ctx.Config().ProductVariables.EnforceRROExcludedOverlays
+	}
+
 	var overlayData []overlayGlobResult
 	for _, overlay := range ctx.Config().ResourceOverlays() {
 		var result overlayGlobResult
 		result.dir = overlay
+
+		// Mark overlays that will not have Runtime Resource Overlays enforced on them
+		for _, exclude := range rroExcludedOverlays {
+			if strings.HasPrefix(overlay, exclude) {
+				result.excludeFromRRO = true
+			}
+		}
+
 		files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), aaptIgnoreFilenames)
 		if err != nil {
 			ctx.Errorf("failed to glob resource dir %q: %s", overlay, err.Error())
