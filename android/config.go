@@ -491,11 +491,21 @@ func (c *config) ProductAAPTPrebuiltDPI() []string {
 }
 
 func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
-	return PathForSource(ctx, "build/target/product/security")
+	defaultCert := String(c.ProductVariables.DefaultAppCertificate)
+	if defaultCert != "" {
+		return PathForSource(ctx, filepath.Dir(defaultCert))
+	} else {
+		return PathForSource(ctx, "build/target/product/security")
+	}
 }
 
 func (c *config) DefaultAppCertificate(ctx PathContext) SourcePath {
-	return c.DefaultAppCertificateDir(ctx).Join(ctx, "testkey")
+	defaultCert := String(c.ProductVariables.DefaultAppCertificate)
+	if defaultCert != "" {
+		return PathForSource(ctx, defaultCert)
+	} else {
+		return c.DefaultAppCertificateDir(ctx).Join(ctx, "testkey")
+	}
 }
 
 func (c *config) AllowMissingDependencies() bool {
