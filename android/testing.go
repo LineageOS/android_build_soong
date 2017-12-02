@@ -23,14 +23,17 @@ import (
 )
 
 func NewTestContext() *TestContext {
-	ctx := &TestContext{
-		Context: blueprint.NewContext(),
-	}
-
 	namespaceExportFilter := func(namespace *Namespace) bool {
 		return true
 	}
-	ctx.SetNameInterface(NewNameResolver(namespaceExportFilter))
+
+	nameResolver := NewNameResolver(namespaceExportFilter)
+	ctx := &TestContext{
+		Context:      blueprint.NewContext(),
+		NameResolver: nameResolver,
+	}
+
+	ctx.SetNameInterface(nameResolver)
 
 	return ctx
 }
@@ -44,6 +47,7 @@ func NewTestArchContext() *TestContext {
 type TestContext struct {
 	*blueprint.Context
 	preArch, preDeps, postDeps []RegisterMutatorFunc
+	NameResolver               *NameResolver
 }
 
 func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
