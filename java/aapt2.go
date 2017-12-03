@@ -16,6 +16,7 @@ package java
 
 import (
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -85,6 +86,9 @@ func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Pat
 		})
 	}
 
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].String() < ret[j].String()
+	})
 	return ret
 }
 

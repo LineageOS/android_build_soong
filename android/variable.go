@@ -146,6 +146,8 @@ type productVariables struct {
 	AAPTPreferredConfig *string   `json:",omitempty"`
 	AAPTPrebuiltDPI     *[]string `json:",omitempty"`
 
+	DefaultAppCertificate *string `json:",omitempty"`
+
 	AppsDefaultVersionName *string `json:",omitempty"`
 
 	Allow_missing_dependencies *bool `json:",omitempty"`
