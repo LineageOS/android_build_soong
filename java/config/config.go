@@ -147,5 +147,5 @@ func init() {
 		})
 	}
 
-	hostBinToolVariableWithPrebuilt("Aapt2Cmd", "prebuilt/sdk/tools", "aapt2")
+	hostBinToolVariableWithPrebuilt("Aapt2Cmd", "prebuilts/sdk/tools", "aapt2")
 }
