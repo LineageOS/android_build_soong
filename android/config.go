@@ -475,19 +475,19 @@ func (c *config) PlatformVersionCombinedCodenames() []string {
 }
 
 func (c *config) ProductAAPTConfig() []string {
-	return *c.ProductVariables.AAPTConfig
+	return stringSlice(c.ProductVariables.AAPTConfig)
 }
 
 func (c *config) ProductAAPTPreferredConfig() string {
-	return *c.ProductVariables.AAPTPreferredConfig
+	return String(c.ProductVariables.AAPTPreferredConfig)
 }
 
 func (c *config) ProductAAPTCharacteristics() string {
-	return *c.ProductVariables.AAPTCharacteristics
+	return String(c.ProductVariables.AAPTCharacteristics)
 }
 
 func (c *config) ProductAAPTPrebuiltDPI() []string {
-	return *c.ProductVariables.AAPTPrebuiltDPI
+	return stringSlice(c.ProductVariables.AAPTPrebuiltDPI)
 }
 
 func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
@@ -685,4 +685,12 @@ func (c *config) CFIEnabledForPath(path string) bool {
 		return false
 	}
 	return prefixInList(path, *c.ProductVariables.CFIIncludePaths)
+}
+
+func stringSlice(s *[]string) []string {
+	if s != nil {
+		return *s
+	} else {
+		return nil
+	}
 }
