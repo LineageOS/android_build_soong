@@ -120,7 +120,7 @@ function diffProduct() {
   diff -r "$unzipped1" "$unzipped2" -x build_date.txt -x build_number.txt -x '\.*' -x '*.log' -x build_fingerprint.txt -x build.ninja.d -x '*.zip' > $diffFile || true
   if [[ -s "$diffFile" ]]; then
     # outputs are different, so remove the unzipped versions but keep the zipped versions
-    echo "Some differences for product $product:"
+    echo "First few differences (total diff linecount=$(wc -l $diffFile)) for product $product:"
     cat "$diffFile" | head -n 10
     echo "End of differences for product $product"
     rm -rf "$unzipped1" "$unzipped2"
