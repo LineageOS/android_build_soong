@@ -172,6 +172,5 @@ func vndkMutator(mctx android.BottomUpMutatorContext) {
 				}
 			}
 		}
-
 	}
 }
