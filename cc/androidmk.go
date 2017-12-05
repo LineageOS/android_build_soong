@@ -348,3 +348,24 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 		fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 	})
 }
+
+func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Class = "SHARED_LIBRARIES"
+
+	ret.SubName = vndkSuffix + c.version()
+
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		c.libraryDecorator.androidMkWriteExportedFlags(w)
+
+		path := c.path.RelPathString()
+		dir, file := filepath.Split(path)
+		stem := strings.TrimSuffix(file, filepath.Ext(file))
+		fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
+		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
+		fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
+		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+outputFile.Ext())
+		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+	})
+}
