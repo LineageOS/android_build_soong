@@ -53,6 +53,7 @@ function bindAll() {
   bindOne "${ANDROID_PATH}/build/soong" "${OUTPUT_PATH}/src/android/soong"
 
   bindOne "${ANDROID_PATH}/art/build" "${OUTPUT_PATH}/src/android/soong/art"
+  bindOne "${ANDROID_PATH}/external/golang-protobuf" "${OUTPUT_PATH}/src/github.com/golang/protobuf"
   bindOne "${ANDROID_PATH}/external/llvm/soong" "${OUTPUT_PATH}/src/android/soong/llvm"
   bindOne "${ANDROID_PATH}/external/clang/soong" "${OUTPUT_PATH}/src/android/soong/clang"
   echo
@@ -64,7 +65,14 @@ function bindOne() {
   existingPath="$1"
   newPath="$2"
   mkdir -p "$newPath"
-  echoAndDo bindfs "${existingPath}" "${newPath}"
+  case $(uname -s) in
+    Darwin)
+      echoAndDo bindfs -o allow_recursion -n "${existingPath}" "${newPath}"
+      ;;
+    Linux)
+      echoAndDo bindfs "${existingPath}" "${newPath}"
+      ;;
+  esac
 }
 
 function echoAndDo() {
