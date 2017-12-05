@@ -200,6 +200,8 @@ type productVariables struct {
 	DistDir             *string  `json:",omitempty"`
 
 	ExtraVndkVersions []string `json:",omitempty"`
+
+	NamespacesToExport []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
