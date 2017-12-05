@@ -67,6 +67,7 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(SystemModulesFactory))
+	ctx.RegisterModuleType("java_genrule", android.ModuleFactoryAdaptor(genRuleFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
@@ -772,6 +773,60 @@ func TestSharding(t *testing.T) {
 		if !strings.Contains(barJavac.Args["classpath"], barHeaderJar) {
 			t.Errorf("bar javac classpath %v does not contain %q", barJavac.Args["classpath"], barHeaderJar)
 		}
+	}
+}
+
+func TestJarGenrules(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		java_genrule {
+			name: "jargen",
+			tool_files: ["b.java"],
+			cmd: "$(location b.java) $(in) $(out)",
+			out: ["jargen.jar"],
+			srcs: [":foo"],
+		}
+
+		java_library {
+			name: "bar",
+			static_libs: ["jargen"],
+			srcs: ["c.java"],
+		}
+
+		java_library {
+			name: "baz",
+			libs: ["jargen"],
+			srcs: ["c.java"],
+		}
+	`)
+
+	foo := ctx.ModuleForTests("foo", "android_common").Output("javac/foo.jar")
+	jargen := ctx.ModuleForTests("jargen", "android_common").Output("jargen.jar")
+	bar := ctx.ModuleForTests("bar", "android_common").Output("javac/bar.jar")
+	baz := ctx.ModuleForTests("baz", "android_common").Output("javac/baz.jar")
+	barCombined := ctx.ModuleForTests("bar", "android_common").Output("combined/bar.jar")
+
+	if len(jargen.Inputs) != 1 || jargen.Inputs[0].String() != foo.Output.String() {
+		t.Errorf("expected jargen inputs [%q], got %q", foo.Output.String(), jargen.Inputs.Strings())
+	}
+
+	if !strings.Contains(bar.Args["classpath"], jargen.Output.String()) {
+		t.Errorf("bar classpath %v does not contain %q", bar.Args["classpath"], jargen.Output.String())
+	}
+
+	if !strings.Contains(baz.Args["classpath"], jargen.Output.String()) {
+		t.Errorf("baz classpath %v does not contain %q", baz.Args["classpath"], jargen.Output.String())
+	}
+
+	if len(barCombined.Inputs) != 2 ||
+		barCombined.Inputs[0].String() != bar.Output.String() ||
+		barCombined.Inputs[1].String() != jargen.Output.String() {
+		t.Errorf("bar combined jar inputs %v is not [%q, %q]",
+			barCombined.Inputs.Strings(), bar.Output.String(), jargen.Output.String())
 	}
 }
 
