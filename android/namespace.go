@@ -15,6 +15,7 @@
 package android
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -114,7 +115,13 @@ func (r *NameResolver) newNamespace(path string) *Namespace {
 	return namespace
 }
 
-func (r *NameResolver) addNewNamespaceForModule(module *NamespaceModule, dir string) error {
+func (r *NameResolver) addNewNamespaceForModule(module *NamespaceModule, path string) error {
+	fileName := filepath.Base(path)
+	if fileName != "Android.bp" {
+		return errors.New("A namespace may only be declared in a file named Android.bp")
+	}
+	dir := filepath.Dir(path)
+
 	namespace := r.newNamespace(dir)
 	module.namespace = namespace
 	module.resolver = r
@@ -167,7 +174,7 @@ func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blu
 	// if this module is a namespace, then save it to our list of namespaces
 	newNamespace, ok := module.(*NamespaceModule)
 	if ok {
-		err := r.addNewNamespaceForModule(newNamespace, ctx.ModuleDir())
+		err := r.addNewNamespaceForModule(newNamespace, ctx.ModulePath())
 		if err != nil {
 			return nil, []error{err}
 		}
@@ -322,7 +329,7 @@ func (r *NameResolver) GetNamespace(ctx blueprint.NamespaceContext) blueprint.Na
 }
 
 func (r *NameResolver) findNamespaceFromCtx(ctx blueprint.NamespaceContext) *Namespace {
-	return r.findNamespace(ctx.ModuleDir())
+	return r.findNamespace(filepath.Dir(ctx.ModulePath()))
 }
 
 var _ blueprint.NameInterface = (*NameResolver)(nil)
