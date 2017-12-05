@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -559,6 +560,25 @@ func TestDeclaringNamespaceInNonAndroidBpFile(t *testing.T) {
 
 	if len(errs) != 1 || errs[0].Error() != expectedErrors[0].Error() {
 		t.Errorf("Incorrect errors. Expected:\n%v\n, got:\n%v\n", expectedErrors, errs)
+	}
+}
+
+// so that the generated .ninja file will have consistent names
+func TestConsistentNamespaceNames(t *testing.T) {
+	ctx := setupTest(t,
+		map[string]string{
+			"dir1": "soong_namespace{}",
+			"dir2": "soong_namespace{}",
+			"dir3": "soong_namespace{}",
+		})
+
+	ns1, _ := ctx.NameResolver.namespaceAt("dir1")
+	ns2, _ := ctx.NameResolver.namespaceAt("dir2")
+	ns3, _ := ctx.NameResolver.namespaceAt("dir3")
+	actualIds := []string{ns1.id, ns2.id, ns3.id}
+	expectedIds := []string{"1", "2", "3"}
+	if !reflect.DeepEqual(actualIds, expectedIds) {
+		t.Errorf("Incorrect namespace ids.\nactual: %s\nexpected: %s\n", actualIds, expectedIds)
 	}
 }
 

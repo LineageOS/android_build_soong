@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/google/blueprint"
 )
@@ -66,6 +65,15 @@ func (s *sortedNamespaces) sortedItems() []*Namespace {
 	return s.items
 }
 
+func (s *sortedNamespaces) index(namespace *Namespace) int {
+	for i, candidate := range s.sortedItems() {
+		if namespace == candidate {
+			return i
+		}
+	}
+	return -1
+}
+
 // A NameResolver implements blueprint.NameInterface, and implements the logic to
 // find a module from namespaces based on a query string.
 // A query string can be a module name or can be be "//namespace_path:module_path"
@@ -73,7 +81,7 @@ type NameResolver struct {
 	rootNamespace *Namespace
 
 	// id counter for atomic.AddInt32
-	numNamespaces int32
+	nextNamespaceId int32
 
 	// All namespaces, without duplicates.
 	sortedNamespaces sortedNamespaces
@@ -103,14 +111,6 @@ func (r *NameResolver) newNamespace(path string) *Namespace {
 	namespace := NewNamespace(path)
 
 	namespace.exportToKati = r.namespaceExportFilter(namespace)
-
-	nextId := atomic.AddInt32(&r.numNamespaces, 1)
-	id := nextId - 1
-	stringId := ""
-	if id > 0 {
-		stringId = strconv.Itoa(int(id))
-	}
-	namespace.id = stringId
 
 	return namespace
 }
@@ -291,6 +291,14 @@ func (r *NameResolver) FindNamespaceImports(namespace *Namespace) (err error) {
 	return nil
 }
 
+func (r *NameResolver) chooseId(namespace *Namespace) {
+	id := r.sortedNamespaces.index(namespace)
+	if id < 0 {
+		panic(fmt.Sprintf("Namespace not found: %v\n", namespace.id))
+	}
+	namespace.id = strconv.Itoa(id)
+}
+
 func (r *NameResolver) MissingDependencyError(depender string, dependerNamespace blueprint.Namespace, depName string) (err error) {
 	text := fmt.Sprintf("%q depends on undefined module %q", depender, depName)
 
@@ -330,6 +338,14 @@ func (r *NameResolver) GetNamespace(ctx blueprint.NamespaceContext) blueprint.Na
 
 func (r *NameResolver) findNamespaceFromCtx(ctx blueprint.NamespaceContext) *Namespace {
 	return r.findNamespace(filepath.Dir(ctx.ModulePath()))
+}
+
+func (r *NameResolver) UniqueName(ctx blueprint.NamespaceContext, name string) (unique string) {
+	prefix := r.findNamespaceFromCtx(ctx).id
+	if prefix != "" {
+		prefix = prefix + "-"
+	}
+	return prefix + name
 }
 
 var _ blueprint.NameInterface = (*NameResolver)(nil)
@@ -391,15 +407,17 @@ func NamespaceFactory() Module {
 }
 
 func RegisterNamespaceMutator(ctx RegisterMutatorsContext) {
-	ctx.BottomUp("namespace_deps", namespaceDeps)
+	ctx.BottomUp("namespace_deps", namespaceMutator).Parallel()
 }
 
-func namespaceDeps(ctx BottomUpMutatorContext) {
+func namespaceMutator(ctx BottomUpMutatorContext) {
 	module, ok := ctx.Module().(*NamespaceModule)
 	if ok {
 		err := module.resolver.FindNamespaceImports(module.namespace)
 		if err != nil {
 			ctx.ModuleErrorf(err.Error())
 		}
+
+		module.resolver.chooseId(module.namespace)
 	}
 }
