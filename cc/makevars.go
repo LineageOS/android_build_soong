@@ -26,7 +26,6 @@ import (
 
 const (
 	modulesAddedWall     = "ModulesAddedWall"
-	modulesAddedWerror   = "ModulesAddedWerror"
 	modulesUsingWnoError = "ModulesUsingWnoError"
 )
 
@@ -102,7 +101,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("ANDROID_WARNING_ALLOWED_PROJECTS", makeStringOfWarningAllowedProjects())
 	ctx.Strict("SOONG_MODULES_ADDED_WALL", makeStringOfKeys(ctx, modulesAddedWall))
-	ctx.Strict("SOONG_MODULES_ADDED_WERROR", makeStringOfKeys(ctx, modulesAddedWerror))
 	ctx.Strict("SOONG_MODULES_USING_WNO_ERROR", makeStringOfKeys(ctx, modulesUsingWnoError))
 
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS", strings.Join(asanCflags, " "))
