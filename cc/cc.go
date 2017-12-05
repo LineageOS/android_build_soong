@@ -1372,7 +1372,7 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 
 	if genrule, ok := mctx.Module().(*genrule.Module); ok {
 		if props, ok := genrule.Extra.(*VendorProperties); ok {
-			if !mctx.DeviceConfig().CompileVndk() {
+			if mctx.DeviceConfig().VndkVersion() == "" {
 				mctx.CreateVariations(coreMode)
 			} else if Bool(props.Vendor_available) {
 				mctx.CreateVariations(coreMode, vendorMode)
@@ -1408,7 +1408,7 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	if !mctx.DeviceConfig().CompileVndk() {
+	if mctx.DeviceConfig().VndkVersion() == "" {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
 		mctx.CreateVariations(coreMode)
@@ -1419,6 +1419,12 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		// ... and LL-NDK headers as well
 		mctx.CreateVariations(vendorMode)
+	} else if _, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
+		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
+		// PRODUCT_EXTRA_VNDK_VERSIONS.
+		mod := mctx.CreateVariations(vendorMode)
+		vendor := mod[0].(*Module)
+		vendor.Properties.UseVndk = true
 	} else if m.hasVendorVariant() {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
