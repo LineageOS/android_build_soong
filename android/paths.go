@@ -92,7 +92,7 @@ type Path interface {
 
 	// Rel returns the portion of the path relative to the directory it was created from.  For
 	// example, Rel on a PathsForModuleSrc would return the path relative to the module source
-	// directory.
+	// directory, and OutputPath.Join("foo").Rel() would return "foo".
 	Rel() string
 }
 
@@ -456,12 +456,23 @@ func (p basePath) String() string {
 	return p.path
 }
 
+func (p basePath) withRel(rel string) basePath {
+	p.path = filepath.Join(p.path, rel)
+	p.rel = rel
+	return p
+}
+
 // SourcePath is a Path representing a file path rooted from SrcDir
 type SourcePath struct {
 	basePath
 }
 
 var _ Path = SourcePath{}
+
+func (p SourcePath) withRel(rel string) SourcePath {
+	p.basePath = p.basePath.withRel(rel)
+	return p
+}
 
 // safePathForSource is for paths that we expect are safe -- only for use by go
 // code that is embedding ninja variables in paths
@@ -589,7 +600,7 @@ func (p SourcePath) String() string {
 // provided paths... may not use '..' to escape from the current path.
 func (p SourcePath) Join(ctx PathContext, paths ...string) SourcePath {
 	path := validatePath(ctx, paths...)
-	return PathForSource(ctx, p.path, path)
+	return p.withRel(path)
 }
 
 // OverlayPath returns the overlay for `path' if it exists. This assumes that the
@@ -631,8 +642,7 @@ type OutputPath struct {
 }
 
 func (p OutputPath) withRel(rel string) OutputPath {
-	p.basePath.path = filepath.Join(p.basePath.path, rel)
-	p.basePath.rel = rel
+	p.basePath = p.basePath.withRel(rel)
 	return p
 }
 
@@ -660,7 +670,7 @@ func (p OutputPath) RelPathString() string {
 // provided paths... may not use '..' to escape from the current path.
 func (p OutputPath) Join(ctx PathContext, paths ...string) OutputPath {
 	path := validatePath(ctx, paths...)
-	return PathForOutput(ctx, p.path, path)
+	return p.withRel(path)
 }
 
 // PathForIntermediates returns an OutputPath representing the top-level
