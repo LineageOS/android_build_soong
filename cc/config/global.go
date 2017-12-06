@@ -127,6 +127,7 @@ var (
 		"frameworks/av/media/libstagefright/codecs/",
 		"frameworks/base/tools/streaming_proto/",
 		"frameworks/ml/nn/",
+		"frameworks/native/libs/vr/libbufferhub/",
 		"frameworks/native/libs/vr/libbufferhubqueue/",
 		"frameworks/native/libs/vr/libdvr/tests/",
 		"frameworks/native/services/surfaceflinger/tests/",
