@@ -1014,6 +1014,8 @@ type Binary struct {
 
 	binaryProperties binaryProperties
 
+	isWrapperVariant bool
+
 	wrapperFile android.SourcePath
 	binaryFile  android.OutputPath
 }
@@ -1023,21 +1025,32 @@ func (j *Binary) HostToolPath() android.OptionalPath {
 }
 
 func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.Library.GenerateAndroidBuildActions(ctx)
-
-	// Depend on the installed jar (j.installFile) so that the wrapper doesn't get executed by
-	// another build rule before the jar has been installed.
-	if String(j.binaryProperties.Wrapper) != "" {
-		j.wrapperFile = android.PathForModuleSrc(ctx, String(j.binaryProperties.Wrapper)).SourcePath
+	if ctx.Arch().ArchType == android.Common {
+		// Compile the jar
+		j.Library.GenerateAndroidBuildActions(ctx)
 	} else {
-		j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
+		// Handle the binary wrapper
+		j.isWrapperVariant = true
+
+		if String(j.binaryProperties.Wrapper) != "" {
+			j.wrapperFile = android.PathForModuleSrc(ctx, String(j.binaryProperties.Wrapper)).SourcePath
+		} else {
+			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
+		}
+
+		// Depend on the installed jar so that the wrapper doesn't get executed by
+		// another build rule before the jar has been installed.
+		jarFile := ctx.PrimaryModule().(*Binary).installFile
+
+		j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
+			ctx.ModuleName(), j.wrapperFile, jarFile)
 	}
-	j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
-		ctx.ModuleName(), j.wrapperFile, j.installFile)
 }
 
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
-	j.deps(ctx)
+	if ctx.Arch().ArchType == android.Common {
+		j.deps(ctx)
+	}
 }
 
 func BinaryFactory() android.Module {
@@ -1049,7 +1062,8 @@ func BinaryFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.binaryProperties)
 
-	InitJavaModule(module, android.HostAndDeviceSupported)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommonFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -1062,7 +1076,8 @@ func BinaryHostFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.binaryProperties)
 
-	InitJavaModule(module, android.HostSupported)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommonFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 

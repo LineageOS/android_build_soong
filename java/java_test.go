@@ -62,6 +62,7 @@ func testContext(config android.Config, bp string,
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
+	ctx.RegisterModuleType("java_binary_host", android.ModuleFactoryAdaptor(BinaryHostFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory(true)))
 	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
@@ -147,6 +148,8 @@ func testContext(config android.Config, bp string,
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
 		"build/target/product/security/testkey": nil,
+
+		"build/soong/scripts/jar-wrapper.sh": nil,
 	}
 
 	for k, v := range fs {
@@ -159,6 +162,7 @@ func testContext(config android.Config, bp string,
 }
 
 func run(t *testing.T, ctx *android.TestContext, config android.Config) {
+	t.Helper()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	fail(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -166,6 +170,7 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 }
 
 func testJava(t *testing.T, bp string) *android.TestContext {
+	t.Helper()
 	config := testConfig(nil)
 	ctx := testContext(config, bp, nil)
 	run(t, ctx, config)
@@ -248,6 +253,35 @@ func TestArchSpecific(t *testing.T) {
 	if len(javac.Inputs) != 2 || javac.Inputs[0].String() != "a.java" || javac.Inputs[1].String() != "b.java" {
 		t.Errorf(`foo inputs %v != ["a.java", "b.java"]`, javac.Inputs)
 	}
+}
+
+func TestBinary(t *testing.T) {
+	ctx := testJava(t, `
+		java_library_host {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		java_binary_host {
+			name: "bar",
+			srcs: ["b.java"],
+			static_libs: ["foo"],
+		}
+	`)
+
+	buildOS := android.BuildOs.String()
+
+	bar := ctx.ModuleForTests("bar", buildOS+"_common")
+	barJar := bar.Output("bar.jar").Output.String()
+	barWrapper := ctx.ModuleForTests("bar", buildOS+"_x86_64")
+	barWrapperDeps := barWrapper.Output("bar").Implicits.Strings()
+
+	// Test that the install binary wrapper depends on the installed jar file
+	if len(barWrapperDeps) != 1 || barWrapperDeps[0] != barJar {
+		t.Errorf("expected binary wrapper implicits [%q], got %v",
+			barJar, barWrapperDeps)
+	}
+
 }
 
 var classpathTestcases = []struct {
@@ -831,6 +865,7 @@ func TestJarGenrules(t *testing.T) {
 }
 
 func fail(t *testing.T, errs []error) {
+	t.Helper()
 	if len(errs) > 0 {
 		for _, err := range errs {
 			t.Error(err)

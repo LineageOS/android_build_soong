@@ -248,10 +248,11 @@ type hostAndDeviceProperties struct {
 type Multilib string
 
 const (
-	MultilibBoth    Multilib = "both"
-	MultilibFirst   Multilib = "first"
-	MultilibCommon  Multilib = "common"
-	MultilibDefault Multilib = ""
+	MultilibBoth        Multilib = "both"
+	MultilibFirst       Multilib = "first"
+	MultilibCommon      Multilib = "common"
+	MultilibCommonFirst Multilib = "common_first"
+	MultilibDefault     Multilib = ""
 )
 
 type HostOrDeviceSupported int
