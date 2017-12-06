@@ -136,6 +136,7 @@ func (m TestingModule) Description(desc string) BuildParams {
 }
 
 func (m TestingModule) Output(file string) BuildParams {
+	var searchedOutputs []string
 	for _, p := range m.module.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
 		if p.Output != nil {
@@ -145,7 +146,9 @@ func (m TestingModule) Output(file string) BuildParams {
 			if f.String() == file || f.Rel() == file {
 				return p
 			}
+			searchedOutputs = append(searchedOutputs, f.Rel())
 		}
 	}
-	panic(fmt.Errorf("couldn't find output %q", file))
+	panic(fmt.Errorf("couldn't find output %q.\nall outputs: %v",
+		file, searchedOutputs))
 }
