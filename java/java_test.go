@@ -62,11 +62,13 @@ func testContext(config android.Config, bp string,
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
+	ctx.RegisterModuleType("java_binary_host", android.ModuleFactoryAdaptor(BinaryHostFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory(true)))
 	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(SystemModulesFactory))
+	ctx.RegisterModuleType("java_genrule", android.ModuleFactoryAdaptor(genRuleFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
@@ -146,6 +148,8 @@ func testContext(config android.Config, bp string,
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
 		"build/target/product/security/testkey": nil,
+
+		"build/soong/scripts/jar-wrapper.sh": nil,
 	}
 
 	for k, v := range fs {
@@ -158,6 +162,7 @@ func testContext(config android.Config, bp string,
 }
 
 func run(t *testing.T, ctx *android.TestContext, config android.Config) {
+	t.Helper()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	fail(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -165,6 +170,7 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 }
 
 func testJava(t *testing.T, bp string) *android.TestContext {
+	t.Helper()
 	config := testConfig(nil)
 	ctx := testContext(config, bp, nil)
 	run(t, ctx, config)
@@ -247,6 +253,35 @@ func TestArchSpecific(t *testing.T) {
 	if len(javac.Inputs) != 2 || javac.Inputs[0].String() != "a.java" || javac.Inputs[1].String() != "b.java" {
 		t.Errorf(`foo inputs %v != ["a.java", "b.java"]`, javac.Inputs)
 	}
+}
+
+func TestBinary(t *testing.T) {
+	ctx := testJava(t, `
+		java_library_host {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		java_binary_host {
+			name: "bar",
+			srcs: ["b.java"],
+			static_libs: ["foo"],
+		}
+	`)
+
+	buildOS := android.BuildOs.String()
+
+	bar := ctx.ModuleForTests("bar", buildOS+"_common")
+	barJar := bar.Output("bar.jar").Output.String()
+	barWrapper := ctx.ModuleForTests("bar", buildOS+"_x86_64")
+	barWrapperDeps := barWrapper.Output("bar").Implicits.Strings()
+
+	// Test that the install binary wrapper depends on the installed jar file
+	if len(barWrapperDeps) != 1 || barWrapperDeps[0] != barJar {
+		t.Errorf("expected binary wrapper implicits [%q], got %v",
+			barJar, barWrapperDeps)
+	}
+
 }
 
 var classpathTestcases = []struct {
@@ -775,7 +810,62 @@ func TestSharding(t *testing.T) {
 	}
 }
 
+func TestJarGenrules(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		java_genrule {
+			name: "jargen",
+			tool_files: ["b.java"],
+			cmd: "$(location b.java) $(in) $(out)",
+			out: ["jargen.jar"],
+			srcs: [":foo"],
+		}
+
+		java_library {
+			name: "bar",
+			static_libs: ["jargen"],
+			srcs: ["c.java"],
+		}
+
+		java_library {
+			name: "baz",
+			libs: ["jargen"],
+			srcs: ["c.java"],
+		}
+	`)
+
+	foo := ctx.ModuleForTests("foo", "android_common").Output("javac/foo.jar")
+	jargen := ctx.ModuleForTests("jargen", "android_common").Output("jargen.jar")
+	bar := ctx.ModuleForTests("bar", "android_common").Output("javac/bar.jar")
+	baz := ctx.ModuleForTests("baz", "android_common").Output("javac/baz.jar")
+	barCombined := ctx.ModuleForTests("bar", "android_common").Output("combined/bar.jar")
+
+	if len(jargen.Inputs) != 1 || jargen.Inputs[0].String() != foo.Output.String() {
+		t.Errorf("expected jargen inputs [%q], got %q", foo.Output.String(), jargen.Inputs.Strings())
+	}
+
+	if !strings.Contains(bar.Args["classpath"], jargen.Output.String()) {
+		t.Errorf("bar classpath %v does not contain %q", bar.Args["classpath"], jargen.Output.String())
+	}
+
+	if !strings.Contains(baz.Args["classpath"], jargen.Output.String()) {
+		t.Errorf("baz classpath %v does not contain %q", baz.Args["classpath"], jargen.Output.String())
+	}
+
+	if len(barCombined.Inputs) != 2 ||
+		barCombined.Inputs[0].String() != bar.Output.String() ||
+		barCombined.Inputs[1].String() != jargen.Output.String() {
+		t.Errorf("bar combined jar inputs %v is not [%q, %q]",
+			barCombined.Inputs.Strings(), bar.Output.String(), jargen.Output.String())
+	}
+}
+
 func fail(t *testing.T, errs []error) {
+	t.Helper()
 	if len(errs) > 0 {
 		for _, err := range errs {
 			t.Error(err)

@@ -131,7 +131,6 @@ var (
 		"frameworks/native/libs/vr/libbufferhubqueue/",
 		"frameworks/native/libs/vr/libdvr/tests/",
 		"frameworks/native/services/surfaceflinger/tests/",
-		"frameworks/native/services/vr/",
 		"vendor/",
 	}
 
@@ -139,20 +138,15 @@ var (
 	WarningAllowedOldProjects = []string{
 		"cts/hostsidetests/security/securityPatch/",
 		"cts/tests/tests/permission/jni/",
-		"development/tutorials/ReverseDebug/",
 		"frameworks/av/drm/mediacas/plugins/",
 		"frameworks/av/services/mediaextractor/",
-		"frameworks/base/core/tests/webkit/apk_with_native_libs/jni/",
 		"frameworks/base/tests/backup/",
 		"frameworks/native/cmds/cmd/",
 		"frameworks/webview/chromium/",
 		"hardware/libhardware/modules/",
-		"hardware/libhardware/tests/",
 		"hardware/qcom/",
 		"sdk/emulator/mksdcard/",
 		"system/vold/tests/",
-		"test/vts-testcase/kernel/api/qtaguid/",
-		"test/vts-testcase/security/poc/target/",
 		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
 	}
 )
