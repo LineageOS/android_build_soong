@@ -125,7 +125,6 @@ var (
 		"device/",
 		"frameworks/av/media/libeffects/factory/",
 		"frameworks/av/media/libstagefright/codecs/",
-		"frameworks/ml/nn/",
 		"frameworks/native/libs/vr/libbufferhub/",
 		"vendor/",
 	}
