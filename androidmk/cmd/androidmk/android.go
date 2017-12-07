@@ -94,6 +94,8 @@ func init() {
 			"LOCAL_NOTICE_FILE":             "notice",
 			"LOCAL_JAVA_LANGUAGE_VERSION":   "java_version",
 			"LOCAL_INSTRUMENTATION_FOR":     "instrumentation_for",
+
+			"LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING": "dex_preopt.profile",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -151,7 +153,10 @@ func init() {
 			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
-			"LOCAL_DEX_PREOPT":               "dex_preopt",
+
+			"LOCAL_DEX_PREOPT":                  "dex_preopt.enabled",
+			"LOCAL_DEX_PREOPT_APP_IMAGE":        "dex_preopt.app_image",
+			"LOCAL_DEX_PREOPT_GENERATE_PROFILE": "dex_preopt.profile_guided",
 		})
 }
 
