@@ -55,13 +55,15 @@ func (r *RewriteNames) Set(v string) error {
 	return nil
 }
 
-func (r *RewriteNames) Rewrite(name string) string {
+func (r *RewriteNames) MavenToMk(groupId string, artifactId string) string {
 	for _, r := range *r {
-		if r.regexp.MatchString(name) {
-			return r.regexp.ReplaceAllString(name, r.repl)
+		if r.regexp.MatchString(groupId + ":" + artifactId) {
+			return r.regexp.ReplaceAllString(groupId+":"+artifactId, r.repl)
+		} else if r.regexp.MatchString(artifactId) {
+			return r.regexp.ReplaceAllString(artifactId, r.repl)
 		}
 	}
-	return name
+	return artifactId
 }
 
 var rewriteNames = RewriteNames{}
@@ -102,6 +104,7 @@ type Pom struct {
 
 	PomFile      string `xml:"-"`
 	ArtifactFile string `xml:"-"`
+	MakeTarget   string `xml:"-"`
 
 	GroupId    string `xml:"groupId"`
 	ArtifactId string `xml:"artifactId"`
@@ -112,7 +115,10 @@ type Pom struct {
 }
 
 func (p Pom) MkName() string {
-	return rewriteNames.Rewrite(p.ArtifactId)
+	if p.MakeTarget == "" {
+		p.MakeTarget = rewriteNames.MavenToMk(p.GroupId, p.ArtifactId)
+	}
+	return p.MakeTarget
 }
 
 func (p Pom) MkDeps() []string {
@@ -121,7 +127,7 @@ func (p Pom) MkDeps() []string {
 		if d.Type != "aar" {
 			continue
 		}
-		name := rewriteNames.Rewrite(d.ArtifactId)
+		name := rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
 		ret = append(ret, name)
 		ret = append(ret, extraDeps[name]...)
 	}
@@ -137,7 +143,7 @@ func (p *Pom) FixDepTypes(modules map[string]*Pom) {
 		if d.Type != "" {
 			continue
 		}
-		if depPom, ok := modules[d.ArtifactId]; ok {
+		if depPom, ok := modules[p.MkName()]; ok {
 			d.Type = depPom.Packaging
 		}
 	}
@@ -195,9 +201,11 @@ aar libraries can be linked against when using AAPT2.
 Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module>]] <dir>
 
   -rewrite <regex>=<replace>
-     rewrite can be used to specify mappings between the artifactId in the pom files and module
-     names in the Android.mk files. This can be specified multiple times, the first matching
-     regex will be used.
+     rewrite can be used to specify mappings between Maven projects and Make modules. The -rewrite
+     option can be specified multiple times. When determining the Make module for a given Maven
+     project, mappings are searched in the order they were specified. The first <regex> matching
+     either the Maven project's <groupId>:<artifactId> or <artifactId> will be used to generate
+     the Make module name using <replace>. If no matches are found, <artifactId> is used.
   -extra-deps <module>=<module>[,<module>]
      Some Android.mk modules have transitive dependencies that must be specified when they are
      depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
@@ -282,13 +290,14 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 		if pom != nil {
 			poms = append(poms, pom)
+			key := pom.MkName()
 
-			if old, ok := modules[pom.ArtifactId]; ok {
-				fmt.Fprintln(os.Stderr, "Module", pom.ArtifactId, "defined twice:", old.PomFile, pom.PomFile)
+			if old, ok := modules[key]; ok {
+				fmt.Fprintln(os.Stderr, "Module", key, "defined twice:", old.PomFile, pom.PomFile)
 				os.Exit(1)
 			}
 
-			modules[pom.ArtifactId] = pom
+			modules[key] = pom
 		}
 	}
 
