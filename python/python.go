@@ -242,6 +242,14 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 	}
 }
 
+func (p *Module) HostToolPath() android.OptionalPath {
+	if p.installer == nil {
+		// python_library is just meta module, and doesn't have any installer.
+		return android.OptionalPath{}
+	}
+	return android.OptionalPathForPath(p.installer.(*binaryDecorator).path)
+}
+
 func (p *Module) isEmbeddedLauncherEnabled(actual_version string) bool {
 	switch actual_version {
 	case pyVersion2:
