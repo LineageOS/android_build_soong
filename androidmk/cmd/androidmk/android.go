@@ -49,7 +49,6 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_CLASS":          prebuiltClass,
 	"LOCAL_MODULE_STEM":           stem,
 	"LOCAL_MODULE_HOST_OS":        hostOs,
-	"LOCAL_SRC_FILES":             srcFiles,
 	"LOCAL_SANITIZE":              sanitize(""),
 	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
 	"LOCAL_CFLAGS":                cflags,
@@ -99,6 +98,7 @@ func init() {
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
+			"LOCAL_SRC_FILES":                     "srcs",
 			"LOCAL_SRC_FILES_EXCLUDE":             "exclude_srcs",
 			"LOCAL_HEADER_LIBRARIES":              "header_libs",
 			"LOCAL_SHARED_LIBRARIES":              "shared_libs",
@@ -387,50 +387,6 @@ func hostOs(ctx variableAssignmentContext) error {
 	}
 
 	return err
-}
-
-func splitSrcsLogtags(value bpparser.Expression) (string, bpparser.Expression, error) {
-	switch v := value.(type) {
-	case *bpparser.Variable:
-		// TODO: attempt to split variables?
-		return "srcs", value, nil
-	case *bpparser.Operator:
-		// TODO: attempt to handle expressions?
-		return "srcs", value, nil
-	case *bpparser.String:
-		if strings.HasSuffix(v.Value, ".logtags") {
-			return "logtags", value, nil
-		}
-		return "srcs", value, nil
-	default:
-		return "", nil, fmt.Errorf("splitSrcsLogtags expected a string, got %s", value.Type())
-	}
-
-}
-
-func srcFiles(ctx variableAssignmentContext) error {
-	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
-	if err != nil {
-		return err
-	}
-
-	lists, err := splitBpList(val, splitSrcsLogtags)
-
-	if srcs, ok := lists["srcs"]; ok && !emptyList(srcs) {
-		err = setVariable(ctx.file, ctx.append, ctx.prefix, "srcs", srcs, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	if logtags, ok := lists["logtags"]; ok && !emptyList(logtags) {
-		err = setVariable(ctx.file, true, ctx.prefix, "logtags", logtags, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func sanitize(sub string) func(ctx variableAssignmentContext) error {

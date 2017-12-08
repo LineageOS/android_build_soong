@@ -60,6 +60,9 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 		OutputFile: c.outputFile,
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
+				if len(c.Properties.Logtags) > 0 {
+					fmt.Fprintln(w, "LOCAL_LOGTAGS_FILES :=", strings.Join(c.Properties.Logtags, " "))
+				}
 				fmt.Fprintln(w, "LOCAL_SANITIZE := never")
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
