@@ -214,10 +214,6 @@ type commonProperties struct {
 	// whether this module is device specific and should be installed into /vendor
 	Vendor *bool
 
-	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
-	// file
-	Logtags []string
-
 	// init.rc files to be installed if this module is installed
 	Init_rc []string
 

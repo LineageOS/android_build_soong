@@ -224,9 +224,6 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 			fmt.Fprintln(&data.preamble, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 		}
 
-		if len(amod.commonProperties.Logtags) > 0 {
-			fmt.Fprintln(&data.preamble, "LOCAL_LOGTAGS_FILES := ", strings.Join(amod.commonProperties.Logtags, " "))
-		}
 		if len(amod.commonProperties.Init_rc) > 0 {
 			fmt.Fprintln(&data.preamble, "LOCAL_INIT_RC := ", strings.Join(amod.commonProperties.Init_rc, " "))
 		}
