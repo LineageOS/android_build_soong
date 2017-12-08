@@ -36,8 +36,18 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 				}
 				if library.dexJarFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
-					if library.deviceProperties.Dex_preopt != nil && *library.deviceProperties.Dex_preopt == false {
-						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+					if library.deviceProperties.Dex_preopt.Enabled != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT :=", *library.deviceProperties.Dex_preopt.Enabled)
+					}
+					if library.deviceProperties.Dex_preopt.App_image != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_APP_IMAGE :=", *library.deviceProperties.Dex_preopt.App_image)
+					}
+					if library.deviceProperties.Dex_preopt.Profile_guided != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_GENERATE_PROFILE :=", *library.deviceProperties.Dex_preopt.Profile_guided)
+					}
+					if library.deviceProperties.Dex_preopt.Profile != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_GENERATE_PROFILE := true")
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING := $(LOCAL_PATH)/"+*library.deviceProperties.Dex_preopt.Profile)
 					}
 				}
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(library.deviceProperties.Sdk_version))
