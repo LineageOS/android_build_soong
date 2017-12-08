@@ -277,7 +277,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	genDir := android.PathForModuleGen(ctx)
-	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, genDir, rawCommand, depfilePlaceholder)
+	// Escape the command for the shell
+	rawCommand = "'" + strings.Replace(rawCommand, "'", `'\''`, -1) + "'"
+	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %s %s $allouts",
+		sandboxPath, genDir, rawCommand, depfilePlaceholder)
 
 	ruleParams := blueprint.RuleParams{
 		Command:     sandboxCommand,
