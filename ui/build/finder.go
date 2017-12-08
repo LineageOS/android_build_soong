@@ -80,17 +80,8 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 		ctx.Fatalf("Could not find modules: %v", err)
 	}
 
-	isBlueprintFile := func(dir finder.DirEntries) (dirs []string, files []string) {
-		files = []string{}
-		for _, file := range dir.FileNames {
-			if file == "Android.bp" || file == "Blueprints" {
-				files = append(files, file)
-			}
-		}
-
-		return dir.DirNames, files
-	}
-	androidBps := f.FindMatching(".", isBlueprintFile)
+	androidBps := f.FindNamedAt(".", "Android.bp")
+	androidBps = append(androidBps, f.FindNamedAt("build/blueprint", "Blueprints")...)
 	err = dumpListToFile(androidBps, filepath.Join(dumpDir, "Android.bp.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find modules: %v", err)
