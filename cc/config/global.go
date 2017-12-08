@@ -125,12 +125,8 @@ var (
 		"device/",
 		"frameworks/av/media/libeffects/factory/",
 		"frameworks/av/media/libstagefright/codecs/",
-		"frameworks/base/tools/streaming_proto/",
 		"frameworks/ml/nn/",
 		"frameworks/native/libs/vr/libbufferhub/",
-		"frameworks/native/libs/vr/libbufferhubqueue/",
-		"frameworks/native/libs/vr/libdvr/tests/",
-		"frameworks/native/services/surfaceflinger/tests/",
 		"vendor/",
 	}
 
@@ -140,8 +136,6 @@ var (
 		"cts/tests/tests/permission/jni/",
 		"frameworks/av/drm/mediacas/plugins/",
 		"frameworks/av/services/mediaextractor/",
-		"frameworks/base/tests/backup/",
-		"frameworks/native/cmds/cmd/",
 		"frameworks/webview/chromium/",
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
