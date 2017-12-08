@@ -164,6 +164,10 @@ type BaseProperties struct {
 	PreventInstall      bool     `blueprint:"mutated"`
 
 	UseVndk bool `blueprint:"mutated"`
+
+	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
+	// file
+	Logtags []string
 }
 
 type VendorProperties struct {
