@@ -142,12 +142,6 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	toolFiles := ctx.ExpandSources(g.properties.Tool_files, nil)
-	if len(g.properties.Tools) == 0 && len(toolFiles) == 0 {
-		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
-		return
-	}
-
 	if len(g.properties.Export_include_dirs) > 0 {
 		for _, dir := range g.properties.Export_include_dirs {
 			g.exportedIncludeDirs = append(g.exportedIncludeDirs,
@@ -210,6 +204,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	toolFiles := ctx.ExpandSources(g.properties.Tool_files, nil)
 	for _, tool := range toolFiles {
 		g.deps = append(g.deps, tool)
 		if _, exists := tools[tool.Rel()]; !exists {
@@ -227,6 +222,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	rawCommand, err := android.Expand(task.cmd, func(name string) (string, error) {
 		switch name {
 		case "location":
+			if len(g.properties.Tools) == 0 && len(toolFiles) == 0 {
+				return "", fmt.Errorf("at least one `tools` or `tool_files` is required if $(location) is used")
+			}
+
 			if len(g.properties.Tools) > 0 {
 				return tools[g.properties.Tools[0]].String(), nil
 			} else {
