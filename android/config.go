@@ -552,3 +552,7 @@ func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	}
 	return prefixInList(path, *c.ProductVariables.IntegerOverflowExcludePaths)
 }
+
+func (c *deviceConfig) TargetHeaderPathDir() string {
+	return String(c.config.ProductVariables.TargetHeaderPath)
+}
