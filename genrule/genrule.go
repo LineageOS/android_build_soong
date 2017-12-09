@@ -131,6 +131,7 @@ func (g *Module) GeneratedHeaderDirs() android.Paths {
 
 func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, g.properties.Srcs)
+	android.ExtractSourcesDeps(ctx, g.properties.Tool_files)
 	if g, ok := ctx.Module().(*Module); ok {
 		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
@@ -141,7 +142,8 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
+	toolFiles := ctx.ExpandSources(g.properties.Tool_files, nil)
+	if len(g.properties.Tools) == 0 && len(toolFiles) == 0 {
 		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
 		return
 	}
@@ -208,13 +210,12 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	for _, tool := range g.properties.Tool_files {
-		toolPath := android.PathForModuleSrc(ctx, tool)
-		g.deps = append(g.deps, toolPath)
-		if _, exists := tools[tool]; !exists {
-			tools[tool] = toolPath
+	for _, tool := range toolFiles {
+		g.deps = append(g.deps, tool)
+		if _, exists := tools[tool.Rel()]; !exists {
+			tools[tool.Rel()] = tool
 		} else {
-			ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], toolPath.String())
+			ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool.Rel()], tool.Rel())
 		}
 	}
 
@@ -229,7 +230,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if len(g.properties.Tools) > 0 {
 				return tools[g.properties.Tools[0]].String(), nil
 			} else {
-				return tools[g.properties.Tool_files[0]].String(), nil
+				return tools[toolFiles[0].Rel()].String(), nil
 			}
 		case "in":
 			return "${in}", nil
