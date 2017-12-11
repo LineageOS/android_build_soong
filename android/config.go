@@ -295,10 +295,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 func (c *config) fromEnv() error {
 	switch c.Getenv("EXPERIMENTAL_USE_OPENJDK9") {
 	case "":
-		if c.Getenv("RUN_ERROR_PRONE") != "true" {
-			// Use OpenJDK9, but target 1.8
-			c.useOpenJDK9 = true
-		}
+		// Use OpenJDK8
 	case "false":
 		// Use OpenJDK8
 	case "1.8":
@@ -309,7 +306,7 @@ func (c *config) fromEnv() error {
 		c.useOpenJDK9 = true
 		c.targetOpenJDK9 = true
 	default:
-		return fmt.Errorf(`Invalid value for EXPERIMENTAL_USE_OPENJDK9, should be "", "false", "1.8", or "true"`)
+		return fmt.Errorf(`Invalid value for EXPERIMENTAL_USE_OPENJDK9, should be "", "1.8", or "true"`)
 	}
 
 	return nil
