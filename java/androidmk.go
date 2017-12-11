@@ -31,13 +31,31 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
+				if len(library.logtagsSrcs) > 0 {
+					var logtags []string
+					for _, l := range library.logtagsSrcs {
+						logtags = append(logtags, l.Rel())
+					}
+					fmt.Fprintln(w, "LOCAL_LOGTAGS_FILES :=", strings.Join(logtags, " "))
+				}
+
 				if library.properties.Installable != nil && *library.properties.Installable == false {
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				}
 				if library.dexJarFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
-					if library.deviceProperties.Dex_preopt != nil && *library.deviceProperties.Dex_preopt == false {
-						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+					if library.deviceProperties.Dex_preopt.Enabled != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT :=", *library.deviceProperties.Dex_preopt.Enabled)
+					}
+					if library.deviceProperties.Dex_preopt.App_image != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_APP_IMAGE :=", *library.deviceProperties.Dex_preopt.App_image)
+					}
+					if library.deviceProperties.Dex_preopt.Profile_guided != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_GENERATE_PROFILE :=", *library.deviceProperties.Dex_preopt.Profile_guided)
+					}
+					if library.deviceProperties.Dex_preopt.Profile != nil {
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_GENERATE_PROFILE := true")
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING := $(LOCAL_PATH)/"+*library.deviceProperties.Dex_preopt.Profile)
 					}
 				}
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(library.deviceProperties.Sdk_version))
