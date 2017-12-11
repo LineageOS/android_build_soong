@@ -150,16 +150,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
 			return override
 		}
-		v, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK9")
-		if !ok {
-			v2, ok2 := ret.environ.Get("RUN_ERROR_PRONE")
-			if ok2 && (v2 == "true") {
-				v = "false"
-			} else {
-				v = "1.8"
-			}
-		}
-		if v != "false" {
+		if v, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK9"); ok && v != "" && v != "false" {
 			return filepath.Join("prebuilts/jdk/jdk9", ret.HostPrebuiltTag())
 		}
 		return filepath.Join("prebuilts/jdk/jdk8", ret.HostPrebuiltTag())
