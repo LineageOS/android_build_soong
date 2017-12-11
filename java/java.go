@@ -1031,7 +1031,7 @@ type Binary struct {
 
 	isWrapperVariant bool
 
-	wrapperFile android.SourcePath
+	wrapperFile android.Path
 	binaryFile  android.OutputPath
 }
 
@@ -1048,7 +1048,13 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.isWrapperVariant = true
 
 		if String(j.binaryProperties.Wrapper) != "" {
-			j.wrapperFile = android.PathForModuleSrc(ctx, String(j.binaryProperties.Wrapper)).SourcePath
+			wrapperSrcs := ctx.ExpandSources([]string{String(j.binaryProperties.Wrapper)}, nil)
+			if len(wrapperSrcs) == 1 {
+				j.wrapperFile = wrapperSrcs[0]
+			} else {
+				ctx.PropertyErrorf("wrapper", "module providing wrapper must produce exactly one file")
+				return
+			}
 		} else {
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 		}
@@ -1065,6 +1071,8 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Arch().ArchType == android.Common {
 		j.deps(ctx)
+	} else {
+		android.ExtractSourcesDeps(ctx, []string{String(j.binaryProperties.Wrapper)})
 	}
 }
 
