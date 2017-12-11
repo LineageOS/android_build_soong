@@ -132,8 +132,6 @@ var (
 
 	// Some Android.mk files still have warnings.
 	WarningAllowedOldProjects = []string{
-		"cts/hostsidetests/security/securityPatch/",
-		"cts/tests/tests/permission/jni/",
 		"frameworks/av/drm/mediacas/plugins/",
 		"frameworks/av/services/mediaextractor/",
 		"frameworks/webview/chromium/",
