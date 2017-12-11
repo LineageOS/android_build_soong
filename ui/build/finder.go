@@ -38,15 +38,28 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 	if err != nil {
 		ctx.Fatalf("No working directory for module-finder: %v", err.Error())
 	}
+	filesystem := fs.OsFs
+
+	// if the root dir is ignored, then the subsequent error messages are very confusing,
+	// so check for that upfront
+	pruneFiles := []string{".out-dir", ".find-ignore"}
+	for _, name := range pruneFiles {
+		prunePath := filepath.Join(dir, name)
+		_, statErr := filesystem.Lstat(prunePath)
+		if statErr == nil {
+			ctx.Fatalf("%v must not exist", prunePath)
+		}
+	}
+
 	cacheParams := finder.CacheParams{
 		WorkingDirectory: dir,
 		RootDirs:         []string{"."},
 		ExcludeDirs:      []string{".git", ".repo"},
-		PruneFiles:       []string{".out-dir", ".find-ignore"},
+		PruneFiles:       pruneFiles,
 		IncludeFiles:     []string{"Android.mk", "Android.bp", "Blueprints", "CleanSpec.mk", "TEST_MAPPING"},
 	}
 	dumpDir := config.FileListDir()
-	f, err = finder.New(cacheParams, fs.OsFs, logger.New(ioutil.Discard),
+	f, err = finder.New(cacheParams, filesystem, logger.New(ioutil.Discard),
 		filepath.Join(dumpDir, "files.db"))
 	if err != nil {
 		ctx.Fatalf("Could not create module-finder: %v", err)
@@ -82,6 +95,9 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 
 	androidBps := f.FindNamedAt(".", "Android.bp")
 	androidBps = append(androidBps, f.FindNamedAt("build/blueprint", "Blueprints")...)
+	if len(androidBps) == 0 {
+		ctx.Fatalf("No Android.bp found")
+	}
 	err = dumpListToFile(androidBps, filepath.Join(dumpDir, "Android.bp.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find modules: %v", err)
