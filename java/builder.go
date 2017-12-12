@@ -161,6 +161,20 @@ var (
 		},
 		"outDir", "dxFlags")
 
+	d8 = pctx.AndroidStaticRule("d8",
+		blueprint.RuleParams{
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+				`${config.D8Cmd} --output $outDir $dxFlags $in && ` +
+				`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
+				`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
+			CommandDeps: []string{
+				"${config.DxCmd}",
+				"${config.SoongZipCmd}",
+				"${config.MergeZipsCmd}",
+			},
+		},
+		"outDir", "dxFlags")
+
 	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
 			Command:     "${config.JavaCmd} -jar ${config.JarjarCmd} process $rulesFile $in $out",
@@ -420,9 +434,15 @@ func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.W
 
 	outDir := android.PathForModuleOut(ctx, "dex")
 
+	rule := dx
+	desc := "dx"
+	if ctx.AConfig().IsEnvTrue("USE_D8_DESUGAR") {
+		rule = d8
+		desc = "d8"
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        dx,
-		Description: "dx",
+		Rule:        rule,
+		Description: desc,
 		Output:      outputFile,
 		Input:       classesJar,
 		Args: map[string]string{
