@@ -125,22 +125,18 @@ var (
 		"device/",
 		"frameworks/av/media/libeffects/factory/",
 		"frameworks/av/media/libstagefright/codecs/",
-		"frameworks/ml/nn/",
 		"frameworks/native/libs/vr/libbufferhub/",
 		"vendor/",
 	}
 
 	// Some Android.mk files still have warnings.
 	WarningAllowedOldProjects = []string{
-		"cts/hostsidetests/security/securityPatch/",
-		"cts/tests/tests/permission/jni/",
 		"frameworks/av/drm/mediacas/plugins/",
 		"frameworks/av/services/mediaextractor/",
 		"frameworks/webview/chromium/",
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
 		"sdk/emulator/mksdcard/",
-		"system/vold/tests/",
 		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
 	}
 )

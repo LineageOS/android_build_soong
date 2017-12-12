@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"android/soong/ui/build"
@@ -159,6 +160,30 @@ func (s *Status) Finished() int {
 	return s.failed
 }
 
+// TODO(b/70370883): This tool uses a lot of open files -- over the default
+// soft limit of 1024 on some systems. So bump up to the hard limit until I fix
+// the algorithm.
+func setMaxFiles(log logger.Logger) {
+	var limits syscall.Rlimit
+
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limits)
+	if err != nil {
+		log.Println("Failed to get file limit:", err)
+		return
+	}
+
+	log.Verbosef("Current file limits: %d soft, %d hard", limits.Cur, limits.Max)
+	if limits.Cur == limits.Max {
+		return
+	}
+
+	limits.Cur = limits.Max
+	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limits)
+	if err != nil {
+		log.Println("Failed to increase file limit:", err)
+	}
+}
+
 func inList(str string, list []string) bool {
 	for _, other := range list {
 		if str == other {
@@ -227,6 +252,8 @@ func main() {
 		log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
 		trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
 	}
+
+	setMaxFiles(log)
 
 	vars, err := build.DumpMakeVars(buildCtx, config, nil, []string{"all_named_products"})
 	if err != nil {

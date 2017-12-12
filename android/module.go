@@ -106,6 +106,7 @@ type ModuleContext interface {
 	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
 
 	ExpandSources(srcFiles, excludes []string) Paths
+	ExpandSource(srcFile, prop string) Path
 	ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths
 	Glob(globPattern string, excludes []string) Paths
 
@@ -1005,8 +1006,8 @@ type sourceDependencyTag struct {
 
 var SourceDepTag sourceDependencyTag
 
-// Returns a list of modules that must be depended on to satisfy filegroup or generated sources
-// modules listed in srcFiles using ":module" syntax
+// Adds necessary dependencies to satisfy filegroup or generated sources modules listed in srcFiles
+// using ":module" syntax, if any.
 func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 	var deps []string
 	set := make(map[string]bool)
@@ -1025,6 +1026,16 @@ func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 	ctx.AddDependency(ctx.Module(), SourceDepTag, deps...)
 }
 
+// Adds necessary dependencies to satisfy filegroup or generated sources modules specified in s
+// using ":module" syntax, if any.
+func ExtractSourceDeps(ctx BottomUpMutatorContext, s *string) {
+	if s != nil {
+		if m := SrcIsModule(*s); m != "" {
+			ctx.AddDependency(ctx.Module(), SourceDepTag, m)
+		}
+	}
+}
+
 type SourceFileProducer interface {
 	Srcs() Paths
 }
@@ -1033,6 +1044,18 @@ type SourceFileProducer interface {
 // ExtractSourcesDeps must have already been called during the dependency resolution phase.
 func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
 	return ctx.ExpandSourcesSubDir(srcFiles, excludes, "")
+}
+
+// Returns a single path expanded from globs and modules referenced using ":module" syntax.
+// ExtractSourceDeps must have already been called during the dependency resolution phase.
+func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
+	srcFiles := ctx.ExpandSourcesSubDir([]string{srcFile}, nil, "")
+	if len(srcFiles) == 1 {
+		return srcFiles[0]
+	} else {
+		ctx.PropertyErrorf(prop, "module providing %s must produce exactly one file", prop)
+		return nil
+	}
 }
 
 func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {

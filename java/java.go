@@ -390,6 +390,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
+	android.ExtractSourceDeps(ctx, j.properties.Manifest)
 
 	if j.hasSrcExt(".proto") {
 		protoDeps(ctx, &j.protoProperties)
@@ -671,6 +672,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// Store the list of .java files that was passed to javac
 	j.compiledJavaSrcs = uniqueSrcFiles
 	j.compiledSrcJars = srcJars
+	fullD8 := ctx.AConfig().IsEnvTrue("USE_D8_DESUGAR")
 
 	enable_sharding := false
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
@@ -763,7 +765,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// static classpath jars have the resources in them, so the resource jars aren't necessary here
 	jars = append(jars, deps.staticJars...)
 
-	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
+	var manifest android.OptionalPath
+	if j.properties.Manifest != nil {
+		manifest = android.OptionalPathForPath(ctx.ExpandSource(*j.properties.Manifest, "manifest"))
+	}
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar. If there is only one input jar this step will be skipped.
@@ -793,7 +798,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		j.headerJarFile = j.implementationJarFile
 	}
 
-	if ctx.Device() && j.installable() {
+	if !fullD8 && ctx.Device() && j.installable() {
 		outputFile = j.desugar(ctx, flags, outputFile, jarName)
 	}
 
@@ -808,7 +813,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	if ctx.Device() && j.installable() {
-		outputFile = j.compileDex(ctx, flags, outputFile, jarName)
+		if fullD8 {
+			outputFile = j.compileDexFullD8(ctx, flags, outputFile, jarName)
+		} else {
+			outputFile = j.compileDex(ctx, flags, outputFile, jarName)
+		}
 		if ctx.Failed() {
 			return
 		}
@@ -896,15 +905,6 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
 	dxFlags := j.deviceProperties.Dxflags
-	if false /* emma enabled */ {
-		// If you instrument class files that have local variable debug information in
-		// them emma does not correctly maintain the local variable table.
-		// This will cause an error when you try to convert the class files for Android.
-		// The workaround here is to build different dex file here based on emma switch
-		// then later copy into classes.dex. When emma is on, dx is run with --no-locals
-		// option to remove local variable information
-		dxFlags = append(dxFlags, "--no-locals")
-	}
 
 	if ctx.Config().Getenv("NO_OPTIMIZE_DX") != "" {
 		dxFlags = append(dxFlags, "--no-optimize")
@@ -919,6 +919,51 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	}
 
 	dxFlags = append(dxFlags, "--min-sdk-version="+j.minSdkVersionNumber(ctx))
+
+	flags.dxFlags = strings.Join(dxFlags, " ")
+
+	// Compile classes.jar into classes.dex and then javalib.jar
+	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
+	TransformClassesJarToDexJar(ctx, javalibJar, classesJar, flags)
+
+	j.dexJarFile = javalibJar
+	return javalibJar
+}
+
+func (j *Module) compileDexFullD8(ctx android.ModuleContext, flags javaBuilderFlags,
+	classesJar android.Path, jarName string) android.Path {
+
+	// Translate all the DX flags to D8 ones until all the build files have been migrated
+	// to D8 flags. See: b/69377755
+	var dxFlags []string
+	for _, x := range j.deviceProperties.Dxflags {
+		if x == "--core-library" {
+			continue
+		}
+		if x == "--dex" {
+			continue
+		}
+		if x == "--multi-dex" {
+			continue
+		}
+		if x == "--no-locals" {
+			dxFlags = append(dxFlags, "--release")
+			continue
+		}
+		dxFlags = append(dxFlags, x)
+	}
+
+	if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {
+		dxFlags = append(dxFlags, "--debug")
+	}
+
+	if ctx.AConfig().Getenv("GENERATE_DEX_DEBUG") != "" {
+		dxFlags = append(dxFlags,
+			"--debug",
+			"--verbose")
+	}
+
+	dxFlags = append(dxFlags, "--min-api "+j.minSdkVersionNumber(ctx))
 
 	flags.dxFlags = strings.Join(dxFlags, " ")
 
@@ -1031,7 +1076,7 @@ type Binary struct {
 
 	isWrapperVariant bool
 
-	wrapperFile android.SourcePath
+	wrapperFile android.Path
 	binaryFile  android.OutputPath
 }
 
@@ -1047,8 +1092,8 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// Handle the binary wrapper
 		j.isWrapperVariant = true
 
-		if String(j.binaryProperties.Wrapper) != "" {
-			j.wrapperFile = android.PathForModuleSrc(ctx, String(j.binaryProperties.Wrapper)).SourcePath
+		if j.binaryProperties.Wrapper != nil {
+			j.wrapperFile = ctx.ExpandSource(*j.binaryProperties.Wrapper, "wrapper")
 		} else {
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 		}
@@ -1065,6 +1110,8 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Arch().ArchType == android.Common {
 		j.deps(ctx)
+	} else {
+		android.ExtractSourceDeps(ctx, j.binaryProperties.Wrapper)
 	}
 }
 

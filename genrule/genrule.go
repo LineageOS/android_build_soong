@@ -131,6 +131,7 @@ func (g *Module) GeneratedHeaderDirs() android.Paths {
 
 func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, g.properties.Srcs)
+	android.ExtractSourcesDeps(ctx, g.properties.Tool_files)
 	if g, ok := ctx.Module().(*Module); ok {
 		if len(g.properties.Tools) > 0 {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
@@ -141,11 +142,6 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
-		ctx.ModuleErrorf("at least one `tools` or `tool_files` is required")
-		return
-	}
-
 	if len(g.properties.Export_include_dirs) > 0 {
 		for _, dir := range g.properties.Export_include_dirs {
 			g.exportedIncludeDirs = append(g.exportedIncludeDirs,
@@ -208,13 +204,13 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	for _, tool := range g.properties.Tool_files {
-		toolPath := android.PathForModuleSrc(ctx, tool)
-		g.deps = append(g.deps, toolPath)
-		if _, exists := tools[tool]; !exists {
-			tools[tool] = toolPath
+	toolFiles := ctx.ExpandSources(g.properties.Tool_files, nil)
+	for _, tool := range toolFiles {
+		g.deps = append(g.deps, tool)
+		if _, exists := tools[tool.Rel()]; !exists {
+			tools[tool.Rel()] = tool
 		} else {
-			ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], toolPath.String())
+			ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool.Rel()], tool.Rel())
 		}
 	}
 
@@ -226,10 +222,14 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	rawCommand, err := android.Expand(task.cmd, func(name string) (string, error) {
 		switch name {
 		case "location":
+			if len(g.properties.Tools) == 0 && len(toolFiles) == 0 {
+				return "", fmt.Errorf("at least one `tools` or `tool_files` is required if $(location) is used")
+			}
+
 			if len(g.properties.Tools) > 0 {
 				return tools[g.properties.Tools[0]].String(), nil
 			} else {
-				return tools[g.properties.Tool_files[0]].String(), nil
+				return tools[toolFiles[0].Rel()].String(), nil
 			}
 		case "in":
 			return "${in}", nil
@@ -277,7 +277,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	genDir := android.PathForModuleGen(ctx)
-	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %q %s $allouts", sandboxPath, genDir, rawCommand, depfilePlaceholder)
+	// Escape the command for the shell
+	rawCommand = "'" + strings.Replace(rawCommand, "'", `'\''`, -1) + "'"
+	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %s %s $allouts",
+		sandboxPath, genDir, rawCommand, depfilePlaceholder)
 
 	ruleParams := blueprint.RuleParams{
 		Command:     sandboxCommand,
