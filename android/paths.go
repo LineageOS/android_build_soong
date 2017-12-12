@@ -906,8 +906,17 @@ func PathForPhony(ctx PathContext, phony string) WritablePath {
 	if strings.ContainsAny(phony, "$/") {
 		reportPathError(ctx, "Phony target contains invalid character ($ or /): %s", phony)
 	}
-	return OutputPath{basePath{phony, ctx.Config(), ""}}
+	return PhonyPath{basePath{phony, ctx.Config(), ""}}
 }
+
+type PhonyPath struct {
+	basePath
+}
+
+func (p PhonyPath) writablePath() {}
+
+var _ Path = PhonyPath{}
+var _ WritablePath = PhonyPath{}
 
 type testPath struct {
 	basePath
