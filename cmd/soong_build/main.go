@@ -25,6 +25,14 @@ import (
 	"android/soong/android"
 )
 
+var (
+	docFile string
+)
+
+func init() {
+	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
+}
+
 func newNameResolver(config android.Config) *android.NameResolver {
 	namespacePathsToExport := make(map[string]bool)
 
@@ -56,9 +64,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	if docFile != "" {
+		configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
+	}
+
 	ctx.SetNameInterface(newNameResolver(configuration))
 
 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 
 	bootstrap.Main(ctx.Context, configuration, configuration.ConfigFileName, configuration.ProductVariablesFileName)
+
+	if docFile != "" {
+		writeDocs(ctx, docFile)
+	}
 }
