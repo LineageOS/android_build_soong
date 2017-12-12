@@ -390,6 +390,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
+	android.ExtractSourceDeps(ctx, j.properties.Manifest)
 
 	if j.hasSrcExt(".proto") {
 		protoDeps(ctx, &j.protoProperties)
@@ -764,7 +765,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// static classpath jars have the resources in them, so the resource jars aren't necessary here
 	jars = append(jars, deps.staticJars...)
 
-	manifest := android.OptionalPathForModuleSrc(ctx, j.properties.Manifest)
+	var manifest android.OptionalPath
+	if j.properties.Manifest != nil {
+		manifest = android.OptionalPathForPath(ctx.ExpandSource(*j.properties.Manifest, "manifest"))
+	}
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar. If there is only one input jar this step will be skipped.
@@ -1088,14 +1092,8 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// Handle the binary wrapper
 		j.isWrapperVariant = true
 
-		if String(j.binaryProperties.Wrapper) != "" {
-			wrapperSrcs := ctx.ExpandSources([]string{String(j.binaryProperties.Wrapper)}, nil)
-			if len(wrapperSrcs) == 1 {
-				j.wrapperFile = wrapperSrcs[0]
-			} else {
-				ctx.PropertyErrorf("wrapper", "module providing wrapper must produce exactly one file")
-				return
-			}
+		if j.binaryProperties.Wrapper != nil {
+			j.wrapperFile = ctx.ExpandSource(*j.binaryProperties.Wrapper, "wrapper")
 		} else {
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 		}
@@ -1113,7 +1111,7 @@ func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Arch().ArchType == android.Common {
 		j.deps(ctx)
 	} else {
-		android.ExtractSourcesDeps(ctx, []string{String(j.binaryProperties.Wrapper)})
+		android.ExtractSourceDeps(ctx, j.binaryProperties.Wrapper)
 	}
 }
 
