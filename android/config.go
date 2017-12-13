@@ -584,6 +584,10 @@ func (c *config) Android64() bool {
 	return false
 }
 
+func (c *config) UseD8Desugar() bool {
+	return c.IsEnvTrue("USE_D8_DESUGAR")
+}
+
 func (c *config) UseGoma() bool {
 	return Bool(c.ProductVariables.UseGoma)
 }
