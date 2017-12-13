@@ -120,7 +120,6 @@ var (
 	ClangDefaultShortVersion = "5.0.1"
 
 	WarningAllowedProjects = []string{
-		"external/libese/third_party/NXPNFC_P61_JCOP_Kit/",
 		"external/skia/",
 		"device/",
 		"frameworks/av/media/libstagefright/codecs/",
