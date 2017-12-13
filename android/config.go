@@ -648,6 +648,10 @@ func (c *deviceConfig) VndkVersion() string {
 	return String(c.config.ProductVariables.DeviceVndkVersion)
 }
 
+func (c *deviceConfig) PlatformVndkVersion() string {
+	return String(c.config.ProductVariables.Platform_vndk_version)
+}
+
 func (c *deviceConfig) ExtraVndkVersions() []string {
 	return c.config.ProductVariables.ExtraVndkVersions
 }
