@@ -23,6 +23,7 @@ bootstrap_go_binary {
     ],
     srcs: [
         "main.go",
+        "writedocs.go",
     ],
     primaryBuilder: true,
 }
