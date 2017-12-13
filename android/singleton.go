@@ -34,7 +34,7 @@ type SingletonContext interface {
 	Failed() bool
 
 	Variable(pctx PackageContext, name, value string)
-	Rule(pctx PackageContext, name string, params RuleParams, argNames ...string) blueprint.Rule
+	Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
 	Build(pctx PackageContext, params BuildParams)
 	RequireNinjaVersion(major, minor, micro int)
 
@@ -94,8 +94,8 @@ func (s singletonContextAdaptor) Variable(pctx PackageContext, name, value strin
 	s.SingletonContext.Variable(pctx.PackageContext, name, value)
 }
 
-func (s singletonContextAdaptor) Rule(pctx PackageContext, name string, params RuleParams, argNames ...string) blueprint.Rule {
-	return s.SingletonContext.Rule(pctx.PackageContext, name, params.RuleParams, argNames...)
+func (s singletonContextAdaptor) Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule {
+	return s.SingletonContext.Rule(pctx.PackageContext, name, params, argNames...)
 }
 
 func (s singletonContextAdaptor) Build(pctx PackageContext, params BuildParams) {
