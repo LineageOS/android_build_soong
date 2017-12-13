@@ -720,13 +720,14 @@ func (library *libraryDecorator) toc() android.OptionalPath {
 
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if library.shared() {
-		if ctx.Device() {
-			if ctx.useVndk() {
-				if ctx.isVndkSp() {
-					library.baseInstaller.subDir = "vndk-sp"
-				} else if ctx.isVndk() {
-					library.baseInstaller.subDir = "vndk"
-				}
+		if ctx.Device() && ctx.useVndk() {
+			if ctx.isVndkSp() {
+				library.baseInstaller.subDir = "vndk-sp"
+			} else if ctx.isVndk() {
+				library.baseInstaller.subDir = "vndk"
+			}
+			if ctx.isVndk() && ctx.DeviceConfig().PlatformVndkVersion() != "current" {
+				library.baseInstaller.subDir += "-" + ctx.DeviceConfig().PlatformVndkVersion()
 			}
 		}
 		library.baseInstaller.install(ctx, file)

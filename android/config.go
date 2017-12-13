@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -67,6 +68,7 @@ type config struct {
 	FileConfigurableOptions
 	ProductVariables productVariables
 
+	PrimaryBuilder           string
 	ConfigFileName           string
 	ProductVariablesFileName string
 
@@ -90,6 +92,8 @@ type config struct {
 
 	useOpenJDK9    bool // Use OpenJDK9, but possibly target 1.8
 	targetOpenJDK9 bool // Use OpenJDK9 and target 1.9
+
+	stopBefore bootstrap.StopBefore
 
 	OncePer
 }
@@ -312,13 +316,21 @@ func (c *config) fromEnv() error {
 	return nil
 }
 
-func (c *config) RemoveAbandonedFiles() bool {
-	return false
+func (c *config) StopBefore() bootstrap.StopBefore {
+	return c.stopBefore
 }
+
+func (c *config) SetStopBefore(stopBefore bootstrap.StopBefore) {
+	c.stopBefore = stopBefore
+}
+
+var _ bootstrap.ConfigStopBefore = (*config)(nil)
 
 func (c *config) BlueprintToolLocation() string {
 	return filepath.Join(c.buildDir, "host", c.PrebuiltOS(), "bin")
 }
+
+var _ bootstrap.ConfigBlueprintToolLocation = (*config)(nil)
 
 // HostSystemTool looks for non-hermetic tools from the system we're running on.
 // Generally shouldn't be used, but useful to find the XCode SDK, etc.
@@ -634,6 +646,10 @@ func (c *deviceConfig) VendorPath() string {
 
 func (c *deviceConfig) VndkVersion() string {
 	return String(c.config.ProductVariables.DeviceVndkVersion)
+}
+
+func (c *deviceConfig) PlatformVndkVersion() string {
+	return String(c.config.ProductVariables.Platform_vndk_version)
 }
 
 func (c *deviceConfig) ExtraVndkVersions() []string {

@@ -125,7 +125,6 @@ var (
 		"device/",
 		"frameworks/av/media/libeffects/factory/",
 		"frameworks/av/media/libstagefright/codecs/",
-		"frameworks/native/libs/vr/libbufferhub/",
 		"vendor/",
 	}
 
@@ -133,10 +132,8 @@ var (
 	WarningAllowedOldProjects = []string{
 		"frameworks/av/drm/mediacas/plugins/",
 		"frameworks/av/services/mediaextractor/",
-		"frameworks/webview/chromium/",
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
-		"sdk/emulator/mksdcard/",
 		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
 	}
 )

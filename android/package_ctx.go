@@ -248,11 +248,6 @@ func (p PackageContext) PrefixedExistentPathsForSourcesVariable(
 	})
 }
 
-type RuleParams struct {
-	blueprint.RuleParams
-	GomaSupported bool
-}
-
 // AndroidStaticRule wraps blueprint.StaticRule and provides a default Pool if none is specified
 func (p PackageContext) AndroidStaticRule(name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
