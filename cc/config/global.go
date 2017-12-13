@@ -132,7 +132,6 @@ var (
 	WarningAllowedOldProjects = []string{
 		"frameworks/av/drm/mediacas/plugins/",
 		"frameworks/av/services/mediaextractor/",
-		"frameworks/webview/chromium/",
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
 		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
