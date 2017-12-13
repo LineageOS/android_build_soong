@@ -116,6 +116,7 @@ type productVariables struct {
 	Platform_sdk_final                *bool    `json:",omitempty"`
 	Platform_version_active_codenames []string `json:",omitempty"`
 	Platform_version_future_codenames []string `json:",omitempty"`
+	Platform_vndk_version             *string  `json:",omitempty"`
 
 	DeviceName        *string   `json:",omitempty"`
 	DeviceArch        *string   `json:",omitempty"`
