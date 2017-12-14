@@ -42,6 +42,9 @@ type PgoProperties struct {
 		Profile_file       *string `android:"arch_variant"`
 		Benchmarks         []string
 		Enable_profile_use *bool `android:"arch_variant"`
+		// Additional compiler flags to use when building this module
+		// for profiling (either instrumentation or sampling).
+		Cflags []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
 	PgoPresent          bool `blueprint:"mutated"`
@@ -65,6 +68,8 @@ func (pgo *pgo) props() []interface{} {
 }
 
 func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
+	flags.CFlags = append(flags.CFlags, props.Pgo.Cflags...)
+
 	if props.isInstrumentation() {
 		flags.CFlags = append(flags.CFlags, profileInstrumentFlag)
 		// The profile runtime is added below in deps().  Add the below
