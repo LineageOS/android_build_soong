@@ -180,6 +180,8 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if Bool(app.appProperties.Privileged) {
 					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
 				}
+
+				fmt.Fprintln(w, "LOCAL_CERTIFICATE :=", app.certificate.pem.String())
 			},
 		},
 	}
