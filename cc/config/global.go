@@ -122,7 +122,6 @@ var (
 	WarningAllowedProjects = []string{
 		"external/skia/",
 		"device/",
-		"frameworks/av/media/libstagefright/codecs/",
 		"vendor/",
 	}
 
