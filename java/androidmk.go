@@ -177,6 +177,9 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 
 				fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", app.manifestPath.String())
 
+				if Bool(app.appProperties.Privileged) {
+					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
+				}
 			},
 		},
 	}
