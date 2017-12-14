@@ -153,6 +153,7 @@ func init() {
 			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
+			"LOCAL_PRIVILEGED_MODULE":        "privileged",
 
 			"LOCAL_DEX_PREOPT":                  "dex_preopt.enabled",
 			"LOCAL_DEX_PREOPT_APP_IMAGE":        "dex_preopt.app_image",
