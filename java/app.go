@@ -61,6 +61,11 @@ type androidAppProperties struct {
 	Resource_dirs []string
 
 	Instrumentation_for *string
+
+	// Specifies that this app should be installed to the priv-app directory,
+	// where the system will grant it additional privileges not available to
+	// normal apps.
+	Privileged *bool
 }
 
 type AndroidApp struct {
@@ -152,6 +157,8 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
+	} else if Bool(a.appProperties.Privileged) {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app"), ctx.ModuleName()+".apk", a.outputFile)
 	} else {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
 	}
