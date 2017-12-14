@@ -200,8 +200,9 @@ type javaBuilderFlags struct {
 	kotlincFlags     string
 	kotlincClasspath classpath
 
-	protoFlags   []string
-	protoOutFlag string
+	protoFlags       []string
+	protoOutTypeFlag string // The flag itself: --java_out
+	protoOutParams   string // Parameters to that flag: --java_out=$protoOutParams:$outDir
 }
 
 func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,

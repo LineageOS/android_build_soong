@@ -120,18 +120,14 @@ var (
 	ClangDefaultShortVersion = "5.0.1"
 
 	WarningAllowedProjects = []string{
-		"external/libese/third_party/NXPNFC_P61_JCOP_Kit/",
 		"external/skia/",
 		"device/",
-		"frameworks/av/media/libeffects/factory/",
-		"frameworks/av/media/libstagefright/codecs/",
 		"vendor/",
 	}
 
 	// Some Android.mk files still have warnings.
 	WarningAllowedOldProjects = []string{
 		"frameworks/av/drm/mediacas/plugins/",
-		"frameworks/av/services/mediaextractor/",
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
 		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
