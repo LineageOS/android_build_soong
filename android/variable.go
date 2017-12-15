@@ -70,7 +70,22 @@ type variableProperties struct {
 		// treble is true when a build is a Treble compliant device.  This is automatically set when
 		// a build is shipped with Android O, but can be overriden.  This controls such things as
 		// the sepolicy split and enabling the Treble linker namespaces.
+		// TODO(b/62019611): remove
 		Treble struct {
+			Cflags []string
+		}
+
+		// treble_linker_namespaces is true when the system/vendor linker namespace separation is
+		// enabled.
+		Treble_linker_namespaces struct {
+			Cflags []string
+		}
+		// sepolicy_split is true when system/vendor sepolicy split is enabled.
+		Sepolicy_split struct {
+			Cflags []string
+		}
+		// enforce_vintf_manifest is true when a device is required to have a vintf manifest.
+		Enforce_vintf_manifest struct {
 			Cflags []string
 		}
 
@@ -163,6 +178,9 @@ type productVariables struct {
 	Eng                        *bool `json:",omitempty"`
 	Device_uses_hwc2           *bool `json:",omitempty"`
 	Treble                     *bool `json:",omitempty"`
+	Treble_linker_namespaces   *bool `json:",omitempty"`
+	Sepolicy_split             *bool `json:",omitempty"`
+	Enforce_vintf_manifest     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
 	Uml                        *bool `json:",omitempty"`
 	Arc                        *bool `json:",omitempty"`
