@@ -128,7 +128,6 @@ var (
 	WarningAllowedOldProjects = []string{
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
-		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
 	}
 )
 
