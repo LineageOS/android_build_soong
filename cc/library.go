@@ -733,7 +733,8 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 		library.baseInstaller.install(ctx, file)
 	}
 
-	if Bool(library.Properties.Static_ndk_lib) && library.static() {
+	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
+		!ctx.useVndk() && ctx.Device() {
 		installPath := getNdkSysrootBase(ctx).Join(
 			ctx, "usr/lib", ctx.toolchain().ClangTriple(), file.Base())
 
