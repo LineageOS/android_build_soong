@@ -120,7 +120,6 @@ var (
 	ClangDefaultShortVersion = "5.0.1"
 
 	WarningAllowedProjects = []string{
-		"external/skia/",
 		"device/",
 		"vendor/",
 	}
