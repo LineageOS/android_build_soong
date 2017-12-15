@@ -127,7 +127,6 @@ var (
 
 	// Some Android.mk files still have warnings.
 	WarningAllowedOldProjects = []string{
-		"frameworks/av/drm/mediacas/plugins/",
 		"hardware/libhardware/modules/",
 		"hardware/qcom/",
 		"tools/adt/idea/android/ultimate/get_modification_time/jni/",
