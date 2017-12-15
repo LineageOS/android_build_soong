@@ -19,6 +19,25 @@ import (
 	"fmt"
 )
 
+func getNdkStlFamily(ctx android.ModuleContext, m *Module) string {
+	stl := m.stl.Properties.SelectedStl
+	switch stl {
+	case "ndk_libc++_shared", "ndk_libc++_static":
+		return "libc++"
+	case "ndk_libstlport_shared", "ndk_libstlport_static":
+		return "stlport"
+	case "ndk_libgnustl_static":
+		return "gnustl"
+	case "ndk_system":
+		return "system"
+	case "":
+		return "none"
+	default:
+		ctx.ModuleErrorf("stl: %q is not a valid STL", stl)
+		return ""
+	}
+}
+
 type StlProperties struct {
 	// select the STL library to use.  Possible values are "libc++", "libc++_static",
 	// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
