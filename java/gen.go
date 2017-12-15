@@ -107,7 +107,7 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	if len(protoFiles) > 0 {
 		protoSrcJar := android.PathForModuleGen(ctx, "proto.srcjar")
 		genProto(ctx, protoSrcJar, protoFiles,
-			flags.protoFlags, flags.protoOutFlag, "")
+			flags.protoFlags, flags.protoOutTypeFlag, flags.protoOutParams)
 
 		outSrcFiles = append(outSrcFiles, protoSrcJar)
 	}
