@@ -1422,7 +1422,9 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		mctx.CreateVariations(vendorMode)
 	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		// ... and LL-NDK headers as well
-		mctx.CreateVariations(vendorMode)
+		mod := mctx.CreateVariations(vendorMode)
+		vendor := mod[0].(*Module)
+		vendor.Properties.UseVndk = true
 	} else if _, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.

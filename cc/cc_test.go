@@ -61,6 +61,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(toolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(llndkLibraryFactory))
+	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(objectFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -138,6 +139,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 		"bar.c":      nil,
 		"a.proto":    nil,
 		"b.aidl":     nil,
+		"my_include": nil,
 	})
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -580,6 +582,34 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 			actual,
 			expected,
 		)
+	}
+}
+
+func TestLlndkHeaders(t *testing.T) {
+	ctx := testCc(t, `
+	llndk_headers {
+		name: "libllndk_headers",
+		export_include_dirs: ["my_include"],
+	}
+	llndk_library {
+		name: "libllndk",
+		export_llndk_headers: ["libllndk_headers"],
+	}
+	cc_library {
+		name: "libvendor",
+		shared_libs: ["libllndk"],
+		vendor: true,
+		srcs: ["foo.c"],
+		no_libgcc : true,
+		nocrt : true,
+	}
+	`)
+
+	// _static variant is used since _shared reuses *.o from the static variant
+	cc := ctx.ModuleForTests("libvendor", "android_arm_armv7-a-neon_vendor_static").Rule("cc")
+	cflags := cc.Args["cFlags"]
+	if !strings.Contains(cflags, "-Imy_include") {
+		t.Errorf("cflags for libvendor must contain -Imy_include, but was %#v.", cflags)
 	}
 }
 
