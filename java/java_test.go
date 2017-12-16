@@ -705,43 +705,61 @@ func TestKotlin(t *testing.T) {
 	ctx := testJava(t, `
 		java_library {
 			name: "foo",
-                        srcs: ["a.java", "b.kt"],
+			srcs: ["a.java", "b.kt"],
 		}
 
 		java_library {
 			name: "bar",
-                        srcs: ["b.kt"],
+			srcs: ["b.kt"],
+			libs: ["foo"],
+			static_libs: ["baz"],
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["c.java"],
 		}
 		`)
 
-	kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	jar := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
+	fooKotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
+	fooJavac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+	fooJar := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
 
-	if len(kotlinc.Inputs) != 2 || kotlinc.Inputs[0].String() != "a.java" ||
-		kotlinc.Inputs[1].String() != "b.kt" {
-		t.Errorf(`foo kotlinc inputs %v != ["a.java", "b.kt"]`, kotlinc.Inputs)
+	if len(fooKotlinc.Inputs) != 2 || fooKotlinc.Inputs[0].String() != "a.java" ||
+		fooKotlinc.Inputs[1].String() != "b.kt" {
+		t.Errorf(`foo kotlinc inputs %v != ["a.java", "b.kt"]`, fooKotlinc.Inputs)
 	}
 
-	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
-		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
+	if len(fooJavac.Inputs) != 1 || fooJavac.Inputs[0].String() != "a.java" {
+		t.Errorf(`foo inputs %v != ["a.java"]`, fooJavac.Inputs)
 	}
 
-	if !strings.Contains(javac.Args["classpath"], kotlinc.Output.String()) {
+	if !strings.Contains(fooJavac.Args["classpath"], fooKotlinc.Output.String()) {
 		t.Errorf("foo classpath %v does not contain %q",
-			javac.Args["classpath"], kotlinc.Output.String())
+			fooJavac.Args["classpath"], fooKotlinc.Output.String())
 	}
 
-	if !inList(kotlinc.Output.String(), jar.Inputs.Strings()) {
+	if !inList(fooKotlinc.Output.String(), fooJar.Inputs.Strings()) {
 		t.Errorf("foo jar inputs %v does not contain %q",
-			jar.Inputs.Strings(), kotlinc.Output.String())
+			fooJar.Inputs.Strings(), fooKotlinc.Output.String())
 	}
 
-	kotlinc = ctx.ModuleForTests("bar", "android_common").Rule("kotlinc")
-	jar = ctx.ModuleForTests("bar", "android_common").Output("combined/bar.jar")
+	fooHeaderJar := ctx.ModuleForTests("foo", "android_common").Output("turbine-combined/foo.jar")
+	bazHeaderJar := ctx.ModuleForTests("baz", "android_common").Output("turbine-combined/baz.jar")
+	barKotlinc := ctx.ModuleForTests("bar", "android_common").Rule("kotlinc")
 
-	if len(kotlinc.Inputs) != 1 || kotlinc.Inputs[0].String() != "b.kt" {
-		t.Errorf(`bar kotlinc inputs %v != ["b.kt"]`, kotlinc.Inputs)
+	if len(barKotlinc.Inputs) != 1 || barKotlinc.Inputs[0].String() != "b.kt" {
+		t.Errorf(`bar kotlinc inputs %v != ["b.kt"]`, barKotlinc.Inputs)
+	}
+
+	if !inList(fooHeaderJar.Output.String(), barKotlinc.Implicits.Strings()) {
+		t.Errorf(`expected %q in bar implicits %v`,
+			fooHeaderJar.Output.String(), barKotlinc.Implicits.Strings())
+	}
+
+	if !inList(bazHeaderJar.Output.String(), barKotlinc.Implicits.Strings()) {
+		t.Errorf(`expected %q in bar implicits %v`,
+			bazHeaderJar.Output.String(), barKotlinc.Implicits.Strings())
 	}
 }
 
@@ -754,7 +772,7 @@ func TestTurbine(t *testing.T) {
 
 		java_library {
 			name: "bar",
-                        srcs: ["b.java"],
+			srcs: ["b.java"],
 			static_libs: ["foo"],
 		}
 
