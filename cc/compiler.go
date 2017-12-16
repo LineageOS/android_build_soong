@@ -522,7 +522,7 @@ func ndkPathDeps(ctx ModuleContext) android.Paths {
 	if ctx.useSdk() {
 		// The NDK sysroot timestamp file depends on all the NDK sysroot files
 		// (headers and libraries).
-		return android.Paths{getNdkSysrootTimestampFile(ctx)}
+		return android.Paths{getNdkBaseTimestampFile(ctx)}
 	}
 	return nil
 }
