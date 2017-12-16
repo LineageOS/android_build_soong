@@ -74,7 +74,16 @@ func getNdkSysrootBase(ctx android.PathContext) android.OutputPath {
 	return getNdkInstallBase(ctx).Join(ctx, "sysroot")
 }
 
-func getNdkSysrootTimestampFile(ctx android.PathContext) android.WritablePath {
+// The base timestamp file depends on the NDK headers and stub shared libraries,
+// but not the static libraries. This distinction is needed because the static
+// libraries themselves might need to depend on the base sysroot.
+func getNdkBaseTimestampFile(ctx android.PathContext) android.WritablePath {
+	return android.PathForOutput(ctx, "ndk_base.timestamp")
+}
+
+// The full timestamp file depends on the base timestamp *and* the static
+// libraries.
+func getNdkFullTimestampFile(ctx android.PathContext) android.WritablePath {
 	return android.PathForOutput(ctx, "ndk.timestamp")
 }
 
@@ -85,6 +94,7 @@ func NdkSingleton() android.Singleton {
 type ndkSingleton struct{}
 
 func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	var staticLibInstallPaths android.Paths
 	var installPaths android.Paths
 	var licensePaths android.Paths
 	ctx.VisitAllModules(func(module android.Module) {
@@ -109,7 +119,8 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 			if library, ok := m.linker.(*libraryDecorator); ok {
 				if library.ndkSysrootPath != nil {
-					installPaths = append(installPaths, library.ndkSysrootPath)
+					staticLibInstallPaths = append(
+						staticLibInstallPaths, library.ndkSysrootPath)
 				}
 			}
 		}
@@ -123,13 +134,21 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		Inputs:      licensePaths,
 	})
 
-	depPaths := append(installPaths, combinedLicense)
+	baseDepPaths := append(installPaths, combinedLicense)
 
 	// There's a dummy "ndk" rule defined in ndk/Android.mk that depends on
 	// this. `m ndk` will build the sysroots.
 	ctx.Build(pctx, android.BuildParams{
 		Rule:      android.Touch,
-		Output:    getNdkSysrootTimestampFile(ctx),
-		Implicits: depPaths,
+		Output:    getNdkBaseTimestampFile(ctx),
+		Implicits: baseDepPaths,
+	})
+
+	fullDepPaths := append(staticLibInstallPaths, getNdkBaseTimestampFile(ctx))
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:      android.Touch,
+		Output:    getNdkFullTimestampFile(ctx),
+		Implicits: fullDepPaths,
 	})
 }
