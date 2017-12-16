@@ -214,11 +214,15 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 	inputs := append(android.Paths(nil), srcFiles...)
 	inputs = append(inputs, srcJars...)
 
+	var deps android.Paths
+	deps = append(deps, flags.kotlincClasspath...)
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        kotlinc,
 		Description: "kotlinc",
 		Output:      outputFile,
 		Inputs:      inputs,
+		Implicits:   deps,
 		Args: map[string]string{
 			"classpath":    flags.kotlincClasspath.FormJavaClassPath("-classpath"),
 			"kotlincFlags": flags.kotlincFlags,
