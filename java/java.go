@@ -142,6 +142,11 @@ type CompilerProperties struct {
 		Exclude_filter []string
 	}
 
+	Proto struct {
+		// List of extra options that will be passed to the proto generator.
+		Output_params []string
+	}
+
 	Instrument bool `blueprint:"mutated"`
 }
 
@@ -620,7 +625,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
 	if hasSrcExt(srcFiles.Strings(), ".proto") {
-		flags = protoFlags(ctx, &j.protoProperties, flags)
+		flags = protoFlags(ctx, &j.properties, &j.protoProperties, flags)
 	}
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
