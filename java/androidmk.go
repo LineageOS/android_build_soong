@@ -156,6 +156,12 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if app.dexJarFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", app.dexJarFile.String())
 				}
+				if app.implementationJarFile != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", app.implementationJarFile)
+				}
+				if app.headerJarFile != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", app.headerJarFile.String())
+				}
 				if app.jacocoReportClassesFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", app.jacocoReportClassesFile.String())
 				}
