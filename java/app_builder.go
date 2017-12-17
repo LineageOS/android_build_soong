@@ -61,7 +61,7 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	resJarFile, dexJarFile android.Path, certificates []string) {
+	resJarFile, dexJarFile android.Path, certificates []certificate) {
 
 	// TODO(ccross): JNI libs
 
@@ -80,7 +80,7 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 
 	var certificateArgs []string
 	for _, c := range certificates {
-		certificateArgs = append(certificateArgs, c+".x509.pem", c+".pk8")
+		certificateArgs = append(certificateArgs, c.pem.String(), c.key.String())
 	}
 
 	// TODO(ccross): sometimes uncompress dex

@@ -77,7 +77,9 @@ func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 	}
 }
 
-func protoFlags(ctx android.ModuleContext, p *android.ProtoProperties, flags javaBuilderFlags) javaBuilderFlags {
+func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.ProtoProperties,
+	flags javaBuilderFlags) javaBuilderFlags {
+
 	switch proptools.String(p.Proto.Type) {
 	case "micro":
 		flags.protoOutTypeFlag = "--javamicro_out"
@@ -91,6 +93,13 @@ func protoFlags(ctx android.ModuleContext, p *android.ProtoProperties, flags jav
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
 			proptools.String(p.Proto.Type))
+	}
+
+	if len(j.Proto.Output_params) > 0 {
+		if flags.protoOutParams != "" {
+			flags.protoOutParams += ","
+		}
+		flags.protoOutParams += strings.Join(j.Proto.Output_params, ",")
 	}
 
 	flags.protoFlags = android.ProtoFlags(ctx, p)

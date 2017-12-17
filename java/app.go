@@ -61,6 +61,11 @@ type androidAppProperties struct {
 	Resource_dirs []string
 
 	Instrumentation_for *string
+
+	// Specifies that this app should be installed to the priv-app directory,
+	// where the system will grant it additional privileges not available to
+	// normal apps.
+	Privileged *bool
 }
 
 type AndroidApp struct {
@@ -72,6 +77,11 @@ type AndroidApp struct {
 	exportPackage android.Path
 	rroDirs       android.Paths
 	manifestPath  android.Path
+	certificate   certificate
+}
+
+type certificate struct {
+	pem, key android.Path
 }
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -127,18 +137,30 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
 
-	certificate := String(a.appProperties.Certificate)
-	if certificate == "" {
-		certificate = ctx.Config().DefaultAppCertificate(ctx).String()
-	} else if dir, _ := filepath.Split(certificate); dir == "" {
-		certificate = filepath.Join(ctx.Config().DefaultAppCertificateDir(ctx).String(), certificate)
-	} else {
-		certificate = filepath.Join(android.PathForSource(ctx).String(), certificate)
+	c := String(a.appProperties.Certificate)
+	switch {
+	case c == "":
+		pem, key := ctx.Config().DefaultAppCertificate(ctx)
+		a.certificate = certificate{pem, key}
+	case strings.ContainsRune(c, '/'):
+		a.certificate = certificate{
+			android.PathForSource(ctx, c+".x509.pem"),
+			android.PathForSource(ctx, c+".pk8"),
+		}
+	default:
+		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
+		a.certificate = certificate{
+			defaultDir.Join(ctx, c+".x509.pem"),
+			defaultDir.Join(ctx, c+".pk8"),
+		}
 	}
 
-	certificates := []string{certificate}
+	certificates := []certificate{a.certificate}
 	for _, c := range a.appProperties.Additional_certificates {
-		certificates = append(certificates, filepath.Join(android.PathForSource(ctx).String(), c))
+		certificates = append(certificates, certificate{
+			android.PathForSource(ctx, c+".x509.pem"),
+			android.PathForSource(ctx, c+".pk8"),
+		})
 	}
 
 	packageFile := android.PathForModuleOut(ctx, "package.apk")
@@ -152,6 +174,8 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
+	} else if Bool(a.appProperties.Privileged) {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app"), ctx.ModuleName()+".apk", a.outputFile)
 	} else {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
 	}

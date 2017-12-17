@@ -153,6 +153,7 @@ func init() {
 			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
+			"LOCAL_PRIVILEGED_MODULE":        "privileged",
 
 			"LOCAL_DEX_PREOPT":                  "dex_preopt.enabled",
 			"LOCAL_DEX_PREOPT_APP_IMAGE":        "dex_preopt.app_image",
@@ -636,22 +637,15 @@ func mydir(args []string) string {
 	return "."
 }
 
-func allJavaFilesUnder(args []string) string {
-	dir := ""
-	if len(args) > 0 {
-		dir = strings.TrimSpace(args[0])
+func allFilesUnder(wildcard string) func(args []string) string {
+	return func(args []string) string {
+		dir := ""
+		if len(args) > 0 {
+			dir = strings.TrimSpace(args[0])
+		}
+
+		return fmt.Sprintf("%s/**/"+wildcard, dir)
 	}
-
-	return fmt.Sprintf("%s/**/*.java", dir)
-}
-
-func allProtoFilesUnder(args []string) string {
-	dir := ""
-	if len(args) > 0 {
-		dir = strings.TrimSpace(args[0])
-	}
-
-	return fmt.Sprintf("%s/**/*.proto", dir)
 }
 
 func allSubdirJavaFiles(args []string) string {
@@ -695,8 +689,11 @@ func androidScope() mkparser.Scope {
 	globalScope := mkparser.NewScope(nil)
 	globalScope.Set("CLEAR_VARS", clear_vars)
 	globalScope.SetFunc("my-dir", mydir)
-	globalScope.SetFunc("all-java-files-under", allJavaFilesUnder)
-	globalScope.SetFunc("all-proto-files-under", allProtoFilesUnder)
+	globalScope.SetFunc("all-java-files-under", allFilesUnder("*.java"))
+	globalScope.SetFunc("all-proto-files-under", allFilesUnder("*.proto"))
+	globalScope.SetFunc("all-aidl-files-under", allFilesUnder("*.aidl"))
+	globalScope.SetFunc("all-Iaidl-files-under", allFilesUnder("I*.aidl"))
+	globalScope.SetFunc("all-logtags-files-under", allFilesUnder("*.logtags"))
 	globalScope.SetFunc("all-subdir-java-files", allSubdirJavaFiles)
 	globalScope.SetFunc("all-makefiles-under", includeIgnored)
 	globalScope.SetFunc("first-makefiles-under", includeIgnored)

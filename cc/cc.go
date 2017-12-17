@@ -1036,6 +1036,27 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module) {
 		ctx.ModuleErrorf("links %q built against newer API version %q",
 			ctx.OtherModuleName(to), String(to.Properties.Sdk_version))
 	}
+
+	// Also check that the two STL choices are compatible.
+	fromStl := from.stl.Properties.SelectedStl
+	toStl := to.stl.Properties.SelectedStl
+	if fromStl == "" || toStl == "" {
+		// Libraries that don't use the STL are unrestricted.
+		return
+	}
+
+	if fromStl == "ndk_system" || toStl == "ndk_system" {
+		// We can be permissive with the system "STL" since it is only the C++
+		// ABI layer, but in the future we should make sure that everyone is
+		// using either libc++ or nothing.
+		return
+	}
+
+	if getNdkStlFamily(ctx, from) != getNdkStlFamily(ctx, to) {
+		ctx.ModuleErrorf("uses %q and depends on %q which uses incompatible %q",
+			from.stl.Properties.SelectedStl, ctx.OtherModuleName(to),
+			to.stl.Properties.SelectedStl)
+	}
 }
 
 // Convert dependencies to paths.  Returns a PathDeps containing paths
@@ -1423,7 +1444,9 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		mctx.CreateVariations(vendorMode)
 	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		// ... and LL-NDK headers as well
-		mctx.CreateVariations(vendorMode)
+		mod := mctx.CreateVariations(vendorMode)
+		vendor := mod[0].(*Module)
+		vendor.Properties.UseVndk = true
 	} else if _, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.

@@ -191,7 +191,6 @@ func (headers *llndkHeadersDecorator) Name(name string) string {
 func llndkHeadersFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.HeaderOnly()
-	library.setStatic()
 
 	decorator := &llndkHeadersDecorator{
 		libraryDecorator: library,
