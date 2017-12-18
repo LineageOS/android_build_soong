@@ -132,17 +132,14 @@ type Module struct {
 	// pathMapping: <dest: runfile_path, src: source_path>
 	dataPathMappings []pathMapping
 
-	// soong_zip arguments of all its dependencies.
-	depsParSpecs []parSpec
+	// the zip filepath for zipping current module source/data files.
+	srcsZip android.Path
 
-	// Python runfiles paths of all its dependencies.
-	depsPyRunfiles []string
+	// dependency modules' zip filepath for zipping current module source/data files.
+	depsSrcsZips android.Paths
 
 	// (.intermediate) module output path as installation source.
 	installSource android.OptionalPath
-
-	// the soong_zip arguments for zipping current module source/data files.
-	parSpec parSpec
 
 	subAndroidMkOnce map[subAndroidMkProvider]bool
 }
@@ -156,9 +153,9 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 
 type bootstrapper interface {
 	bootstrapperProps() []interface{}
-	bootstrap(ctx android.ModuleContext, Actual_version string, embedded_launcher bool,
-		srcsPathMappings []pathMapping, parSpec parSpec,
-		depsPyRunfiles []string, depsParSpecs []parSpec) android.OptionalPath
+	bootstrap(ctx android.ModuleContext, ActualVersion string, embeddedLauncher bool,
+		srcsPathMappings []pathMapping, srcsZip android.Path,
+		depsSrcsZips android.Paths) android.OptionalPath
 }
 
 type installer interface {
@@ -168,7 +165,7 @@ type installer interface {
 type PythonDependency interface {
 	GetSrcsPathMappings() []pathMapping
 	GetDataPathMappings() []pathMapping
-	GetParSpec() parSpec
+	GetSrcsZip() android.Path
 }
 
 func (p *Module) GetSrcsPathMappings() []pathMapping {
@@ -179,8 +176,8 @@ func (p *Module) GetDataPathMappings() []pathMapping {
 	return p.dataPathMappings
 }
 
-func (p *Module) GetParSpec() parSpec {
-	return p.parSpec
+func (p *Module) GetSrcsZip() android.Path {
+	return p.srcsZip
 }
 
 var _ PythonDependency = (*Module)(nil)
@@ -339,13 +336,12 @@ func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if p.bootstrapper != nil {
 		// TODO(nanzhang): Since embedded launcher is not supported for Python3 for now,
 		// so we initialize "embedded_launcher" to false.
-		embedded_launcher := false
+		embeddedLauncher := false
 		if p.properties.Actual_version == pyVersion2 {
-			embedded_launcher = p.isEmbeddedLauncherEnabled(pyVersion2)
+			embeddedLauncher = p.isEmbeddedLauncherEnabled(pyVersion2)
 		}
 		p.installSource = p.bootstrapper.bootstrap(ctx, p.properties.Actual_version,
-			embedded_launcher, p.srcsPathMappings, p.parSpec, p.depsPyRunfiles,
-			p.depsParSpecs)
+			embeddedLauncher, p.srcsPathMappings, p.srcsZip, p.depsSrcsZips)
 	}
 
 	if p.installer != nil && p.installSource.Valid() {
@@ -378,11 +374,11 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 	expandedData := ctx.ExpandSources(p.properties.Data, nil)
 
 	// sanitize pkg_path.
-	pkg_path := String(p.properties.Pkg_path)
-	if pkg_path != "" {
-		pkg_path = filepath.Clean(String(p.properties.Pkg_path))
-		if pkg_path == ".." || strings.HasPrefix(pkg_path, "../") ||
-			strings.HasPrefix(pkg_path, "/") {
+	pkgPath := String(p.properties.Pkg_path)
+	if pkgPath != "" {
+		pkgPath = filepath.Clean(String(p.properties.Pkg_path))
+		if pkgPath == ".." || strings.HasPrefix(pkgPath, "../") ||
+			strings.HasPrefix(pkgPath, "/") {
 			ctx.PropertyErrorf("pkg_path",
 				"%q must be a relative path contained in par file.",
 				String(p.properties.Pkg_path))
@@ -390,31 +386,31 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 		}
 		if p.properties.Is_internal != nil && *p.properties.Is_internal {
 			// pkg_path starts from "internal/" implicitly.
-			pkg_path = filepath.Join(internal, pkg_path)
+			pkgPath = filepath.Join(internal, pkgPath)
 		} else {
 			// pkg_path starts from "runfiles/" implicitly.
-			pkg_path = filepath.Join(runFiles, pkg_path)
+			pkgPath = filepath.Join(runFiles, pkgPath)
 		}
 	} else {
 		if p.properties.Is_internal != nil && *p.properties.Is_internal {
 			// pkg_path starts from "runfiles/" implicitly.
-			pkg_path = internal
+			pkgPath = internal
 		} else {
 			// pkg_path starts from "runfiles/" implicitly.
-			pkg_path = runFiles
+			pkgPath = runFiles
 		}
 	}
 
-	p.genModulePathMappings(ctx, pkg_path, expandedSrcs, expandedData)
-
-	p.parSpec = p.dumpFileList(ctx, pkg_path)
+	p.genModulePathMappings(ctx, pkgPath, expandedSrcs, expandedData)
 
 	p.uniqWholeRunfilesTree(ctx)
+
+	p.srcsZip = p.createSrcsZip(ctx, pkgPath)
 }
 
 // generate current module unique pathMappings: <dest: runfiles_path, src: source_path>
 // for python/data files.
-func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkg_path string,
+func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkgPath string,
 	expandedSrcs, expandedData android.Paths) {
 	// fetch <runfiles_path, source_path> pairs from "src" and "data" properties to
 	// check duplicates.
@@ -426,7 +422,7 @@ func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkg_path strin
 			ctx.PropertyErrorf("srcs", "found non (.py) file: %q!", s.String())
 			continue
 		}
-		runfilesPath := filepath.Join(pkg_path, s.Rel())
+		runfilesPath := filepath.Join(pkgPath, s.Rel())
 		identifiers := strings.Split(strings.TrimSuffix(runfilesPath, pyExt), "/")
 		for _, token := range identifiers {
 			if !pyIdentifierRegexp.MatchString(token) {
@@ -445,7 +441,7 @@ func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkg_path strin
 			ctx.PropertyErrorf("data", "found (.py) file: %q!", d.String())
 			continue
 		}
-		runfilesPath := filepath.Join(pkg_path, d.Rel())
+		runfilesPath := filepath.Join(pkgPath, d.Rel())
 		if fillInMap(ctx, destToPyData, runfilesPath, d.String(), p.Name(), p.Name()) {
 			p.dataPathMappings = append(p.dataPathMappings,
 				pathMapping{dest: runfilesPath, src: d})
@@ -454,12 +450,9 @@ func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkg_path strin
 
 }
 
-// register build actions to dump filelist to disk.
-func (p *Module) dumpFileList(ctx android.ModuleContext, pkg_path string) parSpec {
+// register build actions to zip current module's sources.
+func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) android.Path {
 	relativeRootMap := make(map[string]android.Paths)
-	// the soong_zip params in order to pack current module's Python/data files.
-	ret := parSpec{rootPrefix: pkg_path}
-
 	pathMappings := append(p.srcsPathMappings, p.dataPathMappings...)
 
 	// "srcs" or "data" properties may have filegroup so it might happen that
@@ -482,15 +475,29 @@ func (p *Module) dumpFileList(ctx android.ModuleContext, pkg_path string) parSpe
 	}
 	sort.Strings(keys)
 
+	parArgs := []string{}
+	parArgs = append(parArgs, `-P `+pkgPath)
+	implicits := android.Paths{}
 	for _, k := range keys {
-		// use relative root as filelist name.
-		fileListPath := registerBuildActionForModuleFileList(
-			ctx, strings.Replace(k, "/", "_", -1), relativeRootMap[k])
-		ret.fileListSpecs = append(ret.fileListSpecs,
-			fileListSpec{fileList: fileListPath, relativeRoot: k})
+		parArgs = append(parArgs, `-C `+k)
+		for _, path := range relativeRootMap[k] {
+			parArgs = append(parArgs, `-f `+path.String())
+			implicits = append(implicits, path)
+		}
 	}
 
-	return ret
+	srcsZip := android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        zip,
+		Description: "python library archive",
+		Output:      srcsZip,
+		Implicits:   implicits,
+		Args: map[string]string{
+			"args": strings.Join(parArgs, " "),
+		},
+	})
+
+	return srcsZip
 }
 
 func isPythonLibModule(module blueprint.Module) bool {
@@ -537,9 +544,6 @@ func (p *Module) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 					ctx.OtherModuleName(module)) {
 					continue
 				}
-				// binary needs the Python runfiles paths from all its
-				// dependencies to fill __init__.py in each runfiles dir.
-				p.depsPyRunfiles = append(p.depsPyRunfiles, path.dest)
 			}
 			data := dep.GetDataPathMappings()
 			for _, path := range data {
@@ -547,9 +551,7 @@ func (p *Module) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 					path.dest, path.src.String(), ctx.ModuleName(),
 					ctx.OtherModuleName(module))
 			}
-			// binary needs the soong_zip arguments from all its
-			// dependencies to generate executable par file.
-			p.depsParSpecs = append(p.depsParSpecs, dep.GetParSpec())
+			p.depsSrcsZips = append(p.depsSrcsZips, dep.GetSrcsZip())
 		}
 	})
 }
