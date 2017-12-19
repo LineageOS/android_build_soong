@@ -76,7 +76,7 @@ func (j *Module) jacocoModuleToZipCommand(ctx android.ModuleContext) string {
 func jacocoFiltersToZipCommand(includes, excludes []string) string {
 	specs := ""
 	if len(excludes) > 0 {
-		specs += android.JoinWithPrefix(excludes, "-x") + " "
+		specs += android.JoinWithPrefix(excludes, "-x ") + " "
 	}
 	if len(includes) > 0 {
 		specs += strings.Join(includes, " ")
@@ -113,6 +113,8 @@ func jacocoFilterToSpec(filter string) (string, error) {
 		spec += "**/*.class"
 	} else if wildcard {
 		spec += "*.class"
+	} else {
+		spec += ".class"
 	}
 
 	return spec, nil
