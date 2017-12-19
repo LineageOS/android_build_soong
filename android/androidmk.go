@@ -169,7 +169,7 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 		data.Include = "$(BUILD_PREBUILT)"
 	}
 
-	data.Required = amod.commonProperties.Required
+	data.Required = append(data.Required, amod.commonProperties.Required...)
 
 	// Make does not understand LinuxBionic
 	if amod.Os() == LinuxBionic {
