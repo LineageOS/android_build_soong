@@ -372,3 +372,14 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *andr
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 	})
 }
+
+func (c *ndkPrebuiltStlLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Class = "SHARED_LIBRARIES"
+
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		// Prevent make from installing the libraries to obj/lib (since we have
+		// dozens of libraries with the same name, they'll clobber each other
+		// and the real versions of the libraries from the platform).
+		fmt.Fprintln(w, "LOCAL_COPY_TO_INTERMEDIATE_LIBRARIES := false")
+	})
+}
