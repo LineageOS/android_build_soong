@@ -72,10 +72,6 @@ type variableProperties struct {
 		Treble_linker_namespaces struct {
 			Cflags []string
 		}
-		// sepolicy_split is true when system/vendor sepolicy split is enabled.
-		Sepolicy_split struct {
-			Cflags []string
-		}
 		// enforce_vintf_manifest is true when a device is required to have a vintf manifest.
 		Enforce_vintf_manifest struct {
 			Cflags []string
