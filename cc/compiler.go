@@ -157,7 +157,8 @@ func NewBaseCompiler() *baseCompiler {
 type baseCompiler struct {
 	Properties BaseCompilerProperties
 	Proto      android.ProtoProperties
-	deps       android.Paths
+	genDeps    android.Paths
+	pathDeps   android.Paths
 	flags      builderFlags
 
 	// Sources that were passed to the C/C++ compiler
@@ -536,17 +537,16 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	srcs := append(android.Paths(nil), compiler.srcsBeforeGen...)
 
 	srcs, genDeps := genSources(ctx, srcs, buildFlags)
-
-	pathDeps = append(pathDeps, genDeps...)
 	pathDeps = append(pathDeps, flags.CFlagsDeps...)
 
-	compiler.deps = pathDeps
+	compiler.pathDeps = pathDeps
+	compiler.genDeps = genDeps
 
 	// Save src, buildFlags and context
 	compiler.srcs = srcs
 
 	// Compile files listed in c.Properties.Srcs into objects
-	objs := compileObjs(ctx, buildFlags, "", srcs, compiler.deps)
+	objs := compileObjs(ctx, buildFlags, "", srcs, pathDeps, genDeps)
 
 	if ctx.Failed() {
 		return Objects{}
@@ -557,7 +557,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 
 // Compile a list of source files into objects a specified subdirectory
 func compileObjs(ctx android.ModuleContext, flags builderFlags,
-	subdir string, srcFiles, deps android.Paths) Objects {
+	subdir string, srcFiles, pathDeps android.Paths, genDeps android.Paths) Objects {
 
-	return TransformSourceToObj(ctx, subdir, srcFiles, flags, deps)
+	return TransformSourceToObj(ctx, subdir, srcFiles, flags, pathDeps, genDeps)
 }

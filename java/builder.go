@@ -441,7 +441,7 @@ func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.W
 
 	rule := dx
 	desc := "dx"
-	if ctx.AConfig().IsEnvTrue("USE_D8_DESUGAR") {
+	if ctx.Config().UseD8Desugar() {
 		rule = d8
 		desc = "d8"
 	}

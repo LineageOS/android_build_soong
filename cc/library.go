@@ -384,11 +384,11 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	if library.static() {
 		srcs := android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
-			srcs, library.baseCompiler.deps))
+			srcs, library.baseCompiler.pathDeps, library.baseCompiler.genDeps))
 	} else if library.shared() {
 		srcs := android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
-			srcs, library.baseCompiler.deps))
+			srcs, library.baseCompiler.pathDeps, library.baseCompiler.genDeps))
 	}
 
 	return objs
@@ -671,8 +671,8 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			}
 			library.reexportFlags(flags)
 			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
-			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to aidl deps
-			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.deps...)
+			library.reexportDeps(library.baseCompiler.genDeps) // TODO: restrict to aidl deps
+			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.genDeps...)
 		}
 	}
 
@@ -684,8 +684,8 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			}
 			library.reexportFlags(flags)
 			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
-			library.reexportDeps(library.baseCompiler.deps) // TODO: restrict to proto deps
-			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.deps...)
+			library.reexportDeps(library.baseCompiler.genDeps) // TODO: restrict to proto deps
+			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.genDeps...)
 		}
 	}
 
