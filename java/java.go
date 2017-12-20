@@ -677,7 +677,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// Store the list of .java files that was passed to javac
 	j.compiledJavaSrcs = uniqueSrcFiles
 	j.compiledSrcJars = srcJars
-	fullD8 := ctx.AConfig().IsEnvTrue("USE_D8_DESUGAR")
+	fullD8 := ctx.Config().UseD8Desugar()
 
 	enable_sharding := false
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
