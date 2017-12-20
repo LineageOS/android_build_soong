@@ -23,7 +23,9 @@ package android
 // generate the source.
 
 func ProtoFlags(ctx ModuleContext, p *ProtoProperties) []string {
-	var protoFlags []string
+	// -I . must come first, it affects where protoc places the output files.
+	protoFlags := []string{"-I ."}
+
 	if len(p.Proto.Local_include_dirs) > 0 {
 		localProtoIncludeDirs := PathsForModuleSrc(ctx, p.Proto.Local_include_dirs)
 		protoFlags = append(protoFlags, JoinWithPrefix(localProtoIncludeDirs.Strings(), "-I"))
@@ -32,8 +34,6 @@ func ProtoFlags(ctx ModuleContext, p *ProtoProperties) []string {
 		rootProtoIncludeDirs := PathsForSource(ctx, p.Proto.Include_dirs)
 		protoFlags = append(protoFlags, JoinWithPrefix(rootProtoIncludeDirs.Strings(), "-I"))
 	}
-
-	protoFlags = append(protoFlags, "-I .")
 
 	return protoFlags
 }
