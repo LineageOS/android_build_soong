@@ -26,8 +26,6 @@ func getNdkStlFamily(ctx android.ModuleContext, m *Module) string {
 		return "libc++"
 	case "ndk_libstlport_shared", "ndk_libstlport_static":
 		return "stlport"
-	case "ndk_libgnustl_static":
-		return "gnustl"
 	case "ndk_system":
 		return "system"
 	case "":
@@ -66,8 +64,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			case "":
 				return "ndk_system"
 			case "c++_shared", "c++_static",
-				"stlport_shared", "stlport_static",
-				"gnustl_static":
+				"stlport_shared", "stlport_static":
 				return "ndk_lib" + s
 			case "libc++":
 				return "ndk_libc++_shared"
@@ -137,7 +134,7 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.SharedLibs = append([]string{"libstdc++"}, deps.SharedLibs...)
 	case "ndk_libc++_shared", "ndk_libstlport_shared":
 		deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
-	case "ndk_libc++_static", "ndk_libstlport_static", "ndk_libgnustl_static":
+	case "ndk_libc++_static", "ndk_libstlport_static":
 		deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
 	default:
 		panic(fmt.Errorf("Unknown stl: %q", stl.Properties.SelectedStl))
@@ -171,7 +168,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		// TODO(danalbert): This really shouldn't be here...
 		flags.CppFlags = append(flags.CppFlags, "-std=c++11")
-	case "ndk_libstlport_shared", "ndk_libstlport_static", "ndk_libgnustl_static":
+	case "ndk_libstlport_shared", "ndk_libstlport_static":
 		// Nothing
 	case "":
 		// None or error.
