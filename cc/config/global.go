@@ -126,7 +126,6 @@ var (
 
 	// Some Android.mk files still have warnings.
 	WarningAllowedOldProjects = []string{
-		"hardware/libhardware/modules/",
 		"hardware/qcom/",
 	}
 )
