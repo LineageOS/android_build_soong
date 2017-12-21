@@ -17,6 +17,7 @@ package java
 // Rules for instrumenting classes using jacoco
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -59,41 +60,51 @@ func jacocoInstrumentJar(ctx android.ModuleContext, outputJar, strippedJar andro
 	})
 }
 
-func (j *Module) jacocoStripSpecs(ctx android.ModuleContext) string {
-	includes := jacocoFiltersToSpecs(ctx,
-		j.properties.Jacoco.Include_filter, "jacoco.include_filter")
-	excludes := jacocoFiltersToSpecs(ctx,
-		j.properties.Jacoco.Exclude_filter, "jacoco.exclude_filter")
+func (j *Module) jacocoModuleToZipCommand(ctx android.ModuleContext) string {
+	includes, err := jacocoFiltersToSpecs(j.properties.Jacoco.Include_filter)
+	if err != nil {
+		ctx.PropertyErrorf("jacoco.include_filter", "%s", err.Error())
+	}
+	excludes, err := jacocoFiltersToSpecs(j.properties.Jacoco.Exclude_filter)
+	if err != nil {
+		ctx.PropertyErrorf("jacoco.exclude_filter", "%s", err.Error())
+	}
 
+	return jacocoFiltersToZipCommand(includes, excludes)
+}
+
+func jacocoFiltersToZipCommand(includes, excludes []string) string {
 	specs := ""
 	if len(excludes) > 0 {
 		specs += android.JoinWithPrefix(excludes, "-x") + " "
 	}
-
 	if len(includes) > 0 {
 		specs += strings.Join(includes, " ")
 	} else {
 		specs += "**/*.class"
 	}
-
 	return specs
 }
 
-func jacocoFiltersToSpecs(ctx android.ModuleContext, filters []string, property string) []string {
+func jacocoFiltersToSpecs(filters []string) ([]string, error) {
 	specs := make([]string, len(filters))
+	var err error
 	for i, f := range filters {
-		specs[i] = jacocoFilterToSpec(ctx, f, property)
+		specs[i], err = jacocoFilterToSpec(f)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return specs
+	return specs, nil
 }
 
-func jacocoFilterToSpec(ctx android.ModuleContext, filter string, property string) string {
+func jacocoFilterToSpec(filter string) (string, error) {
 	wildcard := strings.HasSuffix(filter, "*")
 	filter = strings.TrimSuffix(filter, "*")
 	recursiveWildcard := wildcard && (strings.HasSuffix(filter, ".") || filter == "")
 
 	if strings.ContainsRune(filter, '*') {
-		ctx.PropertyErrorf(property, "'*' is only supported as the last character in a filter")
+		return "", fmt.Errorf("'*' is only supported as the last character in a filter")
 	}
 
 	spec := strings.Replace(filter, ".", "/", -1)
@@ -104,5 +115,5 @@ func jacocoFilterToSpec(ctx android.ModuleContext, filter string, property strin
 		spec += "*.class"
 	}
 
-	return spec
+	return spec, nil
 }
