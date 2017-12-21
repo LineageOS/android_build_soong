@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -56,11 +57,13 @@ func (s zipsToNotStripSet) Set(zip_path string) error {
 var (
 	sortEntries      = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
 	emulateJar       = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
+	emulatePar       = flag.Bool("p", false, "merge zip entries based on par format")
 	stripDirs        fileList
 	stripFiles       fileList
 	zipsToNotStrip   = make(zipsToNotStripSet)
 	stripDirEntries  = flag.Bool("D", false, "strip directory entries from the output zip file")
 	manifest         = flag.String("m", "", "manifest file to insert in jar")
+	entrypoint       = flag.String("e", "", "par entrypoint file to insert in par")
 	ignoreDuplicates = flag.Bool("ignore-duplicates", false, "take each entry from the first zip it exists in and don't warn")
 )
 
@@ -72,7 +75,7 @@ func init() {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jsD] [-m manifest] output [inputs...]")
+		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [-e entrypoint] output [inputs...]")
 		flag.PrintDefaults()
 	}
 
@@ -118,8 +121,13 @@ func main() {
 		log.Fatal(errors.New("must specify -j when specifying a manifest via -m"))
 	}
 
+	if *entrypoint != "" && !*emulatePar {
+		log.Fatal(errors.New("must specify -p when specifying a entrypoint via -e"))
+	}
+
 	// do merge
-	err = mergeZips(readers, writer, *manifest, *sortEntries, *emulateJar, *stripDirEntries, *ignoreDuplicates)
+	err = mergeZips(readers, writer, *manifest, *entrypoint, *sortEntries, *emulateJar, *emulatePar,
+		*stripDirEntries, *ignoreDuplicates)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -210,8 +218,8 @@ type fileMapping struct {
 	source zipSource
 }
 
-func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
-	sortEntries, emulateJar, stripDirEntries, ignoreDuplicates bool) error {
+func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoint string,
+	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool) error {
 
 	sourceByDest := make(map[string]zipSource, 0)
 	orderedMappings := []fileMapping{}
@@ -244,6 +252,68 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
 		addMapping(jar.ManifestFile, fileSource)
 	}
 
+	if entrypoint != "" {
+		buf, err := ioutil.ReadFile(entrypoint)
+		if err != nil {
+			return err
+		}
+		fh := &zip.FileHeader{
+			Name:               "entry_point.txt",
+			Method:             zip.Store,
+			UncompressedSize64: uint64(len(buf)),
+		}
+		fh.SetMode(0700)
+		fh.SetModTime(jar.DefaultTime)
+		fileSource := bufferEntry{fh, buf}
+		addMapping("entry_point.txt", fileSource)
+	}
+
+	if emulatePar {
+		// the runfiles packages needs to be populated with "__init__.py".
+		newPyPkgs := []string{}
+		// the runfiles dirs have been treated as packages.
+		existingPyPkgSet := make(map[string]bool)
+		// put existing __init__.py files to a set first. This set is used for preventing
+		// generated __init__.py files from overwriting existing ones.
+		for _, namedReader := range readers {
+			for _, file := range namedReader.reader.File {
+				if filepath.Base(file.Name) != "__init__.py" {
+					continue
+				}
+				pyPkg := pathBeforeLastSlash(file.Name)
+				if _, found := existingPyPkgSet[pyPkg]; found {
+					panic(fmt.Errorf("found __init__.py path duplicates during pars merging: %q.", file.Name))
+				} else {
+					existingPyPkgSet[pyPkg] = true
+				}
+			}
+		}
+		for _, namedReader := range readers {
+			for _, file := range namedReader.reader.File {
+				var parentPath string /* the path after trimming last "/" */
+				if filepath.Base(file.Name) == "__init__.py" {
+					// for existing __init__.py files, we should trim last "/" for twice.
+					// eg. a/b/c/__init__.py ---> a/b
+					parentPath = pathBeforeLastSlash(pathBeforeLastSlash(file.Name))
+				} else {
+					parentPath = pathBeforeLastSlash(file.Name)
+				}
+				populateNewPyPkgs(parentPath, existingPyPkgSet, &newPyPkgs)
+			}
+		}
+		for _, pkg := range newPyPkgs {
+			var emptyBuf []byte
+			fh := &zip.FileHeader{
+				Name:               filepath.Join(pkg, "__init__.py"),
+				Method:             zip.Store,
+				UncompressedSize64: uint64(len(emptyBuf)),
+			}
+			fh.SetMode(0700)
+			fh.SetModTime(jar.DefaultTime)
+			fileSource := bufferEntry{fh, emptyBuf}
+			addMapping(filepath.Join(pkg, "__init__.py"), fileSource)
+		}
+	}
 	for _, namedReader := range readers {
 		_, skipStripThisZip := zipsToNotStrip[namedReader.path]
 		for _, file := range namedReader.reader.File {
@@ -303,6 +373,29 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest string,
 	}
 
 	return nil
+}
+
+// Sets the given directory and all its ancestor directories as Python packages.
+func populateNewPyPkgs(pkgPath string, existingPyPkgSet map[string]bool, newPyPkgs *[]string) {
+	for pkgPath != "" {
+		if _, found := existingPyPkgSet[pkgPath]; !found {
+			existingPyPkgSet[pkgPath] = true
+			*newPyPkgs = append(*newPyPkgs, pkgPath)
+			// Gets its ancestor directory by trimming last slash.
+			pkgPath = pathBeforeLastSlash(pkgPath)
+		} else {
+			break
+		}
+	}
+}
+
+func pathBeforeLastSlash(path string) string {
+	ret := filepath.Dir(path)
+	// filepath.Dir("abc") -> "." and filepath.Dir("/abc") -> "/".
+	if ret == "." || ret == "/" {
+		return ""
+	}
+	return ret
 }
 
 func shouldStripFile(emulateJar bool, name string) bool {
