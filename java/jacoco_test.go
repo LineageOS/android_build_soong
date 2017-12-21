@@ -21,6 +21,11 @@ func TestJacocoFilterToSpecs(t *testing.T) {
 		name, in, out string
 	}{
 		{
+			name: "class",
+			in:   "package.Class",
+			out:  "package/Class.class",
+		},
+		{
 			name: "class wildcard",
 			in:   "package.Class*",
 			out:  "package/Class*.class",
@@ -70,6 +75,12 @@ func TestJacocoFiltersToZipCommand(t *testing.T) {
 			name:     "multiple includes",
 			includes: []string{"package/Class.class", "package2/Class.class"},
 			out:      "package/Class.class package2/Class.class",
+		},
+		{
+			name:     "excludes",
+			includes: []string{"package/**/*.class"},
+			excludes: []string{"package/Class.class"},
+			out:      "-x package/Class.class package/**/*.class",
 		},
 	}
 
