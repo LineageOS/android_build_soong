@@ -246,11 +246,33 @@ func TestPathForModuleInstall(t *testing.T) {
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
-					vendor: true,
+					kind:   socSpecificModule,
 				},
 			},
 			in:  []string{"bin", "my_test"},
 			out: "target/product/test_device/vendor/bin/my_test",
+		},
+		{
+			name: "odm binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   deviceSpecificModule,
+				},
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/odm/bin/my_test",
+		},
+		{
+			name: "oem binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   productSpecificModule,
+				},
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/oem/bin/my_test",
 		},
 
 		{
@@ -269,7 +291,31 @@ func TestPathForModuleInstall(t *testing.T) {
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
-					vendor: true,
+					kind:   socSpecificModule,
+				},
+				inData: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/nativetest/my_test",
+		},
+		{
+			name: "odm native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   deviceSpecificModule,
+				},
+				inData: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/nativetest/my_test",
+		},
+		{
+			name: "oem native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   productSpecificModule,
 				},
 				inData: true,
 			},
@@ -293,12 +339,36 @@ func TestPathForModuleInstall(t *testing.T) {
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
-					vendor: true,
+					kind:   socSpecificModule,
 				},
 				inSanitizerDir: true,
 			},
 			in:  []string{"bin", "my_test"},
 			out: "target/product/test_device/data/asan/vendor/bin/my_test",
+		},
+		{
+			name: "sanitized odm binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   deviceSpecificModule,
+				},
+				inSanitizerDir: true,
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/data/asan/odm/bin/my_test",
+		},
+		{
+			name: "sanitized oem binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   productSpecificModule,
+				},
+				inSanitizerDir: true,
+			},
+			in:  []string{"bin", "my_test"},
+			out: "target/product/test_device/data/asan/oem/bin/my_test",
 		},
 
 		{
@@ -318,7 +388,33 @@ func TestPathForModuleInstall(t *testing.T) {
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
-					vendor: true,
+					kind:   socSpecificModule,
+				},
+				inData:         true,
+				inSanitizerDir: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+		},
+		{
+			name: "sanitized odm native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   deviceSpecificModule,
+				},
+				inData:         true,
+				inSanitizerDir: true,
+			},
+			in:  []string{"nativetest", "my_test"},
+			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+		},
+		{
+			name: "sanitized oem native test binary",
+			ctx: &moduleInstallPathContextImpl{
+				androidBaseContextImpl: androidBaseContextImpl{
+					target: deviceTarget,
+					kind:   productSpecificModule,
 				},
 				inData:         true,
 				inSanitizerDir: true,
