@@ -894,7 +894,7 @@ func (j *Module) desugar(ctx android.ModuleContext, flags javaBuilderFlags,
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
-	specs := j.jacocoStripSpecs(ctx)
+	specs := j.jacocoModuleToZipCommand(ctx)
 
 	jacocoReportClassesFile := android.PathForModuleOut(ctx, "jacoco", "jacoco-report-classes.jar")
 	instrumentedJar := android.PathForModuleOut(ctx, "jacoco", jarName)
