@@ -148,6 +148,9 @@ type BaseCompilerProperties struct {
 
 	// Stores the original list of source files before being cleared by library reuse
 	OriginalSrcs []string `blueprint:"mutated"`
+
+	// Build and link with OpenMP
+	Openmp *bool `android:"arch_variant"`
 }
 
 func NewBaseCompiler() *baseCompiler {
@@ -202,6 +205,10 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if compiler.hasSrcExt(".proto") {
 		deps = protoDeps(ctx, deps, &compiler.Proto, Bool(compiler.Properties.Proto.Static))
+	}
+
+	if Bool(compiler.Properties.Openmp) {
+		deps.StaticLibs = append(deps.StaticLibs, "libomp")
 	}
 
 	return deps
@@ -492,6 +499,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 				flags.CFlags = append([]string{"-Wall", "-Werror"}, flags.CFlags...)
 			}
 		}
+	}
+
+	if Bool(compiler.Properties.Openmp) {
+		flags.CFlags = append(flags.CFlags, "-fopenmp")
 	}
 
 	return flags
