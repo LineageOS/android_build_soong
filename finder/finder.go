@@ -30,7 +30,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"android/soong/fs"
+	"android/soong/finder/fs"
 )
 
 // This file provides a Finder struct that can quickly search for files satisfying
