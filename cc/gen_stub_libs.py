@@ -244,6 +244,7 @@ class SymbolFileParser(object):
         tags = decode_api_level_tags(tags, self.api_map)
         symbols = []
         global_scope = True
+        cpp_symbols = False
         while self.next_line() != '':
             if '}' in self.current_line:
                 # Line is something like '} BASE; # tags'. Both base and tags
@@ -252,12 +253,17 @@ class SymbolFileParser(object):
                 base = base.partition('#')[0].strip()
                 if not base.endswith(';'):
                     raise ParseError(
-                        'Unterminated version block (expected ;).')
-                base = base.rstrip(';').rstrip()
-                if base == '':
-                    base = None
-                return Version(name, base, tags, symbols)
-            elif ':' in self.current_line:
+                        'Unterminated version/export "C++" block (expected ;).')
+                if cpp_symbols:
+                    cpp_symbols = False
+                else:
+                    base = base.rstrip(';').rstrip()
+                    if base == '':
+                        base = None
+                    return Version(name, base, tags, symbols)
+            elif 'extern "C++" {' in self.current_line:
+                cpp_symbols = True
+            elif not cpp_symbols and ':' in self.current_line:
                 visibility = self.current_line.split(':')[0].strip()
                 if visibility == 'local':
                     global_scope = False
@@ -265,10 +271,10 @@ class SymbolFileParser(object):
                     global_scope = True
                 else:
                     raise ParseError('Unknown visiblity label: ' + visibility)
-            elif global_scope:
+            elif global_scope and not cpp_symbols:
                 symbols.append(self.parse_symbol())
             else:
-                # We're in a hidden scope. Ignore everything.
+                # We're in a hidden scope or in 'extern "C++"' block. Ignore everything.
                 pass
         raise ParseError('Unexpected EOF in version block.')
 
