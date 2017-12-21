@@ -65,7 +65,10 @@ type androidBaseContext interface {
 	Windows() bool
 	Debug() bool
 	PrimaryArch() bool
-	InstallOnVendorPartition() bool
+	Platform() bool
+	DeviceSpecific() bool
+	SocSpecific() bool
+	ProductSpecific() bool
 	AConfig() Config
 	DeviceConfig() DeviceConfig
 }
@@ -212,8 +215,25 @@ type commonProperties struct {
 	// vendor who owns this module
 	Owner *string
 
-	// whether this module is device specific and should be installed into /vendor
+	// whether this module is specific to an SoC (System-On-a-Chip). When set to true,
+	// it is installed into /vendor (or /system/vendor if vendor partition does not exist).
+	// Use `soc_specific` instead for better meaning.
 	Vendor *bool
+
+	// whether this module is specific to an SoC (System-On-a-Chip). When set to true,
+	// it is installed into /vendor (or /system/vendor if vendor partition does not exist).
+	Soc_specific *bool
+
+	// whether this module is specific to a device, not only for SoC, but also for off-chip
+	// peripherals. When set to true, it is installed into /odm (or /vendor/odm if odm partition
+	// does not exist, or /system/vendor/odm if both odm and vendor partitions do not exist).
+	// This implies `soc_specific:true`.
+	Device_specific *bool
+
+	// whether this module is specific to a software configuration of a product (e.g. country,
+	// network operator, etc). When set to true, it is installed into /oem (or /system/oem if
+	// oem partition does not exist).
+	Product_specific *bool
 
 	// init.rc files to be installed if this module is installed
 	Init_rc []string
@@ -263,6 +283,30 @@ const (
 	HostAndDeviceDefault
 	NeitherHostNorDeviceSupported
 )
+
+type moduleKind int
+
+const (
+	platformModule moduleKind = iota
+	deviceSpecificModule
+	socSpecificModule
+	productSpecificModule
+)
+
+func (k moduleKind) String() string {
+	switch k {
+	case platformModule:
+		return "platform"
+	case deviceSpecificModule:
+		return "device-specific"
+	case socSpecificModule:
+		return "soc-specific"
+	case productSpecificModule:
+		return "product-specific"
+	default:
+		panic(fmt.Errorf("unknown module kind %d", k))
+	}
+}
 
 func InitAndroidModule(m Module) {
 	base := m.base()
@@ -546,11 +590,48 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	}
 }
 
+func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleKind {
+	var socSpecific = Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
+	var deviceSpecific = Bool(a.commonProperties.Device_specific)
+	var productSpecific = Bool(a.commonProperties.Product_specific)
+
+	if ((socSpecific || deviceSpecific) && productSpecific) || (socSpecific && deviceSpecific) {
+		msg := "conflicting value set here"
+		if productSpecific {
+			ctx.PropertyErrorf("product_specific", "a module cannot be specific to SoC or device and product at the same time.")
+			if deviceSpecific {
+				ctx.PropertyErrorf("device_specific", msg)
+			}
+		} else {
+			ctx.PropertyErrorf("device_specific", "a module cannot be specific to SoC and device at the same time.")
+		}
+		if Bool(a.commonProperties.Vendor) {
+			ctx.PropertyErrorf("vendor", msg)
+		}
+		if Bool(a.commonProperties.Proprietary) {
+			ctx.PropertyErrorf("proprietary", msg)
+		}
+		if Bool(a.commonProperties.Soc_specific) {
+			ctx.PropertyErrorf("soc_specific", msg)
+		}
+	}
+
+	if productSpecific {
+		return productSpecificModule
+	} else if deviceSpecific {
+		return deviceSpecificModule
+	} else if socSpecific {
+		return socSpecificModule
+	} else {
+		return platformModule
+	}
+}
+
 func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) androidBaseContextImpl {
 	return androidBaseContextImpl{
 		target:        a.commonProperties.CompileTarget,
 		targetPrimary: a.commonProperties.CompilePrimary,
-		vendor:        Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Vendor),
+		kind:          determineModuleKind(a, ctx),
 		config:        ctx.Config().(Config),
 	}
 }
@@ -606,7 +687,7 @@ type androidBaseContextImpl struct {
 	target        Target
 	targetPrimary bool
 	debug         bool
-	vendor        bool
+	kind          moduleKind
 	config        Config
 }
 
@@ -867,8 +948,20 @@ func (a *androidBaseContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{a.config.deviceConfig}
 }
 
-func (a *androidBaseContextImpl) InstallOnVendorPartition() bool {
-	return a.vendor
+func (a *androidBaseContextImpl) Platform() bool {
+	return a.kind == platformModule
+}
+
+func (a *androidBaseContextImpl) DeviceSpecific() bool {
+	return a.kind == deviceSpecificModule
+}
+
+func (a *androidBaseContextImpl) SocSpecific() bool {
+	return a.kind == socSpecificModule
+}
+
+func (a *androidBaseContextImpl) ProductSpecific() bool {
+	return a.kind == productSpecificModule
 }
 
 func (a *androidModuleContext) InstallInData() bool {

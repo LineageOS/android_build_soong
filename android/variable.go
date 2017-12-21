@@ -174,6 +174,8 @@ type productVariables struct {
 	CFIIncludePaths *[]string `json:",omitempty"`
 
 	VendorPath *string `json:",omitempty"`
+	OdmPath    *string `json:",omitempty"`
+	OemPath    *string `json:",omitempty"`
 
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`
