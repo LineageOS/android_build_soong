@@ -230,8 +230,14 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 		if Bool(amod.commonProperties.Proprietary) {
 			fmt.Fprintln(&data.preamble, "LOCAL_PROPRIETARY_MODULE := true")
 		}
-		if Bool(amod.commonProperties.Vendor) {
+		if Bool(amod.commonProperties.Vendor) || Bool(amod.commonProperties.Soc_specific) {
 			fmt.Fprintln(&data.preamble, "LOCAL_VENDOR_MODULE := true")
+		}
+		if Bool(amod.commonProperties.Device_specific) {
+			fmt.Fprintln(&data.preamble, "LOCAL_ODM_MODULE := true")
+		}
+		if Bool(amod.commonProperties.Product_specific) {
+			fmt.Fprintln(&data.preamble, "LOCAL_OEM_MODULE := true")
 		}
 		if amod.commonProperties.Owner != nil {
 			fmt.Fprintln(&data.preamble, "LOCAL_MODULE_OWNER :=", *amod.commonProperties.Owner)
