@@ -135,46 +135,6 @@ var (
 		},
 		"jarArgs")
 
-	desugar = pctx.AndroidStaticRule("desugar",
-		blueprint.RuleParams{
-			Command: `rm -rf $dumpDir && mkdir -p $dumpDir && ` +
-				`${config.JavaCmd} ` +
-				`-Djdk.internal.lambda.dumpProxyClasses=$$(cd $dumpDir && pwd) ` +
-				`$javaFlags ` +
-				`-jar ${config.DesugarJar} $classpathFlags $desugarFlags ` +
-				`-i $in -o $out`,
-			CommandDeps: []string{"${config.DesugarJar}", "${config.JavaCmd}"},
-		},
-		"javaFlags", "classpathFlags", "desugarFlags", "dumpDir")
-
-	dx = pctx.AndroidStaticRule("dx",
-		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${config.DxCmd} --dex --output=$outDir $dxFlags $in && ` +
-				`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
-				`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
-			CommandDeps: []string{
-				"${config.DxCmd}",
-				"${config.SoongZipCmd}",
-				"${config.MergeZipsCmd}",
-			},
-		},
-		"outDir", "dxFlags")
-
-	d8 = pctx.AndroidStaticRule("d8",
-		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${config.D8Cmd} --output $outDir $dxFlags $in && ` +
-				`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
-				`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
-			CommandDeps: []string{
-				"${config.DxCmd}",
-				"${config.SoongZipCmd}",
-				"${config.MergeZipsCmd}",
-			},
-		},
-		"outDir", "dxFlags")
-
 	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
 			Command:     "${config.JavaCmd} -jar ${config.JarjarCmd} process $rulesFile $in $out",
@@ -193,7 +153,6 @@ type javaBuilderFlags struct {
 	bootClasspath classpath
 	classpath     classpath
 	systemModules classpath
-	desugarFlags  string
 	aidlFlags     string
 	javaVersion   string
 
@@ -399,64 +358,6 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 		Implicits:   deps,
 		Args: map[string]string{
 			"jarArgs": strings.Join(jarArgs, " "),
-		},
-	})
-}
-
-func TransformDesugar(ctx android.ModuleContext, outputFile android.WritablePath,
-	classesJar android.Path, flags javaBuilderFlags) {
-
-	dumpDir := android.PathForModuleOut(ctx, "desugar", "classes")
-
-	javaFlags := ""
-	if ctx.Config().UseOpenJDK9() {
-		javaFlags = "--add-opens java.base/java.lang.invoke=ALL-UNNAMED"
-	}
-
-	var desugarFlags []string
-	desugarFlags = append(desugarFlags, flags.bootClasspath.FormDesugarClasspath("--bootclasspath_entry")...)
-	desugarFlags = append(desugarFlags, flags.classpath.FormDesugarClasspath("--classpath_entry")...)
-
-	var deps android.Paths
-	deps = append(deps, flags.bootClasspath...)
-	deps = append(deps, flags.classpath...)
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        desugar,
-		Description: "desugar",
-		Output:      outputFile,
-		Input:       classesJar,
-		Implicits:   deps,
-		Args: map[string]string{
-			"dumpDir":        dumpDir.String(),
-			"javaFlags":      javaFlags,
-			"classpathFlags": strings.Join(desugarFlags, " "),
-			"desugarFlags":   flags.desugarFlags,
-		},
-	})
-}
-
-// Converts a classes.jar file to classes*.dex, then combines the dex files with any resources
-// in the classes.jar file into a dex jar.
-func TransformClassesJarToDexJar(ctx android.ModuleContext, outputFile android.WritablePath,
-	classesJar android.Path, flags javaBuilderFlags) {
-
-	outDir := android.PathForModuleOut(ctx, "dex")
-
-	rule := dx
-	desc := "dx"
-	if ctx.Config().UseD8Desugar() {
-		rule = d8
-		desc = "d8"
-	}
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        rule,
-		Description: desc,
-		Output:      outputFile,
-		Input:       classesJar,
-		Args: map[string]string{
-			"dxFlags": flags.dxFlags,
-			"outDir":  outDir.String(),
 		},
 	})
 }

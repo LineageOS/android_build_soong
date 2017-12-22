@@ -700,7 +700,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// Store the list of .java files that was passed to javac
 	j.compiledJavaSrcs = uniqueSrcFiles
 	j.compiledSrcJars = srcJars
-	fullD8 := ctx.Config().UseD8Desugar()
 
 	enable_sharding := false
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
@@ -840,12 +839,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	if ctx.Device() && j.installable() {
-		if fullD8 {
-			outputFile = j.compileDexFullD8(ctx, flags, outputFile, jarName)
-		} else {
-			outputFile = j.desugar(ctx, flags, outputFile, jarName)
-			outputFile = j.compileDex(ctx, flags, outputFile, jarName)
-		}
+		outputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
 		}
@@ -893,27 +887,6 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	return headerJar
 }
 
-func (j *Module) desugar(ctx android.ModuleContext, flags javaBuilderFlags,
-	classesJar android.Path, jarName string) android.Path {
-
-	desugarFlags := []string{
-		"--min_sdk_version " + j.minSdkVersionNumber(ctx),
-		"--desugar_try_with_resources_if_needed=false",
-		"--allow_empty_bootclasspath",
-	}
-
-	if inList("--core-library", j.deviceProperties.Dxflags) {
-		desugarFlags = append(desugarFlags, "--core_library")
-	}
-
-	flags.desugarFlags = strings.Join(desugarFlags, " ")
-
-	desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
-	TransformDesugar(ctx, desugarJar, classesJar, flags)
-
-	return desugarJar
-}
-
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
@@ -927,72 +900,6 @@ func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 	j.jacocoReportClassesFile = jacocoReportClassesFile
 
 	return instrumentedJar
-}
-
-func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
-	classesJar android.Path, jarName string) android.Path {
-
-	dxFlags := j.deviceProperties.Dxflags
-
-	if ctx.Config().Getenv("NO_OPTIMIZE_DX") != "" {
-		dxFlags = append(dxFlags, "--no-optimize")
-	}
-
-	if ctx.Config().Getenv("GENERATE_DEX_DEBUG") != "" {
-		dxFlags = append(dxFlags,
-			"--debug",
-			"--verbose",
-			"--dump-to="+android.PathForModuleOut(ctx, "classes.lst").String(),
-			"--dump-width=1000")
-	}
-
-	dxFlags = append(dxFlags, "--min-sdk-version="+j.minSdkVersionNumber(ctx))
-
-	flags.dxFlags = strings.Join(dxFlags, " ")
-
-	// Compile classes.jar into classes.dex and then javalib.jar
-	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
-	TransformClassesJarToDexJar(ctx, javalibJar, classesJar, flags)
-
-	j.dexJarFile = javalibJar
-	return javalibJar
-}
-
-func (j *Module) compileDexFullD8(ctx android.ModuleContext, flags javaBuilderFlags,
-	classesJar android.Path, jarName string) android.Path {
-
-	// Translate all the DX flags to D8 ones until all the build files have been migrated
-	// to D8 flags. See: b/69377755
-	var dxFlags []string
-	for _, x := range j.deviceProperties.Dxflags {
-		switch x {
-		case "--core-library", "--dex", "--multi-dex":
-			continue
-		default:
-			dxFlags = append(dxFlags, x)
-		}
-	}
-
-	if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {
-		dxFlags = append(dxFlags, "--debug")
-	}
-
-	if ctx.AConfig().Getenv("GENERATE_DEX_DEBUG") != "" {
-		dxFlags = append(dxFlags,
-			"--debug",
-			"--verbose")
-	}
-
-	dxFlags = append(dxFlags, "--min-api "+j.minSdkVersionNumber(ctx))
-
-	flags.dxFlags = strings.Join(dxFlags, " ")
-
-	// Compile classes.jar into classes.dex and then javalib.jar
-	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
-	TransformClassesJarToDexJar(ctx, javalibJar, classesJar, flags)
-
-	j.dexJarFile = javalibJar
-	return javalibJar
 }
 
 // Returns a sdk version as a string that is guaranteed to be a parseable as a number.  For
