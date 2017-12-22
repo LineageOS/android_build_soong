@@ -942,20 +942,12 @@ func (j *Module) compileDexFullD8(ctx android.ModuleContext, flags javaBuilderFl
 	// to D8 flags. See: b/69377755
 	var dxFlags []string
 	for _, x := range j.deviceProperties.Dxflags {
-		if x == "--core-library" {
+		switch x {
+		case "--core-library", "--dex", "--multi-dex":
 			continue
+		default:
+			dxFlags = append(dxFlags, x)
 		}
-		if x == "--dex" {
-			continue
-		}
-		if x == "--multi-dex" {
-			continue
-		}
-		if x == "--no-locals" {
-			dxFlags = append(dxFlags, "--release")
-			continue
-		}
-		dxFlags = append(dxFlags, x)
 	}
 
 	if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {
