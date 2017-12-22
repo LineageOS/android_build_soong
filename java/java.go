@@ -781,6 +781,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 	if len(jars) == 1 && !manifest.Valid() {
 		// Optimization: skip the combine step if there is nothing to do
+		// TODO(ccross): this leaves any module-info.class files, but those should only come from
+		// prebuilt dependencies until we support modules in the platform build, so there shouldn't be
+		// any if len(jars) == 1.
 		outputFile = jars[0]
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
