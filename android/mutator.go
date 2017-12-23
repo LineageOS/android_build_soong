@@ -92,6 +92,7 @@ var preDeps = []RegisterMutatorFunc{
 
 var postDeps = []RegisterMutatorFunc{
 	RegisterPrebuiltsPostDepsMutators,
+	registerNeverallowMutator,
 }
 
 func PreArchMutators(f RegisterMutatorFunc) {
