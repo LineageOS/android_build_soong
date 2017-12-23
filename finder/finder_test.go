@@ -21,12 +21,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"testing"
 	"time"
 
-	"android/soong/fs"
-	"runtime/debug"
+	"android/soong/finder/fs"
 )
 
 // some utils for tests to use

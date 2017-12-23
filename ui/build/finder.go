@@ -16,7 +16,7 @@ package build
 
 import (
 	"android/soong/finder"
-	"android/soong/fs"
+	"android/soong/finder/fs"
 	"android/soong/ui/logger"
 	"bytes"
 	"io/ioutil"

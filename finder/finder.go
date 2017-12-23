@@ -30,7 +30,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"android/soong/fs"
+	"android/soong/finder/fs"
 )
 
 // This file provides a Finder struct that can quickly search for files satisfying
@@ -1384,7 +1384,7 @@ func (f *Finder) listDirSync(dir *pathMap) {
 		f.onFsError(path, err)
 		// if listing the contents of the directory fails (presumably due to
 		// permission denied), then treat the directory as empty
-		children = []os.FileInfo{}
+		children = nil
 	}
 
 	var subdirs []string
