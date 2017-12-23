@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"android/soong/finder"
-	"android/soong/fs"
+	"android/soong/finder/fs"
 )
 
 var (
