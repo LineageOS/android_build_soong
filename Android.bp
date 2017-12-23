@@ -51,6 +51,7 @@ bootstrap_go_package {
         "android/module.go",
         "android/mutator.go",
         "android/namespace.go",
+        "android/neverallow.go",
         "android/onceper.go",
         "android/package_ctx.go",
         "android/paths.go",
