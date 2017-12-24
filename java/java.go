@@ -781,6 +781,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 	if len(jars) == 1 && !manifest.Valid() {
 		// Optimization: skip the combine step if there is nothing to do
+		// TODO(ccross): this leaves any module-info.class files, but those should only come from
+		// prebuilt dependencies until we support modules in the platform build, so there shouldn't be
+		// any if len(jars) == 1.
 		outputFile = jars[0]
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
@@ -894,7 +897,7 @@ func (j *Module) desugar(ctx android.ModuleContext, flags javaBuilderFlags,
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
-	specs := j.jacocoStripSpecs(ctx)
+	specs := j.jacocoModuleToZipCommand(ctx)
 
 	jacocoReportClassesFile := android.PathForModuleOut(ctx, "jacoco", "jacoco-report-classes.jar")
 	instrumentedJar := android.PathForModuleOut(ctx, "jacoco", jarName)
@@ -942,20 +945,12 @@ func (j *Module) compileDexFullD8(ctx android.ModuleContext, flags javaBuilderFl
 	// to D8 flags. See: b/69377755
 	var dxFlags []string
 	for _, x := range j.deviceProperties.Dxflags {
-		if x == "--core-library" {
+		switch x {
+		case "--core-library", "--dex", "--multi-dex":
 			continue
+		default:
+			dxFlags = append(dxFlags, x)
 		}
-		if x == "--dex" {
-			continue
-		}
-		if x == "--multi-dex" {
-			continue
-		}
-		if x == "--no-locals" {
-			dxFlags = append(dxFlags, "--release")
-			continue
-		}
-		dxFlags = append(dxFlags, x)
 	}
 
 	if ctx.AConfig().Getenv("NO_OPTIMIZE_DX") != "" {

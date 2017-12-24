@@ -30,7 +30,7 @@ bootstrap_go_package {
         "finder_test.go",
     ],
     deps: [
-      "soong-fs",
+      "soong-finder-fs",
     ],
 }
 

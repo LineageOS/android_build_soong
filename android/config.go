@@ -661,6 +661,20 @@ func (c *deviceConfig) ExtraVndkVersions() []string {
 	return c.config.ProductVariables.ExtraVndkVersions
 }
 
+func (c *deviceConfig) OdmPath() string {
+	if c.config.ProductVariables.OdmPath != nil {
+		return *c.config.ProductVariables.OdmPath
+	}
+	return "odm"
+}
+
+func (c *deviceConfig) OemPath() string {
+	if c.config.ProductVariables.OemPath != nil {
+		return *c.config.ProductVariables.OemPath
+	}
+	return "oem"
+}
+
 func (c *deviceConfig) BtConfigIncludeDir() string {
 	return String(c.config.ProductVariables.BtConfigIncludeDir)
 }
