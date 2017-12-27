@@ -75,7 +75,18 @@ type DirEntryInfo interface {
 	IsDir() bool
 }
 
+type dirEntryInfo struct {
+	name       string
+	mode       os.FileMode
+	modeExists bool
+}
+
 var _ DirEntryInfo = os.FileInfo(nil)
+
+func (d *dirEntryInfo) Name() string      { return d.name }
+func (d *dirEntryInfo) Mode() os.FileMode { return d.mode }
+func (d *dirEntryInfo) IsDir() bool       { return d.mode.IsDir() }
+func (d *dirEntryInfo) String() string    { return d.name + ": " + d.mode.String() }
 
 // osFs implements FileSystem using the local disk.
 type osFs struct{}
@@ -89,7 +100,7 @@ func (osFs) Lstat(path string) (stats os.FileInfo, err error) {
 }
 
 func (osFs) ReadDir(path string) (contents []DirEntryInfo, err error) {
-	entries, err := ioutil.ReadDir(path)
+	entries, err := readdir(path)
 	if err != nil {
 		return nil, err
 	}
