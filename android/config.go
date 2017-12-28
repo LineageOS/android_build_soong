@@ -690,12 +690,12 @@ func (c *deviceConfig) NativeCoverageEnabled() bool {
 func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	coverage := false
 	if c.config.ProductVariables.CoveragePaths != nil {
-		if prefixInList(path, *c.config.ProductVariables.CoveragePaths) {
+		if PrefixInList(path, *c.config.ProductVariables.CoveragePaths) {
 			coverage = true
 		}
 	}
 	if coverage && c.config.ProductVariables.CoverageExcludePaths != nil {
-		if prefixInList(path, *c.config.ProductVariables.CoverageExcludePaths) {
+		if PrefixInList(path, *c.config.ProductVariables.CoverageExcludePaths) {
 			coverage = false
 		}
 	}
@@ -706,21 +706,21 @@ func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	if c.ProductVariables.IntegerOverflowExcludePaths == nil {
 		return false
 	}
-	return prefixInList(path, *c.ProductVariables.IntegerOverflowExcludePaths)
+	return PrefixInList(path, *c.ProductVariables.IntegerOverflowExcludePaths)
 }
 
 func (c *config) CFIDisabledForPath(path string) bool {
 	if c.ProductVariables.CFIExcludePaths == nil {
 		return false
 	}
-	return prefixInList(path, *c.ProductVariables.CFIExcludePaths)
+	return PrefixInList(path, *c.ProductVariables.CFIExcludePaths)
 }
 
 func (c *config) CFIEnabledForPath(path string) bool {
 	if c.ProductVariables.CFIIncludePaths == nil {
 		return false
 	}
-	return prefixInList(path, *c.ProductVariables.CFIIncludePaths)
+	return PrefixInList(path, *c.ProductVariables.CFIIncludePaths)
 }
 
 func stringSlice(s *[]string) []string {
