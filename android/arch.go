@@ -119,12 +119,12 @@ func RegisterArchFeatures(arch ArchType, features ...string) {
 
 func RegisterArchVariantFeatures(arch ArchType, variant string, features ...string) {
 	checkCalledFromInit()
-	if variant != "" && !inList(variant, archVariants[arch]) {
+	if variant != "" && !InList(variant, archVariants[arch]) {
 		panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
 	}
 
 	for _, feature := range features {
-		if !inList(feature, archFeatures[arch]) {
+		if !InList(feature, archFeatures[arch]) {
 			panic(fmt.Errorf("Invalid feature %q for arch %q variant %q", feature, arch, variant))
 		}
 	}
@@ -481,13 +481,13 @@ func createArchType(props reflect.Type) reflect.Type {
 
 			if os.Linux() {
 				target := "Linux_" + archType.Name
-				if !inList(target, targets) {
+				if !InList(target, targets) {
 					targets = append(targets, target)
 				}
 			}
 			if os.Bionic() {
 				target := "Bionic_" + archType.Name
-				if !inList(target, targets) {
+				if !InList(target, targets) {
 					targets = append(targets, target)
 				}
 			}
