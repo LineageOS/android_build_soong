@@ -54,7 +54,7 @@ func sortedKeys(m map[string][]string) []string {
 	return s
 }
 
-func indexList(s string, list []string) int {
+func IndexList(s string, list []string) int {
 	for i, l := range list {
 		if l == s {
 			return i
@@ -64,17 +64,48 @@ func indexList(s string, list []string) int {
 	return -1
 }
 
-func inList(s string, list []string) bool {
-	return indexList(s, list) != -1
+func InList(s string, list []string) bool {
+	return IndexList(s, list) != -1
 }
 
-func prefixInList(s string, list []string) bool {
+func PrefixInList(s string, list []string) bool {
 	for _, prefix := range list {
 		if strings.HasPrefix(s, prefix) {
 			return true
 		}
 	}
 	return false
+}
+
+func FilterList(list []string, filter []string) (remainder []string, filtered []string) {
+	for _, l := range list {
+		if InList(l, filter) {
+			filtered = append(filtered, l)
+		} else {
+			remainder = append(remainder, l)
+		}
+	}
+
+	return
+}
+
+func RemoveListFromList(list []string, filter_out []string) (result []string) {
+	result = make([]string, 0, len(list))
+	for _, l := range list {
+		if !InList(l, filter_out) {
+			result = append(result, l)
+		}
+	}
+	return
+}
+
+func RemoveFromList(s string, list []string) (bool, []string) {
+	i := IndexList(s, list)
+	if i != -1 {
+		return true, append(list[:i], list[i+1:]...)
+	} else {
+		return false, list
+	}
 }
 
 // FirstUniqueStrings returns all unique elements of a slice of strings, keeping the first copy of
