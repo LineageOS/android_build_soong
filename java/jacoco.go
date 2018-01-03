@@ -28,7 +28,8 @@ import (
 var (
 	jacoco = pctx.AndroidStaticRule("jacoco", blueprint.RuleParams{
 		Command: `${config.Zip2ZipCmd} -i $in -o $strippedJar $stripSpec && ` +
-			`${config.JavaCmd} -jar ${config.JacocoCLIJar} instrument -quiet -dest $instrumentedJar $strippedJar && ` +
+			`${config.JavaCmd} -jar ${config.JacocoCLIJar} ` +
+			`  instrument --quiet --dest $instrumentedJar $strippedJar && ` +
 			`${config.Ziptime} $instrumentedJar && ` +
 			`${config.MergeZipsCmd} --ignore-duplicates -j $out $instrumentedJar $in`,
 		CommandDeps: []string{
