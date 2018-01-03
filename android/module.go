@@ -139,6 +139,7 @@ type ModuleContext interface {
 
 	VisitDirectDepsBlueprint(visit func(blueprint.Module))
 	VisitDirectDeps(visit func(Module))
+	VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
 	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
 	VisitDepsDepthFirst(visit func(Module))
 	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
@@ -827,6 +828,16 @@ func (a *androidModuleContext) VisitDirectDeps(visit func(Module)) {
 	a.ModuleContext.VisitDirectDeps(func(module blueprint.Module) {
 		if aModule := a.validateAndroidModule(module); aModule != nil {
 			visit(aModule)
+		}
+	})
+}
+
+func (a *androidModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
+	a.ModuleContext.VisitDirectDeps(func(module blueprint.Module) {
+		if aModule := a.validateAndroidModule(module); aModule != nil {
+			if a.ModuleContext.OtherModuleDependencyTag(aModule) == tag {
+				visit(aModule)
+			}
 		}
 	})
 }

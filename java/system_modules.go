@@ -112,11 +112,9 @@ type SystemModulesProperties struct {
 func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var jars android.Paths
 
-	ctx.VisitDirectDeps(func(module android.Module) {
-		if ctx.OtherModuleDependencyTag(module) == libTag {
-			dep, _ := module.(Dependency)
-			jars = append(jars, dep.HeaderJars()...)
-		}
+	ctx.VisitDirectDepsWithTag(libTag, func(module android.Module) {
+		dep, _ := module.(Dependency)
+		jars = append(jars, dep.HeaderJars()...)
 	})
 
 	jars = append(jars, android.PathsForModuleSrc(ctx, system.properties.Jars)...)
