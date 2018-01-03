@@ -109,13 +109,11 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil)
 		}
 	} else if s, ok := ctx.Module().(Module); ok {
-		ctx.VisitDirectDeps(func(m Module) {
-			if ctx.OtherModuleDependencyTag(m) == prebuiltDepTag {
-				p := m.(PrebuiltInterface).Prebuilt()
-				if p.usePrebuilt(ctx, s) {
-					p.properties.UsePrebuilt = true
-					s.SkipInstall()
-				}
+		ctx.VisitDirectDepsWithTag(prebuiltDepTag, func(m Module) {
+			p := m.(PrebuiltInterface).Prebuilt()
+			if p.usePrebuilt(ctx, s) {
+				p.properties.UsePrebuilt = true
+				s.SkipInstall()
 			}
 		})
 	}
