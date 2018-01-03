@@ -829,10 +829,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		j.headerJarFile = j.implementationJarFile
 	}
 
-	if !fullD8 && ctx.Device() && j.installable() {
-		outputFile = j.desugar(ctx, flags, outputFile, jarName)
-	}
-
 	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
 		if inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
 			j.properties.Instrument = true
@@ -847,6 +843,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		if fullD8 {
 			outputFile = j.compileDexFullD8(ctx, flags, outputFile, jarName)
 		} else {
+			outputFile = j.desugar(ctx, flags, outputFile, jarName)
 			outputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		}
 		if ctx.Failed() {
