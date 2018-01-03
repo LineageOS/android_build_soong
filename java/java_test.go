@@ -53,6 +53,12 @@ func TestMain(m *testing.M) {
 }
 
 func testConfig(env map[string]string) android.Config {
+	if env == nil {
+		env = make(map[string]string)
+	}
+	if env["ANDROID_JAVA8_HOME"] == "" {
+		env["ANDROID_JAVA8_HOME"] = "jdk8"
+	}
 	return android.TestArchConfig(buildDir, env)
 
 }
@@ -150,6 +156,9 @@ func testContext(config android.Config, bp string,
 		"build/target/product/security/testkey": nil,
 
 		"build/soong/scripts/jar-wrapper.sh": nil,
+
+		"jdk8/jre/lib/jce.jar": nil,
+		"jdk8/jre/lib/rt.jar":  nil,
 	}
 
 	for k, v := range fs {
@@ -364,11 +373,12 @@ var classpathTestcases = []struct {
 	},
 	{
 
-		name:       "host default",
-		moduleType: "java_library_host",
-		properties: ``,
-		host:       android.Host,
-		classpath:  []string{},
+		name:          "host default",
+		moduleType:    "java_library_host",
+		properties:    ``,
+		host:          android.Host,
+		bootclasspath: []string{"jdk8/jre/lib/jce.jar", "jdk8/jre/lib/rt.jar"},
+		classpath:     []string{},
 	},
 	{
 		name:       "host nostdlib",
@@ -379,10 +389,11 @@ var classpathTestcases = []struct {
 	},
 	{
 
-		name:       "host supported default",
-		host:       android.Host,
-		properties: `host_supported: true,`,
-		classpath:  []string{},
+		name:          "host supported default",
+		host:          android.Host,
+		properties:    `host_supported: true,`,
+		classpath:     []string{},
+		bootclasspath: []string{"jdk8/jre/lib/jce.jar", "jdk8/jre/lib/rt.jar"},
 	},
 	{
 		name:       "host supported nostdlib",
