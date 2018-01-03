@@ -929,7 +929,7 @@ func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 
 	specs := j.jacocoModuleToZipCommand(ctx)
 
-	jacocoReportClassesFile := android.PathForModuleOut(ctx, "jacoco", "jacoco-report-classes.jar")
+	jacocoReportClassesFile := android.PathForModuleOut(ctx, "jacoco-report-classes", jarName)
 	instrumentedJar := android.PathForModuleOut(ctx, "jacoco", jarName)
 
 	jacocoInstrumentJar(ctx, instrumentedJar, jacocoReportClassesFile, classesJar, specs)
