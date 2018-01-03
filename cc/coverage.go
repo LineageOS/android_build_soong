@@ -59,11 +59,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags) Flags {
 			// For static libraries, the only thing that changes our object files
 			// are included whole static libraries, so check to see if any of
 			// those have coverage enabled.
-			ctx.VisitDirectDeps(func(m android.Module) {
-				if ctx.OtherModuleDependencyTag(m) != wholeStaticDepTag {
-					return
-				}
-
+			ctx.VisitDirectDepsWithTag(wholeStaticDepTag, func(m android.Module) {
 				if cc, ok := m.(*Module); ok && cc.coverage != nil {
 					if cc.coverage.linkCoverage {
 						cov.linkCoverage = true
