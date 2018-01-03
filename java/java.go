@@ -597,6 +597,29 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	// classpath
 	flags.bootClasspath.AddPaths(deps.bootClasspath)
 	flags.classpath.AddPaths(deps.classpath)
+
+	if len(flags.bootClasspath) == 0 && ctx.Host() && !ctx.Config().TargetOpenJDK9() &&
+		!Bool(j.properties.No_standard_libs) &&
+		inList(flags.javaVersion, []string{"1.6", "1.7", "1.8"}) {
+		// Give host-side tools a version of OpenJDK's standard libraries
+		// close to what they're targeting. As of Dec 2017, AOSP is only
+		// bundling OpenJDK 8 and 9, so nothing < 8 is available.
+		//
+		// When building with OpenJDK 8, the following should have no
+		// effect since those jars would be available by default.
+		//
+		// When building with OpenJDK 9 but targeting a version < 1.8,
+		// putting them on the bootclasspath means that:
+		// a) code can't (accidentally) refer to OpenJDK 9 specific APIs
+		// b) references to existing APIs are not reinterpreted in an
+		//    OpenJDK 9-specific way, eg. calls to subclasses of
+		//    java.nio.Buffer as in http://b/70862583
+		java8Home := ctx.Config().Getenv("ANDROID_JAVA8_HOME")
+		flags.bootClasspath = append(flags.bootClasspath,
+			android.PathForSource(ctx, java8Home, "jre/lib/jce.jar"),
+			android.PathForSource(ctx, java8Home, "jre/lib/rt.jar"))
+	}
+
 	// systemModules
 	if deps.systemModules != nil {
 		flags.systemModules = append(flags.systemModules, deps.systemModules)
