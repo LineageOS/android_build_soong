@@ -18,6 +18,7 @@ package java
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -27,11 +28,12 @@ import (
 
 var (
 	jacoco = pctx.AndroidStaticRule("jacoco", blueprint.RuleParams{
-		Command: `${config.Zip2ZipCmd} -i $in -o $strippedJar $stripSpec && ` +
+		Command: `rm -rf $tmpDir && mkdir -p $tmpDir && ` +
+			`${config.Zip2ZipCmd} -i $in -o $strippedJar $stripSpec && ` +
 			`${config.JavaCmd} -jar ${config.JacocoCLIJar} ` +
-			`  instrument --quiet --dest $instrumentedJar $strippedJar && ` +
-			`${config.Ziptime} $instrumentedJar && ` +
-			`${config.MergeZipsCmd} --ignore-duplicates -j $out $instrumentedJar $in`,
+			`  instrument --quiet --dest $tmpDir $strippedJar && ` +
+			`${config.Ziptime} $tmpJar && ` +
+			`${config.MergeZipsCmd} --ignore-duplicates -j $out $tmpJar $in`,
 		CommandDeps: []string{
 			"${config.Zip2ZipCmd}",
 			"${config.JavaCmd}",
@@ -40,23 +42,30 @@ var (
 			"${config.MergeZipsCmd}",
 		},
 	},
-		"strippedJar", "stripSpec", "instrumentedJar")
+		"strippedJar", "stripSpec", "tmpDir", "tmpJar")
 )
 
-func jacocoInstrumentJar(ctx android.ModuleContext, outputJar, strippedJar android.WritablePath,
+// Instruments a jar using the Jacoco command line interface.  Uses stripSpec to extract a subset
+// of the classes in inputJar into strippedJar, instruments strippedJar into tmpJar, and then
+// combines the classes in tmpJar with inputJar (preferring the instrumented classes in tmpJar)
+// to produce instrumentedJar.
+func jacocoInstrumentJar(ctx android.ModuleContext, instrumentedJar, strippedJar android.WritablePath,
 	inputJar android.Path, stripSpec string) {
-	instrumentedJar := android.PathForModuleOut(ctx, "jacoco/instrumented.jar")
+
+	// The basename of tmpJar has to be the same as the basename of strippedJar
+	tmpJar := android.PathForModuleOut(ctx, "jacoco", "tmp", strippedJar.Base())
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           jacoco,
 		Description:    "jacoco",
-		Output:         outputJar,
+		Output:         instrumentedJar,
 		ImplicitOutput: strippedJar,
 		Input:          inputJar,
 		Args: map[string]string{
-			"strippedJar":     strippedJar.String(),
-			"stripSpec":       stripSpec,
-			"instrumentedJar": instrumentedJar.String(),
+			"strippedJar": strippedJar.String(),
+			"stripSpec":   stripSpec,
+			"tmpDir":      filepath.Dir(tmpJar.String()),
+			"tmpJar":      tmpJar.String(),
 		},
 	})
 }
