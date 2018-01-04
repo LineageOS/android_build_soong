@@ -149,7 +149,6 @@ func init() {
 
 type javaBuilderFlags struct {
 	javacFlags    string
-	dxFlags       string
 	bootClasspath classpath
 	classpath     classpath
 	systemModules classpath

@@ -108,6 +108,23 @@ var d8 = pctx.AndroidStaticRule("d8",
 	},
 	"outDir", "dxFlags")
 
+var r8 = pctx.AndroidStaticRule("r8",
+	blueprint.RuleParams{
+		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+			`${config.R8Cmd} -injars $in --output $outDir ` +
+			`--force-proguard-compatibility ` +
+			`-printmapping $outDict ` +
+			`$dxFlags $r8Flags && ` +
+			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
+			`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
+		CommandDeps: []string{
+			"${config.R8Cmd}",
+			"${config.SoongZipCmd}",
+			"${config.MergeZipsCmd}",
+		},
+	},
+	"outDir", "outDict", "dxFlags", "r8Flags")
+
 func (j *Module) dxFlags(ctx android.ModuleContext, fullD8 bool) []string {
 	flags := j.deviceProperties.Dxflags
 	if fullD8 {
@@ -144,10 +161,64 @@ func (j *Module) dxFlags(ctx android.ModuleContext, fullD8 bool) []string {
 	return flags
 }
 
+func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Flags []string, r8Deps android.Paths) {
+	opt := j.deviceProperties.Optimize
+
+	// When an app contains references to APIs that are not in the SDK specified by
+	// its LOCAL_SDK_VERSION for example added by support library or by runtime
+	// classes added by desugar, we artifically raise the "SDK version" "linked" by
+	// ProGuard, to
+	// - suppress ProGuard warnings of referencing symbols unknown to the lower SDK version.
+	// - prevent ProGuard stripping subclass in the support library that extends class added in the higher SDK version.
+	// See b/20667396
+	var proguardRaiseDeps classpath
+	ctx.VisitDirectDepsWithTag(proguardRaiseTag, func(dep android.Module) {
+		proguardRaiseDeps = append(proguardRaiseDeps, dep.(Dependency).HeaderJars()...)
+	})
+
+	r8Flags = append(r8Flags, proguardRaiseDeps.FormJavaClassPath("-libraryjars"))
+	r8Flags = append(r8Flags, flags.bootClasspath.FormJavaClassPath("-libraryjars"))
+	r8Flags = append(r8Flags, flags.classpath.FormJavaClassPath("-libraryjars"))
+	r8Flags = append(r8Flags, "-forceprocessing")
+
+	flagFiles := android.Paths{
+		android.PathForSource(ctx, "build/make/core/proguard.flags"),
+	}
+
+	flagFiles = append(flagFiles, j.extraProguardFlagFiles...)
+	// TODO(ccross): static android library proguard files
+
+	r8Flags = append(r8Flags, android.JoinWithPrefix(flagFiles.Strings(), "-include "))
+	r8Deps = append(r8Deps, flagFiles...)
+
+	// TODO(b/70942988): This is included from build/make/core/proguard.flags
+	r8Deps = append(r8Deps, android.PathForSource(ctx,
+		"build/make/core/proguard_basic_keeps.flags"))
+
+	r8Flags = append(r8Flags, j.deviceProperties.Optimize.Proguard_flags...)
+
+	// TODO(ccross): Don't shrink app instrumentation tests by default.
+	if !Bool(opt.Shrink) {
+		r8Flags = append(r8Flags, "-dontshrink")
+	}
+
+	if !Bool(opt.Optimize) {
+		r8Flags = append(r8Flags, "-dontoptimize")
+	}
+
+	// TODO(ccross): error if obufscation + app instrumentation test.
+	if !Bool(opt.Obfuscate) {
+		r8Flags = append(r8Flags, "-dontobfuscate")
+	}
+
+	return r8Flags, r8Deps
+}
+
 func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
-	fullD8 := ctx.Config().UseD8Desugar()
+	useR8 := Bool(j.deviceProperties.Optimize.Enabled)
+	fullD8 := useR8 || ctx.Config().UseD8Desugar()
 
 	if !fullD8 {
 		classesJar = j.desugar(ctx, flags, classesJar, jarName)
@@ -159,22 +230,42 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
 	outDir := android.PathForModuleOut(ctx, "dex")
 
-	rule := dx
-	desc := "dx"
-	if fullD8 {
-		rule = d8
-		desc = "d8"
+	if useR8 {
+		// TODO(ccross): if this is an instrumentation test of an obfuscated app, use the
+		// dictionary of the app and move the app from libraryjars to injars.
+		j.proguardDictionary = android.PathForModuleOut(ctx, "proguard_dictionary")
+		r8Flags, r8Deps := j.r8Flags(ctx, flags)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        r8,
+			Description: "r8",
+			Output:      javalibJar,
+			Input:       classesJar,
+			Implicits:   r8Deps,
+			Args: map[string]string{
+				"dxFlags": strings.Join(dxFlags, " "),
+				"r8Flags": strings.Join(r8Flags, " "),
+				"outDict": j.proguardDictionary.String(),
+				"outDir":  outDir.String(),
+			},
+		})
+	} else {
+		rule := dx
+		desc := "dx"
+		if fullD8 {
+			rule = d8
+			desc = "d8"
+		}
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        rule,
+			Description: desc,
+			Output:      javalibJar,
+			Input:       classesJar,
+			Args: map[string]string{
+				"dxFlags": strings.Join(dxFlags, " "),
+				"outDir":  outDir.String(),
+			},
+		})
 	}
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        rule,
-		Description: desc,
-		Output:      javalibJar,
-		Input:       classesJar,
-		Args: map[string]string{
-			"dxFlags": strings.Join(dxFlags, " "),
-			"outDir":  outDir.String(),
-		},
-	})
 
 	j.dexJarFile = javalibJar
 	return javalibJar
