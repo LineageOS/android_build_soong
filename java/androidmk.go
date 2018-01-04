@@ -165,6 +165,9 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if app.jacocoReportClassesFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", app.jacocoReportClassesFile.String())
 				}
+				if app.proguardDictionary != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", app.proguardDictionary.String())
+				}
 
 				if app.Name() == "framework-res" {
 					fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(TARGET_OUT_JAVA_LIBRARIES)")
