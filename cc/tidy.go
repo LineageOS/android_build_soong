@@ -80,6 +80,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	// If clang-tidy is not enabled globally, add the -quiet flag.
 	if !ctx.Config().ClangTidy() {
 		flags.TidyFlags = append(flags.TidyFlags, "-quiet")
+		flags.TidyFlags = append(flags.TidyFlags, "-extra-arg-before=-fno-caret-diagnostics")
 	}
 
 	// We might be using the static analyzer through clang tidy.
