@@ -319,6 +319,16 @@ func sdkStringToNumber(ctx android.BaseContext, v string) int {
 	}
 }
 
+func (j *Module) shouldInstrument(ctx android.BaseContext) bool {
+	return j.properties.Instrument && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT")
+}
+
+func (j *Module) shouldInstrumentStatic(ctx android.BaseContext) bool {
+	return j.shouldInstrument(ctx) &&
+		(ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_STATIC") ||
+			ctx.Config().UnbundledBuild())
+}
+
 func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	i := sdkStringToNumber(ctx, v)
 	if i == -1 {
@@ -442,6 +452,10 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
 		ctx.AddDependency(ctx.Module(), kotlinStdlibTag, "kotlin-stdlib")
+	}
+
+	if j.shouldInstrumentStatic(ctx) {
+		ctx.AddDependency(ctx.Module(), staticLibTag, "jacocoagent")
 	}
 }
 
@@ -871,7 +885,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
-	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") && j.properties.Instrument {
+	if j.shouldInstrument(ctx) {
 		outputFile = j.instrument(ctx, flags, outputFile, jarName)
 	}
 

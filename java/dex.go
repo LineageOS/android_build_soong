@@ -185,6 +185,11 @@ func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8F
 		android.PathForSource(ctx, "build/make/core/proguard.flags"),
 	}
 
+	if j.shouldInstrumentStatic(ctx) {
+		flagFiles = append(flagFiles,
+			android.PathForSource(ctx, "build/make/core/proguard.jacoco.flags"))
+	}
+
 	flagFiles = append(flagFiles, j.extraProguardFlagFiles...)
 	// TODO(ccross): static android library proguard files
 
