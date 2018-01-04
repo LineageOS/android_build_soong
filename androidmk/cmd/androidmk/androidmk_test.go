@@ -438,6 +438,42 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 `,
 		expected: ``,
 	},
+	{
+		desc: "proguard options for java library",
+		in: `
+			include $(CLEAR_VARS)
+			# Empty
+			LOCAL_PROGUARD_ENABLED :=
+			# Disabled
+			LOCAL_PROGUARD_ENABLED := disabled
+			# Full
+			LOCAL_PROGUARD_ENABLED := full
+			# Obfuscation and optimization
+			LOCAL_PROGUARD_ENABLED := obfuscation optimization
+			# Custom
+			LOCAL_PROGUARD_ENABLED := custom
+			include $(BUILD_JAVA_LIBRARY)
+		`,
+		expected: `
+			java_library {
+				// Empty
+
+				// Disabled
+				optimize: {
+					enabled: false,
+					// Full
+					enabled: true,
+					// Obfuscation and optimization
+					obfuscate: true,
+					optimize: true,
+					enabled: true,
+					// Custom
+					no_aapt_flags: true,
+					enabled: true,
+				},
+			}
+		`,
+	},
 }
 
 func reformatBlueprint(input string) string {

@@ -125,13 +125,12 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
 
-	//if !ctx.ContainsProperty("proguard.enabled") {
-	//	a.properties.Proguard.Enabled = true
-	//}
-
 	if String(a.appProperties.Instrumentation_for) == "" {
 		a.properties.Instrument = true
 	}
+
+	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles,
+		proguardOptionsFile)
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
@@ -323,6 +322,9 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
+
+	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+	module.Module.deviceProperties.Optimize.Shrink = proptools.BoolPtr(true)
 
 	module.AddProperties(
 		&module.Module.properties,

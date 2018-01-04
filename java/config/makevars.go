@@ -55,6 +55,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		ctx.Strict("DX_COMMAND", "${DxCmd} -JXms16M -JXmx2048M")
 		ctx.Strict("USE_D8_DESUGAR", "false")
 	}
+	ctx.Strict("R8_COMPAT_PROGUARD", "${R8Cmd}")
 
 	ctx.Strict("TURBINE", "${TurbineJar}")
 

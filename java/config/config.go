@@ -106,8 +106,8 @@ func init() {
 			return path.String(), nil
 		}
 	})
-
 	pctx.HostBinToolVariable("D8Cmd", "d8")
+	pctx.HostBinToolVariable("R8Cmd", "r8-compat-proguard")
 
 	pctx.VariableFunc("TurbineJar", func(config android.Config) (string, error) {
 		turbine := "turbine.jar"
