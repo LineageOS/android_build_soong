@@ -172,10 +172,7 @@ func TestVendorSrc(t *testing.T) {
 	for _, o := range ld.Inputs {
 		objs = append(objs, o.Base())
 	}
-	if len(objs) != 2 {
-		t.Errorf("inputs of libTest is expected to 2, but was %d.", len(objs))
-	}
-	if objs[0] != "foo.o" || objs[1] != "bar.o" {
+	if len(objs) != 2 || objs[0] != "foo.o" || objs[1] != "bar.o" {
 		t.Errorf("inputs of libTest must be []string{\"foo.o\", \"bar.o\"}, but was %#v.", objs)
 	}
 }
