@@ -47,8 +47,11 @@ var (
 // }
 //
 type vndkPrebuiltProperties struct {
-	// VNDK snapshot version that is formated as {SDK_ver}.{Major}.{Minor}.
-	Version string
+	// VNDK snapshot version.
+	Version *string
+
+	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64_ab')
+	Target_arch *string
 
 	// Prebuilt files for each arch.
 	Srcs []string `android:"arch_variant"`
@@ -60,15 +63,26 @@ type vndkPrebuiltLibraryDecorator struct {
 }
 
 func (p *vndkPrebuiltLibraryDecorator) Name(name string) string {
-	return name + vndkSuffix + p.version()
+	return name + p.NameSuffix()
+}
+
+func (p *vndkPrebuiltLibraryDecorator) NameSuffix() string {
+	if p.arch() != "" {
+		return vndkSuffix + p.version() + "." + p.arch()
+	}
+	return vndkSuffix + p.version()
 }
 
 func (p *vndkPrebuiltLibraryDecorator) version() string {
-	return p.properties.Version
+	return String(p.properties.Version)
+}
+
+func (p *vndkPrebuiltLibraryDecorator) arch() string {
+	return String(p.properties.Target_arch)
 }
 
 func (p *vndkPrebuiltLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	p.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(), vndkSuffix+p.version())
+	p.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(), p.NameSuffix())
 	return p.libraryDecorator.linkerFlags(ctx, flags)
 }
 
