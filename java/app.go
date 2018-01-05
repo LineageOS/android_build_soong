@@ -412,7 +412,11 @@ func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	}
 
 	var overlayData []overlayGlobResult
-	for _, overlay := range ctx.Config().ResourceOverlays() {
+	overlayDirs := ctx.Config().ResourceOverlays()
+	for i := range overlayDirs {
+		// Iterate backwards through the list of overlay directories so that the later, lower-priority
+		// directories in the list show up earlier in the command line to aapt2.
+		overlay := overlayDirs[len(overlayDirs)-1-i]
 		var result overlayGlobResult
 		result.dir = overlay
 
