@@ -119,15 +119,14 @@ var (
 	ClangDefaultVersion      = "clang-4393122"
 	ClangDefaultShortVersion = "5.0.1"
 
+	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
 		"device/",
 		"vendor/",
 	}
 
-	// Some Android.mk files still have warnings.
-	WarningAllowedOldProjects = []string{
-		"hardware/qcom/",
-	}
+	// Directories with warnings from Android.mk files.
+	WarningAllowedOldProjects = []string{}
 )
 
 var pctx = android.NewPackageContext("android/soong/cc/config")
