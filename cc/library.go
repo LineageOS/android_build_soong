@@ -579,7 +579,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	// TODO(danalbert): Clean this up when soong supports prebuilts.
 	if strings.HasPrefix(ctx.selectedStl(), "ndk_libc++") {
-		libDir := getNdkStlLibDir(ctx, flags.Toolchain, "libc++")
+		libDir := getNdkStlLibDir(ctx, "libc++")
 
 		if strings.HasSuffix(ctx.selectedStl(), "_shared") {
 			deps.StaticLibs = append(deps.StaticLibs,
