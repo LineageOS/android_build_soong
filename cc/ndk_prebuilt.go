@@ -163,16 +163,13 @@ func ndkPrebuiltStaticStlFactory() android.Module {
 	return module.Init()
 }
 
-func getNdkStlLibDir(ctx android.ModuleContext, toolchain config.Toolchain, stl string) android.SourcePath {
-	gccVersion := toolchain.GccVersion()
+func getNdkStlLibDir(ctx android.ModuleContext, stl string) android.SourcePath {
 	var libDir string
 	switch stl {
 	case "libstlport":
 		libDir = "cxx-stl/stlport/libs"
 	case "libc++":
 		libDir = "cxx-stl/llvm-libc++/libs"
-	case "libgnustl":
-		libDir = fmt.Sprintf("cxx-stl/gnu-libstdc++/%s/libs", gccVersion)
 	}
 
 	if libDir != "" {
@@ -201,6 +198,6 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 
 	stlName := strings.TrimSuffix(libName, "_shared")
 	stlName = strings.TrimSuffix(stlName, "_static")
-	libDir := getNdkStlLibDir(ctx, flags.Toolchain, stlName)
+	libDir := getNdkStlLibDir(ctx, stlName)
 	return libDir.Join(ctx, libName+libExt)
 }

@@ -53,6 +53,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
 	"LOCAL_CFLAGS":                cflags,
 	"LOCAL_UNINSTALLABLE_MODULE":  invert("installable"),
+	"LOCAL_PROGUARD_ENABLED":      proguardEnabled,
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -136,6 +137,9 @@ func init() {
 
 			"LOCAL_ANNOTATION_PROCESSORS":        "annotation_processors",
 			"LOCAL_ANNOTATION_PROCESSOR_CLASSES": "annotation_processor_classes",
+
+			"LOCAL_PROGUARD_FLAGS":      "optimize.proguard_flags",
+			"LOCAL_PROGUARD_FLAG_FILES": "optimize.proguard_flag_files",
 		})
 	addStandardProperties(bpparser.BoolType,
 		map[string]string{
@@ -515,6 +519,60 @@ func cflags(ctx variableAssignmentContext) error {
 	ctx.mkvalue = ctx.mkvalue.Clone()
 	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
 	return includeVariableNow(bpVariable{"cflags", bpparser.ListType}, ctx)
+}
+
+func proguardEnabled(ctx variableAssignmentContext) error {
+	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
+	if err != nil {
+		return err
+	}
+
+	list, ok := val.(*bpparser.List)
+	if !ok {
+		return fmt.Errorf("unsupported proguard expression")
+	}
+
+	set := func(prop string, value bool) {
+		bpValue := &bpparser.Bool{
+			Value: value,
+		}
+		setVariable(ctx.file, false, ctx.prefix, prop, bpValue, true)
+	}
+
+	enable := false
+
+	for _, v := range list.Values {
+		s, ok := v.(*bpparser.String)
+		if !ok {
+			return fmt.Errorf("unsupported proguard expression")
+		}
+
+		switch s.Value {
+		case "disabled":
+			set("optimize.enabled", false)
+		case "obfuscation":
+			enable = true
+			set("optimize.obfuscate", true)
+		case "optimization":
+			enable = true
+			set("optimize.optimize", true)
+		case "full":
+			enable = true
+		case "custom":
+			set("optimize.no_aapt_flags", true)
+			enable = true
+		default:
+			return fmt.Errorf("unsupported proguard value %q", s)
+		}
+	}
+
+	if enable {
+		// This is only necessary for libraries which default to false, but we can't
+		// tell the difference between a library and an app here.
+		set("optimize.enabled", true)
+	}
+
+	return nil
 }
 
 func invert(name string) func(ctx variableAssignmentContext) error {

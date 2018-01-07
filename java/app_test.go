@@ -111,13 +111,13 @@ var testEnforceRROTests = []struct {
 		enforceRROTargets:          nil,
 		enforceRROExcludedOverlays: nil,
 		fooOverlayFiles: []string{
-			"device/vendor/blah/overlay/foo/res/values/strings.xml",
 			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+			"device/vendor/blah/overlay/foo/res/values/strings.xml",
 		},
 		fooRRODirs: nil,
 		barOverlayFiles: []string{
-			"device/vendor/blah/overlay/bar/res/values/strings.xml",
 			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+			"device/vendor/blah/overlay/bar/res/values/strings.xml",
 		},
 		barRRODirs: nil,
 	},
@@ -132,8 +132,8 @@ var testEnforceRROTests = []struct {
 			"device/vendor/blah/overlay/foo/res",
 		},
 		barOverlayFiles: []string{
-			"device/vendor/blah/overlay/bar/res/values/strings.xml",
 			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+			"device/vendor/blah/overlay/bar/res/values/strings.xml",
 		},
 		barRRODirs: nil,
 	},

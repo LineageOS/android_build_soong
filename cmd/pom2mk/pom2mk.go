@@ -87,9 +87,12 @@ var extraDeps = make(ExtraDeps)
 
 var sdkVersion string
 var useVersion string
+var staticDeps bool
 
 type Dependency struct {
 	XMLName xml.Name `xml:"dependency"`
+
+	MakeTarget string `xml:"-"`
 
 	GroupId    string `xml:"groupId"`
 	ArtifactId string `xml:"artifactId"`
@@ -97,6 +100,13 @@ type Dependency struct {
 	Type       string `xml:"type"`
 
 	Scope string `xml:"scope"`
+}
+
+func (d Dependency) MkName() string {
+	if d.MakeTarget == "" {
+		d.MakeTarget = rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
+	}
+	return d.MakeTarget
 }
 
 type Pom struct {
@@ -114,6 +124,14 @@ type Pom struct {
 	Dependencies []*Dependency `xml:"dependencies>dependency"`
 }
 
+func (p Pom) IsAar() bool {
+	return p.Packaging == "aar"
+}
+
+func (p Pom) IsJar() bool {
+	return p.Packaging == "jar"
+}
+
 func (p Pom) MkName() string {
 	if p.MakeTarget == "" {
 		p.MakeTarget = rewriteNames.MavenToMk(p.GroupId, p.ArtifactId)
@@ -121,10 +139,18 @@ func (p Pom) MkName() string {
 	return p.MakeTarget
 }
 
-func (p Pom) MkDeps() []string {
+func (p Pom) MkJarDeps() []string {
+	return p.MkDeps("jar")
+}
+
+func (p Pom) MkAarDeps() []string {
+	return p.MkDeps("aar")
+}
+
+func (p Pom) MkDeps(typeExt string) []string {
 	var ret []string
 	for _, d := range p.Dependencies {
-		if d.Type != "aar" {
+		if d.Type != typeExt {
 			continue
 		}
 		name := rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
@@ -143,7 +169,7 @@ func (p *Pom) FixDepTypes(modules map[string]*Pom) {
 		if d.Type != "" {
 			continue
 		}
-		if depPom, ok := modules[p.MkName()]; ok {
+		if depPom, ok := modules[d.MkName()]; ok {
 			d.Type = depPom.Packaging
 		}
 	}
@@ -160,9 +186,38 @@ LOCAL_MODULE_SUFFIX := .{{.Packaging}}
 LOCAL_USE_AAPT2 := true
 LOCAL_SDK_VERSION := {{.SdkVersion}}
 LOCAL_STATIC_ANDROID_LIBRARIES := \
-{{range .MkDeps}}  {{.}} \
+{{range .MkAarDeps}}  {{.}} \
 {{end}}
 include $(BUILD_PREBUILT)
+`))
+
+var mkDepsTemplate = template.Must(template.New("mk").Parse(`
+include $(CLEAR_VARS)
+LOCAL_MODULE := {{.MkName}}-nodeps
+LOCAL_MODULE_CLASS := JAVA_LIBRARIES
+LOCAL_UNINSTALLABLE_MODULE := true
+LOCAL_SRC_FILES := {{.ArtifactFile}}
+LOCAL_BUILT_MODULE_STEM := javalib.jar
+LOCAL_MODULE_SUFFIX := .{{.Packaging}}
+LOCAL_USE_AAPT2 := true
+LOCAL_SDK_VERSION := {{.SdkVersion}}
+LOCAL_STATIC_ANDROID_LIBRARIES :={{range .MkAarDeps}} \
+  {{.}}{{end}}
+include $(BUILD_PREBUILT)
+include $(CLEAR_VARS)
+LOCAL_MODULE := {{.MkName}}
+LOCAL_SDK_VERSION := {{.SdkVersion}}{{if .IsAar}}
+LOCAL_MANIFEST_FILE := manifests/{{.MkName}}/AndroidManifest.xml{{end}}
+LOCAL_STATIC_JAVA_LIBRARIES :={{if .IsJar}} \
+  {{.MkName}}-nodeps{{end}}{{range .MkJarDeps}} \
+  {{.}}{{end}}
+LOCAL_STATIC_ANDROID_LIBRARIES :={{if .IsAar}} \
+  {{.MkName}}-nodeps{{end}}{{range .MkAarDeps}}  \
+  {{.}}{{end}}
+LOCAL_JAR_EXCLUDE_FILES := none
+LOCAL_JAVA_LANGUAGE_VERSION := 1.7
+LOCAL_USE_AAPT2 := true
+include $(BUILD_STATIC_JAVA_LIBRARY)
 `))
 
 func parse(filename string) (*Pom, error) {
@@ -215,6 +270,8 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
   -use-version <version>
      If the maven directory contains multiple versions of artifacts and their pom files,
      -use-version can be used to only write makefiles for a specific version of those artifacts.
+  -static-deps
+     Whether to statically include direct dependencies.
   <dir>
      The directory to search for *.pom files under.
 
@@ -226,6 +283,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
+	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
 	flag.Parse()
 
 	if flag.NArg() != 1 {
@@ -310,7 +368,12 @@ The makefile is written to stdout, to be put in the current directory (often as 
 	fmt.Println("LOCAL_PATH := $(call my-dir)")
 
 	for _, pom := range poms {
-		err := mkTemplate.Execute(os.Stdout, pom)
+		var err error
+		if staticDeps {
+			err = mkDepsTemplate.Execute(os.Stdout, pom)
+		} else {
+			err = mkTemplate.Execute(os.Stdout, pom)
+		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error writing", pom.PomFile, pom.MkName(), err)
 			os.Exit(1)
