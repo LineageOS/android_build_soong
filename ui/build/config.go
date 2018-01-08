@@ -168,6 +168,8 @@ func NewConfig(ctx Context, args ...string) Config {
 	}()
 	absJavaHome := absPath(ctx, javaHome)
 
+	ret.configureLocale(ctx)
+
 	newPath := []string{filepath.Join(absJavaHome, "bin")}
 	if path, ok := ret.environ.Get("PATH"); ok && path != "" {
 		newPath = append(newPath, path)
@@ -225,6 +227,52 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			}
 			c.arguments = append(c.arguments, arg)
 		}
+	}
+}
+
+func (c *configImpl) configureLocale(ctx Context) {
+	cmd := Command(ctx, Config{c}, "locale", "locale", "-a")
+	output, err := cmd.Output()
+
+	var locales []string
+	if err == nil {
+		locales = strings.Split(string(output), "\n")
+	} else {
+		// If we're unable to list the locales, let's assume en_US.UTF-8
+		locales = []string{"en_US.UTF-8"}
+		ctx.Verbosef("Failed to list locales (%q), falling back to %q", err, locales)
+	}
+
+	// gettext uses LANGUAGE, which is passed directly through
+
+	// For LANG and LC_*, only preserve the evaluated version of
+	// LC_MESSAGES
+	user_lang := ""
+	if lc_all, ok := c.environ.Get("LC_ALL"); ok {
+		user_lang = lc_all
+	} else if lc_messages, ok := c.environ.Get("LC_MESSAGES"); ok {
+		user_lang = lc_messages
+	} else if lang, ok := c.environ.Get("LANG"); ok {
+		user_lang = lang
+	}
+
+	c.environ.UnsetWithPrefix("LC_")
+
+	if user_lang != "" {
+		c.environ.Set("LC_MESSAGES", user_lang)
+	}
+
+	// The for LANG, use C.UTF-8 if it exists (Debian currently, proposed
+	// for others)
+	if inList("C.UTF-8", locales) {
+		c.environ.Set("LANG", "C.UTF-8")
+	} else if inList("en_US.UTF-8", locales) {
+		c.environ.Set("LANG", "en_US.UTF-8")
+	} else if inList("en_US.utf8", locales) {
+		// These normalize to the same thing
+		c.environ.Set("LANG", "en_US.UTF-8")
+	} else {
+		ctx.Fatalln("System doesn't support either C.UTF-8 or en_US.UTF-8")
 	}
 }
 
