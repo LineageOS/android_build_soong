@@ -508,8 +508,8 @@ func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 		return
 	}
 
-	arCmd := "${config.ClangBin}/llvm-ar"
-	arFlags := "crsD"
+	arCmd := gccCmd(flags.toolchain, "ar")
+	arFlags := "crsPD"
 	if flags.arFlags != "" {
 		arFlags += " " + flags.arFlags
 	}
