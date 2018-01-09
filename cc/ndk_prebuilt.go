@@ -164,21 +164,9 @@ func ndkPrebuiltStaticStlFactory() android.Module {
 }
 
 func getNdkStlLibDir(ctx android.ModuleContext, stl string) android.SourcePath {
-	var libDir string
-	switch stl {
-	case "libstlport":
-		libDir = "cxx-stl/stlport/libs"
-	case "libc++":
-		libDir = "cxx-stl/llvm-libc++/libs"
-	}
-
-	if libDir != "" {
-		ndkSrcRoot := "prebuilts/ndk/current/sources"
-		return android.PathForSource(ctx, ndkSrcRoot).Join(ctx, libDir, ctx.Arch().Abi[0])
-	}
-
-	ctx.ModuleErrorf("Unknown NDK STL: %s", stl)
-	return android.PathForSource(ctx, "")
+	libDir := "cxx-stl/llvm-libc++/libs"
+	ndkSrcRoot := "prebuilts/ndk/current/sources"
+	return android.PathForSource(ctx, ndkSrcRoot).Join(ctx, libDir, ctx.Arch().Abi[0])
 }
 
 func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
