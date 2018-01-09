@@ -26,8 +26,8 @@ import (
 
 func init() {
 	pctx.SourcePathVariable("lexCmd", "prebuilts/misc/${config.HostPrebuiltTag}/flex/flex-2.5.39")
-	pctx.SourcePathVariable("yaccCmd", "prebuilts/misc/${config.HostPrebuiltTag}/bison/bison")
-	pctx.SourcePathVariable("yaccDataDir", "external/bison/data")
+	pctx.SourcePathVariable("yaccCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/bison")
+	pctx.SourcePathVariable("yaccDataDir", "prebuilts/build-tools/common/bison")
 
 	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
 }
