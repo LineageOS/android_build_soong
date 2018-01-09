@@ -167,6 +167,7 @@ type productVariables struct {
 	MinimizeJavaDebugInfo      *bool `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
+	IntegerOverflowIncludePaths *[]string `json:",omitempty"`
 
 	EnableCFI       *bool     `json:",omitempty"`
 	CFIExcludePaths *[]string `json:",omitempty"`
