@@ -24,8 +24,6 @@ func getNdkStlFamily(ctx android.ModuleContext, m *Module) string {
 	switch stl {
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		return "libc++"
-	case "ndk_libstlport_shared", "ndk_libstlport_static":
-		return "stlport"
 	case "ndk_system":
 		return "system"
 	case "":
@@ -37,9 +35,9 @@ func getNdkStlFamily(ctx android.ModuleContext, m *Module) string {
 }
 
 type StlProperties struct {
-	// select the STL library to use.  Possible values are "libc++", "libc++_static",
-	// "stlport", "stlport_static", "ndk", "libstdc++", or "none".  Leave blank to select the
-	// default
+	// Select the STL library to use.  Possible values are "libc++",
+	// "libc++_static", "libstdc++", or "none". Leave blank to select the
+	// default.
 	Stl *string `android:"arch_variant"`
 
 	SelectedStl string `blueprint:"mutated"`
@@ -63,8 +61,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			switch s {
 			case "":
 				return "ndk_system"
-			case "c++_shared", "c++_static",
-				"stlport_shared", "stlport_static":
+			case "c++_shared", "c++_static":
 				return "ndk_lib" + s
 			case "libc++":
 				return "ndk_libc++_shared"
@@ -132,9 +129,9 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
 		// its own includes. The includes are handled in CCBase.Flags().
 		deps.SharedLibs = append([]string{"libstdc++"}, deps.SharedLibs...)
-	case "ndk_libc++_shared", "ndk_libstlport_shared":
+	case "ndk_libc++_shared":
 		deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
-	case "ndk_libc++_static", "ndk_libstlport_static":
+	case "ndk_libc++_static":
 		deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
 	default:
 		panic(fmt.Errorf("Unknown stl: %q", stl.Properties.SelectedStl))
@@ -168,8 +165,6 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		// TODO(danalbert): This really shouldn't be here...
 		flags.CppFlags = append(flags.CppFlags, "-std=c++11")
-	case "ndk_libstlport_shared", "ndk_libstlport_static":
-		// Nothing
 	case "":
 		// None or error.
 		if !ctx.toolchain().Bionic() {
