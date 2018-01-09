@@ -100,7 +100,7 @@ type FlagExporterProperties struct {
 			// export_include_dirs, that will be applied to the
 			// vendor variant of this library. This will overwrite
 			// any other declarations.
-			Export_include_dirs []string
+			Override_export_include_dirs []string
 		}
 	}
 }
@@ -164,8 +164,8 @@ type flagExporter struct {
 }
 
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
-	if ctx.useVndk() && f.Properties.Target.Vendor.Export_include_dirs != nil {
-		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Export_include_dirs)
+	if ctx.useVndk() && f.Properties.Target.Vendor.Override_export_include_dirs != nil {
+		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Override_export_include_dirs)
 	} else {
 		return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
 	}
