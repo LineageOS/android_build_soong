@@ -428,13 +428,6 @@ func (x *classpath) FormDesugarClasspath(optName string) []string {
 	return flags
 }
 
-// Append an android.Paths to the end of the classpath list
-func (x *classpath) AddPaths(paths android.Paths) {
-	for _, path := range paths {
-		*x = append(*x, path)
-	}
-}
-
 // Convert a classpath to an android.Paths
 func (x *classpath) Paths() android.Paths {
 	return append(android.Paths(nil), (*x)...)
