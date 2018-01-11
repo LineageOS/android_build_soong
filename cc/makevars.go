@@ -289,7 +289,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	if target.Os == android.Darwin {
 		ctx.Strict(makePrefix+"AR", "${config.MacArPath}")
 	} else {
-		ctx.Strict(makePrefix+"AR", gccCmd(toolchain, "ar"))
+		ctx.Strict(makePrefix+"AR", "${config.ClangBin}/llvm-ar")
 		ctx.Strict(makePrefix+"READELF", gccCmd(toolchain, "readelf"))
 		ctx.Strict(makePrefix+"NM", gccCmd(toolchain, "nm"))
 	}
