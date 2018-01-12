@@ -144,6 +144,19 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	switch stl.Properties.SelectedStl {
 	case "libc++", "libc++_static":
 		flags.CFlags = append(flags.CFlags, "-D_USING_LIBCXX")
+
+		if ctx.Darwin() {
+			// libc++'s headers are annotated with availability macros that
+			// indicate which version of Mac OS was the first to ship with a
+			// libc++ feature available in its *system's* libc++.dylib. We do
+			// not use the system's library, but rather ship our own. As such,
+			// these availability attributes are meaningless for us but cause
+			// build breaks when we try to use code that would not be available
+			// in the system's dylib.
+			flags.CppFlags = append(flags.CppFlags,
+				"-D_LIBCPP_DISABLE_AVAILABILITY")
+		}
+
 		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
 			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
