@@ -42,6 +42,7 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 		config.PrebuiltBuildTool("ckati"),
 		"-f", "build/make/core/config.mk",
 		"--color_warnings",
+		"--kati_stats",
 		"dump-many-vars",
 		"MAKECMDGOALS="+strings.Join(goals, " "))
 	cmd.Environment.Set("CALLED_FROM_SETUP", "true")
@@ -51,15 +52,19 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 	}
 	cmd.Environment.Set("DUMP_MANY_VARS", strings.Join(vars, " "))
 	cmd.Sandbox = dumpvarsSandbox
-	// TODO: error out when Stderr contains any content
-	cmd.Stderr = ctx.Stderr()
-	output, err := cmd.Output()
+	output := bytes.Buffer{}
+	cmd.Stdout = &output
+	pipe, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, err
+		ctx.Fatalln("Error getting output pipe for ckati:", err)
 	}
+	cmd.StartOrFatal()
+	// TODO: error out when Stderr contains any content
+	katiRewriteOutput(ctx, pipe)
+	cmd.WaitOrFatal()
 
 	ret := make(map[string]string, len(vars))
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range strings.Split(output.String(), "\n") {
 		if len(line) == 0 {
 			continue
 		}

@@ -103,6 +103,13 @@ func (c ContextImpl) IsTerminal() bool {
 	return false
 }
 
+func (c ContextImpl) IsErrTerminal() bool {
+	if term, ok := os.LookupEnv("TERM"); ok {
+		return term != "dumb" && isTerminal(c.Stderr())
+	}
+	return false
+}
+
 func (c ContextImpl) TermWidth() (int, bool) {
 	return termWidth(c.Stdout())
 }
