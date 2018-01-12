@@ -257,8 +257,6 @@ func (c *configImpl) Tapas(ctx Context, apps []string, arch, variant string) {
 
 	var product string
 	switch arch {
-	case "armv5":
-		product = "generic_armv5"
 	case "arm", "":
 		product = "aosp_arm"
 	case "arm64":
