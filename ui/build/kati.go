@@ -115,6 +115,7 @@ var katiLogRe = regexp.MustCompile(`^\*kati\*: `)
 func katiRewriteOutput(ctx Context, pipe io.ReadCloser) {
 	haveBlankLine := true
 	smartTerminal := ctx.IsTerminal()
+	errSmartTerminal := ctx.IsErrTerminal()
 
 	scanner := bufio.NewScanner(pipe)
 	for scanner.Scan() {
@@ -155,7 +156,7 @@ func katiRewriteOutput(ctx Context, pipe io.ReadCloser) {
 			// that message instead of overwriting it.
 			fmt.Fprintln(ctx.Stdout())
 			haveBlankLine = true
-		} else if !smartTerminal {
+		} else if !errSmartTerminal {
 			// Most editors display these as garbage, so strip them out.
 			line = string(stripAnsiEscapes([]byte(line)))
 		}
