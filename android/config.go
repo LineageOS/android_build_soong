@@ -430,13 +430,6 @@ func (c *config) DeviceName() string {
 	return *c.ProductVariables.DeviceName
 }
 
-func (c *config) DeviceUsesClang() bool {
-	if c.ProductVariables.DeviceUsesClang != nil {
-		return *c.ProductVariables.DeviceUsesClang
-	}
-	return true
-}
-
 func (c *config) ResourceOverlays() []string {
 	if c.ProductVariables.ResourceOverlays == nil {
 		return nil

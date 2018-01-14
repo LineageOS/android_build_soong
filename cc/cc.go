@@ -947,13 +947,7 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 	clang := Bool(c.Properties.Clang)
 
 	if c.Properties.Clang == nil {
-		if ctx.Host() {
-			clang = true
-		}
-
-		if ctx.Device() && ctx.Config().DeviceUsesClang() {
-			clang = true
-		}
+		clang = true
 	}
 
 	if !c.toolchain(ctx).ClangSupported() {

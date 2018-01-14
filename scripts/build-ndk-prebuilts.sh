@@ -55,7 +55,6 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "DeviceAbi": [
         "arm64-v8a"
     ],
-    "DeviceUsesClang": true,
     "DeviceSecondaryArch": "arm",
     "DeviceSecondaryArchVariant": "armv7-a-neon",
     "DeviceSecondaryCpuVariant": "denver",
