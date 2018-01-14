@@ -106,6 +106,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-cc-config",
         "soong-genrule",
+        "soong-lineage-kernelheaders",
     ],
     srcs: [
         "cc/androidmk.go",

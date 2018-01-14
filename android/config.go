@@ -527,6 +527,10 @@ func (c *deviceConfig) SpecificCameraParametersLibrary() string {
 	return String(c.config.ProductVariables.Lineage.Specific_camera_parameter_library)
 }
 
+func (c *deviceConfig) DeviceKernelSource() string {
+	return String(c.config.ProductVariables.Lineage.Target_kernel_source)
+}
+
 func (c *deviceConfig) NativeCoverageEnabled() bool {
 	return Bool(c.config.ProductVariables.NativeCoverage)
 }
