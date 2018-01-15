@@ -308,7 +308,7 @@ type sdkDep struct {
 func sdkStringToNumber(ctx android.BaseContext, v string) int {
 	switch v {
 	case "", "current", "system_current", "test_current":
-		return 10000
+		return android.FutureApiLevel
 	default:
 		if i, err := strconv.Atoi(android.GetNumericSdkVersion(v)); err != nil {
 			ctx.PropertyErrorf("sdk_version", "invalid sdk version")
@@ -334,6 +334,22 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	if i == -1 {
 		// Invalid sdk version, error handled by sdkStringToNumber.
 		return sdkDep{}
+	}
+
+	// Ensures that the specificed system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor apks)
+	// or PRODUCT_SYSTEMSDK_VERSIONS (for other apks or when BOARD_SYSTEMSDK_VERSIONS is not set)
+	if strings.HasPrefix(v, "system_") && i != android.FutureApiLevel {
+		allowed_versions := ctx.DeviceConfig().PlatformSystemSdkVersions()
+		if ctx.DeviceSpecific() || ctx.SocSpecific() {
+			if len(ctx.DeviceConfig().SystemSdkVersions()) > 0 {
+				allowed_versions = ctx.DeviceConfig().SystemSdkVersions()
+			}
+		}
+		version := strings.TrimPrefix(v, "system_")
+		if len(allowed_versions) > 0 && !android.InList(version, allowed_versions) {
+			ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
+				v, allowed_versions)
+		}
 	}
 
 	toFile := func(v string) sdkDep {
@@ -638,7 +654,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.javaVersion = "1.7"
 	} else if ctx.Device() && sdk <= 26 || !ctx.Config().TargetOpenJDK9() {
 		flags.javaVersion = "1.8"
-	} else if ctx.Device() && String(j.deviceProperties.Sdk_version) != "" && sdk == 10000 {
+	} else if ctx.Device() && String(j.deviceProperties.Sdk_version) != "" && sdk == android.FutureApiLevel {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
 		flags.javaVersion = "1.8"
 	} else {

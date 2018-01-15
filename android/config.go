@@ -31,6 +31,7 @@ import (
 
 var Bool = proptools.Bool
 var String = proptools.String
+var FutureApiLevel = 10000
 
 // The configuration file name
 const configFileName = "soong.config"
@@ -453,7 +454,7 @@ func (c *config) DefaultAppTargetSdkInt() int {
 	if Bool(c.ProductVariables.Platform_sdk_final) {
 		return c.PlatformSdkVersionInt()
 	} else {
-		return 10000
+		return FutureApiLevel
 	}
 }
 
@@ -655,6 +656,17 @@ func (c *deviceConfig) PlatformVndkVersion() string {
 
 func (c *deviceConfig) ExtraVndkVersions() []string {
 	return c.config.ProductVariables.ExtraVndkVersions
+}
+
+func (c *deviceConfig) SystemSdkVersions() []string {
+	if c.config.ProductVariables.DeviceSystemSdkVersions == nil {
+		return nil
+	}
+	return *c.config.ProductVariables.DeviceSystemSdkVersions
+}
+
+func (c *deviceConfig) PlatformSystemSdkVersions() []string {
+	return c.config.ProductVariables.Platform_systemsdk_versions
 }
 
 func (c *deviceConfig) OdmPath() string {
