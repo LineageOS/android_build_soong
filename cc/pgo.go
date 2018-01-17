@@ -26,9 +26,12 @@ var (
 	// Add flags to ignore warnings that profiles are old or missing for
 	// some functions
 	profileUseOtherFlags = []string{"-Wno-backend-plugin"}
-)
 
-const pgoProfileProject = "vendor/google_data/pgo_profile"
+	pgoProfileProjects = []string{
+		"toolchain/pgo-profiles",
+		"vendor/google_data/pgo-profiles",
+	}
+)
 
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
 const profileSamplingFlag = "-gline-tables-only"
@@ -84,6 +87,18 @@ func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags
 	return flags
 }
 
+func (props *PgoProperties) getPgoProfileFile(ctx ModuleContext) android.OptionalPath {
+	// Test if the profile_file is present in any of the pgoProfileProjects
+	for _, profileProject := range pgoProfileProjects {
+		path := android.ExistentPathForSource(ctx, "", profileProject, *props.Pgo.Profile_file)
+		if path.Valid() {
+			return path
+		}
+	}
+
+	return android.OptionalPathForPath(nil)
+}
+
 func (props *PgoProperties) profileUseFlag(ctx ModuleContext, file string) string {
 	if props.isInstrumentation() {
 		return fmt.Sprintf(profileUseInstrumentFormat, file)
@@ -101,24 +116,28 @@ func (props *PgoProperties) profileUseFlags(ctx ModuleContext, file string) []st
 }
 
 func (props *PgoProperties) addProfileUseFlags(ctx ModuleContext, flags Flags) Flags {
+	// Return if 'pgo' property is not present in this module.
+	if !props.PgoPresent {
+		return flags
+	}
+
 	// Skip -fprofile-use if 'enable_profile_use' property is set
 	if props.Pgo.Enable_profile_use != nil && *props.Pgo.Enable_profile_use == false {
 		return flags
 	}
 
-	// If the PGO profiles project is found, and this module has PGO
-	// enabled, add flags to use the profile
-	if profilesDir := getPgoProfilesDir(ctx); props.PgoPresent && profilesDir.Valid() {
-		profileFile := android.PathForSource(ctx, profilesDir.String(), *props.Pgo.Profile_file)
-		profileUseFlags := props.profileUseFlags(ctx, profileFile.String())
+	// If the profile file is found, add flags to use the profile
+	if profileFile := props.getPgoProfileFile(ctx); profileFile.Valid() {
+		profileFilePath := profileFile.Path()
+		profileUseFlags := props.profileUseFlags(ctx, profileFilePath.String())
 
 		flags.CFlags = append(flags.CFlags, profileUseFlags...)
 		flags.LdFlags = append(flags.LdFlags, profileUseFlags...)
 
 		// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
 		// if profileFile gets updated
-		flags.CFlagsDeps = append(flags.CFlagsDeps, profileFile)
-		flags.LdFlagsDeps = append(flags.LdFlagsDeps, profileFile)
+		flags.CFlagsDeps = append(flags.CFlagsDeps, profileFilePath)
+		flags.LdFlagsDeps = append(flags.LdFlagsDeps, profileFilePath)
 	}
 	return flags
 }
@@ -162,10 +181,6 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 	}
 
 	return true
-}
-
-func getPgoProfilesDir(ctx ModuleContext) android.OptionalPath {
-	return android.ExistentPathForSource(ctx, "", pgoProfileProject)
 }
 
 func (pgo *pgo) begin(ctx BaseModuleContext) {
