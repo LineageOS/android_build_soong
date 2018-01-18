@@ -187,12 +187,12 @@ var (
 
 	sAbiLink = pctx.AndroidStaticRule("sAbiLink",
 		blueprint.RuleParams{
-			Command:        "$sAbiLinker -o ${out} $symbolFilter -arch $arch -api $api $exportedHeaderFlags @${out}.rsp ",
+			Command:        "$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
 			CommandDeps:    []string{"$sAbiLinker"},
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
 		},
-		"symbolFilter", "arch", "api", "exportedHeaderFlags")
+		"symbolFilter", "arch", "exportedHeaderFlags")
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
@@ -681,27 +681,18 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 // Generate a rule to combine .dump sAbi dump files from multiple source files
 // into a single .ldump sAbi dump file
 func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
-	symbolFile android.OptionalPath, apiLevel, baseName, exportedHeaderFlags string) android.OptionalPath {
+	baseName, exportedHeaderFlags string) android.OptionalPath {
 	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
-	var symbolFilterStr string
-	var linkedDumpDep android.Path
-	if symbolFile.Valid() {
-		symbolFilterStr = "-v " + symbolFile.Path().String()
-		linkedDumpDep = symbolFile.Path()
-	} else {
-		linkedDumpDep = soFile
-		symbolFilterStr = "-so " + soFile.String()
-	}
+	symbolFilterStr := "-so " + soFile.String()
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiLink,
 		Description: "header-abi-linker " + outputFile.Base(),
 		Output:      outputFile,
 		Inputs:      sAbiDumps,
-		Implicit:    linkedDumpDep,
+		Implicit:    soFile,
 		Args: map[string]string{
-			"symbolFilter": symbolFilterStr,
-			"arch":         ctx.Arch().ArchType.Name,
-			"api":          apiLevel,
+			"symbolFilter":        symbolFilterStr,
+			"arch":                ctx.Arch().ArchType.Name,
 			"exportedHeaderFlags": exportedHeaderFlags,
 		},
 	})
