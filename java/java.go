@@ -347,7 +347,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 			if strings.Contains(v, "system_") {
 				return sdkDep{
 					invalidVersion: true,
-					module:         "vsdk_v" + strings.Replace(v, "system_", "", 1),
+					module:         "system_sdk_v" + strings.Replace(v, "system_", "", 1),
 				}
 			}
 			return sdkDep{
