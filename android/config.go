@@ -712,6 +712,13 @@ func (c *config) CFIDisabledForPath(path string) bool {
 	return PrefixInList(path, *c.ProductVariables.CFIExcludePaths)
 }
 
+func (c *config) IntegerOverflowEnabledForPath(path string) bool {
+	if c.ProductVariables.IntegerOverflowIncludePaths == nil {
+		return false
+	}
+	return PrefixInList(path, *c.ProductVariables.IntegerOverflowIncludePaths)
+}
+
 func (c *config) CFIEnabledForPath(path string) bool {
 	if c.ProductVariables.CFIIncludePaths == nil {
 		return false
