@@ -514,6 +514,12 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t sanitizerType) *bool {
 	}
 }
 
+func (sanitize *sanitize) isUnsanitizedVariant() bool {
+	return !sanitize.isSanitizerEnabled(asan) &&
+		!sanitize.isSanitizerEnabled(tsan) &&
+		!sanitize.isSanitizerEnabled(cfi)
+}
+
 func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 	switch t {
 	case asan:
