@@ -111,12 +111,10 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 
 func (p *vndkPrebuiltLibraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if p.shared() {
-		if ctx.Device() && ctx.useVndk() {
-			if ctx.isVndkSp() {
-				p.baseInstaller.subDir = "vndk-sp-" + p.version()
-			} else if ctx.isVndk() {
-				p.baseInstaller.subDir = "vndk-" + p.version()
-			}
+		if ctx.isVndkSp() {
+			p.baseInstaller.subDir = "vndk-sp-" + p.version()
+		} else if ctx.isVndk() {
+			p.baseInstaller.subDir = "vndk-" + p.version()
 		}
 		p.baseInstaller.install(ctx, file)
 	}
