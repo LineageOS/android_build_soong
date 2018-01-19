@@ -1442,12 +1442,17 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		mod := mctx.CreateVariations(vendorMode)
 		vendor := mod[0].(*Module)
 		vendor.Properties.UseVndk = true
-	} else if _, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
+	} else if prebuilt, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
 		mod := mctx.CreateVariations(vendorMode)
 		vendor := mod[0].(*Module)
 		vendor.Properties.UseVndk = true
+		arches := mctx.DeviceConfig().Arches()
+		if len(arches) == 0 || arches[0].ArchType.String() != prebuilt.arch() {
+			vendor.Properties.PreventInstall = true
+			vendor.Properties.HideFromMake = true
+		}
 	} else if m.hasVendorVariant() {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
