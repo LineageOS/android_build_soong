@@ -711,8 +711,12 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 }
 
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName string) android.OptionalPath {
+	baseName, exportedHeaderFlags string) android.OptionalPath {
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
+	localAbiCheckAllowFlags := append([]string(nil), abiCheckAllowFlags...)
+	if exportedHeaderFlags == "" {
+		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-advice-only")
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiDiff,
 		Description: "header-abi-diff " + outputFile.Base(),
@@ -723,7 +727,7 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"referenceDump": referenceDump.String(),
 			"libName":       baseName,
 			"arch":          ctx.Arch().ArchType.Name,
-			"allowFlags":    strings.Join(abiCheckAllowFlags, " "),
+			"allowFlags":    strings.Join(localAbiCheckAllowFlags, " "),
 		},
 	})
 	return android.OptionalPathForPath(outputFile)
