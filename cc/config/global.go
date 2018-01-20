@@ -112,7 +112,7 @@ var (
 	ExperimentalCStdVersion   = "gnu11"
 	ExperimentalCppStdVersion = "gnu++1z"
 
-	NdkMaxPrebuiltVersionInt = 24
+	NdkMaxPrebuiltVersionInt = 27
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
