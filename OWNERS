@@ -1,7 +1,9 @@
 ccross@android.com
 dwillemsen@google.com
+nanzhang@google.com
 
 per-file * = ccross@android.com
 per-file * = dwillemsen@google.com
+per-file * = nanzhang@google.com
 per-file *gen_stub_libs.py = danalbert@google.com
 per-file ndk_*.go = danalbert@google.com
