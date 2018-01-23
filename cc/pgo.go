@@ -197,7 +197,7 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 	}
 
 	// This module should be instrumented if ANDROID_PGO_INSTRUMENT is set
-	// and includes a benchmark listed for this module
+	// and includes 'all', 'ALL' or a benchmark listed for this module.
 	//
 	// TODO Validate that each benchmark instruments at least one module
 	pgo.Properties.ShouldProfileModule = false
@@ -207,10 +207,14 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 		pgoBenchmarksMap[b] = true
 	}
 
-	for _, b := range pgo.Properties.Pgo.Benchmarks {
-		if pgoBenchmarksMap[b] == true {
-			pgo.Properties.ShouldProfileModule = true
-			break
+	if pgoBenchmarksMap["all"] == true || pgoBenchmarksMap["ALL"] == true {
+		pgo.Properties.ShouldProfileModule = true
+	} else {
+		for _, b := range pgo.Properties.Pgo.Benchmarks {
+			if pgoBenchmarksMap[b] == true {
+				pgo.Properties.ShouldProfileModule = true
+				break
+			}
 		}
 	}
 }
