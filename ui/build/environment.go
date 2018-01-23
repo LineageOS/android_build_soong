@@ -63,6 +63,18 @@ func (e *Environment) Unset(keys ...string) {
 	*e = out
 }
 
+// UnsetWithPrefix removes all keys that start with prefix.
+func (e *Environment) UnsetWithPrefix(prefix string) {
+	out := (*e)[:0]
+	for _, env := range *e {
+		if key, _, ok := decodeKeyValue(env); ok && strings.HasPrefix(key, prefix) {
+			continue
+		}
+		out = append(out, env)
+	}
+	*e = out
+}
+
 // Environ returns the []string required for exec.Cmd.Env
 func (e *Environment) Environ() []string {
 	return []string(*e)

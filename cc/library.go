@@ -416,6 +416,10 @@ func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 		name = ctx.baseModuleName()
 	}
 
+	if ctx.isVndkExt() {
+		name = ctx.getVndkExtendsModuleName()
+	}
+
 	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
 		if !strings.HasSuffix(name, "-host") {
 			name = name + "-host"
@@ -619,7 +623,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
 	//Also take into account object re-use.
 	if len(objs.sAbiDumpFiles) > 0 && ctx.createVndkSourceAbiDump() {
-		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, "current", fileName, vndkVsNdk(ctx), true)
+		vndkVersion := "current"
+		if ver := ctx.DeviceConfig().VndkVersion(); ver != "" {
+			vndkVersion = ver
+		}
+
+		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, vndkVsNdk(ctx), true)
 		exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
@@ -632,7 +641,8 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags)
 		if refSourceDumpFile.Valid() {
 			unzippedRefDump := UnzipRefDump(ctx, refSourceDumpFile.Path(), fileName)
-			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(), unzippedRefDump, fileName, exportedHeaderFlags)
+			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
+				unzippedRefDump, fileName, exportedHeaderFlags, ctx.isVndkExt())
 		}
 	}
 }
@@ -721,15 +731,21 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			} else if ctx.isVndk() {
 				library.baseInstaller.subDir = "vndk"
 			}
-			if ctx.isVndk() && ctx.DeviceConfig().PlatformVndkVersion() != "current" {
-				library.baseInstaller.subDir += "-" + ctx.DeviceConfig().PlatformVndkVersion()
+
+			// Append a version to vndk or vndk-sp directories on the system partition.
+			if ctx.isVndk() && !ctx.isVndkExt() {
+				vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
+				if vndkVersion != "current" && vndkVersion != "" {
+					library.baseInstaller.subDir += "-" + vndkVersion
+				}
 			}
 		}
 		library.baseInstaller.install(ctx, file)
 	}
 
 	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
-		!ctx.useVndk() && ctx.Device() {
+		!ctx.useVndk() && ctx.Device() &&
+		library.sanitize.isUnsanitizedVariant() {
 		installPath := getNdkSysrootBase(ctx).Join(
 			ctx, "usr/lib", ctx.toolchain().ClangTriple(), file.Base())
 
