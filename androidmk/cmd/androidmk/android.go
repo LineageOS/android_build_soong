@@ -128,6 +128,7 @@ func init() {
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
+			"LOCAL_ERROR_PRONE_FLAGS":     "errorprone.javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
 			"LOCAL_JAVA_LIBRARIES":        "libs",
 			"LOCAL_STATIC_JAVA_LIBRARIES": "static_libs",
