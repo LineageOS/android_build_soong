@@ -205,9 +205,11 @@ type ModuleContextIntf interface {
 	useVndk() bool
 	isVndk() bool
 	isVndkSp() bool
+	isVndkExt() bool
 	createVndkSourceAbiDump() bool
 	selectedStl() string
 	baseModuleName() string
+	getVndkExtendsModuleName() string
 }
 
 type ModuleContext interface {
@@ -289,6 +291,7 @@ var (
 	reuseObjTag           = dependencyTag{name: "reuse objects"}
 	ndkStubDepTag         = dependencyTag{name: "ndk stub", library: true}
 	ndkLateStubDepTag     = dependencyTag{name: "ndk late stub", library: true}
+	vndkExtDepTag         = dependencyTag{name: "vndk extends", library: true}
 )
 
 // Module contains the properties and members used by all C/C++ module types, and implements
@@ -398,10 +401,31 @@ func (c *Module) useVndk() bool {
 }
 
 func (c *Module) isVndk() bool {
-	if c.vndkdep != nil {
-		return c.vndkdep.isVndk()
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		return vndkdep.isVndk()
 	}
 	return false
+}
+
+func (c *Module) isVndkSp() bool {
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		return vndkdep.isVndkSp()
+	}
+	return false
+}
+
+func (c *Module) isVndkExt() bool {
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		return vndkdep.isVndkExt()
+	}
+	return false
+}
+
+func (c *Module) getVndkExtendsModuleName() string {
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		return vndkdep.getVndkExtendsModuleName()
+	}
+	return ""
 }
 
 // Returns true only when this module is configured to have core and vendor
@@ -474,18 +498,20 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 	return ""
 }
 
-func (ctx *moduleContextImpl) isVndk() bool {
-	return ctx.mod.isVndk()
-}
 func (ctx *moduleContextImpl) useVndk() bool {
 	return ctx.mod.useVndk()
 }
 
+func (ctx *moduleContextImpl) isVndk() bool {
+	return ctx.mod.isVndk()
+}
+
 func (ctx *moduleContextImpl) isVndkSp() bool {
-	if vndk := ctx.mod.vndkdep; vndk != nil {
-		return vndk.isVndkSp()
-	}
-	return false
+	return ctx.mod.isVndkSp()
+}
+
+func (ctx *moduleContextImpl) isVndkExt() bool {
+	return ctx.mod.isVndkExt()
 }
 
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
@@ -502,6 +528,10 @@ func (ctx *moduleContextImpl) selectedStl() string {
 
 func (ctx *moduleContextImpl) baseModuleName() string {
 	return ctx.mod.ModuleBase.BaseModuleName()
+}
+
+func (ctx *moduleContextImpl) getVndkExtendsModuleName() string {
+	return ctx.mod.getVndkExtendsModuleName()
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
@@ -935,6 +965,18 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		{"ndk_api", version}, {"link", "shared"}}, ndkStubDepTag, variantNdkLibs...)
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{"ndk_api", version}, {"link", "shared"}}, ndkLateStubDepTag, variantLateNdkLibs...)
+
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		if vndkdep.isVndkExt() {
+			baseModuleMode := vendorMode
+			if actx.DeviceConfig().VndkVersion() == "" {
+				baseModuleMode = coreMode
+			}
+			actx.AddVariationDependencies([]blueprint.Variation{
+				{"image", baseModuleMode}, {"link", "shared"}}, vndkExtDepTag,
+				vndkdep.getVndkExtendsModuleName())
+		}
+	}
 }
 
 func beginMutator(ctx android.BottomUpMutatorContext) {
@@ -959,7 +1001,7 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 
 // Whether a module can link to another module, taking into
 // account NDK linking.
-func checkLinkType(ctx android.ModuleContext, from *Module, to *Module) {
+func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag dependencyTag) {
 	if from.Target().Os != android.Android {
 		// Host code is not restricted
 		return
@@ -969,7 +1011,7 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module) {
 		// each vendor-available module needs to check
 		// link-type for VNDK.
 		if from.vndkdep != nil {
-			from.vndkdep.vndkCheckLinkType(ctx, to)
+			from.vndkdep.vndkCheckLinkType(ctx, to, tag)
 		}
 		return
 	}
@@ -1151,7 +1193,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 
-			checkLinkType(ctx, c, ccDep)
+			checkLinkType(ctx, c, ccDep, t)
 		}
 
 		var ptr *android.Paths
@@ -1411,21 +1453,47 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 	}
 
 	// Sanity check
-	if m.VendorProperties.Vendor_available != nil && (mctx.SocSpecific() || mctx.DeviceSpecific()) {
+	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
+
+	if m.VendorProperties.Vendor_available != nil && vendorSpecific {
 		mctx.PropertyErrorf("vendor_available",
 			"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
 		return
 	}
-	if vndk := m.vndkdep; vndk != nil {
-		if vndk.isVndk() && m.VendorProperties.Vendor_available == nil {
-			mctx.PropertyErrorf("vndk",
-				"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
-			return
-		}
-		if !vndk.isVndk() && vndk.isVndkSp() {
-			mctx.PropertyErrorf("vndk",
-				"must set `enabled: true` to set `support_system_process: true`")
-			return
+
+	if vndkdep := m.vndkdep; vndkdep != nil {
+		if vndkdep.isVndk() {
+			if vendorSpecific {
+				if !vndkdep.isVndkExt() {
+					mctx.PropertyErrorf("vndk",
+						"must set `extends: \"...\"` to vndk extension")
+					return
+				}
+			} else {
+				if vndkdep.isVndkExt() {
+					mctx.PropertyErrorf("vndk",
+						"must set `vendor: true` to set `extends: %q`",
+						m.getVndkExtendsModuleName())
+					return
+				}
+				if m.VendorProperties.Vendor_available == nil {
+					mctx.PropertyErrorf("vndk",
+						"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
+					return
+				}
+			}
+		} else {
+			if vndkdep.isVndkSp() {
+				mctx.PropertyErrorf("vndk",
+					"must set `enabled: true` to set `support_system_process: true`")
+				return
+			}
+			if vndkdep.isVndkExt() {
+				mctx.PropertyErrorf("vndk",
+					"must set `enabled: true` to set `extends: %q`",
+					m.getVndkExtendsModuleName())
+				return
+			}
 		}
 	}
 
@@ -1453,14 +1521,14 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 			vendor.Properties.PreventInstall = true
 			vendor.Properties.HideFromMake = true
 		}
-	} else if m.hasVendorVariant() {
+	} else if m.hasVendorVariant() && !vendorSpecific {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
 		mod := mctx.CreateVariations(coreMode, vendorMode)
 		vendor := mod[1].(*Module)
 		vendor.Properties.UseVndk = true
 		squashVendorSrcs(vendor)
-	} else if (mctx.SocSpecific() || mctx.DeviceSpecific()) && String(m.Properties.Sdk_version) == "" {
+	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
 		mod := mctx.CreateVariations(vendorMode)
 		vendor := mod[0].(*Module)
