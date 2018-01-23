@@ -289,7 +289,7 @@ func (a Objects) Append(b Objects) Objects {
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
 func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles android.Paths,
-	flags builderFlags, pathDeps android.Paths, genDeps android.Paths) Objects {
+	flags builderFlags, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
 
 	objFiles := make(android.Paths, len(srcFiles))
 	var tidyFiles android.Paths
@@ -362,8 +362,8 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				Description: "yasm " + srcFile.Rel(),
 				Output:      objFile,
 				Input:       srcFile,
-				Implicits:   pathDeps,
-				OrderOnly:   genDeps,
+				Implicits:   cFlagsDeps,
+				OrderOnly:   pathDeps,
 				Args: map[string]string{
 					"asFlags": flags.yasmFlags,
 				},
@@ -375,8 +375,8 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				Description: "windres " + srcFile.Rel(),
 				Output:      objFile,
 				Input:       srcFile,
-				Implicits:   pathDeps,
-				OrderOnly:   genDeps,
+				Implicits:   cFlagsDeps,
+				OrderOnly:   pathDeps,
 				Args: map[string]string{
 					"windresCmd": gccCmd(flags.toolchain, "windres"),
 					"flags":      flags.toolchain.WindresFlags(),
@@ -444,8 +444,8 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			Output:          objFile,
 			ImplicitOutputs: implicitOutputs,
 			Input:           srcFile,
-			Implicits:       pathDeps,
-			OrderOnly:       genDeps,
+			Implicits:       cFlagsDeps,
+			OrderOnly:       pathDeps,
 			Args: map[string]string{
 				"cFlags": moduleCflags,
 				"ccCmd":  ccCmd,
