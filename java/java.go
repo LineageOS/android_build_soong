@@ -142,6 +142,11 @@ type CompilerProperties struct {
 		Exclude_filter []string
 	}
 
+	Errorprone struct {
+		// List of javac flags that should only be used when running errorprone.
+		Javacflags []string
+	}
+
 	Proto struct {
 		// List of extra options that will be passed to the proto generator.
 		Output_params []string
@@ -644,6 +649,10 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		// optimization.
 		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
 		flags.javacFlags = "$javacFlags"
+	}
+
+	if len(j.properties.Errorprone.Javacflags) > 0 {
+		flags.errorProneExtraJavacFlags = strings.Join(j.properties.Errorprone.Javacflags, " ")
 	}
 
 	// javaVersion flag.
