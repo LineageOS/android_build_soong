@@ -474,6 +474,24 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			}
 		`,
 	},
+	{
+		desc: "errorprone options for java library",
+		in: `
+			include $(CLEAR_VARS)
+			LOCAL_ERROR_PRONE_FLAGS := -Xep:AsyncCallableReturnsNull:ERROR -Xep:AsyncFunctionReturnsNull:ERROR
+			include $(BUILD_JAVA_LIBRARY)
+		`,
+		expected: `
+			java_library {
+				errorprone: {
+					javacflags: [
+						"-Xep:AsyncCallableReturnsNull:ERROR",
+						"-Xep:AsyncFunctionReturnsNull:ERROR",
+					],
+				},
+			}
+		`,
+	},
 }
 
 func reformatBlueprint(input string) string {
