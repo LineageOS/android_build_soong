@@ -35,7 +35,7 @@ func runSoong(ctx Context, config Config) {
 		cmd.Environment.Set("BLUEPRINTDIR", "./build/blueprint")
 		cmd.Environment.Set("BOOTSTRAP", "./build/blueprint/bootstrap.bash")
 		cmd.Environment.Set("BUILDDIR", config.SoongOutDir())
-		cmd.Environment.Set("GOROOT", filepath.Join("./prebuilts/go", config.HostPrebuiltTag()))
+		cmd.Environment.Set("GOROOT", "./"+filepath.Join("prebuilts/go", config.HostPrebuiltTag()))
 		cmd.Environment.Set("BLUEPRINT_LIST_FILE", filepath.Join(config.FileListDir(), "Android.bp.list"))
 		cmd.Environment.Set("NINJA_BUILDDIR", config.OutDir())
 		cmd.Environment.Set("SRCDIR", ".")
@@ -99,7 +99,6 @@ func runSoong(ctx Context, config Config) {
 		if config.IsVerbose() {
 			cmd.Args = append(cmd.Args, "-v")
 		}
-		cmd.Environment.Set("GOROOT", filepath.Join("./prebuilts/go", config.HostPrebuiltTag()))
 		cmd.Sandbox = soongSandbox
 		cmd.Stdin = ctx.Stdin()
 		cmd.Stdout = ctx.Stdout()
