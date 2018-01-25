@@ -850,7 +850,7 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 		} else if ctx.DeviceSpecific() {
 			partition = ctx.DeviceConfig().OdmPath()
 		} else if ctx.ProductSpecific() {
-			partition = ctx.DeviceConfig().OemPath()
+			partition = ctx.DeviceConfig().ProductPath()
 		} else {
 			partition = "system"
 		}

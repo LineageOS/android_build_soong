@@ -128,6 +128,7 @@ func init() {
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
+			"LOCAL_ERROR_PRONE_FLAGS":     "errorprone.javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
 			"LOCAL_JAVA_LIBRARIES":        "libs",
 			"LOCAL_STATIC_JAVA_LIBRARIES": "static_libs",
@@ -157,7 +158,7 @@ func init() {
 			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_ODM_MODULE":               "device_specific",
-			"LOCAL_OEM_MODULE":               "product_specific",
+			"LOCAL_PRODUCT_MODULE":           "product_specific",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
 			"LOCAL_PRIVILEGED_MODULE":        "privileged",
 
