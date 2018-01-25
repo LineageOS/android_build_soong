@@ -232,8 +232,8 @@ type commonProperties struct {
 	Device_specific *bool
 
 	// whether this module is specific to a software configuration of a product (e.g. country,
-	// network operator, etc). When set to true, it is installed into /oem (or /system/oem if
-	// oem partition does not exist).
+	// network operator, etc). When set to true, it is installed into /product (or
+	// /system/product if product partition does not exist).
 	Product_specific *bool
 
 	// init.rc files to be installed if this module is installed
