@@ -158,7 +158,7 @@ func init() {
 			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_ODM_MODULE":               "device_specific",
-			"LOCAL_OEM_MODULE":               "product_specific",
+			"LOCAL_PRODUCT_MODULE":           "product_specific",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
 			"LOCAL_PRIVILEGED_MODULE":        "privileged",
 
