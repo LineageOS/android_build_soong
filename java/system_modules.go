@@ -137,6 +137,10 @@ func (system *SystemModules) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, makevar, ":=", system.outputFile.String())
 				fmt.Fprintln(w, ".KATI_READONLY", ":=", makevar)
 				fmt.Fprintln(w, name+":", "$("+makevar+")")
+				fmt.Fprintln(w)
+				makevar = "SOONG_SYSTEM_MODULES_LIBS_" + name
+				fmt.Fprintln(w, makevar, ":=", strings.Join(system.properties.Libs, " "))
+				fmt.Fprintln(w, ".KATI_READONLY :=", makevar)
 			}
 		},
 	}
