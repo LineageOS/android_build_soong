@@ -25,22 +25,23 @@ import (
 )
 
 const (
-	modulesAddedWall     = "ModulesAddedWall"
-	modulesUsingWnoError = "ModulesUsingWnoError"
+	modulesAddedWall          = "ModulesAddedWall"
+	modulesUsingWnoError      = "ModulesUsingWnoError"
+	modulesMissingProfileFile = "ModulesMissingProfileFile"
 )
 
 func init() {
 	android.RegisterMakeVarsProvider(pctx, makeVarsProvider)
 }
 
-func getWallWerrorMap(config android.Config, name string) *sync.Map {
+func getNamedMapForConfig(config android.Config, name string) *sync.Map {
 	return config.Once(name, func() interface{} {
 		return &sync.Map{}
 	}).(*sync.Map)
 }
 
 func makeStringOfKeys(ctx android.MakeVarsContext, setName string) string {
-	set := getWallWerrorMap(ctx.Config(), setName)
+	set := getNamedMapForConfig(ctx.Config(), setName)
 	keys := []string{}
 	set.Range(func(key interface{}, value interface{}) bool {
 		keys = append(keys, key.(string))
@@ -102,6 +103,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("ANDROID_WARNING_ALLOWED_PROJECTS", makeStringOfWarningAllowedProjects())
 	ctx.Strict("SOONG_MODULES_ADDED_WALL", makeStringOfKeys(ctx, modulesAddedWall))
 	ctx.Strict("SOONG_MODULES_USING_WNO_ERROR", makeStringOfKeys(ctx, modulesUsingWnoError))
+	ctx.Strict("SOONG_MODULES_MISSING_PGO_PROFILE_FILE", makeStringOfKeys(ctx, modulesMissingProfileFile))
 
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS", strings.Join(asanCflags, " "))
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS", strings.Join(asanLdflags, " "))
