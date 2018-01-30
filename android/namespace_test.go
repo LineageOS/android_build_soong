@@ -606,7 +606,7 @@ func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) 
 	ctx.MockFileSystem(bps)
 	ctx.RegisterModuleType("test_module", ModuleFactoryAdaptor(newTestModule))
 	ctx.RegisterModuleType("soong_namespace", ModuleFactoryAdaptor(NamespaceFactory))
-	ctx.PreDepsMutators(RegisterNamespaceMutator)
+	ctx.PreArchMutators(RegisterNamespaceMutator)
 	ctx.Register()
 
 	_, errs = ctx.ParseBlueprintsFiles("Android.bp")
