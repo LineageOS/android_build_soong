@@ -226,7 +226,7 @@ func warningsAreAllowed(subdir string) bool {
 }
 
 func addToModuleList(ctx ModuleContext, list string, module string) {
-	getWallWerrorMap(ctx.Config(), list).Store(module, true)
+	getNamedMapForConfig(ctx.Config(), list).Store(module, true)
 }
 
 // Create a Flags struct that collects the compile flags from global values,
