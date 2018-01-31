@@ -38,6 +38,10 @@ const profileSamplingFlag = "-gline-tables-only"
 const profileUseInstrumentFormat = "-fprofile-use=%s"
 const profileUseSamplingFormat = "-fprofile-sample-use=%s"
 
+func recordMissingProfileFile(ctx ModuleContext, missing string) {
+	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFile).Store(missing, true)
+}
+
 type PgoProperties struct {
 	Pgo struct {
 		Instrumentation    *bool
@@ -95,6 +99,10 @@ func (props *PgoProperties) getPgoProfileFile(ctx ModuleContext) android.Optiona
 			return path
 		}
 	}
+
+	// Record that this module's profile file is absent
+	missing := *props.Pgo.Profile_file + ":" + ctx.ModuleDir() + "/Android.bp:" + ctx.ModuleName()
+	recordMissingProfileFile(ctx, missing)
 
 	return android.OptionalPathForPath(nil)
 }
