@@ -401,6 +401,12 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.CFlags = append(flags.CFlags, "-fvisibility=default")
 		}
 		flags.LdFlags = append(flags.LdFlags, cfiLdflags...)
+		if ctx.Device() {
+			// Work around a bug in Clang. The CFI sanitizer requires LTO, and when
+			// LTO is enabled, the Clang driver fails to enable emutls for Android.
+			// See b/72706604 or https://github.com/android-ndk/ndk/issues/498.
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-emulated-tls")
+		}
 		flags.ArFlags = append(flags.ArFlags, cfiArflags...)
 		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
 			diagSanitizers = append(diagSanitizers, "cfi")
