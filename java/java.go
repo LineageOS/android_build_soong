@@ -116,6 +116,9 @@ type CompilerProperties struct {
 	// The number of Java source entries each Javac instance can process
 	Javac_shard_size *int64
 
+	// Add host jdk tools.jar to bootclasspath
+	Use_tools_jar *bool
+
 	Openjdk9 struct {
 		// List of source files that should only be used when passing -source 1.9
 		Srcs []string
@@ -694,6 +697,10 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.bootClasspath = append(flags.bootClasspath,
 			android.PathForSource(ctx, java8Home, "jre/lib/jce.jar"),
 			android.PathForSource(ctx, java8Home, "jre/lib/rt.jar"))
+		if Bool(j.properties.Use_tools_jar) {
+			flags.bootClasspath = append(flags.bootClasspath,
+				android.PathForSource(ctx, java8Home, "lib/tools.jar"))
+		}
 	}
 
 	// systemModules
