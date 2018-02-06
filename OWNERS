@@ -7,3 +7,5 @@ per-file * = dwillemsen@google.com
 per-file * = nanzhang@google.com
 per-file *gen_stub_libs.py = danalbert@google.com
 per-file ndk_*.go = danalbert@google.com
+per-file clang.go = srhines@google.com
+per-file global.go = srhines@google.com
