@@ -110,6 +110,7 @@ type ModuleContext interface {
 
 	ExpandSources(srcFiles, excludes []string) Paths
 	ExpandSource(srcFile, prop string) Path
+	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 	ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths
 	Glob(globPattern string, excludes []string) Paths
 
@@ -1160,6 +1161,16 @@ func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
 		ctx.PropertyErrorf(prop, "module providing %s must produce exactly one file", prop)
 		return nil
 	}
+}
+
+// Returns an optional single path expanded from globs and modules referenced using ":module" syntax if
+// the srcFile is non-nil.
+// ExtractSourceDeps must have already been called during the dependency resolution phase.
+func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop string) OptionalPath {
+	if srcFile != nil {
+		return OptionalPathForPath(ctx.ExpandSource(*srcFile, prop))
+	}
+	return OptionalPath{}
 }
 
 func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {
