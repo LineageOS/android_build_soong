@@ -151,16 +151,16 @@ func init() {
 
 		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
 		// new warnings are fixed.
-		"-Wno-error=tautological-constant-compare",
+		"-Wno-tautological-constant-compare",
 
 		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
 		// this new warning are fixed.
-		"-Wno-error=null-pointer-arithmetic",
+		"-Wno-null-pointer-arithmetic",
 
 		// http://b/72330874 Disable -Wenum-compare until the instances detected by this new
 		// warning are fixed.
-		"-Wno-error=enum-compare",
-		"-Wno-error=enum-compare-switch",
+		"-Wno-enum-compare",
+		"-Wno-enum-compare-switch",
 	}, " "))
 }
 
