@@ -148,6 +148,19 @@ func init() {
 		// fixed.
 		//"-Werror=null-dereference",
 		"-Werror=return-type",
+
+		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
+		// new warnings are fixed.
+		"-Wno-tautological-constant-compare",
+
+		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
+		// this new warning are fixed.
+		"-Wno-null-pointer-arithmetic",
+
+		// http://b/72330874 Disable -Wenum-compare until the instances detected by this new
+		// warning are fixed.
+		"-Wno-enum-compare",
+		"-Wno-enum-compare-switch",
 	}, " "))
 }
 

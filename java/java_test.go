@@ -146,6 +146,7 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/14/framework.aidl":             nil,
 		"prebuilts/sdk/current/android.jar":           nil,
 		"prebuilts/sdk/current/framework.aidl":        nil,
+		"prebuilts/sdk/current/core.jar":              nil,
 		"prebuilts/sdk/system_current/android.jar":    nil,
 		"prebuilts/sdk/system_current/framework.aidl": nil,
 		"prebuilts/sdk/system_14/android.jar":         nil,
@@ -359,6 +360,14 @@ var classpathTestcases = []struct {
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 		classpath:     []string{"prebuilts/sdk/test_current/android.jar"},
+	},
+	{
+
+		name:          "core_current",
+		properties:    `sdk_version: "core_current",`,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/current/core.jar"},
 	},
 	{
 

@@ -116,6 +116,9 @@ type CompilerProperties struct {
 	// The number of Java source entries each Javac instance can process
 	Javac_shard_size *int64
 
+	// Add host jdk tools.jar to bootclasspath
+	Use_tools_jar *bool
+
 	Openjdk9 struct {
 		// List of source files that should only be used when passing -source 1.9
 		Srcs []string
@@ -312,7 +315,7 @@ type sdkDep struct {
 
 func sdkStringToNumber(ctx android.BaseContext, v string) int {
 	switch v {
-	case "", "current", "system_current", "test_current":
+	case "", "current", "system_current", "test_current", "core_current":
 		return android.FutureApiLevel
 	default:
 		if i, err := strconv.Atoi(android.GetNumericSdkVersion(v)); err != nil {
@@ -358,8 +361,15 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	}
 
 	toFile := func(v string) sdkDep {
+		isCore := strings.HasPrefix(v, "core_")
+		if isCore {
+			v = strings.TrimPrefix(v, "core_")
+		}
 		dir := filepath.Join("prebuilts/sdk", v)
 		jar := filepath.Join(dir, "android.jar")
+		if isCore {
+			jar = filepath.Join(dir, "core.jar")
+		}
 		aidl := filepath.Join(dir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, "sdkdir", jar)
 		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
@@ -554,6 +564,15 @@ func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer
 	}
 }
 
+func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dependencyTag) {
+	if strings.HasPrefix(String(from.deviceProperties.Sdk_version), "core_") {
+		if !strings.HasPrefix(String(to.deviceProperties.Sdk_version), "core_") {
+			ctx.ModuleErrorf("depends on other library %q using non-core Java APIs",
+				ctx.OtherModuleName(to))
+		}
+	}
+}
+
 func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
@@ -570,6 +589,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
+		if to, ok := module.(*Library); ok {
+			checkLinkType(ctx, j, to, tag.(dependencyTag))
+		}
 		switch dep := module.(type) {
 		case Dependency:
 			switch tag {
@@ -694,6 +716,10 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.bootClasspath = append(flags.bootClasspath,
 			android.PathForSource(ctx, java8Home, "jre/lib/jce.jar"),
 			android.PathForSource(ctx, java8Home, "jre/lib/rt.jar"))
+		if Bool(j.properties.Use_tools_jar) {
+			flags.bootClasspath = append(flags.bootClasspath,
+				android.PathForSource(ctx, java8Home, "lib/tools.jar"))
+		}
 	}
 
 	// systemModules
@@ -982,7 +1008,7 @@ func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 // modules targeting an unreleased SDK (meaning it does not yet have a number) it returns "10000".
 func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
 	switch String(j.deviceProperties.Sdk_version) {
-	case "", "current", "test_current", "system_current":
+	case "", "current", "test_current", "system_current", "core_current":
 		return strconv.Itoa(ctx.Config().DefaultAppTargetSdkInt())
 	default:
 		return android.GetNumericSdkVersion(String(j.deviceProperties.Sdk_version))
