@@ -375,12 +375,6 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
-			if strings.Contains(v, "system_") {
-				return sdkDep{
-					invalidVersion: true,
-					module:         "system_sdk_v" + strings.Replace(v, "system_", "", 1),
-				}
-			}
 			return sdkDep{
 				invalidVersion: true,
 				module:         "sdk_v" + v,
