@@ -158,6 +158,9 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		ctx.ModuleErrorf("statically linking libc to dynamic executable, please remove libc\n" +
 			"from static libs or set static_executable: true")
 	}
+
+	android.ExtractSourceDeps(ctx, binary.Properties.Version_script)
+
 	return deps
 }
 
@@ -277,7 +280,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 func (binary *binaryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	versionScript := android.OptionalPathForModuleSrc(ctx, binary.Properties.Version_script)
+	versionScript := ctx.ExpandOptionalSource(binary.Properties.Version_script, "version_script")
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
