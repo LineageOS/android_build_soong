@@ -170,6 +170,13 @@ logic receives module definitions parsed into Go structures using reflection
 and produces build rules.  The build rules are collected by blueprint and
 written to a [ninja](http://ninja-build.org) build file.
 
+## Other documentation
+
+* [Best Practices](docs/best_practices.md)
+* [Build Performance](docs/perf.md)
+* [Generating CLion Projects](docs/clion.md)
+* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/master/README.md)
+
 ## FAQ
 
 ### How do I write conditionals?
