@@ -130,7 +130,7 @@ var (
 
 	combineJar = pctx.AndroidStaticRule("combineJar",
 		blueprint.RuleParams{
-			Command:     `${config.MergeZipsCmd} -j $jarArgs $out $in`,
+			Command:     `${config.MergeZipsCmd} --ignore-duplicates -j $jarArgs $out $in`,
 			CommandDeps: []string{"${config.MergeZipsCmd}"},
 		},
 		"jarArgs")
