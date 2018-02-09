@@ -202,7 +202,6 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
 
 	android.ExtractSourcesDeps(ctx, compiler.Properties.Srcs)
-	android.ExtractSourcesDeps(ctx, compiler.Properties.Exclude_srcs)
 
 	if compiler.hasSrcExt(".proto") {
 		deps = protoDeps(ctx, deps, &compiler.Proto, Bool(compiler.Properties.Proto.Static))
