@@ -62,6 +62,7 @@ func FileGroupFactory() android.Module {
 
 func (fg *fileGroup) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, fg.properties.Srcs)
+	android.ExtractSourcesDeps(ctx, fg.properties.Exclude_srcs)
 }
 
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {

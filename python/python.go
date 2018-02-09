@@ -266,11 +266,13 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, p.properties.Data)
 	// deps from "srcs".
 	android.ExtractSourcesDeps(ctx, p.properties.Srcs)
+	android.ExtractSourcesDeps(ctx, p.properties.Exclude_srcs)
 
 	switch p.properties.Actual_version {
 	case pyVersion2:
 		// deps from "version.py2.srcs" property.
 		android.ExtractSourcesDeps(ctx, p.properties.Version.Py2.Srcs)
+		android.ExtractSourcesDeps(ctx, p.properties.Version.Py2.Exclude_srcs)
 
 		ctx.AddVariationDependencies(nil, pythonLibTag,
 			uniqueLibs(ctx, p.properties.Libs, "version.py2.libs",
@@ -286,6 +288,7 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	case pyVersion3:
 		// deps from "version.py3.srcs" property.
 		android.ExtractSourcesDeps(ctx, p.properties.Version.Py3.Srcs)
+		android.ExtractSourcesDeps(ctx, p.properties.Version.Py3.Exclude_srcs)
 
 		ctx.AddVariationDependencies(nil, pythonLibTag,
 			uniqueLibs(ctx, p.properties.Libs, "version.py3.libs",
