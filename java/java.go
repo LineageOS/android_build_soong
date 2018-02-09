@@ -466,7 +466,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
-	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
 	android.ExtractSourceDeps(ctx, j.properties.Manifest)
 
