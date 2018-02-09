@@ -86,7 +86,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			// https://github.com/android-ndk/ndk/issues/498.
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-emulated-tls")
 		}
-		flags.ArFlags = append(flags.ArFlags, " --plugin ${config.LLVMGoldPlugin}")
+		flags.ArGoldPlugin = true
 	}
 	return flags
 }

@@ -38,7 +38,6 @@ var (
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
 	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
 		"-Wl,-plugin-opt,O1"}
-	cfiArflags         = []string{"--plugin ${config.ClangBin}/../lib64/LLVMgold.so"}
 	cfiExportsMapPath  = "build/soong/cc/config/cfi_exports.map"
 	cfiExportsMap      android.Path
 	cfiStaticLibsMutex sync.Mutex
@@ -407,7 +406,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// See b/72706604 or https://github.com/android-ndk/ndk/issues/498.
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-emulated-tls")
 		}
-		flags.ArFlags = append(flags.ArFlags, cfiArflags...)
+		flags.ArGoldPlugin = true
 		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
 			diagSanitizers = append(diagSanitizers, "cfi")
 		}
