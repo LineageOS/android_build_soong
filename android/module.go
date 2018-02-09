@@ -1176,15 +1176,24 @@ func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop stri
 func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {
 	prefix := PathForModuleSrc(ctx).String()
 
-	for i, e := range excludes {
-		j := findStringInSlice(e, srcFiles)
-		if j != -1 {
-			srcFiles = append(srcFiles[:j], srcFiles[j+1:]...)
+	expandedExcludes := make([]string, 0, len(excludes))
+
+	for _, e := range excludes {
+		if m := SrcIsModule(e); m != "" {
+			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
+			if module == nil {
+				// Error will have been handled by ExtractSourcesDeps
+				continue
+			}
+			if srcProducer, ok := module.(SourceFileProducer); ok {
+				expandedExcludes = append(expandedExcludes, srcProducer.Srcs().Strings()...)
+			} else {
+				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
+			}
+		} else {
+			expandedExcludes = append(expandedExcludes, filepath.Join(prefix, e))
 		}
-
-		excludes[i] = filepath.Join(prefix, e)
 	}
-
 	expandedSrcFiles := make(Paths, 0, len(srcFiles))
 	for _, s := range srcFiles {
 		if m := SrcIsModule(s); m != "" {
@@ -1194,22 +1203,33 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 				continue
 			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
-				expandedSrcFiles = append(expandedSrcFiles, srcProducer.Srcs()...)
+				moduleSrcs := srcProducer.Srcs()
+				for _, e := range expandedExcludes {
+					for j, ms := range moduleSrcs {
+						if ms.String() == e {
+							moduleSrcs = append(moduleSrcs[:j], moduleSrcs[j+1:]...)
+						}
+					}
+				}
+				expandedSrcFiles = append(expandedSrcFiles, moduleSrcs...)
 			} else {
 				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
 			}
 		} else if pathtools.IsGlob(s) {
-			globbedSrcFiles := ctx.Glob(filepath.Join(prefix, s), excludes)
+			globbedSrcFiles := ctx.Glob(filepath.Join(prefix, s), expandedExcludes)
 			for i, s := range globbedSrcFiles {
 				globbedSrcFiles[i] = s.(ModuleSrcPath).WithSubDir(ctx, subDir)
 			}
 			expandedSrcFiles = append(expandedSrcFiles, globbedSrcFiles...)
 		} else {
-			s := PathForModuleSrc(ctx, s).WithSubDir(ctx, subDir)
-			expandedSrcFiles = append(expandedSrcFiles, s)
+			p := PathForModuleSrc(ctx, s).WithSubDir(ctx, subDir)
+			j := findStringInSlice(p.String(), expandedExcludes)
+			if j == -1 {
+				expandedSrcFiles = append(expandedSrcFiles, p)
+			}
+
 		}
 	}
-
 	return expandedSrcFiles
 }
 
