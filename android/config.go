@@ -710,6 +710,10 @@ func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	return coverage
 }
 
+func (c *deviceConfig) PgoAdditionalProfileDirs() []string {
+	return c.config.ProductVariables.PgoAdditionalProfileDirs
+}
+
 func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	if c.ProductVariables.IntegerOverflowExcludePaths == nil {
 		return false

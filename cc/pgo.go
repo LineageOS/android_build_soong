@@ -27,16 +27,23 @@ var (
 	// some functions
 	profileUseOtherFlags = []string{"-Wno-backend-plugin"}
 
-	pgoProfileProjects = []string{
+	globalPgoProfileProjects = []string{
 		"toolchain/pgo-profiles",
 		"vendor/google_data/pgo-profiles",
 	}
 )
 
+const pgoProfileProjectsConfigKey = "PgoProfileProjects"
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
 const profileSamplingFlag = "-gline-tables-only"
 const profileUseInstrumentFormat = "-fprofile-use=%s"
 const profileUseSamplingFormat = "-fprofile-sample-use=%s"
+
+func getPgoProfileProjects(config android.DeviceConfig) []string {
+	return config.OnceStringSlice(pgoProfileProjectsConfigKey, func() []string {
+		return append(globalPgoProfileProjects, config.PgoAdditionalProfileDirs()...)
+	})
+}
 
 func recordMissingProfileFile(ctx ModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFile).Store(missing, true)
@@ -92,8 +99,8 @@ func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags
 }
 
 func (props *PgoProperties) getPgoProfileFile(ctx ModuleContext) android.OptionalPath {
-	// Test if the profile_file is present in any of the pgoProfileProjects
-	for _, profileProject := range pgoProfileProjects {
+	// Test if the profile_file is present in any of the PGO profile projects
+	for _, profileProject := range getPgoProfileProjects(ctx.DeviceConfig()) {
 		path := android.ExistentPathForSource(ctx, "", profileProject, *props.Pgo.Profile_file)
 		if path.Valid() {
 			return path
