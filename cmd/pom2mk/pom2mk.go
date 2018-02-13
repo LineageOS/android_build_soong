@@ -98,8 +98,7 @@ type Dependency struct {
 	ArtifactId string `xml:"artifactId"`
 	Version    string `xml:"version"`
 	Type       string `xml:"type"`
-
-	Scope string `xml:"scope"`
+	Scope      string `xml:"scope"`
 }
 
 func (d Dependency) MkName() string {
@@ -140,17 +139,19 @@ func (p Pom) MkName() string {
 }
 
 func (p Pom) MkJarDeps() []string {
-	return p.MkDeps("jar")
+	return p.MkDeps("jar", "compile")
 }
 
 func (p Pom) MkAarDeps() []string {
-	return p.MkDeps("aar")
+	return p.MkDeps("aar", "compile")
 }
 
-func (p Pom) MkDeps(typeExt string) []string {
+// MkDeps obtains dependencies filtered by type and scope. The results of this
+// method are formatted as Make targets, e.g. run through MavenToMk rules.
+func (p Pom) MkDeps(typeExt string, scope string) []string {
 	var ret []string
 	for _, d := range p.Dependencies {
-		if d.Type != typeExt {
+		if d.Type != typeExt || d.Scope != scope {
 			continue
 		}
 		name := rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
@@ -164,13 +165,22 @@ func (p Pom) SdkVersion() string {
 	return sdkVersion
 }
 
-func (p *Pom) FixDepTypes(modules map[string]*Pom) {
+func (p *Pom) FixDeps(modules map[string]*Pom) {
 	for _, d := range p.Dependencies {
-		if d.Type != "" {
-			continue
+		if d.Type == "" {
+			if depPom, ok := modules[d.MkName()]; ok {
+				// We've seen the POM for this dependency, use its packaging
+				// as the dependency type rather than Maven spec default.
+				d.Type = depPom.Packaging
+			} else {
+				// Dependency type was not specified and we don't have the POM
+				// for this artifact, use the default from Maven spec.
+				d.Type = "jar"
+			}
 		}
-		if depPom, ok := modules[d.MkName()]; ok {
-			d.Type = depPom.Packaging
+		if d.Scope == "" {
+			// Scope was not specified, use the default from Maven spec.
+			d.Scope = "compile"
 		}
 	}
 }
@@ -360,7 +370,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 	}
 
 	for _, pom := range poms {
-		pom.FixDepTypes(modules)
+		pom.FixDeps(modules)
 	}
 
 	fmt.Println("# Automatically generated with:")
