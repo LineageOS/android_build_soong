@@ -40,6 +40,7 @@ var (
 		"android.car",
 		"android.car7",
 		"core-oj",
+		"core-libart",
 	}
 )
 
