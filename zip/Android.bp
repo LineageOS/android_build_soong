@@ -26,5 +26,8 @@ bootstrap_go_package {
         "zip.go",
         "rate_limit.go",
     ],
+    testSrcs: [
+      "zip_test.go",
+    ],
 }
 
