@@ -123,8 +123,10 @@ var (
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
-			Command:     `${config.SoongZipCmd} -jar -o $out $jarArgs`,
-			CommandDeps: []string{"${config.SoongZipCmd}"},
+			Command:        `${config.SoongZipCmd} -jar -o $out @$out.rsp`,
+			CommandDeps:    []string{"${config.SoongZipCmd}"},
+			Rspfile:        "$out.rsp",
+			RspfileContent: "$jarArgs",
 		},
 		"jarArgs")
 

@@ -215,6 +215,8 @@ type productVariables struct {
 	ExtraVndkVersions []string `json:",omitempty"`
 
 	NamespacesToExport []string `json:",omitempty"`
+
+	PgoAdditionalProfileDirs []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
