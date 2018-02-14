@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/google/blueprint/pathtools"
 
@@ -130,6 +131,49 @@ type ZipArgs struct {
 	NumParallelJobs          int
 	NonDeflatedFiles         map[string]bool
 	WriteIfChanged           bool
+}
+
+const NOQUOTE = '\x00'
+
+func ReadRespFile(bytes []byte) []string {
+	var args []string
+	var arg []rune
+
+	isEscaping := false
+	quotingStart := NOQUOTE
+	for _, c := range string(bytes) {
+		switch {
+		case isEscaping:
+			if quotingStart == '"' {
+				if !(c == '"' || c == '\\') {
+					// '\"' or '\\' will be escaped under double quoting.
+					arg = append(arg, '\\')
+				}
+			}
+			arg = append(arg, c)
+			isEscaping = false
+		case c == '\\' && quotingStart != '\'':
+			isEscaping = true
+		case quotingStart == NOQUOTE && (c == '\'' || c == '"'):
+			quotingStart = c
+		case quotingStart != NOQUOTE && c == quotingStart:
+			quotingStart = NOQUOTE
+		case quotingStart == NOQUOTE && unicode.IsSpace(c):
+			// Current character is a space outside quotes
+			if len(arg) != 0 {
+				args = append(args, string(arg))
+			}
+			arg = arg[:0]
+		default:
+			arg = append(arg, c)
+		}
+	}
+
+	if len(arg) != 0 {
+		args = append(args, string(arg))
+	}
+
+	return args
 }
 
 func Run(args ZipArgs) (err error) {
