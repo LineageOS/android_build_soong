@@ -80,6 +80,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		coverage:       in.Coverage,
 		tidy:           in.Tidy,
 		sAbiDump:       in.SAbiDump,
+		protoRoot:      in.ProtoRoot,
 
 		systemIncludeFlags: strings.Join(in.SystemIncludeFlags, " "),
 

@@ -690,12 +690,13 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 	if Bool(library.Properties.Proto.Export_proto_headers) {
 		if library.baseCompiler.hasSrcExt(".proto") {
-			flags := []string{
-				"-I" + android.ProtoSubDir(ctx).String(),
-				"-I" + android.ProtoDir(ctx).String(),
+			includes := []string{}
+			if flags.ProtoRoot {
+				includes = append(includes, "-I"+android.ProtoSubDir(ctx).String())
 			}
-			library.reexportFlags(flags)
-			library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
+			includes = append(includes, "-I"+android.ProtoDir(ctx).String())
+			library.reexportFlags(includes)
+			library.reuseExportedFlags = append(library.reuseExportedFlags, includes...)
 			library.reexportDeps(library.baseCompiler.pathDeps) // TODO: restrict to proto deps
 			library.reuseExportedDeps = append(library.reuseExportedDeps, library.baseCompiler.pathDeps...)
 		}
