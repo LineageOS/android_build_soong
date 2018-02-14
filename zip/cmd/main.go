@@ -120,29 +120,11 @@ func (d *dir) Set(s string) error {
 }
 
 var (
-	out            = flag.String("o", "", "file to write zip file to")
-	manifest       = flag.String("m", "", "input jar manifest file name")
-	directories    = flag.Bool("d", false, "include directories in zip")
-	rootPrefix     = flag.String("P", "", "path prefix within the zip at which to place files")
-	relativeRoot   = flag.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
-	parallelJobs   = flag.Int("j", runtime.NumCPU(), "number of parallel threads to use")
-	compLevel      = flag.Int("L", 5, "deflate compression level (0-9)")
-	emulateJar     = flag.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
-	writeIfChanged = flag.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
+	rootPrefix, relativeRoot *string
 
 	fArgs            zip.FileArgs
 	nonDeflatedFiles = make(uniqueSet)
-
-	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
-	traceFile  = flag.String("trace", "", "write trace to file")
 )
-
-func init() {
-	flag.Var(&listFiles{}, "l", "file containing list of .class files")
-	flag.Var(&dir{}, "D", "directory to include in zip")
-	flag.Var(&file{}, "f", "file to include in zip")
-	flag.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
-}
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: zip -o zipfile [-m manifest] -C dir [-f|-l file]...\n")
@@ -151,7 +133,42 @@ func usage() {
 }
 
 func main() {
-	flag.Parse()
+	var expandedArgs []string
+	for _, arg := range os.Args {
+		if strings.HasPrefix(arg, "@") {
+			bytes, err := ioutil.ReadFile(strings.TrimPrefix(arg, "@"))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+			respArgs := zip.ReadRespFile(bytes)
+			expandedArgs = append(expandedArgs, respArgs...)
+		} else {
+			expandedArgs = append(expandedArgs, arg)
+		}
+	}
+
+	flags := flag.NewFlagSet("flags", flag.ExitOnError)
+
+	out := flags.String("o", "", "file to write zip file to")
+	manifest := flags.String("m", "", "input jar manifest file name")
+	directories := flags.Bool("d", false, "include directories in zip")
+	rootPrefix = flags.String("P", "", "path prefix within the zip at which to place files")
+	relativeRoot = flags.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
+	parallelJobs := flags.Int("j", runtime.NumCPU(), "number of parallel threads to use")
+	compLevel := flags.Int("L", 5, "deflate compression level (0-9)")
+	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
+	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
+
+	cpuProfile := flags.String("cpuprofile", "", "write cpu profile to file")
+	traceFile := flags.String("trace", "", "write trace to file")
+
+	flags.Var(&listFiles{}, "l", "file containing list of .class files")
+	flags.Var(&dir{}, "D", "directory to include in zip")
+	flags.Var(&file{}, "f", "file to include in zip")
+	flags.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
+
+	flags.Parse(expandedArgs[1:])
 
 	err := zip.Run(zip.ZipArgs{
 		FileArgs:                 fArgs,
