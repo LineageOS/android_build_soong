@@ -61,19 +61,23 @@ var (
 
 	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 		blueprint.RuleParams{
-			// TODO(ccross): kotlinc doesn't support @ file for arguments, which will limit the
-			// maximum number of input files, especially on darwin.
-			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${config.KotlincCmd} $classpath $kotlincFlags ` +
-				`-jvm-target $kotlinJvmTarget -d $outDir $in && ` +
+			Command: `rm -rf "$outDir" "$srcJarDir" && mkdir -p "$outDir" "$srcJarDir" && ` +
+				`${config.ExtractSrcJarsCmd} $srcJarDir $srcJarDir/list $srcJars && ` +
+				`${config.GenKotlinBuildFileCmd} $classpath $outDir $out.rsp $srcJarDir/list > $outDir/kotlinc-build.xml &&` +
+				`${config.KotlincCmd} $kotlincFlags ` +
+				`-jvm-target $kotlinJvmTarget -Xbuild-file=$outDir/kotlinc-build.xml && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
 			CommandDeps: []string{
 				"${config.KotlincCmd}",
 				"${config.KotlinCompilerJar}",
+				"${config.GenKotlinBuildFileCmd}",
 				"${config.SoongZipCmd}",
+				"${config.ExtractSrcJarsCmd}",
 			},
+			Rspfile:        "$out.rsp",
+			RspfileContent: `$in`,
 		},
-		"kotlincFlags", "classpath", "outDir", "kotlinJvmTarget")
+		"kotlincFlags", "classpath", "srcJars", "srcJarDir", "outDir", "kotlinJvmTarget")
 
 	errorprone = pctx.AndroidStaticRule("errorprone",
 		blueprint.RuleParams{
@@ -171,13 +175,11 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 	srcFiles, srcJars android.Paths,
 	flags javaBuilderFlags) {
 
-	classDir := android.PathForModuleOut(ctx, "kotlinc", "classes")
-
 	inputs := append(android.Paths(nil), srcFiles...)
-	inputs = append(inputs, srcJars...)
 
 	var deps android.Paths
 	deps = append(deps, flags.kotlincClasspath...)
+	deps = append(deps, srcJars...)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        kotlinc,
@@ -188,7 +190,9 @@ func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.Writ
 		Args: map[string]string{
 			"classpath":    flags.kotlincClasspath.FormJavaClassPath("-classpath"),
 			"kotlincFlags": flags.kotlincFlags,
-			"outDir":       classDir.String(),
+			"srcJars":      strings.Join(srcJars.Strings(), " "),
+			"outDir":       android.PathForModuleOut(ctx, "kotlinc", "classes").String(),
+			"srcJarDir":    android.PathForModuleOut(ctx, "kotlinc", "srcJars").String(),
 			// http://b/69160377 kotlinc only supports -jvm-target 1.6 and 1.8
 			"kotlinJvmTarget": "1.8",
 		},
