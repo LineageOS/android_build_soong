@@ -27,5 +27,6 @@ blueprint_go_binary {
         "macho_test.go",
         "pe_symboldata_test.go",
         "pe_test.go",
+        "symbol_inject_test.go",
     ],
 }
