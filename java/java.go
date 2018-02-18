@@ -757,6 +757,16 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 	jarName := ctx.ModuleName() + ".jar"
 
+	javaSrcFiles := srcFiles.FilterByExt(".java")
+	var uniqueSrcFiles android.Paths
+	set := make(map[string]bool)
+	for _, v := range javaSrcFiles {
+		if _, found := set[v.String()]; !found {
+			set[v.String()] = true
+			uniqueSrcFiles = append(uniqueSrcFiles, v)
+		}
+	}
+
 	if srcFiles.HasExt(".kt") {
 		// If there are kotlin files, compile them first but pass all the kotlin and java files
 		// kotlinc will use the java files to resolve types referenced by the kotlin files, but
@@ -767,11 +777,15 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			flags.kotlincFlags += " -no-jdk"
 		}
 
+		var kotlinSrcFiles android.Paths
+		kotlinSrcFiles = append(kotlinSrcFiles, uniqueSrcFiles...)
+		kotlinSrcFiles = append(kotlinSrcFiles, srcFiles.FilterByExt(".kt")...)
+
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.kotlinStdlib...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.classpath...)
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
-		TransformKotlinToClasses(ctx, kotlinJar, srcFiles, srcJars, flags)
+		TransformKotlinToClasses(ctx, kotlinJar, kotlinSrcFiles, srcJars, flags)
 		if ctx.Failed() {
 			return
 		}
@@ -781,16 +795,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		// Jar kotlin classes into the final jar after javac
 		jars = append(jars, kotlinJar)
 		jars = append(jars, deps.kotlinStdlib...)
-	}
-
-	javaSrcFiles := srcFiles.FilterByExt(".java")
-	var uniqueSrcFiles android.Paths
-	set := make(map[string]bool)
-	for _, v := range javaSrcFiles {
-		if _, found := set[v.String()]; !found {
-			set[v.String()] = true
-			uniqueSrcFiles = append(uniqueSrcFiles, v)
-		}
 	}
 
 	// Store the list of .java files that was passed to javac

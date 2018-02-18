@@ -15,12 +15,14 @@
 package build
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"android/soong/shared"
 )
@@ -180,6 +182,20 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret.environ.Set("ANDROID_JAVA8_HOME", java8Home)
 	ret.environ.Set("ANDROID_JAVA9_HOME", java9Home)
 	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
+
+	outDir := ret.OutDir()
+	buildDateTimeFile := filepath.Join(outDir, "build_date.txt")
+	var content string
+	if buildDateTime, ok := ret.environ.Get("BUILD_DATETIME"); ok && buildDateTime != "" {
+		content = buildDateTime
+	} else {
+		content = strconv.FormatInt(time.Now().Unix(), 10)
+	}
+	err := ioutil.WriteFile(buildDateTimeFile, []byte(content), 0777)
+	if err != nil {
+		ctx.Fatalln("Failed to write BUILD_DATETIME to file:", err)
+	}
+	ret.environ.Set("BUILD_DATETIME_FILE", buildDateTimeFile)
 
 	return Config{ret}
 }
