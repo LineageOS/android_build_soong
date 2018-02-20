@@ -131,16 +131,19 @@ func testContext(config android.Config, bp string,
 	}
 
 	mockFS := map[string][]byte{
-		"Android.bp":  []byte(bp),
-		"a.java":      nil,
-		"b.java":      nil,
-		"c.java":      nil,
-		"b.kt":        nil,
-		"a.jar":       nil,
-		"b.jar":       nil,
-		"java-res/a":  nil,
-		"java-res/b":  nil,
-		"java-res2/a": nil,
+		"Android.bp":     []byte(bp),
+		"a.java":         nil,
+		"b.java":         nil,
+		"c.java":         nil,
+		"b.kt":           nil,
+		"a.jar":          nil,
+		"b.jar":          nil,
+		"java-res/a":     nil,
+		"java-res/b":     nil,
+		"java-res2/a":    nil,
+		"java-fg/a.java": nil,
+		"java-fg/b.java": nil,
+		"java-fg/c.java": nil,
 
 		"prebuilts/sdk/14/android.jar":                nil,
 		"prebuilts/sdk/14/framework.aidl":             nil,
@@ -904,6 +907,32 @@ func TestJarGenrules(t *testing.T) {
 		barCombined.Inputs[1].String() != jargen.Output.String() {
 		t.Errorf("bar combined jar inputs %v is not [%q, %q]",
 			barCombined.Inputs.Strings(), bar.Output.String(), jargen.Output.String())
+	}
+}
+
+func TestExcludeFileGroupInSrcs(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java", ":foo-srcs"],
+			exclude_srcs: ["a.java", ":foo-excludes"],
+		}
+
+		filegroup {
+			name: "foo-srcs",
+			srcs: ["java-fg/a.java", "java-fg/b.java", "java-fg/c.java"],
+		}
+
+		filegroup {
+			name: "foo-excludes",
+			srcs: ["java-fg/a.java", "java-fg/b.java"],
+		}
+	`)
+
+	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+
+	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "java-fg/c.java" {
+		t.Errorf(`foo inputs %v != ["java-fg/c.java"]`, javac.Inputs)
 	}
 }
 
