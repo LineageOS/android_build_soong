@@ -397,44 +397,41 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainCflags())
 	}
 
-	if !ctx.useSdk() {
-		cStd := config.CStdVersion
-		if String(compiler.Properties.C_std) == "experimental" {
-			cStd = config.ExperimentalCStdVersion
-		} else if String(compiler.Properties.C_std) != "" {
-			cStd = String(compiler.Properties.C_std)
-		}
-
-		cppStd := String(compiler.Properties.Cpp_std)
-		switch String(compiler.Properties.Cpp_std) {
-		case "":
-			cppStd = config.CppStdVersion
-		case "experimental":
-			cppStd = config.ExperimentalCppStdVersion
-		case "c++17", "gnu++17":
-			// Map c++17 and gnu++17 to their 1z equivalents, until 17 is finalized.
-			cppStd = strings.Replace(String(compiler.Properties.Cpp_std), "17", "1z", 1)
-		}
-
-		if !flags.Clang {
-			// GCC uses an invalid C++14 ABI (emits calls to
-			// __cxa_throw_bad_array_length, which is not a valid C++ RT ABI).
-			// http://b/25022512
-			cppStd = config.GccCppStdVersion
-		} else if ctx.Host() && !flags.Clang {
-			// The host GCC doesn't support C++14 (and is deprecated, so likely
-			// never will). Build these modules with C++11.
-			cppStd = config.GccCppStdVersion
-		}
-
-		if compiler.Properties.Gnu_extensions != nil && *compiler.Properties.Gnu_extensions == false {
-			cStd = gnuToCReplacer.Replace(cStd)
-			cppStd = gnuToCReplacer.Replace(cppStd)
-		}
-
-		flags.ConlyFlags = append([]string{"-std=" + cStd}, flags.ConlyFlags...)
-		flags.CppFlags = append([]string{"-std=" + cppStd}, flags.CppFlags...)
+	cStd := config.CStdVersion
+	if String(compiler.Properties.C_std) == "experimental" {
+		cStd = config.ExperimentalCStdVersion
+	} else if String(compiler.Properties.C_std) != "" {
+		cStd = String(compiler.Properties.C_std)
 	}
+
+	cppStd := String(compiler.Properties.Cpp_std)
+	switch String(compiler.Properties.Cpp_std) {
+	case "":
+		cppStd = config.CppStdVersion
+	case "experimental":
+		cppStd = config.ExperimentalCppStdVersion
+	case "c++17", "gnu++17":
+		// Map c++17 and gnu++17 to their 1z equivalents, until 17 is finalized.
+		cppStd = strings.Replace(String(compiler.Properties.Cpp_std), "17", "1z", 1)
+	}
+
+	if !flags.Clang {
+		// GCC uses an invalid C++14 ABI (emits calls to
+		// __cxa_throw_bad_array_length, which is not a valid C++ RT ABI).
+		// http://b/25022512
+		// The host GCC doesn't support C++14 (and is deprecated, so likely
+		// never will).
+		// Build these modules with C++11.
+		cppStd = config.GccCppStdVersion
+	}
+
+	if compiler.Properties.Gnu_extensions != nil && *compiler.Properties.Gnu_extensions == false {
+		cStd = gnuToCReplacer.Replace(cStd)
+		cppStd = gnuToCReplacer.Replace(cppStd)
+	}
+
+	flags.ConlyFlags = append([]string{"-std=" + cStd}, flags.ConlyFlags...)
+	flags.CppFlags = append([]string{"-std=" + cppStd}, flags.CppFlags...)
 
 	if ctx.useVndk() {
 		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
