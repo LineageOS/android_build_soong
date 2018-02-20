@@ -56,7 +56,7 @@ func calculateElfSymbolOffset(file *elf.File, symbol elf.Symbol) (uint64, error)
 	case elf.ET_REL:
 		// "In relocatable files, st_value holds a section offset for a defined symbol.
 		// That is, st_value is an offset from the beginning of the section that st_shndx identifies."
-		return file.Sections[symbol.Section].Addr + symbol.Value, nil
+		return section.Offset + symbol.Value, nil
 	case elf.ET_EXEC, elf.ET_DYN:
 		// "In executable and shared object files, st_value holds a virtual address. To make these
 		// files’ symbols more useful for the dynamic linker, the section offset (file interpretation)
