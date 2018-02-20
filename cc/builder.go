@@ -172,7 +172,7 @@ var (
 		},
 		"windresCmd", "flags")
 
-	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
+	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
 	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
 	sAbiDump = pctx.AndroidStaticRule("sAbiDump",
@@ -182,7 +182,7 @@ var (
 		},
 		"cFlags", "exportDirs")
 
-	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
+	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
 
 	sAbiLink = pctx.AndroidStaticRule("sAbiLink",
 		blueprint.RuleParams{
@@ -193,7 +193,7 @@ var (
 		},
 		"symbolFilter", "arch", "exportedHeaderFlags")
 
-	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
+	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
 	sAbiDiff = pctx.AndroidRuleFunc("sAbiDiff",
 		func(config android.Config) (blueprint.RuleParams, error) {
