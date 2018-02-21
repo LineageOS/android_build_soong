@@ -71,7 +71,7 @@ var builtinScope map[string]string
 
 func init() {
 	builtinScope := make(map[string]string)
-	builtinScope["__builtin_dollar"] = "$"
+	builtinScope[builtinDollar] = "$"
 }
 
 func (v Variable) EvalFunction(scope Scope) (string, bool) {

@@ -29,12 +29,14 @@ var (
 	proto = pctx.AndroidStaticRule("protoc",
 		blueprint.RuleParams{
 			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
-				`$protocCmd --python_out=$out.tmp -I $protoBase $protoFlags $in && ` +
+				`$protocCmd --python_out=$out.tmp --dependency_out=$out.d -I $protoBase $protoFlags $in && ` +
 				`$parCmd -o $out -P $pkgPath -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
 			CommandDeps: []string{
 				"$protocCmd",
 				"$parCmd",
 			},
+			Depfile: "${out}.d",
+			Deps:    blueprint.DepsGCC,
 		}, "protoBase", "protoFlags", "pkgPath")
 )
 

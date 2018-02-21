@@ -99,6 +99,78 @@ func TestMakeStringSplitN(t *testing.T) {
 	}
 }
 
+var valueTestCases = []struct {
+	in       *MakeString
+	expected string
+}{
+	{
+		in:       SimpleMakeString("a b", NoPos),
+		expected: "a b",
+	},
+	{
+		in:       SimpleMakeString("a\\ \\\tb\\\\", NoPos),
+		expected: "a \tb\\",
+	},
+	{
+		in:       SimpleMakeString("a\\b\\", NoPos),
+		expected: "a\\b\\",
+	},
+}
+
+func TestMakeStringValue(t *testing.T) {
+	for _, test := range valueTestCases {
+		got := test.in.Value(nil)
+		if got != test.expected {
+			t.Errorf("\nwith: %q\nwant: %q\n got: %q", test.in.Dump(), test.expected, got)
+		}
+	}
+}
+
+var splitWordsTestCases = []struct {
+	in       *MakeString
+	expected []*MakeString
+}{
+	{
+		in:       SimpleMakeString("", NoPos),
+		expected: []*MakeString{},
+	},
+	{
+		in: SimpleMakeString(" a b\\ c d", NoPos),
+		expected: []*MakeString{
+			SimpleMakeString("a", NoPos),
+			SimpleMakeString("b\\ c", NoPos),
+			SimpleMakeString("d", NoPos),
+		},
+	},
+	{
+		in: SimpleMakeString("  a\tb\\\t\\ c d  ", NoPos),
+		expected: []*MakeString{
+			SimpleMakeString("a", NoPos),
+			SimpleMakeString("b\\\t\\ c", NoPos),
+			SimpleMakeString("d", NoPos),
+		},
+	},
+	{
+		in: SimpleMakeString(`a\\ b\\\ c d`, NoPos),
+		expected: []*MakeString{
+			SimpleMakeString(`a\\`, NoPos),
+			SimpleMakeString(`b\\\ c`, NoPos),
+			SimpleMakeString("d", NoPos),
+		},
+	},
+}
+
+func TestMakeStringWords(t *testing.T) {
+	for _, test := range splitWordsTestCases {
+		got := test.in.Words()
+		gotString := dumpArray(got)
+		expectedString := dumpArray(test.expected)
+		if gotString != expectedString {
+			t.Errorf("with:\n%q\nexpected:\n%s\ngot:\n%s", test.in.Dump(), expectedString, gotString)
+		}
+	}
+}
+
 func dumpArray(a []*MakeString) string {
 	ret := make([]string, len(a))
 
