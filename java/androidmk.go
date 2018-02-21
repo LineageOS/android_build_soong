@@ -112,6 +112,24 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 	}
 }
 
+func (prebuilt *AARImport) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(prebuilt.classpathFile),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+				fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.classpathFile.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", prebuilt.exportPackage.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", prebuilt.proguardFlags.String())
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
+			},
+		},
+	}
+}
+
 func (binary *Binary) AndroidMk() android.AndroidMkData {
 
 	if !binary.isWrapperVariant {

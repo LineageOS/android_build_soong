@@ -34,7 +34,7 @@ func init() {
 // AndroidManifest.xml merging
 // package splits
 
-type androidAppProperties struct {
+type appProperties struct {
 	// path to a certificate, or the name of a certificate in the default
 	// certificate directory, or blank to use the default product certificate
 	Certificate *string
@@ -71,7 +71,7 @@ type androidAppProperties struct {
 type AndroidApp struct {
 	Module
 
-	appProperties androidAppProperties
+	appProperties appProperties
 
 	aaptSrcJar    android.Path
 	exportPackage android.Path
