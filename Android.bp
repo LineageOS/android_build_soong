@@ -215,6 +215,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "java/aapt2.go",
+        "java/aar.go",
         "java/androidmk.go",
         "java/app_builder.go",
         "java/app.go",
