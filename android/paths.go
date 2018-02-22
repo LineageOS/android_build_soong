@@ -70,7 +70,14 @@ var _ moduleErrorf = blueprint.ModuleContext(nil)
 // reportPathError will register an error with the attached context. It
 // attempts ctx.ModuleErrorf for a better error message first, then falls
 // back to ctx.Errorf.
-func reportPathError(ctx PathContext, format string, args ...interface{}) {
+func reportPathError(ctx PathContext, err error) {
+	reportPathErrorf(ctx, "%s", err.Error())
+}
+
+// reportPathErrorf will register an error with the attached context. It
+// attempts ctx.ModuleErrorf for a better error message first, then falls
+// back to ctx.Errorf.
+func reportPathErrorf(ctx PathContext, format string, args ...interface{}) {
 	if mctx, ok := ctx.(moduleErrorf); ok {
 		mctx.ModuleErrorf(format, args...)
 	} else if ectx, ok := ctx.(errorfContext); ok {
@@ -121,7 +128,7 @@ func GenPathWithExt(ctx ModuleContext, subdir string, p Path, ext string) Module
 	if path, ok := p.(genPathProvider); ok {
 		return path.genPathWithExt(ctx, subdir, ext)
 	}
-	reportPathError(ctx, "Tried to create generated file from unsupported path: %s(%s)", reflect.TypeOf(p).Name(), p)
+	reportPathErrorf(ctx, "Tried to create generated file from unsupported path: %s(%s)", reflect.TypeOf(p).Name(), p)
 	return PathForModuleGen(ctx)
 }
 
@@ -131,7 +138,7 @@ func ObjPathWithExt(ctx ModuleContext, subdir string, p Path, ext string) Module
 	if path, ok := p.(objPathProvider); ok {
 		return path.objPathWithExt(ctx, subdir, ext)
 	}
-	reportPathError(ctx, "Tried to create object file from unsupported path: %s (%s)", reflect.TypeOf(p).Name(), p)
+	reportPathErrorf(ctx, "Tried to create object file from unsupported path: %s (%s)", reflect.TypeOf(p).Name(), p)
 	return PathForModuleObj(ctx)
 }
 
@@ -142,7 +149,7 @@ func ResPathWithName(ctx ModuleContext, p Path, name string) ModuleResPath {
 	if path, ok := p.(resPathProvider); ok {
 		return path.resPathWithName(ctx, name)
 	}
-	reportPathError(ctx, "Tried to create res file from unsupported path: %s (%s)", reflect.TypeOf(p).Name(), p)
+	reportPathErrorf(ctx, "Tried to create res file from unsupported path: %s (%s)", reflect.TypeOf(p).Name(), p)
 	return PathForModuleRes(ctx)
 }
 
@@ -245,7 +252,7 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string) Paths {
 	for _, p := range paths {
 		path := filepath.Clean(p)
 		if !strings.HasPrefix(path, prefix) {
-			reportPathError(ctx, "Path '%s' is not in module source directory '%s'", p, prefix)
+			reportPathErrorf(ctx, "Path '%s' is not in module source directory '%s'", p, prefix)
 			continue
 		}
 		ret = append(ret, PathForModuleSrc(ctx, path[len(prefix):]))
@@ -476,21 +483,24 @@ func (p SourcePath) withRel(rel string) SourcePath {
 // safePathForSource is for paths that we expect are safe -- only for use by go
 // code that is embedding ninja variables in paths
 func safePathForSource(ctx PathContext, path string) SourcePath {
-	p := validateSafePath(ctx, path)
+	p, err := validateSafePath(path)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	ret := SourcePath{basePath{p, ctx.Config(), ""}}
 
 	abs, err := filepath.Abs(ret.String())
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return ret
 	}
 	buildroot, err := filepath.Abs(ctx.Config().buildDir)
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return ret
 	}
 	if strings.HasPrefix(abs, buildroot) {
-		reportPathError(ctx, "source path %s is in output", abs)
+		reportPathErrorf(ctx, "source path %s is in output", abs)
 		return ret
 	}
 
@@ -501,28 +511,32 @@ func safePathForSource(ctx PathContext, path string) SourcePath {
 // neither escapes the source dir nor is in the out dir.
 // On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
 func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
-	p := validatePath(ctx, pathComponents...)
+	p, err := validatePath(pathComponents...)
 	ret := SourcePath{basePath{p, ctx.Config(), ""}}
+	if err != nil {
+		reportPathError(ctx, err)
+		return ret
+	}
 
 	abs, err := filepath.Abs(ret.String())
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return ret
 	}
 	buildroot, err := filepath.Abs(ctx.Config().buildDir)
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return ret
 	}
 	if strings.HasPrefix(abs, buildroot) {
-		reportPathError(ctx, "source path %s is in output", abs)
+		reportPathErrorf(ctx, "source path %s is in output", abs)
 		return ret
 	}
 
 	if exists, _, err := ctx.Fs().Exists(ret.String()); err != nil {
-		reportPathError(ctx, "%s: %s", ret, err.Error())
+		reportPathErrorf(ctx, "%s: %s", ret, err.Error())
 	} else if !exists {
-		reportPathError(ctx, "source path %s does not exist", ret)
+		reportPathErrorf(ctx, "source path %s does not exist", ret)
 	}
 	return ret
 }
@@ -531,26 +545,30 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 // path exists, or an empty OptionalPath if it doesn't exist. Dependencies are added
 // so that the ninja file will be regenerated if the state of the path changes.
 func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPath {
-	p := validatePath(ctx, pathComponents...)
+	p, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+		return OptionalPath{}
+	}
 	path := SourcePath{basePath{p, ctx.Config(), ""}}
 
 	abs, err := filepath.Abs(path.String())
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return OptionalPath{}
 	}
 	buildroot, err := filepath.Abs(ctx.Config().buildDir)
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return OptionalPath{}
 	}
 	if strings.HasPrefix(abs, buildroot) {
-		reportPathError(ctx, "source path %s is in output", abs)
+		reportPathErrorf(ctx, "source path %s is in output", abs)
 		return OptionalPath{}
 	}
 
 	if pathtools.IsGlob(path.String()) {
-		reportPathError(ctx, "path may not contain a glob: %s", path.String())
+		reportPathErrorf(ctx, "path may not contain a glob: %s", path.String())
 		return OptionalPath{}
 	}
 
@@ -559,7 +577,7 @@ func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPa
 		// a single file.
 		files, err := gctx.GlobWithDeps(path.String(), nil)
 		if err != nil {
-			reportPathError(ctx, "glob: %s", err.Error())
+			reportPathErrorf(ctx, "glob: %s", err.Error())
 			return OptionalPath{}
 		}
 
@@ -571,7 +589,7 @@ func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPa
 		// AddNinjaFileDeps
 		files, dirs, err := pathtools.Glob(path.String(), nil)
 		if err != nil {
-			reportPathError(ctx, "glob: %s", err.Error())
+			reportPathErrorf(ctx, "glob: %s", err.Error())
 			return OptionalPath{}
 		}
 
@@ -593,7 +611,10 @@ func (p SourcePath) String() string {
 // Join creates a new SourcePath with paths... joined with the current path. The
 // provided paths... may not use '..' to escape from the current path.
 func (p SourcePath) Join(ctx PathContext, paths ...string) SourcePath {
-	path := validatePath(ctx, paths...)
+	path, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return p.withRel(path)
 }
 
@@ -606,17 +627,17 @@ func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	} else if srcPath, ok := path.(SourcePath); ok {
 		relDir = srcPath.path
 	} else {
-		reportPathError(ctx, "Cannot find relative path for %s(%s)", reflect.TypeOf(path).Name(), path)
+		reportPathErrorf(ctx, "Cannot find relative path for %s(%s)", reflect.TypeOf(path).Name(), path)
 		return OptionalPath{}
 	}
 	dir := filepath.Join(p.config.srcDir, p.path, relDir)
 	// Use Glob so that we are run again if the directory is added.
 	if pathtools.IsGlob(dir) {
-		reportPathError(ctx, "Path may not contain a glob: %s", dir)
+		reportPathErrorf(ctx, "Path may not contain a glob: %s", dir)
 	}
 	paths, err := ctx.GlobWithDeps(dir, []string{})
 	if err != nil {
-		reportPathError(ctx, "glob: %s", err.Error())
+		reportPathErrorf(ctx, "glob: %s", err.Error())
 		return OptionalPath{}
 	}
 	if len(paths) == 0 {
@@ -624,7 +645,7 @@ func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	}
 	relPath, err := filepath.Rel(p.config.srcDir, paths[0])
 	if err != nil {
-		reportPathError(ctx, "%s", err.Error())
+		reportPathError(ctx, err)
 		return OptionalPath{}
 	}
 	return OptionalPathForPath(PathForSource(ctx, relPath))
@@ -646,7 +667,10 @@ var _ Path = OutputPath{}
 // validated to not escape the build dir.
 // On error, it will return a usable, but invalid OutputPath, and report a ModuleError.
 func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
-	path := validatePath(ctx, pathComponents...)
+	path, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return OutputPath{basePath{path, ctx.Config(), ""}}
 }
 
@@ -663,14 +687,20 @@ func (p OutputPath) RelPathString() string {
 // Join creates a new OutputPath with paths... joined with the current path. The
 // provided paths... may not use '..' to escape from the current path.
 func (p OutputPath) Join(ctx PathContext, paths ...string) OutputPath {
-	path := validatePath(ctx, paths...)
+	path, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return p.withRel(path)
 }
 
 // PathForIntermediates returns an OutputPath representing the top-level
 // intermediates directory.
 func PathForIntermediates(ctx PathContext, paths ...string) OutputPath {
-	path := validatePath(ctx, paths...)
+	path, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return PathForOutput(ctx, ".intermediates", path)
 }
 
@@ -687,7 +717,10 @@ var _ resPathProvider = ModuleSrcPath{}
 // PathForModuleSrc returns a ModuleSrcPath representing the paths... under the
 // module's local source directory.
 func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
-	p := validatePath(ctx, paths...)
+	p, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	path := ModuleSrcPath{PathForSource(ctx, ctx.ModuleDir(), p)}
 	path.basePath.rel = p
 	return path
@@ -765,7 +798,10 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 // PathForModuleOut returns a Path representing the paths... under the module's
 // output directory.
 func PathForModuleOut(ctx ModuleContext, paths ...string) ModuleOutPath {
-	p := validatePath(ctx, paths...)
+	p, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return ModuleOutPath{
 		OutputPath: pathForModule(ctx).withRel(p),
 	}
@@ -784,7 +820,10 @@ var _ objPathProvider = ModuleGenPath{}
 // PathForModuleGen returns a Path representing the paths... under the module's
 // `gen' directory.
 func PathForModuleGen(ctx ModuleContext, paths ...string) ModuleGenPath {
-	p := validatePath(ctx, paths...)
+	p, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return ModuleGenPath{
 		ModuleOutPath: ModuleOutPath{
 			OutputPath: pathForModule(ctx).withRel("gen").withRel(p),
@@ -812,7 +851,10 @@ var _ Path = ModuleObjPath{}
 // PathForModuleObj returns a Path representing the paths... under the module's
 // 'obj' directory.
 func PathForModuleObj(ctx ModuleContext, pathComponents ...string) ModuleObjPath {
-	p := validatePath(ctx, pathComponents...)
+	p, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
 	return ModuleObjPath{PathForModuleOut(ctx, "obj", p)}
 }
 
@@ -827,7 +869,11 @@ var _ Path = ModuleResPath{}
 // PathForModuleRes returns a Path representing the paths... under the module's
 // 'res' directory.
 func PathForModuleRes(ctx ModuleContext, pathComponents ...string) ModuleResPath {
-	p := validatePath(ctx, pathComponents...)
+	p, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
 	return ModuleResPath{PathForModuleOut(ctx, "res", p)}
 }
 
@@ -873,36 +919,34 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 
 // validateSafePath validates a path that we trust (may contain ninja variables).
 // Ensures that each path component does not attempt to leave its component.
-func validateSafePath(ctx PathContext, pathComponents ...string) string {
+func validateSafePath(pathComponents ...string) (string, error) {
 	for _, path := range pathComponents {
 		path := filepath.Clean(path)
 		if path == ".." || strings.HasPrefix(path, "../") || strings.HasPrefix(path, "/") {
-			reportPathError(ctx, "Path is outside directory: %s", path)
-			return ""
+			return "", fmt.Errorf("Path is outside directory: %s", path)
 		}
 	}
 	// TODO: filepath.Join isn't necessarily correct with embedded ninja
 	// variables. '..' may remove the entire ninja variable, even if it
 	// will be expanded to multiple nested directories.
-	return filepath.Join(pathComponents...)
+	return filepath.Join(pathComponents...), nil
 }
 
 // validatePath validates that a path does not include ninja variables, and that
 // each path component does not attempt to leave its component. Returns a joined
 // version of each path component.
-func validatePath(ctx PathContext, pathComponents ...string) string {
+func validatePath(pathComponents ...string) (string, error) {
 	for _, path := range pathComponents {
 		if strings.Contains(path, "$") {
-			reportPathError(ctx, "Path contains invalid character($): %s", path)
-			return ""
+			return "", fmt.Errorf("Path contains invalid character($): %s", path)
 		}
 	}
-	return validateSafePath(ctx, pathComponents...)
+	return validateSafePath(pathComponents...)
 }
 
 func PathForPhony(ctx PathContext, phony string) WritablePath {
 	if strings.ContainsAny(phony, "$/") {
-		reportPathError(ctx, "Phony target contains invalid character ($ or /): %s", phony)
+		reportPathErrorf(ctx, "Phony target contains invalid character ($ or /): %s", phony)
 	}
 	return PhonyPath{basePath{phony, ctx.Config(), ""}}
 }
@@ -925,7 +969,10 @@ func (p testPath) String() string {
 }
 
 func PathForTesting(paths ...string) Path {
-	p := validateSafePath(nil, paths...)
+	p, err := validateSafePath(paths...)
+	if err != nil {
+		panic(err)
+	}
 	return testPath{basePath{path: p, rel: p}}
 }
 

@@ -112,7 +112,10 @@ func TestValidateSafePath(t *testing.T) {
 	for _, testCase := range validateSafePathTestCases {
 		t.Run(strings.Join(testCase.in, ","), func(t *testing.T) {
 			ctx := &configErrorWrapper{}
-			out := validateSafePath(ctx, testCase.in...)
+			out, err := validateSafePath(testCase.in...)
+			if err != nil {
+				reportPathError(ctx, err)
+			}
 			check(t, "validateSafePath", p(testCase.in), out, ctx.errors, testCase.out, testCase.err)
 		})
 	}
@@ -122,7 +125,10 @@ func TestValidatePath(t *testing.T) {
 	for _, testCase := range validatePathTestCases {
 		t.Run(strings.Join(testCase.in, ","), func(t *testing.T) {
 			ctx := &configErrorWrapper{}
-			out := validatePath(ctx, testCase.in...)
+			out, err := validatePath(testCase.in...)
+			if err != nil {
+				reportPathError(ctx, err)
+			}
 			check(t, "validatePath", p(testCase.in), out, ctx.errors, testCase.out, testCase.err)
 		})
 	}
