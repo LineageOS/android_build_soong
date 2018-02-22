@@ -136,14 +136,11 @@ func run() error {
 
 	tempDir, err := ioutil.TempDir(sandboxesRoot, "sbox")
 
-	// Rewrite output file paths to be relative to output root
-	// This facilitates matching them up against the corresponding paths in the temporary directory in case they're absolute
 	for i, filePath := range outputsVarEntries {
-		relativePath, err := filepath.Rel(outputRoot, filePath)
-		if err != nil {
-			return err
+		if !strings.HasPrefix(filePath, "__SBOX_OUT_DIR__/") {
+			return fmt.Errorf("output files must start with `__SBOX_OUT_DIR__/`")
 		}
-		outputsVarEntries[i] = relativePath
+		outputsVarEntries[i] = strings.TrimPrefix(filePath, "__SBOX_OUT_DIR__/")
 	}
 
 	allOutputs = append([]string(nil), outputsVarEntries...)
