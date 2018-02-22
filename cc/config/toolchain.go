@@ -199,20 +199,6 @@ func addPrefix(list []string, prefix string) []string {
 	return list
 }
 
-func indexList(s string, list []string) int {
-	for i, l := range list {
-		if l == s {
-			return i
-		}
-	}
-
-	return -1
-}
-
-func inList(s string, list []string) bool {
-	return indexList(s, list) != -1
-}
-
 func SanitizerRuntimeLibrary(t Toolchain, sanitizer string) string {
 	arch := t.SanitizerRuntimeLibraryArch()
 	if arch == "" {
@@ -243,3 +229,5 @@ func ToolPath(t Toolchain) string {
 	}
 	return filepath.Join(t.GccRoot(), t.GccTriple(), "bin")
 }
+
+var inList = android.InList
