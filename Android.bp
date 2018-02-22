@@ -220,6 +220,7 @@ bootstrap_go_package {
         "java/app.go",
         "java/builder.go",
         "java/dex.go",
+        "java/droiddoc.go",
         "java/gen.go",
         "java/genrule.go",
         "java/jacoco.go",
