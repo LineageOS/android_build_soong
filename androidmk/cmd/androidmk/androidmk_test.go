@@ -492,6 +492,36 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			}
 		`,
 	},
+	{
+		desc: "java prebuilt",
+		in: `
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.jar
+			LOCAL_MODULE_CLASS := JAVA_LIBRARIES
+			include $(BUILD_PREBUILT)
+		`,
+		expected: `
+			java_import {
+				jars: ["test.jar"],
+
+			}
+		`,
+	},
+	{
+		desc: "aar prebuilt",
+		in: `
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.aar
+			LOCAL_MODULE_CLASS := JAVA_LIBRARIES
+			include $(BUILD_PREBUILT)
+		`,
+		expected: `
+			android_library_import {
+				aars: ["test.aar"],
+
+			}
+		`,
+	},
 }
 
 func reformatBlueprint(input string) string {
