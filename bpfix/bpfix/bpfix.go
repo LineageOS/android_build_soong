@@ -19,6 +19,7 @@ package bpfix
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 
 	"github.com/google/blueprint/parser"
 )
@@ -26,7 +27,8 @@ import (
 // A FixRequest specifies the details of which fixes to apply to an individual file
 // A FixRequest doesn't specify whether to do a dry run or where to write the results; that's in cmd/bpfix.go
 type FixRequest struct {
-	simplifyKnownRedundantVariables bool
+	simplifyKnownRedundantVariables    bool
+	rewriteIncorrectAndroidmkPrebuilts bool
 }
 
 func NewFixRequest() FixRequest {
@@ -36,6 +38,7 @@ func NewFixRequest() FixRequest {
 func (r FixRequest) AddAll() (result FixRequest) {
 	result = r
 	result.simplifyKnownRedundantVariables = true
+	result.rewriteIncorrectAndroidmkPrebuilts = true
 	return result
 }
 
@@ -87,12 +90,50 @@ func fixTreeOnce(tree *parser.File, config FixRequest) error {
 			return err
 		}
 	}
+	if config.rewriteIncorrectAndroidmkPrebuilts {
+		err := rewriteIncorrectAndroidmkPrebuilts(tree)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func simplifyKnownPropertiesDuplicatingEachOther(tree *parser.File) error {
 	// remove from local_include_dirs anything in export_include_dirs
 	return removeMatchingModuleListProperties(tree, "export_include_dirs", "local_include_dirs")
+}
+
+func rewriteIncorrectAndroidmkPrebuilts(tree *parser.File) error {
+	for _, def := range tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+		if mod.Type != "java_import" {
+			continue
+		}
+		srcs, ok := getLiteralListProperty(mod, "srcs")
+		if !ok {
+			continue
+		}
+		if len(srcs.Values) == 0 {
+			continue
+		}
+		src, ok := srcs.Values[0].(*parser.String)
+		if !ok {
+			continue
+		}
+		switch filepath.Ext(src.Value) {
+		case ".jar":
+			renameProperty(mod, "srcs", "jars")
+		case ".aar":
+			renameProperty(mod, "srcs", "aars")
+			mod.Type = "android_library_import"
+		}
+	}
+
+	return nil
 }
 
 // removes from <items> every item present in <removals>
@@ -145,4 +186,12 @@ func getLiteralListProperty(mod *parser.Module, name string) (list *parser.List,
 	}
 	list, ok = prop.Value.(*parser.List)
 	return list, ok
+}
+
+func renameProperty(mod *parser.Module, from, to string) {
+	for _, prop := range mod.Properties {
+		if prop.Name == from {
+			prop.Name = to
+		}
+	}
 }
