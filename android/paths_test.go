@@ -110,17 +110,21 @@ var validatePathTestCases = append(commonValidatePathTestCases, []strsTestCase{
 
 func TestValidateSafePath(t *testing.T) {
 	for _, testCase := range validateSafePathTestCases {
-		ctx := &configErrorWrapper{}
-		out := validateSafePath(ctx, testCase.in...)
-		check(t, "validateSafePath", p(testCase.in), out, ctx.errors, testCase.out, testCase.err)
+		t.Run(strings.Join(testCase.in, ","), func(t *testing.T) {
+			ctx := &configErrorWrapper{}
+			out := validateSafePath(ctx, testCase.in...)
+			check(t, "validateSafePath", p(testCase.in), out, ctx.errors, testCase.out, testCase.err)
+		})
 	}
 }
 
 func TestValidatePath(t *testing.T) {
 	for _, testCase := range validatePathTestCases {
-		ctx := &configErrorWrapper{}
-		out := validatePath(ctx, testCase.in...)
-		check(t, "validatePath", p(testCase.in), out, ctx.errors, testCase.out, testCase.err)
+		t.Run(strings.Join(testCase.in, ","), func(t *testing.T) {
+			ctx := &configErrorWrapper{}
+			out := validatePath(ctx, testCase.in...)
+			check(t, "validatePath", p(testCase.in), out, ctx.errors, testCase.out, testCase.err)
+		})
 	}
 }
 
@@ -133,6 +137,7 @@ func TestOptionalPath(t *testing.T) {
 }
 
 func checkInvalidOptionalPath(t *testing.T, path OptionalPath) {
+	t.Helper()
 	if path.Valid() {
 		t.Errorf("Uninitialized OptionalPath should not be valid")
 	}
@@ -150,9 +155,11 @@ func checkInvalidOptionalPath(t *testing.T, path OptionalPath) {
 func check(t *testing.T, testType, testString string,
 	got interface{}, err []error,
 	expected interface{}, expectedErr []error) {
+	t.Helper()
 
 	printedTestCase := false
 	e := func(s string, expected, got interface{}) {
+		t.Helper()
 		if !printedTestCase {
 			t.Errorf("test case %s: %s", testType, testString)
 			printedTestCase = true
