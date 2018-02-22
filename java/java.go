@@ -1252,15 +1252,6 @@ func ImportFactoryHost() android.Module {
 	return module
 }
 
-func inList(s string, l []string) bool {
-	for _, e := range l {
-		if e == s {
-			return true
-		}
-	}
-	return false
-}
-
 //
 // Defaults
 //
@@ -1295,3 +1286,4 @@ func DefaultsFactory(props ...interface{}) android.Module {
 
 var Bool = proptools.Bool
 var String = proptools.String
+var inList = android.InList
