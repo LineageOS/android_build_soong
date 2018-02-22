@@ -273,6 +273,12 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 		linkDeps = append(linkDeps, depFiles...)
 	})
 
+	sdkDep := decodeSdkDep(ctx, String(a.deviceProperties.Sdk_version))
+	if sdkDep.useFiles {
+		linkFlags = append(linkFlags, "-I "+sdkDep.jar.String())
+		linkDeps = append(linkDeps, sdkDep.jar)
+	}
+
 	// SDK version flags
 	sdkVersion := String(a.deviceProperties.Sdk_version)
 	switch sdkVersion {
