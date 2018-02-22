@@ -21,8 +21,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/blueprint/parser"
 	"reflect"
+
+	"github.com/google/blueprint/parser"
 )
 
 // TODO(jeffrygaston) remove this when position is removed from ParseNode (in b/38325146) and we can directly do reflect.DeepEqual
@@ -62,7 +63,7 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 	}
 
 	// apply simplifications
-	tree, err := simplifyKnownPropertiesDuplicatingEachOther(tree)
+	err := simplifyKnownPropertiesDuplicatingEachOther(tree)
 	if len(errs) > 0 {
 		t.Fatal(err)
 	}
