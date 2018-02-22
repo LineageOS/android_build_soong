@@ -191,9 +191,8 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 	if ctx.Config().AllowMissingDependencies() {
 		if modCtx, ok := ctx.(ModuleContext); ok {
 			ret := make(Paths, 0, len(paths))
-			intermediates := pathForModule(modCtx).withRel("missing")
 			for _, path := range paths {
-				p := ExistentPathForSource(ctx, intermediates.String(), path)
+				p := ExistentPathForSource(ctx, path)
 				if p.Valid() {
 					ret = append(ret, p.Path())
 				} else {
@@ -213,10 +212,10 @@ func PathsForSource(ctx PathContext, paths []string) Paths {
 // ExistentPathsForSources returns a list of Paths rooted from SrcDir that are
 // found in the tree. If any are not found, they are omitted from the list,
 // and dependencies are added so that we're re-run when they are added.
-func ExistentPathsForSources(ctx PathContext, intermediates string, paths []string) Paths {
+func ExistentPathsForSources(ctx PathContext, paths []string) Paths {
 	ret := make(Paths, 0, len(paths))
 	for _, path := range paths {
-		p := ExistentPathForSource(ctx, intermediates, path)
+		p := ExistentPathForSource(ctx, path)
 		if p.Valid() {
 			ret = append(ret, p.Path())
 		}
@@ -531,12 +530,7 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 // ExistentPathForSource returns an OptionalPath with the SourcePath if the
 // path exists, or an empty OptionalPath if it doesn't exist. Dependencies are added
 // so that the ninja file will be regenerated if the state of the path changes.
-func ExistentPathForSource(ctx PathContext, intermediates string, pathComponents ...string) OptionalPath {
-	if len(pathComponents) == 0 {
-		// For when someone forgets the 'intermediates' argument
-		panic("Missing path(s)")
-	}
-
+func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPath {
 	p := validatePath(ctx, pathComponents...)
 	path := SourcePath{basePath{p, ctx.Config(), ""}}
 
@@ -765,7 +759,7 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 	}
 	refDumpFileStr := "prebuilts/abi-dumps/" + vndkOrNdkDir + "/" + version + "/" +
 		archName + "/" + sourceOrBinaryDir + "/" + fileName + ext
-	return ExistentPathForSource(ctx, "", refDumpFileStr)
+	return ExistentPathForSource(ctx, refDumpFileStr)
 }
 
 // PathForModuleOut returns a Path representing the paths... under the module's

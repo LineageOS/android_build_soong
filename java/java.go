@@ -371,8 +371,8 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 			jar = filepath.Join(dir, "core.jar")
 		}
 		aidl := filepath.Join(dir, "framework.aidl")
-		jarPath := android.ExistentPathForSource(ctx, "sdkdir", jar)
-		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
+		jarPath := android.ExistentPathForSource(ctx, jar)
+		aidlPath := android.ExistentPathForSource(ctx, aidl)
 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
@@ -530,7 +530,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	flags = append(flags, android.JoinWithPrefix(j.exportAidlIncludeDirs.Strings(), "-I"))
 	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
 	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
-	if src := android.ExistentPathForSource(ctx, "", ctx.ModuleDir(), "src"); src.Valid() {
+	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
 	}
 
