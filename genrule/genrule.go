@@ -43,6 +43,7 @@ func init() {
 type SourceFileGenerator interface {
 	GeneratedSourceFiles() android.Paths
 	GeneratedHeaderDirs() android.Paths
+	GeneratedDeps() android.Paths
 }
 
 type HostToolProvider interface {
@@ -107,6 +108,7 @@ type Module struct {
 	exportedIncludeDirs android.Paths
 
 	outputFiles android.Paths
+	outputDeps  android.Paths
 }
 
 type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) generateTask
@@ -128,6 +130,10 @@ func (g *Module) Srcs() android.Paths {
 
 func (g *Module) GeneratedHeaderDirs() android.Paths {
 	return g.exportedIncludeDirs
+}
+
+func (g *Module) GeneratedDeps() android.Paths {
+	return g.outputDeps
 }
 
 func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -334,6 +340,7 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 	for _, outputFile := range task.out {
 		g.outputFiles = append(g.outputFiles, outputFile)
 	}
+	g.outputDeps = append(g.outputDeps, task.out[0])
 }
 
 func generatorFactory(taskGenerator taskFunc, props ...interface{}) *Module {
