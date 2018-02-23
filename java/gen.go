@@ -85,7 +85,6 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	flags javaBuilderFlags) android.Paths {
 
-	var protoFiles android.Paths
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
 
 	for _, srcFile := range srcFiles {
@@ -98,18 +97,11 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			javaFile := genLogtags(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".proto":
-			protoFiles = append(protoFiles, srcFile)
+			srcJarFile := genProto(ctx, srcFile, flags)
+			outSrcFiles = append(outSrcFiles, srcJarFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)
 		}
-	}
-
-	if len(protoFiles) > 0 {
-		protoSrcJar := android.PathForModuleGen(ctx, "proto.srcjar")
-		genProto(ctx, protoSrcJar, protoFiles,
-			flags.protoFlags, flags.protoOutTypeFlag, flags.protoOutParams)
-
-		outSrcFiles = append(outSrcFiles, protoSrcJar)
 	}
 
 	return outSrcFiles
