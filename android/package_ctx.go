@@ -240,7 +240,7 @@ func (p PackageContext) PrefixedExistentPathsForSourcesVariable(
 
 	return p.VariableFunc(name, func(config Config) (string, error) {
 		ctx := &configErrorWrapper{p, config, []error{}}
-		paths := ExistentPathsForSources(ctx, "", paths)
+		paths := ExistentPathsForSources(ctx, paths)
 		if len(ctx.errors) > 0 {
 			return "", ctx.errors[0]
 		}
