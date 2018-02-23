@@ -134,6 +134,7 @@ type Flags struct {
 	Tidy      bool
 	Coverage  bool
 	SAbiDump  bool
+	ProtoRoot bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string

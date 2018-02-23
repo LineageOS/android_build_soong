@@ -30,31 +30,40 @@ func init() {
 var (
 	proto = pctx.AndroidStaticRule("protoc",
 		blueprint.RuleParams{
-			Command: `rm -rf $outDir && mkdir -p $outDir && ` +
-				`$protocCmd $protoOut=$protoOutParams:$outDir $protoFlags $in && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
+				`$protocCmd $protoOut=$protoOutParams:$out.tmp -I $protoBase $protoFlags $in && ` +
+				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
 			CommandDeps: []string{
 				"$protocCmd",
 				"${config.SoongZipCmd}",
 			},
-		}, "protoFlags", "protoOut", "protoOutParams", "outDir")
+		}, "protoBase", "protoFlags", "protoOut", "protoOutParams")
 )
 
-func genProto(ctx android.ModuleContext, outputSrcJar android.WritablePath,
-	protoFiles android.Paths, protoFlags []string, protoOut, protoOutParams string) {
+func genProto(ctx android.ModuleContext, protoFile android.Path, flags javaBuilderFlags) android.Path {
+	srcJarFile := android.GenPathWithExt(ctx, "proto", protoFile, "srcjar")
+
+	var protoBase string
+	if flags.protoRoot {
+		protoBase = "."
+	} else {
+		protoBase = strings.TrimSuffix(protoFile.String(), protoFile.Rel())
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        proto,
-		Description: "protoc " + protoFiles[0].Rel(),
-		Output:      outputSrcJar,
-		Inputs:      protoFiles,
+		Description: "protoc " + protoFile.Rel(),
+		Output:      srcJarFile,
+		Input:       protoFile,
 		Args: map[string]string{
-			"outDir":         android.ProtoDir(ctx).String(),
-			"protoOut":       protoOut,
-			"protoOutParams": protoOutParams,
-			"protoFlags":     strings.Join(protoFlags, " "),
+			"protoBase":      protoBase,
+			"protoOut":       flags.protoOutTypeFlag,
+			"protoOutParams": flags.protoOutParams,
+			"protoFlags":     strings.Join(flags.protoFlags, " "),
 		},
 	})
+
+	return srcJarFile
 }
 
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
@@ -103,6 +112,7 @@ func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.Pro
 	}
 
 	flags.protoFlags = android.ProtoFlags(ctx, p)
+	flags.protoRoot = android.ProtoCanonicalPathFromRoot(ctx, p)
 
 	return flags
 }

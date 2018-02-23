@@ -154,7 +154,7 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			genLex(ctx, srcFile, cppFile)
 		case ".proto":
 			ccFile, headerFile := genProto(ctx, srcFile, buildFlags.protoFlags,
-				buildFlags.protoOutParams)
+				buildFlags.protoOutParams, buildFlags.protoRoot)
 			srcFiles[i] = ccFile
 			deps = append(deps, headerFile)
 		case ".aidl":
