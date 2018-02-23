@@ -102,7 +102,7 @@ func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags
 func (props *PgoProperties) getPgoProfileFile(ctx BaseModuleContext) android.OptionalPath {
 	// Test if the profile_file is present in any of the PGO profile projects
 	for _, profileProject := range getPgoProfileProjects(ctx.DeviceConfig()) {
-		path := android.ExistentPathForSource(ctx, "", profileProject, *props.Pgo.Profile_file)
+		path := android.ExistentPathForSource(ctx, profileProject, *props.Pgo.Profile_file)
 		if path.Valid() {
 			return path
 		}
