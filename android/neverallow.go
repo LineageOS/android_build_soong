@@ -50,7 +50,7 @@ var neverallows = []*rule{
 		because("the VNDK can never contain a library that is device dependent."),
 	neverallow().with("vndk.enabled", "true").without("owner", "").
 		because("a VNDK module can never have an owner."),
-	neverallow().notIn("libcore").with("no_standard_libs", "true"),
+	neverallow().notIn("libcore", "development").with("no_standard_libs", "true"),
 
 	// TODO(b/67974785): always enforce the manifest
 	neverallow().
