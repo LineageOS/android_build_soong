@@ -374,8 +374,10 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// templateDir (maybe missing) is relative to top of the source tree instead of current module.
-	templateDir := android.PathForSource(ctx, String(d.properties.Custom_template_dir)).String()
-	implicits = append(implicits, ctx.GlobFiles(filepath.Join(templateDir, "**/*"), nil)...)
+	templateDir := android.PathsForSource(ctx, []string{String(d.properties.Custom_template_dir)})
+	if len(templateDir) > 0 {
+		implicits = append(implicits, ctx.GlobFiles(filepath.Join(templateDir[0].String(), "**/*"), nil)...)
+	}
 
 	var htmlDirArgs string
 	if len(d.properties.Html_dirs) > 0 {
@@ -418,7 +420,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	opts := "-source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath ${config.JsilverJar}:${config.DoclavaJar} " +
-		"-templatedir " + templateDir + " " + htmlDirArgs + " " + htmlDir2Args + " " +
+		"-templatedir " + String(d.properties.Custom_template_dir) + " " + htmlDirArgs + " " + htmlDir2Args + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
 		"-hdf page.now " + `"$$(date -d @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")"` + " " +
 		args + " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
