@@ -269,7 +269,7 @@ func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
 	// is created, we're run again.
 	path := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir(), def)
-	return ctx.Glob(path, []string{})
+	return ctx.Glob(path, nil)
 }
 
 // Strings returns the Paths in string form
@@ -635,7 +635,7 @@ func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	if pathtools.IsGlob(dir) {
 		reportPathErrorf(ctx, "Path may not contain a glob: %s", dir)
 	}
-	paths, err := ctx.GlobWithDeps(dir, []string{})
+	paths, err := ctx.GlobWithDeps(dir, nil)
 	if err != nil {
 		reportPathErrorf(ctx, "glob: %s", err.Error())
 		return OptionalPath{}
