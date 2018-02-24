@@ -26,7 +26,7 @@ func findMachoSymbol(r io.ReaderAt, symbolName string) (uint64, uint64, error) {
 		return maxUint64, maxUint64, cantParseError{err}
 	}
 
-	// TODO(ccross): why?
+	// symbols in macho files seem to be prefixed with an underscore
 	symbolName = "_" + symbolName
 
 	for i, symbol := range machoFile.Symtab.Syms {

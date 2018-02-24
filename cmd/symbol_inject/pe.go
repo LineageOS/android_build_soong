@@ -27,6 +27,11 @@ func findPESymbol(r io.ReaderAt, symbolName string) (uint64, uint64, error) {
 		return maxUint64, maxUint64, cantParseError{err}
 	}
 
+	if peFile.FileHeader.Machine == pe.IMAGE_FILE_MACHINE_I386 {
+		// symbols in win32 exes seem to be prefixed with an underscore
+		symbolName = "_" + symbolName
+	}
+
 	sort.Slice(peFile.Symbols, func(i, j int) bool {
 		if peFile.Symbols[i].SectionNumber != peFile.Symbols[j].SectionNumber {
 			return peFile.Symbols[i].SectionNumber < peFile.Symbols[j].SectionNumber
