@@ -1177,7 +1177,10 @@ func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop stri
 func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {
 	prefix := PathForModuleSrc(ctx).String()
 
-	expandedExcludes := make([]string, 0, len(excludes))
+	var expandedExcludes []string
+	if excludes != nil {
+		expandedExcludes = make([]string, 0, len(excludes))
+	}
 
 	for _, e := range excludes {
 		if m := SrcIsModule(e); m != "" {
