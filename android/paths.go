@@ -195,20 +195,6 @@ type Paths []Path
 
 // PathsForSource returns Paths rooted from SrcDir
 func PathsForSource(ctx PathContext, paths []string) Paths {
-	if ctx.Config().AllowMissingDependencies() {
-		if modCtx, ok := ctx.(ModuleContext); ok {
-			ret := make(Paths, 0, len(paths))
-			for _, path := range paths {
-				p := ExistentPathForSource(ctx, path)
-				if p.Valid() {
-					ret = append(ret, p.Path())
-				} else {
-					modCtx.AddMissingDependencies([]string{path})
-				}
-			}
-			return ret
-		}
-	}
 	ret := make(Paths, len(paths))
 	for i, path := range paths {
 		ret[i] = PathForSource(ctx, path)
@@ -269,7 +255,7 @@ func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
 	// is created, we're run again.
 	path := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir(), def)
-	return ctx.Glob(path, []string{})
+	return ctx.Glob(path, nil)
 }
 
 // Strings returns the Paths in string form
@@ -507,99 +493,99 @@ func safePathForSource(ctx PathContext, path string) SourcePath {
 	return ret
 }
 
-// PathForSource joins the provided path components and validates that the result
-// neither escapes the source dir nor is in the out dir.
-// On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
-func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
+// pathForSource creates a SourcePath from pathComponents, but does not check that it exists.
+func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validatePath(pathComponents...)
 	ret := SourcePath{basePath{p, ctx.Config(), ""}}
 	if err != nil {
-		reportPathError(ctx, err)
-		return ret
+		return ret, err
 	}
 
 	abs, err := filepath.Abs(ret.String())
 	if err != nil {
-		reportPathError(ctx, err)
-		return ret
+		return ret, err
 	}
 	buildroot, err := filepath.Abs(ctx.Config().buildDir)
 	if err != nil {
-		reportPathError(ctx, err)
-		return ret
+		return ret, err
 	}
 	if strings.HasPrefix(abs, buildroot) {
-		reportPathErrorf(ctx, "source path %s is in output", abs)
-		return ret
+		return ret, fmt.Errorf("source path %s is in output", abs)
 	}
 
-	if exists, _, err := ctx.Fs().Exists(ret.String()); err != nil {
-		reportPathErrorf(ctx, "%s: %s", ret, err.Error())
-	} else if !exists {
-		reportPathErrorf(ctx, "source path %s does not exist", ret)
+	if pathtools.IsGlob(ret.String()) {
+		return ret, fmt.Errorf("path may not contain a glob: %s", ret.String())
 	}
-	return ret
+
+	return ret, nil
+}
+
+// existsWithDependencies returns true if the path exists, and adds appropriate dependencies to rerun if the
+// path does not exist.
+func existsWithDependencies(ctx PathContext, path SourcePath) (exists bool, err error) {
+	var files []string
+
+	if gctx, ok := ctx.(PathGlobContext); ok {
+		// Use glob to produce proper dependencies, even though we only want
+		// a single file.
+		files, err = gctx.GlobWithDeps(path.String(), nil)
+	} else {
+		var deps []string
+		// We cannot add build statements in this context, so we fall back to
+		// AddNinjaFileDeps
+		files, deps, err = pathtools.Glob(path.String(), nil)
+		ctx.AddNinjaFileDeps(deps...)
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("glob: %s", err.Error())
+	}
+
+	return len(files) > 0, nil
+}
+
+// PathForSource joins the provided path components and validates that the result
+// neither escapes the source dir nor is in the out dir.
+// On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
+func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
+	path, err := pathForSource(ctx, pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	if modCtx, ok := ctx.(ModuleContext); ok && ctx.Config().AllowMissingDependencies() {
+		exists, err := existsWithDependencies(ctx, path)
+		if err != nil {
+			reportPathError(ctx, err)
+		}
+		if !exists {
+			modCtx.AddMissingDependencies([]string{path.String()})
+		}
+	} else if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
+		reportPathErrorf(ctx, "%s: %s", path, err.Error())
+	} else if !exists {
+		reportPathErrorf(ctx, "source path %s does not exist", path)
+	}
+	return path
 }
 
 // ExistentPathForSource returns an OptionalPath with the SourcePath if the
 // path exists, or an empty OptionalPath if it doesn't exist. Dependencies are added
 // so that the ninja file will be regenerated if the state of the path changes.
 func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPath {
-	p, err := validatePath(pathComponents...)
+	path, err := pathForSource(ctx, pathComponents...)
 	if err != nil {
 		reportPathError(ctx, err)
 		return OptionalPath{}
 	}
-	path := SourcePath{basePath{p, ctx.Config(), ""}}
 
-	abs, err := filepath.Abs(path.String())
+	exists, err := existsWithDependencies(ctx, path)
 	if err != nil {
 		reportPathError(ctx, err)
 		return OptionalPath{}
 	}
-	buildroot, err := filepath.Abs(ctx.Config().buildDir)
-	if err != nil {
-		reportPathError(ctx, err)
+	if !exists {
 		return OptionalPath{}
-	}
-	if strings.HasPrefix(abs, buildroot) {
-		reportPathErrorf(ctx, "source path %s is in output", abs)
-		return OptionalPath{}
-	}
-
-	if pathtools.IsGlob(path.String()) {
-		reportPathErrorf(ctx, "path may not contain a glob: %s", path.String())
-		return OptionalPath{}
-	}
-
-	if gctx, ok := ctx.(PathGlobContext); ok {
-		// Use glob to produce proper dependencies, even though we only want
-		// a single file.
-		files, err := gctx.GlobWithDeps(path.String(), nil)
-		if err != nil {
-			reportPathErrorf(ctx, "glob: %s", err.Error())
-			return OptionalPath{}
-		}
-
-		if len(files) == 0 {
-			return OptionalPath{}
-		}
-	} else {
-		// We cannot add build statements in this context, so we fall back to
-		// AddNinjaFileDeps
-		files, dirs, err := pathtools.Glob(path.String(), nil)
-		if err != nil {
-			reportPathErrorf(ctx, "glob: %s", err.Error())
-			return OptionalPath{}
-		}
-
-		ctx.AddNinjaFileDeps(dirs...)
-
-		if len(files) == 0 {
-			return OptionalPath{}
-		}
-
-		ctx.AddNinjaFileDeps(path.String())
 	}
 	return OptionalPathForPath(path)
 }
@@ -635,7 +621,7 @@ func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	if pathtools.IsGlob(dir) {
 		reportPathErrorf(ctx, "Path may not contain a glob: %s", dir)
 	}
-	paths, err := ctx.GlobWithDeps(dir, []string{})
+	paths, err := ctx.GlobWithDeps(dir, nil)
 	if err != nil {
 		reportPathErrorf(ctx, "glob: %s", err.Error())
 		return OptionalPath{}
@@ -721,8 +707,21 @@ func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
 	if err != nil {
 		reportPathError(ctx, err)
 	}
-	path := ModuleSrcPath{PathForSource(ctx, ctx.ModuleDir(), p)}
+
+	srcPath, err := pathForSource(ctx, ctx.ModuleDir(), p)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	path := ModuleSrcPath{srcPath}
 	path.basePath.rel = p
+
+	if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
+		reportPathErrorf(ctx, "%s: %s", path, err.Error())
+	} else if !exists {
+		reportPathErrorf(ctx, "module source path %s does not exist", path)
+	}
+
 	return path
 }
 
