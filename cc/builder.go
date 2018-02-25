@@ -252,6 +252,7 @@ type builderFlags struct {
 	tidy           bool
 	coverage       bool
 	sAbiDump       bool
+	protoRoot      bool
 
 	systemIncludeFlags string
 

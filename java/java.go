@@ -371,8 +371,8 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 			jar = filepath.Join(dir, "core.jar")
 		}
 		aidl := filepath.Join(dir, "framework.aidl")
-		jarPath := android.ExistentPathForSource(ctx, "sdkdir", jar)
-		aidlPath := android.ExistentPathForSource(ctx, "sdkdir", aidl)
+		jarPath := android.ExistentPathForSource(ctx, jar)
+		aidlPath := android.ExistentPathForSource(ctx, aidl)
 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
@@ -530,7 +530,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	flags = append(flags, android.JoinWithPrefix(j.exportAidlIncludeDirs.Strings(), "-I"))
 	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
 	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
-	if src := android.ExistentPathForSource(ctx, "", ctx.ModuleDir(), "src"); src.Valid() {
+	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
 	}
 
@@ -538,8 +538,8 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 }
 
 type deps struct {
-	classpath          android.Paths
-	bootClasspath      android.Paths
+	classpath          classpath
+	bootClasspath      classpath
 	staticJars         android.Paths
 	staticHeaderJars   android.Paths
 	staticJarResources android.Paths
@@ -688,8 +688,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	}
 
 	// classpath
-	flags.bootClasspath.AddPaths(deps.bootClasspath)
-	flags.classpath.AddPaths(deps.classpath)
+	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
+	flags.classpath = append(flags.classpath, deps.classpath...)
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && !ctx.Config().TargetOpenJDK9() &&
 		!Bool(j.properties.No_standard_libs) &&
@@ -836,7 +836,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 
 		if enable_sharding {
-			flags.classpath.AddPaths([]android.Path{j.headerJarFile})
+			flags.classpath = append(flags.classpath, j.headerJarFile)
 			shardSize := int(*(j.properties.Javac_shard_size))
 			var shardSrcs []android.Paths
 			if len(uniqueSrcFiles) > 0 {

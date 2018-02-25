@@ -134,6 +134,7 @@ type Flags struct {
 	Tidy      bool
 	Coverage  bool
 	SAbiDump  bool
+	ProtoRoot bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string
@@ -1138,13 +1139,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			case genHeaderDepTag, genHeaderExportDepTag:
 				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
-						genRule.GeneratedSourceFiles()...)
+						genRule.GeneratedDeps()...)
 					flags := includeDirsToFlags(genRule.GeneratedHeaderDirs())
 					depPaths.Flags = append(depPaths.Flags, flags)
 					if depTag == genHeaderExportDepTag {
 						depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags)
 						depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps,
-							genRule.GeneratedSourceFiles()...)
+							genRule.GeneratedDeps()...)
 						// Add these re-exported flags to help header-abi-dumper to infer the abi exported by a library.
 						c.sabi.Properties.ReexportedIncludeFlags = append(c.sabi.Properties.ReexportedIncludeFlags, flags)
 

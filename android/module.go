@@ -113,6 +113,7 @@ type ModuleContext interface {
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 	ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths
 	Glob(globPattern string, excludes []string) Paths
+	GlobFiles(globPattern string, excludes []string) Paths
 
 	InstallExecutable(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
 	InstallFile(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
@@ -1176,7 +1177,10 @@ func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop stri
 func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {
 	prefix := PathForModuleSrc(ctx).String()
 
-	expandedExcludes := make([]string, 0, len(excludes))
+	var expandedExcludes []string
+	if excludes != nil {
+		expandedExcludes = make([]string, 0, len(excludes))
+	}
 
 	for _, e := range excludes {
 		if m := SrcIsModule(e); m != "" {
@@ -1243,6 +1247,24 @@ func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) Pat
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}
 	return pathsForModuleSrcFromFullPath(ctx, ret)
+}
+
+// glob only "files" under the directory relative to top of the source tree.
+func (ctx *androidModuleContext) GlobFiles(globPattern string, excludes []string) Paths {
+	paths, err := ctx.GlobWithDeps(globPattern, excludes)
+	if err != nil {
+		ctx.ModuleErrorf("glob: %s", err.Error())
+	}
+	var ret []Path
+	for _, p := range paths {
+		if isDir, err := ctx.Fs().IsDir(p); err != nil {
+			ctx.ModuleErrorf("error in IsDir(%s): %s", p, err.Error())
+			return nil
+		} else if !isDir {
+			ret = append(ret, PathForSource(ctx, p))
+		}
+	}
+	return ret
 }
 
 func init() {

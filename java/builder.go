@@ -169,6 +169,7 @@ type javaBuilderFlags struct {
 	protoFlags       []string
 	protoOutTypeFlag string // The flag itself: --java_out
 	protoOutParams   string // Parameters to that flag: --java_out=$protoOutParams:$outDir
+	protoRoot        bool
 }
 
 func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
@@ -426,13 +427,6 @@ func (x *classpath) FormDesugarClasspath(optName string) []string {
 	}
 
 	return flags
-}
-
-// Append an android.Paths to the end of the classpath list
-func (x *classpath) AddPaths(paths android.Paths) {
-	for _, path := range paths {
-		*x = append(*x, path)
-	}
 }
 
 // Convert a classpath to an android.Paths
