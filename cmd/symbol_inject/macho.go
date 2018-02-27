@@ -18,6 +18,7 @@ import (
 	"debug/macho"
 	"fmt"
 	"io"
+	"sort"
 )
 
 func findMachoSymbol(r io.ReaderAt, symbolName string) (uint64, uint64, error) {
@@ -26,17 +27,25 @@ func findMachoSymbol(r io.ReaderAt, symbolName string) (uint64, uint64, error) {
 		return maxUint64, maxUint64, cantParseError{err}
 	}
 
-	// TODO(ccross): why?
+	// symbols in macho files seem to be prefixed with an underscore
 	symbolName = "_" + symbolName
 
-	for i, symbol := range machoFile.Symtab.Syms {
+	symbols := machoFile.Symtab.Syms
+	sort.Slice(symbols, func(i, j int) bool {
+		if symbols[i].Sect != symbols[j].Sect {
+			return symbols[i].Sect < symbols[j].Sect
+		}
+		return symbols[i].Value < symbols[j].Value
+	})
+
+	for i, symbol := range symbols {
 		if symbol.Sect == 0 {
 			continue
 		}
 		if symbol.Name == symbolName {
 			var nextSymbol *macho.Symbol
-			if i+1 < len(machoFile.Symtab.Syms) {
-				nextSymbol = &machoFile.Symtab.Syms[i+1]
+			if i+1 < len(symbols) {
+				nextSymbol = &symbols[i+1]
 			}
 			return calculateMachoSymbolOffset(machoFile, symbol, nextSymbol)
 		}
