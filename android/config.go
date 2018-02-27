@@ -132,12 +132,14 @@ func loadFromConfigFile(configurable jsonConfigurable, filename string) error {
 		if err != nil {
 			return err
 		}
+	} else if err != nil {
+		return fmt.Errorf("config file: could not open %s: %s", filename, err.Error())
 	} else {
 		// Make a decoder for it
 		jsonDecoder := json.NewDecoder(configFileReader)
 		err = jsonDecoder.Decode(configurable)
 		if err != nil {
-			return fmt.Errorf("config file: %s did not parse correctly: "+err.Error(), filename)
+			return fmt.Errorf("config file: %s did not parse correctly: %s", filename, err.Error())
 		}
 	}
 
