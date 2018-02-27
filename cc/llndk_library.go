@@ -100,7 +100,7 @@ func (stub *llndkStubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flag
 
 func (stub *llndkStubDecorator) processHeaders(ctx ModuleContext, srcHeaderDir string, outDir android.ModuleGenPath) android.Path {
 	srcDir := android.PathForModuleSrc(ctx, srcHeaderDir)
-	srcFiles := ctx.Glob(filepath.Join(srcDir.String(), "**/*.h"), nil)
+	srcFiles := ctx.GlobFiles(filepath.Join(srcDir.String(), "**/*.h"), nil)
 
 	var installPaths []android.WritablePath
 	for _, header := range srcFiles {
