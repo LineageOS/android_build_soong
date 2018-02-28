@@ -130,6 +130,9 @@ func rewriteIncorrectAndroidmkPrebuilts(tree *parser.File) error {
 		case ".aar":
 			renameProperty(mod, "srcs", "aars")
 			mod.Type = "android_library_import"
+
+			// An android_library_import doesn't get installed, so setting "installable = false" isn't supported
+			removeProperty(mod, "installable")
 		}
 	}
 
@@ -194,4 +197,14 @@ func renameProperty(mod *parser.Module, from, to string) {
 			prop.Name = to
 		}
 	}
+}
+
+func removeProperty(mod *parser.Module, propertyName string) {
+	newList := make([]*parser.Property, 0, len(mod.Properties))
+	for _, prop := range mod.Properties {
+		if prop.Name != propertyName {
+			newList = append(newList, prop)
+		}
+	}
+	mod.Properties = newList
 }
