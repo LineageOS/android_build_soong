@@ -81,6 +81,7 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.RegisterModuleType("droiddoc", android.ModuleFactoryAdaptor(DroiddocFactory))
 	ctx.RegisterModuleType("droiddoc_host", android.ModuleFactoryAdaptor(DroiddocHostFactory))
+	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(DroiddocTemplateFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -865,6 +866,10 @@ func TestSharding(t *testing.T) {
 
 func TestDroiddoc(t *testing.T) {
 	ctx := testJava(t, `
+		droiddoc_template {
+		    name: "droiddoc-templates-sdk",
+		    path: ".",
+		}
 		droiddoc {
 		    name: "bar-doc",
 		    srcs: [
@@ -873,7 +878,7 @@ func TestDroiddoc(t *testing.T) {
 		    exclude_srcs: [
 		        "bar-doc/b.java"
 		    ],
-		    custom_template_dir: "external/doclava/templates-sdk",
+		    custom_template: "droiddoc-templates-sdk",
 		    hdf: [
 		        "android.whichdoc offline",
 		    ],
