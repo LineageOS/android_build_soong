@@ -38,37 +38,33 @@ func findMachoSymbol(r io.ReaderAt, symbolName string) (uint64, uint64, error) {
 		return symbols[i].Value < symbols[j].Value
 	})
 
-	for i, symbol := range symbols {
-		if symbol.Sect == 0 {
-			continue
-		}
-		if symbol.Name == symbolName {
-			var nextSymbol *macho.Symbol
-			if i+1 < len(symbols) {
-				nextSymbol = &symbols[i+1]
+	for _, symbol := range symbols {
+		if symbol.Name == symbolName && symbol.Sect != 0 {
+			// Find the next symbol in the same section with a higher address
+			n := sort.Search(len(symbols), func(i int) bool {
+				return symbols[i].Sect == symbol.Sect &&
+					symbols[i].Value > symbol.Value
+			})
+
+			section := machoFile.Sections[symbol.Sect-1]
+
+			var end uint64
+			if n < len(symbols) {
+				end = symbols[n].Value
+			} else {
+				end = section.Addr + section.Size
 			}
-			return calculateMachoSymbolOffset(machoFile, symbol, nextSymbol)
+
+			if end <= symbol.Value && end > symbol.Value+4096 {
+				return maxUint64, maxUint64, fmt.Errorf("symbol end address does not seem valid, %x:%x", symbol.Value, end)
+			}
+
+			size := end - symbol.Value - 1
+			offset := uint64(section.Offset) + (symbol.Value - section.Addr)
+
+			return offset, size, nil
 		}
 	}
 
 	return maxUint64, maxUint64, fmt.Errorf("symbol not found")
-}
-
-func calculateMachoSymbolOffset(file *macho.File, symbol macho.Symbol, nextSymbol *macho.Symbol) (uint64, uint64, error) {
-	section := file.Sections[symbol.Sect-1]
-
-	var end uint64
-	if nextSymbol != nil && nextSymbol.Sect != symbol.Sect {
-		nextSymbol = nil
-	}
-	if nextSymbol != nil {
-		end = nextSymbol.Value
-	} else {
-		end = section.Addr + section.Size
-	}
-
-	size := end - symbol.Value - 1
-	offset := uint64(section.Offset) + (symbol.Value - section.Addr)
-
-	return offset, size, nil
 }
