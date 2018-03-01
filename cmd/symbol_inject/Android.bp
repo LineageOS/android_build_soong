@@ -20,4 +20,12 @@ blueprint_go_binary {
         "macho.go",
         "pe.go",
     ],
+    testSrcs: [
+        "elf_symboldata_test.go",
+        "elf_test.go",
+        "macho_symboldata_test.go",
+        "macho_test.go",
+        "pe_symboldata_test.go",
+        "pe_test.go",
+    ],
 }
