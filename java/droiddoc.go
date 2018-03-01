@@ -18,7 +18,6 @@ import (
 	"android/soong/android"
 	"android/soong/java/config"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -52,6 +51,7 @@ var (
 func init() {
 	android.RegisterModuleType("droiddoc", DroiddocFactory)
 	android.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
+	android.RegisterModuleType("droiddoc_template", DroiddocTemplateFactory)
 	android.RegisterModuleType("javadoc", JavadocFactory)
 	android.RegisterModuleType("javadoc_host", JavadocHostFactory)
 }
@@ -82,7 +82,7 @@ type JavadocProperties struct {
 
 type DroiddocProperties struct {
 	// directory relative to top of the source tree that contains doc templates files.
-	Custom_template_dir *string `android:"arch_variant"`
+	Custom_template *string `android:"arch_variant"`
 
 	// directories relative to top of the source tree which contains html/jd files.
 	Html_dirs []string `android:"arch_variant"`
@@ -233,7 +233,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			}
 		default:
 			switch tag {
-			case android.DefaultsDepTag, android.SourceDepTag:
+			case android.DefaultsDepTag, android.SourceDepTag, droiddocTemplateTag:
 				// Nothing to do
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
@@ -319,6 +319,13 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (d *Droiddoc) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
 
+	if String(d.properties.Custom_template) == "" {
+		// TODO: This is almost always droiddoc-templates-sdk
+		ctx.PropertyErrorf("custom_template", "must specify a template")
+	} else {
+		ctx.AddDependency(ctx.Module(), droiddocTemplateTag, String(d.properties.Custom_template))
+	}
+
 	// extra_arg_files may contains filegroup or genrule.
 	android.ExtractSourcesDeps(ctx, d.properties.Arg_files)
 
@@ -373,24 +380,32 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		classpathArgs = "-classpath " + strings.Join(deps.classpath.Strings(), ":")
 	}
 
-	// templateDir (maybe missing) is relative to top of the source tree instead of current module.
-	templateDir := android.PathForSource(ctx, String(d.properties.Custom_template_dir)).String()
-	implicits = append(implicits, ctx.GlobFiles(filepath.Join(templateDir, "**/*"), nil)...)
+	var templateDir string
+	ctx.VisitDirectDepsWithTag(droiddocTemplateTag, func(m android.Module) {
+		if t, ok := m.(*DroiddocTemplate); ok {
+			implicits = append(implicits, t.deps...)
+			templateDir = t.dir.String()
+		} else {
+			ctx.PropertyErrorf("custom_template", "module %q is not a droiddoc_template", ctx.OtherModuleName(m))
+		}
+	})
 
 	var htmlDirArgs string
 	if len(d.properties.Html_dirs) > 0 {
-		// htmlDir is relative to top of the source tree instead of current module.
-		htmlDir := android.PathForSource(ctx, d.properties.Html_dirs[0]).String()
-		implicits = append(implicits, ctx.GlobFiles(filepath.Join(htmlDir, "**/*"), nil)...)
-		htmlDirArgs = "-htmldir " + htmlDir
+		htmlDir := android.PathForModuleSrc(ctx, d.properties.Html_dirs[0])
+		implicits = append(implicits, ctx.Glob(htmlDir.Join(ctx, "**/*").String(), nil)...)
+		htmlDirArgs = "-htmldir " + htmlDir.String()
 	}
 
 	var htmlDir2Args string
 	if len(d.properties.Html_dirs) > 1 {
-		// htmlDir2 is relative to top of the source tree instead of current module.
-		htmlDir2 := android.PathForSource(ctx, d.properties.Html_dirs[1]).String()
-		implicits = append(implicits, ctx.GlobFiles(filepath.Join(htmlDir2, "**/*"), nil)...)
-		htmlDirArgs = "-htmldir2 " + htmlDir2
+		htmlDir2 := android.PathForModuleSrc(ctx, d.properties.Html_dirs[1])
+		implicits = append(implicits, ctx.Glob(htmlDir2.Join(ctx, "**/*").String(), nil)...)
+		htmlDir2Args = "-htmldir2 " + htmlDir2.String()
+	}
+
+	if len(d.properties.Html_dirs) > 2 {
+		ctx.PropertyErrorf("html_dirs", "Droiddoc only supports up to 2 html dirs")
 	}
 
 	knownTags := ctx.ExpandSources(d.properties.Knowntags, nil)
@@ -450,4 +465,35 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"DoclavaJar":        "${config.DoclavaJar}",
 		},
 	})
+}
+
+var droiddocTemplateTag = dependencyTag{name: "droiddoc-template"}
+
+type DroiddocTemplateProperties struct {
+	// path to the directory containing the droiddoc templates.
+	Path *string
+}
+
+type DroiddocTemplate struct {
+	android.ModuleBase
+
+	properties DroiddocTemplateProperties
+
+	deps android.Paths
+	dir  android.Path
+}
+
+func DroiddocTemplateFactory() android.Module {
+	module := &DroiddocTemplate{}
+	module.AddProperties(&module.properties)
+	android.InitAndroidModule(module)
+	return module
+}
+
+func (d *DroiddocTemplate) DepsMutator(android.BottomUpMutatorContext) {}
+
+func (d *DroiddocTemplate) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	path := android.PathForModuleSrc(ctx, String(d.properties.Path))
+	d.dir = path
+	d.deps = ctx.Glob(path.Join(ctx, "**/*").String(), nil)
 }
