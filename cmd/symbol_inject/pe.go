@@ -32,41 +32,41 @@ func findPESymbol(r io.ReaderAt, symbolName string) (uint64, uint64, error) {
 		symbolName = "_" + symbolName
 	}
 
-	sort.Slice(peFile.Symbols, func(i, j int) bool {
-		if peFile.Symbols[i].SectionNumber != peFile.Symbols[j].SectionNumber {
-			return peFile.Symbols[i].SectionNumber < peFile.Symbols[j].SectionNumber
+	symbols := peFile.Symbols
+	sort.Slice(symbols, func(i, j int) bool {
+		if symbols[i].SectionNumber != symbols[j].SectionNumber {
+			return symbols[i].SectionNumber < symbols[j].SectionNumber
 		}
-		return peFile.Symbols[i].Value < peFile.Symbols[j].Value
+		return symbols[i].Value < symbols[j].Value
 	})
 
-	for i, symbol := range peFile.Symbols {
+	for _, symbol := range symbols {
 		if symbol.Name == symbolName {
-			var nextSymbol *pe.Symbol
-			if i+1 < len(peFile.Symbols) {
-				nextSymbol = peFile.Symbols[i+1]
+			// Find the next symbol (n the same section with a higher address
+			n := sort.Search(len(symbols), func(i int) bool {
+				return symbols[i].SectionNumber == symbol.SectionNumber &&
+					symbols[i].Value > symbol.Value
+			})
+
+			section := peFile.Sections[symbol.SectionNumber-1]
+
+			var end uint32
+			if n < len(symbols) {
+				end = symbols[n].Value
+			} else {
+				end = section.Size
 			}
-			return calculatePESymbolOffset(peFile, symbol, nextSymbol)
+
+			if end <= symbol.Value && end > symbol.Value+4096 {
+				return maxUint64, maxUint64, fmt.Errorf("symbol end address does not seem valid, %x:%x", symbol.Value, end)
+			}
+
+			size := end - symbol.Value - 1
+			offset := section.Offset + symbol.Value
+
+			return uint64(offset), uint64(size), nil
 		}
 	}
 
 	return maxUint64, maxUint64, fmt.Errorf("symbol not found")
-}
-
-func calculatePESymbolOffset(file *pe.File, symbol *pe.Symbol, nextSymbol *pe.Symbol) (uint64, uint64, error) {
-	section := file.Sections[symbol.SectionNumber-1]
-
-	var end uint32
-	if nextSymbol != nil && nextSymbol.SectionNumber != symbol.SectionNumber {
-		nextSymbol = nil
-	}
-	if nextSymbol != nil {
-		end = nextSymbol.Value
-	} else {
-		end = section.Size
-	}
-
-	size := end - symbol.Value - 1
-	offset := section.Offset + symbol.Value
-
-	return uint64(offset), uint64(size), nil
 }
