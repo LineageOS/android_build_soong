@@ -249,7 +249,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	j.srcFiles = srcFiles.FilterOutByExt(".srcjar")
 
 	j.docZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"docs.zip")
-	j.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.jar")
+	j.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
 
 	if j.properties.Local_sourcepaths == nil {
 		j.properties.Local_sourcepaths = append(j.properties.Local_sourcepaths, ".")
