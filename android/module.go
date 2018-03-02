@@ -1220,7 +1220,7 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
 			}
 		} else if pathtools.IsGlob(s) {
-			globbedSrcFiles := ctx.Glob(filepath.Join(prefix, s), expandedExcludes)
+			globbedSrcFiles := ctx.GlobFiles(filepath.Join(prefix, s), expandedExcludes)
 			for i, s := range globbedSrcFiles {
 				globbedSrcFiles[i] = s.(ModuleSrcPath).WithSubDir(ctx, subDir)
 			}
@@ -1246,25 +1246,15 @@ func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) Pat
 	if err != nil {
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}
-	return pathsForModuleSrcFromFullPath(ctx, ret)
+	return pathsForModuleSrcFromFullPath(ctx, ret, true)
 }
 
-// glob only "files" under the directory relative to top of the source tree.
 func (ctx *androidModuleContext) GlobFiles(globPattern string, excludes []string) Paths {
-	paths, err := ctx.GlobWithDeps(globPattern, excludes)
+	ret, err := ctx.GlobWithDeps(globPattern, excludes)
 	if err != nil {
 		ctx.ModuleErrorf("glob: %s", err.Error())
 	}
-	var ret []Path
-	for _, p := range paths {
-		if isDir, err := ctx.Fs().IsDir(p); err != nil {
-			ctx.ModuleErrorf("error in IsDir(%s): %s", p, err.Error())
-			return nil
-		} else if !isDir {
-			ret = append(ret, PathForSource(ctx, p))
-		}
-	}
-	return ret
+	return pathsForModuleSrcFromFullPath(ctx, ret, false)
 }
 
 func init() {
