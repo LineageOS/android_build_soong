@@ -342,17 +342,7 @@ func AndroidAppFactory() android.Module {
 }
 
 func resourceGlob(ctx android.ModuleContext, dir android.Path) android.Paths {
-	var ret android.Paths
-	files := ctx.Glob(filepath.Join(dir.String(), "**/*"), aaptIgnoreFilenames)
-	for _, f := range files {
-		if isDir, err := ctx.Fs().IsDir(f.String()); err != nil {
-			ctx.ModuleErrorf("error in IsDir(%s): %s", f.String(), err.Error())
-			return nil
-		} else if !isDir {
-			ret = append(ret, f)
-		}
-	}
-	return ret
+	return ctx.GlobFiles(filepath.Join(dir.String(), "**/*"), aaptIgnoreFilenames)
 }
 
 type overlayGlobResult struct {
@@ -440,10 +430,7 @@ func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 		var paths android.Paths
 		for _, f := range files {
-			if isDir, err := ctx.Fs().IsDir(f); err != nil {
-				ctx.Errorf("error in IsDir(%s): %s", f, err.Error())
-				return
-			} else if !isDir {
+			if !strings.HasSuffix(f, "/") {
 				paths = append(paths, android.PathForSource(ctx, f))
 			}
 		}

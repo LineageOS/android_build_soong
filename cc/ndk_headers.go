@@ -202,7 +202,7 @@ func (m *preprocessedHeaderModule) GenerateAndroidBuildActions(ctx android.Modul
 
 	fromSrcPath := android.PathForModuleSrc(ctx, String(m.properties.From))
 	toOutputPath := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
-	srcFiles := ctx.Glob(filepath.Join(fromSrcPath.String(), "**/*.h"), nil)
+	srcFiles := ctx.GlobFiles(filepath.Join(fromSrcPath.String(), "**/*.h"), nil)
 	var installPaths []android.WritablePath
 	for _, header := range srcFiles {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From), String(m.properties.To))
