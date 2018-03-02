@@ -687,6 +687,9 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
 	baseName, exportedHeaderFlags string) android.OptionalPath {
 	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
+	sabiLock.Lock()
+	lsdumpPaths = append(lsdumpPaths, outputFile.String())
+	sabiLock.Unlock()
 	symbolFilterStr := "-so " + soFile.String()
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        sAbiLink,
