@@ -492,9 +492,15 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	library.objects = deps.WholeStaticLibObjs.Copy()
 	library.objects = library.objects.Append(objs)
 
-	outputFile := android.PathForModuleOut(ctx,
-		ctx.ModuleName()+library.MutatedProperties.VariantName+staticLibraryExtension)
+	fileName := ctx.ModuleName() + library.MutatedProperties.VariantName + staticLibraryExtension
+	outputFile := android.PathForModuleOut(ctx, fileName)
 	builderFlags := flagsToBuilderFlags(flags)
+
+	if Bool(library.baseLinker.Properties.Use_version_lib) && ctx.Host() {
+		versionedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
+		library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+	}
 
 	TransformObjToStaticLib(ctx, library.objects.objFiles, builderFlags, outputFile, objs.tidyFiles)
 
@@ -583,6 +589,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
+	}
+
+	if Bool(library.baseLinker.Properties.Use_version_lib) && ctx.Host() {
+		versionedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
+		library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 	}
 
 	sharedLibs := deps.SharedLibs
