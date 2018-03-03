@@ -323,6 +323,12 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
+	if Bool(binary.baseLinker.Properties.Use_version_lib) && ctx.Host() {
+		versionedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
+		binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+	}
+
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)

@@ -29,6 +29,8 @@ var (
 	symbol = flag.String("s", "", "symbol to inject into")
 	from   = flag.String("from", "", "optional existing value of the symbol for verification")
 	value  = flag.String("v", "", "value to inject into symbol")
+
+	dump = flag.Bool("dump", false, "dump the symbol table for copying into a test")
 )
 
 var maxUint64 uint64 = math.MaxUint64
@@ -50,16 +52,18 @@ func main() {
 		usageError("-i is required")
 	}
 
-	if *output == "" {
-		usageError("-o is required")
-	}
+	if !*dump {
+		if *output == "" {
+			usageError("-o is required")
+		}
 
-	if *symbol == "" {
-		usageError("-s is required")
-	}
+		if *symbol == "" {
+			usageError("-s is required")
+		}
 
-	if *value == "" {
-		usageError("-v is required")
+		if *value == "" {
+			usageError("-v is required")
+		}
 	}
 
 	r, err := os.Open(*input)
@@ -69,6 +73,15 @@ func main() {
 	}
 	defer r.Close()
 
+	if *dump {
+		err := dumpSymbols(r)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(6)
+		}
+		return
+	}
+
 	w, err := os.OpenFile(*output, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -76,36 +89,45 @@ func main() {
 	}
 	defer w.Close()
 
-	err = injectSymbol(r, w, *symbol, *value, *from)
+	file, err := openFile(r)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(4)
+	}
+
+	err = injectSymbol(file, w, *symbol, *value, *from)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Remove(*output)
-		os.Exit(2)
+		os.Exit(5)
 	}
 }
 
-type ReadSeekerAt interface {
-	io.ReaderAt
-	io.ReadSeeker
-}
-
-func injectSymbol(r ReadSeekerAt, w io.Writer, symbol, value, from string) error {
-	var offset, size uint64
-	var err error
-
-	offset, size, err = findElfSymbol(r, symbol)
+func openFile(r io.ReaderAt) (*File, error) {
+	file, err := elfSymbolsFromFile(r)
 	if elfError, ok := err.(cantParseError); ok {
 		// Try as a mach-o file
-		offset, size, err = findMachoSymbol(r, symbol)
+		file, err = machoSymbolsFromFile(r)
 		if _, ok := err.(cantParseError); ok {
 			// Try as a windows PE file
-			offset, size, err = findPESymbol(r, symbol)
+			file, err = peSymbolsFromFile(r)
 			if _, ok := err.(cantParseError); ok {
 				// Can't parse as elf, macho, or PE, return the elf error
-				return elfError
+				return nil, elfError
 			}
 		}
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	file.r = r
+
+	return file, err
+}
+
+func injectSymbol(file *File, w io.Writer, symbol, value, from string) error {
+	offset, size, err := findSymbol(file, symbol)
 	if err != nil {
 		return err
 	}
@@ -119,7 +141,7 @@ func injectSymbol(r ReadSeekerAt, w io.Writer, symbol, value, from string) error
 		expected := make([]byte, size)
 		existing := make([]byte, size)
 		copy(expected, from)
-		_, err := r.ReadAt(existing, int64(offset))
+		_, err := file.r.ReadAt(existing, int64(offset))
 		if err != nil {
 			return err
 		}
@@ -129,48 +151,107 @@ func injectSymbol(r ReadSeekerAt, w io.Writer, symbol, value, from string) error
 		}
 	}
 
-	return copyAndInject(r, w, offset, size, value)
+	return copyAndInject(file.r, w, offset, size, value)
 }
 
-func copyAndInject(r io.ReadSeeker, w io.Writer, offset, size uint64, value string) (err error) {
-	// helper that asserts a two-value function returning an int64 and an error has err != nil
-	must := func(n int64, err error) {
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	// helper that asserts a two-value function returning an int and an error has err != nil
-	must2 := func(n int, err error) {
-		must(int64(n), err)
-	}
-
-	// convert a panic into returning an error
-	defer func() {
-		if r := recover(); r != nil {
-			err, _ = r.(error)
-			if err == io.EOF {
-				err = io.ErrUnexpectedEOF
-			}
-			if err == nil {
-				panic(r)
-			}
-		}
-	}()
-
+func copyAndInject(r io.ReaderAt, w io.Writer, offset, size uint64, value string) (err error) {
 	buf := make([]byte, size)
 	copy(buf, value)
 
-	// Reset the input file
-	must(r.Seek(0, io.SeekStart))
 	// Copy the first bytes up to the symbol offset
-	must(io.CopyN(w, r, int64(offset)))
-	// Skip the symbol contents in the input file
-	must(r.Seek(int64(size), io.SeekCurrent))
-	// Write the injected value in the output file
-	must2(w.Write(buf))
-	// Write the remainder of the file
-	must(io.Copy(w, r))
+	_, err = io.Copy(w, io.NewSectionReader(r, 0, int64(offset)))
 
-	return nil
+	// Write the injected value in the output file
+	if err == nil {
+		_, err = w.Write(buf)
+	}
+
+	// Write the remainder of the file
+	pos := int64(offset + size)
+	if err == nil {
+		_, err = io.Copy(w, io.NewSectionReader(r, pos, 1<<63-1-pos))
+	}
+
+	if err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+
+	return err
+}
+
+func findSymbol(file *File, symbolName string) (uint64, uint64, error) {
+	for i, symbol := range file.Symbols {
+		if symbol.Name == symbolName {
+			// Find the next symbol (n the same section with a higher address
+			var n int
+			for n = i; n < len(file.Symbols); n++ {
+				if file.Symbols[n].Section != symbol.Section {
+					n = len(file.Symbols)
+					break
+				}
+				if file.Symbols[n].Addr > symbol.Addr {
+					break
+				}
+			}
+
+			size := symbol.Size
+			if size == 0 {
+				var end uint64
+				if n < len(file.Symbols) {
+					end = file.Symbols[n].Addr
+				} else {
+					end = symbol.Section.Size
+				}
+
+				if end <= symbol.Addr || end > symbol.Addr+4096 {
+					return maxUint64, maxUint64, fmt.Errorf("symbol end address does not seem valid, %x:%x", symbol.Addr, end)
+				}
+
+				size = end - symbol.Addr
+			}
+
+			offset := symbol.Section.Offset + symbol.Addr
+
+			return uint64(offset), uint64(size), nil
+		}
+	}
+
+	return maxUint64, maxUint64, fmt.Errorf("symbol not found")
+}
+
+type File struct {
+	r        io.ReaderAt
+	Symbols  []*Symbol
+	Sections []*Section
+}
+
+type Symbol struct {
+	Name    string
+	Addr    uint64 // Address of the symbol inside the section.
+	Size    uint64 // Size of the symbol, if known.
+	Section *Section
+}
+
+type Section struct {
+	Name   string
+	Addr   uint64 // Virtual address of the start of the section.
+	Offset uint64 // Offset into the file of the start of the section.
+	Size   uint64
+}
+
+func dumpSymbols(r io.ReaderAt) error {
+	err := dumpElfSymbols(r)
+	if elfError, ok := err.(cantParseError); ok {
+		// Try as a mach-o file
+		err = dumpMachoSymbols(r)
+		if _, ok := err.(cantParseError); ok {
+			// Try as a windows PE file
+			err = dumpPESymbols(r)
+			if _, ok := err.(cantParseError); ok {
+				// Can't parse as elf, macho, or PE, return the elf error
+				return elfError
+			}
+		}
+	}
+	return err
 }
