@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"fmt"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -95,6 +96,9 @@ type BaseLinkerProperties struct {
 			Exclude_static_libs []string
 		}
 	}
+
+	// make android::build:GetBuildNumber() available containing the build ID.
+	Use_version_lib *bool `android:"arch_variant"`
 }
 
 func NewBaseLinker() *baseLinker {
@@ -135,6 +139,10 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
 	deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, linker.Properties.Export_shared_lib_headers...)
 	deps.ReexportGeneratedHeaders = append(deps.ReexportGeneratedHeaders, linker.Properties.Export_generated_headers...)
+
+	if Bool(linker.Properties.Use_version_lib) {
+		deps.WholeStaticLibs = append(deps.WholeStaticLibs, "libbuildversion")
+	}
 
 	if ctx.useVndk() {
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
@@ -277,4 +285,32 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 func (linker *baseLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 	panic(fmt.Errorf("baseLinker doesn't know how to link"))
+}
+
+// Injecting version symbols
+// Some host modules want a version number, but we don't want to rebuild it every time.  Optionally add a step
+// after linking that injects a constant placeholder with the current version number.
+
+func init() {
+	pctx.HostBinToolVariable("symbolInjectCmd", "symbol_inject")
+}
+
+var injectVersionSymbol = pctx.AndroidStaticRule("injectVersionSymbol",
+	blueprint.RuleParams{
+		Command: "$symbolInjectCmd -i $in -o $out -s soong_build_number " +
+			"-from 'SOONG BUILD NUMBER PLACEHOLDER' -v $buildNumberFromFile",
+		CommandDeps: []string{"$symbolInjectCmd"},
+	},
+	"buildNumberFromFile")
+
+func (linker *baseLinker) injectVersionSymbol(ctx ModuleContext, in android.Path, out android.WritablePath) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        injectVersionSymbol,
+		Description: "inject version symbol",
+		Input:       in,
+		Output:      out,
+		Args: map[string]string{
+			"buildNumberFromFile": ctx.Config().BuildNumberFromFile(),
+		},
+	})
 }
