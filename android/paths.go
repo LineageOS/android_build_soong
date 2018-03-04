@@ -228,14 +228,17 @@ func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 
 // pathsForModuleSrcFromFullPath returns Paths rooted from the module's local
 // source directory, but strip the local source directory from the beginning of
-// each string.
-func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string) Paths {
+// each string. If incDirs is false, strip paths with a trailing '/' from the list.
+func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bool) Paths {
 	prefix := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir()) + "/"
 	if prefix == "./" {
 		prefix = ""
 	}
 	ret := make(Paths, 0, len(paths))
 	for _, p := range paths {
+		if !incDirs && strings.HasSuffix(p, "/") {
+			continue
+		}
 		path := filepath.Clean(p)
 		if !strings.HasPrefix(path, prefix) {
 			reportPathErrorf(ctx, "Path '%s' is not in module source directory '%s'", p, prefix)
@@ -773,7 +776,12 @@ func pathForModule(ctx ModuleContext) OutputPath {
 // PathForVndkRefDump returns an OptionalPath representing the path of the reference
 // abi dump for the given module. This is not guaranteed to be valid.
 func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNdk, isSourceDump bool) OptionalPath {
-	archName := ctx.Arch().ArchType.Name
+	arches := ctx.DeviceConfig().Arches()
+	currentArch := ctx.Arch()
+	archNameAndVariant := currentArch.ArchType.String()
+	if currentArch.ArchVariant != "" {
+		archNameAndVariant += "_" + currentArch.ArchVariant
+	}
 	var sourceOrBinaryDir string
 	var vndkOrNdkDir string
 	var ext string
@@ -789,8 +797,12 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 	} else {
 		vndkOrNdkDir = "ndk"
 	}
-	refDumpFileStr := "prebuilts/abi-dumps/" + vndkOrNdkDir + "/" + version + "/" +
-		archName + "/" + sourceOrBinaryDir + "/" + fileName + ext
+	if len(arches) == 0 {
+		panic("device build with no primary arch")
+	}
+	primary_arch := arches[0].ArchType.String()
+	refDumpFileStr := "prebuilts/abi-dumps/" + vndkOrNdkDir + "/" + version + "/" + primary_arch + "/" +
+		archNameAndVariant + "/" + sourceOrBinaryDir + "/" + fileName + ext
 	return ExistentPathForSource(ctx, refDumpFileStr)
 }
 

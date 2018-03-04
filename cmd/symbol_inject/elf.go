@@ -20,57 +20,141 @@ import (
 	"io"
 )
 
-func findElfSymbol(r io.ReaderAt, symbol string) (uint64, uint64, error) {
+type mockableElfFile interface {
+	Symbols() ([]elf.Symbol, error)
+	Sections() []elf.SectionHeader
+	Type() elf.Type
+}
+
+var _ mockableElfFile = elfFileWrapper{}
+
+type elfFileWrapper struct {
+	*elf.File
+}
+
+func (f elfFileWrapper) Sections() []elf.SectionHeader {
+	ret := make([]elf.SectionHeader, len(f.File.Sections))
+	for i, section := range f.File.Sections {
+		ret[i] = section.SectionHeader
+	}
+
+	return ret
+}
+
+func (f elfFileWrapper) Type() elf.Type {
+	return f.File.Type
+}
+
+type mockElfFile struct {
+	symbols  []elf.Symbol
+	sections []elf.SectionHeader
+	t        elf.Type
+}
+
+func (f mockElfFile) Sections() []elf.SectionHeader  { return f.sections }
+func (f mockElfFile) Symbols() ([]elf.Symbol, error) { return f.symbols, nil }
+func (f mockElfFile) Type() elf.Type                 { return f.t }
+
+func elfSymbolsFromFile(r io.ReaderAt) (*File, error) {
 	elfFile, err := elf.NewFile(r)
 	if err != nil {
-		return maxUint64, maxUint64, cantParseError{err}
+		return nil, cantParseError{err}
+	}
+	return extractElfSymbols(elfFileWrapper{elfFile})
+}
+
+func extractElfSymbols(elfFile mockableElfFile) (*File, error) {
+	symbols, err := elfFile.Symbols()
+	if err != nil {
+		return nil, err
+	}
+
+	file := &File{}
+
+	for _, section := range elfFile.Sections() {
+		file.Sections = append(file.Sections, &Section{
+			Name:   section.Name,
+			Addr:   section.Addr,
+			Offset: section.Offset,
+			Size:   section.Size,
+		})
+	}
+
+	_ = elf.Section{}
+
+	for _, symbol := range symbols {
+		if elf.ST_TYPE(symbol.Info) != elf.STT_OBJECT {
+			continue
+		}
+		if symbol.Section == elf.SHN_UNDEF || symbol.Section >= elf.SHN_LORESERVE {
+			continue
+		}
+		if int(symbol.Section) >= len(file.Sections) {
+			return nil, fmt.Errorf("invalid section index %d", symbol.Section)
+		}
+
+		section := file.Sections[symbol.Section]
+
+		var addr uint64
+		switch elfFile.Type() {
+		case elf.ET_REL:
+			// "In relocatable files, st_value holds a section offset for a defined symbol.
+			// That is, st_value is an offset from the beginning of the section that st_shndx identifies."
+			addr = symbol.Value
+		case elf.ET_EXEC, elf.ET_DYN:
+			// "In executable and shared object files, st_value holds a virtual address. To make these
+			// files’ symbols more useful for the dynamic linker, the section offset (file interpretation)
+			// gives way to a virtual address (memory interpretation) for which the section number is
+			// irrelevant."
+			if symbol.Value < section.Addr {
+				return nil, fmt.Errorf("symbol starts before the start of its section")
+			}
+			addr = symbol.Value - section.Addr
+			if addr+symbol.Size > section.Size {
+				return nil, fmt.Errorf("symbol extends past the end of its section")
+			}
+		default:
+			return nil, fmt.Errorf("unsupported elf file type %d", elfFile.Type())
+		}
+
+		file.Symbols = append(file.Symbols, &Symbol{
+			Name:    symbol.Name,
+			Addr:    addr,
+			Size:    symbol.Size,
+			Section: section,
+		})
+	}
+
+	return file, nil
+}
+
+func dumpElfSymbols(r io.ReaderAt) error {
+	elfFile, err := elf.NewFile(r)
+	if err != nil {
+		return cantParseError{err}
 	}
 
 	symbols, err := elfFile.Symbols()
 	if err != nil {
-		return maxUint64, maxUint64, err
+		return err
 	}
 
-	for _, s := range symbols {
-		if elf.ST_TYPE(s.Info) != elf.STT_OBJECT {
-			continue
-		}
-		if s.Name == symbol {
-			offset, err := calculateElfSymbolOffset(elfFile, s)
-			if err != nil {
-				return maxUint64, maxUint64, err
-			}
-			return offset, s.Size, nil
-		}
-	}
+	fmt.Println("mockElfFile{")
+	fmt.Printf("\tt: %#v,\n", elfFile.Type)
 
-	return maxUint64, maxUint64, fmt.Errorf("symbol not found")
-}
+	fmt.Println("\tsections: []elf.SectionHeader{")
+	for _, section := range elfFile.Sections {
+		fmt.Printf("\t\t%#v,\n", section.SectionHeader)
+	}
+	fmt.Println("\t},")
 
-func calculateElfSymbolOffset(file *elf.File, symbol elf.Symbol) (uint64, error) {
-	if symbol.Section == elf.SHN_UNDEF || int(symbol.Section) >= len(file.Sections) {
-		return maxUint64, fmt.Errorf("invalid section index %d", symbol.Section)
+	fmt.Println("\tsymbols: []elf.Symbol{")
+	for _, symbol := range symbols {
+		fmt.Printf("\t\t%#v,\n", symbol)
 	}
-	section := file.Sections[symbol.Section]
-	switch file.Type {
-	case elf.ET_REL:
-		// "In relocatable files, st_value holds a section offset for a defined symbol.
-		// That is, st_value is an offset from the beginning of the section that st_shndx identifies."
-		return section.Offset + symbol.Value, nil
-	case elf.ET_EXEC, elf.ET_DYN:
-		// "In executable and shared object files, st_value holds a virtual address. To make these
-		// files’ symbols more useful for the dynamic linker, the section offset (file interpretation)
-		// gives way to a virtual address (memory interpretation) for which the section number is
-		// irrelevant."
-		if symbol.Value < section.Addr {
-			return maxUint64, fmt.Errorf("symbol starts before the start of its section")
-		}
-		section_offset := symbol.Value - section.Addr
-		if section_offset+symbol.Size > section.Size {
-			return maxUint64, fmt.Errorf("symbol extends past the end of its section")
-		}
-		return section.Offset + section_offset, nil
-	default:
-		return maxUint64, fmt.Errorf("unsupported elf file type %d", file.Type)
-	}
+	fmt.Println("\t},")
+
+	fmt.Println("}")
+
+	return nil
 }
