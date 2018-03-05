@@ -818,12 +818,14 @@ func TestTurbine(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
+			sdk_version: "14",
 		}
 
 		java_library {
 			name: "bar",
 			srcs: ["b.java"],
 			static_libs: ["foo"],
+			sdk_version: "14",
 		}
 
 		java_library {
