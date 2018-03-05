@@ -782,6 +782,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		kotlinSrcFiles = append(kotlinSrcFiles, uniqueSrcFiles...)
 		kotlinSrcFiles = append(kotlinSrcFiles, srcFiles.FilterByExt(".kt")...)
 
+		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.bootClasspath...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.kotlinStdlib...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.classpath...)
 
