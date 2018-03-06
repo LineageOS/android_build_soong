@@ -300,3 +300,62 @@ func TestRemoveListFromList(t *testing.T) {
 		t.Errorf("       got: %#v", out)
 	}
 }
+
+func TestRemoveFromList(t *testing.T) {
+	testcases := []struct {
+		name          string
+		key           string
+		input         []string
+		expectedFound bool
+		expectedOut   []string
+	}{
+		{
+			name:          "remove_one_match",
+			key:           "a",
+			input:         []string{"a", "b", "c"},
+			expectedFound: true,
+			expectedOut:   []string{"b", "c"},
+		},
+		{
+			name:          "remove_three_matches",
+			key:           "a",
+			input:         []string{"a", "b", "a", "c", "a"},
+			expectedFound: true,
+			expectedOut:   []string{"b", "c"},
+		},
+		{
+			name:          "remove_zero_matches",
+			key:           "X",
+			input:         []string{"a", "b", "a", "c", "a"},
+			expectedFound: false,
+			expectedOut:   []string{"a", "b", "a", "c", "a"},
+		},
+		{
+			name:          "remove_all_matches",
+			key:           "a",
+			input:         []string{"a", "a", "a", "a"},
+			expectedFound: true,
+			expectedOut:   []string{},
+		},
+	}
+
+	for _, testCase := range testcases {
+		t.Run(testCase.name, func(t *testing.T) {
+			found, out := RemoveFromList(testCase.key, testCase.input)
+			if found != testCase.expectedFound {
+				t.Errorf("incorrect output:")
+				t.Errorf("       key: %#v", testCase.key)
+				t.Errorf("     input: %#v", testCase.input)
+				t.Errorf("  expected: %#v", testCase.expectedFound)
+				t.Errorf("       got: %#v", found)
+			}
+			if !reflect.DeepEqual(out, testCase.expectedOut) {
+				t.Errorf("incorrect output:")
+				t.Errorf("       key: %#v", testCase.key)
+				t.Errorf("     input: %#v", testCase.input)
+				t.Errorf("  expected: %#v", testCase.expectedOut)
+				t.Errorf("       got: %#v", out)
+			}
+		})
+	}
+}
