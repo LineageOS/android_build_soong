@@ -73,6 +73,10 @@ type JavadocProperties struct {
 	// list of of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
+	// don't build against the framework libraries (legacy-test, core-junit,
+	// ext, and framework for device targets)
+	No_framework_libs *bool
+
 	// If set to false, don't allow this module(-docs.zip) to be exported. Defaults to true.
 	Installable *bool `android:"arch_variant"`
 
@@ -183,7 +187,9 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 		sdkDep := decodeSdkDep(ctx, String(j.properties.Sdk_version))
 		if sdkDep.useDefaultLibs {
 			ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
+			if Bool(j.properties.No_framework_libs) {
+				ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
+			}
 		} else if sdkDep.useModule {
 			ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
 		}
