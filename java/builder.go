@@ -104,10 +104,9 @@ var (
 
 	turbine = pctx.AndroidStaticRule("turbine",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$srcJarDir" && mkdir -p "$outDir" "$srcJarDir" && ` +
-				`${config.ExtractSrcJarsCmd} $srcJarDir $srcJarDir/list $srcJars && ` +
+			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 				`${config.JavaCmd} -jar ${config.TurbineJar} --output $out.tmp ` +
-				`--temp_dir "$outDir" --sources @$out.rsp @$srcJarDir/list ` +
+				`--temp_dir "$outDir" --sources @$out.rsp  --source_jars $srcJars ` +
 				`--javacopts ${config.CommonJdkFlags} ` +
 				`$javacFlags -source $javaVersion -target $javaVersion $bootClasspath $classpath && ` +
 				`${config.Ziptime} $out.tmp && ` +
@@ -116,14 +115,12 @@ var (
 				"${config.TurbineJar}",
 				"${config.JavaCmd}",
 				"${config.Ziptime}",
-				"${config.ExtractSrcJarsCmd}",
 			},
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 			Restat:         true,
 		},
-		"javacFlags", "bootClasspath", "classpath", "srcJars", "srcJarDir",
-		"outDir", "javaVersion")
+		"javacFlags", "bootClasspath", "classpath", "srcJars", "outDir", "javaVersion")
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
@@ -258,7 +255,6 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"srcJarDir":     android.PathForModuleOut(ctx, "turbine", "srcjars").String(),
 			"classpath":     flags.classpath.FormJavaClassPath("--classpath"),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 			"javaVersion":   flags.javaVersion,
