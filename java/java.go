@@ -571,13 +571,15 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dep
 func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
-	sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
-	if sdkDep.invalidVersion {
-		ctx.AddMissingDependencies([]string{sdkDep.module})
-	} else if sdkDep.useFiles {
-		// sdkDep.jar is actually equivalent to turbine header.jar.
-		deps.classpath = append(deps.classpath, sdkDep.jar)
-		deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, sdkDep.aidl)
+	if ctx.Device() {
+		sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
+		if sdkDep.invalidVersion {
+			ctx.AddMissingDependencies([]string{sdkDep.module})
+		} else if sdkDep.useFiles {
+			// sdkDep.jar is actually equivalent to turbine header.jar.
+			deps.classpath = append(deps.classpath, sdkDep.jar)
+			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, sdkDep.aidl)
+		}
 	}
 
 	ctx.VisitDirectDeps(func(module android.Module) {
@@ -782,6 +784,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		kotlinSrcFiles = append(kotlinSrcFiles, uniqueSrcFiles...)
 		kotlinSrcFiles = append(kotlinSrcFiles, srcFiles.FilterByExt(".kt")...)
 
+		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.bootClasspath...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.kotlinStdlib...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.classpath...)
 
