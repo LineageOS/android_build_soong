@@ -169,6 +169,11 @@ func katiRewriteOutput(ctx Context, pipe io.ReadCloser) {
 	if !haveBlankLine {
 		fmt.Fprintln(ctx.Stdout())
 	}
+
+	if err := scanner.Err(); err != nil {
+		ctx.Println("Error from kati parser:", err)
+		io.Copy(ctx.Stderr(), pipe)
+	}
 }
 
 func runKatiCleanSpec(ctx Context, config Config) {
