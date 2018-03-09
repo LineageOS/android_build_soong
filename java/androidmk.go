@@ -218,15 +218,15 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 func (jd *Javadoc) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(jd.stubsJar),
+		OutputFile: android.OptionalPathForPath(jd.stubsSrcJar),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if jd.properties.Installable == nil || *jd.properties.Installable == true {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", jd.docZip.String())
 				}
-				if jd.stubsJar != nil {
-					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_JAR := ", jd.stubsJar.String())
+				if jd.stubsSrcJar != nil {
+					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", jd.stubsSrcJar.String())
 				}
 			},
 		},
@@ -236,15 +236,15 @@ func (jd *Javadoc) AndroidMk() android.AndroidMkData {
 func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(ddoc.stubsJar),
+		OutputFile: android.OptionalPathForPath(ddoc.stubsSrcJar),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if ddoc.Javadoc.properties.Installable == nil || *ddoc.Javadoc.properties.Installable == true {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", ddoc.Javadoc.docZip.String())
 				}
-				if ddoc.Javadoc.stubsJar != nil {
-					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_JAR := ", ddoc.Javadoc.stubsJar.String())
+				if ddoc.Javadoc.stubsSrcJar != nil {
+					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", ddoc.Javadoc.stubsSrcJar.String())
 				}
 			},
 		},
