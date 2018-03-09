@@ -649,6 +649,14 @@ func (c *deviceConfig) Arches() []Arch {
 	return arches
 }
 
+func (c *deviceConfig) BinderBitness() string {
+	is32BitBinder := c.config.ProductVariables.Binder32bit
+	if is32BitBinder != nil && *is32BitBinder {
+		return "32"
+	}
+	return "64"
+}
+
 func (c *deviceConfig) VendorPath() string {
 	if c.config.ProductVariables.VendorPath != nil {
 		return *c.config.ProductVariables.VendorPath

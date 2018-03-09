@@ -800,8 +800,8 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string, vndkOrNd
 	if len(arches) == 0 {
 		panic("device build with no primary arch")
 	}
-	primary_arch := arches[0].ArchType.String()
-	refDumpFileStr := "prebuilts/abi-dumps/" + vndkOrNdkDir + "/" + version + "/" + primary_arch + "/" +
+	binderBitness := ctx.DeviceConfig().BinderBitness()
+	refDumpFileStr := "prebuilts/abi-dumps/" + vndkOrNdkDir + "/" + version + "/" + binderBitness + "/" +
 		archNameAndVariant + "/" + sourceOrBinaryDir + "/" + fileName + ext
 	return ExistentPathForSource(ctx, refDumpFileStr)
 }
