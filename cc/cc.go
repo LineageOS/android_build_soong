@@ -1423,6 +1423,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&VndkProperties{},
 		&LTOProperties{},
 		&PgoProperties{},
+		&android.ProtoProperties{},
 	)
 
 	android.InitDefaultsModule(module)
