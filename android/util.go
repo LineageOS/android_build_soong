@@ -101,11 +101,18 @@ func RemoveListFromList(list []string, filter_out []string) (result []string) {
 
 func RemoveFromList(s string, list []string) (bool, []string) {
 	i := IndexList(s, list)
-	if i != -1 {
-		return true, append(list[:i], list[i+1:]...)
-	} else {
+	if i == -1 {
 		return false, list
 	}
+
+	result := make([]string, 0, len(list)-1)
+	result = append(result, list[:i]...)
+	for _, l := range list[i+1:] {
+		if l != s {
+			result = append(result, l)
+		}
+	}
+	return true, result
 }
 
 // FirstUniqueStrings returns all unique elements of a slice of strings, keeping the first copy of
