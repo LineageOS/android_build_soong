@@ -129,8 +129,8 @@ type Javadoc struct {
 	srcFiles    android.Paths
 	sourcepaths android.Paths
 
-	docZip   android.WritablePath
-	stubsJar android.WritablePath
+	docZip      android.WritablePath
+	stubsSrcJar android.WritablePath
 }
 
 type Droiddoc struct {
@@ -255,7 +255,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	j.srcFiles = srcFiles.FilterOutByExt(".srcjar")
 
 	j.docZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"docs.zip")
-	j.stubsJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
+	j.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
 
 	if j.properties.Local_sourcepaths == nil {
 		j.properties.Local_sourcepaths = append(j.properties.Local_sourcepaths, ".")
@@ -304,7 +304,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           javadoc,
 		Description:    "Javadoc",
-		Output:         j.stubsJar,
+		Output:         j.stubsSrcJar,
 		ImplicitOutput: j.docZip,
 		Inputs:         j.srcFiles,
 		Implicits:      implicits,
@@ -453,7 +453,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            javadoc,
 		Description:     "Droiddoc",
-		Output:          d.Javadoc.stubsJar,
+		Output:          d.Javadoc.stubsSrcJar,
 		Inputs:          d.Javadoc.srcFiles,
 		Implicits:       implicits,
 		ImplicitOutputs: implicitOutputs,
