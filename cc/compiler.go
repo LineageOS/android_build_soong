@@ -106,6 +106,9 @@ type BaseCompilerProperties struct {
 		// list of directories relative to the Blueprints file that will
 		// be added to the aidl include paths.
 		Local_include_dirs []string
+
+		// whether to generate traces (for systrace) for this interface
+		Generate_traces *bool
 	}
 
 	Renderscript struct {
@@ -475,6 +478,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		if len(compiler.Properties.Aidl.Include_dirs) > 0 {
 			rootAidlIncludeDirs := android.PathsForSource(ctx, compiler.Properties.Aidl.Include_dirs)
 			flags.aidlFlags = append(flags.aidlFlags, includeDirsToFlags(rootAidlIncludeDirs))
+		}
+
+		if Bool(compiler.Properties.Aidl.Generate_traces) {
+			flags.aidlFlags = append(flags.aidlFlags, "-t")
 		}
 
 		flags.GlobalFlags = append(flags.GlobalFlags,
