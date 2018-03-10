@@ -18,8 +18,6 @@ package python
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"android/soong/android"
 )
@@ -80,89 +78,44 @@ func (binary *binaryDecorator) bootstrapperProps() []interface{} {
 	return []interface{}{&binary.binaryProperties}
 }
 
-func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actual_version string,
-	embedded_launcher bool, srcsPathMappings []pathMapping, parSpec parSpec,
-	depsPyRunfiles []string, depsParSpecs []parSpec) android.OptionalPath {
-	// no Python source file for compiling .par file.
-	if len(srcsPathMappings) == 0 {
-		return android.OptionalPath{}
-	}
-
-	// the runfiles packages needs to be populated with "__init__.py".
-	newPyPkgs := []string{}
-	// the set to de-duplicate the new Python packages above.
-	newPyPkgSet := make(map[string]bool)
-	// the runfiles dirs have been treated as packages.
-	existingPyPkgSet := make(map[string]bool)
-
-	wholePyRunfiles := []string{}
-	for _, path := range srcsPathMappings {
-		wholePyRunfiles = append(wholePyRunfiles, path.dest)
-	}
-	wholePyRunfiles = append(wholePyRunfiles, depsPyRunfiles...)
-
-	// find all the runfiles dirs which have been treated as packages.
-	for _, path := range wholePyRunfiles {
-		if filepath.Base(path) != initFileName {
-			continue
-		}
-		existingPyPkg := PathBeforeLastSlash(path)
-		if _, found := existingPyPkgSet[existingPyPkg]; found {
-			panic(fmt.Errorf("found init file path duplicates: %q for module: %q.",
-				path, ctx.ModuleName()))
-		} else {
-			existingPyPkgSet[existingPyPkg] = true
-		}
-		parentPath := PathBeforeLastSlash(existingPyPkg)
-		populateNewPyPkgs(parentPath, existingPyPkgSet, newPyPkgSet, &newPyPkgs)
-	}
-
-	// create new packages under runfiles tree.
-	for _, path := range wholePyRunfiles {
-		if filepath.Base(path) == initFileName {
-			continue
-		}
-		parentPath := PathBeforeLastSlash(path)
-		populateNewPyPkgs(parentPath, existingPyPkgSet, newPyPkgSet, &newPyPkgs)
-	}
+func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersion string,
+	embeddedLauncher bool, srcsPathMappings []pathMapping, srcsZip android.Path,
+	depsSrcsZips android.Paths) android.OptionalPath {
 
 	main := binary.getPyMainFile(ctx, srcsPathMappings)
-	if main == "" {
-		return android.OptionalPath{}
-	}
 
-	var launcher_path android.Path
-	if embedded_launcher {
+	var launcherPath android.Path
+	if embeddedLauncher {
 		ctx.VisitDirectDepsWithTag(launcherTag, func(m android.Module) {
 			if provider, ok := m.(IntermPathProvider); ok {
-				if launcher_path != nil {
+				if launcherPath != nil {
 					panic(fmt.Errorf("launcher path was found before: %q",
-						launcher_path))
+						launcherPath))
 				}
-				launcher_path = provider.IntermPathForModuleOut().Path()
+				launcherPath = provider.IntermPathForModuleOut().Path()
 			}
 		})
 	}
 
-	binFile := registerBuildActionForParFile(ctx, embedded_launcher, launcher_path,
-		binary.getHostInterpreterName(ctx, actual_version),
-		main, binary.getStem(ctx), newPyPkgs, append(depsParSpecs, parSpec))
+	binFile := registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
+		binary.getHostInterpreterName(ctx, actualVersion),
+		main, binary.getStem(ctx), append(android.Paths{srcsZip}, depsSrcsZips...))
 
 	return android.OptionalPathForPath(binFile)
 }
 
 // get host interpreter name.
 func (binary *binaryDecorator) getHostInterpreterName(ctx android.ModuleContext,
-	actual_version string) string {
+	actualVersion string) string {
 	var interp string
-	switch actual_version {
+	switch actualVersion {
 	case pyVersion2:
 		interp = "python2.7"
 	case pyVersion3:
 		interp = "python3"
 	default:
 		panic(fmt.Errorf("unknown Python actualVersion: %q for module: %q.",
-			actual_version, ctx.ModuleName()))
+			actualVersion, ctx.ModuleName()))
 	}
 
 	return interp
@@ -195,31 +148,4 @@ func (binary *binaryDecorator) getStem(ctx android.ModuleContext) string {
 	}
 
 	return stem + String(binary.binaryProperties.Suffix)
-}
-
-// Sets the given directory and all its ancestor directories as Python packages.
-func populateNewPyPkgs(pkgPath string, existingPyPkgSet,
-	newPyPkgSet map[string]bool, newPyPkgs *[]string) {
-	for pkgPath != "" {
-		if _, found := existingPyPkgSet[pkgPath]; found {
-			break
-		}
-		if _, found := newPyPkgSet[pkgPath]; !found {
-			newPyPkgSet[pkgPath] = true
-			*newPyPkgs = append(*newPyPkgs, pkgPath)
-			// Gets its ancestor directory by trimming last slash.
-			pkgPath = PathBeforeLastSlash(pkgPath)
-		} else {
-			break
-		}
-	}
-}
-
-// filepath.Dir("abc") -> "." and filepath.Dir("/abc") -> "/". However,
-// the PathBeforeLastSlash() will return "" for both cases above.
-func PathBeforeLastSlash(path string) string {
-	if idx := strings.LastIndex(path, "/"); idx != -1 {
-		return path[:idx]
-	}
-	return ""
 }
