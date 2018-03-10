@@ -63,6 +63,7 @@ var (
 	zipsToNotStrip   = make(zipsToNotStripSet)
 	stripDirEntries  = flag.Bool("D", false, "strip directory entries from the output zip file")
 	manifest         = flag.String("m", "", "manifest file to insert in jar")
+	pyMain           = flag.String("pm", "", "__main__.py file to insert in par")
 	entrypoint       = flag.String("e", "", "par entrypoint file to insert in par")
 	ignoreDuplicates = flag.Bool("ignore-duplicates", false, "take each entry from the first zip it exists in and don't warn")
 )
@@ -75,7 +76,7 @@ func init() {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [-e entrypoint] output [inputs...]")
+		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [-e entrypoint] [-pm __main__.py] output [inputs...]")
 		flag.PrintDefaults()
 	}
 
@@ -125,8 +126,12 @@ func main() {
 		log.Fatal(errors.New("must specify -p when specifying a entrypoint via -e"))
 	}
 
+	if *pyMain != "" && !*emulatePar {
+		log.Fatal(errors.New("must specify -p when specifying a Python __main__.py via -pm"))
+	}
+
 	// do merge
-	err = mergeZips(readers, writer, *manifest, *entrypoint, *sortEntries, *emulateJar, *emulatePar,
+	err = mergeZips(readers, writer, *manifest, *entrypoint, *pyMain, *sortEntries, *emulateJar, *emulatePar,
 		*stripDirEntries, *ignoreDuplicates)
 	if err != nil {
 		log.Fatal(err)
@@ -218,7 +223,7 @@ type fileMapping struct {
 	source zipSource
 }
 
-func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoint string,
+func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoint, pyMain string,
 	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool) error {
 
 	sourceByDest := make(map[string]zipSource, 0)
@@ -266,6 +271,22 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoin
 		fh.SetModTime(jar.DefaultTime)
 		fileSource := bufferEntry{fh, buf}
 		addMapping("entry_point.txt", fileSource)
+	}
+
+	if pyMain != "" {
+		buf, err := ioutil.ReadFile(pyMain)
+		if err != nil {
+			return err
+		}
+		fh := &zip.FileHeader{
+			Name:               "__main__.py",
+			Method:             zip.Store,
+			UncompressedSize64: uint64(len(buf)),
+		}
+		fh.SetMode(0700)
+		fh.SetModTime(jar.DefaultTime)
+		fileSource := bufferEntry{fh, buf}
+		addMapping("__main__.py", fileSource)
 	}
 
 	if emulatePar {
