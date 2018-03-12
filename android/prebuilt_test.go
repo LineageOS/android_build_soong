@@ -138,9 +138,9 @@ func TestPrebuilts(t *testing.T) {
 			})
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
-			fail(t, errs)
+			FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)
-			fail(t, errs)
+			FailIfErrored(t, errs)
 
 			foo := ctx.ModuleForTests("foo", "")
 
@@ -230,13 +230,4 @@ func (s *sourceModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (s *sourceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-}
-
-func fail(t *testing.T, errs []error) {
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Error(err)
-		}
-		t.FailNow()
-	}
 }

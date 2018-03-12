@@ -147,9 +147,9 @@ func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.T
 	ctx := createTestContext(t, config, bp)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	failIfErrored(t, errs)
+	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
-	failIfErrored(t, errs)
+	android.FailIfErrored(t, errs)
 
 	return ctx
 }
@@ -1061,15 +1061,6 @@ func TestLinkReordering(t *testing.T) {
 				t.Error(err)
 			}
 		}
-	}
-}
-
-func failIfErrored(t *testing.T, errs []error) {
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Error(err)
-		}
-		t.FailNow()
 	}
 }
 
