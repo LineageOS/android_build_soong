@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -100,11 +101,33 @@ func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags
 }
 
 func (props *PgoProperties) getPgoProfileFile(ctx BaseModuleContext) android.OptionalPath {
+	profile_file := *props.Pgo.Profile_file
+
 	// Test if the profile_file is present in any of the PGO profile projects
 	for _, profileProject := range getPgoProfileProjects(ctx.DeviceConfig()) {
-		path := android.ExistentPathForSource(ctx, profileProject, *props.Pgo.Profile_file)
+		// Bug: http://b/74395273 If the profile_file is unavailable,
+		// use a versioned file named
+		// <profile_file>.<arbitrary-version> when available.  This
+		// works around an issue where ccache serves stale cache
+		// entries when the profile file has changed.
+		globPattern := filepath.Join(profileProject, profile_file+".*")
+		versioned_profiles, err := ctx.GlobWithDeps(globPattern, nil)
+		if err != nil {
+			ctx.ModuleErrorf("glob: %s", err.Error())
+		}
+
+		path := android.ExistentPathForSource(ctx, profileProject, profile_file)
 		if path.Valid() {
+			if len(versioned_profiles) != 0 {
+				ctx.PropertyErrorf("pgo.profile_file", "Profile_file has multiple versions: "+filepath.Join(profileProject, profile_file)+", "+strings.Join(versioned_profiles, ", "))
+			}
 			return path
+		}
+
+		if len(versioned_profiles) > 1 {
+			ctx.PropertyErrorf("pgo.profile_file", "Profile_file has multiple versions: "+strings.Join(versioned_profiles, ", "))
+		} else if len(versioned_profiles) == 1 {
+			return android.OptionalPathForPath(android.PathForSource(ctx, versioned_profiles[0]))
 		}
 	}
 

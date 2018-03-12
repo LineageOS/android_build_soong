@@ -115,6 +115,8 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Tell python not to spam the source tree with .pyc files.
 	ret.environ.Set("PYTHONDONTWRITEBYTECODE", "1")
 
+	ret.environ.Set("TMPDIR", absPath(ctx, ret.TempDir()))
+
 	// Precondition: the current directory is the top of the source tree
 	if _, err := os.Stat(srcDirFileCheck); err != nil {
 		if os.IsNotExist(err) {
