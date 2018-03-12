@@ -196,9 +196,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		hod = "Device"
 	}
 
-	if target.Os.Class == android.Device && Bool(ctx.Config().ProductVariables.Brillo) {
-		productExtraCflags += "-D__BRILLO__"
-	}
 	if target.Os.Class == android.Host && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
 		productExtraLdflags += "-static"
 	}
