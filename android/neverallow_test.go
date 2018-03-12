@@ -53,6 +53,28 @@ var neverallowTests = []struct {
 		},
 		expectedError: "VNDK can never contain a library that is device dependent",
 	},
+	{
+		name: "vndk-ext under vendor or device directory",
+		fs: map[string][]byte{
+			"device/Blueprints": []byte(`
+				cc_library {
+					name: "libvndk1_ext",
+					vendor: true,
+					vndk: {
+						enabled: true,
+					},
+				}`),
+			"vendor/Blueprints": []byte(`
+				cc_library {
+					name: "libvndk2_ext",
+					vendor: true,
+					vndk: {
+						enabled: true,
+					},
+				}`),
+		},
+		expectedError: "",
+	},
 
 	{
 		name: "no enforce_vintf_manifest.cflags",
