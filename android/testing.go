@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"testing"
 
 	"github.com/google/blueprint"
 )
@@ -151,4 +152,14 @@ func (m TestingModule) Output(file string) BuildParams {
 	}
 	panic(fmt.Errorf("couldn't find output %q.\nall outputs: %v",
 		file, searchedOutputs))
+}
+
+func FailIfErrored(t *testing.T, errs []error) {
+	t.Helper()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			t.Error(err)
+		}
+		t.FailNow()
+	}
 }
