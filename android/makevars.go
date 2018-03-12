@@ -36,6 +36,7 @@ func androidMakeVarsProvider(ctx MakeVarsContext) {
 // Interface for other packages to use to declare make variables
 type MakeVarsContext interface {
 	Config() Config
+	DeviceConfig() DeviceConfig
 	SingletonContext() SingletonContext
 
 	// Verify the make variable matches the Soong version, fail the build
@@ -229,6 +230,10 @@ my_check_failed :=
 
 func (c *makeVarsContext) Config() Config {
 	return c.config
+}
+
+func (c *makeVarsContext) DeviceConfig() DeviceConfig {
+	return DeviceConfig{c.config.deviceConfig}
 }
 
 func (c *makeVarsContext) SingletonContext() SingletonContext {
