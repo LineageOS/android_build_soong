@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -178,13 +177,13 @@ func testCcError(t *testing.T, pattern string, bp string) {
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	if len(errs) > 0 {
-		failIfNoMatchingErrors(t, pattern, errs)
+		android.FailIfNoMatchingErrors(t, pattern, errs)
 		return
 	}
 
 	_, errs = ctx.PrepareBuildActions(config)
 	if len(errs) > 0 {
-		failIfNoMatchingErrors(t, pattern, errs)
+		android.FailIfNoMatchingErrors(t, pattern, errs)
 		return
 	}
 
@@ -1060,29 +1059,6 @@ func TestLinkReordering(t *testing.T) {
 			for _, err := range errs {
 				t.Error(err)
 			}
-		}
-	}
-}
-
-func failIfNoMatchingErrors(t *testing.T, pattern string, errs []error) {
-	matcher, err := regexp.Compile(pattern)
-	if err != nil {
-		t.Errorf("failed to compile regular expression %q because %s", pattern, err)
-	}
-
-	found := false
-
-	for _, err := range errs {
-		if matcher.FindStringIndex(err.Error()) != nil {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Errorf("missing the expected error %q (checked %d error(s))", pattern, len(errs))
-		for i, err := range errs {
-			t.Errorf("errs[%d] = %s", i, err)
 		}
 	}
 }
