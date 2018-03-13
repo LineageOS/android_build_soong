@@ -135,6 +135,24 @@ type DroiddocProperties struct {
 	// a list of files under current module source dir which contains known tags in Java sources.
 	// filegroup or genrule can be included within this property.
 	Knowntags []string
+
+	// the tag name used to distinguish if the API files belong to public/system/test.
+	Api_tag_name *string
+
+	// the generated public API filename by Doclava.
+	Api_filename *string
+
+	// the generated private API filename by Doclava.
+	Private_api_filename *string
+
+	// the generated private Dex API filename by Doclava.
+	Private_dex_api_filename *string
+
+	// the generated removed API filename by Doclava.
+	Removed_api_filename *string
+
+	// the generated exact API filename by Doclava.
+	Exact_api_filename *string
 }
 
 type Javadoc struct {
@@ -160,7 +178,12 @@ var _ android.SourceFileProducer = (*Javadoc)(nil)
 type Droiddoc struct {
 	Javadoc
 
-	properties DroiddocProperties
+	properties        DroiddocProperties
+	apiFile           android.WritablePath
+	privateApiFile    android.WritablePath
+	privateDexApiFile android.WritablePath
+	removedApiFile    android.WritablePath
+	exactApiFile      android.WritablePath
 }
 
 func InitDroiddocModule(module android.DefaultableModule, hod android.HostOrDeviceSupported) {
@@ -504,6 +527,37 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		args = args + " -resourcesoutdir " + String(d.properties.Resourcesoutdir)
 	}
 
+	var implicitOutputs android.WritablePaths
+	if String(d.properties.Api_filename) != "" {
+		d.apiFile = android.PathForModuleOut(ctx, String(d.properties.Api_filename))
+		args = args + " -api " + d.apiFile.String()
+		implicitOutputs = append(implicitOutputs, d.apiFile)
+	}
+
+	if String(d.properties.Private_api_filename) != "" {
+		d.privateApiFile = android.PathForModuleOut(ctx, String(d.properties.Private_api_filename))
+		args = args + " -privateApi " + d.privateApiFile.String()
+		implicitOutputs = append(implicitOutputs, d.privateApiFile)
+	}
+
+	if String(d.properties.Private_dex_api_filename) != "" {
+		d.privateDexApiFile = android.PathForModuleOut(ctx, String(d.properties.Private_dex_api_filename))
+		args = args + " -privateDexApi " + d.privateDexApiFile.String()
+		implicitOutputs = append(implicitOutputs, d.privateDexApiFile)
+	}
+
+	if String(d.properties.Removed_api_filename) != "" {
+		d.removedApiFile = android.PathForModuleOut(ctx, String(d.properties.Removed_api_filename))
+		args = args + " -removedApi " + d.removedApiFile.String()
+		implicitOutputs = append(implicitOutputs, d.removedApiFile)
+	}
+
+	if String(d.properties.Exact_api_filename) != "" {
+		d.exactApiFile = android.PathForModuleOut(ctx, String(d.properties.Exact_api_filename))
+		args = args + " -exactApi " + d.exactApiFile.String()
+		implicitOutputs = append(implicitOutputs, d.exactApiFile)
+	}
+
 	implicits = append(implicits, d.Javadoc.srcJars...)
 
 	opts := "-source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
@@ -513,7 +567,6 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		"-hdf page.now " + `"$$(date -d @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")"` + " " +
 		args + " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
 
-	var implicitOutputs android.WritablePaths
 	implicitOutputs = append(implicitOutputs, d.Javadoc.docZip)
 	for _, o := range d.properties.Out {
 		implicitOutputs = append(implicitOutputs, android.PathForModuleGen(ctx, o))

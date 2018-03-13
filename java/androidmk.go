@@ -246,6 +246,25 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				if ddoc.Javadoc.stubsSrcJar != nil {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", ddoc.Javadoc.stubsSrcJar.String())
 				}
+				apiFilePrefix := "INTERNAL_PLATFORM_"
+				if String(ddoc.properties.Api_tag_name) != "" {
+					apiFilePrefix += String(ddoc.properties.Api_tag_name) + "_"
+				}
+				if String(ddoc.properties.Api_filename) != "" {
+					fmt.Fprintln(w, apiFilePrefix+"API_FILE := ", ddoc.apiFile.String())
+				}
+				if String(ddoc.properties.Private_api_filename) != "" {
+					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_API_FILE := ", ddoc.privateApiFile.String())
+				}
+				if String(ddoc.properties.Private_dex_api_filename) != "" {
+					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_DEX_API_FILE := ", ddoc.privateDexApiFile.String())
+				}
+				if String(ddoc.properties.Removed_api_filename) != "" {
+					fmt.Fprintln(w, apiFilePrefix+"REMOVED_API_FILE := ", ddoc.removedApiFile.String())
+				}
+				if String(ddoc.properties.Exact_api_filename) != "" {
+					fmt.Fprintln(w, apiFilePrefix+"EXACT_API_FILE := ", ddoc.exactApiFile.String())
+				}
 			},
 		},
 	}
