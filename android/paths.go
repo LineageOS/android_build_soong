@@ -693,6 +693,46 @@ func PathForIntermediates(ctx PathContext, paths ...string) OutputPath {
 	return PathForOutput(ctx, ".intermediates", path)
 }
 
+// DistPath is a Path representing a file path rooted from the dist directory
+type DistPath struct {
+	basePath
+}
+
+func (p DistPath) withRel(rel string) DistPath {
+	p.basePath = p.basePath.withRel(rel)
+	return p
+}
+
+var _ Path = DistPath{}
+
+// PathForDist joins the provided paths and returns a DistPath that is
+// validated to not escape the dist dir.
+// On error, it will return a usable, but invalid DistPath, and report a ModuleError.
+func PathForDist(ctx PathContext, pathComponents ...string) DistPath {
+	path, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+	return DistPath{basePath{path, ctx.Config(), ""}}
+}
+
+func (p DistPath) writablePath() {}
+
+func (p DistPath) Valid() bool {
+	return p.config.ProductVariables.DistDir != nil && *p.config.ProductVariables.DistDir != ""
+}
+
+func (p DistPath) String() string {
+	if !p.Valid() {
+		panic("Requesting an invalid path")
+	}
+	return filepath.Join(*p.config.ProductVariables.DistDir, p.path)
+}
+
+func (p DistPath) RelPathString() string {
+	return p.path
+}
+
 // ModuleSrcPath is a Path representing a file rooted from a module's local source dir
 type ModuleSrcPath struct {
 	SourcePath
