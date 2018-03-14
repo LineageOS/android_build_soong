@@ -47,6 +47,9 @@ type configErrorWrapper struct {
 
 var _ PathContext = &configErrorWrapper{}
 var _ errorfContext = &configErrorWrapper{}
+var _ PackageVarContext = &configErrorWrapper{}
+var _ PackagePoolContext = &configErrorWrapper{}
+var _ PackageRuleContext = &configErrorWrapper{}
 
 func (e *configErrorWrapper) Config() Config {
 	return e.config
@@ -62,33 +65,56 @@ func (e *configErrorWrapper) Fs() pathtools.FileSystem {
 	return nil
 }
 
+type PackageVarContext interface {
+	PathContext
+	errorfContext
+}
+
+type PackagePoolContext PackageVarContext
+type PackageRuleContext PackageVarContext
+
 // VariableFunc wraps blueprint.PackageContext.VariableFunc, converting the interface{} config
-// argument to a Config.
+// argument to a PackageVarContext.
 func (p PackageContext) VariableFunc(name string,
-	f func(Config) (string, error)) blueprint.Variable {
+	f func(PackageVarContext) string) blueprint.Variable {
 
 	return p.PackageContext.VariableFunc(name, func(config interface{}) (string, error) {
-		return f(config.(Config))
+		ctx := &configErrorWrapper{p, config.(Config), nil}
+		ret := f(ctx)
+		if len(ctx.errors) > 0 {
+			return "", ctx.errors[0]
+		}
+		return ret, nil
 	})
 }
 
 // PoolFunc wraps blueprint.PackageContext.PoolFunc, converting the interface{} config
-// argument to a Config.
+// argument to a Context that supports Config().
 func (p PackageContext) PoolFunc(name string,
-	f func(Config) (blueprint.PoolParams, error)) blueprint.Pool {
+	f func(PackagePoolContext) blueprint.PoolParams) blueprint.Pool {
 
 	return p.PackageContext.PoolFunc(name, func(config interface{}) (blueprint.PoolParams, error) {
-		return f(config.(Config))
+		ctx := &configErrorWrapper{p, config.(Config), nil}
+		params := f(ctx)
+		if len(ctx.errors) > 0 {
+			return params, ctx.errors[0]
+		}
+		return params, nil
 	})
 }
 
 // RuleFunc wraps blueprint.PackageContext.RuleFunc, converting the interface{} config
-// argument to a Config.
+// argument to a Context that supports Config().
 func (p PackageContext) RuleFunc(name string,
-	f func(Config) (blueprint.RuleParams, error), argNames ...string) blueprint.Rule {
+	f func(PackageRuleContext) blueprint.RuleParams, argNames ...string) blueprint.Rule {
 
 	return p.PackageContext.RuleFunc(name, func(config interface{}) (blueprint.RuleParams, error) {
-		return f(config.(Config))
+		ctx := &configErrorWrapper{p, config.(Config), nil}
+		params := f(ctx)
+		if len(ctx.errors) > 0 {
+			return params, ctx.errors[0]
+		}
+		return params, nil
 	}, argNames...)
 }
 
@@ -97,13 +123,8 @@ func (p PackageContext) RuleFunc(name string,
 // initialization - either from the init() function or as part of a
 // package-scoped variable's initialization.
 func (p PackageContext) SourcePathVariable(name, path string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		ctx := &configErrorWrapper{p, config, []error{}}
-		p := safePathForSource(ctx, path)
-		if len(ctx.errors) > 0 {
-			return "", ctx.errors[0]
-		}
-		return p.String(), nil
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
+		return safePathForSource(ctx, path).String()
 	})
 }
 
@@ -112,17 +133,13 @@ func (p PackageContext) SourcePathVariable(name, path string) blueprint.Variable
 // called during a Go package's initialization - either from the init()
 // function or as part of a package-scoped variable's initialization.
 func (p PackageContext) SourcePathsVariable(name, separator string, paths ...string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		ctx := &configErrorWrapper{p, config, []error{}}
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
 		var ret []string
 		for _, path := range paths {
 			p := safePathForSource(ctx, path)
-			if len(ctx.errors) > 0 {
-				return "", ctx.errors[0]
-			}
 			ret = append(ret, p.String())
 		}
-		return strings.Join(ret, separator), nil
+		return strings.Join(ret, separator)
 	})
 }
 
@@ -132,13 +149,9 @@ func (p PackageContext) SourcePathsVariable(name, separator string, paths ...str
 // It may only be called during a Go package's initialization - either from the init() function or
 // as part of a package-scoped variable's initialization.
 func (p PackageContext) SourcePathVariableWithEnvOverride(name, path, env string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		ctx := &configErrorWrapper{p, config, []error{}}
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
 		p := safePathForSource(ctx, path)
-		if len(ctx.errors) > 0 {
-			return "", ctx.errors[0]
-		}
-		return config.GetenvWithDefault(env, p.String()), nil
+		return ctx.Config().GetenvWithDefault(env, p.String())
 	})
 }
 
@@ -147,22 +160,13 @@ func (p PackageContext) SourcePathVariableWithEnvOverride(name, path, env string
 // package's initialization - either from the init() function or as part of a
 // package-scoped variable's initialization.
 func (p PackageContext) HostBinToolVariable(name, path string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		po, err := p.HostBinToolPath(config, path)
-		if err != nil {
-			return "", err
-		}
-		return po.String(), nil
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
+		return p.HostBinToolPath(ctx, path).String()
 	})
 }
 
-func (p PackageContext) HostBinToolPath(config Config, path string) (Path, error) {
-	ctx := &configErrorWrapper{p, config, []error{}}
-	pa := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "bin", path)
-	if len(ctx.errors) > 0 {
-		return nil, ctx.errors[0]
-	}
-	return pa, nil
+func (p PackageContext) HostBinToolPath(ctx PackageVarContext, path string) Path {
+	return PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin", path)
 }
 
 // HostJNIToolVariable returns a Variable whose value is the path to a host tool
@@ -170,26 +174,17 @@ func (p PackageContext) HostBinToolPath(config Config, path string) (Path, error
 // package's initialization - either from the init() function or as part of a
 // package-scoped variable's initialization.
 func (p PackageContext) HostJNIToolVariable(name, path string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		po, err := p.HostJNIToolPath(config, path)
-		if err != nil {
-			return "", err
-		}
-		return po.String(), nil
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
+		return p.HostJNIToolPath(ctx, path).String()
 	})
 }
 
-func (p PackageContext) HostJNIToolPath(config Config, path string) (Path, error) {
-	ctx := &configErrorWrapper{p, config, []error{}}
+func (p PackageContext) HostJNIToolPath(ctx PackageVarContext, path string) Path {
 	ext := ".so"
 	if runtime.GOOS == "darwin" {
 		ext = ".dylib"
 	}
-	pa := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "lib64", path+ext)
-	if len(ctx.errors) > 0 {
-		return nil, ctx.errors[0]
-	}
-	return pa, nil
+	return PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "lib64", path+ext)
 }
 
 // HostJavaToolVariable returns a Variable whose value is the path to a host
@@ -197,23 +192,13 @@ func (p PackageContext) HostJNIToolPath(config Config, path string) (Path, error
 // during a Go package's initialization - either from the init() function or as
 // part of a package-scoped variable's initialization.
 func (p PackageContext) HostJavaToolVariable(name, path string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		ctx := &configErrorWrapper{p, config, []error{}}
-		p := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "framework", path)
-		if len(ctx.errors) > 0 {
-			return "", ctx.errors[0]
-		}
-		return p.String(), nil
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
+		return p.HostJavaToolPath(ctx, path).String()
 	})
 }
 
-func (p PackageContext) HostJavaToolPath(config Config, path string) (Path, error) {
-	ctx := &configErrorWrapper{p, config, []error{}}
-	pa := PathForOutput(ctx, "host", ctx.config.PrebuiltOS(), "framework", path)
-	if len(ctx.errors) > 0 {
-		return nil, ctx.errors[0]
-	}
-	return pa, nil
+func (p PackageContext) HostJavaToolPath(ctx PackageVarContext, path string) Path {
+	return PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", path)
 }
 
 // IntermediatesPathVariable returns a Variable whose value is the intermediate
@@ -221,13 +206,8 @@ func (p PackageContext) HostJavaToolPath(config Config, path string) (Path, erro
 // package's initialization - either from the init() function or as part of a
 // package-scoped variable's initialization.
 func (p PackageContext) IntermediatesPathVariable(name, path string) blueprint.Variable {
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		ctx := &configErrorWrapper{p, config, []error{}}
-		p := PathForIntermediates(ctx, path)
-		if len(ctx.errors) > 0 {
-			return "", ctx.errors[0]
-		}
-		return p.String(), nil
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
+		return PathForIntermediates(ctx, path).String()
 	})
 }
 
@@ -238,21 +218,17 @@ func (p PackageContext) IntermediatesPathVariable(name, path string) blueprint.V
 func (p PackageContext) PrefixedExistentPathsForSourcesVariable(
 	name, prefix string, paths []string) blueprint.Variable {
 
-	return p.VariableFunc(name, func(config Config) (string, error) {
-		ctx := &configErrorWrapper{p, config, []error{}}
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
 		paths := ExistentPathsForSources(ctx, paths)
-		if len(ctx.errors) > 0 {
-			return "", ctx.errors[0]
-		}
-		return JoinWithPrefix(paths.Strings(), prefix), nil
+		return JoinWithPrefix(paths.Strings(), prefix)
 	})
 }
 
 // AndroidStaticRule wraps blueprint.StaticRule and provides a default Pool if none is specified
 func (p PackageContext) AndroidStaticRule(name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
-	return p.AndroidRuleFunc(name, func(Config) (blueprint.RuleParams, error) {
-		return params, nil
+	return p.AndroidRuleFunc(name, func(PackageRuleContext) blueprint.RuleParams {
+		return params
 	}, argNames...)
 }
 
@@ -263,14 +239,14 @@ func (p PackageContext) AndroidGomaStaticRule(name string, params blueprint.Rule
 }
 
 func (p PackageContext) AndroidRuleFunc(name string,
-	f func(Config) (blueprint.RuleParams, error), argNames ...string) blueprint.Rule {
-	return p.RuleFunc(name, func(config Config) (blueprint.RuleParams, error) {
-		params, err := f(config)
-		if config.UseGoma() && params.Pool == nil {
+	f func(PackageRuleContext) blueprint.RuleParams, argNames ...string) blueprint.Rule {
+	return p.RuleFunc(name, func(ctx PackageRuleContext) blueprint.RuleParams {
+		params := f(ctx)
+		if ctx.Config().UseGoma() && params.Pool == nil {
 			// When USE_GOMA=true is set and the rule is not supported by goma, restrict jobs to the
 			// local parallelism value
 			params.Pool = localPool
 		}
-		return params, err
+		return params
 	}, argNames...)
 }
