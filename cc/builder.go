@@ -197,18 +197,17 @@ var (
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
 	sAbiDiff = pctx.AndroidRuleFunc("sAbiDiff",
-		func(config android.Config) (blueprint.RuleParams, error) {
+		func(ctx android.PackageRuleContext) blueprint.RuleParams {
 
 			commandStr := "($sAbiDiffer $allowFlags -lib $libName -arch $arch -check-all-apis -o ${out} -new $in -old $referenceDump)"
-			distDir := config.ProductVariables.DistDir
-			if distDir != nil && *distDir != "" {
-				distAbiDiffDir := *distDir + "/abidiffs/"
-				commandStr += "  || (mkdir -p " + distAbiDiffDir + " && cp ${out} " + distAbiDiffDir + " && exit 1)"
+			distAbiDiffDir := android.PathForDist(ctx, "abidiffs")
+			if distAbiDiffDir.Valid() {
+				commandStr += "  || (mkdir -p " + distAbiDiffDir.String() + " && cp ${out} " + distAbiDiffDir.String() + " && exit 1)"
 			}
 			return blueprint.RuleParams{
 				Command:     commandStr,
 				CommandDeps: []string{"$sAbiDiffer"},
-			}, nil
+			}
 		},
 		"allowFlags", "referenceDump", "libName", "arch")
 

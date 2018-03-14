@@ -42,11 +42,6 @@ type variableProperties struct {
 			Enabled *bool `android:"arch_variant"`
 		} `android:"arch_variant"`
 
-		Brillo struct {
-			Cflags         []string
-			Version_script *string `android:"arch_variant"`
-		} `android:"arch_variant"`
-
 		Malloc_not_svelte struct {
 			Cflags []string
 		}
@@ -165,7 +160,6 @@ type productVariables struct {
 
 	Allow_missing_dependencies *bool `json:",omitempty"`
 	Unbundled_build            *bool `json:",omitempty"`
-	Brillo                     *bool `json:",omitempty"`
 	Malloc_not_svelte          *bool `json:",omitempty"`
 	Safestack                  *bool `json:",omitempty"`
 	HostStaticBinaries         *bool `json:",omitempty"`
