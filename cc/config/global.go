@@ -180,26 +180,26 @@ func init() {
 		[]string{"libnativehelper/include_deprecated"})
 
 	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)
-	pctx.VariableFunc("ClangBase", func(config android.Config) (string, error) {
-		if override := config.Getenv("LLVM_PREBUILTS_BASE"); override != "" {
-			return override, nil
+	pctx.VariableFunc("ClangBase", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("LLVM_PREBUILTS_BASE"); override != "" {
+			return override
 		}
-		return "${ClangDefaultBase}", nil
+		return "${ClangDefaultBase}"
 	})
-	pctx.VariableFunc("ClangVersion", func(config android.Config) (string, error) {
-		if override := config.Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
-			return override, nil
+	pctx.VariableFunc("ClangVersion", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
+			return override
 		}
-		return ClangDefaultVersion, nil
+		return ClangDefaultVersion
 	})
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
 
-	pctx.VariableFunc("ClangShortVersion", func(config android.Config) (string, error) {
-		if override := config.Getenv("LLVM_RELEASE_VERSION"); override != "" {
-			return override, nil
+	pctx.VariableFunc("ClangShortVersion", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("LLVM_RELEASE_VERSION"); override != "" {
+			return override
 		}
-		return ClangDefaultShortVersion, nil
+		return ClangDefaultShortVersion
 	})
 	pctx.StaticVariable("ClangAsanLibDir", "${ClangBase}/linux-x86/${ClangVersion}/lib64/clang/${ClangShortVersion}/lib/linux")
 	if runtime.GOOS == "darwin" {
@@ -222,11 +222,11 @@ func init() {
 			"frameworks/rs/script_api/include",
 		})
 
-	pctx.VariableFunc("CcWrapper", func(config android.Config) (string, error) {
-		if override := config.Getenv("CC_WRAPPER"); override != "" {
-			return override + " ", nil
+	pctx.VariableFunc("CcWrapper", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("CC_WRAPPER"); override != "" {
+			return override + " "
 		}
-		return "", nil
+		return ""
 	})
 }
 
