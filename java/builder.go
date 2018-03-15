@@ -108,7 +108,7 @@ var (
 				`${config.JavaCmd} -jar ${config.TurbineJar} --output $out.tmp ` +
 				`--temp_dir "$outDir" --sources @$out.rsp  --source_jars $srcJars ` +
 				`--javacopts ${config.CommonJdkFlags} ` +
-				`$javacFlags -source $javaVersion -target $javaVersion $bootClasspath $classpath && ` +
+				`$javacFlags -source $javaVersion -target $javaVersion -- $bootClasspath $classpath && ` +
 				`${config.Ziptime} $out.tmp && ` +
 				`(if cmp -s $out.tmp $out ; then rm $out.tmp ; else mv $out.tmp $out ; fi )`,
 			CommandDeps: []string{
@@ -242,7 +242,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		// ensure java does not fall back to the default bootclasspath.
 		bootClasspath = `--bootclasspath ""`
 	} else {
-		bootClasspath = flags.bootClasspath.FormJavaClassPath("--bootclasspath")
+		bootClasspath = strings.Join(flags.bootClasspath.FormDesugarClasspath("--bootclasspath"), " ")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -255,7 +255,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"classpath":     flags.classpath.FormJavaClassPath("--classpath"),
+			"classpath":     strings.Join(flags.classpath.FormDesugarClasspath("--classpath"), " "),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 			"javaVersion":   flags.javaVersion,
 		},
