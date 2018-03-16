@@ -342,7 +342,7 @@ func TestPythonModule(t *testing.T) {
 			ctx.Register()
 			ctx.MockFileSystem(d.mockFiles)
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
-			fail(t, testErrs)
+			android.FailIfErrored(t, testErrs)
 			_, actErrs := ctx.PrepareBuildActions(config)
 			if len(actErrs) > 0 {
 				testErrs = append(testErrs, expectErrors(t, actErrs, d.errors)...)
@@ -356,7 +356,7 @@ func TestPythonModule(t *testing.T) {
 							e.depsSrcsZips)...)
 				}
 			}
-			fail(t, testErrs)
+			android.FailIfErrored(t, testErrs)
 		})
 	}
 }
@@ -441,13 +441,4 @@ func setupBuildEnv(t *testing.T) (config android.Config, buildDir string) {
 
 func tearDownBuildEnv(buildDir string) {
 	os.RemoveAll(buildDir)
-}
-
-func fail(t *testing.T, errs []error) {
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Error(err)
-		}
-		t.FailNow()
-	}
 }

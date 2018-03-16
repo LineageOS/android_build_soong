@@ -46,9 +46,15 @@ func registerNeverallowMutator(ctx RegisterMutatorsContext) {
 }
 
 var neverallows = []*rule{
-	neverallow().in("vendor", "device").with("vndk.enabled", "true").
+	neverallow().
+		in("vendor", "device").
+		with("vndk.enabled", "true").
+		without("vendor", "true").
 		because("the VNDK can never contain a library that is device dependent."),
-	neverallow().with("vndk.enabled", "true").without("owner", "").
+	neverallow().
+		with("vndk.enabled", "true").
+		without("vendor", "true").
+		without("owner", "").
 		because("a VNDK module can never have an owner."),
 	neverallow().notIn("libcore", "development").with("no_standard_libs", "true"),
 
