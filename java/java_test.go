@@ -190,9 +190,9 @@ func testContext(config android.Config, bp string,
 func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	t.Helper()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	fail(t, errs)
+	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
-	fail(t, errs)
+	android.FailIfErrored(t, errs)
 }
 
 func testJava(t *testing.T, bp string) *android.TestContext {
@@ -975,15 +975,5 @@ func TestExcludeFileGroupInSrcs(t *testing.T) {
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "java-fg/c.java" {
 		t.Errorf(`foo inputs %v != ["java-fg/c.java"]`, javac.Inputs)
-	}
-}
-
-func fail(t *testing.T, errs []error) {
-	t.Helper()
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Error(err)
-		}
-		t.FailNow()
 	}
 }
