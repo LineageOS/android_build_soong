@@ -74,12 +74,27 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		var ltoFlag string
 		if Bool(lto.Properties.Lto.Thin) {
 			ltoFlag = "-flto=thin"
+
 		} else {
 			ltoFlag = "-flto"
 		}
 
 		flags.CFlags = append(flags.CFlags, ltoFlag)
 		flags.LdFlags = append(flags.LdFlags, ltoFlag)
+
+		if ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && Bool(lto.Properties.Lto.Thin) {
+			// Set appropriate ThinLTO cache policy
+			cacheDirFormat := "-Wl,-plugin-opt,cache-dir="
+			cacheDir := android.PathForOutput(ctx, "thinlto-cache").String()
+			flags.LdFlags = append(flags.LdFlags, cacheDirFormat+cacheDir)
+
+			// Limit the size of the ThinLTO cache to the lesser of 10% of available
+			// disk space and 10GB.
+			cachePolicyFormat := "-Wl,-plugin-opt,cache-policy="
+			policy := "cache_size=10%:cache_size_bytes=10g"
+			flags.LdFlags = append(flags.LdFlags, cachePolicyFormat+policy)
+		}
+
 		if ctx.Device() {
 			// Work around bug in Clang that doesn't pass correct emulated
 			// TLS option to target. See b/72706604 or
