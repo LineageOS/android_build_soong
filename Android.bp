@@ -163,6 +163,8 @@ bootstrap_go_package {
         "cc/kernel_headers.go",
 
         "cc/genrule.go",
+
+        "cc/vendor_public_library.go",
     ],
     testSrcs: [
         "cc/cc_test.go",
