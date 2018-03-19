@@ -28,14 +28,14 @@ var (
 	javadoc = pctx.AndroidStaticRule("javadoc",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
-				`${config.ExtractSrcJarsCmd} $srcJarDir $srcJarDir/list $srcJars && ` +
+				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`${config.JavadocCmd} -encoding UTF-8 @$out.rsp @$srcJarDir/list ` +
 				`$opts $bootclasspathArgs $classpathArgs -sourcepath $sourcepath ` +
 				`-d $outDir -quiet  && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
 				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
 			CommandDeps: []string{
-				"${config.ExtractSrcJarsCmd}",
+				"${config.ZipSyncCmd}",
 				"${config.JavadocCmd}",
 				"${config.SoongZipCmd}",
 				"$JsilverJar",
