@@ -100,6 +100,21 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("LLNDK_LIBRARIES", strings.Join(llndkLibraries, " "))
 	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(vndkPrivateLibraries, " "))
 
+	// Filter vendor_public_library that are exported to make
+	exportedVendorPublicLibraries := []string{}
+	ctx.SingletonContext().VisitAllModules(func(module android.Module) {
+		if ccModule, ok := module.(*Module); ok {
+			baseName := ccModule.BaseModuleName()
+			if inList(baseName, vendorPublicLibraries) && module.ExportedToMake() {
+				if !inList(baseName, exportedVendorPublicLibraries) {
+					exportedVendorPublicLibraries = append(exportedVendorPublicLibraries, baseName)
+				}
+			}
+		}
+	})
+	sort.Strings(exportedVendorPublicLibraries)
+	ctx.Strict("VENDOR_PUBLIC_LIBRARIES", strings.Join(exportedVendorPublicLibraries, " "))
+
 	sort.Strings(lsdumpPaths)
 	ctx.Strict("LSDUMP_PATHS", strings.Join(lsdumpPaths, " "))
 

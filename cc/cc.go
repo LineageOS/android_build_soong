@@ -922,6 +922,16 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					}
 				} else if ctx.useVndk() && inList(entry, llndkLibraries) {
 					nonvariantLibs = append(nonvariantLibs, entry+llndkLibrarySuffix)
+				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(entry, vendorPublicLibraries) {
+					vendorPublicLib := entry + vendorPublicLibrarySuffix
+					if actx.OtherModuleExists(vendorPublicLib) {
+						nonvariantLibs = append(nonvariantLibs, vendorPublicLib)
+					} else {
+						// This can happen if vendor_public_library module is defined in a
+						// namespace that isn't visible to the current module. In that case,
+						// link to the original library.
+						nonvariantLibs = append(nonvariantLibs, entry)
+					}
 				} else {
 					nonvariantLibs = append(nonvariantLibs, entry)
 				}
@@ -1306,14 +1316,18 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		switch depTag {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
 			libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
+			libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
 			isLLndk := inList(libName, llndkLibraries)
+			isVendorPublicLib := inList(libName, vendorPublicLibraries)
 			var makeLibName string
 			bothVendorAndCoreVariantsExist := ccDep.hasVendorVariant() || isLLndk
 			if c.useVndk() && bothVendorAndCoreVariantsExist {
 				// The vendor module in Make will have been renamed to not conflict with the core
 				// module, so update the dependency name here accordingly.
 				makeLibName = libName + vendorSuffix
+			} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
+				makeLibName = libName + vendorPublicLibrarySuffix
 			} else {
 				makeLibName = libName
 			}
