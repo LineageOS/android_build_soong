@@ -325,6 +325,12 @@ func (t *toolchainArm) InstructionSetFlags(isa string) (string, error) {
 }
 
 func (t *toolchainArm) ClangTriple() string {
+	// http://b/72619014 work around llvm LTO bug.
+	return "armv7a-linux-androideabi"
+}
+
+func (t *toolchainArm) ndkTriple() string {
+	// Use current NDK include path, while ClangTriple is changed.
 	return t.GccTriple()
 }
 
