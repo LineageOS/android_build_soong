@@ -682,7 +682,9 @@ func PathForModuleRes(ctx ModuleContext, pathComponents ...string) ModuleResPath
 // module appended with paths...
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) OutputPath {
 	var outPaths []string
-	if ctx.Device() {
+	if ctx.CopyToOutDir() {
+		outPaths = []string{"target", "product", ctx.AConfig().DeviceName()}
+	} else if ctx.Device() {
 		var partition string
 		if ctx.InstallInData() {
 			partition = "data"

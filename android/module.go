@@ -62,6 +62,7 @@ type androidBaseContext interface {
 	Debug() bool
 	PrimaryArch() bool
 	Vendor() bool
+	CopyToOutDir() bool
 	AConfig() Config
 	DeviceConfig() DeviceConfig
 }
@@ -151,6 +152,9 @@ type commonProperties struct {
 
 	// whether this module is device specific and should be installed into /vendor
 	Vendor bool
+
+	// whether this module should be installed to $OUT dir, thus skipping installation in the device
+	CopyToOutDir bool
 
 	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
 	// file
@@ -482,6 +486,7 @@ func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) 
 		target:        a.commonProperties.CompileTarget,
 		targetPrimary: a.commonProperties.CompilePrimary,
 		vendor:        a.commonProperties.Proprietary || a.commonProperties.Vendor,
+		copyToOutDir:  a.commonProperties.CopyToOutDir,
 		config:        ctx.Config().(Config),
 	}
 }
@@ -538,6 +543,7 @@ type androidBaseContextImpl struct {
 	targetPrimary bool
 	debug         bool
 	vendor        bool
+	copyToOutDir  bool
 	config        Config
 }
 
@@ -689,6 +695,10 @@ func (a *androidBaseContextImpl) DeviceConfig() DeviceConfig {
 
 func (a *androidBaseContextImpl) Vendor() bool {
 	return a.vendor
+}
+
+func (a *androidBaseContextImpl) CopyToOutDir() bool {
+	return a.copyToOutDir
 }
 
 func (a *androidModuleContext) InstallInData() bool {
