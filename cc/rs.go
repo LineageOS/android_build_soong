@@ -49,6 +49,11 @@ func rsGeneratedCppFile(ctx android.ModuleContext, rsFile android.Path) android.
 	return android.PathForModuleGen(ctx, "rs", "ScriptC_"+fileName+".cpp")
 }
 
+func rsGeneratedHFile(ctx android.ModuleContext, rsFile android.Path) android.WritablePath {
+	fileName := strings.TrimSuffix(rsFile.Base(), rsFile.Ext())
+	return android.PathForModuleGen(ctx, "rs", "ScriptC_"+fileName+".h")
+}
+
 func rsGeneratedDepFile(ctx android.ModuleContext, rsFile android.Path) android.WritablePath {
 	fileName := strings.TrimSuffix(rsFile.Base(), rsFile.Ext())
 	return android.PathForModuleGen(ctx, "rs", fileName+".d")
@@ -56,18 +61,20 @@ func rsGeneratedDepFile(ctx android.ModuleContext, rsFile android.Path) android.
 
 func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags string) android.Paths {
 	stampFile := android.PathForModuleGen(ctx, "rs", "rs.stamp")
-	depFiles := make(android.WritablePaths, len(rsFiles))
-	cppFiles := make(android.WritablePaths, len(rsFiles))
-	for i, rsFile := range rsFiles {
-		depFiles[i] = rsGeneratedDepFile(ctx, rsFile)
-		cppFiles[i] = rsGeneratedCppFile(ctx, rsFile)
+	depFiles := make(android.WritablePaths, 0, len(rsFiles))
+	genFiles := make(android.WritablePaths, 0, 2*len(rsFiles))
+	for _, rsFile := range rsFiles {
+		depFiles = append(depFiles, rsGeneratedDepFile(ctx, rsFile))
+		genFiles = append(genFiles,
+			rsGeneratedCppFile(ctx, rsFile),
+			rsGeneratedHFile(ctx, rsFile))
 	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            rsCpp,
 		Description:     "llvm-rs-cc",
 		Output:          stampFile,
-		ImplicitOutputs: cppFiles,
+		ImplicitOutputs: genFiles,
 		Inputs:          rsFiles,
 		Args: map[string]string{
 			"rsFlags":  rsFlags,
