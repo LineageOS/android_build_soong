@@ -307,7 +307,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 		ctx.Strict(makePrefix+"GCC_VERSION", toolchain.GccVersion())
 		ctx.Strict(makePrefix+"NDK_GCC_VERSION", toolchain.GccVersion())
-		ctx.Strict(makePrefix+"NDK_TRIPLE", toolchain.ClangTriple())
+		ctx.Strict(makePrefix+"NDK_TRIPLE", config.NDKTriple(toolchain))
 	}
 
 	if target.Os.Class == android.Host || target.Os.Class == android.HostCross {
