@@ -406,7 +406,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	dir := flag.Arg(0)
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		fmt.Println(os.Stderr, "Failed to get absolute directory:", err)
+		fmt.Fprintln(os.Stderr, "Failed to get absolute directory:", err)
 		os.Exit(1)
 	}
 
