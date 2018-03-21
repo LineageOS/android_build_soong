@@ -45,7 +45,14 @@ type relocationPacker struct {
 }
 
 func (p *relocationPacker) packingInit(ctx BaseModuleContext) {
-	enabled := true
+	// Disable relocation_packer and migrate to SHT_RELR sections.
+	//
+	// Proposal for adding SHT_RELR sections in generic-abi is at
+	// https://groups.google.com/forum/#!topic/generic-abi/bX460iggiKg
+	//
+	// TODO: Remove relocation_packer and associated build logic.
+	enabled := false
+
 	// Relocation packer isn't available on Darwin yet
 	if runtime.GOOS == "darwin" {
 		enabled = false
