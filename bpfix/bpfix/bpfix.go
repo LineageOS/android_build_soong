@@ -44,9 +44,10 @@ func Reformat(input string) (string, error) {
 // A FixRequest specifies the details of which fixes to apply to an individual file
 // A FixRequest doesn't specify whether to do a dry run or where to write the results; that's in cmd/bpfix.go
 type FixRequest struct {
-	simplifyKnownRedundantVariables    bool
-	rewriteIncorrectAndroidmkPrebuilts bool
-	mergeMatchingModuleProperties      bool
+	simplifyKnownRedundantVariables           bool
+	rewriteIncorrectAndroidmkPrebuilts        bool
+	rewriteIncorrectAndroidmkAndroidLibraries bool
+	mergeMatchingModuleProperties             bool
 }
 
 func NewFixRequest() FixRequest {
@@ -57,6 +58,7 @@ func (r FixRequest) AddAll() (result FixRequest) {
 	result = r
 	result.simplifyKnownRedundantVariables = true
 	result.rewriteIncorrectAndroidmkPrebuilts = true
+	result.rewriteIncorrectAndroidmkAndroidLibraries = true
 	result.mergeMatchingModuleProperties = true
 	return result
 }
@@ -154,6 +156,13 @@ func (f *Fixer) fixTreeOnce(config FixRequest) error {
 		}
 	}
 
+	if config.rewriteIncorrectAndroidmkAndroidLibraries {
+		err := f.rewriteIncorrectAndroidmkAndroidLibraries()
+		if err != nil {
+			return err
+		}
+	}
+
 	if config.mergeMatchingModuleProperties {
 		err := f.mergeMatchingModuleProperties()
 		if err != nil {
@@ -191,6 +200,7 @@ func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
 		switch filepath.Ext(src.Value) {
 		case ".jar":
 			renameProperty(mod, "srcs", "jars")
+
 		case ".aar":
 			renameProperty(mod, "srcs", "aars")
 			mod.Type = "android_library_import"
@@ -198,6 +208,37 @@ func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
 			// An android_library_import doesn't get installed, so setting "installable = false" isn't supported
 			removeProperty(mod, "installable")
 		}
+	}
+
+	return nil
+}
+
+func (f *Fixer) rewriteIncorrectAndroidmkAndroidLibraries() error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+
+		hasAndroidLibraries := hasNonEmptyLiteralListProperty(mod, "android_libs")
+		hasStaticAndroidLibraries := hasNonEmptyLiteralListProperty(mod, "android_static_libs")
+		hasResourceDirs := hasNonEmptyLiteralListProperty(mod, "resource_dirs")
+
+		if hasAndroidLibraries || hasStaticAndroidLibraries || hasResourceDirs {
+			if mod.Type == "java_library_static" {
+				mod.Type = "android_library"
+			}
+		}
+
+		if mod.Type == "java_import" && !hasStaticAndroidLibraries {
+			removeProperty(mod, "android_static_libs")
+		}
+
+		// These may conflict with existing libs and static_libs properties, but the
+		// mergeMatchingModuleProperties pass will fix it.
+		renameProperty(mod, "shared_libs", "libs")
+		renameProperty(mod, "android_libs", "libs")
+		renameProperty(mod, "android_static_libs", "static_libs")
 	}
 
 	return nil
@@ -353,6 +394,11 @@ func (f *Fixer) removeMatchingModuleListProperties(canonicalName string, legacyN
 		filterExpressionList(legacyList, canonicalList)
 	}
 	return nil
+}
+
+func hasNonEmptyLiteralListProperty(mod *parser.Module, name string) bool {
+	list, found := getLiteralListProperty(mod, name)
+	return found && len(list.Values) > 0
 }
 
 func getLiteralListProperty(mod *parser.Module, name string) (list *parser.List, found bool) {

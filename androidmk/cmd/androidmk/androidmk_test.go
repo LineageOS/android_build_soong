@@ -496,6 +496,7 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			include $(CLEAR_VARS)
 			LOCAL_SRC_FILES := test.jar
 			LOCAL_MODULE_CLASS := JAVA_LIBRARIES
+			LOCAL_STATIC_ANDROID_LIBRARIES :=
 			include $(BUILD_PREBUILT)
 		`,
 		expected: `
@@ -517,6 +518,60 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			android_library_import {
 				aars: ["test.aar"],
 
+			}
+		`,
+	},
+
+	{
+		desc: "aar",
+		in: `
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_RESOURCE_DIR := res
+			include $(BUILD_STATIC_JAVA_LIBRARY)
+
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_STATIC_LIBRARIES := foo
+			LOCAL_STATIC_ANDROID_LIBRARIES := bar
+			include $(BUILD_STATIC_JAVA_LIBRARY)
+
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_SHARED_LIBRARIES := foo
+			LOCAL_SHARED_ANDROID_LIBRARIES := bar
+			include $(BUILD_STATIC_JAVA_LIBRARY)
+
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_STATIC_ANDROID_LIBRARIES :=
+			include $(BUILD_STATIC_JAVA_LIBRARY)
+		`,
+		expected: `
+			android_library {
+				srcs: ["test.java"],
+				resource_dirs: ["res"],
+			}
+
+			android_library {
+				srcs: ["test.java"],
+				static_libs: [
+					"foo",
+					"bar",
+				],
+			}
+
+			android_library {
+				srcs: ["test.java"],
+				libs: [
+					"foo",
+					"bar",
+				],
+			}
+
+			java_library_static {
+				srcs: ["test.java"],
+				static_libs: [],
 			}
 		`,
 	},
