@@ -83,6 +83,10 @@ type CompilerProperties struct {
 	// ext, and framework for device targets)
 	No_framework_libs *bool
 
+	// Use renamed kotlin stdlib (com.android.kotlin.*). This allows kotlin usage without colliding
+	// with app-provided kotlin stdlib.
+	Renamed_kotlin_stdlib *bool
+
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
 
@@ -810,6 +814,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		// won't emit any classes for them.
 
 		flags.kotlincFlags = "-no-stdlib"
+
 		if ctx.Device() {
 			flags.kotlincFlags += " -no-jdk"
 		}
@@ -830,9 +835,15 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		// Make javac rule depend on the kotlinc rule
 		flags.classpath = append(flags.classpath, kotlinJar)
+
 		// Jar kotlin classes into the final jar after javac
 		jars = append(jars, kotlinJar)
-		jars = append(jars, deps.kotlinStdlib...)
+
+		// Don't add kotlin-stdlib if using (on-device) renamed stdlib
+		// (it's expected to be on device bootclasspath)
+		if !proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+			jars = append(jars, deps.kotlinStdlib...)
+		}
 	}
 
 	// Store the list of .java files that was passed to javac
@@ -950,6 +961,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
 		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest, false, nil)
 		outputFile = combinedJar
+	}
+
+	// Use renamed kotlin standard library?
+	if srcFiles.HasExt(".kt") && proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+		jarjarFile := android.PathForModuleOut(ctx, "kotlin-renamed", jarName)
+		TransformJarJar(ctx, jarjarFile, outputFile,
+			android.PathForSource(ctx, "external/kotlinc/jarjar-rules.txt"))
+		outputFile = jarjarFile
+		if ctx.Failed() {
+			return
+		}
 	}
 
 	if j.properties.Jarjar_rules != nil {
