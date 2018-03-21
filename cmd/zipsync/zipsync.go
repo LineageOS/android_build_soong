@@ -93,11 +93,11 @@ func main() {
 				}
 			}
 			if filepath.IsAbs(f.Name) {
-				log.Fatal("%q in %q is an absolute path", f.Name, input)
+				log.Fatalf("%q in %q is an absolute path", f.Name, input)
 			}
 
 			if prev, exists := seen[f.Name]; exists {
-				log.Fatal("%q found in both %q and %q", f.Name, prev, input)
+				log.Fatalf("%q found in both %q and %q", f.Name, prev, input)
 			}
 			seen[f.Name] = input
 

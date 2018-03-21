@@ -68,7 +68,7 @@ func main() {
 
 	ef, err := elf.NewFile(f)
 	if err != nil {
-		log.Fatal("Unable to read elf file: %v", err)
+		log.Fatalf("Unable to read elf file: %v", err)
 	}
 
 	asm := &bytes.Buffer{}
@@ -123,17 +123,17 @@ func main() {
 
 	if asmPath != "" {
 		if err := ioutil.WriteFile(asmPath, asm.Bytes(), 0777); err != nil {
-			log.Fatal("Unable to write %q: %v", asmPath, err)
+			log.Fatalf("Unable to write %q: %v", asmPath, err)
 		}
 	}
 
 	if scriptPath != "" {
 		buf := &bytes.Buffer{}
 		if err := linkerScriptTemplate.Execute(buf, sections); err != nil {
-			log.Fatal("Failed to create linker script: %v", err)
+			log.Fatalf("Failed to create linker script: %v", err)
 		}
 		if err := ioutil.WriteFile(scriptPath, buf.Bytes(), 0777); err != nil {
-			log.Fatal("Unable to write %q: %v", scriptPath, err)
+			log.Fatalf("Unable to write %q: %v", scriptPath, err)
 		}
 	}
 }
