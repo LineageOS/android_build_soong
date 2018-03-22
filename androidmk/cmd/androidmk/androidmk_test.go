@@ -15,13 +15,11 @@
 package main
 
 import (
+	"android/soong/bpfix/bpfix"
 	"bytes"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-
-	bpparser "github.com/google/blueprint/parser"
 )
 
 var testCases = []struct {
@@ -524,26 +522,12 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 	},
 }
 
-func reformatBlueprint(input string) string {
-	file, errs := bpparser.Parse("<testcase>", bytes.NewBufferString(input), bpparser.NewScope(nil))
-	if len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		panic(fmt.Sprintf("%d parsing errors in testcase:\n%s", len(errs), input))
-	}
-
-	res, err := bpparser.Print(file)
-	if err != nil {
-		panic(fmt.Sprintf("Error printing testcase: %q", err))
-	}
-
-	return string(res)
-}
-
 func TestEndToEnd(t *testing.T) {
 	for i, test := range testCases {
-		expected := reformatBlueprint(test.expected)
+		expected, err := bpfix.Reformat(test.expected)
+		if err != nil {
+			t.Error(err)
+		}
 
 		got, errs := convertFile(fmt.Sprintf("<testcase %d>", i), bytes.NewBufferString(test.in))
 		if len(errs) > 0 {
