@@ -234,7 +234,7 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 		sdkDep := decodeSdkDep(ctx, String(j.properties.Sdk_version))
 		if sdkDep.useDefaultLibs {
 			ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			if Bool(j.properties.No_framework_libs) {
+			if !Bool(j.properties.No_framework_libs) {
 				ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
 			}
 		} else if sdkDep.useModule {
