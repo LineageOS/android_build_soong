@@ -118,7 +118,10 @@ func main() {
 	}
 
 	if *outputFile != "" {
-		data := strings.Join(files, "\n") + "\n"
+		data := strings.Join(files, "\n")
+		if len(files) > 0 {
+			data += "\n"
+		}
 		must(ioutil.WriteFile(*outputFile, []byte(data), 0666))
 	}
 }
