@@ -19,7 +19,6 @@ package java
 // is handled in builder.go
 
 import (
-	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -646,8 +645,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				}
 			case kotlinStdlibTag:
 				deps.kotlinStdlib = dep.HeaderJars()
-			default:
-				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
 
 			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
