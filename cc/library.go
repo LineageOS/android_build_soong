@@ -642,8 +642,8 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
 	//Also take into account object re-use.
 	if len(objs.sAbiDumpFiles) > 0 && ctx.createVndkSourceAbiDump() {
-		vndkVersion := "current"
-		if ver := ctx.DeviceConfig().VndkVersion(); ver != "" {
+		vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
+		if ver := ctx.DeviceConfig().VndkVersion(); ver != "" && ver != "current" {
 			vndkVersion = ver
 		}
 
