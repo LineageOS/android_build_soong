@@ -35,6 +35,13 @@ var (
 		},
 		"args")
 
+	combineZip = pctx.AndroidStaticRule("combineZip",
+		blueprint.RuleParams{
+			Command:     `$mergeParCmd $out $in`,
+			CommandDeps: []string{"$mergeParCmd"},
+		},
+	)
+
 	hostPar = pctx.AndroidStaticRule("hostPar",
 		blueprint.RuleParams{
 			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' $template > $stub && ` +

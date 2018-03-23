@@ -83,6 +83,10 @@ type CompilerProperties struct {
 	// ext, and framework for device targets)
 	No_framework_libs *bool
 
+	// Use renamed kotlin stdlib (com.android.kotlin.*). This allows kotlin usage without colliding
+	// with app-provided kotlin stdlib.
+	Renamed_kotlin_stdlib *bool
+
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
 
@@ -581,12 +585,56 @@ func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer
 	}
 }
 
+type linkType int
+
+const (
+	javaCore linkType = iota
+	javaSdk
+	javaSystem
+	javaPlatform
+)
+
+func getLinkType(m *Module) linkType {
+	ver := String(m.deviceProperties.Sdk_version)
+	if strings.HasPrefix(ver, "core_") {
+		return javaCore
+	} else if strings.HasPrefix(ver, "system_") {
+		return javaSystem
+	} else if _, err := strconv.Atoi(ver); err == nil || ver == "current" {
+		return javaSdk
+	} else {
+		// test_current falls back here as well
+		return javaPlatform
+	}
+}
+
 func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dependencyTag) {
-	if strings.HasPrefix(String(from.deviceProperties.Sdk_version), "core_") {
-		if !strings.HasPrefix(String(to.deviceProperties.Sdk_version), "core_") {
-			ctx.ModuleErrorf("depends on other library %q using non-core Java APIs",
+	myLinkType := getLinkType(from)
+	otherLinkType := getLinkType(&to.Module)
+	commonMessage := "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source."
+
+	switch myLinkType {
+	case javaCore:
+		if otherLinkType != javaCore {
+			ctx.ModuleErrorf("compiles against core Java API, but dependency %q is compiling against non-core Java APIs."+commonMessage,
 				ctx.OtherModuleName(to))
 		}
+		break
+	case javaSdk:
+		if otherLinkType != javaCore && otherLinkType != javaSdk {
+			ctx.ModuleErrorf("compiles against Android API, but dependency %q is compiling against non-public Android API."+commonMessage,
+				ctx.OtherModuleName(to))
+		}
+		break
+	case javaSystem:
+		if otherLinkType == javaPlatform {
+			ctx.ModuleErrorf("compiles against system API, but dependency %q is compiling against private API."+commonMessage,
+				ctx.OtherModuleName(to))
+		}
+		break
+	case javaPlatform:
+		// no restriction on link-type
+		break
 	}
 }
 
@@ -810,6 +858,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		// won't emit any classes for them.
 
 		flags.kotlincFlags = "-no-stdlib"
+
 		if ctx.Device() {
 			flags.kotlincFlags += " -no-jdk"
 		}
@@ -830,9 +879,15 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		// Make javac rule depend on the kotlinc rule
 		flags.classpath = append(flags.classpath, kotlinJar)
+
 		// Jar kotlin classes into the final jar after javac
 		jars = append(jars, kotlinJar)
-		jars = append(jars, deps.kotlinStdlib...)
+
+		// Don't add kotlin-stdlib if using (on-device) renamed stdlib
+		// (it's expected to be on device bootclasspath)
+		if !proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+			jars = append(jars, deps.kotlinStdlib...)
+		}
 	}
 
 	// Store the list of .java files that was passed to javac
@@ -950,6 +1005,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
 		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest, false, nil)
 		outputFile = combinedJar
+	}
+
+	// Use renamed kotlin standard library?
+	if srcFiles.HasExt(".kt") && proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+		jarjarFile := android.PathForModuleOut(ctx, "kotlin-renamed", jarName)
+		TransformJarJar(ctx, jarjarFile, outputFile,
+			android.PathForSource(ctx, "external/kotlinc/jarjar-rules.txt"))
+		outputFile = jarjarFile
+		if ctx.Failed() {
+			return
+		}
 	}
 
 	if j.properties.Jarjar_rules != nil {

@@ -66,6 +66,7 @@ var (
 				`${config.GenKotlinBuildFileCmd} $classpath $outDir $out.rsp $srcJarDir/list > $outDir/kotlinc-build.xml &&` +
 				`${config.KotlincCmd} $kotlincFlags ` +
 				`-jvm-target $kotlinJvmTarget -Xbuild-file=$outDir/kotlinc-build.xml && ` +
+				`rm $outDir/kotlinc-build.xml && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
 			CommandDeps: []string{
 				"${config.KotlincCmd}",
@@ -357,6 +358,11 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 	// Remove any module-info.class files that may have come from prebuilt jars, they cause problems
 	// for downstream tools like desugar.
 	jarArgs = append(jarArgs, "-stripFile module-info.class")
+
+	// Remove any kotlin-reflect related files
+	// TODO(pszczepaniak): Support kotlin-reflect
+	jarArgs = append(jarArgs, "-stripFile \"*.kotlin_module\"")
+	jarArgs = append(jarArgs, "-stripFile \"*.kotlin_builtin\"")
 
 	if stripDirs {
 		jarArgs = append(jarArgs, "-D")
