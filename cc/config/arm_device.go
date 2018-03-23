@@ -37,7 +37,6 @@ var (
 		"-Wl,--icf=safe",
 		"-Wl,--hash-style=gnu",
 		"-Wl,-m,armelf",
-		"-Wl,--experimental-use-relr",
 	}
 
 	armArmCflags = []string{
