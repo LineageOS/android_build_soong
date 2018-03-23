@@ -33,6 +33,7 @@ var (
 		"-Wl,--fix-cortex-a53-843419",
 		"-fuse-ld=gold",
 		"-Wl,--icf=safe",
+		"-Wl,--experimental-use-relr",
 	}
 
 	arm64Cppflags = []string{}
