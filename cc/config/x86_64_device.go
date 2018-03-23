@@ -30,6 +30,7 @@ var (
 
 	x86_64Ldflags = []string{
 		"-Wl,--hash-style=gnu",
+		"-Wl,--experimental-use-relr",
 	}
 
 	x86_64ArchVariantCflags = map[string][]string{
