@@ -267,6 +267,7 @@ bootstrap_go_package {
         "python/defaults.go",
         "python/installer.go",
         "python/library.go",
+        "python/proto.go",
         "python/python.go",
         "python/test.go",
     ],

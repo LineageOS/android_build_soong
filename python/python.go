@@ -111,7 +111,8 @@ type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
-	properties BaseProperties
+	properties      BaseProperties
+	protoProperties android.ProtoProperties
 
 	// initialize before calling Init
 	hod      android.HostOrDeviceSupported
@@ -186,7 +187,7 @@ var _ android.AndroidMkDataProvider = (*Module)(nil)
 
 func (p *Module) Init() android.Module {
 
-	p.AddProperties(&p.properties)
+	p.AddProperties(&p.properties, &p.protoProperties)
 	if p.bootstrapper != nil {
 		p.AddProperties(p.bootstrapper.bootstrapperProps()...)
 	}
@@ -207,6 +208,7 @@ var (
 	launcherTag        = dependencyTag{name: "launcher"}
 	pyIdentifierRegexp = regexp.MustCompile(`^([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*$`)
 	pyExt              = ".py"
+	protoExt           = ".proto"
 	pyVersion2         = "PY2"
 	pyVersion3         = "PY3"
 	initFileName       = "__init__.py"
@@ -258,6 +260,31 @@ func (p *Module) isEmbeddedLauncherEnabled(actual_version string) bool {
 	return false
 }
 
+func hasSrcExt(srcs []string, ext string) bool {
+	for _, src := range srcs {
+		if filepath.Ext(src) == ext {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (p *Module) hasSrcExt(ctx android.BottomUpMutatorContext, ext string) bool {
+	if hasSrcExt(p.properties.Srcs, protoExt) {
+		return true
+	}
+	switch p.properties.Actual_version {
+	case pyVersion2:
+		return hasSrcExt(p.properties.Version.Py2.Srcs, protoExt)
+	case pyVersion3:
+		return hasSrcExt(p.properties.Version.Py3.Srcs, protoExt)
+	default:
+		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
+			p.properties.Actual_version, ctx.ModuleName()))
+	}
+}
+
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// deps from "data".
 	android.ExtractSourcesDeps(ctx, p.properties.Data)
@@ -265,6 +292,9 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, p.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, p.properties.Exclude_srcs)
 
+	if p.hasSrcExt(ctx, protoExt) && p.Name() != "libprotobuf-python" {
+		ctx.AddVariationDependencies(nil, pythonLibTag, "libprotobuf-python")
+	}
 	switch p.properties.Actual_version {
 	case pyVersion2:
 		// deps from "version.py2.srcs" property.
@@ -333,7 +363,9 @@ func uniqueLibs(ctx android.BottomUpMutatorContext,
 func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.GeneratePythonBuildActions(ctx)
 
+	// Only Python binaries and test has non-empty bootstrapper.
 	if p.bootstrapper != nil {
+		p.walkTransitiveDeps(ctx)
 		// TODO(nanzhang): Since embedded launcher is not supported for Python3 for now,
 		// so we initialize "embedded_launcher" to false.
 		embeddedLauncher := false
@@ -403,8 +435,6 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 
 	p.genModulePathMappings(ctx, pkgPath, expandedSrcs, expandedData)
 
-	p.uniqWholeRunfilesTree(ctx)
-
 	p.srcsZip = p.createSrcsZip(ctx, pkgPath)
 }
 
@@ -413,17 +443,18 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkgPath string,
 	expandedSrcs, expandedData android.Paths) {
 	// fetch <runfiles_path, source_path> pairs from "src" and "data" properties to
-	// check duplicates.
+	// check current module duplicates.
 	destToPySrcs := make(map[string]string)
 	destToPyData := make(map[string]string)
 
 	for _, s := range expandedSrcs {
-		if s.Ext() != pyExt {
-			ctx.PropertyErrorf("srcs", "found non (.py) file: %q!", s.String())
+		if s.Ext() != pyExt && s.Ext() != protoExt {
+			ctx.PropertyErrorf("srcs", "found non (.py|.proto) file: %q!", s.String())
 			continue
 		}
 		runfilesPath := filepath.Join(pkgPath, s.Rel())
-		identifiers := strings.Split(strings.TrimSuffix(runfilesPath, pyExt), "/")
+		identifiers := strings.Split(strings.TrimSuffix(runfilesPath,
+			filepath.Ext(runfilesPath)), "/")
 		for _, token := range identifiers {
 			if !pyIdentifierRegexp.MatchString(token) {
 				ctx.PropertyErrorf("srcs", "the path %q contains invalid token %q.",
@@ -437,8 +468,8 @@ func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkgPath string
 	}
 
 	for _, d := range expandedData {
-		if d.Ext() == pyExt {
-			ctx.PropertyErrorf("data", "found (.py) file: %q!", d.String())
+		if d.Ext() == pyExt || d.Ext() == protoExt {
+			ctx.PropertyErrorf("data", "found (.py|.proto) file: %q!", d.String())
 			continue
 		}
 		runfilesPath := filepath.Join(pkgPath, d.Rel())
@@ -447,7 +478,6 @@ func (p *Module) genModulePathMappings(ctx android.ModuleContext, pkgPath string
 				pathMapping{dest: runfilesPath, src: d})
 		}
 	}
-
 }
 
 // register build actions to zip current module's sources.
@@ -455,49 +485,75 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 	relativeRootMap := make(map[string]android.Paths)
 	pathMappings := append(p.srcsPathMappings, p.dataPathMappings...)
 
+	var protoSrcs android.Paths
 	// "srcs" or "data" properties may have filegroup so it might happen that
 	// the relative root for each source path is different.
 	for _, path := range pathMappings {
-		var relativeRoot string
-		relativeRoot = strings.TrimSuffix(path.src.String(), path.src.Rel())
-		if v, found := relativeRootMap[relativeRoot]; found {
-			relativeRootMap[relativeRoot] = append(v, path.src)
+		if path.src.Ext() == protoExt {
+			protoSrcs = append(protoSrcs, path.src)
 		} else {
-			relativeRootMap[relativeRoot] = android.Paths{path.src}
+			var relativeRoot string
+			relativeRoot = strings.TrimSuffix(path.src.String(), path.src.Rel())
+			if v, found := relativeRootMap[relativeRoot]; found {
+				relativeRootMap[relativeRoot] = append(v, path.src)
+			} else {
+				relativeRootMap[relativeRoot] = android.Paths{path.src}
+			}
+		}
+	}
+	var zips android.Paths
+	if len(protoSrcs) > 0 {
+		for _, srcFile := range protoSrcs {
+			zip := genProto(ctx, &p.protoProperties, srcFile,
+				android.ProtoFlags(ctx, &p.protoProperties), pkgPath)
+			zips = append(zips, zip)
 		}
 	}
 
-	var keys []string
+	if len(relativeRootMap) > 0 {
+		var keys []string
 
-	// in order to keep stable order of soong_zip params, we sort the keys here.
-	for k := range relativeRootMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	parArgs := []string{}
-	parArgs = append(parArgs, `-P `+pkgPath)
-	implicits := android.Paths{}
-	for _, k := range keys {
-		parArgs = append(parArgs, `-C `+k)
-		for _, path := range relativeRootMap[k] {
-			parArgs = append(parArgs, `-f `+path.String())
-			implicits = append(implicits, path)
+		// in order to keep stable order of soong_zip params, we sort the keys here.
+		for k := range relativeRootMap {
+			keys = append(keys, k)
 		}
+		sort.Strings(keys)
+
+		parArgs := []string{}
+		parArgs = append(parArgs, `-P `+pkgPath)
+		implicits := android.Paths{}
+		for _, k := range keys {
+			parArgs = append(parArgs, `-C `+k)
+			for _, path := range relativeRootMap[k] {
+				parArgs = append(parArgs, `-f `+path.String())
+				implicits = append(implicits, path)
+			}
+		}
+
+		origSrcsZip := android.PathForModuleOut(ctx, ctx.ModuleName()+".py.srcszip")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        zip,
+			Description: "python library archive",
+			Output:      origSrcsZip,
+			Implicits:   implicits,
+			Args: map[string]string{
+				"args": strings.Join(parArgs, " "),
+			},
+		})
+		zips = append(zips, origSrcsZip)
 	}
-
-	srcsZip := android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        zip,
-		Description: "python library archive",
-		Output:      srcsZip,
-		Implicits:   implicits,
-		Args: map[string]string{
-			"args": strings.Join(parArgs, " "),
-		},
-	})
-
-	return srcsZip
+	if len(zips) == 1 {
+		return zips[0]
+	} else {
+		combinedSrcsZip := android.PathForModuleOut(ctx, ctx.ModuleName()+".srcszip")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        combineZip,
+			Description: "combine python library archive",
+			Output:      combinedSrcsZip,
+			Inputs:      zips,
+		})
+		return combinedSrcsZip
+	}
 }
 
 func isPythonLibModule(module blueprint.Module) bool {
@@ -511,8 +567,9 @@ func isPythonLibModule(module blueprint.Module) bool {
 	return false
 }
 
-// check Python source/data files duplicates from current module and its whole dependencies.
-func (p *Module) uniqWholeRunfilesTree(ctx android.ModuleContext) {
+// check Python source/data files duplicates for whole runfiles tree since Python binary/test
+// need collect and zip all srcs of whole transitive dependencies to a final par file.
+func (p *Module) walkTransitiveDeps(ctx android.ModuleContext) {
 	// fetch <runfiles_path, source_path> pairs from "src" and "data" properties to
 	// check duplicates.
 	destToPySrcs := make(map[string]string)
@@ -530,7 +587,7 @@ func (p *Module) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 		if ctx.OtherModuleDependencyTag(module) != pythonLibTag {
 			return
 		}
-		// Python module cannot depend on modules, except for Python library.
+		// Python modules only can depend on Python libraries.
 		if !isPythonLibModule(module) {
 			panic(fmt.Errorf(
 				"the dependency %q of module %q is not Python library!",
@@ -540,16 +597,14 @@ func (p *Module) uniqWholeRunfilesTree(ctx android.ModuleContext) {
 			srcs := dep.GetSrcsPathMappings()
 			for _, path := range srcs {
 				if !fillInMap(ctx, destToPySrcs,
-					path.dest, path.src.String(), ctx.ModuleName(),
-					ctx.OtherModuleName(module)) {
+					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(module)) {
 					continue
 				}
 			}
 			data := dep.GetDataPathMappings()
 			for _, path := range data {
 				fillInMap(ctx, destToPyData,
-					path.dest, path.src.String(), ctx.ModuleName(),
-					ctx.OtherModuleName(module))
+					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(module))
 			}
 			p.depsSrcsZips = append(p.depsSrcsZips, dep.GetSrcsZip())
 		}
