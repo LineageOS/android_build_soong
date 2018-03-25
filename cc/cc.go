@@ -52,6 +52,8 @@ func init() {
 		ctx.TopDown("tsan_deps", sanitizerDepsMutator(tsan))
 		ctx.BottomUp("tsan", sanitizerMutator(tsan)).Parallel()
 
+		ctx.TopDown("minimal_runtime_deps", minimalRuntimeDepsMutator())
+
 		ctx.BottomUp("coverage", coverageLinkingMutator).Parallel()
 		ctx.TopDown("vndk_deps", sabiDepsMutator)
 
@@ -1421,6 +1423,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&VndkProperties{},
 		&LTOProperties{},
 		&PgoProperties{},
+		&android.ProtoProperties{},
 	)
 
 	android.InitDefaultsModule(module)

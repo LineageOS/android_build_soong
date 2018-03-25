@@ -1277,6 +1277,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(
 		&CompilerProperties{},
 		&CompilerDeviceProperties{},
+		&android.ProtoProperties{},
 	)
 
 	android.InitDefaultsModule(module)

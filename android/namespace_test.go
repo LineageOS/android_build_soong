@@ -628,7 +628,7 @@ func setupTestExpectErrs(bps map[string]string) (ctx *TestContext, errs []error)
 
 func setupTest(t *testing.T, bps map[string]string) (ctx *TestContext) {
 	ctx, errs := setupTestExpectErrs(bps)
-	failIfErrored(t, errs)
+	FailIfErrored(t, errs)
 	return ctx
 }
 
@@ -691,13 +691,4 @@ func newTestModule() Module {
 	m.AddProperties(&m.properties)
 	InitAndroidModule(m)
 	return m
-}
-
-func failIfErrored(t *testing.T, errs []error) {
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Error(err)
-		}
-		t.FailNow()
-	}
 }
