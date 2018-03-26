@@ -601,25 +601,6 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	sharedLibs := deps.SharedLibs
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
 
-	// TODO(danalbert): Clean this up when soong supports prebuilts.
-	if strings.HasPrefix(ctx.selectedStl(), "ndk_libc++") {
-		libDir := getNdkStlLibDir(ctx, "libc++")
-
-		if strings.HasSuffix(ctx.selectedStl(), "_shared") {
-			deps.StaticLibs = append(deps.StaticLibs,
-				libDir.Join(ctx, "libandroid_support.a"))
-		} else {
-			deps.StaticLibs = append(deps.StaticLibs,
-				libDir.Join(ctx, "libc++abi.a"),
-				libDir.Join(ctx, "libandroid_support.a"))
-		}
-
-		if ctx.Arch().ArchType == android.Arm {
-			deps.StaticLibs = append(deps.StaticLibs,
-				libDir.Join(ctx, "libunwind.a"))
-		}
-	}
-
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)

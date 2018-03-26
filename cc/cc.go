@@ -1052,10 +1052,6 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 		// These are always allowed
 		return
 	}
-	if _, ok := to.linker.(*ndkPrebuiltLibraryLinker); ok {
-		// These are allowed, but they don't set sdk_version
-		return
-	}
 	if _, ok := to.linker.(*ndkPrebuiltStlLinker); ok {
 		// These are allowed, but they don't set sdk_version
 		return
