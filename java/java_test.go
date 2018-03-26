@@ -97,6 +97,7 @@ func testContext(config android.Config, bp string,
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
+		"core.current.stubs",
 		"kotlin-stdlib",
 	}
 
@@ -106,6 +107,7 @@ func testContext(config android.Config, bp string,
 				name: "%s",
 				srcs: ["a.java"],
 				no_standard_libs: true,
+				sdk_version: "core_current",
 				system_modules: "core-system-modules",
 			}
 		`, extra)
@@ -212,9 +214,6 @@ func moduleToPath(name string) string {
 		return name
 	case strings.HasSuffix(name, ".jar"):
 		return name
-	case name == "android_stubs_current" || name == "android_system_stubs_current" ||
-		name == "android_test_stubs_current":
-		return filepath.Join(buildDir, ".intermediates", name, "android_common", "javac", name+".jar")
 	default:
 		return filepath.Join(buildDir, ".intermediates", name, "android_common", "turbine-combined", name+".jar")
 	}
@@ -346,17 +345,15 @@ var classpathTestcases = []struct {
 
 		name:          "current",
 		properties:    `sdk_version: "current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"android_stubs_current"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/current/android.jar"},
 	},
 	{
 
 		name:          "system_current",
 		properties:    `sdk_version: "system_current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"android_system_stubs_current"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/system_current/android.jar"},
 	},
 	{
 
@@ -370,17 +367,15 @@ var classpathTestcases = []struct {
 
 		name:          "test_current",
 		properties:    `sdk_version: "test_current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"android_test_stubs_current"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/test_current/android.jar"},
 	},
 	{
 
 		name:          "core_current",
 		properties:    `sdk_version: "core_current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"core.current.stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/current/core.jar"},
 	},
 	{
 
