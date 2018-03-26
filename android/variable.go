@@ -226,6 +226,8 @@ type productVariables struct {
 	NamespacesToExport []string `json:",omitempty"`
 
 	PgoAdditionalProfileDirs []string `json:",omitempty"`
+
+	VendorVars map[string]map[string]string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
