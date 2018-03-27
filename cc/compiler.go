@@ -308,8 +308,13 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	}
 
 	if ctx.useVndk() {
+		// sdkVersion() returns VNDK version for vendor modules.
+		version := ctx.sdkVersion()
+		if version == "current" {
+			version = "__ANDROID_API_FUTURE__"
+		}
 		flags.GlobalFlags = append(flags.GlobalFlags,
-			"-D__ANDROID_API__=__ANDROID_API_FUTURE__", "-D__ANDROID_VNDK__")
+			"-D__ANDROID_API__="+version, "-D__ANDROID_VNDK__")
 	}
 
 	instructionSet := String(compiler.Properties.Instruction_set)
