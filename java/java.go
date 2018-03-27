@@ -178,6 +178,9 @@ type CompilerDeviceProperties struct {
 		// directories that should be added as include directories for any aidl sources of modules
 		// that depend on this module, as well as to aidl for this module.
 		Export_include_dirs []string
+
+		// whether to generate traces (for systrace) for this interface
+		Generate_traces *bool
 	}
 
 	// If true, export a copy of the module as a -hostdex module for host testing.
@@ -556,6 +559,10 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
 	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
+	}
+
+	if Bool(j.deviceProperties.Aidl.Generate_traces) {
+		flags = append(flags, "-t")
 	}
 
 	return flags
