@@ -95,12 +95,6 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, cachePolicyFormat+policy)
 		}
 
-		if ctx.Device() {
-			// Work around bug in Clang that doesn't pass correct emulated
-			// TLS option to target. See b/72706604 or
-			// https://github.com/android-ndk/ndk/issues/498.
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-emulated-tls")
-		}
 		flags.ArGoldPlugin = true
 
 		// If the module does not have a profile, be conservative and do not inline
