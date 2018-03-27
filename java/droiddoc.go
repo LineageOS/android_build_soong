@@ -340,8 +340,6 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		j.properties.Local_sourcepaths = append(j.properties.Local_sourcepaths, ".")
 	}
 	j.sourcepaths = android.PathsForModuleSrc(ctx, j.properties.Local_sourcepaths)
-	j.sourcepaths = append(j.sourcepaths, deps.bootClasspath...)
-	j.sourcepaths = append(j.sourcepaths, deps.classpath...)
 
 	return deps
 }
