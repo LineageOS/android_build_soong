@@ -503,7 +503,7 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
 		if ctx.useVndk() {
 			vndk_ver := ctx.ctx.DeviceConfig().VndkVersion()
-			if vndk_ver  == "current" {
+			if vndk_ver == "current" {
 				platform_vndk_ver := ctx.ctx.DeviceConfig().PlatformVndkVersion()
 				if inList(platform_vndk_ver, ctx.ctx.Config().PlatformVersionCombinedCodenames()) {
 					return "current"
