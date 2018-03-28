@@ -70,7 +70,7 @@ func (fg *fileGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (fg *fileGroup) Srcs() android.Paths {
-	return fg.srcs
+	return append(android.Paths{}, fg.srcs...)
 }
 
 var androidMkTemplate = template.Must(template.New("filegroup").Parse(`
