@@ -55,6 +55,7 @@ do_strip_keep_mini_debug_info() {
         "${CROSS_COMPILE}nm" -D "${infile}" --format=posix --defined-only | awk '{ print $$1 }' | sort >"${outfile}.dynsyms"
         "${CROSS_COMPILE}nm" "${infile}" --format=posix --defined-only | awk '{ if ($$2 == "T" || $$2 == "t" || $$2 == "D") print $$1 }' | sort > "${outfile}.funcsyms"
         comm -13 "${outfile}.dynsyms" "${outfile}.funcsyms" > "${outfile}.keep_symbols"
+        echo >> "${outfile}.keep_symbols" # Ensure that the keep_symbols file is not empty.
         "${CROSS_COMPILE}objcopy" --rename-section .debug_frame=saved_debug_frame "${outfile}.debug" "${outfile}.mini_debuginfo"
         "${CROSS_COMPILE}objcopy" -S --remove-section .gdb_index --remove-section .comment --keep-symbols="${outfile}.keep_symbols" "${outfile}.mini_debuginfo"
         "${CROSS_COMPILE}objcopy" --rename-section saved_debug_frame=.debug_frame "${outfile}.mini_debuginfo"
