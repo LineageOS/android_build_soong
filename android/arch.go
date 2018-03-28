@@ -784,14 +784,18 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 
-			if arch.ArchType == X86 && (hasArmAbi(arch) ||
-				hasArmAndroidArch(ctx.Config().Targets[Device])) {
+			if (arch.ArchType == X86 && (hasArmAbi(arch) ||
+				hasArmAndroidArch(ctx.Config().Targets[Device]))) ||
+				(arch.ArchType == Arm &&
+					hasX86AndroidArch(ctx.Config().Targets[Device])) {
 				field := "Arm_on_x86"
 				prefix := "target.arm_on_x86"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
-			if arch.ArchType == X86_64 && (hasArmAbi(arch) ||
-				hasArmAndroidArch(ctx.Config().Targets[Device])) {
+			if (arch.ArchType == X86_64 && (hasArmAbi(arch) ||
+				hasArmAndroidArch(ctx.Config().Targets[Device]))) ||
+				(arch.ArchType == Arm &&
+					hasX8664AndroidArch(ctx.Config().Targets[Device])) {
 				field := "Arm_on_x86_64"
 				prefix := "target.arm_on_x86_64"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
@@ -908,6 +912,26 @@ func hasArmAbi(arch Arch) bool {
 func hasArmAndroidArch(targets []Target) bool {
 	for _, target := range targets {
 		if target.Os == Android && target.Arch.ArchType == Arm {
+			return true
+		}
+	}
+	return false
+}
+
+// hasX86Arch returns true if targets has at least x86 Android arch
+func hasX86AndroidArch(targets []Target) bool {
+	for _, target := range targets {
+		if target.Os == Android && target.Arch.ArchType == X86 {
+			return true
+		}
+	}
+	return false
+}
+
+// hasX8664Arch returns true if targets has at least x86_64 Android arch
+func hasX8664AndroidArch(targets []Target) bool {
+	for _, target := range targets {
+		if target.Os == Android && target.Arch.ArchType == X86_64 {
 			return true
 		}
 	}
