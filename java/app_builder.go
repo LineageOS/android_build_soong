@@ -96,3 +96,39 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 		},
 	})
 }
+
+var buildAAR = pctx.AndroidStaticRule("buildAAR",
+	blueprint.RuleParams{
+		Command: `rm -rf ${outDir} && mkdir -p ${outDir} && ` +
+			`cp ${manifest} ${outDir}/AndroidManifest.xml && ` +
+			`cp ${classesJar} ${outDir}/classes.jar && ` +
+			`cp ${rTxt} ${outDir}/R.txt && ` +
+			`${config.SoongZipCmd} -jar -o $out -C ${outDir} -D ${outDir} ${resArgs}`,
+		CommandDeps: []string{"${config.SoongZipCmd}"},
+	},
+	"manifest", "classesJar", "rTxt", "resArgs", "outDir")
+
+func BuildAAR(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar, manifest, rTxt android.Path, res android.Paths) {
+
+	// TODO(ccross): uniquify and copy resources with dependencies
+
+	deps := android.Paths{manifest, rTxt}
+	classesJarPath := ""
+	if classesJar != nil {
+		deps = append(deps, classesJar)
+		classesJarPath = classesJar.String()
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:      buildAAR,
+		Implicits: deps,
+		Output:    outputFile,
+		Args: map[string]string{
+			"manifest":   manifest.String(),
+			"classesJar": classesJarPath,
+			"rTxt":       rTxt.String(),
+			"outDir":     android.PathForModuleOut(ctx, "aar").String(),
+		},
+	})
+}
