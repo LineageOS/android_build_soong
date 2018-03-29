@@ -106,7 +106,7 @@ func TestPanic(t *testing.T) {
 			if p == panicValue {
 				os.Exit(42)
 			} else {
-				fmt.Fprintln(os.Stderr, "Expected %q, got %v", panicValue, p)
+				fmt.Fprintf(os.Stderr, "Expected %q, got %v\n", panicValue, p)
 				os.Exit(3)
 			}
 		}()

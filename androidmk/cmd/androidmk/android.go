@@ -258,7 +258,7 @@ func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expr
 		}
 	case *bpparser.Operator:
 		if v.Type() != bpparser.StringType {
-			return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", value.Type)
+			return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", v.Type())
 		}
 
 		if v.Operator != '+' {
@@ -289,7 +289,7 @@ func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expr
 	case *bpparser.String:
 		return "global", value, nil
 	default:
-		return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", value.Type)
+		return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", v.Type())
 
 	}
 }
