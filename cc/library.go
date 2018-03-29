@@ -532,6 +532,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
 			linkerDeps = append(linkerDeps, versionScript.Path())
 			if library.sanitize.isSanitizerEnabled(cfi) {
+				cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
 				flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+cfiExportsMap.String())
 				linkerDeps = append(linkerDeps, cfiExportsMap)
 			}
