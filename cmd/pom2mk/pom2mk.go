@@ -89,6 +89,16 @@ var sdkVersion string
 var useVersion string
 var staticDeps bool
 
+func InList(s string, list []string) bool {
+	for _, l := range list {
+		if l == s {
+			return true
+		}
+	}
+
+	return false
+}
+
 type Dependency struct {
 	XMLName xml.Name `xml:"dependency"`
 
@@ -139,19 +149,19 @@ func (p Pom) MkName() string {
 }
 
 func (p Pom) MkJarDeps() []string {
-	return p.MkDeps("jar", "compile")
+	return p.MkDeps("jar", []string{"compile", "runtime"})
 }
 
 func (p Pom) MkAarDeps() []string {
-	return p.MkDeps("aar", "compile")
+	return p.MkDeps("aar", []string{"compile", "runtime"})
 }
 
 // MkDeps obtains dependencies filtered by type and scope. The results of this
 // method are formatted as Make targets, e.g. run through MavenToMk rules.
-func (p Pom) MkDeps(typeExt string, scope string) []string {
+func (p Pom) MkDeps(typeExt string, scopes []string) []string {
 	var ret []string
 	for _, d := range p.Dependencies {
-		if d.Type != typeExt || d.Scope != scope {
+		if d.Type != typeExt || !InList(d.Scope, scopes) {
 			continue
 		}
 		name := rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
@@ -363,7 +373,6 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 			if old, ok := modules[key]; ok {
 				fmt.Fprintln(os.Stderr, "Module", key, "defined twice:", old.PomFile, pom.PomFile)
-				os.Exit(1)
 			}
 
 			modules[key] = pom
