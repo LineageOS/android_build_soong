@@ -360,6 +360,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 	poms := []*Pom{}
 	modules := make(map[string]*Pom)
+	duplicate := false
 	for _, filename := range filenames {
 		pom, err := parse(filename)
 		if err != nil {
@@ -373,10 +374,14 @@ The makefile is written to stdout, to be put in the current directory (often as 
 
 			if old, ok := modules[key]; ok {
 				fmt.Fprintln(os.Stderr, "Module", key, "defined twice:", old.PomFile, pom.PomFile)
+				duplicate = true
 			}
 
 			modules[key] = pom
 		}
+	}
+	if duplicate {
+		os.Exit(1)
 	}
 
 	for _, pom := range poms {
