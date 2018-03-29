@@ -39,7 +39,6 @@ var (
 	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
 		"-Wl,-plugin-opt,O1"}
 	cfiExportsMapPath  = "build/soong/cc/config/cfi_exports.map"
-	cfiExportsMap      android.Path
 	cfiStaticLibsMutex sync.Mutex
 
 	intOverflowCflags   = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
@@ -284,8 +283,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			ctx.ModuleErrorf(`Use of "coverage" also requires "address"`)
 		}
 	}
-
-	cfiExportsMap = android.PathForSource(ctx, cfiExportsMapPath)
 }
 
 func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
