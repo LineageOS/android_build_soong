@@ -125,7 +125,7 @@ func (g *Module) GeneratedSourceFiles() android.Paths {
 }
 
 func (g *Module) Srcs() android.Paths {
-	return g.outputFiles
+	return append(android.Paths{}, g.outputFiles...)
 }
 
 func (g *Module) GeneratedHeaderDirs() android.Paths {
