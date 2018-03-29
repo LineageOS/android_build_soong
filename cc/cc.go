@@ -502,10 +502,17 @@ func (ctx *moduleContextImpl) useSdk() bool {
 func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
 		if ctx.useVndk() {
-			return "current"
-		} else {
-			return String(ctx.mod.Properties.Sdk_version)
+			vndk_ver := ctx.ctx.DeviceConfig().VndkVersion()
+			if vndk_ver == "current" {
+				platform_vndk_ver := ctx.ctx.DeviceConfig().PlatformVndkVersion()
+				if inList(platform_vndk_ver, ctx.ctx.Config().PlatformVersionCombinedCodenames()) {
+					return "current"
+				}
+				return platform_vndk_ver
+			}
+			return vndk_ver
 		}
+		return String(ctx.mod.Properties.Sdk_version)
 	}
 	return ""
 }
@@ -538,7 +545,7 @@ func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
 		isUnsanitizedVariant = sanitize.isUnsanitizedVariant()
 	}
 	vendorAvailable := Bool(ctx.mod.VendorProperties.Vendor_available)
-	return vendorAvailable && isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk()) || inList(ctx.baseModuleName(), llndkLibraries))
+	return isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && vendorAvailable) || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
