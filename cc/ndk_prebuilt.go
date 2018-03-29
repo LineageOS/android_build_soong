@@ -23,7 +23,6 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("ndk_prebuilt_library", ndkPrebuiltLibraryFactory)
 	android.RegisterModuleType("ndk_prebuilt_object", ndkPrebuiltObjectFactory)
 	android.RegisterModuleType("ndk_prebuilt_static_stl", ndkPrebuiltStaticStlFactory)
 	android.RegisterModuleType("ndk_prebuilt_shared_stl", ndkPrebuiltSharedStlFactory)
@@ -80,66 +79,32 @@ func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
 	deps PathDeps, objs Objects) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_crt") {
-		ctx.ModuleErrorf("NDK prebuilts must have an ndk_crt prefixed name")
+		ctx.ModuleErrorf("NDK prebuilt objects must have an ndk_crt prefixed name")
 	}
 
 	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, objectExtension, ctx.sdkVersion())
 }
 
-type ndkPrebuiltLibraryLinker struct {
+type ndkPrebuiltStlLinker struct {
 	*libraryDecorator
 }
 
-func (ndk *ndkPrebuiltLibraryLinker) linkerProps() []interface{} {
+func (ndk *ndkPrebuiltStlLinker) linkerProps() []interface{} {
 	return append(ndk.libraryDecorator.linkerProps(), &ndk.Properties, &ndk.flagExporter.Properties)
 }
 
-func (*ndkPrebuiltLibraryLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
+func (*ndkPrebuiltStlLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	// NDK libraries can't have any dependencies
 	return deps
-}
-
-func ndkPrebuiltLibraryFactory() android.Module {
-	module, library := NewLibrary(android.DeviceSupported)
-	library.BuildOnlyShared()
-	linker := &ndkPrebuiltLibraryLinker{
-		libraryDecorator: library,
-	}
-	module.compiler = nil
-	module.linker = linker
-	module.installer = nil
-	module.stl = nil
-	module.Properties.HideFromMake = true
-	return module.Init()
-}
-
-func (ndk *ndkPrebuiltLibraryLinker) link(ctx ModuleContext, flags Flags,
-	deps PathDeps, objs Objects) android.Path {
-	// A null build step, but it sets up the output path.
-	ndk.exportIncludes(ctx, "-isystem")
-
-	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, flags.Toolchain.ShlibSuffix(),
-		ctx.sdkVersion())
-}
-
-// The NDK STLs are slightly different from the prebuilt system libraries:
-//     * Are not specific to each platform version.
-//     * The libraries are not in a predictable location for each STL.
-
-type ndkPrebuiltStlLinker struct {
-	ndkPrebuiltLibraryLinker
 }
 
 func ndkPrebuiltSharedStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyShared()
-	linker := &ndkPrebuiltStlLinker{
-		ndkPrebuiltLibraryLinker: ndkPrebuiltLibraryLinker{
-			libraryDecorator: library,
-		},
-	}
 	module.compiler = nil
-	module.linker = linker
+	module.linker = &ndkPrebuiltStlLinker{
+		libraryDecorator: library,
+	}
 	module.installer = nil
 	minVersionString := "minimum"
 	noStlString := "none"
@@ -151,29 +116,25 @@ func ndkPrebuiltSharedStlFactory() android.Module {
 func ndkPrebuiltStaticStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyStatic()
-	linker := &ndkPrebuiltStlLinker{
-		ndkPrebuiltLibraryLinker: ndkPrebuiltLibraryLinker{
-			libraryDecorator: library,
-		},
-	}
 	module.compiler = nil
-	module.linker = linker
+	module.linker = &ndkPrebuiltStlLinker{
+		libraryDecorator: library,
+	}
 	module.installer = nil
 	module.Properties.HideFromMake = true
 	return module.Init()
 }
 
-func getNdkStlLibDir(ctx android.ModuleContext, stl string) android.SourcePath {
-	libDir := "cxx-stl/llvm-libc++/libs"
-	ndkSrcRoot := "prebuilts/ndk/current/sources"
-	return android.PathForSource(ctx, ndkSrcRoot).Join(ctx, libDir, ctx.Arch().Abi[0])
+func getNdkStlLibDir(ctx android.ModuleContext) android.SourcePath {
+	libDir := "prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs"
+	return android.PathForSource(ctx, libDir).Join(ctx, ctx.Arch().Abi[0])
 }
 
 func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 	deps PathDeps, objs Objects) android.Path {
 	// A null build step, but it sets up the output path.
 	if !strings.HasPrefix(ctx.ModuleName(), "ndk_lib") {
-		ctx.ModuleErrorf("NDK prebuilts must have an ndk_lib prefixed name")
+		ctx.ModuleErrorf("NDK prebuilt libraries must have an ndk_lib prefixed name")
 	}
 
 	ndk.exportIncludes(ctx, "-isystem")
@@ -184,8 +145,6 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 		libExt = staticLibraryExtension
 	}
 
-	stlName := strings.TrimSuffix(libName, "_shared")
-	stlName = strings.TrimSuffix(stlName, "_static")
-	libDir := getNdkStlLibDir(ctx, stlName)
+	libDir := getNdkStlLibDir(ctx)
 	return libDir.Join(ctx, libName+libExt)
 }
