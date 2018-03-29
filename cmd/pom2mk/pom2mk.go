@@ -305,7 +305,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 	dir := flag.Arg(0)
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		fmt.Println(os.Stderr, "Failed to get absolute directory:", err)
+		fmt.Fprintln(os.Stderr, "Failed to get absolute directory:", err)
 		os.Exit(1)
 	}
 

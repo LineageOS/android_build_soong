@@ -67,7 +67,7 @@ func FixTree(tree *parser.File, config FixRequest) error {
 		// detect infinite loop
 		i++
 		if i >= maxNumIterations {
-			return fmt.Errorf("Applied fixes %s times and yet the tree continued to change. Is there an infinite loop?", i)
+			return fmt.Errorf("Applied fixes %d times and yet the tree continued to change. Is there an infinite loop?", i)
 			break
 		}
 	}

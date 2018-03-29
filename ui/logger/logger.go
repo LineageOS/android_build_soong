@@ -85,7 +85,7 @@ func fileRotation(from, baseName, ext string, cur, max int) error {
 	}
 
 	if err := os.Rename(from, newName); err != nil {
-		return fmt.Errorf("Failed to rotate", from, "to", newName, ".", err)
+		return fmt.Errorf("Failed to rotate %s to %s. %s", from, newName, err)
 	}
 	return nil
 }
