@@ -36,6 +36,7 @@ func androidMakeVarsProvider(ctx MakeVarsContext) {
 // Interface for other packages to use to declare make variables
 type MakeVarsContext interface {
 	Config() Config
+	SingletonContext() SingletonContext
 
 	// Verify the make variable matches the Soong version, fail the build
 	// if it does not. If the make variable is empty, just set it.
@@ -228,6 +229,10 @@ my_check_failed :=
 
 func (c *makeVarsContext) Config() Config {
 	return c.config
+}
+
+func (c *makeVarsContext) SingletonContext() SingletonContext {
+	return c.ctx
 }
 
 func (c *makeVarsContext) Eval(ninjaStr string) (string, error) {
