@@ -150,22 +150,39 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, ta
 		return
 	}
 
-	// VNDK-core and VNDK-SP must not depend on VNDK extensions.
-	if (vndk.isVndk() || vndk.isVndkSp()) && !vndk.isVndkExt() && to.vndkdep.isVndkExt() {
+	// Check the dependencies of VNDK shared libraries.
+	if !vndkIsVndkDepAllowed(vndk, to.vndkdep) {
 		ctx.ModuleErrorf("(%s) should not link to %q (%s)",
 			vndk.typeName(), to.Name(), to.vndkdep.typeName())
 		return
 	}
+}
 
-	// VNDK-core must be only depend on VNDK-SP or LL-NDK. VNDK-SP must only depend on
-	// LL-NDK, regardless the extension status. VNDK-Ext may depend on vendor libraries, but
-	// VNDK-SP-Ext must remain self-contained.
-	if (vndk.isVndk() && !to.vndkdep.isVndk() && !vndk.isVndkExt()) ||
-		(vndk.isVndkSp() && !to.vndkdep.isVndkSp()) {
-		ctx.ModuleErrorf("(%s) should not link to %q (%s)",
-			vndk.typeName(), to.Name(), to.vndkdep.typeName())
-		return
+func vndkIsVndkDepAllowed(from *vndkdep, to *vndkdep) bool {
+	// Check the dependencies of VNDK, VNDK-Ext, VNDK-SP, VNDK-SP-Ext and vendor modules.
+	if from.isVndkExt() {
+		if from.isVndkSp() {
+			// VNDK-SP-Ext may depend on VNDK-SP, VNDK-SP-Ext, or vendor libs (excluding
+			// VNDK and VNDK-Ext).
+			return to.isVndkSp() || !to.isVndk()
+		}
+		// VNDK-Ext may depend on VNDK, VNDK-Ext, VNDK-SP, VNDK-SP-Ext, or vendor libs.
+		return true
 	}
+	if from.isVndk() {
+		if to.isVndkExt() {
+			// VNDK-core and VNDK-SP must not depend on VNDK extensions.
+			return false
+		}
+		if from.isVndkSp() {
+			// VNDK-SP must only depend on VNDK-SP.
+			return to.isVndkSp()
+		}
+		// VNDK-core may depend on VNDK-core or VNDK-SP.
+		return to.isVndk()
+	}
+	// Vendor modules may depend on VNDK, VNDK-Ext, VNDK-SP, VNDK-SP-Ext, or vendor libs.
+	return true
 }
 
 var (
