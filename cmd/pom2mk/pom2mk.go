@@ -195,9 +195,10 @@ LOCAL_BUILT_MODULE_STEM := javalib.jar
 LOCAL_MODULE_SUFFIX := .{{.Packaging}}
 LOCAL_USE_AAPT2 := true
 LOCAL_SDK_VERSION := {{.SdkVersion}}
-LOCAL_STATIC_ANDROID_LIBRARIES := \
-{{range .MkAarDeps}}  {{.}} \
-{{end}}
+LOCAL_STATIC_JAVA_LIBRARIES :={{range .MkJarDeps}} \
+  {{.}}{{end}}
+LOCAL_STATIC_ANDROID_LIBRARIES :={{range .MkAarDeps}} \
+  {{.}}{{end}}
 include $(BUILD_PREBUILT)
 `))
 
@@ -304,7 +305,7 @@ The makefile is written to stdout, to be put in the current directory (often as 
 	dir := flag.Arg(0)
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		fmt.Println(os.Stderr, "Failed to get absolute directory:", err)
+		fmt.Fprintln(os.Stderr, "Failed to get absolute directory:", err)
 		os.Exit(1)
 	}
 

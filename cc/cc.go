@@ -503,7 +503,7 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
 		if ctx.useVndk() {
 			vndk_ver := ctx.ctx.DeviceConfig().VndkVersion()
-			if vndk_ver  == "current" {
+			if vndk_ver == "current" {
 				platform_vndk_ver := ctx.ctx.DeviceConfig().PlatformVndkVersion()
 				if inList(platform_vndk_ver, ctx.ctx.Config().PlatformVersionCombinedCodenames()) {
 					return "current"
@@ -545,7 +545,7 @@ func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
 		isUnsanitizedVariant = sanitize.isUnsanitizedVariant()
 	}
 	vendorAvailable := Bool(ctx.mod.VendorProperties.Vendor_available)
-	return vendorAvailable && isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk()) || inList(ctx.baseModuleName(), llndkLibraries))
+	return isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && vendorAvailable) || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -922,6 +922,16 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					}
 				} else if ctx.useVndk() && inList(entry, llndkLibraries) {
 					nonvariantLibs = append(nonvariantLibs, entry+llndkLibrarySuffix)
+				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(entry, vendorPublicLibraries) {
+					vendorPublicLib := entry + vendorPublicLibrarySuffix
+					if actx.OtherModuleExists(vendorPublicLib) {
+						nonvariantLibs = append(nonvariantLibs, vendorPublicLib)
+					} else {
+						// This can happen if vendor_public_library module is defined in a
+						// namespace that isn't visible to the current module. In that case,
+						// link to the original library.
+						nonvariantLibs = append(nonvariantLibs, entry)
+					}
 				} else {
 					nonvariantLibs = append(nonvariantLibs, entry)
 				}
@@ -1050,10 +1060,6 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 	}
 	if _, ok := to.linker.(*toolchainLibraryDecorator); ok {
 		// These are always allowed
-		return
-	}
-	if _, ok := to.linker.(*ndkPrebuiltLibraryLinker); ok {
-		// These are allowed, but they don't set sdk_version
 		return
 	}
 	if _, ok := to.linker.(*ndkPrebuiltStlLinker); ok {
@@ -1310,14 +1316,18 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		switch depTag {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
 			libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
+			libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
 			isLLndk := inList(libName, llndkLibraries)
+			isVendorPublicLib := inList(libName, vendorPublicLibraries)
 			var makeLibName string
 			bothVendorAndCoreVariantsExist := ccDep.hasVendorVariant() || isLLndk
 			if c.useVndk() && bothVendorAndCoreVariantsExist {
 				// The vendor module in Make will have been renamed to not conflict with the core
 				// module, so update the dependency name here accordingly.
 				makeLibName = libName + vendorSuffix
+			} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
+				makeLibName = libName + vendorPublicLibrarySuffix
 			} else {
 				makeLibName = libName
 			}

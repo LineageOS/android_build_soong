@@ -67,7 +67,9 @@ var (
 
 	partialLd = pctx.AndroidStaticRule("partialLd",
 		blueprint.RuleParams{
-			Command:     "$ldCmd -nostdlib -Wl,-r ${in} -o ${out} ${ldFlags}",
+			// Without -no-pie, clang 7.0 adds -pie to link Android files,
+			// but -r and -pie cannot be used together.
+			Command:     "$ldCmd -nostdlib -no-pie -Wl,-r ${in} -o ${out} ${ldFlags}",
 			CommandDeps: []string{"$ldCmd"},
 		},
 		"ldCmd", "ldFlags")
