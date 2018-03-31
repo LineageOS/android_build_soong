@@ -174,6 +174,7 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 }
 
 func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.TestContext {
+	t.Helper()
 	ctx := createTestContext(t, config, bp)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -185,6 +186,7 @@ func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.T
 }
 
 func testCc(t *testing.T, bp string) *android.TestContext {
+	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
 	config.ProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.ProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -193,6 +195,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 }
 
 func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
+	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
 	config.ProductVariables.Platform_vndk_version = StringPtr("VER")
 
@@ -200,6 +203,7 @@ func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 }
 
 func testCcError(t *testing.T, pattern string, bp string) {
+	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
 	config.ProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.ProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -255,6 +259,8 @@ func TestVendorSrc(t *testing.T) {
 
 func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string,
 	isVndkSp bool, extends string) {
+
+	t.Helper()
 
 	mod := ctx.ModuleForTests(name, vendorVariant).Module().(*Module)
 	if !mod.hasVendorVariant() {
@@ -339,6 +345,107 @@ func TestVndk(t *testing.T) {
 	checkVndkModule(t, ctx, "libvndk_sp_private", "vndk-sp-VER", true, "")
 }
 
+func TestVndkDepError(t *testing.T) {
+	// Check whether an error is emitted when a VNDK lib depends on a system lib.
+	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			shared_libs: ["libfwk"],  // Cause error
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libfwk",
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK lib depends on a vendor lib.
+	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			shared_libs: ["libvendor"],  // Cause error
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvendor",
+			vendor: true,
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK-SP lib depends on a system lib.
+	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
+		cc_library {
+			name: "libvndk_sp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			shared_libs: ["libfwk"],  // Cause error
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libfwk",
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK-SP lib depends on a vendor lib.
+	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
+		cc_library {
+			name: "libvndk_sp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			shared_libs: ["libvendor"],  // Cause error
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvendor",
+			vendor: true,
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK-SP lib depends on a VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndk_sp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			shared_libs: ["libvndk"],  // Cause error
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+	`)
+}
+
 func TestVndkExt(t *testing.T) {
 	// This test checks the VNDK-Ext properties.
 	ctx := testCc(t, `
@@ -365,7 +472,7 @@ func TestVndkExt(t *testing.T) {
 	checkVndkModule(t, ctx, "libvndk_ext", "vndk", false, "libvndk")
 }
 
-func TestVndkExtNoVndk(t *testing.T) {
+func TestVndkExtWithoutBoardVndkVersion(t *testing.T) {
 	// This test checks the VNDK-Ext properties when BOARD_VNDK_VERSION is not set.
 	ctx := testCcNoVndk(t, `
 		cc_library {
@@ -486,7 +593,7 @@ func TestVndkExtInconsistentSupportSystemProcessError(t *testing.T) {
 }
 
 func TestVndkExtVendorAvailableFalseError(t *testing.T) {
-	// This test ensures an error is emitted when a vndk-ext library extends a vndk library
+	// This test ensures an error is emitted when a VNDK-Ext library extends a VNDK library
 	// with `vendor_available: false`.
 	testCcError(t, "`extends` refers module \".*\" which does not have `vendor_available: true`", `
 		cc_library {
@@ -510,8 +617,8 @@ func TestVndkExtVendorAvailableFalseError(t *testing.T) {
 	`)
 }
 
-func TestVendorModuleUsesVndkExt(t *testing.T) {
-	// This test ensures a vendor module can depend on a vndk-ext library.
+func TestVendorModuleUseVndkExt(t *testing.T) {
+	// This test ensures a vendor module can depend on a VNDK-Ext library.
 	testCc(t, `
 		cc_library {
 			name: "libvndk",
@@ -563,8 +670,8 @@ func TestVendorModuleUsesVndkExt(t *testing.T) {
 	`)
 }
 
-func TestVndkExtUsesVendorLib(t *testing.T) {
-	// This test ensures a vndk-ext library can depend on a vendor library.
+func TestVndkExtUseVendorLib(t *testing.T) {
+	// This test ensures a VNDK-Ext library can depend on a vendor library.
 	testCc(t, `
 		cc_library {
 			name: "libvndk",
@@ -592,12 +699,9 @@ func TestVndkExtUsesVendorLib(t *testing.T) {
 			nocrt: true,
 		}
 	`)
-}
 
-func TestVndkSpExtUsesVendorLibError(t *testing.T) {
-	// This test ensures an error is emitted if a vndk-sp-ext library depends on a vendor
-	// library.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+	// This test ensures a VNDK-SP-Ext library can depend on a vendor library.
+	testCc(t, `
 		cc_library {
 			name: "libvndk_sp",
 			vendor_available: true,
@@ -628,9 +732,91 @@ func TestVndkSpExtUsesVendorLibError(t *testing.T) {
 	`)
 }
 
-func TestVndkUsesVndkExtError(t *testing.T) {
-	// This test ensures an error is emitted if a vndk/vndk-sp library depends on a
-	// vndk-ext/vndk-sp-ext library.
+func TestVndkSpExtUseVndkError(t *testing.T) {
+	// This test ensures an error is emitted if a VNDK-SP-Ext library depends on a VNDK
+	// library.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvndk_sp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvndk_sp_ext",
+			vendor: true,
+			vndk: {
+				enabled: true,
+				extends: "libvndk_sp",
+				support_system_process: true,
+			},
+			shared_libs: ["libvndk"],  // Cause an error
+			nocrt: true,
+		}
+	`)
+
+	// This test ensures an error is emitted if a VNDK-SP-Ext library depends on a VNDK-Ext
+	// library.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvndk_ext",
+			vendor: true,
+			vndk: {
+				enabled: true,
+				extends: "libvndk",
+			},
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvndk_sp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libvndk_sp_ext",
+			vendor: true,
+			vndk: {
+				enabled: true,
+				extends: "libvndk_sp",
+				support_system_process: true,
+			},
+			shared_libs: ["libvndk_ext"],  // Cause an error
+			nocrt: true,
+		}
+	`)
+}
+
+func TestVndkUseVndkExtError(t *testing.T) {
+	// This test ensures an error is emitted if a VNDK/VNDK-SP library depends on a
+	// VNDK-Ext/VNDK-SP-Ext library.
 	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
 		cc_library {
 			name: "libvndk",
