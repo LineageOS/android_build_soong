@@ -56,15 +56,18 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
+	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(toolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(llndkLibraryFactory))
 	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
+	ctx.RegisterModuleType("vendor_public_library", android.ModuleFactoryAdaptor(vendorPublicLibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(objectFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("link", linkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
+		ctx.BottomUp("begin", beginMutator).Parallel()
 	})
 	ctx.Register()
 
@@ -114,6 +117,34 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		llndk_library {
 			name: "libdl",
 			symbol_file: "",
+		}
+		cc_library {
+			name: "libc++_static",
+			no_libgcc: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+			vendor_available: true,
+		}
+		cc_library {
+			name: "libc++",
+			no_libgcc: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+		}
+		cc_library {
+			name: "libunwind_llvm",
+			no_libgcc: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+			vendor_available: true,
 		}
 
 		cc_object {
@@ -1263,16 +1294,20 @@ func TestStaticLibDepReordering(t *testing.T) {
 	cc_library {
 		name: "a",
 		static_libs: ["b", "c", "d"],
+		stl: "none",
 	}
 	cc_library {
 		name: "b",
+		stl: "none",
 	}
 	cc_library {
 		name: "c",
 		static_libs: ["b"],
+		stl: "none",
 	}
 	cc_library {
 		name: "d",
+		stl: "none",
 	}
 
 	`)
@@ -1297,13 +1332,16 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 	cc_library {
 		name: "a",
 		static_libs: ["b", "c"],
+		stl: "none",
 	}
 	cc_library {
 		name: "b",
+		stl: "none",
 	}
 	cc_library {
 		name: "c",
 		shared_libs: ["b"],
+		stl: "none",
 	}
 
 	`)
@@ -1434,4 +1472,69 @@ func TestCompilerFlags(t *testing.T) {
 			t.Errorf("       got: %#v", ctx.result)
 		}
 	}
+}
+
+func TestVendorPublicLibraries(t *testing.T) {
+	ctx := testCc(t, `
+	cc_library_headers {
+		name: "libvendorpublic_headers",
+		export_include_dirs: ["my_include"],
+	}
+	vendor_public_library {
+		name: "libvendorpublic",
+		symbol_file: "",
+		export_public_headers: ["libvendorpublic_headers"],
+	}
+	cc_library {
+		name: "libvendorpublic",
+		srcs: ["foo.c"],
+		vendor: true,
+		no_libgcc: true,
+		nocrt: true,
+	}
+
+	cc_library {
+		name: "libsystem",
+		shared_libs: ["libvendorpublic"],
+		vendor: false,
+		srcs: ["foo.c"],
+		no_libgcc: true,
+		nocrt: true,
+	}
+	cc_library {
+		name: "libvendor",
+		shared_libs: ["libvendorpublic"],
+		vendor: true,
+		srcs: ["foo.c"],
+		no_libgcc: true,
+		nocrt: true,
+	}
+	`)
+
+	variant := "android_arm64_armv8-a_core_shared"
+
+	// test if header search paths are correctly added
+	// _static variant is used since _shared reuses *.o from the static variant
+	cc := ctx.ModuleForTests("libsystem", strings.Replace(variant, "_shared", "_static", 1)).Rule("cc")
+	cflags := cc.Args["cFlags"]
+	if !strings.Contains(cflags, "-Imy_include") {
+		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
+	}
+
+	// test if libsystem is linked to the stub
+	ld := ctx.ModuleForTests("libsystem", variant).Rule("ld")
+	libflags := ld.Args["libFlags"]
+	stubPaths := getOutputPaths(ctx, variant, []string{"libvendorpublic" + vendorPublicLibrarySuffix})
+	if !strings.Contains(libflags, stubPaths[0].String()) {
+		t.Errorf("libflags for libsystem must contain %#v, but was %#v", stubPaths[0], libflags)
+	}
+
+	// test if libvendor is linked to the real shared lib
+	ld = ctx.ModuleForTests("libvendor", strings.Replace(variant, "_core", "_vendor", 1)).Rule("ld")
+	libflags = ld.Args["libFlags"]
+	stubPaths = getOutputPaths(ctx, strings.Replace(variant, "_core", "_vendor", 1), []string{"libvendorpublic"})
+	if !strings.Contains(libflags, stubPaths[0].String()) {
+		t.Errorf("libflags for libvendor must contain %#v, but was %#v", stubPaths[0], libflags)
+	}
+
 }
