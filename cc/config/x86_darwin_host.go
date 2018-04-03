@@ -273,7 +273,17 @@ func (t *toolchainDarwinX86) ClangLdflags() string {
 	return "${config.DarwinClangLdflags} ${config.DarwinX86ClangLdflags}"
 }
 
+func (t *toolchainDarwinX86) ClangLldflags() string {
+	// TODO: define and use Darwin*ClangLldflags
+	return "${config.DarwinClangLdflags} ${config.DarwinX86ClangLdflags}"
+}
+
 func (t *toolchainDarwinX8664) ClangLdflags() string {
+	return "${config.DarwinClangLdflags} ${config.DarwinX8664ClangLdflags}"
+}
+
+func (t *toolchainDarwinX8664) ClangLldflags() string {
+	// TODO: define and use Darwin*ClangLldflags
 	return "${config.DarwinClangLdflags} ${config.DarwinX8664ClangLdflags}"
 }
 

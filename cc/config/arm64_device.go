@@ -35,6 +35,9 @@ var (
 		"-Wl,--icf=safe",
 	}
 
+	arm64Lldflags = append(ClangFilterUnknownLldflags(arm64Ldflags),
+		"-Wl,-z,max-page-size=4096")
+
 	arm64Cppflags = []string{}
 
 	arm64CpuVariantCflags = map[string][]string{
@@ -81,11 +84,13 @@ func init() {
 
 	pctx.StaticVariable("Arm64Cflags", strings.Join(arm64Cflags, " "))
 	pctx.StaticVariable("Arm64Ldflags", strings.Join(arm64Ldflags, " "))
+	pctx.StaticVariable("Arm64Lldflags", strings.Join(arm64Lldflags, " "))
 	pctx.StaticVariable("Arm64Cppflags", strings.Join(arm64Cppflags, " "))
 	pctx.StaticVariable("Arm64IncludeFlags", bionicHeaders("arm64"))
 
 	pctx.StaticVariable("Arm64ClangCflags", strings.Join(ClangFilterUnknownCflags(arm64Cflags), " "))
 	pctx.StaticVariable("Arm64ClangLdflags", strings.Join(ClangFilterUnknownCflags(arm64Ldflags), " "))
+	pctx.StaticVariable("Arm64ClangLldflags", strings.Join(ClangFilterUnknownCflags(arm64Lldflags), " "))
 	pctx.StaticVariable("Arm64ClangCppflags", strings.Join(ClangFilterUnknownCflags(arm64Cppflags), " "))
 
 	pctx.StaticVariable("Arm64CortexA53Cflags",
@@ -186,6 +191,10 @@ func (t *toolchainArm64) ClangCppflags() string {
 
 func (t *toolchainArm64) ClangLdflags() string {
 	return "${config.Arm64Ldflags}"
+}
+
+func (t *toolchainArm64) ClangLldflags() string {
+	return "${config.Arm64Lldflags}"
 }
 
 func (t *toolchainArm64) ToolchainClangCflags() string {

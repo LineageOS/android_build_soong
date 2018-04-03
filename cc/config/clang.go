@@ -83,6 +83,15 @@ var ClangUnknownCflags = sorted([]string{
 	"--enable-stdcall-fixup",
 })
 
+// Ldflags that should be filtered out when linking with clang lld
+var ClangUnknownLldflags = sorted([]string{
+	"-fuse-ld=gold",
+	"-Wl,--icf=safe",
+	"-Wl,--fix-cortex-a8",
+	"-Wl,--no-fix-cortex-a8",
+	"-Wl,-m,aarch64_elf64_le_vec",
+})
+
 var ClangLibToolingUnknownCflags = []string{
 	"-flto*",
 	"-fsanitize*",
@@ -175,6 +184,17 @@ func ClangFilterUnknownCflags(cflags []string) []string {
 	ret := make([]string, 0, len(cflags))
 	for _, f := range cflags {
 		if !inListSorted(f, ClangUnknownCflags) {
+			ret = append(ret, f)
+		}
+	}
+
+	return ret
+}
+
+func ClangFilterUnknownLldflags(lldflags []string) []string {
+	ret := make([]string, 0, len(lldflags))
+	for _, f := range lldflags {
+		if !inListSorted(f, ClangUnknownLldflags) {
 			ret = append(ret, f)
 		}
 	}
