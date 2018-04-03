@@ -228,6 +228,10 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 		if binary.coverageOutputFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", binary.coverageOutputFile.String())
 		}
+
+		if len(binary.Properties.Overrides) > 0 {
+			fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(binary.Properties.Overrides, " "))
+		}
 	})
 }
 
