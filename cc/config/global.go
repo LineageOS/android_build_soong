@@ -116,8 +116,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-4639204"
-	ClangDefaultShortVersion = "6.0.1"
+	ClangDefaultVersion      = "clang-4691093"
+	ClangDefaultShortVersion = "6.0.2"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
