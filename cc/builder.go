@@ -203,9 +203,11 @@ var (
 
 			commandStr := "($sAbiDiffer $allowFlags -lib $libName -arch $arch -check-all-apis -o ${out} -new $in -old $referenceDump)"
 			distAbiDiffDir := android.PathForDist(ctx, "abidiffs")
+			commandStr += "|| (echo ' ---- Please update abi references by running platform/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l ${libName} ----'"
 			if distAbiDiffDir.Valid() {
-				commandStr += "  || (mkdir -p " + distAbiDiffDir.String() + " && cp ${out} " + distAbiDiffDir.String() + " && exit 1)"
+				commandStr += ")  && (mkdir -p " + distAbiDiffDir.String() + " && cp ${out} " + distAbiDiffDir.String()
 			}
+			commandStr += " && exit 1)"
 			return blueprint.RuleParams{
 				Command:     commandStr,
 				CommandDeps: []string{"$sAbiDiffer"},
@@ -740,7 +742,7 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 		Implicit:    referenceDump,
 		Args: map[string]string{
 			"referenceDump": referenceDump.String(),
-			"libName":       baseName,
+			"libName":       baseName[0:(len(baseName) - len(filepath.Ext(baseName)))],
 			"arch":          ctx.Arch().ArchType.Name,
 			"allowFlags":    strings.Join(localAbiCheckAllowFlags, " "),
 		},
