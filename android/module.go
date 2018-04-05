@@ -242,6 +242,9 @@ type commonProperties struct {
 	// init.rc files to be installed if this module is installed
 	Init_rc []string
 
+	// VINTF manifest fragments to be installed if this module is installed
+	Vintf_fragments []string
+
 	// names of other modules to install if this module is installed
 	Required []string `android:"arch_variant"`
 
