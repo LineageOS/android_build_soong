@@ -81,6 +81,10 @@ func runKati(ctx Context, config Config) {
 		"-f", "build/make/core/main.mk",
 	}
 
+	if !config.BuildBrokenDupRules() {
+		args = append(args, "--werror_overriding_commands")
+	}
+
 	if !config.Environment().IsFalse("KATI_EMULATE_FIND") {
 		args = append(args, "--use_find_emulator")
 	}
@@ -190,6 +194,7 @@ func runKatiCleanSpec(ctx Context, config Config) {
 		"--color_warnings",
 		"--gen_all_targets",
 		"--werror_find_emulator",
+		"--werror_overriding_commands",
 		"--use_find_emulator",
 		"-f", "build/make/core/cleanbuild.mk",
 		"BUILDING_WITH_NINJA=true",

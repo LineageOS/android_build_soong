@@ -48,6 +48,8 @@ type configImpl struct {
 	ninjaArgs    []string
 	katiSuffix   string
 	targetDevice string
+
+	brokenDupRules bool
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -555,4 +557,12 @@ func (c *configImpl) PrebuiltBuildTool(name string) string {
 		}
 	}
 	return filepath.Join("prebuilts/build-tools", c.HostPrebuiltTag(), "bin", name)
+}
+
+func (c *configImpl) SetBuildBrokenDupRules(val bool) {
+	c.brokenDupRules = val
+}
+
+func (c *configImpl) BuildBrokenDupRules() bool {
+	return c.brokenDupRules
 }
