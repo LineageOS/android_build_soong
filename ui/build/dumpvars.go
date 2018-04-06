@@ -156,6 +156,9 @@ func runMakeProductConfig(ctx Context, config Config) {
 
 		// To find target/product/<DEVICE>
 		"TARGET_DEVICE",
+
+		// Whether --werror_overriding_commands will work
+		"BUILD_BROKEN_DUP_RULES",
 	}, exportEnvVars...), BannerVars...)
 
 	make_vars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true)
@@ -179,4 +182,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetKatiArgs(strings.Fields(make_vars["KATI_GOALS"]))
 	config.SetNinjaArgs(strings.Fields(make_vars["NINJA_GOALS"]))
 	config.SetTargetDevice(make_vars["TARGET_DEVICE"])
+
+	config.SetBuildBrokenDupRules(make_vars["BUILD_BROKEN_DUP_RULES"] != "false")
 }
