@@ -111,6 +111,7 @@ func init() {
 			"LOCAL_CONLYFLAGS":                    "conlyflags",
 			"LOCAL_CPPFLAGS":                      "cppflags",
 			"LOCAL_REQUIRED_MODULES":              "required",
+			"LOCAL_OVERRIDES_MODULES":             "overrides",
 			"LOCAL_LDLIBS":                        "host_ldlibs",
 			"LOCAL_CLANG_CFLAGS":                  "clang_cflags",
 			"LOCAL_YACCFLAGS":                     "yaccflags",
@@ -120,6 +121,7 @@ func init() {
 			"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": "export_shared_lib_headers",
 			"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": "export_static_lib_headers",
 			"LOCAL_INIT_RC":                       "init_rc",
+			"LOCAL_VINTF_FRAGMENTS":               "vintf_fragments",
 			"LOCAL_TIDY_FLAGS":                    "tidy_flags",
 			// TODO: This is comma-separated, not space-separated
 			"LOCAL_TIDY_CHECKS":           "tidy_checks",
