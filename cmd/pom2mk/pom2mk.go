@@ -195,9 +195,10 @@ LOCAL_BUILT_MODULE_STEM := javalib.jar
 LOCAL_MODULE_SUFFIX := .{{.Packaging}}
 LOCAL_USE_AAPT2 := true
 LOCAL_SDK_VERSION := {{.SdkVersion}}
-LOCAL_STATIC_ANDROID_LIBRARIES := \
-{{range .MkAarDeps}}  {{.}} \
-{{end}}
+LOCAL_STATIC_JAVA_LIBRARIES :={{range .MkJarDeps}} \
+  {{.}}{{end}}
+LOCAL_STATIC_ANDROID_LIBRARIES :={{range .MkAarDeps}} \
+  {{.}}{{end}}
 include $(BUILD_PREBUILT)
 `))
 
