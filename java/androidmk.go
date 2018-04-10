@@ -97,6 +97,19 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 	}
 }
 
+func (j *Test) AndroidMk() android.AndroidMkData {
+	data := j.Library.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
+		if len(j.testProperties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+				strings.Join(j.testProperties.Test_suites, " "))
+		}
+	})
+
+	return data
+}
+
 func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
