@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
-	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -114,7 +113,7 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 
 	flags.protoFlags = android.ProtoFlags(ctx, p)
 
-	if proptools.String(p.Proto.Type) == "lite" {
+	if String(p.Proto.Type) == "lite" {
 		flags.protoOutParams = append(flags.protoOutParams, "lite")
 	}
 
