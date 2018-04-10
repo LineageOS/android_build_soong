@@ -32,31 +32,38 @@ var resourceExcludes = []string{
 }
 
 func ResourceDirsToJarArgs(ctx android.ModuleContext,
-	resourceDirs, excludeDirs []string) (args []string, deps android.Paths) {
-	var excludes []string
+	resourceDirs, excludeResourceDirs []string) (args []string, deps android.Paths) {
+	var excludeDirs []string
+	var excludeFiles []string
 
-	for _, exclude := range excludeDirs {
-		excludes = append(excludes,
-			filepath.Join(android.PathForModuleSrc(ctx, exclude).String(), "**/*"))
+	for _, exclude := range excludeResourceDirs {
+		dirs := ctx.Glob(android.PathForModuleSrc(ctx).Join(ctx, exclude).String(), nil)
+		for _, dir := range dirs {
+			excludeDirs = append(excludeDirs, dir.String())
+			excludeFiles = append(excludeFiles, dir.(android.ModuleSrcPath).Join(ctx, "**/*").String())
+		}
 	}
 
-	excludes = append(excludes, resourceExcludes...)
+	excludeFiles = append(excludeFiles, resourceExcludes...)
 
-	for _, dir := range resourceDirs {
-		dir := android.PathForModuleSrc(ctx, dir).String()
-		files := ctx.Glob(filepath.Join(dir, "**/*"), excludes)
+	for _, resourceDir := range resourceDirs {
+		// resourceDir may be a glob, resolve it first
+		dirs := ctx.Glob(android.PathForModuleSrc(ctx).Join(ctx, resourceDir).String(), excludeDirs)
+		for _, dir := range dirs {
+			files := ctx.GlobFiles(filepath.Join(dir.String(), "**/*"), excludeFiles)
 
-		deps = append(deps, files...)
+			deps = append(deps, files...)
 
-		if len(files) > 0 {
-			args = append(args, "-C", dir)
+			if len(files) > 0 {
+				args = append(args, "-C", dir.String())
 
-			for _, f := range files {
-				path := f.String()
-				if !strings.HasPrefix(path, dir) {
-					panic(fmt.Errorf("path %q does not start with %q", path, dir))
+				for _, f := range files {
+					path := f.String()
+					if !strings.HasPrefix(path, dir.String()) {
+						panic(fmt.Errorf("path %q does not start with %q", path, dir))
+					}
+					args = append(args, "-f", path)
 				}
-				args = append(args, "-f", path)
 			}
 		}
 	}
