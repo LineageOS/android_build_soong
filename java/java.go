@@ -19,6 +19,7 @@ package java
 // is handled in builder.go
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -420,13 +421,17 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		}
 	}
 
-	//toModule := func(m string) sdkDep {
-	//	return sdkDep{
-	//		useModule:     true,
-	//		module:        m,
-	//		systemModules: m + "_system_modules",
-	//	}
-	//}
+	toModule := func(m string) sdkDep {
+		ret := sdkDep{
+			useModule:     true,
+			module:        m,
+			systemModules: m + "_system_modules",
+		}
+		if m == "core.current.stubs" {
+			ret.systemModules = "core-system-modules"
+		}
+		return ret
+	}
 
 	if ctx.Config().UnbundledBuild() && v != "" {
 		return toFile(v)
@@ -437,14 +442,14 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		return sdkDep{
 			useDefaultLibs: true,
 		}
-	// TODO(ccross): re-enable these once we generate stubs, until then
-	// use the stubs in prebuilts/sdk/*current
-	//case "current":
-	//	return toModule("android_stubs_current")
-	//case "system_current":
-	//	return toModule("android_system_stubs_current")
-	//case "test_current":
-	//	return toModule("android_test_stubs_current")
+	case "current":
+		return toModule("android_stubs_current")
+	case "system_current":
+		return toModule("android_system_stubs_current")
+	case "test_current":
+		return toModule("android_test_stubs_current")
+	case "core_current":
+		return toModule("core.current.stubs")
 	default:
 		return toFile(v)
 	}
@@ -600,23 +605,34 @@ const (
 	javaPlatform
 )
 
-func getLinkType(m *Module) linkType {
+func getLinkType(m *Module, name string) linkType {
 	ver := String(m.deviceProperties.Sdk_version)
-	if strings.HasPrefix(ver, "core_") {
+	switch {
+	case name == "core.current.stubs" || ver == "core_current":
 		return javaCore
-	} else if strings.HasPrefix(ver, "system_") {
+	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_"):
 		return javaSystem
-	} else if _, err := strconv.Atoi(ver); err == nil || ver == "current" {
-		return javaSdk
-	} else {
-		// test_current falls back here as well
+	case name == "android_test_stubs_current" || strings.HasPrefix(ver, "test_"):
 		return javaPlatform
+	case name == "android_stubs_current" || ver == "current":
+		return javaSdk
+	case ver == "":
+		return javaPlatform
+	default:
+		if _, err := strconv.Atoi(ver); err != nil {
+			panic(fmt.Errorf("expected sdk_version to be a number, got %q", ver))
+		}
+		return javaSdk
 	}
 }
 
 func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dependencyTag) {
-	myLinkType := getLinkType(from)
-	otherLinkType := getLinkType(&to.Module)
+	if ctx.Host() {
+		return
+	}
+
+	myLinkType := getLinkType(from, ctx.ModuleName())
+	otherLinkType := getLinkType(&to.Module, ctx.OtherModuleName(to))
 	commonMessage := "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source."
 
 	switch myLinkType {
@@ -909,13 +925,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 					j.properties.Javac_shard_size)
 			}
 		}
-		// If sdk jar is java module, then directly return classesJar as header.jar
-		if j.Name() != "android_stubs_current" && j.Name() != "android_system_stubs_current" &&
-			j.Name() != "android_test_stubs_current" {
-			j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName)
-			if ctx.Failed() {
-				return
-			}
+		j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName)
+		if ctx.Failed() {
+			return
 		}
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
