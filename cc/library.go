@@ -700,13 +700,11 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 }
 
 func (library *libraryDecorator) buildStatic() bool {
-	return library.MutatedProperties.BuildStatic &&
-		(library.Properties.Static.Enabled == nil || *library.Properties.Static.Enabled)
+	return library.MutatedProperties.BuildStatic && BoolDefault(library.Properties.Static.Enabled, true)
 }
 
 func (library *libraryDecorator) buildShared() bool {
-	return library.MutatedProperties.BuildShared &&
-		(library.Properties.Shared.Enabled == nil || *library.Properties.Shared.Enabled)
+	return library.MutatedProperties.BuildShared && BoolDefault(library.Properties.Shared.Enabled, true)
 }
 
 func (library *libraryDecorator) getWholeStaticMissingDeps() []string {
