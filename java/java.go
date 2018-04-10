@@ -39,6 +39,8 @@ func init() {
 	android.RegisterModuleType("java_library_host", LibraryHostFactory)
 	android.RegisterModuleType("java_binary", BinaryFactory)
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
+	android.RegisterModuleType("java_test", TestFactory)
+	android.RegisterModuleType("java_test_host", TestHostFactory)
 	android.RegisterModuleType("java_import", ImportFactory)
 	android.RegisterModuleType("java_import_host", ImportFactoryHost)
 
@@ -1205,6 +1207,59 @@ func LibraryHostFactory() android.Module {
 		&module.Module.protoProperties)
 
 	InitJavaModule(module, android.HostSupported)
+	return module
+}
+
+//
+// Java Junit Tests
+//
+
+type testProperties struct {
+	// If true, add a static dependency on the platform junit library.  Defaults to true.
+	Junit *bool
+
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+}
+
+type Test struct {
+	Library
+
+	testProperties testProperties
+}
+
+func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
+	j.deps(ctx)
+	if j.testProperties.Junit == nil || *j.testProperties.Junit == true {
+		ctx.AddDependency(ctx.Module(), staticLibTag, "junit")
+	}
+}
+
+func TestFactory() android.Module {
+	module := &Test{}
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.protoProperties,
+		&module.testProperties)
+
+	InitJavaModule(module, android.HostAndDeviceSupported)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+func TestHostFactory() android.Module {
+	module := &Test{}
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.protoProperties,
+		&module.testProperties)
+
+	InitJavaModule(module, android.HostSupported)
+	android.InitDefaultableModule(module)
 	return module
 }
 
