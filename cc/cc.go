@@ -1115,17 +1115,11 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 	toStl := to.stl.Properties.SelectedStl
 	if fromStl == "" || toStl == "" {
 		// Libraries that don't use the STL are unrestricted.
-		return
-	}
-
-	if fromStl == "ndk_system" || toStl == "ndk_system" {
+	} else if fromStl == "ndk_system" || toStl == "ndk_system" {
 		// We can be permissive with the system "STL" since it is only the C++
 		// ABI layer, but in the future we should make sure that everyone is
 		// using either libc++ or nothing.
-		return
-	}
-
-	if getNdkStlFamily(ctx, from) != getNdkStlFamily(ctx, to) {
+	} else if getNdkStlFamily(ctx, from) != getNdkStlFamily(ctx, to) {
 		ctx.ModuleErrorf("uses %q and depends on %q which uses incompatible %q",
 			from.stl.Properties.SelectedStl, ctx.OtherModuleName(to),
 			to.stl.Properties.SelectedStl)
