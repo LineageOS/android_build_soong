@@ -69,6 +69,9 @@ type config struct {
 	FileConfigurableOptions
 	ProductVariables productVariables
 
+	// Only available on configs created by TestConfig
+	TestProductVariables *productVariables
+
 	PrimaryBuilder           string
 	ConfigFileName           string
 	ProductVariablesFileName string
@@ -197,6 +200,7 @@ func TestConfig(buildDir string, env map[string]string) Config {
 	config.deviceConfig = &deviceConfig{
 		config: config,
 	}
+	config.TestProductVariables = &config.ProductVariables
 
 	if err := config.fromEnv(); err != nil {
 		panic(err)
