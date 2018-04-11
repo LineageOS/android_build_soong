@@ -719,14 +719,14 @@ func PathForDist(ctx PathContext, pathComponents ...string) DistPath {
 func (p DistPath) writablePath() {}
 
 func (p DistPath) Valid() bool {
-	return p.config.ProductVariables.DistDir != nil && *p.config.ProductVariables.DistDir != ""
+	return p.config.productVariables.DistDir != nil && *p.config.productVariables.DistDir != ""
 }
 
 func (p DistPath) String() string {
 	if !p.Valid() {
 		panic("Requesting an invalid path")
 	}
-	return filepath.Join(*p.config.ProductVariables.DistDir, p.path)
+	return filepath.Join(*p.config.productVariables.DistDir, p.path)
 }
 
 func (p DistPath) RelPathString() string {
