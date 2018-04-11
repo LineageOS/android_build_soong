@@ -62,14 +62,16 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 		t.Fatalf("%d parse errors", len(errs))
 	}
 
+	fixer := NewFixer(tree)
+
 	// apply simplifications
-	err := simplifyKnownPropertiesDuplicatingEachOther(tree)
+	err := fixer.simplifyKnownPropertiesDuplicatingEachOther()
 	if len(errs) > 0 {
 		t.Fatal(err)
 	}
 
 	// lookup legacy property
-	mod := tree.Defs[0].(*parser.Module)
+	mod := fixer.tree.Defs[0].(*parser.Module)
 	_, found := mod.GetProperty("local_include_dirs")
 	if !found {
 		t.Fatalf("failed to include key local_include_dirs in parse tree")

@@ -18,7 +18,9 @@ package bpfix
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 
 	"github.com/google/blueprint/parser"
@@ -42,21 +44,34 @@ func (r FixRequest) AddAll() (result FixRequest) {
 	return result
 }
 
-// FixTree repeatedly applies the fixes listed in the given FixRequest to the given File
+type Fixer struct {
+	tree *parser.File
+}
+
+func NewFixer(tree *parser.File) *Fixer {
+	fixer := &Fixer{tree}
+
+	// make a copy of the tree
+	fixer.reparse()
+
+	return fixer
+}
+
+// Fix repeatedly applies the fixes listed in the given FixRequest to the given File
 // until there is no fix that affects the tree
-func FixTree(tree *parser.File, config FixRequest) error {
-	prevIdentifier, err := fingerprint(tree)
+func (f *Fixer) Fix(config FixRequest) (*parser.File, error) {
+	prevIdentifier, err := f.fingerprint()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	maxNumIterations := 20
 	i := 0
 	for {
-		err = fixTreeOnce(tree, config)
-		newIdentifier, err := fingerprint(tree)
+		err = f.fixTreeOnce(config)
+		newIdentifier, err := f.fingerprint()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if bytes.Equal(newIdentifier, prevIdentifier) {
 			break
@@ -67,31 +82,56 @@ func FixTree(tree *parser.File, config FixRequest) error {
 		// detect infinite loop
 		i++
 		if i >= maxNumIterations {
-			return fmt.Errorf("Applied fixes %d times and yet the tree continued to change. Is there an infinite loop?", i)
+			return nil, fmt.Errorf("Applied fixes %d times and yet the tree continued to change. Is there an infinite loop?", i)
 			break
 		}
 	}
-	return err
+	return f.tree, err
 }
 
 // returns a unique identifier for the given tree that can be used to determine whether the tree changed
-func fingerprint(tree *parser.File) (fingerprint []byte, err error) {
-	bytes, err := parser.Print(tree)
+func (f *Fixer) fingerprint() (fingerprint []byte, err error) {
+	bytes, err := parser.Print(f.tree)
 	if err != nil {
 		return nil, err
 	}
 	return bytes, nil
 }
 
-func fixTreeOnce(tree *parser.File, config FixRequest) error {
+func (f *Fixer) reparse() ([]byte, error) {
+	buf, err := parser.Print(f.tree)
+	if err != nil {
+		return nil, err
+	}
+	newTree, err := parse(f.tree.Name, bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+	f.tree = newTree
+	return buf, nil
+}
+
+func parse(name string, r io.Reader) (*parser.File, error) {
+	tree, errs := parser.Parse(name, r, parser.NewScope(nil))
+	if errs != nil {
+		s := "parse error: "
+		for _, err := range errs {
+			s += "\n" + err.Error()
+		}
+		return nil, errors.New(s)
+	}
+	return tree, nil
+}
+
+func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	if config.simplifyKnownRedundantVariables {
-		err := simplifyKnownPropertiesDuplicatingEachOther(tree)
+		err := f.simplifyKnownPropertiesDuplicatingEachOther()
 		if err != nil {
 			return err
 		}
 	}
 	if config.rewriteIncorrectAndroidmkPrebuilts {
-		err := rewriteIncorrectAndroidmkPrebuilts(tree)
+		err := f.rewriteIncorrectAndroidmkPrebuilts()
 		if err != nil {
 			return err
 		}
@@ -99,13 +139,13 @@ func fixTreeOnce(tree *parser.File, config FixRequest) error {
 	return nil
 }
 
-func simplifyKnownPropertiesDuplicatingEachOther(tree *parser.File) error {
+func (f *Fixer) simplifyKnownPropertiesDuplicatingEachOther() error {
 	// remove from local_include_dirs anything in export_include_dirs
-	return removeMatchingModuleListProperties(tree, "export_include_dirs", "local_include_dirs")
+	return f.removeMatchingModuleListProperties("export_include_dirs", "local_include_dirs")
 }
 
-func rewriteIncorrectAndroidmkPrebuilts(tree *parser.File) error {
-	for _, def := range tree.Defs {
+func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
+	for _, def := range f.tree.Defs {
 		mod, ok := def.(*parser.Module)
 		if !ok {
 			continue
@@ -163,8 +203,8 @@ func filterExpressionList(items *parser.List, removals *parser.List) {
 }
 
 // Remove each modules[i].Properties[<legacyName>][j] that matches a modules[i].Properties[<canonicalName>][k]
-func removeMatchingModuleListProperties(tree *parser.File, canonicalName string, legacyName string) error {
-	for _, def := range tree.Defs {
+func (f *Fixer) removeMatchingModuleListProperties(canonicalName string, legacyName string) error {
+	for _, def := range f.tree.Defs {
 		mod, ok := def.(*parser.Module)
 		if !ok {
 			continue
