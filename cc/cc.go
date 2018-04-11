@@ -1093,13 +1093,13 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 			fromApi, err := strconv.Atoi(String(from.Properties.Sdk_version))
 			if err != nil {
 				ctx.PropertyErrorf("sdk_version",
-					"Invalid sdk_version value (must be int): %q",
+					"Invalid sdk_version value (must be int or current): %q",
 					String(from.Properties.Sdk_version))
 			}
 			toApi, err := strconv.Atoi(String(to.Properties.Sdk_version))
 			if err != nil {
 				ctx.PropertyErrorf("sdk_version",
-					"Invalid sdk_version value (must be int): %q",
+					"Invalid sdk_version value (must be int or current): %q",
 					String(to.Properties.Sdk_version))
 			}
 
