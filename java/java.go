@@ -1137,7 +1137,7 @@ func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
 }
 
 func (j *Module) installable() bool {
-	return j.properties.Installable == nil || *j.properties.Installable
+	return BoolDefault(j.properties.Installable, true)
 }
 
 var _ Dependency = (*Library)(nil)
@@ -1231,7 +1231,7 @@ type Test struct {
 
 func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
-	if j.testProperties.Junit == nil || *j.testProperties.Junit == true {
+	if BoolDefault(j.testProperties.Junit, true) {
 		ctx.AddDependency(ctx.Module(), staticLibTag, "junit")
 	}
 }
@@ -1460,5 +1460,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 var Bool = proptools.Bool
+var BoolDefault = proptools.BoolDefault
 var String = proptools.String
 var inList = android.InList
