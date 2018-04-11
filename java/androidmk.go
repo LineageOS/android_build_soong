@@ -19,8 +19,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
@@ -77,7 +75,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			android.WriteAndroidMkData(w, data)
 
-			if proptools.Bool(library.deviceProperties.Hostdex) && !library.Host() {
+			if Bool(library.deviceProperties.Hostdex) && !library.Host() {
 				fmt.Fprintln(w, "include $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
@@ -117,7 +115,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !proptools.Bool(prebuilt.properties.Installable))
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !Bool(prebuilt.properties.Installable))
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.combinedClasspathFile.String())
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
 			},

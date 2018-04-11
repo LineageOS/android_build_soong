@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -67,7 +66,7 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags javaBuild
 }
 
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
-	switch proptools.String(p.Proto.Type) {
+	switch String(p.Proto.Type) {
 	case "micro":
 		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-micro")
 	case "nano":
@@ -82,14 +81,14 @@ func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 		}
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
-			proptools.String(p.Proto.Type))
+			String(p.Proto.Type))
 	}
 }
 
 func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.ProtoProperties,
 	flags javaBuilderFlags) javaBuilderFlags {
 
-	switch proptools.String(p.Proto.Type) {
+	switch String(p.Proto.Type) {
 	case "micro":
 		flags.protoOutTypeFlag = "--javamicro_out"
 	case "nano":
@@ -101,7 +100,7 @@ func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.Pro
 		flags.protoOutTypeFlag = "--java_out"
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
-			proptools.String(p.Proto.Type))
+			String(p.Proto.Type))
 	}
 
 	if len(j.Proto.Output_params) > 0 {
