@@ -1082,31 +1082,32 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 	// API level, as it is only valid to link against older or equivalent
 	// APIs.
 
-	if String(from.Properties.Sdk_version) == "current" {
-		// Current can link against anything.
-		return
-	} else if String(to.Properties.Sdk_version) == "current" {
-		// Current can't be linked against by anything else.
-		ctx.ModuleErrorf("links %q built against newer API version %q",
-			ctx.OtherModuleName(to), "current")
-	}
+	// Current can link against anything.
+	if String(from.Properties.Sdk_version) != "current" {
+		// Otherwise we need to check.
+		if String(to.Properties.Sdk_version) == "current" {
+			// Current can't be linked against by anything else.
+			ctx.ModuleErrorf("links %q built against newer API version %q",
+				ctx.OtherModuleName(to), "current")
+		} else {
+			fromApi, err := strconv.Atoi(String(from.Properties.Sdk_version))
+			if err != nil {
+				ctx.PropertyErrorf("sdk_version",
+					"Invalid sdk_version value (must be int): %q",
+					String(from.Properties.Sdk_version))
+			}
+			toApi, err := strconv.Atoi(String(to.Properties.Sdk_version))
+			if err != nil {
+				ctx.PropertyErrorf("sdk_version",
+					"Invalid sdk_version value (must be int): %q",
+					String(to.Properties.Sdk_version))
+			}
 
-	fromApi, err := strconv.Atoi(String(from.Properties.Sdk_version))
-	if err != nil {
-		ctx.PropertyErrorf("sdk_version",
-			"Invalid sdk_version value (must be int): %q",
-			String(from.Properties.Sdk_version))
-	}
-	toApi, err := strconv.Atoi(String(to.Properties.Sdk_version))
-	if err != nil {
-		ctx.PropertyErrorf("sdk_version",
-			"Invalid sdk_version value (must be int): %q",
-			String(to.Properties.Sdk_version))
-	}
-
-	if toApi > fromApi {
-		ctx.ModuleErrorf("links %q built against newer API version %q",
-			ctx.OtherModuleName(to), String(to.Properties.Sdk_version))
+			if toApi > fromApi {
+				ctx.ModuleErrorf("links %q built against newer API version %q",
+					ctx.OtherModuleName(to), String(to.Properties.Sdk_version))
+			}
+		}
 	}
 
 	// Also check that the two STL choices are compatible.
