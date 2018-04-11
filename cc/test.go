@@ -128,7 +128,7 @@ type testDecorator struct {
 }
 
 func (test *testDecorator) gtest() bool {
-	return test.Properties.Gtest == nil || *test.Properties.Gtest == true
+	return BoolDefault(test.Properties.Gtest, true)
 }
 
 func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
