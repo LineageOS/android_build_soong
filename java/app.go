@@ -362,15 +362,7 @@ func overlayResourceGlob(ctx android.ModuleContext, dir android.Path) (res []glo
 	overlayData := ctx.Config().Get(overlayDataKey).([]overlayGlobResult)
 
 	// Runtime resource overlays (RRO) may be turned on by the product config for some modules
-	rroEnabled := false
-	enforceRROTargets := ctx.Config().ProductVariables.EnforceRROTargets
-	if enforceRROTargets != nil {
-		if len(*enforceRROTargets) == 1 && (*enforceRROTargets)[0] == "*" {
-			rroEnabled = true
-		} else if inList(ctx.ModuleName(), *enforceRROTargets) {
-			rroEnabled = true
-		}
-	}
+	rroEnabled := ctx.Config().EnforceRROForModule(ctx.ModuleName())
 
 	for _, data := range overlayData {
 		files := data.paths.PathsInDirectory(filepath.Join(data.dir, dir.String()))
@@ -400,13 +392,6 @@ func OverlaySingletonFactory() android.Singleton {
 type overlaySingleton struct{}
 
 func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
-
-	// Specific overlays may be excluded from Runtime Resource Overlays by the product config
-	var rroExcludedOverlays []string
-	if ctx.Config().ProductVariables.EnforceRROExcludedOverlays != nil {
-		rroExcludedOverlays = *ctx.Config().ProductVariables.EnforceRROExcludedOverlays
-	}
-
 	var overlayData []overlayGlobResult
 	overlayDirs := ctx.Config().ResourceOverlays()
 	for i := range overlayDirs {
@@ -417,11 +402,8 @@ func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		result.dir = overlay
 
 		// Mark overlays that will not have Runtime Resource Overlays enforced on them
-		for _, exclude := range rroExcludedOverlays {
-			if strings.HasPrefix(overlay, exclude) {
-				result.excludeFromRRO = true
-			}
-		}
+		// based on the product config
+		result.excludeFromRRO = ctx.Config().EnforceRROExcludedOverlay(overlay)
 
 		files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), aaptIgnoreFilenames)
 		if err != nil {

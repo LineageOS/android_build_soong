@@ -641,6 +641,37 @@ func (c *config) ArtUseReadBarrier() bool {
 	return Bool(c.ProductVariables.ArtUseReadBarrier)
 }
 
+func (c *config) EnforceRROForModule(name string) bool {
+	enforceList := c.ProductVariables.EnforceRROTargets
+	if enforceList != nil {
+		if len(*enforceList) == 1 && (*enforceList)[0] == "*" {
+			return true
+		}
+		return InList(name, *enforceList)
+	}
+	return false
+}
+
+func (c *config) EnforceRROExcludedOverlay(path string) bool {
+	excluded := c.ProductVariables.EnforceRROExcludedOverlays
+	if excluded != nil {
+		for _, exclude := range *excluded {
+			if strings.HasPrefix(path, exclude) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *config) ExportedNamespaces() []string {
+	return append([]string(nil), c.ProductVariables.NamespacesToExport...)
+}
+
+func (c *config) HostStaticBinaries() bool {
+	return Bool(c.ProductVariables.HostStaticBinaries)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Device] {
