@@ -252,9 +252,9 @@ func (p *Module) HostToolPath() android.OptionalPath {
 func (p *Module) isEmbeddedLauncherEnabled(actual_version string) bool {
 	switch actual_version {
 	case pyVersion2:
-		return proptools.Bool(p.properties.Version.Py2.Embedded_launcher)
+		return Bool(p.properties.Version.Py2.Embedded_launcher)
 	case pyVersion3:
-		return proptools.Bool(p.properties.Version.Py3.Embedded_launcher)
+		return Bool(p.properties.Version.Py3.Embedded_launcher)
 	}
 
 	return false
