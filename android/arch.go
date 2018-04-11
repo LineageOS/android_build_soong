@@ -821,7 +821,7 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 
 // Convert the arch product variables into a list of targets for each os class structs
 func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) {
-	variables := config.ProductVariables
+	variables := config.productVariables
 
 	targets := make(map[OsClass][]Target)
 	var targetErr error
