@@ -111,7 +111,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 		return
 	}
 
-	outFile := PathForOutput(ctx, "make_vars"+proptools.String(ctx.Config().ProductVariables.Make_suffix)+".mk").String()
+	outFile := PathForOutput(ctx, "make_vars"+proptools.String(ctx.Config().productVariables.Make_suffix)+".mk").String()
 
 	if ctx.Failed() {
 		return
