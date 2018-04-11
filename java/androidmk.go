@@ -235,7 +235,7 @@ func (jd *Javadoc) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				if jd.properties.Installable == nil || *jd.properties.Installable == true {
+				if BoolDefault(jd.properties.Installable, true) {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", jd.docZip.String())
 				}
 				if jd.stubsSrcJar != nil {
@@ -253,7 +253,7 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				if ddoc.Javadoc.properties.Installable == nil || *ddoc.Javadoc.properties.Installable == true {
+				if BoolDefault(ddoc.Javadoc.properties.Installable, true) {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", ddoc.Javadoc.docZip.String())
 				}
 				if ddoc.Javadoc.stubsSrcJar != nil {
