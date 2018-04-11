@@ -459,14 +459,14 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		if !proptools.Bool(j.properties.No_standard_libs) {
+		if !Bool(j.properties.No_standard_libs) {
 			sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
 				}
-				if !proptools.Bool(j.properties.No_framework_libs) {
+				if !Bool(j.properties.No_framework_libs) {
 					ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
@@ -907,7 +907,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		// Don't add kotlin-stdlib if using (on-device) renamed stdlib
 		// (it's expected to be on device bootclasspath)
-		if !proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+		if !Bool(j.properties.Renamed_kotlin_stdlib) {
 			jars = append(jars, deps.kotlinStdlib...)
 		}
 	}
@@ -984,7 +984,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	resArgs = append(resArgs, fileArgs...)
 	resDeps = append(resDeps, fileDeps...)
 
-	if proptools.Bool(j.properties.Include_srcs) {
+	if Bool(j.properties.Include_srcs) {
 		srcArgs, srcDeps := SourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 		resArgs = append(resArgs, srcArgs...)
 		resDeps = append(resDeps, srcDeps...)
@@ -1026,7 +1026,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	// Use renamed kotlin standard library?
-	if srcFiles.HasExt(".kt") && proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+	if srcFiles.HasExt(".kt") && Bool(j.properties.Renamed_kotlin_stdlib) {
 		jarjarFile := android.PathForModuleOut(ctx, "kotlin-renamed", jarName)
 		TransformJarJar(ctx, jarjarFile, outputFile,
 			android.PathForSource(ctx, "external/kotlinc/jarjar-rules.txt"))
