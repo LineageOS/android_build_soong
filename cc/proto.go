@@ -115,7 +115,7 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 	flags.protoFlags = android.ProtoFlags(ctx, p)
 
 	if proptools.String(p.Proto.Type) == "lite" {
-		flags.protoOutParams = []string{"lite"}
+		flags.protoOutParams = append(flags.protoOutParams, "lite")
 	}
 
 	return flags

@@ -67,7 +67,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		cppFlags:       strings.Join(in.CppFlags, " "),
 		yaccFlags:      strings.Join(in.YaccFlags, " "),
 		protoFlags:     strings.Join(in.protoFlags, " "),
-		protoOutParams: strings.Join(in.protoOutParams, ":"),
+		protoOutParams: strings.Join(in.protoOutParams, ","),
 		aidlFlags:      strings.Join(in.aidlFlags, " "),
 		rsFlags:        strings.Join(in.rsFlags, " "),
 		ldFlags:        strings.Join(in.LdFlags, " "),
