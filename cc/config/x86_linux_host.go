@@ -241,7 +241,17 @@ func (t *toolchainLinuxX86) ClangLdflags() string {
 	return "${config.LinuxClangLdflags} ${config.LinuxX86ClangLdflags}"
 }
 
+func (t *toolchainLinuxX86) ClangLldflags() string {
+	// TODO: define and use Linux*ClangLldflags
+	return "${config.LinuxClangLdflags} ${config.LinuxX86ClangLdflags}"
+}
+
 func (t *toolchainLinuxX8664) ClangLdflags() string {
+	return "${config.LinuxClangLdflags} ${config.LinuxX8664ClangLdflags}"
+}
+
+func (t *toolchainLinuxX8664) ClangLldflags() string {
+	// TODO: define and use Linux*ClangLldflags
 	return "${config.LinuxClangLdflags} ${config.LinuxX8664ClangLdflags}"
 }
 

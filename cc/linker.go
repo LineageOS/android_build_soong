@@ -58,6 +58,9 @@ type BaseLinkerProperties struct {
 	// don't link in libgcc.a
 	No_libgcc *bool
 
+	// Use clang lld instead of gnu ld.
+	Use_clang_lld *bool
+
 	// -l arguments to pass to linker for host-provided shared libraries
 	Host_ldlibs []string `android:"arch_variant"`
 
@@ -201,6 +204,15 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
+func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
+	if linker.Properties.Use_clang_lld != nil {
+		return Bool(linker.Properties.Use_clang_lld)
+	}
+	return ctx.Config().UseClangLld()
+}
+
+// ModuleContext extends BaseModuleContext
+// BaseModuleContext should know if LLD is used?
 func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 
@@ -209,7 +221,11 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		hod = "Device"
 	}
 
-	flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
+	if flags.Clang && linker.useClangLld(ctx) {
+		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
+	} else {
+		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
+	}
 	if Bool(linker.Properties.Allow_undefined_symbols) {
 		if ctx.Darwin() {
 			// darwin defaults to treating undefined symbols as errors
@@ -219,7 +235,9 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 	}
 
-	if flags.Clang {
+	if flags.Clang && linker.useClangLld(ctx) {
+		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLldflags())
+	} else if flags.Clang {
 		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
 	} else {
 		flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
