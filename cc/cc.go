@@ -1082,31 +1082,32 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 	// API level, as it is only valid to link against older or equivalent
 	// APIs.
 
-	if String(from.Properties.Sdk_version) == "current" {
-		// Current can link against anything.
-		return
-	} else if String(to.Properties.Sdk_version) == "current" {
-		// Current can't be linked against by anything else.
-		ctx.ModuleErrorf("links %q built against newer API version %q",
-			ctx.OtherModuleName(to), "current")
-	}
+	// Current can link against anything.
+	if String(from.Properties.Sdk_version) != "current" {
+		// Otherwise we need to check.
+		if String(to.Properties.Sdk_version) == "current" {
+			// Current can't be linked against by anything else.
+			ctx.ModuleErrorf("links %q built against newer API version %q",
+				ctx.OtherModuleName(to), "current")
+		} else {
+			fromApi, err := strconv.Atoi(String(from.Properties.Sdk_version))
+			if err != nil {
+				ctx.PropertyErrorf("sdk_version",
+					"Invalid sdk_version value (must be int or current): %q",
+					String(from.Properties.Sdk_version))
+			}
+			toApi, err := strconv.Atoi(String(to.Properties.Sdk_version))
+			if err != nil {
+				ctx.PropertyErrorf("sdk_version",
+					"Invalid sdk_version value (must be int or current): %q",
+					String(to.Properties.Sdk_version))
+			}
 
-	fromApi, err := strconv.Atoi(String(from.Properties.Sdk_version))
-	if err != nil {
-		ctx.PropertyErrorf("sdk_version",
-			"Invalid sdk_version value (must be int): %q",
-			String(from.Properties.Sdk_version))
-	}
-	toApi, err := strconv.Atoi(String(to.Properties.Sdk_version))
-	if err != nil {
-		ctx.PropertyErrorf("sdk_version",
-			"Invalid sdk_version value (must be int): %q",
-			String(to.Properties.Sdk_version))
-	}
-
-	if toApi > fromApi {
-		ctx.ModuleErrorf("links %q built against newer API version %q",
-			ctx.OtherModuleName(to), String(to.Properties.Sdk_version))
+			if toApi > fromApi {
+				ctx.ModuleErrorf("links %q built against newer API version %q",
+					ctx.OtherModuleName(to), String(to.Properties.Sdk_version))
+			}
+		}
 	}
 
 	// Also check that the two STL choices are compatible.
@@ -1114,17 +1115,11 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 	toStl := to.stl.Properties.SelectedStl
 	if fromStl == "" || toStl == "" {
 		// Libraries that don't use the STL are unrestricted.
-		return
-	}
-
-	if fromStl == "ndk_system" || toStl == "ndk_system" {
+	} else if fromStl == "ndk_system" || toStl == "ndk_system" {
 		// We can be permissive with the system "STL" since it is only the C++
 		// ABI layer, but in the future we should make sure that everyone is
 		// using either libc++ or nothing.
-		return
-	}
-
-	if getNdkStlFamily(ctx, from) != getNdkStlFamily(ctx, to) {
+	} else if getNdkStlFamily(ctx, from) != getNdkStlFamily(ctx, to) {
 		ctx.ModuleErrorf("uses %q and depends on %q which uses incompatible %q",
 			from.stl.Properties.SelectedStl, ctx.OtherModuleName(to),
 			to.stl.Properties.SelectedStl)
@@ -1585,6 +1580,7 @@ func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
 }
 
 var Bool = proptools.Bool
+var BoolDefault = proptools.BoolDefault
 var BoolPtr = proptools.BoolPtr
 var String = proptools.String
 var StringPtr = proptools.StringPtr

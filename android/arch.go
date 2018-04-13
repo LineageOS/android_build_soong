@@ -821,7 +821,7 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 
 // Convert the arch product variables into a list of targets for each os class structs
 func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) {
-	variables := config.ProductVariables
+	variables := config.productVariables
 
 	targets := make(map[OsClass][]Target)
 	var targetErr error
@@ -854,17 +854,17 @@ func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) 
 		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil)
 	}
 
-	if config.Host_bionic != nil && *config.Host_bionic {
+	if Bool(config.Host_bionic) {
 		addTarget(LinuxBionic, "x86_64", nil, nil, nil)
 	}
 
-	if variables.CrossHost != nil && *variables.CrossHost != "" {
+	if String(variables.CrossHost) != "" {
 		crossHostOs := osByName(*variables.CrossHost)
 		if crossHostOs == NoOsType {
 			return nil, fmt.Errorf("Unknown cross host OS %q", *variables.CrossHost)
 		}
 
-		if variables.CrossHostArch == nil || *variables.CrossHostArch == "" {
+		if String(variables.CrossHostArch) == "" {
 			return nil, fmt.Errorf("No cross-host primary architecture set")
 		}
 

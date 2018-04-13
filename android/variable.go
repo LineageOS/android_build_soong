@@ -220,6 +220,8 @@ type productVariables struct {
 	NamespacesToExport []string `json:",omitempty"`
 
 	PgoAdditionalProfileDirs []string `json:",omitempty"`
+
+	VendorVars map[string]map[string]string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -287,7 +289,7 @@ func variableMutator(mctx BottomUpMutatorContext) {
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
 		// Check that the variable was set for the product
-		val := reflect.ValueOf(mctx.Config().ProductVariables).FieldByName(name)
+		val := reflect.ValueOf(mctx.Config().productVariables).FieldByName(name)
 		if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
 			continue
 		}

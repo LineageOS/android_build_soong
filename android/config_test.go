@@ -84,3 +84,10 @@ func TestProductConfigAnnotations(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 }
+
+func TestMissingVendorConfig(t *testing.T) {
+	c := &config{}
+	if c.VendorConfig("test").Bool("not_set") {
+		t.Errorf("Expected false")
+	}
+}

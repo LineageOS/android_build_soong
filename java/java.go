@@ -19,6 +19,7 @@ package java
 // is handled in builder.go
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -38,6 +39,8 @@ func init() {
 	android.RegisterModuleType("java_library_host", LibraryHostFactory)
 	android.RegisterModuleType("java_binary", BinaryFactory)
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
+	android.RegisterModuleType("java_test", TestFactory)
+	android.RegisterModuleType("java_test_host", TestHostFactory)
 	android.RegisterModuleType("java_import", ImportFactory)
 	android.RegisterModuleType("java_import_host", ImportFactoryHost)
 
@@ -420,13 +423,17 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		}
 	}
 
-	//toModule := func(m string) sdkDep {
-	//	return sdkDep{
-	//		useModule:     true,
-	//		module:        m,
-	//		systemModules: m + "_system_modules",
-	//	}
-	//}
+	toModule := func(m string) sdkDep {
+		ret := sdkDep{
+			useModule:     true,
+			module:        m,
+			systemModules: m + "_system_modules",
+		}
+		if m == "core.current.stubs" {
+			ret.systemModules = "core-system-modules"
+		}
+		return ret
+	}
 
 	if ctx.Config().UnbundledBuild() && v != "" {
 		return toFile(v)
@@ -437,14 +444,14 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		return sdkDep{
 			useDefaultLibs: true,
 		}
-	// TODO(ccross): re-enable these once we generate stubs, until then
-	// use the stubs in prebuilts/sdk/*current
-	//case "current":
-	//	return toModule("android_stubs_current")
-	//case "system_current":
-	//	return toModule("android_system_stubs_current")
-	//case "test_current":
-	//	return toModule("android_test_stubs_current")
+	case "current":
+		return toModule("android_stubs_current")
+	case "system_current":
+		return toModule("android_system_stubs_current")
+	case "test_current":
+		return toModule("android_test_stubs_current")
+	case "core_current":
+		return toModule("core.current.stubs")
 	default:
 		return toFile(v)
 	}
@@ -452,14 +459,14 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		if !proptools.Bool(j.properties.No_standard_libs) {
+		if !Bool(j.properties.No_standard_libs) {
 			sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
 				}
-				if !proptools.Bool(j.properties.No_framework_libs) {
+				if !Bool(j.properties.No_framework_libs) {
 					ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
@@ -600,23 +607,34 @@ const (
 	javaPlatform
 )
 
-func getLinkType(m *Module) linkType {
+func getLinkType(m *Module, name string) linkType {
 	ver := String(m.deviceProperties.Sdk_version)
-	if strings.HasPrefix(ver, "core_") {
+	switch {
+	case name == "core.current.stubs" || ver == "core_current":
 		return javaCore
-	} else if strings.HasPrefix(ver, "system_") {
+	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_"):
 		return javaSystem
-	} else if _, err := strconv.Atoi(ver); err == nil || ver == "current" {
-		return javaSdk
-	} else {
-		// test_current falls back here as well
+	case name == "android_test_stubs_current" || strings.HasPrefix(ver, "test_"):
 		return javaPlatform
+	case name == "android_stubs_current" || ver == "current":
+		return javaSdk
+	case ver == "":
+		return javaPlatform
+	default:
+		if _, err := strconv.Atoi(ver); err != nil {
+			panic(fmt.Errorf("expected sdk_version to be a number, got %q", ver))
+		}
+		return javaSdk
 	}
 }
 
 func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dependencyTag) {
-	myLinkType := getLinkType(from)
-	otherLinkType := getLinkType(&to.Module)
+	if ctx.Host() {
+		return
+	}
+
+	myLinkType := getLinkType(from, ctx.ModuleName())
+	otherLinkType := getLinkType(&to.Module, ctx.OtherModuleName(to))
 	commonMessage := "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source."
 
 	switch myLinkType {
@@ -889,7 +907,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		// Don't add kotlin-stdlib if using (on-device) renamed stdlib
 		// (it's expected to be on device bootclasspath)
-		if !proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+		if !Bool(j.properties.Renamed_kotlin_stdlib) {
 			jars = append(jars, deps.kotlinStdlib...)
 		}
 	}
@@ -909,13 +927,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 					j.properties.Javac_shard_size)
 			}
 		}
-		// If sdk jar is java module, then directly return classesJar as header.jar
-		if j.Name() != "android_stubs_current" && j.Name() != "android_system_stubs_current" &&
-			j.Name() != "android_test_stubs_current" {
-			j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName)
-			if ctx.Failed() {
-				return
-			}
+		j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName)
+		if ctx.Failed() {
+			return
 		}
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
@@ -970,7 +984,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	resArgs = append(resArgs, fileArgs...)
 	resDeps = append(resDeps, fileDeps...)
 
-	if proptools.Bool(j.properties.Include_srcs) {
+	if Bool(j.properties.Include_srcs) {
 		srcArgs, srcDeps := SourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 		resArgs = append(resArgs, srcArgs...)
 		resDeps = append(resDeps, srcDeps...)
@@ -1012,7 +1026,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	// Use renamed kotlin standard library?
-	if srcFiles.HasExt(".kt") && proptools.Bool(j.properties.Renamed_kotlin_stdlib) {
+	if srcFiles.HasExt(".kt") && Bool(j.properties.Renamed_kotlin_stdlib) {
 		jarjarFile := android.PathForModuleOut(ctx, "kotlin-renamed", jarName)
 		TransformJarJar(ctx, jarjarFile, outputFile,
 			android.PathForSource(ctx, "external/kotlinc/jarjar-rules.txt"))
@@ -1123,7 +1137,7 @@ func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
 }
 
 func (j *Module) installable() bool {
-	return j.properties.Installable == nil || *j.properties.Installable
+	return BoolDefault(j.properties.Installable, true)
 }
 
 var _ Dependency = (*Library)(nil)
@@ -1193,6 +1207,59 @@ func LibraryHostFactory() android.Module {
 		&module.Module.protoProperties)
 
 	InitJavaModule(module, android.HostSupported)
+	return module
+}
+
+//
+// Java Junit Tests
+//
+
+type testProperties struct {
+	// If true, add a static dependency on the platform junit library.  Defaults to true.
+	Junit *bool
+
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+}
+
+type Test struct {
+	Library
+
+	testProperties testProperties
+}
+
+func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
+	j.deps(ctx)
+	if BoolDefault(j.testProperties.Junit, true) {
+		ctx.AddDependency(ctx.Module(), staticLibTag, "junit")
+	}
+}
+
+func TestFactory() android.Module {
+	module := &Test{}
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.protoProperties,
+		&module.testProperties)
+
+	InitJavaModule(module, android.HostAndDeviceSupported)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+func TestHostFactory() android.Module {
+	module := &Test{}
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.protoProperties,
+		&module.testProperties)
+
+	InitJavaModule(module, android.HostSupported)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -1270,7 +1337,6 @@ func BinaryHostFactory() android.Module {
 
 	module.AddProperties(
 		&module.Module.properties,
-		&module.Module.deviceProperties,
 		&module.Module.protoProperties,
 		&module.binaryProperties)
 
@@ -1394,5 +1460,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 var Bool = proptools.Bool
+var BoolDefault = proptools.BoolDefault
 var String = proptools.String
 var inList = android.InList

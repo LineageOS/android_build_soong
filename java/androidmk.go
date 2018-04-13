@@ -19,8 +19,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
@@ -77,7 +75,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			android.WriteAndroidMkData(w, data)
 
-			if proptools.Bool(library.deviceProperties.Hostdex) && !library.Host() {
+			if Bool(library.deviceProperties.Hostdex) && !library.Host() {
 				fmt.Fprintln(w, "include $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
@@ -97,6 +95,19 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 	}
 }
 
+func (j *Test) AndroidMk() android.AndroidMkData {
+	data := j.Library.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
+		if len(j.testProperties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+				strings.Join(j.testProperties.Test_suites, " "))
+		}
+	})
+
+	return data
+}
+
 func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
@@ -104,7 +115,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !proptools.Bool(prebuilt.properties.Installable))
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !Bool(prebuilt.properties.Installable))
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.combinedClasspathFile.String())
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
 			},
@@ -222,7 +233,7 @@ func (jd *Javadoc) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				if jd.properties.Installable == nil || *jd.properties.Installable == true {
+				if BoolDefault(jd.properties.Installable, true) {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", jd.docZip.String())
 				}
 				if jd.stubsSrcJar != nil {
@@ -240,7 +251,7 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				if ddoc.Javadoc.properties.Installable == nil || *ddoc.Javadoc.properties.Installable == true {
+				if BoolDefault(ddoc.Javadoc.properties.Installable, true) {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", ddoc.Javadoc.docZip.String())
 				}
 				if ddoc.Javadoc.stubsSrcJar != nil {

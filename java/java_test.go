@@ -60,7 +60,7 @@ func testConfig(env map[string]string) android.Config {
 		env["ANDROID_JAVA8_HOME"] = "jdk8"
 	}
 	config := android.TestArchConfig(buildDir, env)
-	config.ProductVariables.DeviceSystemSdkVersions = &[]string{"14", "15"}
+	config.TestProductVariables.DeviceSystemSdkVersions = &[]string{"14", "15"}
 	return config
 
 }
@@ -97,6 +97,7 @@ func testContext(config android.Config, bp string,
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
+		"core.current.stubs",
 		"kotlin-stdlib",
 	}
 
@@ -106,6 +107,7 @@ func testContext(config android.Config, bp string,
 				name: "%s",
 				srcs: ["a.java"],
 				no_standard_libs: true,
+				sdk_version: "core_current",
 				system_modules: "core-system-modules",
 			}
 		`, extra)
@@ -141,8 +143,8 @@ func testContext(config android.Config, bp string,
 		"b.kt":           nil,
 		"a.jar":          nil,
 		"b.jar":          nil,
-		"java-res/a":     nil,
-		"java-res/b":     nil,
+		"java-res/a/a":   nil,
+		"java-res/b/b":   nil,
 		"java-res2/a":    nil,
 		"java-fg/a.java": nil,
 		"java-fg/b.java": nil,
@@ -212,9 +214,6 @@ func moduleToPath(name string) string {
 		return name
 	case strings.HasSuffix(name, ".jar"):
 		return name
-	case name == "android_stubs_current" || name == "android_system_stubs_current" ||
-		name == "android_test_stubs_current":
-		return filepath.Join(buildDir, ".intermediates", name, "android_common", "javac", name+".jar")
 	default:
 		return filepath.Join(buildDir, ".intermediates", name, "android_common", "turbine-combined", name+".jar")
 	}
@@ -346,17 +345,15 @@ var classpathTestcases = []struct {
 
 		name:          "current",
 		properties:    `sdk_version: "current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"android_stubs_current"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/current/android.jar"},
 	},
 	{
 
 		name:          "system_current",
 		properties:    `sdk_version: "system_current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"android_system_stubs_current"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/system_current/android.jar"},
 	},
 	{
 
@@ -370,17 +367,15 @@ var classpathTestcases = []struct {
 
 		name:          "test_current",
 		properties:    `sdk_version: "test_current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"android_test_stubs_current"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/test_current/android.jar"},
 	},
 	{
 
 		name:          "core_current",
 		properties:    `sdk_version: "core_current",`,
-		bootclasspath: []string{`""`},
+		bootclasspath: []string{"core.current.stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/current/core.jar"},
 	},
 	{
 
@@ -611,13 +606,13 @@ func TestResources(t *testing.T) {
 			// Test that a module with java_resource_dirs includes the files
 			name: "resource dirs",
 			prop: `java_resource_dirs: ["java-res"]`,
-			args: "-C java-res -f java-res/a -f java-res/b",
+			args: "-C java-res -f java-res/a/a -f java-res/b/b",
 		},
 		{
 			// Test that a module with java_resources includes the files
 			name: "resource files",
-			prop: `java_resources: ["java-res/a", "java-res/b"]`,
-			args: "-C . -f java-res/a -f java-res/b",
+			prop: `java_resources: ["java-res/a/a", "java-res/b/b"]`,
+			args: "-C . -f java-res/a/a -f java-res/b/b",
 		},
 		{
 			// Test that a module with a filegroup in java_resources includes the files with the
@@ -628,15 +623,27 @@ func TestResources(t *testing.T) {
 				filegroup {
 					name: "foo-res",
 					path: "java-res",
-					srcs: ["java-res/a", "java-res/b"],
+					srcs: ["java-res/a/a", "java-res/b/b"],
 				}`,
-			args: "-C java-res -f java-res/a -f java-res/b",
+			args: "-C java-res -f java-res/a/a -f java-res/b/b",
 		},
 		{
 			// Test that a module with "include_srcs: true" includes its source files in the resources jar
 			name: "include sources",
 			prop: `include_srcs: true`,
 			args: "-C . -f a.java -f b.java -f c.java",
+		},
+		{
+			// Test that a module with wildcards in java_resource_dirs has the correct path prefixes
+			name: "wildcard dirs",
+			prop: `java_resource_dirs: ["java-res/*"]`,
+			args: "-C java-res/a -f java-res/a/a -C java-res/b -f java-res/b/b",
+		},
+		{
+			// Test that a module exclude_java_resource_dirs excludes the files
+			name: "wildcard dirs",
+			prop: `java_resource_dirs: ["java-res/*"], exclude_java_resource_dirs: ["java-res/b"]`,
+			args: "-C java-res/a -f java-res/a/a",
 		},
 	}
 
@@ -682,14 +689,14 @@ func TestExcludeResources(t *testing.T) {
 		java_library {
 			name: "bar",
 			srcs: ["a.java"],
-			java_resources: ["java-res/*"],
-			exclude_java_resources: ["java-res/b"],
+			java_resources: ["java-res/*/*"],
+			exclude_java_resources: ["java-res/b/*"],
 		}
 	`)
 
 	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
 
-	expected := "-C java-res -f java-res/a -f java-res/b"
+	expected := "-C java-res -f java-res/a/a -f java-res/b/b"
 	if fooRes.Args["jarArgs"] != expected {
 		t.Errorf("foo resource jar args %q is not %q",
 			fooRes.Args["jarArgs"], expected)
@@ -698,7 +705,7 @@ func TestExcludeResources(t *testing.T) {
 
 	barRes := ctx.ModuleForTests("bar", "android_common").Output("res/bar.jar")
 
-	expected = "-C . -f java-res/a"
+	expected = "-C . -f java-res/a/a"
 	if barRes.Args["jarArgs"] != expected {
 		t.Errorf("bar resource jar args %q is not %q",
 			barRes.Args["jarArgs"], expected)
