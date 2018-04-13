@@ -38,10 +38,20 @@ type RelocationPackerProperties struct {
 	// This will be true even if we're embedded in Make, in which case
 	// we'll defer to make to actually do the packing.
 	PackingRelocations bool `blueprint:"mutated"`
+
+	// Use clang lld instead of gnu ld.
+	Use_clang_lld *bool
 }
 
 type relocationPacker struct {
 	Properties RelocationPackerProperties
+}
+
+func (p *relocationPacker) useClangLld(ctx BaseModuleContext) bool {
+	if p.Properties.Use_clang_lld != nil {
+		return Bool(p.Properties.Use_clang_lld)
+	}
+	return ctx.Config().UseClangLld()
 }
 
 func (p *relocationPacker) packingInit(ctx BaseModuleContext) {
@@ -54,6 +64,11 @@ func (p *relocationPacker) packingInit(ctx BaseModuleContext) {
 		enabled = false
 	}
 	if ctx.Config().Getenv("DISABLE_RELOCATION_PACKER") == "true" {
+		enabled = false
+	}
+	// Relocation packer does not work with lld output files.
+	// Packed files won't load.
+	if p.useClangLld(ctx) {
 		enabled = false
 	}
 	if ctx.useSdk() {

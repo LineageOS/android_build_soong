@@ -157,6 +157,7 @@ func init() {
 			"LOCAL_NO_STANDARD_LIBRARIES":    "no_standard_libs",
 			"LOCAL_PACK_MODULE_RELOCATIONS":  "pack_relocations",
 			"LOCAL_TIDY":                     "tidy",
+			"LOCAL_USE_CLANG_LLD":            "use_clang_lld",
 			"LOCAL_PROPRIETARY_MODULE":       "proprietary",
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_ODM_MODULE":               "device_specific",
