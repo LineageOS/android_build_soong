@@ -65,6 +65,8 @@ func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
 		"N":     24,
 		"N-MR1": 25,
 		"O":     26,
+		"O-MR1": 27,
+		"P":     28,
 	}
 	for i, codename := range ctx.Config().PlatformVersionCombinedCodenames() {
 		apiLevelsMap[codename] = baseApiLevel + i
