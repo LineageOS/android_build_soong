@@ -155,6 +155,11 @@ func (t *toolchainMips64) ClangLdflags() string {
 	return "${config.Mips64ClangLdflags}"
 }
 
+func (t *toolchainMips64) ClangLldflags() string {
+	// TODO: define and use Mips64ClangLldflags
+	return "${config.Mips64ClangLdflags}"
+}
+
 func (toolchainMips64) SanitizerRuntimeLibraryArch() string {
 	return "mips64"
 }

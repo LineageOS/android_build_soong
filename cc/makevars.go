@@ -232,6 +232,12 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
 	}, " "))
+	ctx.Strict(makePrefix+"GLOBAL_LLDFLAGS", strings.Join([]string{
+		fmt.Sprintf("${config.%sGlobalLldflags}", hod),
+		toolchain.Ldflags(),
+		toolchain.ToolchainLdflags(),
+		productExtraLdflags,
+	}, " "))
 
 	includeFlags, err := ctx.Eval(toolchain.IncludeFlags())
 	if err != nil {
@@ -276,6 +282,13 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(clangPrefix+"GLOBAL_LDFLAGS", strings.Join([]string{
 			fmt.Sprintf("${config.%sGlobalLdflags}", hod),
 			toolchain.ClangLdflags(),
+			toolchain.ToolchainClangLdflags(),
+			productExtraLdflags,
+			clangExtras,
+		}, " "))
+		ctx.Strict(clangPrefix+"GLOBAL_LLDFLAGS", strings.Join([]string{
+			fmt.Sprintf("${config.%sGlobalLldflags}", hod),
+			toolchain.ClangLldflags(),
 			toolchain.ToolchainClangLdflags(),
 			productExtraLdflags,
 			clangExtras,

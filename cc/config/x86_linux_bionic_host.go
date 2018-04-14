@@ -126,6 +126,11 @@ func (t *toolchainLinuxBionic) ClangLdflags() string {
 	return "${config.LinuxBionicLdflags}"
 }
 
+func (t *toolchainLinuxBionic) ClangLldflags() string {
+	// TODO: define and use LinuxBionicLldflags
+	return "${config.LinuxBionicLdflags}"
+}
+
 func (t *toolchainLinuxBionic) ToolchainClangCflags() string {
 	return "-m64 -march=x86-64" +
 		// TODO: We're not really android, but we don't have a triple yet b/31393676
