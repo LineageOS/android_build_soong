@@ -151,6 +151,10 @@ func (t *toolchainLinuxBionic) Bionic() bool {
 	return true
 }
 
+func (t *toolchainLinuxBionic) profileRuntimeLibrary() string {
+	return "libclang_rt.profile-x86_64"
+}
+
 var toolchainLinuxBionicSingleton Toolchain = &toolchainLinuxBionic{}
 
 func linuxBionicToolchainFactory(arch android.Arch) Toolchain {
