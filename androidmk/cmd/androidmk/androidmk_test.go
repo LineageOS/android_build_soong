@@ -15,13 +15,11 @@
 package main
 
 import (
+	"android/soong/bpfix/bpfix"
 	"bytes"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-
-	bpparser "github.com/google/blueprint/parser"
 )
 
 var testCases = []struct {
@@ -498,6 +496,7 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			include $(CLEAR_VARS)
 			LOCAL_SRC_FILES := test.jar
 			LOCAL_MODULE_CLASS := JAVA_LIBRARIES
+			LOCAL_STATIC_ANDROID_LIBRARIES :=
 			include $(BUILD_PREBUILT)
 		`,
 		expected: `
@@ -522,28 +521,68 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			}
 		`,
 	},
-}
 
-func reformatBlueprint(input string) string {
-	file, errs := bpparser.Parse("<testcase>", bytes.NewBufferString(input), bpparser.NewScope(nil))
-	if len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		panic(fmt.Sprintf("%d parsing errors in testcase:\n%s", len(errs), input))
-	}
+	{
+		desc: "aar",
+		in: `
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_RESOURCE_DIR := res
+			include $(BUILD_STATIC_JAVA_LIBRARY)
 
-	res, err := bpparser.Print(file)
-	if err != nil {
-		panic(fmt.Sprintf("Error printing testcase: %q", err))
-	}
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_STATIC_LIBRARIES := foo
+			LOCAL_STATIC_ANDROID_LIBRARIES := bar
+			include $(BUILD_STATIC_JAVA_LIBRARY)
 
-	return string(res)
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_SHARED_LIBRARIES := foo
+			LOCAL_SHARED_ANDROID_LIBRARIES := bar
+			include $(BUILD_STATIC_JAVA_LIBRARY)
+
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := test.java
+			LOCAL_STATIC_ANDROID_LIBRARIES :=
+			include $(BUILD_STATIC_JAVA_LIBRARY)
+		`,
+		expected: `
+			android_library {
+				srcs: ["test.java"],
+				resource_dirs: ["res"],
+			}
+
+			android_library {
+				srcs: ["test.java"],
+				static_libs: [
+					"foo",
+					"bar",
+				],
+			}
+
+			android_library {
+				srcs: ["test.java"],
+				libs: [
+					"foo",
+					"bar",
+				],
+			}
+
+			java_library_static {
+				srcs: ["test.java"],
+				static_libs: [],
+			}
+		`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
 	for i, test := range testCases {
-		expected := reformatBlueprint(test.expected)
+		expected, err := bpfix.Reformat(test.expected)
+		if err != nil {
+			t.Error(err)
+		}
 
 		got, errs := convertFile(fmt.Sprintf("<testcase %d>", i), bytes.NewBufferString(test.in))
 		if len(errs) > 0 {
