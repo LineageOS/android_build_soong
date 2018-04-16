@@ -17,6 +17,7 @@
 package bpfix
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -62,14 +63,16 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 		t.Fatalf("%d parse errors", len(errs))
 	}
 
+	fixer := NewFixer(tree)
+
 	// apply simplifications
-	err := simplifyKnownPropertiesDuplicatingEachOther(tree)
+	err := fixer.simplifyKnownPropertiesDuplicatingEachOther()
 	if len(errs) > 0 {
 		t.Fatal(err)
 	}
 
 	// lookup legacy property
-	mod := tree.Defs[0].(*parser.Module)
+	mod := fixer.tree.Defs[0].(*parser.Module)
 	_, found := mod.GetProperty("local_include_dirs")
 	if !found {
 		t.Fatalf("failed to include key local_include_dirs in parse tree")
@@ -112,4 +115,131 @@ func TestSimplifyKnownVariablesDuplicatingEachOther(t *testing.T) {
 		[]string{"include1", "include3", "include4"})
 	implFilterListTest(t, []string{}, []string{"include"}, []string{})
 	implFilterListTest(t, []string{}, []string{}, []string{})
+}
+
+func TestMergeMatchingProperties(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "empty",
+			in: `
+				java_library {
+					name: "foo",
+					static_libs: [],
+					static_libs: [],
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+					static_libs: [],
+				}
+			`,
+		},
+		{
+			name: "single line into multiline",
+			in: `
+				java_library {
+					name: "foo",
+					static_libs: [
+						"a",
+						"b",
+					],
+					//c1
+					static_libs: ["c" /*c2*/],
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+					static_libs: [
+						"a",
+						"b",
+						"c", /*c2*/
+					],
+					//c1
+				}
+			`,
+		},
+		{
+			name: "multiline into multiline",
+			in: `
+				java_library {
+					name: "foo",
+					static_libs: [
+						"a",
+						"b",
+					],
+					//c1
+					static_libs: [
+						//c2
+						"c", //c3
+						"d",
+					],
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+					static_libs: [
+						"a",
+						"b",
+						//c2
+						"c", //c3
+						"d",
+					],
+					//c1
+				}
+			`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expected, err := Reformat(test.out)
+			if err != nil {
+				t.Error(err)
+			}
+
+			in, err := Reformat(test.in)
+			if err != nil {
+				t.Error(err)
+			}
+
+			tree, errs := parser.Parse("<testcase>", bytes.NewBufferString(in), parser.NewScope(nil))
+			if errs != nil {
+				t.Fatal(errs)
+			}
+
+			fixer := NewFixer(tree)
+
+			got := ""
+			prev := "foo"
+			passes := 0
+			for got != prev && passes < 10 {
+				err := fixer.mergeMatchingModuleProperties()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				out, err := parser.Print(fixer.tree)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				prev = got
+				got = string(out)
+				passes++
+			}
+
+			if got != expected {
+				t.Errorf("failed testcase '%s'\ninput:\n%s\n\nexpected:\n%s\ngot:\n%s\n",
+					test.name, in, expected, got)
+			}
+
+		})
+	}
 }
