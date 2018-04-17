@@ -145,6 +145,7 @@ bootstrap_go_package {
         "cc/vndk_prebuilt.go",
 
         "cc/cmakelists.go",
+        "cc/compdb.go",
         "cc/compiler.go",
         "cc/installer.go",
         "cc/linker.go",
