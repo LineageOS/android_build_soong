@@ -539,13 +539,14 @@ func (ctx *moduleContextImpl) isVndkExt() bool {
 
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
 func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
+	skipAbiChecks := ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS")
 	isUnsanitizedVariant := true
 	sanitize := ctx.mod.sanitize
 	if sanitize != nil {
 		isUnsanitizedVariant = sanitize.isUnsanitizedVariant()
 	}
 	vendorAvailable := Bool(ctx.mod.VendorProperties.Vendor_available)
-	return isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && vendorAvailable) || inList(ctx.baseModuleName(), llndkLibraries))
+	return !skipAbiChecks && isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && vendorAvailable) || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
