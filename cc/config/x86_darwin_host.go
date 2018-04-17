@@ -73,9 +73,15 @@ var (
 
 	darwinClangLdflags = ClangFilterUnknownCflags(darwinLdflags)
 
+	darwinClangLldflags = ClangFilterUnknownLldflags(darwinClangLdflags)
+
 	darwinX86ClangLdflags = ClangFilterUnknownCflags(darwinX86Ldflags)
 
+	darwinX86ClangLldflags = ClangFilterUnknownLldflags(darwinX86ClangLdflags)
+
 	darwinX8664ClangLdflags = ClangFilterUnknownCflags(darwinX8664Ldflags)
+
+	darwinX8664ClangLldflags = ClangFilterUnknownLldflags(darwinX8664ClangLdflags)
 
 	darwinSupportedSdkVersions = []string{
 		"10.10",
@@ -141,6 +147,7 @@ func init() {
 
 	pctx.StaticVariable("DarwinClangCflags", strings.Join(darwinClangCflags, " "))
 	pctx.StaticVariable("DarwinClangLdflags", strings.Join(darwinClangLdflags, " "))
+	pctx.StaticVariable("DarwinClangLldflags", strings.Join(darwinClangLldflags, " "))
 
 	// Extended cflags
 	pctx.StaticVariable("DarwinX86Cflags", strings.Join(darwinX86Cflags, " "))
@@ -152,7 +159,9 @@ func init() {
 	pctx.StaticVariable("DarwinX8664ClangCflags",
 		strings.Join(ClangFilterUnknownCflags(darwinX8664Cflags), " "))
 	pctx.StaticVariable("DarwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
+	pctx.StaticVariable("DarwinX86ClangLldflags", strings.Join(darwinX86ClangLldflags, " "))
 	pctx.StaticVariable("DarwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
+	pctx.StaticVariable("DarwinX8664ClangLldflags", strings.Join(darwinX8664ClangLldflags, " "))
 	pctx.StaticVariable("DarwinX86YasmFlags", "-f macho -m x86")
 	pctx.StaticVariable("DarwinX8664YasmFlags", "-f macho -m amd64")
 }
@@ -274,8 +283,7 @@ func (t *toolchainDarwinX86) ClangLdflags() string {
 }
 
 func (t *toolchainDarwinX86) ClangLldflags() string {
-	// TODO: define and use Darwin*ClangLldflags
-	return "${config.DarwinClangLdflags} ${config.DarwinX86ClangLdflags}"
+	return "${config.DarwinClangLldflags} ${config.DarwinX86ClangLldflags}"
 }
 
 func (t *toolchainDarwinX8664) ClangLdflags() string {
@@ -283,8 +291,7 @@ func (t *toolchainDarwinX8664) ClangLdflags() string {
 }
 
 func (t *toolchainDarwinX8664) ClangLldflags() string {
-	// TODO: define and use Darwin*ClangLldflags
-	return "${config.DarwinClangLdflags} ${config.DarwinX8664ClangLdflags}"
+	return "${config.DarwinClangLldflags} ${config.DarwinX8664ClangLldflags}"
 }
 
 func (t *toolchainDarwinX86) YasmFlags() string {
