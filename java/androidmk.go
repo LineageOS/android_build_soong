@@ -223,7 +223,31 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 			},
 		},
 	}
+}
 
+func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
+	data := a.Library.AndroidMk()
+
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		if a.proguardDictionary != nil {
+			fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", a.proguardDictionary.String())
+		}
+
+		if a.Name() == "framework-res" {
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(TARGET_OUT_JAVA_LIBRARIES)")
+			// Make base_rules.mk not put framework-res in a subdirectory called
+			// framework_res.
+			fmt.Fprintln(w, "LOCAL_NO_STANDARD_LIBRARIES := true")
+		}
+
+		fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", a.exportPackage.String())
+		fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", a.manifestPath.String())
+		fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", a.proguardOptionsFile.String())
+		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+		fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+	})
+
+	return data
 }
 
 func (jd *Javadoc) AndroidMk() android.AndroidMkData {
