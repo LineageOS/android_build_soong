@@ -153,6 +153,9 @@ type DroiddocProperties struct {
 
 	// the generated exact API filename by Doclava.
 	Exact_api_filename *string
+
+	// if set to false, don't allow droiddoc to generate stubs source files. Defaults to true.
+	Create_stubs *bool
 }
 
 type Javadoc struct {
@@ -391,7 +394,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
 			"srcJars":           strings.Join(j.srcJars.Strings(), " "),
 			"opts":              opts,
-			"bootClasspathArgs": bootClasspathArgs,
+			"bootclasspathArgs": bootClasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepath":        strings.Join(j.sourcepaths.Strings(), ":"),
 			"docZip":            j.docZip.String(),
@@ -562,8 +565,11 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		"-doclet com.google.doclava.Doclava -docletpath ${config.JsilverJar}:${config.DoclavaJar} " +
 		"-templatedir " + templateDir + " " + htmlDirArgs + " " + htmlDir2Args + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
-		"-hdf page.now " + `"$$(date -d @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")"` + " " +
-		args + " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
+		"-hdf page.now " + `"$$(date -d @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")"` +
+		" " + args
+	if BoolDefault(d.properties.Create_stubs, true) {
+		opts += " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
+	}
 
 	implicitOutputs = append(implicitOutputs, d.Javadoc.docZip)
 	for _, o := range d.properties.Out {
