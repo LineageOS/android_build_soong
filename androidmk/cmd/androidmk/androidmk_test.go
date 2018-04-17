@@ -15,11 +15,12 @@
 package main
 
 import (
-	"android/soong/bpfix/bpfix"
 	"bytes"
 	"fmt"
 	"strings"
 	"testing"
+
+	"android/soong/bpfix/bpfix"
 )
 
 var testCases = []struct {
