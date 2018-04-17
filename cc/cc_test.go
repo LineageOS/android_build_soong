@@ -16,7 +16,6 @@ package cc
 
 import (
 	"android/soong/android"
-	"android/soong/genrule"
 
 	"fmt"
 	"io/ioutil"
@@ -62,7 +61,7 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
 	ctx.RegisterModuleType("vendor_public_library", android.ModuleFactoryAdaptor(vendorPublicLibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(objectFactory))
-	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
+	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", vendorMutator).Parallel()
 		ctx.BottomUp("link", linkageMutator).Parallel()
