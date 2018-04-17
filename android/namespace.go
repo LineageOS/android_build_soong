@@ -255,22 +255,7 @@ func (r *NameResolver) ModuleFromName(name string, namespace blueprint.Namespace
 }
 
 func (r *NameResolver) Rename(oldName string, newName string, namespace blueprint.Namespace) []error {
-	oldNs := r.findNamespace(oldName)
-	newNs := r.findNamespace(newName)
-	if oldNs != newNs {
-		return []error{fmt.Errorf("cannot rename %v to %v because the destination is outside namespace %v", oldName, newName, oldNs.Path)}
-	}
-
-	oldName, err := filepath.Rel(oldNs.Path, oldName)
-	if err != nil {
-		panic(err)
-	}
-	newName, err = filepath.Rel(newNs.Path, newName)
-	if err != nil {
-		panic(err)
-	}
-
-	return oldNs.moduleContainer.Rename(oldName, newName, nil)
+	return namespace.(*Namespace).moduleContainer.Rename(oldName, newName, namespace)
 }
 
 // resolve each element of namespace.importedNamespaceNames and put the result in namespace.visibleNamespaces
