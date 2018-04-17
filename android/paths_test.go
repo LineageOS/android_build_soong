@@ -474,10 +474,7 @@ func TestDirectorySortedPaths(t *testing.T) {
 	}
 
 	paths := makePaths()
-	reversePaths := make(Paths, len(paths))
-	for i, v := range paths {
-		reversePaths[len(paths)-i-1] = v
-	}
+	reversePaths := ReversePaths(paths)
 
 	sortedPaths := PathsToDirectorySortedPaths(paths)
 	reverseSortedPaths := PathsToDirectorySortedPaths(reversePaths)

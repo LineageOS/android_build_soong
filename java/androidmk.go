@@ -195,7 +195,9 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				}
 
 				if len(app.rroDirs) > 0 {
-					fmt.Fprintln(w, "LOCAL_SOONG_RRO_DIRS :=", strings.Join(app.rroDirs.Strings(), " "))
+					// Reverse the order, Soong stores rroDirs in aapt2 order (low to high priority), but Make
+					// expects it in LOCAL_RESOURCE_DIRS order (high to low priority).
+					fmt.Fprintln(w, "LOCAL_SOONG_RRO_DIRS :=", strings.Join(android.ReversePaths(app.rroDirs).Strings(), " "))
 				}
 
 				if Bool(app.appProperties.Export_package_resources) {
