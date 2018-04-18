@@ -109,6 +109,19 @@ var prebuiltsTests = []struct {
 			}`,
 		prebuilt: false,
 	},
+	{
+		name: "prebuilt file from filegroup preferred",
+		modules: `
+			filegroup {
+				name: "fg",
+			}
+			prebuilt {
+				name: "bar",
+				prefer: true,
+				srcs: [":fg"],
+			}`,
+		prebuilt: true,
+	},
 }
 
 func TestPrebuilts(t *testing.T) {
@@ -125,6 +138,7 @@ func TestPrebuilts(t *testing.T) {
 			ctx := NewTestContext()
 			ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
 			ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
+			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
 			ctx.RegisterModuleType("prebuilt", ModuleFactoryAdaptor(newPrebuiltModule))
 			ctx.RegisterModuleType("source", ModuleFactoryAdaptor(newSourceModule))
 			ctx.Register()

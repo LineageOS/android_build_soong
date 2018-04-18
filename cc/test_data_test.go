@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/genrule"
 )
 
 type dataFile struct {
@@ -129,7 +128,7 @@ func TestDataTests(t *testing.T) {
 				"dir/bar/baz":    nil,
 			})
 			ctx.RegisterModuleType("filegroup",
-				android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
+				android.ModuleFactoryAdaptor(android.FileGroupFactory))
 			ctx.RegisterModuleType("test",
 				android.ModuleFactoryAdaptor(newTest))
 			ctx.Register()

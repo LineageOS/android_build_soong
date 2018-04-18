@@ -46,6 +46,7 @@ bootstrap_go_package {
         "android/defaults.go",
         "android/defs.go",
         "android/expand.go",
+        "android/filegroup.go",
         "android/hooks.go",
         "android/makevars.go",
         "android/module.go",
@@ -186,7 +187,6 @@ bootstrap_go_package {
         "soong-shared",
     ],
     srcs: [
-        "genrule/filegroup.go",
         "genrule/genrule.go",
     ],
     pluginFor: ["soong_build"],
