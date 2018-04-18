@@ -89,11 +89,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
-	if ctx.Config().ProductVariables.DeviceVndkVersion != nil {
-		ctx.Strict("BOARD_VNDK_VERSION", *ctx.Config().ProductVariables.DeviceVndkVersion)
-	} else {
-		ctx.Strict("BOARD_VNDK_VERSION", "")
-	}
+	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
 
 	ctx.Strict("VNDK_CORE_LIBRARIES", strings.Join(vndkCoreLibraries, " "))
 	ctx.Strict("VNDK_SAMEPROCESS_LIBRARIES", strings.Join(vndkSpLibraries, " "))
@@ -211,10 +207,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		hod = "Device"
 	}
 
-	if target.Os.Class == android.Device && Bool(ctx.Config().ProductVariables.Brillo) {
-		productExtraCflags += "-D__BRILLO__"
-	}
-	if target.Os.Class == android.Host && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
+	if target.Os.Class == android.Host && ctx.Config().HostStaticBinaries() {
 		productExtraLdflags += "-static"
 	}
 

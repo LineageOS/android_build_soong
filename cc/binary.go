@@ -192,7 +192,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 
 	if !ctx.toolchain().Bionic() {
 		if ctx.Os() == android.Linux {
-			if binary.Properties.Static_executable == nil && Bool(ctx.Config().ProductVariables.HostStaticBinaries) {
+			if binary.Properties.Static_executable == nil && ctx.Config().HostStaticBinaries() {
 				binary.Properties.Static_executable = BoolPtr(true)
 			}
 		} else {

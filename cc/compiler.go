@@ -377,10 +377,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			fmt.Sprintf("${config.%sGlobalCflags}", hod))
 	}
 
-	if Bool(ctx.Config().ProductVariables.Brillo) {
-		flags.GlobalFlags = append(flags.GlobalFlags, "-D__BRILLO__")
-	}
-
 	if ctx.Device() {
 		if Bool(compiler.Properties.Rtti) {
 			flags.CppFlags = append(flags.CppFlags, "-frtti")

@@ -188,8 +188,8 @@ func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.T
 func testCc(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
-	config.ProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.ProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
 	return testCcWithConfig(t, bp, config)
 }
@@ -197,7 +197,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
-	config.ProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
 	return testCcWithConfig(t, bp, config)
 }
@@ -205,8 +205,8 @@ func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 func testCcError(t *testing.T, pattern string, bp string) {
 	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
-	config.ProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.ProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
 	ctx := createTestContext(t, config, bp)
 

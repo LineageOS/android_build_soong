@@ -36,7 +36,7 @@ func init() {
 func newNameResolver(config android.Config) *android.NameResolver {
 	namespacePathsToExport := make(map[string]bool)
 
-	for _, namespaceName := range config.ProductVariables.NamespacesToExport {
+	for _, namespaceName := range config.ExportedNamespaces() {
 		namespacePathsToExport[namespaceName] = true
 	}
 

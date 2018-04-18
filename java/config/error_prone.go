@@ -27,8 +27,8 @@ var (
 
 // Wrapper that grabs value of val late so it can be initialized by a later module's init function
 func errorProneVar(name string, val *string) {
-	pctx.VariableFunc(name, func(config android.Config) (string, error) {
-		return *val, nil
+	pctx.VariableFunc(name, func(android.PackageVarContext) string {
+		return *val
 	})
 }
 
