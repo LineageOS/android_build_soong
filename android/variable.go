@@ -128,6 +128,7 @@ type productVariables struct {
 	DateFromFile        *string `json:",omitempty"`
 
 	Platform_sdk_version              *int     `json:",omitempty"`
+	Platform_sdk_codename             *string  `json:",omitempty"`
 	Platform_sdk_final                *bool    `json:",omitempty"`
 	Platform_version_active_codenames []string `json:",omitempty"`
 	Platform_version_future_codenames []string `json:",omitempty"`
