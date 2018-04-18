@@ -476,6 +476,10 @@ func (c *config) PlatformSdkVersion() string {
 	return strconv.Itoa(c.PlatformSdkVersionInt())
 }
 
+func (c *config) PlatformSdkCodename() string {
+	return String(c.productVariables.Platform_sdk_codename)
+}
+
 func (c *config) MinSupportedSdkVersion() int {
 	return 14
 }
@@ -485,6 +489,14 @@ func (c *config) DefaultAppTargetSdkInt() int {
 		return c.PlatformSdkVersionInt()
 	} else {
 		return FutureApiLevel
+	}
+}
+
+func (c *config) DefaultAppTargetSdk() string {
+	if Bool(c.productVariables.Platform_sdk_final) {
+		return c.PlatformSdkVersion()
+	} else {
+		return c.PlatformSdkCodename()
 	}
 }
 
