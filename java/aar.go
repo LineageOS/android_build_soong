@@ -134,7 +134,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags [
 	// SDK version flags
 	switch sdkVersion {
 	case "", "current", "system_current", "test_current":
-		sdkVersion = proptools.NinjaEscape([]string{ctx.Config().AppsDefaultVersionName()})[0]
+		sdkVersion = proptools.NinjaEscape([]string{ctx.Config().DefaultAppTargetSdk()})[0]
 	}
 
 	linkFlags = append(linkFlags, "--min-sdk-version "+sdkVersion)
