@@ -59,7 +59,9 @@ func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 		return nil
 	}
 
-	return PathForModuleSrc(ctx, (*p.srcs)[0])
+	// Return the singleton source after expanding any filegroup in the
+	// sources.
+	return ctx.ExpandSource((*p.srcs)[0], "")
 }
 
 func InitPrebuiltModule(module PrebuiltInterface, srcs *[]string) {
@@ -79,7 +81,7 @@ func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
 
 func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
-	ctx.BottomUp("prebuilt_replace", PrebuiltReplaceMutator).Parallel()
+	ctx.BottomUp("prebuilt_postdeps", PrebuiltPostDepsMutator).Parallel()
 }
 
 // prebuiltMutator ensures that there is always a module with an undecorated name, and marks
@@ -119,10 +121,12 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 	}
 }
 
-// PrebuiltReplaceMutator replaces dependencies on the source module with dependencies on the
-// prebuilt when both modules exist and the prebuilt should be used.  When the prebuilt should not
-// be used, disable installing it.
-func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
+// PrebuiltPostDepsMutator does two operations.  It replace dependencies on the
+// source module with dependencies on the prebuilt when both modules exist and
+// the prebuilt should be used.  When the prebuilt should not be used, disable
+// installing it.  Secondly, it also adds a sourcegroup to any filegroups found
+// in the prebuilt's 'Srcs' property.
+func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
 		p := m.Prebuilt()
 		name := m.base().BaseModuleName()
@@ -132,6 +136,9 @@ func PrebuiltReplaceMutator(ctx BottomUpMutatorContext) {
 			}
 		} else {
 			m.SkipInstall()
+		}
+		if len(*p.srcs) > 0 {
+			ExtractSourceDeps(ctx, &(*p.srcs)[0])
 		}
 	}
 }

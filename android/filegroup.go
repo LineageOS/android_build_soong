@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genrule
+package android
 
 import (
-	"android/soong/android"
 	"io"
 	"strings"
 	"text/template"
 )
 
 func init() {
-	android.RegisterModuleType("filegroup", FileGroupFactory)
+	RegisterModuleType("filegroup", FileGroupFactory)
 }
 
 type fileGroupProperties struct {
@@ -43,34 +42,34 @@ type fileGroupProperties struct {
 }
 
 type fileGroup struct {
-	android.ModuleBase
+	ModuleBase
 	properties fileGroupProperties
-	srcs       android.Paths
+	srcs       Paths
 }
 
-var _ android.SourceFileProducer = (*fileGroup)(nil)
+var _ SourceFileProducer = (*fileGroup)(nil)
 
 // filegroup modules contain a list of files, and can be used to export files across package
 // boundaries.  filegroups (and genrules) can be referenced from srcs properties of other modules
 // using the syntax ":module".
-func FileGroupFactory() android.Module {
+func FileGroupFactory() Module {
 	module := &fileGroup{}
 	module.AddProperties(&module.properties)
-	android.InitAndroidModule(module)
+	InitAndroidModule(module)
 	return module
 }
 
-func (fg *fileGroup) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, fg.properties.Srcs)
-	android.ExtractSourcesDeps(ctx, fg.properties.Exclude_srcs)
+func (fg *fileGroup) DepsMutator(ctx BottomUpMutatorContext) {
+	ExtractSourcesDeps(ctx, fg.properties.Srcs)
+	ExtractSourcesDeps(ctx, fg.properties.Exclude_srcs)
 }
 
-func (fg *fileGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 	fg.srcs = ctx.ExpandSourcesSubDir(fg.properties.Srcs, fg.properties.Exclude_srcs, String(fg.properties.Path))
 }
 
-func (fg *fileGroup) Srcs() android.Paths {
-	return append(android.Paths{}, fg.srcs...)
+func (fg *fileGroup) Srcs() Paths {
+	return append(Paths{}, fg.srcs...)
 }
 
 var androidMkTemplate = template.Must(template.New("filegroup").Parse(`
@@ -81,9 +80,9 @@ endif
 .KATI_READONLY := {{.makeVar}}
 `))
 
-func (fg *fileGroup) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
-		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+func (fg *fileGroup) AndroidMk() AndroidMkData {
+	return AndroidMkData{
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data AndroidMkData) {
 			if makeVar := String(fg.properties.Export_to_make_var); makeVar != "" {
 				androidMkTemplate.Execute(w, map[string]string{
 					"makeVar": makeVar,
