@@ -151,17 +151,14 @@ func testContext(config android.Config, bp string,
 		"java-fg/b.java": nil,
 		"java-fg/c.java": nil,
 
-		"prebuilts/sdk/14/android.jar":                nil,
-		"prebuilts/sdk/14/framework.aidl":             nil,
-		"prebuilts/sdk/current/android.jar":           nil,
-		"prebuilts/sdk/current/framework.aidl":        nil,
-		"prebuilts/sdk/current/core.jar":              nil,
-		"prebuilts/sdk/system_current/android.jar":    nil,
-		"prebuilts/sdk/system_current/framework.aidl": nil,
-		"prebuilts/sdk/system_14/android.jar":         nil,
-		"prebuilts/sdk/system_14/framework.aidl":      nil,
-		"prebuilts/sdk/test_current/android.jar":      nil,
-		"prebuilts/sdk/test_current/framework.aidl":   nil,
+		"prebuilts/sdk/14/public/android.jar":         nil,
+		"prebuilts/sdk/14/public/framework.aidl":      nil,
+		"prebuilts/sdk/14/system/android.jar":         nil,
+		"prebuilts/sdk/current/public/android.jar":    nil,
+		"prebuilts/sdk/current/public/framework.aidl": nil,
+		"prebuilts/sdk/current/public/core.jar":       nil,
+		"prebuilts/sdk/current/system/android.jar":    nil,
+		"prebuilts/sdk/current/test/android.jar":      nil,
 
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
@@ -340,7 +337,7 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/public/android.jar"},
 	},
 	{
 
@@ -362,7 +359,7 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "system_14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/system_14/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/system/android.jar"},
 	},
 	{
 
@@ -864,9 +861,9 @@ func TestTurbine(t *testing.T) {
 	if len(barTurbineCombined.Inputs) != 2 || barTurbineCombined.Inputs[1].String() != fooHeaderJar {
 		t.Errorf("bar turbine combineJar inputs %v does not contain %q", barTurbineCombined.Inputs, fooHeaderJar)
 	}
-	if !strings.Contains(bazJavac.Args["classpath"], "prebuilts/sdk/14/android.jar") {
+	if !strings.Contains(bazJavac.Args["classpath"], "prebuilts/sdk/14/public/android.jar") {
 		t.Errorf("baz javac classpath %v does not contain %q", bazJavac.Args["classpath"],
-			"prebuilts/sdk/14/android.jar")
+			"prebuilts/sdk/14/public/android.jar")
 	}
 }
 
