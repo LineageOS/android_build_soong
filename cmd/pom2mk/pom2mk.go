@@ -15,11 +15,14 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/xml"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -271,6 +274,58 @@ func parse(filename string) (*Pom, error) {
 	return &pom, nil
 }
 
+func rerunForRegen(filename string) error {
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(bytes.NewBuffer(buf))
+
+	// Skip the first line in the file
+	for i := 0; i < 2; i++ {
+		if !scanner.Scan() {
+			if scanner.Err() != nil {
+				return scanner.Err()
+			} else {
+				return fmt.Errorf("unexpected EOF")
+			}
+		}
+	}
+
+	// Extract the old args from the file
+	line := scanner.Text()
+	if strings.HasPrefix(line, "# pom2mk ") {
+		line = strings.TrimPrefix(line, "# pom2mk ")
+	} else {
+		return fmt.Errorf("unexpected second line: %q", line)
+	}
+	args := strings.Split(line, " ")
+	lastArg := args[len(args)-1]
+	args = args[:len(args)-1]
+
+	// Append all current command line args except -regen <file> to the ones from the file
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i] == "-regen" {
+			i++
+		} else {
+			args = append(args, os.Args[i])
+		}
+	}
+	args = append(args, lastArg)
+
+	cmd := os.Args[0] + " " + strings.Join(args, " ")
+	// Re-exec pom2mk with the new arguments
+	output, err := exec.Command("/bin/sh", "-c", cmd).Output()
+	if exitErr, _ := err.(*exec.ExitError); exitErr != nil {
+		return fmt.Errorf("failed to run %s\n%s", cmd, string(exitErr.Stderr))
+	} else if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filename, output, 0666)
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `pom2mk, a tool to create Android.mk files from maven repos
@@ -278,7 +333,7 @@ func main() {
 The tool will extract the necessary information from *.pom files to create an Android.mk whose
 aar libraries can be linked against when using AAPT2.
 
-Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module>]] <dir>
+Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module>]] [<dir>] [-regen <file>]
 
   -rewrite <regex>=<replace>
      rewrite can be used to specify mappings between Maven projects and Make modules. The -rewrite
@@ -299,20 +354,36 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
      Whether to statically include direct dependencies.
   <dir>
      The directory to search for *.pom files under.
-
-The makefile is written to stdout, to be put in the current directory (often as Android.mk)
+     The makefile is written to stdout, to be put in the current directory (often as Android.mk)
+  -regen <file>
+     Read arguments from <file> and overwrite it.
 `, os.Args[0])
 	}
+
+	var regen string
 
 	flag.Var(&extraDeps, "extra-deps", "Extra dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
+	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.Parse()
 
-	if flag.NArg() != 1 {
-		flag.Usage()
+	if regen != "" {
+		err := rerunForRegen(regen)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if flag.NArg() == 0 {
+		fmt.Fprintln(os.Stderr, "Directory argument is required")
+		os.Exit(1)
+	} else if flag.NArg() > 1 {
+		fmt.Fprintln(os.Stderr, "Multiple directories provided:", strings.Join(flag.Args(), " "))
 		os.Exit(1)
 	}
 
