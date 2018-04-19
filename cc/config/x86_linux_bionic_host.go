@@ -61,11 +61,14 @@ var (
 		// Use the device gcc toolchain
 		"--gcc-toolchain=${LinuxBionicGccRoot}",
 	})
+
+	linuxBionicLldflags = ClangFilterUnknownLldflags(linuxBionicLdflags)
 )
 
 func init() {
 	pctx.StaticVariable("LinuxBionicCflags", strings.Join(linuxBionicCflags, " "))
 	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
+	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLldflags, " "))
 
 	pctx.StaticVariable("LinuxBionicIncludeFlags", bionicHeaders("x86"))
 
@@ -127,8 +130,7 @@ func (t *toolchainLinuxBionic) ClangLdflags() string {
 }
 
 func (t *toolchainLinuxBionic) ClangLldflags() string {
-	// TODO: define and use LinuxBionicLldflags
-	return "${config.LinuxBionicLdflags}"
+	return "${config.LinuxBionicLldflags}"
 }
 
 func (t *toolchainLinuxBionic) ToolchainClangCflags() string {
