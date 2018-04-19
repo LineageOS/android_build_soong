@@ -193,6 +193,15 @@ type VendorProperties struct {
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	Vendor_available *bool
+
+	// whether this module is capable of being loaded with other instance
+	// (possibly an older version) of the same module in the same process.
+	// Currently, a shared library that is a member of VNDK (vndk: {enabled: true})
+	// can be double loaded in a vendor process if the library is also a
+	// (direct and indirect) dependency of an LLNDK library. Such libraries must be
+	// explicitly marked as `double_loadable: true` by the owner, or the dependency
+	// from the LLNDK lib should be cut if the lib is not designed to be double loaded.
+	Double_loadable *bool
 }
 
 type UnusedProperties struct {
@@ -1127,6 +1136,34 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 	}
 }
 
+// Tests whether the dependent library is okay to be double loaded inside a single process.
+// If a library is a member of VNDK and at the same time dependencies of an LLNDK library,
+// it is subject to be double loaded. Such lib should be explicitly marked as double_loaded: true
+// or as vndk-sp (vndk: { enabled: true, support_system_process: true}).
+func checkDoubleLoadableLibries(ctx android.ModuleContext, from *Module, to *Module) {
+	if _, ok := from.linker.(*libraryDecorator); !ok {
+		return
+	}
+
+	if inList(ctx.ModuleName(), llndkLibraries) ||
+		(from.useVndk() && Bool(from.VendorProperties.Double_loadable)) {
+		_, depIsLlndk := to.linker.(*llndkStubDecorator)
+		depIsVndkSp := false
+		if to.vndkdep != nil && to.vndkdep.isVndkSp() {
+			depIsVndkSp = true
+		}
+		depIsVndk := false
+		if to.vndkdep != nil && to.vndkdep.isVndk() {
+			depIsVndk = true
+		}
+		depIsDoubleLoadable := Bool(to.VendorProperties.Double_loadable)
+		if !depIsLlndk && !depIsVndkSp && !depIsDoubleLoadable && depIsVndk {
+			ctx.ModuleErrorf("links VNDK library %q that isn't double_loadable.",
+				ctx.OtherModuleName(to))
+		}
+	}
+}
+
 // Convert dependencies to paths.  Returns a PathDeps containing paths
 func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
@@ -1225,6 +1262,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			checkLinkType(ctx, c, ccDep, t)
+			checkDoubleLoadableLibries(ctx, c, ccDep)
 		}
 
 		var ptr *android.Paths
