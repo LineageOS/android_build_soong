@@ -308,6 +308,18 @@ func LastUniquePaths(list Paths) Paths {
 	return list[totalSkip:]
 }
 
+// ReversePaths returns a copy of a Paths in reverse order.
+func ReversePaths(list Paths) Paths {
+	if list == nil {
+		return nil
+	}
+	ret := make(Paths, len(list))
+	for i := range list {
+		ret[i] = list[len(list)-1-i]
+	}
+	return ret
+}
+
 func indexPathList(s Path, list []Path) int {
 	for i, l := range list {
 		if l == s {
