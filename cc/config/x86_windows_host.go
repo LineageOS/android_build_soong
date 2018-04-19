@@ -64,7 +64,8 @@ var (
 	windowsLdflags = []string{
 		"--enable-stdcall-fixup",
 	}
-	windowsClangLdflags = append(ClangFilterUnknownCflags(windowsLdflags), []string{}...)
+	windowsClangLdflags  = append(ClangFilterUnknownCflags(windowsLdflags), []string{}...)
+	windowsClangLldflags = ClangFilterUnknownLldflags(windowsClangLdflags)
 
 	windowsX86Cflags = []string{
 		"-m32",
@@ -84,6 +85,7 @@ var (
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib32",
 	}...)
+	windowsX86ClangLldflags = ClangFilterUnknownLldflags(windowsX86ClangLdflags)
 
 	windowsX8664Ldflags = []string{
 		"-m64",
@@ -94,6 +96,7 @@ var (
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib64",
 	}...)
+	windowsX8664ClangLldflags = ClangFilterUnknownLldflags(windowsX8664ClangLdflags)
 
 	windowsAvailableLibraries = addPrefix([]string{
 		"gdi32",
@@ -128,6 +131,7 @@ func init() {
 
 	pctx.StaticVariable("WindowsClangCflags", strings.Join(windowsClangCflags, " "))
 	pctx.StaticVariable("WindowsClangLdflags", strings.Join(windowsClangLdflags, " "))
+	pctx.StaticVariable("WindowsClangLldflags", strings.Join(windowsClangLldflags, " "))
 	pctx.StaticVariable("WindowsClangCppflags", strings.Join(windowsClangCppflags, " "))
 
 	pctx.StaticVariable("WindowsX86Cflags", strings.Join(windowsX86Cflags, " "))
@@ -140,7 +144,9 @@ func init() {
 	pctx.StaticVariable("WindowsX8664ClangCflags",
 		strings.Join(ClangFilterUnknownCflags(windowsX8664Cflags), " "))
 	pctx.StaticVariable("WindowsX86ClangLdflags", strings.Join(windowsX86ClangLdflags, " "))
+	pctx.StaticVariable("WindowsX86ClangLldflags", strings.Join(windowsX86ClangLldflags, " "))
 	pctx.StaticVariable("WindowsX8664ClangLdflags", strings.Join(windowsX8664ClangLdflags, " "))
+	pctx.StaticVariable("WindowsX8664ClangLldflags", strings.Join(windowsX8664ClangLldflags, " "))
 	pctx.StaticVariable("WindowsX86ClangCppflags", strings.Join(windowsX86ClangCppflags, " "))
 	pctx.StaticVariable("WindowsX8664ClangCppflags", strings.Join(windowsX8664ClangCppflags, " "))
 
@@ -246,8 +252,7 @@ func (t *toolchainWindowsX86) ClangLdflags() string {
 }
 
 func (t *toolchainWindowsX86) ClangLldflags() string {
-	// TODO: define and use Windows*ClangLldflags
-	return "${config.WindowsClangLdflags} ${config.WindowsX86ClangLdflags}"
+	return "${config.WindowsClangLldflags} ${config.WindowsX86ClangLldflags}"
 }
 
 func (t *toolchainWindowsX8664) ClangLdflags() string {
@@ -255,8 +260,7 @@ func (t *toolchainWindowsX8664) ClangLdflags() string {
 }
 
 func (t *toolchainWindowsX8664) ClangLldflags() string {
-	// TODO: define and use Windows*ClangLldflags
-	return "${config.WindowsClangLdflags} ${config.WindowsX8664ClangLdflags}"
+	return "${config.WindowsClangLldflags} ${config.WindowsX8664ClangLldflags}"
 }
 
 func (t *toolchainWindows) ShlibSuffix() string {
