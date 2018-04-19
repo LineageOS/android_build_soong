@@ -292,6 +292,10 @@ type Dependency interface {
 	AidlIncludeDirs() android.Paths
 }
 
+type SdkLibraryDependency interface {
+	HeaderJars(linkType linkType) android.Paths
+}
+
 type SrcDependency interface {
 	CompiledSrcs() android.Paths
 	CompiledSrcJars() android.Paths
@@ -729,6 +733,13 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 
 			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
+		case SdkLibraryDependency:
+			switch tag {
+			case libTag:
+				deps.classpath = append(deps.classpath, dep.HeaderJars(getLinkType(j, ctx.ModuleName()))...)
+			default:
+				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
+			}
 		case android.SourceFileProducer:
 			switch tag {
 			case libTag:
