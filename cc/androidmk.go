@@ -243,6 +243,7 @@ func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(benchmark.Properties.Test_suites, " "))
 		}
+		fmt.Fprintln(w, "LOCAL_NATIVE_BENCHMARK := true")
 	})
 
 	androidMkWriteTestData(benchmark.data, ctx, ret)
