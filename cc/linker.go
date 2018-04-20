@@ -59,7 +59,7 @@ type BaseLinkerProperties struct {
 	No_libgcc *bool
 
 	// Use clang lld instead of gnu ld.
-	Use_clang_lld *bool
+	Use_clang_lld *bool `android:"arch_variant"`
 
 	// -l arguments to pass to linker for host-provided shared libraries
 	Host_ldlibs []string `android:"arch_variant"`
