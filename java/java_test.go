@@ -78,14 +78,18 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(SystemModulesFactory))
 	ctx.RegisterModuleType("java_genrule", android.ModuleFactoryAdaptor(genRuleFactory))
-	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(genrule.FileGroupFactory))
+	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.RegisterModuleType("droiddoc", android.ModuleFactoryAdaptor(DroiddocFactory))
 	ctx.RegisterModuleType("droiddoc_host", android.ModuleFactoryAdaptor(DroiddocHostFactory))
 	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(DroiddocTemplateFactory))
+	ctx.RegisterModuleType("java_sdk_library", android.ModuleFactoryAdaptor(sdkLibraryFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("java_sdk_library", sdkLibraryMutator).Parallel()
+	})
 	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(OverlaySingletonFactory))
 	ctx.Register()
 
@@ -151,17 +155,14 @@ func testContext(config android.Config, bp string,
 		"java-fg/b.java": nil,
 		"java-fg/c.java": nil,
 
-		"prebuilts/sdk/14/android.jar":                nil,
-		"prebuilts/sdk/14/framework.aidl":             nil,
-		"prebuilts/sdk/current/android.jar":           nil,
-		"prebuilts/sdk/current/framework.aidl":        nil,
-		"prebuilts/sdk/current/core.jar":              nil,
-		"prebuilts/sdk/system_current/android.jar":    nil,
-		"prebuilts/sdk/system_current/framework.aidl": nil,
-		"prebuilts/sdk/system_14/android.jar":         nil,
-		"prebuilts/sdk/system_14/framework.aidl":      nil,
-		"prebuilts/sdk/test_current/android.jar":      nil,
-		"prebuilts/sdk/test_current/framework.aidl":   nil,
+		"prebuilts/sdk/14/public/android.jar":         nil,
+		"prebuilts/sdk/14/public/framework.aidl":      nil,
+		"prebuilts/sdk/14/system/android.jar":         nil,
+		"prebuilts/sdk/current/public/android.jar":    nil,
+		"prebuilts/sdk/current/public/framework.aidl": nil,
+		"prebuilts/sdk/current/public/core.jar":       nil,
+		"prebuilts/sdk/current/system/android.jar":    nil,
+		"prebuilts/sdk/current/test/android.jar":      nil,
 
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
@@ -340,7 +341,7 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/public/android.jar"},
 	},
 	{
 
@@ -362,7 +363,7 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "system_14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/system_14/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/system/android.jar"},
 	},
 	{
 
@@ -864,9 +865,9 @@ func TestTurbine(t *testing.T) {
 	if len(barTurbineCombined.Inputs) != 2 || barTurbineCombined.Inputs[1].String() != fooHeaderJar {
 		t.Errorf("bar turbine combineJar inputs %v does not contain %q", barTurbineCombined.Inputs, fooHeaderJar)
 	}
-	if !strings.Contains(bazJavac.Args["classpath"], "prebuilts/sdk/14/android.jar") {
+	if !strings.Contains(bazJavac.Args["classpath"], "prebuilts/sdk/14/public/android.jar") {
 		t.Errorf("baz javac classpath %v does not contain %q", bazJavac.Args["classpath"],
-			"prebuilts/sdk/14/android.jar")
+			"prebuilts/sdk/14/public/android.jar")
 	}
 }
 
@@ -999,5 +1000,62 @@ func TestExcludeFileGroupInSrcs(t *testing.T) {
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "java-fg/c.java" {
 		t.Errorf(`foo inputs %v != ["java-fg/c.java"]`, javac.Inputs)
+	}
+}
+
+func TestJavaSdkLibrary(t *testing.T) {
+	ctx := testJava(t, `
+		droiddoc_template {
+			name: "droiddoc-templates-sdk",
+			path: ".",
+		}
+		java_library {
+			name: "conscrypt",
+		}
+		java_library {
+			name: "bouncycastle",
+		}
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+		}
+		java_sdk_library {
+			name: "bar",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["bar"],
+		}
+		java_library {
+			name: "baz",
+			srcs: ["c.java"],
+			libs: ["foo", "bar"],
+			sdk_version: "system_current",
+		}
+		`)
+
+	// check the existence of the internal modules
+	ctx.ModuleForTests("foo", "android_common")
+	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix+sdkSystemApiSuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkDocsSuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkSystemApiSuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkImplLibrarySuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "")
+
+	bazJavac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
+	// tests if baz is actually linked to the stubs lib
+	if !strings.Contains(bazJavac.Args["classpath"], "foo.stubs.system.jar") {
+		t.Errorf("baz javac classpath %v does not contain %q", bazJavac.Args["classpath"],
+			"foo.stubs.system.jar")
+	}
+	// ... and not to the impl lib
+	if strings.Contains(bazJavac.Args["classpath"], "foo.impl.jar") {
+		t.Errorf("baz javac classpath %v should not contain %q", bazJavac.Args["classpath"],
+			"foo.impl.jar")
+	}
+	// test if baz is not linked to the system variant of foo
+	if strings.Contains(bazJavac.Args["classpath"], "foo.stubs.jar") {
+		t.Errorf("baz javac classpath %v should not contain %q", bazJavac.Args["classpath"],
+			"foo.stubs.jar")
 	}
 }

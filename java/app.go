@@ -86,6 +86,28 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.properties.Instrument = true
 	}
 
+	hasProduct := false
+	for _, f := range a.aaptProperties.Aaptflags {
+		if strings.HasPrefix(f, "--product") {
+			hasProduct = true
+		}
+	}
+
+	// Product characteristics
+	if !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
+		linkFlags = append(linkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
+	}
+
+	// Product AAPT config
+	for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
+		linkFlags = append(linkFlags, "-c", aaptConfig)
+	}
+
+	// Product AAPT preferred config
+	if len(ctx.Config().ProductAAPTPreferredConfig()) > 0 {
+		linkFlags = append(linkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
+	}
+
 	// TODO: LOCAL_PACKAGE_OVERRIDES
 	//    $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
 

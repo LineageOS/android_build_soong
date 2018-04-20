@@ -76,14 +76,11 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags [
 
 	hasVersionCode := false
 	hasVersionName := false
-	hasProduct := false
 	for _, f := range a.aaptProperties.Aaptflags {
 		if strings.HasPrefix(f, "--version-code") {
 			hasVersionCode = true
 		} else if strings.HasPrefix(f, "--version-name") {
 			hasVersionName = true
-		} else if strings.HasPrefix(f, "--product") {
-			hasProduct = true
 		}
 	}
 
@@ -134,26 +131,11 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags [
 	// SDK version flags
 	switch sdkVersion {
 	case "", "current", "system_current", "test_current":
-		sdkVersion = proptools.NinjaEscape([]string{ctx.Config().AppsDefaultVersionName()})[0]
+		sdkVersion = proptools.NinjaEscape([]string{ctx.Config().DefaultAppTargetSdk()})[0]
 	}
 
 	linkFlags = append(linkFlags, "--min-sdk-version "+sdkVersion)
 	linkFlags = append(linkFlags, "--target-sdk-version "+sdkVersion)
-
-	// Product characteristics
-	if !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
-		linkFlags = append(linkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
-	}
-
-	// Product AAPT config
-	for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
-		linkFlags = append(linkFlags, "-c", aaptConfig)
-	}
-
-	// Product AAPT preferred config
-	if len(ctx.Config().ProductAAPTPreferredConfig()) > 0 {
-		linkFlags = append(linkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
-	}
 
 	// Version code
 	if !hasVersionCode {

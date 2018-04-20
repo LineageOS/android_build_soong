@@ -292,6 +292,10 @@ type Dependency interface {
 	AidlIncludeDirs() android.Paths
 }
 
+type SdkLibraryDependency interface {
+	HeaderJars(linkType linkType) android.Paths
+}
+
 type SrcDependency interface {
 	CompiledSrcs() android.Paths
 	CompiledSrcJars() android.Paths
@@ -387,24 +391,29 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		}
 	}
 
-	toFile := func(v string) sdkDep {
-		isCore := strings.HasPrefix(v, "core_")
-		if isCore {
-			v = strings.TrimPrefix(v, "core_")
+	toPrebuilt := func(sdk string) sdkDep {
+		var api, v string
+		if strings.Contains(sdk, "_") {
+			t := strings.Split(sdk, "_")
+			api = t[0]
+			v = t[1]
+		} else {
+			api = "public"
+			v = sdk
 		}
-		dir := filepath.Join("prebuilts/sdk", v)
+		dir := filepath.Join("prebuilts", "sdk", v, api)
 		jar := filepath.Join(dir, "android.jar")
-		if isCore {
-			jar = filepath.Join(dir, "core.jar")
-		}
-		aidl := filepath.Join(dir, "framework.aidl")
+		// There's no aidl for other SDKs yet.
+		// TODO(77525052): Add aidl files for other SDKs too.
+		public_dir := filepath.Join("prebuilts", "sdk", v, "public")
+		aidl := filepath.Join(public_dir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, jar)
 		aidlPath := android.ExistentPathForSource(ctx, aidl)
 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
 				invalidVersion: true,
-				module:         "sdk_v" + v,
+				module:         fmt.Sprintf("sdk_%s_%s_android", api, v),
 			}
 		}
 
@@ -439,7 +448,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	}
 
 	if ctx.Config().UnbundledBuild() && v != "" {
-		return toFile(v)
+		return toPrebuilt(v)
 	}
 
 	switch v {
@@ -457,7 +466,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	case "core_current":
 		return toModule("core.current.stubs", "")
 	default:
-		return toFile(v)
+		return toPrebuilt(v)
 	}
 }
 
@@ -724,6 +733,13 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 
 			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
+		case SdkLibraryDependency:
+			switch tag {
+			case libTag:
+				deps.classpath = append(deps.classpath, dep.HeaderJars(getLinkType(j, ctx.ModuleName()))...)
+			default:
+				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
+			}
 		case android.SourceFileProducer:
 			switch tag {
 			case libTag:

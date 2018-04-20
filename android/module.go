@@ -323,6 +323,7 @@ func InitAndroidModule(m Module) {
 		&base.nameProperties,
 		&base.commonProperties,
 		&base.variableProperties)
+	base.customizableProperties = m.GetProperties()
 }
 
 func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
@@ -498,6 +499,22 @@ func (a *ModuleBase) DeviceSupported() bool {
 		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
 			(a.hostAndDeviceProperties.Device_supported == nil ||
 				*a.hostAndDeviceProperties.Device_supported)
+}
+
+func (a *ModuleBase) Platform() bool {
+	return !a.DeviceSpecific() && !a.SocSpecific() && !a.ProductSpecific()
+}
+
+func (a *ModuleBase) DeviceSpecific() bool {
+	return Bool(a.commonProperties.Device_specific)
+}
+
+func (a *ModuleBase) SocSpecific() bool {
+	return Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
+}
+
+func (a *ModuleBase) ProductSpecific() bool {
+	return Bool(a.commonProperties.Product_specific)
 }
 
 func (a *ModuleBase) Enabled() bool {

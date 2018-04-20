@@ -306,6 +306,20 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			default:
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
+		case SdkLibraryDependency:
+			switch tag {
+			case libTag:
+				sdkVersion := String(j.properties.Sdk_version)
+				linkType := javaSdk
+				if strings.HasPrefix(sdkVersion, "system_") || strings.HasPrefix(sdkVersion, "test_") {
+					linkType = javaSystem
+				} else if sdkVersion == "" {
+					linkType = javaPlatform
+				}
+				deps.classpath = append(deps.classpath, dep.HeaderJars(linkType)...)
+			default:
+				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
+			}
 		case android.SourceFileProducer:
 			switch tag {
 			case libTag:

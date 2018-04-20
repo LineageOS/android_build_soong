@@ -203,9 +203,9 @@ var (
 
 			commandStr := "($sAbiDiffer $allowFlags -lib $libName -arch $arch -check-all-apis -o ${out} -new $in -old $referenceDump)"
 			distAbiDiffDir := android.PathForDist(ctx, "abidiffs")
-			commandStr += "|| (echo ' ---- Please update abi references by running platform/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l ${libName} ----'"
+			commandStr += "|| (echo ' ---- Please update abi references by running $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l ${libName} ----'"
 			if distAbiDiffDir.Valid() {
-				commandStr += ")  && (mkdir -p " + distAbiDiffDir.String() + " && cp ${out} " + distAbiDiffDir.String()
+				commandStr += " && (mkdir -p " + distAbiDiffDir.String() + " && cp ${out} " + distAbiDiffDir.String() + ")"
 			}
 			commandStr += " && exit 1)"
 			return blueprint.RuleParams{
