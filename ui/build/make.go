@@ -125,6 +125,9 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"AUX_OS_VARIANT_LIST",
 		"TARGET_BUILD_PDK",
 		"PDK_FUSION_PLATFORM_ZIP",
+		"RECOVERY_VARIANT",
+		"WITH_SU",
+		"WITH_GMS",
 	}
 
 	allVars := append(append([]string{
