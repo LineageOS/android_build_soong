@@ -88,6 +88,19 @@ func (d ExtraDeps) Set(v string) error {
 
 var extraDeps = make(ExtraDeps)
 
+type Exclude map[string]bool
+
+func (e Exclude) String() string {
+	return ""
+}
+
+func (e Exclude) Set(v string) error {
+	e[v] = true
+	return nil
+}
+
+var excludes = make(Exclude)
+
 var sdkVersion string
 var useVersion string
 var staticDeps bool
@@ -333,7 +346,7 @@ func main() {
 The tool will extract the necessary information from *.pom files to create an Android.mk whose
 aar libraries can be linked against when using AAPT2.
 
-Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module>]] [<dir>] [-regen <file>]
+Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <module>=<module>[,<module>]] [<dir>] [-regen <file>]
 
   -rewrite <regex>=<replace>
      rewrite can be used to specify mappings between Maven projects and Make modules. The -rewrite
@@ -341,6 +354,8 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
      project, mappings are searched in the order they were specified. The first <regex> matching
      either the Maven project's <groupId>:<artifactId> or <artifactId> will be used to generate
      the Make module name using <replace>. If no matches are found, <artifactId> is used.
+  -exclude <module>
+     Don't put the specified module in the makefile.
   -extra-deps <module>=<module>[,<module>]
      Some Android.mk modules have transitive dependencies that must be specified when they are
      depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
@@ -362,6 +377,7 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
 
 	var regen string
 
+	flag.Var(&excludes, "exclude", "Exclude module")
 	flag.Var(&extraDeps, "extra-deps", "Extra dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
@@ -444,14 +460,17 @@ Usage: %s [--rewrite <regex>=<replace>] [--extra-deps <module>=<module>[,<module
 		}
 
 		if pom != nil {
-			poms = append(poms, pom)
 			key := pom.MkName()
+			if excludes[key] {
+				continue
+			}
 
 			if old, ok := modules[key]; ok {
 				fmt.Fprintln(os.Stderr, "Module", key, "defined twice:", old.PomFile, pom.PomFile)
 				duplicate = true
 			}
 
+			poms = append(poms, pom)
 			modules[key] = pom
 		}
 	}
