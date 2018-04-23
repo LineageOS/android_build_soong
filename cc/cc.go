@@ -40,7 +40,6 @@ func init() {
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
 		ctx.BottomUp("begin", beginMutator).Parallel()
-		ctx.BottomUp("coverage", coverageLinkingMutator).Parallel()
 	})
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -55,6 +54,7 @@ func init() {
 
 		ctx.TopDown("sanitize_runtime_deps", sanitizerRuntimeDepsMutator())
 
+		ctx.BottomUp("coverage", coverageLinkingMutator).Parallel()
 		ctx.TopDown("vndk_deps", sabiDepsMutator)
 
 		ctx.TopDown("lto_deps", ltoDepsMutator)
@@ -809,14 +809,11 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	if c.compiler != nil {
 		deps = c.compiler.compilerDeps(ctx, deps)
 	}
-	// clang_rt.profile runtime libraries necessary for PGO and coverage
-	// depend on symbols from libgcc.  Add the runtime library dependency
-	// before libgcc gets added in linkerDeps().
+	// Add the PGO dependency (the clang_rt.profile runtime library), which
+	// sometimes depends on symbols from libgcc, before libgcc gets added
+	// in linkerDeps().
 	if c.pgo != nil {
 		deps = c.pgo.deps(ctx, deps)
-	}
-	if c.coverage != nil {
-		deps = c.coverage.deps(ctx, deps)
 	}
 	if c.linker != nil {
 		deps = c.linker.linkerDeps(ctx, deps)
@@ -826,6 +823,9 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	}
 	if c.sanitize != nil {
 		deps = c.sanitize.deps(ctx, deps)
+	}
+	if c.coverage != nil {
+		deps = c.coverage.deps(ctx, deps)
 	}
 	if c.sabi != nil {
 		deps = c.sabi.deps(ctx, deps)
