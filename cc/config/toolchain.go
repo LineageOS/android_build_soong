@@ -85,6 +85,8 @@ type Toolchain interface {
 	AvailableLibraries() []string
 
 	Bionic() bool
+
+	profileRuntimeLibrary() string
 }
 
 type toolchainBase struct {
@@ -169,6 +171,10 @@ func (toolchainBase) Bionic() bool {
 	return true
 }
 
+func (t toolchainBase) profileRuntimeLibrary() string {
+	return ""
+}
+
 func (t toolchainBase) ToolPath() string {
 	return ""
 }
@@ -240,6 +246,12 @@ func ThreadSanitizerRuntimeLibrary(t Toolchain) string {
 }
 
 func ProfileRuntimeLibrary(t Toolchain) string {
+	lib := t.profileRuntimeLibrary()
+	if lib != "" {
+		// Return the directly exported profile library
+		return lib
+	}
+	// Return the Android-specific library
 	return SanitizerRuntimeLibrary(t, "profile")
 }
 
