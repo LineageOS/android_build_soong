@@ -160,6 +160,10 @@ func (p Pom) MkAarDeps() []string {
 // method are formatted as Make targets, e.g. run through MavenToMk rules.
 func (p Pom) MkDeps(typeExt string, scopes []string) []string {
 	var ret []string
+	if typeExt == "jar" {
+		// all top-level extra deps are assumed to be of type "jar" until we add syntax to specify other types
+		ret = append(ret, extraDeps[p.MkName()]...)
+	}
 	for _, d := range p.Dependencies {
 		if d.Type != typeExt || !InList(d.Scope, scopes) {
 			continue
