@@ -38,15 +38,13 @@ var (
 				"${config.ZipSyncCmd}",
 				"${config.JavadocCmd}",
 				"${config.SoongZipCmd}",
-				"$JsilverJar",
-				"$DoclavaJar",
 			},
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 			Restat:         true,
 		},
 		"outDir", "srcJarDir", "stubsDir", "srcJars", "opts",
-		"bootclasspathArgs", "classpathArgs", "sourcepath", "docZip", "JsilverJar", "DoclavaJar")
+		"bootclasspathArgs", "classpathArgs", "sourcepath", "docZip")
 )
 
 func init() {
@@ -577,8 +575,13 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	implicits = append(implicits, d.Javadoc.srcJars...)
 
+	jsilver := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "jsilver.jar")
+	doclava := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "doclava.jar")
+	implicits = append(implicits, jsilver)
+	implicits = append(implicits, doclava)
+
 	opts := "-source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
-		"-doclet com.google.doclava.Doclava -docletpath ${config.JsilverJar}:${config.DoclavaJar} " +
+		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
 		"-templatedir " + templateDir + " " + htmlDirArgs + " " + htmlDir2Args + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
 		"-hdf page.now " + `"$$(date -d @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")"` +
@@ -609,8 +612,6 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"classpathArgs":     classpathArgs,
 			"sourcepath":        strings.Join(d.Javadoc.sourcepaths.Strings(), ":"),
 			"docZip":            d.Javadoc.docZip.String(),
-			"JsilverJar":        "${config.JsilverJar}",
-			"DoclavaJar":        "${config.DoclavaJar}",
 		},
 	})
 }
