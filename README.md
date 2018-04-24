@@ -175,6 +175,7 @@ written to a [ninja](http://ninja-build.org) build file.
 * [Best Practices](docs/best_practices.md)
 * [Build Performance](docs/perf.md)
 * [Generating CLion Projects](docs/clion.md)
+* [Generating YouCompleteMe/VSCode compile\_commands.json file](docs/compdb.md)
 * Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/master/README.md)
 
 ## FAQ
