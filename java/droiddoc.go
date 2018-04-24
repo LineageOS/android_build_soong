@@ -256,7 +256,9 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 func (j *Javadoc) genWhitelistPathPrefixes(whitelistPathPrefixes map[string]bool) {
 	for _, dir := range j.properties.Srcs_lib_whitelist_dirs {
 		for _, pkg := range j.properties.Srcs_lib_whitelist_pkgs {
-			prefix := filepath.Join(dir, pkg)
+			// convert foo.bar.baz to foo/bar/baz
+			pkgAsPath := filepath.Join(strings.Split(pkg, ".")...)
+			prefix := filepath.Join(dir, pkgAsPath)
 			if _, found := whitelistPathPrefixes[prefix]; !found {
 				whitelistPathPrefixes[prefix] = true
 			}
