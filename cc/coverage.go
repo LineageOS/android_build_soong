@@ -16,7 +16,6 @@ package cc
 
 import (
 	"android/soong/android"
-	"android/soong/cc/config"
 )
 
 type CoverageProperties struct {
@@ -39,10 +38,6 @@ func (cov *coverage) props() []interface{} {
 func (cov *coverage) begin(ctx BaseModuleContext) {}
 
 func (cov *coverage) deps(ctx BaseModuleContext, deps Deps) Deps {
-	if cov.Properties.CoverageEnabled {
-		runtimeLibrary := config.ProfileRuntimeLibrary(ctx.toolchain())
-		deps.LateStaticLibs = append(deps.LateStaticLibs, runtimeLibrary)
-	}
 	return deps
 }
 
@@ -104,8 +99,9 @@ func coverageLinkingMutator(mctx android.BottomUpMutatorContext) {
 
 		if !mctx.DeviceConfig().NativeCoverageEnabled() {
 			// Coverage is disabled globally
-		} else if mctx.Darwin() || mctx.Windows() {
-			// Coverage not supported for Darwin and Windows
+		} else if mctx.Host() {
+			// TODO(dwillemsen): because of -nodefaultlibs, we must depend on libclang_rt.profile-*.a
+			// Just turn off for now.
 		} else if c.coverage.Properties.Native_coverage != nil {
 			enabled = *c.coverage.Properties.Native_coverage
 		} else {
