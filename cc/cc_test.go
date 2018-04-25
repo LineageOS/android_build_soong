@@ -1388,6 +1388,120 @@ func TestLlndkHeaders(t *testing.T) {
 	}
 }
 
+func checkRuntimeLibs(t *testing.T, expected []string, module *Module) {
+	actual := module.Properties.AndroidMkRuntimeLibs
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("incorrect runtime_libs for shared libs"+
+			"\nactual:   %v"+
+			"\nexpected: %v",
+			actual,
+			expected,
+		)
+	}
+}
+
+const runtimeLibAndroidBp = `
+	cc_library {
+		name: "libvendor_available1",
+		vendor_available: true,
+		no_libgcc : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
+		name: "libvendor_available2",
+		vendor_available: true,
+		runtime_libs: ["libvendor_available1"],
+		no_libgcc : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
+		name: "libvendor_available3",
+		vendor_available: true,
+		runtime_libs: ["libvendor_available1"],
+		target: {
+			vendor: {
+				exclude_runtime_libs: ["libvendor_available1"],
+			}
+		},
+		no_libgcc : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
+		name: "libcore",
+		runtime_libs: ["libvendor_available1"],
+		no_libgcc : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
+		name: "libvendor1",
+		vendor: true,
+		no_libgcc : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
+		name: "libvendor2",
+		vendor: true,
+		runtime_libs: ["libvendor_available1", "libvendor1"],
+		no_libgcc : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+`
+
+func TestRuntimeLibs(t *testing.T) {
+	ctx := testCc(t, runtimeLibAndroidBp)
+
+	// runtime_libs for core variants use the module names without suffixes.
+	variant := "android_arm64_armv8-a_core_shared"
+
+	module := ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
+
+	module = ctx.ModuleForTests("libcore", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
+
+	// runtime_libs for vendor variants have '.vendor' suffixes if the modules have both core
+	// and vendor variants.
+	variant = "android_arm64_armv8-a_vendor_shared"
+
+	module = ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1.vendor"}, module)
+
+	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1.vendor", "libvendor1"}, module)
+}
+
+func TestExcludeRuntimeLibs(t *testing.T) {
+	ctx := testCc(t, runtimeLibAndroidBp)
+
+	variant := "android_arm64_armv8-a_core_shared"
+	module := ctx.ModuleForTests("libvendor_available3", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
+
+	variant = "android_arm64_armv8-a_vendor_shared"
+	module = ctx.ModuleForTests("libvendor_available3", variant).Module().(*Module)
+	checkRuntimeLibs(t, nil, module)
+}
+
+func TestRuntimeLibsNoVndk(t *testing.T) {
+	ctx := testCcNoVndk(t, runtimeLibAndroidBp)
+
+	// If DeviceVndkVersion is not defined, then runtime_libs are copied as-is.
+
+	variant := "android_arm64_armv8-a_core_shared"
+
+	module := ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
+
+	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
+	checkRuntimeLibs(t, []string{"libvendor_available1", "libvendor1"}, module)
+}
+
 var compilerFlagsTestCases = []struct {
 	in  string
 	out bool
