@@ -299,6 +299,9 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				if String(ddoc.properties.Removed_api_filename) != "" {
 					fmt.Fprintln(w, apiFilePrefix+"REMOVED_API_FILE := ", ddoc.removedApiFile.String())
 				}
+				if String(ddoc.properties.Removed_dex_api_filename) != "" {
+					fmt.Fprintln(w, apiFilePrefix+"REMOVED_DEX_API_FILE := ", ddoc.removedDexApiFile.String())
+				}
 				if String(ddoc.properties.Exact_api_filename) != "" {
 					fmt.Fprintln(w, apiFilePrefix+"EXACT_API_FILE := ", ddoc.exactApiFile.String())
 				}
