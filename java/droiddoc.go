@@ -149,6 +149,9 @@ type DroiddocProperties struct {
 	// the generated removed API filename by Doclava.
 	Removed_api_filename *string
 
+	// the generated removed Dex API filename by Doclava.
+	Removed_dex_api_filename *string
+
 	// the generated exact API filename by Doclava.
 	Exact_api_filename *string
 
@@ -184,6 +187,7 @@ type Droiddoc struct {
 	privateApiFile    android.WritablePath
 	privateDexApiFile android.WritablePath
 	removedApiFile    android.WritablePath
+	removedDexApiFile android.WritablePath
 	exactApiFile      android.WritablePath
 }
 
@@ -565,6 +569,12 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		d.removedApiFile = android.PathForModuleOut(ctx, String(d.properties.Removed_api_filename))
 		args = args + " -removedApi " + d.removedApiFile.String()
 		implicitOutputs = append(implicitOutputs, d.removedApiFile)
+	}
+
+	if String(d.properties.Removed_dex_api_filename) != "" {
+		d.removedDexApiFile = android.PathForModuleOut(ctx, String(d.properties.Removed_dex_api_filename))
+		args = args + " -removedDexApi " + d.removedDexApiFile.String()
+		implicitOutputs = append(implicitOutputs, d.removedDexApiFile)
 	}
 
 	if String(d.properties.Exact_api_filename) != "" {
