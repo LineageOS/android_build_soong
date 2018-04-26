@@ -310,7 +310,16 @@ func (a *AndroidApp) aapt2Flags(ctx android.ModuleContext) (flags []string, deps
 	}
 
 	if !hasVersionName {
-		versionName := proptools.NinjaEscape([]string{ctx.Config().AppsDefaultVersionName()})[0]
+		var versionName string
+		if ctx.ModuleName() == "framework-res" {
+			// Some builds set AppsDefaultVersionName() to include the build number ("O-123456").  aapt2 copies the
+			// version name of framework-res into app manifests as compileSdkVersionCodename, which confuses things
+			// if it contains the build number.  Use the DefaultAppTargetSdk instead.
+			versionName = ctx.Config().DefaultAppTargetSdk()
+		} else {
+			versionName = ctx.Config().AppsDefaultVersionName()
+		}
+		versionName = proptools.NinjaEscape([]string{versionName})[0]
 		linkFlags = append(linkFlags, "--version-name ", versionName)
 	}
 
