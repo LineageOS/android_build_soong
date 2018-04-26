@@ -312,6 +312,8 @@ type sdkDep struct {
 	module        string
 	systemModules string
 
+	frameworkResModule string
+
 	jar  android.Path
 	aidl android.Path
 }
@@ -406,6 +408,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	//		useModule:     true,
 	//		module:        m,
 	//		systemModules: m + "_system_modules",
+	//		frameworkResModule: r,
 	//	}
 	//}
 
@@ -416,16 +419,17 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	switch v {
 	case "":
 		return sdkDep{
-			useDefaultLibs: true,
+			useDefaultLibs:     true,
+			frameworkResModule: "framework-res",
 		}
 	// TODO(ccross): re-enable these once we generate stubs, until then
 	// use the stubs in prebuilts/sdk/*current
 	//case "current":
-	//	return toModule("android_stubs_current")
+	//	return toModule("android_stubs_current", "framework-res")
 	//case "system_current":
-	//	return toModule("android_system_stubs_current")
+	//	return toModule("android_system_stubs_current", "framework-res")
 	//case "test_current":
-	//	return toModule("android_test_stubs_current")
+	//	return toModule("android_test_stubs_current", "framework-res")
 	default:
 		return toFile(v)
 	}
@@ -592,7 +596,10 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		tag := ctx.OtherModuleDependencyTag(module)
 
 		if to, ok := module.(*Library); ok {
-			checkLinkType(ctx, j, to, tag.(dependencyTag))
+			switch tag {
+			case bootClasspathTag, libTag, staticLibTag:
+				checkLinkType(ctx, j, to, tag.(dependencyTag))
+			}
 		}
 		switch dep := module.(type) {
 		case Dependency:
