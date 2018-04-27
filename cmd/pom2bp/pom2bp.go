@@ -30,6 +30,8 @@ import (
 	"text/template"
 
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/bpfix/bpfix"
 )
 
 type RewriteNames []RewriteName
@@ -58,7 +60,7 @@ func (r *RewriteNames) Set(v string) error {
 	return nil
 }
 
-func (r *RewriteNames) MavenToMk(groupId string, artifactId string) string {
+func (r *RewriteNames) MavenToBp(groupId string, artifactId string) string {
 	for _, r := range *r {
 		if r.regexp.MatchString(groupId + ":" + artifactId) {
 			return r.regexp.ReplaceAllString(groupId+":"+artifactId, r.repl)
@@ -103,7 +105,6 @@ var excludes = make(Exclude)
 
 var sdkVersion string
 var useVersion string
-var staticDeps bool
 
 func InList(s string, list []string) bool {
 	for _, l := range list {
@@ -118,7 +119,7 @@ func InList(s string, list []string) bool {
 type Dependency struct {
 	XMLName xml.Name `xml:"dependency"`
 
-	MakeTarget string `xml:"-"`
+	BpTarget string `xml:"-"`
 
 	GroupId    string `xml:"groupId"`
 	ArtifactId string `xml:"artifactId"`
@@ -127,11 +128,11 @@ type Dependency struct {
 	Scope      string `xml:"scope"`
 }
 
-func (d Dependency) MkName() string {
-	if d.MakeTarget == "" {
-		d.MakeTarget = rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
+func (d Dependency) BpName() string {
+	if d.BpTarget == "" {
+		d.BpTarget = rewriteNames.MavenToBp(d.GroupId, d.ArtifactId)
 	}
-	return d.MakeTarget
+	return d.BpTarget
 }
 
 type Pom struct {
@@ -139,7 +140,7 @@ type Pom struct {
 
 	PomFile      string `xml:"-"`
 	ArtifactFile string `xml:"-"`
-	MakeTarget   string `xml:"-"`
+	BpTarget     string `xml:"-"`
 
 	GroupId    string `xml:"groupId"`
 	ArtifactId string `xml:"artifactId"`
@@ -157,36 +158,35 @@ func (p Pom) IsJar() bool {
 	return p.Packaging == "jar"
 }
 
-func (p Pom) MkName() string {
-	if p.MakeTarget == "" {
-		p.MakeTarget = rewriteNames.MavenToMk(p.GroupId, p.ArtifactId)
+func (p Pom) BpName() string {
+	if p.BpTarget == "" {
+		p.BpTarget = rewriteNames.MavenToBp(p.GroupId, p.ArtifactId)
 	}
-	return p.MakeTarget
+	return p.BpTarget
 }
 
-func (p Pom) MkJarDeps() []string {
-	return p.MkDeps("jar", []string{"compile", "runtime"})
+func (p Pom) BpJarDeps() []string {
+	return p.BpDeps("jar", []string{"compile", "runtime"})
 }
 
-func (p Pom) MkAarDeps() []string {
-	return p.MkDeps("aar", []string{"compile", "runtime"})
+func (p Pom) BpAarDeps() []string {
+	return p.BpDeps("aar", []string{"compile", "runtime"})
 }
 
-// MkDeps obtains dependencies filtered by type and scope. The results of this
-// method are formatted as Make targets, e.g. run through MavenToMk rules.
-func (p Pom) MkDeps(typeExt string, scopes []string) []string {
+func (p Pom) BpExtraDeps() []string {
+	return extraDeps[p.BpName()]
+}
+
+// BpDeps obtains dependencies filtered by type and scope. The results of this
+// method are formatted as Android.bp targets, e.g. run through MavenToBp rules.
+func (p Pom) BpDeps(typeExt string, scopes []string) []string {
 	var ret []string
-	if typeExt == "jar" {
-		// all top-level extra deps are assumed to be of type "jar" until we add syntax to specify other types
-		ret = append(ret, extraDeps[p.MkName()]...)
-	}
 	for _, d := range p.Dependencies {
 		if d.Type != typeExt || !InList(d.Scope, scopes) {
 			continue
 		}
-		name := rewriteNames.MavenToMk(d.GroupId, d.ArtifactId)
+		name := rewriteNames.MavenToBp(d.GroupId, d.ArtifactId)
 		ret = append(ret, name)
-		ret = append(ret, extraDeps[name]...)
 	}
 	return ret
 }
@@ -198,7 +198,7 @@ func (p Pom) SdkVersion() string {
 func (p *Pom) FixDeps(modules map[string]*Pom) {
 	for _, d := range p.Dependencies {
 		if d.Type == "" {
-			if depPom, ok := modules[d.MkName()]; ok {
+			if depPom, ok := modules[d.BpName()]; ok {
 				// We've seen the POM for this dependency, use its packaging
 				// as the dependency type rather than Maven spec default.
 				d.Type = depPom.Packaging
@@ -215,50 +215,29 @@ func (p *Pom) FixDeps(modules map[string]*Pom) {
 	}
 }
 
-var mkTemplate = template.Must(template.New("mk").Parse(`
-include $(CLEAR_VARS)
-LOCAL_MODULE := {{.MkName}}
-LOCAL_MODULE_CLASS := JAVA_LIBRARIES
-LOCAL_UNINSTALLABLE_MODULE := true
-LOCAL_SRC_FILES := {{.ArtifactFile}}
-LOCAL_BUILT_MODULE_STEM := javalib.jar
-LOCAL_MODULE_SUFFIX := .{{.Packaging}}
-LOCAL_USE_AAPT2 := true
-LOCAL_SDK_VERSION := {{.SdkVersion}}
-LOCAL_STATIC_JAVA_LIBRARIES :={{range .MkJarDeps}} \
-  {{.}}{{end}}
-LOCAL_STATIC_ANDROID_LIBRARIES :={{range .MkAarDeps}} \
-  {{.}}{{end}}
-include $(BUILD_PREBUILT)
-`))
+var bpTemplate = template.Must(template.New("bp").Parse(`
+{{if .IsAar}}android_library_import{{else}}java_import{{end}} {
+    name: "{{.BpName}}-nodeps",
+    {{if .IsAar}}aars{{else}}jars{{end}}: ["{{.ArtifactFile}}"],
+    sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
+    static_libs: [{{range .BpAarDeps}}
+        "{{.}}",{{end}}{{range .BpExtraDeps}}
+        "{{.}}",{{end}}
+    ],{{end}}
+}
 
-var mkDepsTemplate = template.Must(template.New("mk").Parse(`
-include $(CLEAR_VARS)
-LOCAL_MODULE := {{.MkName}}-nodeps
-LOCAL_MODULE_CLASS := JAVA_LIBRARIES
-LOCAL_UNINSTALLABLE_MODULE := true
-LOCAL_SRC_FILES := {{.ArtifactFile}}
-LOCAL_BUILT_MODULE_STEM := javalib.jar
-LOCAL_MODULE_SUFFIX := .{{.Packaging}}
-LOCAL_USE_AAPT2 := true
-LOCAL_SDK_VERSION := {{.SdkVersion}}
-LOCAL_STATIC_ANDROID_LIBRARIES :={{range .MkAarDeps}} \
-  {{.}}{{end}}
-include $(BUILD_PREBUILT)
-include $(CLEAR_VARS)
-LOCAL_MODULE := {{.MkName}}
-LOCAL_SDK_VERSION := {{.SdkVersion}}{{if .IsAar}}
-LOCAL_MANIFEST_FILE := manifests/{{.MkName}}/AndroidManifest.xml{{end}}
-LOCAL_STATIC_JAVA_LIBRARIES :={{if .IsJar}} \
-  {{.MkName}}-nodeps{{end}}{{range .MkJarDeps}} \
-  {{.}}{{end}}
-LOCAL_STATIC_ANDROID_LIBRARIES :={{if .IsAar}} \
-  {{.MkName}}-nodeps{{end}}{{range .MkAarDeps}}  \
-  {{.}}{{end}}
-LOCAL_JAR_EXCLUDE_FILES := none
-LOCAL_JAVA_LANGUAGE_VERSION := 1.7
-LOCAL_USE_AAPT2 := true
-include $(BUILD_STATIC_JAVA_LIBRARY)
+{{if .IsAar}}android_library{{else}}java_library_static{{end}} {
+    name: "{{.BpName}}",
+    sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
+    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",{{end}}
+    static_libs: [
+        "{{.BpName}}-nodeps",{{range .BpJarDeps}}
+        "{{.}}",{{end}}{{range .BpAarDeps}}
+        "{{.}}",{{end}}{{range .BpExtraDeps}}
+        "{{.}}",{{end}}
+    ],
+    java_version: "1.7",
+}
 `))
 
 func parse(filename string) (*Pom, error) {
@@ -308,7 +287,11 @@ func rerunForRegen(filename string) error {
 
 	// Extract the old args from the file
 	line := scanner.Text()
-	if strings.HasPrefix(line, "# pom2mk ") {
+	if strings.HasPrefix(line, "// pom2bp ") {
+		line = strings.TrimPrefix(line, "// pom2bp ")
+	} else if strings.HasPrefix(line, "// pom2mk ") {
+		line = strings.TrimPrefix(line, "// pom2mk ")
+	} else if strings.HasPrefix(line, "# pom2mk ") {
 		line = strings.TrimPrefix(line, "# pom2mk ")
 	} else {
 		return fmt.Errorf("unexpected second line: %q", line)
@@ -328,7 +311,7 @@ func rerunForRegen(filename string) error {
 	args = append(args, lastArg)
 
 	cmd := os.Args[0] + " " + strings.Join(args, " ")
-	// Re-exec pom2mk with the new arguments
+	// Re-exec pom2bp with the new arguments
 	output, err := exec.Command("/bin/sh", "-c", cmd).Output()
 	if exitErr, _ := err.(*exec.ExitError); exitErr != nil {
 		return fmt.Errorf("failed to run %s\n%s", cmd, string(exitErr.Stderr))
@@ -336,42 +319,48 @@ func rerunForRegen(filename string) error {
 		return err
 	}
 
+	// If the old file was a .mk file, replace it with a .bp file
+	if filepath.Ext(filename) == ".mk" {
+		os.Remove(filename)
+		filename = strings.TrimSuffix(filename, ".mk") + ".bp"
+	}
+
 	return ioutil.WriteFile(filename, output, 0666)
 }
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `pom2mk, a tool to create Android.mk files from maven repos
+		fmt.Fprintf(os.Stderr, `pom2bp, a tool to create Android.bp files from maven repos
 
-The tool will extract the necessary information from *.pom files to create an Android.mk whose
+The tool will extract the necessary information from *.pom files to create an Android.bp whose
 aar libraries can be linked against when using AAPT2.
 
 Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <module>=<module>[,<module>]] [<dir>] [-regen <file>]
 
   -rewrite <regex>=<replace>
-     rewrite can be used to specify mappings between Maven projects and Make modules. The -rewrite
-     option can be specified multiple times. When determining the Make module for a given Maven
+     rewrite can be used to specify mappings between Maven projects and Android.bp modules. The -rewrite
+     option can be specified multiple times. When determining the Android.bp module for a given Maven
      project, mappings are searched in the order they were specified. The first <regex> matching
      either the Maven project's <groupId>:<artifactId> or <artifactId> will be used to generate
-     the Make module name using <replace>. If no matches are found, <artifactId> is used.
+     the Android.bp module name using <replace>. If no matches are found, <artifactId> is used.
   -exclude <module>
-     Don't put the specified module in the makefile.
+     Don't put the specified module in the Android.bp file.
   -extra-deps <module>=<module>[,<module>]
-     Some Android.mk modules have transitive dependencies that must be specified when they are
+     Some Android.bp modules have transitive dependencies that must be specified when they are
      depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
      This may be specified multiple times to declare these dependencies.
   -sdk-version <version>
      Sets LOCAL_SDK_VERSION := <version> for all modules.
   -use-version <version>
      If the maven directory contains multiple versions of artifacts and their pom files,
-     -use-version can be used to only write makefiles for a specific version of those artifacts.
-  -static-deps
-     Whether to statically include direct dependencies.
+     -use-version can be used to only write Android.bp files for a specific version of those artifacts.
   <dir>
      The directory to search for *.pom files under.
-     The makefile is written to stdout, to be put in the current directory (often as Android.mk)
+     The contents are written to stdout, to be put in the current directory (often as Android.bp)
   -regen <file>
-     Read arguments from <file> and overwrite it.
+     Read arguments from <file> and overwrite it (if it ends with .bp) or move it to .bp (if it
+     ends with .mk).
+
 `, os.Args[0])
 	}
 
@@ -382,7 +371,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
-	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
+	flag.Bool("static-deps", false, "Ignored")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.Parse()
 
@@ -460,7 +449,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 		}
 
 		if pom != nil {
-			key := pom.MkName()
+			key := pom.BpName()
 			if excludes[key] {
 				continue
 			}
@@ -482,20 +471,25 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 		pom.FixDeps(modules)
 	}
 
-	fmt.Println("# Automatically generated with:")
-	fmt.Println("# pom2mk", strings.Join(proptools.ShellEscape(os.Args[1:]), " "))
-	fmt.Println("LOCAL_PATH := $(call my-dir)")
+	buf := &bytes.Buffer{}
+
+	fmt.Fprintln(buf, "// Automatically generated with:")
+	fmt.Fprintln(buf, "// pom2bp", strings.Join(proptools.ShellEscape(os.Args[1:]), " "))
 
 	for _, pom := range poms {
 		var err error
-		if staticDeps {
-			err = mkDepsTemplate.Execute(os.Stdout, pom)
-		} else {
-			err = mkTemplate.Execute(os.Stdout, pom)
-		}
+		err = bpTemplate.Execute(buf, pom)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error writing", pom.PomFile, pom.MkName(), err)
+			fmt.Fprintln(os.Stderr, "Error writing", pom.PomFile, pom.BpName(), err)
 			os.Exit(1)
 		}
 	}
+
+	out, err := bpfix.Reformat(buf.String())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error formatting output", err)
+		os.Exit(1)
+	}
+
+	os.Stdout.WriteString(out)
 }

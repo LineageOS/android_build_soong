@@ -88,15 +88,24 @@ type BaseLinkerProperties struct {
 	// between static libraries, but it is generally better to order them correctly instead.
 	Group_static_libs *bool `android:"arch_variant"`
 
+	// list of modules that should be installed with this module.  This is similar to 'required'
+	// but '.vendor' suffix will be appended to the module names if the shared libraries have
+	// vendor variants and this module uses VNDK.
+	Runtime_libs []string `android:"arch_variant"`
+
 	Target struct {
 		Vendor struct {
-			// list of shared libs that should not be used to build
-			// the vendor variant of the C/C++ module.
+			// list of shared libs that should not be used to build the vendor variant
+			// of the C/C++ module.
 			Exclude_shared_libs []string
 
-			// list of static libs that should not be used to build
-			// the vendor variant of the C/C++ module.
+			// list of static libs that should not be used to build the vendor variant
+			// of the C/C++ module.
 			Exclude_static_libs []string
+
+			// list of runtime libs that should not be installed along with the vendor
+			// variant of the C/C++ module.
+			Exclude_runtime_libs []string
 		}
 	}
 
@@ -137,6 +146,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Header_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Shared_libs...)
+	deps.RuntimeLibs = append(deps.RuntimeLibs, linker.Properties.Runtime_libs...)
 
 	deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders, linker.Properties.Export_header_lib_headers...)
 	deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, linker.Properties.Export_static_lib_headers...)
@@ -153,6 +163,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Vendor.Exclude_runtime_libs)
 	}
 
 	if ctx.ModuleName() != "libcompiler_rt-extras" {
@@ -205,6 +216,11 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
+	// Clang lld is not ready for for Darwin host executables yet.
+	// See https://lld.llvm.org/AtomLLD.html for status of lld for Mach-O.
+	if ctx.Darwin() {
+		return false
+	}
 	if linker.Properties.Use_clang_lld != nil {
 		return Bool(linker.Properties.Use_clang_lld)
 	}

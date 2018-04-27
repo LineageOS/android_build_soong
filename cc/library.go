@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 type LibraryProperties struct {
@@ -747,7 +748,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 		!ctx.useVndk() && ctx.Device() &&
 		library.sanitize.isUnsanitizedVariant() {
 		installPath := getNdkSysrootBase(ctx).Join(
-			ctx, "usr/lib", ctx.toolchain().ClangTriple(), file.Base())
+			ctx, "usr/lib", config.NDKTriple(ctx.toolchain()), file.Base())
 
 		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 			Rule:        android.Cp,
