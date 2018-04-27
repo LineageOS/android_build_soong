@@ -291,6 +291,24 @@ bootstrap_go_package {
     ],
 }
 
+bootstrap_go_package {
+    name: "soong-xml",
+    pkgPath: "android/soong/xml",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+    ],
+    srcs: [
+        "xml/xml.go",
+    ],
+    testSrcs: [
+        "xml/xml_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
 //
 // Defaults to enable various configurations of host bionic
 //
