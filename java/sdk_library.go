@@ -407,14 +407,14 @@ func (module *sdkLibrary) createXmlFile(mctx android.TopDownMutatorContext) {
 	// <partition>/etc/permissions
 	etcProps := struct {
 		Name             *string
-		Srcs             []string
+		Src              *string
 		Sub_dir          *string
 		Soc_specific     *bool
 		Device_specific  *bool
 		Product_specific *bool
 	}{}
 	etcProps.Name = proptools.StringPtr(module.xmlFileName())
-	etcProps.Srcs = []string{":" + module.xmlFileName() + "-gen"}
+	etcProps.Src = proptools.StringPtr(":" + module.xmlFileName() + "-gen")
 	etcProps.Sub_dir = proptools.StringPtr("permissions")
 	if module.SocSpecific() {
 		etcProps.Soc_specific = proptools.BoolPtr(true)
