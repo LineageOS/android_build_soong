@@ -28,45 +28,47 @@ func init() {
 
 type prebuiltEtcProperties struct {
 	// Source file of this prebuilt.
-	Srcs []string `android:"arch_variant"`
+	Src *string `android:"arch_variant"`
 
 	// optional subdirectory under which this file is installed into
 	Sub_dir *string `android:"arch_variant"`
 }
 
-type prebuiltEtc struct {
+type PrebuiltEtc struct {
 	ModuleBase
-	prebuilt Prebuilt
 
 	properties prebuiltEtcProperties
 
-	sourceFilePath Path
-	installDirPath OutputPath
+	sourceFilePath         Path
+	installDirPath         OutputPath
+	additionalDependencies *Paths
 }
 
-func (p *prebuiltEtc) Prebuilt() *Prebuilt {
-	return &p.prebuilt
-}
-
-func (p *prebuiltEtc) DepsMutator(ctx BottomUpMutatorContext) {
-	if len(p.properties.Srcs) == 0 {
-		ctx.PropertyErrorf("srcs", "missing prebuilt source file")
-	}
-
-	if len(p.properties.Srcs) > 1 {
-		ctx.PropertyErrorf("srcs", "multiple prebuilt source files")
+func (p *PrebuiltEtc) DepsMutator(ctx BottomUpMutatorContext) {
+	if p.properties.Src == nil {
+		ctx.PropertyErrorf("src", "missing prebuilt source file")
 	}
 
 	// To support ":modulename" in src
-	ExtractSourceDeps(ctx, &(p.properties.Srcs)[0])
+	ExtractSourceDeps(ctx, p.properties.Src)
 }
 
-func (p *prebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
-	p.sourceFilePath = ctx.ExpandSource(p.properties.Srcs[0], "srcs")
+func (p *PrebuiltEtc) SourceFilePath(ctx ModuleContext) Path {
+	return ctx.ExpandSource(String(p.properties.Src), "src")
+}
+
+// This allows other derivative modules (e.g. prebuilt_etc_xml) to perform
+// additional steps (like validating the src) before the file is installed.
+func (p *PrebuiltEtc) SetAdditionalDependencies(paths Paths) {
+	p.additionalDependencies = &paths
+}
+
+func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
+	p.sourceFilePath = ctx.ExpandSource(String(p.properties.Src), "src")
 	p.installDirPath = PathForModuleInstall(ctx, "etc", String(p.properties.Sub_dir))
 }
 
-func (p *prebuiltEtc) AndroidMk() AndroidMkData {
+func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 	return AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data AndroidMkData) {
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
@@ -76,16 +78,26 @@ func (p *prebuiltEtc) AndroidMk() AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_MODULE_TAGS := optional")
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.sourceFilePath.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
+			if p.additionalDependencies != nil {
+				fmt.Fprint(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=")
+				for _, path := range *p.additionalDependencies {
+					fmt.Fprint(w, " "+path.String())
+				}
+				fmt.Fprintln(w, "")
+			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		},
 	}
 }
 
-func PrebuiltEtcFactory() Module {
-	module := &prebuiltEtc{}
-	module.AddProperties(&module.properties)
+func InitPrebuiltEtcModule(p *PrebuiltEtc) {
+	p.AddProperties(&p.properties)
+}
 
-	InitPrebuiltModule(module, &(module.properties.Srcs))
-	InitAndroidModule(module)
+func PrebuiltEtcFactory() Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module)
+	// This module is device-only
+	InitAndroidArchModule(module, DeviceSupported, MultilibCommon)
 	return module
 }

@@ -1040,7 +1040,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 	ctx.ModuleForTests("foo"+sdkDocsSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkSystemApiSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkImplLibrarySuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "")
+	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_common")
 
 	bazJavac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
 	// tests if baz is actually linked to the stubs lib
