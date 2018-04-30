@@ -25,6 +25,7 @@ import (
 type AndroidLibraryDependency interface {
 	Dependency
 	ExportPackage() android.Path
+	ExportedProguardFlagFiles() android.Paths
 }
 
 func init() {
@@ -247,6 +248,12 @@ type AndroidLibrary struct {
 	androidLibraryProperties androidLibraryProperties
 
 	aarFile android.WritablePath
+
+	exportedProguardFlagFiles android.Paths
+}
+
+func (a *AndroidLibrary) ExportedProguardFlagFiles() android.Paths {
+	return a.exportedProguardFlagFiles
 }
 
 var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
@@ -279,6 +286,14 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		BuildAAR(ctx, a.aarFile, a.outputFile, a.manifestPath, a.rTxt, res)
 		ctx.CheckbuildFile(a.aarFile)
 	}
+
+	ctx.VisitDirectDeps(func(m android.Module) {
+		if lib, ok := m.(AndroidLibraryDependency); ok && ctx.OtherModuleDependencyTag(m) == staticLibTag {
+			a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
+		}
+	})
+
+	a.exportedProguardFlagFiles = android.FirstUniquePaths(a.exportedProguardFlagFiles)
 }
 
 func AndroidLibraryFactory() android.Module {
@@ -325,6 +340,10 @@ var _ AndroidLibraryDependency = (*AARImport)(nil)
 
 func (a *AARImport) ExportPackage() android.Path {
 	return a.exportPackage
+}
+
+func (a *AARImport) ExportedProguardFlagFiles() android.Paths {
+	return android.Paths{a.proguardFlags}
 }
 
 func (a *AARImport) Prebuilt() *android.Prebuilt {
