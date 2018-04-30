@@ -63,6 +63,10 @@ type AndroidApp struct {
 	appProperties appProperties
 }
 
+func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
+	return nil
+}
+
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
 
 type certificate struct {
@@ -116,8 +120,17 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
 
-	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles,
-		a.proguardOptionsFile)
+	var staticLibProguardFlagFiles android.Paths
+	ctx.VisitDirectDeps(func(m android.Module) {
+		if lib, ok := m.(AndroidLibraryDependency); ok && ctx.OtherModuleDependencyTag(m) == staticLibTag {
+			staticLibProguardFlagFiles = append(staticLibProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
+		}
+	})
+
+	staticLibProguardFlagFiles = android.FirstUniquePaths(staticLibProguardFlagFiles)
+
+	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, staticLibProguardFlagFiles...)
+	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
