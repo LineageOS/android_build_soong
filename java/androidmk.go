@@ -244,7 +244,8 @@ func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
 
 		fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", a.exportPackage.String())
 		fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", a.manifestPath.String())
-		fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", a.proguardOptionsFile.String())
+		fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=",
+			strings.Join(a.exportedProguardFlagFiles.Strings(), " "))
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 		fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
 	})
