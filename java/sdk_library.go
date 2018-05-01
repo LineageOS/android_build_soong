@@ -102,6 +102,9 @@ type sdkLibraryProperties struct {
 	// list of package names that will be documented and publicized as API
 	Api_packages []string
 
+	// list of package names that must be hidden from the API
+	Hidden_api_packages []string
+
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
 }
@@ -319,6 +322,7 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 
 	droiddocArgs := " -hide 110 -hide 111 -hide 113 -hide 121 -hide 125 -hide 126 -hide 127 -hide 128" +
 		" -stubpackages " + strings.Join(module.properties.Api_packages, ":") +
+		" " + android.JoinWithPrefix(module.properties.Hidden_api_packages, "-hidePackage ") +
 		" -nodocs"
 	switch apiScope {
 	case apiScopeSystem:
