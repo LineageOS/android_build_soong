@@ -102,8 +102,10 @@ func NewConfig(ctx Context, args ...string) Config {
 		"OUT_DIR_COMMON_BASE",
 
 		// Variables that have caused problems in the past
+		"CDPATH",
 		"DISPLAY",
 		"GREP_OPTIONS",
+		"NDK_ROOT",
 
 		// Drop make flags
 		"MAKEFLAGS",
