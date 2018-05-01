@@ -485,6 +485,13 @@ func javaSdkLibraries(config android.Config) *[]string {
 // once for public API level and once for system API level
 func sdkLibraryMutator(mctx android.TopDownMutatorContext) {
 	if module, ok := mctx.Module().(*sdkLibrary); ok {
+		if module.properties.Srcs == nil {
+			mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
+		}
+		if module.properties.Api_packages == nil {
+			mctx.PropertyErrorf("api_packages", "java_sdk_library must specify api_packages")
+		}
+
 		// for public API stubs
 		module.createStubsLibrary(mctx, apiScopePublic)
 		module.createDocs(mctx, apiScopePublic)
