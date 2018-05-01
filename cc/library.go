@@ -709,7 +709,7 @@ func (library *libraryDecorator) buildShared() bool {
 }
 
 func (library *libraryDecorator) getWholeStaticMissingDeps() []string {
-	return library.wholeStaticMissingDeps
+	return append([]string(nil), library.wholeStaticMissingDeps...)
 }
 
 func (library *libraryDecorator) objs() Objects {
