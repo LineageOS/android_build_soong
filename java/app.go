@@ -67,6 +67,10 @@ func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
 	return nil
 }
 
+func (a *AndroidApp) ExportedStaticPackages() android.Paths {
+	return nil
+}
+
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
 
 type certificate struct {

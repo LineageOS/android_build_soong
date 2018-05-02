@@ -124,6 +124,7 @@ func (prebuilt *AARImport) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.classpathFile.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", prebuilt.exportPackage.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", prebuilt.proguardFlags.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", prebuilt.extraAaptPackagesFile.String())
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
 			},
 		},
@@ -232,6 +233,7 @@ func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
 		}
 
 		fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", a.exportPackage.String())
+		fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", a.extraAaptPackagesFile.String())
 		fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", a.manifestPath.String())
 		fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=",
 			strings.Join(a.exportedProguardFlagFiles.Strings(), " "))
