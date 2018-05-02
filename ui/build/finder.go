@@ -56,7 +56,14 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 		RootDirs:         []string{"."},
 		ExcludeDirs:      []string{".git", ".repo"},
 		PruneFiles:       pruneFiles,
-		IncludeFiles:     []string{"Android.mk", "Android.bp", "Blueprints", "CleanSpec.mk", "TEST_MAPPING"},
+		IncludeFiles: []string{
+			"Android.mk",
+			"AndroidProducts.mk",
+			"Android.bp",
+			"Blueprints",
+			"CleanSpec.mk",
+			"TEST_MAPPING",
+		},
 	}
 	dumpDir := config.FileListDir()
 	f, err = finder.New(cacheParams, filesystem, logger.New(ioutil.Discard),
@@ -81,8 +88,16 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
 
+	androidProductsMks := f.FindNamedAt("device", "AndroidProducts.mk")
+	androidProductsMks = append(androidProductsMks, f.FindNamedAt("vendor", "AndroidProducts.mk")...)
+	androidProductsMks = append(androidProductsMks, f.FindNamedAt("product", "AndroidProducts.mk")...)
+	err = dumpListToFile(androidProductsMks, filepath.Join(dumpDir, "AndroidProducts.mk.list"))
+	if err != nil {
+		ctx.Fatalf("Could not export product list: %v", err)
+	}
+
 	cleanSpecs := f.FindFirstNamedAt(".", "CleanSpec.mk")
-	dumpListToFile(cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
+	err = dumpListToFile(cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
