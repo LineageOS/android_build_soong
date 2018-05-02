@@ -197,6 +197,7 @@ func runKatiCleanSpec(ctx Context, config Config) {
 		"--werror_find_emulator",
 		"--werror_overriding_commands",
 		"--use_find_emulator",
+		"--kati_stats",
 		"-f", "build/make/core/cleanbuild.mk",
 		"BUILDING_WITH_NINJA=true",
 		"SOONG_MAKEVARS_MK=" + config.SoongMakeVarsMk(),
@@ -205,10 +206,13 @@ func runKatiCleanSpec(ctx Context, config Config) {
 
 	cmd := Command(ctx, config, "ckati", executable, args...)
 	cmd.Sandbox = katiCleanSpecSandbox
-	cmd.Stdout = ctx.Stdout()
-	cmd.Stderr = ctx.Stderr()
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		ctx.Fatalln("Error getting output pipe for ckati:", err)
+	}
+	cmd.Stderr = cmd.Stdout
 
-	// Kati leaks memory, so ensure leak detection is turned off
-	cmd.Environment.Set("ASAN_OPTIONS", "detect_leaks=0")
-	cmd.RunOrFatal()
+	cmd.StartOrFatal()
+	katiRewriteOutput(ctx, pipe)
+	cmd.WaitOrFatal()
 }
