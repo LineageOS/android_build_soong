@@ -177,6 +177,10 @@ func init() {
 		// warning are fixed.
 		"-Wno-enum-compare",
 		"-Wno-enum-compare-switch",
+
+		// Disable c++98-specific warning since Android is not concerned with C++98
+		// compatibility.
+		"-Wno-c++98-compat-extra-semi",
 	}, " "))
 }
 
