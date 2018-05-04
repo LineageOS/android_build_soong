@@ -44,10 +44,11 @@ type configImpl struct {
 	skipMake   bool
 
 	// From the product config
-	katiArgs     []string
-	ninjaArgs    []string
-	katiSuffix   string
-	targetDevice string
+	katiArgs        []string
+	ninjaArgs       []string
+	katiSuffix      string
+	targetDevice    string
+	targetDeviceDir string
 
 	brokenDupRules bool
 }
@@ -102,8 +103,10 @@ func NewConfig(ctx Context, args ...string) Config {
 		"OUT_DIR_COMMON_BASE",
 
 		// Variables that have caused problems in the past
+		"CDPATH",
 		"DISPLAY",
 		"GREP_OPTIONS",
+		"NDK_ROOT",
 
 		// Drop make flags
 		"MAKEFLAGS",
@@ -565,4 +568,12 @@ func (c *configImpl) SetBuildBrokenDupRules(val bool) {
 
 func (c *configImpl) BuildBrokenDupRules() bool {
 	return c.brokenDupRules
+}
+
+func (c *configImpl) SetTargetDeviceDir(dir string) {
+	c.targetDeviceDir = dir
+}
+
+func (c *configImpl) TargetDeviceDir() string {
+	return c.targetDeviceDir
 }
