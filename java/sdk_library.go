@@ -164,15 +164,21 @@ func (module *sdkLibrary) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+module.implName())
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 			// Create dist rules to install the stubs libs to the dist dir
-			fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-				module.publicApiStubsPath.Strings()[0]+
-				":"+path.Join("apistubs", "public", module.BaseModuleName()+".jar")+")")
-			fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-				module.systemApiStubsPath.Strings()[0]+
-				":"+path.Join("apistubs", "system", module.BaseModuleName()+".jar")+")")
-			fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-				module.testApiStubsPath.Strings()[0]+
-				":"+path.Join("apistubs", "test", module.BaseModuleName()+".jar")+")")
+			if len(module.publicApiStubsPath) == 1 {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.publicApiStubsPath.Strings()[0]+
+					":"+path.Join("apistubs", "public", module.BaseModuleName()+".jar")+")")
+			}
+			if len(module.systemApiStubsPath) == 1 {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.systemApiStubsPath.Strings()[0]+
+					":"+path.Join("apistubs", "system", module.BaseModuleName()+".jar")+")")
+			}
+			if len(module.testApiStubsPath) == 1 {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.testApiStubsPath.Strings()[0]+
+					":"+path.Join("apistubs", "test", module.BaseModuleName()+".jar")+")")
+			}
 		},
 	}
 }
