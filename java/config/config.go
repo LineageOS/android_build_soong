@@ -90,6 +90,7 @@ func init() {
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 	pctx.HostBinToolVariable("Zip2ZipCmd", "zip2zip")
 	pctx.HostBinToolVariable("ZipSyncCmd", "zipsync")
+	pctx.HostBinToolVariable("ApiCheckCmd", "apicheck")
 	pctx.VariableFunc("DxCmd", func(ctx android.PackageVarContext) string {
 		config := ctx.Config()
 		if config.IsEnvFalse("USE_D8") {
