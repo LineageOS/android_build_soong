@@ -576,6 +576,19 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			}
 		`,
 	},
+	{
+		desc: "cc_library shared_libs",
+		in: `
+			include $(CLEAR_VARS)
+			LOCAL_SHARED_LIBRARIES := libfoo
+			include $(BUILD_SHARED_LIBRARY)
+		`,
+		expected: `
+			cc_library_shared {
+				shared_libs: ["libfoo"],
+			}
+		`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
