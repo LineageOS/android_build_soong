@@ -170,6 +170,20 @@ func init() {
 		}
 		return "", nil
 	})
+
+	pctx.VariableFunc("FlexExec", func(config interface{}) (string, error) {
+		if override := config.(android.Config).Getenv("FLEX_EXEC"); override != "" {
+			return override, nil
+		}
+		return "prebuilts/misc/${HostPrebuiltTag}/flex/flex-2.5.39", nil
+	})
+
+	pctx.VariableFunc("BisonExec", func(config interface{}) (string, error) {
+		if override := config.(android.Config).Getenv("BISON_EXEC"); override != "" {
+			return override, nil
+		}
+		return "prebuilts/misc/${HostPrebuiltTag}/bison/bison", nil
+	})
 }
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
