@@ -68,10 +68,9 @@ var (
 //
 // TODO: these are big features that are currently missing
 // 1) check for API consistency
-// 2) install stubs libs as the dist artifacts
-// 3) ensuring that apps have appropriate <uses-library> tag
-// 4) disallowing linking to the runtime shared lib
-// 5) HTML generation
+// 2) ensuring that apps have appropriate <uses-library> tag
+// 3) disallowing linking to the runtime shared lib
+// 4) HTML generation
 
 func init() {
 	android.RegisterModuleType("java_sdk_library", sdkLibraryFactory)
@@ -155,15 +154,31 @@ func (module *sdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 }
 
 func (module *sdkLibrary) AndroidMk() android.AndroidMkData {
-	// Create a phony module that installs the impl library, for the case when this lib is
-	// in PRODUCT_PACKAGES.
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			// Create a phony module that installs the impl library, for the case when this lib is
+			// in PRODUCT_PACKAGES.
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+module.implName())
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
+			// Create dist rules to install the stubs libs to the dist dir
+			if len(module.publicApiStubsPath) == 1 {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.publicApiStubsPath.Strings()[0]+
+					":"+path.Join("apistubs", "public", module.BaseModuleName()+".jar")+")")
+			}
+			if len(module.systemApiStubsPath) == 1 {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.systemApiStubsPath.Strings()[0]+
+					":"+path.Join("apistubs", "system", module.BaseModuleName()+".jar")+")")
+			}
+			if len(module.testApiStubsPath) == 1 {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.testApiStubsPath.Strings()[0]+
+					":"+path.Join("apistubs", "test", module.BaseModuleName()+".jar")+")")
+			}
 		},
 	}
 }
