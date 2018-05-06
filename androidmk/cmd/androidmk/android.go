@@ -64,6 +64,9 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_MODULE_SUFFIX":           skip, // TODO
 	"LOCAL_PATH":                    skip, // Nothing to do, except maybe avoid the "./" in paths?
 	"LOCAL_PRELINK_MODULE":          skip, // Already phased out
+	"LOCAL_BUILT_MODULE_STEM":       skip,
+	"LOCAL_USE_AAPT2":               skip, // Always enabled in Soong
+	"LOCAL_JAR_EXCLUDE_FILES":       skip, // Soong never excludes files from jars
 }
 
 // adds a group of properties all having the same type
@@ -94,6 +97,7 @@ func init() {
 			"LOCAL_NOTICE_FILE":             "notice",
 			"LOCAL_JAVA_LANGUAGE_VERSION":   "java_version",
 			"LOCAL_INSTRUMENTATION_FOR":     "instrumentation_for",
+			"LOCAL_MANIFEST_FILE":           "manifest",
 
 			"LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING": "dex_preopt.profile",
 		})
@@ -128,6 +132,7 @@ func init() {
 			"LOCAL_RENDERSCRIPT_FLAGS":    "renderscript.flags",
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
+			"LOCAL_RESOURCE_DIR":          "resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
 			"LOCAL_ERROR_PRONE_FLAGS":     "errorprone.javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
@@ -142,7 +147,13 @@ func init() {
 
 			"LOCAL_PROGUARD_FLAGS":      "optimize.proguard_flags",
 			"LOCAL_PROGUARD_FLAG_FILES": "optimize.proguard_flag_files",
+
+			// These will be rewritten to libs/static_libs by bpfix, after their presence is used to convert
+			// java_library_static to android_library.
+			"LOCAL_SHARED_ANDROID_LIBRARIES": "android_libs",
+			"LOCAL_STATIC_ANDROID_LIBRARIES": "android_static_libs",
 		})
+
 	addStandardProperties(bpparser.BoolType,
 		map[string]string{
 			// Bool properties
@@ -259,7 +270,7 @@ func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expr
 		}
 	case *bpparser.Operator:
 		if v.Type() != bpparser.StringType {
-			return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", value.Type)
+			return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", v.Type())
 		}
 
 		if v.Operator != '+' {
@@ -290,7 +301,7 @@ func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expr
 	case *bpparser.String:
 		return "global", value, nil
 	default:
-		return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", value.Type)
+		return "", nil, fmt.Errorf("classifyLocalOrGlobalPath expected a string, got %s", v.Type())
 
 	}
 }

@@ -111,15 +111,19 @@ func aapt2CompileDirs(ctx android.ModuleContext, flata android.WritablePath, dir
 
 var aapt2LinkRule = pctx.AndroidStaticRule("aapt2Link",
 	blueprint.RuleParams{
-		Command: `${config.Aapt2Cmd} link -o $out $flags --java $genDir --proguard $proguardOptions $inFlags && ` +
-			`${config.SoongZipCmd} -write_if_changed -jar -o $genJar -C $genDir -D $genDir`,
+		Command: `${config.Aapt2Cmd} link -o $out $flags --java $genDir --proguard $proguardOptions ` +
+			`--output-text-symbols ${rTxt} $inFlags && ` +
+			`${config.SoongZipCmd} -write_if_changed -jar -o $genJar -C $genDir -D $genDir &&` +
+			`${config.ExtractJarPackagesCmd} -i $genJar -o $extraPackages --prefix '--extra-packages '`,
+
 		CommandDeps: []string{
 			"${config.Aapt2Cmd}",
 			"${config.SoongZipCmd}",
+			"${config.ExtractJarPackagesCmd}",
 		},
 		Restat: true,
 	},
-	"flags", "inFlags", "proguardOptions", "genDir", "genJar")
+	"flags", "inFlags", "proguardOptions", "genDir", "genJar", "rTxt", "extraPackages")
 
 var fileListToFileRule = pctx.AndroidStaticRule("fileListToFile",
 	blueprint.RuleParams{
@@ -129,7 +133,7 @@ var fileListToFileRule = pctx.AndroidStaticRule("fileListToFile",
 	})
 
 func aapt2Link(ctx android.ModuleContext,
-	packageRes, genJar, proguardOptions android.WritablePath,
+	packageRes, genJar, proguardOptions, rTxt, extraPackages android.WritablePath,
 	flags []string, deps android.Paths,
 	compiledRes, compiledOverlay android.Paths) {
 
@@ -171,13 +175,15 @@ func aapt2Link(ctx android.ModuleContext,
 		Description:     "aapt2 link",
 		Implicits:       deps,
 		Output:          packageRes,
-		ImplicitOutputs: android.WritablePaths{proguardOptions, genJar},
+		ImplicitOutputs: android.WritablePaths{proguardOptions, genJar, rTxt, extraPackages},
 		Args: map[string]string{
 			"flags":           strings.Join(flags, " "),
 			"inFlags":         strings.Join(inFlags, " "),
 			"proguardOptions": proguardOptions.String(),
 			"genDir":          genDir.String(),
 			"genJar":          genJar.String(),
+			"rTxt":            rTxt.String(),
+			"extraPackages":   extraPackages.String(),
 		},
 	})
 }

@@ -124,6 +124,7 @@ func (prebuilt *AARImport) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.classpathFile.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", prebuilt.exportPackage.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", prebuilt.proguardFlags.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", prebuilt.extraAaptPackagesFile.String())
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
 			},
 		},
@@ -214,7 +215,33 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 			},
 		},
 	}
+}
 
+func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
+	data := a.Library.AndroidMk()
+
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		if a.proguardDictionary != nil {
+			fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", a.proguardDictionary.String())
+		}
+
+		if a.Name() == "framework-res" {
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(TARGET_OUT_JAVA_LIBRARIES)")
+			// Make base_rules.mk not put framework-res in a subdirectory called
+			// framework_res.
+			fmt.Fprintln(w, "LOCAL_NO_STANDARD_LIBRARIES := true")
+		}
+
+		fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", a.exportPackage.String())
+		fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", a.extraAaptPackagesFile.String())
+		fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", a.manifestPath.String())
+		fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=",
+			strings.Join(a.exportedProguardFlagFiles.Strings(), " "))
+		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+		fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+	})
+
+	return data
 }
 
 func (jd *Javadoc) AndroidMk() android.AndroidMkData {

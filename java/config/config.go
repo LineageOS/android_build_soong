@@ -87,6 +87,7 @@ func init() {
 	pctx.SourcePathVariable("GenKotlinBuildFileCmd", "build/soong/scripts/gen-kotlin-build-file.sh")
 
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
+	pctx.HostBinToolVariable("ExtractJarPackagesCmd", "extract_jar_packages")
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 	pctx.HostBinToolVariable("Zip2ZipCmd", "zip2zip")

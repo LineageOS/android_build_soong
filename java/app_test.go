@@ -61,41 +61,44 @@ func testApp(t *testing.T, bp string) *android.TestContext {
 }
 
 func TestApp(t *testing.T) {
-	ctx := testApp(t, `
-		android_app {
-			name: "foo",
-			srcs: ["a.java"],
-		}
-	`)
+	for _, moduleType := range []string{"android_app", "android_library"} {
+		t.Run(moduleType, func(t *testing.T) {
+			ctx := testApp(t, moduleType+` {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`)
 
-	foo := ctx.ModuleForTests("foo", "android_common")
+			foo := ctx.ModuleForTests("foo", "android_common")
 
-	expectedLinkImplicits := []string{"AndroidManifest.xml"}
+			expectedLinkImplicits := []string{"AndroidManifest.xml"}
 
-	frameworkRes := ctx.ModuleForTests("framework-res", "android_common")
-	expectedLinkImplicits = append(expectedLinkImplicits,
-		frameworkRes.Output("package-res.apk").Output.String())
+			frameworkRes := ctx.ModuleForTests("framework-res", "android_common")
+			expectedLinkImplicits = append(expectedLinkImplicits,
+				frameworkRes.Output("package-res.apk").Output.String())
 
-	// Test the mapping from input files to compiled output file names
-	compile := foo.Output(compiledResourceFiles[0])
-	if !reflect.DeepEqual(resourceFiles, compile.Inputs.Strings()) {
-		t.Errorf("expected aapt2 compile inputs expected:\n  %#v\n got:\n  %#v",
-			resourceFiles, compile.Inputs.Strings())
-	}
+			// Test the mapping from input files to compiled output file names
+			compile := foo.Output(compiledResourceFiles[0])
+			if !reflect.DeepEqual(resourceFiles, compile.Inputs.Strings()) {
+				t.Errorf("expected aapt2 compile inputs expected:\n  %#v\n got:\n  %#v",
+					resourceFiles, compile.Inputs.Strings())
+			}
 
-	compiledResourceOutputs := compile.Outputs.Strings()
-	sort.Strings(compiledResourceOutputs)
+			compiledResourceOutputs := compile.Outputs.Strings()
+			sort.Strings(compiledResourceOutputs)
 
-	expectedLinkImplicits = append(expectedLinkImplicits, compiledResourceOutputs...)
+			expectedLinkImplicits = append(expectedLinkImplicits, compiledResourceOutputs...)
 
-	list := foo.Output("aapt2/res.list")
-	expectedLinkImplicits = append(expectedLinkImplicits, list.Output.String())
+			list := foo.Output("aapt2/res.list")
+			expectedLinkImplicits = append(expectedLinkImplicits, list.Output.String())
 
-	// Check that the link rule uses
-	res := ctx.ModuleForTests("foo", "android_common").Output("package-res.apk")
-	if !reflect.DeepEqual(expectedLinkImplicits, res.Implicits.Strings()) {
-		t.Errorf("expected aapt2 link implicits expected:\n  %#v\n got:\n  %#v",
-			expectedLinkImplicits, res.Implicits.Strings())
+			// Check that the link rule uses
+			res := ctx.ModuleForTests("foo", "android_common").Output("package-res.apk")
+			if !reflect.DeepEqual(expectedLinkImplicits, res.Implicits.Strings()) {
+				t.Errorf("expected aapt2 link implicits expected:\n  %#v\n got:\n  %#v",
+					expectedLinkImplicits, res.Implicits.Strings())
+			}
+		})
 	}
 }
 
@@ -288,45 +291,47 @@ func TestAppSdkVersion(t *testing.T) {
 		},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			bp := fmt.Sprintf(`android_app {
+	for _, moduleType := range []string{"android_app", "android_library"} {
+		for _, test := range testCases {
+			t.Run(moduleType+" "+test.name, func(t *testing.T) {
+				bp := fmt.Sprintf(`%s {
 					name: "foo",
 					srcs: ["a.java"],
 					sdk_version: "%s",
-				}`, test.sdkVersion)
+				}`, moduleType, test.sdkVersion)
 
-			config := testConfig(nil)
-			config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
-			config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
-			config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
+				config := testConfig(nil)
+				config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
+				config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
+				config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
 
-			ctx := testAppContext(config, bp, nil)
+				ctx := testAppContext(config, bp, nil)
 
-			run(t, ctx, config)
+				run(t, ctx, config)
 
-			foo := ctx.ModuleForTests("foo", "android_common")
-			link := foo.Output("package-res.apk")
-			linkFlags := strings.Split(link.Args["flags"], " ")
-			min := android.IndexList("--min-sdk-version", linkFlags)
-			target := android.IndexList("--target-sdk-version", linkFlags)
+				foo := ctx.ModuleForTests("foo", "android_common")
+				link := foo.Output("package-res.apk")
+				linkFlags := strings.Split(link.Args["flags"], " ")
+				min := android.IndexList("--min-sdk-version", linkFlags)
+				target := android.IndexList("--target-sdk-version", linkFlags)
 
-			if min == -1 || target == -1 || min == len(linkFlags)-1 || target == len(linkFlags)-1 {
-				t.Fatalf("missing --min-sdk-version or --target-sdk-version in link flags: %q", linkFlags)
-			}
+				if min == -1 || target == -1 || min == len(linkFlags)-1 || target == len(linkFlags)-1 {
+					t.Fatalf("missing --min-sdk-version or --target-sdk-version in link flags: %q", linkFlags)
+				}
 
-			gotMinSdkVersion := linkFlags[min+1]
-			gotTargetSdkVersion := linkFlags[target+1]
+				gotMinSdkVersion := linkFlags[min+1]
+				gotTargetSdkVersion := linkFlags[target+1]
 
-			if gotMinSdkVersion != test.expectedMinSdkVersion {
-				t.Errorf("incorrect --min-sdk-version, expected %q got %q",
-					test.expectedMinSdkVersion, gotMinSdkVersion)
-			}
+				if gotMinSdkVersion != test.expectedMinSdkVersion {
+					t.Errorf("incorrect --min-sdk-version, expected %q got %q",
+						test.expectedMinSdkVersion, gotMinSdkVersion)
+				}
 
-			if gotTargetSdkVersion != test.expectedMinSdkVersion {
-				t.Errorf("incorrect --target-sdk-version, expected %q got %q",
-					test.expectedMinSdkVersion, gotTargetSdkVersion)
-			}
-		})
+				if gotTargetSdkVersion != test.expectedMinSdkVersion {
+					t.Errorf("incorrect --target-sdk-version, expected %q got %q",
+						test.expectedMinSdkVersion, gotTargetSdkVersion)
+				}
+			})
+		}
 	}
 }

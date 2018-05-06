@@ -264,7 +264,7 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 
 	mod := ctx.ModuleForTests(name, vendorVariant).Module().(*Module)
 	if !mod.hasVendorVariant() {
-		t.Error("%q must have vendor variant", name)
+		t.Errorf("%q must have vendor variant", name)
 	}
 
 	// Check library properties.

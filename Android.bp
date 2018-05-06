@@ -219,6 +219,7 @@ bootstrap_go_package {
     srcs: [
         "java/aapt2.go",
         "java/aar.go",
+        "java/android_resources.go",
         "java/androidmk.go",
         "java/app_builder.go",
         "java/app.go",
@@ -229,8 +230,9 @@ bootstrap_go_package {
         "java/genrule.go",
         "java/jacoco.go",
         "java/java.go",
+        "java/java_resources.go",
         "java/proto.go",
-        "java/resources.go",
+        "java/support_libraries.go",
         "java/system_modules.go",
     ],
     testSrcs: [
