@@ -73,26 +73,34 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 
 	// lookup legacy property
 	mod := fixer.tree.Defs[0].(*parser.Module)
-	_, found := mod.GetProperty("local_include_dirs")
-	if !found {
-		t.Fatalf("failed to include key local_include_dirs in parse tree")
+
+	expectedResultString := fmt.Sprintf("%q", expectedResult)
+	if expectedResult == nil {
+		expectedResultString = "unset"
 	}
 
 	// check that the value for the legacy property was updated to the correct value
 	errorHeader := fmt.Sprintf("\nFailed to correctly simplify key 'local_include_dirs' in the presence of 'export_include_dirs.'\n"+
 		"original local_include_dirs: %q\n"+
 		"original export_include_dirs: %q\n"+
-		"expected result: %q\n"+
+		"expected result: %s\n"+
 		"actual result: ",
-		local_include_dirs, export_include_dirs, expectedResult)
-	result, ok := mod.GetProperty("local_include_dirs")
-	if !ok {
+		local_include_dirs, export_include_dirs, expectedResultString)
+	result, found := mod.GetProperty("local_include_dirs")
+	if !found {
+		if expectedResult == nil {
+			return
+		}
 		t.Fatal(errorHeader + "property not found")
 	}
 
 	listResult, ok := result.Value.(*parser.List)
 	if !ok {
 		t.Fatalf("%sproperty is not a list: %v", errorHeader, listResult)
+	}
+
+	if expectedResult == nil {
+		t.Fatalf("%sproperty exists: %v", errorHeader, listResult)
 	}
 
 	actualExpressions := listResult.Values
@@ -109,7 +117,7 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 
 func TestSimplifyKnownVariablesDuplicatingEachOther(t *testing.T) {
 	// TODO use []Expression{} once buildTree above can support it (which is after b/38325146 is done)
-	implFilterListTest(t, []string{"include"}, []string{"include"}, []string{})
+	implFilterListTest(t, []string{"include"}, []string{"include"}, nil)
 	implFilterListTest(t, []string{"include1"}, []string{"include2"}, []string{"include1"})
 	implFilterListTest(t, []string{"include1", "include2", "include3", "include4"}, []string{"include2"},
 		[]string{"include1", "include3", "include4"})
