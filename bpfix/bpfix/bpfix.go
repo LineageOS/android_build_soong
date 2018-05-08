@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint/parser"
 )
@@ -217,6 +218,10 @@ func (f *Fixer) rewriteIncorrectAndroidmkAndroidLibraries() error {
 	for _, def := range f.tree.Defs {
 		mod, ok := def.(*parser.Module)
 		if !ok {
+			continue
+		}
+
+		if !strings.HasPrefix(mod.Type, "java_") && !strings.HasPrefix(mod.Type, "android_") {
 			continue
 		}
 
