@@ -125,6 +125,49 @@ func TestSimplifyKnownVariablesDuplicatingEachOther(t *testing.T) {
 	implFilterListTest(t, []string{}, []string{}, []string{})
 }
 
+func runPass(t *testing.T, in, out string, innerTest func(*Fixer) error) {
+	expected, err := Reformat(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in, err = Reformat(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tree, errs := parser.Parse("<testcase>", bytes.NewBufferString(in), parser.NewScope(nil))
+	if errs != nil {
+		t.Fatal(errs)
+	}
+
+	fixer := NewFixer(tree)
+
+	got := ""
+	prev := "foo"
+	passes := 0
+	for got != prev && passes < 10 {
+		err := innerTest(fixer)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out, err := parser.Print(fixer.tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		prev = got
+		got = string(out)
+		passes++
+	}
+
+	if got != expected {
+		t.Errorf("output didn't match:\ninput:\n%s\n\nexpected:\n%s\ngot:\n%s\n",
+			in, expected, got)
+	}
+}
+
 func TestMergeMatchingProperties(t *testing.T) {
 	tests := []struct {
 		name string
@@ -207,47 +250,95 @@ func TestMergeMatchingProperties(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			expected, err := Reformat(test.out)
-			if err != nil {
-				t.Error(err)
-			}
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return fixer.runPatchListMod(mergeMatchingModuleProperties)
+			})
+		})
+	}
+}
 
-			in, err := Reformat(test.in)
-			if err != nil {
-				t.Error(err)
-			}
-
-			tree, errs := parser.Parse("<testcase>", bytes.NewBufferString(in), parser.NewScope(nil))
-			if errs != nil {
-				t.Fatal(errs)
-			}
-
-			fixer := NewFixer(tree)
-
-			got := ""
-			prev := "foo"
-			passes := 0
-			for got != prev && passes < 10 {
-				err := fixer.mergeMatchingModuleProperties()
-				if err != nil {
-					t.Fatal(err)
+func TestReorderCommonProperties(t *testing.T) {
+	var tests = []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "empty",
+			in:   `cc_library {}`,
+			out:  `cc_library {}`,
+		},
+		{
+			name: "only priority",
+			in: `
+				cc_library {
+					name: "foo",
 				}
-
-				out, err := parser.Print(fixer.tree)
-				if err != nil {
-					t.Fatal(err)
+			`,
+			out: `
+				cc_library {
+					name: "foo",
 				}
+			`,
+		},
+		{
+			name: "already in order",
+			in: `
+				cc_library {
+					name: "foo",
+					defaults: ["bar"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					defaults: ["bar"],
+				}
+			`,
+		},
+		{
+			name: "reorder only priority",
+			in: `
+				cc_library {
+					defaults: ["bar"],
+					name: "foo",
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					defaults: ["bar"],
+				}
+			`,
+		},
+		{
+			name: "reorder",
+			in: `
+				cc_library {
+					name: "foo",
+					srcs: ["a.c"],
+					host_supported: true,
+					defaults: ["bar"],
+					shared_libs: ["baz"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					defaults: ["bar"],
+					host_supported: true,
+					srcs: ["a.c"],
+					shared_libs: ["baz"],
+				}
+			`,
+		},
+	}
 
-				prev = got
-				got = string(out)
-				passes++
-			}
-
-			if got != expected {
-				t.Errorf("failed testcase '%s'\ninput:\n%s\n\nexpected:\n%s\ngot:\n%s\n",
-					test.name, in, expected, got)
-			}
-
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return fixer.runPatchListMod(reorderCommonProperties)
+			})
 		})
 	}
 }
