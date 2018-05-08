@@ -66,7 +66,7 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 	fixer := NewFixer(tree)
 
 	// apply simplifications
-	err := fixer.simplifyKnownPropertiesDuplicatingEachOther()
+	err := fixer.runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther)
 	if len(errs) > 0 {
 		t.Fatal(err)
 	}
@@ -338,6 +338,161 @@ func TestReorderCommonProperties(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			runPass(t, test.in, test.out, func(fixer *Fixer) error {
 				return fixer.runPatchListMod(reorderCommonProperties)
+			})
+		})
+	}
+}
+
+func TestRemoveMatchingModuleListProperties(t *testing.T) {
+	var tests = []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "simple",
+			in: `
+				cc_library {
+					name: "foo",
+					foo: ["a"],
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					bar: ["a"],
+				}
+			`,
+		},
+		{
+			name: "long",
+			in: `
+				cc_library {
+					name: "foo",
+					foo: [
+						"a",
+						"b",
+					],
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					foo: [
+						"b",
+					],
+					bar: ["a"],
+				}
+			`,
+		},
+		{
+			name: "long fully removed",
+			in: `
+				cc_library {
+					name: "foo",
+					foo: [
+						"a",
+					],
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					bar: ["a"],
+				}
+			`,
+		},
+		{
+			name: "comment",
+			in: `
+				cc_library {
+					name: "foo",
+
+					// comment
+					foo: ["a"],
+
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+
+					// comment
+
+					bar: ["a"],
+				}
+			`,
+		},
+		{
+			name: "inner comment",
+			in: `
+				cc_library {
+					name: "foo",
+					foo: [
+						// comment
+						"a",
+					],
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					bar: ["a"],
+				}
+			`,
+		},
+		{
+			name: "eol comment",
+			in: `
+				cc_library {
+					name: "foo",
+					foo: ["a"], // comment
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					// comment
+					bar: ["a"],
+				}
+			`,
+		},
+		{
+			name: "eol comment with blank lines",
+			in: `
+				cc_library {
+					name: "foo",
+
+					foo: ["a"], // comment
+
+					// bar
+					bar: ["a"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+
+					// comment
+
+					// bar
+					bar: ["a"],
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return fixer.runPatchListMod(func(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+					return removeMatchingModuleListProperties(mod, patchList, "bar", "foo")
+				})
 			})
 		})
 	}

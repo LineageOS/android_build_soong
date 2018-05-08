@@ -147,7 +147,7 @@ func parse(name string, r io.Reader) (*parser.File, error) {
 
 func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	if config.simplifyKnownRedundantVariables {
-		err := f.simplifyKnownPropertiesDuplicatingEachOther()
+		err := f.runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther)
 		if err != nil {
 			return err
 		}
@@ -183,9 +183,10 @@ func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	return nil
 }
 
-func (f *Fixer) simplifyKnownPropertiesDuplicatingEachOther() error {
+func simplifyKnownPropertiesDuplicatingEachOther(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
 	// remove from local_include_dirs anything in export_include_dirs
-	return f.removeMatchingModuleListProperties("export_include_dirs", "local_include_dirs")
+	return removeMatchingModuleListProperties(mod, patchList,
+		"export_include_dirs", "local_include_dirs")
 }
 
 func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
@@ -429,7 +430,7 @@ func mergeListProperties(a, b *parser.Property, buf []byte, patchlist *parser.Pa
 }
 
 // removes from <items> every item present in <removals>
-func filterExpressionList(items *parser.List, removals *parser.List) {
+func filterExpressionList(patchList *parser.PatchList, items *parser.List, removals *parser.List) {
 	writeIndex := 0
 	for _, item := range items.Values {
 		included := true
@@ -446,32 +447,39 @@ func filterExpressionList(items *parser.List, removals *parser.List) {
 		if included {
 			items.Values[writeIndex] = item
 			writeIndex++
+		} else {
+			patchList.Add(item.Pos().Offset, item.End().Offset+2, "")
 		}
 	}
 	items.Values = items.Values[:writeIndex]
 }
 
 // Remove each modules[i].Properties[<legacyName>][j] that matches a modules[i].Properties[<canonicalName>][k]
-func (f *Fixer) removeMatchingModuleListProperties(canonicalName string, legacyName string) error {
-	for _, def := range f.tree.Defs {
-		mod, ok := def.(*parser.Module)
-		if !ok {
-			continue
-		}
-		legacyList, ok := getLiteralListProperty(mod, legacyName)
-		if !ok || len(legacyList.Values) == 0 {
-			continue
-		}
-		canonicalList, ok := getLiteralListProperty(mod, canonicalName)
-		if !ok {
-			continue
-		}
-		filterExpressionList(legacyList, canonicalList)
+func removeMatchingModuleListProperties(mod *parser.Module, patchList *parser.PatchList, canonicalName string, legacyName string) error {
+	legacyProp, ok := mod.GetProperty(legacyName)
+	if !ok {
+		return nil
+	}
+	legacyList, ok := legacyProp.Value.(*parser.List)
+	if !ok || len(legacyList.Values) == 0 {
+		return nil
+	}
+	canonicalList, ok := getLiteralListProperty(mod, canonicalName)
+	if !ok {
+		return nil
+	}
 
-		if len(legacyList.Values) == 0 {
-			removeProperty(mod, legacyName)
+	localPatches := parser.PatchList{}
+	filterExpressionList(&localPatches, legacyList, canonicalList)
+
+	if len(legacyList.Values) == 0 {
+		patchList.Add(legacyProp.Pos().Offset, legacyProp.End().Offset+2, "")
+	} else {
+		for _, p := range localPatches {
+			patchList.Add(p.Start, p.End, p.Replacement)
 		}
 	}
+
 	return nil
 }
 
