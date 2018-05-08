@@ -25,13 +25,17 @@ import (
 
 func init() {
 	pctx.HostBinToolVariable("protocCmd", "aprotoc")
+	pctx.HostBinToolVariable("depFixCmd", "dep_fixer")
 }
 
 var (
 	proto = pctx.AndroidStaticRule("protoc",
 		blueprint.RuleParams{
-			Command:     "$protocCmd --cpp_out=$protoOutParams:$outDir -I $protoBase $protoFlags $in",
-			CommandDeps: []string{"$protocCmd"},
+			Command: "$protocCmd --cpp_out=$protoOutParams:$outDir --dependency_out=$out.d -I $protoBase $protoFlags $in && " +
+				`$depFixCmd $out.d`,
+			CommandDeps: []string{"$protocCmd", "$depFixCmd"},
+			Depfile:     "${out}.d",
+			Deps:        blueprint.DepsGCC,
 		}, "protoFlags", "protoOutParams", "protoBase", "outDir")
 )
 
@@ -53,10 +57,11 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        proto,
-		Description: "protoc " + protoFile.Rel(),
-		Outputs:     android.WritablePaths{ccFile, headerFile},
-		Input:       protoFile,
+		Rule:           proto,
+		Description:    "protoc " + protoFile.Rel(),
+		Output:         ccFile,
+		ImplicitOutput: headerFile,
+		Input:          protoFile,
 		Args: map[string]string{
 			"outDir":         android.ProtoDir(ctx).String(),
 			"protoFlags":     protoFlags,

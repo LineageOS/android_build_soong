@@ -65,7 +65,7 @@ func processFile(filename string, in io.Reader, out io.Writer, fixRequest bpfix.
 	if err != nil {
 		return err
 	}
-	r := bytes.NewBuffer(src)
+	r := bytes.NewBuffer(append([]byte(nil), src...))
 	file, errs := parser.Parse(filename, r, parser.NewScope(nil))
 	if len(errs) > 0 {
 		for _, err := range errs {

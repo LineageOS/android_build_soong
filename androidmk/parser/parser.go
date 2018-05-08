@@ -35,6 +35,10 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Pos, e.Err)
 }
 
+const builtinDollar = "__builtin_dollar"
+
+var builtinDollarName = SimpleMakeString(builtinDollar, NoPos)
+
 func (p *parser) Parse() ([]Node, []error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -326,7 +330,11 @@ loop:
 		case '$':
 			var variable Variable
 			variable = p.parseVariable()
-			value.appendVariable(variable)
+			if variable.Name == builtinDollarName {
+				value.appendString("$")
+			} else {
+				value.appendVariable(variable)
+			}
 		case scanner.EOF:
 			break loop
 		case '(':
@@ -357,7 +365,8 @@ func (p *parser) parseVariable() Variable {
 	case '{':
 		return p.parseBracketedVariable('{', '}', pos)
 	case '$':
-		name = SimpleMakeString("__builtin_dollar", NoPos)
+		name = builtinDollarName
+		p.accept(p.tok)
 	case scanner.EOF:
 		p.errorf("expected variable name, found %s",
 			scanner.TokenString(p.tok))
@@ -457,6 +466,8 @@ func (p *parser) parseRulePrerequisites(target *MakeString) (*MakeString, bool) 
 	case '=':
 		p.parseAssignment("=", target, prerequisites)
 		return nil, true
+	case scanner.EOF:
+		// do nothing
 	default:
 		p.errorf("unexpected token %s after rule prerequisites", scanner.TokenString(p.tok))
 	}
