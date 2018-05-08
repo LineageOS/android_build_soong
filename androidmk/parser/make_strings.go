@@ -90,10 +90,10 @@ func (ms *MakeString) Value(scope Scope) string {
 	if len(ms.Strings) == 0 {
 		return ""
 	} else {
-		ret := ms.Strings[0]
+		ret := unescape(ms.Strings[0])
 		for i := range ms.Strings[1:] {
 			ret += ms.Variables[i].Value(scope)
-			ret += ms.Strings[i+1]
+			ret += unescape(ms.Strings[i+1])
 		}
 		return ret
 	}
@@ -125,6 +125,16 @@ func (ms *MakeString) Split(sep string) []*MakeString {
 }
 
 func (ms *MakeString) SplitN(sep string, n int) []*MakeString {
+	return ms.splitNFunc(n, func(s string, n int) []string {
+		return splitAnyN(s, sep, n)
+	})
+}
+
+func (ms *MakeString) Words() []*MakeString {
+	return ms.splitNFunc(-1, splitWords)
+}
+
+func (ms *MakeString) splitNFunc(n int, splitFunc func(s string, n int) []string) []*MakeString {
 	ret := []*MakeString{}
 
 	curMs := SimpleMakeString("", ms.Pos())
@@ -133,7 +143,7 @@ func (ms *MakeString) SplitN(sep string, n int) []*MakeString {
 	var s string
 	for i, s = range ms.Strings {
 		if n != 0 {
-			split := splitAnyN(s, sep, n)
+			split := splitFunc(s, n)
 			if n != -1 {
 				if len(split) > n {
 					panic("oops!")
@@ -156,7 +166,9 @@ func (ms *MakeString) SplitN(sep string, n int) []*MakeString {
 		}
 	}
 
-	ret = append(ret, curMs)
+	if !curMs.Empty() {
+		ret = append(ret, curMs)
+	}
 	return ret
 }
 
@@ -205,4 +217,65 @@ func splitAnyN(s, sep string, n int) []string {
 	}
 	ret = append(ret, s)
 	return ret
+}
+
+func splitWords(s string, n int) []string {
+	ret := []string{}
+	preserve := ""
+	for n == -1 || n > 1 {
+		index := strings.IndexAny(s, " \t")
+		if index == 0 && len(preserve) == 0 {
+			s = s[1:]
+		} else if index >= 0 {
+			escapeCount := 0
+			for i := index - 1; i >= 0; i-- {
+				if s[i] != '\\' {
+					break
+				}
+				escapeCount += 1
+			}
+
+			if escapeCount%2 == 1 {
+				preserve += s[0 : index+1]
+				s = s[index+1:]
+				continue
+			}
+
+			ret = append(ret, preserve+s[0:index])
+			s = s[index+1:]
+			preserve = ""
+			if n > 0 {
+				n--
+			}
+		} else {
+			break
+		}
+	}
+	if preserve != "" || s != "" || len(ret) == 0 {
+		ret = append(ret, preserve+s)
+	}
+	return ret
+}
+
+func unescape(s string) string {
+	ret := ""
+	for {
+		index := strings.IndexByte(s, '\\')
+		if index < 0 {
+			break
+		}
+
+		if index+1 == len(s) {
+			break
+		}
+
+		switch s[index+1] {
+		case ' ', '\\', '#', ':', '*', '[', '|', '\t', '\n', '\r':
+			ret += s[:index] + s[index+1:index+2]
+		default:
+			ret += s[:index+2]
+		}
+		s = s[index+2:]
+	}
+	return ret + s
 }
