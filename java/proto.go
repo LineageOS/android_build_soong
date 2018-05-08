@@ -30,12 +30,14 @@ var (
 	proto = pctx.AndroidStaticRule("protoc",
 		blueprint.RuleParams{
 			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
-				`$protocCmd $protoOut=$protoOutParams:$out.tmp -I $protoBase $protoFlags $in && ` +
+				`$protocCmd $protoOut=$protoOutParams:$out.tmp --dependency_out=$out.d -I $protoBase $protoFlags $in && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
 			CommandDeps: []string{
 				"$protocCmd",
 				"${config.SoongZipCmd}",
 			},
+			Depfile: "${out}.d",
+			Deps:    blueprint.DepsGCC,
 		}, "protoBase", "protoFlags", "protoOut", "protoOutParams")
 )
 
