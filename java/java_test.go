@@ -175,6 +175,7 @@ func testContext(config android.Config, bp string,
 
 		"jdk8/jre/lib/jce.jar": nil,
 		"jdk8/jre/lib/rt.jar":  nil,
+		"jdk8/lib/tools.jar":   nil,
 
 		"bar-doc/a.java":                 nil,
 		"bar-doc/b.java":                 nil,
