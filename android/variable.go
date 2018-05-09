@@ -209,6 +209,11 @@ type productVariables struct {
 
 	PgoAdditionalProfileDirs []string `json:",omitempty"`
 
+	BoardVendorSepolicyDirs     []string `json:",omitempty"`
+	BoardOdmSepolicyDirs        []string `json:",omitempty"`
+	BoardPlatPublicSepolicyDir  string   `json:",omitempty"`
+	BoardPlatPrivateSepolicyDir string   `json:",omitempty"`
+
 	VendorVars map[string]map[string]string `json:",omitempty"`
 }
 
