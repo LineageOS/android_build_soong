@@ -168,13 +168,17 @@ func (test *testDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 }
 
 func (test *testDecorator) linkerInit(ctx BaseModuleContext, linker *baseLinker) {
-	// add ../../lib[64] to rpath so that out/host/linux-x86/nativetest/<test dir>/<test> can
+	// 1. Add ../../lib[64] to rpath so that out/host/linux-x86/nativetest/<test dir>/<test> can
 	// find out/host/linux-x86/lib[64]/library.so
-	runpath := "../../lib"
-	if ctx.toolchain().Is64Bit() {
-		runpath += "64"
+	// 2. Add ../../../lib[64] to rpath so that out/host/linux-x86/testcases/<test dir>/<CPU>/<test> can
+	// also find out/host/linux-x86/lib[64]/library.so
+	runpaths := []string{"../../lib", "../../../lib"}
+	for _, runpath := range runpaths {
+		if ctx.toolchain().Is64Bit() {
+			runpath += "64"
+		}
+		linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, runpath)
 	}
-	linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, runpath)
 
 	// add "" to rpath so that test binaries can find libraries in their own test directory
 	linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, "")
