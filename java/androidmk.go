@@ -286,26 +286,52 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				if ddoc.Javadoc.stubsSrcJar != nil {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", ddoc.Javadoc.stubsSrcJar.String())
 				}
+				if ddoc.checkCurrentApiTimestamp != nil {
+					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-check-current-api")
+					fmt.Fprintln(w, ddoc.Name()+"-check-current-api:",
+						ddoc.checkCurrentApiTimestamp.String())
+
+					fmt.Fprintln(w, ".PHONY: checkapi")
+					fmt.Fprintln(w, "check-api:",
+						ddoc.checkCurrentApiTimestamp.String())
+
+					fmt.Fprintln(w, ".PHONY: droidcore")
+					fmt.Fprintln(w, "droidcore: checkapi")
+				}
+				if ddoc.updateCurrentApiTimestamp != nil {
+					fmt.Fprintln(w, ".PHONY:", ddoc.Name(), "-update-current-api")
+					fmt.Fprintln(w, ddoc.Name()+"-update-current-api:",
+						ddoc.updateCurrentApiTimestamp.String())
+
+					fmt.Fprintln(w, ".PHONY: update-api")
+					fmt.Fprintln(w, "update-api:",
+						ddoc.updateCurrentApiTimestamp.String())
+				}
+				if ddoc.checkLastReleasedApiTimestamp != nil {
+					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-check-last-released-api")
+					fmt.Fprintln(w, ddoc.Name()+"-check-last-released-api:",
+						ddoc.checkLastReleasedApiTimestamp.String())
+				}
 				apiFilePrefix := "INTERNAL_PLATFORM_"
 				if String(ddoc.properties.Api_tag_name) != "" {
 					apiFilePrefix += String(ddoc.properties.Api_tag_name) + "_"
 				}
-				if String(ddoc.properties.Api_filename) != "" {
+				if ddoc.apiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"API_FILE := ", ddoc.apiFile.String())
 				}
-				if String(ddoc.properties.Private_api_filename) != "" {
+				if ddoc.privateApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_API_FILE := ", ddoc.privateApiFile.String())
 				}
-				if String(ddoc.properties.Private_dex_api_filename) != "" {
+				if ddoc.privateDexApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_DEX_API_FILE := ", ddoc.privateDexApiFile.String())
 				}
-				if String(ddoc.properties.Removed_api_filename) != "" {
+				if ddoc.removedApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"REMOVED_API_FILE := ", ddoc.removedApiFile.String())
 				}
-				if String(ddoc.properties.Removed_dex_api_filename) != "" {
+				if ddoc.removedDexApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"REMOVED_DEX_API_FILE := ", ddoc.removedDexApiFile.String())
 				}
-				if String(ddoc.properties.Exact_api_filename) != "" {
+				if ddoc.exactApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"EXACT_API_FILE := ", ddoc.exactApiFile.String())
 				}
 			},

@@ -122,6 +122,7 @@ type productVariables struct {
 	BuildNumberFromFile *string `json:",omitempty"`
 	DateFromFile        *string `json:",omitempty"`
 
+	Platform_version_name             *string  `json:",omitempty"`
 	Platform_sdk_version              *int     `json:",omitempty"`
 	Platform_sdk_codename             *string  `json:",omitempty"`
 	Platform_sdk_final                *bool    `json:",omitempty"`
@@ -223,6 +224,11 @@ type productVariables struct {
 	NamespacesToExport []string `json:",omitempty"`
 
 	PgoAdditionalProfileDirs []string `json:",omitempty"`
+
+	BoardVendorSepolicyDirs     []string `json:",omitempty"`
+	BoardOdmSepolicyDirs        []string `json:",omitempty"`
+	BoardPlatPublicSepolicyDir  string   `json:",omitempty"`
+	BoardPlatPrivateSepolicyDir string   `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
 }

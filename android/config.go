@@ -468,6 +468,10 @@ func (c *config) ResourceOverlays() []string {
 	return *c.productVariables.ResourceOverlays
 }
 
+func (c *config) PlatformVersionName() string {
+	return String(c.productVariables.Platform_version_name)
+}
+
 func (c *config) PlatformSdkVersionInt() int {
 	return *c.productVariables.Platform_sdk_version
 }
@@ -797,6 +801,22 @@ func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 
 func (c *deviceConfig) PgoAdditionalProfileDirs() []string {
 	return c.config.productVariables.PgoAdditionalProfileDirs
+}
+
+func (c *deviceConfig) VendorSepolicyDirs() []string {
+	return c.config.productVariables.BoardVendorSepolicyDirs
+}
+
+func (c *deviceConfig) OdmSepolicyDirs() []string {
+	return c.config.productVariables.BoardOdmSepolicyDirs
+}
+
+func (c *deviceConfig) PlatPublicSepolicyDir() string {
+	return c.config.productVariables.BoardPlatPublicSepolicyDir
+}
+
+func (c *deviceConfig) PlatPrivateSepolicyDir() string {
+	return c.config.productVariables.BoardPlatPrivateSepolicyDir
 }
 
 func (c *config) IntegerOverflowDisabledForPath(path string) bool {
