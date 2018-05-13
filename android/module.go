@@ -995,13 +995,6 @@ func (a *androidModuleContext) skipInstall(fullInstallPath OutputPath) bool {
 		return true
 	}
 
-	// We'll need a solution for choosing which of modules with the same name in different
-	// namespaces to install.  For now, reuse the list of namespaces exported to Make as the
-	// list of namespaces to install in a Soong-only build.
-	if !a.module.base().commonProperties.NamespaceExportedToMake {
-		return true
-	}
-
 	if a.Device() {
 		if a.Config().SkipDeviceInstall() {
 			return true

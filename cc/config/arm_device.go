@@ -97,6 +97,24 @@ var (
 			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
+		"cortex-a55": []string{
+			"-mcpu=cortex-a53",
+			"-mfpu=neon-fp-armv8",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
+		},
+		"cortex-a75": []string{
+			"-mcpu=cortex-a53",
+			"-mfpu=neon-fp-armv8",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
+		},
 		"krait": []string{
 			"-mcpu=cortex-a15",
 			"-mfpu=neon-vfpv4",
@@ -141,7 +159,9 @@ func init() {
 		"cortex-a15",
 		"cortex-a53",
 		"cortex-a53-a57",
+		"cortex-a55",
 		"cortex-a73",
+		"cortex-a75",
 		"krait",
 		"kryo",
 		"exynos-m1",
@@ -189,6 +209,7 @@ func init() {
 	pctx.StaticVariable("ArmCortexA8Cflags", strings.Join(armCpuVariantCflags["cortex-a8"], " "))
 	pctx.StaticVariable("ArmCortexA15Cflags", strings.Join(armCpuVariantCflags["cortex-a15"], " "))
 	pctx.StaticVariable("ArmCortexA53Cflags", strings.Join(armCpuVariantCflags["cortex-a53"], " "))
+	pctx.StaticVariable("ArmCortexA55Cflags", strings.Join(armCpuVariantCflags["cortex-a55"], " "))
 	pctx.StaticVariable("ArmKraitCflags", strings.Join(armCpuVariantCflags["krait"], " "))
 	pctx.StaticVariable("ArmKryoCflags", strings.Join(armCpuVariantCflags["kryo"], " "))
 
@@ -221,6 +242,8 @@ func init() {
 		strings.Join(armClangCpuVariantCflags["cortex-a15"], " "))
 	pctx.StaticVariable("ArmClangCortexA53Cflags",
 		strings.Join(armClangCpuVariantCflags["cortex-a53"], " "))
+	pctx.StaticVariable("ArmClangCortexA55Cflags",
+		strings.Join(armClangCpuVariantCflags["cortex-a55"], " "))
 	pctx.StaticVariable("ArmClangKraitCflags",
 		strings.Join(armClangCpuVariantCflags["krait"], " "))
 	pctx.StaticVariable("ArmClangKryoCflags",
@@ -241,7 +264,9 @@ var (
 		"cortex-a15":     "${config.ArmCortexA15Cflags}",
 		"cortex-a53":     "${config.ArmCortexA53Cflags}",
 		"cortex-a53.a57": "${config.ArmCortexA53Cflags}",
+		"cortex-a55":     "${config.ArmCortexA55Cflags}",
 		"cortex-a73":     "${config.ArmCortexA53Cflags}",
+		"cortex-a75":     "${config.ArmCortexA55Cflags}",
 		"krait":          "${config.ArmKraitCflags}",
 		"kryo":           "${config.ArmKryoCflags}",
 		"exynos-m1":      "${config.ArmCortexA53Cflags}",
@@ -262,7 +287,9 @@ var (
 		"cortex-a15":     "${config.ArmClangCortexA15Cflags}",
 		"cortex-a53":     "${config.ArmClangCortexA53Cflags}",
 		"cortex-a53.a57": "${config.ArmClangCortexA53Cflags}",
+		"cortex-a55":     "${config.ArmClangCortexA55Cflags}",
 		"cortex-a73":     "${config.ArmClangCortexA53Cflags}",
+		"cortex-a75":     "${config.ArmClangCortexA55Cflags}",
 		"krait":          "${config.ArmClangKraitCflags}",
 		"kryo":           "${config.ArmClangKryoCflags}",
 		"exynos-m1":      "${config.ArmClangCortexA53Cflags}",
