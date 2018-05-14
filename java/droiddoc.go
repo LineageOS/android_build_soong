@@ -50,7 +50,7 @@ var (
 		blueprint.RuleParams{
 			Command: `( ${config.ApiCheckCmd} -JXmx1024m -J"classpath $classpath" $opts ` +
 				`$apiFile $apiFileToCheck $removedApiFile $removedApiFileToCheck ` +
-				`&& touch $out ) || (echo $msg ; exit 38)`,
+				`&& touch $out ) || (echo -e "$msg" ; exit 38)`,
 			CommandDeps: []string{
 				"${config.ApiCheckCmd}",
 			},
@@ -113,10 +113,16 @@ type JavadocProperties struct {
 }
 
 type ApiToCheck struct {
+	// path to the API txt file that the new API extracted from source code is checked
+	// against. The path can be local to the module or from other module (via :module syntax).
 	Api_file *string
 
+	// path to the API txt file that the new @removed API extractd from source code is
+	// checked against. The path can be local to the module or from other module (via
+	// :module syntax).
 	Removed_api_file *string
 
+	// Arguments to the apicheck tool.
 	Args *string
 }
 
@@ -729,9 +735,9 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					`To make these errors go away, you have two choices:\n`+
 					`   1. You can add '@hide' javadoc comments to the methods, etc. listed in the\n`+
 					`      errors above.\n\n`+
-					`   2. You can update current.txt by executing the following command:`+
+					`   2. You can update current.txt by executing the following command:\n`+
 					`         make %s-update-current-api\n\n`+
-					`      To submit the revised current.txt to the main Android repository,`+
+					`      To submit the revised current.txt to the main Android repository,\n`+
 					`      you will need approval.\n`+
 					`******************************\n`, ctx.ModuleName()),
 			},
