@@ -84,10 +84,12 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("droiddoc_host", android.ModuleFactoryAdaptor(DroiddocHostFactory))
 	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(DroiddocTemplateFactory))
 	ctx.RegisterModuleType("java_sdk_library", android.ModuleFactoryAdaptor(sdkLibraryFactory))
+	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(prebuiltApisFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("prebuilt_apis", prebuiltApisMutator).Parallel()
 		ctx.TopDown("java_sdk_library", sdkLibraryMutator).Parallel()
 	})
 	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(OverlaySingletonFactory))
@@ -141,19 +143,25 @@ func testContext(config android.Config, bp string,
 	}
 
 	mockFS := map[string][]byte{
-		"Android.bp":     []byte(bp),
-		"a.java":         nil,
-		"b.java":         nil,
-		"c.java":         nil,
-		"b.kt":           nil,
-		"a.jar":          nil,
-		"b.jar":          nil,
-		"java-res/a/a":   nil,
-		"java-res/b/b":   nil,
-		"java-res2/a":    nil,
-		"java-fg/a.java": nil,
-		"java-fg/b.java": nil,
-		"java-fg/c.java": nil,
+		"Android.bp":             []byte(bp),
+		"a.java":                 nil,
+		"b.java":                 nil,
+		"c.java":                 nil,
+		"b.kt":                   nil,
+		"a.jar":                  nil,
+		"b.jar":                  nil,
+		"java-res/a/a":           nil,
+		"java-res/b/b":           nil,
+		"java-res2/a":            nil,
+		"java-fg/a.java":         nil,
+		"java-fg/b.java":         nil,
+		"java-fg/c.java":         nil,
+		"api/current.txt":        nil,
+		"api/removed.txt":        nil,
+		"api/system-current.txt": nil,
+		"api/system-removed.txt": nil,
+		"api/test-current.txt":   nil,
+		"api/test-removed.txt":   nil,
 
 		"prebuilts/sdk/14/public/android.jar":         nil,
 		"prebuilts/sdk/14/public/framework.aidl":      nil,
@@ -163,6 +171,19 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/current/public/core.jar":       nil,
 		"prebuilts/sdk/current/system/android.jar":    nil,
 		"prebuilts/sdk/current/test/android.jar":      nil,
+		"prebuilts/sdk/28/public/api/foo.txt":         nil,
+		"prebuilts/sdk/28/system/api/foo.txt":         nil,
+		"prebuilts/sdk/28/test/api/foo.txt":           nil,
+		"prebuilts/sdk/28/public/api/foo-removed.txt": nil,
+		"prebuilts/sdk/28/system/api/foo-removed.txt": nil,
+		"prebuilts/sdk/28/test/api/foo-removed.txt":   nil,
+		"prebuilts/sdk/28/public/api/bar.txt":         nil,
+		"prebuilts/sdk/28/system/api/bar.txt":         nil,
+		"prebuilts/sdk/28/test/api/bar.txt":           nil,
+		"prebuilts/sdk/28/public/api/bar-removed.txt": nil,
+		"prebuilts/sdk/28/system/api/bar-removed.txt": nil,
+		"prebuilts/sdk/28/test/api/bar-removed.txt":   nil,
+		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "prebuilt_apis",}`),
 
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
@@ -196,7 +217,7 @@ func testContext(config android.Config, bp string,
 
 func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	t.Helper()
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "prebuilts/sdk/Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
@@ -1038,10 +1059,15 @@ func TestJavaSdkLibrary(t *testing.T) {
 	ctx.ModuleForTests("foo", "android_common")
 	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix+sdkSystemApiSuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix+sdkTestApiSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkSystemApiSuffix, "android_common")
+	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkTestApiSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkImplLibrarySuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_common")
+	ctx.ModuleForTests("foo.api.public.28", "")
+	ctx.ModuleForTests("foo.api.system.28", "")
+	ctx.ModuleForTests("foo.api.test.28", "")
 
 	bazJavac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
 	// tests if baz is actually linked to the stubs lib
