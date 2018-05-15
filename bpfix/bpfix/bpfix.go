@@ -49,6 +49,7 @@ type FixRequest struct {
 	rewriteIncorrectAndroidmkPrebuilts        bool
 	rewriteIncorrectAndroidmkAndroidLibraries bool
 	mergeMatchingModuleProperties             bool
+	reorderCommonProperties                   bool
 }
 
 func NewFixRequest() FixRequest {
@@ -61,6 +62,7 @@ func (r FixRequest) AddAll() (result FixRequest) {
 	result.rewriteIncorrectAndroidmkPrebuilts = true
 	result.rewriteIncorrectAndroidmkAndroidLibraries = true
 	result.mergeMatchingModuleProperties = true
+	result.reorderCommonProperties = true
 	return result
 }
 
@@ -145,11 +147,12 @@ func parse(name string, r io.Reader) (*parser.File, error) {
 
 func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	if config.simplifyKnownRedundantVariables {
-		err := f.simplifyKnownPropertiesDuplicatingEachOther()
+		err := f.runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther)
 		if err != nil {
 			return err
 		}
 	}
+
 	if config.rewriteIncorrectAndroidmkPrebuilts {
 		err := f.rewriteIncorrectAndroidmkPrebuilts()
 		if err != nil {
@@ -165,7 +168,14 @@ func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	}
 
 	if config.mergeMatchingModuleProperties {
-		err := f.mergeMatchingModuleProperties()
+		err := f.runPatchListMod(mergeMatchingModuleProperties)
+		if err != nil {
+			return err
+		}
+	}
+
+	if config.reorderCommonProperties {
+		err := f.runPatchListMod(reorderCommonProperties)
 		if err != nil {
 			return err
 		}
@@ -173,9 +183,10 @@ func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	return nil
 }
 
-func (f *Fixer) simplifyKnownPropertiesDuplicatingEachOther() error {
+func simplifyKnownPropertiesDuplicatingEachOther(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
 	// remove from local_include_dirs anything in export_include_dirs
-	return f.removeMatchingModuleListProperties("export_include_dirs", "local_include_dirs")
+	return removeMatchingModuleListProperties(mod, patchList,
+		"export_include_dirs", "local_include_dirs")
 }
 
 func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
@@ -249,7 +260,7 @@ func (f *Fixer) rewriteIncorrectAndroidmkAndroidLibraries() error {
 	return nil
 }
 
-func (f *Fixer) mergeMatchingModuleProperties() error {
+func (f *Fixer) runPatchListMod(modFunc func(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error) error {
 	// Make sure all the offsets are accurate
 	buf, err := f.reparse()
 	if err != nil {
@@ -263,7 +274,7 @@ func (f *Fixer) mergeMatchingModuleProperties() error {
 			continue
 		}
 
-		err := mergeMatchingProperties(&mod.Properties, buf, &patchlist)
+		err := modFunc(mod, buf, &patchlist)
 		if err != nil {
 			return err
 		}
@@ -275,14 +286,74 @@ func (f *Fixer) mergeMatchingModuleProperties() error {
 		return err
 	}
 
+	// Save a copy of the buffer to print for errors below
+	bufCopy := append([]byte(nil), newBuf.Bytes()...)
+
 	newTree, err := parse(f.tree.Name, newBuf)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to parse: %v\nBuffer:\n%s", err, string(bufCopy))
 	}
 
 	f.tree = newTree
 
 	return nil
+}
+
+var commonPropertyPriorities = []string{
+	"name",
+	"defaults",
+	"device_supported",
+	"host_supported",
+}
+
+func reorderCommonProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
+	if len(mod.Properties) == 0 {
+		return nil
+	}
+
+	pos := mod.LBracePos.Offset + 1
+	stage := ""
+
+	for _, name := range commonPropertyPriorities {
+		idx := propertyIndex(mod.Properties, name)
+		if idx == -1 {
+			continue
+		}
+		if idx == 0 {
+			err := patchlist.Add(pos, pos, stage)
+			if err != nil {
+				return err
+			}
+			stage = ""
+
+			pos = mod.Properties[0].End().Offset + 1
+			mod.Properties = mod.Properties[1:]
+			continue
+		}
+
+		prop := mod.Properties[idx]
+		mod.Properties = append(mod.Properties[:idx], mod.Properties[idx+1:]...)
+
+		stage += string(buf[prop.Pos().Offset : prop.End().Offset+1])
+
+		err := patchlist.Add(prop.Pos().Offset, prop.End().Offset+2, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	if stage != "" {
+		err := patchlist.Add(pos, pos, stage)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func mergeMatchingModuleProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
+	return mergeMatchingProperties(&mod.Properties, buf, patchlist)
 }
 
 func mergeMatchingProperties(properties *[]*parser.Property, buf []byte, patchlist *parser.PatchList) error {
@@ -359,7 +430,7 @@ func mergeListProperties(a, b *parser.Property, buf []byte, patchlist *parser.Pa
 }
 
 // removes from <items> every item present in <removals>
-func filterExpressionList(items *parser.List, removals *parser.List) {
+func filterExpressionList(patchList *parser.PatchList, items *parser.List, removals *parser.List) {
 	writeIndex := 0
 	for _, item := range items.Values {
 		included := true
@@ -376,32 +447,39 @@ func filterExpressionList(items *parser.List, removals *parser.List) {
 		if included {
 			items.Values[writeIndex] = item
 			writeIndex++
+		} else {
+			patchList.Add(item.Pos().Offset, item.End().Offset+2, "")
 		}
 	}
 	items.Values = items.Values[:writeIndex]
 }
 
 // Remove each modules[i].Properties[<legacyName>][j] that matches a modules[i].Properties[<canonicalName>][k]
-func (f *Fixer) removeMatchingModuleListProperties(canonicalName string, legacyName string) error {
-	for _, def := range f.tree.Defs {
-		mod, ok := def.(*parser.Module)
-		if !ok {
-			continue
-		}
-		legacyList, ok := getLiteralListProperty(mod, legacyName)
-		if !ok || len(legacyList.Values) == 0 {
-			continue
-		}
-		canonicalList, ok := getLiteralListProperty(mod, canonicalName)
-		if !ok {
-			continue
-		}
-		filterExpressionList(legacyList, canonicalList)
+func removeMatchingModuleListProperties(mod *parser.Module, patchList *parser.PatchList, canonicalName string, legacyName string) error {
+	legacyProp, ok := mod.GetProperty(legacyName)
+	if !ok {
+		return nil
+	}
+	legacyList, ok := legacyProp.Value.(*parser.List)
+	if !ok || len(legacyList.Values) == 0 {
+		return nil
+	}
+	canonicalList, ok := getLiteralListProperty(mod, canonicalName)
+	if !ok {
+		return nil
+	}
 
-		if len(legacyList.Values) == 0 {
-			removeProperty(mod, legacyName)
+	localPatches := parser.PatchList{}
+	filterExpressionList(&localPatches, legacyList, canonicalList)
+
+	if len(legacyList.Values) == 0 {
+		patchList.Add(legacyProp.Pos().Offset, legacyProp.End().Offset+2, "")
+	} else {
+		for _, p := range localPatches {
+			patchList.Add(p.Start, p.End, p.Replacement)
 		}
 	}
+
 	return nil
 }
 
@@ -417,6 +495,15 @@ func getLiteralListProperty(mod *parser.Module, name string) (list *parser.List,
 	}
 	list, ok = prop.Value.(*parser.List)
 	return list, ok
+}
+
+func propertyIndex(props []*parser.Property, propertyName string) int {
+	for i, prop := range props {
+		if prop.Name == propertyName {
+			return i
+		}
+	}
+	return -1
 }
 
 func renameProperty(mod *parser.Module, from, to string) {
