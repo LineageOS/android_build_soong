@@ -539,6 +539,11 @@ func (sanitize *sanitize) isUnsanitizedVariant() bool {
 		!sanitize.isSanitizerEnabled(cfi)
 }
 
+func (sanitize *sanitize) isVariantOnProductionDevice() bool {
+	return !sanitize.isSanitizerEnabled(asan) &&
+		!sanitize.isSanitizerEnabled(tsan)
+}
+
 func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 	switch t {
 	case asan:
