@@ -206,10 +206,6 @@ type VendorProperties struct {
 	Double_loadable *bool
 }
 
-type UnusedProperties struct {
-	Tags []string
-}
-
 type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
@@ -320,7 +316,6 @@ type Module struct {
 
 	Properties       BaseProperties
 	VendorProperties VendorProperties
-	unused           UnusedProperties
 
 	// initialize before calling Init
 	hod      android.HostOrDeviceSupported
@@ -360,7 +355,7 @@ type Module struct {
 }
 
 func (c *Module) Init() android.Module {
-	c.AddProperties(&c.Properties, &c.VendorProperties, &c.unused)
+	c.AddProperties(&c.Properties, &c.VendorProperties)
 	if c.compiler != nil {
 		c.AddProperties(c.compiler.compilerProps()...)
 	}
@@ -552,13 +547,13 @@ func (ctx *moduleContextImpl) isVndkExt() bool {
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
 func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
 	skipAbiChecks := ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS")
-	isUnsanitizedVariant := true
+	isVariantOnProductionDevice := true
 	sanitize := ctx.mod.sanitize
 	if sanitize != nil {
-		isUnsanitizedVariant = sanitize.isUnsanitizedVariant()
+		isVariantOnProductionDevice = sanitize.isVariantOnProductionDevice()
 	}
 	vendorAvailable := Bool(ctx.mod.VendorProperties.Vendor_available)
-	return !skipAbiChecks && isUnsanitizedVariant && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && vendorAvailable) || inList(ctx.baseModuleName(), llndkLibraries))
+	return !skipAbiChecks && isVariantOnProductionDevice && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && vendorAvailable) || inList(ctx.baseModuleName(), llndkLibraries))
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -1475,7 +1470,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&BinaryLinkerProperties{},
 		&TestProperties{},
 		&TestBinaryProperties{},
-		&UnusedProperties{},
 		&StlProperties{},
 		&SanitizeProperties{},
 		&StripProperties{},

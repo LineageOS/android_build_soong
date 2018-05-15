@@ -331,7 +331,7 @@ cc_library_shared {
 `,
 	},
 	{
-		desc: "Keep LOCAL_MODULE_TAGS non-optional",
+		desc: "Warn for LOCAL_MODULE_TAGS non-optional",
 		in: `
 include $(CLEAR_VARS)
 LOCAL_MODULE_TAGS := debug
@@ -340,7 +340,41 @@ include $(BUILD_SHARED_LIBRARY)
 
 		expected: `
 cc_library_shared {
-	tags: ["debug"],
+	// WARNING: Module tags are not supported in Soong.
+	// Add this module to PRODUCT_PACKAGES_DEBUG in your product file if you want to
+	// force installation for -userdebug and -eng builds.
+}
+`,
+	},
+	{
+		desc: "Custom warning for LOCAL_MODULE_TAGS tests",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := debug tests
+include $(BUILD_SHARED_LIBRARY)
+`,
+
+		expected: `
+cc_library_shared {
+	// WARNING: Module tags are not supported in Soong.
+	// Add this module to PRODUCT_PACKAGES_DEBUG in your product file if you want to
+	// force installation for -userdebug and -eng builds.
+	// WARNING: Module tags are not supported in Soong.
+	// To make a shared library only for tests, use the "cc_test_library" module
+	// type. If you don't use gtest, set "gtest: false".
+}
+`,
+	},
+	{
+		desc: "Ignore LOCAL_MODULE_TAGS tests for cc_test",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := tests
+include $(BUILD_NATIVE_TEST)
+`,
+
+		expected: `
+cc_test {
 }
 `,
 	},
