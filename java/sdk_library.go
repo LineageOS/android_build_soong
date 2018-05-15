@@ -67,10 +67,9 @@ var (
 // classpath at runtime if requested via <uses-library>.
 //
 // TODO: these are big features that are currently missing
-// 1) check for API consistency
-// 2) ensuring that apps have appropriate <uses-library> tag
-// 3) disallowing linking to the runtime shared lib
-// 4) HTML generation
+// 1) ensuring that apps have appropriate <uses-library> tag
+// 2) disallowing linking to the runtime shared lib
+// 3) HTML generation
 
 func init() {
 	android.RegisterModuleType("java_sdk_library", sdkLibraryFactory)
@@ -260,21 +259,32 @@ func (module *sdkLibrary) apiTagName(apiScope apiScope) string {
 	return apiTagName
 }
 
-// returns the path (relative to this module) to the API txt file. Files are located
-// ./<api_dir>/<api_level>.txt where <api_level> is either current, system-current, removed,
-// or system-removed.
-func (module *sdkLibrary) apiFilePath(apiLevel string, apiScope apiScope) string {
-	apiDir := "api"
-	apiFile := apiLevel
+func (module *sdkLibrary) latestApiFilegroupName(apiScope apiScope) string {
+	name := ":" + module.BaseModuleName() + ".api."
 	switch apiScope {
+	case apiScopePublic:
+		name = name + "public"
 	case apiScopeSystem:
-		apiFile = "system-" + apiFile
+		name = name + "system"
 	case apiScopeTest:
-		apiFile = "test-" + apiFile
+		name = name + "test"
 	}
-	apiFile = apiFile + ".txt"
+	name = name + ".latest"
+	return name
+}
 
-	return path.Join(apiDir, apiFile)
+func (module *sdkLibrary) latestRemovedApiFilegroupName(apiScope apiScope) string {
+	name := ":" + module.BaseModuleName() + "-removed.api."
+	switch apiScope {
+	case apiScopePublic:
+		name = name + "public"
+	case apiScopeSystem:
+		name = name + "system"
+	case apiScopeTest:
+		name = name + "test"
+	}
+	name = name + ".latest"
+	return name
 }
 
 // Creates a static java library that has API stubs
@@ -331,6 +341,10 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 		Api_tag_name            *string
 		Api_filename            *string
 		Removed_api_filename    *string
+		Check_api               struct {
+			Current       ApiToCheck
+			Last_released ApiToCheck
+		}
 	}{}
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
@@ -355,7 +369,6 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	// List of APIs identified from the provided source files are created. They are later
 	// compared against to the not-yet-released (a.k.a current) list of APIs and to the
 	// last-released (a.k.a numbered) list of API.
-	// TODO: If any incompatible change is detected, break the build
 	currentApiFileName := "current.txt"
 	removedApiFileName := "removed.txt"
 	switch apiScope {
@@ -368,11 +381,30 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	}
 	currentApiFileName = path.Join("api", currentApiFileName)
 	removedApiFileName = path.Join("api", removedApiFileName)
+	// TODO(jiyong): remove these three props
 	props.Api_tag_name = proptools.StringPtr(module.apiTagName(apiScope))
-	// Note: the exact names of these two are not important because they are always
-	// referenced by the make variable $(INTERNAL_PLATFORM_<TAG_NAME>_API_FILE)
 	props.Api_filename = proptools.StringPtr(currentApiFileName)
 	props.Removed_api_filename = proptools.StringPtr(removedApiFileName)
+
+	// check against the not-yet-release API
+	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
+	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
+	// any change is reported as error
+	props.Check_api.Current.Args = proptools.StringPtr("-error 2 -error 3 -error 4 -error 5 " +
+		"-error 6 -error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 " +
+		"-error 14 -error 15 -error 16 -error 17 -error 18 -error 19 -error 20 " +
+		"-error 21 -error 23 -error 24 -error 25 -error 26 -error 27")
+
+	// check against the latest released API
+	props.Check_api.Last_released.Api_file = proptools.StringPtr(
+		module.latestApiFilegroupName(apiScope))
+	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
+		module.latestRemovedApiFilegroupName(apiScope))
+	// backward incompatible changes are reported as error
+	props.Check_api.Last_released.Args = proptools.StringPtr("-hide 2 -hide 3 -hide 4 -hide 5 " +
+		"-hide 6 -hide 24 -hide 25 -hide 26 -hide 27 " +
+		"-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 " +
+		"-error 15 -error 16 -error 17 -error 18")
 
 	// Include the part of the framework source. This is required for the case when
 	// API class is extending from the framework class. In that case, doclava needs

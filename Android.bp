@@ -233,6 +233,7 @@ bootstrap_go_package {
         "java/jacoco.go",
         "java/java.go",
         "java/java_resources.go",
+        "java/prebuilt_apis.go",
         "java/proto.go",
         "java/sdk_library.go",
         "java/support_libraries.go",
