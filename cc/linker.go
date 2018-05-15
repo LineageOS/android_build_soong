@@ -107,6 +107,15 @@ type BaseLinkerProperties struct {
 			// variant of the C/C++ module.
 			Exclude_runtime_libs []string
 		}
+		Recovery struct {
+			// list of shared libs that should not be used to build
+			// the recovery variant of the C/C++ module.
+			Exclude_shared_libs []string
+
+			// list of static libs that should not be used to build
+			// the recovery variant of the C/C++ module.
+			Exclude_static_libs []string
+		}
 	}
 
 	// make android::build:GetBuildNumber() available containing the build ID.
@@ -164,6 +173,14 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Vendor.Exclude_runtime_libs)
+	}
+
+	if ctx.inRecovery() {
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Recovery.Exclude_shared_libs)
+		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Recovery.Exclude_shared_libs)
+		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
+		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Recovery.Exclude_static_libs)
+		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
 	}
 
 	if ctx.ModuleName() != "libcompiler_rt-extras" {

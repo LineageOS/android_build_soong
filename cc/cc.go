@@ -34,7 +34,7 @@ func init() {
 	android.RegisterModuleType("cc_defaults", defaultsFactory)
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", vendorMutator).Parallel()
+		ctx.BottomUp("image", imageMutator).Parallel()
 		ctx.BottomUp("link", linkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
@@ -175,6 +175,11 @@ type BaseProperties struct {
 	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
 	// file
 	Logtags []string
+
+	// Make this module available when building for recovery
+	Recovery_available *bool
+
+	InRecovery bool `blueprint:"mutated"`
 }
 
 type VendorProperties struct {
@@ -217,6 +222,7 @@ type ModuleContextIntf interface {
 	isVndk() bool
 	isVndkSp() bool
 	isVndkExt() bool
+	inRecovery() bool
 	createVndkSourceAbiDump() bool
 	selectedStl() string
 	baseModuleName() string
@@ -453,6 +459,14 @@ func (c *Module) hasVendorVariant() bool {
 	return c.isVndk() || Bool(c.VendorProperties.Vendor_available)
 }
 
+func (c *Module) inRecovery() bool {
+	return c.Properties.InRecovery || c.ModuleBase.InstallInRecovery()
+}
+
+func (c *Module) onlyInRecovery() bool {
+	return c.ModuleBase.InstallInRecovery()
+}
+
 type baseModuleContext struct {
 	android.BaseContext
 	moduleContextImpl
@@ -500,7 +514,7 @@ func (ctx *moduleContextImpl) staticBinary() bool {
 }
 
 func (ctx *moduleContextImpl) useSdk() bool {
-	if ctx.ctx.Device() && !ctx.useVndk() {
+	if ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRecovery() {
 		return String(ctx.mod.Properties.Sdk_version) != ""
 	}
 	return false
@@ -542,6 +556,10 @@ func (ctx *moduleContextImpl) isVndkSp() bool {
 
 func (ctx *moduleContextImpl) isVndkExt() bool {
 	return ctx.mod.isVndkExt()
+}
+
+func (ctx *moduleContextImpl) inRecovery() bool {
+	return ctx.mod.inRecovery()
 }
 
 // Create source abi dumps if the module belongs to the list of VndkLibraries.
@@ -1069,6 +1087,10 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 		// Platform code can link to anything
 		return
 	}
+	if from.inRecovery() {
+		// Recovery code is not NDK
+		return
+	}
 	if _, ok := to.linker.(*toolchainLibraryDecorator); ok {
 		// These are always allowed
 		return
@@ -1360,6 +1382,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				return libName + vendorSuffix
 			} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
 				return libName + vendorPublicLibrarySuffix
+			} else if ccDep.inRecovery() && !ccDep.onlyInRecovery() {
+				return libName + recoverySuffix
 			} else {
 				return libName
 			}
@@ -1409,6 +1433,10 @@ func (c *Module) InstallInSanitizerDir() bool {
 		return true
 	}
 	return c.installer.inSanitizerDir()
+}
+
+func (c *Module) InstallInRecovery() bool {
+	return c.inRecovery()
 }
 
 func (c *Module) HostToolPath() android.OptionalPath {
@@ -1496,6 +1524,8 @@ const (
 	// vendorMode is the variant used for /vendor code that compiles
 	// against the VNDK.
 	vendorMode = "vendor"
+
+	recoveryMode = "recovery"
 )
 
 func squashVendorSrcs(m *Module) {
@@ -1508,7 +1538,17 @@ func squashVendorSrcs(m *Module) {
 	}
 }
 
-func vendorMutator(mctx android.BottomUpMutatorContext) {
+func squashRecoverySrcs(m *Module) {
+	if lib, ok := m.compiler.(*libraryDecorator); ok {
+		lib.baseCompiler.Properties.Srcs = append(lib.baseCompiler.Properties.Srcs,
+			lib.baseCompiler.Properties.Target.Recovery.Srcs...)
+
+		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs,
+			lib.baseCompiler.Properties.Target.Recovery.Exclude_srcs...)
+	}
+}
+
+func imageMutator(mctx android.BottomUpMutatorContext) {
 	if mctx.Os() != android.Android {
 		return
 	}
@@ -1577,43 +1617,70 @@ func vendorMutator(mctx android.BottomUpMutatorContext) {
 		}
 	}
 
+	var coreVariantNeeded bool = false
+	var vendorVariantNeeded bool = false
+	var recoveryVariantNeeded bool = false
+
 	if mctx.DeviceConfig().VndkVersion() == "" {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
-		mctx.CreateVariations(coreMode)
+		coreVariantNeeded = true
 	} else if _, ok := m.linker.(*llndkStubDecorator); ok {
 		// LL-NDK stubs only exist in the vendor variant, since the
 		// real libraries will be used in the core variant.
-		mctx.CreateVariations(vendorMode)
+		vendorVariantNeeded = true
 	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		// ... and LL-NDK headers as well
-		mod := mctx.CreateVariations(vendorMode)
-		vendor := mod[0].(*Module)
-		vendor.Properties.UseVndk = true
+		vendorVariantNeeded = true
 	} else if _, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
-		mod := mctx.CreateVariations(vendorMode)
-		vendor := mod[0].(*Module)
-		vendor.Properties.UseVndk = true
+		vendorVariantNeeded = true
 	} else if m.hasVendorVariant() && !vendorSpecific {
 		// This will be available in both /system and /vendor
 		// or a /system directory that is available to vendor.
-		mod := mctx.CreateVariations(coreMode, vendorMode)
-		vendor := mod[1].(*Module)
-		vendor.Properties.UseVndk = true
-		squashVendorSrcs(vendor)
+		coreVariantNeeded = true
+		vendorVariantNeeded = true
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
-		mod := mctx.CreateVariations(vendorMode)
-		vendor := mod[0].(*Module)
-		vendor.Properties.UseVndk = true
-		squashVendorSrcs(vendor)
+		vendorVariantNeeded = true
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK
 		// will be restricted using the existing link type checks.
-		mctx.CreateVariations(coreMode)
+		coreVariantNeeded = true
+	}
+
+	if Bool(m.Properties.Recovery_available) {
+		recoveryVariantNeeded = true
+	}
+
+	if m.ModuleBase.InstallInRecovery() {
+		recoveryVariantNeeded = true
+		coreVariantNeeded = false
+	}
+
+	var variants []string
+	if coreVariantNeeded {
+		variants = append(variants, coreMode)
+	}
+	if vendorVariantNeeded {
+		variants = append(variants, vendorMode)
+	}
+	if recoveryVariantNeeded {
+		variants = append(variants, recoveryMode)
+	}
+	mod := mctx.CreateVariations(variants...)
+	for i, v := range variants {
+		if v == vendorMode {
+			m := mod[i].(*Module)
+			m.Properties.UseVndk = true
+			squashVendorSrcs(m)
+		} else if v == recoveryMode {
+			m := mod[i].(*Module)
+			m.Properties.InRecovery = true
+			squashRecoverySrcs(m)
+		}
 	}
 }
 
