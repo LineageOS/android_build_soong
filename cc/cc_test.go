@@ -63,7 +63,7 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(objectFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", vendorMutator).Parallel()
+		ctx.BottomUp("image", imageMutator).Parallel()
 		ctx.BottomUp("link", linkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
 		ctx.BottomUp("begin", beginMutator).Parallel()

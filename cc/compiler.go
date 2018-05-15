@@ -142,6 +142,19 @@ type BaseCompilerProperties struct {
 			// variant of the C/C++ module.
 			Cflags []string
 		}
+		Recovery struct {
+			// list of source files that should only be used in the
+			// recovery variant of the C/C++ module.
+			Srcs []string
+
+			// list of source files that should not be used to
+			// build the recovery variant of the C/C++ module.
+			Exclude_srcs []string
+
+			// List of additional cflags that should be used to build the recovery
+			// variant of the C/C++ module.
+			Cflags []string
+		}
 	}
 
 	Proto struct {
