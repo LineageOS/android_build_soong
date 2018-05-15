@@ -255,6 +255,11 @@ func main() {
 
 	setMaxFiles(log)
 
+	finder := build.NewSourceFinder(buildCtx, config)
+	defer finder.Shutdown()
+
+	build.FindSources(buildCtx, config, finder)
+
 	vars, err := build.DumpMakeVars(buildCtx, config, nil, []string{"all_named_products"})
 	if err != nil {
 		log.Fatal(err)
@@ -302,9 +307,6 @@ func main() {
 
 	var wg sync.WaitGroup
 	productConfigs := make(chan Product, len(products))
-
-	finder := build.NewSourceFinder(buildCtx, config)
-	defer finder.Shutdown()
 
 	// Run the product config for every product in parallel
 	for _, product := range products {
