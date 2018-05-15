@@ -47,6 +47,7 @@ type ModuleInstallPathContext interface {
 
 	InstallInData() bool
 	InstallInSanitizerDir() bool
+	InstallInRecovery() bool
 }
 
 var _ ModuleInstallPathContext = ModuleContext(nil)
@@ -948,6 +949,8 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 		var partition string
 		if ctx.InstallInData() {
 			partition = "data"
+		} else if ctx.InstallInRecovery() {
+			partition = "recovery/root"
 		} else if ctx.SocSpecific() {
 			partition = ctx.DeviceConfig().VendorPath()
 		} else if ctx.DeviceSpecific() {

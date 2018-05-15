@@ -24,7 +24,8 @@ import (
 )
 
 var (
-	vendorSuffix = ".vendor"
+	vendorSuffix   = ".vendor"
+	recoverySuffix = ".recovery"
 )
 
 type AndroidMkContext interface {
@@ -99,6 +100,8 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 		// .vendor suffix is added only when we will have two variants: core and vendor.
 		// The suffix is not added for vendor-only module.
 		ret.SubName += vendorSuffix
+	} else if c.inRecovery() && !c.onlyInRecovery() {
+		ret.SubName += recoverySuffix
 	}
 
 	return ret
@@ -345,7 +348,7 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 
 func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Class = "SHARED_LIBRARIES"
-	ret.SubName = ".vendor"
+	ret.SubName = vendorSuffix
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
