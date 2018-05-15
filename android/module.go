@@ -191,8 +191,6 @@ type nameProperties struct {
 }
 
 type commonProperties struct {
-	Tags []string
-
 	// emit build rules for this module
 	Enabled *bool `android:"arch_variant"`
 

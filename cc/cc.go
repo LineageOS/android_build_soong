@@ -206,10 +206,6 @@ type VendorProperties struct {
 	Double_loadable *bool
 }
 
-type UnusedProperties struct {
-	Tags []string
-}
-
 type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
@@ -320,7 +316,6 @@ type Module struct {
 
 	Properties       BaseProperties
 	VendorProperties VendorProperties
-	unused           UnusedProperties
 
 	// initialize before calling Init
 	hod      android.HostOrDeviceSupported
@@ -360,7 +355,7 @@ type Module struct {
 }
 
 func (c *Module) Init() android.Module {
-	c.AddProperties(&c.Properties, &c.VendorProperties, &c.unused)
+	c.AddProperties(&c.Properties, &c.VendorProperties)
 	if c.compiler != nil {
 		c.AddProperties(c.compiler.compilerProps()...)
 	}
@@ -1475,7 +1470,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&BinaryLinkerProperties{},
 		&TestProperties{},
 		&TestBinaryProperties{},
-		&UnusedProperties{},
 		&StlProperties{},
 		&SanitizeProperties{},
 		&StripProperties{},

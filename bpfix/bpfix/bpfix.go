@@ -50,6 +50,7 @@ type FixRequest struct {
 	rewriteIncorrectAndroidmkAndroidLibraries bool
 	mergeMatchingModuleProperties             bool
 	reorderCommonProperties                   bool
+	removeTags                                bool
 }
 
 func NewFixRequest() FixRequest {
@@ -63,6 +64,7 @@ func (r FixRequest) AddAll() (result FixRequest) {
 	result.rewriteIncorrectAndroidmkAndroidLibraries = true
 	result.mergeMatchingModuleProperties = true
 	result.reorderCommonProperties = true
+	result.removeTags = true
 	return result
 }
 
@@ -176,6 +178,13 @@ func (f *Fixer) fixTreeOnce(config FixRequest) error {
 
 	if config.reorderCommonProperties {
 		err := f.runPatchListMod(reorderCommonProperties)
+		if err != nil {
+			return err
+		}
+	}
+
+	if config.removeTags {
+		err := f.runPatchListMod(removeTags)
 		if err != nil {
 			return err
 		}
@@ -350,6 +359,72 @@ func reorderCommonProperties(mod *parser.Module, buf []byte, patchlist *parser.P
 	}
 
 	return nil
+}
+
+func removeTags(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
+	prop, ok := mod.GetProperty("tags")
+	if !ok {
+		return nil
+	}
+	list, ok := prop.Value.(*parser.List)
+	if !ok {
+		return nil
+	}
+
+	replaceStr := ""
+
+	for _, item := range list.Values {
+		str, ok := item.(*parser.String)
+		if !ok {
+			replaceStr += fmt.Sprintf("// ERROR: Unable to parse tag %q\n", item)
+			continue
+		}
+
+		switch str.Value {
+		case "optional":
+			continue
+		case "debug":
+			replaceStr += `// WARNING: Module tags are not supported in Soong.
+				// Add this module to PRODUCT_PACKAGES_DEBUG in your product file if you want to
+				// force installation for -userdebug and -eng builds.
+				`
+		case "eng":
+			replaceStr += `// WARNING: Module tags are not supported in Soong.
+				// Add this module to PRODUCT_PACKAGES_ENG in your product file if you want to
+				// force installation for -eng builds.
+				`
+		case "tests":
+			if strings.Contains(mod.Type, "cc_test") || strings.Contains(mod.Type, "cc_library_static") {
+				continue
+			} else if strings.Contains(mod.Type, "cc_lib") {
+				replaceStr += `// WARNING: Module tags are not supported in Soong.
+					// To make a shared library only for tests, use the "cc_test_library" module
+					// type. If you don't use gtest, set "gtest: false".
+					`
+			} else if strings.Contains(mod.Type, "cc_bin") {
+				replaceStr += `// WARNING: Module tags are not supported in Soong.
+					// For native test binaries, use the "cc_test" module type. Some differences:
+					//  - If you don't use gtest, set "gtest: false"
+					//  - Binaries will be installed into /data/nativetest[64]/<name>/<name>
+					//  - Both 32 & 64 bit versions will be built (as appropriate)
+					`
+			} else if strings.Contains(mod.Type, "java_lib") {
+				replaceStr += `// WARNING: Module tags are not supported in Soong.
+					// For JUnit or similar tests, use the "java_test" module type. A dependency on
+					// Junit will be added by default, if it is using some other runner, set "junit: false".
+					`
+			} else {
+				replaceStr += `// WARNING: Module tags are not supported in Soong.
+					// In most cases, tests are now identified by their module type:
+					// cc_test, java_test, python_test
+					`
+			}
+		default:
+			replaceStr += fmt.Sprintf("// WARNING: Unknown module tag %q\n", str.Value)
+		}
+	}
+
+	return patchlist.Add(prop.Pos().Offset, prop.End().Offset+2, replaceStr)
 }
 
 func mergeMatchingModuleProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
