@@ -39,7 +39,6 @@ var (
 	arm64Ldflags = []string{
 		"-Wl,-m,aarch64_elf64_le_vec",
 		"-Wl,--hash-style=gnu",
-		"-Wl,--fix-cortex-a53-843419",
 		"-fuse-ld=gold",
 		"-Wl,--icf=safe",
 	}
@@ -172,6 +171,7 @@ var (
 type toolchainArm64 struct {
 	toolchain64Bit
 
+	ldflags              string
 	toolchainCflags      string
 	toolchainClangCflags string
 }
@@ -205,7 +205,7 @@ func (t *toolchainArm64) Cppflags() string {
 }
 
 func (t *toolchainArm64) Ldflags() string {
-	return "${config.Arm64Ldflags}"
+	return t.ldflags
 }
 
 func (t *toolchainArm64) IncludeFlags() string {
@@ -225,7 +225,7 @@ func (t *toolchainArm64) ClangCppflags() string {
 }
 
 func (t *toolchainArm64) ClangLdflags() string {
-	return "${config.Arm64Ldflags}"
+	return t.ldflags
 }
 
 func (t *toolchainArm64) ToolchainClangCflags() string {
@@ -249,7 +249,20 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainClangCflags = append(toolchainClangCflags,
 		variantOrDefault(arm64ClangCpuVariantCflagsVar, arch.CpuVariant))
 
+	var extraLdflags string
+	switch arch.CpuVariant {
+	case "cortex-a53", "cortex-a73", "kryo", "exynos-m1", "exynos-m2",
+		// This variant might not need the workaround but leave it
+		// in the list since it has had the workaround on before.
+		"denver64":
+		extraLdflags = "-Wl,--fix-cortex-a53-843419"
+	}
+
 	return &toolchainArm64{
+		ldflags: strings.Join([]string{
+			"${config.Arm64Ldflags}",
+			extraLdflags,
+		}, " "),
 		toolchainCflags:      variantOrDefault(arm64CpuVariantCflagsVar, arch.CpuVariant),
 		toolchainClangCflags: strings.Join(toolchainClangCflags, " "),
 	}
