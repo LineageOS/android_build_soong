@@ -238,14 +238,16 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	if useR8 {
 		// TODO(ccross): if this is an instrumentation test of an obfuscated app, use the
 		// dictionary of the app and move the app from libraryjars to injars.
-		j.proguardDictionary = android.PathForModuleOut(ctx, "proguard_dictionary")
+		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
+		j.proguardDictionary = proguardDictionary
 		r8Flags, r8Deps := j.r8Flags(ctx, flags)
 		ctx.Build(pctx, android.BuildParams{
-			Rule:        r8,
-			Description: "r8",
-			Output:      javalibJar,
-			Input:       classesJar,
-			Implicits:   r8Deps,
+			Rule:           r8,
+			Description:    "r8",
+			Output:         javalibJar,
+			ImplicitOutput: proguardDictionary,
+			Input:          classesJar,
+			Implicits:      r8Deps,
 			Args: map[string]string{
 				"dxFlags": strings.Join(dxFlags, " "),
 				"r8Flags": strings.Join(r8Flags, " "),
