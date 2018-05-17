@@ -122,3 +122,20 @@ func (c *Cmd) CombinedOutputOrFatal() []byte {
 	c.reportError(err)
 	return ret
 }
+
+// RunAndPrintOrFatal will run the command, then after finishing
+// print any output, then handling any errors with a call to
+// ctx.Fatal
+func (c *Cmd) RunAndPrintOrFatal() {
+	ret, err := c.CombinedOutput()
+	st := c.ctx.Status.StartTool()
+	if len(ret) > 0 {
+		if err != nil {
+			st.Error(string(ret))
+		} else {
+			st.Print(string(ret))
+		}
+	}
+	st.Finish()
+	c.reportError(err)
+}

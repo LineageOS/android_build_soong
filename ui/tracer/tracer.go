@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"android/soong/ui/logger"
+	"android/soong/ui/status"
 )
 
 type Thread uint64
@@ -46,7 +47,8 @@ type Tracer interface {
 	Complete(name string, thread Thread, begin, end uint64)
 
 	ImportMicrofactoryLog(filename string)
-	ImportNinjaLog(thread Thread, filename string, startOffset time.Time)
+
+	StatusTracer() status.StatusOutput
 
 	NewThread(name string) Thread
 }

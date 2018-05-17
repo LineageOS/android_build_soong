@@ -105,9 +105,7 @@ func checkCaseSensitivity(ctx Context, config Config) {
 func help(ctx Context, config Config, what int) {
 	cmd := Command(ctx, config, "help.sh", "build/make/help.sh")
 	cmd.Sandbox = dumpvarsSandbox
-	cmd.Stdout = ctx.Stdout()
-	cmd.Stderr = ctx.Stderr()
-	cmd.RunOrFatal()
+	cmd.RunAndPrintOrFatal()
 }
 
 // Build the tree. The 'what' argument can be used to chose which components of

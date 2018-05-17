@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+
+	"android/soong/ui/status"
 )
 
 // DumpMakeVars can be used to extract the values of Make variables after the
@@ -60,7 +62,7 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 	}
 	cmd.StartOrFatal()
 	// TODO: error out when Stderr contains any content
-	katiRewriteOutput(ctx, pipe)
+	status.KatiReader(ctx.Status.StartTool(), pipe)
 	cmd.WaitOrFatal()
 
 	ret := make(map[string]string, len(vars))
@@ -175,7 +177,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 	}
 
 	// Print the banner like make does
-	fmt.Fprintln(ctx.Stdout(), Banner(make_vars))
+	ctx.Writer.Print(Banner(make_vars))
 
 	// Populate the environment
 	env := config.Environment()
