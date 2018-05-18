@@ -336,6 +336,7 @@ toolchain_library {
     name: "libatomic",
     defaults: ["linux_bionic_supported"],
     vendor_available: true,
+    recovery_available: true,
     arch: {
         arm: {
             instruction_set: "arm",
@@ -347,6 +348,7 @@ toolchain_library {
     name: "libgcc",
     defaults: ["linux_bionic_supported"],
     vendor_available: true,
+    recovery_available: true,
     arch: {
         arm: {
             instruction_set: "arm",

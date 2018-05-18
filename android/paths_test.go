@@ -201,6 +201,7 @@ type moduleInstallPathContextImpl struct {
 
 	inData         bool
 	inSanitizerDir bool
+	inRecovery     bool
 }
 
 func (moduleInstallPathContextImpl) Fs() pathtools.FileSystem {
@@ -219,6 +220,10 @@ func (m moduleInstallPathContextImpl) InstallInData() bool {
 
 func (m moduleInstallPathContextImpl) InstallInSanitizerDir() bool {
 	return m.inSanitizerDir
+}
+
+func (m moduleInstallPathContextImpl) InstallInRecovery() bool {
+	return m.inRecovery
 }
 
 func TestPathForModuleInstall(t *testing.T) {

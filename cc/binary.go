@@ -353,6 +353,11 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 }
 
 func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
+	// <recovery>/bin is a symlink to /system/bin. Recovery binaries are all in /sbin.
+	if ctx.inRecovery() {
+		binary.baseInstaller.dir = "sbin"
+	}
+
 	binary.baseInstaller.install(ctx, file)
 	for _, symlink := range binary.Properties.Symlinks {
 		binary.symlinks = append(binary.symlinks,

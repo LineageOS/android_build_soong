@@ -24,6 +24,7 @@ import (
 
 func init() {
 	pctx.HostBinToolVariable("protocCmd", "aprotoc")
+	pctx.HostBinToolVariable("depFixCmd", "dep_fixer")
 }
 
 var (
@@ -31,9 +32,11 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
 				`$protocCmd $protoOut=$protoOutParams:$out.tmp --dependency_out=$out.d -I $protoBase $protoFlags $in && ` +
+				`$depFixCmd $out.d && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
 			CommandDeps: []string{
 				"$protocCmd",
+				"$depFixCmd",
 				"${config.SoongZipCmd}",
 			},
 			Depfile: "${out}.d",
