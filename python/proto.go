@@ -30,14 +30,14 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
 				`$protocCmd --python_out=$out.tmp --dependency_out=$out.d -I $protoBase $protoFlags $in && ` +
-				`$parCmd -o $out -P $pkgPath -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
+				`$parCmd -o $out $pkgPathArgs -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
 			CommandDeps: []string{
 				"$protocCmd",
 				"$parCmd",
 			},
 			Depfile: "${out}.d",
 			Deps:    blueprint.DepsGCC,
-		}, "protoBase", "protoFlags", "pkgPath")
+		}, "protoBase", "protoFlags", "pkgPathArgs")
 )
 
 func genProto(ctx android.ModuleContext, p *android.ProtoProperties,
@@ -53,15 +53,19 @@ func genProto(ctx android.ModuleContext, p *android.ProtoProperties,
 		protoBase = strings.TrimSuffix(protoFile.String(), protoFile.Rel())
 	}
 
+	var pkgPathArgs string
+	if pkgPath != "" {
+		pkgPathArgs = "-P " + pkgPath
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        proto,
 		Description: "protoc " + protoFile.Rel(),
 		Output:      srcJarFile,
 		Input:       protoFile,
 		Args: map[string]string{
-			"protoBase":  protoBase,
-			"protoFlags": strings.Join(protoFlags, " "),
-			"pkgPath":    pkgPath,
+			"protoBase":   protoBase,
+			"protoFlags":  strings.Join(protoFlags, " "),
+			"pkgPathArgs": pkgPathArgs,
 		},
 	})
 
