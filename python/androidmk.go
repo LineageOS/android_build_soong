@@ -85,5 +85,7 @@ func (installer *pythonInstaller) AndroidMk(base *Module, ret *android.AndroidMk
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := libc++")
+
 	})
 }
