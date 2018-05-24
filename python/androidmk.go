@@ -77,6 +77,7 @@ func (installer *pythonInstaller) AndroidMk(base *Module, ret *android.AndroidMk
 		ret.OutputFile = android.OptionalPathForPath(installer.path)
 	}
 
+	ret.Required = append(ret.Required, "libc++")
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
