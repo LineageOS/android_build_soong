@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	preprocessBionicHeaders = pctx.AndroidStaticRule("preprocessBionicHeaders",
+	versionBionicHeaders = pctx.AndroidStaticRule("versionBionicHeaders",
 		blueprint.RuleParams{
 			// The `&& touch $out` isn't really necessary, but Blueprint won't
 			// let us have only implicit outputs.
@@ -157,10 +157,10 @@ func ndkHeadersFactory() android.Module {
 	return module
 }
 
-type preprocessedHeaderProperties struct {
+type versionedHeaderProperties struct {
 	// Base directory of the headers being installed. As an example:
 	//
-	// preprocessed_ndk_headers {
+	// versioned_ndk_headers {
 	//     name: "foo",
 	//     from: "include",
 	//     to: "",
@@ -184,19 +184,19 @@ type preprocessedHeaderProperties struct {
 // module does not have the srcs property, and operates on a full directory (the `from` property).
 //
 // Note that this is really only built to handle bionic/libc/include.
-type preprocessedHeaderModule struct {
+type versionedHeaderModule struct {
 	android.ModuleBase
 
-	properties preprocessedHeaderProperties
+	properties versionedHeaderProperties
 
 	installPaths android.Paths
 	licensePath  android.ModuleSrcPath
 }
 
-func (m *preprocessedHeaderModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (m *versionedHeaderModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
-func (m *preprocessedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if String(m.properties.License) == "" {
 		ctx.PropertyErrorf("license", "field is required")
 	}
@@ -251,7 +251,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 
 	timestampFile := android.PathForModuleOut(ctx, "versioner.timestamp")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:            preprocessBionicHeaders,
+		Rule:            versionBionicHeaders,
 		Description:     "versioner preprocess " + srcDir.Rel(),
 		Output:          timestampFile,
 		Implicits:       append(srcFiles, depsGlob...),
@@ -266,8 +266,8 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 	return timestampFile
 }
 
-func preprocessedNdkHeadersFactory() android.Module {
-	module := &preprocessedHeaderModule{}
+func versionedNdkHeadersFactory() android.Module {
+	module := &versionedHeaderModule{}
 
 	module.AddProperties(&module.properties)
 
