@@ -179,6 +179,8 @@ func init() {
 			"LOCAL_DEX_PREOPT":                  "dex_preopt.enabled",
 			"LOCAL_DEX_PREOPT_APP_IMAGE":        "dex_preopt.app_image",
 			"LOCAL_DEX_PREOPT_GENERATE_PROFILE": "dex_preopt.profile_guided",
+
+			"LOCAL_PRIVATE_PLATFORM_APIS": "platform_apis",
 		})
 }
 
