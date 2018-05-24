@@ -65,6 +65,9 @@ type headerProperties struct {
 	// List of headers to install. Glob compatible. Common case is "include/**/*.h".
 	Srcs []string
 
+	// Source paths that should be excluded from the srcs glob.
+	Exclude_srcs []string
+
 	// Path to the NOTICE file associated with the headers.
 	License *string
 }
@@ -128,7 +131,7 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	srcFiles := ctx.ExpandSources(m.properties.Srcs, nil)
+	srcFiles := ctx.ExpandSources(m.properties.Srcs, m.properties.Exclude_srcs)
 	for _, header := range srcFiles {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From),
 			String(m.properties.To))
