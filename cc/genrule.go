@@ -23,13 +23,18 @@ func init() {
 	android.RegisterModuleType("cc_genrule", genRuleFactory)
 }
 
+type GenruleExtraProperties struct {
+	Vendor_available   *bool
+	Recovery_available *bool
+}
+
 // cc_genrule is a genrule that can depend on other cc_* objects.
 // The cmd may be run multiple times, once for each of the different arch/etc
 // variations.
 func genRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 
-	module.Extra = &VendorProperties{}
+	module.Extra = &GenruleExtraProperties{}
 	module.AddProperties(module.Extra)
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibBoth)
