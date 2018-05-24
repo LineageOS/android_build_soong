@@ -206,7 +206,7 @@ type dependencyTag struct {
 var (
 	pythonLibTag       = dependencyTag{name: "pythonLib"}
 	launcherTag        = dependencyTag{name: "launcher"}
-	pyIdentifierRegexp = regexp.MustCompile(`^([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*$`)
+	pyIdentifierRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
 	pyExt              = ".py"
 	protoExt           = ".proto"
 	pyVersion2         = "PY2"
