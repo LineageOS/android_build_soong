@@ -45,12 +45,39 @@ func Reformat(input string) (string, error) {
 // A FixRequest specifies the details of which fixes to apply to an individual file
 // A FixRequest doesn't specify whether to do a dry run or where to write the results; that's in cmd/bpfix.go
 type FixRequest struct {
-	simplifyKnownRedundantVariables           bool
-	rewriteIncorrectAndroidmkPrebuilts        bool
-	rewriteIncorrectAndroidmkAndroidLibraries bool
-	mergeMatchingModuleProperties             bool
-	reorderCommonProperties                   bool
-	removeTags                                bool
+	steps []fixStep
+}
+
+type fixStep struct {
+	name string
+	fix  func(f *Fixer) error
+}
+
+var fixSteps = []fixStep{
+	{
+		name: "simplifyKnownRedundantVariables",
+		fix:  runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther),
+	},
+	{
+		name: "rewriteIncorrectAndroidmkPrebuilts",
+		fix:  rewriteIncorrectAndroidmkPrebuilts,
+	},
+	{
+		name: "rewriteIncorrectAndroidmkAndroidLibraries",
+		fix:  rewriteIncorrectAndroidmkAndroidLibraries,
+	},
+	{
+		name: "mergeMatchingModuleProperties",
+		fix:  runPatchListMod(mergeMatchingModuleProperties),
+	},
+	{
+		name: "reorderCommonProperties",
+		fix:  runPatchListMod(reorderCommonProperties),
+	},
+	{
+		name: "removeTags",
+		fix:  runPatchListMod(removeTags),
+	},
 }
 
 func NewFixRequest() FixRequest {
@@ -58,13 +85,8 @@ func NewFixRequest() FixRequest {
 }
 
 func (r FixRequest) AddAll() (result FixRequest) {
-	result = r
-	result.simplifyKnownRedundantVariables = true
-	result.rewriteIncorrectAndroidmkPrebuilts = true
-	result.rewriteIncorrectAndroidmkAndroidLibraries = true
-	result.mergeMatchingModuleProperties = true
-	result.reorderCommonProperties = true
-	result.removeTags = true
+	result.steps = append([]fixStep(nil), r.steps...)
+	result.steps = append(result.steps, fixSteps...)
 	return result
 }
 
@@ -148,43 +170,8 @@ func parse(name string, r io.Reader) (*parser.File, error) {
 }
 
 func (f *Fixer) fixTreeOnce(config FixRequest) error {
-	if config.simplifyKnownRedundantVariables {
-		err := f.runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther)
-		if err != nil {
-			return err
-		}
-	}
-
-	if config.rewriteIncorrectAndroidmkPrebuilts {
-		err := f.rewriteIncorrectAndroidmkPrebuilts()
-		if err != nil {
-			return err
-		}
-	}
-
-	if config.rewriteIncorrectAndroidmkAndroidLibraries {
-		err := f.rewriteIncorrectAndroidmkAndroidLibraries()
-		if err != nil {
-			return err
-		}
-	}
-
-	if config.mergeMatchingModuleProperties {
-		err := f.runPatchListMod(mergeMatchingModuleProperties)
-		if err != nil {
-			return err
-		}
-	}
-
-	if config.reorderCommonProperties {
-		err := f.runPatchListMod(reorderCommonProperties)
-		if err != nil {
-			return err
-		}
-	}
-
-	if config.removeTags {
-		err := f.runPatchListMod(removeTags)
+	for _, fix := range config.steps {
+		err := fix.fix(f)
 		if err != nil {
 			return err
 		}
@@ -198,7 +185,7 @@ func simplifyKnownPropertiesDuplicatingEachOther(mod *parser.Module, buf []byte,
 		"export_include_dirs", "local_include_dirs")
 }
 
-func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
+func rewriteIncorrectAndroidmkPrebuilts(f *Fixer) error {
 	for _, def := range f.tree.Defs {
 		mod, ok := def.(*parser.Module)
 		if !ok {
@@ -234,7 +221,7 @@ func (f *Fixer) rewriteIncorrectAndroidmkPrebuilts() error {
 	return nil
 }
 
-func (f *Fixer) rewriteIncorrectAndroidmkAndroidLibraries() error {
+func rewriteIncorrectAndroidmkAndroidLibraries(f *Fixer) error {
 	for _, def := range f.tree.Defs {
 		mod, ok := def.(*parser.Module)
 		if !ok {
@@ -269,43 +256,45 @@ func (f *Fixer) rewriteIncorrectAndroidmkAndroidLibraries() error {
 	return nil
 }
 
-func (f *Fixer) runPatchListMod(modFunc func(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error) error {
-	// Make sure all the offsets are accurate
-	buf, err := f.reparse()
-	if err != nil {
-		return err
-	}
-
-	var patchlist parser.PatchList
-	for _, def := range f.tree.Defs {
-		mod, ok := def.(*parser.Module)
-		if !ok {
-			continue
-		}
-
-		err := modFunc(mod, buf, &patchlist)
+func runPatchListMod(modFunc func(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error) func(*Fixer) error {
+	return func(f *Fixer) error {
+		// Make sure all the offsets are accurate
+		buf, err := f.reparse()
 		if err != nil {
 			return err
 		}
+
+		var patchlist parser.PatchList
+		for _, def := range f.tree.Defs {
+			mod, ok := def.(*parser.Module)
+			if !ok {
+				continue
+			}
+
+			err := modFunc(mod, buf, &patchlist)
+			if err != nil {
+				return err
+			}
+		}
+
+		newBuf := new(bytes.Buffer)
+		err = patchlist.Apply(bytes.NewReader(buf), newBuf)
+		if err != nil {
+			return err
+		}
+
+		// Save a copy of the buffer to print for errors below
+		bufCopy := append([]byte(nil), newBuf.Bytes()...)
+
+		newTree, err := parse(f.tree.Name, newBuf)
+		if err != nil {
+			return fmt.Errorf("Failed to parse: %v\nBuffer:\n%s", err, string(bufCopy))
+		}
+
+		f.tree = newTree
+
+		return nil
 	}
-
-	newBuf := new(bytes.Buffer)
-	err = patchlist.Apply(bytes.NewReader(buf), newBuf)
-	if err != nil {
-		return err
-	}
-
-	// Save a copy of the buffer to print for errors below
-	bufCopy := append([]byte(nil), newBuf.Bytes()...)
-
-	newTree, err := parse(f.tree.Name, newBuf)
-	if err != nil {
-		return fmt.Errorf("Failed to parse: %v\nBuffer:\n%s", err, string(bufCopy))
-	}
-
-	f.tree = newTree
-
-	return nil
 }
 
 var commonPropertyPriorities = []string{
