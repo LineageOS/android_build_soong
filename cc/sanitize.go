@@ -256,6 +256,13 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
+	// Also disable CFI for VNDK variants of components in the
+	// include paths
+	if ctx.isVndk() && ctx.useVndk() && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
+		s.Cfi = nil
+		s.Diag.Cfi = nil
+	}
+
 	if ctx.staticBinary() {
 		s.Address = nil
 		s.Coverage = nil
