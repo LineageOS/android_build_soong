@@ -147,7 +147,7 @@ func init() {
 			"LOCAL_ANNOTATION_PROCESSOR_CLASSES": "annotation_processor_classes",
 
 			"LOCAL_PROGUARD_FLAGS":      "optimize.proguard_flags",
-			"LOCAL_PROGUARD_FLAG_FILES": "optimize.proguard_flag_files",
+			"LOCAL_PROGUARD_FLAG_FILES": "optimize.proguard_flags_files",
 
 			// These will be rewritten to libs/static_libs by bpfix, after their presence is used to convert
 			// java_library_static to android_library.
