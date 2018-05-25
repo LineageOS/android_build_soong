@@ -224,8 +224,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 	}
 
-	// Enable CFI for all components in the include paths
-	if s.Cfi == nil && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
+	// Enable CFI for all components in the include paths (for Aarch64 only)
+	if s.Cfi == nil && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) && ctx.Arch().ArchType == android.Arm64 {
 		s.Cfi = boolPtr(true)
 		if inList("cfi", ctx.Config().SanitizeDeviceDiag()) {
 			s.Diag.Cfi = boolPtr(true)
