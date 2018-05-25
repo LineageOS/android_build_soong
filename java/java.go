@@ -171,6 +171,9 @@ type CompilerDeviceProperties struct {
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version *string
 
+	// if true, compile against the platform APIs instead of an SDK.
+	Platform_apis *bool
+
 	Aidl struct {
 		// Top level directories to pass to aidl tool
 		Include_dirs []string
