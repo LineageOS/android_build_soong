@@ -354,6 +354,7 @@ type AARImport struct {
 	proguardFlags         android.WritablePath
 	exportPackage         android.WritablePath
 	extraAaptPackagesFile android.WritablePath
+	manifest              android.WritablePath
 
 	exportedStaticPackages android.Paths
 }
@@ -413,12 +414,12 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	extractedResDir := extractedAARDir.Join(ctx, "res")
 	a.classpathFile = extractedAARDir.Join(ctx, "classes.jar")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
-	manifest := extractedAARDir.Join(ctx, "AndroidManifest.xml")
+	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipAAR,
 		Input:       aar,
-		Outputs:     android.WritablePaths{a.classpathFile, a.proguardFlags, manifest},
+		Outputs:     android.WritablePaths{a.classpathFile, a.proguardFlags, a.manifest},
 		Description: "unzip AAR",
 		Args: map[string]string{
 			"expectedDirs": extractedResDir.String(),
@@ -446,8 +447,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		"--auto-add-overlay",
 	}
 
-	linkFlags = append(linkFlags, "--manifest "+manifest.String())
-	linkDeps = append(linkDeps, manifest)
+	linkFlags = append(linkFlags, "--manifest "+a.manifest.String())
+	linkDeps = append(linkDeps, a.manifest)
 
 	transitiveStaticLibs, libDeps, libFlags := aaptLibs(ctx, String(a.properties.Sdk_version))
 

@@ -378,6 +378,33 @@ cc_test {
 }
 `,
 	},
+	{
+		desc: "Convert LOCAL_MODULE_TAGS tests to java_test",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := tests
+include $(BUILD_JAVA_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := tests
+include $(BUILD_PACKAGE)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := tests
+include $(BUILD_HOST_JAVA_LIBRARY)
+`,
+
+		expected: `
+java_test {
+}
+
+android_test {
+}
+
+java_test_host {
+}
+`,
+	},
 
 	{
 		desc: "Input containing escaped quotes",
