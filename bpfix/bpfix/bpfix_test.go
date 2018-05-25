@@ -66,7 +66,7 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 	fixer := NewFixer(tree)
 
 	// apply simplifications
-	err := fixer.runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther)
+	err := runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther)(fixer)
 	if len(errs) > 0 {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestMergeMatchingProperties(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			runPass(t, test.in, test.out, func(fixer *Fixer) error {
-				return fixer.runPatchListMod(mergeMatchingModuleProperties)
+				return runPatchListMod(mergeMatchingModuleProperties)(fixer)
 			})
 		})
 	}
@@ -337,7 +337,7 @@ func TestReorderCommonProperties(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			runPass(t, test.in, test.out, func(fixer *Fixer) error {
-				return fixer.runPatchListMod(reorderCommonProperties)
+				return runPatchListMod(reorderCommonProperties)(fixer)
 			})
 		})
 	}
@@ -490,9 +490,9 @@ func TestRemoveMatchingModuleListProperties(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			runPass(t, test.in, test.out, func(fixer *Fixer) error {
-				return fixer.runPatchListMod(func(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+				return runPatchListMod(func(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
 					return removeMatchingModuleListProperties(mod, patchList, "bar", "foo")
-				})
+				})(fixer)
 			})
 		})
 	}

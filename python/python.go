@@ -206,7 +206,7 @@ type dependencyTag struct {
 var (
 	pythonLibTag       = dependencyTag{name: "pythonLib"}
 	launcherTag        = dependencyTag{name: "launcher"}
-	pyIdentifierRegexp = regexp.MustCompile(`^([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*$`)
+	pyIdentifierRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
 	pyExt              = ".py"
 	protoExt           = ".proto"
 	pyVersion2         = "PY2"
@@ -420,16 +420,20 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 			// pkg_path starts from "internal/" implicitly.
 			pkgPath = filepath.Join(internal, pkgPath)
 		} else {
-			// pkg_path starts from "runfiles/" implicitly.
-			pkgPath = filepath.Join(runFiles, pkgPath)
+			if !p.isEmbeddedLauncherEnabled(p.properties.Actual_version) {
+				// pkg_path starts from "runfiles/" implicitly.
+				pkgPath = filepath.Join(runFiles, pkgPath)
+			}
 		}
 	} else {
 		if p.properties.Is_internal != nil && *p.properties.Is_internal {
 			// pkg_path starts from "runfiles/" implicitly.
 			pkgPath = internal
 		} else {
-			// pkg_path starts from "runfiles/" implicitly.
-			pkgPath = runFiles
+			if !p.isEmbeddedLauncherEnabled(p.properties.Actual_version) {
+				// pkg_path starts from "runfiles/" implicitly.
+				pkgPath = runFiles
+			}
 		}
 	}
 
@@ -520,7 +524,9 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 		sort.Strings(keys)
 
 		parArgs := []string{}
-		parArgs = append(parArgs, `-P `+pkgPath)
+		if pkgPath != "" {
+			parArgs = append(parArgs, `-P `+pkgPath)
+		}
 		implicits := android.Paths{}
 		for _, k := range keys {
 			parArgs = append(parArgs, `-C `+k)

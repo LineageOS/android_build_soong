@@ -171,6 +171,9 @@ type CompilerDeviceProperties struct {
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version *string
 
+	// if true, compile against the platform APIs instead of an SDK.
+	Platform_apis *bool
+
 	Aidl struct {
 		// Top level directories to pass to aidl tool
 		Include_dirs []string
@@ -209,8 +212,8 @@ type CompilerDeviceProperties struct {
 	}
 
 	Optimize struct {
-		// If false, disable all optimization.  Defaults to true for apps, false for
-		// libraries and tests.
+		// If false, disable all optimization.  Defaults to true for android_app and android_test
+		// modules, false for java_library and java_test modules.
 		Enabled *bool
 
 		// If true, optimize for size by removing unused code.  Defaults to true for apps,
