@@ -140,6 +140,8 @@ func Build(ctx Context, config Config, what int) {
 
 	ensureEmptyDirectoriesExist(ctx, config.TempDir())
 
+	SetupPath(ctx, config)
+
 	if what&BuildProductConfig != 0 {
 		// Run make for product config
 		runMakeProductConfig(ctx, config)
