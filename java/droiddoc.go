@@ -110,6 +110,14 @@ type JavadocProperties struct {
 
 	// if not blank, set to the version of the sdk to compile against
 	Sdk_version *string `android:"arch_variant"`
+
+	Aidl struct {
+		// Top level directories to pass to aidl tool
+		Include_dirs []string
+
+		// Directories rooted at the Android.bp file to pass to aidl tool
+		Local_include_dirs []string
+	}
 }
 
 type ApiToCheck struct {
@@ -310,6 +318,60 @@ func (j *Javadoc) genWhitelistPathPrefixes(whitelistPathPrefixes map[string]bool
 	}
 }
 
+func (j *Javadoc) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaBuilderFlags {
+	var flags javaBuilderFlags
+
+	// aidl flags.
+	aidlFlags := j.aidlFlags(ctx, deps.aidlPreprocess, deps.aidlIncludeDirs)
+	if len(aidlFlags) > 0 {
+		// optimization.
+		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
+		flags.aidlFlags = "$aidlFlags"
+	}
+
+	return flags
+}
+
+func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
+	aidlIncludeDirs android.Paths) []string {
+
+	aidlIncludes := android.PathsForModuleSrc(ctx, j.properties.Aidl.Local_include_dirs)
+	aidlIncludes = append(aidlIncludes, android.PathsForSource(ctx, j.properties.Aidl.Include_dirs)...)
+
+	var flags []string
+	if aidlPreprocess.Valid() {
+		flags = append(flags, "-p"+aidlPreprocess.String())
+	} else {
+		flags = append(flags, android.JoinWithPrefix(aidlIncludeDirs.Strings(), "-I"))
+	}
+
+	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
+	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
+	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
+		flags = append(flags, "-I"+src.String())
+	}
+
+	return flags
+}
+
+func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
+	flags javaBuilderFlags) android.Paths {
+
+	outSrcFiles := make(android.Paths, 0, len(srcFiles))
+
+	for _, srcFile := range srcFiles {
+		switch srcFile.Ext() {
+		case ".aidl":
+			javaFile := genAidl(ctx, srcFile, flags.aidlFlags)
+			outSrcFiles = append(outSrcFiles, javaFile)
+		default:
+			outSrcFiles = append(outSrcFiles, srcFile)
+		}
+	}
+
+	return outSrcFiles
+}
+
 func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
@@ -388,6 +450,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
 	// may contain filegroup or genrule.
 	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
+	flags := j.collectBuilderFlags(ctx, deps)
+	srcFiles = j.genSources(ctx, srcFiles, flags)
 
 	// srcs may depend on some genrule output.
 	j.srcJars = srcFiles.FilterByExt(".srcjar")
