@@ -200,6 +200,7 @@ func testContext(config android.Config, bp string,
 
 		"bar-doc/a.java":                 nil,
 		"bar-doc/b.java":                 nil,
+		"bar-doc/IFoo.aidl":              nil,
 		"bar-doc/known_oj_tags.txt":      nil,
 		"external/doclava/templates-sdk": nil,
 
@@ -921,6 +922,7 @@ func TestDroiddoc(t *testing.T) {
 		    name: "bar-doc",
 		    srcs: [
 		        "bar-doc/*.java",
+		        "bar-doc/IFoo.aidl",
 		    ],
 		    exclude_srcs: [
 		        "bar-doc/b.java"
@@ -942,6 +944,14 @@ func TestDroiddoc(t *testing.T) {
 	barDoc := ctx.ModuleForTests("bar-doc", "android_common").Output("bar-doc-stubs.srcjar")
 	if stubsJar != barDoc.Output.String() {
 		t.Errorf("expected stubs Jar [%q], got %q", stubsJar, barDoc.Output.String())
+	}
+	inputs := ctx.ModuleForTests("bar-doc", "android_common").Rule("javadoc").Inputs
+	var javaSrcs []string
+	for _, i := range inputs {
+		javaSrcs = append(javaSrcs, i.Base())
+	}
+	if len(javaSrcs) != 2 || javaSrcs[0] != "a.java" || javaSrcs[1] != "IFoo.java" {
+		t.Errorf("inputs of bar-doc must be []string{\"a.java\", \"IFoo.java\", but was %#v.", javaSrcs)
 	}
 }
 
