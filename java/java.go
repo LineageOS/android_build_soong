@@ -212,8 +212,8 @@ type CompilerDeviceProperties struct {
 	}
 
 	Optimize struct {
-		// If false, disable all optimization.  Defaults to true for apps, false for
-		// libraries and tests.
+		// If false, disable all optimization.  Defaults to true for android_app and android_test
+		// modules, false for java_library and java_test modules.
 		Enabled *bool
 
 		// If true, optimize for size by removing unused code.  Defaults to true for apps,

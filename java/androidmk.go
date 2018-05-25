@@ -136,6 +136,7 @@ func (prebuilt *AARImport) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", prebuilt.exportPackage.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", prebuilt.proguardFlags.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", prebuilt.extraAaptPackagesFile.String())
+				fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", prebuilt.manifest.String())
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
 			},
 		},
@@ -226,6 +227,19 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 			},
 		},
 	}
+}
+
+func (a *AndroidTest) AndroidMk() android.AndroidMkData {
+	data := a.AndroidApp.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
+		if len(a.testProperties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+				strings.Join(a.testProperties.Test_suites, " "))
+		}
+	})
+
+	return data
 }
 
 func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
