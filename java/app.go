@@ -26,6 +26,7 @@ import (
 
 func init() {
 	android.RegisterModuleType("android_app", AndroidAppFactory)
+	android.RegisterModuleType("android_test", AndroidTestFactory)
 }
 
 // AndroidManifest.xml merging
@@ -50,8 +51,6 @@ type appProperties struct {
 
 	// list of resource labels to generate individual resource packages
 	Package_splits []string
-
-	Instrumentation_for *string
 }
 
 type AndroidApp struct {
@@ -61,6 +60,8 @@ type AndroidApp struct {
 	certificate certificate
 
 	appProperties appProperties
+
+	extraLinkFlags []string
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -85,14 +86,11 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	var linkFlags []string
-	if String(a.appProperties.Instrumentation_for) != "" {
-		linkFlags = append(linkFlags,
-			"--rename-instrumentation-target-package",
-			String(a.appProperties.Instrumentation_for))
-	} else {
-		a.properties.Instrument = true
-	}
+	a.generateAndroidBuildActions(ctx)
+}
+
+func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
+	linkFlags := append([]string(nil), a.extraLinkFlags...)
 
 	hasProduct := false
 	for _, f := range a.aaptProperties.Aaptflags {
@@ -188,6 +186,8 @@ func AndroidAppFactory() android.Module {
 	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
 	module.Module.deviceProperties.Optimize.Shrink = proptools.BoolPtr(true)
 
+	module.Module.properties.Instrument = true
+
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
@@ -196,5 +196,45 @@ func AndroidAppFactory() android.Module {
 		&module.appProperties)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
+type appTestProperties struct {
+	Instrumentation_for *string
+}
+
+type AndroidTest struct {
+	AndroidApp
+
+	appTestProperties appTestProperties
+
+	testProperties testProperties
+}
+
+func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if String(a.appTestProperties.Instrumentation_for) != "" {
+		a.AndroidApp.extraLinkFlags = append(a.AndroidApp.extraLinkFlags,
+			"--rename-instrumentation-target-package",
+			String(a.appTestProperties.Instrumentation_for))
+	}
+
+	a.generateAndroidBuildActions(ctx)
+}
+
+func AndroidTestFactory() android.Module {
+	module := &AndroidTest{}
+
+	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.protoProperties,
+		&module.aaptProperties,
+		&module.appProperties,
+		&module.appTestProperties)
+
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+
 	return module
 }
