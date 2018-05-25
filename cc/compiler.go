@@ -258,6 +258,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	CheckBadCompilerFlags(ctx, "cppflags", compiler.Properties.Cppflags)
 	CheckBadCompilerFlags(ctx, "conlyflags", compiler.Properties.Conlyflags)
 	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
+	CheckBadCompilerFlags(ctx, "vendor.cflags", compiler.Properties.Target.Vendor.Cflags)
+	CheckBadCompilerFlags(ctx, "recovery.cflags", compiler.Properties.Target.Recovery.Cflags)
 
 	esc := proptools.NinjaAndShellEscape
 
@@ -452,6 +454,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if ctx.useVndk() {
 		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
+	}
+
+	if ctx.inRecovery() {
+		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Target.Recovery.Cflags)...)
 	}
 
 	// We can enforce some rules more strictly in the code we own. strict
