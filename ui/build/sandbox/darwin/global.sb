@@ -35,12 +35,6 @@
     (global-name-regex #"^com\.apple\.distributed_notifications") ; xcodebuild in Soong
 )
 
-; Allow suid /bin/ps to function
-(allow process-exec (literal "/bin/ps") (with no-sandbox))
-
-; Allow path_interposer unix domain socket without logging
-(allow network-outbound (literal (string-append (param "OUT_DIR") "/.path_interposer_log")))
-
 ; Allow executing any file
 (allow process-exec*)
 (allow process-fork)
