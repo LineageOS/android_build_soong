@@ -1554,16 +1554,35 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 	}
 
 	if genrule, ok := mctx.Module().(*genrule.Module); ok {
-		if props, ok := genrule.Extra.(*VendorProperties); ok {
+		if props, ok := genrule.Extra.(*GenruleExtraProperties); ok {
+			var coreVariantNeeded bool = false
+			var vendorVariantNeeded bool = false
+			var recoveryVariantNeeded bool = false
 			if mctx.DeviceConfig().VndkVersion() == "" {
-				mctx.CreateVariations(coreMode)
+				coreVariantNeeded = true
 			} else if Bool(props.Vendor_available) {
-				mctx.CreateVariations(coreMode, vendorMode)
+				coreVariantNeeded = true
+				vendorVariantNeeded = true
 			} else if mctx.SocSpecific() || mctx.DeviceSpecific() {
-				mctx.CreateVariations(vendorMode)
+				vendorVariantNeeded = true
 			} else {
-				mctx.CreateVariations(coreMode)
+				coreVariantNeeded = true
 			}
+			if Bool(props.Recovery_available) {
+				recoveryVariantNeeded = true
+			}
+
+			var variants []string
+			if coreVariantNeeded {
+				variants = append(variants, coreMode)
+			}
+			if vendorVariantNeeded {
+				variants = append(variants, vendorMode)
+			}
+			if recoveryVariantNeeded {
+				variants = append(variants, recoveryMode)
+			}
+			mctx.CreateVariations(variants...)
 		}
 	}
 
