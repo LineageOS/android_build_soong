@@ -63,6 +63,10 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", library.jacocoReportClassesFile.String())
 				}
 
+				if len(library.exportedSdkLibs) != 0 {
+					fmt.Fprintln(w, "LOCAL_EXPORT_SDK_LIBRARIES :=", strings.Join(library.exportedSdkLibs, " "))
+				}
+
 				// Temporary hack: export sources used to compile framework.jar to Make
 				// to be used for droiddoc
 				// TODO(ccross): remove this once droiddoc is in soong
