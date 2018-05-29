@@ -98,6 +98,7 @@ func testContext(config android.Config, bp string,
 	extraModules := []string{
 		"core-oj",
 		"core-libart",
+		"core-lambda-stubs",
 		"framework",
 		"ext",
 		"okhttp",
@@ -347,14 +348,14 @@ var classpathTestcases = []struct {
 }{
 	{
 		name:          "default",
-		bootclasspath: []string{"core-oj", "core-libart"},
+		bootclasspath: []string{"core-oj", "core-libart", "core-lambda-stubs"},
 		system:        "core-system-modules",
 		classpath:     []string{"ext", "framework", "okhttp"},
 	},
 	{
 		name:          "blank sdk version",
 		properties:    `sdk_version: "",`,
-		bootclasspath: []string{"core-oj", "core-libart"},
+		bootclasspath: []string{"core-oj", "core-libart", "core-lambda-stubs"},
 		system:        "core-system-modules",
 		classpath:     []string{"ext", "framework", "okhttp"},
 	},
@@ -364,20 +365,20 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/public/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "core-lambda-stubs"},
 	},
 	{
 
 		name:          "current",
 		properties:    `sdk_version: "current",`,
-		bootclasspath: []string{"android_stubs_current"},
+		bootclasspath: []string{"android_stubs_current", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
 
 		name:          "system_current",
 		properties:    `sdk_version: "system_current",`,
-		bootclasspath: []string{"android_system_stubs_current"},
+		bootclasspath: []string{"android_system_stubs_current", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
@@ -386,20 +387,20 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "system_14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/system/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/system/android.jar", "core-lambda-stubs"},
 	},
 	{
 
 		name:          "test_current",
 		properties:    `sdk_version: "test_current",`,
-		bootclasspath: []string{"android_test_stubs_current"},
+		bootclasspath: []string{"android_test_stubs_current", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
 
 		name:          "core_current",
 		properties:    `sdk_version: "core_current",`,
-		bootclasspath: []string{"core.current.stubs"},
+		bootclasspath: []string{"core.current.stubs", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
