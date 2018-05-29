@@ -30,6 +30,8 @@ var (
 	DefaultBootclasspathLibraries = []string{"core-oj", "core-libart"}
 	DefaultSystemModules          = "core-system-modules"
 	DefaultLibraries              = []string{"ext", "framework", "okhttp"}
+	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
+	SdkLambdaStubsPath            = "prebuilts/sdk/tools/core-lambda-stubs.jar"
 
 	DefaultJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
 

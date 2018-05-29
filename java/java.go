@@ -338,12 +338,12 @@ var (
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
-	module        string
+	modules       []string
 	systemModules string
 
 	frameworkResModule string
 
-	jar  android.Path
+	jars android.Paths
 	aidl android.Path
 }
 
@@ -412,11 +412,12 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 		aidl := filepath.Join(public_dir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, jar)
 		aidlPath := android.ExistentPathForSource(ctx, aidl)
+		lambdaStubsPath := android.PathForSource(ctx, config.SdkLambdaStubsPath)
 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
 				invalidVersion: true,
-				module:         fmt.Sprintf("sdk_%s_%s_android", api, v),
+				modules:        []string{fmt.Sprintf("sdk_%s_%s_android", api, v)},
 			}
 		}
 
@@ -432,7 +433,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 
 		return sdkDep{
 			useFiles: true,
-			jar:      jarPath.Path(),
+			jars:     android.Paths{jarPath.Path(), lambdaStubsPath},
 			aidl:     aidlPath.Path(),
 		}
 	}
@@ -440,7 +441,7 @@ func decodeSdkDep(ctx android.BaseContext, v string) sdkDep {
 	toModule := func(m, r string) sdkDep {
 		ret := sdkDep{
 			useModule:          true,
-			module:             m,
+			modules:            []string{m, config.DefaultLambdaStubsLibrary},
 			systemModules:      m + "_system_modules",
 			frameworkResModule: r,
 		}
@@ -489,7 +490,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
 				}
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.modules...)
 				if Bool(j.deviceProperties.Optimize.Enabled) {
 					ctx.AddDependency(ctx.Module(), proguardRaiseTag, config.DefaultBootclasspathLibraries...)
 					ctx.AddDependency(ctx.Module(), proguardRaiseTag, config.DefaultLibraries...)
@@ -625,8 +626,9 @@ const (
 
 func getLinkType(m *Module, name string) linkType {
 	ver := String(m.deviceProperties.Sdk_version)
+	noStdLibs := Bool(m.properties.No_standard_libs)
 	switch {
-	case name == "core.current.stubs" || ver == "core_current":
+	case name == "core.current.stubs" || ver == "core_current" || noStdLibs:
 		return javaCore
 	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_"):
 		return javaSystem
@@ -684,10 +686,10 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 		if sdkDep.invalidVersion {
-			ctx.AddMissingDependencies([]string{sdkDep.module})
+			ctx.AddMissingDependencies(sdkDep.modules)
 		} else if sdkDep.useFiles {
 			// sdkDep.jar is actually equivalent to turbine header.jar.
-			deps.classpath = append(deps.classpath, sdkDep.jar)
+			deps.classpath = append(deps.classpath, sdkDep.jars...)
 			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, sdkDep.aidl)
 		}
 	}
