@@ -345,6 +345,10 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 			Current       ApiToCheck
 			Last_released ApiToCheck
 		}
+		Aidl struct {
+			Include_dirs       []string
+			Local_include_dirs []string
+		}
 	}{}
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
@@ -353,6 +357,8 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	props.Custom_template = proptools.StringPtr("droiddoc-templates-sdk")
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.properties.Libs
+	props.Aidl.Include_dirs = module.deviceProperties.Aidl.Include_dirs
+	props.Aidl.Local_include_dirs = module.deviceProperties.Aidl.Local_include_dirs
 
 	droiddocArgs := " -hide 110 -hide 111 -hide 113 -hide 121 -hide 125 -hide 126 -hide 127 -hide 128" +
 		" -stubpackages " + strings.Join(module.properties.Api_packages, ":") +
