@@ -182,9 +182,10 @@ type productVariables struct {
 	CFIExcludePaths *[]string `json:",omitempty"`
 	CFIIncludePaths *[]string `json:",omitempty"`
 
-	VendorPath  *string `json:",omitempty"`
-	OdmPath     *string `json:",omitempty"`
-	ProductPath *string `json:",omitempty"`
+	VendorPath          *string `json:",omitempty"`
+	OdmPath             *string `json:",omitempty"`
+	ProductPath         *string `json:",omitempty"`
+	ProductServicesPath *string `json:",omitempty"`
 
 	UseClangLld *bool `json:",omitempty"`
 
