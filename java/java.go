@@ -479,6 +479,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			sdkDep := decodeSdkDep(ctx, String(j.deviceProperties.Sdk_version))
 			if sdkDep.useDefaultLibs {
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultLambdaStubsLibraries...)
 				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
 				}
@@ -490,10 +491,13 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 					ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
 				}
 				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
+				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultLambdaStubsLibraries...)
 				if Bool(j.deviceProperties.Optimize.Enabled) {
 					ctx.AddDependency(ctx.Module(), proguardRaiseTag, config.DefaultBootclasspathLibraries...)
 					ctx.AddDependency(ctx.Module(), proguardRaiseTag, config.DefaultLibraries...)
 				}
+			} else if sdkDep.useFiles {
+				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLambdaStubsLibraries...)
 			}
 		} else if j.deviceProperties.System_modules == nil {
 			ctx.PropertyErrorf("no_standard_libs",
@@ -625,8 +629,9 @@ const (
 
 func getLinkType(m *Module, name string) linkType {
 	ver := String(m.deviceProperties.Sdk_version)
+	noStdLibs := Bool(m.properties.No_standard_libs)
 	switch {
-	case name == "core.current.stubs" || ver == "core_current":
+	case name == "core.current.stubs" || ver == "core_current" || noStdLibs:
 		return javaCore
 	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_"):
 		return javaSystem
