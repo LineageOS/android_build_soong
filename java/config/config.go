@@ -30,7 +30,6 @@ var (
 	DefaultBootclasspathLibraries = []string{"core-oj", "core-libart"}
 	DefaultSystemModules          = "core-system-modules"
 	DefaultLibraries              = []string{"ext", "framework", "okhttp"}
-	DefaultLambdaStubsLibraries   = []string{"core-lambda-stubs"}
 
 	DefaultJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
 
