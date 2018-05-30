@@ -263,9 +263,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Integer_overflow = nil
 	}
 
-	// Also disable CFI for VNDK variants of components in the
-	// include paths
-	if ctx.isVndk() && ctx.useVndk() && ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
+	// Also disable CFI for VNDK variants of components
+	if ctx.isVndk() && ctx.useVndk() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 	}
