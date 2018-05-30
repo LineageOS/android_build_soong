@@ -213,7 +213,7 @@ func aaptLibs(ctx android.ModuleContext, sdkVersion string) (transitiveStaticLib
 
 	sdkDep := decodeSdkDep(ctx, sdkVersion)
 	if sdkDep.useFiles {
-		sharedLibs = append(sharedLibs, sdkDep.jar)
+		sharedLibs = append(sharedLibs, sdkDep.jars...)
 	}
 
 	ctx.VisitDirectDeps(func(module android.Module) {

@@ -293,7 +293,7 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 				ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
 			}
 		} else if sdkDep.useModule {
-			ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.module)
+			ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.modules...)
 		}
 	}
 
@@ -377,9 +377,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 
 	sdkDep := decodeSdkDep(ctx, String(j.properties.Sdk_version))
 	if sdkDep.invalidVersion {
-		ctx.AddMissingDependencies([]string{sdkDep.module})
+		ctx.AddMissingDependencies(sdkDep.modules)
 	} else if sdkDep.useFiles {
-		deps.bootClasspath = append(deps.bootClasspath, sdkDep.jar)
+		deps.bootClasspath = append(deps.bootClasspath, sdkDep.jars...)
 	}
 
 	ctx.VisitDirectDeps(func(module android.Module) {

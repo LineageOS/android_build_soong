@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var buildDir string
@@ -98,6 +100,7 @@ func testContext(config android.Config, bp string,
 	extraModules := []string{
 		"core-oj",
 		"core-libart",
+		"core-lambda-stubs",
 		"framework",
 		"ext",
 		"okhttp",
@@ -166,6 +169,7 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/14/public/android.jar":         nil,
 		"prebuilts/sdk/14/public/framework.aidl":      nil,
 		"prebuilts/sdk/14/system/android.jar":         nil,
+		"prebuilts/sdk/current/core/android.jar":      nil,
 		"prebuilts/sdk/current/public/android.jar":    nil,
 		"prebuilts/sdk/current/public/framework.aidl": nil,
 		"prebuilts/sdk/current/public/core.jar":       nil,
@@ -183,6 +187,7 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/28/public/api/bar-removed.txt": nil,
 		"prebuilts/sdk/28/system/api/bar-removed.txt": nil,
 		"prebuilts/sdk/28/test/api/bar-removed.txt":   nil,
+		"prebuilts/sdk/tools/core-lambda-stubs.jar":   nil,
 		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "prebuilt_apis",}`),
 
 		// For framework-res, which is an implicit dependency for framework
@@ -338,6 +343,7 @@ func TestBinary(t *testing.T) {
 
 var classpathTestcases = []struct {
 	name          string
+	unbundled     bool
 	moduleType    string
 	host          android.OsClass
 	properties    string
@@ -364,20 +370,20 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/public/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
 
 		name:          "current",
 		properties:    `sdk_version: "current",`,
-		bootclasspath: []string{"android_stubs_current"},
+		bootclasspath: []string{"android_stubs_current", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
 
 		name:          "system_current",
 		properties:    `sdk_version: "system_current",`,
-		bootclasspath: []string{"android_system_stubs_current"},
+		bootclasspath: []string{"android_system_stubs_current", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
@@ -386,20 +392,20 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "system_14",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/system/android.jar"},
+		classpath:     []string{"prebuilts/sdk/14/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
 
 		name:          "test_current",
 		properties:    `sdk_version: "test_current",`,
-		bootclasspath: []string{"android_test_stubs_current"},
+		bootclasspath: []string{"android_test_stubs_current", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
 
 		name:          "core_current",
 		properties:    `sdk_version: "core_current",`,
-		bootclasspath: []string{"core.current.stubs"},
+		bootclasspath: []string{"core.current.stubs", "core-lambda-stubs"},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 	},
 	{
@@ -447,6 +453,24 @@ var classpathTestcases = []struct {
 		host:       android.Host,
 		properties: `host_supported: true, no_standard_libs: true, system_modules: "none"`,
 		classpath:  []string{},
+	},
+	{
+
+		name:          "unbundled sdk v14",
+		unbundled:     true,
+		properties:    `sdk_version: "14",`,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+	},
+	{
+
+		name:          "unbundled current",
+		unbundled:     true,
+		properties:    `sdk_version: "current",`,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 }
 
@@ -498,7 +522,12 @@ func TestClasspath(t *testing.T) {
 
 			t.Run("1.8", func(t *testing.T) {
 				// Test default javac 1.8
-				ctx := testJava(t, bp)
+				config := testConfig(nil)
+				if testcase.unbundled {
+					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+				}
+				ctx := testContext(config, bp, nil)
+				run(t, ctx, config)
 
 				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
 
@@ -526,6 +555,9 @@ func TestClasspath(t *testing.T) {
 			// Test again with javac 1.9
 			t.Run("1.9", func(t *testing.T) {
 				config := testConfig(map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
+				if testcase.unbundled {
+					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+				}
 				ctx := testContext(config, bp, nil)
 				run(t, ctx, config)
 
