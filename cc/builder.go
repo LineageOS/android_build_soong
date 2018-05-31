@@ -726,10 +726,13 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 	baseName, exportedHeaderFlags string, isVndkExt bool) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
-
+	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	localAbiCheckAllowFlags := append([]string(nil), abiCheckAllowFlags...)
 	if exportedHeaderFlags == "" {
 		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-advice-only")
+	}
+	if inList(libName, llndkLibraries) {
+		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-consider-opaque-types-different")
 	}
 	if isVndkExt {
 		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-allow-extensions")
@@ -743,7 +746,7 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 		Implicit:    referenceDump,
 		Args: map[string]string{
 			"referenceDump": referenceDump.String(),
-			"libName":       baseName[0:(len(baseName) - len(filepath.Ext(baseName)))],
+			"libName":       libName,
 			"arch":          ctx.Arch().ArchType.Name,
 			"allowFlags":    strings.Join(localAbiCheckAllowFlags, " "),
 		},
