@@ -566,7 +566,6 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 		sanitize.Properties.Sanitize.Integer_overflow = boolPtr(b)
 	case cfi:
 		sanitize.Properties.Sanitize.Cfi = boolPtr(b)
-		sanitize.Properties.Sanitize.Diag.Cfi = boolPtr(b)
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
