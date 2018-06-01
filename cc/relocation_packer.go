@@ -33,6 +33,7 @@ var relocationPackerRule = pctx.AndroidStaticRule("packRelocations",
 	})
 
 type RelocationPackerProperties struct {
+	// Generate compact dynamic relocation table, default true.
 	Pack_relocations *bool `android:"arch_variant"`
 
 	// This will be true even if we're embedded in Make, in which case

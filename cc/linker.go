@@ -122,6 +122,13 @@ type BaseLinkerProperties struct {
 	Use_version_lib *bool `android:"arch_variant"`
 }
 
+// TODO(http://b/80437643): BaseLinkerProperties is getting too big,
+// more than 2^16 bytes. New properties are defined in MoreBaseLinkerProperties.
+type MoreBaseLinkerProperties struct {
+	// Generate compact dynamic relocation table, default true.
+	Pack_relocations *bool `android:"arch_variant"`
+}
+
 func NewBaseLinker() *baseLinker {
 	return &baseLinker{}
 }
@@ -129,6 +136,7 @@ func NewBaseLinker() *baseLinker {
 // baseLinker provides support for shared_libs, static_libs, and whole_static_libs properties
 type baseLinker struct {
 	Properties        BaseLinkerProperties
+	MoreProperties    MoreBaseLinkerProperties
 	dynamicProperties struct {
 		RunPaths []string `blueprint:"mutated"`
 	}
@@ -147,7 +155,7 @@ func (linker *baseLinker) linkerInit(ctx BaseModuleContext) {
 }
 
 func (linker *baseLinker) linkerProps() []interface{} {
-	return []interface{}{&linker.Properties, &linker.dynamicProperties}
+	return []interface{}{&linker.Properties, &linker.MoreProperties, &linker.dynamicProperties}
 }
 
 func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
@@ -256,6 +264,9 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	if flags.Clang && linker.useClangLld(ctx) {
 		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
+		if !BoolDefault(linker.MoreProperties.Pack_relocations, true) {
+			flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=none")
+		}
 	} else {
 		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
 	}
