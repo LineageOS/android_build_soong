@@ -312,6 +312,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 
 	ctx.Strict(makePrefix+"CC", gccCmd(toolchain, "gcc"))
 	ctx.Strict(makePrefix+"CXX", gccCmd(toolchain, "g++"))
+	ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 
 	if target.Os == android.Darwin {
 		ctx.Strict(makePrefix+"AR", "${config.MacArPath}")
@@ -328,7 +329,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	if target.Os.Class == android.Device {
 		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
 		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
-		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 		ctx.Strict(makePrefix+"GCC_VERSION", toolchain.GccVersion())
 		ctx.Strict(makePrefix+"NDK_GCC_VERSION", toolchain.GccVersion())
 		ctx.Strict(makePrefix+"NDK_TRIPLE", config.NDKTriple(toolchain))
