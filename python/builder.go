@@ -96,11 +96,8 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 			Output:      binFile,
 			Implicits:   implicits,
 			Args: map[string]string{
-				"interp": strings.Replace(interpreter, "/", `\/`, -1),
-				// we need remove "runfiles/" suffix since stub script starts
-				// searching for main file in each sub-dir of "runfiles" directory tree.
-				"main": strings.Replace(strings.TrimPrefix(main, runFiles+"/"),
-					"/", `\/`, -1),
+				"interp":    strings.Replace(interpreter, "/", `\/`, -1),
+				"main":      strings.Replace(main, "/", `\/`, -1),
 				"template":  template.String(),
 				"stub":      stub,
 				"mergedZip": mergedZip.String(),
