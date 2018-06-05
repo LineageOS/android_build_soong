@@ -392,6 +392,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			fmt.Sprintf("${config.%sGlobalCflags}", hod))
 	}
 
+	if flags.Clang {
+		if strings.HasPrefix(android.PathForModuleSrc(ctx).String(), "external/") {
+			flags.GlobalFlags = append([]string{"${config.ClangExternalCflags}"}, flags.GlobalFlags...)
+		}
+	}
+
 	if ctx.Device() {
 		if Bool(compiler.Properties.Rtti) {
 			flags.CppFlags = append(flags.CppFlags, "-frtti")
