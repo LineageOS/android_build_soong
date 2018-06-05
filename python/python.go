@@ -63,8 +63,7 @@ type BaseProperties struct {
 	// files of the current module.
 	// eg. Pkg_path = "a/b/c"; Other packages can reference this module by using
 	// (from a.b.c import ...) statement.
-	// if left unspecified, all the source/data files of current module are copied to
-	// "runfiles/" tree directory directly.
+	// if left unspecified, all the source/data files path is unchanged within zip file.
 	Pkg_path *string `android:"arch_variant"`
 
 	// true, if the Python module is used internally, eg, Python std libs.
@@ -215,7 +214,6 @@ var (
 	mainFileName       = "__main__.py"
 	entryPointFile     = "entry_point.txt"
 	parFileExt         = ".zip"
-	runFiles           = "runfiles"
 	internal           = "internal"
 )
 
@@ -417,23 +415,11 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 			return
 		}
 		if p.properties.Is_internal != nil && *p.properties.Is_internal {
-			// pkg_path starts from "internal/" implicitly.
 			pkgPath = filepath.Join(internal, pkgPath)
-		} else {
-			if !p.isEmbeddedLauncherEnabled(p.properties.Actual_version) {
-				// pkg_path starts from "runfiles/" implicitly.
-				pkgPath = filepath.Join(runFiles, pkgPath)
-			}
 		}
 	} else {
 		if p.properties.Is_internal != nil && *p.properties.Is_internal {
-			// pkg_path starts from "runfiles/" implicitly.
 			pkgPath = internal
-		} else {
-			if !p.isEmbeddedLauncherEnabled(p.properties.Actual_version) {
-				// pkg_path starts from "runfiles/" implicitly.
-				pkgPath = runFiles
-			}
 		}
 	}
 
@@ -620,7 +606,7 @@ func (p *Module) walkTransitiveDeps(ctx android.ModuleContext) {
 func fillInMap(ctx android.ModuleContext, m map[string]string,
 	key, value, curModule, otherModule string) bool {
 	if oldValue, found := m[key]; found {
-		ctx.ModuleErrorf("found two files to be placed at the same runfiles location %q."+
+		ctx.ModuleErrorf("found two files to be placed at the same location within zip %q."+
 			" First file: in module %s at path %q."+
 			" Second file: in module %s at path %q.",
 			key, curModule, oldValue, otherModule, value)
