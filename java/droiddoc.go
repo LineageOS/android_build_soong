@@ -19,6 +19,7 @@ import (
 	"android/soong/java/config"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -733,12 +734,20 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	implicits = append(implicits, jsilver)
 	implicits = append(implicits, doclava)
 
+	var date string
+	if runtime.GOOS == "darwin" {
+		date = `date -r`
+	} else {
+		date = `date -d`
+	}
+
 	opts := "-source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
 		"-templatedir " + templateDir + " " + htmlDirArgs + " " + htmlDir2Args + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
-		"-hdf page.now " + `"$$(date -d @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")"` +
+		`-hdf page.now "$$(` + date + ` @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" ` +
 		" " + args
+
 	if BoolDefault(d.properties.Create_stubs, true) {
 		opts += " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
 	}
