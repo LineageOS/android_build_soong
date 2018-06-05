@@ -39,8 +39,8 @@ do_elf() {
 }
 
 do_macho() {
-    otool -l "${infile}" | grep LC_ID_DYLIB -A 5 > "${outfile}.tmp"
-    nm -gP "${infile}" | cut -f1-2 -d" " | grep -v 'U$' >> "${outfile}.tmp"
+    "${CROSS_COMPILE}/otool" -l "${infile}" | grep LC_ID_DYLIB -A 5 > "${outfile}.tmp"
+    "${CROSS_COMPILE}/nm" -gP "${infile}" | cut -f1-2 -d" " | grep -v 'U$' >> "${outfile}.tmp"
 }
 
 
