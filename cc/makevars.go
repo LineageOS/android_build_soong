@@ -315,10 +315,14 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 
 	if target.Os == android.Darwin {
 		ctx.Strict(makePrefix+"AR", "${config.MacArPath}")
+		ctx.Strict(makePrefix+"NM", "${config.MacToolPath}/nm")
+		ctx.Strict(makePrefix+"OTOOL", "${config.MacToolPath}/otool")
+		ctx.Strict(makePrefix+"STRIP", "${config.MacStripPath}")
 	} else {
 		ctx.Strict(makePrefix+"AR", "${config.ClangBin}/llvm-ar")
 		ctx.Strict(makePrefix+"READELF", gccCmd(toolchain, "readelf"))
 		ctx.Strict(makePrefix+"NM", gccCmd(toolchain, "nm"))
+		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 	}
 
 	if target.Os == android.Windows {
@@ -328,7 +332,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	if target.Os.Class == android.Device {
 		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
 		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
-		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 		ctx.Strict(makePrefix+"GCC_VERSION", toolchain.GccVersion())
 		ctx.Strict(makePrefix+"NDK_GCC_VERSION", toolchain.GccVersion())
 		ctx.Strict(makePrefix+"NDK_TRIPLE", config.NDKTriple(toolchain))
