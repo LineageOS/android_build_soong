@@ -312,14 +312,17 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 
 	ctx.Strict(makePrefix+"CC", gccCmd(toolchain, "gcc"))
 	ctx.Strict(makePrefix+"CXX", gccCmd(toolchain, "g++"))
-	ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 
 	if target.Os == android.Darwin {
 		ctx.Strict(makePrefix+"AR", "${config.MacArPath}")
+		ctx.Strict(makePrefix+"NM", "${config.MacToolPath}/nm")
+		ctx.Strict(makePrefix+"OTOOL", "${config.MacToolPath}/otool")
+		ctx.Strict(makePrefix+"STRIP", "${config.MacStripPath}")
 	} else {
 		ctx.Strict(makePrefix+"AR", "${config.ClangBin}/llvm-ar")
 		ctx.Strict(makePrefix+"READELF", gccCmd(toolchain, "readelf"))
 		ctx.Strict(makePrefix+"NM", gccCmd(toolchain, "nm"))
+		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 	}
 
 	if target.Os == android.Windows {
