@@ -34,6 +34,13 @@ var (
 			CommandDeps: []string{"$versionerCmd"},
 		},
 		"depsPath", "srcDir", "outDir")
+
+	preprocessNdkHeader = pctx.AndroidStaticRule("preprocessNdkHeader",
+		blueprint.RuleParams{
+			Command:     "$preprocessor -o $out $in",
+			CommandDeps: []string{"$preprocessor"},
+		},
+		"preprocessor")
 )
 
 func init() {
@@ -268,6 +275,90 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 
 func versionedNdkHeadersFactory() android.Module {
 	module := &versionedHeaderModule{}
+
+	module.AddProperties(&module.properties)
+
+	// Host module rather than device module because device module install steps
+	// do not get run when embedded in make. We're not any of the existing
+	// module types that can be exposed via the Android.mk exporter, so just use
+	// a host module.
+	android.InitAndroidArchModule(module, android.HostSupportedNoCross, android.MultilibFirst)
+
+	return module
+}
+
+// preprocessed_ndk_header {
+//     name: "foo",
+//     preprocessor: "foo.sh",
+//     srcs: [...],
+//     to: "android",
+// }
+//
+// Will invoke the preprocessor as:
+//     $preprocessor -o $SYSROOT/usr/include/android/needs_preproc.h $src
+// For each src in srcs.
+type preprocessedHeadersProperties struct {
+	// The preprocessor to run. Must be a program inside the source directory
+	// with no dependencies.
+	Preprocessor *string
+
+	// Source path to the files to be preprocessed.
+	Srcs []string
+
+	// Source paths that should be excluded from the srcs glob.
+	Exclude_srcs []string
+
+	// Install path within the sysroot. This is relative to usr/include.
+	To *string
+
+	// Path to the NOTICE file associated with the headers.
+	License *string
+}
+
+type preprocessedHeadersModule struct {
+	android.ModuleBase
+
+	properties preprocessedHeadersProperties
+
+	installPaths android.Paths
+	licensePath  android.ModuleSrcPath
+}
+
+func (m *preprocessedHeadersModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+}
+
+func (m *preprocessedHeadersModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if String(m.properties.License) == "" {
+		ctx.PropertyErrorf("license", "field is required")
+	}
+
+	preprocessor := android.PathForModuleSrc(ctx, String(m.properties.Preprocessor))
+	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
+
+	srcFiles := ctx.ExpandSources(m.properties.Srcs, m.properties.Exclude_srcs)
+	installDir := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
+	for _, src := range srcFiles {
+		installPath := installDir.Join(ctx, src.Base())
+		m.installPaths = append(m.installPaths, installPath)
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        preprocessNdkHeader,
+			Description: "preprocess " + src.Rel(),
+			Input:       src,
+			Output:      installPath,
+			Args: map[string]string{
+				"preprocessor": preprocessor.String(),
+			},
+		})
+	}
+
+	if len(m.installPaths) == 0 {
+		ctx.ModuleErrorf("srcs %q matched zero files", m.properties.Srcs)
+	}
+}
+
+func preprocessedNdkHeadersFactory() android.Module {
+	module := &preprocessedHeadersModule{}
 
 	module.AddProperties(&module.properties)
 
