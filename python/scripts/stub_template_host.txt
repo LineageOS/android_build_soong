@@ -11,7 +11,6 @@ import zipfile
 PYTHON_BINARY = '%interpreter%'
 MAIN_FILE = '%main%'
 PYTHON_PATH = 'PYTHONPATH'
-ZIP_RUNFILES_DIRECTORY_NAME = 'runfiles'
 
 def SearchPathEnv(name):
   search_path = os.getenv('PATH', os.defpath).split(os.pathsep)
@@ -36,7 +35,7 @@ def ExtractRunfiles():
   temp_dir = tempfile.mkdtemp("", "Soong.python_")
   zf = zipfile.ZipFile(os.path.dirname(__file__))
   zf.extractall(temp_dir)
-  return os.path.join(temp_dir, ZIP_RUNFILES_DIRECTORY_NAME)
+  return temp_dir
 
 def Main():
   args = sys.argv[1:]
@@ -83,7 +82,7 @@ def Main():
   except:
     raise
   finally:
-    shutil.rmtree(os.path.dirname(runfiles_path), True)
+    shutil.rmtree(runfiles_path, True)
 
 if __name__ == '__main__':
   Main()

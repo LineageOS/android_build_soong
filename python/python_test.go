@@ -44,7 +44,7 @@ var (
 	badIdentifierErrTemplate = moduleVariantErrTemplate +
 		"srcs: the path %q contains invalid token %q."
 	dupRunfileErrTemplate = moduleVariantErrTemplate +
-		"found two files to be placed at the same runfiles location %q." +
+		"found two files to be placed at the same location within zip %q." +
 		" First file: in module %s at path %q." +
 		" Second file: in module %s at path %q."
 	noSrcFileErr      = moduleVariantErrTemplate + "doesn't have any source files!"
@@ -175,11 +175,11 @@ var (
 			},
 			errors: []string{
 				fmt.Sprintf(badIdentifierErrTemplate, "dir/Blueprints:4:11",
-					"lib1", "PY3", "runfiles/a/b/c/-e/f/file1.py", "-e"),
+					"lib1", "PY3", "a/b/c/-e/f/file1.py", "-e"),
 				fmt.Sprintf(badIdentifierErrTemplate, "dir/Blueprints:4:11",
-					"lib1", "PY3", "runfiles/a/b/c/.file1.py", ".file1"),
+					"lib1", "PY3", "a/b/c/.file1.py", ".file1"),
 				fmt.Sprintf(badIdentifierErrTemplate, "dir/Blueprints:4:11",
-					"lib1", "PY3", "runfiles/a/b/c/123/file1.py", "123"),
+					"lib1", "PY3", "a/b/c/123/file1.py", "123"),
 			},
 		},
 		{
@@ -212,7 +212,7 @@ var (
 			},
 			errors: []string{
 				fmt.Sprintf(dupRunfileErrTemplate, "dir/Blueprints:9:6",
-					"lib2", "PY3", "runfiles/a/b/c/file1.py", "lib2", "dir/file1.py",
+					"lib2", "PY3", "a/b/c/file1.py", "lib2", "dir/file1.py",
 					"lib1", "dir/c/file1.py"),
 			},
 		},
@@ -307,10 +307,10 @@ var (
 					name:          "bin",
 					actualVersion: "PY3",
 					pyRunfiles: []string{
-						"runfiles/e/default.py",
-						"runfiles/e/bin.py",
-						"runfiles/e/default_py3.py",
-						"runfiles/e/file4.py",
+						"e/default.py",
+						"e/bin.py",
+						"e/default_py3.py",
+						"e/file4.py",
 					},
 					srcsZip: "@prefix@/.intermediates/dir/bin/PY3/bin.py.srcszip",
 					depsSrcsZips: []string{
