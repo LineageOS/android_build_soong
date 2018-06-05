@@ -170,8 +170,6 @@ func init() {
 	pctx.StaticVariable("CommonClangGlobalCppflags",
 		strings.Join(append(ClangFilterUnknownCflags(commonGlobalCppflags), "${ClangExtraCppflags}"), " "))
 
-	pctx.StaticVariable("ClangExternalCflags", "${ClangExtraExternalCflags}")
-
 	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
 	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I",
