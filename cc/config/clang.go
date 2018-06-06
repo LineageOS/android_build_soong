@@ -182,6 +182,11 @@ func init() {
 		// compatibility.
 		"-Wno-c++98-compat-extra-semi",
 	}, " "))
+
+	// Extra cflags for projects under external/ directory
+	pctx.StaticVariable("ClangExtraExternalCflags", strings.Join([]string{
+		// TODO(yikong): Move -Wno flags here
+	}, " "))
 }
 
 func ClangFilterUnknownCflags(cflags []string) []string {
