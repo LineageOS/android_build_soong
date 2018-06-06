@@ -422,12 +422,16 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		switch dep := module.(type) {
-		case Dependency:
-			switch tag {
-			case bootClasspathTag:
+		switch tag {
+		case bootClasspathTag:
+			if dep, ok := module.(Dependency); ok {
 				deps.bootClasspath = append(deps.bootClasspath, dep.ImplementationJars()...)
-			case libTag:
+			} else {
+				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
+			}
+		case libTag:
+			switch dep := module.(type) {
+			case Dependency:
 				deps.classpath = append(deps.classpath, dep.ImplementationJars()...)
 				if otherName == String(j.properties.Srcs_lib) {
 					srcs := dep.(SrcDependency).CompiledSrcs()
@@ -447,12 +451,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 					}
 					deps.srcJars = append(deps.srcJars, dep.(SrcDependency).CompiledSrcJars()...)
 				}
-			default:
-				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
-			}
-		case SdkLibraryDependency:
-			switch tag {
-			case libTag:
+			case SdkLibraryDependency:
 				sdkVersion := String(j.properties.Sdk_version)
 				linkType := javaSdk
 				if strings.HasPrefix(sdkVersion, "system_") || strings.HasPrefix(sdkVersion, "test_") {
@@ -461,23 +460,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 					linkType = javaPlatform
 				}
 				deps.classpath = append(deps.classpath, dep.HeaderJars(linkType)...)
-			default:
-				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
-			}
-		case android.SourceFileProducer:
-			switch tag {
-			case libTag:
+			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
-			case android.DefaultsDepTag, android.SourceDepTag:
-				// Nothing to do
-			default:
-				ctx.ModuleErrorf("dependency on genrule %q may only be in srcs, libs", otherName)
-			}
-		default:
-			switch tag {
-			case android.DefaultsDepTag, android.SourceDepTag, droiddocTemplateTag:
-				// Nothing to do
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
