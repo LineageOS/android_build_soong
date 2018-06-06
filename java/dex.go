@@ -22,78 +22,6 @@ import (
 	"android/soong/android"
 )
 
-var desugar = pctx.AndroidStaticRule("desugar",
-	blueprint.RuleParams{
-		Command: `rm -rf $dumpDir && mkdir -p $dumpDir && ` +
-			`${config.JavaCmd} ` +
-			`-Djdk.internal.lambda.dumpProxyClasses=$$(cd $dumpDir && pwd) ` +
-			`$javaFlags ` +
-			`-jar ${config.DesugarJar} $classpathFlags $desugarFlags ` +
-			`-i $in -o $out`,
-		CommandDeps: []string{"${config.DesugarJar}", "${config.JavaCmd}"},
-	},
-	"javaFlags", "classpathFlags", "desugarFlags", "dumpDir")
-
-func (j *Module) desugar(ctx android.ModuleContext, flags javaBuilderFlags,
-	classesJar android.Path, jarName string) android.Path {
-
-	desugarFlags := []string{
-		"--min_sdk_version " + j.minSdkVersionNumber(ctx),
-		"--desugar_try_with_resources_if_needed=false",
-		"--allow_empty_bootclasspath",
-	}
-
-	if inList("--core-library", j.deviceProperties.Dxflags) {
-		desugarFlags = append(desugarFlags, "--core_library")
-	}
-
-	desugarJar := android.PathForModuleOut(ctx, "desugar", jarName)
-	dumpDir := android.PathForModuleOut(ctx, "desugar", "classes")
-
-	javaFlags := ""
-	if ctx.Config().UseOpenJDK9() {
-		javaFlags = "--add-opens java.base/java.lang.invoke=ALL-UNNAMED"
-	}
-
-	var classpathFlags []string
-	classpathFlags = append(classpathFlags, flags.bootClasspath.FormDesugarClasspath("--bootclasspath_entry")...)
-	classpathFlags = append(classpathFlags, flags.classpath.FormDesugarClasspath("--classpath_entry")...)
-
-	var deps android.Paths
-	deps = append(deps, flags.bootClasspath...)
-	deps = append(deps, flags.classpath...)
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        desugar,
-		Description: "desugar",
-		Output:      desugarJar,
-		Input:       classesJar,
-		Implicits:   deps,
-		Args: map[string]string{
-			"dumpDir":        dumpDir.String(),
-			"javaFlags":      javaFlags,
-			"classpathFlags": strings.Join(classpathFlags, " "),
-			"desugarFlags":   strings.Join(desugarFlags, " "),
-		},
-	})
-
-	return desugarJar
-}
-
-var dx = pctx.AndroidStaticRule("dx",
-	blueprint.RuleParams{
-		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.DxCmd} --dex --output=$outDir $dxFlags $in && ` +
-			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
-			`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
-		CommandDeps: []string{
-			"${config.DxCmd}",
-			"${config.SoongZipCmd}",
-			"${config.MergeZipsCmd}",
-		},
-	},
-	"outDir", "dxFlags")
-
 var d8 = pctx.AndroidStaticRule("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
@@ -125,39 +53,24 @@ var r8 = pctx.AndroidStaticRule("r8",
 	},
 	"outDir", "outDict", "dxFlags", "r8Flags")
 
-func (j *Module) dxFlags(ctx android.ModuleContext, fullD8 bool) []string {
+func (j *Module) dxFlags(ctx android.ModuleContext) []string {
 	flags := j.deviceProperties.Dxflags
-	if fullD8 {
-		// Translate all the DX flags to D8 ones until all the build files have been migrated
-		// to D8 flags. See: b/69377755
-		flags = android.RemoveListFromList(flags,
-			[]string{"--core-library", "--dex", "--multi-dex"})
-	}
+	// Translate all the DX flags to D8 ones until all the build files have been migrated
+	// to D8 flags. See: b/69377755
+	flags = android.RemoveListFromList(flags,
+		[]string{"--core-library", "--dex", "--multi-dex"})
 
 	if ctx.Config().Getenv("NO_OPTIMIZE_DX") != "" {
-		if fullD8 {
-			flags = append(flags, "--debug")
-		} else {
-			flags = append(flags, "--no-optimize")
-		}
+		flags = append(flags, "--debug")
 	}
 
 	if ctx.Config().Getenv("GENERATE_DEX_DEBUG") != "" {
 		flags = append(flags,
 			"--debug",
 			"--verbose")
-		if !fullD8 {
-			flags = append(flags,
-				"--dump-to="+android.PathForModuleOut(ctx, "classes.lst").String(),
-				"--dump-width=1000")
-		}
 	}
 
-	if fullD8 {
-		flags = append(flags, "--min-api "+j.minSdkVersionNumber(ctx))
-	} else {
-		flags = append(flags, "--min-sdk-version="+j.minSdkVersionNumber(ctx))
-	}
+	flags = append(flags, "--min-api "+j.minSdkVersionNumber(ctx))
 	return flags
 }
 
@@ -166,7 +79,7 @@ func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8F
 
 	// When an app contains references to APIs that are not in the SDK specified by
 	// its LOCAL_SDK_VERSION for example added by support library or by runtime
-	// classes added by desugar, we artifically raise the "SDK version" "linked" by
+	// classes added by desugaring, we artifically raise the "SDK version" "linked" by
 	// ProGuard, to
 	// - suppress ProGuard warnings of referencing symbols unknown to the lower SDK version.
 	// - prevent ProGuard stripping subclass in the support library that extends class added in the higher SDK version.
@@ -223,13 +136,8 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.Path {
 
 	useR8 := Bool(j.deviceProperties.Optimize.Enabled)
-	fullD8 := useR8 || ctx.Config().UseD8Desugar()
 
-	if !fullD8 {
-		classesJar = j.desugar(ctx, flags, classesJar, jarName)
-	}
-
-	dxFlags := j.dxFlags(ctx, fullD8)
+	dxFlags := j.dxFlags(ctx)
 
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
@@ -256,15 +164,9 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			},
 		})
 	} else {
-		rule := dx
-		desc := "dx"
-		if fullD8 {
-			rule = d8
-			desc = "d8"
-		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:        rule,
-			Description: desc,
+			Rule:        d8,
+			Description: "d8",
 			Output:      javalibJar,
 			Input:       classesJar,
 			Args: map[string]string{
