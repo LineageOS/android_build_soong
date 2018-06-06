@@ -243,7 +243,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		// ensure java does not fall back to the default bootclasspath.
 		bootClasspath = `--bootclasspath ""`
 	} else {
-		bootClasspath = strings.Join(flags.bootClasspath.FormTurbineClasspath("--bootclasspath"), " ")
+		bootClasspath = strings.Join(flags.bootClasspath.FormDesugarClasspath("--bootclasspath"), " ")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -256,7 +256,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"classpath":     strings.Join(flags.classpath.FormTurbineClasspath("--classpath"), " "),
+			"classpath":     strings.Join(flags.classpath.FormDesugarClasspath("--classpath"), " "),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 			"javaVersion":   flags.javaVersion,
 		},
@@ -419,7 +419,7 @@ func (x *classpath) FormJavaSystemModulesPath(optName string, forceEmpty bool) s
 	}
 }
 
-func (x *classpath) FormTurbineClasspath(optName string) []string {
+func (x *classpath) FormDesugarClasspath(optName string) []string {
 	if x == nil || *x == nil {
 		return nil
 	}

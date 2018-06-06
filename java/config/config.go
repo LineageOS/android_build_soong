@@ -95,6 +95,18 @@ func init() {
 	pctx.HostBinToolVariable("Zip2ZipCmd", "zip2zip")
 	pctx.HostBinToolVariable("ZipSyncCmd", "zipsync")
 	pctx.HostBinToolVariable("ApiCheckCmd", "apicheck")
+	pctx.VariableFunc("DxCmd", func(ctx android.PackageVarContext) string {
+		config := ctx.Config()
+		if config.IsEnvFalse("USE_D8") {
+			if config.UnbundledBuild() || config.IsPdkBuild() {
+				return "prebuilts/build-tools/common/bin/dx"
+			} else {
+				return pctx.HostBinToolPath(ctx, "dx").String()
+			}
+		} else {
+			return pctx.HostBinToolPath(ctx, "d8-compat-dx").String()
+		}
+	})
 	pctx.HostBinToolVariable("D8Cmd", "d8")
 	pctx.HostBinToolVariable("R8Cmd", "r8-compat-proguard")
 
@@ -108,6 +120,7 @@ func init() {
 	})
 
 	pctx.HostJavaToolVariable("JarjarCmd", "jarjar.jar")
+	pctx.HostJavaToolVariable("DesugarJar", "desugar.jar")
 	pctx.HostJavaToolVariable("JsilverJar", "jsilver.jar")
 	pctx.HostJavaToolVariable("DoclavaJar", "doclava.jar")
 	pctx.HostJavaToolVariable("MetalavaJar", "metalava.jar")

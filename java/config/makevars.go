@@ -46,8 +46,15 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("JAVADOC", "${JavadocCmd}")
 	ctx.Strict("COMMON_JDK_FLAGS", "${CommonJdkFlags}")
 
-	ctx.Strict("DX", "${D8Cmd}")
-	ctx.Strict("DX_COMMAND", "${D8Cmd} -JXms16M -JXmx2048M")
+	if ctx.Config().UseD8Desugar() {
+		ctx.Strict("DX", "${D8Cmd}")
+		ctx.Strict("DX_COMMAND", "${D8Cmd} -JXms16M -JXmx2048M")
+		ctx.Strict("USE_D8_DESUGAR", "true")
+	} else {
+		ctx.Strict("DX", "${DxCmd}")
+		ctx.Strict("DX_COMMAND", "${DxCmd} -JXms16M -JXmx2048M")
+		ctx.Strict("USE_D8_DESUGAR", "false")
+	}
 	ctx.Strict("R8_COMPAT_PROGUARD", "${R8Cmd}")
 
 	ctx.Strict("TURBINE", "${TurbineJar}")
