@@ -356,7 +356,10 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	props.Srcs = append(props.Srcs, module.properties.Api_srcs...)
 	props.Custom_template = proptools.StringPtr("droiddoc-templates-sdk")
 	props.Installable = proptools.BoolPtr(false)
+	// A droiddoc module has only one Libs property and doesn't distinguish between
+	// shared libs and static libs. So we need to add both of these libs to Libs property.
 	props.Libs = module.properties.Libs
+	props.Libs = append(props.Libs, module.properties.Static_libs...)
 	props.Aidl.Include_dirs = module.deviceProperties.Aidl.Include_dirs
 	props.Aidl.Local_include_dirs = module.deviceProperties.Aidl.Local_include_dirs
 
