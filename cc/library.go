@@ -593,6 +593,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	}
 
 	if library.stripper.needsStrip(ctx) {
+		// b/80093681, GNU strip/objcopy bug.
+		// Use llvm-{strip,objcopy} when clang lld is used.
+		builderFlags.stripUseLlvmStrip =
+			flags.Clang && library.baseLinker.useClangLld(ctx)
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
