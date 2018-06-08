@@ -333,6 +333,9 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				if ddoc.apiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"API_FILE := ", ddoc.apiFile.String())
 				}
+				if ddoc.dexApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"DEX_API_FILE := ", ddoc.dexApiFile.String())
+				}
 				if ddoc.privateApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_API_FILE := ", ddoc.privateApiFile.String())
 				}
