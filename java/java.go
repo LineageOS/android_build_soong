@@ -806,6 +806,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 
 		// Make javac rule depend on the kotlinc rule
+		flags.classpath = append(flags.classpath, deps.kotlinStdlib...)
 		flags.classpath = append(flags.classpath, kotlinJar)
 		// Jar kotlin classes into the final jar after javac
 		jars = append(jars, kotlinJar)
