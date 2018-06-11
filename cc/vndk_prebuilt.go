@@ -21,7 +21,8 @@ import (
 )
 
 var (
-	vndkSuffix = ".vndk."
+	vndkSuffix     = ".vndk."
+	binder32Suffix = ".binder32"
 )
 
 // Creates vndk prebuilts that include the VNDK version.
@@ -53,6 +54,10 @@ type vndkPrebuiltProperties struct {
 	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64_ab')
 	Target_arch *string
 
+	// If the prebuilt snapshot lib is built with 32 bit binder, this must be set to true.
+	// The lib with 64 bit binder does not need to set this property.
+	Binder32bit *bool
+
 	// Prebuilt files for each arch.
 	Srcs []string `android:"arch_variant"`
 }
@@ -67,10 +72,14 @@ func (p *vndkPrebuiltLibraryDecorator) Name(name string) string {
 }
 
 func (p *vndkPrebuiltLibraryDecorator) NameSuffix() string {
+	suffix := p.version()
 	if p.arch() != "" {
-		return vndkSuffix + p.version() + "." + p.arch()
+		suffix += "." + p.arch()
 	}
-	return vndkSuffix + p.version()
+	if Bool(p.properties.Binder32bit) {
+		suffix += binder32Suffix
+	}
+	return vndkSuffix + suffix
 }
 
 func (p *vndkPrebuiltLibraryDecorator) version() string {
@@ -79,6 +88,13 @@ func (p *vndkPrebuiltLibraryDecorator) version() string {
 
 func (p *vndkPrebuiltLibraryDecorator) arch() string {
 	return String(p.properties.Target_arch)
+}
+
+func (p *vndkPrebuiltLibraryDecorator) binderBit() string {
+	if Bool(p.properties.Binder32bit) {
+		return "32"
+	}
+	return "64"
 }
 
 func (p *vndkPrebuiltLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -112,6 +128,9 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 func (p *vndkPrebuiltLibraryDecorator) install(ctx ModuleContext, file android.Path) {
 	arches := ctx.DeviceConfig().Arches()
 	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
+		return
+	}
+	if ctx.DeviceConfig().BinderBitness() != p.binderBit() {
 		return
 	}
 	if p.shared() {
