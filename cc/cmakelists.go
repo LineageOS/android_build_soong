@@ -62,10 +62,14 @@ func (c *cmakelistsGeneratorSingleton) GenerateBuildActions(ctx android.Singleto
 
 	outputDebugInfo = (getEnvVariable(envVariableGenerateDebugInfo, ctx) == envVariableTrue)
 
+	// Track which projects have already had CMakeLists.txt generated to keep the first
+	// variant for each project.
+	seenProjects := map[string]bool{}
+
 	ctx.VisitAllModules(func(module android.Module) {
 		if ccModule, ok := module.(*Module); ok {
 			if compiledModule, ok := ccModule.compiler.(CompiledInterface); ok {
-				generateCLionProject(compiledModule, ctx, ccModule)
+				generateCLionProject(compiledModule, ctx, ccModule, seenProjects)
 			}
 		}
 	})
@@ -114,14 +118,22 @@ func linkAggregateCMakeListsFiles(path string, info os.FileInfo, err error) erro
 	return nil
 }
 
-func generateCLionProject(compiledModule CompiledInterface, ctx android.SingletonContext, ccModule *Module) {
+func generateCLionProject(compiledModule CompiledInterface, ctx android.SingletonContext, ccModule *Module,
+	seenProjects map[string]bool) {
 	srcs := compiledModule.Srcs()
 	if len(srcs) == 0 {
 		return
 	}
 
-	// Ensure the directory hosting the cmakelists.txt exists
+	// Only write CMakeLists.txt for the first variant of each architecture of each module
 	clionproject_location := getCMakeListsForModule(ccModule, ctx)
+	if seenProjects[clionproject_location] {
+		return
+	}
+
+	seenProjects[clionproject_location] = true
+
+	// Ensure the directory hosting the cmakelists.txt exists
 	projectDir := path.Dir(clionproject_location)
 	os.MkdirAll(projectDir, os.ModePerm)
 
