@@ -94,6 +94,7 @@ type SanitizeProperties struct {
 		Safestack        *bool    `android:"arch_variant"`
 		Cfi              *bool    `android:"arch_variant"`
 		Integer_overflow *bool    `android:"arch_variant"`
+		Scudo            *bool    `android:"arch_variant"`
 
 		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
 		// Replaces abort() on error with a human-readable error message.
@@ -207,6 +208,10 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			}
 		}
 
+		if found, globalSanitizers = removeFromList("scudo", globalSanitizers); found && s.Scudo == nil {
+			s.Scudo = boolPtr(true)
+		}
+
 		if len(globalSanitizers) > 0 {
 			ctx.ModuleErrorf("unknown global sanitizer option %s", globalSanitizers[0])
 		}
@@ -281,8 +286,14 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	if ctx.Os() != android.Windows && (Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) || Bool(s.Thread) ||
-		Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) || Bool(s.Integer_overflow) || len(s.Misc_undefined) > 0) {
+		Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) || Bool(s.Integer_overflow) || len(s.Misc_undefined) > 0 ||
+		Bool(s.Scudo)) {
 		sanitize.Properties.SanitizerEnabled = true
+	}
+
+	// Disable Scudo if ASan or TSan is enabled.
+	if Bool(s.Address) || Bool(s.Thread) {
+		s.Scudo = nil
 	}
 
 	if Bool(s.Coverage) {
@@ -434,6 +445,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		}
 	}
 
+	if Bool(sanitize.Properties.Sanitize.Scudo) {
+		sanitizers = append(sanitizers, "scudo")
+	}
+
 	if len(sanitizers) > 0 {
 		sanitizeArg := "-fsanitize=" + strings.Join(sanitizers, ",")
 
@@ -471,6 +486,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		runtimeLibrary = config.AddressSanitizerRuntimeLibrary(ctx.toolchain())
 	} else if Bool(sanitize.Properties.Sanitize.Thread) {
 		runtimeLibrary = config.ThreadSanitizerRuntimeLibrary(ctx.toolchain())
+	} else if Bool(sanitize.Properties.Sanitize.Scudo) {
+		runtimeLibrary = config.ScudoRuntimeLibrary(ctx.toolchain())
 	} else if len(diagSanitizers) > 0 || sanitize.Properties.UbsanRuntimeDep {
 		runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(ctx.toolchain())
 	}
@@ -705,6 +722,7 @@ func cfiStaticLibs(config android.Config) *[]string {
 
 func enableMinimalRuntime(sanitize *sanitize) bool {
 	if !Bool(sanitize.Properties.Sanitize.Address) &&
+		!Bool(sanitize.Properties.Sanitize.Scudo) &&
 		(Bool(sanitize.Properties.Sanitize.Integer_overflow) ||
 			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) &&
 		!(Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
