@@ -332,6 +332,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			"-D__ANDROID_API__="+version, "-D__ANDROID_VNDK__")
 	}
 
+	if ctx.inRecovery() {
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_RECOVERY__")
+	}
+
 	instructionSet := String(compiler.Properties.Instruction_set)
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
