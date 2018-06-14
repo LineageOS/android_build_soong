@@ -70,8 +70,8 @@ var (
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source 1.8 @$out.rsp @$srcJarDir/list ` +
-				`$bootclasspathArgs $classpathArgs -sourcepath $sourcepath --no-banner --color ` +
-				`--stubs $stubsDir --quiet --write-stubs-source-list $outDir/stubs_src_list $opts && ` +
+				`$bootclasspathArgs $classpathArgs -sourcepath $sourcepath --no-banner --color --quiet ` +
+				`--stubs $stubsDir $opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
 				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
 			CommandDeps: []string{
@@ -240,7 +240,7 @@ type DroiddocProperties struct {
 	// is set to true, Metalava will allow framework SDK to contain annotations.
 	Metalava_annotations_enabled *bool
 
-	// a XML files set to merge annotations.
+	// a top level directory contains XML files set to merge annotations.
 	Metalava_merge_annotations_dir *string
 }
 
@@ -854,7 +854,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if String(d.properties.Metalava_previous_api) != "" {
 			previousApi = ctx.ExpandSource(String(d.properties.Metalava_previous_api),
 				"metalava_previous_api")
-			opts += " --check-compatibility  --previous-api " + previousApi.String()
+			opts += " --previous-api " + previousApi.String()
 			implicits = append(implicits, previousApi)
 		}
 
@@ -873,19 +873,19 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					"has to be non-empty if annotations was enabled!")
 			}
 
-			mergeAnnotationsDir := android.PathForModuleSrc(ctx,
-				String(d.properties.Metalava_merge_annotations_dir))
-			implicits = append(implicits, ctx.Glob(mergeAnnotationsDir.Join(ctx, "**/*").String(), nil)...)
+			mergeAnnotationsDir := android.PathForSource(ctx, String(d.properties.Metalava_merge_annotations_dir))
 
 			opts += " --extract-annotations " + annotationsZip.String() + " --merge-annotations " + mergeAnnotationsDir.String()
 			// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
-			opts += "--hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction"
+			opts += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction"
 		}
 
 		if genDocsForMetalava {
-			opts += " --generate-documentation ${config.JavadocCmd} -encoding UTF-8 STUBS_SOURCE_LIST " +
+			opts += " --doc-stubs " + android.PathForModuleOut(ctx, "docs", "docStubsDir").String() +
+				" --write-doc-stubs-source-list $outDir/doc_stubs_src_list " +
+				" --generate-documentation ${config.JavadocCmd} -encoding UTF-8 DOC_STUBS_SOURCE_LIST " +
 				doclavaOpts + docArgsForMetalava + bootClasspathArgs + " " + classpathArgs + " " + " -sourcepath " +
-				strings.Join(d.Javadoc.sourcepaths.Strings(), ":") + " -quiet -d $outDir "
+				android.PathForModuleOut(ctx, "docs", "docStubsDir").String() + " -quiet -d $outDir "
 			implicits = append(implicits, jsilver)
 			implicits = append(implicits, doclava)
 		}
