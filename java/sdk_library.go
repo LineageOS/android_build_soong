@@ -106,6 +106,11 @@ type sdkLibraryProperties struct {
 	// list of package names that must be hidden from the API
 	Hidden_api_packages []string
 
+	Errorprone struct {
+		// List of javac flags that should only be used when running errorprone.
+		Javacflags []string
+	}
+
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
 }
@@ -445,6 +450,9 @@ func (module *sdkLibrary) createImplLibrary(mctx android.TopDownMutatorContext) 
 		Device_specific  *bool
 		Product_specific *bool
 		Required         []string
+		Errorprone       struct {
+			Javacflags []string
+		}
 	}{}
 
 	props.Name = proptools.StringPtr(module.implName())
@@ -453,6 +461,7 @@ func (module *sdkLibrary) createImplLibrary(mctx android.TopDownMutatorContext) 
 	props.Static_libs = module.properties.Static_libs
 	// XML file is installed along with the impl lib
 	props.Required = []string{module.xmlFileName()}
+	props.Errorprone.Javacflags = module.properties.Errorprone.Javacflags
 
 	if module.SocSpecific() {
 		props.Soc_specific = proptools.BoolPtr(true)
