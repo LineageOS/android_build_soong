@@ -50,6 +50,7 @@ type configImpl struct {
 	targetDevice    string
 	targetDeviceDir string
 
+	pdkBuild       bool
 	brokenDupRules bool
 
 	pathReplaced bool
@@ -578,4 +579,12 @@ func (c *configImpl) SetTargetDeviceDir(dir string) {
 
 func (c *configImpl) TargetDeviceDir() string {
 	return c.targetDeviceDir
+}
+
+func (c *configImpl) SetPdkBuild(pdk bool) {
+	c.pdkBuild = pdk
+}
+
+func (c *configImpl) IsPdkBuild() bool {
+	return c.pdkBuild
 }
