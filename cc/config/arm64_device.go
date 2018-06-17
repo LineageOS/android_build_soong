@@ -50,15 +50,12 @@ var (
 			"-mcpu=cortex-a53",
 		},
 		"cortex-a55": []string{
-			// The cortex-a55 target is not yet supported,
-			// so use cortex-a53.
-			"-mcpu=cortex-a53",
+			"-mcpu=cortex-a55",
 		},
 		"cortex-a75": []string{
-			// Use the cortex-a53 since it is similar to the little
+			// Use the cortex-a55 since it is similar to the little
 			// core (cortex-a55) and is sensitive to ordering.
-			// The cortex-a55 target is not yet supported.
-			"-mcpu=cortex-a53",
+			"-mcpu=cortex-a55",
 		},
 		"kryo": []string{
 			// Use the cortex-a57 cpu since some compilers
