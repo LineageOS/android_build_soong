@@ -77,6 +77,8 @@ func runKati(ctx Context, config Config) {
 		"--color_warnings",
 		"--gen_all_targets",
 		"--werror_find_emulator",
+		"--no_builtin_rules",
+		"--werror_suffix_rules",
 		"--kati_stats",
 		"-f", "build/make/core/main.mk",
 	}
