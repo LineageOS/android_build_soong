@@ -507,7 +507,10 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 		if ctx.ModuleName() == "android_stubs_current" ||
 			ctx.ModuleName() == "android_system_stubs_current" ||
-			ctx.ModuleName() == "android_test_stubs_current" {
+			ctx.ModuleName() == "android_test_stubs_current" ||
+			ctx.ModuleName() == "metalava_android_stubs_current" ||
+			ctx.ModuleName() == "metalava_android_system_stubs_current" ||
+			ctx.ModuleName() == "metalava_android_test_stubs_current" {
 			ctx.AddDependency(ctx.Module(), frameworkApkTag, "framework-res")
 		}
 	}
@@ -628,13 +631,13 @@ func getLinkType(m *Module, name string) linkType {
 	ver := String(m.deviceProperties.Sdk_version)
 	noStdLibs := Bool(m.properties.No_standard_libs)
 	switch {
-	case name == "core.current.stubs" || ver == "core_current" || noStdLibs:
+	case name == "core.current.stubs" || ver == "core_current" || noStdLibs || name == "stub-annotations":
 		return javaCore
-	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_"):
+	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_") || name == "metalava_android_system_stubs_current":
 		return javaSystem
-	case name == "android_test_stubs_current" || strings.HasPrefix(ver, "test_"):
+	case name == "android_test_stubs_current" || strings.HasPrefix(ver, "test_") || name == "metalava_android_test_stubs_current":
 		return javaPlatform
-	case name == "android_stubs_current" || ver == "current":
+	case name == "android_stubs_current" || ver == "current" || name == "metalava_android_stubs_current":
 		return javaSdk
 	case ver == "":
 		return javaPlatform
@@ -724,7 +727,10 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case frameworkApkTag:
 				if ctx.ModuleName() == "android_stubs_current" ||
 					ctx.ModuleName() == "android_system_stubs_current" ||
-					ctx.ModuleName() == "android_test_stubs_current" {
+					ctx.ModuleName() == "android_test_stubs_current" ||
+					ctx.ModuleName() == "metalava_android_stubs_current" ||
+					ctx.ModuleName() == "metalava_android_system_stubs_current" ||
+					ctx.ModuleName() == "metalava_android_test_stubs_current" {
 					// framework stubs.jar need to depend on framework-res.apk, in order to pull the
 					// resource files out of there for aapt.
 					//
