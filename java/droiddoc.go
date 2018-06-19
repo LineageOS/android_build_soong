@@ -30,7 +30,7 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.JavadocCmd} -source $javaVersion -encoding UTF-8 @$out.rsp @$srcJarDir/list ` +
+				`${config.JavadocCmd} -encoding UTF-8 @$out.rsp @$srcJarDir/list ` +
 				`$opts $bootclasspathArgs $classpathArgs -sourcepath $sourcepath ` +
 				`-d $outDir -quiet  && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
@@ -44,7 +44,7 @@ var (
 			RspfileContent: "$in",
 			Restat:         true,
 		},
-		"outDir", "srcJarDir", "stubsDir", "javaVersion", "srcJars", "opts",
+		"outDir", "srcJarDir", "stubsDir", "srcJars", "opts",
 		"bootclasspathArgs", "classpathArgs", "sourcepath", "docZip")
 
 	apiCheck = pctx.AndroidStaticRule("apiCheck",
@@ -550,7 +550,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	implicits = append(implicits, j.srcJars...)
 
-	opts := "-J-Xmx1024m -XDignore.symbol.file -Xdoclint:none"
+	opts := "-source " + javaVersion + " -J-Xmx1024m -XDignore.symbol.file -Xdoclint:none"
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           javadoc,
@@ -563,7 +563,6 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"outDir":            android.PathForModuleOut(ctx, "docs", "out").String(),
 			"srcJarDir":         android.PathForModuleOut(ctx, "docs", "srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
-			"javaVersion":       javaVersion,
 			"srcJars":           strings.Join(j.srcJars.Strings(), " "),
 			"opts":              opts,
 			"bootclasspathArgs": bootClasspathArgs,
@@ -868,7 +867,6 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				"srcJarDir":         android.PathForModuleOut(ctx, "docs", "srcjars").String(),
 				"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
 				"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
-				"javaVersion":       javaVersion,
 				"opts":              opts,
 				"bootclasspathArgs": bootClasspathArgs,
 				"classpathArgs":     classpathArgs,
