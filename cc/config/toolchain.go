@@ -243,6 +243,10 @@ func ProfileRuntimeLibrary(t Toolchain) string {
 	return SanitizerRuntimeLibrary(t, "profile")
 }
 
+func ScudoRuntimeLibrary(t Toolchain) string {
+	return SanitizerRuntimeLibrary(t, "scudo")
+}
+
 func ToolPath(t Toolchain) string {
 	if p := t.ToolPath(); p != "" {
 		return p
