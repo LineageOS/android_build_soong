@@ -788,6 +788,25 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	return deps
 }
 
+func getJavaVersion(ctx android.ModuleContext, javaVersion, sdkVersion string) string {
+	var ret string
+	sdk := sdkStringToNumber(ctx, sdkVersion)
+	if javaVersion != "" {
+		ret = javaVersion
+	} else if ctx.Device() && sdk <= 23 {
+		ret = "1.7"
+	} else if ctx.Device() && sdk <= 26 || !ctx.Config().TargetOpenJDK9() {
+		ret = "1.8"
+	} else if ctx.Device() && sdkVersion != "" && sdk == android.FutureApiLevel {
+		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
+		ret = "1.8"
+	} else {
+		ret = "1.9"
+	}
+
+	return ret
+}
+
 func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaBuilderFlags {
 
 	var flags javaBuilderFlags
@@ -813,19 +832,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	}
 
 	// javaVersion flag.
-	sdk := sdkStringToNumber(ctx, String(j.deviceProperties.Sdk_version))
-	if j.properties.Java_version != nil {
-		flags.javaVersion = *j.properties.Java_version
-	} else if ctx.Device() && sdk <= 23 {
-		flags.javaVersion = "1.7"
-	} else if ctx.Device() && sdk <= 26 || !ctx.Config().TargetOpenJDK9() {
-		flags.javaVersion = "1.8"
-	} else if ctx.Device() && String(j.deviceProperties.Sdk_version) != "" && sdk == android.FutureApiLevel {
-		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
-		flags.javaVersion = "1.8"
-	} else {
-		flags.javaVersion = "1.9"
-	}
+	flags.javaVersion = getJavaVersion(ctx,
+		String(j.properties.Java_version), String(j.deviceProperties.Sdk_version))
 
 	// classpath
 	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
