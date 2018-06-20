@@ -1095,6 +1095,12 @@ func TestJavaSdkLibrary(t *testing.T) {
 			libs: ["foo", "bar"],
 			sdk_version: "system_current",
 		}
+		java_library {
+		    name: "qux",
+		    srcs: ["c.java"],
+		    libs: ["baz"],
+		    sdk_version: "system_current",
+		}
 		`)
 
 	// check the existence of the internal modules
@@ -1126,5 +1132,14 @@ func TestJavaSdkLibrary(t *testing.T) {
 	if strings.Contains(bazJavac.Args["classpath"], "foo.stubs.jar") {
 		t.Errorf("baz javac classpath %v should not contain %q", bazJavac.Args["classpath"],
 			"foo.stubs.jar")
+	}
+
+	// test if baz has exported SDK lib names foo and bar to qux
+	qux := ctx.ModuleForTests("qux", "android_common")
+	if quxLib, ok := qux.Module().(*Library); ok {
+		sdkLibs := quxLib.ExportedSdkLibs()
+		if len(sdkLibs) != 2 || !android.InList("foo", sdkLibs) || !android.InList("bar", sdkLibs) {
+			t.Errorf("qux should export \"foo\" and \"bar\" but exports %v", sdkLibs)
+		}
 	}
 }

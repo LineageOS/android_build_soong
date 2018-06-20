@@ -67,9 +67,8 @@ var (
 // classpath at runtime if requested via <uses-library>.
 //
 // TODO: these are big features that are currently missing
-// 1) ensuring that apps have appropriate <uses-library> tag
-// 2) disallowing linking to the runtime shared lib
-// 3) HTML generation
+// 1) disallowing linking to the runtime shared lib
+// 2) HTML generation
 
 func init() {
 	android.RegisterModuleType("java_sdk_library", sdkLibraryFactory)

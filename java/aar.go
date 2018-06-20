@@ -475,6 +475,10 @@ func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
+func (a *AARImport) ExportedSdkLibs() []string {
+	return nil
+}
+
 var _ android.PrebuiltInterface = (*Import)(nil)
 
 func AARImportFactory() android.Module {
