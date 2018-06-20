@@ -843,8 +843,20 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.javacFlags = "$javacFlags"
 	}
 
-	if len(j.properties.Errorprone.Javacflags) > 0 {
-		flags.errorProneExtraJavacFlags = strings.Join(j.properties.Errorprone.Javacflags, " ")
+	if ctx.Config().RunErrorProne() {
+		if config.ErrorProneClasspath == nil {
+			ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
+		}
+
+		errorProneFlags := []string{
+			"-Xplugin:ErrorProne",
+			"${config.ErrorProneChecks}",
+		}
+		errorProneFlags = append(errorProneFlags, j.properties.Errorprone.Javacflags...)
+
+		flags.errorProneExtraJavacFlags = "${config.ErrorProneFlags} " +
+			"'" + strings.Join(errorProneFlags, " ") + "'"
+		flags.errorProneProcessorPath = classpath(android.PathsForSource(ctx, config.ErrorProneClasspath))
 	}
 
 	// javaVersion flag.
@@ -994,7 +1006,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
 		var extraJarDeps android.Paths
-		if ctx.Config().IsEnvTrue("RUN_ERROR_PRONE") {
+		if ctx.Config().RunErrorProne() {
 			// If error-prone is enabled, add an additional rule to compile the java files into
 			// a separate set of classes (so that they don't overwrite the normal ones and require
 			// a rebuild when error-prone is turned off).
