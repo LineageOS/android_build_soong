@@ -158,5 +158,92 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
 
     self.assertEqual(output, expected)
 
+
+class AddUsesLibrariesTest(unittest.TestCase):
+  """Unit tests for add_uses_libraries function."""
+
+  def run_test(self, input_manifest, new_uses_libraries):
+    doc = minidom.parseString(input_manifest)
+    manifest_fixer.add_uses_libraries(doc, new_uses_libraries)
+    output = StringIO.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+      '    <application>\n'
+      '%s'
+      '    </application>\n'
+      '</manifest>\n')
+
+  def uses_libraries(self, name_required_pairs):
+    ret = ''
+    for name, required in name_required_pairs:
+      ret += (
+          '        <uses-library android:name="%s" android:required="%s"/>\n'
+      ) % (name, required)
+
+    return ret
+
+  def test_empty(self):
+    """Empty new_uses_libraries must not touch the manifest."""
+    manifest_input = self.manifest_tmpl % self.uses_libraries([
+        ('foo', 'true'),
+        ('bar', 'false')])
+    expected = manifest_input
+    output = self.run_test(manifest_input, [])
+    self.assertEqual(output, expected)
+
+  def test_not_overwrite(self):
+    """new_uses_libraries must not overwrite existing tags."""
+    manifest_input = self.manifest_tmpl % self.uses_libraries([
+        ('foo', 'true'),
+        ('bar', 'false')])
+    expected = manifest_input
+    output = self.run_test(manifest_input, ['foo', 'bar'])
+    self.assertEqual(output, expected)
+
+  def test_add(self):
+    """New names are added with 'required:true'."""
+    manifest_input = self.manifest_tmpl % self.uses_libraries([
+        ('foo', 'true'),
+        ('bar', 'false')])
+    expected = self.manifest_tmpl % self.uses_libraries([
+        ('foo', 'true'),
+        ('bar', 'false'),
+        ('baz', 'true'),
+        ('qux', 'true')])
+    output = self.run_test(manifest_input, ['bar', 'baz', 'qux'])
+    self.assertEqual(output, expected)
+
+  def test_no_application(self):
+    """When there is no <application> tag, the tag is added."""
+    manifest_input = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<manifest xmlns:android='
+        '"http://schemas.android.com/apk/res/android">\n'
+        '</manifest>\n')
+    expected = self.manifest_tmpl % self.uses_libraries([
+        ('foo', 'true'),
+        ('bar', 'true')])
+    output = self.run_test(manifest_input, ['foo', 'bar'])
+    self.assertEqual(output, expected)
+
+  def test_empty_application(self):
+    """Even when here is an empty <application/> tag, the libs are added."""
+    manifest_input = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<manifest xmlns:android='
+        '"http://schemas.android.com/apk/res/android">\n'
+        '    <application/>\n'
+        '</manifest>\n')
+    expected = self.manifest_tmpl % self.uses_libraries([
+        ('foo', 'true'),
+        ('bar', 'true')])
+    output = self.run_test(manifest_input, ['foo', 'bar'])
+    self.assertEqual(output, expected)
+
+
 if __name__ == '__main__':
   unittest.main()
