@@ -322,10 +322,8 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 func (c *config) fromEnv() error {
 	switch c.Getenv("EXPERIMENTAL_USE_OPENJDK9") {
 	case "":
-		if c.Getenv("RUN_ERROR_PRONE") != "true" {
-			// Use OpenJDK9, but target 1.8
-			c.useOpenJDK9 = true
-		}
+		// Use OpenJDK9, but target 1.8
+		c.useOpenJDK9 = true
 	case "false":
 		// Use OpenJDK8
 	case "1.8":
@@ -629,6 +627,10 @@ func (c *config) Android64() bool {
 
 func (c *config) UseGoma() bool {
 	return Bool(c.productVariables.UseGoma)
+}
+
+func (c *config) RunErrorProne() bool {
+	return c.IsEnvTrue("RUN_ERROR_PRONE")
 }
 
 // Returns true if OpenJDK9 prebuilts are being used
