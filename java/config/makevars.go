@@ -61,10 +61,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("TARGET_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
 	ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
 
-	if ctx.Config().UseOpenJDK9() {
-		ctx.Strict("JLINK", "${JlinkCmd}")
-		ctx.Strict("JMOD", "${JmodCmd}")
-	}
+	ctx.Strict("JLINK", "${JlinkCmd}")
+	ctx.Strict("JMOD", "${JmodCmd}")
 
 	ctx.Strict("SOONG_JAVAC_WRAPPER", "${SoongJavacWrapper}")
 	ctx.Strict("ZIPSYNC", "${ZipSyncCmd}")
