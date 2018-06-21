@@ -187,5 +187,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetTargetDevice(make_vars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(make_vars["TARGET_DEVICE_DIR"])
 
+	config.SetPdkBuild(make_vars["TARGET_BUILD_PDK"] == "true")
 	config.SetBuildBrokenDupRules(make_vars["BUILD_BROKEN_DUP_RULES"] != "false")
 }

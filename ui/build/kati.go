@@ -83,6 +83,11 @@ func runKati(ctx Context, config Config) {
 		"-f", "build/make/core/main.mk",
 	}
 
+	// PDK builds still uses a few implicit rules
+	if !config.IsPdkBuild() {
+		args = append(args, "--warn_implicit_rules")
+	}
+
 	if !config.BuildBrokenDupRules() {
 		args = append(args, "--werror_overriding_commands")
 	}
