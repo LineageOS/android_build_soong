@@ -131,11 +131,16 @@ func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 func defaultsMutator(ctx TopDownMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok && len(defaultable.defaults().Defaults) > 0 {
 		var defaultsList []Defaults
+		seen := make(map[Defaults]bool)
+
 		ctx.WalkDeps(func(module, parent Module) bool {
 			if ctx.OtherModuleDependencyTag(module) == DefaultsDepTag {
 				if defaults, ok := module.(Defaults); ok {
-					defaultsList = append(defaultsList, defaults)
-					return len(defaults.defaults().Defaults) > 0
+					if !seen[defaults] {
+						seen[defaults] = true
+						defaultsList = append(defaultsList, defaults)
+						return len(defaults.defaults().Defaults) > 0
+					}
 				} else {
 					ctx.PropertyErrorf("defaults", "module %s is not an defaults module",
 						ctx.OtherModuleName(module))
