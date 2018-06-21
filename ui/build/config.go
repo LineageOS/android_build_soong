@@ -164,11 +164,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
 			return override
 		}
-		v, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK9")
-		if !ok || v != "false" {
-			return java9Home
-		}
-		return java8Home
+		return java9Home
 	}()
 	absJavaHome := absPath(ctx, javaHome)
 

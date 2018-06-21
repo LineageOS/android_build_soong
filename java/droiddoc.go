@@ -540,20 +540,13 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var bootClasspathArgs, classpathArgs string
 
 	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), String(j.properties.Sdk_version))
-	if javaVersion == "1.9" || ctx.Config().UseOpenJDK9() {
-		if len(deps.bootClasspath) > 0 {
-			var systemModules classpath
-			if deps.systemModules != nil {
-				systemModules = append(systemModules, deps.systemModules)
-			}
-			bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
-			bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
+	if len(deps.bootClasspath) > 0 {
+		var systemModules classpath
+		if deps.systemModules != nil {
+			systemModules = append(systemModules, deps.systemModules)
 		}
-	} else {
-		if len(deps.bootClasspath.Strings()) > 0 {
-			// For OpenJDK 8 we can use -bootclasspath to define the core libraries code.
-			bootClasspathArgs = deps.bootClasspath.FormJavaClassPath("-bootclasspath")
-		}
+		bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
+		bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
 	}
 	if len(deps.classpath.Strings()) > 0 {
 		classpathArgs = "-classpath " + strings.Join(deps.classpath.Strings(), ":")
