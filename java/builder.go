@@ -43,7 +43,7 @@ var (
 			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
-				`$processorpath $javacFlags $bootClasspath $classpath ` +
+				`$javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -56,7 +56,7 @@ var (
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "processorpath", "srcJars", "srcJarDir",
+		"javacFlags", "bootClasspath", "classpath", "srcJars", "srcJarDir",
 		"outDir", "annoDir", "javaVersion")
 
 	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
@@ -155,7 +155,6 @@ type javaBuilderFlags struct {
 	javacFlags    string
 	bootClasspath classpath
 	classpath     classpath
-	processorPath classpath
 	systemModules classpath
 	aidlFlags     string
 	javaVersion   string
@@ -296,7 +295,6 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	}
 
 	deps = append(deps, flags.classpath...)
-	deps = append(deps, flags.processorPath...)
 
 	srcJarDir := "srcjars"
 	outDir := "classes"
@@ -317,7 +315,6 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
 			"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
-			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
 			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
 			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),

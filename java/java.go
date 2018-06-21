@@ -331,7 +331,6 @@ type dependencyTag struct {
 var (
 	staticLibTag     = dependencyTag{name: "staticlib"}
 	libTag           = dependencyTag{name: "javalib"}
-	annoTag          = dependencyTag{name: "annotation processor"}
 	bootClasspathTag = dependencyTag{name: "bootclasspath"}
 	systemModulesTag = dependencyTag{name: "system modules"}
 	frameworkResTag  = dependencyTag{name: "framework-res"}
@@ -522,7 +521,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
-	ctx.AddDependency(ctx.Module(), annoTag, j.properties.Annotation_processors...)
+	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
@@ -603,7 +602,6 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 type deps struct {
 	classpath          classpath
 	bootClasspath      classpath
-	processorPath      classpath
 	staticJars         android.Paths
 	staticHeaderJars   android.Paths
 	staticJarResources android.Paths
@@ -728,8 +726,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
-			case annoTag:
-				deps.processorPath = append(deps.processorPath, dep.ImplementationJars()...)
 			case frameworkResTag:
 				if ctx.ModuleName() == "framework" {
 					// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -854,7 +850,6 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	// classpath
 	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
 	flags.classpath = append(flags.classpath, deps.classpath...)
-	flags.processorPath = append(flags.processorPath, deps.processorPath...)
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && !ctx.Config().TargetOpenJDK9() &&
 		!Bool(j.properties.No_standard_libs) &&
