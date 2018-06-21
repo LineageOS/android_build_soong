@@ -99,6 +99,10 @@ func init() {
 	android.RegisterModuleType("javadoc_host", JavadocHostFactory)
 }
 
+var (
+	srcsLibTag = dependencyTag{name: "sources from javalib"}
+)
+
 type JavadocProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
 	// or .aidl files.
@@ -348,6 +352,9 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	}
 
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
+	if j.properties.Srcs_lib != nil {
+		ctx.AddDependency(ctx.Module(), srcsLibTag, *j.properties.Srcs_lib)
+	}
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 
@@ -447,24 +454,6 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			switch dep := module.(type) {
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.ImplementationJars()...)
-				if otherName == String(j.properties.Srcs_lib) {
-					srcs := dep.(SrcDependency).CompiledSrcs()
-					whitelistPathPrefixes := make(map[string]bool)
-					j.genWhitelistPathPrefixes(whitelistPathPrefixes)
-					for _, src := range srcs {
-						if _, ok := src.(android.WritablePath); ok { // generated sources
-							deps.srcs = append(deps.srcs, src)
-						} else { // select source path for documentation based on whitelist path prefixs.
-							for k, _ := range whitelistPathPrefixes {
-								if strings.HasPrefix(src.Rel(), k) {
-									deps.srcs = append(deps.srcs, src)
-									break
-								}
-							}
-						}
-					}
-					deps.srcJars = append(deps.srcJars, dep.(SrcDependency).CompiledSrcJars()...)
-				}
 			case SdkLibraryDependency:
 				sdkVersion := String(j.properties.Sdk_version)
 				linkType := javaSdk
@@ -477,6 +466,28 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
+			default:
+				ctx.ModuleErrorf("depends on non-java module %q", otherName)
+			}
+		case srcsLibTag:
+			switch dep := module.(type) {
+			case Dependency:
+				srcs := dep.(SrcDependency).CompiledSrcs()
+				whitelistPathPrefixes := make(map[string]bool)
+				j.genWhitelistPathPrefixes(whitelistPathPrefixes)
+				for _, src := range srcs {
+					if _, ok := src.(android.WritablePath); ok { // generated sources
+						deps.srcs = append(deps.srcs, src)
+					} else { // select source path for documentation based on whitelist path prefixs.
+						for k, _ := range whitelistPathPrefixes {
+							if strings.HasPrefix(src.Rel(), k) {
+								deps.srcs = append(deps.srcs, src)
+								break
+							}
+						}
+					}
+				}
+				deps.srcJars = append(deps.srcJars, dep.(SrcDependency).CompiledSrcJars()...)
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
