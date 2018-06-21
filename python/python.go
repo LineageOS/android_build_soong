@@ -574,32 +574,39 @@ func (p *Module) walkTransitiveDeps(ctx android.ModuleContext) {
 		destToPyData[path.dest] = path.src.String()
 	}
 
+	seen := make(map[android.Module]bool)
+
 	// visit all its dependencies in depth first.
-	ctx.VisitDepsDepthFirst(func(module android.Module) {
-		if ctx.OtherModuleDependencyTag(module) != pythonLibTag {
-			return
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		if ctx.OtherModuleDependencyTag(child) != pythonLibTag {
+			return false
 		}
+		if seen[child] {
+			return false
+		}
+		seen[child] = true
 		// Python modules only can depend on Python libraries.
-		if !isPythonLibModule(module) {
+		if !isPythonLibModule(child) {
 			panic(fmt.Errorf(
 				"the dependency %q of module %q is not Python library!",
-				ctx.ModuleName(), ctx.OtherModuleName(module)))
+				ctx.ModuleName(), ctx.OtherModuleName(child)))
 		}
-		if dep, ok := module.(PythonDependency); ok {
+		if dep, ok := child.(PythonDependency); ok {
 			srcs := dep.GetSrcsPathMappings()
 			for _, path := range srcs {
 				if !fillInMap(ctx, destToPySrcs,
-					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(module)) {
+					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(child)) {
 					continue
 				}
 			}
 			data := dep.GetDataPathMappings()
 			for _, path := range data {
 				fillInMap(ctx, destToPyData,
-					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(module))
+					path.dest, path.src.String(), ctx.ModuleName(), ctx.OtherModuleName(child))
 			}
 			p.depsSrcsZips = append(p.depsSrcsZips, dep.GetSrcsZip())
 		}
+		return true
 	})
 }
 
