@@ -14,39 +14,40 @@
 
 package config
 
-import "android/soong/android"
+import (
+	"strings"
+
+	"android/soong/android"
+)
 
 var (
 	// These will be filled out by external/error_prone/soong/error_prone.go if it is available
-	ErrorProneJavacJar              string
-	ErrorProneJar                   string
-	ErrorProneClasspath             string
-	ErrorProneChecksError           string
-	ErrorProneChecksWarning         string
-	ErrorProneChecksDefaultDisabled string
-	ErrorProneFlags                 string
+	ErrorProneClasspath             []string
+	ErrorProneChecksError           []string
+	ErrorProneChecksWarning         []string
+	ErrorProneChecksDefaultDisabled []string
+	ErrorProneChecksOff             []string
+	ErrorProneFlags                 []string
 )
 
 // Wrapper that grabs value of val late so it can be initialized by a later module's init function
-func errorProneVar(name string, val *string) {
+func errorProneVar(name string, val *[]string, sep string) {
 	pctx.VariableFunc(name, func(android.PackageVarContext) string {
-		return *val
+		return strings.Join(*val, sep)
 	})
 }
 
 func init() {
-	errorProneVar("ErrorProneJar", &ErrorProneJar)
-	errorProneVar("ErrorProneJavacJar", &ErrorProneJavacJar)
-	errorProneVar("ErrorProneClasspath", &ErrorProneClasspath)
-	errorProneVar("ErrorProneChecksError", &ErrorProneChecksError)
-	errorProneVar("ErrorProneChecksWarning", &ErrorProneChecksWarning)
-	errorProneVar("ErrorProneChecksDefaultDisabled", &ErrorProneChecksDefaultDisabled)
-	errorProneVar("ErrorProneFlags", &ErrorProneFlags)
-
-	pctx.StaticVariable("ErrorProneCmd",
-		"${JavaCmd} -Xmx${JavacHeapSize} -Xbootclasspath/p:${ErrorProneJavacJar} "+
-			"-cp ${ErrorProneJar}:${ErrorProneClasspath} "+
-			"${ErrorProneFlags} ${CommonJdkFlags} "+
-			"${ErrorProneChecksError} ${ErrorProneChecksWarning} ${ErrorProneChecksDefaultDisabled}")
-
+	errorProneVar("ErrorProneClasspath", &ErrorProneClasspath, ":")
+	errorProneVar("ErrorProneChecksError", &ErrorProneChecksError, " ")
+	errorProneVar("ErrorProneChecksWarning", &ErrorProneChecksWarning, " ")
+	errorProneVar("ErrorProneChecksDefaultDisabled", &ErrorProneChecksDefaultDisabled, " ")
+	errorProneVar("ErrorProneChecksOff", &ErrorProneChecksOff, " ")
+	errorProneVar("ErrorProneFlags", &ErrorProneFlags, " ")
+	pctx.StaticVariable("ErrorProneChecks", strings.Join([]string{
+		"${ErrorProneChecksOff}",
+		"${ErrorProneChecksError}",
+		"${ErrorProneChecksWarning}",
+		"${ErrorProneChecksDefaultDisabled}",
+	}, " "))
 }
