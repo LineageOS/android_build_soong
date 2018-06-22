@@ -788,12 +788,15 @@ func (z *ZipWriter) writeSymlink(rel, file string) error {
 		Name: rel,
 	}
 	fileHeader.SetModTime(z.time)
-	fileHeader.SetMode(0700 | os.ModeSymlink)
+	fileHeader.SetMode(0777 | os.ModeSymlink)
 
 	dest, err := os.Readlink(file)
 	if err != nil {
 		return err
 	}
+
+	fileHeader.UncompressedSize64 = uint64(len(dest))
+	fileHeader.CRC32 = crc32.ChecksumIEEE([]byte(dest))
 
 	ze := make(chan *zipEntry, 1)
 	futureReaders := make(chan chan io.Reader, 1)
