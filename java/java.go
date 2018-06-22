@@ -281,6 +281,9 @@ type Module struct {
 
 	// list of extra progurad flag files
 	extraProguardFlagFiles android.Paths
+
+	// list of SDK lib names that this java moudule is exporting
+	exportedSdkLibs []string
 }
 
 func (j *Module) Srcs() android.Paths {
@@ -293,6 +296,7 @@ type Dependency interface {
 	HeaderJars() android.Paths
 	ImplementationJars() android.Paths
 	AidlIncludeDirs() android.Paths
+	ExportedSdkLibs() []string
 }
 
 type SdkLibraryDependency interface {
@@ -327,6 +331,7 @@ type dependencyTag struct {
 var (
 	staticLibTag     = dependencyTag{name: "staticlib"}
 	libTag           = dependencyTag{name: "javalib"}
+	annoTag          = dependencyTag{name: "annotation processor"}
 	bootClasspathTag = dependencyTag{name: "bootclasspath"}
 	systemModulesTag = dependencyTag{name: "system modules"}
 	frameworkResTag  = dependencyTag{name: "framework-res"}
@@ -517,7 +522,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
-	ctx.AddDependency(ctx.Module(), libTag, j.properties.Annotation_processors...)
+	ctx.AddDependency(ctx.Module(), annoTag, j.properties.Annotation_processors...)
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
@@ -598,6 +603,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 type deps struct {
 	classpath          classpath
 	bootClasspath      classpath
+	processorPath      classpath
 	staticJars         android.Paths
 	staticHeaderJars   android.Paths
 	staticJarResources android.Paths
@@ -714,10 +720,16 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars()...)
 			case libTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
+				// sdk lib names from dependencies are re-exported
+				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
 			case staticLibTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
+				// sdk lib names from dependencies are re-exported
+				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
+			case annoTag:
+				deps.processorPath = append(deps.processorPath, dep.ImplementationJars()...)
 			case frameworkResTag:
 				if ctx.ModuleName() == "framework" {
 					// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -748,6 +760,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			switch tag {
 			case libTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars(getLinkType(j, ctx.ModuleName()))...)
+				// names of sdk libs that are directly depended are exported
+				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
 			default:
 				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
 			}
@@ -785,7 +799,28 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		}
 	})
 
+	j.exportedSdkLibs = android.FirstUniqueStrings(j.exportedSdkLibs)
+
 	return deps
+}
+
+func getJavaVersion(ctx android.ModuleContext, javaVersion, sdkVersion string) string {
+	var ret string
+	sdk := sdkStringToNumber(ctx, sdkVersion)
+	if javaVersion != "" {
+		ret = javaVersion
+	} else if ctx.Device() && sdk <= 23 {
+		ret = "1.7"
+	} else if ctx.Device() && sdk <= 26 || !ctx.Config().TargetOpenJDK9() {
+		ret = "1.8"
+	} else if ctx.Device() && sdkVersion != "" && sdk == android.FutureApiLevel {
+		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
+		ret = "1.8"
+	} else {
+		ret = "1.9"
+	}
+
+	return ret
 }
 
 func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaBuilderFlags {
@@ -808,28 +843,30 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.javacFlags = "$javacFlags"
 	}
 
-	if len(j.properties.Errorprone.Javacflags) > 0 {
-		flags.errorProneExtraJavacFlags = strings.Join(j.properties.Errorprone.Javacflags, " ")
+	if ctx.Config().RunErrorProne() {
+		if config.ErrorProneClasspath == nil {
+			ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
+		}
+
+		errorProneFlags := []string{
+			"-Xplugin:ErrorProne",
+			"${config.ErrorProneChecks}",
+		}
+		errorProneFlags = append(errorProneFlags, j.properties.Errorprone.Javacflags...)
+
+		flags.errorProneExtraJavacFlags = "${config.ErrorProneFlags} " +
+			"'" + strings.Join(errorProneFlags, " ") + "'"
+		flags.errorProneProcessorPath = classpath(android.PathsForSource(ctx, config.ErrorProneClasspath))
 	}
 
 	// javaVersion flag.
-	sdk := sdkStringToNumber(ctx, String(j.deviceProperties.Sdk_version))
-	if j.properties.Java_version != nil {
-		flags.javaVersion = *j.properties.Java_version
-	} else if ctx.Device() && sdk <= 23 {
-		flags.javaVersion = "1.7"
-	} else if ctx.Device() && sdk <= 26 || !ctx.Config().TargetOpenJDK9() {
-		flags.javaVersion = "1.8"
-	} else if ctx.Device() && String(j.deviceProperties.Sdk_version) != "" && sdk == android.FutureApiLevel {
-		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
-		flags.javaVersion = "1.8"
-	} else {
-		flags.javaVersion = "1.9"
-	}
+	flags.javaVersion = getJavaVersion(ctx,
+		String(j.properties.Java_version), String(j.deviceProperties.Sdk_version))
 
 	// classpath
 	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
 	flags.classpath = append(flags.classpath, deps.classpath...)
+	flags.processorPath = append(flags.processorPath, deps.processorPath...)
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && !ctx.Config().TargetOpenJDK9() &&
 		!Bool(j.properties.No_standard_libs) &&
@@ -969,7 +1006,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 	if len(uniqueSrcFiles) > 0 || len(srcJars) > 0 {
 		var extraJarDeps android.Paths
-		if ctx.Config().IsEnvTrue("RUN_ERROR_PRONE") {
+		if ctx.Config().RunErrorProne() {
 			// If error-prone is enabled, add an additional rule to compile the java files into
 			// a separate set of classes (so that they don't overwrite the normal ones and require
 			// a rebuild when error-prone is turned off).
@@ -1189,6 +1226,10 @@ func (j *Module) AidlIncludeDirs() android.Paths {
 	return j.exportAidlIncludeDirs
 }
 
+func (j *Module) ExportedSdkLibs() []string {
+	return j.exportedSdkLibs
+}
+
 var _ logtagsProducer = (*Module)(nil)
 
 func (j *Module) logtags() android.Paths {
@@ -1390,6 +1431,9 @@ type ImportProperties struct {
 	Sdk_version *string
 
 	Installable *bool
+
+	// List of shared java libs that this module has dependencies to
+	Libs []string
 }
 
 type Import struct {
@@ -1400,6 +1444,7 @@ type Import struct {
 
 	classpathFiles        android.Paths
 	combinedClasspathFile android.Path
+	exportedSdkLibs       []string
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
@@ -1415,6 +1460,7 @@ func (j *Import) Name() string {
 }
 
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
+	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1423,6 +1469,28 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	outputFile := android.PathForModuleOut(ctx, "classes.jar")
 	TransformJarsToJar(ctx, outputFile, "for prebuilts", j.classpathFiles, android.OptionalPath{}, false, nil)
 	j.combinedClasspathFile = outputFile
+
+	ctx.VisitDirectDeps(func(module android.Module) {
+		otherName := ctx.OtherModuleName(module)
+		tag := ctx.OtherModuleDependencyTag(module)
+
+		switch dep := module.(type) {
+		case Dependency:
+			switch tag {
+			case libTag, staticLibTag:
+				// sdk lib names from dependencies are re-exported
+				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
+			}
+		case SdkLibraryDependency:
+			switch tag {
+			case libTag:
+				// names of sdk libs that are directly depended are exported
+				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
+			}
+		}
+	})
+
+	j.exportedSdkLibs = android.FirstUniqueStrings(j.exportedSdkLibs)
 }
 
 var _ Dependency = (*Import)(nil)
@@ -1437,6 +1505,10 @@ func (j *Import) ImplementationJars() android.Paths {
 
 func (j *Import) AidlIncludeDirs() android.Paths {
 	return nil
+}
+
+func (j *Import) ExportedSdkLibs() []string {
+	return j.exportedSdkLibs
 }
 
 var _ android.PrebuiltInterface = (*Import)(nil)

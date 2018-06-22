@@ -162,6 +162,11 @@ func runMakeProductConfig(ctx Context, config Config) {
 
 		// Whether --werror_overriding_commands will work
 		"BUILD_BROKEN_DUP_RULES",
+
+		// Not used, but useful to be in the soong.log
+		"BUILD_BROKEN_ANDROIDMK_EXPORTS",
+		"BUILD_BROKEN_DUP_COPY_HEADERS",
+		"BUILD_BROKEN_PHONY_TARGETS",
 	}, exportEnvVars...), BannerVars...)
 
 	make_vars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true)
@@ -187,5 +192,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetTargetDevice(make_vars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(make_vars["TARGET_DEVICE_DIR"])
 
+	config.SetPdkBuild(make_vars["TARGET_BUILD_PDK"] == "true")
 	config.SetBuildBrokenDupRules(make_vars["BUILD_BROKEN_DUP_RULES"] != "false")
 }

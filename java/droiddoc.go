@@ -69,7 +69,7 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source 1.8 @$out.rsp @$srcJarDir/list ` +
+				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs -sourcepath $sourcepath --no-banner --color --quiet ` +
 				`--stubs $stubsDir $opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
@@ -85,7 +85,8 @@ var (
 			RspfileContent: "$in",
 			Restat:         true,
 		},
-		"outDir", "srcJarDir", "stubsDir", "srcJars", "bootclasspathArgs", "classpathArgs", "sourcepath", "opts", "docZip")
+		"outDir", "srcJarDir", "stubsDir", "srcJars", "javaVersion", "bootclasspathArgs",
+		"classpathArgs", "sourcepath", "opts", "docZip")
 )
 
 func init() {
@@ -97,6 +98,10 @@ func init() {
 	android.RegisterModuleType("javadoc", JavadocFactory)
 	android.RegisterModuleType("javadoc_host", JavadocHostFactory)
 }
+
+var (
+	srcsLibTag = dependencyTag{name: "sources from javalib"}
+)
 
 type JavadocProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
@@ -141,6 +146,9 @@ type JavadocProperties struct {
 		// Directories rooted at the Android.bp file to pass to aidl tool
 		Local_include_dirs []string
 	}
+
+	// If not blank, set the java version passed to javadoc as -source
+	Java_version *string
 }
 
 type ApiToCheck struct {
@@ -329,15 +337,24 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 		sdkDep := decodeSdkDep(ctx, String(j.properties.Sdk_version))
 		if sdkDep.useDefaultLibs {
 			ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
+			if ctx.Config().TargetOpenJDK9() {
+				ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
+			}
 			if !Bool(j.properties.No_framework_libs) {
 				ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
 			}
 		} else if sdkDep.useModule {
+			if ctx.Config().TargetOpenJDK9() {
+				ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
+			}
 			ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.modules...)
 		}
 	}
 
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
+	if j.properties.Srcs_lib != nil {
+		ctx.AddDependency(ctx.Module(), srcsLibTag, *j.properties.Srcs_lib)
+	}
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 
@@ -437,24 +454,6 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			switch dep := module.(type) {
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.ImplementationJars()...)
-				if otherName == String(j.properties.Srcs_lib) {
-					srcs := dep.(SrcDependency).CompiledSrcs()
-					whitelistPathPrefixes := make(map[string]bool)
-					j.genWhitelistPathPrefixes(whitelistPathPrefixes)
-					for _, src := range srcs {
-						if _, ok := src.(android.WritablePath); ok { // generated sources
-							deps.srcs = append(deps.srcs, src)
-						} else { // select source path for documentation based on whitelist path prefixs.
-							for k, _ := range whitelistPathPrefixes {
-								if strings.HasPrefix(src.Rel(), k) {
-									deps.srcs = append(deps.srcs, src)
-									break
-								}
-							}
-						}
-					}
-					deps.srcJars = append(deps.srcJars, dep.(SrcDependency).CompiledSrcJars()...)
-				}
 			case SdkLibraryDependency:
 				sdkVersion := String(j.properties.Sdk_version)
 				linkType := javaSdk
@@ -470,6 +469,37 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
+		case srcsLibTag:
+			switch dep := module.(type) {
+			case Dependency:
+				srcs := dep.(SrcDependency).CompiledSrcs()
+				whitelistPathPrefixes := make(map[string]bool)
+				j.genWhitelistPathPrefixes(whitelistPathPrefixes)
+				for _, src := range srcs {
+					if _, ok := src.(android.WritablePath); ok { // generated sources
+						deps.srcs = append(deps.srcs, src)
+					} else { // select source path for documentation based on whitelist path prefixs.
+						for k, _ := range whitelistPathPrefixes {
+							if strings.HasPrefix(src.Rel(), k) {
+								deps.srcs = append(deps.srcs, src)
+								break
+							}
+						}
+					}
+				}
+				deps.srcJars = append(deps.srcJars, dep.(SrcDependency).CompiledSrcJars()...)
+			default:
+				ctx.ModuleErrorf("depends on non-java module %q", otherName)
+			}
+		case systemModulesTag:
+			if deps.systemModules != nil {
+				panic("Found two system module dependencies")
+			}
+			sm := module.(*SystemModules)
+			if sm.outputFile == nil {
+				panic("Missing directory for system module dependency")
+			}
+			deps.systemModules = sm.outputFile
 		}
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
@@ -508,19 +538,15 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	implicits = append(implicits, deps.classpath...)
 
 	var bootClasspathArgs, classpathArgs string
-	if ctx.Config().UseOpenJDK9() {
-		if len(deps.bootClasspath) > 0 {
-			// For OpenJDK 9 we use --patch-module to define the core libraries code.
-			// TODO(tobiast): Reorganize this when adding proper support for OpenJDK 9
-			// modules. Here we treat all code in core libraries as being in java.base
-			// to work around the OpenJDK 9 module system. http://b/62049770
-			bootClasspathArgs = "--patch-module=java.base=" + strings.Join(deps.bootClasspath.Strings(), ":")
+
+	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), String(j.properties.Sdk_version))
+	if len(deps.bootClasspath) > 0 {
+		var systemModules classpath
+		if deps.systemModules != nil {
+			systemModules = append(systemModules, deps.systemModules)
 		}
-	} else {
-		if len(deps.bootClasspath.Strings()) > 0 {
-			// For OpenJDK 8 we can use -bootclasspath to define the core libraries code.
-			bootClasspathArgs = deps.bootClasspath.FormJavaClassPath("-bootclasspath")
-		}
+		bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
+		bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
 	}
 	if len(deps.classpath.Strings()) > 0 {
 		classpathArgs = "-classpath " + strings.Join(deps.classpath.Strings(), ":")
@@ -528,7 +554,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	implicits = append(implicits, j.srcJars...)
 
-	opts := "-J-Xmx1024m -XDignore.symbol.file -Xdoclint:none"
+	opts := "-source " + javaVersion + " -J-Xmx1024m -XDignore.symbol.file -Xdoclint:none"
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           javadoc,
@@ -612,7 +638,23 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	implicits = append(implicits, deps.bootClasspath...)
 	implicits = append(implicits, deps.classpath...)
 
-	bootClasspathArgs := deps.bootClasspath.FormJavaClassPath("-bootclasspath")
+	var bootClasspathArgs string
+	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), String(d.Javadoc.properties.Sdk_version))
+	if javaVersion == "1.9" {
+		if len(deps.bootClasspath) > 0 {
+			var systemModules classpath
+			if deps.systemModules != nil {
+				systemModules = append(systemModules, deps.systemModules)
+			}
+			bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
+			bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
+		}
+	} else {
+		if len(deps.bootClasspath.Strings()) > 0 {
+			// For OpenJDK 8 we can use -bootclasspath to define the core libraries code.
+			bootClasspathArgs = deps.bootClasspath.FormJavaClassPath("-bootclasspath")
+		}
+	}
 	classpathArgs := deps.classpath.FormJavaClassPath("-classpath")
 
 	argFiles := ctx.ExpandSources(d.properties.Arg_files, nil)
@@ -801,7 +843,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		date = `date -d`
 	}
 
-	doclavaOpts := "-source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
+	doclavaOpts := "-source " + javaVersion + " -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
 		"-templatedir " + templateDir + " " + htmlDirArgs + " " + htmlDir2Args + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
@@ -844,6 +886,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"srcJarDir":         android.PathForModuleOut(ctx, "docs", "srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
+			"javaVersion":       javaVersion,
 			"bootclasspathArgs": bootClasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepath":        strings.Join(d.Javadoc.sourcepaths.Strings(), ":"),

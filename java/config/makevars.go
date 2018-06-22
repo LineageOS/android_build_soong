@@ -52,18 +52,17 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("TURBINE", "${TurbineJar}")
 
-	if ctx.Config().IsEnvTrue("RUN_ERROR_PRONE") {
-		ctx.Strict("TARGET_JAVAC", "${ErrorProneCmd}")
-		ctx.Strict("HOST_JAVAC", "${ErrorProneCmd}")
-	} else {
-		ctx.Strict("TARGET_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
-		ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
+	if ctx.Config().RunErrorProne() {
+		ctx.Strict("ERROR_PRONE_JARS", strings.Join(ErrorProneClasspath, " "))
+		ctx.Strict("ERROR_PRONE_FLAGS", "${ErrorProneFlags}")
+		ctx.Strict("ERROR_PRONE_CHECKS", "${ErrorProneChecks}")
 	}
 
-	if ctx.Config().UseOpenJDK9() {
-		ctx.Strict("JLINK", "${JlinkCmd}")
-		ctx.Strict("JMOD", "${JmodCmd}")
-	}
+	ctx.Strict("TARGET_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
+	ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
+
+	ctx.Strict("JLINK", "${JlinkCmd}")
+	ctx.Strict("JMOD", "${JmodCmd}")
 
 	ctx.Strict("SOONG_JAVAC_WRAPPER", "${SoongJavacWrapper}")
 	ctx.Strict("ZIPSYNC", "${ZipSyncCmd}")
