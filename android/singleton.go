@@ -50,7 +50,9 @@ type SingletonContext interface {
 
 	VisitAllModules(visit func(Module))
 	VisitAllModulesIf(pred func(Module) bool, visit func(Module))
+	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirst(module Module, visit func(Module))
+	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirstIf(module Module, pred func(Module) bool,
 		visit func(Module))
 
