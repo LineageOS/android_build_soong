@@ -795,6 +795,8 @@ func (z *ZipWriter) writeSymlink(rel, file string) error {
 		return err
 	}
 
+	fileHeader.CRC32 = crc32.ChecksumIEEE([]byte(dest))
+
 	ze := make(chan *zipEntry, 1)
 	futureReaders := make(chan chan io.Reader, 1)
 	futureReader := make(chan io.Reader, 1)
