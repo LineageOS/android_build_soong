@@ -144,7 +144,9 @@ type ModuleContext interface {
 	VisitDirectDeps(visit func(Module))
 	VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
 	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
+	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirst(visit func(Module))
+	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
 	WalkDeps(visit func(Module, Module) bool)
 
@@ -539,6 +541,7 @@ func (a *ModuleBase) computeInstallDeps(
 	ctx blueprint.ModuleContext) Paths {
 
 	result := Paths{}
+	// TODO(ccross): we need to use WalkDeps and have some way to know which dependencies require installation
 	ctx.VisitDepsDepthFirstIf(isFileInstaller,
 		func(m blueprint.Module) {
 			fileInstaller := m.(fileInstaller)
