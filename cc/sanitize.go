@@ -21,6 +21,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/blueprint"
+
 	"android/soong/android"
 	"android/soong/cc/config"
 )
@@ -616,43 +618,54 @@ func (sanitize *sanitize) isSanitizerEnabled(t sanitizerType) bool {
 	return sanitizerVal != nil && *sanitizerVal == true
 }
 
+func isSanitizableDependencyTag(tag blueprint.DependencyTag) bool {
+	t, ok := tag.(dependencyTag)
+	return ok && t.library || t == reuseObjTag
+}
+
 // Propagate asan requirements down from binaries
 func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 	return func(mctx android.TopDownMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(t) {
-			mctx.VisitDepsDepthFirst(func(module android.Module) {
-				if d, ok := module.(*Module); ok && d.sanitize != nil &&
+			mctx.WalkDeps(func(child, parent android.Module) bool {
+				if !isSanitizableDependencyTag(mctx.OtherModuleDependencyTag(child)) {
+					return false
+				}
+				if d, ok := child.(*Module); ok && d.sanitize != nil &&
 					!Bool(d.sanitize.Properties.Sanitize.Never) &&
 					!d.sanitize.isSanitizerExplicitlyDisabled(t) {
 					if (t == cfi && d.static()) || t != cfi {
 						d.sanitize.Properties.SanitizeDep = true
 					}
 				}
+				return true
 			})
 		}
 	}
 }
 
 // Propagate the ubsan minimal runtime dependency when there are integer overflow sanitized static dependencies.
-func sanitizerRuntimeDepsMutator() func(android.TopDownMutatorContext) {
-	return func(mctx android.TopDownMutatorContext) {
-		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
-			mctx.VisitDepsDepthFirst(func(module android.Module) {
-				if d, ok := module.(*Module); ok && d.static() && d.sanitize != nil {
+func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
+	if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
+		mctx.WalkDeps(func(child, parent android.Module) bool {
+			if !isSanitizableDependencyTag(mctx.OtherModuleDependencyTag(child)) {
+				return false
+			}
+			if d, ok := child.(*Module); ok && d.static() && d.sanitize != nil {
 
-					if enableMinimalRuntime(d.sanitize) {
-						// If a static dependency is built with the minimal runtime,
-						// make sure we include the ubsan minimal runtime.
-						c.sanitize.Properties.MinimalRuntimeDep = true
-					} else if Bool(d.sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
-						len(d.sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0 {
-						// If a static dependency runs with full ubsan diagnostics,
-						// make sure we include the ubsan runtime.
-						c.sanitize.Properties.UbsanRuntimeDep = true
-					}
+				if enableMinimalRuntime(d.sanitize) {
+					// If a static dependency is built with the minimal runtime,
+					// make sure we include the ubsan minimal runtime.
+					c.sanitize.Properties.MinimalRuntimeDep = true
+				} else if Bool(d.sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
+					len(d.sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0 {
+					// If a static dependency runs with full ubsan diagnostics,
+					// make sure we include the ubsan runtime.
+					c.sanitize.Properties.UbsanRuntimeDep = true
 				}
-			})
-		}
+			}
+			return true
+		})
 	}
 }
 
