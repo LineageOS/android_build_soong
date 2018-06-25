@@ -640,6 +640,12 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var bootClasspathArgs string
 	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), String(d.Javadoc.properties.Sdk_version))
+	// Doclava has problem with "-source 1.9", so override javaVersion when Doclava
+	// is running with EXPERIMENTAL_USE_OPENJDK9=true. And eventually Doclava will be
+	// replaced by Metalava.
+	if !Bool(d.properties.Metalava_enabled) {
+		javaVersion = "1.8"
+	}
 	if javaVersion == "1.9" {
 		if len(deps.bootClasspath) > 0 {
 			var systemModules classpath
