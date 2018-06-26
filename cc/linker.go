@@ -246,6 +246,10 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 	if ctx.Darwin() {
 		return false
 	}
+	// http://b/110800681 - lld cannot link Android's Windows modules yet.
+	if ctx.Windows() {
+		return false
+	}
 	if linker.Properties.Use_clang_lld != nil {
 		return Bool(linker.Properties.Use_clang_lld)
 	}
