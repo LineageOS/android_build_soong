@@ -155,7 +155,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	if ctx.clang() {
 		if ctx.Host() {
-			globalSanitizers = ctx.Config().SanitizeHost()
+			if !ctx.Windows() {
+				globalSanitizers = ctx.Config().SanitizeHost()
+			}
 		} else {
 			arches := ctx.Config().SanitizeDeviceArch()
 			if len(arches) == 0 || inList(ctx.Arch().ArchType.Name, arches) {
