@@ -79,6 +79,7 @@ var (
 		"-m32",
 		"-Wl,--large-address-aware",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib32",
+		"-static-libgcc",
 	}
 	windowsX86ClangLdflags = append(ClangFilterUnknownCflags(windowsX86Ldflags), []string{
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
@@ -90,6 +91,7 @@ var (
 	windowsX8664Ldflags = []string{
 		"-m64",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib64",
+		"-static-libgcc",
 	}
 	windowsX8664ClangLdflags = append(ClangFilterUnknownCflags(windowsX8664Ldflags), []string{
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
