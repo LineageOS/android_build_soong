@@ -216,9 +216,6 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 	if ctx.Host() && !binary.static() {
 		if !ctx.Config().IsEnvTrue("DISABLE_HOST_PIE") {
 			flags.LdFlags = append(flags.LdFlags, "-pie")
-			if ctx.Windows() {
-				flags.LdFlags = append(flags.LdFlags, "-Wl,-e_mainCRTStartup")
-			}
 		}
 	}
 
