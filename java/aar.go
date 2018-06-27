@@ -323,7 +323,6 @@ func AndroidLibraryFactory() android.Module {
 		&module.androidLibraryProperties)
 
 	module.androidLibraryProperties.BuildAAR = true
-	module.properties.Installable = proptools.BoolPtr(false)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
