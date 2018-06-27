@@ -747,8 +747,8 @@ var moduleTypes = map[string]string{
 	"BUILD_NATIVE_BENCHMARK":      "cc_benchmark",
 	"BUILD_HOST_NATIVE_BENCHMARK": "cc_benchmark_host",
 
-	"BUILD_JAVA_LIBRARY":             "java_library",
-	"BUILD_STATIC_JAVA_LIBRARY":      "java_library_static",
+	"BUILD_JAVA_LIBRARY":             "java_library_installable", // will be rewritten to java_library by bpfix
+	"BUILD_STATIC_JAVA_LIBRARY":      "java_library",
 	"BUILD_HOST_JAVA_LIBRARY":        "java_library_host",
 	"BUILD_HOST_DALVIK_JAVA_LIBRARY": "java_library_host_dalvik",
 	"BUILD_PACKAGE":                  "android_app",
