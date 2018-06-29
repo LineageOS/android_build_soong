@@ -99,6 +99,9 @@ type sdkLibraryProperties struct {
 	// These libraries are not compiled into the stubs jar.
 	Static_libs []string `android:"arch_variant"`
 
+	// List of Java libraries that will be in the classpath when building stubs
+	Stub_only_libs []string `android:"arch_variant"`
+
 	// list of package names that will be documented and publicized as API
 	Api_packages []string
 
@@ -297,6 +300,7 @@ func (module *sdkLibrary) createStubsLibrary(mctx android.TopDownMutatorContext,
 		Name              *string
 		Srcs              []string
 		Sdk_version       *string
+		Libs              []string
 		Soc_specific      *bool
 		Device_specific   *bool
 		Product_specific  *bool
@@ -314,6 +318,7 @@ func (module *sdkLibrary) createStubsLibrary(mctx android.TopDownMutatorContext,
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.docsName(apiScope)}
 	props.Sdk_version = proptools.StringPtr(module.sdkVersion(apiScope))
+	props.Libs = module.properties.Stub_only_libs
 	// Unbundled apps will use the prebult one from /prebuilts/sdk
 	props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
