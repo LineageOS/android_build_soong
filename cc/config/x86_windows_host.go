@@ -45,7 +45,6 @@ var (
 
 	windowsIncludeFlags = []string{
 		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include",
-		"-isystem ${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/include",
 	}
 
 	windowsClangCppflags = []string{
@@ -79,22 +78,34 @@ var (
 		"-m32",
 		"-Wl,--large-address-aware",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib32",
+		"-static-libgcc",
 	}
 	windowsX86ClangLdflags = append(ClangFilterUnknownCflags(windowsX86Ldflags), []string{
+		"-B${WindowsGccRoot}/${WindowsGccTriple}/bin",
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib32",
+		"-pthread",
+		// Bug: http://b/109759970 - WAR until issue with ld.bfd's
+		// inability to handle Clang-generated section names is fixed.
+		"-Wl,--allow-multiple-definition",
 	}...)
 	windowsX86ClangLldflags = ClangFilterUnknownLldflags(windowsX86ClangLdflags)
 
 	windowsX8664Ldflags = []string{
 		"-m64",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib64",
+		"-static-libgcc",
 	}
 	windowsX8664ClangLdflags = append(ClangFilterUnknownCflags(windowsX8664Ldflags), []string{
+		"-B${WindowsGccRoot}/${WindowsGccTriple}/bin",
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib64",
+		"-pthread",
+		// Bug: http://b/109759970 - WAR until issue with ld.bfd's
+		// inability to handle Clang-generated section names is fixed.
+		"-Wl,--allow-multiple-definition",
 	}...)
 	windowsX8664ClangLldflags = ClangFilterUnknownLldflags(windowsX8664ClangLdflags)
 
@@ -220,7 +231,7 @@ func (t *toolchainWindowsX8664) WindresFlags() string {
 }
 
 func (t *toolchainWindows) ClangSupported() bool {
-	return false
+	return true
 }
 
 func (t *toolchainWindowsX86) ClangTriple() string {

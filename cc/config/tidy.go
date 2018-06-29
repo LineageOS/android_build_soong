@@ -19,6 +19,13 @@ import (
 	"strings"
 )
 
+// clang-tidy doesn't recognize every flag that clang does. This is unlikely to
+// be a complete list, but we can populate this with the ones we know to avoid
+// issues with clang-diagnostic-unused-command-line-argument.
+var ClangTidyUnknownCflags = sorted([]string{
+	"-Wa,%",
+})
+
 func init() {
 	// Most Android source files are not clang-tidy clean yet.
 	// Global tidy checks include only google*, performance*,

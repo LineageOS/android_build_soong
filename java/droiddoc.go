@@ -646,20 +646,11 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if !Bool(d.properties.Metalava_enabled) {
 		javaVersion = "1.8"
 	}
-	if javaVersion == "1.9" {
-		if len(deps.bootClasspath) > 0 {
-			var systemModules classpath
-			if deps.systemModules != nil {
-				systemModules = append(systemModules, deps.systemModules)
-			}
-			bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
-			bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
-		}
-	} else {
-		if len(deps.bootClasspath.Strings()) > 0 {
-			// For OpenJDK 8 we can use -bootclasspath to define the core libraries code.
-			bootClasspathArgs = deps.bootClasspath.FormJavaClassPath("-bootclasspath")
-		}
+	// continue to use -bootclasspath even if Metalava under -source 1.9 is enabled
+	// since it doesn't support system modules yet.
+	if len(deps.bootClasspath.Strings()) > 0 {
+		// For OpenJDK 8 we can use -bootclasspath to define the core libraries code.
+		bootClasspathArgs = deps.bootClasspath.FormJavaClassPath("-bootclasspath")
 	}
 	classpathArgs := deps.classpath.FormJavaClassPath("-classpath")
 
