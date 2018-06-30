@@ -41,10 +41,11 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
+				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
 				`$processorpath $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
-				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list && ` +
+				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
 			CommandDeps: []string{
 				"${config.JavacCmd}",
