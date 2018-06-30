@@ -41,9 +41,6 @@ type BinaryLinkerProperties struct {
 	// extension (if any) appended
 	Symlinks []string `android:"arch_variant"`
 
-	// do not pass -pie
-	No_pie *bool `android:"arch_variant"`
-
 	DynamicLinker string `blueprint:"mutated"`
 
 	// Names of modules to be overridden. Listed modules can only be other binaries
