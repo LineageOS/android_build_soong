@@ -188,7 +188,7 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/28/system/api/bar-removed.txt": nil,
 		"prebuilts/sdk/28/test/api/bar-removed.txt":   nil,
 		"prebuilts/sdk/tools/core-lambda-stubs.jar":   nil,
-		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "prebuilt_apis",}`),
+		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "current"],}`),
 
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
