@@ -522,8 +522,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
-	ctx.AddDependency(ctx.Module(), annoTag, j.properties.Annotation_processors...)
-
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{"arch", ctx.Config().BuildOsCommonVariant},
+	}, annoTag, j.properties.Annotation_processors...)
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
