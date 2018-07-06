@@ -90,8 +90,9 @@ type config struct {
 	ConfigFileName           string
 	ProductVariablesFileName string
 
-	Targets        map[OsClass][]Target
-	BuildOsVariant string
+	Targets              map[OsClass][]Target
+	BuildOsVariant       string
+	BuildOsCommonVariant string
 
 	deviceConfig *deviceConfig
 
@@ -310,6 +311,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 
 	config.Targets = targets
 	config.BuildOsVariant = targets[Host][0].String()
+	config.BuildOsCommonVariant = getCommonTargets(targets[Host])[0].String()
 
 	if err := config.fromEnv(); err != nil {
 		return Config{}, err
