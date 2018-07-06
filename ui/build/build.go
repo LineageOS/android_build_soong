@@ -40,7 +40,6 @@ builddir = {{.OutDir}}
 {{if .HasKatiSuffix}}include {{.KatiNinjaFile}}
 {{end -}}
 include {{.SoongNinjaFile}}
-build {{.CombinedNinjaFile}}: phony {{.SoongNinjaFile}}
 `))
 
 func createCombinedBuildNinjaFile(ctx Context, config Config) {
