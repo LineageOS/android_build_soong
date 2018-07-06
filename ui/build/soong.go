@@ -71,18 +71,28 @@ func runSoong(ctx Context, config Config) {
 		}
 	}()
 
+	var cfg microfactory.Config
+	cfg.Map("github.com/google/blueprint", "build/blueprint")
+
+	cfg.TrimPath = absPath(ctx, ".")
+
 	func() {
 		ctx.BeginTrace("minibp")
 		defer ctx.EndTrace()
 
-		var cfg microfactory.Config
-		cfg.Map("github.com/google/blueprint", "build/blueprint")
-
-		cfg.TrimPath = absPath(ctx, ".")
-
 		minibp := filepath.Join(config.SoongOutDir(), ".minibootstrap/minibp")
 		if _, err := microfactory.Build(&cfg, minibp, "github.com/google/blueprint/bootstrap/minibp"); err != nil {
 			ctx.Fatalln("Failed to build minibp:", err)
+		}
+	}()
+
+	func() {
+		ctx.BeginTrace("bpglob")
+		defer ctx.EndTrace()
+
+		bpglob := filepath.Join(config.SoongOutDir(), ".minibootstrap/bpglob")
+		if _, err := microfactory.Build(&cfg, bpglob, "github.com/google/blueprint/bootstrap/bpglob"); err != nil {
+			ctx.Fatalln("Failed to build bpglob:", err)
 		}
 	}()
 
