@@ -48,7 +48,7 @@ var (
 
 	aidl = pctx.AndroidStaticRule("aidl",
 		blueprint.RuleParams{
-			Command:     "$aidlCmd -d${out}.d -ninja $aidlFlags $in $outDir $out",
+			Command:     "$aidlCmd -d${out}.d --ninja $aidlFlags $in $outDir $out",
 			CommandDeps: []string{"$aidlCmd"},
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
