@@ -1570,14 +1570,9 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 			}
 
 			if recoveryVariantNeeded {
-				var recoveryMultilib string
-				if mctx.Config().DevicePrefer32BitExecutables() {
-					recoveryMultilib = "lib32"
-				} else {
-					recoveryMultilib = "lib64"
-				}
-				multilib := genrule.Target().Arch.ArchType.Multilib
-				if multilib != recoveryMultilib {
+				primaryArch := mctx.Config().DevicePrimaryArchType()
+				moduleArch := genrule.Target().Arch.ArchType
+				if moduleArch != primaryArch {
 					recoveryVariantNeeded = false
 				}
 			}
@@ -1690,14 +1685,9 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 	}
 
 	if recoveryVariantNeeded {
-		var recoveryMultilib string
-		if mctx.Config().DevicePrefer32BitExecutables() {
-			recoveryMultilib = "lib32"
-		} else {
-			recoveryMultilib = "lib64"
-		}
-		multilib := m.Target().Arch.ArchType.Multilib
-		if multilib != recoveryMultilib {
+		primaryArch := mctx.Config().DevicePrimaryArchType()
+		moduleArch := m.Target().Arch.ArchType
+		if moduleArch != primaryArch {
 			recoveryVariantNeeded = false
 		}
 	}
