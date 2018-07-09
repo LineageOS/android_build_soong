@@ -192,6 +192,9 @@ type CompilerDeviceProperties struct {
 	// If true, export a copy of the module as a -hostdex module for host testing.
 	Hostdex *bool
 
+	// If set to true, compile dex regardless of installable.  Defaults to false.
+	Compile_dex *bool
+
 	Dex_preopt struct {
 		// If false, prevent dexpreopting and stripping the dex file from the final jar.  Defaults to
 		// true.
@@ -1134,10 +1137,14 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		outputFile = j.instrument(ctx, flags, outputFile, jarName)
 	}
 
-	if ctx.Device() && j.installable() {
-		outputFile = j.compileDex(ctx, flags, outputFile, jarName)
+	if ctx.Device() && j.createDexRule() {
+		var dexOutputFile android.Path
+		dexOutputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
+		}
+		if j.installable() {
+			outputFile = dexOutputFile
 		}
 	}
 	ctx.CheckbuildFile(outputFile)
@@ -1211,6 +1218,10 @@ func (j *Module) minSdkVersionNumber(ctx android.ModuleContext) string {
 
 func (j *Module) installable() bool {
 	return BoolDefault(j.properties.Installable, true)
+}
+
+func (j *Module) createDexRule() bool {
+	return Bool(j.deviceProperties.Compile_dex) || j.installable()
 }
 
 var _ Dependency = (*Library)(nil)
