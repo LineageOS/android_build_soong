@@ -217,6 +217,18 @@ See [art/build/art.go](https://android.googlesource.com/platform/art/+/master/bu
 or [external/llvm/soong/llvm.go](https://android.googlesource.com/platform/external/llvm/+/master/soong/llvm.go)
 for examples of more complex conditionals on product variables or environment variables.
 
+## Developing for Soong
+
+To load Soong code in a Go-aware IDE, create a directory outside your android tree and then:
+```bash
+apt install bindfs
+export GOPATH=<path to the directory you created>
+build/soong/scripts/setup_go_workspace_for_soong.sh
+```
+
+This will bind mount the Soong source directories into the directory in the layout expected by
+the IDE.
+
 ## Contact
 
 Email android-building@googlegroups.com (external) for any questions, or see
