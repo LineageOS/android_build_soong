@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -56,7 +57,7 @@ func testForDanglingRules(ctx Context, config Config) {
 	bootstrapDir := filepath.Join(outDir, "soong", ".bootstrap")
 	miniBootstrapDir := filepath.Join(outDir, "soong", ".minibootstrap")
 
-	var danglingRules []string
+	danglingRules := make(map[string]bool)
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
@@ -70,16 +71,22 @@ func testForDanglingRules(ctx Context, config Config) {
 			// full build rules in the primary build.ninja file.
 			continue
 		}
-		danglingRules = append(danglingRules, line)
+		danglingRules[line] = true
 	}
 
 	cmd.WaitOrFatal()
 
-	if len(danglingRules) > 0 {
+	var danglingRulesList []string
+	for rule := range danglingRules {
+		danglingRulesList = append(danglingRulesList, rule)
+	}
+	sort.Strings(danglingRulesList)
+
+	if len(danglingRulesList) > 0 {
 		ctx.Println("Dependencies in out found with no rule to create them:")
-		for _, dep := range danglingRules {
-			ctx.Println(dep)
+		for _, dep := range danglingRulesList {
+			ctx.Println("  ", dep)
 		}
-		ctx.Fatal("")
+		ctx.Fatal("stopping")
 	}
 }
