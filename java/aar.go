@@ -74,7 +74,7 @@ func (a *aapt) ExportPackage() android.Path {
 	return a.exportPackage
 }
 
-func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags []string, deps android.Paths,
+func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext) (flags []string, deps android.Paths,
 	resDirs, overlayDirs []globbedResourceDir, overlayFiles, rroDirs android.Paths, manifestPath android.Path) {
 
 	hasVersionCode := false
@@ -125,20 +125,17 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags [
 	linkFlags = append(linkFlags, android.JoinWithPrefix(assetDirs.Strings(), "-A "))
 	linkDeps = append(linkDeps, assetFiles...)
 
-	transitiveStaticLibs, libDeps, libFlags := aaptLibs(ctx, sdkVersion)
+	transitiveStaticLibs, libDeps, libFlags := aaptLibs(ctx, sdkContext)
 
 	overlayFiles = append(overlayFiles, transitiveStaticLibs...)
 	linkDeps = append(linkDeps, libDeps...)
 	linkFlags = append(linkFlags, libFlags...)
 
 	// SDK version flags
-	switch sdkVersion {
-	case "", "current", "system_current", "test_current":
-		sdkVersion = proptools.NinjaEscape([]string{ctx.Config().DefaultAppTargetSdk()})[0]
-	}
+	minSdkVersion := sdkVersionOrDefault(ctx, sdkContext.minSdkVersion())
 
-	linkFlags = append(linkFlags, "--min-sdk-version "+sdkVersion)
-	linkFlags = append(linkFlags, "--target-sdk-version "+sdkVersion)
+	linkFlags = append(linkFlags, "--min-sdk-version "+minSdkVersion)
+	linkFlags = append(linkFlags, "--target-sdk-version "+minSdkVersion)
 
 	// Version code
 	if !hasVersionCode {
@@ -162,17 +159,17 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags [
 	return linkFlags, linkDeps, resDirs, overlayDirs, overlayFiles, rroDirs, manifestPath
 }
 
-func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkVersion string) {
+func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
 	if !ctx.Config().UnbundledBuild() {
-		sdkDep := decodeSdkDep(ctx, sdkVersion)
+		sdkDep := decodeSdkDep(ctx, sdkContext)
 		if sdkDep.frameworkResModule != "" {
 			ctx.AddDependency(ctx.Module(), frameworkResTag, sdkDep.frameworkResModule)
 		}
 	}
 }
 
-func (a *aapt) buildActions(ctx android.ModuleContext, sdkVersion string, extraLinkFlags ...string) {
-	linkFlags, linkDeps, resDirs, overlayDirs, overlayFiles, rroDirs, manifestPath := a.aapt2Flags(ctx, sdkVersion)
+func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, extraLinkFlags ...string) {
+	linkFlags, linkDeps, resDirs, overlayDirs, overlayFiles, rroDirs, manifestPath := a.aapt2Flags(ctx, sdkContext)
 
 	linkFlags = append(linkFlags, extraLinkFlags...)
 
@@ -206,12 +203,12 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkVersion string, extraL
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkVersion string) (transitiveStaticLibs, deps android.Paths,
+func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, deps android.Paths,
 	flags []string) {
 
 	var sharedLibs android.Paths
 
-	sdkDep := decodeSdkDep(ctx, sdkVersion)
+	sdkDep := decodeSdkDep(ctx, sdkContext)
 	if sdkDep.useFiles {
 		sharedLibs = append(sharedLibs, sdkDep.jars...)
 	}
@@ -277,12 +274,12 @@ var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
 func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
 	if !Bool(a.properties.No_framework_libs) && !Bool(a.properties.No_standard_libs) {
-		a.aapt.deps(ctx, String(a.deviceProperties.Sdk_version))
+		a.aapt.deps(ctx, sdkContext(a))
 	}
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.aapt.buildActions(ctx, String(a.deviceProperties.Sdk_version), "--static-lib")
+	a.aapt.buildActions(ctx, sdkContext(a), "--static-lib")
 
 	ctx.CheckbuildFile(a.proguardOptionsFile)
 	ctx.CheckbuildFile(a.exportPackage)
@@ -359,6 +356,14 @@ type AARImport struct {
 	exportedStaticPackages android.Paths
 }
 
+func (a *AARImport) sdkVersion() string {
+	return String(a.properties.Sdk_version)
+}
+
+func (a *AARImport) minSdkVersion() string {
+	return a.sdkVersion()
+}
+
 var _ AndroidLibraryDependency = (*AARImport)(nil)
 
 func (a *AARImport) ExportPackage() android.Path {
@@ -383,7 +388,7 @@ func (a *AARImport) Name() string {
 
 func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if !ctx.Config().UnbundledBuild() {
-		sdkDep := decodeSdkDep(ctx, String(a.properties.Sdk_version))
+		sdkDep := decodeSdkDep(ctx, sdkContext(a))
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
 			ctx.AddDependency(ctx.Module(), frameworkResTag, sdkDep.frameworkResModule)
 		}
@@ -450,7 +455,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkFlags = append(linkFlags, "--manifest "+a.manifest.String())
 	linkDeps = append(linkDeps, a.manifest)
 
-	transitiveStaticLibs, libDeps, libFlags := aaptLibs(ctx, String(a.properties.Sdk_version))
+	transitiveStaticLibs, libDeps, libFlags := aaptLibs(ctx, sdkContext(a))
 
 	linkDeps = append(linkDeps, libDeps...)
 	linkFlags = append(linkFlags, libFlags...)
