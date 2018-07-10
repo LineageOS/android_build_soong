@@ -226,6 +226,10 @@ type DroiddocProperties struct {
 	// the generated removed Dex API filename by Doclava.
 	Removed_dex_api_filename *string
 
+	// mapping of dex signatures to source file and line number. This is a temporary property and
+	// will be deleted; you probably shouldn't be using it.
+	Dex_mapping_filename *string
+
 	// the generated exact API filename by Doclava.
 	Exact_api_filename *string
 
@@ -283,6 +287,7 @@ type Droiddoc struct {
 	removedApiFile    android.WritablePath
 	removedDexApiFile android.WritablePath
 	exactApiFile      android.WritablePath
+	apiMappingFile    android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
@@ -829,6 +834,13 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		args = args + " -exactApi " + d.exactApiFile.String()
 		metalavaArgs = metalavaArgs + " --exact-api " + d.exactApiFile.String()
 		implicitOutputs = append(implicitOutputs, d.exactApiFile)
+	}
+
+	if String(d.properties.Dex_mapping_filename) != "" {
+		d.apiMappingFile = android.PathForModuleOut(ctx, String(d.properties.Dex_mapping_filename))
+		args = args + " -apiMapping " + d.apiMappingFile.String()
+		// Omitted: metalava support
+		implicitOutputs = append(implicitOutputs, d.apiMappingFile)
 	}
 
 	implicits = append(implicits, d.Javadoc.srcJars...)
