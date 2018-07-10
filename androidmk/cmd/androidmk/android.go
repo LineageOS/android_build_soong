@@ -85,6 +85,7 @@ func init() {
 			"LOCAL_MULTILIB":                "compile_multilib",
 			"LOCAL_ARM_MODE_HACK":           "instruction_set",
 			"LOCAL_SDK_VERSION":             "sdk_version",
+			"LOCAL_MIN_SDK_VERSION":         "min_sdk_version",
 			"LOCAL_NDK_STL_VARIANT":         "stl",
 			"LOCAL_JAR_MANIFEST":            "manifest",
 			"LOCAL_JARJAR_RULES":            "jarjar_rules",
