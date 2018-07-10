@@ -332,9 +332,17 @@ func DroiddocHostFactory() android.Module {
 	return module
 }
 
+func (j *Javadoc) sdkVersion() string {
+	return String(j.properties.Sdk_version)
+}
+
+func (j *Javadoc) minSdkVersion() string {
+	return j.sdkVersion()
+}
+
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		sdkDep := decodeSdkDep(ctx, String(j.properties.Sdk_version))
+		sdkDep := decodeSdkDep(ctx, sdkContext(j))
 		if sdkDep.useDefaultLibs {
 			ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
 			if ctx.Config().TargetOpenJDK9() {
@@ -432,7 +440,7 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
-	sdkDep := decodeSdkDep(ctx, String(j.properties.Sdk_version))
+	sdkDep := decodeSdkDep(ctx, sdkContext(j))
 	if sdkDep.invalidVersion {
 		ctx.AddMissingDependencies(sdkDep.modules)
 	} else if sdkDep.useFiles {
@@ -455,7 +463,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.ImplementationJars()...)
 			case SdkLibraryDependency:
-				sdkVersion := String(j.properties.Sdk_version)
+				sdkVersion := j.sdkVersion()
 				linkType := javaSdk
 				if strings.HasPrefix(sdkVersion, "system_") || strings.HasPrefix(sdkVersion, "test_") {
 					linkType = javaSystem
@@ -539,7 +547,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var bootClasspathArgs, classpathArgs string
 
-	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), String(j.properties.Sdk_version))
+	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), sdkContext(j))
 	if len(deps.bootClasspath) > 0 {
 		var systemModules classpath
 		if deps.systemModules != nil {
@@ -639,7 +647,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	implicits = append(implicits, deps.classpath...)
 
 	var bootClasspathArgs string
-	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), String(d.Javadoc.properties.Sdk_version))
+	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), sdkContext(d))
 	// Doclava has problem with "-source 1.9", so override javaVersion when Doclava
 	// is running with EXPERIMENTAL_USE_OPENJDK9=true. And eventually Doclava will be
 	// replaced by Metalava.

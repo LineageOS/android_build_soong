@@ -56,7 +56,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 						fmt.Fprintln(w, "LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING := $(LOCAL_PATH)/"+*library.deviceProperties.Dex_preopt.Profile)
 					}
 				}
-				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(library.deviceProperties.Sdk_version))
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", library.sdkVersion())
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", library.headerJarFile.String())
 
 				if library.jacocoReportClassesFile != nil {
@@ -121,7 +121,7 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := ", !Bool(prebuilt.properties.Installable))
 				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.combinedClasspathFile.String())
-				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", prebuilt.sdkVersion())
 			},
 		},
 	}
@@ -141,7 +141,7 @@ func (prebuilt *AARImport) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=", prebuilt.proguardFlags.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", prebuilt.extraAaptPackagesFile.String())
 				fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", prebuilt.manifest.String())
-				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", String(prebuilt.properties.Sdk_version))
+				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", prebuilt.sdkVersion())
 			},
 		},
 	}
