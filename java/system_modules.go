@@ -119,9 +119,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 
 	jars = append(jars, android.PathsForModuleSrc(ctx, system.properties.Jars)...)
 
-	if ctx.Config().TargetOpenJDK9() {
-		system.outputFile = TransformJarsToSystemModules(ctx, "java.base", jars)
-	}
+	system.outputFile = TransformJarsToSystemModules(ctx, "java.base", jars)
 }
 
 func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -131,17 +129,15 @@ func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (system *SystemModules) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			if system.outputFile != nil {
-				makevar := "SOONG_SYSTEM_MODULES_" + name
-				fmt.Fprintln(w)
-				fmt.Fprintln(w, makevar, ":=", system.outputFile.String())
-				fmt.Fprintln(w, ".KATI_READONLY", ":=", makevar)
-				fmt.Fprintln(w, name+":", "$("+makevar+")")
-				fmt.Fprintln(w)
-				makevar = "SOONG_SYSTEM_MODULES_LIBS_" + name
-				fmt.Fprintln(w, makevar, ":=", strings.Join(system.properties.Libs, " "))
-				fmt.Fprintln(w, ".KATI_READONLY :=", makevar)
-			}
+			makevar := "SOONG_SYSTEM_MODULES_" + name
+			fmt.Fprintln(w)
+			fmt.Fprintln(w, makevar, ":=", system.outputFile.String())
+			fmt.Fprintln(w, ".KATI_READONLY", ":=", makevar)
+			fmt.Fprintln(w, name+":", "$("+makevar+")")
+			fmt.Fprintln(w)
+			makevar = "SOONG_SYSTEM_MODULES_LIBS_" + name
+			fmt.Fprintln(w, makevar, ":=", strings.Join(system.properties.Libs, " "))
+			fmt.Fprintln(w, ".KATI_READONLY :=", makevar)
 		},
 	}
 }
