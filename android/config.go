@@ -576,6 +576,10 @@ func (c *config) DevicePrefer32BitExecutables() bool {
 	return Bool(c.productVariables.DevicePrefer32BitExecutables)
 }
 
+func (c *config) DevicePrimaryArchType() ArchType {
+	return c.Targets[Device][0].Arch.ArchType
+}
+
 func (c *config) SkipDeviceInstall() bool {
 	return c.EmbeddedInMake()
 }
