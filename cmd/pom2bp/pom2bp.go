@@ -15,6 +15,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"encoding/xml"
@@ -138,9 +139,10 @@ func (d Dependency) BpName() string {
 type Pom struct {
 	XMLName xml.Name `xml:"http://maven.apache.org/POM/4.0.0 project"`
 
-	PomFile      string `xml:"-"`
-	ArtifactFile string `xml:"-"`
-	BpTarget     string `xml:"-"`
+	PomFile       string `xml:"-"`
+	ArtifactFile  string `xml:"-"`
+	BpTarget      string `xml:"-"`
+	MinSdkVersion string `xml:"-"`
 
 	GroupId    string `xml:"groupId"`
 	ArtifactId string `xml:"artifactId"`
@@ -215,11 +217,61 @@ func (p *Pom) FixDeps(modules map[string]*Pom) {
 	}
 }
 
+// ExtractMinSdkVersion extracts the minSdkVersion from the AndroidManifest.xml file inside an aar file, or sets it
+// to "current" if it is not present.
+func (p *Pom) ExtractMinSdkVersion() error {
+	aar, err := zip.OpenReader(p.ArtifactFile)
+	if err != nil {
+		return err
+	}
+	defer aar.Close()
+
+	var manifest *zip.File
+	for _, f := range aar.File {
+		if f.Name == "AndroidManifest.xml" {
+			manifest = f
+			break
+		}
+	}
+
+	if manifest == nil {
+		return fmt.Errorf("failed to find AndroidManifest.xml in %s", p.ArtifactFile)
+	}
+
+	r, err := manifest.Open()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	decoder := xml.NewDecoder(r)
+
+	manifestData := struct {
+		XMLName  xml.Name `xml:"manifest"`
+		Uses_sdk struct {
+			MinSdkVersion string `xml:"http://schemas.android.com/apk/res/android minSdkVersion,attr"`
+		} `xml:"uses-sdk"`
+	}{}
+
+	err = decoder.Decode(&manifestData)
+	if err != nil {
+		return err
+	}
+
+	p.MinSdkVersion = manifestData.Uses_sdk.MinSdkVersion
+	if p.MinSdkVersion == "" {
+		p.MinSdkVersion = "current"
+	}
+
+	return nil
+}
+
 var bpTemplate = template.Must(template.New("bp").Parse(`
 {{if .IsAar}}android_library_import{{else}}java_import{{end}} {
     name: "{{.BpName}}-nodeps",
     {{if .IsAar}}aars{{else}}jars{{end}}: ["{{.ArtifactFile}}"],
     sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
+    min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [{{range .BpAarDeps}}
         "{{.}}",{{end}}{{range .BpExtraDeps}}
         "{{.}}",{{end}}
@@ -229,7 +281,8 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
 {{if .IsAar}}android_library{{else}}java_library_static{{end}} {
     name: "{{.BpName}}",
     sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
-    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",{{end}}
+    min_sdk_version: "{{.MinSdkVersion}}",{{end}}
+    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",
     static_libs: [
         "{{.BpName}}-nodeps",{{range .BpJarDeps}}
         "{{.}}",{{end}}{{range .BpAarDeps}}
@@ -302,7 +355,7 @@ func rerunForRegen(filename string) error {
 
 	// Append all current command line args except -regen <file> to the ones from the file
 	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i] == "-regen" {
+		if os.Args[i] == "-regen" || os.Args[i] == "--regen" {
 			i++
 		} else {
 			args = append(args, os.Args[i])
@@ -468,6 +521,13 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	}
 
 	for _, pom := range poms {
+		if pom.IsAar() {
+			err := pom.ExtractMinSdkVersion()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error reading manifest for %s: %s", pom.ArtifactFile, err)
+				os.Exit(1)
+			}
+		}
 		pom.FixDeps(modules)
 	}
 
