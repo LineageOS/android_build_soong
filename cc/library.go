@@ -649,7 +649,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags)
 
-		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, vndkVsNdk(ctx), true)
+		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, vndkVsNdk(ctx))
 		if refSourceDumpFile.Valid() {
 			unzippedRefDump := UnzipRefDump(ctx, refSourceDumpFile.Path(), fileName)
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
