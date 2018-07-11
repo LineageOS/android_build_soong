@@ -92,6 +92,9 @@ type variableProperties struct {
 		Eng struct {
 			Cflags   []string
 			Cppflags []string
+			Lto      struct {
+				Never *bool
+			}
 		}
 
 		Pdk struct {
