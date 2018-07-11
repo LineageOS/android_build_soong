@@ -37,7 +37,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_LOGTAGS_FILES :=", strings.Join(logtags, " "))
 				}
 
-				if library.properties.Installable != nil && *library.properties.Installable == false {
+				if library.installFile == nil {
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				}
 				if library.dexJarFile != nil {
@@ -85,7 +85,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := JAVA_LIBRARIES")
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.implementationJarFile.String())
-				if library.properties.Installable != nil && *library.properties.Installable == false {
+				if library.installFile == nil {
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				}
 				if library.dexJarFile != nil {

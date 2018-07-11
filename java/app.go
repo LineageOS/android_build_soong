@@ -187,6 +187,7 @@ func AndroidAppFactory() android.Module {
 	module.Module.deviceProperties.Optimize.Shrink = proptools.BoolPtr(true)
 
 	module.Module.properties.Instrument = true
+	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	module.AddProperties(
 		&module.Module.properties,
@@ -225,6 +226,7 @@ func AndroidTestFactory() android.Module {
 	module := &AndroidTest{}
 
 	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	module.AddProperties(
 		&module.Module.properties,
