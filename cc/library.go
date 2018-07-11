@@ -649,20 +649,14 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags)
 
-		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, vndkVsNdk(ctx))
+		isLlndk := inList(ctx.baseModuleName(), llndkLibraries)
+		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndk)
 		if refSourceDumpFile.Valid() {
 			unzippedRefDump := UnzipRefDump(ctx, refSourceDumpFile.Path(), fileName)
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
 				unzippedRefDump, fileName, exportedHeaderFlags, ctx.isVndkExt())
 		}
 	}
-}
-
-func vndkVsNdk(ctx ModuleContext) bool {
-	if inList(ctx.baseModuleName(), llndkLibraries) {
-		return false
-	}
-	return true
 }
 
 func (library *libraryDecorator) link(ctx ModuleContext,
