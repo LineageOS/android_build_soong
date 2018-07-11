@@ -336,7 +336,8 @@ func AndroidLibraryFactory() android.Module {
 type AARImportProperties struct {
 	Aars []string
 
-	Sdk_version *string
+	Sdk_version     *string
+	Min_sdk_version *string
 
 	Static_libs []string
 	Libs        []string
@@ -362,6 +363,9 @@ func (a *AARImport) sdkVersion() string {
 }
 
 func (a *AARImport) minSdkVersion() string {
+	if a.properties.Min_sdk_version != nil {
+		return *a.properties.Min_sdk_version
+	}
 	return a.sdkVersion()
 }
 
