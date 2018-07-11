@@ -34,8 +34,8 @@ import (
 func init() {
 	android.RegisterModuleType("java_defaults", defaultsFactory)
 
-	android.RegisterModuleType("java_library", LibraryFactory(true))
-	android.RegisterModuleType("java_library_static", LibraryFactory(false))
+	android.RegisterModuleType("java_library", LibraryFactory)
+	android.RegisterModuleType("java_library_static", LibraryFactory)
 	android.RegisterModuleType("java_library_host", LibraryHostFactory)
 	android.RegisterModuleType("java_binary", BinaryFactory)
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
@@ -107,7 +107,8 @@ type CompilerProperties struct {
 	// If not blank, set the java version passed to javac as -source and -target
 	Java_version *string
 
-	// If set to false, don't allow this module to be installed.  Defaults to true.
+	// If set to true, allow this module to be dexed and installed on devices.  Has no
+	// effect on host modules, which are always considered installable.
 	Installable *bool
 
 	// If set to true, include sources used to compile the module in to the final jar
@@ -1182,13 +1183,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		outputFile = j.instrument(ctx, flags, outputFile, jarName)
 	}
 
-	if ctx.Device() && j.createDexRule() {
+	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
 		var dexOutputFile android.Path
 		dexOutputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
 		}
-		if j.installable() {
+		if Bool(j.properties.Installable) {
 			outputFile = dexOutputFile
 		}
 	}
@@ -1250,14 +1251,6 @@ func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 	return instrumentedJar
 }
 
-func (j *Module) installable() bool {
-	return BoolDefault(j.properties.Installable, true)
-}
-
-func (j *Module) createDexRule() bool {
-	return Bool(j.deviceProperties.Compile_dex) || j.installable()
-}
-
 var _ Dependency = (*Library)(nil)
 
 func (j *Module) HeaderJars() android.Paths {
@@ -1293,7 +1286,7 @@ type Library struct {
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
-	if j.installable() {
+	if Bool(j.properties.Installable) || ctx.Host() {
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			ctx.ModuleName()+".jar", j.outputFile)
 	}
@@ -1303,22 +1296,16 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
-func LibraryFactory(installable bool) func() android.Module {
-	return func() android.Module {
-		module := &Library{}
+func LibraryFactory() android.Module {
+	module := &Library{}
 
-		if !installable {
-			module.properties.Installable = proptools.BoolPtr(false)
-		}
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.protoProperties)
 
-		module.AddProperties(
-			&module.Module.properties,
-			&module.Module.deviceProperties,
-			&module.Module.protoProperties)
-
-		InitJavaModule(module, android.HostAndDeviceSupported)
-		return module
-	}
+	InitJavaModule(module, android.HostAndDeviceSupported)
+	return module
 }
 
 func LibraryHostFactory() android.Module {
@@ -1327,6 +1314,8 @@ func LibraryHostFactory() android.Module {
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.protoProperties)
+
+	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	InitJavaModule(module, android.HostSupported)
 	return module
@@ -1367,6 +1356,8 @@ func TestFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.testProperties)
 
+	module.Module.properties.Installable = proptools.BoolPtr(true)
+
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	android.InitDefaultableModule(module)
 	return module
@@ -1379,6 +1370,8 @@ func TestHostFactory() android.Module {
 		&module.Module.properties,
 		&module.Module.protoProperties,
 		&module.testProperties)
+
+	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	InitJavaModule(module, android.HostSupported)
 	android.InitDefaultableModule(module)
@@ -1449,6 +1442,8 @@ func BinaryFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.binaryProperties)
 
+	module.Module.properties.Installable = proptools.BoolPtr(true)
+
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommonFirst)
 	android.InitDefaultableModule(module)
 	return module
@@ -1461,6 +1456,8 @@ func BinaryHostFactory() android.Module {
 		&module.Module.properties,
 		&module.Module.protoProperties,
 		&module.binaryProperties)
+
+	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommonFirst)
 	android.InitDefaultableModule(module)
