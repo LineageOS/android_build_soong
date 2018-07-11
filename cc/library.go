@@ -631,6 +631,27 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	return ret
 }
 
+func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
+	isLlndk := inList(ctx.baseModuleName(), llndkLibraries)
+
+	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndk, false)
+	refAbiDumpGzipFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndk, true)
+
+	if refAbiDumpTextFile.Valid() {
+		if refAbiDumpGzipFile.Valid() {
+			ctx.ModuleErrorf(
+				"Two reference ABI dump files are found: %q and %q. Please delete the stale one.",
+				refAbiDumpTextFile, refAbiDumpGzipFile)
+			return nil
+		}
+		return refAbiDumpTextFile.Path()
+	}
+	if refAbiDumpGzipFile.Valid() {
+		return UnzipRefDump(ctx, refAbiDumpGzipFile.Path(), fileName)
+	}
+	return nil
+}
+
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
 	if len(objs.sAbiDumpFiles) > 0 && ctx.shouldCreateVndkSourceAbiDump() {
 		vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
@@ -649,12 +670,10 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags)
 
-		isLlndk := inList(ctx.baseModuleName(), llndkLibraries)
-		refSourceDumpFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndk)
-		if refSourceDumpFile.Valid() {
-			unzippedRefDump := UnzipRefDump(ctx, refSourceDumpFile.Path(), fileName)
+		refAbiDumpFile := getRefAbiDumpFile(ctx, vndkVersion, fileName)
+		if refAbiDumpFile != nil {
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
-				unzippedRefDump, fileName, exportedHeaderFlags, ctx.isVndkExt())
+				refAbiDumpFile, fileName, exportedHeaderFlags, ctx.isVndkExt())
 		}
 	}
 }
