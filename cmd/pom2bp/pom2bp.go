@@ -281,8 +281,8 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
 {{if .IsAar}}android_library{{else}}java_library_static{{end}} {
     name: "{{.BpName}}",
     sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
-    min_sdk_version: "{{.MinSdkVersion}}",{{end}}
-    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",
+    min_sdk_version: "{{.MinSdkVersion}}",
+    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",{{end}}
     static_libs: [
         "{{.BpName}}-nodeps",{{range .BpJarDeps}}
         "{{.}}",{{end}}{{range .BpAarDeps}}
