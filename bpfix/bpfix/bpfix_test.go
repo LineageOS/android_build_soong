@@ -497,3 +497,61 @@ func TestRemoveMatchingModuleListProperties(t *testing.T) {
 		})
 	}
 }
+
+func TestReplaceJavaStaticLibs(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "static lib",
+			in: `
+				java_library_static {
+					name: "foo",
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+				}
+			`,
+		},
+		{
+			name: "java lib",
+			in: `
+				java_library {
+					name: "foo",
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+				}
+			`,
+		},
+		{
+			name: "java installable lib",
+			in: `
+				java_library {
+					name: "foo",
+					installable: true,
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+					installable: true,
+				}
+			`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return rewriteJavaStaticLibs(fixer)
+			})
+		})
+	}
+}
