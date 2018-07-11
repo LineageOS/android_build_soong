@@ -71,7 +71,10 @@ func TestApp(t *testing.T) {
 
 			foo := ctx.ModuleForTests("foo", "android_common")
 
-			expectedLinkImplicits := []string{"AndroidManifest.xml"}
+			var expectedLinkImplicits []string
+
+			manifestFixer := foo.Output("manifest_fixer/AndroidManifest.xml")
+			expectedLinkImplicits = append(expectedLinkImplicits, manifestFixer.Output.String())
 
 			frameworkRes := ctx.ModuleForTests("framework-res", "android_common")
 			expectedLinkImplicits = append(expectedLinkImplicits,

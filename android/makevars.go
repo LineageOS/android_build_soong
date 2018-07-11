@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -240,8 +241,16 @@ func (c *makeVarsContext) SingletonContext() SingletonContext {
 	return c.ctx
 }
 
+var ninjaDescaper = strings.NewReplacer("$$", "$")
+
 func (c *makeVarsContext) Eval(ninjaStr string) (string, error) {
-	return c.ctx.Eval(c.pctx, ninjaStr)
+	s, err := c.ctx.Eval(c.pctx, ninjaStr)
+	if err != nil {
+		return "", err
+	}
+	// SingletonContext.Eval returns an exapnded string that is valid for a ninja file, de-escape $$ to $ for use
+	// in a Makefile
+	return ninjaDescaper.Replace(s), nil
 }
 
 func (c *makeVarsContext) addVariableRaw(name, value string, strict, sort bool) {
