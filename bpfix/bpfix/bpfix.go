@@ -71,6 +71,14 @@ var fixSteps = []fixStep{
 		fix:  rewriteTestModuleTypes,
 	},
 	{
+		name: "rewriteAndroidmkJavaLibs",
+		fix:  rewriteAndroidmkJavaLibs,
+	},
+	{
+		name: "rewriteJavaStaticLibs",
+		fix:  rewriteJavaStaticLibs,
+	},
+	{
 		name: "mergeMatchingModuleProperties",
 		fix:  runPatchListMod(mergeMatchingModuleProperties),
 	},
@@ -241,7 +249,7 @@ func rewriteIncorrectAndroidmkAndroidLibraries(f *Fixer) error {
 		hasResourceDirs := hasNonEmptyLiteralListProperty(mod, "resource_dirs")
 
 		if hasAndroidLibraries || hasStaticAndroidLibraries || hasResourceDirs {
-			if mod.Type == "java_library_static" {
+			if mod.Type == "java_library_static" || mod.Type == "java_library" {
 				mod.Type = "android_library"
 			}
 		}
@@ -289,11 +297,56 @@ func rewriteTestModuleTypes(f *Fixer) error {
 			switch mod.Type {
 			case "android_app":
 				mod.Type = "android_test"
-			case "java_library":
+			case "java_library", "java_library_installable":
 				mod.Type = "java_test"
 			case "java_library_host":
 				mod.Type = "java_test_host"
 			}
+		}
+	}
+
+	return nil
+}
+
+// rewriteJavaStaticLibs rewrites java_library_static into java_library
+func rewriteJavaStaticLibs(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+
+		if mod.Type == "java_library_static" {
+			mod.Type = "java_library"
+		}
+	}
+
+	return nil
+}
+
+// rewriteAndroidmkJavaLibs rewrites java_library_installable into java_library plus installable: true
+func rewriteAndroidmkJavaLibs(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+
+		if mod.Type != "java_library_installable" {
+			continue
+		}
+
+		mod.Type = "java_library"
+
+		_, hasInstallable := mod.GetProperty("installable")
+		if !hasInstallable {
+			prop := &parser.Property{
+				Name: "installable",
+				Value: &parser.Bool{
+					Value: true,
+				},
+			}
+			mod.Properties = append(mod.Properties, prop)
 		}
 	}
 
@@ -346,6 +399,7 @@ var commonPropertyPriorities = []string{
 	"defaults",
 	"device_supported",
 	"host_supported",
+	"installable",
 }
 
 func reorderCommonProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
