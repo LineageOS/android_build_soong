@@ -23,7 +23,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("phony", phonyFactory)
+	android.RegisterModuleType("phony", PhonyFactory)
 }
 
 type phony struct {
@@ -31,7 +31,7 @@ type phony struct {
 	requiredModuleNames []string
 }
 
-func phonyFactory() android.Module {
+func PhonyFactory() android.Module {
 	module := &phony{}
 
 	android.InitAndroidModule(module)
