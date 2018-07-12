@@ -22,13 +22,14 @@ import (
 	"testing"
 
 	"android/soong/ui/logger"
+	"android/soong/ui/terminal"
 )
 
 func testContext() Context {
 	return Context{&ContextImpl{
-		Context:        context.Background(),
-		Logger:         logger.New(&bytes.Buffer{}),
-		StdioInterface: NewCustomStdio(&bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}),
+		Context: context.Background(),
+		Logger:  logger.New(&bytes.Buffer{}),
+		Writer:  terminal.NewWriter(terminal.NewCustomStdio(&bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{})),
 	}}
 }
 

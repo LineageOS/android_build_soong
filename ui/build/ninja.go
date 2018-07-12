@@ -21,15 +21,21 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"android/soong/ui/status"
 )
 
 func runNinja(ctx Context, config Config) {
 	ctx.BeginTrace("ninja")
 	defer ctx.EndTrace()
 
+	fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
+	status.NinjaReader(ctx, ctx.Status.StartTool(), fifo)
+
 	executable := config.PrebuiltBuildTool("ninja")
 	args := []string{
 		"-d", "keepdepfile",
+		fmt.Sprintf("--frontend=cat <&3 >%s", fifo),
 	}
 
 	args = append(args, config.NinjaArgs()...)
@@ -47,9 +53,6 @@ func runNinja(ctx Context, config Config) {
 
 	args = append(args, "-f", config.CombinedNinjaFile())
 
-	if config.IsVerbose() {
-		args = append(args, "-v")
-	}
 	args = append(args, "-w", "dupbuild=err")
 
 	cmd := Command(ctx, config, "ninja", executable, args...)
@@ -66,13 +69,6 @@ func runNinja(ctx Context, config Config) {
 		cmd.Args = append(cmd.Args, strings.Fields(extra)...)
 	}
 
-	if _, ok := cmd.Environment.Get("NINJA_STATUS"); !ok {
-		cmd.Environment.Set("NINJA_STATUS", "[%p %f/%t] ")
-	}
-
-	cmd.Stdin = ctx.Stdin()
-	cmd.Stdout = ctx.Stdout()
-	cmd.Stderr = ctx.Stderr()
 	logPath := filepath.Join(config.OutDir(), ".ninja_log")
 	ninjaHeartbeatDuration := time.Minute * 5
 	if overrideText, ok := cmd.Environment.Get("NINJA_HEARTBEAT_INTERVAL"); ok {
@@ -99,10 +95,7 @@ func runNinja(ctx Context, config Config) {
 		}
 	}()
 
-	startTime := time.Now()
-	defer ctx.ImportNinjaLog(logPath, startTime)
-
-	cmd.RunOrFatal()
+	cmd.RunAndPrintOrFatal()
 }
 
 type statusChecker struct {
