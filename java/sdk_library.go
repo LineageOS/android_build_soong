@@ -46,6 +46,7 @@ var (
 	publicApiStubsTag = dependencyTag{name: "public"}
 	systemApiStubsTag = dependencyTag{name: "system"}
 	testApiStubsTag   = dependencyTag{name: "test"}
+	implLibTag        = dependencyTag{name: "platform"}
 )
 
 type apiScope int
@@ -127,6 +128,7 @@ type sdkLibrary struct {
 	publicApiStubsPath android.Paths
 	systemApiStubsPath android.Paths
 	testApiStubsPath   android.Paths
+	implLibPath        android.Paths
 }
 
 func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -134,24 +136,27 @@ func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), publicApiStubsTag, module.stubsName(apiScopePublic))
 	ctx.AddDependency(ctx.Module(), systemApiStubsTag, module.stubsName(apiScopeSystem))
 	ctx.AddDependency(ctx.Module(), testApiStubsTag, module.stubsName(apiScopeTest))
+	ctx.AddDependency(ctx.Module(), implLibTag, module.implName())
 }
 
 func (module *sdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Record the paths to the header jars of the stubs library.
+	// Record the paths to the header jars of the library (stubs and impl).
 	// When this java_sdk_library is dependened from others via "libs" property,
 	// the recorded paths will be returned depending on the link type of the caller.
 	ctx.VisitDirectDeps(func(to android.Module) {
 		otherName := ctx.OtherModuleName(to)
 		tag := ctx.OtherModuleDependencyTag(to)
 
-		if stubs, ok := to.(Dependency); ok {
+		if lib, ok := to.(Dependency); ok {
 			switch tag {
 			case publicApiStubsTag:
-				module.publicApiStubsPath = stubs.HeaderJars()
+				module.publicApiStubsPath = lib.HeaderJars()
 			case systemApiStubsTag:
-				module.systemApiStubsPath = stubs.HeaderJars()
+				module.systemApiStubsPath = lib.HeaderJars()
 			case testApiStubsTag:
-				module.testApiStubsPath = stubs.HeaderJars()
+				module.testApiStubsPath = lib.HeaderJars()
+			case implLibTag:
+				module.implLibPath = lib.HeaderJars()
 			default:
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
 			}
@@ -543,8 +548,10 @@ func (module *sdkLibrary) createXmlFile(mctx android.TopDownMutatorContext) {
 // to satisfy SdkLibraryDependency interface
 func (module *sdkLibrary) HeaderJars(linkType linkType) android.Paths {
 	// This module is just a wrapper for the stubs.
-	if linkType == javaSystem || linkType == javaPlatform {
+	if linkType == javaSystem {
 		return module.systemApiStubsPath
+	} else if linkType == javaPlatform {
+		return module.implLibPath
 	} else {
 		return module.publicApiStubsPath
 	}
