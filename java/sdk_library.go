@@ -331,7 +331,7 @@ func (module *sdkLibrary) createStubsLibrary(mctx android.TopDownMutatorContext,
 		props.Product_specific = proptools.BoolPtr(true)
 	}
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(LibraryFactory(false)), &props)
+	mctx.CreateModule(android.ModuleFactoryAdaptor(LibraryFactory), &props)
 }
 
 // Creates a droiddoc module that creates stubs source files from the given full source
@@ -453,6 +453,7 @@ func (module *sdkLibrary) createImplLibrary(mctx android.TopDownMutatorContext) 
 		Soc_specific     *bool
 		Device_specific  *bool
 		Product_specific *bool
+		Installable      *bool
 		Required         []string
 		Errorprone       struct {
 			Javacflags []string
@@ -463,6 +464,7 @@ func (module *sdkLibrary) createImplLibrary(mctx android.TopDownMutatorContext) 
 	props.Srcs = module.properties.Srcs
 	props.Libs = module.properties.Libs
 	props.Static_libs = module.properties.Static_libs
+	props.Installable = proptools.BoolPtr(true)
 	// XML file is installed along with the impl lib
 	props.Required = []string{module.xmlFileName()}
 	props.Errorprone.Javacflags = module.properties.Errorprone.Javacflags
@@ -475,7 +477,7 @@ func (module *sdkLibrary) createImplLibrary(mctx android.TopDownMutatorContext) 
 		props.Product_specific = proptools.BoolPtr(true)
 	}
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(LibraryFactory(true)), &props, &module.deviceProperties)
+	mctx.CreateModule(android.ModuleFactoryAdaptor(LibraryFactory), &props, &module.deviceProperties)
 }
 
 // Creates the xml file that publicizes the runtime library

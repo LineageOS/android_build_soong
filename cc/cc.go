@@ -223,7 +223,7 @@ type ModuleContextIntf interface {
 	isVndkSp() bool
 	isVndkExt() bool
 	inRecovery() bool
-	createVndkSourceAbiDump() bool
+	shouldCreateVndkSourceAbiDump() bool
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
@@ -562,16 +562,29 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 	return ctx.mod.inRecovery()
 }
 
-// Create source abi dumps if the module belongs to the list of VndkLibraries.
-func (ctx *moduleContextImpl) createVndkSourceAbiDump() bool {
-	skipAbiChecks := ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS")
-	isVariantOnProductionDevice := true
-	sanitize := ctx.mod.sanitize
-	if sanitize != nil {
-		isVariantOnProductionDevice = sanitize.isVariantOnProductionDevice()
+// Check whether ABI dumps should be created for this module.
+func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
+	if ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") {
+		return false
 	}
-	vendorAvailable := Bool(ctx.mod.VendorProperties.Vendor_available)
-	return !skipAbiChecks && isVariantOnProductionDevice && ctx.ctx.Device() && ((ctx.useVndk() && ctx.isVndk() && (vendorAvailable || ctx.isVndkExt())) || inList(ctx.baseModuleName(), llndkLibraries))
+	if sanitize := ctx.mod.sanitize; sanitize != nil {
+		if !sanitize.isVariantOnProductionDevice() {
+			return false
+		}
+	}
+	if !ctx.ctx.Device() {
+		// Host modules do not need ABI dumps.
+		return false
+	}
+	if inList(ctx.baseModuleName(), llndkLibraries) {
+		return true
+	}
+	if ctx.useVndk() && ctx.isVndk() {
+		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext and this is not
+		// VNDK-private.
+		return Bool(ctx.mod.VendorProperties.Vendor_available) || ctx.isVndkExt()
+	}
+	return false
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {

@@ -16,7 +16,7 @@
 
 # Generates kotlinc module xml file to standard output based on rsp files
 
-if [ -z "$1" ]; then
+if [[ -z "$1" ]]; then
   echo "usage: $0 <classpath> <outDir> <rspFiles>..." >&2
   exit 1
 fi
@@ -30,24 +30,36 @@ classpath=$1
 out_dir=$2
 shift 2
 
-# Path in the build file are relative to the build file, we need to make them absolute.
-prefix=`pwd`
+# Path in the build file may be relative to the build file, we need to make them
+# absolute
+prefix="$(pwd)"
+
+get_abs_path () {
+  local file="$1"
+  if [[ "${file:0:1}" == '/' ]] ; then
+    echo "${file}"
+  else
+    echo "${prefix}/${file}"
+  fi
+}
 
 # Print preamble
 echo "<modules><module name=\"name\" type=\"java-production\" outputDir=\"${out_dir}\">"
 
 # Print classpath entries
-for file in $(echo $classpath | tr ":" "\n"); do
-  echo "  <classpath path=\"${prefix}/${file}\"/>"
+for file in $(echo "$classpath" | tr ":" "\n"); do
+  path="$(get_abs_path "$file")"
+  echo "  <classpath path=\"${path}\"/>"
 done
 
 # For each rsp file, print source entries
 while (( "$#" )); do
-  for file in $(cat $1); do
+  for file in $(cat "$1"); do
+    path="$(get_abs_path "$file")"
     if [[ $file == *.java ]]; then
-      echo "  <javaSourceRoots path=\"${prefix}/${file}\"/>"
+      echo "  <javaSourceRoots path=\"${path}\"/>"
     elif [[ $file == *.kt ]]; then
-      echo "  <sources path=\"${prefix}/${file}\"/>"
+      echo "  <sources path=\"${path}\"/>"
     else
       echo "Unknown source file type ${file}"
       exit 1
