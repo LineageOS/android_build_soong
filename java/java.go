@@ -995,6 +995,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
+	var stripFiles []string
+
 	if srcFiles.HasExt(".kt") {
 		// If there are kotlin files, compile them first but pass all the kotlin and java files
 		// kotlinc will use the java files to resolve types referenced by the kotlin files, but
@@ -1027,9 +1029,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		// Jar kotlin classes into the final jar after javac
 		jars = append(jars, kotlinJar)
 
-		// Don't add kotlin-stdlib if using (on-device) renamed stdlib
-		// (it's expected to be on device bootclasspath)
-		if !Bool(j.properties.Renamed_kotlin_stdlib) {
+		if Bool(j.properties.Renamed_kotlin_stdlib) {
+			// Remove any kotlin-reflect related files
+			// TODO(pszczepaniak): Support kotlin-reflect
+			stripFiles = append(stripFiles, "*.kotlin_module", "*.kotlin_builtin")
+		} else {
+			// Only add kotlin-stdlib if not using (on-device) renamed stdlib
+			// (it's expected to be on device bootclasspath)
 			jars = append(jars, deps.kotlinStdlib...)
 		}
 	}
@@ -1143,7 +1149,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		outputFile = jars[0]
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
-		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest, false, nil)
+		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest,
+			false, stripFiles, nil)
 		outputFile = combinedJar
 	}
 
@@ -1219,7 +1226,8 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	// we cannot skip the combine step for now if there is only one jar
 	// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
 	combinedJar := android.PathForModuleOut(ctx, "turbine-combined", jarName)
-	TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{}, false, []string{"META-INF"})
+	TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{},
+		false, nil, []string{"META-INF"})
 	headerJar = combinedJar
 
 	if j.properties.Jarjar_rules != nil {
@@ -1477,6 +1485,12 @@ type ImportProperties struct {
 
 	// List of shared java libs that this module has dependencies to
 	Libs []string
+
+	// List of files to remove from the jar file(s)
+	Exclude_files []string
+
+	// List of directories to remove from the jar file(s)
+	Exclude_dirs []string
 }
 
 type Import struct {
@@ -1485,7 +1499,6 @@ type Import struct {
 
 	properties ImportProperties
 
-	classpathFiles        android.Paths
 	combinedClasspathFile android.Path
 	exportedSdkLibs       []string
 }
@@ -1511,14 +1524,16 @@ func (j *Import) Name() string {
 }
 
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
+	android.ExtractSourcesDeps(ctx, j.properties.Jars)
 	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.classpathFiles = android.PathsForModuleSrc(ctx, j.properties.Jars)
+	jars := ctx.ExpandSources(j.properties.Jars, nil)
 
 	outputFile := android.PathForModuleOut(ctx, "classes.jar")
-	TransformJarsToJar(ctx, outputFile, "for prebuilts", j.classpathFiles, android.OptionalPath{}, false, nil)
+	TransformJarsToJar(ctx, outputFile, "for prebuilts", jars, android.OptionalPath{},
+		false, j.properties.Exclude_files, j.properties.Exclude_dirs)
 	j.combinedClasspathFile = outputFile
 
 	ctx.VisitDirectDeps(func(module android.Module) {
@@ -1547,11 +1562,11 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 var _ Dependency = (*Import)(nil)
 
 func (j *Import) HeaderJars() android.Paths {
-	return j.classpathFiles
+	return android.Paths{j.combinedClasspathFile}
 }
 
 func (j *Import) ImplementationJars() android.Paths {
-	return j.classpathFiles
+	return android.Paths{j.combinedClasspathFile}
 }
 
 func (j *Import) AidlIncludeDirs() android.Paths {

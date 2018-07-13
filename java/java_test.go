@@ -598,14 +598,15 @@ func TestPrebuilts(t *testing.T) {
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	combineJar := ctx.ModuleForTests("foo", "android_common").Description("for javac")
+	barJar := ctx.ModuleForTests("bar", "android_common").Rule("combineJar").Output
+	bazJar := ctx.ModuleForTests("baz", "android_common").Rule("combineJar").Output
 
-	bar := "a.jar"
-	if !strings.Contains(javac.Args["classpath"], bar) {
-		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], bar)
+	if !strings.Contains(javac.Args["classpath"], barJar.String()) {
+		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barJar.String())
 	}
 
-	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != "b.jar" {
-		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, "b.jar")
+	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != bazJar.String() {
+		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, bazJar.String())
 	}
 }
 
