@@ -34,7 +34,7 @@ var (
 				`$opts $bootclasspathArgs $classpathArgs -sourcepath $sourcepath ` +
 				`-d $outDir -quiet  && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir $postDoclavaCmds`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.JavadocCmd}",
@@ -45,7 +45,7 @@ var (
 			Restat:         true,
 		},
 		"outDir", "srcJarDir", "stubsDir", "srcJars", "opts",
-		"bootclasspathArgs", "classpathArgs", "sourcepath", "docZip")
+		"bootclasspathArgs", "classpathArgs", "sourcepath", "docZip", "postDoclavaCmds")
 
 	apiCheck = pctx.AndroidStaticRule("apiCheck",
 		blueprint.RuleParams{
@@ -200,6 +200,16 @@ type DroiddocProperties struct {
 
 	// names of the output files used in args that will be generated
 	Out []string
+
+	// if set to true, collect the values used by the Dev tools and
+	// write them in files packaged with the SDK. Defaults to false.
+	Write_sdk_values *bool
+
+	// index.html under current module will be copied to docs out dir, if not null.
+	Static_doc_index_redirect *string
+
+	// source.properties under current module will be copied to docs out dir, if not null.
+	Static_doc_properties *string
 
 	// a list of files under current module source dir which contains known tags in Java sources.
 	// filegroup or genrule can be included within this property.
@@ -629,6 +639,14 @@ func (d *Droiddoc) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// knowntags may contain filegroup or genrule.
 	android.ExtractSourcesDeps(ctx, d.properties.Knowntags)
 
+	if String(d.properties.Static_doc_index_redirect) != "" {
+		android.ExtractSourceDeps(ctx, d.properties.Static_doc_index_redirect)
+	}
+
+	if String(d.properties.Static_doc_properties) != "" {
+		android.ExtractSourceDeps(ctx, d.properties.Static_doc_properties)
+	}
+
 	if d.checkCurrentApi() {
 		android.ExtractSourceDeps(ctx, d.properties.Check_api.Current.Api_file)
 		android.ExtractSourceDeps(ctx, d.properties.Check_api.Current.Removed_api_file)
@@ -876,6 +894,27 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			opts += " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
 		}
 
+		if Bool(d.properties.Write_sdk_values) {
+			opts += " -sdkvalues " + android.PathForModuleOut(ctx, "docs").String()
+		}
+
+		var postDoclavaCmds string
+		if String(d.properties.Static_doc_index_redirect) != "" {
+			static_doc_index_redirect := ctx.ExpandSource(String(d.properties.Static_doc_index_redirect),
+				"static_doc_index_redirect")
+			implicits = append(implicits, static_doc_index_redirect)
+			postDoclavaCmds += " && cp " + static_doc_index_redirect.String() + " " +
+				android.PathForModuleOut(ctx, "docs", "out", "index.html").String()
+		}
+
+		if String(d.properties.Static_doc_properties) != "" {
+			static_doc_properties := ctx.ExpandSource(String(d.properties.Static_doc_properties),
+				"static_doc_properties")
+			implicits = append(implicits, static_doc_properties)
+			postDoclavaCmds += " && cp " + static_doc_properties.String() + " " +
+				android.PathForModuleOut(ctx, "docs", "out", "source.properties").String()
+		}
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:            javadoc,
 			Description:     "Droiddoc",
@@ -893,6 +932,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				"classpathArgs":     classpathArgs,
 				"sourcepath":        strings.Join(d.Javadoc.sourcepaths.Strings(), ":"),
 				"docZip":            d.Javadoc.docZip.String(),
+				"postDoclavaCmds":   postDoclavaCmds,
 			},
 		})
 	} else {
