@@ -37,15 +37,13 @@ func NinjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
 		ctx.Fatalf("Failed to mkfifo(%q): %v", fifo, err)
 	}
 
-	go ninjaReader(ctx, status, fifo)
+	go ninjaReader(status, fifo)
 }
 
-func ninjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
-	defer os.Remove(fifo)
-
+func ninjaReader(status ToolStatus, fifo string) {
 	f, err := os.Open(fifo)
 	if err != nil {
-		ctx.Fatal("Failed to open fifo:", err)
+		status.Error(fmt.Sprintf("Failed to open fifo:", err))
 	}
 	defer f.Close()
 
@@ -57,7 +55,7 @@ func ninjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
 		size, err := readVarInt(r)
 		if err != nil {
 			if err != io.EOF {
-				ctx.Println("Got error reading from ninja:", err)
+				status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
 			}
 			return
 		}
@@ -66,9 +64,9 @@ func ninjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
 		_, err = io.ReadFull(r, buf)
 		if err != nil {
 			if err == io.EOF {
-				ctx.Printf("Missing message of size %d from ninja\n", size)
+				status.Print(fmt.Sprintf("Missing message of size %d from ninja\n", size))
 			} else {
-				ctx.Fatal("Got error reading from ninja:", err)
+				status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
 			}
 			return
 		}
@@ -76,7 +74,7 @@ func ninjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
 		msg := &ninja_frontend.Status{}
 		err = proto.Unmarshal(buf, msg)
 		if err != nil {
-			ctx.Printf("Error reading message from ninja: %v\n", err)
+			status.Print(fmt.Sprintf("Error reading message from ninja: %v", err))
 			continue
 		}
 
