@@ -330,6 +330,10 @@ func archMutator(mctx BottomUpMutatorContext) {
 			// Windows builds always prefer 32-bit
 			prefer32 = true
 		}
+		// only the primary arch in the recovery partition
+		if module.InstallInRecovery() {
+			targets = []Target{mctx.Config().Targets[Device][0]}
+		}
 		targets, err := decodeMultilib(multilib, targets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
