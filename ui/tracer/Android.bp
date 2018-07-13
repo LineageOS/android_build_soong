@@ -15,10 +15,13 @@
 bootstrap_go_package {
     name: "soong-ui-tracer",
     pkgPath: "android/soong/ui/tracer",
-    deps: ["soong-ui-logger"],
+    deps: [
+        "soong-ui-logger",
+        "soong-ui-status",
+    ],
     srcs: [
         "microfactory.go",
-        "ninja.go",
+        "status.go",
         "tracer.go",
     ],
 }

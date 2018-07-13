@@ -17,6 +17,7 @@ blueprint_go_binary {
     deps: [
         "soong-ui-build",
         "soong-ui-logger",
+        "soong-ui-terminal",
         "soong-ui-tracer",
     ],
     srcs: [
