@@ -45,7 +45,9 @@ func NewStatusOutput(w Writer, statusFormat string) status.StatusOutput {
 }
 
 func (s *statusOutput) Message(level status.MsgLevel, message string) {
-	if level > status.StatusLvl {
+	if level >= status.ErrorLvl {
+		s.writer.Print(fmt.Sprintf("FAILED: %s", message))
+	} else if level > status.StatusLvl {
 		s.writer.Print(fmt.Sprintf("%s%s", level.Prefix(), message))
 	} else if level == status.StatusLvl {
 		s.writer.StatusLine(message)

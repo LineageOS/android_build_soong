@@ -81,8 +81,8 @@ func NewWriter(stdio StdioInterface) Writer {
 	}
 
 	if term, ok := os.LookupEnv("TERM"); ok && term != "dumb" {
-		w.stripEscapes = !isTerminal(stdio.Stderr())
-		w.smartTerminal = isTerminal(stdio.Stdout()) && !w.stripEscapes
+		w.smartTerminal = isTerminal(stdio.Stdout())
+		w.stripEscapes = !w.smartTerminal
 	}
 
 	return w
@@ -127,9 +127,9 @@ func (w *writerImpl) print(str string) {
 		fmt.Fprint(w.stdio.Stdout(), "\r", "\x1b[K")
 		w.haveBlankLine = true
 	}
-	fmt.Fprint(w.stdio.Stderr(), str)
+	fmt.Fprint(w.stdio.Stdout(), str)
 	if len(str) == 0 || str[len(str)-1] != '\n' {
-		fmt.Fprint(w.stdio.Stderr(), "\n")
+		fmt.Fprint(w.stdio.Stdout(), "\n")
 	}
 }
 
