@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All rights reserved.
+// Copyright 2018 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-blueprint_go_binary {
-    name: "multiproduct_kati",
+bootstrap_go_package {
+    name: "soong-ui-status",
+    pkgPath: "android/soong/ui/status",
     deps: [
-        "soong-ui-build",
+        "golang-protobuf-proto",
         "soong-ui-logger",
-        "soong-ui-terminal",
-        "soong-ui-tracer",
-        "soong-zip",
+        "soong-ui-status-ninja_frontend",
     ],
     srcs: [
-        "main.go",
+        "kati.go",
+        "log.go",
+        "ninja.go",
+        "status.go",
+    ],
+    testSrcs: [
+        "kati_test.go",
+        "status_test.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-ui-status-ninja_frontend",
+    pkgPath: "android/soong/ui/status/ninja_frontend",
+    deps: ["golang-protobuf-proto"],
+    srcs: [
+        "ninja_frontend/frontend.pb.go",
     ],
 }

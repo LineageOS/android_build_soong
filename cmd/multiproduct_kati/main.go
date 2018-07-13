@@ -29,6 +29,8 @@ import (
 
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
+	"android/soong/ui/status"
+	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
 	"android/soong/zip"
 )
@@ -66,98 +68,34 @@ type Product struct {
 	ctx     build.Context
 	config  build.Config
 	logFile string
+	action  *status.Action
 }
 
-type Status struct {
-	cur    int
-	total  int
-	failed int
-
-	ctx           build.Context
-	haveBlankLine bool
-	smartTerminal bool
-
-	lock sync.Mutex
-}
-
-func NewStatus(ctx build.Context) *Status {
-	return &Status{
-		ctx:           ctx,
-		haveBlankLine: true,
-		smartTerminal: ctx.IsTerminal(),
-	}
-}
-
-func (s *Status) SetTotal(total int) {
-	s.total = total
-}
-
-func (s *Status) Fail(product string, err error, logFile string) {
-	s.Finish(product)
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	if s.smartTerminal && !s.haveBlankLine {
-		fmt.Fprintln(s.ctx.Stdout())
-		s.haveBlankLine = true
+func errMsgFromLog(filename string) string {
+	if filename == "" {
+		return ""
 	}
 
-	s.failed++
-	fmt.Fprintln(s.ctx.Stderr(), "FAILED:", product)
-	s.ctx.Verboseln("FAILED:", product)
-
-	if logFile != "" {
-		data, err := ioutil.ReadFile(logFile)
-		if err == nil {
-			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-			if len(lines) > errorLeadingLines+errorTrailingLines+1 {
-				lines[errorLeadingLines] = fmt.Sprintf("... skipping %d lines ...",
-					len(lines)-errorLeadingLines-errorTrailingLines)
-
-				lines = append(lines[:errorLeadingLines+1],
-					lines[len(lines)-errorTrailingLines:]...)
-			}
-			for _, line := range lines {
-				fmt.Fprintln(s.ctx.Stderr(), "> ", line)
-				s.ctx.Verboseln(line)
-			}
-		}
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return ""
 	}
 
-	s.ctx.Print(err)
-}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) > errorLeadingLines+errorTrailingLines+1 {
+		lines[errorLeadingLines] = fmt.Sprintf("... skipping %d lines ...",
+			len(lines)-errorLeadingLines-errorTrailingLines)
 
-func (s *Status) Finish(product string) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.cur++
-	line := fmt.Sprintf("[%d/%d] %s", s.cur, s.total, product)
-
-	if s.smartTerminal {
-		if max, ok := s.ctx.TermWidth(); ok {
-			if len(line) > max {
-				line = line[:max]
-			}
-		}
-
-		fmt.Fprint(s.ctx.Stdout(), "\r", line, "\x1b[K")
-		s.haveBlankLine = false
-	} else {
-		s.ctx.Println(line)
+		lines = append(lines[:errorLeadingLines+1],
+			lines[len(lines)-errorTrailingLines:]...)
 	}
-}
-
-func (s *Status) Finished() int {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	if !s.haveBlankLine {
-		fmt.Fprintln(s.ctx.Stdout())
-		s.haveBlankLine = true
+	var buf strings.Builder
+	for _, line := range lines {
+		buf.WriteString("> ")
+		buf.WriteString(line)
+		buf.WriteString("\n")
 	}
-	return s.failed
+	return buf.String()
 }
 
 // TODO(b/70370883): This tool uses a lot of open files -- over the default
@@ -194,6 +132,9 @@ func inList(str string, list []string) bool {
 }
 
 func main() {
+	writer := terminal.NewWriter(terminal.StdioImpl{})
+	defer writer.Finish()
+
 	log := logger.New(os.Stderr)
 	defer log.Cleanup()
 
@@ -205,19 +146,23 @@ func main() {
 	trace := tracer.New(log)
 	defer trace.Close()
 
+	stat := &status.Status{}
+	defer stat.Finish()
+	stat.AddOutput(terminal.NewStatusOutput(writer, ""))
+
 	build.SetupSignals(log, cancel, func() {
 		trace.Close()
 		log.Cleanup()
+		stat.Finish()
 	})
 
 	buildCtx := build.Context{&build.ContextImpl{
-		Context:        ctx,
-		Logger:         log,
-		Tracer:         trace,
-		StdioInterface: build.StdioImpl{},
+		Context: ctx,
+		Logger:  log,
+		Tracer:  trace,
+		Writer:  writer,
+		Status:  stat,
 	}}
-
-	status := NewStatus(buildCtx)
 
 	config := build.NewConfig(buildCtx)
 	if *outDir == "" {
@@ -303,7 +248,8 @@ func main() {
 
 	log.Verbose("Got product list: ", products)
 
-	status.SetTotal(len(products))
+	s := buildCtx.Status.StartTool()
+	s.SetTotalActions(len(products))
 
 	var wg sync.WaitGroup
 	productConfigs := make(chan Product, len(products))
@@ -315,8 +261,18 @@ func main() {
 			var stdLog string
 
 			defer wg.Done()
+
+			action := &status.Action{
+				Description: product,
+				Outputs:     []string{product},
+			}
+			s.StartAction(action)
 			defer logger.Recover(func(err error) {
-				status.Fail(product, err, stdLog)
+				s.FinishAction(status.ActionResult{
+					Action: action,
+					Error:  err,
+					Output: errMsgFromLog(stdLog),
+				})
 			})
 
 			productOutDir := filepath.Join(config.OutDir(), product)
@@ -339,12 +295,14 @@ func main() {
 			productLog.SetOutput(filepath.Join(productLogDir, "soong.log"))
 
 			productCtx := build.Context{&build.ContextImpl{
-				Context:        ctx,
-				Logger:         productLog,
-				Tracer:         trace,
-				StdioInterface: build.NewCustomStdio(nil, f, f),
-				Thread:         trace.NewThread(product),
+				Context: ctx,
+				Logger:  productLog,
+				Tracer:  trace,
+				Writer:  terminal.NewWriter(terminal.NewCustomStdio(nil, f, f)),
+				Thread:  trace.NewThread(product),
+				Status:  &status.Status{},
 			}}
+			productCtx.Status.AddOutput(terminal.NewStatusOutput(productCtx.Writer, ""))
 
 			productConfig := build.NewConfig(productCtx)
 			productConfig.Environment().Set("OUT_DIR", productOutDir)
@@ -352,7 +310,7 @@ func main() {
 			productConfig.Lunch(productCtx, product, *buildVariant)
 
 			build.Build(productCtx, productConfig, build.BuildProductConfig)
-			productConfigs <- Product{productCtx, productConfig, stdLog}
+			productConfigs <- Product{productCtx, productConfig, stdLog, action}
 		}(product)
 	}
 	go func() {
@@ -369,7 +327,11 @@ func main() {
 			for product := range productConfigs {
 				func() {
 					defer logger.Recover(func(err error) {
-						status.Fail(product.config.TargetProduct(), err, product.logFile)
+						s.FinishAction(status.ActionResult{
+							Action: product.action,
+							Error:  err,
+							Output: errMsgFromLog(product.logFile),
+						})
 					})
 
 					defer func() {
@@ -400,7 +362,9 @@ func main() {
 						}
 					}
 					build.Build(product.ctx, product.config, buildWhat)
-					status.Finish(product.config.TargetProduct())
+					s.FinishAction(status.ActionResult{
+						Action: product.action,
+					})
 				}()
 			}
 		}()
@@ -421,7 +385,5 @@ func main() {
 		}
 	}
 
-	if count := status.Finished(); count > 0 {
-		log.Fatalln(count, "products failed")
-	}
+	s.Finish()
 }
