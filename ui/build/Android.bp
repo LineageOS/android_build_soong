@@ -30,6 +30,8 @@ bootstrap_go_package {
     deps: [
         "soong-ui-build-paths",
         "soong-ui-logger",
+        "soong-ui-status",
+        "soong-ui-terminal",
         "soong-ui-tracer",
         "soong-shared",
         "soong-finder",
@@ -62,13 +64,11 @@ bootstrap_go_package {
     darwin: {
         srcs: [
             "sandbox_darwin.go",
-            "util_darwin.go"
         ],
     },
     linux: {
         srcs: [
             "sandbox_linux.go",
-            "util_linux.go"
         ],
     },
 }

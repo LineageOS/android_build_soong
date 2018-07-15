@@ -92,6 +92,16 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 	return TestingModule{module}
 }
 
+func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
+	var variants []string
+	ctx.VisitAllModules(func(m blueprint.Module) {
+		if ctx.ModuleName(m) == name {
+			variants = append(variants, ctx.ModuleSubDir(m))
+		}
+	})
+	return variants
+}
+
 // MockFileSystem causes the Context to replace all reads with accesses to the provided map of
 // filenames to contents stored as a byte slice.
 func (ctx *TestContext) MockFileSystem(files map[string][]byte) {

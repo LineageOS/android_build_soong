@@ -17,9 +17,47 @@ package tracer
 import (
 	"bufio"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
+
+type eventEntry struct {
+	Name  string
+	Begin uint64
+	End   uint64
+}
+
+func (t *tracerImpl) importEvents(entries []*eventEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Begin < entries[j].Begin
+	})
+
+	cpus := []uint64{}
+	for _, entry := range entries {
+		tid := -1
+		for cpu, endTime := range cpus {
+			if endTime <= entry.Begin {
+				tid = cpu
+				cpus[cpu] = entry.End
+				break
+			}
+		}
+		if tid == -1 {
+			tid = len(cpus)
+			cpus = append(cpus, entry.End)
+		}
+
+		t.writeEvent(&viewerEvent{
+			Name:  entry.Name,
+			Phase: "X",
+			Time:  entry.Begin,
+			Dur:   entry.End - entry.Begin,
+			Pid:   1,
+			Tid:   uint64(tid),
+		})
+	}
+}
 
 func (t *tracerImpl) ImportMicrofactoryLog(filename string) {
 	if _, err := os.Stat(filename); err != nil {
