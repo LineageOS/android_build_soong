@@ -16,6 +16,7 @@ package android
 
 import (
 	"encoding/json"
+	"strconv"
 )
 
 func init() {
@@ -50,28 +51,48 @@ func GetApiLevelsJson(ctx PathContext) WritablePath {
 	return PathForOutput(ctx, "api_levels.json")
 }
 
-func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
-	baseApiLevel := 9000
-	apiLevelsMap := map[string]int{
-		"G":     9,
-		"I":     14,
-		"J":     16,
-		"J-MR1": 17,
-		"J-MR2": 18,
-		"K":     19,
-		"L":     21,
-		"L-MR1": 22,
-		"M":     23,
-		"N":     24,
-		"N-MR1": 25,
-		"O":     26,
-		"O-MR1": 27,
-		"P":     28,
-	}
-	for i, codename := range ctx.Config().PlatformVersionCombinedCodenames() {
-		apiLevelsMap[codename] = baseApiLevel + i
-	}
+func getApiLevelsMap(config Config) map[string]int {
+	return config.Once("ApiLevelsMap", func() interface{} {
+		baseApiLevel := 9000
+		apiLevelsMap := map[string]int{
+			"G":     9,
+			"I":     14,
+			"J":     16,
+			"J-MR1": 17,
+			"J-MR2": 18,
+			"K":     19,
+			"L":     21,
+			"L-MR1": 22,
+			"M":     23,
+			"N":     24,
+			"N-MR1": 25,
+			"O":     26,
+			"O-MR1": 27,
+			"P":     28,
+		}
+		for i, codename := range config.PlatformVersionCombinedCodenames() {
+			apiLevelsMap[codename] = baseApiLevel + i
+		}
 
+		return apiLevelsMap
+	}).(map[string]int)
+}
+
+// Converts an API level string into its numeric form.
+// * Codenames are decoded.
+// * Numeric API levels are simply converted.
+// * "minimum" and "current" are not currently handled since the former is
+//   NDK specific and the latter has inconsistent meaning.
+func ApiStrToNum(ctx BaseContext, apiLevel string) (int, error) {
+	num, ok := getApiLevelsMap(ctx.Config())[apiLevel]
+	if ok {
+		return num, nil
+	}
+	return strconv.Atoi(apiLevel)
+}
+
+func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
+	apiLevelsMap := getApiLevelsMap(ctx.Config())
 	apiLevelsJson := GetApiLevelsJson(ctx)
 	createApiLevelsJson(ctx, apiLevelsJson, apiLevelsMap)
 }
