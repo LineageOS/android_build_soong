@@ -114,7 +114,7 @@ func main() {
 			log.Fatal(err)
 		}
 		defer reader.Close()
-		namedReader := namedZipReader{path: input, reader: reader}
+		namedReader := namedZipReader{path: input, reader: &reader.Reader}
 		readers = append(readers, namedReader)
 	}
 
@@ -132,7 +132,7 @@ func main() {
 
 	// do merge
 	err = mergeZips(readers, writer, *manifest, *entrypoint, *pyMain, *sortEntries, *emulateJar, *emulatePar,
-		*stripDirEntries, *ignoreDuplicates)
+		*stripDirEntries, *ignoreDuplicates, []string(stripFiles), []string(stripDirs), map[string]bool(zipsToNotStrip))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func main() {
 // a namedZipReader reads a .zip file and can say which file it's reading
 type namedZipReader struct {
 	path   string
-	reader *zip.ReadCloser
+	reader *zip.Reader
 }
 
 // a zipEntryPath refers to a file contained in a zip
@@ -224,7 +224,8 @@ type fileMapping struct {
 }
 
 func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoint, pyMain string,
-	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool) error {
+	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool,
+	stripFiles, stripDirs []string, zipsToNotStrip map[string]bool) error {
 
 	sourceByDest := make(map[string]zipSource, 0)
 	orderedMappings := []fileMapping{}
@@ -338,7 +339,7 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoin
 	for _, namedReader := range readers {
 		_, skipStripThisZip := zipsToNotStrip[namedReader.path]
 		for _, file := range namedReader.reader.File {
-			if !skipStripThisZip && shouldStripFile(emulateJar, file.Name) {
+			if !skipStripThisZip && shouldStripFile(emulateJar, stripFiles, stripDirs, file.Name) {
 				continue
 			}
 
@@ -419,7 +420,7 @@ func pathBeforeLastSlash(path string) string {
 	return ret
 }
 
-func shouldStripFile(emulateJar bool, name string) bool {
+func shouldStripFile(emulateJar bool, stripFiles, stripDirs []string, name string) bool {
 	for _, dir := range stripDirs {
 		if strings.HasPrefix(name, dir+"/") {
 			if emulateJar {

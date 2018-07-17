@@ -21,5 +21,8 @@ blueprint_go_binary {
     srcs: [
         "merge_zips.go",
     ],
+    testSrcs: [
+        "merge_zips_test.go",
+    ],
 }
 
