@@ -183,7 +183,7 @@ func TestMissingPath(t *testing.T) {
 	interposer := setup(t)
 	err := os.Remove(interposer + "_origpath")
 	if err != nil {
-		t.Fatalf("Failed to remove:", err)
+		t.Fatal("Failed to remove:", err)
 	}
 
 	exitCode, err := Main(ioutil.Discard, ioutil.Discard, interposer, []string{"true"}, mainOpts{})

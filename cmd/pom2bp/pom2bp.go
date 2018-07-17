@@ -524,7 +524,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 		if pom.IsAar() {
 			err := pom.ExtractMinSdkVersion()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error reading manifest for %s: %s", pom.ArtifactFile, err)
+				fmt.Fprintf(os.Stderr, "Error reading manifest for %s: %s", pom.ArtifactFile, err)
 				os.Exit(1)
 			}
 		}
