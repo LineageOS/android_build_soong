@@ -1032,7 +1032,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		if Bool(j.properties.Renamed_kotlin_stdlib) {
 			// Remove any kotlin-reflect related files
 			// TODO(pszczepaniak): Support kotlin-reflect
-			stripFiles = append(stripFiles, "*.kotlin_module", "*.kotlin_builtin")
+			stripFiles = append(stripFiles,
+				"**/*.kotlin_module",
+				"**/*.kotlin_builtins")
 		} else {
 			// Only add kotlin-stdlib if not using (on-device) renamed stdlib
 			// (it's expected to be on device bootclasspath)

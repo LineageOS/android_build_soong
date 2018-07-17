@@ -82,8 +82,8 @@ func NewWriter(stdio StdioInterface) Writer {
 
 	if term, ok := os.LookupEnv("TERM"); ok && term != "dumb" {
 		w.smartTerminal = isTerminal(stdio.Stdout())
-		w.stripEscapes = !w.smartTerminal
 	}
+	w.stripEscapes = !w.smartTerminal
 
 	return w
 }
