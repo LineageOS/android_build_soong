@@ -135,13 +135,33 @@ func TestMergeZips(t *testing.T) {
 			stripDirEntries: true,
 		},
 		{
+			name: "strip files",
+			in: [][]testZipEntry{
+				{a, bDir, bbDir, bbb, bc, bd, be},
+			},
+			out: []testZipEntry{a, bDir, bbDir, bbb, bc},
+
+			stripFiles: []string{"b/d", "b/e"},
+		},
+		{
+			// merge_zips used to treat -stripFile a as stripping any file named a, it now only strips a in the
+			// root of the zip.
 			name: "strip file name",
+			in: [][]testZipEntry{
+				{a, bDir, ba},
+			},
+			out: []testZipEntry{bDir, ba},
+
+			stripFiles: []string{"a"},
+		},
+		{
+			name: "strip files glob",
 			in: [][]testZipEntry{
 				{a, bDir, ba},
 			},
 			out: []testZipEntry{bDir},
 
-			stripFiles: []string{"a"},
+			stripFiles: []string{"**/a"},
 		},
 		{
 			name: "strip dirs",
@@ -151,6 +171,15 @@ func TestMergeZips(t *testing.T) {
 			out: []testZipEntry{a},
 
 			stripDirs: []string{"b"},
+		},
+		{
+			name: "strip dirs glob",
+			in: [][]testZipEntry{
+				{a, bDir, bbDir, bbb, bc, bd, be},
+			},
+			out: []testZipEntry{a, bDir, bc, bd, be},
+
+			stripDirs: []string{"b/*"},
 		},
 		{
 			name: "zips to not strip",

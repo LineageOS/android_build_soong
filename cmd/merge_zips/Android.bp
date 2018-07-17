@@ -16,6 +16,7 @@ blueprint_go_binary {
     name: "merge_zips",
     deps: [
       "android-archive-zip",
+      "blueprint-pathtools",
       "soong-jar",
     ],
     srcs: [
