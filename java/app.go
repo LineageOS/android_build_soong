@@ -238,7 +238,8 @@ func AndroidTestFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
-		&module.appTestProperties)
+		&module.appTestProperties,
+		&module.testProperties)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 
