@@ -29,7 +29,7 @@ import (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s <depfile.d>")
+		fmt.Fprintf(os.Stderr, "Usage: %s <depfile.d>", os.Args[0])
 		flag.PrintDefaults()
 	}
 	output := flag.String("o", "", "Optional output file (defaults to rewriting source if necessary)")
