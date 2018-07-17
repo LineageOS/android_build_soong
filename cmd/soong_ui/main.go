@@ -46,7 +46,15 @@ func inList(s string, list []string) bool {
 }
 
 func main() {
-	writer := terminal.NewWriter(terminal.StdioImpl{})
+	var stdio terminal.StdioInterface
+	stdio = terminal.StdioImpl{}
+
+	// dumpvar uses stdout, everything else should be in stderr
+	if os.Args[1] == "--dumpvar-mode" || os.Args[1] == "--dumpvars-mode" {
+		stdio = terminal.NewCustomStdio(os.Stdin, os.Stderr, os.Stderr)
+	}
+
+	writer := terminal.NewWriter(stdio)
 	defer writer.Finish()
 
 	log := logger.New(writer)
