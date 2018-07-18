@@ -15,7 +15,6 @@
 package build
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -116,7 +115,7 @@ func runSoong(ctx Context, config Config) {
 			"-d", "keepdepfile",
 			"-w", "dupbuild=err",
 			"-j", strconv.Itoa(config.Parallel()),
-			fmt.Sprintf("--frontend=cat <&3 >%s", fifo),
+			"--frontend_file", fifo,
 			"-f", filepath.Join(config.SoongOutDir(), file))
 		cmd.Sandbox = soongSandbox
 		cmd.RunAndPrintOrFatal()
