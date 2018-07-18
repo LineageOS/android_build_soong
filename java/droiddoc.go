@@ -485,7 +485,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 				} else if sdkVersion == "" {
 					linkType = javaPlatform
 				}
-				deps.classpath = append(deps.classpath, dep.HeaderJars(linkType)...)
+				deps.classpath = append(deps.classpath, dep.ImplementationJars(linkType)...)
 			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)

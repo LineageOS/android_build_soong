@@ -129,6 +129,11 @@ type sdkLibrary struct {
 	systemApiStubsPath android.Paths
 	testApiStubsPath   android.Paths
 	implLibPath        android.Paths
+
+	publicApiStubsImplPath android.Paths
+	systemApiStubsImplPath android.Paths
+	testApiStubsImplPath   android.Paths
+	implLibImplPath        android.Paths
 }
 
 func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -151,12 +156,16 @@ func (module *sdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			switch tag {
 			case publicApiStubsTag:
 				module.publicApiStubsPath = lib.HeaderJars()
+				module.publicApiStubsImplPath = lib.ImplementationJars()
 			case systemApiStubsTag:
 				module.systemApiStubsPath = lib.HeaderJars()
+				module.systemApiStubsImplPath = lib.ImplementationJars()
 			case testApiStubsTag:
 				module.testApiStubsPath = lib.HeaderJars()
+				module.testApiStubsImplPath = lib.ImplementationJars()
 			case implLibTag:
 				module.implLibPath = lib.HeaderJars()
+				module.implLibImplPath = lib.ImplementationJars()
 			default:
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
 			}
@@ -554,6 +563,18 @@ func (module *sdkLibrary) HeaderJars(linkType linkType) android.Paths {
 		return module.implLibPath
 	} else {
 		return module.publicApiStubsPath
+	}
+}
+
+// to satisfy SdkLibraryDependency interface
+func (module *sdkLibrary) ImplementationJars(linkType linkType) android.Paths {
+	// This module is just a wrapper for the stubs.
+	if linkType == javaSystem {
+		return module.systemApiStubsImplPath
+	} else if linkType == javaPlatform {
+		return module.implLibImplPath
+	} else {
+		return module.publicApiStubsImplPath
 	}
 }
 
