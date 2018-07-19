@@ -313,6 +313,7 @@ type Dependency interface {
 
 type SdkLibraryDependency interface {
 	HeaderJars(linkType linkType) android.Paths
+	ImplementationJars(linkType linkType) android.Paths
 }
 
 type SrcDependency interface {
