@@ -135,7 +135,7 @@ func main() {
 	writer := terminal.NewWriter(terminal.StdioImpl{})
 	defer writer.Finish()
 
-	log := logger.New(os.Stderr)
+	log := logger.New(writer)
 	defer log.Cleanup()
 
 	flag.Parse()
@@ -149,6 +149,9 @@ func main() {
 	stat := &status.Status{}
 	defer stat.Finish()
 	stat.AddOutput(terminal.NewStatusOutput(writer, ""))
+
+	var failures failureCount
+	stat.AddOutput(&failures)
 
 	build.SetupSignals(log, cancel, func() {
 		trace.Close()
@@ -386,4 +389,30 @@ func main() {
 	}
 
 	s.Finish()
+
+	if failures == 1 {
+		log.Fatal("1 failure")
+	} else if failures > 1 {
+		log.Fatalf("%d failures", failures)
+	} else {
+		writer.Print("Success")
+	}
 }
+
+type failureCount int
+
+func (f *failureCount) StartAction(action *status.Action, counts status.Counts) {}
+
+func (f *failureCount) FinishAction(result status.ActionResult, counts status.Counts) {
+	if result.Error != nil {
+		*f += 1
+	}
+}
+
+func (f *failureCount) Message(level status.MsgLevel, message string) {
+	if level >= status.ErrorLvl {
+		*f += 1
+	}
+}
+
+func (f *failureCount) Flush() {}
