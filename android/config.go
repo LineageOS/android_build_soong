@@ -763,6 +763,13 @@ func (c *deviceConfig) ProductPath() string {
 	return "product"
 }
 
+func (c *deviceConfig) ProductServicesPath() string {
+	if c.config.productVariables.ProductServicesPath != nil {
+		return *c.config.productVariables.ProductServicesPath
+	}
+	return "product-services"
+}
+
 func (c *deviceConfig) BtConfigIncludeDir() string {
 	return String(c.config.productVariables.BtConfigIncludeDir)
 }
