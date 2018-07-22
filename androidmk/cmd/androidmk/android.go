@@ -174,6 +174,7 @@ func init() {
 			"LOCAL_VENDOR_MODULE":            "vendor",
 			"LOCAL_ODM_MODULE":               "device_specific",
 			"LOCAL_PRODUCT_MODULE":           "product_specific",
+			"LOCAL_PRODUCT_SERVICES_MODULE":  "product_services_specific",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES": "export_package_resources",
 			"LOCAL_PRIVILEGED_MODULE":        "privileged",
 
