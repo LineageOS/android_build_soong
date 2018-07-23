@@ -306,7 +306,7 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled(pyVersion2) {
 			ctx.AddVariationDependencies(nil, pythonLibTag, "py2-stdlib")
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{"arch", ctx.Target().String()},
+				{Mutator: "arch", Variation: ctx.Target().String()},
 			}, launcherTag, "py2-launcher")
 		}
 

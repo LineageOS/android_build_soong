@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -154,7 +153,7 @@ func TestDataTests(t *testing.T) {
 				path := filepath.Join(test.data[i].path, test.data[i].file)
 				if test.data[i].file != got[i].Rel() ||
 					path != got[i].String() {
-					fmt.Errorf("expected %s:%s got %s:%s",
+					t.Errorf("expected %s:%s got %s:%s",
 						path, test.data[i].file,
 						got[i].String(), got[i].Rel())
 				}
