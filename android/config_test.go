@@ -50,7 +50,7 @@ func validateConfigAnnotations(configurable jsonConfigurable) (err error) {
 }
 
 type configType struct {
-	populateMe *bool `json:"omitempty"`
+	PopulateMe *bool `json:"omitempty"`
 }
 
 func (c *configType) SetDefaultConfig() {
@@ -60,7 +60,7 @@ func (c *configType) SetDefaultConfig() {
 func TestValidateConfigAnnotations(t *testing.T) {
 	config := configType{}
 	err := validateConfigAnnotations(&config)
-	expectedError := `Field configType.populateMe has tag json:"omitempty" which specifies to change its json field name to "omitempty".
+	expectedError := `Field configType.PopulateMe has tag json:"omitempty" which specifies to change its json field name to "omitempty".
 Did you mean to use an annotation of ",omitempty"?
 (Alternatively, to change the json name of the field, rename the field in source instead.)`
 	if err.Error() != expectedError {

@@ -243,7 +243,6 @@ func (m *MockFs) followLinks(path string, followLastLink bool, count int) (canon
 	if parentPath == path {
 		err = fmt.Errorf("Internal error: %v yields itself as a parent", path)
 		panic(err.Error())
-		return "", fmt.Errorf("Internal error: %v yields itself as a parent", path)
 	}
 
 	parentPath, err = m.followLinks(parentPath, true, count)

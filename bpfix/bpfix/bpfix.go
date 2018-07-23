@@ -141,7 +141,6 @@ func (f *Fixer) Fix(config FixRequest) (*parser.File, error) {
 		i++
 		if i >= maxNumIterations {
 			return nil, fmt.Errorf("Applied fixes %d times and yet the tree continued to change. Is there an infinite loop?", i)
-			break
 		}
 	}
 	return f.tree, err
