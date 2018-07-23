@@ -134,7 +134,7 @@ func (e *Environment) appendFromKati(reader io.Reader) error {
 		if cmd[0] == "unset" {
 			str, ok := singleUnquote(cmd[1])
 			if !ok {
-				fmt.Errorf("Failed to unquote kati line: %q", text)
+				return fmt.Errorf("Failed to unquote kati line: %q", text)
 			}
 			e.Unset(str)
 		} else if cmd[0] == "export" {

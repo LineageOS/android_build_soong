@@ -43,7 +43,7 @@ func NinjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
 func ninjaReader(status ToolStatus, fifo string) {
 	f, err := os.Open(fifo)
 	if err != nil {
-		status.Error(fmt.Sprintf("Failed to open fifo:", err))
+		status.Error(fmt.Sprintf("Failed to open fifo: %v", err))
 	}
 	defer f.Close()
 
