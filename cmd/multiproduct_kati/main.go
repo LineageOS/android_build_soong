@@ -159,7 +159,7 @@ func main() {
 		stat.Finish()
 	})
 
-	buildCtx := build.Context{&build.ContextImpl{
+	buildCtx := build.Context{ContextImpl: &build.ContextImpl{
 		Context: ctx,
 		Logger:  log,
 		Tracer:  trace,
@@ -297,7 +297,7 @@ func main() {
 			productLog := logger.New(f)
 			productLog.SetOutput(filepath.Join(productLogDir, "soong.log"))
 
-			productCtx := build.Context{&build.ContextImpl{
+			productCtx := build.Context{ContextImpl: &build.ContextImpl{
 				Context: ctx,
 				Logger:  productLog,
 				Tracer:  trace,

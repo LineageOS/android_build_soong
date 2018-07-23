@@ -94,10 +94,8 @@ type NameResolver struct {
 }
 
 func NewNameResolver(namespaceExportFilter func(*Namespace) bool) *NameResolver {
-	namespacesByDir := sync.Map{}
-
 	r := &NameResolver{
-		namespacesByDir:       namespacesByDir,
+		namespacesByDir:       sync.Map{},
 		namespaceExportFilter: namespaceExportFilter,
 	}
 	r.rootNamespace = r.newNamespace(".")

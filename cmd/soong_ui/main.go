@@ -84,7 +84,7 @@ func main() {
 		stat.Finish()
 	})
 
-	buildCtx := build.Context{&build.ContextImpl{
+	buildCtx := build.Context{ContextImpl: &build.ContextImpl{
 		Context: ctx,
 		Logger:  log,
 		Tracer:  trace,

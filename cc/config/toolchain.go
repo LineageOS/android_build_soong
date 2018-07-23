@@ -36,7 +36,6 @@ func FindToolchain(os android.OsType, arch android.Arch) Toolchain {
 	factory := toolchainFactories[os][arch.ArchType]
 	if factory == nil {
 		panic(fmt.Errorf("Toolchain not found for %s arch %q", os.String(), arch.String()))
-		return nil
 	}
 	return factory(arch)
 }
