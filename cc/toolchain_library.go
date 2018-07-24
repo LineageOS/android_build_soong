@@ -43,7 +43,7 @@ func toolchainLibraryFactory() android.Module {
 	}
 	module.compiler = toolchainLibrary
 	module.linker = toolchainLibrary
-	module.Properties.Clang = BoolPtr(false)
+	module.Properties.Gcc = true
 	module.stl = nil
 	module.sanitize = nil
 	module.installer = nil

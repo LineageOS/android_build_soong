@@ -159,8 +159,11 @@ type ObjectLinkerProperties struct {
 
 // Properties used to compile all C or C++ modules
 type BaseProperties struct {
-	// compile module with clang instead of gcc
+	// Deprecated. true is the default, false is invalid.
 	Clang *bool `android:"arch_variant"`
+
+	// Some internals still need GCC (toolchain_library)
+	Gcc bool `blueprint:"mutated"`
 
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version *string
@@ -1080,17 +1083,15 @@ func beginMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (c *Module) clang(ctx BaseModuleContext) bool {
-	clang := Bool(c.Properties.Clang)
-
-	if c.Properties.Clang == nil {
-		clang = true
+	if c.Properties.Clang != nil && *c.Properties.Clang == false {
+		ctx.PropertyErrorf("clang", "false (GCC) is no longer supported")
 	}
 
 	if !c.toolchain(ctx).ClangSupported() {
-		clang = false
+		panic("GCC is no longer supported")
 	}
 
-	return clang
+	return !c.Properties.Gcc
 }
 
 // Whether a module can link to another module, taking into
