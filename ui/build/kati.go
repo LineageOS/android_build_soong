@@ -78,6 +78,8 @@ func runKati(ctx Context, config Config) {
 		"--werror_find_emulator",
 		"--no_builtin_rules",
 		"--werror_suffix_rules",
+		"--warn_real_to_phony",
+		"--warn_phony_looks_real",
 		"--kati_stats",
 		"-f", "build/make/core/main.mk",
 	}
