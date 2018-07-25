@@ -693,7 +693,8 @@ func getLinkType(m *Module, name string) linkType {
 	ver := m.sdkVersion()
 	noStdLibs := Bool(m.properties.No_standard_libs)
 	switch {
-	case name == "core.current.stubs" || ver == "core_current" || noStdLibs || name == "stub-annotations":
+	case name == "core.current.stubs" || ver == "core_current" || noStdLibs || name == "stub-annotations" ||
+		name == "private-stub-annotations-jar":
 		return javaCore
 	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_") || name == "metalava_android_system_stubs_current":
 		return javaSystem
