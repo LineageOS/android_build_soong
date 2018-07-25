@@ -320,7 +320,7 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "droidcore: checkapi")
 				}
 				if ddoc.updateCurrentApiTimestamp != nil {
-					fmt.Fprintln(w, ".PHONY:", ddoc.Name(), "-update-current-api")
+					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-update-current-api")
 					fmt.Fprintln(w, ddoc.Name()+"-update-current-api:",
 						ddoc.updateCurrentApiTimestamp.String())
 
