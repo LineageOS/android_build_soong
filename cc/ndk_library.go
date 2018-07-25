@@ -157,10 +157,10 @@ func getFirstGeneratedVersion(firstSupportedVersion string, platformVersion int)
 }
 
 func shouldUseVersionScript(ctx android.BaseContext, stub *stubDecorator) (bool, error) {
-	// https://github.com/android-ndk/ndk/issues/622
-	// The loader spews warnings to stderr on L-MR1 when loading a library that
-	// has symbol versioning.
-	firstVersionSupportingRelease := 23
+	// unversioned_until is normally empty, in which case we should use the version script.
+	if String(stub.properties.Unversioned_until) == "" {
+		return true, nil
+	}
 
 	if String(stub.properties.Unversioned_until) == "current" {
 		if stub.properties.ApiLevel == "current" {
@@ -174,29 +174,14 @@ func shouldUseVersionScript(ctx android.BaseContext, stub *stubDecorator) (bool,
 		return true, nil
 	}
 
-	version, err := android.ApiStrToNum(ctx, stub.properties.ApiLevel)
-	if err != nil {
-		return true, err
-	}
-
-	// unversioned_until is normally empty, in which case we use the version
-	// script as long as we are on a supported API level.
-	if String(stub.properties.Unversioned_until) == "" {
-		return version >= firstVersionSupportingRelease, nil
-	}
-
 	unversionedUntil, err := android.ApiStrToNum(ctx, String(stub.properties.Unversioned_until))
 	if err != nil {
 		return true, err
 	}
 
-	if unversionedUntil < firstVersionSupportingRelease {
-		return true, fmt.Errorf("unversioned_until must be at least %d",
-			firstVersionSupportingRelease)
-	}
-
-	if version < firstVersionSupportingRelease {
-		return false, nil
+	version, err := android.ApiStrToNum(ctx, stub.properties.ApiLevel)
+	if err != nil {
+		return true, err
 	}
 
 	return version >= unversionedUntil, nil
