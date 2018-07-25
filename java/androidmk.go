@@ -304,6 +304,9 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				if ddoc.Javadoc.stubsSrcJar != nil {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", ddoc.Javadoc.stubsSrcJar.String())
 				}
+				if ddoc.annotationsZip != nil {
+					fmt.Fprintln(w, "LOCAL_DROIDDOC_ANNOTATIONS_ZIP := ", ddoc.annotationsZip.String())
+				}
 				if ddoc.checkCurrentApiTimestamp != nil {
 					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-check-current-api")
 					fmt.Fprintln(w, ddoc.Name()+"-check-current-api:",

@@ -302,6 +302,8 @@ type Droiddoc struct {
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
 	checkLastReleasedApiTimestamp android.WritablePath
+
+	annotationsZip android.WritablePath
 }
 
 func InitDroiddocModule(module android.DefaultableModule, hod android.HostOrDeviceSupported) {
@@ -965,8 +967,8 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 			opts += " --include-annotations --migrate-nullness"
 
-			annotationsZip := android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
-			implicitOutputs = append(implicitOutputs, annotationsZip)
+			d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
+			implicitOutputs = append(implicitOutputs, d.annotationsZip)
 
 			if String(d.properties.Metalava_merge_annotations_dir) == "" {
 				ctx.PropertyErrorf("metalava_merge_annotations",
@@ -975,7 +977,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 			mergeAnnotationsDir := android.PathForSource(ctx, String(d.properties.Metalava_merge_annotations_dir))
 
-			opts += " --extract-annotations " + annotationsZip.String() + " --merge-annotations " + mergeAnnotationsDir.String()
+			opts += " --extract-annotations " + d.annotationsZip.String() + " --merge-annotations " + mergeAnnotationsDir.String()
 			// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 			opts += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction"
 		}
