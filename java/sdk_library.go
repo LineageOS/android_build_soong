@@ -47,6 +47,9 @@ var (
 	systemApiStubsTag = dependencyTag{name: "system"}
 	testApiStubsTag   = dependencyTag{name: "test"}
 	implLibTag        = dependencyTag{name: "platform"}
+	publicApiFileTag  = dependencyTag{name: "publicApi"}
+	systemApiFileTag  = dependencyTag{name: "systemApi"}
+	testApiFileTag    = dependencyTag{name: "testApi"}
 )
 
 type apiScope int
@@ -134,6 +137,10 @@ type sdkLibrary struct {
 	systemApiStubsImplPath android.Paths
 	testApiStubsImplPath   android.Paths
 	implLibImplPath        android.Paths
+
+	publicApiFilePath android.Path
+	systemApiFilePath android.Path
+	testApiFilePath   android.Path
 }
 
 func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -142,6 +149,10 @@ func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), systemApiStubsTag, module.stubsName(apiScopeSystem))
 	ctx.AddDependency(ctx.Module(), testApiStubsTag, module.stubsName(apiScopeTest))
 	ctx.AddDependency(ctx.Module(), implLibTag, module.implName())
+
+	ctx.AddDependency(ctx.Module(), publicApiFileTag, module.docsName(apiScopePublic))
+	ctx.AddDependency(ctx.Module(), systemApiFileTag, module.docsName(apiScopeSystem))
+	ctx.AddDependency(ctx.Module(), testApiFileTag, module.docsName(apiScopeTest))
 }
 
 func (module *sdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -166,6 +177,18 @@ func (module *sdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			case implLibTag:
 				module.implLibPath = lib.HeaderJars()
 				module.implLibImplPath = lib.ImplementationJars()
+			default:
+				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
+			}
+		}
+		if doc, ok := to.(ApiFilePath); ok {
+			switch tag {
+			case publicApiFileTag:
+				module.publicApiFilePath = doc.ApiFilePath()
+			case systemApiFileTag:
+				module.systemApiFilePath = doc.ApiFilePath()
+			case testApiFileTag:
+				module.testApiFilePath = doc.ApiFilePath()
 			default:
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
 			}
@@ -198,6 +221,24 @@ func (module *sdkLibrary) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.testApiStubsPath.Strings()[0]+
 					":"+path.Join("apistubs", "test", module.BaseModuleName()+".jar")+")")
+			}
+			if module.publicApiFilePath != nil {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.publicApiFilePath.String()+
+					":"+path.Join("apistubs", "public", "api",
+					module.BaseModuleName()+".txt")+")")
+			}
+			if module.systemApiFilePath != nil {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.systemApiFilePath.String()+
+					":"+path.Join("apistubs", "system", "api",
+					module.BaseModuleName()+".txt")+")")
+			}
+			if module.testApiFilePath != nil {
+				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
+					module.testApiFilePath.String()+
+					":"+path.Join("apistubs", "test", "api",
+					module.BaseModuleName()+".txt")+")")
 			}
 		},
 	}
