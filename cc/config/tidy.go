@@ -22,8 +22,13 @@ import (
 // clang-tidy doesn't recognize every flag that clang does. This is unlikely to
 // be a complete list, but we can populate this with the ones we know to avoid
 // issues with clang-diagnostic-unused-command-line-argument.
+// b/111885396: -flto affected header include directory;
+// -fsanitize and -fwhole-program-vtables need -flto.
 var ClangTidyUnknownCflags = sorted([]string{
 	"-Wa,%",
+	"-flto",
+	"-fsanitize=%",
+	"-fwhole-program-vtables",
 })
 
 func init() {

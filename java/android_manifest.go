@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/java/config"
+	"strings"
 
 	"github.com/google/blueprint"
 
@@ -24,10 +25,10 @@ import (
 
 var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
 	blueprint.RuleParams{
-		Command:     `${config.ManifestFixerCmd} --minSdkVersion ${minSdkVersion} $usesLibraries $in $out`,
+		Command:     `${config.ManifestFixerCmd} --minSdkVersion ${minSdkVersion} $args $in $out`,
 		CommandDeps: []string{"${config.ManifestFixerCmd}"},
 	},
-	"minSdkVersion", "usesLibraries")
+	"minSdkVersion", "args")
 
 var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	blueprint.RuleParams{
@@ -38,7 +39,12 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	"libs")
 
 func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
-	staticLibManifests android.Paths) android.Path {
+	staticLibManifests android.Paths, isLibrary bool) android.Path {
+
+	var args []string
+	if isLibrary {
+		args = append(args, "--library")
+	}
 
 	// Inject minSdkVersion into the manifest
 	fixedManifest := android.PathForModuleOut(ctx, "manifest_fixer", "AndroidManifest.xml")
@@ -48,6 +54,7 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 		Output: fixedManifest,
 		Args: map[string]string{
 			"minSdkVersion": sdkVersionOrDefault(ctx, sdkContext.minSdkVersion()),
+			"args":          strings.Join(args, " "),
 		},
 	})
 	manifest = fixedManifest

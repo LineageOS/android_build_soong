@@ -304,6 +304,12 @@ type Droiddoc struct {
 	checkLastReleasedApiTimestamp android.WritablePath
 
 	annotationsZip android.WritablePath
+
+	apiFilePath android.Path
+}
+
+type ApiFilePath interface {
+	ApiFilePath() android.Path
 }
 
 func InitDroiddocModule(module android.DefaultableModule, hod android.HostOrDeviceSupported) {
@@ -813,6 +819,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		args = args + " -api " + d.apiFile.String()
 		metalavaArgs = metalavaArgs + " --api " + d.apiFile.String()
 		implicitOutputs = append(implicitOutputs, d.apiFile)
+		d.apiFilePath = d.apiFile
 	}
 
 	if d.checkCurrentApi() || d.checkLastReleasedApi() || String(d.properties.Removed_api_filename) != "" {
@@ -897,7 +904,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		if Bool(d.properties.Write_sdk_values) {
-			opts += " -sdkvalues " + android.PathForModuleOut(ctx, "docs").String()
+			opts += " -sdkvalues " + android.PathForModuleOut(ctx, "docs", "out").String()
 		}
 
 		var postDoclavaCmds string
@@ -1089,6 +1096,10 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			},
 		})
 	}
+}
+
+func (d *Droiddoc) ApiFilePath() android.Path {
+	return d.apiFilePath
 }
 
 var droiddocTemplateTag = dependencyTag{name: "droiddoc-template"}

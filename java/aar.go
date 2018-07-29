@@ -67,6 +67,7 @@ type aapt struct {
 	rroDirs               android.Paths
 	rTxt                  android.Path
 	extraAaptPackagesFile android.Path
+	isLibrary             bool
 
 	aaptProperties aaptProperties
 }
@@ -167,13 +168,16 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
-	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests)
+	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests, a.isLibrary)
 
 	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs := a.aapt2Flags(ctx, sdkContext, manifestPath)
 
 	linkFlags = append(linkFlags, libFlags...)
 	linkDeps = append(linkDeps, libDeps...)
 	linkFlags = append(linkFlags, extraLinkFlags...)
+	if a.isLibrary {
+		linkFlags = append(linkFlags, "--static-lib")
+	}
 
 	packageRes := android.PathForModuleOut(ctx, "package-res.apk")
 	srcJar := android.PathForModuleGen(ctx, "R.jar")
@@ -286,7 +290,8 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.aapt.buildActions(ctx, sdkContext(a), "--static-lib")
+	a.isLibrary = true
+	a.aapt.buildActions(ctx, sdkContext(a))
 
 	ctx.CheckbuildFile(a.proguardOptionsFile)
 	ctx.CheckbuildFile(a.exportPackage)
