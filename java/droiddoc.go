@@ -904,7 +904,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		if Bool(d.properties.Write_sdk_values) {
-			opts += " -sdkvalues " + android.PathForModuleOut(ctx, "docs").String()
+			opts += " -sdkvalues " + android.PathForModuleOut(ctx, "docs", "out").String()
 		}
 
 		var postDoclavaCmds string
