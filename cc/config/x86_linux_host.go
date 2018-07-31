@@ -96,19 +96,6 @@ var (
 
 	linuxX8664ClangLldflags = ClangFilterUnknownLldflags(linuxX8664ClangLdflags)
 
-	linuxClangCppflags = []string{
-		"-isystem ${LinuxGccRoot}/${LinuxGccTriple}/include/c++/${LinuxGccVersion}",
-		"-isystem ${LinuxGccRoot}/${LinuxGccTriple}/include/c++/${LinuxGccVersion}/backward",
-	}
-
-	linuxX86ClangCppflags = []string{
-		"-isystem ${LinuxGccRoot}/${LinuxGccTriple}/include/c++/${LinuxGccVersion}/${LinuxGccTriple}/32",
-	}
-
-	linuxX8664ClangCppflags = []string{
-		"-isystem ${LinuxGccRoot}/${LinuxGccTriple}/include/c++/${LinuxGccVersion}/${LinuxGccTriple}",
-	}
-
 	linuxAvailableLibraries = addPrefix([]string{
 		"c",
 		"dl",
@@ -141,7 +128,6 @@ func init() {
 	pctx.StaticVariable("LinuxClangCflags", strings.Join(linuxClangCflags, " "))
 	pctx.StaticVariable("LinuxClangLdflags", strings.Join(linuxClangLdflags, " "))
 	pctx.StaticVariable("LinuxClangLldflags", strings.Join(linuxClangLldflags, " "))
-	pctx.StaticVariable("LinuxClangCppflags", strings.Join(linuxClangCppflags, " "))
 
 	// Extended cflags
 	pctx.StaticVariable("LinuxX86Cflags", strings.Join(linuxX86Cflags, " "))
@@ -157,8 +143,6 @@ func init() {
 	pctx.StaticVariable("LinuxX86ClangLldflags", strings.Join(linuxX86ClangLldflags, " "))
 	pctx.StaticVariable("LinuxX8664ClangLdflags", strings.Join(linuxX8664ClangLdflags, " "))
 	pctx.StaticVariable("LinuxX8664ClangLldflags", strings.Join(linuxX8664ClangLldflags, " "))
-	pctx.StaticVariable("LinuxX86ClangCppflags", strings.Join(linuxX86ClangCppflags, " "))
-	pctx.StaticVariable("LinuxX8664ClangCppflags", strings.Join(linuxX8664ClangCppflags, " "))
 	// Yasm flags
 	pctx.StaticVariable("LinuxX86YasmFlags", "-f elf32 -m x86")
 	pctx.StaticVariable("LinuxX8664YasmFlags", "-f elf64 -m amd64")
@@ -231,7 +215,7 @@ func (t *toolchainLinuxX86) ClangCflags() string {
 }
 
 func (t *toolchainLinuxX86) ClangCppflags() string {
-	return "${config.LinuxClangCppflags} ${config.LinuxX86ClangCppflags}"
+	return ""
 }
 
 func (t *toolchainLinuxX8664) ClangTriple() string {
@@ -243,7 +227,7 @@ func (t *toolchainLinuxX8664) ClangCflags() string {
 }
 
 func (t *toolchainLinuxX8664) ClangCppflags() string {
-	return "${config.LinuxClangCppflags} ${config.LinuxX8664ClangCppflags}"
+	return ""
 }
 
 func (t *toolchainLinuxX86) ClangLdflags() string {
