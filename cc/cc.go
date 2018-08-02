@@ -46,6 +46,9 @@ func init() {
 		ctx.TopDown("asan_deps", sanitizerDepsMutator(asan))
 		ctx.BottomUp("asan", sanitizerMutator(asan)).Parallel()
 
+		ctx.TopDown("hwasan_deps", sanitizerDepsMutator(hwasan))
+		ctx.BottomUp("hwasan", sanitizerMutator(hwasan)).Parallel()
+
 		ctx.TopDown("cfi_deps", sanitizerDepsMutator(cfi))
 		ctx.BottomUp("cfi", sanitizerMutator(cfi)).Parallel()
 
