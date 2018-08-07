@@ -22,6 +22,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/tradefed"
 )
 
 func init() {
@@ -221,6 +222,8 @@ type AndroidTest struct {
 	appTestProperties appTestProperties
 
 	testProperties testProperties
+
+	testConfig android.Path
 }
 
 func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -231,6 +234,13 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.generateAndroidBuildActions(ctx)
+
+	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.manifestPath)
+}
+
+func (a *AndroidTest) DepsMutator(ctx android.BottomUpMutatorContext) {
+	android.ExtractSourceDeps(ctx, a.testProperties.Test_config)
+	a.AndroidApp.DepsMutator(ctx)
 }
 
 func AndroidTestFactory() android.Module {
