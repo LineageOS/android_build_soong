@@ -349,7 +349,7 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 				ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
 			}
 			if !Bool(j.properties.No_framework_libs) {
-				ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
+				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 			}
 		} else if sdkDep.useModule {
 			if ctx.Config().TargetOpenJDK9() {
