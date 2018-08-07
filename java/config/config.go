@@ -41,6 +41,8 @@ var (
 		"services",
 		"android.car",
 		"android.car7",
+		"core-oj",
+		"core-libart",
 	}
 
 	ManifestMergerClasspath = []string{

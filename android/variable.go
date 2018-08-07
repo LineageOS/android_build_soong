@@ -104,6 +104,19 @@ type variableProperties struct {
 		Uml struct {
 			Cppflags []string
 		}
+
+		Use_lmkd_stats_log struct {
+			Cflags []string
+		}
+
+		Arc struct {
+			Cflags       []string
+			Exclude_srcs []string
+			Include_dirs []string
+			Shared_libs  []string
+			Static_libs  []string
+			Srcs         []string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -174,6 +187,8 @@ type productVariables struct {
 	Enforce_vintf_manifest     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
 	Uml                        *bool `json:",omitempty"`
+	Use_lmkd_stats_log         *bool `json:",omitempty"`
+	Arc                        *bool `json:",omitempty"`
 	MinimizeJavaDebugInfo      *bool `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`

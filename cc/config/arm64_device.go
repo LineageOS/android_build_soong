@@ -174,7 +174,6 @@ type toolchainArm64 struct {
 	toolchain64Bit
 
 	ldflags              string
-	lldflags             string
 	toolchainCflags      string
 	toolchainClangCflags string
 }
@@ -232,7 +231,7 @@ func (t *toolchainArm64) ClangLdflags() string {
 }
 
 func (t *toolchainArm64) ClangLldflags() string {
-	return t.lldflags
+	return "${config.Arm64Lldflags}"
 }
 
 func (t *toolchainArm64) ToolchainClangCflags() string {
@@ -268,10 +267,6 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	return &toolchainArm64{
 		ldflags: strings.Join([]string{
 			"${config.Arm64Ldflags}",
-			extraLdflags,
-		}, " "),
-		lldflags: strings.Join([]string{
-			"${config.Arm64Lldflags}",
 			extraLdflags,
 		}, " "),
 		toolchainCflags:      variantOrDefault(arm64CpuVariantCflagsVar, arch.CpuVariant),
