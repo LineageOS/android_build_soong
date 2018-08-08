@@ -16,10 +16,13 @@ package build
 
 import (
 	"bufio"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+
+	"android/soong/ui/status"
 )
 
 // Checks for files in the out directory that have a rule that depends on them but no rule to
@@ -36,6 +39,12 @@ func testForDanglingRules(ctx Context, config Config) {
 
 	ctx.BeginTrace("test for dangling rules")
 	defer ctx.EndTrace()
+
+	ts := ctx.Status.StartTool()
+	action := &status.Action{
+		Description: "Test for dangling rules",
+	}
+	ts.StartAction(action)
 
 	// Get a list of leaf nodes in the dependency graph from ninja
 	executable := config.PrebuiltBuildTool("ninja")
@@ -83,10 +92,18 @@ func testForDanglingRules(ctx Context, config Config) {
 	sort.Strings(danglingRulesList)
 
 	if len(danglingRulesList) > 0 {
-		ctx.Println("Dependencies in out found with no rule to create them:")
+		sb := &strings.Builder{}
+		title := "Dependencies in out found with no rule to create them:"
+		fmt.Fprintln(sb, title)
 		for _, dep := range danglingRulesList {
-			ctx.Println("  ", dep)
+			fmt.Fprintln(sb, "  ", dep)
 		}
+		ts.FinishAction(status.ActionResult{
+			Action: action,
+			Error:  fmt.Errorf(title),
+			Output: sb.String(),
+		})
 		ctx.Fatal("stopping")
 	}
+	ts.FinishAction(status.ActionResult{Action: action})
 }
