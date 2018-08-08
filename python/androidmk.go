@@ -66,6 +66,11 @@ func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(p.binaryDecorator.binaryProperties.Test_suites, " "))
 		}
+		// If the test config has an explicit config specified use it.
+		if p.testProperties.Test_config != nil {
+			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
+				*p.testProperties.Test_config)
+		}
 	})
 	base.subAndroidMk(ret, p.binaryDecorator.pythonInstaller)
 }
