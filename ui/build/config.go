@@ -284,6 +284,9 @@ func (c *configImpl) configureLocale(ctx Context) {
 	// for others)
 	if inList("C.UTF-8", locales) {
 		c.environ.Set("LANG", "C.UTF-8")
+	} else if inList("C.utf8", locales) {
+		// These normalize to the same thing
+		c.environ.Set("LANG", "C.UTF-8")
 	} else if inList("en_US.UTF-8", locales) {
 		c.environ.Set("LANG", "en_US.UTF-8")
 	} else if inList("en_US.utf8", locales) {
