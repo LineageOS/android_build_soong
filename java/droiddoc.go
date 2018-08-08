@@ -94,7 +94,7 @@ func init() {
 
 	android.RegisterModuleType("droiddoc", DroiddocFactory)
 	android.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
-	android.RegisterModuleType("droiddoc_template", DroiddocTemplateFactory)
+	android.RegisterModuleType("droiddoc_exported_dir", ExportedDroiddocDirFactory)
 	android.RegisterModuleType("javadoc", JavadocFactory)
 	android.RegisterModuleType("javadoc_host", JavadocHostFactory)
 }
@@ -349,7 +349,7 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 				ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
 			}
 			if !Bool(j.properties.No_framework_libs) {
-				ctx.AddDependency(ctx.Module(), libTag, []string{"ext", "framework"}...)
+				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
 			}
 		} else if sdkDep.useModule {
 			if ctx.Config().TargetOpenJDK9() {
@@ -698,6 +698,12 @@ func (d *Droiddoc) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if String(d.properties.Metalava_previous_api) != "" {
 		android.ExtractSourceDeps(ctx, d.properties.Metalava_previous_api)
 	}
+
+	if len(d.properties.Metalava_merge_annotations_dirs) != 0 {
+		for _, mergeAnnotationsDir := range d.properties.Metalava_merge_annotations_dirs {
+			ctx.AddDependency(ctx.Module(), metalavaMergeAnnotationsDirTag, mergeAnnotationsDir)
+		}
+	}
 }
 
 func (d *Droiddoc) initBuilderFlags(ctx android.ModuleContext, implicits *android.Paths, deps deps) (droiddocBuilderFlags, error) {
@@ -773,7 +779,7 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 	}
 
 	ctx.VisitDirectDepsWithTag(droiddocTemplateTag, func(m android.Module) {
-		if t, ok := m.(*DroiddocTemplate); ok {
+		if t, ok := m.(*ExportedDroiddocDir); ok {
 			*implicits = append(*implicits, t.deps...)
 			args = args + " -templatedir " + t.dir.String()
 		} else {
@@ -942,16 +948,21 @@ func (d *Droiddoc) collectMetalavaAnnotationsFlags(
 		d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
 		*implicitOutputs = append(*implicitOutputs, d.annotationsZip)
 
+		flags += " --extract-annotations " + d.annotationsZip.String()
+
 		if len(d.properties.Metalava_merge_annotations_dirs) == 0 {
 			ctx.PropertyErrorf("metalava_merge_annotations_dirs",
 				"has to be non-empty if annotations was enabled!")
 		}
-		mergeAnnotationsDirs := android.PathsForSource(ctx, d.properties.Metalava_merge_annotations_dirs)
-
-		flags += " --extract-annotations " + d.annotationsZip.String()
-		for _, mergeAnnotationsDir := range mergeAnnotationsDirs {
-			flags += " --merge-annotations " + mergeAnnotationsDir.String()
-		}
+		ctx.VisitDirectDepsWithTag(metalavaMergeAnnotationsDirTag, func(m android.Module) {
+			if t, ok := m.(*ExportedDroiddocDir); ok {
+				*implicits = append(*implicits, t.deps...)
+				flags += " --merge-annotations " + t.dir.String()
+			} else {
+				ctx.PropertyErrorf("metalava_merge_annotations_dirs",
+					"module %q is not a metalava merge-annotations dir", ctx.OtherModuleName(m))
+			}
+		})
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		flags += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction "
 	}
@@ -1140,34 +1151,35 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 //
-// Droiddoc Template
+// Exported Droiddoc Directory
 //
 var droiddocTemplateTag = dependencyTag{name: "droiddoc-template"}
+var metalavaMergeAnnotationsDirTag = dependencyTag{name: "metalava-merge-annotations-dir"}
 
-type DroiddocTemplateProperties struct {
-	// path to the directory containing the droiddoc templates.
+type ExportedDroiddocDirProperties struct {
+	// path to the directory containing Droiddoc related files.
 	Path *string
 }
 
-type DroiddocTemplate struct {
+type ExportedDroiddocDir struct {
 	android.ModuleBase
 
-	properties DroiddocTemplateProperties
+	properties ExportedDroiddocDirProperties
 
 	deps android.Paths
 	dir  android.Path
 }
 
-func DroiddocTemplateFactory() android.Module {
-	module := &DroiddocTemplate{}
+func ExportedDroiddocDirFactory() android.Module {
+	module := &ExportedDroiddocDir{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
 	return module
 }
 
-func (d *DroiddocTemplate) DepsMutator(android.BottomUpMutatorContext) {}
+func (d *ExportedDroiddocDir) DepsMutator(android.BottomUpMutatorContext) {}
 
-func (d *DroiddocTemplate) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (d *ExportedDroiddocDir) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	path := android.PathForModuleSrc(ctx, String(d.properties.Path))
 	d.dir = path
 	d.deps = ctx.Glob(path.Join(ctx, "**/*").String(), nil)
