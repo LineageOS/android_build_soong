@@ -67,7 +67,8 @@ var (
 
 	metalava = pctx.AndroidStaticRule("metalava",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
+			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" "$docStubsDir" && ` +
+				`mkdir -p "$outDir" "$srcJarDir" "$stubsDir" "$docStubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs -sourcepath $sourcepath --no-banner --color --quiet ` +
@@ -85,7 +86,7 @@ var (
 			RspfileContent: "$in",
 			Restat:         true,
 		},
-		"outDir", "srcJarDir", "stubsDir", "srcJars", "javaVersion", "bootclasspathArgs",
+		"outDir", "srcJarDir", "stubsDir", "docStubsDir", "srcJars", "javaVersion", "bootclasspathArgs",
 		"classpathArgs", "sourcepath", "opts", "docZip")
 )
 
@@ -572,9 +573,9 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Inputs:         j.srcFiles,
 		Implicits:      implicits,
 		Args: map[string]string{
-			"outDir":            android.PathForModuleOut(ctx, "docs", "out").String(),
-			"srcJarDir":         android.PathForModuleOut(ctx, "docs", "srcjars").String(),
-			"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
+			"outDir":            android.PathForModuleOut(ctx, "out").String(),
+			"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
+			"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
 			"srcJars":           strings.Join(j.srcJars.Strings(), " "),
 			"opts":              opts,
 			"bootclasspathArgs": bootClasspathArgs,
@@ -899,11 +900,11 @@ func (d *Droiddoc) collectStubsFlags(ctx android.ModuleContext, implicitOutputs 
 	}
 
 	if BoolDefault(d.properties.Create_stubs, true) {
-		doclavaFlags += " -stubs " + android.PathForModuleOut(ctx, "docs", "stubsDir").String()
+		doclavaFlags += " -stubs " + android.PathForModuleOut(ctx, "stubsDir").String()
 	}
 
 	if Bool(d.properties.Write_sdk_values) {
-		doclavaFlags += " -sdkvalues " + android.PathForModuleOut(ctx, "docs", "out").String()
+		doclavaFlags += " -sdkvalues " + android.PathForModuleOut(ctx, "out").String()
 	}
 	return doclavaFlags, MetalavaFlags
 }
@@ -915,7 +916,7 @@ func (d *Droiddoc) getPostDoclavaCmds(ctx android.ModuleContext, implicits *andr
 			"static_doc_index_redirect")
 		*implicits = append(*implicits, static_doc_index_redirect)
 		cmds = cmds + " && cp " + static_doc_index_redirect.String() + " " +
-			android.PathForModuleOut(ctx, "docs", "out", "index.html").String()
+			android.PathForModuleOut(ctx, "out", "index.html").String()
 	}
 
 	if String(d.properties.Static_doc_properties) != "" {
@@ -923,7 +924,7 @@ func (d *Droiddoc) getPostDoclavaCmds(ctx android.ModuleContext, implicits *andr
 			"static_doc_properties")
 		*implicits = append(*implicits, static_doc_properties)
 		cmds = cmds + " && cp " + static_doc_properties.String() + " " +
-			android.PathForModuleOut(ctx, "docs", "out", "source.properties").String()
+			android.PathForModuleOut(ctx, "out", "source.properties").String()
 	}
 	return cmds
 }
@@ -931,18 +932,16 @@ func (d *Droiddoc) getPostDoclavaCmds(ctx android.ModuleContext, implicits *andr
 func (d *Droiddoc) collectMetalavaAnnotationsFlags(
 	ctx android.ModuleContext, implicits *android.Paths, implicitOutputs *android.WritablePaths) string {
 	var flags string
-	if String(d.properties.Metalava_previous_api) != "" {
-		previousApi := ctx.ExpandSource(String(d.properties.Metalava_previous_api),
-			"metalava_previous_api")
-		flags += " --previous-api " + previousApi.String()
-		*implicits = append(*implicits, previousApi)
-	}
-
 	if Bool(d.properties.Metalava_annotations_enabled) {
 		if String(d.properties.Metalava_previous_api) == "" {
 			ctx.PropertyErrorf("metalava_previous_api",
 				"has to be non-empty if annotations was enabled!")
 		}
+		previousApi := ctx.ExpandSource(String(d.properties.Metalava_previous_api),
+			"metalava_previous_api")
+		*implicits = append(*implicits, previousApi)
+		flags += " --previous-api " + previousApi.String()
+
 		flags += " --include-annotations --migrate-nullness"
 
 		d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
@@ -971,12 +970,12 @@ func (d *Droiddoc) collectMetalavaAnnotationsFlags(
 }
 
 func (d *Droiddoc) collectMetalavaDocsFlags(ctx android.ModuleContext,
-	bootClasspathArgs, classpathArgs string) string {
-	return " --doc-stubs " + android.PathForModuleOut(ctx, "docs", "docStubsDir").String() +
-		" --write-doc-stubs-source-list $outDir/doc_stubs_src_list " +
+	bootClasspathArgs, classpathArgs, outDir, docStubsDir string) string {
+	return " --doc-stubs " + docStubsDir +
+		" --write-doc-stubs-source-list " + android.PathForModuleOut(ctx, "doc_stubs.srclist").String() +
 		" --generate-documentation ${config.JavadocCmd} -encoding UTF-8 DOC_STUBS_SOURCE_LIST " +
 		bootClasspathArgs + " " + classpathArgs + " " + " -sourcepath " +
-		android.PathForModuleOut(ctx, "docs", "docStubsDir").String() + " -quiet -d $outDir "
+		docStubsDir + " -quiet -d " + outDir
 }
 
 func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1009,15 +1008,18 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	outDir := android.PathForModuleOut(ctx, "out").String()
 	flags.doclavaStubsFlags, flags.metalavaStubsFlags = d.collectStubsFlags(ctx, &implicitOutputs)
 	if Bool(d.properties.Metalava_enabled) {
 		opts := flags.metalavaStubsFlags
 		flags.metalavaAnnotationsFlags = d.collectMetalavaAnnotationsFlags(ctx, &implicits, &implicitOutputs)
 		opts += flags.metalavaAnnotationsFlags
+		docStubsDir := android.PathForModuleOut(ctx, "docStubsDir").String()
 		if strings.Contains(flags.args, "--generate-documentation") {
 			// TODO(nanzhang): Add a Soong property to handle documentation args.
 			flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, javaVersion, jsilver, doclava)
-			flags.metalavaDocsFlags = d.collectMetalavaDocsFlags(ctx, flags.bootClasspathArgs, flags.classpathArgs)
+			flags.metalavaDocsFlags = d.collectMetalavaDocsFlags(ctx,
+				flags.bootClasspathArgs, flags.classpathArgs, outDir, docStubsDir)
 			opts += " " + strings.Split(flags.args, "--generate-documentation")[0] + " " +
 				flags.metalavaDocsFlags + flags.doclavaDocsFlags +
 				" " + strings.Split(flags.args, "--generate-documentation")[1]
@@ -1032,9 +1034,10 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Implicits:       implicits,
 			ImplicitOutputs: implicitOutputs,
 			Args: map[string]string{
-				"outDir":            android.PathForModuleOut(ctx, "docs", "out").String(),
-				"srcJarDir":         android.PathForModuleOut(ctx, "docs", "srcjars").String(),
-				"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
+				"outDir":            outDir,
+				"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
+				"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
+				"docStubsDir":       docStubsDir,
 				"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
 				"javaVersion":       javaVersion,
 				"bootclasspathArgs": flags.bootClasspathArgs,
@@ -1055,9 +1058,9 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Implicits:       implicits,
 			ImplicitOutputs: implicitOutputs,
 			Args: map[string]string{
-				"outDir":            android.PathForModuleOut(ctx, "docs", "out").String(),
-				"srcJarDir":         android.PathForModuleOut(ctx, "docs", "srcjars").String(),
-				"stubsDir":          android.PathForModuleOut(ctx, "docs", "stubsDir").String(),
+				"outDir":            outDir,
+				"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
+				"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
 				"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
 				"opts":              flags.doclavaDocsFlags + flags.doclavaStubsFlags + " " + flags.args,
 				"bootclasspathArgs": flags.bootClasspathArgs,
