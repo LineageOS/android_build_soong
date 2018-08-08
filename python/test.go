@@ -25,8 +25,20 @@ func init() {
 	android.RegisterModuleType("python_test", PythonTestFactory)
 }
 
+type TestProperties struct {
+	// the name of the test configuration (for example "AndroidTest.xml") that should be
+	// installed with the module.
+	Test_config *string `android:"arch_variant"`
+}
+
 type testDecorator struct {
 	*binaryDecorator
+
+	testProperties TestProperties
+}
+
+func (test *testDecorator) bootstrapperProps() []interface{} {
+	return append(test.binaryDecorator.bootstrapperProps(), &test.testProperties)
 }
 
 func (test *testDecorator) install(ctx android.ModuleContext, file android.Path) {
