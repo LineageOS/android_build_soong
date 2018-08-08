@@ -107,6 +107,10 @@ func (j *Test) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(j.testProperties.Test_suites, " "))
 		}
+		if j.testProperties.Test_config != nil {
+			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
+				*j.testProperties.Test_config)
+		}
 	})
 
 	return data
@@ -240,6 +244,10 @@ func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 		if len(a.testProperties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(a.testProperties.Test_suites, " "))
+		}
+		if a.testProperties.Test_config != nil {
+			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
+				*a.testProperties.Test_config)
 		}
 	})
 
