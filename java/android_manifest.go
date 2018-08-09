@@ -126,7 +126,7 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params.SdkContext)
 		args = append(args, "--targetSdkVersion ", targetSdkVersion)
 
-		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
+		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" && ctx.ModuleName() != "org.lineageos.platform-res" {
 			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
 			deps = append(deps, ApiFingerprintPath(ctx))
 		}
@@ -136,7 +136,7 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
 
-		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
+		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" && ctx.ModuleName() != "org.lineageos.platform-res" {
 			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
 			deps = append(deps, ApiFingerprintPath(ctx))
 		}
