@@ -380,6 +380,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 			systemModules:      "core-current-stubs-system-modules",
 			java9Classpath:     modules,
 			frameworkResModule: res,
+			lineageResModule:   "org.lineageos.platform-res",
 			aidl:               android.OptionalPathForPath(aidl),
 		}
 	}
@@ -404,6 +405,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return sdkDep{
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
+			lineageResModule:   "org.lineageos.platform-res",
 		}
 	case sdkNone:
 		systemModules := sdkContext.systemModules()
@@ -426,6 +428,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return sdkDep{
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
+			lineageResModule:   "org.lineageos.platform-res",
 			noFrameworksLibs:   true,
 		}
 	case sdkPublic:
