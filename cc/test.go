@@ -44,6 +44,10 @@ type TestBinaryProperties struct {
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
 	Test_suites []string `android:"arch_variant"`
+
+	// the name of the test configuration (for example "AndroidTest.xml") that should be
+	// installed with the module.
+	Test_config *string `android:"arch_variant"`
 }
 
 func init() {
@@ -304,7 +308,11 @@ type BenchmarkProperties struct {
 
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
-	Test_suites []string
+	Test_suites []string `android:"arch_variant"`
+
+	// the name of the test configuration (for example "AndroidTest.xml") that should be
+	// installed with the module.
+	Test_config *string `android:"arch_variant"`
 }
 
 type benchmarkDecorator struct {
