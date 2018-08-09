@@ -77,8 +77,11 @@ func TestApp(t *testing.T) {
 			expectedLinkImplicits = append(expectedLinkImplicits, manifestFixer.Output.String())
 
 			frameworkRes := result.ModuleForTests("framework-res", "android_common")
+			lineageRes := result.ModuleForTests("org.lineageos.platform-res", "android_common")
 			expectedLinkImplicits = append(expectedLinkImplicits,
 				frameworkRes.Output("package-res.apk").Output.String())
+			expectedLinkImplicits = append(expectedLinkImplicits,
+				lineageRes.Output("package-res.apk").Output.String())
 
 			// Test the mapping from input files to compiled output file names
 			compile := foo.Output(compiledResourceFiles[0])
