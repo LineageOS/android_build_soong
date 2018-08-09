@@ -294,11 +294,25 @@ type HostOrDeviceSupported int
 
 const (
 	_ HostOrDeviceSupported = iota
+
+	// Host and HostCross are built by default. Device is not supported.
 	HostSupported
+
+	// Host is built by default. HostCross and Device are not supported.
 	HostSupportedNoCross
+
+	// Device is built by default. Host and HostCross are not supported.
 	DeviceSupported
+
+	// Device is built by default. Host and HostCross are supported.
 	HostAndDeviceSupported
+
+	// Host, HostCross, and Device are built by default.
 	HostAndDeviceDefault
+
+	// Nothing is supported. This is not exposed to the user, but used to mark a
+	// host only module as unsupported when the module type is not supported on
+	// the host OS. E.g. benchmarks are supported on Linux but not Darwin.
 	NeitherHostNorDeviceSupported
 )
 
@@ -493,9 +507,11 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 		return []OsClass{Host}
 	case DeviceSupported:
 		return []OsClass{Device}
-	case HostAndDeviceSupported:
+	case HostAndDeviceSupported, HostAndDeviceDefault:
 		var supported []OsClass
-		if Bool(a.hostAndDeviceProperties.Host_supported) {
+		if Bool(a.hostAndDeviceProperties.Host_supported) ||
+			(a.commonProperties.HostOrDeviceSupported == HostAndDeviceDefault &&
+				a.hostAndDeviceProperties.Host_supported == nil) {
 			supported = append(supported, Host, HostCross)
 		}
 		if a.hostAndDeviceProperties.Device_supported == nil ||
