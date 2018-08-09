@@ -31,9 +31,6 @@ type BinaryLinkerProperties struct {
 	// if set, add an extra objcopy --prefix-symbols= step
 	Prefix_symbols *string
 
-	// local file name to pass to the linker as --version_script
-	Version_script *string `android:"arch_variant"`
-
 	// if set, install a symlink to the preferred architecture
 	Symlink_preferred_arch *bool
 
@@ -163,8 +160,6 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			"from static libs or set static_executable: true")
 	}
 
-	android.ExtractSourceDeps(ctx, binary.Properties.Version_script)
-
 	return deps
 }
 
@@ -175,7 +170,7 @@ func (binary *binaryDecorator) isDependencyRoot() bool {
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
 	binary := &binaryDecorator{
-		baseLinker:    NewBaseLinker(),
+		baseLinker:    NewBaseLinker(module.sanitize),
 		baseInstaller: NewBaseInstaller("bin", "", InstallInSystem),
 	}
 	module.compiler = NewBaseCompiler()
@@ -281,7 +276,6 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 func (binary *binaryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	versionScript := ctx.ExpandOptionalSource(binary.Properties.Version_script, "version_script")
 	fileName := binary.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
@@ -290,15 +284,6 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	sharedLibs := deps.SharedLibs
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
-
-	if versionScript.Valid() {
-		if ctx.Darwin() {
-			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
-		} else {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
-			linkerDeps = append(linkerDeps, versionScript.Path())
-		}
-	}
 
 	if deps.LinkerScript.Valid() {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,-T,"+deps.LinkerScript.String())

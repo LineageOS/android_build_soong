@@ -44,8 +44,6 @@ type LibraryProperties struct {
 		Shared_libs       []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
-	// local file name to pass to the linker as --version_script
-	Version_script *string `android:"arch_variant"`
 	// local file name to pass to the linker as -unexported_symbols_list
 	Unexported_symbols_list *string `android:"arch_variant"`
 	// local file name to pass to the linker as -force_symbols_not_weak_list
@@ -64,12 +62,6 @@ type LibraryProperties struct {
 	Proto struct {
 		// export headers generated from .proto sources
 		Export_proto_headers *bool
-	}
-	Target struct {
-		Vendor struct {
-			// version script for this vendor variant
-			Version_script *string `android:"arch_variant"`
-		}
 	}
 
 	Static_ndk_lib *bool
@@ -230,8 +222,6 @@ type libraryDecorator struct {
 	// Uses the module's name if empty, but can be overridden. Does not include
 	// shlib suffix.
 	libName string
-
-	sanitize *sanitize
 
 	sabi *sabi
 
@@ -432,7 +422,7 @@ func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 
 func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 	location := InstallInSystem
-	if library.sanitize.inSanitizerDir() {
+	if library.baseLinker.sanitize.inSanitizerDir() {
 		location = InstallInSanitizerDir
 	}
 	library.baseInstaller.location = location
@@ -483,11 +473,9 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, library.baseLinker.Properties.Target.Recovery.Exclude_static_libs)
 	}
 
-	android.ExtractSourceDeps(ctx, library.Properties.Version_script)
 	android.ExtractSourceDeps(ctx, library.Properties.Unexported_symbols_list)
 	android.ExtractSourceDeps(ctx, library.Properties.Force_symbols_not_weak_list)
 	android.ExtractSourceDeps(ctx, library.Properties.Force_symbols_weak_list)
-	android.ExtractSourceDeps(ctx, library.Properties.Target.Vendor.Version_script)
 
 	return deps
 }
@@ -526,23 +514,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	var linkerDeps android.Paths
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
-	versionScript := ctx.ExpandOptionalSource(library.Properties.Version_script, "version_script")
 	unexportedSymbols := ctx.ExpandOptionalSource(library.Properties.Unexported_symbols_list, "unexported_symbols_list")
 	forceNotWeakSymbols := ctx.ExpandOptionalSource(library.Properties.Force_symbols_not_weak_list, "force_symbols_not_weak_list")
 	forceWeakSymbols := ctx.ExpandOptionalSource(library.Properties.Force_symbols_weak_list, "force_symbols_weak_list")
-	if ctx.useVndk() && library.Properties.Target.Vendor.Version_script != nil {
-		versionScript = ctx.ExpandOptionalSource(library.Properties.Target.Vendor.Version_script, "target.vendor.version_script")
-	}
 	if !ctx.Darwin() {
-		if versionScript.Valid() {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+versionScript.String())
-			linkerDeps = append(linkerDeps, versionScript.Path())
-			if library.sanitize.isSanitizerEnabled(cfi) {
-				cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--version-script,"+cfiExportsMap.String())
-				linkerDeps = append(linkerDeps, cfiExportsMap)
-			}
-		}
 		if unexportedSymbols.Valid() {
 			ctx.PropertyErrorf("unexported_symbols_list", "Only supported on Darwin")
 		}
@@ -553,9 +528,6 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			ctx.PropertyErrorf("force_symbols_weak_list", "Only supported on Darwin")
 		}
 	} else {
-		if versionScript.Valid() {
-			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
-		}
 		if unexportedSymbols.Valid() {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-unexported_symbols_list,"+unexportedSymbols.String())
 			linkerDeps = append(linkerDeps, unexportedSymbols.Path())
@@ -768,7 +740,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 
 	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
 		!ctx.useVndk() && !ctx.inRecovery() && ctx.Device() &&
-		library.sanitize.isUnsanitizedVariant() {
+		library.baseLinker.sanitize.isUnsanitizedVariant() {
 		installPath := getNdkSysrootBase(ctx).Join(
 			ctx, "usr/lib", config.NDKTriple(ctx.toolchain()), file.Base())
 
@@ -827,9 +799,8 @@ func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) 
 			BuildStatic: true,
 		},
 		baseCompiler:  NewBaseCompiler(),
-		baseLinker:    NewBaseLinker(),
+		baseLinker:    NewBaseLinker(module.sanitize),
 		baseInstaller: NewBaseInstaller("lib", "lib64", InstallInSystem),
-		sanitize:      module.sanitize,
 		sabi:          module.sabi,
 	}
 
