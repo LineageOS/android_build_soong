@@ -421,6 +421,7 @@ var (
 	bootClasspathTag        = dependencyTag{name: "bootclasspath", runtimeLinked: true}
 	systemModulesTag        = dependencyTag{name: "system modules", runtimeLinked: true}
 	frameworkResTag         = dependencyTag{name: "framework-res"}
+	lineageResTag           = dependencyTag{name: "org.lineageos.platform-res"}
 	kotlinStdlibTag         = dependencyTag{name: "kotlin-stdlib", runtimeLinked: true}
 	kotlinAnnotationsTag    = dependencyTag{name: "kotlin-annotations", runtimeLinked: true}
 	kotlinPluginTag         = dependencyTag{name: "kotlin-plugin", toolchain: true}
@@ -469,6 +470,7 @@ type sdkDep struct {
 	java9Classpath []string
 
 	frameworkResModule string
+	lineageResModule   string
 
 	jars android.Paths
 	aidl android.OptionalPath
@@ -511,6 +513,10 @@ func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, 
 	}
 	if sdkDep.systemModules != "" {
 		ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+	}
+
+	if ctx.ModuleName() == "org.lineageos.platform-res" {
+		ctx.AddVariationDependencies(nil, frameworkResTag, "framework-res")
 	}
 }
 

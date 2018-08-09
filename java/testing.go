@@ -546,6 +546,11 @@ func gatherRequiredDepsForTest() string {
 		android_app {
 			name: "framework-res",
 			sdk_version: "core_platform",
+		}
+
+		android_app {
+			name: "org.lineageos.platform-res",
+			sdk_version: "core_platform",
 		}`
 
 	systemModules := []string{
