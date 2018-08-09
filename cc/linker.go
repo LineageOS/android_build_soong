@@ -127,10 +127,20 @@ type BaseLinkerProperties struct {
 type MoreBaseLinkerProperties struct {
 	// Generate compact dynamic relocation table, default true.
 	Pack_relocations *bool `android:"arch_variant"`
+
+	// local file name to pass to the linker as --version_script
+	Version_script *string `android:"arch_variant"`
+
+	Target struct {
+		Vendor struct {
+			// version script for this vendor variant
+			Version_script *string `android:"arch_variant"`
+		}
+	}
 }
 
-func NewBaseLinker() *baseLinker {
-	return &baseLinker{}
+func NewBaseLinker(sanitize *sanitize) *baseLinker {
+	return &baseLinker{sanitize: sanitize}
 }
 
 // baseLinker provides support for shared_libs, static_libs, and whole_static_libs properties
@@ -140,6 +150,8 @@ type baseLinker struct {
 	dynamicProperties struct {
 		RunPaths []string `blueprint:"mutated"`
 	}
+
+	sanitize *sanitize
 }
 
 func (linker *baseLinker) appendLdflags(flags []string) {
@@ -158,7 +170,7 @@ func (linker *baseLinker) linkerProps() []interface{} {
 	return []interface{}{&linker.Properties, &linker.MoreProperties, &linker.dynamicProperties}
 }
 
-func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
 	deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Header_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
@@ -236,6 +248,10 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	if ctx.Windows() {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
 	}
+
+	android.ExtractSourceDeps(ctx, linker.MoreProperties.Version_script)
+	android.ExtractSourceDeps(ctx,
+		linker.MoreProperties.Target.Vendor.Version_script)
 
 	return deps
 }
@@ -343,6 +359,32 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true
+	}
+
+	versionScript := ctx.ExpandOptionalSource(
+		linker.MoreProperties.Version_script, "version_script")
+
+	if ctx.useVndk() && linker.MoreProperties.Target.Vendor.Version_script != nil {
+		versionScript = ctx.ExpandOptionalSource(
+			linker.MoreProperties.Target.Vendor.Version_script,
+			"target.vendor.version_script")
+	}
+
+	if versionScript.Valid() {
+		if ctx.Darwin() {
+			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
+		} else {
+			flags.LdFlags = append(flags.LdFlags,
+				"-Wl,--version-script,"+versionScript.String())
+			flags.LdFlagsDeps = append(flags.LdFlagsDeps, versionScript.Path())
+
+			if linker.sanitize.isSanitizerEnabled(cfi) {
+				cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
+				flags.LdFlags = append(flags.LdFlags,
+					"-Wl,--version-script,"+cfiExportsMap.String())
+				flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
+			}
+		}
 	}
 
 	return flags

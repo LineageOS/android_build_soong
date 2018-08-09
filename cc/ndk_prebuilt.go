@@ -68,7 +68,7 @@ func ndkPrebuiltObjectFactory() android.Module {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.linker = &ndkPrebuiltObjectLinker{
 		objectLinker: objectLinker{
-			baseLinker: NewBaseLinker(),
+			baseLinker: NewBaseLinker(nil),
 		},
 	}
 	module.Properties.HideFromMake = true
