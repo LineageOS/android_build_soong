@@ -266,6 +266,7 @@ var (
 	bootClasspathTag        = dependencyTag{name: "bootclasspath"}
 	systemModulesTag        = dependencyTag{name: "system modules"}
 	frameworkResTag         = dependencyTag{name: "framework-res"}
+	lineageResTag           = dependencyTag{name: "org.lineageos.platform-res"}
 	kotlinStdlibTag         = dependencyTag{name: "kotlin-stdlib"}
 	kotlinAnnotationsTag    = dependencyTag{name: "kotlin-annotations"}
 	proguardRaiseTag        = dependencyTag{name: "proguard-raise"}
@@ -308,6 +309,7 @@ type sdkDep struct {
 	java9Classpath []string
 
 	frameworkResModule string
+	lineageResModule   string
 
 	jars android.Paths
 	aidl android.OptionalPath
@@ -346,6 +348,17 @@ func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, 
 	}
 	if sdkDep.systemModules != "" {
 		ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+	}
+	if ctx.ModuleName() == "framework" || ctx.ModuleName() == "framework-annotation-proc" {
+		ctx.AddDependency(ctx.Module(), lineageResTag, "org.lineageos.platform-res")
+	}
+	if ctx.ModuleName() == "org.lineageos.platform-res" {
+		ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
+	}
+	if ctx.ModuleName() == "org.lineageos.platform" ||
+		ctx.ModuleName() == "org.lineageos.platform.internal" ||
+		ctx.ModuleName() == "org.lineageos.platform.sdk" {
+		ctx.AddDependency(ctx.Module(), lineageResTag, "org.lineageos.platform-res")
 	}
 }
 
