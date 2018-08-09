@@ -147,7 +147,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkVersion string) (flags [
 
 	if !hasVersionName {
 		var versionName string
-		if ctx.ModuleName() == "framework-res" {
+		if (ctx.ModuleName() == "framework-res") || (ctx.ModuleName() == "org.lineageos.platform-res") {
 			// Some builds set AppsDefaultVersionName() to include the build number ("O-123456").  aapt2 copies the
 			// version name of framework-res into app manifests as compileSdkVersionCodename, which confuses things
 			// if it contains the build number.  Use the PlatformVersionName instead.
