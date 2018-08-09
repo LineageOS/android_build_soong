@@ -182,6 +182,7 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		return sdkDep{
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
+			lineageResModule:   "org.lineageos.platform-res",
 		}
 	case "current":
 		return toModule("android_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
