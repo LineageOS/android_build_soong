@@ -136,7 +136,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, staticLibProguardFlagFiles...)
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
 
-	if ctx.ModuleName() != "framework-res" {
+	if ctx.ModuleName() != "framework-res" && ctx.ModuleName() != "org.lineageos.platform-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
 
@@ -174,6 +174,9 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
+	} else if ctx.ModuleName() == "org.lineageos.platform-res" {
+		// org.lineageos.platform-res.apk is installed as system/framework/org.lineageos.platform-res.apk
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
 	} else if Bool(a.appProperties.Privileged) {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app"), ctx.ModuleName()+".apk", a.outputFile)
