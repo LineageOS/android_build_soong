@@ -158,7 +158,7 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params)
 
 		if useApiFingerprint, fingerprintTargetSdkVersion, fingerprintDeps :=
-			UseApiFingerprint(ctx); useApiFingerprint && ctx.ModuleName() != "framework-res" {
+			UseApiFingerprint(ctx); useApiFingerprint && ctx.ModuleName() != "framework-res" && ctx.ModuleName() != "org.lineageos.platform-res" {
 			targetSdkVersion = fingerprintTargetSdkVersion
 			deps = append(deps, fingerprintDeps)
 		}
@@ -176,7 +176,7 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 		}
 
 		if useApiFingerprint, fingerprintMinSdkVersion, fingerprintDeps :=
-			UseApiFingerprint(ctx); useApiFingerprint && ctx.ModuleName() != "framework-res" {
+			UseApiFingerprint(ctx); useApiFingerprint && ctx.ModuleName() != "framework-res" && ctx.ModuleName() != "org.lineageos.platform-res" {
 			minSdkVersion = fingerprintMinSdkVersion
 			deps = append(deps, fingerprintDeps)
 		}

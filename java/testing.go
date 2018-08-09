@@ -572,6 +572,11 @@ func gatherRequiredDepsForTest() string {
 			sdk_version: "core_platform",
 		}
 
+		android_app {
+			name: "org.lineageos.platform-res",
+			sdk_version: "core_platform",
+		}
+
 		filegroup {
 			name: "framework-private-proguard",
 			srcs: ["framework-private.flags"],

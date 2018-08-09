@@ -305,7 +305,7 @@ func (app *AndroidApp) PrepareAndroidMKProviderInfo(config android.Config) *andr
 	info.PrimaryInfo.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", app.dexer.proguardDictionary)
 	info.PrimaryInfo.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", app.dexer.proguardUsageZip)
 
-	if app.Name() == "framework-res" {
+	if app.Name() == "framework-res" || app.Name() == "org.lineageos.platform-res" {
 		info.PrimaryInfo.SetString("LOCAL_MODULE_PATH", "$(TARGET_OUT_JAVA_LIBRARIES)")
 		// Make base_rules.mk not put framework-res in a subdirectory called
 		// framework_res.
@@ -404,7 +404,7 @@ func (a *AndroidLibrary) PrepareAndroidMKProviderInfo(config android.Config) *an
 			info.PrimaryInfo.SetPath("LOCAL_SOONG_AAR", a.aarFile)
 		}
 
-		if a.Name() == "framework-res" {
+		if a.Name() == "framework-res" || a.Name() == "org.lineageos.platform-res" {
 			info.PrimaryInfo.SetString("LOCAL_MODULE_PATH", "$(TARGET_OUT_JAVA_LIBRARIES)")
 			// Make base_rules.mk not put framework-res in a subdirectory called
 			// framework_res.
