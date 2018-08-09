@@ -404,6 +404,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return sdkDep{
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
+			lineageResModule:   "org.lineageos.platform-res",
 		}
 	case sdkNone:
 		systemModules := sdkContext.systemModules()
