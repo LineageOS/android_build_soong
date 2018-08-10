@@ -51,6 +51,13 @@ type appProperties struct {
 
 	// list of resource labels to generate individual resource packages
 	Package_splits []string
+
+	// Names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
 }
 
 type AndroidApp struct {
