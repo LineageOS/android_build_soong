@@ -122,6 +122,10 @@ var (
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
 		"device/",
+		"hardware/samsung/",
+		"hardware/samsung_slsi-cm/exynos/",
+		"hardware/samsung_slsi-cm/exynos5/",
+		"hardware/samsung_slsi-cm/openmax/",
 		"vendor/",
 	}
 
