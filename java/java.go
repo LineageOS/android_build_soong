@@ -1573,6 +1573,10 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	j.exportedSdkLibs = android.FirstUniqueStrings(j.exportedSdkLibs)
+	if Bool(j.properties.Installable) {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
+			ctx.ModuleName()+".jar", outputFile)
+	}
 }
 
 var _ Dependency = (*Import)(nil)
