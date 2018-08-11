@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "dc79533f_5b625199",
+        "filename": "android/variable.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 229,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2018-08-11T23:59:31Z",
+      "side": 1,
+      "message": "Remove newline.",
+      "range": {
+        "startLine": 229,
+        "startChar": 0,
+        "endLine": 229,
+        "endChar": 0
+      },
+      "revId": "f6ecc8ea1202e46225f4bb112712d96a1d50e4cf",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
