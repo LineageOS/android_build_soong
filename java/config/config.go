@@ -121,6 +121,7 @@ func init() {
 	pctx.HostJavaToolVariable("JsilverJar", "jsilver.jar")
 	pctx.HostJavaToolVariable("DoclavaJar", "doclava.jar")
 	pctx.HostJavaToolVariable("MetalavaJar", "metalava.jar")
+	pctx.HostJavaToolVariable("DokkaJar", "dokka.jar")
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 

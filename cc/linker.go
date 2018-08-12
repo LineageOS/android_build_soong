@@ -103,6 +103,10 @@ type BaseLinkerProperties struct {
 			// of the C/C++ module.
 			Exclude_static_libs []string
 
+			// list of header libs that should not be used to build the vendor variant
+			// of the C/C++ module.
+			Exclude_header_libs []string
+
 			// list of runtime libs that should not be installed along with the vendor
 			// variant of the C/C++ module.
 			Exclude_runtime_libs []string
@@ -115,6 +119,10 @@ type BaseLinkerProperties struct {
 			// list of static libs that should not be used to build
 			// the recovery variant of the C/C++ module.
 			Exclude_static_libs []string
+
+			// list of header libs that should not be used to build the recovery variant
+			// of the C/C++ module.
+			Exclude_header_libs []string
 		}
 	}
 
@@ -127,10 +135,20 @@ type BaseLinkerProperties struct {
 type MoreBaseLinkerProperties struct {
 	// Generate compact dynamic relocation table, default true.
 	Pack_relocations *bool `android:"arch_variant"`
+
+	// local file name to pass to the linker as --version_script
+	Version_script *string `android:"arch_variant"`
+
+	Target struct {
+		Vendor struct {
+			// version script for this vendor variant
+			Version_script *string `android:"arch_variant"`
+		}
+	}
 }
 
-func NewBaseLinker() *baseLinker {
-	return &baseLinker{}
+func NewBaseLinker(sanitize *sanitize) *baseLinker {
+	return &baseLinker{sanitize: sanitize}
 }
 
 // baseLinker provides support for shared_libs, static_libs, and whole_static_libs properties
@@ -140,6 +158,8 @@ type baseLinker struct {
 	dynamicProperties struct {
 		RunPaths []string `blueprint:"mutated"`
 	}
+
+	sanitize *sanitize
 }
 
 func (linker *baseLinker) appendLdflags(flags []string) {
@@ -158,7 +178,7 @@ func (linker *baseLinker) linkerProps() []interface{} {
 	return []interface{}{&linker.Properties, &linker.MoreProperties, &linker.dynamicProperties}
 }
 
-func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
+func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
 	deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Header_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Static_libs...)
@@ -178,6 +198,7 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
+		deps.HeaderLibs = removeListFromList(deps.HeaderLibs, linker.Properties.Target.Vendor.Exclude_header_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Vendor.Exclude_runtime_libs)
@@ -187,6 +208,8 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Recovery.Exclude_shared_libs)
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Recovery.Exclude_shared_libs)
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
+		deps.HeaderLibs = removeListFromList(deps.HeaderLibs, linker.Properties.Target.Recovery.Exclude_header_libs)
+		deps.ReexportHeaderLibHeaders = removeListFromList(deps.ReexportHeaderLibHeaders, linker.Properties.Target.Recovery.Exclude_header_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Recovery.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
 	}
@@ -236,6 +259,10 @@ func (linker *baseLinker) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 	if ctx.Windows() {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
 	}
+
+	android.ExtractSourceDeps(ctx, linker.MoreProperties.Version_script)
+	android.ExtractSourceDeps(ctx,
+		linker.MoreProperties.Target.Vendor.Version_script)
 
 	return deps
 }
@@ -343,6 +370,32 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true
+	}
+
+	versionScript := ctx.ExpandOptionalSource(
+		linker.MoreProperties.Version_script, "version_script")
+
+	if ctx.useVndk() && linker.MoreProperties.Target.Vendor.Version_script != nil {
+		versionScript = ctx.ExpandOptionalSource(
+			linker.MoreProperties.Target.Vendor.Version_script,
+			"target.vendor.version_script")
+	}
+
+	if versionScript.Valid() {
+		if ctx.Darwin() {
+			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
+		} else {
+			flags.LdFlags = append(flags.LdFlags,
+				"-Wl,--version-script,"+versionScript.String())
+			flags.LdFlagsDeps = append(flags.LdFlagsDeps, versionScript.Path())
+
+			if linker.sanitize.isSanitizerEnabled(cfi) {
+				cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
+				flags.LdFlags = append(flags.LdFlags,
+					"-Wl,--version-script,"+cfiExportsMap.String())
+				flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
+			}
+		}
 	}
 
 	return flags

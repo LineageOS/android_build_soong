@@ -232,6 +232,9 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				}
 
 				fmt.Fprintln(w, "LOCAL_CERTIFICATE :=", app.certificate.pem.String())
+				if len(app.appProperties.Overrides) > 0 {
+					fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES := "+strings.Join(app.appProperties.Overrides, " "))
+				}
 			},
 		},
 	}
@@ -285,7 +288,7 @@ func (jd *Javadoc) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(jd.stubsSrcJar),
-		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if BoolDefault(jd.properties.Installable, true) {
@@ -303,7 +306,7 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(ddoc.stubsSrcJar),
-		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if BoolDefault(ddoc.Javadoc.properties.Installable, true) {

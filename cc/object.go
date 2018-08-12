@@ -36,7 +36,7 @@ type objectLinker struct {
 func objectFactory() android.Module {
 	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
 	module.linker = &objectLinker{
-		baseLinker: NewBaseLinker(),
+		baseLinker: NewBaseLinker(nil),
 	}
 	module.compiler = NewBaseCompiler()
 	return module.Init()
