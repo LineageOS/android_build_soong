@@ -663,6 +663,11 @@ func (p OutputPath) withRel(rel string) OutputPath {
 	return p
 }
 
+func (p OutputPath) WithoutRel() OutputPath {
+	p.basePath.rel = filepath.Base(p.basePath.path)
+	return p
+}
+
 var _ Path = OutputPath{}
 
 // PathForOutput joins the provided paths and returns an OutputPath that is
