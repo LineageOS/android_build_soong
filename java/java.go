@@ -311,6 +311,10 @@ type Module struct {
 
 	// list of SDK lib names that this java moudule is exporting
 	exportedSdkLibs []string
+
+	// list of source files, collected from compiledJavaSrcs and compiledSrcJars
+	// filter out Exclude_srcs, will be used by android.IDEInfo struct
+	expandIDEInfoCompiledSrcs []string
 }
 
 func (j *Module) Srcs() android.Paths {
@@ -1010,6 +1014,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	srcJars = append(srcJars, deps.srcJars...)
 	srcJars = append(srcJars, extraSrcJars...)
 
+	// Collect source files from compiledJavaSrcs, compiledSrcJars and filter out Exclude_srcs
+	// that IDEInfo struct will use
+	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, srcFiles.Strings()...)
+
 	jarName := ctx.ModuleName() + ".jar"
 
 	javaSrcFiles := srcFiles.FilterByExt(".java")
@@ -1362,6 +1370,23 @@ func (j *Module) logtags() android.Paths {
 	return j.logtagsSrcs
 }
 
+// Collect information for opening IDE project files in java/jdeps.go.
+func (j *Module) IDEInfo(dpInfo *android.IdeInfo) {
+	dpInfo.Deps = append(dpInfo.Deps, j.CompilerDeps()...)
+	dpInfo.Srcs = append(dpInfo.Srcs, j.expandIDEInfoCompiledSrcs...)
+	dpInfo.Aidl_include_dirs = append(dpInfo.Aidl_include_dirs, j.deviceProperties.Aidl.Include_dirs...)
+	if j.properties.Jarjar_rules != nil {
+		dpInfo.Jarjar_rules = append(dpInfo.Jarjar_rules, *j.properties.Jarjar_rules)
+	}
+}
+
+func (j *Module) CompilerDeps() []string {
+	jdeps := []string{}
+	jdeps = append(jdeps, j.properties.Libs...)
+	jdeps = append(jdeps, j.properties.Static_libs...)
+	return jdeps
+}
+
 //
 // Java libraries (.jar file)
 //
@@ -1689,6 +1714,26 @@ func (j *Import) AidlIncludeDirs() android.Paths {
 
 func (j *Import) ExportedSdkLibs() []string {
 	return j.exportedSdkLibs
+}
+
+// Collect information for opening IDE project files in java/jdeps.go.
+const (
+	removedPrefix = "prebuilt_"
+)
+
+func (j *Import) IDEInfo(dpInfo *android.IdeInfo) {
+	dpInfo.Jars = append(dpInfo.Jars, j.PrebuiltSrcs()...)
+}
+
+func (j *Import) IDECustomizedModuleName() string {
+	// TODO(b/113562217): Extract the base module name from the Import name, often the Import name
+	// has a prefix "prebuilt_". Remove the prefix explicitly if needed until we find a better
+	// solution to get the Import name.
+	name := j.Name()
+	if strings.HasPrefix(name, removedPrefix) {
+		name = strings.Trim(name, removedPrefix)
+	}
+	return name
 }
 
 var _ android.PrebuiltInterface = (*Import)(nil)
