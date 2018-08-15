@@ -114,6 +114,8 @@ func (j *Test) AndroidMk() android.AndroidMkData {
 		}
 	})
 
+	androidMkWriteTestData(j.data, &data)
+
 	return data
 }
 
@@ -255,6 +257,7 @@ func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", a.testConfig.String())
 		}
 	})
+	androidMkWriteTestData(a.data, &data)
 
 	return data
 }
@@ -373,5 +376,17 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				}
 			},
 		},
+	}
+}
+
+func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
+	var testFiles []string
+	for _, d := range data {
+		testFiles = append(testFiles, d.String()+":"+d.Rel())
+	}
+	if len(testFiles) > 0 {
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUPPORT_FILES := "+strings.Join(testFiles, " "))
+		})
 	}
 }
