@@ -250,9 +250,8 @@ func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(benchmark.Properties.Test_suites, " "))
 		}
-		if benchmark.Properties.Test_config != nil {
-			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
-				benchmark.Properties.Test_config)
+		if benchmark.testConfig != nil {
+			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", benchmark.testConfig.String())
 		}
 		fmt.Fprintln(w, "LOCAL_NATIVE_BENCHMARK := true")
 	})
@@ -272,9 +271,8 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(test.Properties.Test_suites, " "))
 		}
-		if test.Properties.Test_config != nil {
-			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
-				test.Properties.Test_config)
+		if test.testConfig != nil {
+			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", test.testConfig.String())
 		}
 	})
 
