@@ -244,6 +244,9 @@ type DroiddocProperties struct {
 	// the generated exact API filename by Doclava.
 	Exact_api_filename *string
 
+	// the generated proguard filename by Doclava.
+	Proguard_filename *string
+
 	// if set to false, don't allow droiddoc to generate stubs source files. Defaults to true.
 	Create_stubs *bool
 
@@ -606,6 +609,7 @@ type Droiddoc struct {
 	removedDexApiFile android.WritablePath
 	exactApiFile      android.WritablePath
 	apiMappingFile    android.WritablePath
+	proguardFile      android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
@@ -712,7 +716,8 @@ func (d *Droiddoc) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (d *Droiddoc) initBuilderFlags(ctx android.ModuleContext, implicits *android.Paths, deps deps) (droiddocBuilderFlags, error) {
+func (d *Droiddoc) initBuilderFlags(ctx android.ModuleContext, implicits *android.Paths,
+	deps deps) (droiddocBuilderFlags, error) {
 	var flags droiddocBuilderFlags
 
 	*implicits = append(*implicits, deps.bootClasspath...)
@@ -910,6 +915,13 @@ func (d *Droiddoc) collectStubsFlags(ctx android.ModuleContext, implicitOutputs 
 		doclavaFlags += " -apiMapping " + d.apiMappingFile.String()
 		// Omitted: metalava support
 		*implicitOutputs = append(*implicitOutputs, d.apiMappingFile)
+	}
+
+	if String(d.properties.Proguard_filename) != "" {
+		d.proguardFile = android.PathForModuleOut(ctx, String(d.properties.Proguard_filename))
+		doclavaFlags += " -proguard " + d.proguardFile.String()
+		// Omitted: metalava support
+		*implicitOutputs = append(*implicitOutputs, d.proguardFile)
 	}
 
 	if BoolDefault(d.properties.Create_stubs, true) {
