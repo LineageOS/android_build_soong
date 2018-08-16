@@ -139,6 +139,7 @@ func init() {
 			"LOCAL_JAVA_LIBRARIES":        "libs",
 			"LOCAL_STATIC_JAVA_LIBRARIES": "static_libs",
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
+			"LOCAL_AIDL_FLAGS":            "aidlflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
 

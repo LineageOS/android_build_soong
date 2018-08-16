@@ -46,6 +46,9 @@ type aaptProperties struct {
 	// flags passed to aapt when creating the apk
 	Aaptflags []string
 
+	// flags passed to aidl when creating the apk
+	Aidlflags []string
+
 	// list of directories relative to the Blueprints file containing assets.
 	// Defaults to "assets"
 	Asset_dirs []string
