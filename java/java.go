@@ -135,6 +135,15 @@ type CompilerProperties struct {
 		Javacflags []string
 	}
 
+	// When compiling language level 9+ .java code in packages that are part of
+	// a system module, patch_module names the module that your sources and
+	// dependencies should be patched into. The Android runtime currently
+	// doesn't implement the JEP 261 module system so this option is only
+	// supported at compile time. It should only be needed to compile tests in
+	// packages that exist in libcore and which are inconvenient to move
+	// elsewhere.
+	Patch_module *string
+
 	Jacoco struct {
 		// List of classes to include for instrumentation with jacoco to collect coverage
 		// information at runtime when building with coverage enabled.  If unset defaults to all
@@ -899,11 +908,6 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		// disk and memory usage.
 		javacFlags = append(javacFlags, "-g:source,lines")
 	}
-	if len(javacFlags) > 0 {
-		// optimization.
-		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
-		flags.javacFlags = "$javacFlags"
-	}
 
 	if ctx.Config().RunErrorProne() {
 		if config.ErrorProneClasspath == nil {
@@ -955,6 +959,11 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		}
 	}
 
+	if j.properties.Patch_module != nil && ctx.Config().TargetOpenJDK9() {
+		patchClasspath := ".:" + flags.classpath.FormJavaClassPath("")
+		javacFlags = append(javacFlags, "--patch-module="+String(j.properties.Patch_module)+"="+patchClasspath)
+	}
+
 	// systemModules
 	if deps.systemModules != nil {
 		flags.systemModules = append(flags.systemModules, deps.systemModules)
@@ -966,6 +975,12 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		// optimization.
 		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
 		flags.aidlFlags = "$aidlFlags"
+	}
+
+	if len(javacFlags) > 0 {
+		// optimization.
+		ctx.Variable(pctx, "javacFlags", strings.Join(javacFlags, " "))
+		flags.javacFlags = "$javacFlags"
 	}
 
 	return flags
