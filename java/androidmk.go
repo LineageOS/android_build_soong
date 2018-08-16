@@ -106,12 +106,15 @@ func (j *Test) AndroidMk() android.AndroidMkData {
 		if len(j.testProperties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(j.testProperties.Test_suites, " "))
+		} else {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
 		}
-		if j.testProperties.Test_config != nil {
-			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
-				*j.testProperties.Test_config)
+		if j.testConfig != nil {
+			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", j.testConfig.String())
 		}
 	})
+
+	androidMkWriteTestData(j.data, &data)
 
 	return data
 }
@@ -247,12 +250,14 @@ func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 		if len(a.testProperties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 				strings.Join(a.testProperties.Test_suites, " "))
+		} else {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
 		}
-		if a.testProperties.Test_config != nil {
-			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
-				*a.testProperties.Test_config)
+		if a.testConfig != nil {
+			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", a.testConfig.String())
 		}
 	})
+	androidMkWriteTestData(a.data, &data)
 
 	return data
 }
@@ -371,5 +376,17 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				}
 			},
 		},
+	}
+}
+
+func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
+	var testFiles []string
+	for _, d := range data {
+		testFiles = append(testFiles, d.String()+":"+d.Rel())
+	}
+	if len(testFiles) > 0 {
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUPPORT_FILES := "+strings.Join(testFiles, " "))
+		})
 	}
 }

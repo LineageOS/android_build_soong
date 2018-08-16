@@ -29,6 +29,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java/config"
+	"android/soong/tradefed"
 )
 
 func init() {
@@ -1350,12 +1351,26 @@ type testProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
 	Test_config *string `android:"arch_variant"`
+
+	// list of files or filegroup modules that provide data that should be installed alongside
+	// the test
+	Data []string
 }
 
 type Test struct {
 	Library
 
 	testProperties testProperties
+
+	testConfig android.Path
+	data       android.Paths
+}
+
+func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config)
+	j.data = ctx.ExpandSources(j.testProperties.Data, nil)
+
+	j.Library.GenerateAndroidBuildActions(ctx)
 }
 
 func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1363,6 +1378,8 @@ func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if BoolDefault(j.testProperties.Junit, true) {
 		ctx.AddDependency(ctx.Module(), staticLibTag, "junit")
 	}
+	android.ExtractSourceDeps(ctx, j.testProperties.Test_config)
+	android.ExtractSourcesDeps(ctx, j.testProperties.Data)
 }
 
 func TestFactory() android.Module {
