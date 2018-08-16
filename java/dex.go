@@ -183,6 +183,5 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 		})
 	}
 
-	j.dexJarFile = javalibJar
 	return javalibJar
 }
