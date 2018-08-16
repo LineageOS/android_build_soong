@@ -293,7 +293,7 @@ func TestPathForModuleInstall(t *testing.T) {
 			out: "target/product/test_device/product/bin/my_test",
 		},
 		{
-			name: "product-services binary",
+			name: "product_services binary",
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
@@ -301,7 +301,7 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 			},
 			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/product-services/bin/my_test",
+			out: "target/product/test_device/product_services/bin/my_test",
 		},
 
 		{
@@ -353,7 +353,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		},
 
 		{
-			name: "product-services native test binary",
+			name: "product_services native test binary",
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
@@ -414,7 +414,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		},
 
 		{
-			name: "sanitized product-services binary",
+			name: "sanitized product_services binary",
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
@@ -423,7 +423,7 @@ func TestPathForModuleInstall(t *testing.T) {
 				inSanitizerDir: true,
 			},
 			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/product-services/bin/my_test",
+			out: "target/product/test_device/data/asan/product_services/bin/my_test",
 		},
 
 		{
@@ -478,7 +478,7 @@ func TestPathForModuleInstall(t *testing.T) {
 			out: "target/product/test_device/data/asan/data/nativetest/my_test",
 		},
 		{
-			name: "sanitized product-services native test binary",
+			name: "sanitized product_services native test binary",
 			ctx: &moduleInstallPathContextImpl{
 				androidBaseContextImpl: androidBaseContextImpl{
 					target: deviceTarget,
