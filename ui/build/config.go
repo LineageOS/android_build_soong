@@ -110,6 +110,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		"DISPLAY",
 		"GREP_OPTIONS",
 		"NDK_ROOT",
+		"POSIXLY_CORRECT",
 
 		// Drop make flags
 		"MAKEFLAGS",
