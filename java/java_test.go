@@ -719,7 +719,7 @@ func TestResources(t *testing.T) {
 				}
 			`+test.extra)
 
-			foo := ctx.ModuleForTests("foo", "android_common").Output("combined/foo.jar")
+			foo := ctx.ModuleForTests("foo", "android_common").Output("withres/foo.jar")
 			fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
 
 			if !inList(fooRes.Output.String(), foo.Inputs.Strings()) {
