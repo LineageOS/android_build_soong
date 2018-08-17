@@ -498,6 +498,14 @@ func (a *AARImport) ImplementationJars() android.Paths {
 	return android.Paths{a.classpathFile}
 }
 
+func (a *AARImport) ResourceJars() android.Paths {
+	return nil
+}
+
+func (a *AARImport) ImplementationAndResourcesJars() android.Paths {
+	return android.Paths{a.classpathFile}
+}
+
 func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }

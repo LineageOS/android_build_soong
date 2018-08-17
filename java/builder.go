@@ -125,6 +125,7 @@ var (
 )
 
 func init() {
+	pctx.Import("android/soong/common")
 	pctx.Import("android/soong/java/config")
 }
 
@@ -374,8 +375,11 @@ func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 type classpath []android.Path
 
 func (x *classpath) FormJavaClassPath(optName string) string {
+	if optName != "" && !strings.HasSuffix(optName, "=") && !strings.HasSuffix(optName, " ") {
+		optName += " "
+	}
 	if len(*x) > 0 {
-		return optName + " " + strings.Join(x.Strings(), ":")
+		return optName + strings.Join(x.Strings(), ":")
 	} else {
 		return ""
 	}
