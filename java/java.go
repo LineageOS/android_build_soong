@@ -1337,13 +1337,10 @@ func LibraryHostFactory() android.Module {
 }
 
 //
-// Java Junit Tests
+// Java Tests
 //
 
 type testProperties struct {
-	// If true, add a static dependency on the platform junit library.  Defaults to true.
-	Junit *bool
-
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
 	Test_suites []string `android:"arch_variant"`
@@ -1375,9 +1372,6 @@ func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
-	if BoolDefault(j.testProperties.Junit, true) {
-		ctx.AddDependency(ctx.Module(), staticLibTag, "junit")
-	}
 	android.ExtractSourceDeps(ctx, j.testProperties.Test_config)
 	android.ExtractSourcesDeps(ctx, j.testProperties.Data)
 }
