@@ -300,7 +300,7 @@ type Module struct {
 }
 
 func (j *Module) Srcs() android.Paths {
-	return android.Paths{j.implementationJarFile}
+	return android.Paths{j.outputFile}
 }
 
 var _ android.SourceFileProducer = (*Module)(nil)
@@ -1146,14 +1146,24 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar. If there is only one input jar this step will be skipped.
-	var outputFile android.Path
+	var outputFile android.ModuleOutPath
 
 	if len(jars) == 1 && !manifest.Valid() {
-		// Optimization: skip the combine step if there is nothing to do
-		// TODO(ccross): this leaves any module-info.class files, but those should only come from
-		// prebuilt dependencies until we support modules in the platform build, so there shouldn't be
-		// any if len(jars) == 1.
-		outputFile = jars[0]
+		if moduleOutPath, ok := jars[0].(android.ModuleOutPath); ok {
+			// Optimization: skip the combine step if there is nothing to do
+			// TODO(ccross): this leaves any module-info.class files, but those should only come from
+			// prebuilt dependencies until we support modules in the platform build, so there shouldn't be
+			// any if len(jars) == 1.
+			outputFile = moduleOutPath
+		} else {
+			combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  jars[0],
+				Output: combinedJar,
+			})
+			outputFile = combinedJar
+		}
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
 		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest,
@@ -1198,17 +1208,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
-		var dexOutputFile android.Path
+		var dexOutputFile android.ModuleOutPath
 		dexOutputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
 		}
-		if Bool(j.properties.Installable) {
-			outputFile = dexOutputFile
-		}
+		outputFile = dexOutputFile
 	}
 	ctx.CheckbuildFile(outputFile)
-	j.outputFile = outputFile
+
+	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
+	j.outputFile = outputFile.WithoutRel()
 }
 
 func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars android.Paths,
@@ -1252,7 +1262,7 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 }
 
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
-	classesJar android.Path, jarName string) android.Path {
+	classesJar android.Path, jarName string) android.ModuleOutPath {
 
 	specs := j.jacocoModuleToZipCommand(ctx)
 
