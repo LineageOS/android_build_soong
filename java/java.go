@@ -272,13 +272,22 @@ type Module struct {
 	protoProperties  android.ProtoProperties
 	deviceProperties CompilerDeviceProperties
 
-	// header jar file suitable for inserting into the bootclasspath/classpath of another compile
+	// jar file containing header classes including static library dependencies, suitable for
+	// inserting into the bootclasspath/classpath of another compile
 	headerJarFile android.Path
 
-	// full implementation jar file suitable for static dependency of another module compile
+	// jar file containing implementation classes including static library dependencies but no
+	// resources
 	implementationJarFile android.Path
 
-	// output file containing classes.dex
+	// jar file containing only resources including from static library dependencies
+	resourceJar android.Path
+
+	// jar file containing implementation classes and resources including static library
+	// dependencies
+	implementationAndResourcesJar android.Path
+
+	// output file containing classes.dex and resources
 	dexJarFile android.Path
 
 	// output file containing uninstrumented classes that will be instrumented by jacoco
@@ -287,7 +296,7 @@ type Module struct {
 	// output file containing mapping of obfuscated names
 	proguardDictionary android.Path
 
-	// output file suitable for installing or running
+	// output file of the module, which may be a classes jar or a dex jar
 	outputFile android.Path
 
 	exportAidlIncludeDirs android.Paths
@@ -317,6 +326,8 @@ var _ android.SourceFileProducer = (*Module)(nil)
 type Dependency interface {
 	HeaderJars() android.Paths
 	ImplementationJars() android.Paths
+	ResourceJars() android.Paths
+	ImplementationAndResourcesJars() android.Paths
 	AidlIncludeDirs() android.Paths
 	ExportedSdkLibs() []string
 }
@@ -670,7 +681,7 @@ type deps struct {
 	processorPath      classpath
 	staticJars         android.Paths
 	staticHeaderJars   android.Paths
-	staticJarResources android.Paths
+	staticResourceJars android.Paths
 	aidlIncludeDirs    android.Paths
 	srcs               android.Paths
 	srcJars            android.Paths
@@ -791,10 +802,11 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
+				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars()...)
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
 			case annoTag:
-				deps.processorPath = append(deps.processorPath, dep.ImplementationJars()...)
+				deps.processorPath = append(deps.processorPath, dep.ImplementationAndResourcesJars()...)
 			case frameworkResTag:
 				if ctx.ModuleName() == "framework" {
 					// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -811,7 +823,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					// Normally the package rule runs aapt, which includes the resource,
 					// but we're not running that in our package rule so just copy in the
 					// resource files here.
-					deps.staticJarResources = append(deps.staticJarResources, dep.(*AndroidApp).exportPackage)
+					deps.staticResourceJars = append(deps.staticResourceJars, dep.(*AndroidApp).exportPackage)
 				}
 			case kotlinStdlibTag:
 				deps.kotlinStdlib = dep.HeaderJars()
@@ -1143,16 +1155,27 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	if len(resArgs) > 0 {
 		resourceJar := android.PathForModuleOut(ctx, "res", jarName)
 		TransformResourcesToJar(ctx, resourceJar, resArgs, resDeps)
+		j.resourceJar = resourceJar
 		if ctx.Failed() {
 			return
 		}
-
-		jars = append(jars, resourceJar)
 	}
 
-	// static classpath jars have the resources in them, so the resource jars aren't necessary here
+	if len(deps.staticResourceJars) > 0 {
+		var jars android.Paths
+		if j.resourceJar != nil {
+			jars = append(jars, j.resourceJar)
+		}
+		jars = append(jars, deps.staticResourceJars...)
+
+		combinedJar := android.PathForModuleOut(ctx, "res-combined", jarName)
+		TransformJarsToJar(ctx, combinedJar, "for resources", jars, android.OptionalPath{},
+			false, nil, nil)
+		j.resourceJar = combinedJar
+	}
+
 	jars = append(jars, deps.staticJars...)
-	jars = append(jars, deps.staticJarResources...)
+	jars = append(jars, deps.staticResourceJars...)
 
 	var manifest android.OptionalPath
 	if j.properties.Manifest != nil {
@@ -1197,12 +1220,21 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
+	// jarjar implementation jar if necessary
 	if j.properties.Jarjar_rules != nil {
 		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
 		// Transform classes.jar into classes-jarjar.jar
 		jarjarFile := android.PathForModuleOut(ctx, "jarjar", jarName)
 		TransformJarJar(ctx, jarjarFile, outputFile, jarjar_rules)
 		outputFile = jarjarFile
+
+		// jarjar resource jar if necessary
+		if j.resourceJar != nil {
+			resourceJarJarFile := android.PathForModuleOut(ctx, "res-jarjar", jarName)
+			TransformJarJar(ctx, resourceJarJarFile, j.resourceJar, jarjar_rules)
+			j.resourceJar = resourceJarJarFile
+		}
+
 		if ctx.Failed() {
 			return
 		}
@@ -1222,14 +1254,41 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		outputFile = j.instrument(ctx, flags, outputFile, jarName)
 	}
 
+	// merge implementation jar with resources if necessary
+	implementationAndResourcesJar := outputFile
+	if j.resourceJar != nil {
+		jars := android.Paths{implementationAndResourcesJar, j.resourceJar}
+		combinedJar := android.PathForModuleOut(ctx, "withres", jarName)
+		TransformJarsToJar(ctx, combinedJar, "for resources", jars, android.OptionalPath{},
+			false, nil, nil)
+		implementationAndResourcesJar = combinedJar
+	}
+
+	j.implementationAndResourcesJar = implementationAndResourcesJar
+
 	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
 		var dexOutputFile android.ModuleOutPath
 		dexOutputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
 		}
+
+		// merge dex jar with resources if necessary
+		if j.resourceJar != nil {
+			jars := android.Paths{dexOutputFile, j.resourceJar}
+			combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName)
+			TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
+				false, nil, nil)
+			dexOutputFile = combinedJar
+		}
+
+		j.dexJarFile = dexOutputFile
+
 		outputFile = dexOutputFile
+	} else {
+		outputFile = implementationAndResourcesJar
 	}
+
 	ctx.CheckbuildFile(outputFile)
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
@@ -1299,6 +1358,17 @@ func (j *Module) HeaderJars() android.Paths {
 
 func (j *Module) ImplementationJars() android.Paths {
 	return android.Paths{j.implementationJarFile}
+}
+
+func (j *Module) ResourceJars() android.Paths {
+	if j.resourceJar == nil {
+		return nil
+	}
+	return android.Paths{j.resourceJar}
+}
+
+func (j *Module) ImplementationAndResourcesJars() android.Paths {
+	return android.Paths{j.implementationAndResourcesJar}
 }
 
 func (j *Module) AidlIncludeDirs() android.Paths {
@@ -1616,6 +1686,14 @@ func (j *Import) HeaderJars() android.Paths {
 }
 
 func (j *Import) ImplementationJars() android.Paths {
+	return android.Paths{j.combinedClasspathFile}
+}
+
+func (j *Import) ResourceJars() android.Paths {
+	return nil
+}
+
+func (j *Import) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{j.combinedClasspathFile}
 }
 
