@@ -971,6 +971,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
 
+	// Apply any java source overlays
+	srcFiles = android.ApplySourceOverlays(ctx, ctx.Config().JavaSourceOverlays(),
+		ctx.Config().JavaSourceOverlayModuleWhitelist(), srcFiles)
+
 	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
 	srcJars = append(srcJars, extraSrcJars...)
