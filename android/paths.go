@@ -644,6 +644,31 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 	return ret, nil
 }
 
+// pathForSourceRelaxed creates a SourcePath from pathComponents, but does not check that it exists.
+// It differs from pathForSource in that the path is allowed to exist outside of the PathContext.
+func pathForSourceRelaxed(ctx PathContext, pathComponents ...string) (SourcePath, error) {
+	p := filepath.Join(pathComponents...)
+	ret := SourcePath{basePath{p, ctx.Config(), ""}}
+
+	abs, err := filepath.Abs(ret.String())
+	if err != nil {
+		return ret, err
+	}
+	buildroot, err := filepath.Abs(ctx.Config().buildDir)
+	if err != nil {
+		return ret, err
+	}
+	if strings.HasPrefix(abs, buildroot) {
+		return ret, fmt.Errorf("source path %s is in output", abs)
+	}
+
+	if pathtools.IsGlob(ret.String()) {
+		return ret, fmt.Errorf("path may not contain a glob: %s", ret.String())
+	}
+
+	return ret, nil
+}
+
 // existsWithDependencies returns true if the path exists, and adds appropriate dependencies to rerun if the
 // path does not exist.
 func existsWithDependencies(ctx PathContext, path SourcePath) (exists bool, err error) {
@@ -695,6 +720,128 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 		reportPathErrorf(ctx, "source path %q does not exist", path)
 	}
 	return path
+}
+
+// PathForSourceRelaxed joins the provided path components.  Unlike PathForSource,
+// the result is allowed to exist outside of the source dir.
+// On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
+func PathForSourceRelaxed(ctx PathContext, pathComponents ...string) SourcePath {
+	path, err := pathForSourceRelaxed(ctx, pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	if modCtx, ok := ctx.(ModuleContext); ok && ctx.Config().AllowMissingDependencies() {
+		exists, err := existsWithDependencies(ctx, path)
+		if err != nil {
+			reportPathError(ctx, err)
+		}
+		if !exists {
+			modCtx.AddMissingDependencies([]string{path.String()})
+		}
+	} else if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
+		reportPathErrorf(ctx, "%s: %s", path, err.Error())
+	} else if !exists {
+		reportPathErrorf(ctx, "source path %s does not exist", path)
+	}
+	return path
+}
+
+func ApplySourceOverlays(ctx ModuleContext, directives string, allowedModules []string, srcFiles []Path) []Path {
+	// Multiple overlay directives should be white space separated.
+	// Individual directive format is:
+	// <modulename>|<overlaydir>|<globwithinoverlaydir>
+	// Example:
+	// org.lineageos.hardware|device/oneplus/msm8998-common/lineagehw|**/*.java
+	// If there is a file match by multiple directives, the first wins.
+
+	// Create map of expanded glob paths (globwithinoverlaydir component only)
+	// to full android.Path mappings.
+	overlayMap := make(map[string]Path)
+
+	// Split directives string into distinct directives.
+	for _, directive := range strings.Fields(directives) {
+		// Split directive string into whitespace fields.
+		fields := strings.SplitN(directive, "|", 3)
+		if len(fields) != 3 {
+			ctx.ModuleErrorf("could not parse source overlay directive %s", directive)
+			continue
+		}
+
+		// Name the per-directive fields.
+		module, dir, glob := fields[0], fields[1], fields[2]
+
+		// Skip overlay directives that don't apply to this module.
+		if module != ctx.ModuleName() {
+			continue
+		}
+
+		// Check whether sources overlays are permitted for this module.
+		allowed := false
+		for _, allowedModule := range allowedModules {
+			if allowedModule == module {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			// Source overlays for this module are not
+			// allowed, skip.
+			ctx.ModuleErrorf("not allowed to sources overlay module %s", module)
+			return srcFiles
+		}
+
+		addPathsToOverlayMap(ctx, dir, glob, overlayMap)
+	}
+
+	// Calculate the length of the path to the module root dir (including trailing slash).
+	modulePathLen := len(ctx.ModuleDir()) + 1
+
+	// Replace entries in srcFiles where the path within the module matches a key in overlayMap.
+	for i := range srcFiles {
+		srcFilePath := srcFiles[i].String()
+		if len(srcFilePath) < modulePathLen {
+			continue
+		}
+		pathWithinModule := srcFilePath[modulePathLen:]
+		if overlayFile, found := overlayMap[pathWithinModule]; found {
+			srcFiles[i] = overlayFile
+			delete(overlayMap, pathWithinModule)
+		}
+	}
+	// and create new srcFiles entries for those that don't.
+	for _, path := range overlayMap {
+		srcFiles = append(srcFiles, path)
+	}
+
+	return srcFiles
+}
+
+func addPathsToOverlayMap(ctx ModuleContext, dir, glob string, overlayMap map[string]Path) {
+	// Glob dir/glob to establish which overlay files exist.
+	globPath := filepath.Join(dir, glob)
+	paths, err := ctx.GlobWithDeps(globPath, nil)
+	if err != nil {
+		ctx.ModuleErrorf("unable to glob %s: %s", globPath, err.Error())
+		return
+	}
+	// Add globbed paths to overlayMap.  If an overlay already exists, it is
+	// not overwritten.
+	for _, path := range paths {
+		// Skip directories.
+		if strings.HasSuffix(path, "/") {
+			continue
+		}
+		// Ensure that the globbed match points to something inside the module.
+		if !strings.HasPrefix(path, dir+"/") {
+			continue
+		}
+		// Note: the preceding checks tells us that len(path) > len(dir)+1
+		pathWithinModule := path[len(dir)+1:] // Account for trailing slash.
+		if _, found := overlayMap[pathWithinModule]; !found {
+			overlayMap[pathWithinModule] = PathForSourceRelaxed(ctx, path)
+		}
+	}
 }
 
 // ExistentPathForSource returns an OptionalPath with the SourcePath if the
