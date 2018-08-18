@@ -1154,25 +1154,31 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	if d.checkCurrentApi() && !ctx.Config().IsPdkBuild() {
-		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
-
 		apiFile := ctx.ExpandSource(String(d.properties.Check_api.Current.Api_file),
 			"check_api.current.api_file")
 		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Current.Removed_api_file),
 			"check_api.current_removed_api_file")
 
-		d.transformCheckApi(ctx, apiFile, removedApiFile, checkApiClasspath,
-			fmt.Sprintf(`\n******************************\n`+
-				`You have tried to change the API from what has been previously approved.\n\n`+
-				`To make these errors go away, you have two choices:\n`+
-				`   1. You can add '@hide' javadoc comments to the methods, etc. listed in the\n`+
-				`      errors above.\n\n`+
-				`   2. You can update current.txt by executing the following command:\n`+
-				`         make %s-update-current-api\n\n`+
-				`      To submit the revised current.txt to the main Android repository,\n`+
-				`      you will need approval.\n`+
-				`******************************\n`, ctx.ModuleName()), String(d.properties.Check_api.Current.Args),
-			d.checkCurrentApiTimestamp)
+		if !Bool(d.properties.Metalava_enabled) {
+			d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
+			d.transformCheckApi(ctx, apiFile, removedApiFile, checkApiClasspath,
+				fmt.Sprintf(`\n******************************\n`+
+					`You have tried to change the API from what has been previously approved.\n\n`+
+					`To make these errors go away, you have two choices:\n`+
+					`   1. You can add '@hide' javadoc comments to the methods, etc. listed in the\n`+
+					`      errors above.\n\n`+
+					`   2. You can update current.txt by executing the following command:\n`+
+					`         make %s-update-current-api\n\n`+
+					`      To submit the revised current.txt to the main Android repository,\n`+
+					`      you will need approval.\n`+
+					`******************************\n`, ctx.ModuleName()), String(d.properties.Check_api.Current.Args),
+				d.checkCurrentApiTimestamp)
+		} else {
+			// TODO(nanzhang): Refactor below when Metalava support API check.
+			if d.apiFile == nil || d.removedApiFile == nil {
+				ctx.ModuleErrorf("api_filename and removed_api_filename properties cannot be empty for API check!")
+			}
+		}
 
 		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, "update_current_api.timestamp")
 		d.transformUpdateApi(ctx, apiFile, removedApiFile, d.updateCurrentApiTimestamp)
