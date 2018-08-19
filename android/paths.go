@@ -245,7 +245,17 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bo
 			reportPathErrorf(ctx, "Path '%s' is not in module source directory '%s'", p, prefix)
 			continue
 		}
-		ret = append(ret, PathForModuleSrc(ctx, path[len(prefix):]))
+
+		srcPath, err := pathForSource(ctx, ctx.ModuleDir(), path[len(prefix):])
+		if err != nil {
+			reportPathError(ctx, err)
+			continue
+		}
+
+		moduleSrcPath := ModuleSrcPath{srcPath}
+		moduleSrcPath.basePath.rel = srcPath.path
+
+		ret = append(ret, moduleSrcPath)
 	}
 	return ret
 }
@@ -529,10 +539,6 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 		return ret, fmt.Errorf("source path %s is in output", abs)
 	}
 
-	if pathtools.IsGlob(ret.String()) {
-		return ret, fmt.Errorf("path may not contain a glob: %s", ret.String())
-	}
-
 	return ret, nil
 }
 
@@ -569,6 +575,10 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 		reportPathError(ctx, err)
 	}
 
+	if pathtools.IsGlob(path.String()) {
+		reportPathErrorf(ctx, "path may not contain a glob: %s", path.String())
+	}
+
 	if modCtx, ok := ctx.(ModuleContext); ok && ctx.Config().AllowMissingDependencies() {
 		exists, err := existsWithDependencies(ctx, path)
 		if err != nil {
@@ -592,6 +602,11 @@ func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPa
 	path, err := pathForSource(ctx, pathComponents...)
 	if err != nil {
 		reportPathError(ctx, err)
+		return OptionalPath{}
+	}
+
+	if pathtools.IsGlob(path.String()) {
+		reportPathErrorf(ctx, "path may not contain a glob: %s", path.String())
 		return OptionalPath{}
 	}
 
@@ -660,6 +675,11 @@ type OutputPath struct {
 
 func (p OutputPath) withRel(rel string) OutputPath {
 	p.basePath = p.basePath.withRel(rel)
+	return p
+}
+
+func (p OutputPath) WithoutRel() OutputPath {
+	p.basePath.rel = filepath.Base(p.basePath.path)
 	return p
 }
 
@@ -767,6 +787,10 @@ func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
 	srcPath, err := pathForSource(ctx, ctx.ModuleDir(), p)
 	if err != nil {
 		reportPathError(ctx, err)
+	}
+
+	if pathtools.IsGlob(srcPath.String()) {
+		reportPathErrorf(ctx, "path may not contain a glob: %s", srcPath.String())
 	}
 
 	path := ModuleSrcPath{srcPath}
