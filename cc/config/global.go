@@ -75,7 +75,8 @@ var (
 
 	deviceGlobalCppflags = []string{
 		"-fvisibility-inlines-hidden",
-	}
+	        "-Wno-c++14-extensions",
+        }
 
 	deviceGlobalLdflags = []string{
 		"-Wl,-z,noexecstack",
@@ -95,11 +96,13 @@ var (
 
 	commonGlobalCppflags = []string{
 		"-Wsign-promo",
+                "-Wno-c++14-extensions",
 	}
 
 	noOverrideGlobalCflags = []string{
 		"-Werror=int-to-pointer-cast",
 		"-Werror=pointer-to-int-cast",
+                "-Wno-c++14-extensions",
 	}
 
 	IllegalFlags = []string{
