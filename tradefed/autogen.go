@@ -78,7 +78,7 @@ func AutoGenNativeTestConfig(ctx android.ModuleContext, prop *string) android.Pa
 func AutoGenNativeBenchmarkTestConfig(ctx android.ModuleContext, prop *string) android.Path {
 	path, autogenPath := testConfigPath(ctx, prop)
 	if autogenPath != nil {
-		autogenTemplate(ctx, autogenPath, "${NativeTestConfigTemplate}")
+		autogenTemplate(ctx, autogenPath, "${NativeBenchmarkTestConfigTemplate}")
 	}
 	return path
 }
