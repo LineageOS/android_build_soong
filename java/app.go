@@ -208,7 +208,7 @@ func AndroidAppFactory() android.Module {
 		&module.aaptProperties,
 		&module.appProperties)
 
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
 
@@ -261,7 +261,6 @@ func AndroidTestFactory() android.Module {
 		&module.appTestProperties,
 		&module.testProperties)
 
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-
+	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
