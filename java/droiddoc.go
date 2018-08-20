@@ -950,9 +950,8 @@ func (d *Droiddoc) collectMetalavaAnnotationsFlags(
 		previousApi := ctx.ExpandSource(String(d.properties.Metalava_previous_api),
 			"metalava_previous_api")
 		*implicits = append(*implicits, previousApi)
-		flags += " --previous-api " + previousApi.String()
 
-		flags += " --include-annotations --migrate-nullness"
+		flags += " --include-annotations --migrate-nullness " + previousApi.String()
 
 		d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
 		*implicitOutputs = append(*implicitOutputs, d.annotationsZip)
