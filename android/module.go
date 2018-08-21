@@ -243,9 +243,9 @@ type commonProperties struct {
 	Product_specific *bool
 
 	// whether this module provides services owned by the OS provider to the core platform. When set
-	// to true, it is installed into  /product-services (or /system/product-services if
-	// product-services partition does not exist).
-	ProductServices_specific *bool
+	// to true, it is installed into  /product_services (or /system/product_services if
+	// product_services partition does not exist).
+	Product_services_specific *bool
 
 	// Whether this module is installed to recovery partition
 	Recovery *bool
@@ -548,7 +548,7 @@ func (a *ModuleBase) ProductSpecific() bool {
 }
 
 func (a *ModuleBase) ProductServicesSpecific() bool {
-	return Bool(a.commonProperties.ProductServices_specific)
+	return Bool(a.commonProperties.Product_services_specific)
 }
 
 func (a *ModuleBase) Enabled() bool {
@@ -661,7 +661,7 @@ func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 	var socSpecific = Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
 	var deviceSpecific = Bool(a.commonProperties.Device_specific)
 	var productSpecific = Bool(a.commonProperties.Product_specific)
-	var productServicesSpecific = Bool(a.commonProperties.ProductServices_specific)
+	var productServicesSpecific = Bool(a.commonProperties.Product_services_specific)
 
 	msg := "conflicting value set here"
 	if socSpecific && deviceSpecific {
