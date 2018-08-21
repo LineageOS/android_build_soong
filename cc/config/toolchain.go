@@ -226,6 +226,14 @@ func AddressSanitizerRuntimeLibrary(t Toolchain) string {
 	return SanitizerRuntimeLibrary(t, "asan")
 }
 
+func HWAddressSanitizerRuntimeLibrary(t Toolchain) string {
+	return SanitizerRuntimeLibrary(t, "hwasan")
+}
+
+func HWAddressSanitizerStaticLibrary(t Toolchain) string {
+	return SanitizerRuntimeLibrary(t, "hwasan_static")
+}
+
 func UndefinedBehaviorSanitizerRuntimeLibrary(t Toolchain) string {
 	return SanitizerRuntimeLibrary(t, "ubsan_standalone")
 }
