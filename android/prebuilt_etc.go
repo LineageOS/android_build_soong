@@ -24,6 +24,10 @@ import (
 
 func init() {
 	RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
+
+	PreDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
+	})
 }
 
 type prebuiltEtcProperties struct {
@@ -32,6 +36,11 @@ type prebuiltEtcProperties struct {
 
 	// optional subdirectory under which this file is installed into
 	Sub_dir *string `android:"arch_variant"`
+
+	// Make this module available when building for recovery.
+	Recovery_available *bool
+
+	InRecovery bool `blueprint:"mutated"`
 }
 
 type PrebuiltEtc struct {
@@ -42,6 +51,18 @@ type PrebuiltEtc struct {
 	sourceFilePath         Path
 	installDirPath         OutputPath
 	additionalDependencies *Paths
+}
+
+func (p *PrebuiltEtc) inRecovery() bool {
+	return p.properties.InRecovery || p.ModuleBase.InstallInRecovery()
+}
+
+func (p *PrebuiltEtc) onlyInRecovery() bool {
+	return p.ModuleBase.InstallInRecovery()
+}
+
+func (p *PrebuiltEtc) InstallInRecovery() bool {
+	return p.inRecovery()
 }
 
 func (p *PrebuiltEtc) DepsMutator(ctx BottomUpMutatorContext) {
@@ -71,9 +92,13 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 	return AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data AndroidMkData) {
+			nameSuffix := ""
+			if p.inRecovery() && !p.onlyInRecovery() {
+				nameSuffix = ".recovery"
+			}
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+			fmt.Fprintln(w, "LOCAL_MODULE :=", name+nameSuffix)
 			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
 			fmt.Fprintln(w, "LOCAL_MODULE_TAGS := optional")
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.sourceFilePath.String())
@@ -100,4 +125,47 @@ func PrebuiltEtcFactory() Module {
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibCommon)
 	return module
+}
+
+const (
+	// coreMode is the variant for modules to be installed to system.
+	coreMode = "core"
+
+	// recoveryMode means a module to be installed to recovery image.
+	recoveryMode = "recovery"
+)
+
+// prebuiltEtcMutator creates the needed variants to install the module to
+// system or recovery.
+func prebuiltEtcMutator(mctx BottomUpMutatorContext) {
+	m, ok := mctx.Module().(*PrebuiltEtc)
+	if !ok {
+		return
+	}
+
+	var coreVariantNeeded bool = true
+	var recoveryVariantNeeded bool = false
+	if Bool(m.properties.Recovery_available) {
+		recoveryVariantNeeded = true
+	}
+
+	if m.ModuleBase.InstallInRecovery() {
+		recoveryVariantNeeded = true
+		coreVariantNeeded = false
+	}
+
+	var variants []string
+	if coreVariantNeeded {
+		variants = append(variants, coreMode)
+	}
+	if recoveryVariantNeeded {
+		variants = append(variants, recoveryMode)
+	}
+	mod := mctx.CreateVariations(variants...)
+	for i, v := range variants {
+		if v == recoveryMode {
+			m := mod[i].(*PrebuiltEtc)
+			m.properties.InRecovery = true
+		}
+	}
 }
