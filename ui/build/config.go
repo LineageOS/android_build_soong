@@ -266,8 +266,10 @@ func (c *configImpl) configureLocale(ctx Context) {
 	// For LANG and LC_*, only preserve the evaluated version of
 	// LC_MESSAGES
 	user_lang := ""
+	lc_all_set := false
 	if lc_all, ok := c.environ.Get("LC_ALL"); ok {
 		user_lang = lc_all
+		lc_all_set = true
 	} else if lc_messages, ok := c.environ.Get("LC_MESSAGES"); ok {
 		user_lang = lc_messages
 	} else if lang, ok := c.environ.Get("LANG"); ok {
@@ -278,6 +280,11 @@ func (c *configImpl) configureLocale(ctx Context) {
 
 	if user_lang != "" {
 		c.environ.Set("LC_MESSAGES", user_lang)
+	}
+
+	if lc_all_set {
+		c.environ.Set("LANG", user_lang)
+		return
 	}
 
 	// The for LANG, use C.UTF-8 if it exists (Debian currently, proposed
