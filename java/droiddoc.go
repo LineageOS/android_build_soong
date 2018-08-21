@@ -887,6 +887,7 @@ func (d *Droiddoc) collectStubsFlags(ctx android.ModuleContext, implicitOutputs 
 	if String(d.properties.Dex_api_filename) != "" {
 		d.dexApiFile = android.PathForModuleOut(ctx, String(d.properties.Dex_api_filename))
 		doclavaFlags += " -dexApi " + d.dexApiFile.String()
+		MetalavaFlags += " --dex-api " + d.dexApiFile.String()
 		*implicitOutputs = append(*implicitOutputs, d.dexApiFile)
 	}
 
