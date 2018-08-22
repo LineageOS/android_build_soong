@@ -772,7 +772,7 @@ func (d *Droiddoc) initBuilderFlags(ctx android.ModuleContext, implicits *androi
 }
 
 func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits *android.Paths,
-	javaVersion string, jsilver, doclava android.Path) string {
+	jsilver, doclava android.Path) string {
 
 	*implicits = append(*implicits, jsilver)
 	*implicits = append(*implicits, doclava)
@@ -784,7 +784,10 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 		date = `date -d`
 	}
 
-	args := " -source " + javaVersion + " -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
+	// Droiddoc always gets "-source 1.8" because it doesn't support 1.9 sources.  For modules with 1.9
+	// sources, droiddoc will get sources produced by metalava which will have already stripped out the
+	// 1.9 language features.
+	args := " -source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
 		`-hdf page.now "$$(` + date + ` @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" `
@@ -1101,13 +1104,6 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	deps := d.Javadoc.collectDeps(ctx)
 
 	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), sdkContext(d))
-	// Doclava has problem with "-source 1.9", so override javaVersion when Doclava
-	// is running with EXPERIMENTAL_USE_OPENJDK9=true. And eventually Doclava will be
-	// replaced by Metalava.
-	if !Bool(d.properties.Metalava_enabled) {
-		javaVersion = "1.8"
-	}
-
 	jsilver := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "jsilver.jar")
 	doclava := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "doclava.jar")
 	java8Home := ctx.Config().Getenv("ANDROID_JAVA8_HOME")
@@ -1144,7 +1140,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			} else {
 				flags.metalavaJavadocFlags = d.collectMetalavaJavadocFlags(
 					ctx, flags.bootClasspathArgs, flags.classpathArgs, outDir, docStubsDir)
-				flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, javaVersion, jsilver, doclava)
+				flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, jsilver, doclava)
 				d.transformMetalava(ctx, implicits, implicitOutputs, outDir, docStubsDir, javaVersion,
 					flags.bootClasspathArgs, flags.classpathArgs, flags.metalavaStubsFlags+
 						flags.metalavaAnnotationsFlags+" "+strings.Split(flags.args, "--generate-documentation")[0]+
@@ -1157,7 +1153,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				flags.metalavaStubsFlags+flags.metalavaAnnotationsFlags+flags.args)
 		}
 	} else {
-		flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, javaVersion, jsilver, doclava)
+		flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, jsilver, doclava)
 		flags.postDoclavaCmds = d.getPostDoclavaCmds(ctx, &implicits)
 		d.transformDoclava(ctx, implicits, implicitOutputs, flags.bootClasspathArgs, flags.classpathArgs,
 			flags.doclavaDocsFlags+flags.doclavaStubsFlags+" "+flags.args,
