@@ -379,6 +379,9 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				if ddoc.exactApiFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"EXACT_API_FILE := ", ddoc.exactApiFile.String())
 				}
+				if ddoc.proguardFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"PROGUARD_FILE := ", ddoc.proguardFile.String())
+				}
 			},
 		},
 	}
