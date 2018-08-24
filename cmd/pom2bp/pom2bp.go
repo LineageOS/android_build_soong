@@ -104,6 +104,24 @@ func (e Exclude) Set(v string) error {
 
 var excludes = make(Exclude)
 
+type HostModuleNames map[string]bool
+
+func (n HostModuleNames) IsHostModule(groupId string, artifactId string) bool {
+	_, found := n[groupId + ":" + artifactId]
+	return found
+}
+
+func (n HostModuleNames) String() string {
+	return ""
+}
+
+func (n HostModuleNames) Set(v string) error {
+	n[v] = true
+	return nil
+}
+
+var hostModuleNames = HostModuleNames{}
+
 var sdkVersion string
 var useVersion string
 
@@ -158,6 +176,14 @@ func (p Pom) IsAar() bool {
 
 func (p Pom) IsJar() bool {
 	return p.Packaging == "jar"
+}
+
+func (p Pom) IsHostModule() bool {
+	return hostModuleNames.IsHostModule(p.GroupId, p.ArtifactId)
+}
+
+func (p Pom) IsDeviceModule() bool {
+	return !p.IsHostModule()
 }
 
 func (p Pom) BpName() string {
@@ -278,11 +304,11 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     ],{{end}}
 }
 
-{{if .IsAar}}android_library{{else}}java_library_static{{end}} {
-    name: "{{.BpName}}",
+{{if .IsAar}}android_library{{else}}{{if .IsDeviceModule}}java_library_static{{else}}java_library_host{{end}}{{end}} {
+    name: "{{.BpName}}",{{if .IsDeviceModule}}
     sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
-    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",{{end}}
+    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",{{end}}{{end}}
     static_libs: [
         "{{.BpName}}-nodeps",{{range .BpJarDeps}}
         "{{.}}",{{end}}{{range .BpAarDeps}}
@@ -422,6 +448,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	flag.Var(&excludes, "exclude", "Exclude module")
 	flag.Var(&extraDeps, "extra-deps", "Extra dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
+	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.Bool("static-deps", false, "Ignored")
