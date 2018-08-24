@@ -132,6 +132,10 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 	})
 
+	// Include only a single copy of each license file. The Bionic NOTICE is
+	// long and is referenced by multiple Bionic modules.
+	licensePaths = android.FirstUniquePaths(licensePaths)
+
 	combinedLicense := getNdkInstallBase(ctx).Join(ctx, "NOTICE")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Cat,
