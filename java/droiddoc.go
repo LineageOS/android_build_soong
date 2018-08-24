@@ -88,6 +88,16 @@ var (
 		},
 		"outDir", "srcJarDir", "stubsDir", "docStubsDir", "srcJars", "javaVersion", "bootclasspathArgs",
 		"classpathArgs", "sourcepath", "opts", "docZip")
+
+	metalavaApiCheck = pctx.AndroidStaticRule("metalavaApiCheck",
+		blueprint.RuleParams{
+			Command: `( ${config.JavaCmd} -jar ${config.MetalavaJar} $opts && touch $out ) || (echo -e "$msg" ; exit 38)`,
+			CommandDeps: []string{
+				"${config.JavaCmd}",
+				"${config.MetalavaJar}",
+			},
+		},
+		"opts", "msg")
 )
 
 func init() {
@@ -288,10 +298,9 @@ type droiddocBuilderFlags struct {
 	doclavaDocsFlags  string
 	postDoclavaCmds   string
 
-	metalavaStubsFlags              string
-	metalavaAnnotationsFlags        string
-	metalavaJavadocFlags            string
-	metalavaCompatibilityCheckFlags string
+	metalavaStubsFlags       string
+	metalavaAnnotationsFlags string
+	metalavaJavadocFlags     string
 
 	metalavaDokkaFlags string
 }
@@ -1014,38 +1023,6 @@ func (d *Droiddoc) collectMetalavaDokkaFlags(ctx android.ModuleContext, implicit
 		docStubsDir + " " + classpathArgs + " -format dac -dacRoot /reference/kotlin -output " + outDir
 }
 
-func (d *Droiddoc) collectMetalavaCompatibilityCheckFlags(ctx android.ModuleContext,
-	implicits *android.Paths) string {
-	var flags string
-	if d.checkCurrentApi() && !ctx.Config().IsPdkBuild() {
-		apiFile := ctx.ExpandSource(String(d.properties.Check_api.Current.Api_file),
-			"check_api.current.api_file")
-		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Current.Removed_api_file),
-			"check_api.current_removed_api_file")
-
-		*implicits = append(*implicits, apiFile)
-		*implicits = append(*implicits, removedApiFile)
-
-		flags = " --check-compatibility:api:current " + apiFile.String() +
-			" --check-compatibility:removed:current " + removedApiFile.String() + " "
-	}
-
-	if d.checkLastReleasedApi() && !ctx.Config().IsPdkBuild() {
-		apiFile := ctx.ExpandSource(String(d.properties.Check_api.Last_released.Api_file),
-			"check_api.last_released.api_file")
-		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Last_released.Removed_api_file),
-			"check_api.last_released.removed_api_file")
-
-		*implicits = append(*implicits, apiFile)
-		*implicits = append(*implicits, removedApiFile)
-
-		flags = flags + " --check-compatibility:api:released " + apiFile.String() +
-			" --check-compatibility:removed:released " + removedApiFile.String() + " "
-	}
-
-	return flags
-}
-
 func (d *Droiddoc) transformMetalava(ctx android.ModuleContext, implicits android.Paths,
 	implicitOutputs android.WritablePaths, outDir, docStubsDir, javaVersion,
 	bootclasspathArgs, classpathArgs, opts string) {
@@ -1117,6 +1094,21 @@ func (d *Droiddoc) transformCheckApi(ctx android.ModuleContext, apiFile, removed
 	})
 }
 
+func (d *Droiddoc) transformMetalavaCheckApi(ctx android.ModuleContext, apiFile, removedApiFile android.Path,
+	msg, opts string, output android.WritablePath) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        metalavaApiCheck,
+		Description: "Metalava Check API",
+		Output:      output,
+		Inputs:      nil,
+		Implicits:   android.Paths{apiFile, removedApiFile, d.apiFile, d.removedApiFile},
+		Args: map[string]string{
+			"opts": opts,
+			"msg":  msg,
+		},
+	})
+}
+
 func (d *Droiddoc) transformUpdateApi(ctx android.ModuleContext, apiFile, removedApiFile android.Path,
 	output android.WritablePath) {
 	ctx.Build(pctx, android.BuildParams{
@@ -1159,7 +1151,6 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	flags.doclavaStubsFlags, flags.metalavaStubsFlags = d.collectStubsFlags(ctx, &implicitOutputs)
 	if Bool(d.properties.Metalava_enabled) {
 		flags.metalavaAnnotationsFlags = d.collectMetalavaAnnotationsFlags(ctx, &implicits, &implicitOutputs)
-		flags.metalavaCompatibilityCheckFlags = d.collectMetalavaCompatibilityCheckFlags(ctx, &implicits)
 		outDir := android.PathForModuleOut(ctx, "out").String()
 		docStubsDir := android.PathForModuleOut(ctx, "docStubsDir").String()
 		// TODO(nanzhang): Add a Soong property to handle documentation args.
@@ -1169,7 +1160,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					flags.dokkaClasspathArgs, outDir, docStubsDir)
 				d.transformMetalava(ctx, implicits, implicitOutputs, outDir, docStubsDir, javaVersion,
 					flags.bootClasspathArgs, flags.classpathArgs, flags.metalavaStubsFlags+
-						flags.metalavaAnnotationsFlags+" "+flags.metalavaCompatibilityCheckFlags+" "+
+						flags.metalavaAnnotationsFlags+" "+
 						strings.Split(flags.args, "--generate-documentation")[0]+
 						flags.metalavaDokkaFlags+" "+strings.Split(flags.args, "--generate-documentation")[1])
 			} else {
@@ -1178,7 +1169,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, jsilver, doclava)
 				d.transformMetalava(ctx, implicits, implicitOutputs, outDir, docStubsDir, javaVersion,
 					flags.bootClasspathArgs, flags.classpathArgs, flags.metalavaStubsFlags+
-						flags.metalavaAnnotationsFlags+" "+flags.metalavaCompatibilityCheckFlags+" "+
+						flags.metalavaAnnotationsFlags+" "+
 						strings.Split(flags.args, "--generate-documentation")[0]+
 						flags.metalavaJavadocFlags+flags.doclavaDocsFlags+
 						" "+strings.Split(flags.args, "--generate-documentation")[1])
@@ -1186,8 +1177,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		} else {
 			d.transformMetalava(ctx, implicits, implicitOutputs, outDir, docStubsDir, javaVersion,
 				flags.bootClasspathArgs, flags.classpathArgs,
-				flags.metalavaStubsFlags+flags.metalavaAnnotationsFlags+" "+
-					flags.metalavaCompatibilityCheckFlags+flags.args)
+				flags.metalavaStubsFlags+flags.metalavaAnnotationsFlags+" "+flags.args)
 		}
 	} else {
 		flags.doclavaDocsFlags = d.collectDoclavaDocsFlags(ctx, &implicits, jsilver, doclava)
@@ -1203,8 +1193,8 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Current.Removed_api_file),
 			"check_api.current_removed_api_file")
 
+		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
 		if !Bool(d.properties.Metalava_enabled) {
-			d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
 			d.transformCheckApi(ctx, apiFile, removedApiFile, checkApiClasspath,
 				fmt.Sprintf(`\n******************************\n`+
 					`You have tried to change the API from what has been previously approved.\n\n`+
@@ -1216,6 +1206,22 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					`      To submit the revised current.txt to the main Android repository,\n`+
 					`      you will need approval.\n`+
 					`******************************\n`, ctx.ModuleName()), String(d.properties.Check_api.Current.Args),
+				d.checkCurrentApiTimestamp)
+		} else {
+			opts := " --check-compatibility:api:current " + apiFile.String() +
+				" --check-compatibility:removed:current " + removedApiFile.String() + " "
+
+			d.transformMetalavaCheckApi(ctx, apiFile, removedApiFile,
+				fmt.Sprintf(`\n******************************\n`+
+					`You have tried to change the API from what has been previously approved.\n\n`+
+					`To make these errors go away, you have two choices:\n`+
+					`   1. You can add '@hide' javadoc comments to the methods, etc. listed in the\n`+
+					`      errors above.\n\n`+
+					`   2. You can update current.txt by executing the following command:\n`+
+					`         make %s-update-current-api\n\n`+
+					`      To submit the revised current.txt to the main Android repository,\n`+
+					`      you will need approval.\n`+
+					`******************************\n`, ctx.ModuleName()), opts,
 				d.checkCurrentApiTimestamp)
 		}
 
@@ -1229,14 +1235,23 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Last_released.Removed_api_file),
 			"check_api.last_released.removed_api_file")
 
+		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "check_last_released_api.timestamp")
 		if !Bool(d.properties.Metalava_enabled) {
-			d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "check_last_released_api.timestamp")
-
 			d.transformCheckApi(ctx, apiFile, removedApiFile, checkApiClasspath,
 				`\n******************************\n`+
 					`You have tried to change the API from what has been previously released in\n`+
 					`an SDK.  Please fix the errors listed above.\n`+
 					`******************************\n`, String(d.properties.Check_api.Last_released.Args),
+				d.checkLastReleasedApiTimestamp)
+		} else {
+			opts := " --check-compatibility:api:released " + apiFile.String() +
+				" --check-compatibility:removed:released " + removedApiFile.String() + " "
+
+			d.transformMetalavaCheckApi(ctx, apiFile, removedApiFile,
+				`\n******************************\n`+
+					`You have tried to change the API from what has been previously released in\n`+
+					`an SDK.  Please fix the errors listed above.\n`+
+					`******************************\n`, opts,
 				d.checkLastReleasedApiTimestamp)
 		}
 	}
