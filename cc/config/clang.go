@@ -93,8 +93,10 @@ var ClangUnknownLldflags = sorted([]string{
 })
 
 var ClangLibToolingUnknownCflags = []string{
+	// Remove -flto and other flto dependent flags.
 	"-flto*",
 	"-fsanitize*",
+	"-fwhole-program-vtables",
 }
 
 func init() {
