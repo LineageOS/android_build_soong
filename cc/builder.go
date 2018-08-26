@@ -150,10 +150,12 @@ var (
 		},
 		"crossCompile")
 
+	_ = pctx.SourcePathVariable("tidyPath", "build/soong/scripts/clang-tidy.sh")
+
 	clangTidy = pctx.AndroidStaticRule("clangTidy",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && ${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
-			CommandDeps: []string{"${config.ClangBin}/clang-tidy"},
+			Command:     "rm -f $out && CLANG_TIDY=${config.ClangBin}/clang-tidy $tidyPath $tidyFlags $in -- $cFlags && touch $out",
+			CommandDeps: []string{"${config.ClangBin}/clang-tidy", "$tidyPath"},
 		},
 		"cFlags", "tidyFlags")
 
@@ -234,29 +236,30 @@ func init() {
 }
 
 type builderFlags struct {
-	globalFlags    string
-	arFlags        string
-	asFlags        string
-	cFlags         string
-	toolingCFlags  string // A separate set of Cflags for clang LibTooling tools
-	conlyFlags     string
-	cppFlags       string
-	ldFlags        string
-	libFlags       string
-	yaccFlags      string
-	protoFlags     string
-	protoOutParams string
-	tidyFlags      string
-	sAbiFlags      string
-	yasmFlags      string
-	aidlFlags      string
-	rsFlags        string
-	toolchain      config.Toolchain
-	clang          bool
-	tidy           bool
-	coverage       bool
-	sAbiDump       bool
-	protoRoot      bool
+	globalFlags     string
+	arFlags         string
+	asFlags         string
+	cFlags          string
+	toolingCFlags   string // A separate set of cFlags for clang LibTooling tools
+	toolingCppFlags string // A separate set of cppFlags for clang LibTooling tools
+	conlyFlags      string
+	cppFlags        string
+	ldFlags         string
+	libFlags        string
+	yaccFlags       string
+	protoFlags      string
+	protoOutParams  string
+	tidyFlags       string
+	sAbiFlags       string
+	yasmFlags       string
+	aidlFlags       string
+	rsFlags         string
+	toolchain       config.Toolchain
+	clang           bool
+	tidy            bool
+	coverage        bool
+	sAbiDump        bool
+	protoRoot       bool
 
 	systemIncludeFlags string
 
@@ -328,7 +331,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 	toolingCppflags := strings.Join([]string{
 		commonFlags,
 		flags.toolingCFlags,
-		flags.cppFlags,
+		flags.toolingCppFlags,
 	}, " ")
 
 	cppflags := strings.Join([]string{
