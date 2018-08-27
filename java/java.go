@@ -1013,8 +1013,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	srcJars = append(srcJars, deps.srcJars...)
 	srcJars = append(srcJars, extraSrcJars...)
 
-	var jars android.Paths
-
 	jarName := ctx.ModuleName() + ".jar"
 
 	javaSrcFiles := srcFiles.FilterByExt(".java")
@@ -1028,6 +1026,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	var stripFiles []string
+
+	var kotlinJars android.Paths
 
 	if srcFiles.HasExt(".kt") {
 		// If there are kotlin files, compile them first but pass all the kotlin and java files
@@ -1059,7 +1059,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		flags.classpath = append(flags.classpath, kotlinJar)
 
 		// Jar kotlin classes into the final jar after javac
-		jars = append(jars, kotlinJar)
+		kotlinJars = append(kotlinJars, kotlinJar)
 
 		if Bool(j.properties.Renamed_kotlin_stdlib) {
 			// Remove any kotlin-reflect related files
@@ -1070,9 +1070,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		} else {
 			// Only add kotlin-stdlib if not using (on-device) renamed stdlib
 			// (it's expected to be on device bootclasspath)
-			jars = append(jars, deps.kotlinStdlib...)
+			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
 		}
 	}
+
+	jars := append(android.Paths(nil), kotlinJars...)
 
 	// Store the list of .java files that was passed to javac
 	j.compiledJavaSrcs = uniqueSrcFiles
@@ -1089,7 +1091,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 					j.properties.Javac_shard_size)
 			}
 		}
-		j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName)
+		j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinJars)
 		if ctx.Failed() {
 			return
 		}
@@ -1296,7 +1298,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 }
 
 func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars android.Paths,
-	deps deps, flags javaBuilderFlags, jarName string) android.Path {
+	deps deps, flags javaBuilderFlags, jarName string, extraJars android.Paths) android.Path {
 
 	var jars android.Paths
 	if len(srcFiles) > 0 || len(srcJars) > 0 {
@@ -1308,6 +1310,8 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 		}
 		jars = append(jars, turbineJar)
 	}
+
+	jars = append(jars, extraJars...)
 
 	// Combine any static header libraries into classes-header.jar. If there is only
 	// one input jar this step will be skipped.
