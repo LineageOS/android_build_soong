@@ -39,10 +39,12 @@ var d8 = pctx.AndroidStaticRule("d8",
 var r8 = pctx.AndroidStaticRule("r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+			`rm -f "$outDict" && ` +
 			`${config.R8Cmd} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
 			`-printmapping $outDict ` +
 			`$dxFlags $r8Flags && ` +
+			`touch "$outDict" && ` +
 			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
