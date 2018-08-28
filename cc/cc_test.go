@@ -158,11 +158,13 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		cc_object {
 			name: "crtbegin_so",
 			recovery_available: true,
+			vendor_available: true,
 		}
 
 		cc_object {
 			name: "crtend_so",
 			recovery_available: true,
+			vendor_available: true,
 		}
 
 		cc_library {
@@ -236,8 +238,9 @@ func testCcError(t *testing.T, pattern string, bp string) {
 }
 
 const (
-	coreVariant   = "android_arm64_armv8-a_core_shared"
-	vendorVariant = "android_arm64_armv8-a_vendor_shared"
+	coreVariant     = "android_arm64_armv8-a_core_shared"
+	vendorVariant   = "android_arm64_armv8-a_vendor_shared"
+	recoveryVariant = "android_arm64_armv8-a_recovery_shared"
 )
 
 func TestVendorSrc(t *testing.T) {
@@ -1674,6 +1677,11 @@ func TestRecovery(t *testing.T) {
 			recovery: true,
 			compile_multilib:"32",
 		}
+		cc_library_shared {
+			name: "libHalInRecovery",
+			recovery_available: true,
+			vendor: true,
+		}
 	`)
 
 	variants := ctx.ModuleVariantsForTests("librecovery")
@@ -1686,4 +1694,10 @@ func TestRecovery(t *testing.T) {
 	if android.InList(arm64, variants) {
 		t.Errorf("multilib was set to 32 for librecovery32, but its variants has %s.", arm64)
 	}
+
+	recoveryModule := ctx.ModuleForTests("libHalInRecovery", recoveryVariant).Module().(*Module)
+	if !recoveryModule.Platform() {
+		t.Errorf("recovery variant of libHalInRecovery must not specific to device, soc, or product")
+	}
+
 }
