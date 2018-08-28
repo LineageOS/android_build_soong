@@ -93,6 +93,10 @@ func runKati(ctx Context, config Config) {
 		args = append(args, "--werror_overriding_commands")
 	}
 
+	if !config.BuildBrokenPhonyTargets() {
+		args = append(args, "--werror_real_to_phony", "--werror_phony_looks_real")
+	}
+
 	if !config.Environment().IsFalse("KATI_EMULATE_FIND") {
 		args = append(args, "--use_find_emulator")
 	}
