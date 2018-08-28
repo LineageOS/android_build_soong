@@ -165,10 +165,12 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// Whether --werror_overriding_commands will work
 		"BUILD_BROKEN_DUP_RULES",
 
+		// Used to turn on --werror_ options in Kati
+		"BUILD_BROKEN_PHONY_TARGETS",
+
 		// Not used, but useful to be in the soong.log
 		"BUILD_BROKEN_ANDROIDMK_EXPORTS",
 		"BUILD_BROKEN_DUP_COPY_HEADERS",
-		"BUILD_BROKEN_PHONY_TARGETS",
 	}, exportEnvVars...), BannerVars...)
 
 	make_vars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true)
@@ -196,4 +198,5 @@ func runMakeProductConfig(ctx Context, config Config) {
 
 	config.SetPdkBuild(make_vars["TARGET_BUILD_PDK"] == "true")
 	config.SetBuildBrokenDupRules(make_vars["BUILD_BROKEN_DUP_RULES"] == "true")
+	config.SetBuildBrokenPhonyTargets(make_vars["BUILD_BROKEN_PHONY_TARGETS"] != "false")
 }
