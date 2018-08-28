@@ -82,6 +82,10 @@ var (
 		"10.11",
 		"10.12",
 		"10.13",
+<<<<<<< HEAD   (6da3fd Give Blueprint modules access to all namespaces)
+=======
+		"10.14",
+>>>>>>> CHANGE (fa8bd9 Support Mac 10.14 SDK)
 	}
 
 	darwinAvailableLibraries = append(
