@@ -307,7 +307,7 @@ func main() {
 			}}
 			productCtx.Status.AddOutput(terminal.NewStatusOutput(productCtx.Writer, ""))
 
-			productConfig := build.NewConfig(productCtx)
+			productConfig := build.NewConfig(productCtx, flag.Args()...)
 			productConfig.Environment().Set("OUT_DIR", productOutDir)
 			build.FindSources(productCtx, productConfig, finder)
 			productConfig.Lunch(productCtx, product, *buildVariant)
