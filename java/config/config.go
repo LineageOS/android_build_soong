@@ -27,7 +27,7 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/java/config")
 
-	DefaultBootclasspathLibraries = []string{"core-oj", "core-libart"}
+	DefaultBootclasspathLibraries = []string{"core-oj", "core-libart", "core-simple"}
 	DefaultSystemModules          = "core-system-modules"
 	DefaultLibraries              = []string{"ext", "framework", "okhttp"}
 	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
@@ -43,6 +43,7 @@ var (
 		"android.car7",
 		"core-oj",
 		"core-libart",
+		"core-simple",
 	}
 
 	ManifestMergerClasspath = []string{
