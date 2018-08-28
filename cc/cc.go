@@ -1741,6 +1741,7 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 		} else if v == recoveryMode {
 			m := mod[i].(*Module)
 			m.Properties.InRecovery = true
+			m.MakeAsPlatform()
 			squashRecoverySrcs(m)
 		}
 	}
