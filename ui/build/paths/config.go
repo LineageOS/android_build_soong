@@ -77,6 +77,7 @@ var Configuration = map[string]PathConfig{
 	"env":       Allowed,
 	"expr":      Allowed,
 	"find":      Allowed,
+	"fuser":     Allowed,
 	"getconf":   Allowed,
 	"getopt":    Allowed,
 	"git":       Allowed,
