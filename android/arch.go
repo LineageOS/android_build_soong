@@ -201,7 +201,7 @@ var (
 	osArchTypeMap = map[OsType][]ArchType{
 		Linux:       []ArchType{X86, X86_64},
 		LinuxBionic: []ArchType{X86_64},
-		Darwin:      []ArchType{X86, X86_64},
+		Darwin:      []ArchType{X86_64},
 		Windows:     []ArchType{X86, X86_64},
 		Android:     []ArchType{Arm, Arm64, Mips, Mips64, X86, X86_64},
 	}
