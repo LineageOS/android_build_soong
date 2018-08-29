@@ -209,8 +209,6 @@ func testContext(config android.Config, bp string,
 		"bar-doc/IFoo.aidl":              nil,
 		"bar-doc/known_oj_tags.txt":      nil,
 		"external/doclava/templates-sdk": nil,
-
-		"external/kotlinc/jarjar-rules.txt": nil,
 	}
 
 	for k, v := range fs {
@@ -823,12 +821,6 @@ func TestKotlin(t *testing.T) {
 			name: "baz",
 			srcs: ["c.java"],
 		}
-
-		java_library {
-			name: "blorg",
-			renamed_kotlin_stdlib: true,
-			srcs: ["b.kt"],
-		}
 		`)
 
 	fooKotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
@@ -870,12 +862,6 @@ func TestKotlin(t *testing.T) {
 	if !inList(bazHeaderJar.Output.String(), barKotlinc.Implicits.Strings()) {
 		t.Errorf(`expected %q in bar implicits %v`,
 			bazHeaderJar.Output.String(), barKotlinc.Implicits.Strings())
-	}
-
-	blorgRenamedJar := ctx.ModuleForTests("blorg", "android_common").Output("kotlin-renamed/blorg.jar")
-	if blorgRenamedJar.Implicit.String() != "external/kotlinc/jarjar-rules.txt" {
-		t.Errorf(`expected external/kotlinc/jarjar-rules.txt in blorg implicit %q`,
-			blorgRenamedJar.Implicit.String())
 	}
 }
 
