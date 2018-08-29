@@ -75,6 +75,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("LLVM_OBJCOPY", "${config.ClangBin}/llvm-objcopy")
 	ctx.Strict("LLVM_STRIP", "${config.ClangBin}/llvm-strip")
 	ctx.Strict("PATH_TO_CLANG_TIDY", "${config.ClangBin}/clang-tidy")
+	ctx.Strict("PATH_TO_CLANG_TIDY_SHELL", "${config.ClangTidyShellPath}")
 	ctx.StrictSorted("CLANG_CONFIG_UNKNOWN_CFLAGS", strings.Join(config.ClangUnknownCflags, " "))
 
 	ctx.Strict("RS_LLVM_PREBUILTS_VERSION", "${config.RSClangVersion}")
@@ -125,6 +126,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS", strings.Join(asanCflags, " "))
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS", strings.Join(asanLdflags, " "))
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_STATIC_LIBRARIES", strings.Join(asanLibs, " "))
+
+	ctx.Strict("HWADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS", strings.Join(hwasanCflags, " "))
 
 	ctx.Strict("CFI_EXTRA_CFLAGS", strings.Join(cfiCflags, " "))
 	ctx.Strict("CFI_EXTRA_LDFLAGS", strings.Join(cfiLdflags, " "))

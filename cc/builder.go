@@ -150,12 +150,10 @@ var (
 		},
 		"crossCompile")
 
-	_ = pctx.SourcePathVariable("tidyPath", "build/soong/scripts/clang-tidy.sh")
-
 	clangTidy = pctx.AndroidStaticRule("clangTidy",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && CLANG_TIDY=${config.ClangBin}/clang-tidy $tidyPath $tidyFlags $in -- $cFlags && touch $out",
-			CommandDeps: []string{"${config.ClangBin}/clang-tidy", "$tidyPath"},
+			Command:     "rm -f $out && CLANG_TIDY=${config.ClangBin}/clang-tidy ${config.ClangTidyShellPath} $tidyFlags $in -- $cFlags && touch $out",
+			CommandDeps: []string{"${config.ClangBin}/clang-tidy", "${config.ClangTidyShellPath}"},
 		},
 		"cFlags", "tidyFlags")
 

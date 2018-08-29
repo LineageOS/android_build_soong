@@ -1067,6 +1067,16 @@ func (a *androidBaseContextImpl) ProductServicesSpecific() bool {
 	return a.kind == productServicesSpecificModule
 }
 
+// Makes this module a platform module, i.e. not specific to soc, device,
+// product, or product_services.
+func (a *ModuleBase) MakeAsPlatform() {
+	a.commonProperties.Vendor = boolPtr(false)
+	a.commonProperties.Proprietary = boolPtr(false)
+	a.commonProperties.Soc_specific = boolPtr(false)
+	a.commonProperties.Product_specific = boolPtr(false)
+	a.commonProperties.Product_services_specific = boolPtr(false)
+}
+
 func (a *androidModuleContext) InstallInData() bool {
 	return a.module.InstallInData()
 }
