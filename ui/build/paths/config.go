@@ -129,6 +129,7 @@ var Configuration = map[string]PathConfig{
 	"sum":       Allowed,
 	"tar":       Allowed,
 	"tail":      Allowed,
+	"todos":     Allowed,
 	"touch":     Allowed,
 	"tr":        Allowed,
 	"true":      Allowed,
