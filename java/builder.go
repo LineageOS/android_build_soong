@@ -66,7 +66,6 @@ var (
 				`${config.GenKotlinBuildFileCmd} $classpath $outDir $out.rsp $srcJarDir/list > $outDir/kotlinc-build.xml &&` +
 				`${config.KotlincCmd} $kotlincFlags ` +
 				`-jvm-target $kotlinJvmTarget -Xbuild-file=$outDir/kotlinc-build.xml && ` +
-				`rm $outDir/kotlinc-build.xml && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
 			CommandDeps: []string{
 				"${config.KotlincCmd}",
