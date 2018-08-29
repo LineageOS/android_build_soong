@@ -68,7 +68,7 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 			Implicits: staticLibManifests,
 			Output:    mergedManifest,
 			Args: map[string]string{
-				"libs": android.JoinWithPrefix(staticLibManifests.Strings(), "--uses-library "),
+				"libs": android.JoinWithPrefix(staticLibManifests.Strings(), "--libs "),
 			},
 		})
 		manifest = mergedManifest
