@@ -156,7 +156,7 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
 	if !ctx.Config().UnbundledBuild() {
 		sdkDep := decodeSdkDep(ctx, sdkContext)
 		if sdkDep.frameworkResModule != "" {
-			ctx.AddDependency(ctx.Module(), frameworkResTag, sdkDep.frameworkResModule)
+			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 		}
 	}
 }
@@ -436,12 +436,12 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if !ctx.Config().UnbundledBuild() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(a))
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
-			ctx.AddDependency(ctx.Module(), frameworkResTag, sdkDep.frameworkResModule)
+			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 		}
 	}
 
-	ctx.AddDependency(ctx.Module(), libTag, a.properties.Libs...)
-	ctx.AddDependency(ctx.Module(), staticLibTag, a.properties.Static_libs...)
+	ctx.AddVariationDependencies(nil, libTag, a.properties.Libs...)
+	ctx.AddVariationDependencies(nil, staticLibTag, a.properties.Static_libs...)
 }
 
 // Unzip an AAR into its constituent files and directories.  Any files in Outputs that don't exist in the AAR will be
