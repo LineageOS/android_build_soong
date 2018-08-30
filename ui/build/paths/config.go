@@ -100,6 +100,7 @@ var Configuration = map[string]PathConfig{
 	"mkdir":     Allowed,
 	"mktemp":    Allowed,
 	"mv":        Allowed,
+	"od":        Allowed,
 	"openssl":   Allowed,
 	"paste":     Allowed,
 	"patch":     Allowed,
