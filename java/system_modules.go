@@ -123,7 +123,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 }
 
 func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), libTag, system.properties.Libs...)
+	ctx.AddVariationDependencies(nil, libTag, system.properties.Libs...)
 }
 
 func (system *SystemModules) AndroidMk() android.AndroidMkData {

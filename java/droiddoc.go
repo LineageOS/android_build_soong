@@ -371,24 +371,24 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
 		if sdkDep.useDefaultLibs {
-			ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
 			if ctx.Config().TargetOpenJDK9() {
-				ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
+				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
 			}
 			if !Bool(j.properties.No_framework_libs) {
-				ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
+				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 			}
 		} else if sdkDep.useModule {
 			if ctx.Config().TargetOpenJDK9() {
-				ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
+				ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 			}
-			ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.modules...)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 		}
 	}
 
-	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
+	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 	if j.properties.Srcs_lib != nil {
-		ctx.AddDependency(ctx.Module(), srcsLibTag, *j.properties.Srcs_lib)
+		ctx.AddVariationDependencies(nil, srcsLibTag, *j.properties.Srcs_lib)
 	}
 
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
