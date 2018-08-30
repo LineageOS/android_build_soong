@@ -922,10 +922,6 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 }
 
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
-	if !c.Enabled() {
-		return
-	}
-
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
 		moduleContextImpl: moduleContextImpl{
