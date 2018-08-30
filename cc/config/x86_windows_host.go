@@ -62,6 +62,8 @@ var (
 
 	windowsLdflags = []string{
 		"--enable-stdcall-fixup",
+		"-Wl,--dynamicbase",
+		"-Wl,--nxcompat",
 	}
 	windowsClangLdflags  = append(ClangFilterUnknownCflags(windowsLdflags), []string{}...)
 	windowsClangLldflags = ClangFilterUnknownLldflags(windowsClangLdflags)
@@ -96,6 +98,7 @@ var (
 		"-m64",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib64",
 		"-static-libgcc",
+		"-Wl,--high-entropy-va",
 	}
 	windowsX8664ClangLdflags = append(ClangFilterUnknownCflags(windowsX8664Ldflags), []string{
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/bin",
