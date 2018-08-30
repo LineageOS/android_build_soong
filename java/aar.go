@@ -168,7 +168,7 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkVersion string) {
 		if sdkDep.frameworkResModule != "" {
 			ctx.AddDependency(ctx.Module(), frameworkResTag, sdkDep.frameworkResModule)
 		}
-		if sdkDep.lineageResModule != "" && ctx.ModuleName() != "org.lineageos.platform-res" {
+		if sdkDep.lineageResModule != "" {
 			ctx.AddDependency(ctx.Module(), lineageResTag, sdkDep.lineageResModule)
 		}
 	}

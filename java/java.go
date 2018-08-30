@@ -469,6 +469,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		if ctx.ModuleName() == "framework" {
 			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
 		}
+		if ctx.ModuleName() == "org.lineageos.platform-res" {
+			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
+		}
 		if ctx.ModuleName() == "org.lineageos.platform" || ctx.ModuleName() == "org.lineageos.platform.internal" {
 			ctx.AddDependency(ctx.Module(), lineageResTag, "org.lineageos.platform-res")
 		}
