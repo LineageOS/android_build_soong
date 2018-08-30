@@ -40,12 +40,13 @@ var Forbidden = PathConfig{
 }
 
 // The configuration used if the tool is not listed in the config below.
-// Currently this will create the symlink, but log a warning. In the future,
-// I expect this to move closer to Forbidden.
+// Currently this will create the symlink, but log and error when it's used. In
+// the future, I expect the symlink to be removed, and this will be equivalent
+// to Forbidden.
 var Missing = PathConfig{
 	Symlink: true,
 	Log:     true,
-	Error:   false,
+	Error:   true,
 }
 
 func GetConfig(name string) PathConfig {
