@@ -121,6 +121,13 @@ var (
 			CommandDeps: []string{"${config.JavaCmd}", "${config.JarjarCmd}", "$rulesFile"},
 		},
 		"rulesFile")
+
+	jetifier = pctx.AndroidStaticRule("jetifier",
+		blueprint.RuleParams{
+			Command:     "${config.JavaCmd} -jar ${config.JetifierJar} -l error -o $out -i $in",
+			CommandDeps: []string{"${config.JavaCmd}", "${config.JetifierJar}"},
+		},
+	)
 )
 
 func init() {
@@ -368,6 +375,16 @@ func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 		Args: map[string]string{
 			"rulesFile": rulesFile.String(),
 		},
+	})
+}
+
+func TransformJetifier(ctx android.ModuleContext, outputFile android.WritablePath,
+	inputFile android.Path) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        jetifier,
+		Description: "jetifier",
+		Output:      outputFile,
+		Input:       inputFile,
 	})
 }
 

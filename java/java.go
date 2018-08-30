@@ -1582,6 +1582,9 @@ type ImportProperties struct {
 
 	// List of directories to remove from the jar file(s)
 	Exclude_dirs []string
+
+	// if set to true, run Jetifier against .jar file. Defaults to false.
+	Jetifier_enabled *bool
 }
 
 type Import struct {
@@ -1622,9 +1625,15 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	jars := ctx.ExpandSources(j.properties.Jars, nil)
 
-	outputFile := android.PathForModuleOut(ctx, "classes.jar")
+	jarName := ctx.ModuleName() + ".jar"
+	outputFile := android.PathForModuleOut(ctx, "combined", jarName)
 	TransformJarsToJar(ctx, outputFile, "for prebuilts", jars, android.OptionalPath{},
 		false, j.properties.Exclude_files, j.properties.Exclude_dirs)
+	if Bool(j.properties.Jetifier_enabled) {
+		inputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "jetifier", jarName)
+		TransformJetifier(ctx, outputFile, inputFile)
+	}
 	j.combinedClasspathFile = outputFile
 
 	ctx.VisitDirectDeps(func(module android.Module) {
