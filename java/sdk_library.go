@@ -156,14 +156,14 @@ type sdkLibrary struct {
 
 func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies to the stubs library
-	ctx.AddDependency(ctx.Module(), publicApiStubsTag, module.stubsName(apiScopePublic))
-	ctx.AddDependency(ctx.Module(), systemApiStubsTag, module.stubsName(apiScopeSystem))
-	ctx.AddDependency(ctx.Module(), testApiStubsTag, module.stubsName(apiScopeTest))
-	ctx.AddDependency(ctx.Module(), implLibTag, module.implName())
+	ctx.AddVariationDependencies(nil, publicApiStubsTag, module.stubsName(apiScopePublic))
+	ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
+	ctx.AddVariationDependencies(nil, testApiStubsTag, module.stubsName(apiScopeTest))
+	ctx.AddVariationDependencies(nil, implLibTag, module.implName())
 
-	ctx.AddDependency(ctx.Module(), publicApiFileTag, module.docsName(apiScopePublic))
-	ctx.AddDependency(ctx.Module(), systemApiFileTag, module.docsName(apiScopeSystem))
-	ctx.AddDependency(ctx.Module(), testApiFileTag, module.docsName(apiScopeTest))
+	ctx.AddVariationDependencies(nil, publicApiFileTag, module.docsName(apiScopePublic))
+	ctx.AddVariationDependencies(nil, systemApiFileTag, module.docsName(apiScopeSystem))
+	ctx.AddVariationDependencies(nil, testApiFileTag, module.docsName(apiScopeTest))
 }
 
 func (module *sdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
