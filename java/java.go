@@ -552,41 +552,41 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		if !Bool(j.properties.No_standard_libs) {
 			sdkDep := decodeSdkDep(ctx, sdkContext(j))
 			if sdkDep.useDefaultLibs {
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, config.DefaultBootclasspathLibraries...)
+				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				if ctx.Config().TargetOpenJDK9() {
-					ctx.AddDependency(ctx.Module(), systemModulesTag, config.DefaultSystemModules)
+					ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
 				}
 				if !Bool(j.properties.No_framework_libs) {
-					ctx.AddDependency(ctx.Module(), libTag, config.DefaultLibraries...)
+					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
 				if ctx.Config().TargetOpenJDK9() {
-					ctx.AddDependency(ctx.Module(), systemModulesTag, sdkDep.systemModules)
+					ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 				}
-				ctx.AddDependency(ctx.Module(), bootClasspathTag, sdkDep.modules...)
+				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 				if Bool(j.deviceProperties.Optimize.Enabled) {
-					ctx.AddDependency(ctx.Module(), proguardRaiseTag, config.DefaultBootclasspathLibraries...)
-					ctx.AddDependency(ctx.Module(), proguardRaiseTag, config.DefaultLibraries...)
+					ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
+					ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
 				}
 			}
 		} else if j.deviceProperties.System_modules == nil {
 			ctx.PropertyErrorf("no_standard_libs",
 				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
 		} else if *j.deviceProperties.System_modules != "none" && ctx.Config().TargetOpenJDK9() {
-			ctx.AddDependency(ctx.Module(), systemModulesTag, *j.deviceProperties.System_modules)
+			ctx.AddVariationDependencies(nil, systemModulesTag, *j.deviceProperties.System_modules)
 		}
 		if ctx.ModuleName() == "framework" {
-			ctx.AddDependency(ctx.Module(), frameworkResTag, "framework-res")
+			ctx.AddVariationDependencies(nil, frameworkResTag, "framework-res")
 		}
 		if ctx.ModuleName() == "android_stubs_current" ||
 			ctx.ModuleName() == "android_system_stubs_current" ||
 			ctx.ModuleName() == "android_test_stubs_current" {
-			ctx.AddDependency(ctx.Module(), frameworkApkTag, "framework-res")
+			ctx.AddVariationDependencies(nil, frameworkApkTag, "framework-res")
 		}
 	}
 
-	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
-	ctx.AddDependency(ctx.Module(), staticLibTag, j.properties.Static_libs...)
+	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
+	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
 		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
 	}, annoTag, j.properties.Annotation_processors...)
@@ -602,11 +602,11 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if j.hasSrcExt(".kt") {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
-		ctx.AddDependency(ctx.Module(), kotlinStdlibTag, "kotlin-stdlib")
+		ctx.AddVariationDependencies(nil, kotlinStdlibTag, "kotlin-stdlib")
 	}
 
 	if j.shouldInstrumentStatic(ctx) {
-		ctx.AddDependency(ctx.Module(), staticLibTag, "jacocoagent")
+		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
 	}
 }
 
@@ -1619,7 +1619,7 @@ func (j *Import) Name() string {
 
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, j.properties.Jars)
-	ctx.AddDependency(ctx.Module(), libTag, j.properties.Libs...)
+	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
