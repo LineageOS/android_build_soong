@@ -107,7 +107,7 @@ var excludes = make(Exclude)
 type HostModuleNames map[string]bool
 
 func (n HostModuleNames) IsHostModule(groupId string, artifactId string) bool {
-	_, found := n[groupId + ":" + artifactId]
+	_, found := n[groupId+":"+artifactId]
 	return found
 }
 

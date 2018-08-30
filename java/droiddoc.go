@@ -1098,7 +1098,7 @@ func (d *Droiddoc) transformCheckApi(ctx android.ModuleContext, apiFile, removed
 			"apiFileToCheck":        d.apiFile.String(),
 			"removedApiFile":        removedApiFile.String(),
 			"removedApiFileToCheck": d.removedApiFile.String(),
-			"msg": msg,
+			"msg":                   msg,
 		},
 	})
 }
