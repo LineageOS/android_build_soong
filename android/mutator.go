@@ -205,7 +205,7 @@ func (mutator *mutator) Parallel() MutatorHandle {
 }
 
 func depsMutator(ctx BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(Module); ok {
+	if m, ok := ctx.Module().(Module); ok && m.Enabled() {
 		m.DepsMutator(ctx)
 	}
 }
