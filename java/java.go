@@ -86,10 +86,6 @@ type CompilerProperties struct {
 	// ext, and framework for device targets)
 	No_framework_libs *bool
 
-	// Use renamed kotlin stdlib (com.android.kotlin.*). This allows kotlin usage without colliding
-	// with app-provided kotlin stdlib.
-	Renamed_kotlin_stdlib *bool
-
 	// list of module-specific flags that will be used for javac compiles
 	Javacflags []string `android:"arch_variant"`
 
@@ -1025,8 +1021,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
-	var stripFiles []string
-
 	var kotlinJars android.Paths
 
 	if srcFiles.HasExt(".kt") {
@@ -1035,7 +1029,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		// won't emit any classes for them.
 
 		flags.kotlincFlags = "-no-stdlib"
-
 		if ctx.Device() {
 			flags.kotlincFlags += " -no-jdk"
 		}
@@ -1060,18 +1053,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		// Jar kotlin classes into the final jar after javac
 		kotlinJars = append(kotlinJars, kotlinJar)
-
-		if Bool(j.properties.Renamed_kotlin_stdlib) {
-			// Remove any kotlin-reflect related files
-			// TODO(pszczepaniak): Support kotlin-reflect
-			stripFiles = append(stripFiles,
-				"**/*.kotlin_module",
-				"**/*.kotlin_builtins")
-		} else {
-			// Only add kotlin-stdlib if not using (on-device) renamed stdlib
-			// (it's expected to be on device bootclasspath)
-			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
-		}
+		kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
 	}
 
 	jars := append(android.Paths(nil), kotlinJars...)
@@ -1207,19 +1189,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
 		TransformJarsToJar(ctx, combinedJar, "for javac", jars, manifest,
-			false, stripFiles, nil)
+			false, nil, nil)
 		outputFile = combinedJar
-	}
-
-	// Use renamed kotlin standard library?
-	if srcFiles.HasExt(".kt") && Bool(j.properties.Renamed_kotlin_stdlib) {
-		jarjarFile := android.PathForModuleOut(ctx, "kotlin-renamed", jarName)
-		TransformJarJar(ctx, jarjarFile, outputFile,
-			android.PathForSource(ctx, "external/kotlinc/jarjar-rules.txt"))
-		outputFile = jarjarFile
-		if ctx.Failed() {
-			return
-		}
 	}
 
 	// jarjar implementation jar if necessary

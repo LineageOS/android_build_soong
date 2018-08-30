@@ -62,7 +62,6 @@ cat > ${SOONG_OUT}/soong.variables << EOF
         "armeabi-v7a"
     ],
     "HostArch": "x86_64",
-    "HostSecondaryArch": "x86",
     "Malloc_not_svelte": false,
     "Safestack": false
 }

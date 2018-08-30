@@ -135,6 +135,7 @@ var Configuration = map[string]PathConfig{
 	"true":      Allowed,
 	"uname":     Allowed,
 	"uniq":      Allowed,
+	"unix2dos":  Allowed,
 	"unzip":     Allowed,
 	"wc":        Allowed,
 	"which":     Allowed,

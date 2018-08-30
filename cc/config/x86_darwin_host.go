@@ -37,28 +37,14 @@ var (
 		"-isysroot ${macSdkRoot}",
 		"-mmacosx-version-min=${macMinVersion}",
 		"-DMACOSX_DEPLOYMENT_TARGET=${macMinVersion}",
+
+		"-m64",
 	}
 
 	darwinLdflags = []string{
 		"-isysroot ${macSdkRoot}",
 		"-Wl,-syslibroot,${macSdkRoot}",
 		"-mmacosx-version-min=${macMinVersion}",
-	}
-
-	// Extended cflags
-	darwinX86Cflags = []string{
-		"-m32",
-	}
-
-	darwinX8664Cflags = []string{
-		"-m64",
-	}
-
-	darwinX86Ldflags = []string{
-		"-m32",
-	}
-
-	darwinX8664Ldflags = []string{
 		"-m64",
 	}
 
@@ -67,27 +53,16 @@ var (
 		"-fstack-protector-strong",
 	}...)
 
-	darwinX86ClangCflags = append(ClangFilterUnknownCflags(darwinX86Cflags), []string{
-		"-msse3",
-	}...)
-
 	darwinClangLdflags = ClangFilterUnknownCflags(darwinLdflags)
 
 	darwinClangLldflags = ClangFilterUnknownLldflags(darwinClangLdflags)
-
-	darwinX86ClangLdflags = ClangFilterUnknownCflags(darwinX86Ldflags)
-
-	darwinX86ClangLldflags = ClangFilterUnknownLldflags(darwinX86ClangLdflags)
-
-	darwinX8664ClangLdflags = ClangFilterUnknownCflags(darwinX8664Ldflags)
-
-	darwinX8664ClangLldflags = ClangFilterUnknownLldflags(darwinX8664ClangLdflags)
 
 	darwinSupportedSdkVersions = []string{
 		"10.10",
 		"10.11",
 		"10.12",
 		"10.13",
+		"10.14",
 	}
 
 	darwinAvailableLibraries = append(
@@ -149,21 +124,7 @@ func init() {
 	pctx.StaticVariable("DarwinClangLdflags", strings.Join(darwinClangLdflags, " "))
 	pctx.StaticVariable("DarwinClangLldflags", strings.Join(darwinClangLldflags, " "))
 
-	// Extended cflags
-	pctx.StaticVariable("DarwinX86Cflags", strings.Join(darwinX86Cflags, " "))
-	pctx.StaticVariable("DarwinX8664Cflags", strings.Join(darwinX8664Cflags, " "))
-	pctx.StaticVariable("DarwinX86Ldflags", strings.Join(darwinX86Ldflags, " "))
-	pctx.StaticVariable("DarwinX8664Ldflags", strings.Join(darwinX8664Ldflags, " "))
-
-	pctx.StaticVariable("DarwinX86ClangCflags", strings.Join(darwinX86ClangCflags, " "))
-	pctx.StaticVariable("DarwinX8664ClangCflags",
-		strings.Join(ClangFilterUnknownCflags(darwinX8664Cflags), " "))
-	pctx.StaticVariable("DarwinX86ClangLdflags", strings.Join(darwinX86ClangLdflags, " "))
-	pctx.StaticVariable("DarwinX86ClangLldflags", strings.Join(darwinX86ClangLldflags, " "))
-	pctx.StaticVariable("DarwinX8664ClangLdflags", strings.Join(darwinX8664ClangLdflags, " "))
-	pctx.StaticVariable("DarwinX8664ClangLldflags", strings.Join(darwinX8664ClangLldflags, " "))
-	pctx.StaticVariable("DarwinX86YasmFlags", "-f macho -m x86")
-	pctx.StaticVariable("DarwinX8664YasmFlags", "-f macho -m amd64")
+	pctx.StaticVariable("DarwinYasmFlags", "-f macho -m amd64")
 }
 
 func xcrun(ctx android.PackageVarContext, args ...string) string {
@@ -202,23 +163,10 @@ func xcrunSdk(ctx android.PackageVarContext, arg string) string {
 
 type toolchainDarwin struct {
 	cFlags, ldFlags string
-}
-
-type toolchainDarwinX86 struct {
-	toolchain32Bit
-	toolchainDarwin
-}
-
-type toolchainDarwinX8664 struct {
 	toolchain64Bit
-	toolchainDarwin
 }
 
-func (t *toolchainDarwinX86) Name() string {
-	return "x86"
-}
-
-func (t *toolchainDarwinX8664) Name() string {
+func (t *toolchainDarwin) Name() string {
 	return "x86_64"
 }
 
@@ -235,71 +183,43 @@ func (t *toolchainDarwin) GccVersion() string {
 }
 
 func (t *toolchainDarwin) Cflags() string {
-	return "${config.DarwinCflags} ${config.DarwinX86Cflags}"
-}
-
-func (t *toolchainDarwinX8664) Cflags() string {
-	return "${config.DarwinCflags} ${config.DarwinX8664Cflags}"
+	return "${config.DarwinCflags}"
 }
 
 func (t *toolchainDarwin) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainDarwinX86) Ldflags() string {
-	return "${config.DarwinLdflags} ${config.DarwinX86Ldflags}"
-}
-
-func (t *toolchainDarwinX8664) Ldflags() string {
-	return "${config.DarwinLdflags} ${config.DarwinX8664Ldflags}"
+func (t *toolchainDarwin) Ldflags() string {
+	return "${config.DarwinLdflags}"
 }
 
 func (t *toolchainDarwin) IncludeFlags() string {
 	return ""
 }
 
-func (t *toolchainDarwinX86) ClangTriple() string {
-	return "i686-apple-darwin"
-}
-
-func (t *toolchainDarwinX86) ClangCflags() string {
-	return "${config.DarwinClangCflags} ${config.DarwinX86ClangCflags}"
-}
-
-func (t *toolchainDarwinX8664) ClangTriple() string {
+func (t *toolchainDarwin) ClangTriple() string {
 	return "x86_64-apple-darwin"
 }
 
-func (t *toolchainDarwinX8664) ClangCflags() string {
-	return "${config.DarwinClangCflags} ${config.DarwinX8664ClangCflags}"
+func (t *toolchainDarwin) ClangCflags() string {
+	return "${config.DarwinClangCflags}"
 }
 
 func (t *toolchainDarwin) ClangCppflags() string {
 	return ""
 }
 
-func (t *toolchainDarwinX86) ClangLdflags() string {
-	return "${config.DarwinClangLdflags} ${config.DarwinX86ClangLdflags}"
+func (t *toolchainDarwin) ClangLdflags() string {
+	return "${config.DarwinClangLdflags}"
 }
 
-func (t *toolchainDarwinX86) ClangLldflags() string {
-	return "${config.DarwinClangLldflags} ${config.DarwinX86ClangLldflags}"
+func (t *toolchainDarwin) ClangLldflags() string {
+	return "${config.DarwinClangLldflags}"
 }
 
-func (t *toolchainDarwinX8664) ClangLdflags() string {
-	return "${config.DarwinClangLdflags} ${config.DarwinX8664ClangLdflags}"
-}
-
-func (t *toolchainDarwinX8664) ClangLldflags() string {
-	return "${config.DarwinClangLldflags} ${config.DarwinX8664ClangLldflags}"
-}
-
-func (t *toolchainDarwinX86) YasmFlags() string {
-	return "${config.DarwinX86YasmFlags}"
-}
-
-func (t *toolchainDarwinX8664) YasmFlags() string {
-	return "${config.DarwinX8664YasmFlags}"
+func (t *toolchainDarwin) YasmFlags() string {
+	return "${config.DarwinYasmFlags}"
 }
 
 func (t *toolchainDarwin) ShlibSuffix() string {
@@ -318,18 +238,12 @@ func (t *toolchainDarwin) ToolPath() string {
 	return "${config.MacToolPath}"
 }
 
-var toolchainDarwinX86Singleton Toolchain = &toolchainDarwinX86{}
-var toolchainDarwinX8664Singleton Toolchain = &toolchainDarwinX8664{}
+var toolchainDarwinSingleton Toolchain = &toolchainDarwin{}
 
-func darwinX86ToolchainFactory(arch android.Arch) Toolchain {
-	return toolchainDarwinX86Singleton
-}
-
-func darwinX8664ToolchainFactory(arch android.Arch) Toolchain {
-	return toolchainDarwinX8664Singleton
+func darwinToolchainFactory(arch android.Arch) Toolchain {
+	return toolchainDarwinSingleton
 }
 
 func init() {
-	registerToolchainFactory(android.Darwin, android.X86, darwinX86ToolchainFactory)
-	registerToolchainFactory(android.Darwin, android.X86_64, darwinX8664ToolchainFactory)
+	registerToolchainFactory(android.Darwin, android.X86_64, darwinToolchainFactory)
 }
