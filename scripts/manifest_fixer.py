@@ -53,6 +53,8 @@ def parse_args():
                       help='manifest is for a static library')
   parser.add_argument('--uses-library', dest='uses_libraries', action='append',
                       help='specify additional <uses-library> tag to add')
+  parser.add_argument('--uses-non-sdk-api', dest='uses_non_sdk_api', action='store_true',
+                      help='manifest is for a package built against the platform')
   parser.add_argument('input', help='input AndroidManifest.xml file')
   parser.add_argument('output', help='output AndroidManifest.xml file')
   return parser.parse_args()
@@ -226,6 +228,33 @@ def add_uses_libraries(doc, new_uses_libraries):
     indent = get_indent(application.previousSibling, 1)
     application.appendChild(doc.createTextNode(indent))
 
+def add_uses_non_sdk_api(doc):
+  """Add android:usesNonSdkApi=true attribute to <application>.
+
+  Args:
+    doc: The XML document. May be modified by this function.
+  Raises:
+    RuntimeError: Invalid manifest
+  """
+
+  manifest = parse_manifest(doc)
+  elems = get_children_with_tag(manifest, 'application')
+  application = elems[0] if len(elems) == 1 else None
+  if len(elems) > 1:
+    raise RuntimeError('found multiple <application> tags')
+  elif not elems:
+    application = doc.createElement('application')
+    indent = get_indent(manifest.firstChild, 1)
+    first = manifest.firstChild
+    manifest.insertBefore(doc.createTextNode(indent), first)
+    manifest.insertBefore(application, first)
+
+  attr = application.getAttributeNodeNS(android_ns, 'usesNonSdkApi')
+  if attr is None:
+    attr = doc.createAttributeNS(android_ns, 'android:usesNonSdkApi')
+    attr.value = 'true'
+    application.setAttributeNode(attr)
+
 
 def write_xml(f, doc):
   f.write('<?xml version="1.0" encoding="utf-8"?>\n')
@@ -247,6 +276,9 @@ def main():
 
     if args.uses_libraries:
       add_uses_libraries(doc, args.uses_libraries)
+
+    if args.uses_non_sdk_api:
+      add_uses_non_sdk_api(doc)
 
     with open(args.output, 'wb') as f:
       write_xml(f, doc)
