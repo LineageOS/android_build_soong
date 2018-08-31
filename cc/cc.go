@@ -585,6 +585,9 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
 	if inList(ctx.baseModuleName(), llndkLibraries) {
 		return true
 	}
+	if inList(ctx.baseModuleName(), ndkMigratedLibs) {
+		return true
+	}
 	if ctx.useVndk() && ctx.isVndk() {
 		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext and this is not
 		// VNDK-private.
