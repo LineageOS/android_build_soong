@@ -604,7 +604,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 }
 
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
-	isLlndk := inList(ctx.baseModuleName(), llndkLibraries)
+	isLlndk := inList(ctx.baseModuleName(), llndkLibraries) || inList(ctx.baseModuleName(), ndkMigratedLibs)
 
 	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndk, false)
 	refAbiDumpGzipFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndk, true)
