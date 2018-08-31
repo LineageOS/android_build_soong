@@ -43,8 +43,8 @@ type variableProperties struct {
 		} `android:"arch_variant"`
 
 		Malloc_not_svelte struct {
-			Cflags []string
-		}
+			Cflags []string `android:"arch_variant"`
+		} `android:"arch_variant"`
 
 		Safestack struct {
 			Cflags []string `android:"arch_variant"`
