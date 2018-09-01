@@ -397,7 +397,7 @@ func (t *toolchainArm) ClangInstructionSetFlags(isa string) (string, error) {
 	}
 }
 
-func (toolchainArm) SanitizerRuntimeLibraryArch() string {
+func (toolchainArm) LibclangRuntimeLibraryArch() string {
 	return "arm"
 }
 

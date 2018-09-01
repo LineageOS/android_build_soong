@@ -160,7 +160,7 @@ func (t *toolchainMips64) ClangLldflags() string {
 	return "${config.Mips64ClangLdflags}"
 }
 
-func (toolchainMips64) SanitizerRuntimeLibraryArch() string {
+func (toolchainMips64) LibclangRuntimeLibraryArch() string {
 	return "mips64"
 }
 

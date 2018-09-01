@@ -239,7 +239,7 @@ func (t *toolchainArm64) ToolchainClangCflags() string {
 	return t.toolchainClangCflags
 }
 
-func (toolchainArm64) SanitizerRuntimeLibraryArch() string {
+func (toolchainArm64) LibclangRuntimeLibraryArch() string {
 	return "aarch64"
 }
 
