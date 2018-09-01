@@ -72,6 +72,8 @@ type LibraryProperties struct {
 	}
 
 	Static_ndk_lib *bool
+
+	Additional_deps []string
 }
 
 type LibraryMutatedProperties struct {

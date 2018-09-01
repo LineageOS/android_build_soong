@@ -168,6 +168,9 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			} else if ctx.useVndk() {
 				fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 			}
+			if len(library.Properties.Additional_deps) > 0 {
+				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := "+strings.Join(library.Properties.Additional_deps, " "))
+			}
 
 			library.androidMkWriteExportedFlags(w)
 			fmt.Fprintln(w, "include $(BUILD_HEADER_LIBRARY)")
@@ -231,6 +234,9 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 
 		if len(binary.Properties.Overrides) > 0 {
 			fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(binary.Properties.Overrides, " "))
+		}
+		if len(binary.Properties.Additional_deps) > 0 {
+			fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := "+strings.Join(binary.Properties.Additional_deps, " "))
 		}
 	})
 }

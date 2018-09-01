@@ -52,6 +52,8 @@ type BinaryLinkerProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	Additional_deps []string
 }
 
 func init() {
