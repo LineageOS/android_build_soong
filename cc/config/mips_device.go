@@ -210,7 +210,7 @@ func (t *toolchainMips) ClangLldflags() string {
 	return "${config.MipsClangLdflags}"
 }
 
-func (toolchainMips) SanitizerRuntimeLibraryArch() string {
+func (toolchainMips) LibclangRuntimeLibraryArch() string {
 	return "mips"
 }
 

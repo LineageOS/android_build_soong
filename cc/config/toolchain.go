@@ -79,7 +79,7 @@ type Toolchain interface {
 	ShlibSuffix() string
 	ExecutableSuffix() string
 
-	SanitizerRuntimeLibraryArch() string
+	LibclangRuntimeLibraryArch() string
 
 	AvailableLibraries() []string
 
@@ -156,7 +156,7 @@ func (toolchainBase) WindresFlags() string {
 	return ""
 }
 
-func (toolchainBase) SanitizerRuntimeLibraryArch() string {
+func (toolchainBase) LibclangRuntimeLibraryArch() string {
 	return ""
 }
 
@@ -214,44 +214,48 @@ func addPrefix(list []string, prefix string) []string {
 	return list
 }
 
-func SanitizerRuntimeLibrary(t Toolchain, sanitizer string) string {
-	arch := t.SanitizerRuntimeLibraryArch()
+func LibclangRuntimeLibrary(t Toolchain, library string) string {
+	arch := t.LibclangRuntimeLibraryArch()
 	if arch == "" {
 		return ""
 	}
-	return "libclang_rt." + sanitizer + "-" + arch + "-android"
+	return "libclang_rt." + library + "-" + arch + "-android"
+}
+
+func BuiltinsRuntimeLibrary(t Toolchain) string {
+	return LibclangRuntimeLibrary(t, "builtins")
 }
 
 func AddressSanitizerRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "asan")
+	return LibclangRuntimeLibrary(t, "asan")
 }
 
 func HWAddressSanitizerRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "hwasan")
+	return LibclangRuntimeLibrary(t, "hwasan")
 }
 
 func HWAddressSanitizerStaticLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "hwasan_static")
+	return LibclangRuntimeLibrary(t, "hwasan_static")
 }
 
 func UndefinedBehaviorSanitizerRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "ubsan_standalone")
+	return LibclangRuntimeLibrary(t, "ubsan_standalone")
 }
 
 func UndefinedBehaviorSanitizerMinimalRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "ubsan_minimal")
+	return LibclangRuntimeLibrary(t, "ubsan_minimal")
 }
 
 func ThreadSanitizerRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "tsan")
+	return LibclangRuntimeLibrary(t, "tsan")
 }
 
 func ProfileRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "profile")
+	return LibclangRuntimeLibrary(t, "profile")
 }
 
 func ScudoRuntimeLibrary(t Toolchain) string {
-	return SanitizerRuntimeLibrary(t, "scudo")
+	return LibclangRuntimeLibrary(t, "scudo")
 }
 
 func ToolPath(t Toolchain) string {
