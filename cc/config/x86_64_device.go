@@ -227,7 +227,7 @@ func (t *toolchainX86_64) YasmFlags() string {
 	return "${config.X86_64YasmFlags}"
 }
 
-func (toolchainX86_64) SanitizerRuntimeLibraryArch() string {
+func (toolchainX86_64) LibclangRuntimeLibraryArch() string {
 	return "x86_64"
 }
 
