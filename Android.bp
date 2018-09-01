@@ -163,6 +163,8 @@ bootstrap_go_package {
 
         "cc/kernel_headers.go",
 
+        "cc/generated_headers.go",
+
         "cc/genrule.go",
 
         "cc/vendor_public_library.go",
@@ -355,6 +357,12 @@ toolchain_library {
 
 kernel_headers {
     name: "device_kernel_headers",
+    vendor: true,
+}
+
+generated_headers {
+    name: "generated_kernel_headers",
+    additional_deps: ["$(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr"],
     vendor: true,
 }
 
