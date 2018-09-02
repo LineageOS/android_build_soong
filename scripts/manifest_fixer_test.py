@@ -310,5 +310,39 @@ class AddUsesLibrariesTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
 
+class AddUsesNonSdkApiTest(unittest.TestCase):
+  """Unit tests for add_uses_libraries function."""
+
+  def run_test(self, input_manifest):
+    doc = minidom.parseString(input_manifest)
+    manifest_fixer.add_uses_non_sdk_api(doc)
+    output = StringIO.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+      '    <application%s/>\n'
+      '</manifest>\n')
+
+  def uses_non_sdk_api(self, value):
+    return ' android:usesNonSdkApi="true"' if value else ''
+
+  def test_set_true(self):
+    """Empty new_uses_libraries must not touch the manifest."""
+    manifest_input = self.manifest_tmpl % self.uses_non_sdk_api(False)
+    expected = self.manifest_tmpl % self.uses_non_sdk_api(True)
+    output = self.run_test(manifest_input)
+    self.assertEqual(output, expected)
+
+  def test_already_set(self):
+    """new_uses_libraries must not overwrite existing tags."""
+    manifest_input = self.manifest_tmpl % self.uses_non_sdk_api(True)
+    expected = manifest_input
+    output = self.run_test(manifest_input)
+    self.assertEqual(output, expected)
+
+
 if __name__ == '__main__':
   unittest.main()

@@ -107,7 +107,7 @@ var excludes = make(Exclude)
 type HostModuleNames map[string]bool
 
 func (n HostModuleNames) IsHostModule(groupId string, artifactId string) bool {
-	_, found := n[groupId + ":" + artifactId]
+	_, found := n[groupId+":"+artifactId]
 	return found
 }
 
@@ -293,7 +293,7 @@ func (p *Pom) ExtractMinSdkVersion() error {
 }
 
 var bpTemplate = template.Must(template.New("bp").Parse(`
-{{if .IsAar}}android_library_import{{else}}java_import{{end}} {
+{{if .IsAar}}android_library_import{{else if .IsDeviceModule}}java_import{{else}}java_import_host{{end}} {
     name: "{{.BpName}}-nodeps",
     {{if .IsAar}}aars{{else}}jars{{end}}: ["{{.ArtifactFile}}"],
     sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
@@ -304,7 +304,7 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     ],{{end}}
 }
 
-{{if .IsAar}}android_library{{else}}{{if .IsDeviceModule}}java_library_static{{else}}java_library_host{{end}}{{end}} {
+{{if .IsAar}}android_library{{else if .IsDeviceModule}}java_library_static{{else}}java_library_host{{end}} {
     name: "{{.BpName}}",{{if .IsDeviceModule}}
     sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",

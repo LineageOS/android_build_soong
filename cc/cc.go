@@ -585,6 +585,9 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
 	if inList(ctx.baseModuleName(), llndkLibraries) {
 		return true
 	}
+	if inList(ctx.baseModuleName(), ndkMigratedLibs) {
+		return true
+	}
 	if ctx.useVndk() && ctx.isVndk() {
 		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext and this is not
 		// VNDK-private.
@@ -922,10 +925,6 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 }
 
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
-	if !c.Enabled() {
-		return
-	}
-
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
 		moduleContextImpl: moduleContextImpl{
@@ -1043,13 +1042,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddDependency(c, depTag, gen)
 	}
 
-	actx.AddDependency(c, objDepTag, deps.ObjFiles...)
+	actx.AddVariationDependencies(nil, objDepTag, deps.ObjFiles...)
 
 	if deps.CrtBegin != "" {
-		actx.AddDependency(c, crtBeginDepTag, deps.CrtBegin)
+		actx.AddVariationDependencies(nil, crtBeginDepTag, deps.CrtBegin)
 	}
 	if deps.CrtEnd != "" {
-		actx.AddDependency(c, crtEndDepTag, deps.CrtEnd)
+		actx.AddVariationDependencies(nil, crtEndDepTag, deps.CrtEnd)
 	}
 	if deps.LinkerScript != "" {
 		actx.AddDependency(c, linkerScriptDepTag, deps.LinkerScript)

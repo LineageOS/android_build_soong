@@ -73,14 +73,14 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags javaBuild
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 	switch String(p.Proto.Type) {
 	case "micro":
-		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-micro")
+		ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-micro")
 	case "nano":
-		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-nano")
+		ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-nano")
 	case "lite", "":
-		ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-lite")
+		ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-lite")
 	case "full":
 		if ctx.Host() {
-			ctx.AddDependency(ctx.Module(), staticLibTag, "libprotobuf-java-full")
+			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-full")
 		} else {
 			ctx.PropertyErrorf("proto.type", "full java protos only supported on the host")
 		}
