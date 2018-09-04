@@ -186,6 +186,34 @@ func (p Pom) IsDeviceModule() bool {
 	return !p.IsHostModule()
 }
 
+func (p Pom) ModuleType() string {
+	if p.IsAar() {
+		return "android_library"
+	} else if p.IsHostModule() {
+		return "java_library_host"
+	} else {
+		return "java_library_static"
+	}
+}
+
+func (p Pom) ImportModuleType() string {
+	if p.IsAar() {
+		return "android_library_import"
+	} else if p.IsHostModule() {
+		return "java_import_host"
+	} else {
+		return "java_import"
+	}
+}
+
+func (p Pom) ImportProperty() string {
+	if p.IsAar() {
+		return "aars"
+	} else {
+		return "jars"
+	}
+}
+
 func (p Pom) BpName() string {
 	if p.BpTarget == "" {
 		p.BpTarget = rewriteNames.MavenToBp(p.GroupId, p.ArtifactId)
@@ -293,27 +321,43 @@ func (p *Pom) ExtractMinSdkVersion() error {
 }
 
 var bpTemplate = template.Must(template.New("bp").Parse(`
-{{if .IsAar}}android_library_import{{else if .IsDeviceModule}}java_import{{else}}java_import_host{{end}} {
+{{.ImportModuleType}} {
     name: "{{.BpName}}-nodeps",
-    {{if .IsAar}}aars{{else}}jars{{end}}: ["{{.ArtifactFile}}"],
-    sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
+    {{.ImportProperty}}: ["{{.ArtifactFile}}"],
+    sdk_version: "{{.SdkVersion}}",
+    {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
-    static_libs: [{{range .BpAarDeps}}
-        "{{.}}",{{end}}{{range .BpExtraDeps}}
-        "{{.}}",{{end}}
-    ],{{end}}
+    static_libs: [
+        {{- range .BpAarDeps}}
+        "{{.}}",
+        {{- end}}
+        {{- range .BpExtraDeps}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- end}}
 }
 
-{{if .IsAar}}android_library{{else if .IsDeviceModule}}java_library_static{{else}}java_library_host{{end}} {
-    name: "{{.BpName}}",{{if .IsDeviceModule}}
-    sdk_version: "{{.SdkVersion}}",{{if .IsAar}}
+{{.ModuleType}} {
+    name: "{{.BpName}}",
+    {{- if .IsDeviceModule}}
+    sdk_version: "{{.SdkVersion}}",
+    {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
-    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",{{end}}{{end}}
+    manifest: "manifests/{{.BpName}}/AndroidManifest.xml",
+    {{- end}}
+    {{- end}}
     static_libs: [
-        "{{.BpName}}-nodeps",{{range .BpJarDeps}}
-        "{{.}}",{{end}}{{range .BpAarDeps}}
-        "{{.}}",{{end}}{{range .BpExtraDeps}}
-        "{{.}}",{{end}}
+        "{{.BpName}}-nodeps",
+         {{- range .BpJarDeps}}
+        "{{.}}",
+        {{- end}}
+        {{- range .BpAarDeps}}
+        "{{.}}",
+        {{- end}}
+        {{- range .BpExtraDeps}}
+        "{{.}}",
+        {{- end}}
     ],
     java_version: "1.7",
 }
