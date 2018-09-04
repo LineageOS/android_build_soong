@@ -62,7 +62,7 @@ func (p *prebuiltLibraryLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (p *prebuiltLibraryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	return Flags{}
+	return flags
 }
 
 func (p *prebuiltLibraryLinker) linkerProps() []interface{} {
