@@ -172,6 +172,7 @@ func NewLLndkStubLibrary() *Module {
 		libraryDecorator: library,
 	}
 	stub.Properties.Vendor_available = BoolPtr(true)
+	module.Properties.UseVndk = true
 	module.compiler = stub
 	module.linker = stub
 	module.installer = nil
