@@ -141,7 +141,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		ret.Class = "STATIC_LIBRARIES"
 	} else if library.shared() {
 		ctx.subAndroidMk(ret, &library.stripper)
-		ctx.subAndroidMk(ret, &library.relocationPacker)
 
 		ret.Class = "SHARED_LIBRARIES"
 	} else if library.header() {
@@ -306,14 +305,6 @@ func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMk
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := keep_symbols")
 		} else {
 			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := mini-debug-info")
-		}
-	})
-}
-
-func (packer *relocationPacker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		if packer.Properties.PackingRelocations {
-			fmt.Fprintln(w, "LOCAL_PACK_MODULE_RELOCATIONS := true")
 		}
 	})
 }
