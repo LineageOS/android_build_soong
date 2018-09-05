@@ -34,9 +34,9 @@ var (
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 	asanLibs    = []string{"libasan"}
 
-	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
+	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize-recover=cfi", "-fno-sanitize-trap=cfi",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
-	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
+	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi", "-fsanitize-recover=cfi", "-fno-sanitize-trap=cfi",
 		"-Wl,-plugin-opt,O1"}
 	cfiExportsMapPath  = "build/soong/cc/config/cfi_exports.map"
 	cfiStaticLibsMutex sync.Mutex
