@@ -33,7 +33,7 @@ func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
 	return !ctx.Config().EmbeddedInMake() && !Bool(stripper.StripProperties.Strip.None)
 }
 
-func (stripper *stripper) strip(ctx ModuleContext, in, out android.ModuleOutPath,
+func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.ModuleOutPath,
 	flags builderFlags) {
 	if ctx.Darwin() {
 		TransformDarwinStrip(ctx, in, out)
