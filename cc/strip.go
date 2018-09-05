@@ -39,12 +39,13 @@ func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.
 	if ctx.Darwin() {
 		TransformDarwinStrip(ctx, in, out)
 	} else {
-		// TODO(ccross): don't add gnu debuglink for user builds
-		flags.stripAddGnuDebuglink = true
 		if Bool(stripper.StripProperties.Strip.Keep_symbols) {
 			flags.stripKeepSymbols = true
 		} else if !Bool(stripper.StripProperties.Strip.All) {
 			flags.stripKeepMiniDebugInfo = true
+		}
+		if ctx.Config().Debuggable() && !flags.stripKeepMiniDebugInfo {
+			flags.stripAddGnuDebuglink = true
 		}
 		TransformStrip(ctx, in, out, flags)
 	}
