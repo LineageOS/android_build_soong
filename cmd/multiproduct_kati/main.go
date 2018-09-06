@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"android/soong/finder"
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
 	"android/soong/ui/status"
@@ -65,13 +66,6 @@ var includeProducts = flag.String("products", "", "comma-separated list of produ
 
 const errorLeadingLines = 20
 const errorTrailingLines = 20
-
-type Product struct {
-	ctx     build.Context
-	config  build.Config
-	logFile string
-	action  *status.Action
-}
 
 func errMsgFromLog(filename string) string {
 	if filename == "" {
@@ -148,6 +142,17 @@ func copyFile(from, to string) error {
 
 	_, err = io.Copy(toFile, fromFile)
 	return err
+}
+
+type mpContext struct {
+	Context context.Context
+	Logger  logger.Logger
+	Status  status.ToolStatus
+	Tracer  tracer.Tracer
+	Finder  *finder.Finder
+	Config  build.Config
+
+	LogsDir string
 }
 
 func main() {
@@ -253,7 +258,7 @@ func main() {
 		productsList = allProducts
 	}
 
-	products := make([]string, 0, len(productsList))
+	finalProductsList := make([]string, 0, len(productsList))
 	skipList := strings.Split(*skipProducts, ",")
 	skipProduct := func(p string) bool {
 		for _, s := range skipList {
@@ -265,156 +270,54 @@ func main() {
 	}
 	for _, product := range productsList {
 		if !skipProduct(product) {
-			products = append(products, product)
+			finalProductsList = append(finalProductsList, product)
 		} else {
 			log.Verbose("Skipping: ", product)
 		}
 	}
 
-	log.Verbose("Got product list: ", products)
+	log.Verbose("Got product list: ", finalProductsList)
 
 	s := buildCtx.Status.StartTool()
-	s.SetTotalActions(len(products))
+	s.SetTotalActions(len(finalProductsList))
 
-	var wg sync.WaitGroup
-	productConfigs := make(chan Product, len(products))
+	mpCtx := &mpContext{
+		Context: ctx,
+		Logger:  log,
+		Status:  s,
+		Tracer:  trace,
 
-	// Run the product config for every product in parallel
-	for _, product := range products {
-		wg.Add(1)
-		go func(product string) {
-			var stdLog string
+		Finder: finder,
+		Config: config,
 
-			defer wg.Done()
-
-			action := &status.Action{
-				Description: product,
-				Outputs:     []string{product},
-			}
-			s.StartAction(action)
-			defer logger.Recover(func(err error) {
-				s.FinishAction(status.ActionResult{
-					Action: action,
-					Error:  err,
-					Output: errMsgFromLog(stdLog),
-				})
-			})
-
-			productOutDir := filepath.Join(config.OutDir(), product)
-			productLogDir := filepath.Join(logsDir, product)
-
-			if err := os.MkdirAll(productOutDir, 0777); err != nil {
-				log.Fatalf("Error creating out directory: %v", err)
-			}
-			if err := os.MkdirAll(productLogDir, 0777); err != nil {
-				log.Fatalf("Error creating log directory: %v", err)
-			}
-
-			stdLog = filepath.Join(productLogDir, "std.log")
-			f, err := os.Create(stdLog)
-			if err != nil {
-				log.Fatalf("Error creating std.log: %v", err)
-			}
-
-			productLog := logger.New(f)
-			productLog.SetOutput(filepath.Join(productLogDir, "soong.log"))
-
-			productCtx := build.Context{ContextImpl: &build.ContextImpl{
-				Context: ctx,
-				Logger:  productLog,
-				Tracer:  trace,
-				Writer:  terminal.NewWriter(terminal.NewCustomStdio(nil, f, f)),
-				Thread:  trace.NewThread(product),
-				Status:  &status.Status{},
-			}}
-			productCtx.Status.AddOutput(terminal.NewStatusOutput(productCtx.Writer, ""))
-
-			productConfig := build.NewConfig(productCtx, flag.Args()...)
-			productConfig.Environment().Set("OUT_DIR", productOutDir)
-			build.FindSources(productCtx, productConfig, finder)
-			productConfig.Lunch(productCtx, product, *buildVariant)
-
-			build.Build(productCtx, productConfig, build.BuildProductConfig)
-			productConfigs <- Product{productCtx, productConfig, stdLog, action}
-		}(product)
+		LogsDir: logsDir,
 	}
+
+	products := make(chan string, len(productsList))
 	go func() {
-		defer close(productConfigs)
-		wg.Wait()
+		defer close(products)
+		for _, product := range finalProductsList {
+			products <- product
+		}
 	}()
 
-	var wg2 sync.WaitGroup
-	// Then run up to numJobs worth of Soong and Kati
+	var wg sync.WaitGroup
 	for i := 0; i < *numJobs; i++ {
-		wg2.Add(1)
+		wg.Add(1)
 		go func() {
-			defer wg2.Done()
-			for product := range productConfigs {
-				func() {
-					defer logger.Recover(func(err error) {
-						s.FinishAction(status.ActionResult{
-							Action: product.action,
-							Error:  err,
-							Output: errMsgFromLog(product.logFile),
-						})
-					})
-
-					defer func() {
-						if *keepArtifacts {
-							args := zip.ZipArgs{
-								FileArgs: []zip.FileArg{
-									{
-										GlobDir:             product.config.OutDir(),
-										SourcePrefixToStrip: product.config.OutDir(),
-									},
-								},
-								OutputFilePath:   filepath.Join(config.OutDir(), product.config.TargetProduct()+".zip"),
-								NumParallelJobs:  runtime.NumCPU(),
-								CompressionLevel: 5,
-							}
-							if err := zip.Run(args); err != nil {
-								log.Fatalf("Error zipping artifacts: %v", err)
-							}
-						}
-						if *incremental {
-							// Save space, Kati doesn't notice
-							if f := product.config.KatiNinjaFile(); f != "" {
-								os.Truncate(f, 0)
-							}
-						} else {
-							os.RemoveAll(product.config.OutDir())
-						}
-					}()
-
-					buildWhat := 0
-					if !*onlyConfig {
-						buildWhat |= build.BuildSoong
-						if !*onlySoong {
-							buildWhat |= build.BuildKati
-						}
+			defer wg.Done()
+			for {
+				select {
+				case product := <-products:
+					if product == "" {
+						return
 					}
-
-					before := time.Now()
-					build.Build(product.ctx, product.config, buildWhat)
-
-					// Save std_full.log if Kati re-read the makefiles
-					if buildWhat&build.BuildKati != 0 {
-						if after, err := os.Stat(product.config.KatiNinjaFile()); err == nil && after.ModTime().After(before) {
-							err := copyFile(product.logFile, filepath.Join(filepath.Dir(product.logFile), "std_full.log"))
-							if err != nil {
-								log.Fatalf("Error copying log file: %s", err)
-							}
-						}
-					}
-
-					s.FinishAction(status.ActionResult{
-						Action: product.action,
-					})
-				}()
+					buildProduct(mpCtx, product)
+				}
 			}
 		}()
 	}
-	wg2.Wait()
+	wg.Wait()
 
 	if *alternateResultDir {
 		args := zip.ZipArgs{
@@ -439,6 +342,111 @@ func main() {
 	} else {
 		writer.Print("Success")
 	}
+}
+
+func buildProduct(mpctx *mpContext, product string) {
+	var stdLog string
+
+	outDir := filepath.Join(mpctx.Config.OutDir(), product)
+	logsDir := filepath.Join(mpctx.LogsDir, product)
+
+	if err := os.MkdirAll(outDir, 0777); err != nil {
+		mpctx.Logger.Fatalf("Error creating out directory: %v", err)
+	}
+	if err := os.MkdirAll(logsDir, 0777); err != nil {
+		mpctx.Logger.Fatalf("Error creating log directory: %v", err)
+	}
+
+	stdLog = filepath.Join(logsDir, "std.log")
+	f, err := os.Create(stdLog)
+	if err != nil {
+		mpctx.Logger.Fatalf("Error creating std.log: %v", err)
+	}
+	defer f.Close()
+
+	log := logger.New(f)
+	defer log.Cleanup()
+	log.SetOutput(filepath.Join(logsDir, "soong.log"))
+
+	action := &status.Action{
+		Description: product,
+		Outputs:     []string{product},
+	}
+	mpctx.Status.StartAction(action)
+	defer logger.Recover(func(err error) {
+		mpctx.Status.FinishAction(status.ActionResult{
+			Action: action,
+			Error:  err,
+			Output: errMsgFromLog(stdLog),
+		})
+	})
+
+	ctx := build.Context{ContextImpl: &build.ContextImpl{
+		Context: mpctx.Context,
+		Logger:  log,
+		Tracer:  mpctx.Tracer,
+		Writer:  terminal.NewWriter(terminal.NewCustomStdio(nil, f, f)),
+		Thread:  mpctx.Tracer.NewThread(product),
+		Status:  &status.Status{},
+	}}
+	ctx.Status.AddOutput(terminal.NewStatusOutput(ctx.Writer, ""))
+
+	config := build.NewConfig(ctx, flag.Args()...)
+	config.Environment().Set("OUT_DIR", outDir)
+	build.FindSources(ctx, config, mpctx.Finder)
+	config.Lunch(ctx, product, *buildVariant)
+
+	defer func() {
+		if *keepArtifacts {
+			args := zip.ZipArgs{
+				FileArgs: []zip.FileArg{
+					{
+						GlobDir:             outDir,
+						SourcePrefixToStrip: outDir,
+					},
+				},
+				OutputFilePath:   filepath.Join(mpctx.Config.OutDir(), product+".zip"),
+				NumParallelJobs:  runtime.NumCPU(),
+				CompressionLevel: 5,
+			}
+			if err := zip.Run(args); err != nil {
+				log.Fatalf("Error zipping artifacts: %v", err)
+			}
+		}
+		if *incremental {
+			// Save space, Kati doesn't notice
+			if f := config.KatiNinjaFile(); f != "" {
+				os.Truncate(f, 0)
+			}
+		} else {
+			os.RemoveAll(outDir)
+		}
+	}()
+
+	buildWhat := build.BuildProductConfig
+	if !*onlyConfig {
+		buildWhat |= build.BuildSoong
+		if !*onlySoong {
+			buildWhat |= build.BuildKati
+		}
+	}
+
+	before := time.Now()
+	build.Build(ctx, config, buildWhat)
+
+	// Save std_full.log if Kati re-read the makefiles
+	if buildWhat&build.BuildKati != 0 {
+		if after, err := os.Stat(config.KatiNinjaFile()); err == nil && after.ModTime().After(before) {
+			err := copyFile(stdLog, filepath.Join(filepath.Dir(stdLog), "std_full.log"))
+			if err != nil {
+				log.Fatalf("Error copying log file: %s", err)
+			}
+		}
+	}
+
+	mpctx.Status.FinishAction(status.ActionResult{
+		Action: action,
+	})
 }
 
 type failureCount int
