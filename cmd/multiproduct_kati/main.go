@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -49,6 +50,7 @@ func detectNumJobs() int {
 var numJobs = flag.Int("j", detectNumJobs(), "number of parallel kati jobs")
 
 var keepArtifacts = flag.Bool("keep", false, "keep archives of artifacts")
+var incremental = flag.Bool("incremental", false, "run in incremental mode (saving intermediates)")
 
 var outDir = flag.String("out", "", "path to store output directories (defaults to tmpdir under $OUT when empty)")
 var alternateResultDir = flag.Bool("dist", false, "write select results to $DIST_DIR (or <out>/dist when empty)")
@@ -131,6 +133,23 @@ func inList(str string, list []string) bool {
 	return false
 }
 
+func copyFile(from, to string) error {
+	fromFile, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer fromFile.Close()
+
+	toFile, err := os.Create(to)
+	if err != nil {
+		return err
+	}
+	defer toFile.Close()
+
+	_, err = io.Copy(toFile, fromFile)
+	return err
+}
+
 func main() {
 	writer := terminal.NewWriter(terminal.StdioImpl{})
 	defer writer.Finish()
@@ -169,7 +188,10 @@ func main() {
 
 	config := build.NewConfig(buildCtx)
 	if *outDir == "" {
-		name := "multiproduct-" + time.Now().Format("20060102150405")
+		name := "multiproduct"
+		if !*incremental {
+			name += "-" + time.Now().Format("20060102150405")
+		}
 
 		*outDir = filepath.Join(config.OutDir(), name)
 
@@ -354,7 +376,14 @@ func main() {
 								log.Fatalf("Error zipping artifacts: %v", err)
 							}
 						}
-						os.RemoveAll(product.config.OutDir())
+						if *incremental {
+							// Save space, Kati doesn't notice
+							if f := product.config.KatiNinjaFile(); f != "" {
+								os.Truncate(f, 0)
+							}
+						} else {
+							os.RemoveAll(product.config.OutDir())
+						}
 					}()
 
 					buildWhat := 0
@@ -364,7 +393,20 @@ func main() {
 							buildWhat |= build.BuildKati
 						}
 					}
+
+					before := time.Now()
 					build.Build(product.ctx, product.config, buildWhat)
+
+					// Save std_full.log if Kati re-read the makefiles
+					if buildWhat&build.BuildKati != 0 {
+						if after, err := os.Stat(product.config.KatiNinjaFile()); err == nil && after.ModTime().After(before) {
+							err := copyFile(product.logFile, filepath.Join(filepath.Dir(product.logFile), "std_full.log"))
+							if err != nil {
+								log.Fatalf("Error copying log file: %s", err)
+							}
+						}
+					}
+
 					s.FinishAction(status.ActionResult{
 						Action: product.action,
 					})
