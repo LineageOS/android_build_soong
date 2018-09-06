@@ -369,14 +369,14 @@ func (c *configImpl) Arguments() []string {
 
 func (c *configImpl) OutDir() string {
 	if outDir, ok := c.environ.Get("OUT_DIR"); ok {
-		return outDir
+		return filepath.Clean(outDir)
 	}
 	return "out"
 }
 
 func (c *configImpl) DistDir() string {
 	if distDir, ok := c.environ.Get("DIST_DIR"); ok {
-		return distDir
+		return filepath.Clean(distDir)
 	}
 	return filepath.Join(c.OutDir(), "dist")
 }
