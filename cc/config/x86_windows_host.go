@@ -233,10 +233,6 @@ func (t *toolchainWindowsX8664) WindresFlags() string {
 	return "-F pe-x86-64"
 }
 
-func (t *toolchainWindows) ClangSupported() bool {
-	return true
-}
-
 func (t *toolchainWindowsX86) ClangTriple() string {
 	return "i686-windows-gnu"
 }

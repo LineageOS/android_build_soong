@@ -1089,10 +1089,6 @@ func (c *Module) clang(ctx BaseModuleContext) bool {
 		ctx.PropertyErrorf("clang", "false (GCC) is no longer supported")
 	}
 
-	if !c.toolchain(ctx).ClangSupported() {
-		panic("GCC is no longer supported")
-	}
-
 	return !c.Properties.Gcc
 }
 
