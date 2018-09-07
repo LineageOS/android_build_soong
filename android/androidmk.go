@@ -141,6 +141,13 @@ func translateAndroidMk(ctx SingletonContext, mkFile string, mods []Module) erro
 }
 
 func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.Module) error {
+	defer func() {
+		if r := recover(); r != nil {
+			panic(fmt.Errorf("%s in translateAndroidMkModule for module %s variant %s",
+				r, ctx.ModuleName(mod), ctx.ModuleSubDir(mod)))
+		}
+	}()
+
 	provider, ok := mod.(AndroidMkDataProvider)
 	if !ok {
 		return nil
