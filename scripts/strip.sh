@@ -63,9 +63,9 @@ do_strip_keep_symbols() {
     # we have not found a use case that is broken by objcopy yet.
     REMOVE_SECTIONS=`"${CROSS_COMPILE}readelf" -S "${infile}" | awk '/.debug_/ {print "--remove-section " $2}' | xargs`
     if [ ! -z "${use_llvm_strip}" ]; then
-        "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
-    else
         "${CLANG_BIN}/llvm-objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
+    else
+        "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
     fi
 }
 
