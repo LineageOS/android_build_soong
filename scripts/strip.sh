@@ -63,27 +63,28 @@ do_strip_keep_symbols() {
     # we have not found a use case that is broken by objcopy yet.
     REMOVE_SECTIONS=`"${CROSS_COMPILE}readelf" -S "${infile}" | awk '/.debug_/ {print "--remove-section " $2}' | xargs`
     if [ ! -z "${use_llvm_strip}" ]; then
-        "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
-    else
         "${CLANG_BIN}/llvm-objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
+    else
+        "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
     fi
 }
 
 do_strip_keep_mini_debug_info() {
     rm -f "${outfile}.dynsyms" "${outfile}.funcsyms" "${outfile}.keep_symbols" "${outfile}.debug" "${outfile}.mini_debuginfo" "${outfile}.mini_debuginfo.xz"
+    local fail=
     if [ ! -z "${use_llvm_strip}" ]; then
-        "${CLANG_BIN}/llvm-strip" --strip-all -keep=.ARM.attributes -remove-section=.comment "${infile}" "${outfile}.tmp"
+        "${CLANG_BIN}/llvm-strip" --strip-all -keep=.ARM.attributes -remove-section=.comment "${infile}" "${outfile}.tmp" || fail=true
     else
-        "${CROSS_COMPILE}strip" --strip-all -R .comment "${infile}" -o "${outfile}.tmp"
+        "${CROSS_COMPILE}strip" --strip-all -R .comment "${infile}" -o "${outfile}.tmp" || fail=true
     fi
-    if [ "$?" == "0" ]; then
+    if [ -z $fail ]; then
         # Current prebult llvm-objcopy does not support the following flags:
         #    --only-keep-debug --rename-section --keep-symbols
         # For the following use cases, ${CROSS_COMPILE}objcopy does fine with lld linked files,
         # except the --add-section flag.
         "${CROSS_COMPILE}objcopy" --only-keep-debug "${infile}" "${outfile}.debug"
-        "${CROSS_COMPILE}nm" -D "${infile}" --format=posix --defined-only | awk '{ print $$1 }' | sort >"${outfile}.dynsyms"
-        "${CROSS_COMPILE}nm" "${infile}" --format=posix --defined-only | awk '{ if ($$2 == "T" || $$2 == "t" || $$2 == "D") print $$1 }' | sort > "${outfile}.funcsyms"
+        "${CROSS_COMPILE}nm" -D "${infile}" --format=posix --defined-only | awk '{ print $1 }' | sort >"${outfile}.dynsyms"
+        "${CROSS_COMPILE}nm" "${infile}" --format=posix --defined-only | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' | sort > "${outfile}.funcsyms"
         comm -13 "${outfile}.dynsyms" "${outfile}.funcsyms" > "${outfile}.keep_symbols"
         echo >> "${outfile}.keep_symbols" # Ensure that the keep_symbols file is not empty.
         "${CROSS_COMPILE}objcopy" --rename-section .debug_frame=saved_debug_frame "${outfile}.debug" "${outfile}.mini_debuginfo"

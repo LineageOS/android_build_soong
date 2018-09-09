@@ -134,7 +134,6 @@ bootstrap_go_package {
         "cc/pgo.go",
         "cc/prebuilt.go",
         "cc/proto.go",
-        "cc/relocation_packer.go",
         "cc/rs.go",
         "cc/sanitize.go",
         "cc/sabi.go",

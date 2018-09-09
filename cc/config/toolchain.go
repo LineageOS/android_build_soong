@@ -57,7 +57,6 @@ type Toolchain interface {
 	IncludeFlags() string
 	InstructionSetFlags(string) (string, error)
 
-	ClangSupported() bool
 	ClangTriple() string
 	ToolchainClangCflags() string
 	ToolchainClangLdflags() string
@@ -130,10 +129,6 @@ func (toolchainBase) ToolchainClangCflags() string {
 
 func (toolchainBase) ToolchainClangLdflags() string {
 	return ""
-}
-
-func (toolchainBase) ClangSupported() bool {
-	return true
 }
 
 func (toolchainBase) ShlibSuffix() string {
