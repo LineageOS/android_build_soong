@@ -49,6 +49,10 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--minSdkVersion', default='', dest='min_sdk_version',
                       help='specify minSdkVersion used by the build system')
+  parser.add_argument('--targetSdkVersion', default='', dest='target_sdk_version',
+                      help='specify targetSdkVersion used by the build system')
+  parser.add_argument('--raise-min-sdk-version', dest='raise_min_sdk_version', action='store_true',
+                      help='raise the minimum sdk version in the manifest if necessary')
   parser.add_argument('--library', dest='library', action='store_true',
                       help='manifest is for a static library')
   parser.add_argument('--uses-library', dest='uses_libraries', action='append',
@@ -130,12 +134,13 @@ def get_indent(element, default_level):
   return indent
 
 
-def raise_min_sdk_version(doc, requested, library):
+def raise_min_sdk_version(doc, min_sdk_version, target_sdk_version, library):
   """Ensure the manifest contains a <uses-sdk> tag with a minSdkVersion.
 
   Args:
     doc: The XML document.  May be modified by this function.
-    requested: The requested minSdkVersion attribute.
+    min_sdk_version: The requested minSdkVersion attribute.
+    target_sdk_version: The requested targetSdkVersion attribute.
   Raises:
     RuntimeError: invalid manifest
   """
@@ -162,11 +167,11 @@ def raise_min_sdk_version(doc, requested, library):
   min_attr = element.getAttributeNodeNS(android_ns, 'minSdkVersion')
   if min_attr is None:
     min_attr = doc.createAttributeNS(android_ns, 'android:minSdkVersion')
-    min_attr.value = requested
+    min_attr.value = min_sdk_version
     element.setAttributeNode(min_attr)
   else:
-    if compare_version_gt(requested, min_attr.value):
-      min_attr.value = requested
+    if compare_version_gt(min_sdk_version, min_attr.value):
+      min_attr.value = min_sdk_version
 
   # Insert the targetSdkVersion attribute if it is missing.  If it is already
   # present leave it as is.
@@ -176,7 +181,7 @@ def raise_min_sdk_version(doc, requested, library):
     if library:
       target_attr.value = '1'
     else:
-      target_attr.value = requested
+      target_attr.value = target_sdk_version
     element.setAttributeNode(target_attr)
 
 
@@ -271,8 +276,8 @@ def main():
 
     ensure_manifest_android_ns(doc)
 
-    if args.min_sdk_version:
-      raise_min_sdk_version(doc, args.min_sdk_version, args.library)
+    if args.raise_min_sdk_version:
+      raise_min_sdk_version(doc, args.min_sdk_version, args.target_sdk_version, args.library)
 
     if args.uses_libraries:
       add_uses_libraries(doc, args.uses_libraries)

@@ -25,10 +25,14 @@ import (
 
 var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
 	blueprint.RuleParams{
-		Command:     `${config.ManifestFixerCmd} --minSdkVersion ${minSdkVersion} $args $in $out`,
+		Command: `${config.ManifestFixerCmd} ` +
+			`--minSdkVersion ${minSdkVersion} ` +
+			`--targetSdkVersion ${targetSdkVersion} ` +
+			`--raise-min-sdk-version ` +
+			`$args $in $out`,
 		CommandDeps: []string{"${config.ManifestFixerCmd}"},
 	},
-	"minSdkVersion", "args")
+	"minSdkVersion", "targetSdkVersion", "args")
 
 var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	blueprint.RuleParams{
@@ -53,8 +57,9 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 		Input:  manifest,
 		Output: fixedManifest,
 		Args: map[string]string{
-			"minSdkVersion": sdkVersionOrDefault(ctx, sdkContext.minSdkVersion()),
-			"args":          strings.Join(args, " "),
+			"minSdkVersion":    sdkVersionOrDefault(ctx, sdkContext.minSdkVersion()),
+			"targetSdkVersion": sdkVersionOrDefault(ctx, sdkContext.sdkVersion()),
+			"args":             strings.Join(args, " "),
 		},
 	})
 	manifest = fixedManifest
