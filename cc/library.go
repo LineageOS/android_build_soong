@@ -544,15 +544,13 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	builderFlags := flagsToBuilderFlags(flags)
 
-	if !ctx.Darwin() && !ctx.Windows() {
-		// Optimize out relinking against shared libraries whose interface hasn't changed by
-		// depending on a table of contents file instead of the library itself.
-		tocPath := outputFile.RelPathString()
-		tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
-		tocFile := android.PathForOutput(ctx, tocPath)
-		library.tocFile = android.OptionalPathForPath(tocFile)
-		TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
-	}
+	// Optimize out relinking against shared libraries whose interface hasn't changed by
+	// depending on a table of contents file instead of the library itself.
+	tocPath := outputFile.RelPathString()
+	tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
+	tocFile := android.PathForOutput(ctx, tocPath)
+	library.tocFile = android.OptionalPathForPath(tocFile)
+	TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 
 	if library.stripper.needsStrip(ctx) {
 		// b/80093681, GNU strip/objcopy bug.
