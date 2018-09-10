@@ -82,6 +82,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		in := p.Prebuilt.SingleSourcePath(ctx)
 
 		if p.shared() {
+			p.unstrippedOutputFile = in
 			libName := ctx.baseModuleName() + flags.Toolchain.ShlibSuffix()
 			if p.needsStrip(ctx) {
 				stripped := android.PathForModuleOut(ctx, "stripped", libName)
@@ -161,6 +162,8 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 
 		fileName := p.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 		in := p.Prebuilt.SingleSourcePath(ctx)
+
+		p.unstrippedOutputFile = in
 
 		if p.needsStrip(ctx) {
 			stripped := android.PathForModuleOut(ctx, "stripped", fileName)
