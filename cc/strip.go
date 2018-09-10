@@ -31,8 +31,7 @@ type stripper struct {
 }
 
 func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
-	// TODO(ccross): enable host stripping when embedded in make?  Make never had support for stripping host binaries.
-	return (!ctx.Config().EmbeddedInMake() || ctx.Device()) && !Bool(stripper.StripProperties.Strip.None)
+	return !ctx.Config().EmbeddedInMake() && !Bool(stripper.StripProperties.Strip.None)
 }
 
 func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.ModuleOutPath,

@@ -19,24 +19,18 @@ import (
 	"fmt"
 )
 
-func getNdkStlFamily(m *Module) string {
-	family, _ := getNdkStlFamilyAndLinkType(m)
-	return family
-}
-
-func getNdkStlFamilyAndLinkType(m *Module) (string, string) {
+func getNdkStlFamily(ctx android.ModuleContext, m *Module) string {
 	stl := m.stl.Properties.SelectedStl
 	switch stl {
-	case "ndk_libc++_shared":
-		return "libc++", "shared"
-	case "ndk_libc++_static":
-		return "libc++", "static"
+	case "ndk_libc++_shared", "ndk_libc++_static":
+		return "libc++"
 	case "ndk_system":
-		return "system", "shared"
+		return "system"
 	case "":
-		return "none", "none"
+		return "none"
 	default:
-		panic(fmt.Errorf("stl: %q is not a valid STL", stl))
+		ctx.ModuleErrorf("stl: %q is not a valid STL", stl)
+		return ""
 	}
 }
 

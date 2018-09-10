@@ -237,9 +237,6 @@ type libraryDecorator struct {
 	// not included in the NDK.
 	ndkSysrootPath android.Path
 
-	// Location of the linked, unstripped library for shared libraries
-	unstrippedOutputFile android.Path
-
 	// Decorated interafaces
 	*baseCompiler
 	*baseLinker
@@ -566,8 +563,6 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
-
-	library.unstrippedOutputFile = outputFile
 
 	if Bool(library.baseLinker.Properties.Use_version_lib) && ctx.Host() {
 		versionedOutputFile := outputFile
