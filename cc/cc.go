@@ -1177,7 +1177,7 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 		// We can be permissive with the system "STL" since it is only the C++
 		// ABI layer, but in the future we should make sure that everyone is
 		// using either libc++ or nothing.
-	} else if getNdkStlFamily(from) != getNdkStlFamily(to) {
+	} else if getNdkStlFamily(ctx, from) != getNdkStlFamily(ctx, to) {
 		ctx.ModuleErrorf("uses %q and depends on %q which uses incompatible %q",
 			from.stl.Properties.SelectedStl, ctx.OtherModuleName(to),
 			to.stl.Properties.SelectedStl)
@@ -1485,29 +1485,6 @@ func (c *Module) static() bool {
 		return static.static()
 	}
 	return false
-}
-
-func (c *Module) getMakeLinkType() string {
-	if c.useVndk() {
-		if inList(c.Name(), vndkCoreLibraries) || inList(c.Name(), vndkSpLibraries) || inList(c.Name(), llndkLibraries) {
-			if inList(c.Name(), vndkPrivateLibraries) {
-				return "native:vndk_private"
-			} else {
-				return "native:vndk"
-			}
-		} else {
-			return "native:vendor"
-		}
-	} else if c.inRecovery() {
-		return "native:recovery"
-	} else if c.Target().Os == android.Android && String(c.Properties.Sdk_version) != "" {
-		return "native:ndk:none:none"
-		// TODO(b/114741097): use the correct ndk stl once build errors have been fixed
-		//family, link := getNdkStlFamilyAndLinkType(c)
-		//return fmt.Sprintf("native:ndk:%s:%s", family, link)
-	} else {
-		return "native:platform"
-	}
 }
 
 //
