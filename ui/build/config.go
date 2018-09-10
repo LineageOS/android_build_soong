@@ -517,6 +517,9 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 				ctx.Fatalln("Unknown option:", arg)
 			}
 		} else if k, v, ok := decodeKeyValue(arg); ok && len(k) > 0 {
+			if k == "OUT_DIR" {
+				ctx.Fatalln("OUT_DIR may only be set in the environment, not as a command line option.")
+			}
 			c.environ.Set(k, v)
 		} else if arg == "dist" {
 			c.dist = true
