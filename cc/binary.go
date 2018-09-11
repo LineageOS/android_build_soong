@@ -78,6 +78,9 @@ type binaryDecorator struct {
 
 	toolPath android.OptionalPath
 
+	// Location of the linked, unstripped binary
+	unstrippedOutputFile android.Path
+
 	// Names of symlinks to be installed for use in LOCAL_MODULE_SYMLINKS
 	symlinks []string
 
@@ -305,6 +308,8 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		binary.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
+
+	binary.unstrippedOutputFile = outputFile
 
 	if String(binary.Properties.Prefix_symbols) != "" {
 		afterPrefixSymbols := outputFile
