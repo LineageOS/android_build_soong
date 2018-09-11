@@ -553,16 +553,12 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			sdkDep := decodeSdkDep(ctx, sdkContext(j))
 			if sdkDep.useDefaultLibs {
 				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-				if ctx.Config().TargetOpenJDK9() {
-					ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-				}
+				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
 				if !Bool(j.properties.No_framework_libs) {
 					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
-				if ctx.Config().TargetOpenJDK9() {
-					ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-				}
+				ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 				if Bool(j.deviceProperties.Optimize.Enabled) {
 					ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
@@ -572,7 +568,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		} else if j.deviceProperties.System_modules == nil {
 			ctx.PropertyErrorf("no_standard_libs",
 				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
-		} else if *j.deviceProperties.System_modules != "none" && ctx.Config().TargetOpenJDK9() {
+		} else if *j.deviceProperties.System_modules != "none" {
 			ctx.AddVariationDependencies(nil, systemModulesTag, *j.deviceProperties.System_modules)
 		}
 		if (ctx.ModuleName() == "framework") || (ctx.ModuleName() == "framework-annotation-proc") {
@@ -900,9 +896,12 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 	var flags javaBuilderFlags
 
+	// javaVersion flag.
+	flags.javaVersion = getJavaVersion(ctx, String(j.properties.Java_version), sdkContext(j))
+
 	// javac flags.
 	javacFlags := j.properties.Javacflags
-	if ctx.Config().TargetOpenJDK9() {
+	if flags.javaVersion == "1.9" {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
 	}
 	if ctx.Config().MinimizeJavaDebugInfo() {
@@ -927,15 +926,12 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		flags.errorProneProcessorPath = classpath(android.PathsForSource(ctx, config.ErrorProneClasspath))
 	}
 
-	// javaVersion flag.
-	flags.javaVersion = getJavaVersion(ctx, String(j.properties.Java_version), sdkContext(j))
-
 	// classpath
 	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
 	flags.classpath = append(flags.classpath, deps.classpath...)
 	flags.processorPath = append(flags.processorPath, deps.processorPath...)
 
-	if len(flags.bootClasspath) == 0 && ctx.Host() && !ctx.Config().TargetOpenJDK9() &&
+	if len(flags.bootClasspath) == 0 && ctx.Host() && flags.javaVersion != "1.9" &&
 		!Bool(j.properties.No_standard_libs) &&
 		inList(flags.javaVersion, []string{"1.6", "1.7", "1.8"}) {
 		// Give host-side tools a version of OpenJDK's standard libraries
@@ -961,7 +957,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		}
 	}
 
-	if j.properties.Patch_module != nil && ctx.Config().TargetOpenJDK9() {
+	if j.properties.Patch_module != nil && flags.javaVersion == "1.9" {
 		patchClasspath := ".:" + flags.classpath.FormJavaClassPath("")
 		javacFlags = append(javacFlags, "--patch-module="+String(j.properties.Patch_module)+"="+patchClasspath)
 	}
@@ -995,7 +991,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	deps := j.collectDeps(ctx)
 	flags := j.collectBuilderFlags(ctx, deps)
 
-	if ctx.Config().TargetOpenJDK9() {
+	if flags.javaVersion == "1.9" {
 		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
 	}
 	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
