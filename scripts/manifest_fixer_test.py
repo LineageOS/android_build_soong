@@ -54,9 +54,11 @@ class CompareVersionGtTest(unittest.TestCase):
 class RaiseMinSdkVersionTest(unittest.TestCase):
   """Unit tests for raise_min_sdk_version function."""
 
-  def raise_min_sdk_version_test(self, input_manifest, min_sdk_version, library):
+  def raise_min_sdk_version_test(self, input_manifest, min_sdk_version,
+                                 target_sdk_version, library):
     doc = minidom.parseString(input_manifest)
-    manifest_fixer.raise_min_sdk_version(doc, min_sdk_version, library)
+    manifest_fixer.raise_min_sdk_version(doc, min_sdk_version,
+                                         target_sdk_version, library)
     output = StringIO.StringIO()
     manifest_fixer.write_xml(output, doc)
     return output.getvalue()
@@ -69,13 +71,13 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
 
   # pylint: disable=redefined-builtin
   def uses_sdk(self, min=None, target=None, extra=''):
-    attrs = ""
+    attrs = ''
     if min:
       attrs += ' android:minSdkVersion="%s"' % (min)
     if target:
       attrs += ' android:targetSdkVersion="%s"' % (target)
     if extra:
-        attrs += ' ' + extra
+      attrs += ' ' + extra
     return '    <uses-sdk%s/>\n' % (attrs)
 
   def test_no_uses_sdk(self):
@@ -83,7 +85,7 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
 
     manifest_input = self.manifest_tmpl % ''
     expected = self.manifest_tmpl % self.uses_sdk(min='28', target='28')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '28', False)
     self.assertEqual(output, expected)
 
   def test_no_min(self):
@@ -92,47 +94,47 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
     manifest_input = self.manifest_tmpl % '    <uses-sdk extra="foo"/>\n'
     expected = self.manifest_tmpl % self.uses_sdk(min='28', target='28',
                                                   extra='extra="foo"')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '28', False)
     self.assertEqual(output, expected)
 
   def test_raise_min(self):
     """Tests inserting a minSdkVersion attribute into a uses-sdk element."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='27')
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='28')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '28', False)
     self.assertEqual(output, expected)
 
   def test_raise(self):
     """Tests raising a minSdkVersion attribute."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='27')
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='28')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '28', False)
     self.assertEqual(output, expected)
 
   def test_no_raise_min(self):
     """Tests a minSdkVersion that doesn't need raising."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='28')
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='28')
-    output = self.raise_min_sdk_version_test(manifest_input, '27', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
+    output = self.raise_min_sdk_version_test(manifest_input, '27', '27', False)
     self.assertEqual(output, expected)
 
   def test_raise_codename(self):
     """Tests raising a minSdkVersion attribute to a codename."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='28')
-    expected = self.manifest_tmpl % self.uses_sdk(min='P', target='28')
-    output = self.raise_min_sdk_version_test(manifest_input, 'P', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='P', target='P')
+    output = self.raise_min_sdk_version_test(manifest_input, 'P', 'P', False)
     self.assertEqual(output, expected)
 
   def test_no_raise_codename(self):
     """Tests a minSdkVersion codename that doesn't need raising."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='P')
-    expected = self.manifest_tmpl % self.uses_sdk(min='P', target='P')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='P', target='28')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '28', False)
     self.assertEqual(output, expected)
 
   def test_target(self):
@@ -140,56 +142,56 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='26', target='27')
     expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', False)
     self.assertEqual(output, expected)
 
   def test_no_target(self):
     """Tests inserting targetSdkVersion when minSdkVersion exists."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='27')
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='29')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', False)
     self.assertEqual(output, expected)
 
   def test_target_no_min(self):
-      """Tests inserting targetSdkVersion when minSdkVersion exists."""
+    """"Tests inserting targetSdkVersion when minSdkVersion exists."""
 
-      manifest_input = self.manifest_tmpl % self.uses_sdk(target='27')
-      expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-      output = self.raise_min_sdk_version_test(manifest_input, '28', False)
-      self.assertEqual(output, expected)
+    manifest_input = self.manifest_tmpl % self.uses_sdk(target='27')
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', False)
+    self.assertEqual(output, expected)
 
   def test_no_target_no_min(self):
     """Tests inserting targetSdkVersion when minSdkVersion does not exist."""
 
     manifest_input = self.manifest_tmpl % ''
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='28')
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='29')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', False)
     self.assertEqual(output, expected)
 
   def test_library_no_target(self):
-      """Tests inserting targetSdkVersion when minSdkVersion exists."""
+    """Tests inserting targetSdkVersion when minSdkVersion exists."""
 
-      manifest_input = self.manifest_tmpl % self.uses_sdk(min='27')
-      expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-      output = self.raise_min_sdk_version_test(manifest_input, '28', True)
-      self.assertEqual(output, expected)
+    manifest_input = self.manifest_tmpl % self.uses_sdk(min='27')
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='1')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', True)
+    self.assertEqual(output, expected)
 
   def test_library_target_no_min(self):
-      """Tests inserting targetSdkVersion when minSdkVersion exists."""
+    """Tests inserting targetSdkVersion when minSdkVersion exists."""
 
-      manifest_input = self.manifest_tmpl % self.uses_sdk(target='27')
-      expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
-      output = self.raise_min_sdk_version_test(manifest_input, '28', True)
-      self.assertEqual(output, expected)
+    manifest_input = self.manifest_tmpl % self.uses_sdk(target='27')
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='27')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', True)
+    self.assertEqual(output, expected)
 
   def test_library_no_target_no_min(self):
-      """Tests inserting targetSdkVersion when minSdkVersion does not exist."""
+    """Tests inserting targetSdkVersion when minSdkVersion does not exist."""
 
-      manifest_input = self.manifest_tmpl % ''
-      expected = self.manifest_tmpl % self.uses_sdk(min='28', target='1')
-      output = self.raise_min_sdk_version_test(manifest_input, '28', True)
-      self.assertEqual(output, expected)
+    manifest_input = self.manifest_tmpl % ''
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='1')
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', True)
+    self.assertEqual(output, expected)
 
   def test_extra(self):
     """Tests that extra attributes and elements are maintained."""
@@ -202,10 +204,10 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
     # pylint: disable=line-too-long
     expected = self.manifest_tmpl % (
         '    <!-- comment -->\n'
-        '    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="27" extra="foo"/>\n'
+        '    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="29" extra="foo"/>\n'
         '    <application/>\n')
 
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', False)
 
     self.assertEqual(output, expected)
 
@@ -216,10 +218,10 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
 
     # pylint: disable=line-too-long
     expected = self.manifest_tmpl % (
-        '  <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="28"/>\n'
+        '  <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="29"/>\n'
         '  <!-- comment -->\n')
 
-    output = self.raise_min_sdk_version_test(manifest_input, '28', False)
+    output = self.raise_min_sdk_version_test(manifest_input, '28', '29', False)
 
     self.assertEqual(output, expected)
 

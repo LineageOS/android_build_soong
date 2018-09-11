@@ -148,6 +148,9 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("RS_GLOBAL_INCLUDES", "${config.RsGlobalIncludes}")
 
+	ctx.Strict("SOONG_STRIP_PATH", "${stripPath}")
+	ctx.Strict("XZ", "${xzCmd}")
+
 	nativeHelperIncludeFlags, err := ctx.Eval("${config.CommonNativehelperInclude}")
 	if err != nil {
 		panic(err)
