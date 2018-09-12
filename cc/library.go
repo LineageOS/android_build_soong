@@ -237,6 +237,9 @@ type libraryDecorator struct {
 	// not included in the NDK.
 	ndkSysrootPath android.Path
 
+	// Location of the linked, unstripped library for shared libraries
+	unstrippedOutputFile android.Path
+
 	// Decorated interafaces
 	*baseCompiler
 	*baseLinker
@@ -544,15 +547,13 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	builderFlags := flagsToBuilderFlags(flags)
 
-	if !ctx.Darwin() && !ctx.Windows() {
-		// Optimize out relinking against shared libraries whose interface hasn't changed by
-		// depending on a table of contents file instead of the library itself.
-		tocPath := outputFile.RelPathString()
-		tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
-		tocFile := android.PathForOutput(ctx, tocPath)
-		library.tocFile = android.OptionalPathForPath(tocFile)
-		TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
-	}
+	// Optimize out relinking against shared libraries whose interface hasn't changed by
+	// depending on a table of contents file instead of the library itself.
+	tocPath := outputFile.RelPathString()
+	tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
+	tocFile := android.PathForOutput(ctx, tocPath)
+	library.tocFile = android.OptionalPathForPath(tocFile)
+	TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 
 	if library.stripper.needsStrip(ctx) {
 		// b/80093681, GNU strip/objcopy bug.
@@ -563,6 +564,8 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
+
+	library.unstrippedOutputFile = outputFile
 
 	if Bool(library.baseLinker.Properties.Use_version_lib) && ctx.Host() {
 		versionedOutputFile := outputFile
