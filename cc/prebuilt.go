@@ -82,7 +82,6 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		in := p.Prebuilt.SingleSourcePath(ctx)
 
 		if p.shared() {
-			p.unstrippedOutputFile = in
 			libName := ctx.baseModuleName() + flags.Toolchain.ShlibSuffix()
 			if p.needsStrip(ctx) {
 				stripped := android.PathForModuleOut(ctx, "stripped", libName)
@@ -90,11 +89,13 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 				in = stripped
 			}
 
-			// Optimize out relinking against shared libraries whose interface hasn't changed by
-			// depending on a table of contents file instead of the library itself.
-			tocFile := android.PathForModuleOut(ctx, libName+".toc")
-			p.tocFile = android.OptionalPathForPath(tocFile)
-			TransformSharedObjectToToc(ctx, in, tocFile, builderFlags)
+			if !ctx.Darwin() && !ctx.Windows() {
+				// Optimize out relinking against shared libraries whose interface hasn't changed by
+				// depending on a table of contents file instead of the library itself.
+				tocFile := android.PathForModuleOut(ctx, libName+".toc")
+				p.tocFile = android.OptionalPathForPath(tocFile)
+				TransformSharedObjectToToc(ctx, in, tocFile, builderFlags)
+			}
 		}
 
 		return in
@@ -160,8 +161,6 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 
 		fileName := p.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 		in := p.Prebuilt.SingleSourcePath(ctx)
-
-		p.unstrippedOutputFile = in
 
 		if p.needsStrip(ctx) {
 			stripped := android.PathForModuleOut(ctx, "stripped", fileName)
