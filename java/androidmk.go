@@ -319,14 +319,11 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				if BoolDefault(ddoc.Javadoc.properties.Installable, true) {
+				if BoolDefault(ddoc.Javadoc.properties.Installable, true) && ddoc.Javadoc.docZip != nil {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_DOC_ZIP := ", ddoc.Javadoc.docZip.String())
 				}
 				if ddoc.Javadoc.stubsSrcJar != nil {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", ddoc.Javadoc.stubsSrcJar.String())
-				}
-				if ddoc.annotationsZip != nil {
-					fmt.Fprintln(w, "LOCAL_DROIDDOC_ANNOTATIONS_ZIP := ", ddoc.annotationsZip.String())
 				}
 				if ddoc.checkCurrentApiTimestamp != nil {
 					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-check-current-api")
@@ -381,6 +378,75 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 				}
 				if ddoc.proguardFile != nil {
 					fmt.Fprintln(w, apiFilePrefix+"PROGUARD_FILE := ", ddoc.proguardFile.String())
+				}
+			},
+		},
+	}
+}
+
+func (dstubs *Droidstubs) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(dstubs.stubsSrcJar),
+		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				if dstubs.Javadoc.stubsSrcJar != nil {
+					fmt.Fprintln(w, "LOCAL_DROIDDOC_STUBS_SRCJAR := ", dstubs.Javadoc.stubsSrcJar.String())
+				}
+				if dstubs.annotationsZip != nil {
+					fmt.Fprintln(w, "LOCAL_DROIDDOC_ANNOTATIONS_ZIP := ", dstubs.annotationsZip.String())
+				}
+				if dstubs.checkCurrentApiTimestamp != nil {
+					fmt.Fprintln(w, ".PHONY:", dstubs.Name()+"-check-current-api")
+					fmt.Fprintln(w, dstubs.Name()+"-check-current-api:",
+						dstubs.checkCurrentApiTimestamp.String())
+
+					fmt.Fprintln(w, ".PHONY: checkapi")
+					fmt.Fprintln(w, "checkapi:",
+						dstubs.checkCurrentApiTimestamp.String())
+
+					fmt.Fprintln(w, ".PHONY: droidcore")
+					fmt.Fprintln(w, "droidcore: checkapi")
+				}
+				if dstubs.updateCurrentApiTimestamp != nil {
+					fmt.Fprintln(w, ".PHONY:", dstubs.Name()+"-update-current-api")
+					fmt.Fprintln(w, dstubs.Name()+"-update-current-api:",
+						dstubs.updateCurrentApiTimestamp.String())
+
+					fmt.Fprintln(w, ".PHONY: update-api")
+					fmt.Fprintln(w, "update-api:",
+						dstubs.updateCurrentApiTimestamp.String())
+				}
+				if dstubs.checkLastReleasedApiTimestamp != nil {
+					fmt.Fprintln(w, ".PHONY:", dstubs.Name()+"-check-last-released-api")
+					fmt.Fprintln(w, dstubs.Name()+"-check-last-released-api:",
+						dstubs.checkLastReleasedApiTimestamp.String())
+				}
+				apiFilePrefix := "INTERNAL_PLATFORM_"
+				if String(dstubs.properties.Api_tag_name) != "" {
+					apiFilePrefix += String(dstubs.properties.Api_tag_name) + "_"
+				}
+				if dstubs.apiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"API_FILE := ", dstubs.apiFile.String())
+				}
+				if dstubs.dexApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"DEX_API_FILE := ", dstubs.dexApiFile.String())
+				}
+				if dstubs.privateApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_API_FILE := ", dstubs.privateApiFile.String())
+				}
+				if dstubs.privateDexApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"PRIVATE_DEX_API_FILE := ", dstubs.privateDexApiFile.String())
+				}
+				if dstubs.removedApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"REMOVED_API_FILE := ", dstubs.removedApiFile.String())
+				}
+				if dstubs.removedDexApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"REMOVED_DEX_API_FILE := ", dstubs.removedDexApiFile.String())
+				}
+				if dstubs.exactApiFile != nil {
+					fmt.Fprintln(w, apiFilePrefix+"EXACT_API_FILE := ", dstubs.exactApiFile.String())
 				}
 			},
 		},
