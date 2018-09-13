@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -320,7 +321,7 @@ func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.Writa
 		Output:      outputFile,
 		Implicits:   deps,
 		Args: map[string]string{
-			"jarArgs": strings.Join(jarArgs, " "),
+			"jarArgs": strings.Join(proptools.NinjaEscape(jarArgs), " "),
 		},
 	})
 }

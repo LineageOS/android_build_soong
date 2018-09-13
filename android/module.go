@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -843,6 +844,13 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 	if params.Implicit != nil {
 		bparams.Implicits = append(bparams.Implicits, params.Implicit.String())
 	}
+
+	bparams.Outputs = proptools.NinjaEscape(bparams.Outputs)
+	bparams.ImplicitOutputs = proptools.NinjaEscape(bparams.ImplicitOutputs)
+	bparams.Inputs = proptools.NinjaEscape(bparams.Inputs)
+	bparams.Implicits = proptools.NinjaEscape(bparams.Implicits)
+	bparams.OrderOnly = proptools.NinjaEscape(bparams.OrderOnly)
+	bparams.Depfile = proptools.NinjaEscape([]string{bparams.Depfile})[0]
 
 	return bparams
 }

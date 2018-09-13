@@ -230,6 +230,8 @@ func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 // pathsForModuleSrcFromFullPath returns Paths rooted from the module's local
 // source directory, but strip the local source directory from the beginning of
 // each string. If incDirs is false, strip paths with a trailing '/' from the list.
+// It intended for use in globs that only list files that exist, so it allows '$' in
+// filenames.
 func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bool) Paths {
 	prefix := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir()) + "/"
 	if prefix == "./" {
@@ -246,7 +248,7 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bo
 			continue
 		}
 
-		srcPath, err := pathForSource(ctx, ctx.ModuleDir(), path[len(prefix):])
+		srcPath, err := safePathForSource(ctx, ctx.ModuleDir(), path[len(prefix):])
 		if err != nil {
 			reportPathError(ctx, err)
 			continue
@@ -494,29 +496,26 @@ func (p SourcePath) withRel(rel string) SourcePath {
 
 // safePathForSource is for paths that we expect are safe -- only for use by go
 // code that is embedding ninja variables in paths
-func safePathForSource(ctx PathContext, path string) SourcePath {
-	p, err := validateSafePath(path)
-	if err != nil {
-		reportPathError(ctx, err)
-	}
+func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
+	p, err := validateSafePath(pathComponents...)
 	ret := SourcePath{basePath{p, ctx.Config(), ""}}
+	if err != nil {
+		return ret, err
+	}
 
 	abs, err := filepath.Abs(ret.String())
 	if err != nil {
-		reportPathError(ctx, err)
-		return ret
+		return ret, err
 	}
 	buildroot, err := filepath.Abs(ctx.Config().buildDir)
 	if err != nil {
-		reportPathError(ctx, err)
-		return ret
+		return ret, err
 	}
 	if strings.HasPrefix(abs, buildroot) {
-		reportPathErrorf(ctx, "source path %s is in output", abs)
-		return ret
+		return ret, fmt.Errorf("source path %s is in output", abs)
 	}
 
-	return ret
+	return ret, err
 }
 
 // pathForSource creates a SourcePath from pathComponents, but does not check that it exists.
