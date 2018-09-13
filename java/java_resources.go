@@ -32,7 +32,7 @@ var resourceExcludes = []string{
 }
 
 func ResourceDirsToJarArgs(ctx android.ModuleContext,
-	resourceDirs, excludeResourceDirs []string) (args []string, deps android.Paths) {
+	resourceDirs, excludeResourceDirs, excludeResourceFiles []string) (args []string, deps android.Paths) {
 	var excludeDirs []string
 	var excludeFiles []string
 
@@ -43,6 +43,8 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 			excludeFiles = append(excludeFiles, dir.(android.ModuleSrcPath).Join(ctx, "**/*").String())
 		}
 	}
+
+	excludeFiles = append(excludeFiles, ctx.ExpandSources(excludeResourceFiles, nil).Strings()...)
 
 	excludeFiles = append(excludeFiles, resourceExcludes...)
 
