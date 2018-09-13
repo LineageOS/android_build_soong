@@ -60,24 +60,17 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 	ret := android.AndroidMkData{
 		OutputFile: c.outputFile,
 		Required:   c.Properties.AndroidMkRuntimeLibs,
+		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
 
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if len(c.Properties.Logtags) > 0 {
 					fmt.Fprintln(w, "LOCAL_LOGTAGS_FILES :=", strings.Join(c.Properties.Logtags, " "))
 				}
-				fmt.Fprintln(w, "LOCAL_SANITIZE := never")
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 				}
-				if c.Target().Os == android.Android &&
-					String(c.Properties.Sdk_version) != "" && !c.useVndk() && !c.inRecovery() {
-					fmt.Fprintln(w, "LOCAL_SDK_VERSION := "+String(c.Properties.Sdk_version))
-					fmt.Fprintln(w, "LOCAL_NDK_STL_VARIANT := none")
-				} else {
-					// These are already included in LOCAL_SHARED_LIBRARIES
-					fmt.Fprintln(w, "LOCAL_CXX_STL := none")
-				}
+				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.getMakeLinkType())
 				if c.useVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 				}
@@ -140,44 +133,13 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 	if library.static() {
 		ret.Class = "STATIC_LIBRARIES"
 	} else if library.shared() {
-		ctx.subAndroidMk(ret, &library.stripper)
-
 		ret.Class = "SHARED_LIBRARIES"
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+			fmt.Fprintln(w, "LOCAL_SOONG_TOC :=", library.toc().String())
+			fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
+		})
 	} else if library.header() {
-		ret.Custom = func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
-			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-			fmt.Fprintln(w, "LOCAL_MODULE :=", name+data.SubName)
-
-			archStr := ctx.Target().Arch.ArchType.String()
-			var host bool
-			switch ctx.Target().Os.Class {
-			case android.Host:
-				fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH := ", archStr)
-				host = true
-			case android.HostCross:
-				fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH := ", archStr)
-				host = true
-			case android.Device:
-				fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH := ", archStr)
-			}
-
-			if host {
-				makeOs := ctx.Target().Os.String()
-				if ctx.Target().Os == android.Linux || ctx.Target().Os == android.LinuxBionic {
-					makeOs = "linux"
-				}
-				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
-				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
-			} else if ctx.useVndk() {
-				fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
-			}
-
-			library.androidMkWriteExportedFlags(w)
-			fmt.Fprintln(w, "include $(BUILD_HEADER_LIBRARY)")
-		}
-
-		return
+		ret.Class = "HEADER_LIBRARIES"
 	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
@@ -195,8 +157,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
-
 		if library.coverageOutputFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", library.coverageOutputFile.String())
 		}
@@ -204,6 +164,10 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 
 	if library.shared() {
 		ctx.subAndroidMk(ret, library.baseInstaller)
+	} else {
+		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+		})
 	}
 }
 
@@ -218,15 +182,10 @@ func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.Android
 
 func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, binary.baseInstaller)
-	ctx.subAndroidMk(ret, &binary.stripper)
 
 	ret.Class = "EXECUTABLES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
-		if Bool(binary.Properties.Static_executable) {
-			fmt.Fprintln(w, "LOCAL_FORCE_STATIC_EXECUTABLE := true")
-		}
-
+		fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", binary.unstrippedOutputFile.String())
 		if len(binary.symlinks) > 0 {
 			fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS := "+strings.Join(binary.symlinks, " "))
 		}
@@ -287,25 +246,6 @@ func (library *toolchainLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *a
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		_, suffix, _ := splitFileExt(outputFile.Base())
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
-	})
-}
-
-func (stripper *stripper) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	// Make only supports stripping target modules
-	if ctx.Target().Os != android.Android {
-		return
-	}
-
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		if Bool(stripper.StripProperties.Strip.None) {
-
-			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
-		} else if Bool(stripper.StripProperties.Strip.Keep_symbols) {
-			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := keep_symbols")
-		} else {
-			fmt.Fprintln(w, "LOCAL_STRIP_MODULE := mini-debug-info")
-		}
 	})
 }
 
@@ -333,7 +273,6 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path, file := filepath.Split(c.installPath.String())
 		stem, suffix, _ := splitFileExt(file)
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
@@ -355,11 +294,9 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 		_, _, ext := splitFileExt(outputFile.Base())
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
-		fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
-		fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
+		fmt.Fprintln(w, "LOCAL_SOONG_TOC :=", c.toc().String())
 	})
 }
 
@@ -374,9 +311,6 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *andr
 		path := c.path.RelPathString()
 		dir, file := filepath.Split(path)
 		stem, suffix, ext := splitFileExt(file)
-		fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
-		fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
@@ -404,8 +338,6 @@ func (c *vendorPublicLibraryStubDecorator) AndroidMk(ctx AndroidMkContext, ret *
 		_, _, ext := splitFileExt(outputFile.Base())
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
-		fmt.Fprintln(w, "LOCAL_STRIP_MODULE := false")
-		fmt.Fprintln(w, "LOCAL_SYSTEM_SHARED_LIBRARIES :=")
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
 	})
