@@ -75,7 +75,7 @@ type CompilerProperties struct {
 	// list of files to use as Java resources
 	Java_resources []string `android:"arch_variant"`
 
-	// list of files that should be excluded from java_resources
+	// list of files that should be excluded from java_resources and java_resource_dirs
 	Exclude_java_resources []string `android:"arch_variant"`
 
 	// don't build against the default libraries (bootclasspath, legacy-test, core-junit,
@@ -1119,7 +1119,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
-	dirArgs, dirDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs, j.properties.Exclude_java_resource_dirs)
+	dirArgs, dirDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs,
+		j.properties.Exclude_java_resource_dirs, j.properties.Exclude_java_resources)
 	fileArgs, fileDeps := ResourceFilesToJarArgs(ctx, j.properties.Java_resources, j.properties.Exclude_java_resources)
 
 	var resArgs []string

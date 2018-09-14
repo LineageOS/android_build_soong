@@ -702,6 +702,30 @@ func TestResources(t *testing.T) {
 			prop: `java_resource_dirs: ["java-res/*"], exclude_java_resource_dirs: ["java-res/b"]`,
 			args: "-C java-res/a -f java-res/a/a",
 		},
+		{
+			// Test wildcards in java_resources
+			name: "wildcard files",
+			prop: `java_resources: ["java-res/**/*"]`,
+			args: "-C . -f java-res/a/a -f java-res/b/b",
+		},
+		{
+			// Test exclude_java_resources with java_resources
+			name: "wildcard files with exclude",
+			prop: `java_resources: ["java-res/**/*"], exclude_java_resources: ["java-res/b/*"]`,
+			args: "-C . -f java-res/a/a",
+		},
+		{
+			// Test exclude_java_resources with java_resource_dirs
+			name: "resource dirs with exclude files",
+			prop: `java_resource_dirs: ["java-res"], exclude_java_resources: ["java-res/b/b"]`,
+			args: "-C java-res -f java-res/a/a",
+		},
+		{
+			// Test exclude_java_resource_dirs with java_resource_dirs
+			name: "resource dirs with exclude files",
+			prop: `java_resource_dirs: ["java-res", "java-res2"], exclude_java_resource_dirs: ["java-res2"]`,
+			args: "-C java-res -f java-res/a/a -f java-res/b/b",
+		},
 	}
 
 	for _, test := range table {
@@ -731,42 +755,6 @@ func TestResources(t *testing.T) {
 					fooRes.Args["jarArgs"], test.args)
 			}
 		})
-	}
-}
-
-func TestExcludeResources(t *testing.T) {
-	ctx := testJava(t, `
-		java_library {
-			name: "foo",
-			srcs: ["a.java"],
-			java_resource_dirs: ["java-res", "java-res2"],
-			exclude_java_resource_dirs: ["java-res2"],
-		}
-
-		java_library {
-			name: "bar",
-			srcs: ["a.java"],
-			java_resources: ["java-res/*/*"],
-			exclude_java_resources: ["java-res/b/*"],
-		}
-	`)
-
-	fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
-
-	expected := "-C java-res -f java-res/a/a -f java-res/b/b"
-	if fooRes.Args["jarArgs"] != expected {
-		t.Errorf("foo resource jar args %q is not %q",
-			fooRes.Args["jarArgs"], expected)
-
-	}
-
-	barRes := ctx.ModuleForTests("bar", "android_common").Output("res/bar.jar")
-
-	expected = "-C . -f java-res/a/a"
-	if barRes.Args["jarArgs"] != expected {
-		t.Errorf("bar resource jar args %q is not %q",
-			barRes.Args["jarArgs"], expected)
-
 	}
 }
 
