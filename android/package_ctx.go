@@ -124,7 +124,11 @@ func (p PackageContext) RuleFunc(name string,
 // package-scoped variable's initialization.
 func (p PackageContext) SourcePathVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(ctx PackageVarContext) string {
-		return safePathForSource(ctx, path).String()
+		p, err := safePathForSource(ctx, path)
+		if err != nil {
+			ctx.Errorf("%s", err.Error())
+		}
+		return p.String()
 	})
 }
 
@@ -136,7 +140,10 @@ func (p PackageContext) SourcePathsVariable(name, separator string, paths ...str
 	return p.VariableFunc(name, func(ctx PackageVarContext) string {
 		var ret []string
 		for _, path := range paths {
-			p := safePathForSource(ctx, path)
+			p, err := safePathForSource(ctx, path)
+			if err != nil {
+				ctx.Errorf("%s", err.Error())
+			}
 			ret = append(ret, p.String())
 		}
 		return strings.Join(ret, separator)
@@ -150,7 +157,10 @@ func (p PackageContext) SourcePathsVariable(name, separator string, paths ...str
 // as part of a package-scoped variable's initialization.
 func (p PackageContext) SourcePathVariableWithEnvOverride(name, path, env string) blueprint.Variable {
 	return p.VariableFunc(name, func(ctx PackageVarContext) string {
-		p := safePathForSource(ctx, path)
+		p, err := safePathForSource(ctx, path)
+		if err != nil {
+			ctx.Errorf("%s", err.Error())
+		}
 		return ctx.Config().GetenvWithDefault(env, p.String())
 	})
 }
