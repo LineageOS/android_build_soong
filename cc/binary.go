@@ -208,7 +208,7 @@ func (binary *binaryDecorator) staticBinary() bool {
 func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseLinker.linkerFlags(ctx, flags)
 
-	if ctx.Host() && !binary.static() {
+	if ctx.Host() && !ctx.Windows() && !binary.static() {
 		if !ctx.Config().IsEnvTrue("DISABLE_HOST_PIE") {
 			flags.LdFlags = append(flags.LdFlags, "-pie")
 		}
