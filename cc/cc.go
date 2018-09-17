@@ -366,6 +366,10 @@ type Module struct {
 	staticVariant *Module
 }
 
+func (c *Module) OutputFile() android.OptionalPath {
+	return c.outputFile
+}
+
 func (c *Module) Init() android.Module {
 	c.AddProperties(&c.Properties, &c.VendorProperties)
 	if c.compiler != nil {
