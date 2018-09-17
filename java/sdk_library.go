@@ -128,6 +128,11 @@ type sdkLibraryProperties struct {
 	// Defaults to "android.annotation".
 	Srcs_lib_whitelist_pkgs []string
 
+	// if set to true, create stubs through Metalava instead of Doclava. Javadoc/Doclava is
+	// currently still used for documentation generation, and will be replaced by Dokka soon.
+	// Defaults to true.
+	Metalava_enabled *bool
+
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
 }
@@ -417,7 +422,6 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	props := struct {
 		Name                    *string
 		Srcs                    []string
-		Custom_template         *string
 		Installable             *bool
 		Srcs_lib                *string
 		Srcs_lib_whitelist_dirs []string
@@ -436,11 +440,13 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 			Local_include_dirs []string
 		}
 	}{}
+	droiddocProps := struct {
+		Custom_template *string
+	}{}
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
 	props.Srcs = append(props.Srcs, module.properties.Srcs...)
 	props.Srcs = append(props.Srcs, module.properties.Api_srcs...)
-	props.Custom_template = proptools.StringPtr("droiddoc-templates-sdk")
 	props.Installable = proptools.BoolPtr(false)
 	// A droiddoc module has only one Libs property and doesn't distinguish between
 	// shared libs and static libs. So we need to add both of these libs to Libs property.
@@ -449,10 +455,26 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	props.Aidl.Include_dirs = module.deviceProperties.Aidl.Include_dirs
 	props.Aidl.Local_include_dirs = module.deviceProperties.Aidl.Local_include_dirs
 
-	droiddocArgs := " -hide 110 -hide 111 -hide 113 -hide 121 -hide 125 -hide 126 -hide 127 -hide 128" +
-		" -stubpackages " + strings.Join(module.properties.Api_packages, ":") +
-		" " + android.JoinWithPrefix(module.properties.Hidden_api_packages, "-hidePackage ") +
-		" " + android.JoinWithPrefix(module.properties.Droiddoc_options, "-") + " -nodocs"
+	if module.properties.Metalava_enabled == nil {
+		module.properties.Metalava_enabled = proptools.BoolPtr(true)
+	}
+
+	droiddocArgs := ""
+	if Bool(module.properties.Metalava_enabled) == true {
+		droiddocArgs = " --stub-packages " + strings.Join(module.properties.Api_packages, ":") +
+			" " + android.JoinWithPrefix(module.properties.Hidden_api_packages, " --hide-package ") +
+			" " + android.JoinWithPrefix(module.properties.Droiddoc_options, " ") +
+			" --hide MissingPermission --hide BroadcastBehavior " +
+			"--hide HiddenSuperclass --hide DeprecationMismatch --hide UnavailableSymbol " +
+			"--hide SdkConstant --hide HiddenTypeParameter --hide Todo --hide Typo"
+	} else {
+		droiddocProps.Custom_template = proptools.StringPtr("droiddoc-templates-sdk")
+		droiddocArgs = " -stubpackages " + strings.Join(module.properties.Api_packages, ":") +
+			" " + android.JoinWithPrefix(module.properties.Hidden_api_packages, " -hidePackage ") +
+			" " + android.JoinWithPrefix(module.properties.Droiddoc_options, " ") +
+			" -hide 110 -hide 111 -hide 113 -hide 121 -hide 125 -hide 126 -hide 127 -hide 128 -nodocs"
+	}
+
 	switch apiScope {
 	case apiScopeSystem:
 		droiddocArgs = droiddocArgs + " -showAnnotation android.annotation.SystemApi"
@@ -484,36 +506,40 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	// check against the not-yet-release API
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
-	// any change is reported as error
-	props.Check_api.Current.Args = proptools.StringPtr("-error 2 -error 3 -error 4 -error 5 " +
-		"-error 6 -error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 " +
-		"-error 14 -error 15 -error 16 -error 17 -error 18 -error 19 -error 20 " +
-		"-error 21 -error 23 -error 24 -error 25 -error 26 -error 27")
 
 	// check against the latest released API
 	props.Check_api.Last_released.Api_file = proptools.StringPtr(
 		module.latestApiFilegroupName(apiScope))
 	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 		module.latestRemovedApiFilegroupName(apiScope))
-	// backward incompatible changes are reported as error
-	props.Check_api.Last_released.Args = proptools.StringPtr("-hide 2 -hide 3 -hide 4 -hide 5 " +
-		"-hide 6 -hide 24 -hide 25 -hide 26 -hide 27 " +
-		"-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 " +
-		"-error 15 -error 16 -error 17 -error 18")
+	if Bool(module.properties.Metalava_enabled) == false {
+		// any change is reported as error
+		props.Check_api.Current.Args = proptools.StringPtr("-error 2 -error 3 -error 4 -error 5 " +
+			"-error 6 -error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 " +
+			"-error 14 -error 15 -error 16 -error 17 -error 18 -error 19 -error 20 " +
+			"-error 21 -error 23 -error 24 -error 25 -error 26 -error 27")
 
-	// Include the part of the framework source. This is required for the case when
-	// API class is extending from the framework class. In that case, doclava needs
-	// to know whether the base class is hidden or not. Since that information is
-	// encoded as @hide string in the comment, we need source files for the classes,
-	// not the compiled ones.
-	props.Srcs_lib = proptools.StringPtr("framework")
-	props.Srcs_lib_whitelist_dirs = []string{"core/java"}
-	// Add android.annotation package to give access to the framework-defined
-	// annotations such as SystemApi, NonNull, etc.
-	if module.properties.Srcs_lib_whitelist_pkgs != nil {
-		props.Srcs_lib_whitelist_pkgs = module.properties.Srcs_lib_whitelist_pkgs
-	} else {
-		props.Srcs_lib_whitelist_pkgs = []string{"android.annotation"}
+		// backward incompatible changes are reported as error
+		props.Check_api.Last_released.Args = proptools.StringPtr("-hide 2 -hide 3 -hide 4 -hide 5 " +
+			"-hide 6 -hide 24 -hide 25 -hide 26 -hide 27 " +
+			"-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 " +
+			"-error 15 -error 16 -error 17 -error 18")
+
+		// Include the part of the framework source. This is required for the case when
+		// API class is extending from the framework class. In that case, doclava needs
+		// to know whether the base class is hidden or not. Since that information is
+		// encoded as @hide string in the comment, we need source files for the classes,
+		// not the compiled ones.
+		props.Srcs_lib = proptools.StringPtr("framework")
+		props.Srcs_lib_whitelist_dirs = []string{"core/java"}
+
+		// Add android.annotation package to give access to the framework-defined
+		// annotations such as SystemApi, NonNull, etc.
+		if module.properties.Srcs_lib_whitelist_pkgs != nil {
+			props.Srcs_lib_whitelist_pkgs = module.properties.Srcs_lib_whitelist_pkgs
+		} else {
+			props.Srcs_lib_whitelist_pkgs = []string{"android.annotation"}
+		}
 	}
 	// These libs are required by doclava to parse the framework sources add via
 	// Src_lib and Src_lib_whitelist_* properties just above.
@@ -521,7 +547,11 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	// though they don't break the build.
 	props.Libs = append(props.Libs, "framework")
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(DroiddocFactory), &props)
+	if Bool(module.properties.Metalava_enabled) == true {
+		mctx.CreateModule(android.ModuleFactoryAdaptor(DroidstubsFactory), &props)
+	} else {
+		mctx.CreateModule(android.ModuleFactoryAdaptor(DroiddocFactory), &props, &droiddocProps)
+	}
 }
 
 // Creates the runtime library. This is not directly linkable from other modules.
