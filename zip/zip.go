@@ -220,14 +220,17 @@ func Run(args ZipArgs) (err error) {
 	}
 	pathMappings := []pathMapping{}
 
+	noCompression := args.CompressionLevel == 0
+
 	for _, fa := range args.FileArgs {
 		srcs := fa.SourceFiles
 		if fa.GlobDir != "" {
 			srcs = append(srcs, recursiveGlobFiles(fa.GlobDir)...)
 		}
 		for _, src := range srcs {
-			if err := fillPathPairs(fa.PathPrefixInZip,
-				fa.SourcePrefixToStrip, src, &pathMappings, args.NonDeflatedFiles); err != nil {
+			err := fillPathPairs(fa.PathPrefixInZip, fa.SourcePrefixToStrip, src,
+				&pathMappings, args.NonDeflatedFiles, noCompression)
+			if err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -267,7 +270,9 @@ func Run(args ZipArgs) (err error) {
 	return nil
 }
 
-func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping, nonDeflatedFiles map[string]bool) error {
+func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping,
+	nonDeflatedFiles map[string]bool, noCompression bool) error {
+
 	src = strings.TrimSpace(src)
 	if src == "" {
 		return nil
@@ -280,7 +285,7 @@ func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping, nonDefl
 	dest = filepath.Join(prefix, dest)
 
 	zipMethod := zip.Deflate
-	if _, found := nonDeflatedFiles[dest]; found {
+	if _, found := nonDeflatedFiles[dest]; found || noCompression {
 		zipMethod = zip.Store
 	}
 	*pathMappings = append(*pathMappings,
