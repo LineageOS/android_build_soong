@@ -250,6 +250,8 @@ func AndroidTestFactory() android.Module {
 	module := &AndroidTest{}
 
 	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+
+	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	module.AddProperties(
