@@ -1547,3 +1547,27 @@ func (s AndroidModulesByName) Less(i, j int) bool {
 	}
 }
 func (s AndroidModulesByName) Swap(i, j int) { s.slice[i], s.slice[j] = s.slice[j], s.slice[i] }
+
+// Collect information for opening IDE project files in java/jdeps.go.
+type IDEInfo interface {
+	IDEInfo(ideInfo *IdeInfo)
+	BaseModuleName() string
+}
+
+// Extract the base module name from the Import name.
+// Often the Import name has a prefix "prebuilt_".
+// Remove the prefix explicitly if needed
+// until we find a better solution to get the Import name.
+type IDECustomizedModuleName interface {
+	IDECustomizedModuleName() string
+}
+
+type IdeInfo struct {
+	Deps              []string `json:"dependencies,omitempty"`
+	Srcs              []string `json:"srcs,omitempty"`
+	Aidl_include_dirs []string `json:"aidl_include_dirs,omitempty"`
+	Jarjar_rules      []string `json:"jarjar_rules,omitempty"`
+	Jars              []string `json:"jars,omitempty"`
+	Classes           []string `json:"class,omitempty"`
+	Installed_paths   []string `json:"installed,omitempty"`
+}
