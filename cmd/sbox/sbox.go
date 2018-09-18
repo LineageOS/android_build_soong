@@ -35,6 +35,7 @@ var (
 	rawCommand    string
 	outputRoot    string
 	keepOutDir    bool
+	copyAllOutput bool
 	depfileOut    string
 	inputHash     string
 )
@@ -48,6 +49,8 @@ func init() {
 		"root of directory to copy outputs into")
 	flag.BoolVar(&keepOutDir, "keep-out-dir", false,
 		"whether to keep the sandbox directory when done")
+	flag.BoolVar(&copyAllOutput, "copy-all-output", false,
+		"whether to copy all output files")
 
 	flag.StringVar(&depfileOut, "depfile-out", "",
 		"file path of the depfile to generate. This value will replace '__SBOX_DEPFILE__' in the command and will be treated as an output but won't be added to __SBOX_OUT_FILES__")
@@ -120,7 +123,7 @@ func run() error {
 
 	// the contents of the __SBOX_OUT_FILES__ variable
 	outputsVarEntries := flag.Args()
-	if len(outputsVarEntries) == 0 {
+	if !copyAllOutput && len(outputsVarEntries) == 0 {
 		usageViolation("at least one output file must be given")
 	}
 
@@ -226,7 +229,7 @@ func run() error {
 			missingOutputErrors = append(missingOutputErrors, fmt.Sprintf("%s: not a file", filePath))
 		}
 	}
-	if len(missingOutputErrors) > 0 {
+	if !copyAllOutput && len(missingOutputErrors) > 0 {
 		// find all created files for making a more informative error message
 		createdFiles := findAllFilesUnder(tempDir)
 
@@ -258,8 +261,14 @@ func run() error {
 		keepOutDir = true
 		return errors.New(errorMessage)
 	}
+	var filePathList []string
+	if copyAllOutput {
+		filePathList = findAllFilesUnder(tempDir)
+	} else {
+		filePathList = allOutputs
+	}
 	// the created files match the declared files; now move them
-	for _, filePath := range allOutputs {
+	for _, filePath := range filePathList {
 		tempPath := filepath.Join(tempDir, filePath)
 		destPath := filePath
 		if len(outputRoot) != 0 {
