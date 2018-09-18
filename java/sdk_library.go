@@ -217,38 +217,45 @@ func (module *sdkLibrary) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+module.implName())
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
+			owner := module.ModuleBase.Owner()
+			if owner == "" {
+				owner = "android"
+			}
 			// Create dist rules to install the stubs libs to the dist dir
 			if len(module.publicApiStubsPath) == 1 {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.publicApiStubsPath.Strings()[0]+
-					":"+path.Join("apistubs", "public", module.BaseModuleName()+".jar")+")")
+					":"+path.Join("apistubs", owner, "public",
+					module.BaseModuleName()+".jar")+")")
 			}
 			if len(module.systemApiStubsPath) == 1 {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.systemApiStubsPath.Strings()[0]+
-					":"+path.Join("apistubs", "system", module.BaseModuleName()+".jar")+")")
+					":"+path.Join("apistubs", owner, "system",
+					module.BaseModuleName()+".jar")+")")
 			}
 			if len(module.testApiStubsPath) == 1 {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.testApiStubsPath.Strings()[0]+
-					":"+path.Join("apistubs", "test", module.BaseModuleName()+".jar")+")")
+					":"+path.Join("apistubs", owner, "test",
+					module.BaseModuleName()+".jar")+")")
 			}
 			if module.publicApiFilePath != nil {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.publicApiFilePath.String()+
-					":"+path.Join("apistubs", "public", "api",
+					":"+path.Join("apistubs", owner, "public", "api",
 					module.BaseModuleName()+".txt")+")")
 			}
 			if module.systemApiFilePath != nil {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.systemApiFilePath.String()+
-					":"+path.Join("apistubs", "system", "api",
+					":"+path.Join("apistubs", owner, "system", "api",
 					module.BaseModuleName()+".txt")+")")
 			}
 			if module.testApiFilePath != nil {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
 					module.testApiFilePath.String()+
-					":"+path.Join("apistubs", "test", "api",
+					":"+path.Join("apistubs", owner, "test", "api",
 					module.BaseModuleName()+".txt")+")")
 			}
 		},
