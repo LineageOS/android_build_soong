@@ -42,6 +42,7 @@ var r8 = pctx.AndroidStaticRule("r8",
 			`rm -f "$outDict" && ` +
 			`${config.R8Cmd} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
+			`--no-data-resources ` +
 			`-printmapping $outDict ` +
 			`$dxFlags $r8Flags && ` +
 			`touch "$outDict" && ` +
