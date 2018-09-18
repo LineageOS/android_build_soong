@@ -39,6 +39,7 @@ var (
 
 	ndkPrebuiltSharedLibs = []string{
 		"android",
+		"binder_ndk",
 		"c",
 		"dl",
 		"EGL",
