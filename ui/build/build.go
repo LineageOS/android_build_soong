@@ -71,6 +71,17 @@ const (
 	BuildAll           = BuildProductConfig | BuildSoong | BuildKati | BuildNinja
 )
 
+func checkProblematicFiles(ctx Context) {
+	files := []string{"Android.mk", "CleanSpec.mk"}
+	for _, file := range files {
+		if _, err := os.Stat(file); !os.IsNotExist(err) {
+			absolute := absPath(ctx, file)
+			ctx.Printf("Found %s in tree root. This file needs to be removed to build.\n", file)
+			ctx.Fatalf("    rm %s\n", absolute)
+		}
+	}
+}
+
 func checkCaseSensitivity(ctx Context, config Config) {
 	outDir := config.OutDir()
 	lowerCase := filepath.Join(outDir, "casecheck.txt")
@@ -130,6 +141,8 @@ func Build(ctx Context, config Config, what int) {
 	// Make sure that no other Soong process is running with the same output directory
 	buildLock := BecomeSingletonOrFail(ctx, config)
 	defer buildLock.Unlock()
+
+	checkProblematicFiles(ctx)
 
 	SetupOutDir(ctx, config)
 
