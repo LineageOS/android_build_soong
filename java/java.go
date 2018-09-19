@@ -138,7 +138,7 @@ type CompilerProperties struct {
 	// supported at compile time. It should only be needed to compile tests in
 	// packages that exist in libcore and which are inconvenient to move
 	// elsewhere.
-	Patch_module *string
+	Patch_module *string `android:"arch_variant"`
 
 	Jacoco struct {
 		// List of classes to include for instrumentation with jacoco to collect coverage
