@@ -397,6 +397,9 @@ func (dstubs *Droidstubs) AndroidMk() android.AndroidMkData {
 				if dstubs.annotationsZip != nil {
 					fmt.Fprintln(w, "LOCAL_DROIDDOC_ANNOTATIONS_ZIP := ", dstubs.annotationsZip.String())
 				}
+				if dstubs.jdiffDocZip != nil {
+					fmt.Fprintln(w, "LOCAL_DROIDDOC_JDIFF_DOC_ZIP := ", dstubs.jdiffDocZip.String())
+				}
 				if dstubs.checkCurrentApiTimestamp != nil {
 					fmt.Fprintln(w, ".PHONY:", dstubs.Name()+"-check-current-api")
 					fmt.Fprintln(w, dstubs.Name()+"-check-current-api:",
