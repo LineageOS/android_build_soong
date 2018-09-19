@@ -130,6 +130,34 @@ func TestZip(t *testing.T) {
 			},
 		},
 		{
+			name: "files glob",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				File("a/**/*"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a", fileA, zip.Deflate),
+				fh("a/b", fileB, zip.Deflate),
+				fhLink("a/c", "../../c"),
+				fhLink("a/d", "b"),
+			},
+		},
+		{
+			name: "dir",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				Dir("a"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a", fileA, zip.Deflate),
+				fh("a/b", fileB, zip.Deflate),
+				fhLink("a/c", "../../c"),
+				fhLink("a/d", "b"),
+			},
+		},
+		{
 			name: "stored files",
 			args: fileArgsBuilder().
 				File("a/a/a").
@@ -298,10 +326,23 @@ func TestZip(t *testing.T) {
 			err: os.ErrNotExist,
 		},
 		{
+			name: "error missing dir",
+			args: fileArgsBuilder().
+				Dir("missing"),
+			err: os.ErrNotExist,
+		},
+		{
 			name: "error missing file in list",
 			args: fileArgsBuilder().
 				List("l2"),
 			err: os.ErrNotExist,
+		},
+		{
+			name: "error incorrect relative root",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("b").
+				File("a/a/a"),
+			err: IncorrectRelativeRootError{},
 		},
 	}
 
@@ -328,6 +369,10 @@ func TestZip(t *testing.T) {
 			} else if test.err != nil {
 				if os.IsNotExist(test.err) {
 					if !os.IsNotExist(test.err) {
+						t.Fatalf("want error %v, got %v", test.err, err)
+					}
+				} else if _, wantRelativeRootErr := test.err.(IncorrectRelativeRootError); wantRelativeRootErr {
+					if _, gotRelativeRootErr := err.(IncorrectRelativeRootError); !gotRelativeRootErr {
 						t.Fatalf("want error %v, got %v", test.err, err)
 					}
 				} else {

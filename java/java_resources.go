@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/blueprint/pathtools"
+
 	"android/soong/android"
 )
 
@@ -64,7 +66,7 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 					if !strings.HasPrefix(path, dir.String()) {
 						panic(fmt.Errorf("path %q does not start with %q", path, dir))
 					}
-					args = append(args, "-f", path)
+					args = append(args, "-f", pathtools.MatchEscape(path))
 				}
 			}
 		}
@@ -107,7 +109,7 @@ func resourceFilesToJarArgs(ctx android.ModuleContext,
 		if i == 0 || dir != lastDir {
 			args = append(args, "-C", dir)
 		}
-		args = append(args, "-f", path)
+		args = append(args, "-f", pathtools.MatchEscape(path))
 		lastDir = dir
 	}
 
