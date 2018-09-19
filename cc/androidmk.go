@@ -174,9 +174,10 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 func (object *objectLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Custom = func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 		out := ret.OutputFile.Path()
+		varname := fmt.Sprintf("SOONG_%sOBJECT_%s%s", prefix, name, data.SubName)
 
-		fmt.Fprintln(w, "\n$("+prefix+"OUT_INTERMEDIATE_LIBRARIES)/"+name+data.SubName+objectExtension+":", out.String())
-		fmt.Fprintln(w, "\t$(copy-file-to-target)")
+		fmt.Fprintf(w, "\n%s := %s\n", varname, out.String())
+		fmt.Fprintln(w, ".KATI_READONLY: "+varname)
 	}
 }
 
@@ -277,11 +278,6 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
-
-		// Prevent make from installing the libraries to obj/lib (since we have
-		// dozens of libraries with the same name, they'll clobber each other
-		// and the real versions of the libraries from the platform).
-		fmt.Fprintln(w, "LOCAL_COPY_TO_INTERMEDIATE_LIBRARIES := false")
 	})
 }
 
@@ -320,13 +316,6 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *andr
 
 func (c *ndkPrebuiltStlLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Class = "SHARED_LIBRARIES"
-
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		// Prevent make from installing the libraries to obj/lib (since we have
-		// dozens of libraries with the same name, they'll clobber each other
-		// and the real versions of the libraries from the platform).
-		fmt.Fprintln(w, "LOCAL_COPY_TO_INTERMEDIATE_LIBRARIES := false")
-	})
 }
 
 func (c *vendorPublicLibraryStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
