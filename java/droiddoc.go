@@ -1528,9 +1528,9 @@ func (d *Droidstubs) transformJdiff(ctx android.ModuleContext, implicits android
 		Implicits:       implicits,
 		ImplicitOutputs: implicitOutputs,
 		Args: map[string]string{
-			"outDir":            android.PathForModuleOut(ctx, "out").String(),
-			"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
-			"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
+			"outDir":            android.PathForModuleOut(ctx, "jdiff-out").String(),
+			"srcJarDir":         android.PathForModuleOut(ctx, "jdiff-srcjars").String(),
+			"stubsDir":          android.PathForModuleOut(ctx, "jdiff-stubsDir").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
 			"opts":              opts,
 			"bootclasspathArgs": bootclasspathArgs,
