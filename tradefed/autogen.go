@@ -22,6 +22,10 @@ import (
 	"android/soong/android"
 )
 
+func getTestConfigTemplate(ctx android.ModuleContext, prop *string) android.OptionalPath {
+	return ctx.ExpandOptionalSource(prop, "test_config_template")
+}
+
 func getTestConfig(ctx android.ModuleContext, prop *string) android.Path {
 	if p := ctx.ExpandOptionalSource(prop, "test_config"); p.Valid() {
 		return p.Path()
@@ -41,8 +45,7 @@ func testConfigPath(ctx android.ModuleContext, prop *string) (path android.Path,
 		return p, nil
 	} else if !strings.HasPrefix(ctx.ModuleDir(), "cts/") {
 		outputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".config")
-
-		return outputFile, outputFile
+		return nil, outputFile
 	} else {
 		// CTS modules can be used for test data, so test config files must be
 		// explicitly created using AndroidTest.xml
@@ -63,59 +66,86 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 	})
 }
 
-func AutoGenNativeTestConfig(ctx android.ModuleContext, prop *string) android.Path {
-	path, autogenPath := testConfigPath(ctx, prop)
+func AutoGenNativeTestConfig(ctx android.ModuleContext, testConfigProp *string,
+	testConfigTemplateProp *string) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp)
 	if autogenPath != nil {
-		if ctx.Device() {
-			autogenTemplate(ctx, autogenPath, "${NativeTestConfigTemplate}")
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplate(ctx, autogenPath, templatePath.String())
 		} else {
-			autogenTemplate(ctx, autogenPath, "${NativeHostTestConfigTemplate}")
+			if ctx.Device() {
+				autogenTemplate(ctx, autogenPath, "${NativeTestConfigTemplate}")
+			} else {
+				autogenTemplate(ctx, autogenPath, "${NativeHostTestConfigTemplate}")
+			}
 		}
+		return autogenPath
 	}
 	return path
 }
 
-func AutoGenNativeBenchmarkTestConfig(ctx android.ModuleContext, prop *string) android.Path {
-	path, autogenPath := testConfigPath(ctx, prop)
+func AutoGenNativeBenchmarkTestConfig(ctx android.ModuleContext, testConfigProp *string,
+	testConfigTemplateProp *string) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp)
 	if autogenPath != nil {
-		autogenTemplate(ctx, autogenPath, "${NativeBenchmarkTestConfigTemplate}")
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplate(ctx, autogenPath, templatePath.String())
+		} else {
+			autogenTemplate(ctx, autogenPath, "${NativeBenchmarkTestConfigTemplate}")
+		}
+		return autogenPath
 	}
 	return path
 }
 
-func AutoGenJavaTestConfig(ctx android.ModuleContext, prop *string) android.Path {
-	path, autogenPath := testConfigPath(ctx, prop)
+func AutoGenJavaTestConfig(ctx android.ModuleContext, testConfigProp *string, testConfigTemplateProp *string) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp)
 	if autogenPath != nil {
-		if ctx.Device() {
-			autogenTemplate(ctx, autogenPath, "${JavaTestConfigTemplate}")
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplate(ctx, autogenPath, templatePath.String())
 		} else {
-			autogenTemplate(ctx, autogenPath, "${JavaHostTestConfigTemplate}")
+			if ctx.Device() {
+				autogenTemplate(ctx, autogenPath, "${JavaTestConfigTemplate}")
+			} else {
+				autogenTemplate(ctx, autogenPath, "${JavaHostTestConfigTemplate}")
+			}
 		}
+		return autogenPath
 	}
 	return path
 }
 
 var autogenInstrumentationTest = pctx.StaticRule("autogenInstrumentationTest", blueprint.RuleParams{
-	Command: "${AutoGenTestConfigScript} $out $in ${EmptyTestConfig} ${InstrumentationTestConfigTemplate}",
+	Command: "${AutoGenTestConfigScript} $out $in ${EmptyTestConfig} $template",
 	CommandDeps: []string{
 		"${AutoGenTestConfigScript}",
 		"${EmptyTestConfig}",
-		"${InstrumentationTestConfigTemplate}",
+		"$template",
 	},
-}, "name")
+}, "name", "template")
 
-func AutoGenInstrumentationTestConfig(ctx android.ModuleContext, prop *string, manifest android.Path) android.Path {
-	path, autogenPath := testConfigPath(ctx, prop)
+func AutoGenInstrumentationTestConfig(ctx android.ModuleContext, testConfigProp *string, testConfigTemplateProp *string, manifest android.Path) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp)
 	if autogenPath != nil {
+		template := "${InstrumentationTestConfigTemplate}"
+		moduleTemplate := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if moduleTemplate.Valid() {
+			template = moduleTemplate.String()
+		}
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        autogenInstrumentationTest,
 			Description: "test config",
 			Input:       manifest,
 			Output:      autogenPath,
 			Args: map[string]string{
-				"name": ctx.ModuleName(),
+				"name":     ctx.ModuleName(),
+				"template": template,
 			},
 		})
+		return autogenPath
 	}
 	return path
 }
