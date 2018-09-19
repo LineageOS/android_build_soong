@@ -224,9 +224,20 @@ func Run(args ZipArgs) (err error) {
 	noCompression := args.CompressionLevel == 0
 
 	for _, fa := range args.FileArgs {
-		srcs := fa.SourceFiles
+		var srcs []string
+		for _, s := range fa.SourceFiles {
+			globbed, _, err := pathtools.Glob(s, nil, pathtools.DontFollowSymlinks)
+			if err != nil {
+				return err
+			}
+			srcs = append(srcs, globbed...)
+		}
 		if fa.GlobDir != "" {
-			srcs = append(srcs, recursiveGlobFiles(fa.GlobDir)...)
+			globbed, _, err := pathtools.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, pathtools.DontFollowSymlinks)
+			if err != nil {
+				return err
+			}
+			srcs = append(srcs, globbed...)
 		}
 		for _, src := range srcs {
 			err := fillPathPairs(fa, src, &pathMappings, args.NonDeflatedFiles, noCompression)
