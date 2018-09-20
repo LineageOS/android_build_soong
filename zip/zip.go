@@ -87,6 +87,7 @@ func (u *uniqueSet) Set(s string) error {
 type FileArg struct {
 	PathPrefixInZip, SourcePrefixToStrip string
 	SourceFiles                          []string
+	JunkPaths                            bool
 	GlobDir                              string
 }
 
@@ -228,8 +229,7 @@ func Run(args ZipArgs) (err error) {
 			srcs = append(srcs, recursiveGlobFiles(fa.GlobDir)...)
 		}
 		for _, src := range srcs {
-			err := fillPathPairs(fa.PathPrefixInZip, fa.SourcePrefixToStrip, src,
-				&pathMappings, args.NonDeflatedFiles, noCompression)
+			err := fillPathPairs(fa, src, &pathMappings, args.NonDeflatedFiles, noCompression)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -270,7 +270,7 @@ func Run(args ZipArgs) (err error) {
 	return nil
 }
 
-func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping,
+func fillPathPairs(fa FileArg, src string, pathMappings *[]pathMapping,
 	nonDeflatedFiles map[string]bool, noCompression bool) error {
 
 	src = strings.TrimSpace(src)
@@ -278,11 +278,18 @@ func fillPathPairs(prefix, rel, src string, pathMappings *[]pathMapping,
 		return nil
 	}
 	src = filepath.Clean(src)
-	dest, err := filepath.Rel(rel, src)
-	if err != nil {
-		return err
+	var dest string
+
+	if fa.JunkPaths {
+		dest = filepath.Base(src)
+	} else {
+		var err error
+		dest, err = filepath.Rel(fa.SourcePrefixToStrip, src)
+		if err != nil {
+			return err
+		}
 	}
-	dest = filepath.Join(prefix, dest)
+	dest = filepath.Join(fa.PathPrefixInZip, dest)
 
 	zipMethod := zip.Deflate
 	if _, found := nonDeflatedFiles[dest]; found || noCompression {
