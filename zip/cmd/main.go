@@ -155,11 +155,11 @@ func main() {
 	directories := flags.Bool("d", false, "include directories in zip")
 	rootPrefix = flags.String("P", "", "path prefix within the zip at which to place files")
 	relativeRoot = flags.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
-	parallelJobs := flags.Int("j", runtime.NumCPU(), "number of parallel threads to use")
 	compLevel := flags.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
 
+	parallelJobs := flags.Int("parallel", runtime.NumCPU(), "number of parallel threads to use")
 	cpuProfile := flags.String("cpuprofile", "", "write cpu profile to file")
 	traceFile := flags.String("trace", "", "write trace to file")
 
