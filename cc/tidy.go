@@ -69,9 +69,14 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 
 	flags.Tidy = true
 
+	// Add global WITH_TIDY_FLAGS and local tidy_flags.
+	withTidyFlags := ctx.Config().Getenv("WITH_TIDY_FLAGS")
+	if len(withTidyFlags) > 0 {
+		flags.TidyFlags = append(flags.TidyFlags, withTidyFlags)
+	}
 	esc := proptools.NinjaAndShellEscape
-
 	flags.TidyFlags = append(flags.TidyFlags, esc(tidy.Properties.Tidy_flags)...)
+	// If TidyFlags is empty, add default header filter.
 	if len(flags.TidyFlags) == 0 {
 		headerFilter := "-header-filter=\"(" + ctx.ModuleDir() + "|${config.TidyDefaultHeaderDirs})\""
 		flags.TidyFlags = append(flags.TidyFlags, headerFilter)
