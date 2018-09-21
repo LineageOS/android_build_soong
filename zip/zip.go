@@ -107,6 +107,7 @@ type ZipWriter struct {
 
 	compressorPool sync.Pool
 	compLevel      int
+	followSymlinks pathtools.ShouldFollowSymlinks
 }
 
 type zipEntry struct {
@@ -132,6 +133,7 @@ type ZipArgs struct {
 	NumParallelJobs          int
 	NonDeflatedFiles         map[string]bool
 	WriteIfChanged           bool
+	StoreSymlinks            bool
 }
 
 const NOQUOTE = '\x00'
@@ -212,12 +214,16 @@ func Run(args ZipArgs) (err error) {
 		args.AddDirectoryEntriesToZip = true
 	}
 
+	// Have Glob follow symlinks if they are not being stored as symlinks in the zip file.
+	followSymlinks := pathtools.ShouldFollowSymlinks(!args.StoreSymlinks)
+
 	w := &ZipWriter{
-		time:         jar.DefaultTime,
-		createdDirs:  make(map[string]string),
-		createdFiles: make(map[string]string),
-		directories:  args.AddDirectoryEntriesToZip,
-		compLevel:    args.CompressionLevel,
+		time:           jar.DefaultTime,
+		createdDirs:    make(map[string]string),
+		createdFiles:   make(map[string]string),
+		directories:    args.AddDirectoryEntriesToZip,
+		compLevel:      args.CompressionLevel,
+		followSymlinks: followSymlinks,
 	}
 	pathMappings := []pathMapping{}
 
@@ -226,14 +232,14 @@ func Run(args ZipArgs) (err error) {
 	for _, fa := range args.FileArgs {
 		var srcs []string
 		for _, s := range fa.SourceFiles {
-			globbed, _, err := pathtools.Glob(s, nil, pathtools.DontFollowSymlinks)
+			globbed, _, err := pathtools.Glob(s, nil, followSymlinks)
 			if err != nil {
 				return err
 			}
 			srcs = append(srcs, globbed...)
 		}
 		if fa.GlobDir != "" {
-			globbed, _, err := pathtools.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, pathtools.DontFollowSymlinks)
+			globbed, _, err := pathtools.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, followSymlinks)
 			if err != nil {
 				return err
 			}
@@ -472,7 +478,15 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar bool) er
 	var fileSize int64
 	var executable bool
 
-	if s, err := os.Lstat(src); err != nil {
+	var s os.FileInfo
+	var err error
+	if z.followSymlinks {
+		s, err = os.Stat(src)
+	} else {
+		s, err = os.Lstat(src)
+	}
+
+	if err != nil {
 		return err
 	} else if s.IsDir() {
 		if z.directories {
