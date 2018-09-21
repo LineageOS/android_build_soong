@@ -188,6 +188,8 @@ type ZipWriter struct {
 	compressorPool sync.Pool
 	compLevel      int
 
+	followSymlinks pathtools.ShouldFollowSymlinks
+
 	fs pathtools.FileSystem
 }
 
@@ -212,7 +214,9 @@ type ZipArgs struct {
 	NumParallelJobs          int
 	NonDeflatedFiles         map[string]bool
 	WriteIfChanged           bool
-	Filesystem               pathtools.FileSystem
+	StoreSymlinks            bool
+
+	Filesystem pathtools.FileSystem
 }
 
 const NOQUOTE = '\x00'
@@ -263,13 +267,17 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 		args.AddDirectoryEntriesToZip = true
 	}
 
+	// Have Glob follow symlinks if they are not being stored as symlinks in the zip file.
+	followSymlinks := pathtools.ShouldFollowSymlinks(!args.StoreSymlinks)
+
 	z := &ZipWriter{
-		time:         jar.DefaultTime,
-		createdDirs:  make(map[string]string),
-		createdFiles: make(map[string]string),
-		directories:  args.AddDirectoryEntriesToZip,
-		compLevel:    args.CompressionLevel,
-		fs:           args.Filesystem,
+		time:           jar.DefaultTime,
+		createdDirs:    make(map[string]string),
+		createdFiles:   make(map[string]string),
+		directories:    args.AddDirectoryEntriesToZip,
+		compLevel:      args.CompressionLevel,
+		followSymlinks: followSymlinks,
+		fs:             args.Filesystem,
 	}
 
 	if z.fs == nil {
@@ -288,7 +296,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 				continue
 			}
 
-			globbed, _, err := z.fs.Glob(s, nil, pathtools.DontFollowSymlinks)
+			globbed, _, err := z.fs.Glob(s, nil, followSymlinks)
 			if err != nil {
 				return err
 			}
@@ -317,7 +325,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 					Err:  syscall.ENOTDIR,
 				}
 			}
-			globbed, _, err := z.fs.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, pathtools.DontFollowSymlinks)
+			globbed, _, err := z.fs.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, followSymlinks)
 			if err != nil {
 				return err
 			}
@@ -559,7 +567,15 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar bool) er
 	var fileSize int64
 	var executable bool
 
-	if s, err := z.fs.Lstat(src); err != nil {
+	var s os.FileInfo
+	var err error
+	if z.followSymlinks {
+		s, err = z.fs.Stat(src)
+	} else {
+		s, err = z.fs.Lstat(src)
+	}
+
+	if err != nil {
 		return err
 	} else if s.IsDir() {
 		if z.directories {
