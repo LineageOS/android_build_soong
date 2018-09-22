@@ -80,6 +80,11 @@ func init() {
 			"system/",
 		}, "|")
 	})
+
+	// Use WTIH_TIDY_FLAGS to pass extra global default clang-tidy flags.
+	pctx.VariableFunc("TidyWithTidyFlags", func(ctx android.PackageVarContext) string {
+		return ctx.Config().Getenv("WITH_TIDY_FLAGS")
+	})
 }
 
 type PathBasedTidyCheck struct {
