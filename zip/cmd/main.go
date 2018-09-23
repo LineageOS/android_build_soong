@@ -21,8 +21,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"android/soong/zip"
@@ -65,13 +65,14 @@ func (f *file) String() string {
 }
 
 func (f *file) Set(s string) error {
-	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -f")
+	if relativeRoot == "" && !junkPaths {
+		return fmt.Errorf("must pass -C or -j before -f")
 	}
 
 	fArgs = append(fArgs, zip.FileArg{
-		PathPrefixInZip:     filepath.Clean(*rootPrefix),
-		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		PathPrefixInZip:     *rootPrefix,
+		SourcePrefixToStrip: relativeRoot,
+		JunkPaths:           junkPaths,
 		SourceFiles:         []string{s},
 	})
 
@@ -83,8 +84,8 @@ func (l *listFiles) String() string {
 }
 
 func (l *listFiles) Set(s string) error {
-	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -l")
+	if relativeRoot == "" && !junkPaths {
+		return fmt.Errorf("must pass -C or -j before -l")
 	}
 
 	list, err := ioutil.ReadFile(s)
@@ -93,8 +94,9 @@ func (l *listFiles) Set(s string) error {
 	}
 
 	fArgs = append(fArgs, zip.FileArg{
-		PathPrefixInZip:     filepath.Clean(*rootPrefix),
-		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
+		PathPrefixInZip:     *rootPrefix,
+		SourcePrefixToStrip: relativeRoot,
+		JunkPaths:           junkPaths,
 		SourceFiles:         strings.Split(string(list), "\n"),
 	})
 
@@ -106,21 +108,47 @@ func (d *dir) String() string {
 }
 
 func (d *dir) Set(s string) error {
-	if *relativeRoot == "" {
-		return fmt.Errorf("must pass -C before -D")
+	if relativeRoot == "" && !junkPaths {
+		return fmt.Errorf("must pass -C or -j before -D")
 	}
 
 	fArgs = append(fArgs, zip.FileArg{
-		PathPrefixInZip:     filepath.Clean(*rootPrefix),
-		SourcePrefixToStrip: filepath.Clean(*relativeRoot),
-		GlobDir:             filepath.Clean(s),
+		PathPrefixInZip:     *rootPrefix,
+		SourcePrefixToStrip: relativeRoot,
+		JunkPaths:           junkPaths,
+		GlobDir:             s,
 	})
 
 	return nil
 }
 
+type relativeRootImpl struct{}
+
+func (*relativeRootImpl) String() string { return relativeRoot }
+
+func (*relativeRootImpl) Set(s string) error {
+	relativeRoot = s
+	junkPaths = false
+	return nil
+}
+
+type junkPathsImpl struct{}
+
+func (*junkPathsImpl) IsBoolFlag() bool { return true }
+
+func (*junkPathsImpl) String() string { return relativeRoot }
+
+func (*junkPathsImpl) Set(s string) error {
+	var err error
+	junkPaths, err = strconv.ParseBool(s)
+	relativeRoot = ""
+	return err
+}
+
 var (
-	rootPrefix, relativeRoot *string
+	rootPrefix   *string
+	relativeRoot string
+	junkPaths    bool
 
 	fArgs            zip.FileArgs
 	nonDeflatedFiles = make(uniqueSet)
@@ -154,7 +182,6 @@ func main() {
 	manifest := flags.String("m", "", "input jar manifest file name")
 	directories := flags.Bool("d", false, "include directories in zip")
 	rootPrefix = flags.String("P", "", "path prefix within the zip at which to place files")
-	relativeRoot = flags.String("C", "", "path to use as relative root of files in following -f, -l, or -D arguments")
 	compLevel := flags.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
@@ -167,6 +194,8 @@ func main() {
 	flags.Var(&dir{}, "D", "directory to include in zip")
 	flags.Var(&file{}, "f", "file to include in zip")
 	flags.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
+	flags.Var(&relativeRootImpl{}, "C", "path to use as relative root of files in following -f, -l, or -D arguments")
+	flags.Var(&junkPathsImpl{}, "j", "junk paths, zip files without directory names")
 
 	flags.Parse(expandedArgs[1:])
 

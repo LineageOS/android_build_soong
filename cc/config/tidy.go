@@ -61,20 +61,30 @@ func init() {
 	// Give warnings to header files only in selected directories.
 	// Do not give warnings to external or vendor header files, which contain too
 	// many warnings.
-	pctx.StaticVariable("TidyDefaultHeaderDirs", strings.Join([]string{
-		"art/",
-		"bionic/",
-		"bootable/",
-		"build/",
-		"cts/",
-		"dalvik/",
-		"developers/",
-		"development/",
-		"frameworks/",
-		"libcore/",
-		"libnativehelper/",
-		"system/",
-	}, "|"))
+	pctx.VariableFunc("TidyDefaultHeaderDirs", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("DEFAULT_TIDY_HEADER_DIRS"); override != "" {
+			return override
+		}
+		return strings.Join([]string{
+			"art/",
+			"bionic/",
+			"bootable/",
+			"build/",
+			"cts/",
+			"dalvik/",
+			"developers/",
+			"development/",
+			"frameworks/",
+			"libcore/",
+			"libnativehelper/",
+			"system/",
+		}, "|")
+	})
+
+	// Use WTIH_TIDY_FLAGS to pass extra global default clang-tidy flags.
+	pctx.VariableFunc("TidyWithTidyFlags", func(ctx android.PackageVarContext) string {
+		return ctx.Config().Getenv("WITH_TIDY_FLAGS")
+	})
 }
 
 type PathBasedTidyCheck struct {
