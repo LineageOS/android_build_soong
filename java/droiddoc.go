@@ -1631,6 +1631,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if Bool(d.properties.Jdiff_enabled) && !ctx.Config().IsPdkBuild() {
 
+		// Please sync with android-api-council@ before making any changes for the name of jdiffDocZip below
+		// since there's cron job downstream that fetch this .zip file periodically.
+		// See b/116221385 for reference.
 		d.jdiffDocZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"jdiff-docs.zip")
 		d.jdiffStubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"jdiff-stubs.srcjar")
 
