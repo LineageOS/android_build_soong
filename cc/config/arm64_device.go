@@ -86,6 +86,7 @@ func init() {
 		"armv8_2a",
 		"cortex-a53",
 		"cortex-a55",
+		"cortex-a72",
 		"cortex-a73",
 		"cortex-a75",
 		"kryo",
@@ -146,6 +147,7 @@ var (
 		"":           "",
 		"cortex-a53": "${config.Arm64CortexA53Cflags}",
 		"cortex-a55": "${config.Arm64CortexA55Cflags}",
+		"cortex-a72": "${config.Arm64CortexA53Cflags}",
 		"cortex-a73": "${config.Arm64CortexA53Cflags}",
 		"cortex-a75": "${config.Arm64CortexA55Cflags}",
 		"kryo":       "${config.Arm64KryoCflags}",
@@ -162,6 +164,7 @@ var (
 		"":           "",
 		"cortex-a53": "${config.Arm64ClangCortexA53Cflags}",
 		"cortex-a55": "${config.Arm64ClangCortexA55Cflags}",
+		"cortex-a72": "${config.Arm64ClangCortexA53Cflags}",
 		"cortex-a73": "${config.Arm64ClangCortexA53Cflags}",
 		"cortex-a75": "${config.Arm64ClangCortexA55Cflags}",
 		"kryo":       "${config.Arm64ClangKryoCflags}",
@@ -257,7 +260,7 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 
 	var extraLdflags string
 	switch arch.CpuVariant {
-	case "cortex-a53", "cortex-a73", "kryo", "exynos-m1", "exynos-m2",
+	case "cortex-a53", "cortex-a72", "cortex-a73", "kryo", "exynos-m1", "exynos-m2",
 		// This variant might not need the workaround but leave it
 		// in the list since it has had the workaround on before.
 		"denver64":
