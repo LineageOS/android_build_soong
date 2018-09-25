@@ -340,8 +340,11 @@ type DroidstubsProperties struct {
 	// is set to true, Metalava will allow framework SDK to contain annotations.
 	Annotations_enabled *bool
 
-	// a list of top-level directories containing files to merge annotations from.
+	// a list of top-level directories containing files to merge qualifier annotations (i.e. those intended to be included in the stubs written) from.
 	Merge_annotations_dirs []string
+
+	// a list of top-level directories containing Java stub files to merge show/hide annotations from.
+	Merge_inclusion_annotations_dirs []string
 
 	// if set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
 	Create_doc_stubs *bool
@@ -1265,6 +1268,12 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
+	if len(d.properties.Merge_inclusion_annotations_dirs) != 0 {
+		for _, mergeInclusionAnnotationsDir := range d.properties.Merge_inclusion_annotations_dirs {
+			ctx.AddDependency(ctx.Module(), metalavaMergeInclusionAnnotationsDirTag, mergeInclusionAnnotationsDir)
+		}
+	}
+
 	if len(d.properties.Api_levels_annotations_dirs) != 0 {
 		for _, apiLevelsAnnotationsDir := range d.properties.Api_levels_annotations_dirs {
 			ctx.AddDependency(ctx.Module(), metalavaAPILevelsAnnotationsDirTag, apiLevelsAnnotationsDir)
@@ -1387,7 +1396,7 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 		ctx.VisitDirectDepsWithTag(metalavaMergeAnnotationsDirTag, func(m android.Module) {
 			if t, ok := m.(*ExportedDroiddocDir); ok {
 				*implicits = append(*implicits, t.deps...)
-				flags += " --merge-annotations " + t.dir.String()
+				flags += " --merge-qualifier-annotations " + t.dir.String()
 			} else {
 				ctx.PropertyErrorf("merge_annotations_dirs",
 					"module %q is not a metalava merge-annotations dir", ctx.OtherModuleName(m))
@@ -1396,6 +1405,15 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		flags += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction "
 	}
+	ctx.VisitDirectDepsWithTag(metalavaMergeInclusionAnnotationsDirTag, func(m android.Module) {
+		if t, ok := m.(*ExportedDroiddocDir); ok {
+			*implicits = append(*implicits, t.deps...)
+			flags += " --merge-inclusion-annotations " + t.dir.String()
+		} else {
+			ctx.PropertyErrorf("merge_inclusion_annotations_dirs",
+				"module %q is not a metalava merge-annotations dir", ctx.OtherModuleName(m))
+		}
+	})
 
 	return flags
 }
@@ -1660,6 +1678,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 //
 var droiddocTemplateTag = dependencyTag{name: "droiddoc-template"}
 var metalavaMergeAnnotationsDirTag = dependencyTag{name: "metalava-merge-annotations-dir"}
+var metalavaMergeInclusionAnnotationsDirTag = dependencyTag{name: "metalava-merge-inclusion-annotations-dir"}
 var metalavaAPILevelsAnnotationsDirTag = dependencyTag{name: "metalava-api-levels-annotations-dir"}
 
 type ExportedDroiddocDirProperties struct {
