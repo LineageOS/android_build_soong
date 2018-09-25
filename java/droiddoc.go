@@ -307,30 +307,33 @@ type DroidstubsProperties struct {
 	// the tag name used to distinguish if the API files belong to public/system/test.
 	Api_tag_name *string
 
-	// the generated public API filename by Doclava.
+	// the generated public API filename by Metalava.
 	Api_filename *string
 
-	// the generated public Dex API filename by Doclava.
+	// the generated public Dex API filename by Metalava.
 	Dex_api_filename *string
 
-	// the generated private API filename by Doclava.
+	// the generated private API filename by Metalava.
 	Private_api_filename *string
 
-	// the generated private Dex API filename by Doclava.
+	// the generated private Dex API filename by Metalava.
 	Private_dex_api_filename *string
 
-	// the generated removed API filename by Doclava.
+	// the generated removed API filename by Metalava.
 	Removed_api_filename *string
 
-	// the generated removed Dex API filename by Doclava.
+	// the generated removed Dex API filename by Metalava.
 	Removed_dex_api_filename *string
 
 	// mapping of dex signatures to source file and line number. This is a temporary property and
 	// will be deleted; you probably shouldn't be using it.
 	Dex_mapping_filename *string
 
-	// the generated exact API filename by Doclava.
+	// the generated exact API filename by Metalava.
 	Exact_api_filename *string
+
+	// the generated proguard filename by Metalava.
+	Proguard_filename *string
 
 	Check_api struct {
 		Last_released ApiToCheck
@@ -1213,6 +1216,7 @@ type Droidstubs struct {
 	removedDexApiFile      android.WritablePath
 	apiMappingFile         android.WritablePath
 	exactApiFile           android.WritablePath
+	proguardFile           android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
@@ -1361,6 +1365,12 @@ func (d *Droidstubs) collectStubsFlags(ctx android.ModuleContext,
 		d.apiMappingFile = android.PathForModuleOut(ctx, String(d.properties.Dex_mapping_filename))
 		metalavaFlags = metalavaFlags + " --dex-api-mapping " + d.apiMappingFile.String()
 		*implicitOutputs = append(*implicitOutputs, d.apiMappingFile)
+	}
+
+	if String(d.properties.Proguard_filename) != "" {
+		d.proguardFile = android.PathForModuleOut(ctx, String(d.properties.Proguard_filename))
+		metalavaFlags += " --proguard " + d.proguardFile.String()
+		*implicitOutputs = append(*implicitOutputs, d.proguardFile)
 	}
 
 	if Bool(d.properties.Write_sdk_values) {
