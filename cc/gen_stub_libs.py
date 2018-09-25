@@ -274,7 +274,8 @@ class SymbolFileParser(object):
             elif global_scope and not cpp_symbols:
                 symbols.append(self.parse_symbol())
             else:
-                # We're in a hidden scope or in 'extern "C++"' block. Ignore everything.
+                # We're in a hidden scope or in 'extern "C++"' block. Ignore
+                # everything.
                 pass
         raise ParseError('Unexpected EOF in version block.')
 
