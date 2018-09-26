@@ -444,16 +444,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		cppStd = strings.Replace(String(compiler.Properties.Cpp_std), "17", "1z", 1)
 	}
 
-	if !flags.Clang {
-		// GCC uses an invalid C++14 ABI (emits calls to
-		// __cxa_throw_bad_array_length, which is not a valid C++ RT ABI).
-		// http://b/25022512
-		// The host GCC doesn't support C++14 (and is deprecated, so likely
-		// never will).
-		// Build these modules with C++11.
-		cppStd = config.GccCppStdVersion
-	}
-
 	if compiler.Properties.Gnu_extensions != nil && *compiler.Properties.Gnu_extensions == false {
 		cStd = gnuToCReplacer.Replace(cStd)
 		cppStd = gnuToCReplacer.Replace(cppStd)
