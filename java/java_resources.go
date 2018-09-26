@@ -20,8 +20,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-
-	"github.com/google/blueprint/pathtools"
 )
 
 var resourceExcludes = []string{
@@ -66,7 +64,7 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 					if !strings.HasPrefix(path, dir.String()) {
 						panic(fmt.Errorf("path %q does not start with %q", path, dir))
 					}
-					args = append(args, "-f", pathtools.MatchEscape(path))
+					args = append(args, "-f", path)
 				}
 			}
 		}
@@ -109,7 +107,7 @@ func resourceFilesToJarArgs(ctx android.ModuleContext,
 		if i == 0 || dir != lastDir {
 			args = append(args, "-C", dir)
 		}
-		args = append(args, "-f", pathtools.MatchEscape(path))
+		args = append(args, "-f", path)
 		lastDir = dir
 	}
 
