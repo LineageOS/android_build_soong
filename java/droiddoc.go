@@ -160,6 +160,10 @@ type JavadocProperties struct {
 	// list of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
+	// don't build against the default libraries (bootclasspath, legacy-test, core-junit,
+	// ext, and framework for device targets)
+	No_standard_libs *bool
+
 	// don't build against the framework libraries (legacy-test, core-junit,
 	// ext, and framework for device targets)
 	No_framework_libs *bool
@@ -303,30 +307,33 @@ type DroidstubsProperties struct {
 	// the tag name used to distinguish if the API files belong to public/system/test.
 	Api_tag_name *string
 
-	// the generated public API filename by Doclava.
+	// the generated public API filename by Metalava.
 	Api_filename *string
 
-	// the generated public Dex API filename by Doclava.
+	// the generated public Dex API filename by Metalava.
 	Dex_api_filename *string
 
-	// the generated private API filename by Doclava.
+	// the generated private API filename by Metalava.
 	Private_api_filename *string
 
-	// the generated private Dex API filename by Doclava.
+	// the generated private Dex API filename by Metalava.
 	Private_dex_api_filename *string
 
-	// the generated removed API filename by Doclava.
+	// the generated removed API filename by Metalava.
 	Removed_api_filename *string
 
-	// the generated removed Dex API filename by Doclava.
+	// the generated removed Dex API filename by Metalava.
 	Removed_dex_api_filename *string
 
 	// mapping of dex signatures to source file and line number. This is a temporary property and
 	// will be deleted; you probably shouldn't be using it.
 	Dex_mapping_filename *string
 
-	// the generated exact API filename by Doclava.
+	// the generated exact API filename by Metalava.
 	Exact_api_filename *string
+
+	// the generated proguard filename by Metalava.
+	Proguard_filename *string
 
 	Check_api struct {
 		Last_released ApiToCheck
@@ -340,8 +347,11 @@ type DroidstubsProperties struct {
 	// is set to true, Metalava will allow framework SDK to contain annotations.
 	Annotations_enabled *bool
 
-	// a list of top-level directories containing files to merge annotations from.
+	// a list of top-level directories containing files to merge qualifier annotations (i.e. those intended to be included in the stubs written) from.
 	Merge_annotations_dirs []string
+
+	// a list of top-level directories containing Java stub files to merge show/hide annotations from.
+	Merge_inclusion_annotations_dirs []string
 
 	// if set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
 	Create_doc_stubs *bool
@@ -474,20 +484,22 @@ func (j *Javadoc) minSdkVersion() string {
 
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		sdkDep := decodeSdkDep(ctx, sdkContext(j))
-		if sdkDep.useDefaultLibs {
-			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			if ctx.Config().TargetOpenJDK9() {
-				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
+		if !Bool(j.properties.No_standard_libs) {
+			sdkDep := decodeSdkDep(ctx, sdkContext(j))
+			if sdkDep.useDefaultLibs {
+				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
+				if ctx.Config().TargetOpenJDK9() {
+					ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
+				}
+				if !Bool(j.properties.No_framework_libs) {
+					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
+				}
+			} else if sdkDep.useModule {
+				if ctx.Config().TargetOpenJDK9() {
+					ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+				}
+				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 			}
-			if !Bool(j.properties.No_framework_libs) {
-				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
-			}
-		} else if sdkDep.useModule {
-			if ctx.Config().TargetOpenJDK9() {
-				ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-			}
-			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 		}
 	}
 
@@ -1204,6 +1216,7 @@ type Droidstubs struct {
 	removedDexApiFile      android.WritablePath
 	apiMappingFile         android.WritablePath
 	exactApiFile           android.WritablePath
+	proguardFile           android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
@@ -1262,6 +1275,12 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if len(d.properties.Merge_annotations_dirs) != 0 {
 		for _, mergeAnnotationsDir := range d.properties.Merge_annotations_dirs {
 			ctx.AddDependency(ctx.Module(), metalavaMergeAnnotationsDirTag, mergeAnnotationsDir)
+		}
+	}
+
+	if len(d.properties.Merge_inclusion_annotations_dirs) != 0 {
+		for _, mergeInclusionAnnotationsDir := range d.properties.Merge_inclusion_annotations_dirs {
+			ctx.AddDependency(ctx.Module(), metalavaMergeInclusionAnnotationsDirTag, mergeInclusionAnnotationsDir)
 		}
 	}
 
@@ -1348,6 +1367,12 @@ func (d *Droidstubs) collectStubsFlags(ctx android.ModuleContext,
 		*implicitOutputs = append(*implicitOutputs, d.apiMappingFile)
 	}
 
+	if String(d.properties.Proguard_filename) != "" {
+		d.proguardFile = android.PathForModuleOut(ctx, String(d.properties.Proguard_filename))
+		metalavaFlags += " --proguard " + d.proguardFile.String()
+		*implicitOutputs = append(*implicitOutputs, d.proguardFile)
+	}
+
 	if Bool(d.properties.Write_sdk_values) {
 		metalavaFlags = metalavaFlags + " --sdk-values " + android.PathForModuleOut(ctx, "out").String()
 	}
@@ -1387,7 +1412,7 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 		ctx.VisitDirectDepsWithTag(metalavaMergeAnnotationsDirTag, func(m android.Module) {
 			if t, ok := m.(*ExportedDroiddocDir); ok {
 				*implicits = append(*implicits, t.deps...)
-				flags += " --merge-annotations " + t.dir.String()
+				flags += " --merge-qualifier-annotations " + t.dir.String()
 			} else {
 				ctx.PropertyErrorf("merge_annotations_dirs",
 					"module %q is not a metalava merge-annotations dir", ctx.OtherModuleName(m))
@@ -1396,6 +1421,15 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		flags += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction "
 	}
+	ctx.VisitDirectDepsWithTag(metalavaMergeInclusionAnnotationsDirTag, func(m android.Module) {
+		if t, ok := m.(*ExportedDroiddocDir); ok {
+			*implicits = append(*implicits, t.deps...)
+			flags += " --merge-inclusion-annotations " + t.dir.String()
+		} else {
+			ctx.PropertyErrorf("merge_inclusion_annotations_dirs",
+				"module %q is not a metalava merge-annotations dir", ctx.OtherModuleName(m))
+		}
+	})
 
 	return flags
 }
@@ -1660,6 +1694,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 //
 var droiddocTemplateTag = dependencyTag{name: "droiddoc-template"}
 var metalavaMergeAnnotationsDirTag = dependencyTag{name: "metalava-merge-annotations-dir"}
+var metalavaMergeInclusionAnnotationsDirTag = dependencyTag{name: "metalava-merge-inclusion-annotations-dir"}
 var metalavaAPILevelsAnnotationsDirTag = dependencyTag{name: "metalava-api-levels-annotations-dir"}
 
 type ExportedDroiddocDirProperties struct {
