@@ -56,7 +56,7 @@ var neverallows = []*rule{
 		without("vendor", "true").
 		without("owner", "").
 		because("a VNDK module can never have an owner."),
-	neverallow().notIn("libcore", "development").with("no_standard_libs", "true"),
+	neverallow().notIn("libcore", "development", "external/conscrypt").with("no_standard_libs", "true"),
 
 	// TODO(b/67974785): always enforce the manifest
 	neverallow().
