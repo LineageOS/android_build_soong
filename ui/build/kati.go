@@ -19,13 +19,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"android/soong/ui/status"
 )
 
 var spaceSlashReplacer = strings.NewReplacer("/", "_", " ", "_")
+
+const katiBuildSuffix = ""
+const katiCleanspecSuffix = "-cleanspec"
 
 // genKatiSuffix creates a suffix for kati-generated files so that we can cache
 // them based on their inputs. So this should encode all common changes to Kati
@@ -49,7 +51,7 @@ func genKatiSuffix(ctx Context, config Config) {
 		ctx.Verbosef("Kati ninja suffix too long: %q", katiSuffix)
 		ctx.Verbosef("Replacing with: %q", shortSuffix)
 
-		if err := ioutil.WriteFile(strings.TrimSuffix(config.KatiNinjaFile(), "ninja")+"suf", []byte(katiSuffix), 0777); err != nil {
+		if err := ioutil.WriteFile(strings.TrimSuffix(config.KatiBuildNinjaFile(), "ninja")+"suf", []byte(katiSuffix), 0777); err != nil {
 			ctx.Println("Error writing suffix file:", err)
 		}
 	} else {
@@ -57,30 +59,49 @@ func genKatiSuffix(ctx Context, config Config) {
 	}
 }
 
-func runKati(ctx Context, config Config) {
-	genKatiSuffix(ctx, config)
-
-	runKatiCleanSpec(ctx, config)
-
-	ctx.BeginTrace("kati")
-	defer ctx.EndTrace()
-
+func runKati(ctx Context, config Config, extraSuffix string, args []string) {
 	executable := config.PrebuiltBuildTool("ckati")
-	args := []string{
+	args = append([]string{
 		"--ninja",
 		"--ninja_dir=" + config.OutDir(),
-		"--ninja_suffix=" + config.KatiSuffix(),
+		"--ninja_suffix=" + config.KatiSuffix() + extraSuffix,
+		"--no_ninja_prelude",
 		"--regen",
 		"--ignore_optional_include=" + filepath.Join(config.OutDir(), "%.P"),
 		"--detect_android_echo",
 		"--color_warnings",
 		"--gen_all_targets",
+		"--use_find_emulator",
 		"--werror_find_emulator",
 		"--no_builtin_rules",
 		"--werror_suffix_rules",
 		"--warn_real_to_phony",
 		"--warn_phony_looks_real",
 		"--kati_stats",
+	}, args...)
+
+	args = append(args,
+		"SOONG_MAKEVARS_MK="+config.SoongMakeVarsMk(),
+		"TARGET_DEVICE_DIR="+config.TargetDeviceDir())
+
+	cmd := Command(ctx, config, "ckati", executable, args...)
+	cmd.Sandbox = katiSandbox
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		ctx.Fatalln("Error getting output pipe for ckati:", err)
+	}
+	cmd.Stderr = cmd.Stdout
+
+	cmd.StartOrFatal()
+	status.KatiReader(ctx.Status.StartTool(), pipe)
+	cmd.WaitOrFatal()
+}
+
+func runKatiBuild(ctx Context, config Config) {
+	ctx.BeginTrace("kati build")
+	defer ctx.EndTrace()
+
+	args := []string{
 		"--writable", config.OutDir() + "/",
 		"--writable", config.DistDir() + "/",
 		"-f", "build/make/core/main.mk",
@@ -102,67 +123,20 @@ func runKati(ctx Context, config Config) {
 			"--werror_writable")
 	}
 
-	if !config.Environment().IsFalse("KATI_EMULATE_FIND") {
-		args = append(args, "--use_find_emulator")
-	}
-
 	args = append(args, config.KatiArgs()...)
 
-	args = append(args,
-		"BUILDING_WITH_NINJA=true",
-		"SOONG_ANDROID_MK="+config.SoongAndroidMk(),
-		"SOONG_MAKEVARS_MK="+config.SoongMakeVarsMk(),
-		"TARGET_DEVICE_DIR="+config.TargetDeviceDir())
+	args = append(args, "SOONG_ANDROID_MK="+config.SoongAndroidMk())
 
-	if config.UseGoma() {
-		args = append(args, "-j"+strconv.Itoa(config.Parallel()))
-	}
-
-	cmd := Command(ctx, config, "ckati", executable, args...)
-	cmd.Sandbox = katiSandbox
-	pipe, err := cmd.StdoutPipe()
-	if err != nil {
-		ctx.Fatalln("Error getting output pipe for ckati:", err)
-	}
-	cmd.Stderr = cmd.Stdout
-
-	cmd.StartOrFatal()
-	status.KatiReader(ctx.Status.StartTool(), pipe)
-	cmd.WaitOrFatal()
+	runKati(ctx, config, katiBuildSuffix, args)
 }
 
 func runKatiCleanSpec(ctx Context, config Config) {
 	ctx.BeginTrace("kati cleanspec")
 	defer ctx.EndTrace()
 
-	executable := config.PrebuiltBuildTool("ckati")
-	args := []string{
-		"--ninja",
-		"--ninja_dir=" + config.OutDir(),
-		"--ninja_suffix=" + config.KatiSuffix() + "-cleanspec",
-		"--regen",
-		"--detect_android_echo",
-		"--color_warnings",
-		"--gen_all_targets",
-		"--werror_find_emulator",
+	runKati(ctx, config, katiCleanspecSuffix, []string{
+		"--werror_implicit_rules",
 		"--werror_overriding_commands",
-		"--use_find_emulator",
-		"--kati_stats",
 		"-f", "build/make/core/cleanbuild.mk",
-		"BUILDING_WITH_NINJA=true",
-		"SOONG_MAKEVARS_MK=" + config.SoongMakeVarsMk(),
-		"TARGET_DEVICE_DIR=" + config.TargetDeviceDir(),
-	}
-
-	cmd := Command(ctx, config, "ckati", executable, args...)
-	cmd.Sandbox = katiCleanSpecSandbox
-	pipe, err := cmd.StdoutPipe()
-	if err != nil {
-		ctx.Fatalln("Error getting output pipe for ckati:", err)
-	}
-	cmd.Stderr = cmd.Stdout
-
-	cmd.StartOrFatal()
-	status.KatiReader(ctx.Status.StartTool(), pipe)
-	cmd.WaitOrFatal()
+	})
 }

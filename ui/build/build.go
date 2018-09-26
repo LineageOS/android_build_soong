@@ -37,7 +37,10 @@ func SetupOutDir(ctx Context, config Config) {
 
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
 builddir = {{.OutDir}}
-{{if .HasKatiSuffix}}include {{.KatiNinjaFile}}
+pool local_pool
+ depth = {{.Parallel}}
+build _kati_always_build_: phony
+{{if .HasKatiSuffix}}include {{.KatiBuildNinjaFile}}
 {{end -}}
 include {{.SoongNinjaFile}}
 `))
@@ -174,7 +177,9 @@ func Build(ctx Context, config Config, what int) {
 
 	if what&BuildKati != 0 {
 		// Run ckati
-		runKati(ctx, config)
+		genKatiSuffix(ctx, config)
+		runKatiCleanSpec(ctx, config)
+		runKatiBuild(ctx, config)
 
 		ioutil.WriteFile(config.LastKatiSuffixFile(), []byte(config.KatiSuffix()), 0777)
 	} else {
