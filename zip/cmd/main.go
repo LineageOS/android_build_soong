@@ -186,8 +186,6 @@ func main() {
 	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
 
-	symlinks := flags.Bool("symlinks", true, "store symbolic links in zip instead of following them")
-
 	parallelJobs := flags.Int("parallel", runtime.NumCPU(), "number of parallel threads to use")
 	cpuProfile := flags.String("cpuprofile", "", "write cpu profile to file")
 	traceFile := flags.String("trace", "", "write trace to file")
@@ -201,11 +199,6 @@ func main() {
 
 	flags.Parse(expandedArgs[1:])
 
-	if flags.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "unexpected arguments %s\n", strings.Join(flags.Args(), " "))
-		usage()
-	}
-
 	err := zip.Run(zip.ZipArgs{
 		FileArgs:                 fArgs,
 		OutputFilePath:           *out,
@@ -218,10 +211,9 @@ func main() {
 		NumParallelJobs:          *parallelJobs,
 		NonDeflatedFiles:         nonDeflatedFiles,
 		WriteIfChanged:           *writeIfChanged,
-		StoreSymlinks:            *symlinks,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
