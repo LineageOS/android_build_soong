@@ -28,6 +28,7 @@ var spaceSlashReplacer = strings.NewReplacer("/", "_", " ", "_")
 
 const katiBuildSuffix = ""
 const katiCleanspecSuffix = "-cleanspec"
+const katiPackageSuffix = "-package"
 
 // genKatiSuffix creates a suffix for kati-generated files so that we can cache
 // them based on their inputs. So this should encode all common changes to Kati
@@ -59,7 +60,7 @@ func genKatiSuffix(ctx Context, config Config) {
 	}
 }
 
-func runKati(ctx Context, config Config, extraSuffix string, args []string) {
+func runKati(ctx Context, config Config, extraSuffix string, args []string, envFunc func(*Environment)) {
 	executable := config.PrebuiltBuildTool("ckati")
 	args = append([]string{
 		"--ninja",
@@ -80,10 +81,6 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string) {
 		"--kati_stats",
 	}, args...)
 
-	args = append(args,
-		"SOONG_MAKEVARS_MK="+config.SoongMakeVarsMk(),
-		"TARGET_DEVICE_DIR="+config.TargetDeviceDir())
-
 	cmd := Command(ctx, config, "ckati", executable, args...)
 	cmd.Sandbox = katiSandbox
 	pipe, err := cmd.StdoutPipe()
@@ -91,6 +88,8 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string) {
 		ctx.Fatalln("Error getting output pipe for ckati:", err)
 	}
 	cmd.Stderr = cmd.Stdout
+
+	envFunc(cmd.Environment)
 
 	cmd.StartOrFatal()
 	status.KatiReader(ctx.Status.StartTool(), pipe)
@@ -103,7 +102,6 @@ func runKatiBuild(ctx Context, config Config) {
 
 	args := []string{
 		"--writable", config.OutDir() + "/",
-		"--writable", config.DistDir() + "/",
 		"-f", "build/make/core/main.mk",
 	}
 
@@ -125,9 +123,55 @@ func runKatiBuild(ctx Context, config Config) {
 
 	args = append(args, config.KatiArgs()...)
 
-	args = append(args, "SOONG_ANDROID_MK="+config.SoongAndroidMk())
+	args = append(args,
+		"SOONG_MAKEVARS_MK="+config.SoongMakeVarsMk(),
+		"SOONG_ANDROID_MK="+config.SoongAndroidMk(),
+		"TARGET_DEVICE_DIR="+config.TargetDeviceDir(),
+		"KATI_PACKAGE_MK_DIR="+config.KatiPackageMkDir())
 
-	runKati(ctx, config, katiBuildSuffix, args)
+	runKati(ctx, config, katiBuildSuffix, args, func(env *Environment) {
+		env.Unset("DIST_DIR")
+	})
+}
+
+func runKatiPackage(ctx Context, config Config) {
+	ctx.BeginTrace("kati package")
+	defer ctx.EndTrace()
+
+	args := []string{
+		"--writable", config.DistDir() + "/",
+		"--werror_writable",
+		"--werror_implicit_rules",
+		"--werror_overriding_commands",
+		"--werror_real_to_phony",
+		"--werror_phony_looks_real",
+		"-f", "build/make/packaging/main.mk",
+		"KATI_PACKAGE_MK_DIR=" + config.KatiPackageMkDir(),
+	}
+
+	runKati(ctx, config, katiPackageSuffix, args, func(env *Environment) {
+		env.Allow([]string{
+			// Some generic basics
+			"LANG",
+			"LC_MESSAGES",
+			"PATH",
+			"PWD",
+			"TMPDIR",
+
+			// Tool configs
+			"JAVA_HOME",
+			"PYTHONDONTWRITEBYTECODE",
+
+			// Build configuration
+			"ANDROID_BUILD_SHELL",
+			"DIST_DIR",
+			"OUT_DIR",
+		}...)
+
+		if config.Dist() {
+			env.Set("DIST", "true")
+		}
+	})
 }
 
 func runKatiCleanSpec(ctx Context, config Config) {
@@ -138,5 +182,9 @@ func runKatiCleanSpec(ctx Context, config Config) {
 		"--werror_implicit_rules",
 		"--werror_overriding_commands",
 		"-f", "build/make/core/cleanbuild.mk",
+		"SOONG_MAKEVARS_MK=" + config.SoongMakeVarsMk(),
+		"TARGET_DEVICE_DIR=" + config.TargetDeviceDir(),
+	}, func(env *Environment) {
+		env.Unset("DIST_DIR")
 	})
 }
