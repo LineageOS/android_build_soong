@@ -199,11 +199,6 @@ func main() {
 
 	flags.Parse(expandedArgs[1:])
 
-	if flags.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "unexpected arguments %s\n", strings.Join(flags.Args(), " "))
-		usage()
-	}
-
 	err := zip.Run(zip.ZipArgs{
 		FileArgs:                 fArgs,
 		OutputFilePath:           *out,
