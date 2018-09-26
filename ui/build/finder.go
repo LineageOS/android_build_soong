@@ -62,6 +62,7 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			"Android.bp",
 			"Blueprints",
 			"CleanSpec.mk",
+			"OWNERS",
 			"TEST_MAPPING",
 		},
 	}
@@ -102,10 +103,16 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
 
+	owners := f.FindNamedAt(".", "OWNERS")
+	err = dumpListToFile(owners, filepath.Join(dumpDir, "OWNERS.list"))
+	if err != nil {
+		ctx.Fatalf("Could not find OWNERS: %v", err)
+	}
+
 	testMappings := f.FindNamedAt(".", "TEST_MAPPING")
 	err = dumpListToFile(testMappings, filepath.Join(dumpDir, "TEST_MAPPING.list"))
 	if err != nil {
-		ctx.Fatalf("Could not find modules: %v", err)
+		ctx.Fatalf("Could not find TEST_MAPPING: %v", err)
 	}
 
 	androidBps := f.FindNamedAt(".", "Android.bp")
