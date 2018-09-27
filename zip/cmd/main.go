@@ -187,7 +187,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err := zip.Run(zip.ZipArgs{
+	err := zip.Zip(zip.ZipArgs{
 		FileArgs:                 fileArgsBuilder.FileArgs(),
 		OutputFilePath:           *out,
 		EmulateJar:               *emulateJar,

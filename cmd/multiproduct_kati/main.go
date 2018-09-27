@@ -328,7 +328,7 @@ func main() {
 			NumParallelJobs:  runtime.NumCPU(),
 			CompressionLevel: 5,
 		}
-		if err := zip.Run(args); err != nil {
+		if err := zip.Zip(args); err != nil {
 			log.Fatalf("Error zipping logs: %v", err)
 		}
 	}
@@ -409,7 +409,7 @@ func buildProduct(mpctx *mpContext, product string) {
 				NumParallelJobs:  runtime.NumCPU(),
 				CompressionLevel: 5,
 			}
-			if err := zip.Run(args); err != nil {
+			if err := zip.Zip(args); err != nil {
 				log.Fatalf("Error zipping artifacts: %v", err)
 			}
 		}
