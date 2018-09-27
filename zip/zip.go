@@ -68,22 +68,6 @@ type pathMapping struct {
 	zipMethod uint16
 }
 
-type uniqueSet map[string]bool
-
-func (u *uniqueSet) String() string {
-	return `""`
-}
-
-func (u *uniqueSet) Set(s string) error {
-	if _, found := (*u)[s]; found {
-		return fmt.Errorf("File %q was specified twice as a file to not deflate", s)
-	} else {
-		(*u)[s] = true
-	}
-
-	return nil
-}
-
 type FileArg struct {
 	PathPrefixInZip, SourcePrefixToStrip string
 	SourceFiles                          []string
@@ -91,7 +75,96 @@ type FileArg struct {
 	GlobDir                              string
 }
 
-type FileArgs []FileArg
+type FileArgsBuilder struct {
+	state FileArg
+	err   error
+	fs    pathtools.FileSystem
+
+	fileArgs []FileArg
+}
+
+func NewFileArgsBuilder() *FileArgsBuilder {
+	return &FileArgsBuilder{
+		fs: pathtools.OsFs,
+	}
+}
+
+func (b *FileArgsBuilder) JunkPaths(v bool) *FileArgsBuilder {
+	b.state.JunkPaths = v
+	b.state.SourcePrefixToStrip = ""
+	return b
+}
+
+func (b *FileArgsBuilder) SourcePrefixToStrip(prefixToStrip string) *FileArgsBuilder {
+	b.state.JunkPaths = false
+	b.state.SourcePrefixToStrip = prefixToStrip
+	return b
+}
+
+func (b *FileArgsBuilder) PathPrefixInZip(rootPrefix string) *FileArgsBuilder {
+	b.state.PathPrefixInZip = rootPrefix
+	return b
+}
+
+func (b *FileArgsBuilder) File(name string) *FileArgsBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	arg := b.state
+	arg.SourceFiles = []string{name}
+	b.fileArgs = append(b.fileArgs, arg)
+	return b
+}
+
+func (b *FileArgsBuilder) Dir(name string) *FileArgsBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	arg := b.state
+	arg.GlobDir = name
+	b.fileArgs = append(b.fileArgs, arg)
+	return b
+}
+
+func (b *FileArgsBuilder) List(name string) *FileArgsBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	f, err := b.fs.Open(name)
+	if err != nil {
+		b.err = err
+		return b
+	}
+	defer f.Close()
+
+	list, err := ioutil.ReadAll(f)
+	if err != nil {
+		b.err = err
+		return b
+	}
+
+	arg := b.state
+	arg.SourceFiles = strings.Split(string(list), "\n")
+	b.fileArgs = append(b.fileArgs, arg)
+	return b
+}
+
+func (b *FileArgsBuilder) Error() error {
+	if b == nil {
+		return nil
+	}
+	return b.err
+}
+
+func (b *FileArgsBuilder) FileArgs() []FileArg {
+	if b == nil {
+		return nil
+	}
+	return b.fileArgs
+}
 
 type ZipWriter struct {
 	time         time.Time
@@ -121,7 +194,7 @@ type zipEntry struct {
 }
 
 type ZipArgs struct {
-	FileArgs                 FileArgs
+	FileArgs                 []FileArg
 	OutputFilePath           string
 	CpuProfileFilePath       string
 	TraceFilePath            string
