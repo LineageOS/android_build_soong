@@ -119,7 +119,6 @@ var (
 
 	CStdVersion               = "gnu99"
 	CppStdVersion             = "gnu++14"
-	GccCppStdVersion          = "gnu++11"
 	ExperimentalCStdVersion   = "gnu11"
 	ExperimentalCppStdVersion = "gnu++1z"
 
