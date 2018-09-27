@@ -70,7 +70,7 @@ func init() {
 }
 
 func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher bool,
-	launcherPath android.Path, interpreter, main, binName string,
+	launcherPath android.OptionalPath, interpreter, main, binName string,
 	srcsZips android.Paths) android.Path {
 
 	// .intermediate output path for merged zip file.
@@ -104,9 +104,9 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 				"srcsZips":  strings.Join(srcsZips.Strings(), " "),
 			},
 		})
-	} else {
+	} else if launcherPath.Valid() {
 		// added launcherPath to the implicits Ninja dependencies.
-		implicits = append(implicits, launcherPath)
+		implicits = append(implicits, launcherPath.Path())
 
 		// .intermediate output path for entry_point.txt
 		entryPoint := android.PathForModuleOut(ctx, entryPointFile).String()
