@@ -39,6 +39,7 @@ func objectFactory() android.Module {
 		baseLinker: NewBaseLinker(nil),
 	}
 	module.compiler = NewBaseCompiler()
+	module.stl = &stl{}
 	return module.Init()
 }
 
