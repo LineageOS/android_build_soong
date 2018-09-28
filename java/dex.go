@@ -82,13 +82,17 @@ func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
 	return flags
 }
 
-func (j *Module) d8Flags(ctx android.ModuleContext, flags javaBuilderFlags) []string {
+func (j *Module) d8Flags(ctx android.ModuleContext, flags javaBuilderFlags) ([]string, android.Paths) {
 	d8Flags := j.dexCommonFlags(ctx)
 
 	d8Flags = append(d8Flags, flags.bootClasspath.FormTurbineClasspath("--lib")...)
 	d8Flags = append(d8Flags, flags.classpath.FormTurbineClasspath("--lib")...)
 
-	return d8Flags
+	var d8Deps android.Paths
+	d8Deps = append(d8Deps, flags.bootClasspath...)
+	d8Deps = append(d8Deps, flags.classpath...)
+
+	return d8Flags, d8Deps
 }
 
 func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Flags []string, r8Deps android.Paths) {
@@ -112,6 +116,10 @@ func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8F
 	r8Flags = append(r8Flags, flags.bootClasspath.FormJavaClassPath("-libraryjars"))
 	r8Flags = append(r8Flags, flags.classpath.FormJavaClassPath("-libraryjars"))
 	r8Flags = append(r8Flags, "-forceprocessing")
+
+	r8Deps = append(r8Deps, proguardRaiseDeps...)
+	r8Deps = append(r8Deps, flags.bootClasspath...)
+	r8Deps = append(r8Deps, flags.classpath...)
 
 	flagFiles := android.Paths{
 		android.PathForSource(ctx, "build/make/core/proguard.flags"),
@@ -182,12 +190,13 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			},
 		})
 	} else {
-		d8Flags := j.d8Flags(ctx, flags)
+		d8Flags, d8Deps := j.d8Flags(ctx, flags)
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        d8,
 			Description: "d8",
 			Output:      javalibJar,
 			Input:       classesJar,
+			Implicits:   d8Deps,
 			Args: map[string]string{
 				"d8Flags": strings.Join(d8Flags, " "),
 				"outDir":  outDir.String(),
