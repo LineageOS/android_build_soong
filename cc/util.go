@@ -105,7 +105,7 @@ func addSuffix(list []string, suffix string) []string {
 	return list
 }
 
-var shlibVersionPattern = regexp.MustCompile("(?:\\.\\d+)+")
+var shlibVersionPattern = regexp.MustCompile("(?:\\.\\d+(?:svn)?)+")
 
 // splitFileExt splits a file name into root, suffix and ext. root stands for the file name without
 // the file extension and the version number (e.g. "libexample"). suffix stands for the

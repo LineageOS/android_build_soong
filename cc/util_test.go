@@ -35,6 +35,22 @@ func TestSplitFileExt(t *testing.T) {
 		}
 	})
 
+	t.Run("soname with svn version", func(t *testing.T) {
+		root, suffix, ext := splitFileExt("libtest.so.1svn")
+		expected := "libtest"
+		if root != expected {
+			t.Errorf("root should be %q but got %q", expected, root)
+		}
+		expected = ".so.1svn"
+		if suffix != expected {
+			t.Errorf("suffix should be %q but got %q", expected, suffix)
+		}
+		expected = ".so"
+		if ext != expected {
+			t.Errorf("ext should be %q but got %q", expected, ext)
+		}
+	})
+
 	t.Run("version numbers in the middle should be ignored", func(t *testing.T) {
 		root, suffix, ext := splitFileExt("libtest.1.0.30.so")
 		expected := "libtest.1.0.30"
