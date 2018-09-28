@@ -48,6 +48,7 @@ type SingletonContext interface {
 	// are expanded in the scope of the PackageContext.
 	Eval(pctx PackageContext, ninjaStr string) (string, error)
 
+	VisitAllModulesBlueprint(visit func(blueprint.Module))
 	VisitAllModules(visit func(Module))
 	VisitAllModulesIf(pred func(Module) bool, visit func(Module))
 	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
@@ -136,6 +137,10 @@ func predAdaptor(pred func(Module) bool) func(blueprint.Module) bool {
 			return false
 		}
 	}
+}
+
+func (s singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
+	s.SingletonContext.VisitAllModules(visit)
 }
 
 func (s singletonContextAdaptor) VisitAllModules(visit func(Module)) {
