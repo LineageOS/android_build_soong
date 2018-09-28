@@ -98,14 +98,15 @@ func fileArgsBuilder() *FileArgsBuilder {
 
 func TestZip(t *testing.T) {
 	testCases := []struct {
-		name             string
-		args             *FileArgsBuilder
-		compressionLevel int
-		emulateJar       bool
-		nonDeflatedFiles map[string]bool
-		dirEntries       bool
-		manifest         string
-		storeSymlinks    bool
+		name               string
+		args               *FileArgsBuilder
+		compressionLevel   int
+		emulateJar         bool
+		nonDeflatedFiles   map[string]bool
+		dirEntries         bool
+		manifest           string
+		storeSymlinks      bool
+		ignoreMissingFiles bool
 
 		files []zip.FileHeader
 		err   error
@@ -338,6 +339,20 @@ func TestZip(t *testing.T) {
 				fh("a/a/b", fileB, zip.Deflate),
 			},
 		},
+		{
+			name: "ignore missing files",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("missing"),
+			compressionLevel:   9,
+			ignoreMissingFiles: true,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
 
 		// errors
 		{
@@ -381,7 +396,9 @@ func TestZip(t *testing.T) {
 			args.NonDeflatedFiles = test.nonDeflatedFiles
 			args.ManifestSourcePath = test.manifest
 			args.StoreSymlinks = test.storeSymlinks
+			args.IgnoreMissingFiles = test.ignoreMissingFiles
 			args.Filesystem = mockFs
+			args.Stderr = &bytes.Buffer{}
 
 			buf := &bytes.Buffer{}
 			err := ZipTo(args, buf)
