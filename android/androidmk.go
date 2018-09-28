@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 )
 
 func init() {
@@ -64,13 +65,13 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 		return
 	}
 
-	var androidMkModulesList []Module
+	var androidMkModulesList []blueprint.Module
 
-	ctx.VisitAllModules(func(module Module) {
+	ctx.VisitAllModulesBlueprint(func(module blueprint.Module) {
 		androidMkModulesList = append(androidMkModulesList, module)
 	})
 
-	sort.Sort(AndroidModulesByName{androidMkModulesList, ctx})
+	sort.Sort(ModulesByName{androidMkModulesList, ctx})
 
 	transMk := PathForOutput(ctx, "Android"+String(ctx.Config().productVariables.Make_suffix)+".mk")
 	if ctx.Failed() {
@@ -88,7 +89,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 }
 
-func translateAndroidMk(ctx SingletonContext, mkFile string, mods []Module) error {
+func translateAndroidMk(ctx SingletonContext, mkFile string, mods []blueprint.Module) error {
 	buf := &bytes.Buffer{}
 
 	fmt.Fprintln(buf, "LOCAL_MODULE_MAKEFILE := $(lastword $(MAKEFILE_LIST))")
@@ -101,8 +102,8 @@ func translateAndroidMk(ctx SingletonContext, mkFile string, mods []Module) erro
 			return err
 		}
 
-		if ctx.PrimaryModule(mod) == mod {
-			type_stats[ctx.ModuleType(mod)] += 1
+		if amod, ok := mod.(Module); ok && ctx.PrimaryModule(amod) == amod {
+			type_stats[ctx.ModuleType(amod)] += 1
 		}
 	}
 
@@ -148,10 +149,29 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 		}
 	}()
 
-	provider, ok := mod.(AndroidMkDataProvider)
-	if !ok {
+	switch x := mod.(type) {
+	case AndroidMkDataProvider:
+		return translateAndroidModule(ctx, w, mod, x)
+	case bootstrap.GoBinaryTool:
+		return translateGoBinaryModule(ctx, w, mod, x)
+	default:
 		return nil
 	}
+}
+
+func translateGoBinaryModule(ctx SingletonContext, w io.Writer, mod blueprint.Module,
+	goBinary bootstrap.GoBinaryTool) error {
+
+	name := ctx.ModuleName(mod)
+	fmt.Fprintln(w, ".PHONY:", name)
+	fmt.Fprintln(w, name+":", goBinary.InstallPath())
+	fmt.Fprintln(w, "")
+
+	return nil
+}
+
+func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Module,
+	provider AndroidMkDataProvider) error {
 
 	name := provider.BaseModuleName()
 	amod := mod.(Module).base()
