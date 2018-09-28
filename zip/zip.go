@@ -25,8 +25,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime/pprof"
-	"runtime/trace"
 	"sort"
 	"strings"
 	"sync"
@@ -196,8 +194,6 @@ type zipEntry struct {
 type ZipArgs struct {
 	FileArgs                 []FileArg
 	OutputFilePath           string
-	CpuProfileFilePath       string
-	TraceFilePath            string
 	EmulateJar               bool
 	AddDirectoryEntriesToZip bool
 	CompressionLevel         int
@@ -251,32 +247,6 @@ func ReadRespFile(bytes []byte) []string {
 }
 
 func Run(args ZipArgs) (err error) {
-	if args.CpuProfileFilePath != "" {
-		f, err := os.Create(args.CpuProfileFilePath)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		defer f.Close()
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-
-	if args.TraceFilePath != "" {
-		f, err := os.Create(args.TraceFilePath)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		defer f.Close()
-		err = trace.Start(f)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		defer trace.Stop()
-	}
-
 	if args.OutputFilePath == "" {
 		return fmt.Errorf("output file path must be nonempty")
 	}

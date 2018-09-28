@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 
@@ -154,6 +156,32 @@ func main() {
 		flags.Usage()
 	}
 
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer f.Close()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	if *traceFile != "" {
+		f, err := os.Create(*traceFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer f.Close()
+		err = trace.Start(f)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer trace.Stop()
+	}
+
 	if fileArgsBuilder.Error() != nil {
 		fmt.Fprintln(os.Stderr, fileArgsBuilder.Error())
 		os.Exit(1)
@@ -162,8 +190,6 @@ func main() {
 	err := zip.Run(zip.ZipArgs{
 		FileArgs:                 fileArgsBuilder.FileArgs(),
 		OutputFilePath:           *out,
-		CpuProfileFilePath:       *cpuProfile,
-		TraceFilePath:            *traceFile,
 		EmulateJar:               *emulateJar,
 		AddDirectoryEntriesToZip: *directories,
 		CompressionLevel:         *compLevel,
