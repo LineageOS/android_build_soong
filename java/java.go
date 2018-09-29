@@ -95,6 +95,9 @@ type CompilerProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs []string `android:"arch_variant"`
 
+	// list of native libraries that will be provided in or alongside the resulting jar
+	Jni_libs []string `android:"arch_variant"`
+
 	// manifest file to be included in resulting jar
 	Manifest *string
 

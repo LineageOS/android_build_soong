@@ -250,7 +250,12 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoin
 			addMapping(jar.MetaDir, dirSource)
 		}
 
-		fh, buf, err := jar.ManifestFileContents(manifest)
+		contents, err := ioutil.ReadFile(manifest)
+		if err != nil {
+			return err
+		}
+
+		fh, buf, err := jar.ManifestFileContents(contents)
 		if err != nil {
 			return err
 		}

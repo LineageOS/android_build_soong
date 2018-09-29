@@ -15,9 +15,394 @@
 package zip
 
 import (
+	"bytes"
+	"hash/crc32"
+	"io"
+	"os"
 	"reflect"
+	"syscall"
 	"testing"
+
+	"android/soong/third_party/zip"
+
+	"github.com/google/blueprint/pathtools"
 )
+
+var (
+	fileA        = []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+	fileB        = []byte("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
+	fileC        = []byte("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+	fileEmpty    = []byte("")
+	fileManifest = []byte("Manifest-Version: 1.0\nCreated-By: soong_zip\n\n")
+
+	fileCustomManifest  = []byte("Custom manifest: true\n")
+	customManifestAfter = []byte("Manifest-Version: 1.0\nCreated-By: soong_zip\nCustom manifest: true\n\n")
+)
+
+var mockFs = pathtools.MockFs(map[string][]byte{
+	"a/a/a":            fileA,
+	"a/a/b":            fileB,
+	"a/a/c -> ../../c": nil,
+	"a/a/d -> b":       nil,
+	"c":                fileC,
+	"l":                []byte("a/a/a\na/a/b\nc\n"),
+	"l2":               []byte("missing\n"),
+	"manifest.txt":     fileCustomManifest,
+})
+
+func fh(name string, contents []byte, method uint16) zip.FileHeader {
+	return zip.FileHeader{
+		Name:               name,
+		Method:             method,
+		CRC32:              crc32.ChecksumIEEE(contents),
+		UncompressedSize64: uint64(len(contents)),
+		ExternalAttrs:      0,
+	}
+}
+
+func fhManifest(contents []byte) zip.FileHeader {
+	return zip.FileHeader{
+		Name:               "META-INF/MANIFEST.MF",
+		Method:             zip.Store,
+		CRC32:              crc32.ChecksumIEEE(contents),
+		UncompressedSize64: uint64(len(contents)),
+		ExternalAttrs:      (syscall.S_IFREG | 0700) << 16,
+	}
+}
+
+func fhLink(name string, to string) zip.FileHeader {
+	return zip.FileHeader{
+		Name:               name,
+		Method:             zip.Store,
+		CRC32:              crc32.ChecksumIEEE([]byte(to)),
+		UncompressedSize64: uint64(len(to)),
+		ExternalAttrs:      (syscall.S_IFLNK | 0777) << 16,
+	}
+}
+
+func fhDir(name string) zip.FileHeader {
+	return zip.FileHeader{
+		Name:               name,
+		Method:             zip.Store,
+		CRC32:              crc32.ChecksumIEEE(nil),
+		UncompressedSize64: 0,
+		ExternalAttrs:      (syscall.S_IFDIR|0700)<<16 | 0x10,
+	}
+}
+
+func fileArgsBuilder() *FileArgsBuilder {
+	return &FileArgsBuilder{
+		fs: mockFs,
+	}
+}
+
+func TestZip(t *testing.T) {
+	testCases := []struct {
+		name             string
+		args             *FileArgsBuilder
+		compressionLevel int
+		emulateJar       bool
+		nonDeflatedFiles map[string]bool
+		dirEntries       bool
+		manifest         string
+
+		files []zip.FileHeader
+		err   error
+	}{
+		{
+			name: "empty args",
+			args: fileArgsBuilder(),
+
+			files: []zip.FileHeader{},
+		},
+		{
+			name: "files",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("c"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+				fh("c", fileC, zip.Deflate),
+			},
+		},
+		{
+			name: "stored files",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("c"),
+			compressionLevel: 0,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Store),
+				fh("a/a/b", fileB, zip.Store),
+				fh("c", fileC, zip.Store),
+			},
+		},
+		{
+			name: "symlinks in zip",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("a/a/c").
+				File("a/a/d"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+				fhLink("a/a/c", "../../c"),
+				fhLink("a/a/d", "b"),
+			},
+		},
+		{
+			name: "list",
+			args: fileArgsBuilder().
+				List("l"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+				fh("c", fileC, zip.Deflate),
+			},
+		},
+		{
+			name: "prefix in zip",
+			args: fileArgsBuilder().
+				PathPrefixInZip("foo").
+				File("a/a/a").
+				File("a/a/b").
+				File("c"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("foo/a/a/a", fileA, zip.Deflate),
+				fh("foo/a/a/b", fileB, zip.Deflate),
+				fh("foo/c", fileC, zip.Deflate),
+			},
+		},
+		{
+			name: "relative root",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a", fileA, zip.Deflate),
+				fh("a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "multiple relative root",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				File("a/a/a").
+				SourcePrefixToStrip("a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a", fileA, zip.Deflate),
+				fh("b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "emulate jar",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+			emulateJar:       true,
+
+			files: []zip.FileHeader{
+				fhDir("META-INF/"),
+				fhManifest(fileManifest),
+				fhDir("a/"),
+				fhDir("a/a/"),
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "emulate jar with manifest",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+			emulateJar:       true,
+			manifest:         "manifest.txt",
+
+			files: []zip.FileHeader{
+				fhDir("META-INF/"),
+				fhManifest(customManifestAfter),
+				fhDir("a/"),
+				fhDir("a/a/"),
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "dir entries",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+			dirEntries:       true,
+
+			files: []zip.FileHeader{
+				fhDir("a/"),
+				fhDir("a/a/"),
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "junk paths",
+			args: fileArgsBuilder().
+				JunkPaths(true).
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a", fileA, zip.Deflate),
+				fh("b", fileB, zip.Deflate),
+			},
+		},
+		{
+			name: "non deflated files",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b"),
+			compressionLevel: 9,
+			nonDeflatedFiles: map[string]bool{"a/a/a": true},
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Store),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
+
+		// errors
+		{
+			name: "error missing file",
+			args: fileArgsBuilder().
+				File("missing"),
+			err: os.ErrNotExist,
+		},
+		{
+			name: "error missing file in list",
+			args: fileArgsBuilder().
+				List("l2"),
+			err: os.ErrNotExist,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			if test.args.Error() != nil {
+				t.Fatal(test.args.Error())
+			}
+
+			args := ZipArgs{}
+			args.FileArgs = test.args.FileArgs()
+			args.CompressionLevel = test.compressionLevel
+			args.EmulateJar = test.emulateJar
+			args.AddDirectoryEntriesToZip = test.dirEntries
+			args.NonDeflatedFiles = test.nonDeflatedFiles
+			args.ManifestSourcePath = test.manifest
+			args.Filesystem = mockFs
+
+			buf := &bytes.Buffer{}
+			err := ZipTo(args, buf)
+
+			if (err != nil) != (test.err != nil) {
+				t.Fatalf("want error %v, got %v", test.err, err)
+			} else if test.err != nil {
+				if os.IsNotExist(test.err) {
+					if !os.IsNotExist(test.err) {
+						t.Fatalf("want error %v, got %v", test.err, err)
+					}
+				} else {
+					t.Fatalf("want error %v, got %v", test.err, err)
+				}
+				return
+			}
+
+			br := bytes.NewReader(buf.Bytes())
+			zr, err := zip.NewReader(br, int64(br.Len()))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var files []zip.FileHeader
+			for _, f := range zr.File {
+				r, err := f.Open()
+				if err != nil {
+					t.Fatalf("error when opening %s: %s", f.Name, err)
+				}
+
+				crc := crc32.NewIEEE()
+				len, err := io.Copy(crc, r)
+				r.Close()
+				if err != nil {
+					t.Fatalf("error when reading %s: %s", f.Name, err)
+				}
+
+				if uint64(len) != f.UncompressedSize64 {
+					t.Errorf("incorrect length for %s, want %d got %d", f.Name, f.UncompressedSize64, len)
+				}
+
+				if crc.Sum32() != f.CRC32 {
+					t.Errorf("incorrect crc for %s, want %x got %x", f.Name, f.CRC32, crc)
+				}
+
+				files = append(files, f.FileHeader)
+			}
+
+			if len(files) != len(test.files) {
+				t.Fatalf("want %d files, got %d", len(test.files), len(files))
+			}
+
+			for i := range files {
+				want := test.files[i]
+				got := files[i]
+
+				if want.Name != got.Name {
+					t.Errorf("incorrect file %d want %q got %q", i, want.Name, got.Name)
+					continue
+				}
+
+				if want.UncompressedSize64 != got.UncompressedSize64 {
+					t.Errorf("incorrect file %s length want %v got %v", want.Name,
+						want.UncompressedSize64, got.UncompressedSize64)
+				}
+
+				if want.ExternalAttrs != got.ExternalAttrs {
+					t.Errorf("incorrect file %s attrs want %x got %x", want.Name,
+						want.ExternalAttrs, got.ExternalAttrs)
+				}
+
+				if want.CRC32 != got.CRC32 {
+					t.Errorf("incorrect file %s crc want %v got %v", want.Name,
+						want.CRC32, got.CRC32)
+				}
+
+				if want.Method != got.Method {
+					t.Errorf("incorrect file %s method want %v got %v", want.Name,
+						want.Method, got.Method)
+				}
+			}
+		})
+	}
+}
 
 func TestReadRespFile(t *testing.T) {
 	testCases := []struct {
