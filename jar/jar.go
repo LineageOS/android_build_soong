@@ -17,7 +17,6 @@ package jar
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -81,10 +80,9 @@ func MetaDirFileHeader() *zip.FileHeader {
 	return dirHeader
 }
 
-// Convert manifest source path to zip header and contents.  If path is empty uses a default
-// manifest.
-func ManifestFileContents(src string) (*zip.FileHeader, []byte, error) {
-	b, err := manifestContents(src)
+// Create a manifest zip header and contents using the provided contents if any.
+func ManifestFileContents(contents []byte) (*zip.FileHeader, []byte, error) {
+	b, err := manifestContents(contents)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,26 +98,16 @@ func ManifestFileContents(src string) (*zip.FileHeader, []byte, error) {
 	return fh, b, nil
 }
 
-// Convert manifest source path to contents.  If path is empty uses a default manifest.
-func manifestContents(src string) ([]byte, error) {
-	var givenBytes []byte
-	var err error
-
-	if src != "" {
-		givenBytes, err = ioutil.ReadFile(src)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+// Create manifest contents, using the provided contents if any.
+func manifestContents(contents []byte) ([]byte, error) {
 	manifestMarker := []byte("Manifest-Version:")
 	header := append(manifestMarker, []byte(" 1.0\nCreated-By: soong_zip\n")...)
 
 	var finalBytes []byte
-	if !bytes.Contains(givenBytes, manifestMarker) {
-		finalBytes = append(append(header, givenBytes...), byte('\n'))
+	if !bytes.Contains(contents, manifestMarker) {
+		finalBytes = append(append(header, contents...), byte('\n'))
 	} else {
-		finalBytes = givenBytes
+		finalBytes = contents
 	}
 
 	return finalBytes, nil
