@@ -501,8 +501,8 @@ func (c *configImpl) KatiEnvFile() string {
 	return filepath.Join(c.OutDir(), "env"+c.KatiSuffix()+".sh")
 }
 
-func (c *configImpl) KatiNinjaFile() string {
-	return filepath.Join(c.OutDir(), "build"+c.KatiSuffix()+".ninja")
+func (c *configImpl) KatiBuildNinjaFile() string {
+	return filepath.Join(c.OutDir(), "build"+c.KatiSuffix()+katiBuildSuffix+".ninja")
 }
 
 func (c *configImpl) SoongNinjaFile() string {

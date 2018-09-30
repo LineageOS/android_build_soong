@@ -25,7 +25,7 @@ import (
 var d8 = pctx.AndroidStaticRule("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.D8Cmd} --output $outDir $dxFlags $in && ` +
+			`${config.D8Cmd} --output $outDir $d8Flags $in && ` +
 			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -34,7 +34,7 @@ var d8 = pctx.AndroidStaticRule("d8",
 			"${config.MergeZipsCmd}",
 		},
 	},
-	"outDir", "dxFlags")
+	"outDir", "d8Flags")
 
 var r8 = pctx.AndroidStaticRule("r8",
 	blueprint.RuleParams{
@@ -44,7 +44,7 @@ var r8 = pctx.AndroidStaticRule("r8",
 			`--force-proguard-compatibility ` +
 			`--no-data-resources ` +
 			`-printmapping $outDict ` +
-			`$dxFlags $r8Flags && ` +
+			`$r8Flags && ` +
 			`touch "$outDict" && ` +
 			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
@@ -54,9 +54,9 @@ var r8 = pctx.AndroidStaticRule("r8",
 			"${config.MergeZipsCmd}",
 		},
 	},
-	"outDir", "outDict", "dxFlags", "r8Flags")
+	"outDir", "outDict", "r8Flags")
 
-func (j *Module) dxFlags(ctx android.ModuleContext) []string {
+func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
 	flags := j.deviceProperties.Dxflags
 	// Translate all the DX flags to D8 ones until all the build files have been migrated
 	// to D8 flags. See: b/69377755
@@ -82,6 +82,19 @@ func (j *Module) dxFlags(ctx android.ModuleContext) []string {
 	return flags
 }
 
+func (j *Module) d8Flags(ctx android.ModuleContext, flags javaBuilderFlags) ([]string, android.Paths) {
+	d8Flags := j.dexCommonFlags(ctx)
+
+	d8Flags = append(d8Flags, flags.bootClasspath.FormTurbineClasspath("--lib")...)
+	d8Flags = append(d8Flags, flags.classpath.FormTurbineClasspath("--lib")...)
+
+	var d8Deps android.Paths
+	d8Deps = append(d8Deps, flags.bootClasspath...)
+	d8Deps = append(d8Deps, flags.classpath...)
+
+	return d8Flags, d8Deps
+}
+
 func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Flags []string, r8Deps android.Paths) {
 	opt := j.deviceProperties.Optimize
 
@@ -97,10 +110,16 @@ func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8F
 		proguardRaiseDeps = append(proguardRaiseDeps, dep.(Dependency).HeaderJars()...)
 	})
 
+	r8Flags = append(r8Flags, j.dexCommonFlags(ctx)...)
+
 	r8Flags = append(r8Flags, proguardRaiseDeps.FormJavaClassPath("-libraryjars"))
 	r8Flags = append(r8Flags, flags.bootClasspath.FormJavaClassPath("-libraryjars"))
 	r8Flags = append(r8Flags, flags.classpath.FormJavaClassPath("-libraryjars"))
 	r8Flags = append(r8Flags, "-forceprocessing")
+
+	r8Deps = append(r8Deps, proguardRaiseDeps...)
+	r8Deps = append(r8Deps, flags.bootClasspath...)
+	r8Deps = append(r8Deps, flags.classpath...)
 
 	flagFiles := android.Paths{
 		android.PathForSource(ctx, "build/make/core/proguard.flags"),
@@ -147,8 +166,6 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 
 	useR8 := Bool(j.deviceProperties.Optimize.Enabled)
 
-	dxFlags := j.dxFlags(ctx)
-
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
 	outDir := android.PathForModuleOut(ctx, "dex")
@@ -167,20 +184,21 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			Input:          classesJar,
 			Implicits:      r8Deps,
 			Args: map[string]string{
-				"dxFlags": strings.Join(dxFlags, " "),
 				"r8Flags": strings.Join(r8Flags, " "),
 				"outDict": j.proguardDictionary.String(),
 				"outDir":  outDir.String(),
 			},
 		})
 	} else {
+		d8Flags, d8Deps := j.d8Flags(ctx, flags)
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        d8,
 			Description: "d8",
 			Output:      javalibJar,
 			Input:       classesJar,
+			Implicits:   d8Deps,
 			Args: map[string]string{
-				"dxFlags": strings.Join(dxFlags, " "),
+				"d8Flags": strings.Join(d8Flags, " "),
 				"outDir":  outDir.String(),
 			},
 		})

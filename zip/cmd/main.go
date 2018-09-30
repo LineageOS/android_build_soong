@@ -15,28 +15,18 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 
 	"android/soong/zip"
 )
-
-type byteReaderCloser struct {
-	*bytes.Reader
-	io.Closer
-}
-
-type pathMapping struct {
-	dest, src string
-	zipMethod uint16
-}
 
 type uniqueSet map[string]bool
 
@@ -56,106 +46,67 @@ func (u *uniqueSet) Set(s string) error {
 
 type file struct{}
 
+func (file) String() string { return `""` }
+
+func (file) Set(s string) error {
+	fileArgsBuilder.File(s)
+	return nil
+}
+
 type listFiles struct{}
+
+func (listFiles) String() string { return `""` }
+
+func (listFiles) Set(s string) error {
+	fileArgsBuilder.List(s)
+	return nil
+}
 
 type dir struct{}
 
-func (f *file) String() string {
-	return `""`
-}
+func (dir) String() string { return `""` }
 
-func (f *file) Set(s string) error {
-	if relativeRoot == "" && !junkPaths {
-		return fmt.Errorf("must pass -C or -j before -f")
-	}
-
-	fArgs = append(fArgs, zip.FileArg{
-		PathPrefixInZip:     *rootPrefix,
-		SourcePrefixToStrip: relativeRoot,
-		JunkPaths:           junkPaths,
-		SourceFiles:         []string{s},
-	})
-
+func (dir) Set(s string) error {
+	fileArgsBuilder.Dir(s)
 	return nil
 }
 
-func (l *listFiles) String() string {
-	return `""`
-}
+type relativeRoot struct{}
 
-func (l *listFiles) Set(s string) error {
-	if relativeRoot == "" && !junkPaths {
-		return fmt.Errorf("must pass -C or -j before -l")
-	}
+func (relativeRoot) String() string { return "" }
 
-	list, err := ioutil.ReadFile(s)
-	if err != nil {
-		return err
-	}
-
-	fArgs = append(fArgs, zip.FileArg{
-		PathPrefixInZip:     *rootPrefix,
-		SourcePrefixToStrip: relativeRoot,
-		JunkPaths:           junkPaths,
-		SourceFiles:         strings.Split(string(list), "\n"),
-	})
-
+func (relativeRoot) Set(s string) error {
+	fileArgsBuilder.SourcePrefixToStrip(s)
 	return nil
 }
 
-func (d *dir) String() string {
-	return `""`
-}
+type junkPaths struct{}
 
-func (d *dir) Set(s string) error {
-	if relativeRoot == "" && !junkPaths {
-		return fmt.Errorf("must pass -C or -j before -D")
-	}
+func (junkPaths) IsBoolFlag() bool { return true }
+func (junkPaths) String() string   { return "" }
 
-	fArgs = append(fArgs, zip.FileArg{
-		PathPrefixInZip:     *rootPrefix,
-		SourcePrefixToStrip: relativeRoot,
-		JunkPaths:           junkPaths,
-		GlobDir:             s,
-	})
-
-	return nil
-}
-
-type relativeRootImpl struct{}
-
-func (*relativeRootImpl) String() string { return relativeRoot }
-
-func (*relativeRootImpl) Set(s string) error {
-	relativeRoot = s
-	junkPaths = false
-	return nil
-}
-
-type junkPathsImpl struct{}
-
-func (*junkPathsImpl) IsBoolFlag() bool { return true }
-
-func (*junkPathsImpl) String() string { return relativeRoot }
-
-func (*junkPathsImpl) Set(s string) error {
-	var err error
-	junkPaths, err = strconv.ParseBool(s)
-	relativeRoot = ""
+func (junkPaths) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	fileArgsBuilder.JunkPaths(v)
 	return err
 }
 
-var (
-	rootPrefix   *string
-	relativeRoot string
-	junkPaths    bool
+type rootPrefix struct{}
 
-	fArgs            zip.FileArgs
+func (rootPrefix) String() string { return "" }
+
+func (rootPrefix) Set(s string) error {
+	fileArgsBuilder.PathPrefixInZip(s)
+	return nil
+}
+
+var (
+	fileArgsBuilder  = zip.NewFileArgsBuilder()
 	nonDeflatedFiles = make(uniqueSet)
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: zip -o zipfile [-m manifest] -C dir [-f|-l file]...\n")
+	fmt.Fprintf(os.Stderr, "usage: soong_zip -o zipfile [-m manifest] [-C dir] [-f|-l file] [-D dir]...\n")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
@@ -177,11 +128,11 @@ func main() {
 	}
 
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
+	flags.Usage = usage
 
 	out := flags.String("o", "", "file to write zip file to")
 	manifest := flags.String("m", "", "input jar manifest file name")
 	directories := flags.Bool("d", false, "include directories in zip")
-	rootPrefix = flags.String("P", "", "path prefix within the zip at which to place files")
 	compLevel := flags.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
@@ -190,20 +141,55 @@ func main() {
 	cpuProfile := flags.String("cpuprofile", "", "write cpu profile to file")
 	traceFile := flags.String("trace", "", "write trace to file")
 
+	flags.Var(&rootPrefix{}, "P", "path prefix within the zip at which to place files")
 	flags.Var(&listFiles{}, "l", "file containing list of .class files")
 	flags.Var(&dir{}, "D", "directory to include in zip")
 	flags.Var(&file{}, "f", "file to include in zip")
 	flags.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")
-	flags.Var(&relativeRootImpl{}, "C", "path to use as relative root of files in following -f, -l, or -D arguments")
-	flags.Var(&junkPathsImpl{}, "j", "junk paths, zip files without directory names")
+	flags.Var(&relativeRoot{}, "C", "path to use as relative root of files in following -f, -l, or -D arguments")
+	flags.Var(&junkPaths{}, "j", "junk paths, zip files without directory names")
 
 	flags.Parse(expandedArgs[1:])
 
-	err := zip.Run(zip.ZipArgs{
-		FileArgs:                 fArgs,
+	if flags.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "unexpected arguments %s\n", strings.Join(flags.Args(), " "))
+		flags.Usage()
+	}
+
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer f.Close()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	if *traceFile != "" {
+		f, err := os.Create(*traceFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer f.Close()
+		err = trace.Start(f)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		defer trace.Stop()
+	}
+
+	if fileArgsBuilder.Error() != nil {
+		fmt.Fprintln(os.Stderr, fileArgsBuilder.Error())
+		os.Exit(1)
+	}
+
+	err := zip.Zip(zip.ZipArgs{
+		FileArgs:                 fileArgsBuilder.FileArgs(),
 		OutputFilePath:           *out,
-		CpuProfileFilePath:       *cpuProfile,
-		TraceFilePath:            *traceFile,
 		EmulateJar:               *emulateJar,
 		AddDirectoryEntriesToZip: *directories,
 		CompressionLevel:         *compLevel,

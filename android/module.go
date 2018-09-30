@@ -1527,16 +1527,16 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 }
 
-type AndroidModulesByName struct {
-	slice []Module
+type ModulesByName struct {
+	slice []blueprint.Module
 	ctx   interface {
 		ModuleName(blueprint.Module) string
 		ModuleSubDir(blueprint.Module) string
 	}
 }
 
-func (s AndroidModulesByName) Len() int { return len(s.slice) }
-func (s AndroidModulesByName) Less(i, j int) bool {
+func (s ModulesByName) Len() int { return len(s.slice) }
+func (s ModulesByName) Less(i, j int) bool {
 	mi, mj := s.slice[i], s.slice[j]
 	ni, nj := s.ctx.ModuleName(mi), s.ctx.ModuleName(mj)
 
@@ -1546,7 +1546,7 @@ func (s AndroidModulesByName) Less(i, j int) bool {
 		return s.ctx.ModuleSubDir(mi) < s.ctx.ModuleSubDir(mj)
 	}
 }
-func (s AndroidModulesByName) Swap(i, j int) { s.slice[i], s.slice[j] = s.slice[j], s.slice[i] }
+func (s ModulesByName) Swap(i, j int) { s.slice[i], s.slice[j] = s.slice[j], s.slice[i] }
 
 // Collect information for opening IDE project files in java/jdeps.go.
 type IDEInfo interface {

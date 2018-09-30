@@ -328,7 +328,7 @@ func main() {
 			NumParallelJobs:  runtime.NumCPU(),
 			CompressionLevel: 5,
 		}
-		if err := zip.Run(args); err != nil {
+		if err := zip.Zip(args); err != nil {
 			log.Fatalf("Error zipping logs: %v", err)
 		}
 	}
@@ -409,13 +409,13 @@ func buildProduct(mpctx *mpContext, product string) {
 				NumParallelJobs:  runtime.NumCPU(),
 				CompressionLevel: 5,
 			}
-			if err := zip.Run(args); err != nil {
+			if err := zip.Zip(args); err != nil {
 				log.Fatalf("Error zipping artifacts: %v", err)
 			}
 		}
 		if *incremental {
 			// Save space, Kati doesn't notice
-			if f := config.KatiNinjaFile(); f != "" {
+			if f := config.KatiBuildNinjaFile(); f != "" {
 				os.Truncate(f, 0)
 			}
 		} else {
@@ -436,7 +436,7 @@ func buildProduct(mpctx *mpContext, product string) {
 
 	// Save std_full.log if Kati re-read the makefiles
 	if buildWhat&build.BuildKati != 0 {
-		if after, err := os.Stat(config.KatiNinjaFile()); err == nil && after.ModTime().After(before) {
+		if after, err := os.Stat(config.KatiBuildNinjaFile()); err == nil && after.ModTime().After(before) {
 			err := copyFile(stdLog, filepath.Join(filepath.Dir(stdLog), "std_full.log"))
 			if err != nil {
 				log.Fatalf("Error copying log file: %s", err)

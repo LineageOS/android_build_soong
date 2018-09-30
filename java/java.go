@@ -95,6 +95,9 @@ type CompilerProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs []string `android:"arch_variant"`
 
+	// list of native libraries that will be provided in or alongside the resulting jar
+	Jni_libs []string `android:"arch_variant"`
+
 	// manifest file to be included in resulting jar
 	Manifest *string
 
@@ -1446,6 +1449,10 @@ type testProperties struct {
 	// installed with the module.
 	Test_config *string `android:"arch_variant"`
 
+	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
+	// should be installed with the module.
+	Test_config_template *string `android:"arch_variant"`
+
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
 	Data []string
@@ -1461,7 +1468,7 @@ type Test struct {
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config)
+	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template)
 	j.data = ctx.ExpandSources(j.testProperties.Data, nil)
 
 	j.Library.GenerateAndroidBuildActions(ctx)
@@ -1470,6 +1477,7 @@ func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 	android.ExtractSourceDeps(ctx, j.testProperties.Test_config)
+	android.ExtractSourceDeps(ctx, j.testProperties.Test_config_template)
 	android.ExtractSourcesDeps(ctx, j.testProperties.Data)
 }
 

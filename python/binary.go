@@ -84,15 +84,15 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersio
 
 	main := binary.getPyMainFile(ctx, srcsPathMappings)
 
-	var launcherPath android.Path
+	var launcherPath android.OptionalPath
 	if embeddedLauncher {
 		ctx.VisitDirectDepsWithTag(launcherTag, func(m android.Module) {
 			if provider, ok := m.(IntermPathProvider); ok {
-				if launcherPath != nil {
+				if launcherPath.Valid() {
 					panic(fmt.Errorf("launcher path was found before: %q",
 						launcherPath))
 				}
-				launcherPath = provider.IntermPathForModuleOut().Path()
+				launcherPath = provider.IntermPathForModuleOut()
 			}
 		})
 	}
