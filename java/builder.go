@@ -321,7 +321,7 @@ func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.Writa
 		Output:      outputFile,
 		Implicits:   deps,
 		Args: map[string]string{
-			"jarArgs": strings.Join(proptools.NinjaEscape(jarArgs), " "),
+			"jarArgs": strings.Join(proptools.NinjaAndShellEscape(jarArgs), " "),
 		},
 	})
 }

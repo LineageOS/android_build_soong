@@ -26,7 +26,7 @@ var d8 = pctx.AndroidStaticRule("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`${config.D8Cmd} --output $outDir $d8Flags $in && ` +
-			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
+			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
@@ -46,7 +46,7 @@ var r8 = pctx.AndroidStaticRule("r8",
 			`-printmapping $outDict ` +
 			`$r8Flags && ` +
 			`touch "$outDict" && ` +
-			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
+			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
