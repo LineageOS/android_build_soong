@@ -98,13 +98,15 @@ func fileArgsBuilder() *FileArgsBuilder {
 
 func TestZip(t *testing.T) {
 	testCases := []struct {
-		name             string
-		args             *FileArgsBuilder
-		compressionLevel int
-		emulateJar       bool
-		nonDeflatedFiles map[string]bool
-		dirEntries       bool
-		manifest         string
+		name               string
+		args               *FileArgsBuilder
+		compressionLevel   int
+		emulateJar         bool
+		nonDeflatedFiles   map[string]bool
+		dirEntries         bool
+		manifest           string
+		storeSymlinks      bool
+		ignoreMissingFiles bool
 
 		files []zip.FileHeader
 		err   error
@@ -130,6 +132,36 @@ func TestZip(t *testing.T) {
 			},
 		},
 		{
+			name: "files glob",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				File("a/**/*"),
+			compressionLevel: 9,
+			storeSymlinks:    true,
+
+			files: []zip.FileHeader{
+				fh("a/a", fileA, zip.Deflate),
+				fh("a/b", fileB, zip.Deflate),
+				fhLink("a/c", "../../c"),
+				fhLink("a/d", "b"),
+			},
+		},
+		{
+			name: "dir",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("a").
+				Dir("a"),
+			compressionLevel: 9,
+			storeSymlinks:    true,
+
+			files: []zip.FileHeader{
+				fh("a/a", fileA, zip.Deflate),
+				fh("a/b", fileB, zip.Deflate),
+				fhLink("a/c", "../../c"),
+				fhLink("a/d", "b"),
+			},
+		},
+		{
 			name: "stored files",
 			args: fileArgsBuilder().
 				File("a/a/a").
@@ -151,12 +183,30 @@ func TestZip(t *testing.T) {
 				File("a/a/c").
 				File("a/a/d"),
 			compressionLevel: 9,
+			storeSymlinks:    true,
 
 			files: []zip.FileHeader{
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 				fhLink("a/a/c", "../../c"),
 				fhLink("a/a/d", "b"),
+			},
+		},
+		{
+			name: "follow symlinks",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("a/a/c").
+				File("a/a/d"),
+			compressionLevel: 9,
+			storeSymlinks:    false,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+				fh("a/a/c", fileC, zip.Deflate),
+				fh("a/a/d", fileB, zip.Deflate),
 			},
 		},
 		{
@@ -289,6 +339,20 @@ func TestZip(t *testing.T) {
 				fh("a/a/b", fileB, zip.Deflate),
 			},
 		},
+		{
+			name: "ignore missing files",
+			args: fileArgsBuilder().
+				File("a/a/a").
+				File("a/a/b").
+				File("missing"),
+			compressionLevel:   9,
+			ignoreMissingFiles: true,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+			},
+		},
 
 		// errors
 		{
@@ -298,10 +362,23 @@ func TestZip(t *testing.T) {
 			err: os.ErrNotExist,
 		},
 		{
+			name: "error missing dir",
+			args: fileArgsBuilder().
+				Dir("missing"),
+			err: os.ErrNotExist,
+		},
+		{
 			name: "error missing file in list",
 			args: fileArgsBuilder().
 				List("l2"),
 			err: os.ErrNotExist,
+		},
+		{
+			name: "error incorrect relative root",
+			args: fileArgsBuilder().
+				SourcePrefixToStrip("b").
+				File("a/a/a"),
+			err: IncorrectRelativeRootError{},
 		},
 	}
 
@@ -318,7 +395,10 @@ func TestZip(t *testing.T) {
 			args.AddDirectoryEntriesToZip = test.dirEntries
 			args.NonDeflatedFiles = test.nonDeflatedFiles
 			args.ManifestSourcePath = test.manifest
+			args.StoreSymlinks = test.storeSymlinks
+			args.IgnoreMissingFiles = test.ignoreMissingFiles
 			args.Filesystem = mockFs
+			args.Stderr = &bytes.Buffer{}
 
 			buf := &bytes.Buffer{}
 			err := ZipTo(args, buf)
@@ -328,6 +408,10 @@ func TestZip(t *testing.T) {
 			} else if test.err != nil {
 				if os.IsNotExist(test.err) {
 					if !os.IsNotExist(test.err) {
+						t.Fatalf("want error %v, got %v", test.err, err)
+					}
+				} else if _, wantRelativeRootErr := test.err.(IncorrectRelativeRootError); wantRelativeRootErr {
+					if _, gotRelativeRootErr := err.(IncorrectRelativeRootError); !gotRelativeRootErr {
 						t.Fatalf("want error %v, got %v", test.err, err)
 					}
 				} else {
