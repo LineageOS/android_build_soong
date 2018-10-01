@@ -136,6 +136,8 @@ func main() {
 	compLevel := flags.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
+	ignoreMissingFiles := flags.Bool("ignore_missing_files", false, "continue if a requested file does not exist")
+	symlinks := flags.Bool("symlinks", true, "store symbolic links in zip instead of following them")
 
 	parallelJobs := flags.Int("parallel", runtime.NumCPU(), "number of parallel threads to use")
 	cpuProfile := flags.String("cpuprofile", "", "write cpu profile to file")
@@ -197,9 +199,11 @@ func main() {
 		NumParallelJobs:          *parallelJobs,
 		NonDeflatedFiles:         nonDeflatedFiles,
 		WriteIfChanged:           *writeIfChanged,
+		StoreSymlinks:            *symlinks,
+		IgnoreMissingFiles:       *ignoreMissingFiles,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, "error:", err.Error())
 		os.Exit(1)
 	}
 }
