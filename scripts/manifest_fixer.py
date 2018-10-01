@@ -179,7 +179,12 @@ def raise_min_sdk_version(doc, min_sdk_version, target_sdk_version, library):
   if target_attr is None:
     target_attr = doc.createAttributeNS(android_ns, 'android:targetSdkVersion')
     if library:
-      target_attr.value = '1'
+      # TODO(b/117122200): libraries shouldn't set targetSdkVersion at all, but
+      # ManifestMerger treats minSdkVersion="Q" as targetSdkVersion="Q" if it
+      # is empty.  Set it to something low so that it will be overriden by the
+      # main manifest, but high enough that it doesn't cause implicit
+      # permissions grants.
+      target_attr.value = '15'
     else:
       target_attr.value = target_sdk_version
     element.setAttributeNode(target_attr)
