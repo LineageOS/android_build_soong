@@ -103,10 +103,10 @@ var buildAAR = pctx.AndroidStaticRule("buildAAR",
 			`cp ${manifest} ${outDir}/AndroidManifest.xml && ` +
 			`cp ${classesJar} ${outDir}/classes.jar && ` +
 			`cp ${rTxt} ${outDir}/R.txt && ` +
-			`${config.SoongZipCmd} -jar -o $out -C ${outDir} -D ${outDir} ${resArgs}`,
+			`${config.SoongZipCmd} -jar -o $out -C ${outDir} -D ${outDir}`,
 		CommandDeps: []string{"${config.SoongZipCmd}"},
 	},
-	"manifest", "classesJar", "rTxt", "resArgs", "outDir")
+	"manifest", "classesJar", "rTxt", "outDir")
 
 func BuildAAR(ctx android.ModuleContext, outputFile android.WritablePath,
 	classesJar, manifest, rTxt android.Path, res android.Paths) {
