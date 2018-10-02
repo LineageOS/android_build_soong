@@ -329,14 +329,12 @@ func archMutator(mctx BottomUpMutatorContext) {
 		if multilib == "" {
 			multilib = base.commonProperties.Default_multilib
 		}
-		var prefer32 bool
-		switch class {
-		case Device:
-			prefer32 = mctx.Config().DevicePrefer32BitExecutables()
-		case HostCross:
-			// Windows builds always prefer 32-bit
-			prefer32 = true
+
+		prefer32 := false
+		if base.prefer32 != nil {
+			prefer32 = base.prefer32(mctx, base, class)
 		}
+
 		targets, err := decodeMultilib(multilib, classTargets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
