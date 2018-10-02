@@ -26,7 +26,7 @@ func (stub *kernelHeadersDecorator) link(ctx ModuleContext, flags Flags, deps Pa
 	if ctx.Device() {
 		f := &stub.libraryDecorator.flagExporter
 		for _, dir := range ctx.DeviceConfig().DeviceKernelHeaderDirs() {
-			f.flags = append(f.flags, "-isystem"+dir)
+			f.flags = append(f.flags, "-isystem "+dir)
 		}
 	}
 	return stub.libraryDecorator.linkStatic(ctx, flags, deps, objs)
