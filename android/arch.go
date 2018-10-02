@@ -295,32 +295,39 @@ func archMutator(mctx BottomUpMutatorContext) {
 		return
 	}
 
-	if !module.base().ArchSpecific() {
+	base := module.base()
+
+	if !base.ArchSpecific() {
 		return
 	}
 
-	osClasses := module.base().OsClassSupported()
+	osClasses := base.OsClassSupported()
 
 	var moduleTargets []Target
 	primaryModules := make(map[int]bool)
 
 	for _, class := range osClasses {
-		targets := mctx.Config().Targets[class]
-		if len(targets) == 0 {
+		classTargets := mctx.Config().Targets[class]
+		if len(classTargets) == 0 {
 			continue
 		}
+		// only the primary arch in the recovery partition
+		if module.InstallInRecovery() {
+			classTargets = []Target{mctx.Config().Targets[Device][0]}
+		}
+
 		var multilib string
 		switch class {
 		case Device:
-			multilib = String(module.base().commonProperties.Target.Android.Compile_multilib)
+			multilib = String(base.commonProperties.Target.Android.Compile_multilib)
 		case Host, HostCross:
-			multilib = String(module.base().commonProperties.Target.Host.Compile_multilib)
+			multilib = String(base.commonProperties.Target.Host.Compile_multilib)
 		}
 		if multilib == "" {
-			multilib = String(module.base().commonProperties.Compile_multilib)
+			multilib = String(base.commonProperties.Compile_multilib)
 		}
 		if multilib == "" {
-			multilib = module.base().commonProperties.Default_multilib
+			multilib = base.commonProperties.Default_multilib
 		}
 		var prefer32 bool
 		switch class {
@@ -330,11 +337,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 			// Windows builds always prefer 32-bit
 			prefer32 = true
 		}
-		// only the primary arch in the recovery partition
-		if module.InstallInRecovery() {
-			targets = []Target{mctx.Config().Targets[Device][0]}
-		}
-		targets, err := decodeMultilib(multilib, targets, prefer32)
+		targets, err := decodeMultilib(multilib, classTargets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
@@ -345,7 +348,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 	}
 
 	if len(moduleTargets) == 0 {
-		module.base().commonProperties.Enabled = boolPtr(false)
+		base.commonProperties.Enabled = boolPtr(false)
 		return
 	}
 
