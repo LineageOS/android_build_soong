@@ -691,7 +691,6 @@ func sdkLibraryFactory() android.Module {
 	module := &sdkLibrary{}
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.deviceProperties)
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	android.InitDefaultableModule(module)
+	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
