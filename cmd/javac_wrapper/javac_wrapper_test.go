@@ -64,6 +64,17 @@ warning: [options] bootstrap class path not set in conjunction with -source 1.7
 		in:  "\n",
 		out: "\n",
 	},
+	{
+		in: `
+javadoc: warning - The old Doclet and Taglet APIs in the packages
+com.sun.javadoc, com.sun.tools.doclets and their implementations
+are planned to be removed in a future JDK release. These
+components have been superseded by the new APIs in jdk.javadoc.doclet.
+Users are strongly recommended to migrate to the new APIs.
+javadoc: option --boot-class-path not allowed with target 1.9
+`,
+		out: "\n",
+	},
 }
 
 func TestJavacColorize(t *testing.T) {
