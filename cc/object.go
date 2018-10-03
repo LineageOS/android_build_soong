@@ -25,7 +25,7 @@ import (
 //
 
 func init() {
-	android.RegisterModuleType("cc_object", objectFactory)
+	android.RegisterModuleType("cc_object", ObjectFactory)
 }
 
 type objectLinker struct {
@@ -33,7 +33,7 @@ type objectLinker struct {
 	Properties ObjectLinkerProperties
 }
 
-func objectFactory() android.Module {
+func ObjectFactory() android.Module {
 	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
 	module.linker = &objectLinker{
 		baseLinker: NewBaseLinker(nil),
