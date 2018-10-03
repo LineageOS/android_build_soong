@@ -19,9 +19,11 @@ package java
 import (
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/tradefed"
 )
 
@@ -59,6 +61,11 @@ type appProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	// list of native libraries that will be provided in or alongside the resulting jar
+	Jni_libs []string `android:"arch_variant"`
+
+	EmbedJNI bool `blueprint:"mutated"`
 }
 
 type AndroidApp struct {
@@ -70,6 +77,8 @@ type AndroidApp struct {
 	appProperties appProperties
 
 	extraLinkFlags []string
+
+	installJniLibs []jniLib
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -92,8 +101,20 @@ type certificate struct {
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
+
 	if !Bool(a.properties.No_framework_libs) && !Bool(a.properties.No_standard_libs) {
 		a.aapt.deps(ctx, sdkContext(a))
+	}
+
+	for _, jniTarget := range ctx.MultiTargets() {
+		variation := []blueprint.Variation{
+			{Mutator: "arch", Variation: jniTarget.String()},
+			{Mutator: "link", Variation: "shared"},
+		}
+		tag := &jniDependencyTag{
+			target: jniTarget,
+		}
+		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 	}
 }
 
@@ -178,7 +199,19 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	packageFile := android.PathForModuleOut(ctx, "package.apk")
 
-	CreateAppPackage(ctx, packageFile, a.exportPackage, a.outputFile, certificates)
+	var jniJarFile android.WritablePath
+	jniLibs := a.collectJniDeps(ctx)
+	if len(jniLibs) > 0 {
+		embedJni := ctx.Config().UnbundledBuild() || a.appProperties.EmbedJNI
+		if embedJni {
+			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
+			TransformJniLibsToJar(ctx, jniJarFile, jniLibs)
+		} else {
+			a.installJniLibs = jniLibs
+		}
+	}
+
+	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, a.outputFile, certificates)
 
 	a.outputFile = packageFile
 
@@ -190,6 +223,35 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
 	}
+}
+
+func (a *AndroidApp) collectJniDeps(ctx android.ModuleContext) []jniLib {
+	var jniLibs []jniLib
+
+	ctx.VisitDirectDeps(func(module android.Module) {
+		otherName := ctx.OtherModuleName(module)
+		tag := ctx.OtherModuleDependencyTag(module)
+
+		if jniTag, ok := tag.(*jniDependencyTag); ok {
+			if dep, ok := module.(*cc.Module); ok {
+				lib := dep.OutputFile()
+				if lib.Valid() {
+					jniLibs = append(jniLibs, jniLib{
+						name:   ctx.OtherModuleName(module),
+						path:   lib.Path(),
+						target: jniTag.target,
+					})
+				} else {
+					ctx.ModuleErrorf("dependency %q missing output file", otherName)
+				}
+			} else {
+				ctx.ModuleErrorf("jni_libs dependency %q must be a cc library", otherName)
+
+			}
+		}
+	})
+
+	return jniLibs
 }
 
 func AndroidAppFactory() android.Module {
@@ -212,7 +274,9 @@ func AndroidAppFactory() android.Module {
 		return class == android.Device && ctx.Config().DevicePrefer32BitApps()
 	})
 
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+
 	return module
 }
 
@@ -258,6 +322,7 @@ func AndroidTestFactory() android.Module {
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.appProperties.EmbedJNI = true
 
 	module.AddProperties(
 		&module.Module.properties,
@@ -268,6 +333,7 @@ func AndroidTestFactory() android.Module {
 		&module.appTestProperties,
 		&module.testProperties)
 
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	return module
 }

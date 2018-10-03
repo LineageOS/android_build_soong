@@ -243,6 +243,10 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if len(app.appProperties.Overrides) > 0 {
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES := "+strings.Join(app.appProperties.Overrides, " "))
 				}
+
+				for _, jniLib := range app.installJniLibs {
+					fmt.Fprintln(w, "LOCAL_SOONG_JNI_LIBS_"+jniLib.target.Arch.ArchType.String(), "+=", jniLib.name)
+				}
 			},
 		},
 	}
