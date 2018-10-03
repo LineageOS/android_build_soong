@@ -576,6 +576,10 @@ func (c *config) Debuggable() bool {
 	return Bool(c.productVariables.Debuggable)
 }
 
+func (c *config) DevicePrefer32BitApps() bool {
+	return Bool(c.productVariables.DevicePrefer32BitApps)
+}
+
 func (c *config) DevicePrefer32BitExecutables() bool {
 	return Bool(c.productVariables.DevicePrefer32BitExecutables)
 }
