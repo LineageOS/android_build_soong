@@ -30,7 +30,7 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.JavadocCmd} -encoding UTF-8 @$out.rsp @$srcJarDir/list ` +
+				`${config.SoongJavacWrapper} ${config.JavadocCmd} -encoding UTF-8 @$out.rsp @$srcJarDir/list ` +
 				`$opts $bootclasspathArgs $classpathArgs $sourcepathArgs ` +
 				`-d $outDir -quiet  && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
@@ -40,9 +40,10 @@ var (
 				"${config.JavadocCmd}",
 				"${config.SoongZipCmd}",
 			},
-			Rspfile:        "$out.rsp",
-			RspfileContent: "$in",
-			Restat:         true,
+			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Rspfile:          "$out.rsp",
+			RspfileContent:   "$in",
+			Restat:           true,
 		},
 		"outDir", "srcJarDir", "stubsDir", "srcJars", "opts",
 		"bootclasspathArgs", "classpathArgs", "sourcepathArgs", "docZip", "postDoclavaCmds")

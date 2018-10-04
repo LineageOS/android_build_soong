@@ -176,4 +176,12 @@ var filters = []*regexp.Regexp{
 	regexp.MustCompile(`Note: (Some input files|.*\.java) uses? unchecked or unsafe operations.`),
 	regexp.MustCompile(`Note: Recompile with -Xlint:unchecked for details.`),
 	regexp.MustCompile(`bootstrap class path not set in conjunction with -source`),
+
+	regexp.MustCompile(`javadoc: warning - The old Doclet and Taglet APIs in the packages`),
+	regexp.MustCompile(`com.sun.javadoc, com.sun.tools.doclets and their implementations`),
+	regexp.MustCompile(`are planned to be removed in a future JDK release. These`),
+	regexp.MustCompile(`components have been superseded by the new APIs in jdk.javadoc.doclet.`),
+	regexp.MustCompile(`Users are strongly recommended to migrate to the new APIs.`),
+
+	regexp.MustCompile(`javadoc: option --boot-class-path not allowed with target 1.9`),
 }
