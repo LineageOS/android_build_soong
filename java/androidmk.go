@@ -271,6 +271,21 @@ func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 	return data
 }
 
+func (a *AndroidTestHelperApp) AndroidMk() android.AndroidMkData {
+	data := a.AndroidApp.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
+		if len(a.appTestHelperAppProperties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+				strings.Join(a.appTestHelperAppProperties.Test_suites, " "))
+		} else {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
+		}
+	})
+
+	return data
+}
+
 func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
 	data := a.Library.AndroidMk()
 

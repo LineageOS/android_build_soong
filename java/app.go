@@ -30,6 +30,7 @@ import (
 func init() {
 	android.RegisterModuleType("android_app", AndroidAppFactory)
 	android.RegisterModuleType("android_test", AndroidTestFactory)
+	android.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
 	android.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
 }
 
@@ -353,6 +354,39 @@ func AndroidTestFactory() android.Module {
 		&module.appProperties,
 		&module.appTestProperties,
 		&module.testProperties)
+
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+type appTestHelperAppProperties struct {
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+}
+
+type AndroidTestHelperApp struct {
+	AndroidApp
+
+	appTestHelperAppProperties appTestHelperAppProperties
+}
+
+func AndroidTestHelperAppFactory() android.Module {
+	module := &AndroidTestHelperApp{}
+
+	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+
+	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.appProperties.EmbedJNI = true
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.protoProperties,
+		&module.aaptProperties,
+		&module.appProperties,
+		&module.appTestHelperAppProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
