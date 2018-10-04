@@ -377,6 +377,7 @@ var (
 	frameworkApkTag  = dependencyTag{name: "framework-apk"}
 	kotlinStdlibTag  = dependencyTag{name: "kotlin-stdlib"}
 	proguardRaiseTag = dependencyTag{name: "proguard-raise"}
+	certificateTag   = dependencyTag{name: "certificate"}
 )
 
 type sdkDep struct {
@@ -797,7 +798,11 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		tag := ctx.OtherModuleDependencyTag(module)
 
 		if _, ok := tag.(*jniDependencyTag); ok {
-			// Handled by AndroidApp.collectJniDeps
+			// Handled by AndroidApp.collectAppDeps
+			return
+		}
+		if tag == certificateTag {
+			// Handled by AndroidApp.collectAppDeps
 			return
 		}
 
