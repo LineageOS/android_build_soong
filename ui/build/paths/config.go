@@ -134,7 +134,6 @@ var Configuration = map[string]PathConfig{
 	"sleep":     Allowed,
 	"sort":      Allowed,
 	"stat":      Allowed,
-	"sum":       Allowed,
 	"tar":       Allowed,
 	"tail":      Allowed,
 	"tee":       Allowed,
