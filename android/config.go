@@ -241,6 +241,8 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 		},
 	}
 
+	config.BuildOsVariant = config.Targets[Host][0].String()
+
 	return testConfig
 }
 

@@ -102,8 +102,9 @@ type Module struct {
 
 	taskGenerator taskFunc
 
-	deps android.Paths
-	rule blueprint.Rule
+	deps       android.Paths
+	rule       blueprint.Rule
+	rawCommand string
 
 	exportedIncludeDirs android.Paths
 
@@ -287,6 +288,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	genDir := android.PathForModuleGen(ctx)
 	// Escape the command for the shell
 	rawCommand = "'" + strings.Replace(rawCommand, "'", `'\''`, -1) + "'"
+	g.rawCommand = rawCommand
 	sandboxCommand := fmt.Sprintf("$sboxCmd --sandbox-path %s --output-root %s -c %s %s $allouts",
 		sandboxPath, genDir, rawCommand, depfilePlaceholder)
 
