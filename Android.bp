@@ -192,6 +192,9 @@ bootstrap_go_package {
     srcs: [
         "genrule/genrule.go",
     ],
+    testSrcs: [
+        "genrule/genrule_test.go",
+    ],
     pluginFor: ["soong_build"],
 }
 
