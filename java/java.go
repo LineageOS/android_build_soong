@@ -257,6 +257,8 @@ type CompilerDeviceProperties struct {
 
 	// When targeting 1.9, override the modules to use with --system
 	System_modules *string
+
+	UncompressDex bool `blueprint:"mutated"`
 }
 
 // Module contains the properties and members used by all java module types
