@@ -1307,8 +1307,7 @@ func (d *Droidstubs) initBuilderFlags(ctx android.ModuleContext, implicits *andr
 	}
 	flags.classpathArgs = deps.classpath.FormJavaClassPath("-classpath")
 
-	flags.sourcepathArgs = "-sourcepath " + strings.Join(d.Javadoc.sourcepaths.Strings(), ":")
-
+	flags.sourcepathArgs = "-sourcepath \"" + strings.Join(d.Javadoc.sourcepaths.Strings(), ":") + "\""
 	return flags, nil
 }
 
