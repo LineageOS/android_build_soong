@@ -16,7 +16,6 @@ package cc
 
 import (
 	"android/soong/android"
-	"android/soong/cc/config"
 	"fmt"
 
 	"github.com/google/blueprint"
@@ -215,13 +214,12 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
 	}
 
-	if ctx.toolchain().Bionic() {
-		// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
-		// TODO: Also enable for libc and libm
-		if ctx.ModuleName() != "libc" && ctx.ModuleName() != "libm" {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
-		}
+	if ctx.ModuleName() != "libcompiler_rt-extras" {
+		deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt-extras")
+	}
 
+	if ctx.toolchain().Bionic() {
+		// libgcc and libatomic have to be last on the command line
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 		if !Bool(linker.Properties.No_libgcc) {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
