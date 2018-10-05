@@ -36,7 +36,6 @@ func init() {
 			"performance*",
 			"-google-readability*",
 			"-google-runtime-references",
-			"-performance-noexcept-move-constructor",
 		}, ",")
 	})
 
