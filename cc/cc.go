@@ -406,6 +406,17 @@ func (c *Module) Init() android.Module {
 		c.AddProperties(feature.props()...)
 	}
 
+	c.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
+		switch class {
+		case android.Device:
+			return ctx.Config().DevicePrefer32BitExecutables()
+		case android.HostCross:
+			// Windows builds always prefer 32-bit
+			return true
+		default:
+			return false
+		}
+	})
 	android.InitAndroidArchModule(c, c.hod, c.multilib)
 
 	android.InitDefaultableModule(c)
