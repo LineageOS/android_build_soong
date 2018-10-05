@@ -208,6 +208,10 @@ func AndroidAppFactory() android.Module {
 		&module.aaptProperties,
 		&module.appProperties)
 
+	module.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
+		return class == android.Device && ctx.Config().DevicePrefer32BitApps()
+	})
+
 	InitJavaModule(module, android.DeviceSupported)
 	return module
 }

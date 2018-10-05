@@ -359,7 +359,7 @@ func AndroidLibraryFactory() android.Module {
 
 	module.androidLibraryProperties.BuildAAR = true
 
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
 
@@ -382,6 +382,7 @@ type AARImportProperties struct {
 
 type AARImport struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
 
 	properties AARImportProperties
@@ -555,6 +556,6 @@ func AARImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Aars)
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	InitJavaModule(module, android.DeviceSupported)
 	return module
 }

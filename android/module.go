@@ -442,6 +442,8 @@ type ModuleBase struct {
 
 	// For tests
 	buildParams []BuildParams
+
+	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
 }
 
 func (a *ModuleBase) AddProperties(props ...interface{}) {
@@ -454,6 +456,10 @@ func (a *ModuleBase) GetProperties() []interface{} {
 
 func (a *ModuleBase) BuildParamsForTests() []BuildParams {
 	return a.buildParams
+}
+
+func (a *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool) {
+	a.prefer32 = prefer32
 }
 
 // Name returns the name of the module.  It may be overridden by individual module types, for

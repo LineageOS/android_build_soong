@@ -1493,7 +1493,6 @@ func TestFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
-	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -1508,7 +1507,6 @@ func TestHostFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	InitJavaModule(module, android.HostSupported)
-	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -1624,6 +1622,7 @@ type ImportProperties struct {
 
 type Import struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
 
 	properties ImportProperties
@@ -1752,7 +1751,7 @@ func ImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
-	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
 
@@ -1762,7 +1761,7 @@ func ImportFactoryHost() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
-	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
+	InitJavaModule(module, android.HostSupported)
 	return module
 }
 
@@ -1792,6 +1791,13 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&CompilerProperties{},
 		&CompilerDeviceProperties{},
 		&android.ProtoProperties{},
+		&aaptProperties{},
+		&androidLibraryProperties{},
+		&appProperties{},
+		&appTestProperties{},
+		&ImportProperties{},
+		&AARImportProperties{},
+		&sdkLibraryProperties{},
 	)
 
 	android.InitDefaultsModule(module)
