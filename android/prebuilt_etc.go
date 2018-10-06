@@ -49,6 +49,7 @@ type PrebuiltEtc struct {
 	properties prebuiltEtcProperties
 
 	sourceFilePath         Path
+	outputFilePath         OutputPath
 	installDirPath         OutputPath
 	additionalDependencies *Paths
 }
@@ -84,9 +85,25 @@ func (p *PrebuiltEtc) SetAdditionalDependencies(paths Paths) {
 	p.additionalDependencies = &paths
 }
 
+func (p *PrebuiltEtc) OutputFile() OutputPath {
+	return p.outputFilePath
+}
+
+func (p *PrebuiltEtc) SubDir() string {
+	return String(p.properties.Sub_dir)
+}
+
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 	p.sourceFilePath = ctx.ExpandSource(String(p.properties.Src), "src")
+	p.outputFilePath = PathForModuleOut(ctx, ctx.ModuleName()).OutputPath
 	p.installDirPath = PathForModuleInstall(ctx, "etc", String(p.properties.Sub_dir))
+
+	// This ensures that outputFilePath has the same name as this module.
+	ctx.Build(pctx, BuildParams{
+		Rule:   Cp,
+		Output: p.outputFilePath,
+		Input:  p.sourceFilePath,
+	})
 }
 
 func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
@@ -101,7 +118,7 @@ func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name+nameSuffix)
 			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
 			fmt.Fprintln(w, "LOCAL_MODULE_TAGS := optional")
-			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.sourceFilePath.String())
+			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.outputFilePath.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
 			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name)
 			if p.additionalDependencies != nil {
