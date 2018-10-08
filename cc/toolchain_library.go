@@ -26,13 +26,26 @@ func init() {
 	android.RegisterModuleType("toolchain_library", toolchainLibraryFactory)
 }
 
+type toolchainLibraryProperties struct {
+	// the prebuilt toolchain library, as a path from the top of the source tree
+	Src *string `android:"arch_variant"`
+}
+
 type toolchainLibraryDecorator struct {
 	*libraryDecorator
+
+	Properties toolchainLibraryProperties
 }
 
 func (*toolchainLibraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	// toolchain libraries can't have any dependencies
 	return deps
+}
+
+func (library *toolchainLibraryDecorator) linkerProps() []interface{} {
+	var props []interface{}
+	props = append(props, library.libraryDecorator.linkerProps()...)
+	return append(props, &library.Properties)
 }
 
 func toolchainLibraryFactory() android.Module {
@@ -58,16 +71,10 @@ func (library *toolchainLibraryDecorator) compile(ctx ModuleContext, flags Flags
 func (library *toolchainLibraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	libName := ctx.ModuleName() + staticLibraryExtension
-	outputFile := android.PathForModuleOut(ctx, libName)
-
-	if flags.Clang {
-		ctx.ModuleErrorf("toolchain_library must use GCC, not Clang")
+	if library.Properties.Src == nil {
+		ctx.PropertyErrorf("src", "No library source specified")
+		return android.PathForSource(ctx, "")
 	}
 
-	CopyGccLib(ctx, libName, flagsToBuilderFlags(flags), outputFile)
-
-	ctx.CheckbuildFile(outputFile)
-
-	return outputFile
+	return android.PathForSource(ctx, *library.Properties.Src)
 }
