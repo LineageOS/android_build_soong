@@ -340,10 +340,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
 	}
-	instructionSetFlags, err := tc.InstructionSetFlags(instructionSet)
-	if flags.Clang {
-		instructionSetFlags, err = tc.ClangInstructionSetFlags(instructionSet)
-	}
+	instructionSetFlags, err := tc.ClangInstructionSetFlags(instructionSet)
 	if err != nil {
 		ctx.ModuleErrorf("%s", err)
 	}
@@ -353,24 +350,22 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	// TODO: debug
 	flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Release.Cflags)...)
 
-	if flags.Clang {
-		CheckBadCompilerFlags(ctx, "clang_cflags", compiler.Properties.Clang_cflags)
-		CheckBadCompilerFlags(ctx, "clang_asflags", compiler.Properties.Clang_asflags)
+	CheckBadCompilerFlags(ctx, "clang_cflags", compiler.Properties.Clang_cflags)
+	CheckBadCompilerFlags(ctx, "clang_asflags", compiler.Properties.Clang_asflags)
 
-		flags.CFlags = config.ClangFilterUnknownCflags(flags.CFlags)
-		flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Clang_cflags)...)
-		flags.AsFlags = append(flags.AsFlags, esc(compiler.Properties.Clang_asflags)...)
-		flags.CppFlags = config.ClangFilterUnknownCflags(flags.CppFlags)
-		flags.ConlyFlags = config.ClangFilterUnknownCflags(flags.ConlyFlags)
-		flags.LdFlags = config.ClangFilterUnknownCflags(flags.LdFlags)
+	flags.CFlags = config.ClangFilterUnknownCflags(flags.CFlags)
+	flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Clang_cflags)...)
+	flags.AsFlags = append(flags.AsFlags, esc(compiler.Properties.Clang_asflags)...)
+	flags.CppFlags = config.ClangFilterUnknownCflags(flags.CppFlags)
+	flags.ConlyFlags = config.ClangFilterUnknownCflags(flags.ConlyFlags)
+	flags.LdFlags = config.ClangFilterUnknownCflags(flags.LdFlags)
 
-		target := "-target " + tc.ClangTriple()
-		gccPrefix := "-B" + config.ToolPath(tc)
+	target := "-target " + tc.ClangTriple()
+	gccPrefix := "-B" + config.ToolPath(tc)
 
-		flags.CFlags = append(flags.CFlags, target, gccPrefix)
-		flags.AsFlags = append(flags.AsFlags, target, gccPrefix)
-		flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
-	}
+	flags.CFlags = append(flags.CFlags, target, gccPrefix)
+	flags.AsFlags = append(flags.AsFlags, target, gccPrefix)
+	flags.LdFlags = append(flags.LdFlags, target, gccPrefix)
 
 	hod := "Host"
 	if ctx.Os().Class == android.Device {
@@ -381,25 +376,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.ConlyFlags = append([]string{"${config.CommonGlobalConlyflags}"}, flags.ConlyFlags...)
 	flags.CppFlags = append([]string{fmt.Sprintf("${config.%sGlobalCppflags}", hod)}, flags.CppFlags...)
 
-	if flags.Clang {
-		flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())
-		flags.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.CppFlags...)
-		flags.GlobalFlags = append(flags.GlobalFlags,
-			tc.ClangCflags(),
-			"${config.CommonClangGlobalCflags}",
-			fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
-	} else {
-		flags.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.CppFlags...)
-		flags.GlobalFlags = append(flags.GlobalFlags,
-			tc.Cflags(),
-			"${config.CommonGlobalCflags}",
-			fmt.Sprintf("${config.%sGlobalCflags}", hod))
-	}
+	flags.AsFlags = append(flags.AsFlags, tc.ClangAsflags())
+	flags.CppFlags = append([]string{"${config.CommonClangGlobalCppflags}"}, flags.CppFlags...)
+	flags.GlobalFlags = append(flags.GlobalFlags,
+		tc.ClangCflags(),
+		"${config.CommonClangGlobalCflags}",
+		fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
 
-	if flags.Clang {
-		if strings.HasPrefix(android.PathForModuleSrc(ctx).String(), "external/") {
-			flags.GlobalFlags = append([]string{"${config.ClangExternalCflags}"}, flags.GlobalFlags...)
-		}
+	if strings.HasPrefix(android.PathForModuleSrc(ctx).String(), "external/") {
+		flags.GlobalFlags = append([]string{"${config.ClangExternalCflags}"}, flags.GlobalFlags...)
 	}
 
 	if ctx.Device() {
@@ -412,19 +397,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	flags.AsFlags = append(flags.AsFlags, "-D__ASSEMBLY__")
 
-	if flags.Clang {
-		flags.CppFlags = append(flags.CppFlags, tc.ClangCppflags())
-	} else {
-		flags.CppFlags = append(flags.CppFlags, tc.Cppflags())
-	}
+	flags.CppFlags = append(flags.CppFlags, tc.ClangCppflags())
 
 	flags.YasmFlags = append(flags.YasmFlags, tc.YasmFlags())
 
-	if flags.Clang {
-		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainClangCflags())
-	} else {
-		flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainCflags())
-	}
+	flags.GlobalFlags = append(flags.GlobalFlags, tc.ToolchainClangCflags())
 
 	cStd := config.CStdVersion
 	if String(compiler.Properties.C_std) == "experimental" {

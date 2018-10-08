@@ -56,7 +56,6 @@ func ToolchainLibraryFactory() android.Module {
 	}
 	module.compiler = toolchainLibrary
 	module.linker = toolchainLibrary
-	module.Properties.Gcc = true
 	module.stl = nil
 	module.sanitize = nil
 	module.installer = nil
