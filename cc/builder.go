@@ -124,17 +124,6 @@ var (
 			Command: "rm -f $out && touch $out",
 		})
 
-	_ = pctx.SourcePathVariable("copyGccLibPath", "build/soong/scripts/copygcclib.sh")
-
-	copyGccLib = pctx.AndroidStaticRule("copyGccLib",
-		blueprint.RuleParams{
-			Depfile:     "${out}.d",
-			Deps:        blueprint.DepsGCC,
-			Command:     "$copyGccLibPath $out $ccCmd $cFlags -print-file-name=${libName}",
-			CommandDeps: []string{"$copyGccLibPath", "$ccCmd"},
-		},
-		"ccCmd", "cFlags", "libName")
-
 	_ = pctx.SourcePathVariable("tocPath", "build/soong/scripts/toc.sh")
 
 	toc = pctx.AndroidStaticRule("toc",
@@ -855,21 +844,6 @@ func TransformCoverageFilesToLib(ctx android.ModuleContext,
 	}
 
 	return android.OptionalPath{}
-}
-
-func CopyGccLib(ctx android.ModuleContext, libName string,
-	flags builderFlags, outputFile android.WritablePath) {
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        copyGccLib,
-		Description: "copy gcc library " + libName,
-		Output:      outputFile,
-		Args: map[string]string{
-			"ccCmd":   gccCmd(flags.toolchain, "gcc"),
-			"cFlags":  flags.globalFlags,
-			"libName": libName,
-		},
-	})
 }
 
 func gccCmd(toolchain config.Toolchain, cmd string) string {
