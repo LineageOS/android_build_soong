@@ -87,6 +87,34 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		}
 
 		toolchain_library {
+			name: "libclang_rt.builtins-arm-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.builtins-aarch64-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.builtins-i686-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.builtins-x86_64-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
 			name: "libgcc",
 			vendor_available: true,
 			recovery_available: true,
