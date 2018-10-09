@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 """Tests for gen_stub_libs.py."""
-import cStringIO
+import io
 import textwrap
 import unittest
 
@@ -200,7 +200,7 @@ class OmitVersionTest(unittest.TestCase):
 
 class SymbolFileParseTest(unittest.TestCase):
     def test_next_line(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             foo
 
             bar
@@ -223,7 +223,7 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertEqual('', parser.current_line)
 
     def test_parse_version(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 { # foo bar
                 baz;
                 qux; # woodly doodly
@@ -253,7 +253,7 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertEqual([], version.tags)
 
     def test_parse_version_eof(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
         """))
         parser = gsl.SymbolFileParser(input_file, {})
@@ -262,7 +262,7 @@ class SymbolFileParseTest(unittest.TestCase):
             parser.parse_version()
 
     def test_unknown_scope_label(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 foo:
             }
@@ -273,7 +273,7 @@ class SymbolFileParseTest(unittest.TestCase):
             parser.parse_version()
 
     def test_parse_symbol(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             foo;
             bar; # baz qux
         """))
@@ -290,7 +290,7 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertEqual(['baz', 'qux'], symbol.tags)
 
     def test_wildcard_symbol_global(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 *;
             };
@@ -301,7 +301,7 @@ class SymbolFileParseTest(unittest.TestCase):
             parser.parse_version()
 
     def test_wildcard_symbol_local(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 local:
                     *;
@@ -313,7 +313,7 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertEqual([], version.symbols)
 
     def test_missing_semicolon(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 foo
             };
@@ -325,12 +325,12 @@ class SymbolFileParseTest(unittest.TestCase):
 
     def test_parse_fails_invalid_input(self):
         with self.assertRaises(gsl.ParseError):
-            input_file = cStringIO.StringIO('foo')
+            input_file = io.StringIO('foo')
             parser = gsl.SymbolFileParser(input_file, {})
             parser.parse()
 
     def test_parse(self):
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 local:
                     hidden1;
@@ -368,8 +368,8 @@ class GeneratorTest(unittest.TestCase):
     def test_omit_version(self):
         # Thorough testing of the cases involved here is handled by
         # OmitVersionTest, PrivateVersionTest, and SymbolPresenceTest.
-        src_file = cStringIO.StringIO()
-        version_file = cStringIO.StringIO()
+        src_file = io.StringIO()
+        version_file = io.StringIO()
         generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
 
         version = gsl.Version('VERSION_PRIVATE', None, [], [
@@ -396,8 +396,8 @@ class GeneratorTest(unittest.TestCase):
     def test_omit_symbol(self):
         # Thorough testing of the cases involved here is handled by
         # SymbolPresenceTest.
-        src_file = cStringIO.StringIO()
-        version_file = cStringIO.StringIO()
+        src_file = io.StringIO()
+        version_file = io.StringIO()
         generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
 
         version = gsl.Version('VERSION_1', None, [], [
@@ -422,8 +422,8 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual('', version_file.getvalue())
 
     def test_write(self):
-        src_file = cStringIO.StringIO()
-        version_file = cStringIO.StringIO()
+        src_file = io.StringIO()
+        version_file = io.StringIO()
         generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
 
         versions = [
@@ -475,7 +475,7 @@ class IntegrationTest(unittest.TestCase):
             'P': 9001,
         }
 
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 global:
                     foo; # var
@@ -508,8 +508,8 @@ class IntegrationTest(unittest.TestCase):
         parser = gsl.SymbolFileParser(input_file, api_map)
         versions = parser.parse()
 
-        src_file = cStringIO.StringIO()
-        version_file = cStringIO.StringIO()
+        src_file = io.StringIO()
+        version_file = io.StringIO()
         generator = gsl.Generator(src_file, version_file, 'arm', 9, False)
         generator.write(versions)
 
@@ -545,7 +545,7 @@ class IntegrationTest(unittest.TestCase):
             'Q': 9002,
         }
 
-        input_file = cStringIO.StringIO(textwrap.dedent("""\
+        input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 global:
                     foo; # introduced=O
@@ -558,8 +558,8 @@ class IntegrationTest(unittest.TestCase):
         parser = gsl.SymbolFileParser(input_file, api_map)
         versions = parser.parse()
 
-        src_file = cStringIO.StringIO()
-        version_file = cStringIO.StringIO()
+        src_file = io.StringIO()
+        version_file = io.StringIO()
         generator = gsl.Generator(src_file, version_file, 'arm', 9001, False)
         generator.write(versions)
 
