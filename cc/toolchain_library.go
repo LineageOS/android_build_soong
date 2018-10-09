@@ -23,7 +23,7 @@ import (
 //
 
 func init() {
-	android.RegisterModuleType("toolchain_library", toolchainLibraryFactory)
+	android.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 }
 
 type toolchainLibraryProperties struct {
@@ -48,7 +48,7 @@ func (library *toolchainLibraryDecorator) linkerProps() []interface{} {
 	return append(props, &library.Properties)
 }
 
-func toolchainLibraryFactory() android.Module {
+func ToolchainLibraryFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	toolchainLibrary := &toolchainLibraryDecorator{
