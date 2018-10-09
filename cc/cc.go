@@ -35,11 +35,11 @@ func init() {
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", imageMutator).Parallel()
-		ctx.BottomUp("link", linkageMutator).Parallel()
+		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
-		ctx.BottomUp("begin", beginMutator).Parallel()
+		ctx.BottomUp("begin", BeginMutator).Parallel()
 	})
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -1093,7 +1093,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 }
 
-func beginMutator(ctx android.BottomUpMutatorContext) {
+func BeginMutator(ctx android.BottomUpMutatorContext) {
 	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
 		c.beginMutator(ctx)
 	}

@@ -61,7 +61,7 @@ var (
 	// These libraries have migrated over to the new ndk_library, which is added
 	// as a variation dependency via depsMutator.
 	ndkMigratedLibs     = []string{}
-	ndkMigratedLibsLock sync.Mutex // protects ndkMigratedLibs writes during parallel beginMutator
+	ndkMigratedLibsLock sync.Mutex // protects ndkMigratedLibs writes during parallel BeginMutator
 )
 
 // Creates a stub shared library based on the provided version file.
