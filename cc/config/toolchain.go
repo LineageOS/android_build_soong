@@ -49,13 +49,7 @@ type Toolchain interface {
 	GccVersion() string
 	ToolPath() string
 
-	ToolchainCflags() string
-	ToolchainLdflags() string
-	Cflags() string
-	Cppflags() string
-	Ldflags() string
 	IncludeFlags() string
-	InstructionSetFlags(string) (string, error)
 
 	ClangTriple() string
 	ToolchainClangCflags() string
@@ -101,26 +95,11 @@ func NDKTriple(toolchain Toolchain) string {
 	return triple
 }
 
-func (toolchainBase) InstructionSetFlags(s string) (string, error) {
-	if s != "" {
-		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
-	}
-	return "", nil
-}
-
 func (toolchainBase) ClangInstructionSetFlags(s string) (string, error) {
 	if s != "" {
 		return "", fmt.Errorf("instruction_set: %s is not a supported instruction set", s)
 	}
 	return "", nil
-}
-
-func (toolchainBase) ToolchainCflags() string {
-	return ""
-}
-
-func (toolchainBase) ToolchainLdflags() string {
-	return ""
 }
 
 func (toolchainBase) ToolchainClangCflags() string {
