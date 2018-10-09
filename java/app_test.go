@@ -17,6 +17,7 @@ package java
 import (
 	"android/soong/android"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -336,5 +337,120 @@ func TestAppSdkVersion(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestJNI(t *testing.T) {
+	ctx := testJava(t, `
+		toolchain_library {
+			name: "libcompiler_rt-extras",
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libatomic",
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libgcc",
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.builtins-aarch64-android",
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.builtins-arm-android",
+			src: "",
+		}
+
+		cc_object {
+			name: "crtbegin_so",
+			stl: "none",
+		}
+
+		cc_object {
+			name: "crtend_so",
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libjni",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		android_test {
+			name: "test",
+			no_framework_libs: true,
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_first",
+			no_framework_libs: true,
+			compile_multilib: "first",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_both",
+			no_framework_libs: true,
+			compile_multilib: "both",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_32",
+			no_framework_libs: true,
+			compile_multilib: "32",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_64",
+			no_framework_libs: true,
+			compile_multilib: "64",
+			jni_libs: ["libjni"],
+		}
+		`)
+
+	// check the existence of the internal modules
+	ctx.ModuleForTests("test", "android_common")
+	ctx.ModuleForTests("test_first", "android_common")
+	ctx.ModuleForTests("test_both", "android_common")
+	ctx.ModuleForTests("test_32", "android_common")
+	ctx.ModuleForTests("test_64", "android_common")
+
+	testCases := []struct {
+		name string
+		abis []string
+	}{
+		{"test", []string{"arm64-v8a"}},
+		{"test_first", []string{"arm64-v8a"}},
+		{"test_both", []string{"arm64-v8a", "armeabi-v7a"}},
+		{"test_32", []string{"armeabi-v7a"}},
+		{"test_64", []string{"arm64-v8a"}},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			app := ctx.ModuleForTests(test.name, "android_common")
+			jniLibZip := app.Output("jnilibs.zip")
+			var abis []string
+			args := strings.Fields(jniLibZip.Args["jarArgs"])
+			for i := 0; i < len(args); i++ {
+				if args[i] == "-P" {
+					abis = append(abis, filepath.Base(args[i+1]))
+					i++
+				}
+			}
+			if !reflect.DeepEqual(abis, test.abis) {
+				t.Errorf("want abis %v, got %v", test.abis, abis)
+			}
+		})
 	}
 }

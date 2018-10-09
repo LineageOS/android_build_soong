@@ -243,6 +243,10 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if len(app.appProperties.Overrides) > 0 {
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES := "+strings.Join(app.appProperties.Overrides, " "))
 				}
+
+				for _, jniLib := range app.installJniLibs {
+					fmt.Fprintln(w, "LOCAL_SOONG_JNI_LIBS_"+jniLib.target.Arch.ArchType.String(), "+=", jniLib.name)
+				}
 			},
 		},
 	}
@@ -263,6 +267,21 @@ func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 		}
 	})
 	androidMkWriteTestData(a.data, &data)
+
+	return data
+}
+
+func (a *AndroidTestHelperApp) AndroidMk() android.AndroidMkData {
+	data := a.AndroidApp.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
+		if len(a.appTestHelperAppProperties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+				strings.Join(a.appTestHelperAppProperties.Test_suites, " "))
+		} else {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
+		}
+	})
 
 	return data
 }
