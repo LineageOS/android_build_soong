@@ -52,9 +52,8 @@ type HostToolProvider interface {
 
 type hostToolDependencyTag struct {
 	blueprint.BaseDependencyTag
+	label string
 }
-
-var hostToolDepTag hostToolDependencyTag
 
 type generatorProperties struct {
 	// The command to run on one or more input files. Cmd supports substitution of a few variables
@@ -63,7 +62,7 @@ type generatorProperties struct {
 	// Available variables for substitution:
 	//
 	//  $(location): the path to the first entry in tools or tool_files
-	//  $(location <label>): the path to the tool or tool_file with name <label>
+	//  $(location <label>): the path to the tool, tool_file, input or output with name <label>
 	//  $(in): one or more input files
 	//  $(out): a single output file
 	//  $(depfile): a file to which dependencies will be written, if the depfile property is set to true
@@ -141,10 +140,14 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, g.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, g.properties.Tool_files)
 	if g, ok := ctx.Module().(*Module); ok {
-		if len(g.properties.Tools) > 0 {
+		for _, tool := range g.properties.Tools {
+			tag := hostToolDependencyTag{label: tool}
+			if m := android.SrcIsModule(tool); m != "" {
+				tool = m
+			}
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{Mutator: "arch", Variation: ctx.Config().BuildOsVariant},
-			}, hostToolDepTag, g.properties.Tools...)
+			}, tag, tool)
 		}
 	}
 }
@@ -159,12 +162,25 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		g.exportedIncludeDirs = append(g.exportedIncludeDirs, android.PathForModuleGen(ctx, ""))
 	}
 
-	tools := map[string]android.Path{}
+	locationLabels := map[string][]string{}
+	firstLabel := ""
+
+	addLocationLabel := func(label string, paths []string) {
+		if firstLabel == "" {
+			firstLabel = label
+		}
+		if _, exists := locationLabels[label]; !exists {
+			locationLabels[label] = paths
+		} else {
+			ctx.ModuleErrorf("multiple labels for %q, %q and %q",
+				label, strings.Join(locationLabels[label], " "), strings.Join(paths, " "))
+		}
+	}
 
 	if len(g.properties.Tools) > 0 {
 		ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
-			switch ctx.OtherModuleDependencyTag(module) {
-			case hostToolDepTag:
+			switch tag := ctx.OtherModuleDependencyTag(module).(type) {
+			case hostToolDependencyTag:
 				tool := ctx.OtherModuleName(module)
 				var path android.OptionalPath
 
@@ -192,11 +208,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 				if path.Valid() {
 					g.deps = append(g.deps, path.Path())
-					if _, exists := tools[tool]; !exists {
-						tools[tool] = path.Path()
-					} else {
-						ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool], path.Path().String())
-					}
+					addLocationLabel(tag.label, []string{path.Path().String()})
 				} else {
 					ctx.ModuleErrorf("host tool %q missing output file", tool)
 				}
@@ -208,20 +220,26 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	toolFiles := ctx.ExpandSources(g.properties.Tool_files, nil)
-	for _, tool := range toolFiles {
-		g.deps = append(g.deps, tool)
-		if _, exists := tools[tool.Rel()]; !exists {
-			tools[tool.Rel()] = tool
-		} else {
-			ctx.ModuleErrorf("multiple tools for %q, %q and %q", tool, tools[tool.Rel()], tool.Rel())
-		}
+	for _, toolFile := range g.properties.Tool_files {
+		paths := ctx.ExpandSources([]string{toolFile}, nil)
+		g.deps = append(g.deps, paths...)
+		addLocationLabel(toolFile, paths.Strings())
+	}
+
+	var srcFiles android.Paths
+	for _, in := range g.properties.Srcs {
+		paths := ctx.ExpandSources([]string{in}, nil)
+		srcFiles = append(srcFiles, paths...)
+		addLocationLabel(in, paths.Strings())
+	}
+
+	task := g.taskGenerator(ctx, String(g.properties.Cmd), srcFiles)
+
+	for _, out := range task.out {
+		addLocationLabel(out.Rel(), []string{filepath.Join("__SBOX_OUT_DIR__", out.Rel())})
 	}
 
 	referencedDepfile := false
-
-	srcFiles := ctx.ExpandSources(g.properties.Srcs, nil)
-	task := g.taskGenerator(ctx, String(g.properties.Cmd), srcFiles)
 
 	rawCommand, err := android.Expand(task.cmd, func(name string) (string, error) {
 		// report the error directly without returning an error to android.Expand to catch multiple errors in a
@@ -233,13 +251,17 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		switch name {
 		case "location":
-			if len(g.properties.Tools) == 0 && len(toolFiles) == 0 {
+			if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
 				return reportError("at least one `tools` or `tool_files` is required if $(location) is used")
-			} else if len(g.properties.Tools) > 0 {
-				return tools[g.properties.Tools[0]].String(), nil
-			} else {
-				return tools[toolFiles[0].Rel()].String(), nil
 			}
+			paths := locationLabels[firstLabel]
+			if len(paths) == 0 {
+				return reportError("default label %q has no files", firstLabel)
+			} else if len(paths) > 1 {
+				return reportError("default label %q has multiple files, use $(locations %s) to reference it",
+					firstLabel, firstLabel)
+			}
+			return locationLabels[firstLabel][0], nil
 		case "in":
 			return "${in}", nil
 		case "out":
@@ -255,13 +277,30 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		default:
 			if strings.HasPrefix(name, "location ") {
 				label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
-				if tool, ok := tools[label]; ok {
-					return tool.String(), nil
+				if paths, ok := locationLabels[label]; ok {
+					if len(paths) == 0 {
+						return reportError("label %q has no files", label)
+					} else if len(paths) > 1 {
+						return reportError("label %q has multiple files, use $(locations %s) to reference it",
+							label, label)
+					}
+					return paths[0], nil
 				} else {
 					return reportError("unknown location label %q", label)
 				}
+			} else if strings.HasPrefix(name, "locations ") {
+				label := strings.TrimSpace(strings.TrimPrefix(name, "locations "))
+				if paths, ok := locationLabels[label]; ok {
+					if len(paths) == 0 {
+						return reportError("label %q has no files", label)
+					}
+					return strings.Join(paths, " "), nil
+				} else {
+					return reportError("unknown locations label %q", label)
+				}
+			} else {
+				return reportError("unknown variable '$(%s)'", name)
 			}
-			return reportError("unknown variable '$(%s)'", name)
 		}
 	})
 
