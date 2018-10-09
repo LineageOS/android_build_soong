@@ -58,6 +58,7 @@ type ModuleBuildParams BuildParams
 type androidBaseContext interface {
 	Target() Target
 	TargetPrimary() bool
+	MultiTargets() []Target
 	Arch() Arch
 	Os() OsType
 	Host() bool
@@ -215,7 +216,8 @@ type commonProperties struct {
 		}
 	}
 
-	Default_multilib string `blueprint:"mutated"`
+	UseTargetVariants bool   `blueprint:"mutated"`
+	Default_multilib  string `blueprint:"mutated"`
 
 	// whether this is a proprietary vendor module, and should be installed into /vendor
 	Proprietary *bool
@@ -264,8 +266,9 @@ type commonProperties struct {
 	Notice *string
 
 	// Set by TargetMutator
-	CompileTarget  Target `blueprint:"mutated"`
-	CompilePrimary bool   `blueprint:"mutated"`
+	CompileTarget       Target   `blueprint:"mutated"`
+	CompileMultiTargets []Target `blueprint:"mutated"`
+	CompilePrimary      bool     `blueprint:"mutated"`
 
 	// Set by InitAndroidModule
 	HostOrDeviceSupported HostOrDeviceSupported `blueprint:"mutated"`
@@ -362,6 +365,7 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	base.commonProperties.HostOrDeviceSupported = hod
 	base.commonProperties.Default_multilib = string(defaultMultilib)
 	base.commonProperties.ArchSpecific = true
+	base.commonProperties.UseTargetVariants = true
 
 	switch hod {
 	case HostAndDeviceSupported, HostAndDeviceDefault:
@@ -369,6 +373,11 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	}
 
 	InitArchModule(m)
+}
+
+func InitAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
+	InitAndroidArchModule(m, hod, defaultMultilib)
+	m.base().commonProperties.UseTargetVariants = false
 }
 
 // A ModuleBase object contains the properties that are common to all Android
@@ -477,8 +486,9 @@ func (a *ModuleBase) base() *ModuleBase {
 	return a
 }
 
-func (a *ModuleBase) SetTarget(target Target, primary bool) {
+func (a *ModuleBase) SetTarget(target Target, multiTargets []Target, primary bool) {
 	a.commonProperties.CompileTarget = target
+	a.commonProperties.CompileMultiTargets = multiTargets
 	a.commonProperties.CompilePrimary = primary
 }
 
@@ -488,6 +498,10 @@ func (a *ModuleBase) Target() Target {
 
 func (a *ModuleBase) TargetPrimary() bool {
 	return a.commonProperties.CompilePrimary
+}
+
+func (a *ModuleBase) MultiTargets() []Target {
+	return a.commonProperties.CompileMultiTargets
 }
 
 func (a *ModuleBase) Os() OsType {
@@ -731,6 +745,7 @@ func (a *ModuleBase) androidBaseContextFactory(ctx blueprint.BaseModuleContext) 
 	return androidBaseContextImpl{
 		target:        a.commonProperties.CompileTarget,
 		targetPrimary: a.commonProperties.CompilePrimary,
+		multiTargets:  a.commonProperties.CompileMultiTargets,
 		kind:          determineModuleKind(a, ctx),
 		config:        ctx.Config().(Config),
 	}
@@ -785,6 +800,7 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 type androidBaseContextImpl struct {
 	target        Target
+	multiTargets  []Target
 	targetPrimary bool
 	debug         bool
 	kind          moduleKind
@@ -1020,6 +1036,10 @@ func (a *androidBaseContextImpl) Target() Target {
 
 func (a *androidBaseContextImpl) TargetPrimary() bool {
 	return a.targetPrimary
+}
+
+func (a *androidBaseContextImpl) MultiTargets() []Target {
+	return a.multiTargets
 }
 
 func (a *androidBaseContextImpl) Arch() Arch {

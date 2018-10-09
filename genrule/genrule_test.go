@@ -133,6 +133,15 @@ func TestGenruleCmd(t *testing.T) {
 			expect: "out/tool > __SBOX_OUT_FILES__",
 		},
 		{
+			name: "empty location tool2",
+			prop: `
+				tools: [":tool"],
+				out: ["out"],
+				cmd: "$(location) > $(out)",
+			`,
+			expect: "out/tool > __SBOX_OUT_FILES__",
+		},
+		{
 			name: "empty location tool file",
 			prop: `
 				tool_files: ["tool_file1"],
@@ -170,6 +179,15 @@ func TestGenruleCmd(t *testing.T) {
 			expect: "out/tool > __SBOX_OUT_FILES__",
 		},
 		{
+			name: "tool2",
+			prop: `
+				tools: [":tool"],
+				out: ["out"],
+				cmd: "$(location :tool) > $(out)",
+			`,
+			expect: "out/tool > __SBOX_OUT_FILES__",
+		},
+		{
 			name: "tool file",
 			prop: `
 				tool_files: ["tool_file1"],
@@ -183,7 +201,7 @@ func TestGenruleCmd(t *testing.T) {
 			prop: `
 				tool_files: [":1tool_file"],
 				out: ["out"],
-				cmd: "$(location tool_file1) > $(out)",
+				cmd: "$(location :1tool_file) > $(out)",
 			`,
 			expect: "tool_file1 > __SBOX_OUT_FILES__",
 		},
@@ -192,7 +210,7 @@ func TestGenruleCmd(t *testing.T) {
 			prop: `
 				tool_files: [":tool_files"],
 				out: ["out"],
-				cmd: "$(location tool_file1) $(location tool_file2) > $(out)",
+				cmd: "$(locations :tool_files) > $(out)",
 			`,
 			expect: "tool_file1 tool_file2 > __SBOX_OUT_FILES__",
 		},
@@ -233,12 +251,56 @@ func TestGenruleCmd(t *testing.T) {
 			expect: "cat ${in} > __SBOX_OUT_FILES__",
 		},
 		{
+			name: "location in1",
+			prop: `
+				srcs: ["in1"],
+				out: ["out"],
+				cmd: "cat $(location in1) > $(out)",
+			`,
+			expect: "cat in1 > __SBOX_OUT_FILES__",
+		},
+		{
+			name: "location in1 fg",
+			prop: `
+				srcs: [":1in"],
+				out: ["out"],
+				cmd: "cat $(location :1in) > $(out)",
+			`,
+			expect: "cat in1 > __SBOX_OUT_FILES__",
+		},
+		{
+			name: "location ins",
+			prop: `
+				srcs: ["in1", "in2"],
+				out: ["out"],
+				cmd: "cat $(location in1) > $(out)",
+			`,
+			expect: "cat in1 > __SBOX_OUT_FILES__",
+		},
+		{
+			name: "location ins fg",
+			prop: `
+				srcs: [":ins"],
+				out: ["out"],
+				cmd: "cat $(locations :ins) > $(out)",
+			`,
+			expect: "cat in1 in2 > __SBOX_OUT_FILES__",
+		},
+		{
 			name: "outs",
 			prop: `
 				out: ["out", "out2"],
 				cmd: "echo foo > $(out)",
 			`,
 			expect: "echo foo > __SBOX_OUT_FILES__",
+		},
+		{
+			name: "location out",
+			prop: `
+				out: ["out", "out2"],
+				cmd: "echo foo > $(location out2)",
+			`,
+			expect: "echo foo > __SBOX_OUT_DIR__/out2",
 		},
 		{
 			name: "depfile",
@@ -267,12 +329,65 @@ func TestGenruleCmd(t *testing.T) {
 			err: "at least one `tools` or `tool_files` is required if $(location) is used",
 		},
 		{
+			name: "error empty location no files",
+			prop: `
+				tool_files: [":empty"],
+				out: ["out"],
+				cmd: "$(location) > $(out)",
+			`,
+			err: `default label ":empty" has no files`,
+		},
+		{
+			name: "error empty location multiple files",
+			prop: `
+				tool_files: [":tool_files"],
+				out: ["out"],
+				cmd: "$(location) > $(out)",
+			`,
+			err: `default label ":tool_files" has multiple files`,
+		},
+		{
 			name: "error location",
 			prop: `
 				out: ["out"],
 				cmd: "echo foo > $(location missing)",
 			`,
 			err: `unknown location label "missing"`,
+		},
+		{
+			name: "error locations",
+			prop: `
+					out: ["out"],
+					cmd: "echo foo > $(locations missing)",
+			`,
+			err: `unknown locations label "missing"`,
+		},
+		{
+			name: "error location no files",
+			prop: `
+					out: ["out"],
+					srcs: [":empty"],
+					cmd: "echo $(location :empty) > $(out)",
+			`,
+			err: `label ":empty" has no files`,
+		},
+		{
+			name: "error locations no files",
+			prop: `
+					out: ["out"],
+					srcs: [":empty"],
+					cmd: "echo $(locations :empty) > $(out)",
+			`,
+			err: `label ":empty" has no files`,
+		},
+		{
+			name: "error location multiple files",
+			prop: `
+					out: ["out"],
+					srcs: [":ins"],
+					cmd: "echo $(location :ins) > $(out)",
+			`,
+			err: `label ":ins" has multiple files`,
 		},
 		{
 			name: "error variable",

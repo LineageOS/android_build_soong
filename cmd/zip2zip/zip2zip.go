@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -39,11 +40,13 @@ var (
 
 	staticTime = time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	excludes excludeArgs
+	excludes   multiFlag
+	uncompress multiFlag
 )
 
 func init() {
 	flag.Var(&excludes, "x", "exclude a filespec from the output")
+	flag.Var(&uncompress, "0", "convert a filespec to uncompressed in the output")
 }
 
 func main() {
@@ -93,7 +96,7 @@ func main() {
 	}()
 
 	if err := zip2zip(&reader.Reader, writer, *sortGlobs, *sortJava, *setTime,
-		flag.Args(), excludes); err != nil {
+		flag.Args(), excludes, uncompress); err != nil {
 
 		log.Fatal(err)
 	}
@@ -101,11 +104,12 @@ func main() {
 
 type pair struct {
 	*zip.File
-	newName string
+	newName    string
+	uncompress bool
 }
 
 func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTime bool,
-	includes []string, excludes []string) error {
+	includes, excludes, uncompresses []string) error {
 
 	matches := []pair{}
 
@@ -149,7 +153,7 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 						newName = output
 					}
 				}
-				includeMatches = append(includeMatches, pair{file, newName})
+				includeMatches = append(includeMatches, pair{file, newName, false})
 			}
 		}
 
@@ -160,7 +164,7 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 	if len(includes) == 0 {
 		// implicitly match everything
 		for _, file := range reader.File {
-			matches = append(matches, pair{file, file.Name})
+			matches = append(matches, pair{file, file.Name, false})
 		}
 		sortMatches(matches)
 	}
@@ -193,6 +197,15 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 		}
 		seen[match.newName] = match.File
 
+		for _, u := range uncompresses {
+			if uncompressMatch, err := pathtools.Match(u, match.newName); err != nil {
+				return err
+			} else if uncompressMatch {
+				match.uncompress = true
+				break
+			}
+		}
+
 		matchesAfterExcludes = append(matchesAfterExcludes, match)
 	}
 
@@ -200,8 +213,32 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 		if setTime {
 			match.File.SetModTime(staticTime)
 		}
-		if err := writer.CopyFrom(match.File, match.newName); err != nil {
-			return err
+		if match.uncompress && match.File.FileHeader.Method != zip.Store {
+			fh := match.File.FileHeader
+			fh.Name = match.newName
+			fh.Method = zip.Store
+			fh.CompressedSize64 = fh.UncompressedSize64
+
+			zw, err := writer.CreateHeaderAndroid(&fh)
+			if err != nil {
+				return err
+			}
+
+			zr, err := match.File.Open()
+			if err != nil {
+				return err
+			}
+
+			_, err = io.Copy(zw, zr)
+			zr.Close()
+			if err != nil {
+				return err
+			}
+		} else {
+			err := writer.CopyFrom(match.File, match.newName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -217,13 +254,13 @@ func includeSplit(s string) (string, string) {
 	}
 }
 
-type excludeArgs []string
+type multiFlag []string
 
-func (e *excludeArgs) String() string {
+func (e *multiFlag) String() string {
 	return strings.Join(*e, " ")
 }
 
-func (e *excludeArgs) Set(s string) error {
+func (e *multiFlag) Set(s string) error {
 	*e = append(*e, s)
 	return nil
 }

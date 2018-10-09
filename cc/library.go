@@ -821,7 +821,7 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 	}
 }
 
-func linkageMutator(mctx android.BottomUpMutatorContext) {
+func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
 		if library, ok := m.linker.(libraryInterface); ok {
 			var modules []blueprint.Module

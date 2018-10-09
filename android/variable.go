@@ -183,7 +183,6 @@ type productVariables struct {
 	Eng                        *bool `json:",omitempty"`
 	Device_uses_hwc2           *bool `json:",omitempty"`
 	Treble_linker_namespaces   *bool `json:",omitempty"`
-	Sepolicy_split             *bool `json:",omitempty"`
 	Enforce_vintf_manifest     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
 	Uml                        *bool `json:",omitempty"`

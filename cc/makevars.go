@@ -87,9 +87,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("RS_LLVM_LINK", "${config.RSLLVMPrebuiltsPath}/llvm-link")
 
 	ctx.Strict("CLANG_EXTERNAL_CFLAGS", "${config.ClangExternalCflags}")
-	ctx.Strict("GLOBAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideGlobalCflags}")
-	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.ClangExtraNoOverrideCflags}")
-	ctx.Strict("GLOBAL_CPPFLAGS_NO_OVERRIDE", "")
+	ctx.Strict("GLOBAL_CLANG_CFLAGS_NO_OVERRIDE", "${config.NoOverrideClangGlobalCflags}")
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("NDK_PREBUILT_SHARED_LIBRARIES", strings.Join(ndkPrebuiltSharedLibs, " "))
 
@@ -230,13 +228,13 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	ctx.StrictRaw(makePrefix+"C_SYSTEM_INCLUDES", strings.Join(systemIncludes, " "))
 
 	if target.Arch.ArchType == android.Arm {
-		flags, err := toolchain.InstructionSetFlags("arm")
+		flags, err := toolchain.ClangInstructionSetFlags("arm")
 		if err != nil {
 			panic(err)
 		}
 		ctx.Strict(makePrefix+"arm_CFLAGS", flags)
 
-		flags, err = toolchain.InstructionSetFlags("thumb")
+		flags, err = toolchain.ClangInstructionSetFlags("thumb")
 		if err != nil {
 			panic(err)
 		}
@@ -309,16 +307,14 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
 		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
 		ctx.Strict(makePrefix+"GCC_VERSION", toolchain.GccVersion())
-		ctx.Strict(makePrefix+"NDK_GCC_VERSION", toolchain.GccVersion())
 		ctx.Strict(makePrefix+"NDK_TRIPLE", config.NDKTriple(toolchain))
+		ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 	}
 
 	if target.Os.Class == android.Host || target.Os.Class == android.HostCross {
 		ctx.Strict(makePrefix+"AVAILABLE_LIBRARIES", strings.Join(toolchain.AvailableLibraries(), " "))
 	}
 
-	ctx.Strict(makePrefix+"TOOLCHAIN_ROOT", toolchain.GccRoot())
-	ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 	ctx.Strict(makePrefix+"SHLIB_SUFFIX", toolchain.ShlibSuffix())
 	ctx.Strict(makePrefix+"EXECUTABLE_SUFFIX", toolchain.ExecutableSuffix())
 }
