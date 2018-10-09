@@ -293,7 +293,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		hod = "Device"
 	}
 
-	if flags.Clang && linker.useClangLld(ctx) {
+	if linker.useClangLld(ctx) {
 		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
 		if !BoolDefault(linker.MoreProperties.Pack_relocations, true) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=none")
@@ -310,12 +310,10 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 	}
 
-	if flags.Clang && linker.useClangLld(ctx) {
+	if linker.useClangLld(ctx) {
 		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLldflags())
-	} else if flags.Clang {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
 	} else {
-		flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
+		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
 	}
 
 	if !ctx.toolchain().Bionic() {
@@ -362,11 +360,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--hash-style=both")
 	}
 
-	if flags.Clang {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
-	} else {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
-	}
+	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true

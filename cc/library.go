@@ -274,11 +274,6 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 
 	if library.shared() {
 		libName := library.getLibName(ctx)
-		// GCC for Android assumes that -shared means -Bsymbolic, use -Wl,-shared instead
-		sharedFlag := "-Wl,-shared"
-		if flags.Clang || ctx.Host() {
-			sharedFlag = "-shared"
-		}
 		var f []string
 		if ctx.toolchain().Bionic() {
 			f = append(f,
@@ -300,7 +295,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 			}
 		} else {
 			f = append(f,
-				sharedFlag,
+				"-shared",
 				"-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix())
 		}
 
@@ -558,8 +553,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	if library.stripper.needsStrip(ctx) {
 		// b/80093681, GNU strip/objcopy bug.
 		// Use llvm-{strip,objcopy} when clang lld is used.
-		builderFlags.stripUseLlvmStrip =
-			flags.Clang && library.baseLinker.useClangLld(ctx)
+		builderFlags.stripUseLlvmStrip = library.baseLinker.useClangLld(ctx)
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
