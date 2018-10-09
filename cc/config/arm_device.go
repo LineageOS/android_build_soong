@@ -348,17 +348,6 @@ func (t *toolchainArm) IncludeFlags() string {
 	return "${config.ArmIncludeFlags}"
 }
 
-func (t *toolchainArm) InstructionSetFlags(isa string) (string, error) {
-	switch isa {
-	case "arm":
-		return "${config.ArmArmCflags}", nil
-	case "thumb", "":
-		return "${config.ArmThumbCflags}", nil
-	default:
-		return t.toolchainBase.InstructionSetFlags(isa)
-	}
-}
-
 func (t *toolchainArm) ClangTriple() string {
 	// http://b/72619014 work around llvm LTO bug.
 	return "armv7a-linux-androideabi"

@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"android/soong/android"
-	"android/soong/cc/config"
 	"os"
 	"path"
 	"path/filepath"
@@ -150,18 +149,10 @@ func generateCLionProject(compiledModule CompiledInterface, ctx android.Singleto
 	f.WriteString(fmt.Sprintf("project(%s)\n", ccModule.ModuleBase.Name()))
 	f.WriteString(fmt.Sprintf("set(ANDROID_ROOT %s)\n\n", getAndroidSrcRootDirectory(ctx)))
 
-	if ccModule.flags.Clang {
-		pathToCC, _ := evalVariable(ctx, "${config.ClangBin}/")
-		f.WriteString(fmt.Sprintf("set(CMAKE_C_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "clang"))
-		f.WriteString(fmt.Sprintf("set(CMAKE_CXX_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "clang++"))
-	} else {
-		toolchain := config.FindToolchain(ccModule.Os(), ccModule.Arch())
-		root, _ := evalVariable(ctx, toolchain.GccRoot())
-		triple, _ := evalVariable(ctx, toolchain.GccTriple())
-		pathToCC := filepath.Join(root, "bin", triple+"-")
-		f.WriteString(fmt.Sprintf("set(CMAKE_C_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "gcc"))
-		f.WriteString(fmt.Sprintf("set(CMAKE_CXX_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "g++"))
-	}
+	pathToCC, _ := evalVariable(ctx, "${config.ClangBin}/")
+	f.WriteString(fmt.Sprintf("set(CMAKE_C_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "clang"))
+	f.WriteString(fmt.Sprintf("set(CMAKE_CXX_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "clang++"))
+
 	// Add all sources to the project.
 	f.WriteString("list(APPEND\n")
 	f.WriteString("     SOURCE_FILES\n")

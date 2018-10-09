@@ -64,11 +64,7 @@ func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (*objectLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	if flags.Clang {
-		flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainClangLdflags())
-	} else {
-		flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainLdflags())
-	}
+	flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainClangLdflags())
 
 	return flags
 }
