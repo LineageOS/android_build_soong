@@ -219,6 +219,7 @@ bootstrap_go_package {
         "blueprint-pathtools",
         "soong",
         "soong-android",
+        "soong-cc",
         "soong-genrule",
         "soong-java-config",
         "soong-tradefed",
