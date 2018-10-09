@@ -26,13 +26,15 @@ import (
 var testCases = []struct {
 	name string
 
-	inputFiles []string
-	sortGlobs  bool
-	sortJava   bool
-	args       []string
-	excludes   []string
+	inputFiles   []string
+	sortGlobs    bool
+	sortJava     bool
+	args         []string
+	excludes     []string
+	uncompresses []string
 
 	outputFiles []string
+	storedFiles []string
 	err         error
 }{
 	{
@@ -251,6 +253,79 @@ var testCases = []struct {
 
 		outputFiles: nil,
 	},
+	{
+		name: "uncompress one",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		uncompresses: []string{"a/a"},
+
+		outputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		storedFiles: []string{
+			"a/a",
+		},
+	},
+	{
+		name: "uncompress two",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		uncompresses: []string{"a/a", "a/b"},
+
+		outputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		storedFiles: []string{
+			"a/a",
+			"a/b",
+		},
+	},
+	{
+		name: "uncompress glob",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+			"a/c.so",
+			"a/d.so",
+		},
+		uncompresses: []string{"a/*.so"},
+
+		outputFiles: []string{
+			"a/a",
+			"a/b",
+			"a/c.so",
+			"a/d.so",
+		},
+		storedFiles: []string{
+			"a/c.so",
+			"a/d.so",
+		},
+	},
+	{
+		name: "uncompress rename",
+
+		inputFiles: []string{
+			"a/a",
+		},
+		args:         []string{"a/a:a/b"},
+		uncompresses: []string{"a/b"},
+
+		outputFiles: []string{
+			"a/b",
+		},
+		storedFiles: []string{
+			"a/b",
+		},
+	},
 }
 
 func errorString(e error) string {
@@ -282,7 +357,8 @@ func TestZip2Zip(t *testing.T) {
 			}
 
 			outputWriter := zip.NewWriter(outputBuf)
-			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, testCase.sortJava, false, testCase.args, testCase.excludes)
+			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, testCase.sortJava, false,
+				testCase.args, testCase.excludes, testCase.uncompresses)
 			if errorString(testCase.err) != errorString(err) {
 				t.Fatalf("Unexpected error:\n got: %q\nwant: %q", errorString(err), errorString(testCase.err))
 			}
@@ -294,15 +370,22 @@ func TestZip2Zip(t *testing.T) {
 				t.Fatal(err)
 			}
 			var outputFiles []string
+			var storedFiles []string
 			if len(outputReader.File) > 0 {
 				outputFiles = make([]string, len(outputReader.File))
 				for i, file := range outputReader.File {
 					outputFiles[i] = file.Name
+					if file.Method == zip.Store {
+						storedFiles = append(storedFiles, file.Name)
+					}
 				}
 			}
 
 			if !reflect.DeepEqual(testCase.outputFiles, outputFiles) {
-				t.Fatalf("Output file list does not match:\n got: %v\nwant: %v", outputFiles, testCase.outputFiles)
+				t.Fatalf("Output file list does not match:\nwant: %v\n got: %v", testCase.outputFiles, outputFiles)
+			}
+			if !reflect.DeepEqual(testCase.storedFiles, storedFiles) {
+				t.Fatalf("Stored file list does not match:\nwant: %v\n got: %v", testCase.storedFiles, storedFiles)
 			}
 		})
 	}
