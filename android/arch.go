@@ -288,6 +288,30 @@ func (target Target) String() string {
 	return target.Os.String() + "_" + target.Arch.String()
 }
 
+// archMutator splits a module into a variant for each Target requested by the module.  Target selection
+// for a module is in three levels, OsClass, mulitlib, and then Target.
+// OsClass selection is determined by:
+//    - The HostOrDeviceSupported value passed in to InitAndroidArchModule by the module type factory, which selects
+//      whether the module type can compile for host, device or both.
+//    - The host_supported and device_supported properties on the module.
+// If host is supported for the module, the Host and HostCross OsClasses are  are selected.  If device is supported
+// for the module, the Device OsClass is selected.
+// Within each selected OsClass, the multilib selection is determined by:
+//    - The compile_multilib property if it set (which may be overriden by target.android.compile_multlib or
+//      target.host.compile_multilib).
+//    - The default multilib passed to InitAndroidArchModule if compile_multilib was not set.
+// Valid multilib values include:
+//    "both": compile for all Targets supported by the OsClass (generally x86_64 and x86, or arm64 and arm).
+//    "first": compile for only a single preferred Target supported by the OsClass.  This is generally x86_64 or arm64,
+//        but may be arm for a 32-bit only build or a build with TARGET_PREFER_32_BIT=true set.
+//    "32": compile for only a single 32-bit Target supported by the OsClass.
+//    "64": compile for only a single 64-bit Target supported by the OsClass.
+//    "common": compile a for a single Target that will work on all Targets suported by the OsClass (for example Java).
+//
+// Once the list of Targets is determined, the module is split into a variant for each Target.
+//
+// Modules can be initialized with InitAndroidMultiTargetsArchModule, in which case they will be split by OsClass,
+// but will have a common Target that is expected to handle all other selected Targets via ctx.MultiTargets().
 func archMutator(mctx BottomUpMutatorContext) {
 	var module Module
 	var ok bool
@@ -304,6 +328,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 	osClasses := base.OsClassSupported()
 
 	var moduleTargets []Target
+	moduleMultiTargets := make(map[int][]Target)
 	primaryModules := make(map[int]bool)
 
 	for _, class := range osClasses {
@@ -311,23 +336,10 @@ func archMutator(mctx BottomUpMutatorContext) {
 		if len(classTargets) == 0 {
 			continue
 		}
+
 		// only the primary arch in the recovery partition
 		if module.InstallInRecovery() {
 			classTargets = []Target{mctx.Config().Targets[Device][0]}
-		}
-
-		var multilib string
-		switch class {
-		case Device:
-			multilib = String(base.commonProperties.Target.Android.Compile_multilib)
-		case Host, HostCross:
-			multilib = String(base.commonProperties.Target.Host.Compile_multilib)
-		}
-		if multilib == "" {
-			multilib = String(base.commonProperties.Compile_multilib)
-		}
-		if multilib == "" {
-			multilib = base.commonProperties.Default_multilib
 		}
 
 		prefer32 := false
@@ -335,12 +347,23 @@ func archMutator(mctx BottomUpMutatorContext) {
 			prefer32 = base.prefer32(mctx, base, class)
 		}
 
-		targets, err := decodeMultilib(multilib, classTargets, prefer32)
+		multilib, extraMultilib := decodeMultilib(base, class)
+		targets, err := decodeMultilibTargets(multilib, classTargets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
+
+		var multiTargets []Target
+		if extraMultilib != "" {
+			multiTargets, err = decodeMultilibTargets(extraMultilib, classTargets, prefer32)
+			if err != nil {
+				mctx.ModuleErrorf("%s", err.Error())
+			}
+		}
+
 		if len(targets) > 0 {
 			primaryModules[len(moduleTargets)] = true
+			moduleMultiTargets[len(moduleTargets)] = multiTargets
 			moduleTargets = append(moduleTargets, targets...)
 		}
 	}
@@ -358,8 +381,34 @@ func archMutator(mctx BottomUpMutatorContext) {
 
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
-		m.(Module).base().SetTarget(moduleTargets[i], primaryModules[i])
+		m.(Module).base().SetTarget(moduleTargets[i], moduleMultiTargets[i], primaryModules[i])
 		m.(Module).base().setArchProperties(mctx)
+	}
+}
+
+func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib string) {
+	switch class {
+	case Device:
+		multilib = String(base.commonProperties.Target.Android.Compile_multilib)
+	case Host, HostCross:
+		multilib = String(base.commonProperties.Target.Host.Compile_multilib)
+	}
+	if multilib == "" {
+		multilib = String(base.commonProperties.Compile_multilib)
+	}
+	if multilib == "" {
+		multilib = base.commonProperties.Default_multilib
+	}
+
+	if base.commonProperties.UseTargetVariants {
+		return multilib, ""
+	} else {
+		// For app modules a single arch variant will be created per OS class which is expected to handle all the
+		// selected arches.  Return the common-type as multilib and any Android.bp provided multilib as extraMultilib
+		if multilib == base.commonProperties.Default_multilib {
+			multilib = "first"
+		}
+		return base.commonProperties.Default_multilib, multilib
 	}
 }
 
@@ -1114,7 +1163,7 @@ func firstTarget(targets []Target, filters ...string) []Target {
 }
 
 // Use the module multilib setting to select one or more targets from a target list
-func decodeMultilib(multilib string, targets []Target, prefer32 bool) ([]Target, error) {
+func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]Target, error) {
 	buildTargets := []Target{}
 
 	switch multilib {
