@@ -19,9 +19,11 @@ package java
 // functions.
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -61,15 +63,17 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	resJarFile, dexJarFile android.Path, certificates []certificate) {
-
-	// TODO(ccross): JNI libs
+	resJarFile, jniJarFile, dexJarFile android.Path, certificates []certificate) {
 
 	unsignedApk := android.PathForModuleOut(ctx, "unsigned.apk")
 
-	inputs := android.Paths{resJarFile}
+	var inputs android.Paths
 	if dexJarFile != nil {
 		inputs = append(inputs, dexJarFile)
+	}
+	inputs = append(inputs, resJarFile)
+	if jniJarFile != nil {
+		inputs = append(inputs, jniJarFile)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -131,4 +135,38 @@ func BuildAAR(ctx android.ModuleContext, outputFile android.WritablePath,
 			"outDir":     android.PathForModuleOut(ctx, "aar").String(),
 		},
 	})
+}
+
+func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	jniLibs []jniLib) {
+
+	var deps android.Paths
+	jarArgs := []string{
+		"-j", // junk paths, they will be added back with -P arguments
+	}
+
+	if !ctx.Config().UnbundledBuild() {
+		jarArgs = append(jarArgs, "-L 0")
+	}
+
+	for _, j := range jniLibs {
+		deps = append(deps, j.path)
+		jarArgs = append(jarArgs,
+			"-P "+targetToJniDir(j.target),
+			"-f "+j.path.String())
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        zip,
+		Description: "zip jni libs",
+		Output:      outputFile,
+		Implicits:   deps,
+		Args: map[string]string{
+			"jarArgs": strings.Join(proptools.NinjaAndShellEscape(jarArgs), " "),
+		},
+	})
+}
+
+func targetToJniDir(target android.Target) string {
+	return filepath.Join("lib", target.Arch.Abi[0])
 }
