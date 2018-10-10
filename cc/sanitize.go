@@ -50,7 +50,8 @@ var (
 	hwasanStaticLibsMutex sync.Mutex
 
 	intOverflowCflags   = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
-	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer", "-fno-sanitize-recover=integer"}
+	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
+		"-fno-sanitize-recover=integer,undefined"}
 )
 
 type sanitizerType int
@@ -164,17 +165,15 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	var globalSanitizers []string
 	var globalSanitizersDiag []string
 
-	if ctx.clang() {
-		if ctx.Host() {
-			if !ctx.Windows() {
-				globalSanitizers = ctx.Config().SanitizeHost()
-			}
-		} else {
-			arches := ctx.Config().SanitizeDeviceArch()
-			if len(arches) == 0 || inList(ctx.Arch().ArchType.Name, arches) {
-				globalSanitizers = ctx.Config().SanitizeDevice()
-				globalSanitizersDiag = ctx.Config().SanitizeDeviceDiag()
-			}
+	if ctx.Host() {
+		if !ctx.Windows() {
+			globalSanitizers = ctx.Config().SanitizeHost()
+		}
+	} else {
+		arches := ctx.Config().SanitizeDeviceArch()
+		if len(arches) == 0 || inList(ctx.Arch().ArchType.Name, arches) {
+			globalSanitizers = ctx.Config().SanitizeDevice()
+			globalSanitizersDiag = ctx.Config().SanitizeDeviceDiag()
 		}
 	}
 
@@ -367,10 +366,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
 		return flags
-	}
-
-	if !ctx.clang() {
-		ctx.ModuleErrorf("Use of sanitizers requires clang")
 	}
 
 	var sanitizers []string

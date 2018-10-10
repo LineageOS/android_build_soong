@@ -16,6 +16,7 @@ package cc
 
 import (
 	"android/soong/android"
+	"android/soong/cc/config"
 	"fmt"
 
 	"github.com/google/blueprint"
@@ -214,12 +215,13 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Recovery.Exclude_static_libs)
 	}
 
-	if ctx.ModuleName() != "libcompiler_rt-extras" {
-		deps.LateStaticLibs = append(deps.LateStaticLibs, "libcompiler_rt-extras")
-	}
-
 	if ctx.toolchain().Bionic() {
-		// libgcc and libatomic have to be last on the command line
+		// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
+		// TODO: Also enable for libc and libm
+		if ctx.ModuleName() != "libc" && ctx.ModuleName() != "libm" {
+			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
+		}
+
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 		if !Bool(linker.Properties.No_libgcc) {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
@@ -293,7 +295,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		hod = "Device"
 	}
 
-	if flags.Clang && linker.useClangLld(ctx) {
+	if linker.useClangLld(ctx) {
 		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
 		if !BoolDefault(linker.MoreProperties.Pack_relocations, true) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=none")
@@ -310,12 +312,10 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 	}
 
-	if flags.Clang && linker.useClangLld(ctx) {
+	if linker.useClangLld(ctx) {
 		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLldflags())
-	} else if flags.Clang {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
 	} else {
-		flags.LdFlags = append(flags.LdFlags, toolchain.Ldflags())
+		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
 	}
 
 	if !ctx.toolchain().Bionic() {
@@ -362,11 +362,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--hash-style=both")
 	}
 
-	if flags.Clang {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
-	} else {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainLdflags())
-	}
+	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true

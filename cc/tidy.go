@@ -62,11 +62,6 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		return flags
 	}
 
-	// Clang-tidy requires clang
-	if !flags.Clang {
-		return flags
-	}
-
 	flags.Tidy = true
 
 	// Add global WITH_TIDY_FLAGS and local tidy_flags.
