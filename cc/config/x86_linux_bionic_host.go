@@ -96,18 +96,6 @@ func (t *toolchainLinuxBionic) GccVersion() string {
 	return "4.9"
 }
 
-func (t *toolchainLinuxBionic) Cflags() string {
-	return ""
-}
-
-func (t *toolchainLinuxBionic) Cppflags() string {
-	return ""
-}
-
-func (t *toolchainLinuxBionic) Ldflags() string {
-	return ""
-}
-
 func (t *toolchainLinuxBionic) IncludeFlags() string {
 	return "${config.LinuxBionicIncludeFlags}"
 }
