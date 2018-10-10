@@ -122,18 +122,9 @@ func init() {
 
 	pctx.StaticVariable("LinuxGccTriple", "x86_64-linux")
 
-	pctx.StaticVariable("LinuxCflags", strings.Join(linuxCflags, " "))
-	pctx.StaticVariable("LinuxLdflags", strings.Join(linuxLdflags, " "))
-
 	pctx.StaticVariable("LinuxClangCflags", strings.Join(linuxClangCflags, " "))
 	pctx.StaticVariable("LinuxClangLdflags", strings.Join(linuxClangLdflags, " "))
 	pctx.StaticVariable("LinuxClangLldflags", strings.Join(linuxClangLldflags, " "))
-
-	// Extended cflags
-	pctx.StaticVariable("LinuxX86Cflags", strings.Join(linuxX86Cflags, " "))
-	pctx.StaticVariable("LinuxX8664Cflags", strings.Join(linuxX8664Cflags, " "))
-	pctx.StaticVariable("LinuxX86Ldflags", strings.Join(linuxX86Ldflags, " "))
-	pctx.StaticVariable("LinuxX8664Ldflags", strings.Join(linuxX8664Ldflags, " "))
 
 	pctx.StaticVariable("LinuxX86ClangCflags",
 		strings.Join(ClangFilterUnknownCflags(linuxX86Cflags), " "))
@@ -180,26 +171,6 @@ func (t *toolchainLinux) GccTriple() string {
 
 func (t *toolchainLinux) GccVersion() string {
 	return linuxGccVersion
-}
-
-func (t *toolchainLinuxX86) Cflags() string {
-	return "${config.LinuxCflags} ${config.LinuxX86Cflags}"
-}
-
-func (t *toolchainLinuxX8664) Cflags() string {
-	return "${config.LinuxCflags} ${config.LinuxX8664Cflags}"
-}
-
-func (t *toolchainLinux) Cppflags() string {
-	return ""
-}
-
-func (t *toolchainLinuxX86) Ldflags() string {
-	return "${config.LinuxLdflags} ${config.LinuxX86Ldflags}"
-}
-
-func (t *toolchainLinuxX8664) Ldflags() string {
-	return "${config.LinuxLdflags} ${config.LinuxX8664Ldflags}"
 }
 
 func (t *toolchainLinux) IncludeFlags() string {
