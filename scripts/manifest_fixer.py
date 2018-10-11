@@ -191,7 +191,7 @@ def raise_min_sdk_version(doc, min_sdk_version, target_sdk_version, library):
 
 
 def add_uses_libraries(doc, new_uses_libraries):
-  """Add additional <uses-library> tags with android:required=true.
+  """Add additional <uses-library> tags with android:required=false.
 
   Args:
     doc: The XML document. May be modified by this function.
@@ -227,7 +227,7 @@ def add_uses_libraries(doc, new_uses_libraries):
 
     ul = doc.createElement('uses-library')
     ul.setAttributeNS(android_ns, 'android:name', name)
-    ul.setAttributeNS(android_ns, 'android:required', 'true')
+    ul.setAttributeNS(android_ns, 'android:required', 'false')
 
     application.insertBefore(doc.createTextNode(indent), last)
     application.insertBefore(ul, last)
