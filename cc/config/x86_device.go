@@ -149,10 +149,8 @@ func init() {
 	pctx.StaticVariable("X86ToolchainCflags", "-m32")
 	pctx.StaticVariable("X86ToolchainLdflags", "-m32")
 
-	pctx.StaticVariable("X86Cflags", strings.Join(x86Cflags, " "))
 	pctx.StaticVariable("X86Ldflags", strings.Join(x86Ldflags, " "))
 	pctx.StaticVariable("X86Lldflags", strings.Join(x86Lldflags, " "))
-	pctx.StaticVariable("X86Cppflags", strings.Join(x86Cppflags, " "))
 	pctx.StaticVariable("X86IncludeFlags", bionicHeaders("x86"))
 
 	// Clang cflags
@@ -168,7 +166,6 @@ func init() {
 
 	// Architecture variant cflags
 	for variant, cflags := range x86ArchVariantCflags {
-		pctx.StaticVariable("X86"+variant+"VariantCflags", strings.Join(cflags, " "))
 		pctx.StaticVariable("X86"+variant+"VariantClangCflags",
 			strings.Join(ClangFilterUnknownCflags(cflags), " "))
 	}
@@ -176,7 +173,7 @@ func init() {
 
 type toolchainX86 struct {
 	toolchain32Bit
-	toolchainCflags, toolchainClangCflags string
+	toolchainClangCflags string
 }
 
 func (t *toolchainX86) Name() string {
@@ -193,26 +190,6 @@ func (t *toolchainX86) GccTriple() string {
 
 func (t *toolchainX86) GccVersion() string {
 	return x86GccVersion
-}
-
-func (t *toolchainX86) ToolchainLdflags() string {
-	return "${config.X86ToolchainLdflags}"
-}
-
-func (t *toolchainX86) ToolchainCflags() string {
-	return t.toolchainCflags
-}
-
-func (t *toolchainX86) Cflags() string {
-	return "${config.X86Cflags}"
-}
-
-func (t *toolchainX86) Cppflags() string {
-	return "${config.X86Cppflags}"
-}
-
-func (t *toolchainX86) Ldflags() string {
-	return "${config.X86Ldflags}"
 }
 
 func (t *toolchainX86) IncludeFlags() string {
@@ -256,23 +233,16 @@ func (toolchainX86) LibclangRuntimeLibraryArch() string {
 }
 
 func x86ToolchainFactory(arch android.Arch) Toolchain {
-	toolchainCflags := []string{
-		"${config.X86ToolchainCflags}",
-		"${config.X86" + arch.ArchVariant + "VariantCflags}",
-	}
-
 	toolchainClangCflags := []string{
 		"${config.X86ToolchainCflags}",
 		"${config.X86" + arch.ArchVariant + "VariantClangCflags}",
 	}
 
 	for _, feature := range arch.ArchFeatures {
-		toolchainCflags = append(toolchainCflags, x86ArchFeatureCflags[feature]...)
 		toolchainClangCflags = append(toolchainClangCflags, x86ArchFeatureCflags[feature]...)
 	}
 
 	return &toolchainX86{
-		toolchainCflags:      strings.Join(toolchainCflags, " "),
 		toolchainClangCflags: strings.Join(toolchainClangCflags, " "),
 	}
 }

@@ -15,7 +15,6 @@
 package config
 
 import (
-	"fmt"
 	"runtime"
 	"strings"
 
@@ -249,11 +248,4 @@ func bionicHeaders(kernelArch string) string {
 		"-isystem bionic/libc/kernel/android/scsi",
 		"-isystem bionic/libc/kernel/android/uapi",
 	}, " ")
-}
-
-func replaceFirst(slice []string, from, to string) {
-	if slice[0] != from {
-		panic(fmt.Errorf("Expected %q, found %q", from, to))
-	}
-	slice[0] = to
 }
