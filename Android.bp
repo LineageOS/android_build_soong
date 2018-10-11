@@ -40,6 +40,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "android/androidmk.go",
+        "android/apex.go",
         "android/api_levels.go",
         "android/arch.go",
         "android/config.go",
