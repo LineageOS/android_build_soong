@@ -31,6 +31,7 @@ var testCases = []struct {
 	sortJava     bool
 	args         []string
 	excludes     []string
+	includes     []string
 	uncompresses []string
 
 	outputFiles []string
@@ -228,7 +229,7 @@ var testCases = []struct {
 		},
 	},
 	{
-		name: "excludes with include",
+		name: "excludes with args",
 
 		inputFiles: []string{
 			"a/a",
@@ -240,6 +241,31 @@ var testCases = []struct {
 		outputFiles: []string{
 			"a/b",
 		},
+	},
+	{
+		name: "excludes over args",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		args:     []string{"a/a"},
+		excludes: []string{"a/*"},
+
+		outputFiles: nil,
+	},
+	{
+		name: "excludes with includes",
+
+		inputFiles: []string{
+			"a/a",
+			"a/b",
+		},
+		args:     nil,
+		excludes: []string{"a/*"},
+		includes: []string{"a/b"},
+
+		outputFiles: []string{"a/b"},
 	},
 	{
 		name: "excludes with glob",
@@ -358,7 +384,7 @@ func TestZip2Zip(t *testing.T) {
 
 			outputWriter := zip.NewWriter(outputBuf)
 			err = zip2zip(inputReader, outputWriter, testCase.sortGlobs, testCase.sortJava, false,
-				testCase.args, testCase.excludes, testCase.uncompresses)
+				testCase.args, testCase.excludes, testCase.includes, testCase.uncompresses)
 			if errorString(testCase.err) != errorString(err) {
 				t.Fatalf("Unexpected error:\n got: %q\nwant: %q", errorString(err), errorString(testCase.err))
 			}
