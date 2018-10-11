@@ -1071,10 +1071,10 @@ func (a *androidBaseContextImpl) Debug() bool {
 }
 
 func (a *androidBaseContextImpl) PrimaryArch() bool {
-	if len(a.config.Targets[a.target.Os.Class]) <= 1 {
+	if len(a.config.Targets[a.target.Os]) <= 1 {
 		return true
 	}
-	return a.target.Arch.ArchType == a.config.Targets[a.target.Os.Class][0].Arch.ArchType
+	return a.target.Arch.ArchType == a.config.Targets[a.target.Os][0].Arch.ArchType
 }
 
 func (a *androidBaseContextImpl) AConfig() Config {
