@@ -115,9 +115,11 @@ func testContext(config android.Config, bp string,
 		"core-libart",
 		"core-lambda-stubs",
 		"core-simple",
+		"bouncycastle",
+		"conscrypt",
+		"okhttp",
 		"framework",
 		"ext",
-		"okhttp",
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
@@ -365,16 +367,16 @@ var classpathTestcases = []struct {
 }{
 	{
 		name:          "default",
-		bootclasspath: []string{"core-oj", "core-libart", "core-simple"},
+		bootclasspath: []string{"core-oj", "core-libart", "core-simple", "bouncycastle", "conscrypt", "okhttp"},
 		system:        "core-system-modules",
-		classpath:     []string{"ext", "framework", "okhttp"},
+		classpath:     []string{"ext", "framework"},
 	},
 	{
 		name:          "blank sdk version",
 		properties:    `sdk_version: "",`,
-		bootclasspath: []string{"core-oj", "core-libart", "core-simple"},
+		bootclasspath: []string{"core-oj", "core-libart", "core-simple", "bouncycastle", "conscrypt", "okhttp"},
 		system:        "core-system-modules",
-		classpath:     []string{"ext", "framework", "okhttp"},
+		classpath:     []string{"ext", "framework"},
 	},
 	{
 
@@ -1061,12 +1063,6 @@ func TestJavaSdkLibrary(t *testing.T) {
 		droiddoc_template {
 			name: "droiddoc-templates-sdk",
 			path: ".",
-		}
-		java_library {
-			name: "conscrypt",
-		}
-		java_library {
-			name: "bouncycastle",
 		}
 		java_sdk_library {
 			name: "foo",
