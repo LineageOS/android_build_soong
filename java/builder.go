@@ -109,6 +109,15 @@ var (
 		},
 		"jarArgs")
 
+	zip = pctx.AndroidStaticRule("zip",
+		blueprint.RuleParams{
+			Command:        `${config.SoongZipCmd} -o $out @$out.rsp`,
+			CommandDeps:    []string{"${config.SoongZipCmd}"},
+			Rspfile:        "$out.rsp",
+			RspfileContent: "$jarArgs",
+		},
+		"jarArgs")
+
 	combineJar = pctx.AndroidStaticRule("combineJar",
 		blueprint.RuleParams{
 			Command:     `${config.MergeZipsCmd} --ignore-duplicates -j $jarArgs $out $in`,
