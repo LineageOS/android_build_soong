@@ -59,6 +59,9 @@ type BaseLinkerProperties struct {
 	// don't link in libgcc.a
 	No_libgcc *bool
 
+	// don't link in libclang_rt.builtins-*.a
+	No_libcrt *bool
+
 	// Use clang lld instead of gnu ld.
 	Use_clang_lld *bool `android:"arch_variant"`
 
@@ -216,10 +219,14 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 
 	if ctx.toolchain().Bionic() {
-		// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
-		// TODO: Also enable for libc and libm
-		if ctx.ModuleName() != "libc" && ctx.ModuleName() != "libm" {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
+		// Allow individual projects to opt out of libcrt,builtins
+		// b/117565638
+		if !Bool(linker.Properties.No_libcrt) {
+			// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
+			// TODO: Also enable for libc and libm
+			if ctx.ModuleName() != "libc" && ctx.ModuleName() != "libm" {
+				deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
+			}
 		}
 
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
