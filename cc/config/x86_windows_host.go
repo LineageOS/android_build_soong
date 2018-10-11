@@ -79,10 +79,6 @@ var (
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib32",
-
-		// Bug: http://b/109759970 - WAR until issue with ld.bfd's
-		// inability to handle Clang-generated section names is fixed.
-		"-Wl,--allow-multiple-definition",
 	}...)
 	windowsX86ClangLldflags = ClangFilterUnknownLldflags(windowsX86ClangLdflags)
 
