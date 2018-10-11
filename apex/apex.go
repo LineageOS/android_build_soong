@@ -39,9 +39,10 @@ var (
 	generateFsConfig = pctx.StaticRule("generateFsConfig", blueprint.RuleParams{
 		Command: `echo '/ 1000 1000 0644' > ${out} && ` +
 			`echo '/manifest.json 1000 1000 0644' >> ${out} && ` +
-			`echo ${paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0644"}' >> ${out}`,
+			`echo ${ro_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0644"}' >> ${out} && ` +
+			`echo ${exec_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0755"}' >> ${out}`,
 		Description: "fs_config ${out}",
-	}, "paths")
+	}, "ro_paths", "exec_paths")
 
 	// TODO(b/113233103): make sure that file_contexts is sane, i.e., validate
 	// against the binary policy using sefcontext_compiler -p <policy>.
@@ -302,21 +303,28 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	// files and dirs that will be created in apex
-	var pathsInApex []string
+	var readOnlyPaths []string
+	var executablePaths []string // this also includes dirs
 	for fileToCopy, dirInApex := range copyManifest {
 		pathInApex := filepath.Join(dirInApex, fileToCopy.Base())
-		pathsInApex = append(pathsInApex, pathInApex)
-		if !android.InList(dirInApex, pathsInApex) {
-			pathsInApex = append(pathsInApex, dirInApex)
+		if dirInApex == "bin" {
+			executablePaths = append(executablePaths, pathInApex)
+		} else {
+			readOnlyPaths = append(readOnlyPaths, pathInApex)
+		}
+		if !android.InList(dirInApex, executablePaths) {
+			executablePaths = append(executablePaths, dirInApex)
 		}
 	}
-	sort.Strings(pathsInApex)
+	sort.Strings(readOnlyPaths)
+	sort.Strings(executablePaths)
 	cannedFsConfig := android.PathForModuleOut(ctx, "canned_fs_config")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   generateFsConfig,
 		Output: cannedFsConfig,
 		Args: map[string]string{
-			"paths": strings.Join(pathsInApex, " "),
+			"ro_paths":   strings.Join(readOnlyPaths, " "),
+			"exec_paths": strings.Join(executablePaths, " "),
 		},
 	})
 
