@@ -19,6 +19,7 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -309,6 +310,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			pathsInApex = append(pathsInApex, dirInApex)
 		}
 	}
+	sort.Strings(pathsInApex)
 	cannedFsConfig := android.PathForModuleOut(ctx, "canned_fs_config")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
 		Rule:   generateFsConfig,
@@ -325,17 +327,22 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.outputFile = android.PathForModuleOut(ctx, a.ModuleBase.Name()+apexSuffix)
 
-	implicitInputs := []android.Path{}
+	filesToCopy := []android.Path{}
 	for file := range copyManifest {
-		implicitInputs = append(implicitInputs, file)
+		filesToCopy = append(filesToCopy, file)
 	}
+	sort.Slice(filesToCopy, func(i, j int) bool {
+		return filesToCopy[i].String() < filesToCopy[j].String()
+	})
+
 	copyCommands := []string{}
-	for src, dir := range copyManifest {
-		dest := filepath.Join(dir, src.Base())
+	for _, src := range filesToCopy {
+		dest := filepath.Join(copyManifest[src], src.Base())
 		dest_path := filepath.Join(android.PathForModuleOut(ctx, "image").String(), dest)
 		copyCommands = append(copyCommands, "mkdir -p "+filepath.Dir(dest_path))
 		copyCommands = append(copyCommands, "cp "+src.String()+" "+dest_path)
 	}
+	implicitInputs := append(android.Paths(nil), filesToCopy...)
 	implicitInputs = append(implicitInputs, cannedFsConfig, manifest, fileContexts, key)
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
