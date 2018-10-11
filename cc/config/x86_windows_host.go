@@ -47,18 +47,11 @@ var (
 		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include",
 	}
 
-	windowsClangCppflags = []string{
-		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include/c++/4.8.3",
-		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include/c++/4.8.3/backward",
-	}
+	windowsClangCppflags = []string{}
 
-	windowsX86ClangCppflags = []string{
-		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include/c++/4.8.3/${WindowsGccTriple}/32",
-	}
+	windowsX86ClangCppflags = []string{}
 
-	windowsX8664ClangCppflags = []string{
-		"-isystem ${WindowsGccRoot}/${WindowsGccTriple}/include/c++/4.8.3/${WindowsGccTriple}",
-	}
+	windowsX8664ClangCppflags = []string{}
 
 	windowsLdflags = []string{
 		"--enable-stdcall-fixup",
@@ -80,14 +73,13 @@ var (
 		"-m32",
 		"-Wl,--large-address-aware",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib32",
-		"-static-libgcc",
 	}
 	windowsX86ClangLdflags = append(ClangFilterUnknownCflags(windowsX86Ldflags), []string{
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/bin",
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3/32",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib32",
-		"-pthread",
+
 		// Bug: http://b/109759970 - WAR until issue with ld.bfd's
 		// inability to handle Clang-generated section names is fixed.
 		"-Wl,--allow-multiple-definition",
@@ -97,7 +89,6 @@ var (
 	windowsX8664Ldflags = []string{
 		"-m64",
 		"-L${WindowsGccRoot}/${WindowsGccTriple}/lib64",
-		"-static-libgcc",
 		"-Wl,--high-entropy-va",
 	}
 	windowsX8664ClangLdflags = append(ClangFilterUnknownCflags(windowsX8664Ldflags), []string{
@@ -105,7 +96,6 @@ var (
 		"-B${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-L${WindowsGccRoot}/lib/gcc/${WindowsGccTriple}/4.8.3",
 		"-B${WindowsGccRoot}/${WindowsGccTriple}/lib64",
-		"-pthread",
 	}...)
 	windowsX8664ClangLldflags = ClangFilterUnknownLldflags(windowsX8664ClangLdflags)
 
