@@ -336,6 +336,22 @@ bootstrap_go_package {
     pluginFor: ["soong_build"],
 }
 
+bootstrap_go_package {
+    name: "soong-apex",
+    pkgPath: "android/soong/apex",
+    deps: [
+        "blueprint",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-java",
+    ],
+    srcs: [
+        "apex/apex.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
 //
 // Defaults to enable various configurations of host bionic
 //
