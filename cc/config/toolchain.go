@@ -220,6 +220,10 @@ func ScudoRuntimeLibrary(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "scudo")
 }
 
+func ScudoMinimalRuntimeLibrary(t Toolchain) string {
+	return LibclangRuntimeLibrary(t, "scudo_minimal")
+}
+
 func ToolPath(t Toolchain) string {
 	if p := t.ToolPath(); p != "" {
 		return p
