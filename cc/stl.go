@@ -81,9 +81,9 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			}
 		} else if ctx.Windows() {
 			switch s {
-			case "libc++", "libc++_static", "libstdc++", "":
-				// libc++ is not supported on mingw
-				return "libstdc++"
+			case "libc++", "libc++_static", "":
+				// Only use static libc++ for Windows.
+				return "libc++_static"
 			case "none":
 				return ""
 			default:
@@ -177,6 +177,20 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			} else {
 				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.Os()]...)
 			}
+			if ctx.Windows() {
+				// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
+				// exception model for 32-bit.
+				if ctx.Arch().ArchType == android.X86 {
+					flags.CppFlags = append(flags.CppFlags, "-fsjlj-exceptions")
+				}
+				flags.CppFlags = append(flags.CppFlags,
+					// Disable visiblity annotations since we're using static
+					// libc++.
+					"-D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS",
+					"-D_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS",
+					// Use Win32 threads in libc++.
+					"-D_LIBCPP_HAS_THREAD_API_WIN32")
+			}
 		} else {
 			if ctx.Arch().ArchType == android.Arm {
 				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
@@ -213,9 +227,10 @@ func init() {
 	hostDynamicGccLibs = map[android.OsType][]string{
 		android.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
 		android.Darwin: []string{"-lc", "-lSystem"},
-		android.Windows: []string{"-lmingw32", "-lgcc", "-lmoldname", "-lmingwex", "-lmsvcr110",
-			"-lmsvcrt", "-ladvapi32", "-lshell32", "-luser32", "-lkernel32", "-lmingw32",
-			"-lgcc", "-lmoldname", "-lmingwex", "-lmsvcrt"},
+		android.Windows: []string{"-Wl,--start-group", "-lmingw32", "-lgcc", "-lgcc_eh",
+			"-lmoldname", "-lmingwex", "-lmsvcr110", "-lmsvcrt", "-lpthread",
+			"-ladvapi32", "-lshell32", "-luser32", "-lkernel32", "-lpsapi",
+			"-Wl,--end-group"},
 	}
 	hostStaticGccLibs = map[android.OsType][]string{
 		android.Linux:   []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"},

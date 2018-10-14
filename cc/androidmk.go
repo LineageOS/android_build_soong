@@ -51,7 +51,7 @@ func (c *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
 }
 
 func (c *Module) AndroidMk() android.AndroidMkData {
-	if c.Properties.HideFromMake {
+	if c.Properties.HideFromMake || !c.IsForPlatform() {
 		return android.AndroidMkData{
 			Disabled: true,
 		}

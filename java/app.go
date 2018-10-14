@@ -19,26 +19,30 @@ package java
 import (
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/tradefed"
 )
 
 func init() {
 	android.RegisterModuleType("android_app", AndroidAppFactory)
 	android.RegisterModuleType("android_test", AndroidTestFactory)
+	android.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
+	android.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
 }
 
 // AndroidManifest.xml merging
 // package splits
 
 type appProperties struct {
-	// path to a certificate, or the name of a certificate in the default
-	// certificate directory, or blank to use the default product certificate
+	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
+	// or an android_app_certificate module name in the form ":module".
 	Certificate *string
 
-	// paths to extra certificates to sign the apk with
+	// Names of extra android_app_certificate modules to sign the apk with in the form ":module".
 	Additional_certificates []string
 
 	// If set, create package-export.apk, which other packages can
@@ -59,6 +63,11 @@ type appProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	// list of native libraries that will be provided in or alongside the resulting jar
+	Jni_libs []string `android:"arch_variant"`
+
+	EmbedJNI bool `blueprint:"mutated"`
 }
 
 type AndroidApp struct {
@@ -70,6 +79,8 @@ type AndroidApp struct {
 	appProperties appProperties
 
 	extraLinkFlags []string
+
+	installJniLibs []jniLib
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -92,8 +103,35 @@ type certificate struct {
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
+
 	if !Bool(a.properties.No_framework_libs) && !Bool(a.properties.No_standard_libs) {
 		a.aapt.deps(ctx, sdkContext(a))
+	}
+
+	for _, jniTarget := range ctx.MultiTargets() {
+		variation := []blueprint.Variation{
+			{Mutator: "arch", Variation: jniTarget.String()},
+			{Mutator: "link", Variation: "shared"},
+		}
+		tag := &jniDependencyTag{
+			target: jniTarget,
+		}
+		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
+	}
+
+	cert := android.SrcIsModule(String(a.appProperties.Certificate))
+	if cert != "" {
+		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+	}
+
+	for _, cert := range a.appProperties.Additional_certificates {
+		cert = android.SrcIsModule(cert)
+		if cert != "" {
+			ctx.AddDependency(ctx.Module(), certificateTag, cert)
+		} else {
+			ctx.PropertyErrorf("additional_certificates",
+				`must be names of android_app_certificate modules in the form ":module"`)
+		}
 	}
 }
 
@@ -150,35 +188,45 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
 
-	c := String(a.appProperties.Certificate)
-	switch {
-	case c == "":
-		pem, key := ctx.Config().DefaultAppCertificate(ctx)
-		a.certificate = certificate{pem, key}
-	case strings.ContainsRune(c, '/'):
-		a.certificate = certificate{
-			android.PathForSource(ctx, c+".x509.pem"),
-			android.PathForSource(ctx, c+".pk8"),
-		}
-	default:
-		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
-		a.certificate = certificate{
-			defaultDir.Join(ctx, c+".x509.pem"),
-			defaultDir.Join(ctx, c+".pk8"),
-		}
-	}
-
-	certificates := []certificate{a.certificate}
-	for _, c := range a.appProperties.Additional_certificates {
-		certificates = append(certificates, certificate{
-			android.PathForSource(ctx, c+".x509.pem"),
-			android.PathForSource(ctx, c+".pk8"),
-		})
-	}
-
 	packageFile := android.PathForModuleOut(ctx, "package.apk")
 
-	CreateAppPackage(ctx, packageFile, a.exportPackage, a.outputFile, certificates)
+	var certificates []certificate
+
+	var jniJarFile android.WritablePath
+	jniLibs, certificateDeps := a.collectAppDeps(ctx)
+	if len(jniLibs) > 0 {
+		embedJni := ctx.Config().UnbundledBuild() || a.appProperties.EmbedJNI
+		if embedJni {
+			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
+			TransformJniLibsToJar(ctx, jniJarFile, jniLibs)
+		} else {
+			a.installJniLibs = jniLibs
+		}
+	}
+
+	if ctx.Failed() {
+		return
+	}
+
+	cert := String(a.appProperties.Certificate)
+	certModule := android.SrcIsModule(cert)
+	if certModule != "" {
+		a.certificate = certificateDeps[0]
+		certificateDeps = certificateDeps[1:]
+	} else if cert != "" {
+		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
+		a.certificate = certificate{
+			defaultDir.Join(ctx, cert+".x509.pem"),
+			defaultDir.Join(ctx, cert+".pk8"),
+		}
+	} else {
+		pem, key := ctx.Config().DefaultAppCertificate(ctx)
+		a.certificate = certificate{pem, key}
+	}
+
+	certificates = append([]certificate{a.certificate}, certificateDeps...)
+
+	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, a.outputFile, certificates)
 
 	a.outputFile = packageFile
 
@@ -190,6 +238,42 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
 	}
+}
+
+func (a *AndroidApp) collectAppDeps(ctx android.ModuleContext) ([]jniLib, []certificate) {
+	var jniLibs []jniLib
+	var certificates []certificate
+
+	ctx.VisitDirectDeps(func(module android.Module) {
+		otherName := ctx.OtherModuleName(module)
+		tag := ctx.OtherModuleDependencyTag(module)
+
+		if jniTag, ok := tag.(*jniDependencyTag); ok {
+			if dep, ok := module.(*cc.Module); ok {
+				lib := dep.OutputFile()
+				if lib.Valid() {
+					jniLibs = append(jniLibs, jniLib{
+						name:   ctx.OtherModuleName(module),
+						path:   lib.Path(),
+						target: jniTag.target,
+					})
+				} else {
+					ctx.ModuleErrorf("dependency %q missing output file", otherName)
+				}
+			} else {
+				ctx.ModuleErrorf("jni_libs dependency %q must be a cc library", otherName)
+
+			}
+		} else if tag == certificateTag {
+			if dep, ok := module.(*AndroidAppCertificate); ok {
+				certificates = append(certificates, dep.certificate)
+			} else {
+				ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", otherName)
+			}
+		}
+	})
+
+	return jniLibs, certificates
 }
 
 func AndroidAppFactory() android.Module {
@@ -212,7 +296,9 @@ func AndroidAppFactory() android.Module {
 		return class == android.Device && ctx.Config().DevicePrefer32BitApps()
 	})
 
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+
 	return module
 }
 
@@ -258,6 +344,7 @@ func AndroidTestFactory() android.Module {
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.appProperties.EmbedJNI = true
 
 	module.AddProperties(
 		&module.Module.properties,
@@ -268,6 +355,69 @@ func AndroidTestFactory() android.Module {
 		&module.appTestProperties,
 		&module.testProperties)
 
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	return module
+}
+
+type appTestHelperAppProperties struct {
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+}
+
+type AndroidTestHelperApp struct {
+	AndroidApp
+
+	appTestHelperAppProperties appTestHelperAppProperties
+}
+
+func AndroidTestHelperAppFactory() android.Module {
+	module := &AndroidTestHelperApp{}
+
+	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+
+	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.appProperties.EmbedJNI = true
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.protoProperties,
+		&module.aaptProperties,
+		&module.appProperties,
+		&module.appTestHelperAppProperties)
+
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+type AndroidAppCertificate struct {
+	android.ModuleBase
+	properties  AndroidAppCertificateProperties
+	certificate certificate
+}
+
+type AndroidAppCertificateProperties struct {
+	// Name of the certificate files.  Extensions .x509.pem and .pk8 will be added to the name.
+	Certificate *string
+}
+
+func AndroidAppCertificateFactory() android.Module {
+	module := &AndroidAppCertificate{}
+	module.AddProperties(&module.properties)
+	android.InitAndroidModule(module)
+	return module
+}
+
+func (c *AndroidAppCertificate) DepsMutator(ctx android.BottomUpMutatorContext) {
+}
+
+func (c *AndroidAppCertificate) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	cert := String(c.properties.Certificate)
+	c.certificate = certificate{
+		android.PathForModuleSrc(ctx, cert+".x509.pem"),
+		android.PathForModuleSrc(ctx, cert+".pk8"),
+	}
 }

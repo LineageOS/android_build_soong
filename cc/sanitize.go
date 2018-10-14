@@ -52,6 +52,7 @@ var (
 	intOverflowCflags   = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
 	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
+	hwasanGlobalOptions = []string{"heap_history_size=4095"}
 )
 
 type sanitizerType int
@@ -531,7 +532,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	} else if Bool(sanitize.Properties.Sanitize.Thread) {
 		runtimeLibrary = config.ThreadSanitizerRuntimeLibrary(ctx.toolchain())
 	} else if Bool(sanitize.Properties.Sanitize.Scudo) {
-		runtimeLibrary = config.ScudoRuntimeLibrary(ctx.toolchain())
+		if len(diagSanitizers) == 0 && !sanitize.Properties.UbsanRuntimeDep {
+			runtimeLibrary = config.ScudoMinimalRuntimeLibrary(ctx.toolchain())
+		} else {
+			runtimeLibrary = config.ScudoRuntimeLibrary(ctx.toolchain())
+		}
 	} else if len(diagSanitizers) > 0 || sanitize.Properties.UbsanRuntimeDep {
 		runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(ctx.toolchain())
 	}
@@ -831,7 +836,6 @@ func hwasanVendorStaticLibs(config android.Config) *[]string {
 func enableMinimalRuntime(sanitize *sanitize) bool {
 	if !Bool(sanitize.Properties.Sanitize.Address) &&
 		!Bool(sanitize.Properties.Sanitize.Hwaddress) &&
-		!Bool(sanitize.Properties.Sanitize.Scudo) &&
 		(Bool(sanitize.Properties.Sanitize.Integer_overflow) ||
 			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) &&
 		!(Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||

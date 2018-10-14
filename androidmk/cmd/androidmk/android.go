@@ -140,6 +140,7 @@ func init() {
 			"LOCAL_DX_FLAGS":              "dxflags",
 			"LOCAL_JAVA_LIBRARIES":        "libs",
 			"LOCAL_STATIC_JAVA_LIBRARIES": "static_libs",
+			"LOCAL_JNI_SHARED_LIBRARIES":  "jni_libs",
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
@@ -154,6 +155,7 @@ func init() {
 			// java_library_static to android_library.
 			"LOCAL_SHARED_ANDROID_LIBRARIES": "android_libs",
 			"LOCAL_STATIC_ANDROID_LIBRARIES": "android_static_libs",
+			"LOCAL_ADDITIONAL_CERTIFICATES":  "additional_certificates",
 		})
 
 	addStandardProperties(bpparser.BoolType,

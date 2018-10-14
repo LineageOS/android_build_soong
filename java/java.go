@@ -95,9 +95,6 @@ type CompilerProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs []string `android:"arch_variant"`
 
-	// list of native libraries that will be provided in or alongside the resulting jar
-	Jni_libs []string `android:"arch_variant"`
-
 	// manifest file to be included in resulting jar
 	Manifest *string
 
@@ -365,6 +362,11 @@ type dependencyTag struct {
 	name string
 }
 
+type jniDependencyTag struct {
+	blueprint.BaseDependencyTag
+	target android.Target
+}
+
 var (
 	staticLibTag     = dependencyTag{name: "staticlib"}
 	libTag           = dependencyTag{name: "javalib"}
@@ -375,6 +377,7 @@ var (
 	frameworkApkTag  = dependencyTag{name: "framework-apk"}
 	kotlinStdlibTag  = dependencyTag{name: "kotlin-stdlib"}
 	proguardRaiseTag = dependencyTag{name: "proguard-raise"}
+	certificateTag   = dependencyTag{name: "certificate"}
 )
 
 type sdkDep struct {
@@ -387,6 +390,12 @@ type sdkDep struct {
 
 	jars android.Paths
 	aidl android.Path
+}
+
+type jniLib struct {
+	name   string
+	path   android.Path
+	target android.Target
 }
 
 func (j *Module) shouldInstrument(ctx android.BaseContext) bool {
@@ -597,6 +606,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
 		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
 	}, annoTag, j.properties.Annotation_processors...)
+
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
@@ -786,6 +796,15 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	ctx.VisitDirectDeps(func(module android.Module) {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
+
+		if _, ok := tag.(*jniDependencyTag); ok {
+			// Handled by AndroidApp.collectAppDeps
+			return
+		}
+		if tag == certificateTag {
+			// Handled by AndroidApp.collectAppDeps
+			return
+		}
 
 		if to, ok := module.(*Library); ok {
 			switch tag {
@@ -1738,7 +1757,7 @@ func (j *Import) IDECustomizedModuleName() string {
 	// solution to get the Import name.
 	name := j.Name()
 	if strings.HasPrefix(name, removedPrefix) {
-		name = strings.Trim(name, removedPrefix)
+		name = strings.TrimPrefix(name, removedPrefix)
 	}
 	return name
 }

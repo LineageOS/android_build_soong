@@ -15,8 +15,6 @@
 package java
 
 import (
-	"android/soong/android"
-	"android/soong/genrule"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,6 +25,10 @@ import (
 	"testing"
 
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+	"android/soong/cc"
+	"android/soong/genrule"
 )
 
 var buildDir string
@@ -73,6 +75,7 @@ func testContext(config android.Config, bp string,
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
 	ctx.RegisterModuleType("android_library", android.ModuleFactoryAdaptor(AndroidLibraryFactory))
+	ctx.RegisterModuleType("android_test", android.ModuleFactoryAdaptor(AndroidTestFactory))
 	ctx.RegisterModuleType("java_binary_host", android.ModuleFactoryAdaptor(BinaryHostFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
@@ -95,6 +98,16 @@ func testContext(config android.Config, bp string,
 		ctx.TopDown("java_sdk_library", sdkLibraryMutator).Parallel()
 	})
 	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(OverlaySingletonFactory))
+
+	// Register module types and mutators from cc needed for JNI testing
+	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
+	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
+	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
+	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
+		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
+	})
+
 	ctx.Register()
 
 	extraModules := []string{
@@ -102,9 +115,11 @@ func testContext(config android.Config, bp string,
 		"core-libart",
 		"core-lambda-stubs",
 		"core-simple",
+		"bouncycastle",
+		"conscrypt",
+		"okhttp",
 		"framework",
 		"ext",
-		"okhttp",
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
@@ -352,16 +367,16 @@ var classpathTestcases = []struct {
 }{
 	{
 		name:          "default",
-		bootclasspath: []string{"core-oj", "core-libart", "core-simple"},
+		bootclasspath: []string{"core-oj", "core-libart", "core-simple", "bouncycastle", "conscrypt", "okhttp"},
 		system:        "core-system-modules",
-		classpath:     []string{"ext", "framework", "okhttp"},
+		classpath:     []string{"ext", "framework"},
 	},
 	{
 		name:          "blank sdk version",
 		properties:    `sdk_version: "",`,
-		bootclasspath: []string{"core-oj", "core-libart", "core-simple"},
+		bootclasspath: []string{"core-oj", "core-libart", "core-simple", "bouncycastle", "conscrypt", "okhttp"},
 		system:        "core-system-modules",
-		classpath:     []string{"ext", "framework", "okhttp"},
+		classpath:     []string{"ext", "framework"},
 	},
 	{
 
@@ -1048,12 +1063,6 @@ func TestJavaSdkLibrary(t *testing.T) {
 		droiddoc_template {
 			name: "droiddoc-templates-sdk",
 			path: ".",
-		}
-		java_library {
-			name: "conscrypt",
-		}
-		java_library {
-			name: "bouncycastle",
 		}
 		java_sdk_library {
 			name: "foo",

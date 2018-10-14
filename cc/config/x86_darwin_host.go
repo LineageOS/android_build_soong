@@ -117,9 +117,6 @@ func init() {
 
 	pctx.StaticVariable("DarwinGccTriple", "i686-apple-darwin11")
 
-	pctx.StaticVariable("DarwinCflags", strings.Join(darwinCflags, " "))
-	pctx.StaticVariable("DarwinLdflags", strings.Join(darwinLdflags, " "))
-
 	pctx.StaticVariable("DarwinClangCflags", strings.Join(darwinClangCflags, " "))
 	pctx.StaticVariable("DarwinClangLdflags", strings.Join(darwinClangLdflags, " "))
 	pctx.StaticVariable("DarwinClangLldflags", strings.Join(darwinClangLldflags, " "))
@@ -180,18 +177,6 @@ func (t *toolchainDarwin) GccTriple() string {
 
 func (t *toolchainDarwin) GccVersion() string {
 	return darwinGccVersion
-}
-
-func (t *toolchainDarwin) Cflags() string {
-	return "${config.DarwinCflags}"
-}
-
-func (t *toolchainDarwin) Cppflags() string {
-	return ""
-}
-
-func (t *toolchainDarwin) Ldflags() string {
-	return "${config.DarwinLdflags}"
 }
 
 func (t *toolchainDarwin) IncludeFlags() string {

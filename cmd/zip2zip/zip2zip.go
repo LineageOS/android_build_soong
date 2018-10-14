@@ -41,11 +41,13 @@ var (
 	staticTime = time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	excludes   multiFlag
+	includes   multiFlag
 	uncompress multiFlag
 )
 
 func init() {
 	flag.Var(&excludes, "x", "exclude a filespec from the output")
+	flag.Var(&includes, "X", "include a filespec in the output that was previously excluded")
 	flag.Var(&uncompress, "0", "convert a filespec to uncompressed in the output")
 }
 
@@ -96,7 +98,7 @@ func main() {
 	}()
 
 	if err := zip2zip(&reader.Reader, writer, *sortGlobs, *sortJava, *setTime,
-		flag.Args(), excludes, uncompress); err != nil {
+		flag.Args(), excludes, includes, uncompress); err != nil {
 
 		log.Fatal(err)
 	}
@@ -109,7 +111,7 @@ type pair struct {
 }
 
 func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTime bool,
-	includes, excludes, uncompresses []string) error {
+	args []string, excludes, includes multiFlag, uncompresses []string) error {
 
 	matches := []pair{}
 
@@ -125,14 +127,14 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 		}
 	}
 
-	for _, include := range includes {
+	for _, arg := range args {
 		// Reserve escaping for future implementation, so make sure no
 		// one is using \ and expecting a certain behavior.
-		if strings.Contains(include, "\\") {
+		if strings.Contains(arg, "\\") {
 			return fmt.Errorf("\\ characters are not currently supported")
 		}
 
-		input, output := includeSplit(include)
+		input, output := includeSplit(arg)
 
 		var includeMatches []pair
 
@@ -161,7 +163,7 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 		matches = append(matches, includeMatches...)
 	}
 
-	if len(includes) == 0 {
+	if len(args) == 0 {
 		// implicitly match everything
 		for _, file := range reader.File {
 			matches = append(matches, pair{file, file.Name, false})
@@ -173,19 +175,16 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 	seen := make(map[string]*zip.File)
 
 	for _, match := range matches {
-		// Filter out matches whose original file name matches an exclude filter
-		excluded := false
-		for _, exclude := range excludes {
-			if excludeMatch, err := pathtools.Match(exclude, match.File.Name); err != nil {
+		// Filter out matches whose original file name matches an exclude filter, unless it also matches an
+		// include filter
+		if exclude, err := excludes.Match(match.File.Name); err != nil {
+			return err
+		} else if exclude {
+			if include, err := includes.Match(match.File.Name); err != nil {
 				return err
-			} else if excludeMatch {
-				excluded = true
-				break
+			} else if !include {
+				continue
 			}
-		}
-
-		if excluded {
-			continue
 		}
 
 		// Check for duplicate output names, ignoring ones that come from the same input zip entry.
@@ -256,11 +255,25 @@ func includeSplit(s string) (string, string) {
 
 type multiFlag []string
 
-func (e *multiFlag) String() string {
-	return strings.Join(*e, " ")
+func (m *multiFlag) String() string {
+	return strings.Join(*m, " ")
 }
 
-func (e *multiFlag) Set(s string) error {
-	*e = append(*e, s)
+func (m *multiFlag) Set(s string) error {
+	*m = append(*m, s)
 	return nil
+}
+
+func (m *multiFlag) Match(s string) (bool, error) {
+	if m == nil {
+		return false, nil
+	}
+	for _, f := range *m {
+		if match, err := pathtools.Match(f, s); err != nil {
+			return false, err
+		} else if match {
+			return true, nil
+		}
+	}
+	return false, nil
 }
