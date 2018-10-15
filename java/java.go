@@ -371,16 +371,17 @@ type jniDependencyTag struct {
 }
 
 var (
-	staticLibTag     = dependencyTag{name: "staticlib"}
-	libTag           = dependencyTag{name: "javalib"}
-	annoTag          = dependencyTag{name: "annotation processor"}
-	bootClasspathTag = dependencyTag{name: "bootclasspath"}
-	systemModulesTag = dependencyTag{name: "system modules"}
-	frameworkResTag  = dependencyTag{name: "framework-res"}
-	frameworkApkTag  = dependencyTag{name: "framework-apk"}
-	kotlinStdlibTag  = dependencyTag{name: "kotlin-stdlib"}
-	proguardRaiseTag = dependencyTag{name: "proguard-raise"}
-	certificateTag   = dependencyTag{name: "certificate"}
+	staticLibTag          = dependencyTag{name: "staticlib"}
+	libTag                = dependencyTag{name: "javalib"}
+	annoTag               = dependencyTag{name: "annotation processor"}
+	bootClasspathTag      = dependencyTag{name: "bootclasspath"}
+	systemModulesTag      = dependencyTag{name: "system modules"}
+	frameworkResTag       = dependencyTag{name: "framework-res"}
+	frameworkApkTag       = dependencyTag{name: "framework-apk"}
+	kotlinStdlibTag       = dependencyTag{name: "kotlin-stdlib"}
+	proguardRaiseTag      = dependencyTag{name: "proguard-raise"}
+	certificateTag        = dependencyTag{name: "certificate"}
+	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
 )
 
 type sdkDep struct {
@@ -820,7 +821,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			switch tag {
 			case bootClasspathTag:
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars()...)
-			case libTag:
+			case libTag, instrumentationForTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
