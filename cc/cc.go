@@ -39,6 +39,7 @@ func init() {
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
+		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 	})
 
@@ -945,6 +946,16 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 	c.begin(ctx)
 }
 
+// Split name#version into name and version
+func stubsLibNameAndVersion(name string) (string, string) {
+	if sharp := strings.LastIndex(name, "#"); sharp != -1 && sharp != len(name)-1 {
+		version := name[sharp+1:]
+		libname := name[:sharp]
+		return libname, version
+	}
+	return name, ""
+}
+
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
@@ -979,25 +990,28 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			variantLibs = []string{}
 			nonvariantLibs = []string{}
 			for _, entry := range list {
-				if ctx.useSdk() && inList(entry, ndkPrebuiltSharedLibraries) {
-					if !inList(entry, ndkMigratedLibs) {
-						nonvariantLibs = append(nonvariantLibs, entry+".ndk."+version)
+				// strip #version suffix out
+				name, _ := stubsLibNameAndVersion(entry)
+				if ctx.useSdk() && inList(name, ndkPrebuiltSharedLibraries) {
+					if !inList(name, ndkMigratedLibs) {
+						nonvariantLibs = append(nonvariantLibs, name+".ndk."+version)
 					} else {
-						variantLibs = append(variantLibs, entry+ndkLibrarySuffix)
+						variantLibs = append(variantLibs, name+ndkLibrarySuffix)
 					}
-				} else if ctx.useVndk() && inList(entry, llndkLibraries) {
-					nonvariantLibs = append(nonvariantLibs, entry+llndkLibrarySuffix)
-				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(entry, vendorPublicLibraries) {
-					vendorPublicLib := entry + vendorPublicLibrarySuffix
+				} else if ctx.useVndk() && inList(name, llndkLibraries) {
+					nonvariantLibs = append(nonvariantLibs, name+llndkLibrarySuffix)
+				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, vendorPublicLibraries) {
+					vendorPublicLib := name + vendorPublicLibrarySuffix
 					if actx.OtherModuleExists(vendorPublicLib) {
 						nonvariantLibs = append(nonvariantLibs, vendorPublicLib)
 					} else {
 						// This can happen if vendor_public_library module is defined in a
 						// namespace that isn't visible to the current module. In that case,
 						// link to the original library.
-						nonvariantLibs = append(nonvariantLibs, entry)
+						nonvariantLibs = append(nonvariantLibs, name)
 					}
 				} else {
+					// put name#version back
 					nonvariantLibs = append(nonvariantLibs, entry)
 				}
 			}
@@ -1007,6 +1021,15 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		deps.SharedLibs, variantNdkLibs = rewriteNdkLibs(deps.SharedLibs)
 		deps.LateSharedLibs, variantLateNdkLibs = rewriteNdkLibs(deps.LateSharedLibs)
 		deps.ReexportSharedLibHeaders, _ = rewriteNdkLibs(deps.ReexportSharedLibHeaders)
+	}
+
+	if c.linker != nil {
+		if library, ok := c.linker.(*libraryDecorator); ok {
+			if library.buildStubs() {
+				// Stubs lib does not have dependency to other libraries. Don't proceed.
+				return
+			}
+		}
 	}
 
 	for _, lib := range deps.HeaderLibs {
@@ -1035,19 +1058,40 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		{Mutator: "link", Variation: "static"},
 	}, lateStaticDepTag, deps.LateStaticLibs...)
 
+	// shared lib names without the #version suffix
+	var sharedLibNames []string
+
 	for _, lib := range deps.SharedLibs {
+		name, version := stubsLibNameAndVersion(lib)
+		sharedLibNames = append(sharedLibNames, name)
 		depTag := sharedDepTag
 		if inList(lib, deps.ReexportSharedLibHeaders) {
 			depTag = sharedExportDepTag
 		}
-		actx.AddVariationDependencies([]blueprint.Variation{
-			{Mutator: "link", Variation: "shared"},
-		}, depTag, lib)
+		var variations []blueprint.Variation
+		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
+		if version != "" && ctx.Os() == android.Android && !ctx.useVndk() && !c.inRecovery() {
+			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
+		}
+		actx.AddVariationDependencies(variations, depTag, name)
 	}
 
-	actx.AddVariationDependencies([]blueprint.Variation{
-		{Mutator: "link", Variation: "shared"},
-	}, lateSharedDepTag, deps.LateSharedLibs...)
+	for _, lib := range deps.LateSharedLibs {
+		name, version := stubsLibNameAndVersion(lib)
+		if inList(name, sharedLibNames) {
+			// This is to handle the case that some of the late shared libs (libc, libdl, libm, ...)
+			// are added also to SharedLibs with version (e.g., libc#10). If not skipped, we will be
+			// linking against both the stubs lib and the non-stubs lib at the same time.
+			continue
+		}
+		depTag := lateSharedDepTag
+		var variations []blueprint.Variation
+		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
+		if version != "" && ctx.Os() == android.Android && !ctx.useVndk() && !c.inRecovery() {
+			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
+		}
+		actx.AddVariationDependencies(variations, depTag, name)
+	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{Mutator: "link", Variation: "shared"},
@@ -1629,8 +1673,8 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if genrule, ok := mctx.Module().(*genrule.Module); ok {
-		if props, ok := genrule.Extra.(*GenruleExtraProperties); ok {
+	if g, ok := mctx.Module().(*genrule.Module); ok {
+		if props, ok := g.Extra.(*GenruleExtraProperties); ok {
 			var coreVariantNeeded bool = false
 			var vendorVariantNeeded bool = false
 			var recoveryVariantNeeded bool = false
@@ -1650,7 +1694,7 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 
 			if recoveryVariantNeeded {
 				primaryArch := mctx.Config().DevicePrimaryArchType()
-				moduleArch := genrule.Target().Arch.ArchType
+				moduleArch := g.Target().Arch.ArchType
 				if moduleArch != primaryArch {
 					recoveryVariantNeeded = false
 				}
@@ -1666,7 +1710,13 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 			if recoveryVariantNeeded {
 				variants = append(variants, recoveryMode)
 			}
-			mctx.CreateVariations(variants...)
+			mod := mctx.CreateVariations(variants...)
+			for i, v := range variants {
+				if v == recoveryMode {
+					m := mod[i].(*genrule.Module)
+					m.Extra.(*GenruleExtraProperties).InRecovery = true
+				}
+			}
 		}
 	}
 
