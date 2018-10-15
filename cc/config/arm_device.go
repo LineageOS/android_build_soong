@@ -117,6 +117,15 @@ var (
 			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
+		"cortex-a76": []string{
+			"-mcpu=cortex-a55",
+			"-mfpu=neon-fp-armv8",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
+		},
 		"krait": []string{
 			"-mcpu=krait",
 			"-mfpu=neon-vfpv4",
@@ -162,6 +171,7 @@ func init() {
 		"cortex-a72",
 		"cortex-a73",
 		"cortex-a75",
+		"cortex-a76",
 		"krait",
 		"kryo",
 		"exynos-m1",
