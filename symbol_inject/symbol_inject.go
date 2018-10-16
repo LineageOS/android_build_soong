@@ -16,6 +16,7 @@ package symbol_inject
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -50,7 +51,7 @@ func OpenFile(r io.ReaderAt) (*File, error) {
 	return file, err
 }
 
-func InjectSymbol(file *File, w io.Writer, symbol, value, from string) error {
+func InjectStringSymbol(file *File, w io.Writer, symbol, value, from string) error {
 	offset, size, err := findSymbol(file, symbol)
 	if err != nil {
 		return err
@@ -75,13 +76,29 @@ func InjectSymbol(file *File, w io.Writer, symbol, value, from string) error {
 		}
 	}
 
-	return copyAndInject(file.r, w, offset, size, value)
-}
-
-func copyAndInject(r io.ReaderAt, w io.Writer, offset, size uint64, value string) (err error) {
 	buf := make([]byte, size)
 	copy(buf, value)
 
+	return copyAndInject(file.r, w, offset, buf)
+}
+
+func InjectUint64Symbol(file *File, w io.Writer, symbol string, value uint64) error {
+	offset, size, err := findSymbol(file, symbol)
+	if err != nil {
+		return err
+	}
+
+	if size != 8 {
+		return fmt.Errorf("symbol %q is not a uint64, it is %d bytes long", symbol, size)
+	}
+
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, value)
+
+	return copyAndInject(file.r, w, offset, buf)
+}
+
+func copyAndInject(r io.ReaderAt, w io.Writer, offset uint64, buf []byte) (err error) {
 	// Copy the first bytes up to the symbol offset
 	_, err = io.Copy(w, io.NewSectionReader(r, 0, int64(offset)))
 
@@ -91,7 +108,7 @@ func copyAndInject(r io.ReaderAt, w io.Writer, offset, size uint64, value string
 	}
 
 	// Write the remainder of the file
-	pos := int64(offset + size)
+	pos := int64(offset) + int64(len(buf))
 	if err == nil {
 		_, err = io.Copy(w, io.NewSectionReader(r, pos, 1<<63-1-pos))
 	}

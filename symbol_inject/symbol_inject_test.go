@@ -23,32 +23,23 @@ import (
 func TestCopyAndInject(t *testing.T) {
 	s := "abcdefghijklmnopqrstuvwxyz"
 	testCases := []struct {
-		offset, size uint64
-		value        string
-		expected     string
+		offset   uint64
+		buf      string
+		expected string
 	}{
 		{
 			offset:   0,
-			size:     1,
-			value:    "A",
+			buf:      "A",
 			expected: "Abcdefghijklmnopqrstuvwxyz",
 		},
 		{
 			offset:   1,
-			size:     1,
-			value:    "B",
-			expected: "aBcdefghijklmnopqrstuvwxyz",
-		},
-		{
-			offset:   1,
-			size:     1,
-			value:    "BCD",
+			buf:      "B",
 			expected: "aBcdefghijklmnopqrstuvwxyz",
 		},
 		{
 			offset:   25,
-			size:     1,
-			value:    "Z",
+			buf:      "Z",
 			expected: "abcdefghijklmnopqrstuvwxyZ",
 		},
 	}
@@ -57,7 +48,7 @@ func TestCopyAndInject(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			in := bytes.NewReader([]byte(s))
 			out := &bytes.Buffer{}
-			copyAndInject(in, out, testCase.offset, testCase.size, testCase.value)
+			copyAndInject(in, out, testCase.offset, []byte(testCase.buf))
 
 			if out.String() != testCase.expected {
 				t.Errorf("expected %s, got %s", testCase.expected, out.String())
