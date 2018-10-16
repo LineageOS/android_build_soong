@@ -27,6 +27,10 @@
 # that's detected in the Go code, which skips calculating the startup time.
 export TRACE_BEGIN_SOONG=$(date +%s%N)
 
+# Remove BUILD_NUMBER so that incremental builds on build servers don't
+# re-read makefiles every time.
+unset BUILD_NUMBER
+
 export TOP=$(cd $(dirname ${BASH_SOURCE[0]})/../..; PWD= /bin/pwd)
 cd "${TOP}"
 source "${TOP}/build/soong/scripts/microfactory.bash"
