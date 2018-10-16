@@ -692,6 +692,47 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			}
 		`,
 	},
+	{
+		desc: "LOCAL_STRIP_MODULE",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := libtest
+LOCAL_STRIP_MODULE := false
+include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libtest2
+LOCAL_STRIP_MODULE := true
+include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libtest3
+LOCAL_STRIP_MODULE := keep_symbols
+include $(BUILD_SHARED_LIBRARY)
+`,
+		expected: `
+cc_library_shared {
+    name: "libtest",
+    strip: {
+        none: true,
+    }
+}
+
+cc_library_shared {
+    name: "libtest2",
+    strip: {
+        all: true,
+    }
+}
+
+cc_library_shared {
+    name: "libtest3",
+    strip: {
+        keep_symbols: true,
+    }
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
