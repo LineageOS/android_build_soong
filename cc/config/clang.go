@@ -92,12 +92,7 @@ var ClangUnknownLldflags = sorted([]string{
 	"-Wl,-m,aarch64_elf64_le_vec",
 })
 
-var ClangLibToolingUnknownCflags = []string{
-	// Remove -flto and other flto dependent flags.
-	"-flto*",
-	"-fsanitize*",
-	"-fwhole-program-vtables",
-}
+var ClangLibToolingUnknownCflags []string = nil
 
 func init() {
 	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
