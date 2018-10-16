@@ -41,8 +41,8 @@ var Forbidden = PathConfig{
 
 var Log = PathConfig{
 	Symlink: true,
-	Log: true,
-	Error: false,
+	Log:     true,
+	Error:   false,
 }
 
 // The configuration used if the tool is not listed in the config below.
@@ -110,7 +110,6 @@ var Configuration = map[string]PathConfig{
 	"openssl":   Allowed,
 	"paste":     Allowed,
 	"patch":     Allowed,
-	"perl":      Log,
 	"pgrep":     Allowed,
 	"pkill":     Allowed,
 	"ps":        Allowed,
