@@ -73,17 +73,6 @@ func (sabimod *sabi) flags(ctx ModuleContext, flags Flags) Flags {
 	flags.ToolingCFlags = filterOutWithPrefix(flags.CFlags, config.ClangLibToolingUnknownCflags)
 	flags.ToolingCppFlags = filterOutWithPrefix(flags.CppFlags, config.ClangLibToolingUnknownCflags)
 
-	// RSClang does not support recent mcpu option likes exynos-m2.
-	// So we need overriding mcpu option when we want to use it.
-	mappedArch := map[string]string{
-		"exynos-m2":  "cortex-a53",
-		"cortex-a55": "cortex-a53",
-		"cortex-a75": "cortex-a57",
-	}
-	if arch, ok := mappedArch[ctx.Arch().CpuVariant]; ok {
-		flags.ToolingCFlags = append(flags.ToolingCFlags, "-mcpu="+arch)
-	}
-
 	return flags
 }
 
