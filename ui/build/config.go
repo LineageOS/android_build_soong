@@ -86,6 +86,9 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.environ.Set("OUT_DIR", outDir)
 	}
 
+	// Make sure DIST_DIR is set appropriately
+	ret.environ.Set("DIST_DIR", ret.DistDir())
+
 	ret.environ.Unset(
 		// We're already using it
 		"USE_SOONG_UI",
