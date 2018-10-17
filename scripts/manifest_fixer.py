@@ -56,7 +56,9 @@ def parse_args():
   parser.add_argument('--library', dest='library', action='store_true',
                       help='manifest is for a static library')
   parser.add_argument('--uses-library', dest='uses_libraries', action='append',
-                      help='specify additional <uses-library> tag to add')
+                      help='specify additional <uses-library> tag to add. android:requred is set to true')
+  parser.add_argument('--optional-uses-library', dest='optional_uses_libraries', action='append',
+                      help='specify additional <uses-library> tag to add. android:requred is set to false')
   parser.add_argument('--uses-non-sdk-api', dest='uses_non_sdk_api', action='store_true',
                       help='manifest is for a package built against the platform')
   parser.add_argument('input', help='input AndroidManifest.xml file')
@@ -190,12 +192,13 @@ def raise_min_sdk_version(doc, min_sdk_version, target_sdk_version, library):
     element.setAttributeNode(target_attr)
 
 
-def add_uses_libraries(doc, new_uses_libraries):
-  """Add additional <uses-library> tags with android:required=false.
+def add_uses_libraries(doc, new_uses_libraries, required):
+  """Add additional <uses-library> tags
 
   Args:
     doc: The XML document. May be modified by this function.
     new_uses_libraries: The names of libraries to be added by this function.
+    required: The value of android:required attribute. Can be true or false.
   Raises:
     RuntimeError: Invalid manifest
   """
@@ -227,7 +230,7 @@ def add_uses_libraries(doc, new_uses_libraries):
 
     ul = doc.createElement('uses-library')
     ul.setAttributeNS(android_ns, 'android:name', name)
-    ul.setAttributeNS(android_ns, 'android:required', 'false')
+    ul.setAttributeNS(android_ns, 'android:required', str(required).lower())
 
     application.insertBefore(doc.createTextNode(indent), last)
     application.insertBefore(ul, last)
@@ -285,7 +288,10 @@ def main():
       raise_min_sdk_version(doc, args.min_sdk_version, args.target_sdk_version, args.library)
 
     if args.uses_libraries:
-      add_uses_libraries(doc, args.uses_libraries)
+      add_uses_libraries(doc, args.uses_libraries, True)
+
+    if args.optional_uses_libraries:
+      add_uses_libraries(doc, args.optional_uses_libraries, False)
 
     if args.uses_non_sdk_api:
       add_uses_non_sdk_api(doc)
