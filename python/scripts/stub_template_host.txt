@@ -41,6 +41,7 @@ def Main():
   args = sys.argv[1:]
 
   new_env = {}
+  runfiles_path = None
 
   try:
     runfiles_path = ExtractRunfiles()
@@ -82,7 +83,8 @@ def Main():
   except:
     raise
   finally:
-    shutil.rmtree(runfiles_path, True)
+    if runfiles_path is not None:
+      shutil.rmtree(runfiles_path, True)
 
 if __name__ == '__main__':
   Main()
