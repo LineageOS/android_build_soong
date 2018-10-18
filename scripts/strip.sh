@@ -98,6 +98,7 @@ do_strip_keep_mini_debug_info() {
         else
             "${CROSS_COMPILE}objcopy" --add-section .gnu_debugdata="${outfile}.mini_debuginfo.xz" "${outfile}.tmp"
         fi
+        rm -f "${outfile}.dynsyms" "${outfile}.funcsyms" "${outfile}.keep_symbols" "${outfile}.debug" "${outfile}.mini_debuginfo" "${outfile}.mini_debuginfo.xz"
     else
         cp -f "${infile}" "${outfile}.tmp"
     fi
