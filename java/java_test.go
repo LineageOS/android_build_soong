@@ -111,13 +111,7 @@ func testContext(config android.Config, bp string,
 	ctx.Register()
 
 	extraModules := []string{
-		"core-oj",
-		"core-libart",
 		"core-lambda-stubs",
-		"core-simple",
-		"bouncycastle",
-		"conscrypt",
-		"okhttp",
 		"framework",
 		"ext",
 		"android_stubs_current",
