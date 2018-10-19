@@ -22,6 +22,25 @@ import (
 	"android/soong/android"
 )
 
+func (library *Library) AndroidMkHostDex(w io.Writer, name string, data android.AndroidMkData) {
+	if Bool(library.deviceProperties.Hostdex) && !library.Host() {
+		fmt.Fprintln(w, "include $(CLEAR_VARS)")
+		fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
+		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+		fmt.Fprintln(w, "LOCAL_MODULE_CLASS := JAVA_LIBRARIES")
+		if library.installFile == nil {
+			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+		}
+		if library.dexJarFile != nil {
+			fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
+		}
+		fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", library.headerJarFile.String())
+		fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", library.implementationAndResourcesJar.String())
+		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(data.Required, " "))
+		fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+	}
+}
+
 func (library *Library) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
@@ -69,23 +88,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 		},
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			android.WriteAndroidMkData(w, data)
-
-			if Bool(library.deviceProperties.Hostdex) && !library.Host() {
-				fmt.Fprintln(w, "include $(CLEAR_VARS)")
-				fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
-				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
-				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := JAVA_LIBRARIES")
-				if library.installFile == nil {
-					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
-				}
-				if library.dexJarFile != nil {
-					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
-				}
-				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", library.headerJarFile.String())
-				fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", library.implementationAndResourcesJar.String())
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(data.Required, " "))
-				fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
-			}
+			library.AndroidMkHostDex(w, name, data)
 		},
 	}
 }
