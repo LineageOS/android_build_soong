@@ -174,6 +174,11 @@ func init() {
 		// this new warning are fixed.
 		"-Wno-null-pointer-arithmetic",
 
+		// http://b/72330874 Disable -Wenum-compare until the instances detected by this new
+		// warning are fixed.
+		"-Wno-enum-compare",
+		"-Wno-enum-compare-switch",
+
 		// Disable c++98-specific warning since Android is not concerned with C++98
 		// compatibility.
 		"-Wno-c++98-compat-extra-semi",
@@ -191,11 +196,9 @@ func init() {
 		"-Wno-dangling-field",
 	}, " "))
 
-	// Extra cflags for projects under external/ directory to disable warnings that are infeasible
-	// to fix in all the external projects and their upstream repos.
+	// Extra cflags for projects under external/ directory
 	pctx.StaticVariable("ClangExtraExternalCflags", strings.Join([]string{
-		"-Wno-enum-compare",
-		"-Wno-enum-compare-switch",
+		// TODO(yikong): Move -Wno flags here
 	}, " "))
 }
 
