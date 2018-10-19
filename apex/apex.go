@@ -75,6 +75,7 @@ var (
 	executableTag = dependencyTag{name: "executable"}
 	javaLibTag    = dependencyTag{name: "javaLib"}
 	prebuiltTag   = dependencyTag{name: "prebuilt"}
+	keyTag        = dependencyTag{name: "key"}
 )
 
 func init() {
@@ -172,6 +173,9 @@ type apexBundleProperties struct {
 
 	// List of prebuilt files that are embedded inside this APEX bundle
 	Prebuilts []string
+
+	// Name of the apex_key module that provides the private key to sign APEX
+	Key *string
 }
 
 type apexBundle struct {
@@ -185,14 +189,6 @@ type apexBundle struct {
 }
 
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
-	// Native shared libs are added for all architectures of the device
-	// i.e., native_shared_lib_modules: ["libc"] adds both 64 and 32 variation
-	// of the module
-	arches := ctx.DeviceConfig().Arches()
-	if len(arches) == 0 {
-		panic("device build with no primary arch")
-	}
-
 	for _, arch := range ctx.MultiTargets() {
 		// Use *FarVariation* to be able to depend on modules having
 		// conflicting variations with this module. This is required since
@@ -208,16 +204,21 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			{Mutator: "arch", Variation: arch.String()},
 			{Mutator: "image", Variation: "core"},
 		}, executableTag, a.properties.Binaries...)
-
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: "android_common"},
-		}, javaLibTag, a.properties.Java_libs...)
-
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: "android_common"},
-		}, prebuiltTag, a.properties.Prebuilts...)
 	}
 
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: "android_common"},
+	}, javaLibTag, a.properties.Java_libs...)
+
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: "android_common"},
+	}, prebuiltTag, a.properties.Prebuilts...)
+
+	if String(a.properties.Key) == "" {
+		ctx.ModuleErrorf("key is missing")
+		return
+	}
+	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
 }
 
 func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
@@ -259,34 +260,52 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// files to copy -> dir in apex
 	copyManifest := make(map[android.Path]string)
 
+	var keyFile android.Path
+
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		if _, ok := parent.(*apexBundle); ok {
 			// direct dependencies
 			depTag := ctx.OtherModuleDependencyTag(child)
+			depName := ctx.OtherModuleName(child)
 			switch depTag {
 			case sharedLibTag:
 				if cc, ok := child.(*cc.Module); ok {
 					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc)
 					copyManifest[fileToCopy] = dirInApex
 					return true
+				} else {
+					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
 				}
 			case executableTag:
 				if cc, ok := child.(*cc.Module); ok {
 					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
 					copyManifest[fileToCopy] = dirInApex
 					return true
+				} else {
+					ctx.PropertyErrorf("binaries", "%q is not a cc_binary module", depName)
 				}
 			case javaLibTag:
 				if java, ok := child.(*java.Library); ok {
 					fileToCopy, dirInApex := getCopyManifestForJavaLibrary(java)
 					copyManifest[fileToCopy] = dirInApex
 					return true
+				} else {
+					ctx.PropertyErrorf("java_libs", "%q is not a java_library module", depName)
 				}
 			case prebuiltTag:
 				if prebuilt, ok := child.(*android.PrebuiltEtc); ok {
 					fileToCopy, dirInApex := getCopyManifestForPrebuiltEtc(prebuilt)
 					copyManifest[fileToCopy] = dirInApex
 					return true
+				} else {
+					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
+				}
+			case keyTag:
+				if key, ok := child.(*apexKey); ok {
+					keyFile = key.private_key_file
+					return false
+				} else {
+					ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
 				}
 			}
 		} else {
@@ -330,8 +349,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "manifest.json"))
 	fileContexts := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.File_contexts, "file_contexts"))
-	// TODO(b/114488804) make this customizable
-	key := android.PathForSource(ctx, "system/apex/apexer/testdata/testkey.pem")
 
 	a.outputFile = android.PathForModuleOut(ctx, a.ModuleBase.Name()+apexSuffix)
 
@@ -351,7 +368,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		copyCommands = append(copyCommands, "cp "+src.String()+" "+dest_path)
 	}
 	implicitInputs := append(android.Paths(nil), filesToCopy...)
-	implicitInputs = append(implicitInputs, cannedFsConfig, manifest, fileContexts, key)
+	implicitInputs = append(implicitInputs, cannedFsConfig, manifest, fileContexts, keyFile)
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 	ctx.ModuleBuild(pctx, android.ModuleBuildParams{
@@ -365,7 +382,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"manifest":         manifest.String(),
 			"file_contexts":    fileContexts.String(),
 			"canned_fs_config": cannedFsConfig.String(),
-			"key":              key.String(),
+			"key":              keyFile.String(),
 		},
 	})
 
@@ -382,6 +399,7 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFile.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
 			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name+apexSuffix)
+			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}}
 }
