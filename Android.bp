@@ -348,6 +348,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "apex/apex.go",
+        "apex/key.go",
     ],
     pluginFor: ["soong_build"],
 }
