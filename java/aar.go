@@ -250,6 +250,8 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 		}
 
 		switch ctx.OtherModuleDependencyTag(module) {
+		case instrumentationForTag:
+			// Nothing, instrumentationForTag is treated as libTag for javac but not for aapt2.
 		case libTag, frameworkResTag:
 			if exportPackage != nil {
 				sharedLibs = append(sharedLibs, exportPackage)

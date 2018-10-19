@@ -111,7 +111,8 @@ func aapt2CompileDirs(ctx android.ModuleContext, flata android.WritablePath, dir
 
 var aapt2LinkRule = pctx.AndroidStaticRule("aapt2Link",
 	blueprint.RuleParams{
-		Command: `${config.Aapt2Cmd} link -o $out $flags --java $genDir --proguard $proguardOptions ` +
+		Command: `rm -rf $genDir && ` +
+			`${config.Aapt2Cmd} link -o $out $flags --java $genDir --proguard $proguardOptions ` +
 			`--output-text-symbols ${rTxt} $inFlags && ` +
 			`${config.SoongZipCmd} -write_if_changed -jar -o $genJar -C $genDir -D $genDir &&` +
 			`${config.ExtractJarPackagesCmd} -i $genJar -o $extraPackages --prefix '--extra-packages '`,

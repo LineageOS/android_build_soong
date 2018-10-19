@@ -173,6 +173,10 @@ func (ze zipEntry) CRC32() uint32 {
 	return ze.content.FileHeader.CRC32
 }
 
+func (ze zipEntry) Size() uint64 {
+	return ze.content.FileHeader.UncompressedSize64
+}
+
 func (ze zipEntry) WriteToZip(dest string, zw *zip.Writer) error {
 	return zw.CopyFrom(ze.content, dest)
 }
@@ -195,6 +199,10 @@ func (be bufferEntry) CRC32() uint32 {
 	return crc32.ChecksumIEEE(be.content)
 }
 
+func (be bufferEntry) Size() uint64 {
+	return uint64(len(be.content))
+}
+
 func (be bufferEntry) WriteToZip(dest string, zw *zip.Writer) error {
 	w, err := zw.CreateHeader(be.fh)
 	if err != nil {
@@ -215,6 +223,7 @@ type zipSource interface {
 	String() string
 	IsDir() bool
 	CRC32() uint32
+	Size() uint64
 	WriteToZip(dest string, zw *zip.Writer) error
 }
 
@@ -369,25 +378,27 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoin
 					return fmt.Errorf("Directory/file mismatch at %v from %v and %v\n",
 						dest, existingSource, source)
 				}
+
 				if ignoreDuplicates {
 					continue
 				}
+
 				if emulateJar &&
 					file.Name == jar.ManifestFile || file.Name == jar.ModuleInfoClass {
 					// Skip manifest and module info files that are not from the first input file
 					continue
 				}
-				if !source.IsDir() {
-					if emulateJar {
-						if existingSource.CRC32() != source.CRC32() {
-							fmt.Fprintf(os.Stdout, "WARNING: Duplicate path %v found in %v and %v\n",
-								dest, existingSource, source)
-						}
-					} else {
-						return fmt.Errorf("Duplicate path %v found in %v and %v\n",
-							dest, existingSource, source)
-					}
+
+				if source.IsDir() {
+					continue
 				}
+
+				if existingSource.CRC32() == source.CRC32() && existingSource.Size() == source.Size() {
+					continue
+				}
+
+				return fmt.Errorf("Duplicate path %v found in %v and %v\n",
+					dest, existingSource, source)
 			}
 		}
 	}

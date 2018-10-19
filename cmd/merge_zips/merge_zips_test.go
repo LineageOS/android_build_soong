@@ -88,6 +88,14 @@ func TestMergeZips(t *testing.T) {
 			ignoreDuplicates: true,
 		},
 		{
+			name: "duplicates identical",
+			in: [][]testZipEntry{
+				{a},
+				{a},
+			},
+			out: []testZipEntry{a},
+		},
+		{
 			name: "sort",
 			in: [][]testZipEntry{
 				{be, bc, bDir, bbDir, bbb, A, metainfDir, manifestFile},
