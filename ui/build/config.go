@@ -508,6 +508,10 @@ func (c *configImpl) KatiBuildNinjaFile() string {
 	return filepath.Join(c.OutDir(), "build"+c.KatiSuffix()+katiBuildSuffix+".ninja")
 }
 
+func (c *configImpl) KatiPackageNinjaFile() string {
+	return filepath.Join(c.OutDir(), "build"+c.KatiSuffix()+katiPackageSuffix+".ninja")
+}
+
 func (c *configImpl) SoongNinjaFile() string {
 	return filepath.Join(c.SoongOutDir(), "build.ninja")
 }
@@ -533,6 +537,10 @@ func (c *configImpl) ProductOut() string {
 
 func (c *configImpl) DevicePreviousProductConfig() string {
 	return filepath.Join(c.ProductOut(), "previous_build_config.mk")
+}
+
+func (c *configImpl) KatiPackageMkDir() string {
+	return filepath.Join(c.ProductOut(), "obj", "CONFIG", "kati_packaging")
 }
 
 func (c *configImpl) hostOutRoot() string {
