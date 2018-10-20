@@ -40,9 +40,10 @@ builddir = {{.OutDir}}
 pool local_pool
  depth = {{.Parallel}}
 build _kati_always_build_: phony
-{{if .HasKatiSuffix}}include {{.KatiBuildNinjaFile}}
+{{if .HasKatiSuffix}}subninja {{.KatiBuildNinjaFile}}
+subninja {{.KatiPackageNinjaFile}}
 {{end -}}
-include {{.SoongNinjaFile}}
+subninja {{.SoongNinjaFile}}
 `))
 
 func createCombinedBuildNinjaFile(ctx Context, config Config) {
@@ -180,6 +181,7 @@ func Build(ctx Context, config Config, what int) {
 		genKatiSuffix(ctx, config)
 		runKatiCleanSpec(ctx, config)
 		runKatiBuild(ctx, config)
+		runKatiPackage(ctx, config)
 
 		ioutil.WriteFile(config.LastKatiSuffixFile(), []byte(config.KatiSuffix()), 0777)
 	} else {

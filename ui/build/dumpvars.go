@@ -48,7 +48,6 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 		"dump-many-vars",
 		"MAKECMDGOALS="+strings.Join(goals, " "))
 	cmd.Environment.Set("CALLED_FROM_SETUP", "true")
-	cmd.Environment.Set("BUILD_SYSTEM", "build/make/core")
 	if write_soong_vars {
 		cmd.Environment.Set("WRITE_SOONG_VARIABLES", "true")
 	}
