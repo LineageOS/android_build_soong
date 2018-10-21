@@ -75,6 +75,17 @@ func (e *Environment) UnsetWithPrefix(prefix string) {
 	*e = out
 }
 
+// Allow removes all keys that are not present in the input list
+func (e *Environment) Allow(keys ...string) {
+	out := (*e)[:0]
+	for _, env := range *e {
+		if key, _, ok := decodeKeyValue(env); ok && inList(key, keys) {
+			out = append(out, env)
+		}
+	}
+	*e = out
+}
+
 // Environ returns the []string required for exec.Cmd.Env
 func (e *Environment) Environ() []string {
 	return []string(*e)

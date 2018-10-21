@@ -318,12 +318,6 @@ type AndroidTest struct {
 }
 
 func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if String(a.appTestProperties.Instrumentation_for) != "" {
-		a.AndroidApp.extraLinkFlags = append(a.AndroidApp.extraLinkFlags,
-			"--rename-instrumentation-target-package",
-			String(a.appTestProperties.Instrumentation_for))
-	}
-
 	a.generateAndroidBuildActions(ctx)
 
 	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.testProperties.Test_config_template, a.manifestPath)
@@ -335,6 +329,12 @@ func (a *AndroidTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourceDeps(ctx, a.testProperties.Test_config_template)
 	android.ExtractSourcesDeps(ctx, a.testProperties.Data)
 	a.AndroidApp.DepsMutator(ctx)
+	if a.appTestProperties.Instrumentation_for != nil {
+		// The android_app dependency listed in instrumentation_for needs to be added to the classpath for javac,
+		// but not added to the aapt2 link includes like a normal android_app or android_library dependency, so
+		// use instrumentationForTag instead of libTag.
+		ctx.AddVariationDependencies(nil, instrumentationForTag, String(a.appTestProperties.Instrumentation_for))
+	}
 }
 
 func AndroidTestFactory() android.Module {
