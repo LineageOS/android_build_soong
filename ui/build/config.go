@@ -34,6 +34,7 @@ type configImpl struct {
 	arguments []string
 	goma      bool
 	environ   *Environment
+	distDir   string
 
 	// From the arguments
 	parallel   int
@@ -86,8 +87,11 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.environ.Set("OUT_DIR", outDir)
 	}
 
-	// Make sure DIST_DIR is set appropriately
-	ret.environ.Set("DIST_DIR", ret.DistDir())
+	if distDir, ok := ret.environ.Get("DIST_DIR"); ok {
+		ret.distDir = filepath.Clean(distDir)
+	} else {
+		ret.distDir = filepath.Join(ret.OutDir(), "dist")
+	}
 
 	ret.environ.Unset(
 		// We're already using it
@@ -109,6 +113,9 @@ func NewConfig(ctx Context, args ...string) Config {
 
 		// We handle this above
 		"OUT_DIR_COMMON_BASE",
+
+		// This is handled above too, and set for individual commands later
+		"DIST_DIR",
 
 		// Variables that have caused problems in the past
 		"CDPATH",
@@ -251,10 +258,10 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			}
 		} else if k, v, ok := decodeKeyValue(arg); ok && len(k) > 0 {
 			c.environ.Set(k, v)
+		} else if arg == "dist" {
+			c.dist = true
 		} else {
-			if arg == "dist" {
-				c.dist = true
-			} else if arg == "checkbuild" {
+			if arg == "checkbuild" {
 				c.checkbuild = true
 			}
 			c.arguments = append(c.arguments, arg)
@@ -378,10 +385,7 @@ func (c *configImpl) OutDir() string {
 }
 
 func (c *configImpl) DistDir() string {
-	if distDir, ok := c.environ.Get("DIST_DIR"); ok {
-		return filepath.Clean(distDir)
-	}
-	return filepath.Join(c.OutDir(), "dist")
+	return c.distDir
 }
 
 func (c *configImpl) NinjaArgs() []string {
