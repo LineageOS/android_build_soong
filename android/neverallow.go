@@ -45,35 +45,85 @@ func registerNeverallowMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("neverallow", neverallowMutator).Parallel()
 }
 
-var neverallows = []*rule{
-	neverallow().
-		in("vendor", "device").
-		with("vndk.enabled", "true").
-		without("vendor", "true").
-		because("the VNDK can never contain a library that is device dependent."),
-	neverallow().
-		with("vndk.enabled", "true").
-		without("vendor", "true").
-		without("owner", "").
-		because("a VNDK module can never have an owner."),
-	neverallow().
-		notIn("libcore", "development", "external/apache-harmony", "external/apache-xml", "external/bouncycastle", "external/conscrypt", "external/icu", "external/okhttp", "external/wycheproof").
-		with("no_standard_libs", "true"),
+var neverallows = createNeverAllows()
 
-	// TODO(b/67974785): always enforce the manifest
-	neverallow().
-		without("name", "libhidltransport").
-		with("product_variables.enforce_vintf_manifest.cflags", "*").
-		because("manifest enforcement should be independent of ."),
+func createNeverAllows() []*rule {
+	rules := []*rule{}
+	rules = append(rules, createTrebleRules()...)
+	rules = append(rules, createLibcoreRules()...)
+	return rules
+}
 
-	// TODO(b/67975799): vendor code should always use /vendor/bin/sh
-	neverallow().
-		without("name", "libc_bionic_ndk").
-		with("product_variables.treble_linker_namespaces.cflags", "*").
-		because("nothing should care if linker namespaces are enabled or not"),
+func createTrebleRules() []*rule {
+	return []*rule{
+		neverallow().
+			in("vendor", "device").
+			with("vndk.enabled", "true").
+			without("vendor", "true").
+			because("the VNDK can never contain a library that is device dependent."),
+		neverallow().
+			with("vndk.enabled", "true").
+			without("vendor", "true").
+			without("owner", "").
+			because("a VNDK module can never have an owner."),
 
-	// Example:
-	// *neverallow().with("Srcs", "main.cpp"),
+		// TODO(b/67974785): always enforce the manifest
+		neverallow().
+			without("name", "libhidltransport").
+			with("product_variables.enforce_vintf_manifest.cflags", "*").
+			because("manifest enforcement should be independent of ."),
+
+		// TODO(b/67975799): vendor code should always use /vendor/bin/sh
+		neverallow().
+			without("name", "libc_bionic_ndk").
+			with("product_variables.treble_linker_namespaces.cflags", "*").
+			because("nothing should care if linker namespaces are enabled or not"),
+
+		// Example:
+		// *neverallow().with("Srcs", "main.cpp"))
+	}
+}
+
+func createLibcoreRules() []*rule {
+	var coreLibraryProjects = []string{
+		"libcore",
+		"external/apache-harmony",
+		"external/apache-xml",
+		"external/bouncycastle",
+		"external/conscrypt",
+		"external/icu",
+		"external/okhttp",
+		"external/wycheproof",
+	}
+
+	var coreModules = []string{
+		"core-all",
+		"core-oj",
+		"core-libart",
+		"core-simple",
+		"okhttp",
+		"bouncycastle",
+		"conscrypt",
+		"apache-xml",
+	}
+
+	// Core library constraints. Prevent targets adding dependencies on core
+	// library internals, which could lead to compatibility issues with the ART
+	// mainline module. They should use core.platform.api.stubs instead.
+	rules := []*rule{
+		neverallow().
+			notIn(append(coreLibraryProjects, "development")...).
+			with("no_standard_libs", "true"),
+	}
+
+	for _, m := range coreModules {
+		r := neverallow().
+			notIn(coreLibraryProjects...).
+			with("libs", m).
+			because("Only core libraries projects can depend on " + m)
+		rules = append(rules, r)
+	}
+	return rules
 }
 
 func neverallowMutator(ctx BottomUpMutatorContext) {
