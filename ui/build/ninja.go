@@ -60,6 +60,8 @@ func runNinja(ctx Context, config Config) {
 		cmd.Environment.AppendFromKati(config.KatiEnvFile())
 	}
 
+	cmd.Environment.Set("DIST_DIR", config.DistDir())
+
 	// Allow both NINJA_ARGS and NINJA_EXTRA_ARGS, since both have been
 	// used in the past to specify extra ninja arguments.
 	if extra, ok := cmd.Environment.Get("NINJA_ARGS"); ok {
