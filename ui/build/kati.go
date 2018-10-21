@@ -129,9 +129,7 @@ func runKatiBuild(ctx Context, config Config) {
 		"TARGET_DEVICE_DIR="+config.TargetDeviceDir(),
 		"KATI_PACKAGE_MK_DIR="+config.KatiPackageMkDir())
 
-	runKati(ctx, config, katiBuildSuffix, args, func(env *Environment) {
-		env.Unset("DIST_DIR")
-	})
+	runKati(ctx, config, katiBuildSuffix, args, func(env *Environment) {})
 }
 
 func runKatiPackage(ctx Context, config Config) {
@@ -170,6 +168,7 @@ func runKatiPackage(ctx Context, config Config) {
 
 		if config.Dist() {
 			env.Set("DIST", "true")
+			env.Set("DIST_DIR", config.DistDir())
 		}
 	})
 }
@@ -184,7 +183,5 @@ func runKatiCleanSpec(ctx Context, config Config) {
 		"-f", "build/make/core/cleanbuild.mk",
 		"SOONG_MAKEVARS_MK=" + config.SoongMakeVarsMk(),
 		"TARGET_DEVICE_DIR=" + config.TargetDeviceDir(),
-	}, func(env *Environment) {
-		env.Unset("DIST_DIR")
-	})
+	}, func(env *Environment) {})
 }
