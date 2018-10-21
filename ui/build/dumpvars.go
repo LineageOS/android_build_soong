@@ -32,8 +32,40 @@ import (
 //
 // vars is the list of variables to read. The values will be put in the
 // returned map.
+//
+// variables controlled by soong_ui directly are now returned without needing
+// to call into make, to retain compatibility.
 func DumpMakeVars(ctx Context, config Config, goals, vars []string) (map[string]string, error) {
-	return dumpMakeVars(ctx, config, goals, vars, false)
+	soongUiVars := map[string]func() string{
+		"OUT_DIR":  func() string { return config.OutDir() },
+		"DIST_DIR": func() string { return config.DistDir() },
+	}
+
+	makeVars := make([]string, 0, len(vars))
+	for _, v := range vars {
+		if _, ok := soongUiVars[v]; !ok {
+			makeVars = append(makeVars, v)
+		}
+	}
+
+	var ret map[string]string
+	if len(makeVars) > 0 {
+		var err error
+		ret, err = dumpMakeVars(ctx, config, goals, makeVars, false)
+		if err != nil {
+			return ret, err
+		}
+	} else {
+		ret = make(map[string]string)
+	}
+
+	for _, v := range vars {
+		if f, ok := soongUiVars[v]; ok {
+			ret[v] = f()
+		}
+	}
+
+	return ret, nil
 }
 
 func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_vars bool) (map[string]string, error) {
