@@ -88,7 +88,7 @@ func main() {
 		os.Exit(4)
 	}
 
-	err = symbol_inject.InjectSymbol(file, w, *symbol, *value, *from)
+	err = symbol_inject.InjectStringSymbol(file, w, *symbol, *value, *from)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Remove(*output)
