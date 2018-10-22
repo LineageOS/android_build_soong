@@ -391,7 +391,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.GlobalFlags = append([]string{"${config.ClangExternalCflags}"}, flags.GlobalFlags...)
 	}
 
-	if ctx.Device() {
+	if tc.Bionic() {
 		if Bool(compiler.Properties.Rtti) {
 			flags.CppFlags = append(flags.CppFlags, "-frtti")
 		} else {
