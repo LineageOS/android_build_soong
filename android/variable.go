@@ -228,7 +228,6 @@ type productVariables struct {
 	Product_is_iot *bool `json:",omitempty"`
 
 	DeviceKernelHeaders []string `json:",omitempty"`
-	DistDir             *string  `json:",omitempty"`
 
 	ExtraVndkVersions []string `json:",omitempty"`
 
