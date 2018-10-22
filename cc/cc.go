@@ -83,7 +83,10 @@ type Deps struct {
 	ReexportGeneratedHeaders []string
 
 	CrtBegin, CrtEnd string
-	LinkerScript     string
+
+	// Used for host bionic
+	LinkerFlagsFile string
+	DynamicLinker   string
 }
 
 type PathDeps struct {
@@ -108,7 +111,12 @@ type PathDeps struct {
 
 	// Paths to crt*.o files
 	CrtBegin, CrtEnd android.OptionalPath
-	LinkerScript     android.OptionalPath
+
+	// Path to the file container flags to use with the linker
+	LinkerFlagsFile android.OptionalPath
+
+	// Path to the dynamic linker binary
+	DynamicLinker android.OptionalPath
 }
 
 type Flags struct {
@@ -306,7 +314,8 @@ var (
 	objDepTag             = dependencyTag{name: "obj"}
 	crtBeginDepTag        = dependencyTag{name: "crtbegin"}
 	crtEndDepTag          = dependencyTag{name: "crtend"}
-	linkerScriptDepTag    = dependencyTag{name: "linker script"}
+	linkerFlagsDepTag     = dependencyTag{name: "linker flags file"}
+	dynamicLinkerDepTag   = dependencyTag{name: "dynamic linker"}
 	reuseObjTag           = dependencyTag{name: "reuse objects"}
 	ndkStubDepTag         = dependencyTag{name: "ndk stub", library: true}
 	ndkLateStubDepTag     = dependencyTag{name: "ndk late stub", library: true}
@@ -1062,8 +1071,11 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if deps.CrtEnd != "" {
 		actx.AddVariationDependencies(nil, crtEndDepTag, deps.CrtEnd)
 	}
-	if deps.LinkerScript != "" {
-		actx.AddDependency(c, linkerScriptDepTag, deps.LinkerScript)
+	if deps.LinkerFlagsFile != "" {
+		actx.AddDependency(c, linkerFlagsDepTag, deps.LinkerFlagsFile)
+	}
+	if deps.DynamicLinker != "" {
+		actx.AddDependency(c, dynamicLinkerDepTag, deps.DynamicLinker)
 	}
 
 	version := ctx.sdkVersion()
@@ -1257,13 +1269,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", depName)
 				}
-			case linkerScriptDepTag:
+			case linkerFlagsDepTag:
 				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
 					files := genRule.GeneratedSourceFiles()
 					if len(files) == 1 {
-						depPaths.LinkerScript = android.OptionalPathForPath(files[0])
+						depPaths.LinkerFlagsFile = android.OptionalPathForPath(files[0])
 					} else if len(files) > 1 {
-						ctx.ModuleErrorf("module %q can only generate a single file if used for a linker script", depName)
+						ctx.ModuleErrorf("module %q can only generate a single file if used for a linker flag file", depName)
 					}
 				} else {
 					ctx.ModuleErrorf("module %q is not a genrule", depName)
@@ -1358,6 +1370,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			depPaths.CrtBegin = linkFile
 		case crtEndDepTag:
 			depPaths.CrtEnd = linkFile
+		case dynamicLinkerDepTag:
+			depPaths.DynamicLinker = linkFile
 		}
 
 		switch depTag {

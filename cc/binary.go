@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"github.com/google/blueprint"
+
 	"android/soong/android"
 )
 
@@ -154,7 +156,8 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		}
 
 		if ctx.Os() == android.LinuxBionic && !binary.static() {
-			deps.LinkerScript = "host_bionic_linker_script"
+			deps.DynamicLinker = "linker"
+			deps.LinkerFlagsFile = "host_bionic_linker_flags"
 		}
 	}
 
@@ -244,14 +247,23 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 					switch ctx.Os() {
 					case android.Android:
 						flags.DynamicLinker = "/system/bin/linker"
+						if flags.Toolchain.Is64Bit() {
+							flags.DynamicLinker += "64"
+						}
 					case android.LinuxBionic:
 						flags.DynamicLinker = ""
 					default:
 						ctx.ModuleErrorf("unknown dynamic linker")
 					}
-					if flags.Toolchain.Is64Bit() {
-						flags.DynamicLinker += "64"
-					}
+				}
+
+				if ctx.Os() == android.LinuxBionic {
+					// Use the dlwrap entry point, but keep _start around so
+					// that it can be used by host_bionic_inject
+					flags.LdFlags = append(flags.LdFlags,
+						"-Wl,--entry=__dlwrap__start",
+						"-Wl,--undefined=_start",
+					)
 				}
 			}
 
@@ -262,7 +274,6 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				"-Wl,--gc-sections",
 				"-Wl,-z,nocopyreloc",
 			)
-
 		}
 	} else {
 		if binary.static() {
@@ -288,13 +299,15 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	sharedLibs := deps.SharedLibs
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
 
-	if deps.LinkerScript.Valid() {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,-T,"+deps.LinkerScript.String())
-		linkerDeps = append(linkerDeps, deps.LinkerScript.Path())
+	if deps.LinkerFlagsFile.Valid() {
+		flags.LdFlags = append(flags.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
+		linkerDeps = append(linkerDeps, deps.LinkerFlagsFile.Path())
 	}
 
 	if flags.DynamicLinker != "" {
-		flags.LdFlags = append(flags.LdFlags, " -Wl,-dynamic-linker,"+flags.DynamicLinker)
+		flags.LdFlags = append(flags.LdFlags, "-Wl,-dynamic-linker,"+flags.DynamicLinker)
+	} else if ctx.toolchain().Bionic() && !binary.static() {
+		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-dynamic-linker")
 	}
 
 	builderFlags := flagsToBuilderFlags(flags)
@@ -321,6 +334,17 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		versionedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
 		binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+	}
+
+	if ctx.Os() == android.LinuxBionic && !binary.static() {
+		injectedOutputFile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "prelinker", fileName)
+
+		if !deps.DynamicLinker.Valid() {
+			panic("Non-static host bionic modules must have a dynamic linker")
+		}
+
+		binary.injectHostBionicLinkerSymbols(ctx, outputFile, deps.DynamicLinker.Path(), injectedOutputFile)
 	}
 
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
@@ -366,4 +390,27 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 
 func (binary *binaryDecorator) hostToolPath() android.OptionalPath {
 	return binary.toolPath
+}
+
+func init() {
+	pctx.HostBinToolVariable("hostBionicSymbolsInjectCmd", "host_bionic_inject")
+}
+
+var injectHostBionicSymbols = pctx.AndroidStaticRule("injectHostBionicSymbols",
+	blueprint.RuleParams{
+		Command:     "$hostBionicSymbolsInjectCmd -i $in -l $linker -o $out",
+		CommandDeps: []string{"$hostBionicSymbolsInjectCmd"},
+	}, "linker")
+
+func (binary *binaryDecorator) injectHostBionicLinkerSymbols(ctx ModuleContext, in, linker android.Path, out android.WritablePath) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        injectHostBionicSymbols,
+		Description: "inject host bionic symbols",
+		Input:       in,
+		Implicit:    linker,
+		Output:      out,
+		Args: map[string]string{
+			"linker": linker.String(),
+		},
+	})
 }
