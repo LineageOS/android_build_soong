@@ -194,7 +194,7 @@ var (
 	NoOsType    OsType
 	Linux       = NewOsType("linux_glibc", Host, false)
 	Darwin      = NewOsType("darwin", Host, false)
-	LinuxBionic = NewOsType("linux_bionic", Host, true)
+	LinuxBionic = NewOsType("linux_bionic", Host, false)
 	Windows     = NewOsType("windows", HostCross, true)
 	Android     = NewOsType("android", Device, false)
 
