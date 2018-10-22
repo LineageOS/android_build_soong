@@ -172,13 +172,13 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	sort.Strings(ndkMigratedLibs)
 	ctx.Strict("NDK_MIGRATED_LIBS", strings.Join(ndkMigratedLibs, " "))
 
-	hostTargets := ctx.Config().Targets[android.Host]
+	hostTargets := ctx.Config().Targets[android.BuildOs]
 	makeVarsToolchain(ctx, "", hostTargets[0])
 	if len(hostTargets) > 1 {
 		makeVarsToolchain(ctx, "2ND_", hostTargets[1])
 	}
 
-	crossTargets := ctx.Config().Targets[android.HostCross]
+	crossTargets := ctx.Config().Targets[android.Windows]
 	if len(crossTargets) > 0 {
 		makeVarsToolchain(ctx, "", crossTargets[0])
 		if len(crossTargets) > 1 {
@@ -186,7 +186,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		}
 	}
 
-	deviceTargets := ctx.Config().Targets[android.Device]
+	deviceTargets := ctx.Config().Targets[android.Android]
 	makeVarsToolchain(ctx, "", deviceTargets[0])
 	if len(deviceTargets) > 1 {
 		makeVarsToolchain(ctx, "2ND_", deviceTargets[1])

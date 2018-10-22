@@ -325,37 +325,46 @@ func archMutator(mctx BottomUpMutatorContext) {
 		return
 	}
 
-	osClasses := base.OsClassSupported()
-
 	var moduleTargets []Target
 	moduleMultiTargets := make(map[int][]Target)
 	primaryModules := make(map[int]bool)
+	osClasses := base.OsClassSupported()
 
-	for _, class := range osClasses {
-		classTargets := mctx.Config().Targets[class]
-		if len(classTargets) == 0 {
+	for _, os := range osTypeList {
+		supportedClass := false
+		for _, osClass := range osClasses {
+			if os.Class == osClass {
+				supportedClass = true
+			}
+		}
+		if !supportedClass {
+			continue
+		}
+
+		osTargets := mctx.Config().Targets[os]
+		if len(osTargets) == 0 {
 			continue
 		}
 
 		// only the primary arch in the recovery partition
-		if module.InstallInRecovery() {
-			classTargets = []Target{mctx.Config().Targets[Device][0]}
+		if os == Android && module.InstallInRecovery() {
+			osTargets = []Target{osTargets[0]}
 		}
 
 		prefer32 := false
 		if base.prefer32 != nil {
-			prefer32 = base.prefer32(mctx, base, class)
+			prefer32 = base.prefer32(mctx, base, os.Class)
 		}
 
-		multilib, extraMultilib := decodeMultilib(base, class)
-		targets, err := decodeMultilibTargets(multilib, classTargets, prefer32)
+		multilib, extraMultilib := decodeMultilib(base, os.Class)
+		targets, err := decodeMultilibTargets(multilib, osTargets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
 
 		var multiTargets []Target
 		if extraMultilib != "" {
-			multiTargets, err = decodeMultilibTargets(extraMultilib, classTargets, prefer32)
+			multiTargets, err = decodeMultilibTargets(extraMultilib, osTargets, prefer32)
 			if err != nil {
 				mctx.ModuleErrorf("%s", err.Error())
 			}
@@ -839,17 +848,17 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			}
 
 			if (arch.ArchType == X86 && (hasArmAbi(arch) ||
-				hasArmAndroidArch(ctx.Config().Targets[Device]))) ||
+				hasArmAndroidArch(ctx.Config().Targets[Android]))) ||
 				(arch.ArchType == Arm &&
-					hasX86AndroidArch(ctx.Config().Targets[Device])) {
+					hasX86AndroidArch(ctx.Config().Targets[Android])) {
 				field := "Arm_on_x86"
 				prefix := "target.arm_on_x86"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 			if (arch.ArchType == X86_64 && (hasArmAbi(arch) ||
-				hasArmAndroidArch(ctx.Config().Targets[Device]))) ||
+				hasArmAndroidArch(ctx.Config().Targets[Android]))) ||
 				(arch.ArchType == Arm &&
-					hasX8664AndroidArch(ctx.Config().Targets[Device])) {
+					hasX8664AndroidArch(ctx.Config().Targets[Android])) {
 				field := "Arm_on_x86_64"
 				prefix := "target.arm_on_x86_64"
 				a.appendProperties(ctx, genProps, targetProp, field, prefix)
@@ -874,10 +883,10 @@ func forEachInterface(v reflect.Value, f func(reflect.Value)) {
 }
 
 // Convert the arch product variables into a list of targets for each os class structs
-func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) {
+func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	variables := config.productVariables
 
-	targets := make(map[OsClass][]Target)
+	targets := make(map[OsType][]Target)
 	var targetErr error
 
 	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi *[]string) {
@@ -891,7 +900,7 @@ func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) 
 			return
 		}
 
-		targets[os.Class] = append(targets[os.Class],
+		targets[os] = append(targets[os],
 			Target{
 				Os:   os,
 				Arch: arch,
@@ -938,7 +947,7 @@ func decodeTargetProductVariables(config *config) (map[OsClass][]Target, error) 
 				variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
 				variables.DeviceSecondaryAbi)
 
-			deviceArches := targets[Device]
+			deviceArches := targets[Android]
 			if deviceArches[0].Arch.ArchType.Multilib == deviceArches[1].Arch.ArchType.Multilib {
 				deviceArches[1].Arch.Native = false
 			}
