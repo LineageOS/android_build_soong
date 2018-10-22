@@ -76,7 +76,7 @@ func (lto *lto) useClangLld(ctx BaseModuleContext) bool {
 	if lto.Properties.Use_clang_lld != nil {
 		return Bool(lto.Properties.Use_clang_lld)
 	}
-	return ctx.Config().UseClangLld()
+	return true
 }
 
 func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {

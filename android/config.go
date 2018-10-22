@@ -646,10 +646,6 @@ func (c *config) TargetOpenJDK9() bool {
 	return c.targetOpenJDK9
 }
 
-func (c *config) UseClangLld() bool {
-	return Bool(c.productVariables.UseClangLld)
-}
-
 func (c *config) ClangTidy() bool {
 	return Bool(c.productVariables.ClangTidy)
 }
