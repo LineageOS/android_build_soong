@@ -12,55 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package symbol_inject
 
 import (
-	"bytes"
 	"strconv"
 	"testing"
 )
 
-func TestCopyAndInject(t *testing.T) {
-	s := "abcdefghijklmnopqrstuvwxyz"
+func TestElfSymbolTable(t *testing.T) {
 	testCases := []struct {
+		file         *mockElfFile
+		symbol       string
 		offset, size uint64
-		value        string
-		expected     string
 	}{
 		{
-			offset:   0,
-			size:     1,
-			value:    "A",
-			expected: "Abcdefghijklmnopqrstuvwxyz",
+			file:   elfSymbolTable1,
+			symbol: "soong_build_number",
+			offset: 0x1030,
+			size:   128,
 		},
 		{
-			offset:   1,
-			size:     1,
-			value:    "B",
-			expected: "aBcdefghijklmnopqrstuvwxyz",
+			file:   elfSymbolTable2,
+			symbol: "symbol1",
+			offset: 0x1030,
+			size:   128,
 		},
 		{
-			offset:   1,
-			size:     1,
-			value:    "BCD",
-			expected: "aBcdefghijklmnopqrstuvwxyz",
-		},
-		{
-			offset:   25,
-			size:     1,
-			value:    "Z",
-			expected: "abcdefghijklmnopqrstuvwxyZ",
+			file:   elfSymbolTable2,
+			symbol: "symbol2",
+			offset: 0x10b0,
+			size:   128,
 		},
 	}
 
 	for i, testCase := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			in := bytes.NewReader([]byte(s))
-			out := &bytes.Buffer{}
-			copyAndInject(in, out, testCase.offset, testCase.size, testCase.value)
-
-			if out.String() != testCase.expected {
-				t.Errorf("expected %s, got %s", testCase.expected, out.String())
+			file, err := extractElfSymbols(testCase.file)
+			if err != nil {
+				t.Error(err.Error())
+			}
+			offset, size, err := findSymbol(file, testCase.symbol)
+			if err != nil {
+				t.Error(err.Error())
+			}
+			if offset != testCase.offset || size != testCase.size {
+				t.Errorf("expected %x:%x, got %x:%x", testCase.offset, testCase.size, offset, size)
 			}
 		})
 	}

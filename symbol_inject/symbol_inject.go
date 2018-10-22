@@ -12,25 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package symbol_inject
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"math"
-	"os"
-)
-
-var (
-	input  = flag.String("i", "", "input file")
-	output = flag.String("o", "", "output file")
-	symbol = flag.String("s", "", "symbol to inject into")
-	from   = flag.String("from", "", "optional existing value of the symbol for verification")
-	value  = flag.String("v", "", "value to inject into symbol")
-
-	dump = flag.Bool("dump", false, "dump the symbol table for copying into a test")
 )
 
 var maxUint64 uint64 = math.MaxUint64
@@ -39,71 +27,7 @@ type cantParseError struct {
 	error
 }
 
-func main() {
-	flag.Parse()
-
-	usageError := func(s string) {
-		fmt.Fprintln(os.Stderr, s)
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if *input == "" {
-		usageError("-i is required")
-	}
-
-	if !*dump {
-		if *output == "" {
-			usageError("-o is required")
-		}
-
-		if *symbol == "" {
-			usageError("-s is required")
-		}
-
-		if *value == "" {
-			usageError("-v is required")
-		}
-	}
-
-	r, err := os.Open(*input)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(2)
-	}
-	defer r.Close()
-
-	if *dump {
-		err := dumpSymbols(r)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(6)
-		}
-		return
-	}
-
-	w, err := os.OpenFile(*output, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(3)
-	}
-	defer w.Close()
-
-	file, err := openFile(r)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(4)
-	}
-
-	err = injectSymbol(file, w, *symbol, *value, *from)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Remove(*output)
-		os.Exit(5)
-	}
-}
-
-func openFile(r io.ReaderAt) (*File, error) {
+func OpenFile(r io.ReaderAt) (*File, error) {
 	file, err := elfSymbolsFromFile(r)
 	if elfError, ok := err.(cantParseError); ok {
 		// Try as a mach-o file
@@ -126,7 +50,7 @@ func openFile(r io.ReaderAt) (*File, error) {
 	return file, err
 }
 
-func injectSymbol(file *File, w io.Writer, symbol, value, from string) error {
+func InjectSymbol(file *File, w io.Writer, symbol, value, from string) error {
 	offset, size, err := findSymbol(file, symbol)
 	if err != nil {
 		return err
@@ -239,7 +163,7 @@ type Section struct {
 	Size   uint64
 }
 
-func dumpSymbols(r io.ReaderAt) error {
+func DumpSymbols(r io.ReaderAt) error {
 	err := dumpElfSymbols(r)
 	if elfError, ok := err.(cantParseError); ok {
 		// Try as a mach-o file
