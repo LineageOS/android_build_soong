@@ -289,7 +289,7 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 	if linker.Properties.Use_clang_lld != nil {
 		return Bool(linker.Properties.Use_clang_lld)
 	}
-	return ctx.Config().UseClangLld()
+	return true
 }
 
 // ModuleContext extends BaseModuleContext

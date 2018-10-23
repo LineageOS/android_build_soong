@@ -482,7 +482,7 @@ cc_genrule {
 }
 
 cc_genrule {
-    name: "host_bionic_linker_script",
+    name: "host_bionic_linker_flags",
     host_supported: true,
     device_supported: false,
     target: {
@@ -497,7 +497,7 @@ cc_genrule {
         },
     },
     tools: ["extract_linker"],
-    cmd: "$(location) -T $(out) $(in)",
+    cmd: "$(location) -f $(out) $(in)",
     srcs: [":linker"],
-    out: ["linker.script"],
+    out: ["linker.flags"],
 }
