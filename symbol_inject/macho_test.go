@@ -12,42 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package symbol_inject
 
 import (
+	"debug/macho"
 	"strconv"
 	"testing"
 )
 
-func TestElfSymbolTable(t *testing.T) {
+func TestMachoSymbolTable(t *testing.T) {
 	testCases := []struct {
-		file         *mockElfFile
+		file         *macho.File
 		symbol       string
 		offset, size uint64
 	}{
 		{
-			file:   elfSymbolTable1,
+			file:   machoSymbolTable1,
 			symbol: "soong_build_number",
-			offset: 0x1030,
+			offset: 0x1020,
 			size:   128,
 		},
 		{
-			file:   elfSymbolTable2,
+			file:   machoSymbolTable2,
 			symbol: "symbol1",
-			offset: 0x1030,
+			offset: 0x1020,
 			size:   128,
 		},
 		{
-			file:   elfSymbolTable2,
+			file:   machoSymbolTable2,
 			symbol: "symbol2",
-			offset: 0x10b0,
+			offset: 0x10a0,
 			size:   128,
 		},
 	}
 
 	for i, testCase := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			file, err := extractElfSymbols(testCase.file)
+			file, err := extractMachoSymbols(testCase.file)
 			if err != nil {
 				t.Error(err.Error())
 			}

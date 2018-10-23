@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-blueprint_go_binary {
-    name: "symbol_inject",
+bootstrap_go_package {
+    name: "soong-symbol_inject",
+    pkgPath: "android/soong/symbol_inject",
     srcs: [
         "symbol_inject.go",
         "elf.go",
