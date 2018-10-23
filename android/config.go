@@ -90,7 +90,7 @@ type config struct {
 	ConfigFileName           string
 	ProductVariablesFileName string
 
-	Targets              map[OsClass][]Target
+	Targets              map[OsType][]Target
 	BuildOsVariant       string
 	BuildOsCommonVariant string
 
@@ -230,18 +230,18 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 	testConfig := TestConfig(buildDir, env)
 	config := testConfig.config
 
-	config.Targets = map[OsClass][]Target{
-		Device: []Target{
+	config.Targets = map[OsType][]Target{
+		Android: []Target{
 			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}},
 			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}},
 		},
-		Host: []Target{
+		BuildOs: []Target{
 			{BuildOs, Arch{ArchType: X86_64}},
 			{BuildOs, Arch{ArchType: X86}},
 		},
 	}
 
-	config.BuildOsVariant = config.Targets[Host][0].String()
+	config.BuildOsVariant = config.Targets[BuildOs][0].String()
 
 	return testConfig
 }
@@ -304,16 +304,16 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	}
 
 	if archConfig != nil {
-		deviceTargets, err := decodeArchSettings(archConfig)
+		androidTargets, err := decodeArchSettings(archConfig)
 		if err != nil {
 			return Config{}, err
 		}
-		targets[Device] = deviceTargets
+		targets[Android] = androidTargets
 	}
 
 	config.Targets = targets
-	config.BuildOsVariant = targets[Host][0].String()
-	config.BuildOsCommonVariant = getCommonTargets(targets[Host])[0].String()
+	config.BuildOsVariant = targets[BuildOs][0].String()
+	config.BuildOsCommonVariant = getCommonTargets(targets[BuildOs])[0].String()
 
 	if err := config.fromEnv(); err != nil {
 		return Config{}, err
@@ -587,7 +587,7 @@ func (c *config) DevicePrefer32BitExecutables() bool {
 }
 
 func (c *config) DevicePrimaryArchType() ArchType {
-	return c.Targets[Device][0].Arch.ArchType
+	return c.Targets[Android][0].Arch.ArchType
 }
 
 func (c *config) SkipDeviceInstall() bool {
@@ -624,7 +624,7 @@ func (c *config) EnableCFI() bool {
 }
 
 func (c *config) Android64() bool {
-	for _, t := range c.Targets[Device] {
+	for _, t := range c.Targets[Android] {
 		if t.Arch.ArchType.Multilib == "lib64" {
 			return true
 		}
@@ -663,8 +663,8 @@ func (c *config) LibartImgHostBaseAddress() string {
 
 func (c *config) LibartImgDeviceBaseAddress() string {
 	archType := Common
-	if len(c.Targets[Device]) > 0 {
-		archType = c.Targets[Device][0].Arch.ArchType
+	if len(c.Targets[Android]) > 0 {
+		archType = c.Targets[Android][0].Arch.ArchType
 	}
 	switch archType {
 	default:
@@ -711,7 +711,7 @@ func (c *config) HostStaticBinaries() bool {
 
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
-	for _, target := range c.config.Targets[Device] {
+	for _, target := range c.config.Targets[Android] {
 		arches = append(arches, target.Arch)
 	}
 	return arches
