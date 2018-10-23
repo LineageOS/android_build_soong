@@ -678,6 +678,14 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	if library.baseCompiler.hasSrcExt(".sysprop") {
+		flags := []string{
+			"-I" + android.PathForModuleGen(ctx, "sysprop", "include").String(),
+		}
+		library.reexportFlags(flags)
+		library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
+	}
+
 	return out
 }
 
