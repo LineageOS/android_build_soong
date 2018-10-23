@@ -26,6 +26,7 @@ import (
 
 func init() {
 	pctx.HostBinToolVariable("aidlCmd", "aidl")
+	pctx.HostBinToolVariable("syspropCmd", "sysprop_java")
 	pctx.SourcePathVariable("logtagsCmd", "build/tools/java-event-log-tags.py")
 	pctx.SourcePathVariable("mergeLogtagsCmd", "build/tools/merge-event-log-tags.py")
 }
@@ -48,6 +49,17 @@ var (
 		blueprint.RuleParams{
 			Command:     "$mergeLogtagsCmd -o $out $in",
 			CommandDeps: []string{"$mergeLogtagsCmd"},
+		})
+
+	sysprop = pctx.AndroidStaticRule("sysprop",
+		blueprint.RuleParams{
+			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
+				`$syspropCmd --java-output-dir $out.tmp $in && ` +
+				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
+			CommandDeps: []string{
+				"$syspropCmd",
+				"${config.SoongZipCmd}",
+			},
 		})
 )
 
@@ -82,6 +94,19 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 	return javaFile
 }
 
+func genSysprop(ctx android.ModuleContext, syspropFile android.Path) android.Path {
+	srcJarFile := android.GenPathWithExt(ctx, "sysprop", syspropFile, "srcjar")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        sysprop,
+		Description: "sysprop_java " + syspropFile.Rel(),
+		Output:      srcJarFile,
+		Input:       syspropFile,
+	})
+
+	return srcJarFile
+}
+
 func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	flags javaBuilderFlags) android.Paths {
 
@@ -98,6 +123,9 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".proto":
 			srcJarFile := genProto(ctx, srcFile, flags)
+			outSrcFiles = append(outSrcFiles, srcJarFile)
+		case ".sysprop":
+			srcJarFile := genSysprop(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, srcJarFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)
