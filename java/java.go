@@ -725,27 +725,34 @@ const (
 	javaPlatform
 )
 
-func getLinkType(m *Module, name string) linkType {
+func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 	ver := m.sdkVersion()
-	noStdLibs := Bool(m.properties.No_standard_libs)
 	switch {
-	case name == "core.current.stubs" || ver == "core_current" ||
-		name == "core.platform.api.stubs" || ver == "core_platform_current" ||
-		noStdLibs || name == "stub-annotations" || name == "private-stub-annotations-jar":
-		return javaCore
-	case name == "android_system_stubs_current" || strings.HasPrefix(ver, "system_"):
-		return javaSystem
-	case name == "android_test_stubs_current" || strings.HasPrefix(ver, "test_"):
-		return javaPlatform
-	case name == "android_stubs_current" || ver == "current":
-		return javaSdk
+	case name == "core.current.stubs" || name == "core.platform.api.stubs" ||
+		name == "stub-annotations" || name == "private-stub-annotations-jar" ||
+		name == "core-lambda-stubs":
+		return javaCore, true
+	case ver == "core_current" || ver == "core_platform_current":
+		return javaCore, false
+	case name == "android_system_stubs_current":
+		return javaSystem, true
+	case strings.HasPrefix(ver, "system_"):
+		return javaSystem, false
+	case name == "android_test_stubs_current":
+		return javaSystem, true
+	case strings.HasPrefix(ver, "test_"):
+		return javaPlatform, false
+	case name == "android_stubs_current":
+		return javaSdk, true
+	case ver == "current":
+		return javaSdk, false
 	case ver == "":
-		return javaPlatform
+		return javaPlatform, false
 	default:
 		if _, err := strconv.Atoi(ver); err != nil {
 			panic(fmt.Errorf("expected sdk_version to be a number, got %q", ver))
 		}
-		return javaSdk
+		return javaSdk, false
 	}
 }
 
@@ -754,8 +761,11 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dep
 		return
 	}
 
-	myLinkType := getLinkType(from, ctx.ModuleName())
-	otherLinkType := getLinkType(&to.Module, ctx.OtherModuleName(to))
+	myLinkType, stubs := getLinkType(from, ctx.ModuleName())
+	if stubs {
+		return
+	}
+	otherLinkType, _ := getLinkType(&to.Module, ctx.OtherModuleName(to))
 	commonMessage := "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source."
 
 	switch myLinkType {
@@ -860,7 +870,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		case SdkLibraryDependency:
 			switch tag {
 			case libTag:
-				deps.classpath = append(deps.classpath, dep.HeaderJars(getLinkType(j, ctx.ModuleName()))...)
+				linkType, _ := getLinkType(j, ctx.ModuleName())
+				deps.classpath = append(deps.classpath, dep.HeaderJars(linkType)...)
 				// names of sdk libs that are directly depended are exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
 			default:
