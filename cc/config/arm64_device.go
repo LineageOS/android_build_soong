@@ -25,6 +25,11 @@ var (
 	arm64Cflags = []string{
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
+
+		// Prevent use of x18 register.
+		// TODO(pcc): Remove this flag once we upgrade past LLVM r340889
+		// which does this by default on Android.
+		"-ffixed-x18",
 	}
 
 	arm64ArchVariantCflags = map[string][]string{
