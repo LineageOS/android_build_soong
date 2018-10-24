@@ -113,7 +113,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		apexBundleName := mctx.Module().Name()
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
-				moduleName := am.Name()
+				moduleName := am.Name() + "-" + am.Target().String()
 				bundleNames, ok := apexBundleNamesFor(mctx.Config())[moduleName]
 				if !ok {
 					bundleNames = make(map[string]bool)
@@ -131,7 +131,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 // Create apex variations if a module is included in APEX(s).
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
-		moduleName := am.Name()
+		moduleName := am.Name() + "-" + am.Target().String()
 		if bundleNames, ok := apexBundleNamesFor(mctx.Config())[moduleName]; ok {
 			variations := []string{"platform"}
 			for bn := range bundleNames {
