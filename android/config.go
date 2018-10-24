@@ -41,7 +41,6 @@ const productVariablesFileName = "soong.variables"
 // config file. These will be included in the config struct.
 type FileConfigurableOptions struct {
 	Mega_device *bool `json:",omitempty"`
-	Ndk_abis    *bool `json:",omitempty"`
 	Host_bionic *bool `json:",omitempty"`
 }
 
@@ -299,7 +298,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	var archConfig []archConfig
 	if Bool(config.Mega_device) {
 		archConfig = getMegaDeviceConfig()
-	} else if Bool(config.Ndk_abis) {
+	} else if config.NdkAbis() {
 		archConfig = getNdkAbisConfig()
 	}
 
@@ -860,6 +859,10 @@ func (c vendorConfig) String(name string) string {
 func (c vendorConfig) IsSet(name string) bool {
 	_, ok := c[name]
 	return ok
+}
+
+func (c *config) NdkAbis() bool {
+	return Bool(c.productVariables.Ndk_abis)
 }
 
 func stringSlice(s *[]string) []string {
