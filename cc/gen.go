@@ -19,6 +19,8 @@ package cc
 // functions.
 
 import (
+	"path/filepath"
+
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -30,6 +32,7 @@ func init() {
 	pctx.SourcePathVariable("yaccDataDir", "prebuilts/build-tools/common/bison")
 
 	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
+	pctx.HostBinToolVariable("syspropCmd", "sysprop_cpp")
 }
 
 var (
@@ -54,6 +57,13 @@ var (
 			Deps:        blueprint.DepsGCC,
 		},
 		"aidlFlags", "outDir")
+
+	sysprop = pctx.AndroidStaticRule("sysprop",
+		blueprint.RuleParams{
+			Command:     "$syspropCmd --header-output-dir=$headerOutDir --source-output-dir=$srcOutDir --include-name=$includeName $in",
+			CommandDeps: []string{"$syspropCmd"},
+		},
+		"headerOutDir", "srcOutDir", "includeName")
 
 	windmc = pctx.AndroidStaticRule("windmc",
 		blueprint.RuleParams{
@@ -82,7 +92,6 @@ func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.M
 }
 
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.ModuleGenPath, aidlFlags string) android.Paths {
-
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aidl,
 		Description: "aidl " + aidlFile.Rel(),
@@ -105,6 +114,26 @@ func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.Mod
 		Output:      outFile,
 		Input:       lexFile,
 	})
+}
+
+func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Path, android.Path) {
+	headerFile := android.PathForModuleGen(ctx, "sysprop", "include", syspropFile.Rel()+".h")
+	cppFile := android.PathForModuleGen(ctx, "sysprop", syspropFile.Rel()+".cpp")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:           sysprop,
+		Description:    "sysprop " + syspropFile.Rel(),
+		Output:         cppFile,
+		ImplicitOutput: headerFile,
+		Input:          syspropFile,
+		Args: map[string]string{
+			"headerOutDir": filepath.Dir(headerFile.String()),
+			"srcOutDir":    filepath.Dir(cppFile.String()),
+			"includeName":  syspropFile.Rel() + ".h",
+		},
+	})
+
+	return cppFile, headerFile
 }
 
 func genWinMsg(ctx android.ModuleContext, srcFile android.Path, flags builderFlags) (android.Path, android.Path) {
@@ -168,6 +197,10 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		case ".mc":
 			rcFile, headerFile := genWinMsg(ctx, srcFile, buildFlags)
 			srcFiles[i] = rcFile
+			deps = append(deps, headerFile)
+		case ".sysprop":
+			cppFile, headerFile := genSysprop(ctx, srcFile)
+			srcFiles[i] = cppFile
 			deps = append(deps, headerFile)
 		}
 	}

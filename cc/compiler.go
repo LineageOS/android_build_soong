@@ -224,6 +224,10 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 		deps = protoDeps(ctx, deps, &compiler.Proto, Bool(compiler.Properties.Proto.Static))
 	}
 
+	if compiler.hasSrcExt(".sysprop") {
+		deps.SharedLibs = append(deps.SharedLibs, "libbase")
+	}
+
 	if Bool(compiler.Properties.Openmp) {
 		deps.StaticLibs = append(deps.StaticLibs, "libomp")
 	}
@@ -387,7 +391,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.GlobalFlags = append([]string{"${config.ClangExternalCflags}"}, flags.GlobalFlags...)
 	}
 
-	if ctx.Device() {
+	if tc.Bionic() {
 		if Bool(compiler.Properties.Rtti) {
 			flags.CppFlags = append(flags.CppFlags, "-frtti")
 		} else {
@@ -487,6 +491,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if compiler.hasSrcExt(".rs") || compiler.hasSrcExt(".fs") {
 		flags = rsFlags(ctx, flags, &compiler.Properties)
+	}
+
+	if compiler.hasSrcExt(".sysprop") {
+		flags.GlobalFlags = append(flags.GlobalFlags,
+			"-I"+android.PathForModuleGen(ctx, "sysprop", "include").String())
 	}
 
 	if len(compiler.Properties.Srcs) > 0 {

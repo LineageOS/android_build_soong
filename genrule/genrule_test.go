@@ -27,7 +27,7 @@ var buildDir string
 
 func setUp() {
 	var err error
-	buildDir, err = ioutil.TempDir("", "soong_java_test")
+	buildDir, err = ioutil.TempDir("", "genrule_test")
 	if err != nil {
 		panic(err)
 	}
