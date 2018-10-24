@@ -388,6 +388,7 @@ type droiddocBuilderFlags struct {
 
 	metalavaStubsFlags                string
 	metalavaAnnotationsFlags          string
+	metalavaInclusionAnnotationsFlags string
 	metalavaApiLevelsAnnotationsFlags string
 
 	metalavaApiToXmlFlags string
@@ -1382,7 +1383,6 @@ func (d *Droidstubs) collectStubsFlags(ctx android.ModuleContext,
 	} else {
 		metalavaFlags += " --stubs " + android.PathForModuleOut(ctx, "stubsDir").String()
 	}
-
 	return metalavaFlags
 }
 
@@ -1419,8 +1419,15 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 			}
 		})
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
-		flags += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction "
+		flags += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction"
 	}
+
+	return flags
+}
+
+func (d *Droidstubs) collectInclusionAnnotationsFlags(ctx android.ModuleContext,
+	implicits *android.Paths, implicitOutputs *android.WritablePaths) string {
+	var flags string
 	ctx.VisitDirectDepsWithTag(metalavaMergeInclusionAnnotationsDirTag, func(m android.Module) {
 		if t, ok := m.(*ExportedDroiddocDir); ok {
 			*implicits = append(*implicits, t.deps...)
@@ -1599,6 +1606,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	flags.metalavaStubsFlags = d.collectStubsFlags(ctx, &implicitOutputs)
 	flags.metalavaAnnotationsFlags = d.collectAnnotationsFlags(ctx, &implicits, &implicitOutputs)
+	flags.metalavaInclusionAnnotationsFlags = d.collectInclusionAnnotationsFlags(ctx, &implicits, &implicitOutputs)
 	flags.metalavaApiLevelsAnnotationsFlags = d.collectAPILevelsAnnotationsFlags(ctx, &implicits, &implicitOutputs)
 	flags.metalavaApiToXmlFlags = d.collectApiToXmlFlags(ctx, &implicits, &implicitOutputs)
 
@@ -1610,7 +1618,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	d.transformMetalava(ctx, implicits, implicitOutputs, javaVersion,
 		flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs,
-		flags.metalavaStubsFlags+flags.metalavaAnnotationsFlags+
+		flags.metalavaStubsFlags+flags.metalavaAnnotationsFlags+flags.metalavaInclusionAnnotationsFlags+
 			flags.metalavaApiLevelsAnnotationsFlags+flags.metalavaApiToXmlFlags+" "+d.Javadoc.args)
 
 	if apiCheckEnabled(d.properties.Check_api.Current, "current") &&
@@ -1621,8 +1629,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"check_api.current_removed_api_file")
 
 		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
-		opts := d.Javadoc.args + " --check-compatibility:api:current " + apiFile.String() +
-			" --check-compatibility:removed:current " + removedApiFile.String() + " "
+		opts := " " + d.Javadoc.args + " --check-compatibility:api:current " + apiFile.String() +
+			" --check-compatibility:removed:current " + removedApiFile.String() +
+			flags.metalavaInclusionAnnotationsFlags
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
 			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
@@ -1651,8 +1660,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"check_api.last_released.removed_api_file")
 
 		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "check_last_released_api.timestamp")
-		opts := d.Javadoc.args + " --check-compatibility:api:released " + apiFile.String() +
-			" --check-compatibility:removed:released " + removedApiFile.String() + " "
+		opts := " " + d.Javadoc.args + " --check-compatibility:api:released " + apiFile.String() +
+			flags.metalavaInclusionAnnotationsFlags + " --check-compatibility:removed:released " +
+			removedApiFile.String() + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
 			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
