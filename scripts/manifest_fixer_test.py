@@ -346,5 +346,40 @@ class AddUsesNonSdkApiTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
 
+class PreferIntegrityTest(unittest.TestCase):
+  """Unit tests for add_prefer_integrity function."""
+
+  def run_test(self, input_manifest):
+    doc = minidom.parseString(input_manifest)
+    manifest_fixer.add_prefer_integrity(doc)
+    output = StringIO.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+      '    <application%s/>\n'
+      '</manifest>\n')
+
+  def prefer_integrity(self, value):
+    return ' android:preferIntegrity="%s"' % value
+
+  def test_manifest_with_undeclared_preference(self):
+    manifest_input = self.manifest_tmpl % ''
+    expected = self.manifest_tmpl % self.prefer_integrity('true')
+    output = self.run_test(manifest_input)
+    self.assertEqual(output, expected)
+
+  def test_manifest_with_prefer_integrity(self):
+    manifest_input = self.manifest_tmpl % self.prefer_integrity('true')
+    expected = manifest_input
+    output = self.run_test(manifest_input)
+    self.assertEqual(output, expected)
+
+  def test_manifest_with_not_prefer_integrity(self):
+    manifest_input = self.manifest_tmpl % self.prefer_integrity('false')
+    self.assertRaises(RuntimeError, self.run_test, manifest_input)
+
 if __name__ == '__main__':
   unittest.main()
