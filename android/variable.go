@@ -239,6 +239,8 @@ type productVariables struct {
 	BoardPlatPrivateSepolicyDirs []string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
+
+	Ndk_abis *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
