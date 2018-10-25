@@ -134,7 +134,7 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// but keep them when doing regular platform build.
 	// Ndk_abis property is only set to true with build/soong/scripts/build-ndk-prebuilts.sh
 	// TODO: Revert this once MIPS is supported in NDK again.
-	if Bool(ctx.AConfig().Ndk_abis) && strings.Contains(ctx.ModuleName(), "mips") {
+	if ctx.Config().NdkAbis() && strings.Contains(ctx.ModuleName(), "mips") {
 		return
 	}
 
