@@ -31,12 +31,6 @@ type TestProperties struct {
 	Isolated *bool
 }
 
-// Test option struct.
-type TestOptions struct {
-	// the UID that you want to run in device.
-	Run_test_as string `android:"arch_variant"`
-}
-
 type TestBinaryProperties struct {
 	// Create a separate binary for each source file.  Useful when there is
 	// global state that can not be torn down and reset between each test suite.
@@ -62,9 +56,6 @@ type TestBinaryProperties struct {
 	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
 	// should be installed with the module.
 	Test_config_template *string `android:"arch_variant"`
-
-	// Test options.
-	Test_options *TestOptions
 }
 
 func init() {
@@ -253,16 +244,8 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	test.data = ctx.ExpandSources(test.Properties.Data, nil)
-
-	// Append new line in template like below
-	// <option name="run-test-as" value="1234" />
-	optionsMap := map[string]string{}
-	if test.Properties.Test_options != nil {
-		optionsMap["run-test-as"] = string(test.Properties.Test_options.Run_test_as)
-	}
-
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
-		test.Properties.Test_config_template, optionsMap)
+		test.Properties.Test_config_template)
 
 	test.binaryDecorator.baseInstaller.dir = "nativetest"
 	test.binaryDecorator.baseInstaller.dir64 = "nativetest64"
