@@ -87,9 +87,6 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 		certificateArgs = append(certificateArgs, c.pem.String(), c.key.String())
 	}
 
-	// TODO(ccross): sometimes uncompress dex
-	// TODO(ccross): sometimes strip dex
-
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        signapk,
 		Description: "signapk",
