@@ -137,6 +137,17 @@ var neverallowTests = []struct {
 		},
 		expectedError: "",
 	},
+	{
+		name: "dependency on core-libart",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "needs_core_libart",
+					libs: ["core-libart"],
+				}`),
+		},
+		expectedError: "Only core libraries projects can depend on core-libart",
+	},
 }
 
 func TestNeverallow(t *testing.T) {
@@ -164,6 +175,7 @@ func TestNeverallow(t *testing.T) {
 func testNeverallow(t *testing.T, config Config, fs map[string][]byte) (*TestContext, []error) {
 	ctx := NewTestContext()
 	ctx.RegisterModuleType("cc_library", ModuleFactoryAdaptor(newMockCcLibraryModule))
+	ctx.RegisterModuleType("java_library", ModuleFactoryAdaptor(newMockJavaLibraryModule))
 	ctx.PostDepsMutators(registerNeverallowMutator)
 	ctx.Register()
 
@@ -178,7 +190,7 @@ func testNeverallow(t *testing.T, config Config, fs map[string][]byte) (*TestCon
 	return ctx, errs
 }
 
-type mockProperties struct {
+type mockCcLibraryProperties struct {
 	Vendor_available *bool
 
 	Vndk struct {
@@ -200,7 +212,7 @@ type mockProperties struct {
 
 type mockCcLibraryModule struct {
 	ModuleBase
-	properties mockProperties
+	properties mockCcLibraryProperties
 }
 
 func newMockCcLibraryModule() Module {
@@ -214,4 +226,26 @@ func (p *mockCcLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
+}
+
+type mockJavaLibraryProperties struct {
+	Libs []string
+}
+
+type mockJavaLibraryModule struct {
+	ModuleBase
+	properties mockJavaLibraryProperties
+}
+
+func newMockJavaLibraryModule() Module {
+	m := &mockJavaLibraryModule{}
+	m.AddProperties(&m.properties)
+	InitAndroidModule(m)
+	return m
+}
+
+func (p *mockJavaLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
+}
+
+func (p *mockJavaLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
