@@ -67,7 +67,9 @@ type appProperties struct {
 	// list of native libraries that will be provided in or alongside the resulting jar
 	Jni_libs []string `android:"arch_variant"`
 
-	EmbedJNI bool `blueprint:"mutated"`
+	AllowDexPreopt bool `blueprint:"mutated"`
+	EmbedJNI       bool `blueprint:"mutated"`
+	StripDex       bool `blueprint:"mutated"`
 }
 
 type AndroidApp struct {
@@ -139,6 +141,42 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateAndroidBuildActions(ctx)
 }
 
+// Returns whether this module should have the dex file stored uncompressed in the APK, or stripped completely.  If
+// stripped, the code will still be present on the device in the dexpreopted files.
+// This is only necessary for APKs, and not jars, because APKs are signed and the dex file should not be uncompressed
+// or removed after the signature has been generated.  For jars, which are not signed, the dex file is uncompressed
+// or removed at installation time in Make.
+func (a *AndroidApp) uncompressOrStripDex(ctx android.ModuleContext) (uncompress, strip bool) {
+	if ctx.Config().UnbundledBuild() {
+		return false, false
+	}
+
+	strip = ctx.Config().DefaultStripDex()
+	// TODO(ccross): don't strip dex installed on partitions that may be updated separately (like vendor)
+	// TODO(ccross): don't strip dex on modules with LOCAL_APK_LIBRARIES equivalent
+	// TODO(ccross): don't strip dex on modules that are preopted to system_other
+
+	// Uncompress dex in APKs of privileged apps, and modules used by privileged apps.
+	if ctx.Config().UncompressPrivAppDex() &&
+		(Bool(a.appProperties.Privileged) ||
+			inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules())) {
+
+		uncompress = true
+		// If the dex files is store uncompressed, don't strip it, we will reuse the uncompressed dex from the APK
+		// instead of copying it into the odex file.
+		strip = false
+	}
+
+	// If dexpreopt is disabled, don't strip the dex file
+	if !a.appProperties.AllowDexPreopt ||
+		!BoolDefault(a.deviceProperties.Dex_preopt.Enabled, true) ||
+		ctx.Config().DisableDexPreopt(ctx.ModuleName()) {
+		strip = false
+	}
+
+	return uncompress, strip
+}
+
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	linkFlags := append([]string(nil), a.extraLinkFlags...)
 
@@ -184,11 +222,16 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, staticLibProguardFlagFiles...)
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
 
+	a.deviceProperties.UncompressDex, a.appProperties.StripDex = a.uncompressOrStripDex(ctx)
+
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
+	dexJarFile := a.dexJarFile
 
-	packageFile := android.PathForModuleOut(ctx, "package.apk")
+	if a.appProperties.StripDex {
+		dexJarFile = nil
+	}
 
 	var certificates []certificate
 
@@ -226,8 +269,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	certificates = append([]certificate{a.certificate}, certificateDeps...)
 
-	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, a.outputFile, certificates)
-
+	packageFile := android.PathForModuleOut(ctx, "package.apk")
+	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 	a.outputFile = packageFile
 
 	if ctx.ModuleName() == "framework-res" {
@@ -284,6 +327,7 @@ func AndroidAppFactory() android.Module {
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.appProperties.AllowDexPreopt = true
 
 	module.AddProperties(
 		&module.Module.properties,
@@ -345,6 +389,7 @@ func AndroidTestFactory() android.Module {
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.EmbedJNI = true
+	module.appProperties.AllowDexPreopt = false
 
 	module.AddProperties(
 		&module.Module.properties,
@@ -379,6 +424,7 @@ func AndroidTestHelperAppFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.EmbedJNI = true
+	module.appProperties.AllowDexPreopt = false
 
 	module.AddProperties(
 		&module.Module.properties,
