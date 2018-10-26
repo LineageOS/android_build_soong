@@ -708,6 +708,22 @@ func (c *config) HostStaticBinaries() bool {
 	return Bool(c.productVariables.HostStaticBinaries)
 }
 
+func (c *config) UncompressPrivAppDex() bool {
+	return Bool(c.productVariables.UncompressPrivAppDex)
+}
+
+func (c *config) ModulesLoadedByPrivilegedModules() []string {
+	return c.productVariables.ModulesLoadedByPrivilegedModules
+}
+
+func (c *config) DefaultStripDex() bool {
+	return Bool(c.productVariables.DefaultStripDex)
+}
+
+func (c *config) DisableDexPreopt(name string) bool {
+	return Bool(c.productVariables.DisableDexPreopt) || InList(name, c.productVariables.DisableDexPreoptModules)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {

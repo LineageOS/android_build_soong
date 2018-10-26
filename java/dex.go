@@ -26,7 +26,7 @@ var d8 = pctx.AndroidStaticRule("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`${config.D8Cmd} --output $outDir $d8Flags $in && ` +
-			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
@@ -34,7 +34,7 @@ var d8 = pctx.AndroidStaticRule("d8",
 			"${config.MergeZipsCmd}",
 		},
 	},
-	"outDir", "d8Flags")
+	"outDir", "d8Flags", "zipFlags")
 
 var r8 = pctx.AndroidStaticRule("r8",
 	blueprint.RuleParams{
@@ -46,7 +46,7 @@ var r8 = pctx.AndroidStaticRule("r8",
 			`-printmapping $outDict ` +
 			`$r8Flags && ` +
 			`touch "$outDict" && ` +
-			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
@@ -54,7 +54,7 @@ var r8 = pctx.AndroidStaticRule("r8",
 			"${config.MergeZipsCmd}",
 		},
 	},
-	"outDir", "outDict", "r8Flags")
+	"outDir", "outDict", "r8Flags", "zipFlags")
 
 func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
 	flags := j.deviceProperties.Dxflags
@@ -172,6 +172,11 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
 	outDir := android.PathForModuleOut(ctx, "dex")
 
+	zipFlags := ""
+	if j.deviceProperties.UncompressDex {
+		zipFlags = "-L 0"
+	}
+
 	if useR8 {
 		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
 		j.proguardDictionary = proguardDictionary
@@ -184,9 +189,10 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			Input:          classesJar,
 			Implicits:      r8Deps,
 			Args: map[string]string{
-				"r8Flags": strings.Join(r8Flags, " "),
-				"outDict": j.proguardDictionary.String(),
-				"outDir":  outDir.String(),
+				"r8Flags":  strings.Join(r8Flags, " "),
+				"zipFlags": zipFlags,
+				"outDict":  j.proguardDictionary.String(),
+				"outDir":   outDir.String(),
 			},
 		})
 	} else {
@@ -198,8 +204,9 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			Input:       classesJar,
 			Implicits:   d8Deps,
 			Args: map[string]string{
-				"d8Flags": strings.Join(d8Flags, " "),
-				"outDir":  outDir.String(),
+				"d8Flags":  strings.Join(d8Flags, " "),
+				"zipFlags": zipFlags,
+				"outDir":   outDir.String(),
 			},
 		})
 	}
