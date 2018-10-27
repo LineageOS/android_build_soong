@@ -86,7 +86,6 @@ var ClangUnknownCflags = sorted([]string{
 // Ldflags that should be filtered out when linking with clang lld
 var ClangUnknownLldflags = sorted([]string{
 	"-fuse-ld=gold",
-	"-Wl,--icf=safe",
 	"-Wl,--fix-cortex-a8",
 	"-Wl,--no-fix-cortex-a8",
 	"-Wl,-m,aarch64_elf64_le_vec",
