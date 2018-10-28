@@ -41,7 +41,6 @@ const productVariablesFileName = "soong.variables"
 // config file. These will be included in the config struct.
 type FileConfigurableOptions struct {
 	Mega_device *bool `json:",omitempty"`
-	Ndk_abis    *bool `json:",omitempty"`
 	Host_bionic *bool `json:",omitempty"`
 }
 
@@ -299,7 +298,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	var archConfig []archConfig
 	if Bool(config.Mega_device) {
 		archConfig = getMegaDeviceConfig()
-	} else if Bool(config.Ndk_abis) {
+	} else if config.NdkAbis() {
 		archConfig = getNdkAbisConfig()
 	}
 
@@ -709,6 +708,22 @@ func (c *config) HostStaticBinaries() bool {
 	return Bool(c.productVariables.HostStaticBinaries)
 }
 
+func (c *config) UncompressPrivAppDex() bool {
+	return Bool(c.productVariables.UncompressPrivAppDex)
+}
+
+func (c *config) ModulesLoadedByPrivilegedModules() []string {
+	return c.productVariables.ModulesLoadedByPrivilegedModules
+}
+
+func (c *config) DefaultStripDex() bool {
+	return Bool(c.productVariables.DefaultStripDex)
+}
+
+func (c *config) DisableDexPreopt(name string) bool {
+	return Bool(c.productVariables.DisableDexPreopt) || InList(name, c.productVariables.DisableDexPreoptModules)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
@@ -860,6 +875,10 @@ func (c vendorConfig) String(name string) string {
 func (c vendorConfig) IsSet(name string) bool {
 	_, ok := c[name]
 	return ok
+}
+
+func (c *config) NdkAbis() bool {
+	return Bool(c.productVariables.Ndk_abis)
 }
 
 func stringSlice(s *[]string) []string {

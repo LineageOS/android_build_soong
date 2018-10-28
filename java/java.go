@@ -257,6 +257,8 @@ type CompilerDeviceProperties struct {
 
 	// When targeting 1.9, override the modules to use with --system
 	System_modules *string
+
+	UncompressDex bool `blueprint:"mutated"`
 }
 
 // Module contains the properties and members used by all java module types
@@ -432,7 +434,7 @@ type sdkContext interface {
 
 func sdkVersionOrDefault(ctx android.BaseContext, v string) string {
 	switch v {
-	case "", "current", "system_current", "test_current", "core_current", "core_platform_current":
+	case "", "current", "system_current", "test_current", "core_current":
 		return ctx.Config().DefaultAppTargetSdk()
 	default:
 		return v
@@ -443,7 +445,7 @@ func sdkVersionOrDefault(ctx android.BaseContext, v string) string {
 // it returns android.FutureApiLevel (10000).
 func sdkVersionToNumber(ctx android.BaseContext, v string) (int, error) {
 	switch v {
-	case "", "current", "test_current", "system_current", "core_current", "core_platform_current":
+	case "", "current", "test_current", "system_current", "core_current":
 		return ctx.Config().DefaultAppTargetSdkInt(), nil
 	default:
 		n := android.GetNumericSdkVersion(v)
@@ -564,8 +566,6 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		return toModule("android_test_stubs_current", "framework-res")
 	case "core_current":
 		return toModule("core.current.stubs", "")
-	case "core_platform_current":
-		return toModule("core.platform.api.stubs", "")
 	default:
 		return toPrebuilt(v)
 	}
@@ -732,7 +732,7 @@ func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 		name == "stub-annotations" || name == "private-stub-annotations-jar" ||
 		name == "core-lambda-stubs":
 		return javaCore, true
-	case ver == "core_current" || ver == "core_platform_current":
+	case ver == "core_current":
 		return javaCore, false
 	case name == "android_system_stubs_current":
 		return javaSystem, true

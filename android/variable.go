@@ -190,6 +190,12 @@ type productVariables struct {
 	Arc                        *bool `json:",omitempty"`
 	MinimizeJavaDebugInfo      *bool `json:",omitempty"`
 
+	UncompressPrivAppDex             *bool    `json:",omitempty"`
+	ModulesLoadedByPrivilegedModules []string `json:",omitempty"`
+	DefaultStripDex                  *bool    `json:",omitempty"`
+	DisableDexPreopt                 *bool    `json:",omitempty"`
+	DisableDexPreoptModules          []string `json:",omitempty"`
+
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
 
 	EnableCFI       *bool     `json:",omitempty"`
@@ -239,6 +245,8 @@ type productVariables struct {
 	BoardPlatPrivateSepolicyDirs []string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
+
+	Ndk_abis *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

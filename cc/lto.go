@@ -113,6 +113,13 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-inline-threshold=0")
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-unroll-threshold=0")
 		}
+
+		if ctx.Arch().ArchType == android.Arm64 {
+			// Prevent use of x18 register on arm64.
+			// TODO(pcc): Remove this flag once we upgrade past LLVM r340889
+			// which does this by default on Android.
+			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-mattr=+reserve-x18")
+		}
 	}
 	return flags
 }

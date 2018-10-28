@@ -34,11 +34,6 @@ SOONG_OUT=${OUT_DIR}/soong
 SOONG_NDK_OUT=${OUT_DIR}/soong/ndk
 rm -rf ${SOONG_OUT}
 mkdir -p ${SOONG_OUT}
-cat > ${SOONG_OUT}/soong.config << EOF
-{
-    "Ndk_abis": true
-}
-EOF
 
 # We only really need to set some of these variables, but soong won't merge this
 # with the defaults, so we need to write out all the defaults with our values
@@ -63,7 +58,9 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     ],
     "HostArch": "x86_64",
     "Malloc_not_svelte": false,
-    "Safestack": false
+    "Safestack": false,
+
+    "Ndk_abis": true
 }
 EOF
 m --skip-make ${SOONG_OUT}/ndk.timestamp
