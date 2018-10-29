@@ -1,3 +1,4 @@
 per-file * = ccross@android.com,dwillemsen@google.com,nanzhang@google.com
 per-file ndk_*.go, *gen_stub_libs.py = danalbert@google.com
 per-file clang.go,global.go,tidy.go = srhines@google.com, chh@google.com
+per-file apex.go = jiyong@google.com
