@@ -154,7 +154,6 @@ func (a *AndroidApp) uncompressOrStripDex(ctx android.ModuleContext) (uncompress
 	strip = ctx.Config().DefaultStripDex()
 	// TODO(ccross): don't strip dex installed on partitions that may be updated separately (like vendor)
 	// TODO(ccross): don't strip dex on modules with LOCAL_APK_LIBRARIES equivalent
-	// TODO(ccross): don't strip dex on modules that are preopted to system_other
 
 	// Uncompress dex in APKs of privileged apps, and modules used by privileged apps.
 	if ctx.Config().UncompressPrivAppDex() &&
@@ -173,6 +172,9 @@ func (a *AndroidApp) uncompressOrStripDex(ctx android.ModuleContext) (uncompress
 		ctx.Config().DisableDexPreopt(ctx.ModuleName()) {
 		strip = false
 	}
+
+	// TODO(ccross): strip dexpropted modules that are not propted to system_other
+	strip = false
 
 	return uncompress, strip
 }
