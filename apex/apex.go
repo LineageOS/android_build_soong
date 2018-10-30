@@ -81,7 +81,18 @@ var (
 func init() {
 	pctx.Import("android/soong/common")
 	pctx.HostBinToolVariable("apexer", "apexer")
-	pctx.HostBinToolVariable("aapt2", "aapt2")
+	// ART minimal builds (using the master-art manifest) do not have the "frameworks/base"
+	// projects, and hence cannot built 'aapt2'. Use the SDK prebuilt instead.
+	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {
+		pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
+			if !android.ExistentPathForSource(ctx, "frameworks/base").Valid() {
+				return filepath.Join(prebuiltDir, runtime.GOOS, "bin", tool)
+			} else {
+				return pctx.HostBinToolPath(ctx, tool).String()
+			}
+		})
+	}
+	hostBinToolVariableWithPrebuilt("aapt2", "prebuilts/sdk/tools", "aapt2")
 	pctx.HostBinToolVariable("avbtool", "avbtool")
 	pctx.HostBinToolVariable("e2fsdroid", "e2fsdroid")
 	pctx.HostBinToolVariable("merge_zips", "merge_zips")
