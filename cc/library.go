@@ -22,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
+	"android/soong/genrule"
 )
 
 type LibraryProperties struct {
@@ -65,6 +66,15 @@ type LibraryProperties struct {
 	}
 
 	Static_ndk_lib *bool
+
+	Stubs struct {
+		// Relative path to the symbol map. The symbol map provides the list of
+		// symbols that are exported for stubs variant of this library.
+		Symbol_file *string
+
+		// List versions to generate stubs libs for.
+		Versions []string
+	}
 }
 
 type LibraryMutatedProperties struct {
@@ -78,6 +88,11 @@ type LibraryMutatedProperties struct {
 	VariantIsShared bool `blueprint:"mutated"`
 	// This variant is static
 	VariantIsStatic bool `blueprint:"mutated"`
+
+	// This variant is a stubs lib
+	BuildStubs bool `blueprint:"mutated"`
+	// Version of the stubs lib
+	StubsVersion string `blueprint:"mutated"`
 }
 
 type FlagExporterProperties struct {
@@ -240,6 +255,8 @@ type libraryDecorator struct {
 	// Location of the linked, unstripped library for shared libraries
 	unstrippedOutputFile android.Path
 
+	versionScriptPath android.ModuleGenPath
+
 	// Decorated interafaces
 	*baseCompiler
 	*baseLinker
@@ -313,7 +330,11 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
-	return library.baseCompiler.compilerFlags(ctx, flags, deps)
+	flags = library.baseCompiler.compilerFlags(ctx, flags, deps)
+	if library.buildStubs() {
+		flags = addStubLibraryCompilerFlags(flags)
+	}
+	return flags
 }
 
 func extractExportIncludesFromFlags(flags []string) []string {
@@ -336,6 +357,12 @@ func extractExportIncludesFromFlags(flags []string) []string {
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
+	if library.buildStubs() {
+		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "")
+		library.versionScriptPath = versionScript
+		return objs
+	}
+
 	if !library.buildShared() && !library.buildStatic() {
 		if len(library.baseCompiler.Properties.Srcs) > 0 {
 			ctx.PropertyErrorf("srcs", "cc_library_headers must not have any srcs")
@@ -422,8 +449,10 @@ func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 		location = InstallInSanitizerDir
 	}
 	library.baseInstaller.location = location
-
 	library.baseLinker.linkerInit(ctx)
+	// Let baseLinker know whether this variant is for stubs or not, so that
+	// it can omit things that are not required for linking stubs.
+	library.baseLinker.dynamicProperties.BuildStubs = library.buildStubs()
 }
 
 func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
@@ -735,7 +764,8 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 
 	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
 		!ctx.useVndk() && !ctx.inRecovery() && ctx.Device() &&
-		library.baseLinker.sanitize.isUnsanitizedVariant() {
+		library.baseLinker.sanitize.isUnsanitizedVariant() &&
+		!library.buildStubs() {
 		installPath := getNdkSysrootBase(ctx).Join(
 			ctx, "usr/lib", config.NDKTriple(ctx.toolchain()), file.Base())
 
@@ -783,6 +813,14 @@ func (library *libraryDecorator) BuildOnlyShared() {
 func (library *libraryDecorator) HeaderOnly() {
 	library.MutatedProperties.BuildShared = false
 	library.MutatedProperties.BuildStatic = false
+}
+
+func (library *libraryDecorator) buildStubs() bool {
+	return library.MutatedProperties.BuildStubs
+}
+
+func (library *libraryDecorator) stubsVersion() string {
+	return library.MutatedProperties.StubsVersion
 }
 
 func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
@@ -844,6 +882,44 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 				modules = mctx.CreateLocalVariations("shared")
 				modules[0].(*Module).linker.(libraryInterface).setShared()
 			}
+		}
+	}
+}
+
+// Version mutator splits a module into the mandatory non-stubs variant
+// (which is named "impl") and zero or more stubs variants.
+func versionMutator(mctx android.BottomUpMutatorContext) {
+	if mctx.Os() != android.Android {
+		return
+	}
+
+	if m, ok := mctx.Module().(*Module); ok && !m.inRecovery() && m.linker != nil {
+		if library, ok := m.linker.(*libraryDecorator); ok && library.buildShared() {
+			versions := []string{""}
+			for _, v := range library.Properties.Stubs.Versions {
+				versions = append(versions, v)
+			}
+			modules := mctx.CreateVariations(versions...)
+			for i, m := range modules {
+				l := m.(*Module).linker.(*libraryDecorator)
+				if i == 0 {
+					l.MutatedProperties.BuildStubs = false
+					continue
+				}
+				// Mark that this variant is for stubs.
+				l.MutatedProperties.BuildStubs = true
+				l.MutatedProperties.StubsVersion = versions[i]
+				m.(*Module).Properties.HideFromMake = true
+			}
+		} else {
+			mctx.CreateVariations("")
+		}
+		return
+	}
+	if genrule, ok := mctx.Module().(*genrule.Module); ok {
+		if props, ok := genrule.Extra.(*GenruleExtraProperties); ok && !props.InRecovery {
+			mctx.CreateVariations("")
+			return
 		}
 	}
 }
