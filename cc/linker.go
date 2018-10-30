@@ -160,7 +160,8 @@ type baseLinker struct {
 	Properties        BaseLinkerProperties
 	MoreProperties    MoreBaseLinkerProperties
 	dynamicProperties struct {
-		RunPaths []string `blueprint:"mutated"`
+		RunPaths   []string `blueprint:"mutated"`
+		BuildStubs bool     `blueprint:"mutated"`
 	}
 
 	sanitize *sanitize
@@ -269,9 +270,13 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
 	}
 
-	android.ExtractSourceDeps(ctx, linker.MoreProperties.Version_script)
-	android.ExtractSourceDeps(ctx,
-		linker.MoreProperties.Target.Vendor.Version_script)
+	// Version_script is not needed when linking stubs lib where the version
+	// script is created from the symbol map file.
+	if !linker.dynamicProperties.BuildStubs {
+		android.ExtractSourceDeps(ctx, linker.MoreProperties.Version_script)
+		android.ExtractSourceDeps(ctx,
+			linker.MoreProperties.Target.Vendor.Version_script)
+	}
 
 	return deps
 }
@@ -375,28 +380,32 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.GroupStaticLibs = true
 	}
 
-	versionScript := ctx.ExpandOptionalSource(
-		linker.MoreProperties.Version_script, "version_script")
+	// Version_script is not needed when linking stubs lib where the version
+	// script is created from the symbol map file.
+	if !linker.dynamicProperties.BuildStubs {
+		versionScript := ctx.ExpandOptionalSource(
+			linker.MoreProperties.Version_script, "version_script")
 
-	if ctx.useVndk() && linker.MoreProperties.Target.Vendor.Version_script != nil {
-		versionScript = ctx.ExpandOptionalSource(
-			linker.MoreProperties.Target.Vendor.Version_script,
-			"target.vendor.version_script")
-	}
+		if ctx.useVndk() && linker.MoreProperties.Target.Vendor.Version_script != nil {
+			versionScript = ctx.ExpandOptionalSource(
+				linker.MoreProperties.Target.Vendor.Version_script,
+				"target.vendor.version_script")
+		}
 
-	if versionScript.Valid() {
-		if ctx.Darwin() {
-			ctx.PropertyErrorf("version_script", "Not supported on Darwin")
-		} else {
-			flags.LdFlags = append(flags.LdFlags,
-				"-Wl,--version-script,"+versionScript.String())
-			flags.LdFlagsDeps = append(flags.LdFlagsDeps, versionScript.Path())
-
-			if linker.sanitize.isSanitizerEnabled(cfi) {
-				cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
+		if versionScript.Valid() {
+			if ctx.Darwin() {
+				ctx.PropertyErrorf("version_script", "Not supported on Darwin")
+			} else {
 				flags.LdFlags = append(flags.LdFlags,
-					"-Wl,--version-script,"+cfiExportsMap.String())
-				flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
+					"-Wl,--version-script,"+versionScript.String())
+				flags.LdFlagsDeps = append(flags.LdFlagsDeps, versionScript.Path())
+
+				if linker.sanitize.isSanitizerEnabled(cfi) {
+					cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
+					flags.LdFlags = append(flags.LdFlags,
+						"-Wl,--version-script,"+cfiExportsMap.String())
+					flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
+				}
 			}
 		}
 	}

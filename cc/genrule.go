@@ -26,6 +26,9 @@ func init() {
 type GenruleExtraProperties struct {
 	Vendor_available   *bool
 	Recovery_available *bool
+
+	// This genrule is for recovery variant
+	InRecovery bool `blueprint:"mutated"`
 }
 
 // cc_genrule is a genrule that can depend on other cc_* objects.
