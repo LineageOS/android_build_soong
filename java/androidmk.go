@@ -293,6 +293,9 @@ func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
 	data := a.Library.AndroidMk()
 
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		if a.aarFile != nil {
+			fmt.Fprintln(w, "LOCAL_SOONG_AAR :=", a.aarFile.String())
+		}
 		if a.proguardDictionary != nil {
 			fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", a.proguardDictionary.String())
 		}
