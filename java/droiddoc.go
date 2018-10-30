@@ -1390,15 +1390,23 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 	implicits *android.Paths, implicitOutputs *android.WritablePaths) string {
 	var flags string
 	if Bool(d.properties.Annotations_enabled) {
-		if String(d.properties.Previous_api) == "" {
-			ctx.PropertyErrorf("metalava_previous_api",
-				"has to be non-empty if annotations was enabled!")
+		flags += " --include-annotations"
+		validatingNullability := strings.Contains(d.Javadoc.args, "--validate-nullability-from-merged-stubs")
+		migratingNullability := String(d.properties.Previous_api) != ""
+		if !(migratingNullability || validatingNullability) {
+			ctx.PropertyErrorf("previous_api",
+				"has to be non-empty if annotations was enabled (unless validating nullability)")
 		}
-		previousApi := ctx.ExpandSource(String(d.properties.Previous_api),
-			"metalava_previous_api")
-		*implicits = append(*implicits, previousApi)
-
-		flags += " --include-annotations --migrate-nullness " + previousApi.String()
+		if migratingNullability {
+			previousApi := ctx.ExpandSource(String(d.properties.Previous_api), "previous_api")
+			*implicits = append(*implicits, previousApi)
+			flags += " --migrate-nullness " + previousApi.String()
+		}
+		if validatingNullability {
+			nullabilityWarningsTxt := android.PathForModuleOut(ctx, ctx.ModuleName()+"_nullability_warnings.txt")
+			*implicitOutputs = append(*implicitOutputs, nullabilityWarningsTxt)
+			flags += " --nullability-warnings-txt " + nullabilityWarningsTxt.String()
+		}
 
 		d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
 		*implicitOutputs = append(*implicitOutputs, d.annotationsZip)
