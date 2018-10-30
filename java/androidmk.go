@@ -209,6 +209,9 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if app.headerJarFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", app.headerJarFile.String())
 				}
+				if app.bundleFile != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_BUNDLE :=", app.bundleFile.String())
+				}
 				if app.jacocoReportClassesFile != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", app.jacocoReportClassesFile.String())
 				}

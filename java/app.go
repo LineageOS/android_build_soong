@@ -83,6 +83,8 @@ type AndroidApp struct {
 	extraLinkFlags []string
 
 	installJniLibs []jniLib
+
+	bundleFile android.Path
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -276,6 +278,10 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	packageFile := android.PathForModuleOut(ctx, "package.apk")
 	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 	a.outputFile = packageFile
+
+	bundleFile := android.PathForModuleOut(ctx, "base.zip")
+	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
+	a.bundleFile = bundleFile
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
