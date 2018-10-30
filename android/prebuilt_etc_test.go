@@ -91,3 +91,18 @@ func TestPrebuiltEtcVariants(t *testing.T) {
 		t.Errorf("expected 1, got %#v", bar_variants)
 	}
 }
+
+func TestPrebuiltEtcOutputPath(t *testing.T) {
+	ctx := testPrebuiltEtc(t, `
+		prebuilt_etc {
+			name: "foo.conf",
+			src: "foo.conf",
+			filename: "foo.installed.conf",
+		}
+	`)
+
+	p := ctx.ModuleForTests("foo.conf", "android_common_core").Module().(*PrebuiltEtc)
+	if p.outputFilePath.Base() != "foo.installed.conf" {
+		t.Errorf("expected foo.installed.conf, got %q", p.outputFilePath.Base())
+	}
+}
