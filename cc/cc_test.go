@@ -66,6 +66,7 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		ctx.BottomUp("image", imageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
+		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 	})
 	ctx.Register()
@@ -205,12 +206,13 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 `
 
 	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp": []byte(bp),
-		"foo.c":      nil,
-		"bar.c":      nil,
-		"a.proto":    nil,
-		"b.aidl":     nil,
-		"my_include": nil,
+		"Android.bp":  []byte(bp),
+		"foo.c":       nil,
+		"bar.c":       nil,
+		"a.proto":     nil,
+		"b.aidl":      nil,
+		"my_include":  nil,
+		"foo.map.txt": nil,
 	})
 
 	return ctx
@@ -1730,5 +1732,58 @@ func TestRecovery(t *testing.T) {
 	if !recoveryModule.Platform() {
 		t.Errorf("recovery variant of libHalInRecovery must not specific to device, soc, or product")
 	}
+}
 
+func TestVersionedStubs(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library_shared {
+			name: "libFoo",
+			stubs: {
+				symbol_file: "foo.map.txt",
+				versions: ["1", "2", "3"],
+			},
+		}
+		cc_library_shared {
+			name: "libBar",
+			shared_libs: ["libFoo#1"],
+		}`)
+
+	variants := ctx.ModuleVariantsForTests("libFoo")
+	expectedVariants := []string{
+		"android_arm64_armv8-a_core_shared",
+		"android_arm64_armv8-a_core_shared_1",
+		"android_arm64_armv8-a_core_shared_2",
+		"android_arm64_armv8-a_core_shared_3",
+		"android_arm_armv7-a-neon_core_shared",
+		"android_arm_armv7-a-neon_core_shared_1",
+		"android_arm_armv7-a-neon_core_shared_2",
+		"android_arm_armv7-a-neon_core_shared_3",
+	}
+	variantsMismatch := false
+	if len(variants) != len(expectedVariants) {
+		variantsMismatch = true
+	} else {
+		for _, v := range expectedVariants {
+			if !inList(v, variants) {
+				variantsMismatch = false
+			}
+		}
+	}
+	if variantsMismatch {
+		t.Errorf("variants of libFoo expected:\n")
+		for _, v := range expectedVariants {
+			t.Errorf("%q\n", v)
+		}
+		t.Errorf(", but got:\n")
+		for _, v := range variants {
+			t.Errorf("%q\n", v)
+		}
+	}
+
+	libBarLinkRule := ctx.ModuleForTests("libBar", "android_arm64_armv8-a_core_shared").Rule("ld")
+	libFlags := libBarLinkRule.Args["libFlags"]
+	libFoo1StubPath := "libFoo/android_arm64_armv8-a_core_shared_1/libFoo.so"
+	if !strings.Contains(libFlags, libFoo1StubPath) {
+		t.Errorf("%q is not found in %q", libFoo1StubPath, libFlags)
+	}
 }
