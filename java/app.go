@@ -194,14 +194,16 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		linkFlags = append(linkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
 	}
 
-	// Product AAPT config
-	for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
-		linkFlags = append(linkFlags, "-c", aaptConfig)
-	}
+	if !Bool(a.aaptProperties.Aapt_include_all_resources) {
+		// Product AAPT config
+		for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
+			linkFlags = append(linkFlags, "-c", aaptConfig)
+		}
 
-	// Product AAPT preferred config
-	if len(ctx.Config().ProductAAPTPreferredConfig()) > 0 {
-		linkFlags = append(linkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
+		// Product AAPT preferred config
+		if len(ctx.Config().ProductAAPTPreferredConfig()) > 0 {
+			linkFlags = append(linkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
+		}
 	}
 
 	// TODO: LOCAL_PACKAGE_OVERRIDES

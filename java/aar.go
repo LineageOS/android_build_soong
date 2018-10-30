@@ -47,6 +47,10 @@ type aaptProperties struct {
 	// flags passed to aapt when creating the apk
 	Aaptflags []string
 
+	// include all resource configurations, not just the product-configured
+	// ones.
+	Aapt_include_all_resources *bool
+
 	// list of directories relative to the Blueprints file containing assets.
 	// Defaults to "assets"
 	Asset_dirs []string
