@@ -44,7 +44,7 @@ var (
 )
 
 func init() {
-	pctx.HostBinToolVariable("versionerCmd", "versioner")
+	pctx.SourcePathVariable("versionerCmd", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/versioner")
 }
 
 // Returns the NDK base include path for use with sdk_version current. Usable with -I.
