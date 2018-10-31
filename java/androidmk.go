@@ -239,7 +239,7 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
 				}
 
-				fmt.Fprintln(w, "LOCAL_CERTIFICATE :=", app.certificate.pem.String())
+				fmt.Fprintln(w, "LOCAL_CERTIFICATE :=", app.certificate.Pem.String())
 				if len(app.appProperties.Overrides) > 0 {
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES := "+strings.Join(app.appProperties.Overrides, " "))
 				}
