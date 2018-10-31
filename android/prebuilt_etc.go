@@ -44,6 +44,9 @@ type prebuiltEtcProperties struct {
 	Recovery_available *bool
 
 	InRecovery bool `blueprint:"mutated"`
+
+	// Whether this module is directly installable to one of the partitions. Default: true.
+	Installable *bool
 }
 
 type PrebuiltEtc struct {
@@ -96,6 +99,10 @@ func (p *PrebuiltEtc) SubDir() string {
 	return String(p.properties.Sub_dir)
 }
 
+func (p *PrebuiltEtc) Installable() bool {
+	return p.properties.Installable == nil || Bool(p.properties.Installable)
+}
+
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 	p.sourceFilePath = ctx.ExpandSource(String(p.properties.Src), "src")
 	filename := String(p.properties.Filename)
@@ -128,6 +135,7 @@ func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.outputFilePath.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
 			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", p.outputFilePath.Base())
+			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !p.Installable())
 			if p.additionalDependencies != nil {
 				fmt.Fprint(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=")
 				for _, path := range *p.additionalDependencies {
