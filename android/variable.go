@@ -95,6 +95,9 @@ type variableProperties struct {
 			Lto      struct {
 				Never *bool
 			}
+			Sanitize struct {
+				Address *bool
+			}
 		}
 
 		Pdk struct {
