@@ -134,6 +134,50 @@ func BuildAAR(ctx android.ModuleContext, outputFile android.WritablePath,
 	})
 }
 
+var buildBundleModule = pctx.AndroidStaticRule("buildBundleModule",
+	blueprint.RuleParams{
+		Command: `${config.Zip2ZipCmd} -i ${in} -o ${out}.res.zip AndroidManifest.xml:manifest/AndroidManifest.xml resources.pb "res/**/*" "assets/**/*" &&` +
+			`${config.Zip2ZipCmd} -i ${dexJar} -o ${out}.dex.zip "classes*.dex:dex/" && ` +
+			`${config.MergeZipsCmd} ${out} ${out}.res.zip ${out}.dex.zip ${jniJar} && ` +
+			`rm ${out}.res.zip ${out}.dex.zip`,
+		CommandDeps: []string{
+			"${config.Zip2ZipCmd}",
+			"${config.MergeZipsCmd}",
+		},
+	}, "dexJar", "jniJar")
+
+// Builds an app into a module suitable for input to bundletool
+func BuildBundleModule(ctx android.ModuleContext, outputFile android.WritablePath,
+	resJarFile, jniJarFile, dexJarFile android.Path) {
+
+	protoResJarFile := android.PathForModuleOut(ctx, "package-res.pb.apk")
+	aapt2Convert(ctx, protoResJarFile, resJarFile)
+
+	var deps android.Paths
+	var jniPath string
+	var dexPath string
+	if dexJarFile != nil {
+		deps = append(deps, dexJarFile)
+		dexPath = dexJarFile.String()
+	}
+	if jniJarFile != nil {
+		deps = append(deps, jniJarFile)
+		jniPath = jniJarFile.String()
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        buildBundleModule,
+		Implicits:   deps,
+		Input:       protoResJarFile,
+		Output:      outputFile,
+		Description: "bundle",
+		Args: map[string]string{
+			"dexJar": dexPath,
+			"jniJar": jniPath,
+		},
+	})
+}
+
 func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.WritablePath,
 	jniLibs []jniLib) {
 
