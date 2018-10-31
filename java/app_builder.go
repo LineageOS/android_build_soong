@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	signapk = pctx.AndroidStaticRule("signapk",
+	Signapk = pctx.AndroidStaticRule("signapk",
 		blueprint.RuleParams{
 			Command: `${config.JavaCmd} -Djava.library.path=$$(dirname $signapkJniLibrary) ` +
 				`-jar $signapkCmd $certificates $in $out`,
@@ -63,7 +63,7 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	resJarFile, jniJarFile, dexJarFile android.Path, certificates []certificate) {
+	resJarFile, jniJarFile, dexJarFile android.Path, certificates []Certificate) {
 
 	unsignedApk := android.PathForModuleOut(ctx, "unsigned.apk")
 
@@ -84,11 +84,11 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 
 	var certificateArgs []string
 	for _, c := range certificates {
-		certificateArgs = append(certificateArgs, c.pem.String(), c.key.String())
+		certificateArgs = append(certificateArgs, c.Pem.String(), c.Key.String())
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        signapk,
+		Rule:        Signapk,
 		Description: "signapk",
 		Output:      outputFile,
 		Input:       unsignedApk,
