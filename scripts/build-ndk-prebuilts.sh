@@ -44,18 +44,6 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "Platform_version_active_codenames": ${PLATFORM_VERSION_ALL_CODENAMES},
 
     "DeviceName": "generic_arm64",
-    "DeviceArch": "arm64",
-    "DeviceArchVariant": "armv8-a",
-    "DeviceCpuVariant": "denver64",
-    "DeviceAbi": [
-        "arm64-v8a"
-    ],
-    "DeviceSecondaryArch": "arm",
-    "DeviceSecondaryArchVariant": "armv7-a-neon",
-    "DeviceSecondaryCpuVariant": "denver",
-    "DeviceSecondaryAbi": [
-        "armeabi-v7a"
-    ],
     "HostArch": "x86_64",
     "Malloc_not_svelte": false,
     "Safestack": false,
