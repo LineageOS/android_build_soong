@@ -81,7 +81,18 @@ var (
 func init() {
 	pctx.Import("android/soong/common")
 	pctx.HostBinToolVariable("apexer", "apexer")
-	pctx.HostBinToolVariable("aapt2", "aapt2")
+	// ART minimal builds (using the master-art manifest) do not have the "frameworks/base"
+	// projects, and hence cannot built 'aapt2'. Use the SDK prebuilt instead.
+	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {
+		pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
+			if !android.ExistentPathForSource(ctx, "frameworks/base").Valid() {
+				return filepath.Join(prebuiltDir, runtime.GOOS, "bin", tool)
+			} else {
+				return pctx.HostBinToolPath(ctx, tool).String()
+			}
+		})
+	}
+	hostBinToolVariableWithPrebuilt("aapt2", "prebuilts/sdk/tools", "aapt2")
 	pctx.HostBinToolVariable("avbtool", "avbtool")
 	pctx.HostBinToolVariable("e2fsdroid", "e2fsdroid")
 	pctx.HostBinToolVariable("merge_zips", "merge_zips")
@@ -176,6 +187,39 @@ type apexBundleProperties struct {
 
 	// Name of the apex_key module that provides the private key to sign APEX
 	Key *string
+
+	Multilib struct {
+		First struct {
+			// List of native libraries whose compile_multilib is "first"
+			Native_shared_libs []string
+			// List of native executables whose compile_multilib is "first"
+			Binaries []string
+		}
+		Both struct {
+			// List of native libraries whose compile_multilib is "both"
+			Native_shared_libs []string
+			// List of native executables whose compile_multilib is "both"
+			Binaries []string
+		}
+		Prefer32 struct {
+			// List of native libraries whose compile_multilib is "prefer32"
+			Native_shared_libs []string
+			// List of native executables whose compile_multilib is "prefer32"
+			Binaries []string
+		}
+		Lib32 struct {
+			// List of native libraries whose compile_multilib is "32"
+			Native_shared_libs []string
+			// List of native executables whose compile_multilib is "32"
+			Binaries []string
+		}
+		Lib64 struct {
+			// List of native libraries whose compile_multilib is "64"
+			Native_shared_libs []string
+			// List of native executables whose compile_multilib is "64"
+			Binaries []string
+		}
+	}
 }
 
 type apexBundle struct {
@@ -188,22 +232,83 @@ type apexBundle struct {
 	installDir android.OutputPath
 }
 
+func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
+	native_shared_libs []string, binaries []string, arch string) {
+	// Use *FarVariation* to be able to depend on modules having
+	// conflicting variations with this module. This is required since
+	// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
+	// for native shared libs.
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: arch},
+		{Mutator: "image", Variation: "core"},
+		{Mutator: "link", Variation: "shared"},
+	}, sharedLibTag, native_shared_libs...)
+
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: arch},
+		{Mutator: "image", Variation: "core"},
+	}, executableTag, binaries...)
+}
+
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
-	for _, arch := range ctx.MultiTargets() {
-		// Use *FarVariation* to be able to depend on modules having
-		// conflicting variations with this module. This is required since
-		// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
-		// for native shared libs.
+	targets := ctx.MultiTargets()
+	has32BitTarget := false
+	for _, target := range targets {
+		if target.Arch.ArchType.Multilib == "lib32" {
+			has32BitTarget = true
+		}
+	}
+	for i, target := range targets {
+		// When multilib.* is omitted for native_shared_libs, it implies
+		// multilib.both.
 		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: arch.String()},
+			{Mutator: "arch", Variation: target.String()},
 			{Mutator: "image", Variation: "core"},
 			{Mutator: "link", Variation: "shared"},
 		}, sharedLibTag, a.properties.Native_shared_libs...)
 
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: arch.String()},
-			{Mutator: "image", Variation: "core"},
-		}, executableTag, a.properties.Binaries...)
+		// Add native modules targetting both ABIs
+		addDependenciesForNativeModules(ctx,
+			a.properties.Multilib.Both.Native_shared_libs,
+			a.properties.Multilib.Both.Binaries, target.String())
+
+		if i == 0 {
+			// When multilib.* is omitted for binaries, it implies
+			// multilib.first.
+			ctx.AddFarVariationDependencies([]blueprint.Variation{
+				{Mutator: "arch", Variation: target.String()},
+				{Mutator: "image", Variation: "core"},
+			}, executableTag, a.properties.Binaries...)
+
+			// Add native modules targetting the first ABI
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.First.Native_shared_libs,
+				a.properties.Multilib.First.Binaries, target.String())
+		}
+
+		switch target.Arch.ArchType.Multilib {
+		case "lib32":
+			// Add native modules targetting 32-bit ABI
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.Lib32.Native_shared_libs,
+				a.properties.Multilib.Lib32.Binaries, target.String())
+
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.Prefer32.Native_shared_libs,
+				a.properties.Multilib.Prefer32.Binaries, target.String())
+		case "lib64":
+			// Add native modules targetting 64-bit ABI
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.Lib64.Native_shared_libs,
+				a.properties.Multilib.Lib64.Binaries, target.String())
+
+			if !has32BitTarget {
+				addDependenciesForNativeModules(ctx,
+					a.properties.Multilib.Prefer32.Native_shared_libs,
+					a.properties.Multilib.Prefer32.Binaries, target.String())
+			}
+		}
+
 	}
 
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
@@ -407,6 +512,10 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 func apexBundleFactory() android.Module {
 	module := &apexBundle{}
 	module.AddProperties(&module.properties)
+	module.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase,
+		class android.OsClass) bool {
+		return class == android.Device && ctx.Config().DevicePrefer32BitExecutables()
+	})
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	return module

@@ -37,6 +37,9 @@ type prebuiltEtcProperties struct {
 	// optional subdirectory under which this file is installed into
 	Sub_dir *string `android:"arch_variant"`
 
+	// optional name for the installed file. If unspecified, name of the module is used as the file name
+	Filename *string `android:"arch_variant"`
+
 	// Make this module available when building for recovery.
 	Recovery_available *bool
 
@@ -95,7 +98,11 @@ func (p *PrebuiltEtc) SubDir() string {
 
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 	p.sourceFilePath = ctx.ExpandSource(String(p.properties.Src), "src")
-	p.outputFilePath = PathForModuleOut(ctx, ctx.ModuleName()).OutputPath
+	filename := String(p.properties.Filename)
+	if filename == "" {
+		filename = ctx.ModuleName()
+	}
+	p.outputFilePath = PathForModuleOut(ctx, filename).OutputPath
 	p.installDirPath = PathForModuleInstall(ctx, "etc", String(p.properties.Sub_dir))
 
 	// This ensures that outputFilePath has the same name as this module.
@@ -120,7 +127,7 @@ func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_MODULE_TAGS := optional")
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.outputFilePath.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
-			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name)
+			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", p.outputFilePath.Base())
 			if p.additionalDependencies != nil {
 				fmt.Fprint(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=")
 				for _, path := range *p.additionalDependencies {
