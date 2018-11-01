@@ -58,7 +58,7 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 		Output: fixedManifest,
 		Args: map[string]string{
 			"minSdkVersion":    sdkVersionOrDefault(ctx, sdkContext.minSdkVersion()),
-			"targetSdkVersion": sdkVersionOrDefault(ctx, sdkContext.sdkVersion()),
+			"targetSdkVersion": sdkVersionOrDefault(ctx, sdkContext.targetSdkVersion()),
 			"args":             strings.Join(args, " "),
 		},
 	})
