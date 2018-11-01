@@ -188,3 +188,18 @@ func aapt2Link(ctx android.ModuleContext,
 		},
 	})
 }
+
+var aapt2ConvertRule = pctx.AndroidStaticRule("aapt2Convert",
+	blueprint.RuleParams{
+		Command:     `${config.Aapt2Cmd} convert --output-format proto $in -o $out`,
+		CommandDeps: []string{"${config.Aapt2Cmd}"},
+	})
+
+func aapt2Convert(ctx android.ModuleContext, out android.WritablePath, in android.Path) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        aapt2ConvertRule,
+		Input:       in,
+		Output:      out,
+		Description: "convert to proto",
+	})
+}

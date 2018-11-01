@@ -76,13 +76,15 @@ type AndroidApp struct {
 	Library
 	aapt
 
-	certificate certificate
+	certificate Certificate
 
 	appProperties appProperties
 
 	extraLinkFlags []string
 
 	installJniLibs []jniLib
+
+	bundleFile android.Path
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -99,8 +101,8 @@ func (a *AndroidApp) ExportedManifest() android.Path {
 
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
 
-type certificate struct {
-	pem, key android.Path
+type Certificate struct {
+	Pem, Key android.Path
 }
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -237,7 +239,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		dexJarFile = nil
 	}
 
-	var certificates []certificate
+	var certificates []Certificate
 
 	var jniJarFile android.WritablePath
 	jniLibs, certificateDeps := a.collectAppDeps(ctx)
@@ -262,20 +264,24 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		certificateDeps = certificateDeps[1:]
 	} else if cert != "" {
 		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
-		a.certificate = certificate{
+		a.certificate = Certificate{
 			defaultDir.Join(ctx, cert+".x509.pem"),
 			defaultDir.Join(ctx, cert+".pk8"),
 		}
 	} else {
 		pem, key := ctx.Config().DefaultAppCertificate(ctx)
-		a.certificate = certificate{pem, key}
+		a.certificate = Certificate{pem, key}
 	}
 
-	certificates = append([]certificate{a.certificate}, certificateDeps...)
+	certificates = append([]Certificate{a.certificate}, certificateDeps...)
 
 	packageFile := android.PathForModuleOut(ctx, "package.apk")
 	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 	a.outputFile = packageFile
+
+	bundleFile := android.PathForModuleOut(ctx, "base.zip")
+	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
+	a.bundleFile = bundleFile
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
@@ -287,9 +293,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (a *AndroidApp) collectAppDeps(ctx android.ModuleContext) ([]jniLib, []certificate) {
+func (a *AndroidApp) collectAppDeps(ctx android.ModuleContext) ([]jniLib, []Certificate) {
 	var jniLibs []jniLib
-	var certificates []certificate
+	var certificates []Certificate
 
 	ctx.VisitDirectDeps(func(module android.Module) {
 		otherName := ctx.OtherModuleName(module)
@@ -313,7 +319,7 @@ func (a *AndroidApp) collectAppDeps(ctx android.ModuleContext) ([]jniLib, []cert
 			}
 		} else if tag == certificateTag {
 			if dep, ok := module.(*AndroidAppCertificate); ok {
-				certificates = append(certificates, dep.certificate)
+				certificates = append(certificates, dep.Certificate)
 			} else {
 				ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", otherName)
 			}
@@ -446,7 +452,7 @@ func AndroidTestHelperAppFactory() android.Module {
 type AndroidAppCertificate struct {
 	android.ModuleBase
 	properties  AndroidAppCertificateProperties
-	certificate certificate
+	Certificate Certificate
 }
 
 type AndroidAppCertificateProperties struct {
@@ -466,7 +472,7 @@ func (c *AndroidAppCertificate) DepsMutator(ctx android.BottomUpMutatorContext) 
 
 func (c *AndroidAppCertificate) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	cert := String(c.properties.Certificate)
-	c.certificate = certificate{
+	c.Certificate = Certificate{
 		android.PathForModuleSrc(ctx, cert+".x509.pem"),
 		android.PathForModuleSrc(ctx, cert+".pk8"),
 	}
