@@ -484,6 +484,10 @@ func (j *Javadoc) minSdkVersion() string {
 	return j.sdkVersion()
 }
 
+func (j *Javadoc) targetSdkVersion() string {
+	return j.sdkVersion()
+}
+
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		if !Bool(j.properties.No_standard_libs) {
