@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/google/blueprint/microfactory"
@@ -144,6 +145,13 @@ func SetupPath(ctx Context, config Config) {
 	}
 
 	myPath, _ = filepath.Abs(myPath)
+
+	// Use the toybox prebuilts on linux
+	if runtime.GOOS == "linux" {
+		toyboxPath, _ := filepath.Abs("prebuilts/build-tools/toybox/linux-x86")
+		myPath = toyboxPath + string(os.PathListSeparator) + myPath
+	}
+
 	config.Environment().Set("PATH", myPath)
 	config.pathReplaced = true
 }

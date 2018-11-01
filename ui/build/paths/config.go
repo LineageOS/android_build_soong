@@ -25,6 +25,10 @@ type PathConfig struct {
 
 	// Whether to exit with an error instead of invoking the underlying tool.
 	Error bool
+
+	// Whether we use a toybox prebuilt for this tool. Since we don't have
+	// toybox for Darwin, we'll use the host version instead.
+	Toybox bool
 }
 
 var Allowed = PathConfig{
@@ -53,6 +57,13 @@ var Missing = PathConfig{
 	Symlink: true,
 	Log:     true,
 	Error:   true,
+}
+
+var Toybox = PathConfig{
+	Symlink: false,
+	Log:     true,
+	Error:   true,
+	Toybox:  true,
 }
 
 func GetConfig(name string) PathConfig {
@@ -138,8 +149,6 @@ var Configuration = map[string]PathConfig{
 	"todos":     Allowed,
 	"touch":     Allowed,
 	"tr":        Allowed,
-	"true":      Allowed,
-	"uname":     Allowed,
 	"uniq":      Allowed,
 	"unix2dos":  Allowed,
 	"unzip":     Allowed,
@@ -166,10 +175,9 @@ var Configuration = map[string]PathConfig{
 	"ld.gold":    Forbidden,
 	"pkg-config": Forbidden,
 
-	// We've got prebuilts of these
-	//"dtc":  Forbidden,
-	//"lz4":  Forbidden,
-	//"lz4c": Forbidden,
+	// On linux we'll use the toybox version of these instead
+	"true":  Toybox,
+	"uname": Toybox,
 }
 
 func init() {
@@ -177,5 +185,13 @@ func init() {
 		Configuration["md5"] = Allowed
 		Configuration["sw_vers"] = Allowed
 		Configuration["xcrun"] = Allowed
+
+		// We don't have toybox prebuilts for darwin, so allow the
+		// host versions.
+		for name, config := range Configuration {
+			if config.Toybox {
+				Configuration[name] = Allowed
+			}
+		}
 	}
 }
