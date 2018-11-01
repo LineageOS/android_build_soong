@@ -183,6 +183,10 @@ type CompilerDeviceProperties struct {
 	// Defaults to sdk_version if not set.
 	Min_sdk_version *string
 
+	// if not blank, set the targetSdkVersion in the AndroidManifest.xml.
+	// Defaults to sdk_version if not set.
+	Target_sdk_version *string
+
 	// if true, compile against the platform APIs instead of an SDK.
 	Platform_apis *bool
 
@@ -425,11 +429,20 @@ func (j *Module) minSdkVersion() string {
 	return j.sdkVersion()
 }
 
+func (j *Module) targetSdkVersion() string {
+	if j.deviceProperties.Target_sdk_version != nil {
+		return *j.deviceProperties.Target_sdk_version
+	}
+	return j.sdkVersion()
+}
+
 type sdkContext interface {
 	// sdkVersion eturns the sdk_version property of the current module, or an empty string if it is not set.
 	sdkVersion() string
 	// minSdkVersion returns the min_sdk_version property of the current module, or sdkVersion() if it is not set.
 	minSdkVersion() string
+	// targetSdkVersion returns the target_sdk_version property of the current module, or sdkVersion() if it is not set.
+	targetSdkVersion() string
 }
 
 func sdkVersionOrDefault(ctx android.BaseContext, v string) string {
