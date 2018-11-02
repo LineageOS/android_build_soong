@@ -238,6 +238,9 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 			{BuildOs, Arch{ArchType: X86_64}},
 			{BuildOs, Arch{ArchType: X86}},
 		},
+		Windows: []Target{
+			{Windows, Arch{ArchType: X86}},
+		},
 	}
 
 	config.BuildOsVariant = config.Targets[BuildOs][0].String()
