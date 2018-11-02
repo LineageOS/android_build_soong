@@ -148,8 +148,13 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 				} else {
 					if pathtools.IsGlob(input) {
 						// If the input is a glob then the output is a directory.
-						_, name := filepath.Split(file.Name)
-						newName = filepath.Join(output, name)
+						rel, err := filepath.Rel(constantPartOfPattern(input), file.Name)
+						if err != nil {
+							return err
+						} else if strings.HasPrefix("../", rel) {
+							return fmt.Errorf("globbed path %q was not in %q", file.Name, constantPartOfPattern(input))
+						}
+						newName = filepath.Join(output, rel)
 					} else {
 						// Otherwise it is a file.
 						newName = output
@@ -276,4 +281,25 @@ func (m *multiFlag) Match(s string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func constantPartOfPattern(pattern string) string {
+	ret := ""
+	for pattern != "" {
+		var first string
+		first, pattern = splitFirst(pattern)
+		if pathtools.IsGlob(first) {
+			return ret
+		}
+		ret = filepath.Join(ret, first)
+	}
+	return ret
+}
+
+func splitFirst(path string) (string, string) {
+	i := strings.IndexRune(path, filepath.Separator)
+	if i < 0 {
+		return path, ""
+	}
+	return path[:i], path[i+1:]
 }
