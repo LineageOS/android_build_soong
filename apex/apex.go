@@ -37,7 +37,7 @@ var (
 	// by default set to (uid/gid/mode) = (1000/1000/0644)
 	// TODO(b/113082813) make this configurable using config.fs syntax
 	generateFsConfig = pctx.StaticRule("generateFsConfig", blueprint.RuleParams{
-		Command: `echo '/ 1000 1000 0644' > ${out} && ` +
+		Command: `echo '/ 1000 1000 0755' > ${out} && ` +
 			`echo '/manifest.json 1000 1000 0644' >> ${out} && ` +
 			`echo ${ro_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0644"}' >> ${out} && ` +
 			`echo ${exec_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0755"}' >> ${out}`,
