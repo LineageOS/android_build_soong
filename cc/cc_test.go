@@ -55,17 +55,13 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
-	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(LibraryStaticFactory))
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
-	ctx.RegisterModuleType("cc_library_host_static", android.ModuleFactoryAdaptor(LibraryHostStaticFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(ToolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(llndkLibraryFactory))
 	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
 	ctx.RegisterModuleType("vendor_public_library", android.ModuleFactoryAdaptor(vendorPublicLibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(ObjectFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
-	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(binaryFactory))
-	ctx.RegisterModuleType("cc_binary_host", android.ModuleFactoryAdaptor(binaryHostFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", imageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
@@ -126,19 +122,6 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 			src: "",
 		}
 
-		toolchain_library {
-			name: "libwinpthread",
-			vendor_available: true,
-			recovery_available: true,
-			host_supported: true,
-			src: "",
-			target: {
-				windows: {
-					enabled: true,
-				},
-			},
-		}
-
 		cc_library {
 			name: "libc",
 			no_libgcc: true,
@@ -172,20 +155,14 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 			name: "libdl",
 			symbol_file: "",
 		}
-		cc_library_static {
+		cc_library {
 			name: "libc++_static",
 			no_libgcc: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",
-			host_supported: true,
 			vendor_available: true,
 			recovery_available: true,
-			target: {
-				windows: {
-					enabled: true,
-				},
-			},
 		}
 		cc_library {
 			name: "libc++",
@@ -214,14 +191,6 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 			name: "crtbegin_so",
 			recovery_available: true,
 			vendor_available: true,
-		}
-
-		cc_object {
-			name: "crtbegin_dynamic",
-		}
-
-		cc_object {
-			name: "crtend_android",
 		}
 
 		cc_object {
@@ -1578,65 +1547,6 @@ func TestRuntimeLibsNoVndk(t *testing.T) {
 
 	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"libvendor_available1", "libvendor1"}, module)
-}
-
-func checkStaticLibs(t *testing.T, expected []string, module *Module) {
-	actual := module.Properties.AndroidMkStaticLibs
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("incorrect static_libs"+
-			"\nactual:   %v"+
-			"\nexpected: %v",
-			actual,
-			expected,
-		)
-	}
-}
-
-const staticLibAndroidBp = `
-	cc_library {
-		name: "lib1",
-	}
-	cc_binary {
-		name: "bin1",
-		static_libs: ["lib1"],
-	}
-	cc_library_host_static {
-		name: "lib2",
-		target: {
-			windows: {
-				enabled: true,
-			},
-		}
-	}
-	cc_binary_host {
-		name: "bin2",
-		static_libs: ["lib2"],
-		stl: "libc++_static",
-		target: {
-			windows: {
-				enabled: true,
-			},
-		},
-	}
-`
-
-func TestStaticLibs(t *testing.T) {
-	ctx := testCc(t, staticLibAndroidBp)
-
-	// Check a device binary.
-	variant := "android_arm64_armv8-a_core"
-	module := ctx.ModuleForTests("bin1", variant).Module().(*Module)
-	checkStaticLibs(t, []string{"lib1", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc"}, module)
-
-	// Check a host binary.
-	variant = "linux_glibc_x86_64"
-	module = ctx.ModuleForTests("bin2", variant).Module().(*Module)
-	checkStaticLibs(t, []string{"lib2", "libc++_static"}, module)
-
-	// Check a host binary on Windows.
-	variant = "windows_x86"
-	module = ctx.ModuleForTests("bin2", variant).Module().(*Module)
-	checkStaticLibs(t, []string{"lib2", "libc++_static", "libwinpthread"}, module)
 }
 
 var compilerFlagsTestCases = []struct {
