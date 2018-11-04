@@ -1738,13 +1738,16 @@ func TestVersionedStubs(t *testing.T) {
 	ctx := testCc(t, `
 		cc_library_shared {
 			name: "libFoo",
+			srcs: ["foo.c"],
 			stubs: {
 				symbol_file: "foo.map.txt",
 				versions: ["1", "2", "3"],
 			},
 		}
+
 		cc_library_shared {
 			name: "libBar",
+			srcs: ["bar.c"],
 			shared_libs: ["libFoo#1"],
 		}`)
 
@@ -1785,5 +1788,12 @@ func TestVersionedStubs(t *testing.T) {
 	libFoo1StubPath := "libFoo/android_arm64_armv8-a_core_shared_1/libFoo.so"
 	if !strings.Contains(libFlags, libFoo1StubPath) {
 		t.Errorf("%q is not found in %q", libFoo1StubPath, libFlags)
+	}
+
+	libBarCompileRule := ctx.ModuleForTests("libBar", "android_arm64_armv8-a_core_shared").Rule("cc")
+	cFlags := libBarCompileRule.Args["cFlags"]
+	libFoo1VersioningMacro := "-D__LIBFOO_API__=1"
+	if !strings.Contains(cFlags, libFoo1VersioningMacro) {
+		t.Errorf("%q is not found in %q", libFoo1VersioningMacro, cFlags)
 	}
 }
