@@ -352,6 +352,60 @@ var testCases = []struct {
 			"a/b",
 		},
 	},
+	{
+		name: "recursive glob",
+
+		inputFiles: []string{
+			"a/a/a",
+			"a/a/b",
+		},
+		args: []string{"a/**/*:b"},
+		outputFiles: []string{
+			"b/a/a",
+			"b/a/b",
+		},
+	},
+	{
+		name: "glob",
+
+		inputFiles: []string{
+			"a/a/a",
+			"a/a/b",
+			"a/b",
+			"a/c",
+		},
+		args: []string{"a/*:b"},
+		outputFiles: []string{
+			"b/b",
+			"b/c",
+		},
+	},
+	{
+		name: "top level glob",
+
+		inputFiles: []string{
+			"a",
+			"b",
+		},
+		args: []string{"*:b"},
+		outputFiles: []string{
+			"b/a",
+			"b/b",
+		},
+	},
+	{
+		name: "multilple glob",
+
+		inputFiles: []string{
+			"a/a/a",
+			"a/a/b",
+		},
+		args: []string{"a/*/*:b"},
+		outputFiles: []string{
+			"b/a/a",
+			"b/a/b",
+		},
+	},
 }
 
 func errorString(e error) string {
@@ -412,6 +466,48 @@ func TestZip2Zip(t *testing.T) {
 			}
 			if !reflect.DeepEqual(testCase.storedFiles, storedFiles) {
 				t.Fatalf("Stored file list does not match:\nwant: %v\n got: %v", testCase.storedFiles, storedFiles)
+			}
+		})
+	}
+}
+
+func TestConstantPartOfPattern(t *testing.T) {
+	testCases := []struct{ in, out string }{
+		{
+			in:  "",
+			out: "",
+		},
+		{
+			in:  "a",
+			out: "a",
+		},
+		{
+			in:  "*",
+			out: "",
+		},
+		{
+			in:  "a/a",
+			out: "a/a",
+		},
+		{
+			in:  "a/*",
+			out: "a",
+		},
+		{
+			in:  "a/*/a",
+			out: "a",
+		},
+		{
+			in:  "a/**/*",
+			out: "a",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.in, func(t *testing.T) {
+			got := constantPartOfPattern(test.in)
+			if got != test.out {
+				t.Errorf("want %q, got %q", test.out, got)
 			}
 		})
 	}

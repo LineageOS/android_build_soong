@@ -63,7 +63,7 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	resJarFile, jniJarFile, dexJarFile android.Path, certificates []Certificate) {
+	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate) {
 
 	unsignedApk := android.PathForModuleOut(ctx, "unsigned.apk")
 
@@ -71,7 +71,7 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 	if dexJarFile != nil {
 		inputs = append(inputs, dexJarFile)
 	}
-	inputs = append(inputs, resJarFile)
+	inputs = append(inputs, packageFile)
 	if jniJarFile != nil {
 		inputs = append(inputs, jniJarFile)
 	}
@@ -136,45 +136,65 @@ func BuildAAR(ctx android.ModuleContext, outputFile android.WritablePath,
 
 var buildBundleModule = pctx.AndroidStaticRule("buildBundleModule",
 	blueprint.RuleParams{
-		Command: `${config.Zip2ZipCmd} -i ${in} -o ${out}.res.zip AndroidManifest.xml:manifest/AndroidManifest.xml resources.pb "res/**/*" "assets/**/*" &&` +
-			`${config.Zip2ZipCmd} -i ${dexJar} -o ${out}.dex.zip "classes*.dex:dex/" && ` +
-			`${config.MergeZipsCmd} ${out} ${out}.res.zip ${out}.dex.zip ${jniJar} && ` +
-			`rm ${out}.res.zip ${out}.dex.zip`,
-		CommandDeps: []string{
-			"${config.Zip2ZipCmd}",
-			"${config.MergeZipsCmd}",
-		},
-	}, "dexJar", "jniJar")
+		Command:     `${config.MergeZipsCmd} ${out} ${in}`,
+		CommandDeps: []string{"${config.MergeZipsCmd}"},
+	})
+
+var bundleMungePackage = pctx.AndroidStaticRule("bundleMungePackage",
+	blueprint.RuleParams{
+		Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} AndroidManifest.xml:manifest/AndroidManifest.xml resources.pb "res/**/*" "assets/**/*"`,
+		CommandDeps: []string{"${config.Zip2ZipCmd}"},
+	})
+
+var bundleMungeDexJar = pctx.AndroidStaticRule("bundleMungeDexJar",
+	blueprint.RuleParams{
+		Command: `${config.Zip2ZipCmd} -i ${in} -o ${out} "classes*.dex:dex/" && ` +
+			`${config.Zip2ZipCmd} -i ${in} -o ${resJar} -x "classes*.dex" "**/*:root/"`,
+		CommandDeps: []string{"${config.Zip2ZipCmd}"},
+	}, "resJar")
 
 // Builds an app into a module suitable for input to bundletool
 func BuildBundleModule(ctx android.ModuleContext, outputFile android.WritablePath,
-	resJarFile, jniJarFile, dexJarFile android.Path) {
+	packageFile, jniJarFile, dexJarFile android.Path) {
 
 	protoResJarFile := android.PathForModuleOut(ctx, "package-res.pb.apk")
-	aapt2Convert(ctx, protoResJarFile, resJarFile)
+	aapt2Convert(ctx, protoResJarFile, packageFile)
 
-	var deps android.Paths
-	var jniPath string
-	var dexPath string
+	var zips android.Paths
+
+	mungedPackage := android.PathForModuleOut(ctx, "bundle", "apk.zip")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        bundleMungePackage,
+		Input:       protoResJarFile,
+		Output:      mungedPackage,
+		Description: "bundle apk",
+	})
+	zips = append(zips, mungedPackage)
+
 	if dexJarFile != nil {
-		deps = append(deps, dexJarFile)
-		dexPath = dexJarFile.String()
+		mungedDexJar := android.PathForModuleOut(ctx, "bundle", "dex.zip")
+		mungedResJar := android.PathForModuleOut(ctx, "bundle", "res.zip")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:           bundleMungeDexJar,
+			Input:          dexJarFile,
+			Output:         mungedDexJar,
+			ImplicitOutput: mungedResJar,
+			Description:    "bundle dex",
+			Args: map[string]string{
+				"resJar": mungedResJar.String(),
+			},
+		})
+		zips = append(zips, mungedDexJar, mungedResJar)
 	}
 	if jniJarFile != nil {
-		deps = append(deps, jniJarFile)
-		jniPath = jniJarFile.String()
+		zips = append(zips, jniJarFile)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        buildBundleModule,
-		Implicits:   deps,
-		Input:       protoResJarFile,
+		Inputs:      zips,
 		Output:      outputFile,
 		Description: "bundle",
-		Args: map[string]string{
-			"dexJar": dexPath,
-			"jniJar": jniPath,
-		},
 	})
 }
 
