@@ -351,10 +351,6 @@ func (c *config) BlueprintToolLocation() string {
 
 var _ bootstrap.ConfigBlueprintToolLocation = (*config)(nil)
 
-func (c *config) HostToolPath(ctx PathContext, tool string) Path {
-	return PathForOutput(ctx, "host", c.PrebuiltOS(), "bin", tool)
-}
-
 // HostSystemTool looks for non-hermetic tools from the system we're running on.
 // Generally shouldn't be used, but useful to find the XCode SDK, etc.
 func (c *config) HostSystemTool(name string) string {

@@ -161,7 +161,6 @@ type javaBuilderFlags struct {
 	kotlincClasspath classpath
 
 	protoFlags       []string
-	protoDeps        android.Paths
 	protoOutTypeFlag string // The flag itself: --java_out
 	protoOutParams   string // Parameters to that flag: --java_out=$protoOutParams:$outDir
 	protoRoot        bool
