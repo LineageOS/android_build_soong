@@ -59,7 +59,6 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags javaBuild
 		Description: "protoc " + protoFile.Rel(),
 		Output:      srcJarFile,
 		Input:       protoFile,
-		Implicits:   flags.protoDeps,
 		Args: map[string]string{
 			"protoBase":      protoBase,
 			"protoOut":       flags.protoOutTypeFlag,
@@ -94,16 +93,14 @@ func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.ProtoProperties,
 	flags javaBuilderFlags) javaBuilderFlags {
 
-	var plugin string
-
 	switch String(p.Proto.Type) {
 	case "micro":
 		flags.protoOutTypeFlag = "--javamicro_out"
 	case "nano":
 		flags.protoOutTypeFlag = "--javanano_out"
 	case "lite":
-		plugin = "protoc-gen-javalite"
-		flags.protoOutTypeFlag = "--javalite_out"
+		flags.protoOutTypeFlag = "--java_out"
+		flags.protoOutParams = "lite"
 	case "full", "":
 		flags.protoOutTypeFlag = "--java_out"
 	default:
@@ -111,15 +108,15 @@ func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.Pro
 			String(p.Proto.Type))
 	}
 
-	flags.protoOutParams = strings.Join(j.Proto.Output_params, ",")
+	if len(j.Proto.Output_params) > 0 {
+		if flags.protoOutParams != "" {
+			flags.protoOutParams += ","
+		}
+		flags.protoOutParams += strings.Join(j.Proto.Output_params, ",")
+	}
+
 	flags.protoFlags = android.ProtoFlags(ctx, p)
 	flags.protoRoot = android.ProtoCanonicalPathFromRoot(ctx, p)
-
-	if plugin != "" {
-		path := ctx.Config().HostToolPath(ctx, plugin)
-		flags.protoDeps = append(flags.protoDeps, path)
-		flags.protoFlags = append(flags.protoFlags, "--plugin="+path.String())
-	}
 
 	return flags
 }
