@@ -160,6 +160,7 @@ type bootstrapper interface {
 
 type installer interface {
 	install(ctx android.ModuleContext, path android.Path)
+	setAndroidMkSharedLibs(sharedLibs []string)
 }
 
 type PythonDependency interface {
@@ -203,18 +204,19 @@ type dependencyTag struct {
 }
 
 var (
-	pythonLibTag       = dependencyTag{name: "pythonLib"}
-	launcherTag        = dependencyTag{name: "launcher"}
-	pyIdentifierRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
-	pyExt              = ".py"
-	protoExt           = ".proto"
-	pyVersion2         = "PY2"
-	pyVersion3         = "PY3"
-	initFileName       = "__init__.py"
-	mainFileName       = "__main__.py"
-	entryPointFile     = "entry_point.txt"
-	parFileExt         = ".zip"
-	internal           = "internal"
+	pythonLibTag         = dependencyTag{name: "pythonLib"}
+	launcherTag          = dependencyTag{name: "launcher"}
+	launcherSharedLibTag = dependencyTag{name: "launcherSharedLib"}
+	pyIdentifierRegexp   = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
+	pyExt                = ".py"
+	protoExt             = ".proto"
+	pyVersion2           = "PY2"
+	pyVersion3           = "PY3"
+	initFileName         = "__init__.py"
+	mainFileName         = "__main__.py"
+	entryPointFile       = "entry_point.txt"
+	parFileExt           = ".zip"
+	internal             = "internal"
 )
 
 // create version variants for modules.
@@ -308,6 +310,20 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{Mutator: "arch", Variation: ctx.Target().String()},
 			}, launcherTag, "py2-launcher")
+
+			// Add py2-launcher shared lib dependencies. Ideally, these should be
+			// derived from the `shared_libs` property of "py2-launcher". However, we
+			// cannot read the property at this stage and it will be too late to add
+			// dependencies later.
+			ctx.AddFarVariationDependencies([]blueprint.Variation{
+				{Mutator: "arch", Variation: ctx.Target().String()},
+			}, launcherSharedLibTag, "libsqlite")
+
+			if ctx.Target().Os.Bionic() {
+				ctx.AddFarVariationDependencies([]blueprint.Variation{
+					{Mutator: "arch", Variation: ctx.Target().String()},
+				}, launcherSharedLibTag, "libc", "libdl", "libm")
+			}
 		}
 
 	case pyVersion3:
@@ -374,8 +390,18 @@ func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			embeddedLauncher, p.srcsPathMappings, p.srcsZip, p.depsSrcsZips)
 	}
 
-	if p.installer != nil && p.installSource.Valid() {
-		p.installer.install(ctx, p.installSource.Path())
+	if p.installer != nil {
+		var sharedLibs []string
+		ctx.VisitDirectDeps(func(dep android.Module) {
+			if ctx.OtherModuleDependencyTag(dep) == launcherSharedLibTag {
+				sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
+			}
+		})
+		p.installer.setAndroidMkSharedLibs(sharedLibs)
+
+		if p.installSource.Valid() {
+			p.installer.install(ctx, p.installSource.Path())
+		}
 	}
 
 }
