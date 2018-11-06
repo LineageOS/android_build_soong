@@ -1549,43 +1549,6 @@ func TestRuntimeLibsNoVndk(t *testing.T) {
 	checkRuntimeLibs(t, []string{"libvendor_available1", "libvendor1"}, module)
 }
 
-func checkStaticLibs(t *testing.T, expected []string, module *Module) {
-	actual := module.Properties.AndroidMkStaticLibs
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("incorrect static_libs"+
-			"\nactual:   %v"+
-			"\nexpected: %v",
-			actual,
-			expected,
-		)
-	}
-}
-
-const staticLibAndroidBp = `
-	cc_library {
-		name: "lib1",
-	}
-	cc_library {
-		name: "lib2",
-		static_libs: ["lib1"],
-	}
-`
-
-func TestStaticLibDepExport(t *testing.T) {
-	ctx := testCc(t, staticLibAndroidBp)
-
-	// Check the shared version of lib2.
-	variant := "android_arm64_armv8-a_core_shared"
-	module := ctx.ModuleForTests("lib2", variant).Module().(*Module)
-	checkStaticLibs(t, []string{"lib1", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc"}, module)
-
-	// Check the static version of lib2.
-	variant = "android_arm64_armv8-a_core_static"
-	module = ctx.ModuleForTests("lib2", variant).Module().(*Module)
-	// libc++_static is linked additionally.
-	checkStaticLibs(t, []string{"lib1", "libc++_static", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc"}, module)
-}
-
 var compilerFlagsTestCases = []struct {
 	in  string
 	out bool
