@@ -221,6 +221,17 @@ var (
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$in",
 		})
+
+	_ = pctx.SourcePathVariable("cxxExtractor",
+		"prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/cxx_extractor")
+	_ = pctx.VariableFunc("kytheCorpus",
+		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
+	kytheExtract = pctx.StaticRule("kythe",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && KYTHE_CORPUS=${kytheCorpus} KYTHE_OUTPUT_FILE=$out $cxxExtractor $cFlags $in ",
+			CommandDeps: []string{"$cxxExtractor"},
+		},
+		"cFlags")
 )
 
 func init() {
@@ -257,6 +268,7 @@ type builderFlags struct {
 	tidy            bool
 	coverage        bool
 	sAbiDump        bool
+	emitXrefs       bool
 
 	systemIncludeFlags string
 
@@ -281,6 +293,7 @@ type Objects struct {
 	tidyFiles     android.Paths
 	coverageFiles android.Paths
 	sAbiDumpFiles android.Paths
+	kytheFiles    android.Paths
 }
 
 func (a Objects) Copy() Objects {
@@ -289,6 +302,7 @@ func (a Objects) Copy() Objects {
 		tidyFiles:     append(android.Paths{}, a.tidyFiles...),
 		coverageFiles: append(android.Paths{}, a.coverageFiles...),
 		sAbiDumpFiles: append(android.Paths{}, a.sAbiDumpFiles...),
+		kytheFiles:    append(android.Paths{}, a.kytheFiles...),
 	}
 }
 
@@ -298,6 +312,7 @@ func (a Objects) Append(b Objects) Objects {
 		tidyFiles:     append(a.tidyFiles, b.tidyFiles...),
 		coverageFiles: append(a.coverageFiles, b.coverageFiles...),
 		sAbiDumpFiles: append(a.sAbiDumpFiles, b.sAbiDumpFiles...),
+		kytheFiles:    append(a.kytheFiles, b.kytheFiles...),
 	}
 }
 
@@ -313,6 +328,10 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 	var coverageFiles android.Paths
 	if flags.coverage {
 		coverageFiles = make(android.Paths, 0, len(srcFiles))
+	}
+	var kytheFiles android.Paths
+	if flags.emitXrefs {
+		kytheFiles = make(android.Paths, 0, len(srcFiles))
 	}
 
 	commonFlags := strings.Join([]string{
@@ -401,6 +420,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		coverage := flags.coverage
 		dump := flags.sAbiDump
 		rule := cc
+		emitXref := flags.emitXrefs
 
 		switch srcFile.Ext() {
 		case ".s":
@@ -412,6 +432,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			tidy = false
 			coverage = false
 			dump = false
+			emitXref = false
 		case ".c":
 			ccCmd = "clang"
 			moduleCflags = cflags
@@ -449,6 +470,22 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				"ccCmd":  ccCmd,
 			},
 		})
+
+		if emitXref {
+			kytheFile := android.ObjPathWithExt(ctx, subdir, srcFile, "kzip")
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        kytheExtract,
+				Description: "Xref C++ extractor " + srcFile.Rel(),
+				Output:      kytheFile,
+				Input:       srcFile,
+				Implicits:   cFlagsDeps,
+				OrderOnly:   pathDeps,
+				Args: map[string]string{
+					"cFlags": moduleCflags,
+				},
+			})
+			kytheFiles = append(kytheFiles, kytheFile)
+		}
 
 		if tidy {
 			tidyFile := android.ObjPathWithExt(ctx, subdir, srcFile, "tidy")
@@ -493,6 +530,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		tidyFiles:     tidyFiles,
 		coverageFiles: coverageFiles,
 		sAbiDumpFiles: sAbiDumpFiles,
+		kytheFiles:    kytheFiles,
 	}
 }
 
