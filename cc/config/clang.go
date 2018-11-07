@@ -129,6 +129,9 @@ func init() {
 		// Warnings from clang-7.0
 		"-Wno-deprecated-register",
 		"-Wno-sign-compare",
+
+		// Warnings from clang-8.0
+		"-Wno-defaulted-function-deleted",
 	}, " "))
 
 	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
