@@ -126,28 +126,32 @@ func expandAllVars(ctx android.SingletonContext, args []string) []string {
 	return out
 }
 
-func getArguments(src android.Path, ctx android.SingletonContext, ccModule *Module) []string {
+func getArguments(src android.Path, ctx android.SingletonContext, ccModule *Module, ccPath string, cxxPath string) []string {
 	var args []string
 	isCpp := false
 	isAsm := false
 	// TODO It would be better to ask soong for the types here.
+	var clangPath string
 	switch src.Ext() {
 	case ".S", ".s", ".asm":
 		isAsm = true
 		isCpp = false
+		clangPath = ccPath
 	case ".c":
 		isAsm = false
 		isCpp = false
+		clangPath = ccPath
 	case ".cpp", ".cc", ".mm":
 		isAsm = false
 		isCpp = true
+		clangPath = cxxPath
 	default:
 		log.Print("Unknown file extension " + src.Ext() + " on file " + src.String())
 		isAsm = true
 		isCpp = false
+		clangPath = ccPath
 	}
-	// The executable for the compilation doesn't matter but we need something there.
-	args = append(args, "/bin/false")
+	args = append(args, clangPath)
 	args = append(args, expandAllVars(ctx, ccModule.flags.GlobalFlags)...)
 	args = append(args, expandAllVars(ctx, ccModule.flags.CFlags)...)
 	if isCpp {
@@ -166,12 +170,19 @@ func generateCompdbProject(compiledModule CompiledInterface, ctx android.Singlet
 		return
 	}
 
+	pathToCC, err := ctx.Eval(pctx, "${config.ClangBin}/")
+	ccPath := "/bin/false"
+	cxxPath := "/bin/false"
+	if err == nil {
+		ccPath = pathToCC + "clang"
+		cxxPath = pathToCC + "clang++"
+	}
 	rootDir := getCompdbAndroidSrcRootDirectory(ctx)
 	for _, src := range srcs {
 		if _, ok := builds[src.String()]; !ok {
 			builds[src.String()] = compDbEntry{
 				Directory: rootDir,
-				Arguments: getArguments(src, ctx, ccModule),
+				Arguments: getArguments(src, ctx, ccModule, ccPath, cxxPath),
 				File:      src.String(),
 			}
 		}
