@@ -15,7 +15,6 @@
 package config
 
 import (
-	"runtime"
 	"strings"
 
 	"android/soong/android"
@@ -211,11 +210,6 @@ func init() {
 		return ClangDefaultShortVersion
 	})
 	pctx.StaticVariable("ClangAsanLibDir", "${ClangBase}/linux-x86/${ClangVersion}/lib64/clang/${ClangShortVersion}/lib/linux")
-	if runtime.GOOS == "darwin" {
-		pctx.StaticVariable("LLVMGoldPlugin", "${ClangPath}/lib64/LLVMgold.dylib")
-	} else {
-		pctx.StaticVariable("LLVMGoldPlugin", "${ClangPath}/lib64/LLVMgold.so")
-	}
 
 	// These are tied to the version of LLVM directly in external/llvm, so they might trail the host prebuilts
 	// being used for the rest of the build process.
