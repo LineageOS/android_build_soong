@@ -70,6 +70,12 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(c.Properties.AndroidMkSharedLibs, " "))
 				}
+				if len(c.Properties.AndroidMkStaticLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_STATIC_LIBRARIES := "+strings.Join(c.Properties.AndroidMkStaticLibs, " "))
+				}
+				if len(c.Properties.AndroidMkWholeStaticLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_WHOLE_STATIC_LIBRARIES := "+strings.Join(c.Properties.AndroidMkWholeStaticLibs, " "))
+				}
 				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.getMakeLinkType())
 				if c.useVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
