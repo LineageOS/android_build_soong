@@ -445,6 +445,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return false
 	})
 
+	if keyFile == nil {
+		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
+		return
+	}
+
 	cert := String(a.properties.Certificate)
 	if cert != "" && android.SrcIsModule(cert) == "" {
 		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
