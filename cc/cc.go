@@ -175,12 +175,10 @@ type BaseProperties struct {
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version *string
 
-	AndroidMkSharedLibs      []string `blueprint:"mutated"`
-	AndroidMkStaticLibs      []string `blueprint:"mutated"`
-	AndroidMkRuntimeLibs     []string `blueprint:"mutated"`
-	AndroidMkWholeStaticLibs []string `blueprint:"mutated"`
-	HideFromMake             bool     `blueprint:"mutated"`
-	PreventInstall           bool     `blueprint:"mutated"`
+	AndroidMkSharedLibs  []string `blueprint:"mutated"`
+	AndroidMkRuntimeLibs []string `blueprint:"mutated"`
+	HideFromMake         bool     `blueprint:"mutated"`
+	PreventInstall       bool     `blueprint:"mutated"`
 
 	UseVndk bool `blueprint:"mutated"`
 
@@ -1480,15 +1478,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// they merely serve as Make dependencies and do not affect this lib itself.
 			c.Properties.AndroidMkSharedLibs = append(
 				c.Properties.AndroidMkSharedLibs, makeLibName(depName))
-		case staticDepTag, staticExportDepTag, lateStaticDepTag:
-			c.Properties.AndroidMkStaticLibs = append(
-				c.Properties.AndroidMkStaticLibs, makeLibName(depName))
 		case runtimeDepTag:
 			c.Properties.AndroidMkRuntimeLibs = append(
 				c.Properties.AndroidMkRuntimeLibs, makeLibName(depName))
-		case wholeStaticDepTag:
-			c.Properties.AndroidMkWholeStaticLibs = append(
-				c.Properties.AndroidMkWholeStaticLibs, makeLibName(depName))
 		}
 	})
 
