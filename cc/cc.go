@@ -157,7 +157,6 @@ type Flags struct {
 	LdFlagsDeps android.Paths // Files depended on by linker flags
 
 	GroupStaticLibs bool
-	ArGoldPlugin    bool // Whether LLVM gold plugin option is passed to llvm-ar
 }
 
 type ObjectLinkerProperties struct {

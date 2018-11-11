@@ -466,16 +466,8 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.CFlags = append(flags.CFlags, "-fvisibility=default")
 		}
 		flags.LdFlags = append(flags.LdFlags, cfiLdflags...)
-		flags.ArGoldPlugin = true
 		if Bool(sanitize.Properties.Sanitize.Diag.Cfi) {
 			diagSanitizers = append(diagSanitizers, "cfi")
-		}
-
-		if ctx.Arch().ArchType == android.Arm64 {
-			// Prevent use of x18 register on arm64.
-			// TODO(pcc): Remove this flag once we upgrade past LLVM r340889
-			// which does this by default on Android.
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-mattr=+reserve-x18")
 		}
 
 		if ctx.staticBinary() {
