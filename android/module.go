@@ -280,7 +280,10 @@ type commonProperties struct {
 }
 
 type hostAndDeviceProperties struct {
-	Host_supported   *bool
+	// If set to true, build a variant of the module for the host.  Defaults to false.
+	Host_supported *bool
+
+	// If set to true, build a variant of the module for the device.  Defaults to true.
 	Device_supported *bool
 }
 
