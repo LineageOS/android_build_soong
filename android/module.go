@@ -435,7 +435,7 @@ type ModuleBase struct {
 	variableProperties      variableProperties
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
-	archProperties          []interface{}
+	archProperties          [][]interface{}
 	customizableProperties  []interface{}
 
 	noAddressSanitizer bool
