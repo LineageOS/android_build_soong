@@ -104,7 +104,6 @@ var Configuration = map[string]PathConfig{
 	"head":      Allowed,
 	"hexdump":   Allowed,
 	"hostname":  Allowed,
-	"id":        Allowed,
 	"jar":       Allowed,
 	"java":      Allowed,
 	"javap":     Allowed,
@@ -154,7 +153,6 @@ var Configuration = map[string]PathConfig{
 	"unzip":     Allowed,
 	"wc":        Allowed,
 	"which":     Allowed,
-	"whoami":    Allowed,
 	"xargs":     Allowed,
 	"xxd":       Allowed,
 	"xz":        Allowed,
@@ -176,8 +174,10 @@ var Configuration = map[string]PathConfig{
 	"pkg-config": Forbidden,
 
 	// On linux we'll use the toybox version of these instead
-	"true":  Toybox,
-	"uname": Toybox,
+	"id":     Toybox,
+	"true":   Toybox,
+	"uname":  Toybox,
+	"whoami": Toybox,
 }
 
 func init() {
