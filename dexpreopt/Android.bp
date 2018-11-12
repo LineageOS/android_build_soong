@@ -1,0 +1,15 @@
+bootstrap_go_package {
+    name: "soong-dexpreopt",
+    pkgPath: "android/soong/dexpreopt",
+    srcs: [
+        "config.go",
+        "dexpreopt.go",
+        "script.go",
+    ],
+    testSrcs: [
+        "dexpreopt_test.go",
+    ],
+    deps: [
+        "blueprint-pathtools",
+    ],
+}
