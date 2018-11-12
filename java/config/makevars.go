@@ -65,6 +65,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("JMOD", "${JmodCmd}")
 
 	ctx.Strict("SOONG_JAVAC_WRAPPER", "${SoongJavacWrapper}")
+	ctx.Strict("DEXPREOPT_GEN", "${DexpreoptGen}")
 	ctx.Strict("ZIPSYNC", "${ZipSyncCmd}")
 
 	ctx.Strict("JACOCO_CLI_JAR", "${JacocoCLIJar}")

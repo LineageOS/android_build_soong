@@ -138,6 +138,17 @@ var (
 			CommandDeps: []string{"${config.JavaCmd}", "${config.JetifierJar}"},
 		},
 	)
+
+	zipalign = pctx.AndroidStaticRule("zipalign",
+		blueprint.RuleParams{
+			Command: "if ! ${config.ZipAlign} -c 4 $in > /dev/null; then " +
+				"${config.ZipAlign} -f 4 $in $out; " +
+				"else " +
+				"cp -f $in $out; " +
+				"fi",
+			CommandDeps: []string{"${config.ZipAlign}"},
+		},
+	)
 )
 
 func init() {
@@ -407,6 +418,15 @@ func GenerateMainClassManifest(ctx android.ModuleContext, outputFile android.Wri
 		Args: map[string]string{
 			"content": "Main-Class: " + mainClass + "\n",
 		},
+	})
+}
+
+func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        zipalign,
+		Description: "align",
+		Input:       inputFile,
+		Output:      outputFile,
 	})
 }
 
