@@ -40,6 +40,10 @@ type prebuiltEtcProperties struct {
 	// optional name for the installed file. If unspecified, name of the module is used as the file name
 	Filename *string `android:"arch_variant"`
 
+	// when set to true, and filename property is not set, the name for the installed file
+	// is the same as the file name of the source file.
+	Filename_from_src *bool `android:"arch_variant"`
+
 	// Make this module available when building for recovery.
 	Recovery_available *bool
 
@@ -106,8 +110,16 @@ func (p *PrebuiltEtc) Installable() bool {
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 	p.sourceFilePath = ctx.ExpandSource(String(p.properties.Src), "src")
 	filename := String(p.properties.Filename)
+	filename_from_src := Bool(p.properties.Filename_from_src)
 	if filename == "" {
-		filename = ctx.ModuleName()
+		if filename_from_src {
+			filename = p.sourceFilePath.Base()
+		} else {
+			filename = ctx.ModuleName()
+		}
+	} else if filename_from_src {
+		ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
+		return
 	}
 	p.outputFilePath = PathForModuleOut(ctx, filename).OutputPath
 	p.installDirPath = PathForModuleInstall(ctx, "etc", String(p.properties.Sub_dir))
