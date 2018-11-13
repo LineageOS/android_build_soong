@@ -16,4 +16,5 @@ blueprint_go_binary {
     name: "host_bionic_inject",
     deps: ["soong-symbol_inject"],
     srcs: ["host_bionic_inject.go"],
+    testSrcs: ["host_bionic_inject_test.go"],
 }

@@ -136,32 +136,27 @@ func checkLinker(file, linker *elf.File, fileSyms []elf.Symbol) error {
 			continue
 		}
 
+		laddr := lprog.Vaddr + dlwrap_linker_offset.Value
+
 		found := false
-		for j, prog := range file.Progs {
+		for _, prog := range file.Progs {
 			if prog.Type != elf.PT_LOAD {
 				continue
 			}
 
-			if lprog.Vaddr+dlwrap_linker_offset.Value != prog.Vaddr {
+			if laddr < prog.Vaddr || laddr > prog.Vaddr+prog.Memsz {
 				continue
 			}
 			found = true
 
-			if lprog.Memsz != prog.Memsz {
-				return fmt.Errorf("Linker prog %d (0x%x) memsz (0x%x) does not match (0x%x)",
-					i, lprog.Vaddr, lprog.Memsz, prog.Memsz)
-			}
-
-			// The linker shouldn't be using BSS, since only one
-			// BSS section is supported per ELF file.
-			if prog.Memsz != prog.Filesz {
-				return fmt.Errorf("Embedded prog %d (0x%x) memsz (0x%x) does not match filesz (0x%x)",
-					j, prog.Vaddr, prog.Memsz, prog.Filesz)
-			}
-
 			if lprog.Flags != prog.Flags {
 				return fmt.Errorf("Linker prog %d (0x%x) flags (%s) do not match (%s)",
 					i, lprog.Vaddr, lprog.Flags, prog.Flags)
+			}
+
+			if laddr+lprog.Memsz > prog.Vaddr+prog.Filesz {
+				return fmt.Errorf("Linker prog %d (0x%x) not fully present (0x%x > 0x%x)",
+					i, lprog.Vaddr, laddr+lprog.Memsz, prog.Vaddr+prog.Filesz)
 			}
 		}
 		if !found {
