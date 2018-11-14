@@ -1124,3 +1124,64 @@ func TestJavaSdkLibrary(t *testing.T) {
 		}
 	}
 }
+
+var compilerFlagsTestCases = []struct {
+	in  string
+	out bool
+}{
+	{
+		in:  "a",
+		out: false,
+	},
+	{
+		in:  "-a",
+		out: true,
+	},
+	{
+		in:  "-no-jdk",
+		out: false,
+	},
+	{
+		in:  "-no-stdlib",
+		out: false,
+	},
+	{
+		in:  "-kotlin-home",
+		out: false,
+	},
+	{
+		in:  "-kotlin-home /some/path",
+		out: false,
+	},
+	{
+		in:  "-include-runtime",
+		out: false,
+	},
+	{
+		in:  "-Xintellij-plugin-root",
+		out: false,
+	},
+}
+
+type mockContext struct {
+	android.ModuleContext
+	result bool
+}
+
+func (ctx *mockContext) PropertyErrorf(property, format string, args ...interface{}) {
+	// CheckBadCompilerFlags calls this function when the flag should be rejected
+	ctx.result = false
+}
+
+func TestCompilerFlags(t *testing.T) {
+	for _, testCase := range compilerFlagsTestCases {
+		ctx := &mockContext{result: true}
+		CheckKotlincFlags(ctx, []string{testCase.in})
+		if ctx.result != testCase.out {
+			t.Errorf("incorrect output:")
+			t.Errorf("     input: %#v", testCase.in)
+			t.Errorf("  expected: %#v", testCase.out)
+			t.Errorf("       got: %#v", ctx.result)
+		}
+	}
+}
