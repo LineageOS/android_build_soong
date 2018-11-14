@@ -330,6 +330,10 @@ func (j *Module) Srcs() android.Paths {
 	return android.Paths{j.outputFile}
 }
 
+func (j *Module) DexJarFile() android.Path {
+	return j.dexJarFile
+}
+
 var _ android.SourceFileProducer = (*Module)(nil)
 
 type Dependency interface {
