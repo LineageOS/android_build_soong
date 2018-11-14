@@ -147,7 +147,6 @@ var Configuration = map[string]PathConfig{
 	"todos":     Allowed,
 	"touch":     Allowed,
 	"tr":        Allowed,
-	"uniq":      Allowed,
 	"unix2dos":  Allowed,
 	"unzip":     Allowed,
 	"wc":        Allowed,
@@ -177,6 +176,7 @@ var Configuration = map[string]PathConfig{
 	"id":     Toybox,
 	"true":   Toybox,
 	"uname":  Toybox,
+	"uniq":   Toybox,
 	"whoami": Toybox,
 }
 
