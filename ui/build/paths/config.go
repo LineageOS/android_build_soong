@@ -79,7 +79,6 @@ var Configuration = map[string]PathConfig{
 	"bash":      Allowed,
 	"bc":        Allowed,
 	"bzip2":     Allowed,
-	"cat":       Allowed,
 	"chmod":     Allowed,
 	"cmp":       Allowed,
 	"comm":      Allowed,
@@ -174,6 +173,7 @@ var Configuration = map[string]PathConfig{
 	"pkg-config": Forbidden,
 
 	// On linux we'll use the toybox version of these instead
+	"cat":    Toybox,
 	"id":     Toybox,
 	"true":   Toybox,
 	"uname":  Toybox,
