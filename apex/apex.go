@@ -171,8 +171,10 @@ type apexBundleProperties struct {
 	// "manifest.json"
 	Manifest *string
 
-	// File contexts file for setting security context to each file in this APEX bundle
-	// Default: "file_contexts".
+	// Determines the file contexts file for setting security context to each file in this APEX bundle.
+	// Specifically, when this is set to <value>, /system/sepolicy/apex/<value>_file_contexts file is
+	// used.
+	// Default: <name_of_this_module>
 	File_contexts *string
 
 	// List of native shared libs that are embedded inside this APEX bundle
@@ -489,7 +491,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "manifest.json"))
-	fileContexts := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.File_contexts, "file_contexts"))
+
+	fcName := proptools.StringDefault(a.properties.File_contexts, a.ModuleBase.Name())
+	fileContextsPath := "system/sepolicy/apex/" + fcName + "_file_contexts"
+	fileContextsOptionalPath := android.ExistentPathForSource(ctx, fileContextsPath)
+	if !fileContextsOptionalPath.Valid() {
+		ctx.ModuleErrorf("Cannot find file_contexts file: %q", fileContextsPath)
+		return
+	}
+	fileContexts := fileContextsOptionalPath.Path()
 
 	unsignedOutputFile := android.PathForModuleOut(ctx, a.ModuleBase.Name()+apexSuffix+".unsigned")
 
