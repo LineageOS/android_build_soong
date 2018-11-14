@@ -230,6 +230,38 @@ type apexBundleProperties struct {
 	}
 }
 
+type apexFileClass int
+
+const (
+	etc apexFileClass = iota
+	nativeSharedLib
+	nativeExecutable
+	javaSharedLib
+)
+
+func (class apexFileClass) NameInMake() string {
+	switch class {
+	case etc:
+		return "ETC"
+	case nativeSharedLib:
+		return "SHARED_LIBRARIES"
+	case nativeExecutable:
+		return "EXECUTABLES"
+	case javaSharedLib:
+		return "JAVA_LIBRARIES"
+	default:
+		panic(fmt.Errorf("unkonwn class %d", class))
+	}
+}
+
+type apexFile struct {
+	builtFile  android.Path
+	moduleName string
+	archType   android.ArchType
+	installDir string
+	class      apexFileClass
+}
+
 type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -238,6 +270,11 @@ type apexBundle struct {
 
 	outputFile android.WritablePath
 	installDir android.OutputPath
+
+	// list of files to be included in this apex
+	filesInfo []apexFile
+
+	flattened bool
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -364,7 +401,7 @@ func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirIn
 
 func getCopyManifestForJavaLibrary(java *java.Library) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = "javalib"
-	fileToCopy = java.Srcs()[0]
+	fileToCopy = java.DexJarFile()
 	return
 }
 
@@ -375,8 +412,7 @@ func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy an
 }
 
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// files to copy -> dir in apex
-	copyManifest := make(map[android.Path]string)
+	filesInfo := []apexFile{}
 
 	var keyFile android.Path
 	var certificate java.Certificate
@@ -390,7 +426,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case sharedLibTag:
 				if cc, ok := child.(*cc.Module); ok {
 					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc)
-					copyManifest[fileToCopy] = dirInApex
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, cc.Arch().ArchType, dirInApex, nativeSharedLib})
 					return true
 				} else {
 					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
@@ -398,7 +434,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case executableTag:
 				if cc, ok := child.(*cc.Module); ok {
 					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
-					copyManifest[fileToCopy] = dirInApex
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, cc.Arch().ArchType, dirInApex, nativeExecutable})
 					return true
 				} else {
 					ctx.PropertyErrorf("binaries", "%q is not a cc_binary module", depName)
@@ -406,7 +442,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case javaLibTag:
 				if java, ok := child.(*java.Library); ok {
 					fileToCopy, dirInApex := getCopyManifestForJavaLibrary(java)
-					copyManifest[fileToCopy] = dirInApex
+					if fileToCopy == nil {
+						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
+					} else {
+						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, java.Arch().ArchType, dirInApex, javaSharedLib})
+					}
 					return true
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q is not a java_library module", depName)
@@ -414,7 +454,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case prebuiltTag:
 				if prebuilt, ok := child.(*android.PrebuiltEtc); ok {
 					fileToCopy, dirInApex := getCopyManifestForPrebuiltEtc(prebuilt)
-					copyManifest[fileToCopy] = dirInApex
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, prebuilt.Arch().ArchType, dirInApex, etc})
 					return true
 				} else {
 					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
@@ -438,8 +478,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// indirect dependencies
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
 				if cc, ok := child.(*cc.Module); ok {
+					depName := ctx.OtherModuleName(child)
 					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc)
-					copyManifest[fileToCopy] = dirInApex
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, cc.Arch().ArchType, dirInApex, nativeSharedLib})
 					return true
 				}
 			}
@@ -452,6 +493,42 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	// remove duplicates in filesInfo
+	removeDup := func(filesInfo []apexFile) []apexFile {
+		encountered := make(map[android.Path]bool)
+		result := []apexFile{}
+		for _, f := range filesInfo {
+			if !encountered[f.builtFile] {
+				encountered[f.builtFile] = true
+				result = append(result, f)
+			}
+		}
+		return result
+	}
+	filesInfo = removeDup(filesInfo)
+
+	// to have consistent build rules
+	sort.Slice(filesInfo, func(i, j int) bool {
+		return filesInfo[i].builtFile.String() < filesInfo[j].builtFile.String()
+	})
+
+	// prepend the name of this APEX to the module names. These names will be the names of
+	// modules that will be defined if the APEX is flattened.
+	for i := range filesInfo {
+		filesInfo[i].moduleName = ctx.ModuleName() + "." + filesInfo[i].moduleName
+	}
+
+	a.flattened = ctx.Config().FlattenApex()
+	a.installDir = android.PathForModuleInstall(ctx, "apex")
+	a.filesInfo = filesInfo
+	if ctx.Config().FlattenApex() {
+		a.buildFlattenedApex(ctx)
+	} else {
+		a.buildUnflattenedApex(ctx, keyFile, certificate)
+	}
+}
+
+func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile android.Path, certificate java.Certificate) {
 	cert := String(a.properties.Certificate)
 	if cert != "" && android.SrcIsModule(cert) == "" {
 		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
@@ -467,15 +544,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// files and dirs that will be created in apex
 	var readOnlyPaths []string
 	var executablePaths []string // this also includes dirs
-	for fileToCopy, dirInApex := range copyManifest {
-		pathInApex := filepath.Join(dirInApex, fileToCopy.Base())
-		if dirInApex == "bin" {
+	for _, f := range a.filesInfo {
+		pathInApex := filepath.Join(f.installDir, f.builtFile.Base())
+		if f.installDir == "bin" {
 			executablePaths = append(executablePaths, pathInApex)
 		} else {
 			readOnlyPaths = append(readOnlyPaths, pathInApex)
 		}
-		if !android.InList(dirInApex, executablePaths) {
-			executablePaths = append(executablePaths, dirInApex)
+		if !android.InList(f.installDir, executablePaths) {
+			executablePaths = append(executablePaths, f.installDir)
 		}
 	}
 	sort.Strings(readOnlyPaths)
@@ -504,16 +581,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	unsignedOutputFile := android.PathForModuleOut(ctx, a.ModuleBase.Name()+apexSuffix+".unsigned")
 
 	filesToCopy := []android.Path{}
-	for file := range copyManifest {
-		filesToCopy = append(filesToCopy, file)
+	for _, f := range a.filesInfo {
+		filesToCopy = append(filesToCopy, f.builtFile)
 	}
-	sort.Slice(filesToCopy, func(i, j int) bool {
-		return filesToCopy[i].String() < filesToCopy[j].String()
-	})
 
 	copyCommands := []string{}
-	for _, src := range filesToCopy {
-		dest := filepath.Join(copyManifest[src], src.Base())
+	for i, src := range filesToCopy {
+		dest := filepath.Join(a.filesInfo[i].installDir, src.Base())
 		dest_path := filepath.Join(android.PathForModuleOut(ctx, "image").String(), dest)
 		copyCommands = append(copyCommands, "mkdir -p "+filepath.Dir(dest_path))
 		copyCommands = append(copyCommands, "cp "+src.String()+" "+dest_path)
@@ -547,23 +621,71 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"certificates": strings.Join([]string{certificate.Pem.String(), certificate.Key.String()}, " "),
 		},
 	})
+}
 
-	a.installDir = android.PathForModuleInstall(ctx, "apex")
+func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
+	// For flattened APEX, do nothing but make sure that manifest.json file is also copied along
+	// with other ordinary files.
+	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "manifest.json"))
+	a.filesInfo = append(a.filesInfo, apexFile{manifest, a.Name() + ".manifest.json", android.Common, ".", etc})
+
+	for _, fi := range a.filesInfo {
+		dir := filepath.Join("apex", a.Name(), fi.installDir)
+		ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
+	}
 }
 
 func (a *apexBundle) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
-		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
-			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
-			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
-			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFile.String())
-			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
-			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name+apexSuffix)
-			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
-			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
-		}}
+	if a.flattened {
+		return android.AndroidMkData{
+			Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+				moduleNames := []string{}
+				for _, fi := range a.filesInfo {
+					if !android.InList(fi.moduleName, moduleNames) {
+						moduleNames = append(moduleNames, fi.moduleName)
+					}
+				}
+				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+				fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
+				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
+
+				for _, fi := range a.filesInfo {
+					fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+					fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+					fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
+					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString(), name, fi.installDir))
+					fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", fi.builtFile.Base())
+					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
+					fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
+					archStr := fi.archType.String()
+					if archStr != "common" {
+						fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
+					}
+					if fi.class == javaSharedLib {
+						fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
+						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+						fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+					} else {
+						fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
+					}
+				}
+			}}
+	} else {
+		return android.AndroidMkData{
+			Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+				fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
+				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFile.String())
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
+				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name+apexSuffix)
+				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
+				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
+			}}
+	}
 }
 
 func apexBundleFactory() android.Module {
