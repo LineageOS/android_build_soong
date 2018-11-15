@@ -137,7 +137,6 @@ var Configuration = map[string]PathConfig{
 	"sha1sum":   Allowed,
 	"sha256sum": Allowed,
 	"sha512sum": Allowed,
-	"sleep":     Allowed,
 	"sort":      Allowed,
 	"stat":      Allowed,
 	"tar":       Allowed,
@@ -174,6 +173,7 @@ var Configuration = map[string]PathConfig{
 	// On linux we'll use the toybox version of these instead
 	"cat":    Toybox,
 	"id":     Toybox,
+	"sleep":  Toybox,
 	"true":   Toybox,
 	"uname":  Toybox,
 	"uniq":   Toybox,
