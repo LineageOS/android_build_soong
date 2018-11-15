@@ -81,7 +81,6 @@ var Configuration = map[string]PathConfig{
 	"bzip2":     Allowed,
 	"chmod":     Allowed,
 	"cmp":       Allowed,
-	"comm":      Allowed,
 	"cp":        Allowed,
 	"cut":       Allowed,
 	"date":      Allowed,
@@ -172,6 +171,7 @@ var Configuration = map[string]PathConfig{
 
 	// On linux we'll use the toybox version of these instead
 	"cat":    Toybox,
+	"comm":   Toybox,
 	"id":     Toybox,
 	"sleep":  Toybox,
 	"true":   Toybox,
