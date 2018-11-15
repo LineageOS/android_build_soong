@@ -157,11 +157,9 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, mani
 }
 
 func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
-	if !ctx.Config().UnbundledBuild() {
-		sdkDep := decodeSdkDep(ctx, sdkContext)
-		if sdkDep.frameworkResModule != "" {
-			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
-		}
+	sdkDep := decodeSdkDep(ctx, sdkContext)
+	if sdkDep.frameworkResModule != "" {
+		ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 	}
 }
 
