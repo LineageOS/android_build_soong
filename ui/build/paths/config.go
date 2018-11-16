@@ -90,7 +90,6 @@ var Configuration = map[string]PathConfig{
 	"du":        Allowed,
 	"echo":      Allowed,
 	"egrep":     Allowed,
-	"env":       Allowed,
 	"expr":      Allowed,
 	"find":      Allowed,
 	"fuser":     Allowed,
@@ -172,6 +171,7 @@ var Configuration = map[string]PathConfig{
 	// On linux we'll use the toybox version of these instead
 	"cat":    Toybox,
 	"comm":   Toybox,
+	"env":    Toybox,
 	"id":     Toybox,
 	"sleep":  Toybox,
 	"true":   Toybox,
