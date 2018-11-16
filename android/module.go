@@ -441,6 +441,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       Paths
 	checkbuildFiles    Paths
+	noticeFile         Path
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -789,6 +790,11 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		a.installFiles = append(a.installFiles, ctx.installFiles...)
 		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
+
+		if a.commonProperties.Notice != nil {
+			// For filegroup-based notice file references.
+			a.noticeFile = ctx.ExpandSource(*a.commonProperties.Notice, "notice")
+		}
 	}
 
 	if a == ctx.FinalModule().(Module).base() {
