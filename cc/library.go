@@ -77,6 +77,16 @@ type LibraryProperties struct {
 		// List versions to generate stubs libs for.
 		Versions []string
 	}
+
+	// set the name of the output
+	Stem *string `android:"arch_variant"`
+
+	// Names of modules to be overridden. Listed modules can only be other shared libraries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden libraries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other library will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
 }
 
 type LibraryMutatedProperties struct {
@@ -429,7 +439,10 @@ type libraryInterface interface {
 func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 	name := library.libName
 	if name == "" {
-		name = ctx.baseModuleName()
+		name = String(library.Properties.Stem)
+		if name == "" {
+			name = ctx.baseModuleName()
+		}
 	}
 
 	if ctx.isVndkExt() {
