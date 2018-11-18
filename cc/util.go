@@ -68,8 +68,6 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		conlyFlags:      strings.Join(in.ConlyFlags, " "),
 		cppFlags:        strings.Join(in.CppFlags, " "),
 		yaccFlags:       strings.Join(in.YaccFlags, " "),
-		protoFlags:      strings.Join(in.protoFlags, " "),
-		protoOutParams:  strings.Join(in.protoOutParams, ","),
 		aidlFlags:       strings.Join(in.aidlFlags, " "),
 		rsFlags:         strings.Join(in.rsFlags, " "),
 		ldFlags:         strings.Join(in.LdFlags, " "),
@@ -81,11 +79,18 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		coverage:        in.Coverage,
 		tidy:            in.Tidy,
 		sAbiDump:        in.SAbiDump,
-		protoRoot:       in.ProtoRoot,
 
 		systemIncludeFlags: strings.Join(in.SystemIncludeFlags, " "),
 
 		groupStaticLibs: in.GroupStaticLibs,
+
+		protoDeps:        in.protoDeps,
+		protoFlags:       strings.Join(in.protoFlags, " "),
+		protoOutTypeFlag: in.protoOutTypeFlag,
+		protoOutParams:   strings.Join(in.protoOutParams, ","),
+		protoC:           in.protoC,
+		protoOptionsFile: in.protoOptionsFile,
+		protoRoot:        in.ProtoRoot,
 	}
 }
 
