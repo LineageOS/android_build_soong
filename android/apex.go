@@ -14,6 +14,8 @@
 
 package android
 
+import "sync"
+
 // ApexModule is the interface that a module type is expected to implement if
 // the module has to be built differently depending on whether the module
 // is destined for an apex or not (installed to one of the regular partitions).
@@ -91,6 +93,68 @@ func (m *ApexModuleBase) CanHaveApexVariants() bool {
 
 func (m *ApexModuleBase) IsInstallableToApex() bool {
 	// should be overriden if needed
+	return false
+}
+
+// This structure maps a module name to the set of APEX bundle names that the module
+// should be built for. Examples:
+//
+// ...["foo"]["bar"] == true: module foo is directly depended on by APEX bar
+// ...["foo"]["bar"] == false: module foo is indirectly depended on by APEX bar
+// ...["foo"]["bar"] doesn't exist: foo is not built for APEX bar
+// ...["foo"] doesn't exist: foo is not built for any APEX
+func apexBundleNamesMap(config Config) map[string]map[string]bool {
+	return config.Once("apexBundleNames", func() interface{} {
+		return make(map[string]map[string]bool)
+	}).(map[string]map[string]bool)
+}
+
+var bundleNamesMapMutex sync.Mutex
+
+// Mark that a module named moduleName should be built for an apex named bundleName
+// directDep should be set to true if the module is a direct dependency of the apex.
+func BuildModuleForApexBundle(ctx BaseModuleContext, moduleName string, bundleName string, directDep bool) {
+	bundleNamesMapMutex.Lock()
+	defer bundleNamesMapMutex.Unlock()
+	bundleNames, ok := apexBundleNamesMap(ctx.Config())[moduleName]
+	if !ok {
+		bundleNames = make(map[string]bool)
+		apexBundleNamesMap(ctx.Config())[moduleName] = bundleNames
+	}
+	bundleNames[bundleName] = bundleNames[bundleName] || directDep
+}
+
+// Returns the list of apex bundle names that the module named moduleName
+// should be built for.
+func GetApexBundlesForModule(ctx BaseModuleContext, moduleName string) map[string]bool {
+	bundleNamesMapMutex.Lock()
+	defer bundleNamesMapMutex.Unlock()
+	return apexBundleNamesMap(ctx.Config())[moduleName]
+}
+
+// Tests if moduleName is directly depended on by bundleName (i.e. referenced in
+// native_shared_libs, etc.)
+func DirectlyInApex(config Config, bundleName string, moduleName string) bool {
+	bundleNamesMapMutex.Lock()
+	defer bundleNamesMapMutex.Unlock()
+	if bundleNames, ok := apexBundleNamesMap(config)[moduleName]; ok {
+		return bundleNames[bundleName]
+	}
+	return false
+}
+
+// Tests if moduleName is directly depended on by any APEX. If this returns true,
+// that means the module is part of the platform.
+func DirectlyInAnyApex(config Config, moduleName string) bool {
+	bundleNamesMapMutex.Lock()
+	defer bundleNamesMapMutex.Unlock()
+	if bundleNames, ok := apexBundleNamesMap(config)[moduleName]; ok {
+		for bn := range bundleNames {
+			if bundleNames[bn] {
+				return true
+			}
+		}
+	}
 	return false
 }
 
