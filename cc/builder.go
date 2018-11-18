@@ -231,8 +231,6 @@ type builderFlags struct {
 	ldFlags         string
 	libFlags        string
 	yaccFlags       string
-	protoFlags      string
-	protoOutParams  string
 	tidyFlags       string
 	sAbiFlags       string
 	yasmFlags       string
@@ -242,7 +240,6 @@ type builderFlags struct {
 	tidy            bool
 	coverage        bool
 	sAbiDump        bool
-	protoRoot       bool
 
 	systemIncludeFlags string
 
@@ -252,6 +249,14 @@ type builderFlags struct {
 	stripKeepMiniDebugInfo bool
 	stripAddGnuDebuglink   bool
 	stripUseLlvmStrip      bool
+
+	protoDeps        android.Paths
+	protoFlags       string
+	protoOutTypeFlag string
+	protoOutParams   string
+	protoC           bool
+	protoOptionsFile bool
+	protoRoot        bool
 }
 
 type Objects struct {
