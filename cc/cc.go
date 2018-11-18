@@ -130,8 +130,6 @@ type Flags struct {
 	CppFlags        []string // Flags that apply to C++ source files
 	ToolingCppFlags []string // Flags that apply to C++ source files parsed by clang LibTooling tools
 	YaccFlags       []string // Flags that apply to Yacc source files
-	protoFlags      []string // Flags that apply to proto source files
-	protoOutParams  []string // Flags that modify the output of proto generated files
 	aidlFlags       []string // Flags that apply to aidl source files
 	rsFlags         []string // Flags that apply to renderscript source files
 	LdFlags         []string // Flags that apply to linker command lines
@@ -148,7 +146,6 @@ type Flags struct {
 	Tidy      bool
 	Coverage  bool
 	SAbiDump  bool
-	ProtoRoot bool
 
 	RequiredInstructionSet string
 	DynamicLinker          string
@@ -157,6 +154,14 @@ type Flags struct {
 	LdFlagsDeps android.Paths // Files depended on by linker flags
 
 	GroupStaticLibs bool
+
+	protoDeps        android.Paths
+	protoFlags       []string // Flags that apply to proto source files
+	protoOutTypeFlag string   // The output type, --cpp_out for example
+	protoOutParams   []string // Flags that modify the output of proto generated files
+	protoC           bool     // Whether to use C instead of C++
+	protoOptionsFile bool     // Whether to look for a .options file next to the .proto
+	ProtoRoot        bool
 }
 
 type ObjectLinkerProperties struct {

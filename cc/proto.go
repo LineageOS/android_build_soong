@@ -31,29 +31,42 @@ func init() {
 var (
 	proto = pctx.AndroidStaticRule("protoc",
 		blueprint.RuleParams{
-			Command: "$protocCmd --cpp_out=$protoOutParams:$outDir --dependency_out=$out.d -I $protoBase $protoFlags $in && " +
+			Command: "$protocCmd $protoOut=$protoOutParams:$outDir --dependency_out=$out.d -I $protoBase $protoFlags $in && " +
 				`$depFixCmd $out.d`,
 			CommandDeps: []string{"$protocCmd", "$depFixCmd"},
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-		}, "protoFlags", "protoOutParams", "protoBase", "outDir")
+		}, "protoFlags", "protoOut", "protoOutParams", "protoBase", "outDir")
 )
 
 // genProto creates a rule to convert a .proto file to generated .pb.cc and .pb.h files and returns
 // the paths to the generated files.
-func genProto(ctx android.ModuleContext, protoFile android.Path,
-	protoFlags, protoOutParams string, root bool) (ccFile, headerFile android.WritablePath) {
+func genProto(ctx android.ModuleContext, protoFile android.Path, flags builderFlags) (ccFile, headerFile android.WritablePath) {
+
+	srcSuffix := ".cc"
+	if flags.protoC {
+		srcSuffix = ".c"
+	}
 
 	var protoBase string
-	if root {
+	if flags.protoRoot {
 		protoBase = "."
-		ccFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.cc")
+		ccFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb"+srcSuffix)
 		headerFile = android.GenPathWithExt(ctx, "proto", protoFile, "pb.h")
 	} else {
 		rel := protoFile.Rel()
 		protoBase = strings.TrimSuffix(protoFile.String(), rel)
-		ccFile = android.PathForModuleGen(ctx, "proto", pathtools.ReplaceExtension(rel, "pb.cc"))
+		ccFile = android.PathForModuleGen(ctx, "proto", pathtools.ReplaceExtension(rel, "pb"+srcSuffix))
 		headerFile = android.PathForModuleGen(ctx, "proto", pathtools.ReplaceExtension(rel, "pb.h"))
+	}
+
+	protoDeps := flags.protoDeps
+	if flags.protoOptionsFile {
+		optionsFile := pathtools.ReplaceExtension(protoFile.String(), "options")
+		optionsPath := android.ExistentPathForSource(ctx, optionsFile)
+		if optionsPath.Valid() {
+			protoDeps = append(android.Paths{optionsPath.Path()}, protoDeps...)
+		}
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -62,10 +75,12 @@ func genProto(ctx android.ModuleContext, protoFile android.Path,
 		Output:         ccFile,
 		ImplicitOutput: headerFile,
 		Input:          protoFile,
+		Implicits:      protoDeps,
 		Args: map[string]string{
 			"outDir":         android.ProtoDir(ctx).String(),
-			"protoFlags":     protoFlags,
-			"protoOutParams": protoOutParams,
+			"protoFlags":     flags.protoFlags,
+			"protoOut":       flags.protoOutTypeFlag,
+			"protoOutParams": flags.protoOutParams,
 			"protoBase":      protoBase,
 		},
 	})
@@ -91,6 +106,12 @@ func protoDeps(ctx BaseModuleContext, deps Deps, p *android.ProtoProperties, sta
 		} else {
 			lib = "libprotobuf-cpp-lite"
 		}
+	case "nanopb-c":
+		lib = "libprotobuf-c-nano"
+		static = true
+	case "nanopb-c-enable_malloc":
+		lib = "libprotobuf-c-nano-enable_malloc"
+		static = true
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
 			String(p.Proto.Type))
@@ -118,8 +139,33 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 
 	flags.protoFlags = android.ProtoFlags(ctx, p)
 
-	if String(p.Proto.Type) == "lite" {
+	var plugin string
+
+	switch String(p.Proto.Type) {
+	case "nanopb-c", "nanopb-c-enable_malloc":
+		flags.protoC = true
+		flags.protoOptionsFile = true
+		flags.protoOutTypeFlag = "--nanopb_out"
+		plugin = "protoc-gen-nanopb"
+	case "full":
+		flags.protoOutTypeFlag = "--cpp_out"
+	case "lite":
+		flags.protoOutTypeFlag = "--cpp_out"
 		flags.protoOutParams = append(flags.protoOutParams, "lite")
+	case "":
+		// TODO(b/119714316): this should be equivalent to "lite" in
+		// order to match protoDeps, but some modules are depending on
+		// this behavior
+		flags.protoOutTypeFlag = "--cpp_out"
+	default:
+		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
+			String(p.Proto.Type))
+	}
+
+	if plugin != "" {
+		path := ctx.Config().HostToolPath(ctx, plugin)
+		flags.protoDeps = append(flags.protoDeps, path)
+		flags.protoFlags = append(flags.protoFlags, "--plugin="+path.String())
 	}
 
 	return flags
