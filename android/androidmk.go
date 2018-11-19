@@ -277,8 +277,8 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 		}
 	}
 
-	if amod.commonProperties.Notice != nil {
-		fmt.Fprintln(&data.preamble, "LOCAL_NOTICE_FILE :=", "$(LOCAL_PATH)/"+*amod.commonProperties.Notice)
+	if amod.noticeFile != nil {
+		fmt.Fprintln(&data.preamble, "LOCAL_NOTICE_FILE :=", amod.noticeFile.String())
 	}
 
 	if host {
