@@ -360,6 +360,9 @@ type DroidstubsProperties struct {
 	// a list of top-level directories containing Java stub files to merge show/hide annotations from.
 	Merge_inclusion_annotations_dirs []string
 
+	// a file containing a list of classes to do nullability validation for.
+	Validate_nullability_from_list *string
+
 	// a file containing expected warnings produced by validation of nullability annotations.
 	Check_nullability_warnings *string
 
@@ -1302,6 +1305,9 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
+	if String(d.properties.Validate_nullability_from_list) != "" {
+		android.ExtractSourceDeps(ctx, d.properties.Validate_nullability_from_list)
+	}
 	if String(d.properties.Check_nullability_warnings) != "" {
 		android.ExtractSourceDeps(ctx, d.properties.Check_nullability_warnings)
 	}
@@ -1411,7 +1417,9 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 	var flags string
 	if Bool(d.properties.Annotations_enabled) {
 		flags += " --include-annotations"
-		validatingNullability := strings.Contains(d.Javadoc.args, "--validate-nullability-from-merged-stubs")
+		validatingNullability :=
+			strings.Contains(d.Javadoc.args, "--validate-nullability-from-merged-stubs") ||
+				String(d.properties.Validate_nullability_from_list) != ""
 		migratingNullability := String(d.properties.Previous_api) != ""
 		if !(migratingNullability || validatingNullability) {
 			ctx.PropertyErrorf("previous_api",
@@ -1421,6 +1429,9 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 			previousApi := ctx.ExpandSource(String(d.properties.Previous_api), "previous_api")
 			*implicits = append(*implicits, previousApi)
 			flags += " --migrate-nullness " + previousApi.String()
+		}
+		if s := String(d.properties.Validate_nullability_from_list); s != "" {
+			flags += " --validate-nullability-from-list " + ctx.ExpandSource(s, "validate_nullability_from_list").String()
 		}
 		if validatingNullability {
 			d.nullabilityWarningsFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_nullability_warnings.txt")
