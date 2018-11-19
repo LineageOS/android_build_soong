@@ -16,13 +16,22 @@ package cc
 
 import (
 	"android/soong/android"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/google/blueprint"
 )
 
 func init() {
-	pctx.HostBinToolVariable("rsCmd", "llvm-rs-cc")
+	pctx.VariableFunc("rsCmd", func(ctx android.PackageVarContext) string {
+		if ctx.Config().UnbundledBuild() {
+			// Use RenderScript prebuilts for unbundled builds but not PDK builds
+			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "bin/llvm-rs-cc")
+		} else {
+			return pctx.HostBinToolPath(ctx, "llvm-rs-cc").String()
+		}
+	})
 }
 
 var rsCppCmdLine = strings.Replace(`
