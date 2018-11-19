@@ -61,7 +61,7 @@ def parse_args():
                       help='specify additional <uses-library> tag to add. android:requred is set to false')
   parser.add_argument('--uses-non-sdk-api', dest='uses_non_sdk_api', action='store_true',
                       help='manifest is for a package built against the platform')
-  parser.add_argument('--prefer-integrity', type=bool, dest='prefer_integrity',
+  parser.add_argument('--prefer-integrity', dest='prefer_integrity', action='store_true',
                       help=('specify if the app prefers strict integrity. Should not be conflict if ' +
                             'already declared in the manifest.'))
   parser.add_argument('input', help='input AndroidManifest.xml file')
