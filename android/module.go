@@ -265,6 +265,24 @@ type commonProperties struct {
 	// relative path to a file to include in the list of notices for the device
 	Notice *string
 
+	Dist struct {
+		// copy the output of this module to the $DIST_DIR when `dist` is specified on the
+		// command line and  any of these targets are also on the command line, or otherwise
+		// built
+		Targets []string `android:"arch_variant"`
+
+		// The name of the output artifact. This defaults to the basename of the output of
+		// the module.
+		Dest *string `android:"arch_variant"`
+
+		// The directory within the dist directory to store the artifact. Defaults to the
+		// top level directory ("").
+		Dir *string `android:"arch_variant"`
+
+		// A suffix to add to the artifact file name (before any extension).
+		Suffix *string `android:"arch_variant"`
+	} `android:"arch_variant"`
+
 	// Set by TargetMutator
 	CompileTarget       Target   `blueprint:"mutated"`
 	CompileMultiTargets []Target `blueprint:"mutated"`
@@ -780,6 +798,25 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		s = " [" + strings.Join(suffix, " ") + "]"
 	}
 	ctx.Variable(pctx, "moduleDescSuffix", s)
+
+	// Some common property checks for properties that will be used later in androidmk.go
+	if a.commonProperties.Dist.Dest != nil {
+		_, err := validateSafePath(*a.commonProperties.Dist.Dest)
+		if err != nil {
+			ctx.PropertyErrorf("dist.dest", "%s", err.Error())
+		}
+	}
+	if a.commonProperties.Dist.Dir != nil {
+		_, err := validateSafePath(*a.commonProperties.Dist.Dir)
+		if err != nil {
+			ctx.PropertyErrorf("dist.dir", "%s", err.Error())
+		}
+	}
+	if a.commonProperties.Dist.Suffix != nil {
+		if strings.Contains(*a.commonProperties.Dist.Suffix, "/") {
+			ctx.PropertyErrorf("dist.suffix", "Suffix may not contain a '/' character.")
+		}
+	}
 
 	if a.Enabled() {
 		a.module.GenerateAndroidBuildActions(ctx)

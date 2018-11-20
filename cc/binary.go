@@ -88,6 +88,9 @@ type binaryDecorator struct {
 
 	// Output archive of gcno coverage information
 	coverageOutputFile android.OptionalPath
+
+	// Location of the file that should be copied to dist dir when requested
+	distFile android.OptionalPath
 }
 
 var _ linker = (*binaryDecorator)(nil)
@@ -330,10 +333,23 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
 
-	if Bool(binary.baseLinker.Properties.Use_version_lib) && ctx.Host() {
-		versionedOutputFile := outputFile
-		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
-		binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+	if Bool(binary.baseLinker.Properties.Use_version_lib) {
+		if ctx.Host() {
+			versionedOutputFile := outputFile
+			outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
+			binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+		} else {
+			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
+			binary.distFile = android.OptionalPathForPath(versionedOutputFile)
+
+			if binary.stripper.needsStrip(ctx) {
+				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
+				binary.distFile = android.OptionalPathForPath(out)
+				binary.stripper.strip(ctx, versionedOutputFile, out, builderFlags)
+			}
+
+			binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+		}
 	}
 
 	if ctx.Os() == android.LinuxBionic && !binary.static() {
