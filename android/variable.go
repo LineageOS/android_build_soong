@@ -64,7 +64,13 @@ type variableProperties struct {
 
 		// Product_is_iot is true for Android Things devices.
 		Product_is_iot struct {
-			Cflags []string
+			Cflags       []string
+			Enabled      bool
+			Exclude_srcs []string
+			Init_rc      []string
+			Shared_libs  []string
+			Srcs         []string
+			Static_libs  []string
 		}
 
 		// treble_linker_namespaces is true when the system/vendor linker namespace separation is
