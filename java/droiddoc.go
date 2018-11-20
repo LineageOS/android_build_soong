@@ -626,7 +626,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		case libTag:
 			switch dep := module.(type) {
 			case Dependency:
-				deps.classpath = append(deps.classpath, dep.ImplementationJars()...)
+				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 			case SdkLibraryDependency:
 				sdkVersion := j.sdkVersion()
 				linkType := javaSdk
