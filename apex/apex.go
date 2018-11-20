@@ -52,7 +52,7 @@ var (
 		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
 			`(${copy_commands}) && ` +
 			`APEXER_TOOL_PATH=${tool_path} ` +
-			`${apexer} --verbose --force --manifest ${manifest} ` +
+			`${apexer} --force --manifest ${manifest} ` +
 			`--file_contexts ${file_contexts} ` +
 			`--canned_fs_config ${canned_fs_config} ` +
 			`--key ${key} ${image_dir} ${out} `,
