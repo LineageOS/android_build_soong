@@ -50,7 +50,13 @@ var (
 	hwasanStaticLibsMutex sync.Mutex
 
 	intOverflowCflags   = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
-	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
+
+	// Pass -Xclang before -fsanitize-minimal-runtime to work around a driver
+	// check which rejects -fsanitize-minimal-runtime together with
+	// -fsanitize=shadow-call-stack even though this combination of flags
+	// is valid.
+	// TODO(pcc): Remove the -Xclang once LLVM r346526 is rolled into the compiler.
+	minimalRuntimeFlags = []string{"-Xclang", "-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
 	hwasanGlobalOptions = []string{"heap_history_size=4095"}
 )
@@ -71,6 +77,7 @@ const (
 	tsan
 	intOverflow
 	cfi
+	scs
 )
 
 func (t sanitizerType) String() string {
@@ -85,6 +92,8 @@ func (t sanitizerType) String() string {
 		return "intOverflow"
 	case cfi:
 		return "cfi"
+	case scs:
+		return "scs"
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -109,6 +118,7 @@ type SanitizeProperties struct {
 		Cfi              *bool    `android:"arch_variant"`
 		Integer_overflow *bool    `android:"arch_variant"`
 		Scudo            *bool    `android:"arch_variant"`
+		Scs              *bool    `android:"arch_variant"`
 
 		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
 		// Replaces abort() on error with a human-readable error message.
@@ -276,6 +286,14 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Hwaddress = nil
 	}
 
+	// SCS is only implemented on AArch64.
+	// We also disable SCS if ASAN, TSAN or HWASAN are enabled because Clang considers
+	// them to be incompatible, although they are in fact compatible.
+	// TODO(pcc): Remove these checks once r347282 is rolled into the compiler.
+	if ctx.Arch().ArchType != android.Arm64 || Bool(s.Address) || Bool(s.Thread) || Bool(s.Hwaddress) {
+		s.Scs = nil
+	}
+
 	// Also disable CFI if ASAN is enabled.
 	if Bool(s.Address) || Bool(s.Hwaddress) {
 		s.Cfi = nil
@@ -299,7 +317,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// HWASan ramdisk (which is built from recovery) goes over some bootloader limit.
-	if ctx.inRecovery() {
+	// Keep libc instrumented so that recovery can run hwasan-instrumented code if necessary.
+	if ctx.inRecovery() && !strings.HasPrefix(ctx.ModuleDir(), "bionic/libc") {
 		s.Hwaddress = nil
 	}
 
@@ -322,7 +341,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	if ctx.Os() != android.Windows && (Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) || Bool(s.Thread) ||
 		Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) || Bool(s.Integer_overflow) || len(s.Misc_undefined) > 0 ||
-		Bool(s.Scudo) || Bool(s.Hwaddress)) {
+		Bool(s.Scudo) || Bool(s.Hwaddress) || Bool(s.Scs)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 
@@ -490,6 +509,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitizers = append(sanitizers, "scudo")
 	}
 
+	if Bool(sanitize.Properties.Sanitize.Scs) {
+		sanitizers = append(sanitizers, "shadow-call-stack")
+	}
+
 	if len(sanitizers) > 0 {
 		sanitizeArg := "-fsanitize=" + strings.Join(sanitizers, ",")
 
@@ -583,6 +606,9 @@ func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMk
 	if ret.Class == "STATIC_LIBRARIES" && Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		ret.SubName += ".hwasan"
 	}
+	if ret.Class == "STATIC_LIBRARIES" && Bool(sanitize.Properties.Sanitize.Scs) {
+		ret.SubName += ".scs"
+	}
 }
 
 func (sanitize *sanitize) inSanitizerDir() bool {
@@ -601,6 +627,8 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t sanitizerType) *bool {
 		return sanitize.Properties.Sanitize.Integer_overflow
 	case cfi:
 		return sanitize.Properties.Sanitize.Cfi
+	case scs:
+		return sanitize.Properties.Sanitize.Scs
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -610,7 +638,8 @@ func (sanitize *sanitize) isUnsanitizedVariant() bool {
 	return !sanitize.isSanitizerEnabled(asan) &&
 		!sanitize.isSanitizerEnabled(hwasan) &&
 		!sanitize.isSanitizerEnabled(tsan) &&
-		!sanitize.isSanitizerEnabled(cfi)
+		!sanitize.isSanitizerEnabled(cfi) &&
+		!sanitize.isSanitizerEnabled(scs)
 }
 
 func (sanitize *sanitize) isVariantOnProductionDevice() bool {
@@ -634,6 +663,8 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 		sanitize.Properties.Sanitize.Integer_overflow = boolPtr(b)
 	case cfi:
 		sanitize.Properties.Sanitize.Cfi = boolPtr(b)
+	case scs:
+		sanitize.Properties.Sanitize.Scs = boolPtr(b)
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -683,7 +714,7 @@ func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 				if d, ok := child.(*Module); ok && d.sanitize != nil &&
 					!Bool(d.sanitize.Properties.Sanitize.Never) &&
 					!d.sanitize.isSanitizerExplicitlyDisabled(t) {
-					if t == cfi || t == hwasan {
+					if t == cfi || t == hwasan || t == scs {
 						if d.static() {
 							d.sanitize.Properties.SanitizeDep = true
 						}
@@ -778,6 +809,19 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 					} else {
 						modules[1].(*Module).Properties.PreventInstall = true
 						modules[1].(*Module).Properties.HideFromMake = true
+					}
+				} else if t == scs {
+					// We don't currently link any static libraries built with make into
+					// libraries built with SCS, so we don't need logic for propagating
+					// SCSness of dependencies into make.
+					if !c.static() {
+						if isSanitizerEnabled {
+							modules[0].(*Module).Properties.PreventInstall = true
+							modules[0].(*Module).Properties.HideFromMake = true
+						} else {
+							modules[1].(*Module).Properties.PreventInstall = true
+							modules[1].(*Module).Properties.HideFromMake = true
+						}
 					}
 				} else if t == hwasan {
 					if mctx.Device() {

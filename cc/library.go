@@ -267,6 +267,9 @@ type libraryDecorator struct {
 	// Location of the linked, unstripped library for shared libraries
 	unstrippedOutputFile android.Path
 
+	// Location of the file that should be copied to dist dir when requested
+	distFile android.OptionalPath
+
 	versionScriptPath android.ModuleGenPath
 
 	// Decorated interafaces
@@ -542,10 +545,16 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	builderFlags := flagsToBuilderFlags(flags)
 
-	if Bool(library.baseLinker.Properties.Use_version_lib) && ctx.Host() {
-		versionedOutputFile := outputFile
-		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
-		library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+	if Bool(library.baseLinker.Properties.Use_version_lib) {
+		if ctx.Host() {
+			versionedOutputFile := outputFile
+			outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
+			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+		} else {
+			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
+			library.distFile = android.OptionalPathForPath(versionedOutputFile)
+			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+		}
 	}
 
 	TransformObjToStaticLib(ctx, library.objects.objFiles, builderFlags, outputFile, objs.tidyFiles)
@@ -619,10 +628,23 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	library.unstrippedOutputFile = outputFile
 
-	if Bool(library.baseLinker.Properties.Use_version_lib) && ctx.Host() {
-		versionedOutputFile := outputFile
-		outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
-		library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+	if Bool(library.baseLinker.Properties.Use_version_lib) {
+		if ctx.Host() {
+			versionedOutputFile := outputFile
+			outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
+			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+		} else {
+			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
+			library.distFile = android.OptionalPathForPath(versionedOutputFile)
+
+			if library.stripper.needsStrip(ctx) {
+				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
+				library.distFile = android.OptionalPathForPath(out)
+				library.stripper.strip(ctx, versionedOutputFile, out, builderFlags)
+			}
+
+			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
+		}
 	}
 
 	sharedLibs := deps.SharedLibs

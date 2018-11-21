@@ -23,9 +23,19 @@
 namespace android {
 namespace build {
 
+#define PLACEHOLDER "SOONG BUILD NUMBER PLACEHOLDER"
+
+extern "C" {
+  char soong_build_number[128] = PLACEHOLDER;
+}
+
 #ifdef __ANDROID__
 
 std::string GetBuildNumber() {
+  if (strcmp(PLACEHOLDER, soong_build_number) != 0) {
+    return soong_build_number;
+  }
+
   const prop_info* pi = __system_property_find("ro.build.version.incremental");
   if (pi == nullptr) return "";
 
@@ -41,10 +51,6 @@ std::string GetBuildNumber() {
 }
 
 #else
-
-extern "C" {
-  char soong_build_number[128] = "SOONG BUILD NUMBER PLACEHOLDER";
-}
 
 std::string GetBuildNumber() {
   return soong_build_number;
