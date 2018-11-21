@@ -360,6 +360,7 @@ type Module struct {
 	vndkdep   *vndkdep
 	lto       *lto
 	pgo       *pgo
+	xom       *xom
 
 	androidMkSharedLibDeps []string
 
@@ -416,6 +417,9 @@ func (c *Module) Init() android.Module {
 	}
 	if c.pgo != nil {
 		c.AddProperties(c.pgo.props()...)
+	}
+	if c.xom != nil {
+		c.AddProperties(c.xom.props()...)
 	}
 	for _, feature := range c.features {
 		c.AddProperties(feature.props()...)
@@ -658,6 +662,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.vndkdep = &vndkdep{}
 	module.lto = &lto{}
 	module.pgo = &pgo{}
+	module.xom = &xom{}
 	return module
 }
 
@@ -773,6 +778,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if c.pgo != nil {
 		flags = c.pgo.flags(ctx, flags)
+	}
+	if c.xom != nil {
+		flags = c.xom.flags(ctx, flags)
 	}
 	for _, feature := range c.features {
 		flags = feature.flags(ctx, flags)
@@ -1641,6 +1649,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&VndkProperties{},
 		&LTOProperties{},
 		&PgoProperties{},
+		&XomProperties{},
 		&android.ProtoProperties{},
 	)
 
