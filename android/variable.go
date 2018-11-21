@@ -211,6 +211,9 @@ type productVariables struct {
 	CFIExcludePaths *[]string `json:",omitempty"`
 	CFIIncludePaths *[]string `json:",omitempty"`
 
+	EnableXOM       *bool     `json:",omitempty"`
+	XOMExcludePaths *[]string `json:",omitempty"`
+
 	VendorPath          *string `json:",omitempty"`
 	OdmPath             *string `json:",omitempty"`
 	ProductPath         *string `json:",omitempty"`

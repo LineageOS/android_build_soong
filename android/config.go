@@ -626,6 +626,14 @@ func (c *config) EnableCFI() bool {
 	}
 }
 
+func (c *config) EnableXOM() bool {
+	if c.productVariables.EnableXOM == nil {
+		return false
+	} else {
+		return Bool(c.productVariables.EnableXOM)
+	}
+}
+
 func (c *config) Android64() bool {
 	for _, t := range c.Targets[Android] {
 		if t.Arch.ArchType.Multilib == "lib64" {
@@ -861,6 +869,13 @@ func (c *config) CFIEnabledForPath(path string) bool {
 		return false
 	}
 	return PrefixInList(path, *c.productVariables.CFIIncludePaths)
+}
+
+func (c *config) XOMDisabledForPath(path string) bool {
+	if c.productVariables.XOMExcludePaths == nil {
+		return false
+	}
+	return PrefixInList(path, *c.productVariables.XOMExcludePaths)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
