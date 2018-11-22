@@ -662,6 +662,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		Input:       unsignedOutputFile,
 		Args: map[string]string{
 			"certificates": strings.Join([]string{certificate.Pem.String(), certificate.Key.String()}, " "),
+			"flags":        "-a 4096", //alignment
 		},
 	})
 }
