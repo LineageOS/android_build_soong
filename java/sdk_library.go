@@ -229,19 +229,19 @@ func (module *sdkLibrary) AndroidMk() android.AndroidMkData {
 			// Create dist rules to install the stubs libs to the dist dir
 			if len(module.publicApiStubsPath) == 1 {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-					module.publicApiStubsPath.Strings()[0]+
+					module.publicApiStubsImplPath.Strings()[0]+
 					":"+path.Join("apistubs", owner, "public",
 					module.BaseModuleName()+".jar")+")")
 			}
 			if len(module.systemApiStubsPath) == 1 {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-					module.systemApiStubsPath.Strings()[0]+
+					module.systemApiStubsImplPath.Strings()[0]+
 					":"+path.Join("apistubs", owner, "system",
 					module.BaseModuleName()+".jar")+")")
 			}
 			if len(module.testApiStubsPath) == 1 {
 				fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-					module.testApiStubsPath.Strings()[0]+
+					module.testApiStubsImplPath.Strings()[0]+
 					":"+path.Join("apistubs", owner, "test",
 					module.BaseModuleName()+".jar")+")")
 			}
