@@ -32,10 +32,10 @@ var (
 	Signapk = pctx.AndroidStaticRule("signapk",
 		blueprint.RuleParams{
 			Command: `${config.JavaCmd} -Djava.library.path=$$(dirname $signapkJniLibrary) ` +
-				`-jar $signapkCmd $certificates $in $out`,
+				`-jar $signapkCmd $flags $certificates $in $out`,
 			CommandDeps: []string{"$signapkCmd", "$signapkJniLibrary"},
 		},
-		"certificates")
+		"flags", "certificates")
 
 	androidManifestMerger = pctx.AndroidStaticRule("androidManifestMerger",
 		blueprint.RuleParams{
