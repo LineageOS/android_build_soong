@@ -1283,7 +1283,8 @@ func checkDoubleLoadableLibries(ctx android.ModuleContext, from *Module, to *Mod
 		}
 		depIsDoubleLoadable := Bool(to.VendorProperties.Double_loadable)
 		if !depIsLlndk && !depIsVndkSp && !depIsDoubleLoadable && depIsVndk {
-			ctx.ModuleErrorf("links VNDK library %q that isn't double_loadable.",
+			ctx.ModuleErrorf("links VNDK library %q that isn't double loadable (not also LL-NDK, "+
+				"VNDK-SP, or explicitly marked as 'double_loadable').",
 				ctx.OtherModuleName(to))
 		}
 	}
