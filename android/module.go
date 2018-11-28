@@ -459,6 +459,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       Paths
 	checkbuildFiles    Paths
+	noticeFile         Path
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -826,6 +827,11 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		a.installFiles = append(a.installFiles, ctx.installFiles...)
 		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
+
+		if a.commonProperties.Notice != nil {
+			// For filegroup-based notice file references.
+			a.noticeFile = ctx.ExpandSource(*a.commonProperties.Notice, "notice")
+		}
 	}
 
 	if a == ctx.FinalModule().(Module).base() {
@@ -1347,6 +1353,13 @@ func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
 	srcFiles := ctx.ExpandSourcesSubDir([]string{srcFile}, nil, "")
 	if len(srcFiles) == 1 {
 		return srcFiles[0]
+	} else if len(srcFiles) == 0 {
+		if ctx.Config().AllowMissingDependencies() {
+			ctx.AddMissingDependencies([]string{srcFile})
+		} else {
+			ctx.PropertyErrorf(prop, "%s path %s does not exist", prop, srcFile)
+		}
+		return nil
 	} else {
 		ctx.PropertyErrorf(prop, "module providing %s must produce exactly one file", prop)
 		return nil
