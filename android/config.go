@@ -482,7 +482,7 @@ func (c *config) PlatformSdkCodename() string {
 }
 
 func (c *config) MinSupportedSdkVersion() int {
-	return 14
+	return 16
 }
 
 func (c *config) DefaultAppTargetSdkInt() int {
