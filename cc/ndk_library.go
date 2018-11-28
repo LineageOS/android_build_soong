@@ -91,6 +91,11 @@ type libraryProperties struct {
 
 	// Private property for use by the mutator that splits per-API level.
 	ApiLevel string `blueprint:"mutated"`
+
+	// True if this API is not yet ready to be shipped in the NDK. It will be
+	// available in the platform for testing, but will be excluded from the
+	// sysroot provided to the NDK proper.
+	Draft bool
 }
 
 type stubDecorator struct {
