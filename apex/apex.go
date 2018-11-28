@@ -72,8 +72,7 @@ var (
 		Command: `${zip2zip} -i $in -o $out ` +
 			`apex_payload.img:apex/${abi}.img ` +
 			`apex_manifest.json:root/apex_manifest.json ` +
-			`AndroidManifest.xml:manifest/AndroidManifest.xml ` +
-			`resources.pb`,
+			`AndroidManifest.xml:manifest/AndroidManifest.xml`,
 		CommandDeps: []string{"${zip2zip}"},
 		Description: "app bundle",
 	}, "abi")
