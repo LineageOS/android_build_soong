@@ -66,7 +66,8 @@ func (xom *xom) flags(ctx ModuleContext, flags Flags) Flags {
 	// Enable execute-only if none of the dependencies disable it,
 	// also if it's explicitly set true (allows overriding dependencies disabling it).
 	if !disableXom || (xom.Properties.Xom != nil && *xom.Properties.Xom) {
-		if ctx.Arch().ArchType == android.Arm64 {
+		// XOM is only supported on AArch64 when using lld.
+		if ctx.Arch().ArchType == android.Arm64 && ctx.useClangLld(ctx) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-execute-only")
 		}
 	}

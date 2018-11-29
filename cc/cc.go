@@ -247,6 +247,7 @@ type ModuleContextIntf interface {
 	baseModuleName() string
 	getVndkExtendsModuleName() string
 	isPgoCompile() bool
+	useClangLld(actx ModuleContext) bool
 }
 
 type ModuleContext interface {
@@ -287,6 +288,7 @@ type linker interface {
 	linkerDeps(ctx DepsContext, deps Deps) Deps
 	linkerFlags(ctx ModuleContext, flags Flags) Flags
 	linkerProps() []interface{}
+	useClangLld(actx ModuleContext) bool
 
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
 	appendLdflags([]string)
@@ -633,6 +635,10 @@ func (ctx *moduleContextImpl) selectedStl() string {
 		return stl.Properties.SelectedStl
 	}
 	return ""
+}
+
+func (ctx *moduleContextImpl) useClangLld(actx ModuleContext) bool {
+	return ctx.mod.linker.useClangLld(actx)
 }
 
 func (ctx *moduleContextImpl) baseModuleName() string {
