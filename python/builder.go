@@ -54,7 +54,8 @@ var (
 
 	embeddedPar = pctx.AndroidStaticRule("embeddedPar",
 		blueprint.RuleParams{
-			Command: `echo '$main' > $entryPoint &&` +
+			// `echo -n` to trim the newline, since the python code just wants the name
+			Command: `echo -n '$main' > $entryPoint &&` +
 				`$mergeParCmd -p --prefix $launcher -e $entryPoint $out $srcsZips && ` +
 				`chmod +x $out && (rm -f $entryPoint)`,
 			CommandDeps: []string{"$mergeParCmd"},
@@ -114,7 +115,7 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 			Output:      binFile,
 			Implicits:   implicits,
 			Args: map[string]string{
-				"main":       main,
+				"main":       strings.Replace(strings.TrimSuffix(main, pyExt), "/", ".", -1),
 				"entryPoint": entryPoint,
 				"srcsZips":   strings.Join(srcsZips.Strings(), " "),
 				"launcher":   launcherPath.String(),
