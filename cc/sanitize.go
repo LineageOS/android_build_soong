@@ -49,7 +49,7 @@ var (
 	cfiStaticLibsMutex    sync.Mutex
 	hwasanStaticLibsMutex sync.Mutex
 
-	intOverflowCflags   = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
+	intOverflowCflags = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
 
 	// Pass -Xclang before -fsanitize-minimal-runtime to work around a driver
 	// check which rejects -fsanitize-minimal-runtime together with
@@ -576,9 +576,12 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		sanitize.runtimeLibrary = runtimeLibrary
 
 		// When linking against VNDK, use the vendor variant of the runtime lib
-		sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary
 		if ctx.useVndk() {
 			sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary + vendorSuffix
+		} else if ctx.inRecovery() {
+			sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary + recoverySuffix
+		} else {
+			sanitize.androidMkRuntimeLibrary = sanitize.runtimeLibrary
 		}
 	}
 
