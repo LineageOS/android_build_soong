@@ -116,7 +116,7 @@ var (
 	CStdVersion               = "gnu99"
 	CppStdVersion             = "gnu++14"
 	ExperimentalCStdVersion   = "gnu11"
-	ExperimentalCppStdVersion = "gnu++1z"
+	ExperimentalCppStdVersion = "gnu++2a"
 
 	NdkMaxPrebuiltVersionInt = 27
 
