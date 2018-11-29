@@ -48,7 +48,8 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "Malloc_not_svelte": false,
     "Safestack": false,
 
-    "Ndk_abis": true
+    "Ndk_abis": true,
+    "Exclude_draft_ndk_apis": true
 }
 EOF
 m --skip-make ${SOONG_OUT}/ndk.timestamp

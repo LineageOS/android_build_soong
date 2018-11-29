@@ -482,7 +482,7 @@ func (c *config) PlatformSdkCodename() string {
 }
 
 func (c *config) MinSupportedSdkVersion() int {
-	return 14
+	return 16
 }
 
 func (c *config) DefaultAppTargetSdkInt() int {
@@ -898,6 +898,10 @@ func (c vendorConfig) IsSet(name string) bool {
 
 func (c *config) NdkAbis() bool {
 	return Bool(c.productVariables.Ndk_abis)
+}
+
+func (c *config) ExcludeDraftNdkApis() bool {
+	return Bool(c.productVariables.Exclude_draft_ndk_apis)
 }
 
 func (c *config) FlattenApex() bool {
