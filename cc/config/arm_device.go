@@ -151,6 +151,15 @@ var (
 			// better solution comes around. See Bug 27340895
 			"-D__ARM_FEATURE_LPAE=1",
 		},
+		"kryo385": []string{
+			// Use cortex-a53 because kryo385 is not supported in GCC/clang.
+			"-mcpu=cortex-a53",
+			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
+			// don't advertise.
+			// TODO This is a hack and we need to add it for each processor that supports LPAE until some
+			// better solution comes around. See Bug 27340895
+			"-D__ARM_FEATURE_LPAE=1",
+		},
 	}
 )
 
@@ -180,6 +189,7 @@ func init() {
 		"cortex-a76",
 		"krait",
 		"kryo",
+		"kryo385",
 		"exynos-m1",
 		"exynos-m2",
 		"denver")
@@ -242,7 +252,7 @@ var (
 		"armv7-a":      "${config.ArmClangArmv7ACflags}",
 		"armv7-a-neon": "${config.ArmClangArmv7ANeonCflags}",
 		"armv8-a":      "${config.ArmClangArmv8ACflags}",
-		"armv8-2a":      "${config.ArmClangArmv82ACflags}",
+		"armv8-2a":     "${config.ArmClangArmv82ACflags}",
 	}
 
 	armClangCpuVariantCflagsVar = map[string]string{
@@ -258,6 +268,7 @@ var (
 		"cortex-a75":     "${config.ArmClangCortexA55Cflags}",
 		"krait":          "${config.ArmClangKraitCflags}",
 		"kryo":           "${config.ArmClangKryoCflags}",
+		"kryo385":        "${config.ArmClangCortexA53Cflags}",
 		"exynos-m1":      "${config.ArmClangCortexA53Cflags}",
 		"exynos-m2":      "${config.ArmClangCortexA53Cflags}",
 		"denver":         "${config.ArmClangCortexA15Cflags}",
