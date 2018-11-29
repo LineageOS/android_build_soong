@@ -900,6 +900,10 @@ func (c *config) NdkAbis() bool {
 	return Bool(c.productVariables.Ndk_abis)
 }
 
+func (c *config) ExcludeDraftNdkApis() bool {
+	return Bool(c.productVariables.Exclude_draft_ndk_apis)
+}
+
 func (c *config) FlattenApex() bool {
 	return Bool(c.productVariables.FlattenApex)
 }
