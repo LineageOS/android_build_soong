@@ -54,10 +54,6 @@ type variableProperties struct {
 			Cflags []string
 		}
 
-		Device_uses_hwc2 struct {
-			Cflags []string
-		}
-
 		Override_rs_driver struct {
 			Cflags []string
 		}
@@ -190,7 +186,6 @@ type productVariables struct {
 	UseGoma                    *bool `json:",omitempty"`
 	Debuggable                 *bool `json:",omitempty"`
 	Eng                        *bool `json:",omitempty"`
-	Device_uses_hwc2           *bool `json:",omitempty"`
 	Treble_linker_namespaces   *bool `json:",omitempty"`
 	Enforce_vintf_manifest     *bool `json:",omitempty"`
 	Pdk                        *bool `json:",omitempty"`
