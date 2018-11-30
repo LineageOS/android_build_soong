@@ -160,6 +160,11 @@ func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8F
 	// TODO(ccross): if this is an instrumentation test of an obfuscated app, use the
 	// dictionary of the app and move the app from libraryjars to injars.
 
+	// Don't strip out debug information for eng builds.
+	if ctx.Config().Eng() {
+		r8Flags = append(r8Flags, "--debug")
+	}
+
 	return r8Flags, r8Deps
 }
 
