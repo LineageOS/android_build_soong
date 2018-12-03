@@ -251,7 +251,7 @@ func init() {
 		android.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
 		android.Darwin: []string{"-lc", "-lSystem"},
 		android.Windows: []string{"-Wl,--start-group", "-lmingw32", "-lgcc", "-lgcc_eh",
-			"-lmoldname", "-lmingwex", "-lmsvcr110", "-lmsvcrt", "-lpthread",
+			"-lmoldname", "-lmingwex", "-lmsvcrt", "-lucrt", "-lpthread",
 			"-ladvapi32", "-lshell32", "-luser32", "-lkernel32", "-lpsapi",
 			"-Wl,--end-group"},
 	}
