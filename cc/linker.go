@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc/config"
 	"fmt"
+	"strconv"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -298,6 +299,23 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 	return true
 }
 
+// Check whether the SDK version is not older than the specific one
+func CheckSdkVersionAtLeast(ctx ModuleContext, SdkVersion int) bool {
+	if ctx.sdkVersion() == "current" {
+		return true
+	}
+	parsedSdkVersion, err := strconv.Atoi(ctx.sdkVersion())
+	if err != nil {
+		ctx.PropertyErrorf("sdk_version",
+			"Invalid sdk_version value (must be int or current): %q",
+			ctx.sdkVersion())
+	}
+	if parsedSdkVersion < SdkVersion {
+		return false
+	}
+	return true
+}
+
 // ModuleContext extends BaseModuleContext
 // BaseModuleContext should know if LLD is used?
 func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -312,6 +330,13 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
 		if !BoolDefault(linker.Properties.Pack_relocations, true) {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=none")
+		} else if ctx.Device() {
+			// The SHT_RELR relocations is only supported by API level >= 28.
+			// Do not turn this on if older version NDK is used.
+			if !ctx.useSdk() || CheckSdkVersionAtLeast(ctx, 28) {
+				flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=android+relr")
+				flags.LdFlags = append(flags.LdFlags, "-Wl,--use-android-relr-tags")
+			}
 		}
 	} else {
 		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))

@@ -87,8 +87,6 @@ var (
 
 	deviceGlobalLldflags = append(ClangFilterUnknownLldflags(deviceGlobalLdflags),
 		[]string{
-			"-Wl,--pack-dyn-relocs=android+relr",
-			"-Wl,--use-android-relr-tags",
 			"-fuse-ld=lld",
 		}...)
 
