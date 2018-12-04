@@ -492,6 +492,21 @@ func TestVndkDepError(t *testing.T) {
 	`)
 }
 
+func TestVndkMustNotBeProductSpecific(t *testing.T) {
+	// Check whether an error is emitted when a vndk lib has 'product_specific: true'.
+	testCcError(t, "product_specific must not be true when `vndk: {enabled: true}`", `
+		cc_library {
+			name: "libvndk",
+			product_specific: true,  // Cause error
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+	`)
+}
+
 func TestVndkExt(t *testing.T) {
 	// This test checks the VNDK-Ext properties.
 	ctx := testCc(t, `
