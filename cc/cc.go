@@ -1757,6 +1757,7 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 
 	// Sanity check
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
+	productSpecific := mctx.ProductSpecific()
 
 	if m.VendorProperties.Vendor_available != nil && vendorSpecific {
 		mctx.PropertyErrorf("vendor_available",
@@ -1766,6 +1767,11 @@ func imageMutator(mctx android.BottomUpMutatorContext) {
 
 	if vndkdep := m.vndkdep; vndkdep != nil {
 		if vndkdep.isVndk() {
+			if productSpecific {
+				mctx.PropertyErrorf("product_specific",
+					"product_specific must not be true when `vndk: {enabled: true}`")
+				return
+			}
 			if vendorSpecific {
 				if !vndkdep.isVndkExt() {
 					mctx.PropertyErrorf("vndk",
