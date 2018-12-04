@@ -49,7 +49,7 @@ type BaseLinkerProperties struct {
 	// list of system libraries that will be dynamically linked to
 	// shared library and executable modules.  If unset, generally defaults to libc,
 	// libm, and libdl.  Set to [] to prevent linking against the defaults.
-	System_shared_libs []string
+	System_shared_libs []string `android:"arch_variant"`
 
 	// allow the module to contain undefined symbols.  By default,
 	// modules cannot contain undefined symbols that are not satisified by their immediate
@@ -237,35 +237,34 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
 		}
 
-		if !ctx.static() {
-			systemSharedLibs := linker.Properties.System_shared_libs
-			if systemSharedLibs == nil {
-				systemSharedLibs = []string{"libc", "libm", "libdl"}
-			}
-
-			if inList("libdl", deps.SharedLibs) {
-				// If system_shared_libs has libc but not libdl, make sure shared_libs does not
-				// have libdl to avoid loading libdl before libc.
-				if inList("libc", systemSharedLibs) {
-					if !inList("libdl", systemSharedLibs) {
-						ctx.PropertyErrorf("shared_libs",
-							"libdl must be in system_shared_libs, not shared_libs")
-					}
-					_, deps.SharedLibs = removeFromList("libdl", deps.SharedLibs)
-				}
-			}
-
-			// If libc and libdl are both in system_shared_libs make sure libd comes after libc
-			// to avoid loading libdl before libc.
-			if inList("libdl", systemSharedLibs) && inList("libc", systemSharedLibs) &&
-				indexList("libdl", systemSharedLibs) < indexList("libc", systemSharedLibs) {
-				ctx.PropertyErrorf("system_shared_libs", "libdl must be after libc")
-			}
-
-			deps.LateSharedLibs = append(deps.LateSharedLibs, systemSharedLibs...)
-		} else if ctx.useSdk() || ctx.useVndk() {
-			deps.LateSharedLibs = append(deps.LateSharedLibs, "libc", "libm", "libdl")
+		var systemSharedLibs []string
+		if !ctx.useSdk() && !ctx.useVndk() {
+			systemSharedLibs = linker.Properties.System_shared_libs
 		}
+		if systemSharedLibs == nil {
+			systemSharedLibs = []string{"libc", "libm", "libdl"}
+		}
+
+		if inList("libdl", deps.SharedLibs) {
+			// If system_shared_libs has libc but not libdl, make sure shared_libs does not
+			// have libdl to avoid loading libdl before libc.
+			if inList("libc", systemSharedLibs) {
+				if !inList("libdl", systemSharedLibs) {
+					ctx.PropertyErrorf("shared_libs",
+						"libdl must be in system_shared_libs, not shared_libs")
+				}
+				_, deps.SharedLibs = removeFromList("libdl", deps.SharedLibs)
+			}
+		}
+
+		// If libc and libdl are both in system_shared_libs make sure libdl comes after libc
+		// to avoid loading libdl before libc.
+		if inList("libdl", systemSharedLibs) && inList("libc", systemSharedLibs) &&
+			indexList("libdl", systemSharedLibs) < indexList("libc", systemSharedLibs) {
+			ctx.PropertyErrorf("system_shared_libs", "libdl must be after libc")
+		}
+
+		deps.LateSharedLibs = append(deps.LateSharedLibs, systemSharedLibs...)
 	}
 
 	if ctx.Windows() {
