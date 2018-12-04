@@ -128,13 +128,6 @@ func init() {
 	})
 }
 
-// maps a module name to set of apex bundle names that the module should be built for
-func apexBundleNamesFor(config android.Config) map[string]map[string]bool {
-	return config.Once("apexBundleNames", func() interface{} {
-		return make(map[string]map[string]bool)
-	}).(map[string]map[string]bool)
-}
-
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
 func apexDepsMutator(mctx android.TopDownMutatorContext) {
@@ -143,12 +136,9 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
 				moduleName := mctx.OtherModuleName(am) + "-" + am.Target().String()
-				bundleNames, ok := apexBundleNamesFor(mctx.Config())[moduleName]
-				if !ok {
-					bundleNames = make(map[string]bool)
-					apexBundleNamesFor(mctx.Config())[moduleName] = bundleNames
-				}
-				bundleNames[apexBundleName] = true
+				// If the parent is apexBundle, this child is directly depended.
+				_, directDep := parent.(*apexBundle)
+				android.BuildModuleForApexBundle(mctx, moduleName, apexBundleName, directDep)
 				return true
 			} else {
 				return false
@@ -161,7 +151,8 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
 		moduleName := mctx.ModuleName() + "-" + am.Target().String()
-		if bundleNames, ok := apexBundleNamesFor(mctx.Config())[moduleName]; ok {
+		bundleNames := android.GetApexBundlesForModule(mctx, moduleName)
+		if len(bundleNames) > 0 {
 			variations := []string{"platform"}
 			for bn := range bundleNames {
 				variations = append(variations, bn)
@@ -495,6 +486,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// indirect dependencies
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
 				if cc, ok := child.(*cc.Module); ok {
+					if cc.IsStubs() || cc.HasStubsVariants() {
+						return false
+					}
 					depName := ctx.OtherModuleName(child)
 					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, cc.Arch().ArchType, dirInApex, nativeSharedLib})
