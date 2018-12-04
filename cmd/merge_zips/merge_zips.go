@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -66,6 +67,7 @@ var (
 	manifest         = flag.String("m", "", "manifest file to insert in jar")
 	pyMain           = flag.String("pm", "", "__main__.py file to insert in par")
 	entrypoint       = flag.String("e", "", "par entrypoint file to insert in par")
+	prefix           = flag.String("prefix", "", "A file to prefix to the zip file")
 	ignoreDuplicates = flag.Bool("ignore-duplicates", false, "take each entry from the first zip it exists in and don't warn")
 )
 
@@ -77,7 +79,7 @@ func init() {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [-e entrypoint] [-pm __main__.py] output [inputs...]")
+		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [--prefix script] [-e entrypoint] [-pm __main__.py] output [inputs...]")
 		flag.PrintDefaults()
 	}
 
@@ -99,6 +101,19 @@ func main() {
 		log.Fatal(err)
 	}
 	defer output.Close()
+
+	var offset int64
+	if *prefix != "" {
+		prefixFile, err := os.Open(*prefix)
+		if err != nil {
+			log.Fatal(err)
+		}
+		offset, err = io.Copy(output, prefixFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	writer := zip.NewWriter(output)
 	defer func() {
 		err := writer.Close()
@@ -106,6 +121,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
+	writer.SetOffset(offset)
 
 	// make readers
 	readers := []namedZipReader{}
