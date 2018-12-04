@@ -66,7 +66,7 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		ctx.BottomUp("image", imageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
-		ctx.BottomUp("version", versionMutator).Parallel()
+		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 	})
 	ctx.Register()
