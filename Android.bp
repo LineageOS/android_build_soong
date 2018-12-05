@@ -353,6 +353,9 @@ bootstrap_go_package {
         "apex/apex.go",
         "apex/key.go",
     ],
+    testSrcs: [
+        "apex/apex_test.go",
+    ],
     pluginFor: ["soong_build"],
 }
 

@@ -45,20 +45,24 @@ var (
 	hostPar = pctx.AndroidStaticRule("hostPar",
 		blueprint.RuleParams{
 			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' $template > $stub && ` +
-				`$mergeParCmd -p -pm $stub $mergedZip $srcsZips && echo '#!/usr/bin/env python' | cat - $mergedZip > $out && ` +
-				`chmod +x $out && (rm -f $stub; rm -f $mergedZip)`,
+				`echo "#!/usr/bin/env python" >${out}.prefix &&` +
+				`$mergeParCmd -p --prefix ${out}.prefix -pm $stub $out $srcsZips && ` +
+				`chmod +x $out && (rm -f $stub; rm -f ${out}.prefix)`,
 			CommandDeps: []string{"$mergeParCmd"},
 		},
-		"interp", "main", "template", "stub", "mergedZip", "srcsZips")
+		"interp", "main", "template", "stub", "srcsZips")
 
 	embeddedPar = pctx.AndroidStaticRule("embeddedPar",
 		blueprint.RuleParams{
-			Command: `echo '$main' > $entryPoint &&` +
-				`$mergeParCmd -p -e $entryPoint $mergedZip $srcsZips && cat $launcher | cat - $mergedZip > $out && ` +
-				`chmod +x $out && (rm -f $entryPoint; rm -f $mergedZip)`,
+			// `echo -n` to trim the newline, since the python code just wants the name.
+			// /bin/sh (used by ninja) on Mac turns off posix mode, and stops supporting -n.
+			// Explicitly use bash instead.
+			Command: `/bin/bash -c "echo -n '$main' > $entryPoint" &&` +
+				`$mergeParCmd -p --prefix $launcher -e $entryPoint $out $srcsZips && ` +
+				`chmod +x $out && (rm -f $entryPoint)`,
 			CommandDeps: []string{"$mergeParCmd"},
 		},
-		"main", "entryPoint", "mergedZip", "srcsZips", "launcher")
+		"main", "entryPoint", "srcsZips", "launcher")
 )
 
 func init() {
@@ -72,9 +76,6 @@ func init() {
 func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher bool,
 	launcherPath android.OptionalPath, interpreter, main, binName string,
 	srcsZips android.Paths) android.Path {
-
-	// .intermediate output path for merged zip file.
-	mergedZip := android.PathForModuleOut(ctx, binName+".mergedzip")
 
 	// .intermediate output path for bin executable.
 	binFile := android.PathForModuleOut(ctx, binName)
@@ -96,12 +97,11 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 			Output:      binFile,
 			Implicits:   implicits,
 			Args: map[string]string{
-				"interp":    strings.Replace(interpreter, "/", `\/`, -1),
-				"main":      strings.Replace(main, "/", `\/`, -1),
-				"template":  template.String(),
-				"stub":      stub,
-				"mergedZip": mergedZip.String(),
-				"srcsZips":  strings.Join(srcsZips.Strings(), " "),
+				"interp":   strings.Replace(interpreter, "/", `\/`, -1),
+				"main":     strings.Replace(main, "/", `\/`, -1),
+				"template": template.String(),
+				"stub":     stub,
+				"srcsZips": strings.Join(srcsZips.Strings(), " "),
 			},
 		})
 	} else if launcherPath.Valid() {
@@ -117,9 +117,8 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 			Output:      binFile,
 			Implicits:   implicits,
 			Args: map[string]string{
-				"main":       main,
+				"main":       strings.Replace(strings.TrimSuffix(main, pyExt), "/", ".", -1),
 				"entryPoint": entryPoint,
-				"mergedZip":  mergedZip.String(),
 				"srcsZips":   strings.Join(srcsZips.Strings(), " "),
 				"launcher":   launcherPath.String(),
 			},

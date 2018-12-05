@@ -16,6 +16,8 @@ package cc
 
 import (
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -32,19 +34,21 @@ type LibraryProperties struct {
 		Srcs   []string `android:"arch_variant"`
 		Cflags []string `android:"arch_variant"`
 
-		Enabled           *bool    `android:"arch_variant"`
-		Whole_static_libs []string `android:"arch_variant"`
-		Static_libs       []string `android:"arch_variant"`
-		Shared_libs       []string `android:"arch_variant"`
+		Enabled            *bool    `android:"arch_variant"`
+		Whole_static_libs  []string `android:"arch_variant"`
+		Static_libs        []string `android:"arch_variant"`
+		Shared_libs        []string `android:"arch_variant"`
+		System_shared_libs []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 	Shared struct {
 		Srcs   []string `android:"arch_variant"`
 		Cflags []string `android:"arch_variant"`
 
-		Enabled           *bool    `android:"arch_variant"`
-		Whole_static_libs []string `android:"arch_variant"`
-		Static_libs       []string `android:"arch_variant"`
-		Shared_libs       []string `android:"arch_variant"`
+		Enabled            *bool    `android:"arch_variant"`
+		Whole_static_libs  []string `android:"arch_variant"`
+		Static_libs        []string `android:"arch_variant"`
+		Shared_libs        []string `android:"arch_variant"`
+		System_shared_libs []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
 	// local file name to pass to the linker as -unexported_symbols_list
@@ -488,6 +492,16 @@ func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 }
 
 func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
+	if library.static() {
+		if library.Properties.Static.System_shared_libs != nil {
+			library.baseLinker.Properties.System_shared_libs = library.Properties.Static.System_shared_libs
+		}
+	} else if library.shared() {
+		if library.Properties.Shared.System_shared_libs != nil {
+			library.baseLinker.Properties.System_shared_libs = library.Properties.Shared.System_shared_libs
+		}
+	}
+
 	deps = library.baseLinker.linkerDeps(ctx, deps)
 
 	if library.static() {
@@ -921,8 +935,19 @@ func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) 
 func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Module) {
 	if staticCompiler, ok := static.compiler.(*libraryDecorator); ok {
 		sharedCompiler := shared.compiler.(*libraryDecorator)
+
+		// Check libraries in addition to cflags, since libraries may be exporting different
+		// include directories.
 		if len(staticCompiler.Properties.Static.Cflags) == 0 &&
-			len(sharedCompiler.Properties.Shared.Cflags) == 0 {
+			len(sharedCompiler.Properties.Shared.Cflags) == 0 &&
+			len(staticCompiler.Properties.Static.Whole_static_libs) == 0 &&
+			len(sharedCompiler.Properties.Shared.Whole_static_libs) == 0 &&
+			len(staticCompiler.Properties.Static.Static_libs) == 0 &&
+			len(sharedCompiler.Properties.Shared.Static_libs) == 0 &&
+			len(staticCompiler.Properties.Static.Shared_libs) == 0 &&
+			len(sharedCompiler.Properties.Shared.Shared_libs) == 0 &&
+			staticCompiler.Properties.Static.System_shared_libs == nil &&
+			sharedCompiler.Properties.Shared.System_shared_libs == nil {
 
 			mctx.AddInterVariantDependency(reuseObjTag, shared, static)
 			sharedCompiler.baseCompiler.Properties.OriginalSrcs =
@@ -958,30 +983,65 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+// maps a module name to the list of stubs versions available for the module
+func stubsVersionsFor(config android.Config) map[string][]string {
+	return config.Once("stubVersions", func() interface{} {
+		return make(map[string][]string)
+	}).(map[string][]string)
+}
+
+var stubsVersionsLock sync.Mutex
+
+func latestStubsVersionFor(config android.Config, name string) string {
+	versions, ok := stubsVersionsFor(config)[name]
+	if ok && len(versions) > 0 {
+		// the versions are alreay sorted in ascending order
+		return versions[len(versions)-1]
+	}
+	return ""
+}
+
 // Version mutator splits a module into the mandatory non-stubs variant
-// (which is named "impl") and zero or more stubs variants.
-func versionMutator(mctx android.BottomUpMutatorContext) {
+// (which is unnamed) and zero or more stubs variants.
+func VersionMutator(mctx android.BottomUpMutatorContext) {
 	if mctx.Os() != android.Android {
 		return
 	}
 
 	if m, ok := mctx.Module().(*Module); ok && !m.inRecovery() && m.linker != nil {
-		if library, ok := m.linker.(*libraryDecorator); ok && library.buildShared() {
-			versions := []string{""}
+		if library, ok := m.linker.(*libraryDecorator); ok && library.buildShared() &&
+			len(library.Properties.Stubs.Versions) > 0 {
+			versions := []string{}
 			for _, v := range library.Properties.Stubs.Versions {
+				if _, err := strconv.Atoi(v); err != nil {
+					mctx.PropertyErrorf("versions", "%q is not a number", v)
+				}
 				versions = append(versions, v)
 			}
+			sort.Slice(versions, func(i, j int) bool {
+				left, _ := strconv.Atoi(versions[i])
+				right, _ := strconv.Atoi(versions[j])
+				return left < right
+			})
+
+			// save the list of versions for later use
+			copiedVersions := make([]string, len(versions))
+			copy(copiedVersions, versions)
+			stubsVersionsLock.Lock()
+			defer stubsVersionsLock.Unlock()
+			stubsVersionsFor(mctx.Config())[mctx.ModuleName()] = copiedVersions
+
+			// "" is for the non-stubs variant
+			versions = append(versions, "")
+
 			modules := mctx.CreateVariations(versions...)
 			for i, m := range modules {
 				l := m.(*Module).linker.(*libraryDecorator)
-				if i == 0 {
-					l.MutatedProperties.BuildStubs = false
-					continue
+				if versions[i] != "" {
+					l.MutatedProperties.BuildStubs = true
+					l.MutatedProperties.StubsVersion = versions[i]
+					m.(*Module).Properties.HideFromMake = true
 				}
-				// Mark that this variant is for stubs.
-				l.MutatedProperties.BuildStubs = true
-				l.MutatedProperties.StubsVersion = versions[i]
-				m.(*Module).Properties.HideFromMake = true
 			}
 		} else {
 			mctx.CreateVariations("")

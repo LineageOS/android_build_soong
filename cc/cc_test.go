@@ -66,7 +66,7 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		ctx.BottomUp("image", imageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", vndkMutator).Parallel()
-		ctx.BottomUp("version", versionMutator).Parallel()
+		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 	})
 	ctx.Register()
@@ -483,6 +483,21 @@ func TestVndkDepError(t *testing.T) {
 
 		cc_library {
 			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+	`)
+}
+
+func TestVndkMustNotBeProductSpecific(t *testing.T) {
+	// Check whether an error is emitted when a vndk lib has 'product_specific: true'.
+	testCcError(t, "product_specific must not be true when `vndk: {enabled: true}`", `
+		cc_library {
+			name: "libvndk",
+			product_specific: true,  // Cause error
 			vendor_available: true,
 			vndk: {
 				enabled: true,
