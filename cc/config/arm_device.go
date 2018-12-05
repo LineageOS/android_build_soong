@@ -191,8 +191,7 @@ func init() {
 		"kryo",
 		"kryo385",
 		"exynos-m1",
-		"exynos-m2",
-		"denver")
+		"exynos-m2")
 
 	android.RegisterArchVariantFeatures(android.Arm, "armv7-a-neon", "neon")
 	android.RegisterArchVariantFeatures(android.Arm, "armv8-a", "neon")
@@ -271,7 +270,6 @@ var (
 		"kryo385":        "${config.ArmClangCortexA53Cflags}",
 		"exynos-m1":      "${config.ArmClangCortexA53Cflags}",
 		"exynos-m2":      "${config.ArmClangCortexA53Cflags}",
-		"denver":         "${config.ArmClangCortexA15Cflags}",
 	}
 )
 
