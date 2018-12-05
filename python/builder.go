@@ -54,8 +54,10 @@ var (
 
 	embeddedPar = pctx.AndroidStaticRule("embeddedPar",
 		blueprint.RuleParams{
-			// `echo -n` to trim the newline, since the python code just wants the name
-			Command: `echo -n '$main' > $entryPoint &&` +
+			// `echo -n` to trim the newline, since the python code just wants the name.
+			// /bin/sh (used by ninja) on Mac turns off posix mode, and stops supporting -n.
+			// Explicitly use bash instead.
+			Command: `/bin/bash -c "echo -n '$main' > $entryPoint" &&` +
 				`$mergeParCmd -p --prefix $launcher -e $entryPoint $out $srcsZips && ` +
 				`chmod +x $out && (rm -f $entryPoint)`,
 			CommandDeps: []string{"$mergeParCmd"},
