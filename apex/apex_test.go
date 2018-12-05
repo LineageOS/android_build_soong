@@ -188,8 +188,56 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
-	ensureContains(t, copyCmds, "image/lib64/mylib.so")
-	ensureContains(t, copyCmds, "image/lib64/mylib2.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+}
+
+func TestBasicZipApex(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			payload_type: "zip",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	zipApexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("zipApexRule")
+	copyCmds := zipApexRule.Args["copy_commands"]
+
+	// Ensure that main rule creates an output
+	ensureContains(t, zipApexRule.Output.String(), "myapex.zipapex.unsigned")
+
+	// Ensure that APEX variant is created for the direct dep
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared_myapex")
+
+	// Ensure that APEX variant is created for the indirect dep
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_myapex")
+
+	// Ensure that both direct and indirect deps are copied into apex
+	ensureContains(t, copyCmds, "image.zipapex/lib64/mylib.so")
+	ensureContains(t, copyCmds, "image.zipapex/lib64/mylib2.so")
 }
 
 func TestApexWithStubs(t *testing.T) {
@@ -239,13 +287,13 @@ func TestApexWithStubs(t *testing.T) {
 	copyCmds := apexRule.Args["copy_commands"]
 
 	// Ensure that direct non-stubs dep is always included
-	ensureContains(t, copyCmds, "image/lib64/mylib.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 
 	// Ensure that indirect stubs dep is not included
-	ensureNotContains(t, copyCmds, "image/lib64/mylib2.so")
+	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
 
 	// Ensure that direct stubs dep is included
-	ensureContains(t, copyCmds, "image/lib64/mylib3.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib3.so")
 
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
 
@@ -326,12 +374,12 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 	copyCmds := apexRule.Args["copy_commands"]
 
 	// Ensure that mylib, libm, libdl are included.
-	ensureContains(t, copyCmds, "image/lib64/mylib.so")
-	ensureContains(t, copyCmds, "image/lib64/libm.so")
-	ensureContains(t, copyCmds, "image/lib64/libdl.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/libm.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/libdl.so")
 
 	// Ensure that libc is not included (since it has stubs and not listed in native_shared_libs)
-	ensureNotContains(t, copyCmds, "image/lib64/libc.so")
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libc.so")
 
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
