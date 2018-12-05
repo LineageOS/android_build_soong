@@ -415,11 +415,11 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	buildFlags := flagsToBuilderFlags(flags)
 
 	if library.static() {
-		srcs := android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
+		srcs := ctx.ExpandSources(library.Properties.Static.Srcs, nil)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
 			srcs, library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	} else if library.shared() {
-		srcs := android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
+		srcs := ctx.ExpandSources(library.Properties.Shared.Srcs, nil)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
 			srcs, library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	}
@@ -489,6 +489,18 @@ func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 			ctx.ModuleErrorf("Macro name %q for versioning conflicts with macro name from module %q ", myName, (*macroNames)[myName])
 		}
 	}
+}
+
+func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
+	deps = library.baseCompiler.compilerDeps(ctx, deps)
+
+	if library.static() {
+		android.ExtractSourcesDeps(ctx, library.Properties.Static.Srcs)
+	} else if library.shared() {
+		android.ExtractSourcesDeps(ctx, library.Properties.Shared.Srcs)
+	}
+
+	return deps
 }
 
 func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
