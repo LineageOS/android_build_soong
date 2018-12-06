@@ -414,9 +414,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		cppStd = config.CppStdVersion
 	case "experimental":
 		cppStd = config.ExperimentalCppStdVersion
-	case "c++17", "gnu++17":
-		// Map c++17 and gnu++17 to their 1z equivalents, until 17 is finalized.
-		cppStd = strings.Replace(String(compiler.Properties.Cpp_std), "17", "1z", 1)
 	}
 
 	if compiler.Properties.Gnu_extensions != nil && *compiler.Properties.Gnu_extensions == false {
