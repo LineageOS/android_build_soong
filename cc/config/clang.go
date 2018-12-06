@@ -186,9 +186,6 @@ func init() {
 		// compatibility.
 		"-Wno-c++98-compat-extra-semi",
 
-		// Disable this warning until we can fix all instances where it fails.
-		"-Wno-constant-logical-operand",
-
 		// Disable this warning because we don't care about behavior with older compilers.
 		"-Wno-return-std-move-in-c++11",
 
