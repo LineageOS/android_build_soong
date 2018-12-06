@@ -1080,7 +1080,6 @@ func getMegaDeviceConfig() []archConfig {
 		{"arm", "armv7-a-neon", "cortex-a73", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a75", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a76", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "denver", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "krait", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "kryo", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "kryo385", []string{"armeabi-v7a"}},
