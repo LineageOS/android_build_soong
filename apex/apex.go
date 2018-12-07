@@ -136,7 +136,7 @@ func init() {
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 
-	android.RegisterModuleType("apex", apexBundleFactory)
+	android.RegisterModuleType("apex", ApexBundleFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -871,7 +871,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 	}
 }
 
-func apexBundleFactory() android.Module {
+func ApexBundleFactory() android.Module {
 	module := &apexBundle{
 		outputFiles: map[apexPackaging]android.WritablePath{},
 	}
