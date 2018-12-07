@@ -28,7 +28,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	defer teardown(buildDir)
 
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("apex", android.ModuleFactoryAdaptor(apexBundleFactory))
+	ctx.RegisterModuleType("apex", android.ModuleFactoryAdaptor(ApexBundleFactory))
 	ctx.RegisterModuleType("apex_key", android.ModuleFactoryAdaptor(apexKeyFactory))
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
