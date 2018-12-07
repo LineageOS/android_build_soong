@@ -40,6 +40,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(cc.LibrarySharedFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
+	ctx.RegisterModuleType("prebuilt_etc", android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
 		ctx.BottomUp("version", cc.VersionMutator).Parallel()
@@ -94,6 +95,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"apex_manifest.json":                        nil,
 		"system/sepolicy/apex/myapex-file_contexts": nil,
 		"mylib.cpp":                                 nil,
+		"myprebuilt":                                nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -414,4 +416,34 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 	// ... Cflags from stub is correctly exported to mylib
 	ensureContains(t, mylibCFlags, "__LIBDL_API__=27")
 	ensureContains(t, mylibSharedCFlags, "__LIBDL_API__=27")
+}
+
+func TestFilesInSubDir(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			prebuilts: ["myetc"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_etc {
+			name: "myetc",
+			src: "myprebuilt",
+			sub_dir: "foo/bar",
+		}
+	`)
+
+	generateFsRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("generateFsConfig")
+	dirs := strings.Split(generateFsRule.Args["exec_paths"], " ")
+
+	// Ensure that etc, etc/foo, and etc/foo/bar are all listed
+	ensureListContains(t, dirs, "etc")
+	ensureListContains(t, dirs, "etc/foo")
+	ensureListContains(t, dirs, "etc/foo/bar")
 }
