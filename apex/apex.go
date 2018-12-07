@@ -684,8 +684,14 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 			} else {
 				readOnlyPaths = append(readOnlyPaths, pathInApex)
 			}
-			if !android.InList(f.installDir, executablePaths) {
-				executablePaths = append(executablePaths, f.installDir)
+			dir := f.installDir
+			for !android.InList(dir, executablePaths) && dir != "" {
+				executablePaths = append(executablePaths, dir)
+				dir, _ = filepath.Split(dir) // move up to the parent
+				if len(dir) > 0 {
+					// remove trailing slash
+					dir = dir[:len(dir)-1]
+				}
 			}
 		}
 		sort.Strings(readOnlyPaths)
