@@ -158,6 +158,14 @@ func DirectlyInAnyApex(config Config, moduleName string) bool {
 	return false
 }
 
+// Tests if moduleName is included in any APEX.
+func InAnyApex(config Config, moduleName string) bool {
+	bundleNamesMapMutex.Lock()
+	defer bundleNamesMapMutex.Unlock()
+	bundleNames, ok := apexBundleNamesMap(config)[moduleName]
+	return ok && len(bundleNames) > 0
+}
+
 func InitApexModule(m ApexModule) {
 	base := m.apexModuleBase()
 	base.canHaveApexVariants = true

@@ -183,12 +183,13 @@ type BaseProperties struct {
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version *string
 
-	AndroidMkSharedLibs      []string `blueprint:"mutated"`
-	AndroidMkStaticLibs      []string `blueprint:"mutated"`
-	AndroidMkRuntimeLibs     []string `blueprint:"mutated"`
-	AndroidMkWholeStaticLibs []string `blueprint:"mutated"`
-	HideFromMake             bool     `blueprint:"mutated"`
-	PreventInstall           bool     `blueprint:"mutated"`
+	AndroidMkSharedLibs       []string `blueprint:"mutated"`
+	AndroidMkStaticLibs       []string `blueprint:"mutated"`
+	AndroidMkRuntimeLibs      []string `blueprint:"mutated"`
+	AndroidMkWholeStaticLibs  []string `blueprint:"mutated"`
+	HideFromMake              bool     `blueprint:"mutated"`
+	PreventInstall            bool     `blueprint:"mutated"`
+	ApexesProvidingSharedLibs []string `blueprint:"mutated"`
 
 	UseVndk bool `blueprint:"mutated"`
 
@@ -1579,6 +1580,22 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		// Export the shared libs to Make.
 		switch depTag {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
+			// Dependency to the stubs lib which is already included in an APEX
+			// is not added to the androidmk dependency
+			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
+				depNameWithTarget := depName + "-" + ccDep.Target().String()
+				if dependentLibrary.buildStubs() && android.InAnyApex(ctx.Config(), depNameWithTarget) {
+					// Also add the dependency to the APEX(es) providing the library so that
+					// m <module> can trigger building the APEXes as well.
+					apexNames := android.GetApexBundlesForModule(ctx, depNameWithTarget)
+					for an := range apexNames {
+						c.Properties.ApexesProvidingSharedLibs = append(
+							c.Properties.ApexesProvidingSharedLibs, an)
+					}
+					break
+				}
+			}
+
 			// Note: the order of libs in this list is not important because
 			// they merely serve as Make dependencies and do not affect this lib itself.
 			c.Properties.AndroidMkSharedLibs = append(
