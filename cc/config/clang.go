@@ -184,9 +184,6 @@ func init() {
 
 		// Disable this warning because we don't care about behavior with older compilers.
 		"-Wno-return-std-move-in-c++11",
-
-		// Disable this warning until we can fix all instances where it fails.
-		"-Wno-dangling-field",
 	}, " "))
 
 	// Extra cflags for projects under external/ directory to disable warnings that are infeasible
