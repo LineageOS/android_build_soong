@@ -128,7 +128,6 @@ func init() {
 		"-Wno-zero-as-null-pointer-constant",
 
 		// Warnings from clang-7.0
-		"-Wno-deprecated-register",
 		"-Wno-sign-compare",
 
 		// Warnings from clang-8.0
