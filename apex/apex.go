@@ -136,7 +136,7 @@ func init() {
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 
-	android.RegisterModuleType("apex", apexBundleFactory)
+	android.RegisterModuleType("apex", ApexBundleFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -684,8 +684,14 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 			} else {
 				readOnlyPaths = append(readOnlyPaths, pathInApex)
 			}
-			if !android.InList(f.installDir, executablePaths) {
-				executablePaths = append(executablePaths, f.installDir)
+			dir := f.installDir
+			for !android.InList(dir, executablePaths) && dir != "" {
+				executablePaths = append(executablePaths, dir)
+				dir, _ = filepath.Split(dir) // move up to the parent
+				if len(dir) > 0 {
+					// remove trailing slash
+					dir = dir[:len(dir)-1]
+				}
 			}
 		}
 		sort.Strings(readOnlyPaths)
@@ -871,7 +877,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 	}
 }
 
-func apexBundleFactory() android.Module {
+func ApexBundleFactory() android.Module {
 	module := &apexBundle{
 		outputFiles: map[apexPackaging]android.WritablePath{},
 	}

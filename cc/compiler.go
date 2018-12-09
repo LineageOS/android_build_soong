@@ -75,6 +75,10 @@ type BaseCompilerProperties struct {
 	// be added to the include path using -I
 	Local_include_dirs []string `android:"arch_variant,variant_prepend"`
 
+	// Add the directory containing the Android.bp file to the list of include
+	// directories. Defaults to true.
+	Include_build_directory *bool
+
 	// list of generated sources to compile. These are the names of gensrcs or
 	// genrule modules.
 	Generated_sources []string `android:"arch_variant"`
@@ -288,8 +292,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.YasmFlags = append(flags.YasmFlags, f)
 	}
 
-	flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
-	flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
+	if compiler.Properties.Include_build_directory == nil ||
+		*compiler.Properties.Include_build_directory {
+		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+android.PathForModuleSrc(ctx).String())
+		flags.YasmFlags = append(flags.YasmFlags, "-I"+android.PathForModuleSrc(ctx).String())
+	}
 
 	if !(ctx.useSdk() || ctx.useVndk()) || ctx.Host() {
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
@@ -414,9 +421,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		cppStd = config.CppStdVersion
 	case "experimental":
 		cppStd = config.ExperimentalCppStdVersion
-	case "c++17", "gnu++17":
-		// Map c++17 and gnu++17 to their 1z equivalents, until 17 is finalized.
-		cppStd = strings.Replace(String(compiler.Properties.Cpp_std), "17", "1z", 1)
 	}
 
 	if compiler.Properties.Gnu_extensions != nil && *compiler.Properties.Gnu_extensions == false {
