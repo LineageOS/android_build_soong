@@ -1422,9 +1422,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
 				depIsStubs := dependentLibrary.buildStubs()
 				depHasStubs := ccDep.HasStubsVariants()
-				depNameWithTarget := depName + "-" + ccDep.Target().String()
-				depInSameApex := android.DirectlyInApex(ctx.Config(), c.ApexName(), depNameWithTarget)
-				depInPlatform := !android.DirectlyInAnyApex(ctx.Config(), depNameWithTarget)
+				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
+				depInPlatform := !android.DirectlyInAnyApex(depName)
 
 				var useThisDep bool
 				if depIsStubs && explicitlyVersioned {
@@ -1583,12 +1582,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// Dependency to the stubs lib which is already included in an APEX
 			// is not added to the androidmk dependency
 			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
-				depNameWithTarget := depName + "-" + ccDep.Target().String()
-				if dependentLibrary.buildStubs() && android.InAnyApex(ctx.Config(), depNameWithTarget) {
+				if dependentLibrary.buildStubs() && android.InAnyApex(depName) {
 					// Also add the dependency to the APEX(es) providing the library so that
 					// m <module> can trigger building the APEXes as well.
-					apexNames := android.GetApexBundlesForModule(ctx, depNameWithTarget)
-					for an := range apexNames {
+					for _, an := range android.GetApexesForModule(depName) {
 						c.Properties.ApexesProvidingSharedLibs = append(
 							c.Properties.ApexesProvidingSharedLibs, an)
 					}
