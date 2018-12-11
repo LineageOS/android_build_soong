@@ -276,12 +276,20 @@ func TestApexWithStubs(t *testing.T) {
 
 		cc_library {
 			name: "mylib3",
-				srcs: ["mylib.cpp"],
-				system_shared_libs: [],
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib4"],
+			system_shared_libs: [],
 			stl: "none",
 			stubs: {
 				versions: ["10", "11", "12"],
 			},
+		}
+
+		cc_library {
+			name: "mylib4",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
 		}
 	`)
 
