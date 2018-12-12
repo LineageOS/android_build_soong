@@ -33,9 +33,9 @@ var (
 
 		// Use C99-compliant printf functions (%zd).
 		"-D__USE_MINGW_ANSI_STDIO=1",
-		// Admit to using >= Vista. Both are needed because of <_mingw.h>.
-		"-D_WIN32_WINNT=0x0600",
-		"-DWINVER=0x0600",
+		// Admit to using >= Windows 7. Both are needed because of <_mingw.h>.
+		"-D_WIN32_WINNT=0x0601",
+		"-DWINVER=0x0601",
 		// Get 64-bit off_t and related functions.
 		"-D_FILE_OFFSET_BITS=64",
 
