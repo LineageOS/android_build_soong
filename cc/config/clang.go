@@ -120,9 +120,6 @@ func init() {
 		// color codes if it is not running in a terminal.
 		"-fcolor-diagnostics",
 
-		// http://b/29823425 Disable -Wexpansion-to-defined for Clang update to r271374
-		"-Wno-expansion-to-defined",
-
 		// http://b/68236239 Allow 0/NULL instead of using nullptr everywhere.
 		"-Wno-zero-as-null-pointer-constant",
 
