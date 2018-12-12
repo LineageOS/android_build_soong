@@ -1053,6 +1053,8 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 					l.MutatedProperties.BuildStubs = true
 					l.MutatedProperties.StubsVersion = versions[i]
 					m.(*Module).Properties.HideFromMake = true
+					m.(*Module).sanitize = nil
+					m.(*Module).stl = nil
 				}
 			}
 		} else {

@@ -367,6 +367,7 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 		{Mutator: "arch", Variation: arch},
 		{Mutator: "image", Variation: "core"},
 		{Mutator: "link", Variation: "shared"},
+		{Mutator: "version", Variation: ""}, // "" is the non-stub variant
 	}, sharedLibTag, native_shared_libs...)
 
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
