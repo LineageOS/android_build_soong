@@ -351,6 +351,24 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 
 	flags = library.baseCompiler.compilerFlags(ctx, flags, deps)
 	if library.buildStubs() {
+		// Remove -include <file> when compiling stubs. Otherwise, the force included
+		// headers might cause conflicting types error with the symbols in the
+		// generated stubs source code. e.g.
+		// double acos(double); // in header
+		// void acos() {} // in the generated source code
+		removeInclude := func(flags []string) []string {
+			ret := flags[:0]
+			for _, f := range flags {
+				if strings.HasPrefix(f, "-include ") {
+					continue
+				}
+				ret = append(ret, f)
+			}
+			return ret
+		}
+		flags.GlobalFlags = removeInclude(flags.GlobalFlags)
+		flags.CFlags = removeInclude(flags.CFlags)
+
 		flags = addStubLibraryCompilerFlags(flags)
 	}
 	return flags

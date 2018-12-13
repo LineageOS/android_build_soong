@@ -267,6 +267,7 @@ func TestApexWithStubs(t *testing.T) {
 		cc_library {
 			name: "mylib2",
 			srcs: ["mylib.cpp"],
+			cflags: ["-include mylib.h"],
 			system_shared_libs: [],
 			stl: "none",
 			stubs: {
@@ -316,6 +317,10 @@ func TestApexWithStubs(t *testing.T) {
 	ensureContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_myapex/mylib3.so")
 	// .. and not linking to the stubs variant of mylib3
 	ensureNotContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_12_myapex/mylib3.so")
+
+	// Ensure that stubs libs are built without -include flags
+	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylib2Cflags, "-include ")
 }
 
 func TestApexWithExplicitStubsDependency(t *testing.T) {
