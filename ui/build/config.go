@@ -217,6 +217,9 @@ func NewConfig(ctx Context, args ...string) Config {
 	} else {
 		content = strconv.FormatInt(time.Now().Unix(), 10)
 	}
+	if ctx.Metrics != nil {
+		ctx.Metrics.SetBuildDateTime(content)
+	}
 	err := ioutil.WriteFile(buildDateTimeFile, []byte(content), 0777)
 	if err != nil {
 		ctx.Fatalln("Failed to write BUILD_DATETIME to file:", err)

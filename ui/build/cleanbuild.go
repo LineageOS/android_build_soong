@@ -20,6 +20,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"android/soong/ui/metrics"
 )
 
 func removeGlobs(ctx Context, globs ...string) {
@@ -158,7 +160,7 @@ func installCleanIfNecessary(ctx Context, config Config) {
 		return
 	}
 
-	ctx.BeginTrace("installclean")
+	ctx.BeginTrace(metrics.PrimaryNinja, "installclean")
 	defer ctx.EndTrace()
 
 	prevConfig := strings.TrimPrefix(strings.TrimSuffix(string(prev), suffix), prefix)

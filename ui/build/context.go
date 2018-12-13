@@ -18,6 +18,8 @@ import (
 	"context"
 
 	"android/soong/ui/logger"
+	"android/soong/ui/metrics"
+	"android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
 	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
@@ -31,6 +33,8 @@ type ContextImpl struct {
 	context.Context
 	logger.Logger
 
+	Metrics *metrics.Metrics
+
 	Writer terminal.Writer
 	Status *status.Status
 
@@ -39,9 +43,12 @@ type ContextImpl struct {
 }
 
 // BeginTrace starts a new Duration Event.
-func (c ContextImpl) BeginTrace(name string) {
+func (c ContextImpl) BeginTrace(name, desc string) {
 	if c.Tracer != nil {
-		c.Tracer.Begin(name, c.Thread)
+		c.Tracer.Begin(desc, c.Thread)
+	}
+	if c.Metrics != nil {
+		c.Metrics.TimeTracer.Begin(name, desc, c.Thread)
 	}
 }
 
@@ -50,11 +57,23 @@ func (c ContextImpl) EndTrace() {
 	if c.Tracer != nil {
 		c.Tracer.End(c.Thread)
 	}
+	if c.Metrics != nil {
+		c.Metrics.SetTimeMetrics(c.Metrics.TimeTracer.End(c.Thread))
+	}
 }
 
 // CompleteTrace writes a trace with a beginning and end times.
-func (c ContextImpl) CompleteTrace(name string, begin, end uint64) {
+func (c ContextImpl) CompleteTrace(name, desc string, begin, end uint64) {
 	if c.Tracer != nil {
-		c.Tracer.Complete(name, c.Thread, begin, end)
+		c.Tracer.Complete(desc, c.Thread, begin, end)
+	}
+	if c.Metrics != nil {
+		realTime := end - begin
+		c.Metrics.SetTimeMetrics(
+			metrics_proto.PerfInfo{
+				Desc:      &desc,
+				Name:      &name,
+				StartTime: &begin,
+				RealTime:  &realTime})
 	}
 }
