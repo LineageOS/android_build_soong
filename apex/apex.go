@@ -457,6 +457,10 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+func (a *apexBundle) Srcs() android.Paths {
+	return android.Paths{a.outputFiles[imageApex]}
+}
+
 func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
 	// Decide the APEX-local directory by the multilib of the library
 	// In the future, we may query this to the module.

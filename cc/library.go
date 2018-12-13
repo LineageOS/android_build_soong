@@ -1055,6 +1055,7 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 					m.(*Module).Properties.HideFromMake = true
 					m.(*Module).sanitize = nil
 					m.(*Module).stl = nil
+					m.(*Module).Properties.PreventInstall = true
 				}
 			}
 		} else {
