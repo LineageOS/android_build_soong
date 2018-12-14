@@ -167,10 +167,6 @@ func init() {
 		"-Wno-tautological-unsigned-enum-zero-compare",
 		"-Wno-tautological-unsigned-zero-compare",
 
-		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
-		// this new warning are fixed.
-		"-Wno-null-pointer-arithmetic",
-
 		// Disable c++98-specific warning since Android is not concerned with C++98
 		// compatibility.
 		"-Wno-c++98-compat-extra-semi",
@@ -184,6 +180,10 @@ func init() {
 	pctx.StaticVariable("ClangExtraExternalCflags", strings.Join([]string{
 		"-Wno-enum-compare",
 		"-Wno-enum-compare-switch",
+
+		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
+		// this new warning are fixed.
+		"-Wno-null-pointer-arithmetic",
 	}, " "))
 }
 
