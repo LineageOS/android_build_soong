@@ -88,6 +88,9 @@ type generatorProperties struct {
 
 	// list of input files
 	Srcs []string `android:"arch_variant"`
+
+	// input files to exclude
+	Exclude_srcs []string `android:"arch_variant"`
 }
 
 type Module struct {
@@ -228,7 +231,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var srcFiles android.Paths
 	for _, in := range g.properties.Srcs {
-		paths := ctx.ExpandSources([]string{in}, nil)
+		paths := ctx.ExpandSources([]string{in}, g.properties.Exclude_srcs)
 		srcFiles = append(srcFiles, paths...)
 		addLocationLabel(in, paths.Strings())
 	}
