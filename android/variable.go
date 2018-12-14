@@ -196,10 +196,9 @@ type productVariables struct {
 
 	UncompressPrivAppDex             *bool    `json:",omitempty"`
 	ModulesLoadedByPrivilegedModules []string `json:",omitempty"`
-
-	DisableDexPreopt        *bool    `json:",omitempty"`
-	DisableDexPreoptModules []string `json:",omitempty"`
-	DexPreoptProfileDir     *string  `json:",omitempty"`
+	DefaultStripDex                  *bool    `json:",omitempty"`
+	DisableDexPreopt                 *bool    `json:",omitempty"`
+	DisableDexPreoptModules          []string `json:",omitempty"`
 
 	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
 
@@ -258,8 +257,6 @@ type productVariables struct {
 	Exclude_draft_ndk_apis *bool `json:",omitempty"`
 
 	FlattenApex *bool `json:",omitempty"`
-
-	DexpreoptGlobalConfig *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

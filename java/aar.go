@@ -357,7 +357,6 @@ func AndroidLibraryFactory() android.Module {
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
 		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.androidLibraryProperties)
