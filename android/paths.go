@@ -1054,10 +1054,6 @@ func Rel(ctx PathContext, basePath string, targetPath string) string {
 // MaybeRel performs the same function as filepath.Rel, but reports errors to a PathContext, and returns false if
 // targetPath is not inside basePath.
 func MaybeRel(ctx PathContext, basePath string, targetPath string) (string, bool) {
-	// filepath.Rel returns an error if one path is absolute and the other is not, handle that case first.
-	if filepath.IsAbs(basePath) != filepath.IsAbs(targetPath) {
-		return "", false
-	}
 	rel, err := filepath.Rel(basePath, targetPath)
 	if err != nil {
 		reportPathError(ctx, err)
