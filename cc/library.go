@@ -1016,10 +1016,6 @@ func latestStubsVersionFor(config android.Config, name string) string {
 // Version mutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
-	if mctx.Os() != android.Android {
-		return
-	}
-
 	if m, ok := mctx.Module().(*Module); ok && !m.inRecovery() && m.linker != nil {
 		if library, ok := m.linker.(*libraryDecorator); ok && library.buildShared() &&
 			len(library.Properties.Stubs.Versions) > 0 {

@@ -150,11 +150,13 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	if _, ok := mctx.Module().(*apexBundle); ok {
 		apexBundleName := mctx.ModuleName()
 		mctx.WalkDeps(func(child, parent android.Module) bool {
+			depName := mctx.OtherModuleName(child)
+			// If the parent is apexBundle, this child is directly depended.
+			_, directDep := parent.(*apexBundle)
+			android.UpdateApexDependency(apexBundleName, depName, directDep)
+
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
-				moduleName := mctx.OtherModuleName(am) + "-" + am.Target().String()
-				// If the parent is apexBundle, this child is directly depended.
-				_, directDep := parent.(*apexBundle)
-				android.BuildModuleForApexBundle(mctx, moduleName, apexBundleName, directDep)
+				am.BuildForApex(apexBundleName)
 				return true
 			} else {
 				return false
@@ -166,21 +168,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 // Create apex variations if a module is included in APEX(s).
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
-		moduleName := mctx.ModuleName() + "-" + am.Target().String()
-		bundleNames := android.GetApexBundlesForModule(mctx, moduleName)
-		if len(bundleNames) > 0 {
-			variations := []string{"platform"}
-			for bn := range bundleNames {
-				variations = append(variations, bn)
-			}
-			modules := mctx.CreateVariations(variations...)
-			for i, m := range modules {
-				if i == 0 {
-					continue // platform
-				}
-				m.(android.ApexModule).BuildForApex(variations[i])
-			}
-		}
+		am.CreateApexVariations(mctx)
 	} else if _, ok := mctx.Module().(*apexBundle); ok {
 		// apex bundle itself is mutated so that it and its modules have same
 		// apex variant.
