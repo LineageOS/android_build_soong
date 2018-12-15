@@ -168,10 +168,6 @@ func init() {
 		"-Wno-tautological-unsigned-enum-zero-compare",
 		"-Wno-tautological-unsigned-zero-compare",
 
-		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
-		// this new warning are fixed.
-		"-Wno-null-pointer-arithmetic",
-
 		// http://b/72330874 Disable -Wenum-compare until the instances detected by this new
 		// warning are fixed.
 		"-Wno-enum-compare",
@@ -188,6 +184,10 @@ func init() {
 	// Extra cflags for projects under external/ directory
 	pctx.StaticVariable("ClangExtraExternalCflags", strings.Join([]string{
 		// TODO(yikong): Move -Wno flags here
+
+		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
+		// this new warning are fixed.
+		"-Wno-null-pointer-arithmetic",
 	}, " "))
 }
 
