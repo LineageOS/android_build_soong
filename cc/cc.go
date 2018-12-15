@@ -183,12 +183,13 @@ type BaseProperties struct {
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version *string
 
-	AndroidMkSharedLibs      []string `blueprint:"mutated"`
-	AndroidMkStaticLibs      []string `blueprint:"mutated"`
-	AndroidMkRuntimeLibs     []string `blueprint:"mutated"`
-	AndroidMkWholeStaticLibs []string `blueprint:"mutated"`
-	HideFromMake             bool     `blueprint:"mutated"`
-	PreventInstall           bool     `blueprint:"mutated"`
+	AndroidMkSharedLibs       []string `blueprint:"mutated"`
+	AndroidMkStaticLibs       []string `blueprint:"mutated"`
+	AndroidMkRuntimeLibs      []string `blueprint:"mutated"`
+	AndroidMkWholeStaticLibs  []string `blueprint:"mutated"`
+	HideFromMake              bool     `blueprint:"mutated"`
+	PreventInstall            bool     `blueprint:"mutated"`
+	ApexesProvidingSharedLibs []string `blueprint:"mutated"`
 
 	UseVndk bool `blueprint:"mutated"`
 
@@ -1106,7 +1107,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	addSharedLibDependencies := func(depTag dependencyTag, name string, version string) {
 		var variations []blueprint.Variation
 		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
-		versionVariantAvail := ctx.Os() == android.Android && !ctx.useVndk() && !c.inRecovery()
+		versionVariantAvail := !ctx.useVndk() && !c.inRecovery()
 		if version != "" && versionVariantAvail {
 			// Version is explicitly specified. i.e. libFoo#30
 			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
@@ -1421,9 +1422,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
 				depIsStubs := dependentLibrary.buildStubs()
 				depHasStubs := ccDep.HasStubsVariants()
-				depNameWithTarget := depName + "-" + ccDep.Target().String()
-				depInSameApex := android.DirectlyInApex(ctx.Config(), c.ApexName(), depNameWithTarget)
-				depInPlatform := !android.DirectlyInAnyApex(ctx.Config(), depNameWithTarget)
+				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
+				depInPlatform := !android.DirectlyInAnyApex(depName)
 
 				var useThisDep bool
 				if depIsStubs && explicitlyVersioned {
@@ -1579,6 +1579,20 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		// Export the shared libs to Make.
 		switch depTag {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
+			// Dependency to the stubs lib which is already included in an APEX
+			// is not added to the androidmk dependency
+			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
+				if dependentLibrary.buildStubs() && android.InAnyApex(depName) {
+					// Also add the dependency to the APEX(es) providing the library so that
+					// m <module> can trigger building the APEXes as well.
+					for _, an := range android.GetApexesForModule(depName) {
+						c.Properties.ApexesProvidingSharedLibs = append(
+							c.Properties.ApexesProvidingSharedLibs, an)
+					}
+					break
+				}
+			}
+
 			// Note: the order of libs in this list is not important because
 			// they merely serve as Make dependencies and do not affect this lib itself.
 			c.Properties.AndroidMkSharedLibs = append(
