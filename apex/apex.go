@@ -150,11 +150,13 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	if _, ok := mctx.Module().(*apexBundle); ok {
 		apexBundleName := mctx.ModuleName()
 		mctx.WalkDeps(func(child, parent android.Module) bool {
+			depName := mctx.OtherModuleName(child)
+			// If the parent is apexBundle, this child is directly depended.
+			_, directDep := parent.(*apexBundle)
+			android.UpdateApexDependency(apexBundleName, depName, directDep)
+
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
-				moduleName := mctx.OtherModuleName(am) + "-" + am.Target().String()
-				// If the parent is apexBundle, this child is directly depended.
-				_, directDep := parent.(*apexBundle)
-				android.BuildModuleForApexBundle(mctx, moduleName, apexBundleName, directDep)
+				am.BuildForApex(apexBundleName)
 				return true
 			} else {
 				return false
@@ -166,21 +168,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 // Create apex variations if a module is included in APEX(s).
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
-		moduleName := mctx.ModuleName() + "-" + am.Target().String()
-		bundleNames := android.GetApexBundlesForModule(mctx, moduleName)
-		if len(bundleNames) > 0 {
-			variations := []string{"platform"}
-			for bn := range bundleNames {
-				variations = append(variations, bn)
-			}
-			modules := mctx.CreateVariations(variations...)
-			for i, m := range modules {
-				if i == 0 {
-					continue // platform
-				}
-				m.(android.ApexModule).BuildForApex(variations[i])
-			}
-		}
+		am.CreateApexVariations(mctx)
 	} else if _, ok := mctx.Module().(*apexBundle); ok {
 		// apex bundle itself is mutated so that it and its modules have same
 		// apex variant.
@@ -222,6 +210,9 @@ type apexBundleProperties struct {
 	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
 	// or an android_app_certificate module name in the form ":module".
 	Certificate *string
+
+	// Whether this APEX is installable to one of the partitions. Default: true.
+	Installable *bool
 
 	Multilib struct {
 		First struct {
@@ -459,6 +450,10 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *apexBundle) Srcs() android.Paths {
 	return android.Paths{a.outputFiles[imageApex]}
+}
+
+func (a *apexBundle) installable() bool {
+	return a.properties.Installable == nil || proptools.Bool(a.properties.Installable)
 }
 
 func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
@@ -788,18 +783,22 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
-	ctx.InstallFile(android.PathForModuleInstall(ctx, "apex"), ctx.ModuleName()+suffix, a.outputFiles[apexType])
+	if a.installable() {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "apex"), ctx.ModuleName()+suffix, a.outputFiles[apexType])
+	}
 }
 
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
-	// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
-	// with other ordinary files.
-	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
-	a.filesInfo = append(a.filesInfo, apexFile{manifest, ctx.ModuleName() + ".apex_manifest.json", android.Common, ".", etc})
+	if a.installable() {
+		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
+		// with other ordinary files.
+		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+		a.filesInfo = append(a.filesInfo, apexFile{manifest, ctx.ModuleName() + ".apex_manifest.json", android.Common, ".", etc})
 
-	for _, fi := range a.filesInfo {
-		dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)
-		ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
+		for _, fi := range a.filesInfo {
+			dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)
+			ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
+		}
 	}
 }
 
@@ -844,6 +843,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 					fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", fi.builtFile.Base())
 					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
 					fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
+					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
 					archStr := fi.archType.String()
 					if archStr != "common" {
 						fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
@@ -872,6 +872,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFiles[apexType].String())
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name+apexType.suffix())
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
