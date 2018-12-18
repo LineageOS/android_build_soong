@@ -126,6 +126,7 @@ func init() {
 	pctx.HostJavaToolVariable("JetifierJar", "jetifier.jar")
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
+	pctx.HostBinToolVariable("DexpreoptGen", "dexpreopt_gen")
 
 	pctx.VariableFunc("JavacWrapper", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("JAVAC_WRAPPER"); override != "" {
@@ -152,4 +153,6 @@ func init() {
 
 	pctx.SourcePathsVariable("ManifestMergerJars", " ", ManifestMergerClasspath...)
 	pctx.SourcePathsVariable("ManifestMergerClasspath", ":", ManifestMergerClasspath...)
+
+	pctx.HostBinToolVariable("ZipAlign", "zipalign")
 }
