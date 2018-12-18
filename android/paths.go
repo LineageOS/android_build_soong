@@ -659,11 +659,7 @@ func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	if len(paths) == 0 {
 		return OptionalPath{}
 	}
-	relPath, err := filepath.Rel(p.config.srcDir, paths[0])
-	if err != nil {
-		reportPathError(ctx, err)
-		return OptionalPath{}
-	}
+	relPath := Rel(ctx, p.config.srcDir, paths[0])
 	return OptionalPathForPath(PathForSource(ctx, relPath))
 }
 
@@ -788,13 +784,7 @@ func (p ModuleSrcPath) resPathWithName(ctx ModuleContext, name string) ModuleRes
 
 func (p ModuleSrcPath) WithSubDir(ctx ModuleContext, subdir string) ModuleSrcPath {
 	subdir = PathForModuleSrc(ctx, subdir).String()
-	var err error
-	rel, err := filepath.Rel(subdir, p.path)
-	if err != nil {
-		ctx.ModuleErrorf("source file %q is not under path %q", p.path, subdir)
-		return p
-	}
-	p.rel = rel
+	p.rel = Rel(ctx, subdir, p.path)
 	return p
 }
 
@@ -932,27 +922,7 @@ func PathForModuleRes(ctx ModuleContext, pathComponents ...string) ModuleResPath
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) OutputPath {
 	var outPaths []string
 	if ctx.Device() {
-		var partition string
-		if ctx.InstallInData() {
-			partition = "data"
-		} else if ctx.InstallInRecovery() {
-			// the layout of recovery partion is the same as that of system partition
-			partition = "recovery/root/system"
-		} else if ctx.SocSpecific() {
-			partition = ctx.DeviceConfig().VendorPath()
-		} else if ctx.DeviceSpecific() {
-			partition = ctx.DeviceConfig().OdmPath()
-		} else if ctx.ProductSpecific() {
-			partition = ctx.DeviceConfig().ProductPath()
-		} else if ctx.ProductServicesSpecific() {
-			partition = ctx.DeviceConfig().ProductServicesPath()
-		} else {
-			partition = "system"
-		}
-
-		if ctx.InstallInSanitizerDir() {
-			partition = "data/asan/" + partition
-		}
+		partition := modulePartition(ctx)
 		outPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
 		switch ctx.Os() {
@@ -970,6 +940,36 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	}
 	outPaths = append(outPaths, pathComponents...)
 	return PathForOutput(ctx, outPaths...)
+}
+
+func InstallPathToOnDevicePath(ctx PathContext, path OutputPath) string {
+	rel := Rel(ctx, PathForOutput(ctx, "target", "product", ctx.Config().DeviceName()).String(), path.String())
+
+	return "/" + rel
+}
+
+func modulePartition(ctx ModuleInstallPathContext) string {
+	var partition string
+	if ctx.InstallInData() {
+		partition = "data"
+	} else if ctx.InstallInRecovery() {
+		// the layout of recovery partion is the same as that of system partition
+		partition = "recovery/root/system"
+	} else if ctx.SocSpecific() {
+		partition = ctx.DeviceConfig().VendorPath()
+	} else if ctx.DeviceSpecific() {
+		partition = ctx.DeviceConfig().OdmPath()
+	} else if ctx.ProductSpecific() {
+		partition = ctx.DeviceConfig().ProductPath()
+	} else if ctx.ProductServicesSpecific() {
+		partition = ctx.DeviceConfig().ProductServicesPath()
+	} else {
+		partition = "system"
+	}
+	if ctx.InstallInSanitizerDir() {
+		partition = "data/asan/" + partition
+	}
+	return partition
 }
 
 // validateSafePath validates a path that we trust (may contain ninja variables).
@@ -1038,4 +1038,32 @@ func PathsForTesting(strs []string) Paths {
 	}
 
 	return p
+}
+
+// Rel performs the same function as filepath.Rel, but reports errors to a PathContext, and reports an error if
+// targetPath is not inside basePath.
+func Rel(ctx PathContext, basePath string, targetPath string) string {
+	rel, isRel := MaybeRel(ctx, basePath, targetPath)
+	if !isRel {
+		reportPathErrorf(ctx, "path %q is not under path %q", targetPath, basePath)
+		return ""
+	}
+	return rel
+}
+
+// MaybeRel performs the same function as filepath.Rel, but reports errors to a PathContext, and returns false if
+// targetPath is not inside basePath.
+func MaybeRel(ctx PathContext, basePath string, targetPath string) (string, bool) {
+	// filepath.Rel returns an error if one path is absolute and the other is not, handle that case first.
+	if filepath.IsAbs(basePath) != filepath.IsAbs(targetPath) {
+		return "", false
+	}
+	rel, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		reportPathError(ctx, err)
+		return "", false
+	} else if rel == ".." || strings.HasPrefix(rel, "../") || strings.HasPrefix(rel, "/") {
+		return "", false
+	}
+	return rel, true
 }
