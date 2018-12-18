@@ -573,3 +573,60 @@ func TestDirectorySortedPaths(t *testing.T) {
 		t.Errorf("FilesInDirectory(b):\n %#v\n != \n %#v", inA.Strings(), expectedA)
 	}
 }
+
+func TestMaybeRel(t *testing.T) {
+	testCases := []struct {
+		name   string
+		base   string
+		target string
+		out    string
+		isRel  bool
+	}{
+		{
+			name:   "normal",
+			base:   "a/b/c",
+			target: "a/b/c/d",
+			out:    "d",
+			isRel:  true,
+		},
+		{
+			name:   "parent",
+			base:   "a/b/c/d",
+			target: "a/b/c",
+			isRel:  false,
+		},
+		{
+			name:   "not relative",
+			base:   "a/b",
+			target: "c/d",
+			isRel:  false,
+		},
+		{
+			name:   "abs1",
+			base:   "/a",
+			target: "a",
+			isRel:  false,
+		},
+		{
+			name:   "abs2",
+			base:   "a",
+			target: "/a",
+			isRel:  false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx := &configErrorWrapper{}
+			out, isRel := MaybeRel(ctx, testCase.base, testCase.target)
+			if len(ctx.errors) > 0 {
+				t.Errorf("MaybeRel(..., %s, %s) reported unexpected errors %v",
+					testCase.base, testCase.target, ctx.errors)
+			}
+			if isRel != testCase.isRel || out != testCase.out {
+				t.Errorf("MaybeRel(..., %s, %s) want %v, %v got %v, %v",
+					testCase.base, testCase.target, testCase.out, testCase.isRel, out, isRel)
+			}
+		})
+	}
+}
