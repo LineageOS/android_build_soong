@@ -224,8 +224,12 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 	var classLoaderContextTarget []string
 
 	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 28
-	var conditionalClassLoaderContextHost []string
-	var conditionalClassLoaderContextTarget []string
+	var conditionalClassLoaderContextHost28 []string
+	var conditionalClassLoaderContextTarget28 []string
+
+	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 29
+	var conditionalClassLoaderContextHost29 []string
+	var conditionalClassLoaderContextTarget29 []string
 
 	if module.EnforceUsesLibraries {
 		verifyUsesLibs = copyOf(module.UsesLibraries)
@@ -251,11 +255,23 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 		replace(verifyOptionalUsesLibs, httpLegacyImpl, httpLegacy)
 
 		if !contains(verifyUsesLibs, httpLegacy) && !contains(verifyOptionalUsesLibs, httpLegacy) {
-			conditionalClassLoaderContextHost = append(conditionalClassLoaderContextHost,
+			conditionalClassLoaderContextHost28 = append(conditionalClassLoaderContextHost28,
 				pathForLibrary(module, httpLegacyImpl))
-			conditionalClassLoaderContextTarget = append(conditionalClassLoaderContextTarget,
+			conditionalClassLoaderContextTarget28 = append(conditionalClassLoaderContextTarget28,
 				filepath.Join("/system/framework", httpLegacyImpl+".jar"))
 		}
+
+		const hidlBase = "android.hidl.base-V1.0-java"
+		const hidlManager = "android.hidl.manager-V1.0-java"
+
+		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
+      pathForLibrary(module, hidlManager))
+		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
+			filepath.Join("/system/framework", hidlManager+".jar"))
+		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
+      pathForLibrary(module, hidlBase))
+		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
+			filepath.Join("/system/framework", hidlBase+".jar"))
 	} else {
 		// Pass special class loader context to skip the classpath and collision check.
 		// This will get removed once LOCAL_USES_LIBRARIES is enforced.
@@ -272,15 +288,17 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 	rule.Command().Text(`stored_class_loader_context_arg=""`)
 
 	if module.EnforceUsesLibraries {
-		rule.Command().FlagWithList("stored_class_loader_context_libs=", classLoaderContextTarget, ":")
-		rule.Command().FlagWithInputList("class_loader_context=", classLoaderContextHost, ":")
 		rule.Command().Textf(`uses_library_names="%s"`, strings.Join(verifyUsesLibs, " "))
 		rule.Command().Textf(`optional_uses_library_names="%s"`, strings.Join(verifyOptionalUsesLibs, " "))
 		rule.Command().Textf(`aapt_binary="%s"`, global.Tools.Aapt)
+		rule.Command().Textf(`dex_preopt_host_libraries="%s"`, strings.Join(classLoaderContextHost, " " ))
+		rule.Command().Textf(`dex_preopt_target_libraries="%s"`, strings.Join(classLoaderContextTarget, " "))
+		rule.Command().Textf(`conditional_host_libs_28="%s"`, strings.Join(conditionalClassLoaderContextHost28, " "))
+		rule.Command().Textf(`conditional_target_libs_28="%s"`, strings.Join(conditionalClassLoaderContextTarget28, " "))
+		rule.Command().Textf(`conditional_host_libs_29="%s"`, strings.Join(conditionalClassLoaderContextHost29, " "))
+		rule.Command().Textf(`conditional_target_libs_29="%s"`, strings.Join(conditionalClassLoaderContextTarget29, " "))
 		rule.Command().Text("source").Tool(global.Tools.VerifyUsesLibraries).Input(module.DexPath)
-		rule.Command().Text("source").Tool(global.Tools.ConstructContext).
-			Textf(`"%s"`, strings.Join(conditionalClassLoaderContextHost, ":")).
-			Textf(`"%s"`, strings.Join(conditionalClassLoaderContextTarget, ":"))
+		rule.Command().Text("source").Tool(global.Tools.ConstructContext)
 	}
 
 	cmd := rule.Command().
