@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 
 func createTestContext(t *testing.T, config android.Config, bp string) *android.TestContext {
 	ctx := android.NewTestArchContext()
+	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(binaryFactory))
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
@@ -194,7 +195,19 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		}
 
 		cc_object {
+			name: "crtbegin_static",
+			recovery_available: true,
+			vendor_available: true,
+		}
+
+		cc_object {
 			name: "crtend_so",
+			recovery_available: true,
+			vendor_available: true,
+		}
+
+		cc_object {
+			name: "crtend_android",
 			recovery_available: true,
 			vendor_available: true,
 		}
@@ -1843,5 +1856,30 @@ func TestVersionedStubs(t *testing.T) {
 	libFoo1VersioningMacro := "-D__LIBFOO_API__=1"
 	if !strings.Contains(cFlags, libFoo1VersioningMacro) {
 		t.Errorf("%q is not found in %q", libFoo1VersioningMacro, cFlags)
+	}
+}
+
+func TestStaticExecutable(t *testing.T) {
+	ctx := testCc(t, `
+		cc_binary {
+			name: "static_test",
+			srcs: ["foo.c"],
+			static_executable: true,
+		}`)
+
+	variant := "android_arm64_armv8-a_core"
+	binModuleRule := ctx.ModuleForTests("static_test", variant).Rule("ld")
+	libFlags := binModuleRule.Args["libFlags"]
+	systemStaticLibs := []string{"libc.a", "libm.a", "libdl.a"}
+	for _, lib := range systemStaticLibs {
+		if !strings.Contains(libFlags, lib) {
+			t.Errorf("Static lib %q was not found in %q", lib, libFlags)
+		}
+	}
+	systemSharedLibs := []string{"libc.so", "libm.so", "libdl.so"}
+	for _, lib := range systemSharedLibs {
+		if strings.Contains(libFlags, lib) {
+			t.Errorf("Shared lib %q was found in %q", lib, libFlags)
+		}
 	}
 }
