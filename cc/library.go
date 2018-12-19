@@ -807,6 +807,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			"-I" + android.PathForModuleGen(ctx, "sysprop", "include").String(),
 		}
 		library.reexportFlags(flags)
+		library.reexportDeps(library.baseCompiler.pathDeps)
 		library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
 	}
 
