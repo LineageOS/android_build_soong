@@ -569,6 +569,10 @@ func (c *config) UnbundledBuild() bool {
 	return Bool(c.productVariables.Unbundled_build)
 }
 
+func (c *config) UnbundledBuildPrebuiltSdks() bool {
+	return Bool(c.productVariables.Unbundled_build) && !Bool(c.productVariables.Unbundled_build_sdks_from_source)
+}
+
 func (c *config) IsPdkBuild() bool {
 	return Bool(c.productVariables.Pdk)
 }

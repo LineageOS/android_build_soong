@@ -555,7 +555,7 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		return ret
 	}
 
-	if ctx.Config().UnbundledBuild() && v != "" {
+	if ctx.Config().UnbundledBuildPrebuiltSdks() && v != "" {
 		return toPrebuilt(v)
 	}
 
