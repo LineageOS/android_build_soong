@@ -108,7 +108,7 @@ def version_is_private(version):
     return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
 
 
-def should_omit_version(version, arch, api, vndk):
+def should_omit_version(version, arch, api, vndk, apex):
     """Returns True if the version section should be ommitted.
 
     We want to omit any sections that do not have any symbols we'll have in the
@@ -121,6 +121,8 @@ def should_omit_version(version, arch, api, vndk):
         return True
     if 'vndk' in version.tags and not vndk:
         return True
+    if 'apex' in version.tags and not apex:
+        return True
     if not symbol_in_arch(version.tags, arch):
         return True
     if not symbol_in_api(version.tags, arch, api):
@@ -128,9 +130,11 @@ def should_omit_version(version, arch, api, vndk):
     return False
 
 
-def should_omit_symbol(symbol, arch, api, vndk):
+def should_omit_symbol(symbol, arch, api, vndk, apex):
     """Returns True if the symbol should be omitted."""
     if not vndk and 'vndk' in symbol.tags:
+        return True
+    if not apex and 'apex' in symbol.tags:
         return True
     if not symbol_in_arch(symbol.tags, arch):
         return True
@@ -239,15 +243,15 @@ class Symbol(object):
     def __eq__(self, other):
         return self.name == other.name and set(self.tags) == set(other.tags)
 
-
 class SymbolFileParser(object):
     """Parses NDK symbol files."""
-    def __init__(self, input_file, api_map, arch, api, vndk):
+    def __init__(self, input_file, api_map, arch, api, vndk, apex):
         self.input_file = input_file
         self.api_map = api_map
         self.arch = arch
         self.api = api
         self.vndk = vndk
+        self.apex = apex
         self.current_line = None
 
     def parse(self):
@@ -275,11 +279,11 @@ class SymbolFileParser(object):
         symbol_names = set()
         multiply_defined_symbols = set()
         for version in versions:
-            if should_omit_version(version, self.arch, self.api, self.vndk):
+            if should_omit_version(version, self.arch, self.api, self.vndk, self.apex):
                 continue
 
             for symbol in version.symbols:
-                if should_omit_symbol(symbol, self.arch, self.api, self.vndk):
+                if should_omit_symbol(symbol, self.arch, self.api, self.vndk, self.apex):
                     continue
 
                 if symbol.name in symbol_names:
@@ -363,12 +367,13 @@ class SymbolFileParser(object):
 
 class Generator(object):
     """Output generator that writes stub source files and version scripts."""
-    def __init__(self, src_file, version_script, arch, api, vndk):
+    def __init__(self, src_file, version_script, arch, api, vndk, apex):
         self.src_file = src_file
         self.version_script = version_script
         self.arch = arch
         self.api = api
         self.vndk = vndk
+        self.apex = apex
 
     def write(self, versions):
         """Writes all symbol data to the output files."""
@@ -377,14 +382,14 @@ class Generator(object):
 
     def write_version(self, version):
         """Writes a single version block's data to the output files."""
-        if should_omit_version(version, self.arch, self.api, self.vndk):
+        if should_omit_version(version, self.arch, self.api, self.vndk, self.apex):
             return
 
         section_versioned = symbol_versioned_in_api(version.tags, self.api)
         version_empty = True
         pruned_symbols = []
         for symbol in version.symbols:
-            if should_omit_symbol(symbol, self.arch, self.api, self.vndk):
+            if should_omit_symbol(symbol, self.arch, self.api, self.vndk, self.apex):
                 continue
 
             if symbol_versioned_in_api(symbol.tags, self.api):
@@ -447,6 +452,8 @@ def parse_args():
         help='Architecture being targeted.')
     parser.add_argument(
         '--vndk', action='store_true', help='Use the VNDK variant.')
+    parser.add_argument(
+        '--apex', action='store_true', help='Use the APEX variant.')
 
     parser.add_argument(
         '--api-map', type=os.path.realpath, required=True,
@@ -481,14 +488,14 @@ def main():
     with open(args.symbol_file) as symbol_file:
         try:
             versions = SymbolFileParser(symbol_file, api_map, args.arch, api,
-                                        args.vndk).parse()
+                                        args.vndk, args.apex).parse()
         except MultiplyDefinedSymbolError as ex:
             sys.exit('{}: error: {}'.format(args.symbol_file, ex))
 
     with open(args.stub_src, 'w') as src_file:
         with open(args.version_script, 'w') as version_file:
             generator = Generator(src_file, version_file, args.arch, api,
-                                  args.vndk)
+                                  args.vndk, args.apex)
             generator.write(versions)
 
 

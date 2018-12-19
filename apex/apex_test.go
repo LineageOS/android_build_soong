@@ -321,6 +321,9 @@ func TestApexWithStubs(t *testing.T) {
 	// Ensure that stubs libs are built without -include flags
 	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylib2Cflags, "-include ")
+
+	// Ensure that genstub is invoked with --apex
+	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3_myapex").Rule("genStubSrc").Args["flags"])
 }
 
 func TestApexWithExplicitStubsDependency(t *testing.T) {
