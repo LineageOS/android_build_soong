@@ -17,6 +17,7 @@ package java
 // This file contains the module types for compiling Android apps.
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -67,9 +68,7 @@ type appProperties struct {
 	// list of native libraries that will be provided in or alongside the resulting jar
 	Jni_libs []string `android:"arch_variant"`
 
-	AllowDexPreopt bool `blueprint:"mutated"`
-	EmbedJNI       bool `blueprint:"mutated"`
-	StripDex       bool `blueprint:"mutated"`
+	EmbedJNI bool `blueprint:"mutated"`
 }
 
 type AndroidApp struct {
@@ -143,42 +142,16 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateAndroidBuildActions(ctx)
 }
 
-// Returns whether this module should have the dex file stored uncompressed in the APK, or stripped completely.  If
-// stripped, the code will still be present on the device in the dexpreopted files.
-// This is only necessary for APKs, and not jars, because APKs are signed and the dex file should not be uncompressed
-// or removed after the signature has been generated.  For jars, which are not signed, the dex file is uncompressed
-// or removed at installation time in Make.
-func (a *AndroidApp) uncompressOrStripDex(ctx android.ModuleContext) (uncompress, strip bool) {
+// Returns whether this module should have the dex file stored uncompressed in the APK.
+func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 	if ctx.Config().UnbundledBuild() {
-		return false, false
+		return false
 	}
-
-	strip = ctx.Config().DefaultStripDex()
-	// TODO(ccross): don't strip dex installed on partitions that may be updated separately (like vendor)
-	// TODO(ccross): don't strip dex on modules with LOCAL_APK_LIBRARIES equivalent
 
 	// Uncompress dex in APKs of privileged apps, and modules used by privileged apps.
-	if ctx.Config().UncompressPrivAppDex() &&
+	return ctx.Config().UncompressPrivAppDex() &&
 		(Bool(a.appProperties.Privileged) ||
-			inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules())) {
-
-		uncompress = true
-		// If the dex files is store uncompressed, don't strip it, we will reuse the uncompressed dex from the APK
-		// instead of copying it into the odex file.
-		strip = false
-	}
-
-	// If dexpreopt is disabled, don't strip the dex file
-	if !a.appProperties.AllowDexPreopt ||
-		!BoolDefault(a.deviceProperties.Dex_preopt.Enabled, true) ||
-		ctx.Config().DisableDexPreopt(ctx.ModuleName()) {
-		strip = false
-	}
-
-	// TODO(ccross): strip dexpropted modules that are not propted to system_other
-	strip = false
-
-	return uncompress, strip
+			inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules()))
 }
 
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
@@ -228,16 +201,25 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, staticLibProguardFlagFiles...)
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
 
-	a.deviceProperties.UncompressDex, a.appProperties.StripDex = a.uncompressOrStripDex(ctx)
+	a.deviceProperties.UncompressDex = a.shouldUncompressDex(ctx)
+
+	var installDir string
+	if ctx.ModuleName() == "framework-res" {
+		// framework-res.apk is installed as system/framework/framework-res.apk
+		installDir = "framework"
+	} else if Bool(a.appProperties.Privileged) {
+		installDir = filepath.Join("priv-app", ctx.ModuleName())
+	} else {
+		installDir = filepath.Join("app", ctx.ModuleName())
+	}
+	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, ctx.ModuleName()+".apk")
+	a.dexpreopter.isPrivApp = Bool(a.appProperties.Privileged)
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
-	dexJarFile := a.dexJarFile
 
-	if a.appProperties.StripDex {
-		dexJarFile = nil
-	}
+	dexJarFile := a.maybeStrippedDexJarFile
 
 	var certificates []Certificate
 
@@ -287,9 +269,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
 	} else if Bool(a.appProperties.Privileged) {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app"), ctx.ModuleName()+".apk", a.outputFile)
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app", ctx.ModuleName()), ctx.ModuleName()+".apk", a.outputFile)
 	} else {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "app"), ctx.ModuleName()+".apk", a.outputFile)
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "app", ctx.ModuleName()), ctx.ModuleName()+".apk", a.outputFile)
 	}
 }
 
@@ -337,11 +319,11 @@ func AndroidAppFactory() android.Module {
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
-	module.appProperties.AllowDexPreopt = true
 
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
+		&module.Module.dexpreoptProperties,
 		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties)
@@ -399,11 +381,12 @@ func AndroidTestFactory() android.Module {
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.EmbedJNI = true
-	module.appProperties.AllowDexPreopt = false
+	module.Module.dexpreopter.isTest = true
 
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
+		&module.Module.dexpreoptProperties,
 		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
@@ -434,11 +417,12 @@ func AndroidTestHelperAppFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.EmbedJNI = true
-	module.appProperties.AllowDexPreopt = false
+	module.Module.dexpreopter.isTest = true
 
 	module.AddProperties(
 		&module.Module.properties,
 		&module.Module.deviceProperties,
+		&module.Module.dexpreoptProperties,
 		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
