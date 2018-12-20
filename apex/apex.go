@@ -450,7 +450,11 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *apexBundle) Srcs() android.Paths {
-	return android.Paths{a.outputFiles[imageApex]}
+	if file, ok := a.outputFiles[imageApex]; ok {
+		return android.Paths{file}
+	} else {
+		return nil
+	}
 }
 
 func (a *apexBundle) installable() bool {
