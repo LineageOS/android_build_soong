@@ -51,12 +51,12 @@ type BinaryLinkerProperties struct {
 }
 
 func init() {
-	android.RegisterModuleType("cc_binary", binaryFactory)
+	android.RegisterModuleType("cc_binary", BinaryFactory)
 	android.RegisterModuleType("cc_binary_host", binaryHostFactory)
 }
 
 // Module factory for binaries
-func binaryFactory() android.Module {
+func BinaryFactory() android.Module {
 	module, _ := NewBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
