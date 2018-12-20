@@ -29,9 +29,12 @@ var (
 )
 
 type AndroidMkContext interface {
+	Name() string
 	Target() android.Target
 	subAndroidMk(*android.AndroidMkData, interface{})
 	useVndk() bool
+	static() bool
+	inRecovery() bool
 }
 
 type subAndroidMkProvider interface {
@@ -59,8 +62,12 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 
 	ret := android.AndroidMkData{
 		OutputFile: c.outputFile,
-		Required:   append(c.Properties.AndroidMkRuntimeLibs, c.Properties.ApexesProvidingSharedLibs...),
-		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
+		// TODO(jiyong): add the APEXes providing shared libs to the required modules
+		// Currently, adding c.Properties.ApexesProvidingSharedLibs is causing multiple
+		// runtime APEXes (com.android.runtime.debug|release) to be installed. And this
+		// is breaking some older devices (like marlin) where system.img is small.
+		Required: c.Properties.AndroidMkRuntimeLibs,
+		Include:  "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
 
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
@@ -172,12 +179,22 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		}
 	})
 
-	if library.shared() {
+	if library.shared() && !library.buildStubs() {
 		ctx.subAndroidMk(ret, library.baseInstaller)
 	} else {
 		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+			if library.buildStubs() {
+				fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
+			}
 		})
+	}
+
+	if len(library.Properties.Stubs.Versions) > 0 && android.DirectlyInAnyApex(ctx.Name()) &&
+		!ctx.inRecovery() && !ctx.useVndk() && !ctx.static() {
+		if !library.buildStubs() {
+			ret.SubName = ".bootstrap"
+		}
 	}
 }
 

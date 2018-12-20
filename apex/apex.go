@@ -492,6 +492,19 @@ func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, di
 	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
 	}
+	switch cc.Name() {
+	case "libc", "libm", "libdl":
+		// Special case for bionic libs. This is to prevent the bionic libs
+		// from being included in the search path /apex/com.android.apex/lib.
+		// This exclusion is required because bionic libs in the runtime APEX
+		// are available via the legacy paths /system/lib/libc.so, etc. By the
+		// init process, the bionic libs in the APEX are bind-mounted to the
+		// legacy paths and thus will be loaded into the default linker namespace.
+		// If the bionic libs are directly in /apex/com.android.apex/lib then
+		// the same libs will be again loaded to the runtime linker namespace,
+		// which will result double loading of bionic libs that isn't supported.
+		dirInApex = filepath.Join(dirInApex, "bionic")
+	}
 
 	fileToCopy = cc.OutputFile().Path()
 	return
