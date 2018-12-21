@@ -41,6 +41,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(cc.LibrarySharedFactory))
+	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(cc.BinaryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
@@ -613,4 +614,55 @@ func TestUseVendor(t *testing.T) {
 	// ensure that the apex does not include core variants
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib.so")
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib2.so")
+}
+
+func TestStaticLinking(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1", "2", "3"],
+			},
+		}
+
+		cc_binary {
+			name: "not_in_apex",
+			srcs: ["mylib.cpp"],
+			static_libs: ["mylib"],
+			static_executable: true,
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_object {
+			name: "crtbegin_static",
+			stl: "none",
+		}
+
+		cc_object {
+			name: "crtend_android",
+			stl: "none",
+		}
+
+	`)
+
+	ldFlags := ctx.ModuleForTests("not_in_apex", "android_arm64_armv8-a_core").Rule("ld").Args["libFlags"]
+
+	// Ensure that not_in_apex is linking with the static variant of mylib
+	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_core_static/mylib.a")
 }
