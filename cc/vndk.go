@@ -199,7 +199,7 @@ var (
 )
 
 // gather list of vndk-core, vndk-sp, and ll-ndk libs
-func vndkMutator(mctx android.BottomUpMutatorContext) {
+func VndkMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.Enabled() {
 		if lib, ok := m.linker.(*llndkStubDecorator); ok {
 			vndkLibrariesLock.Lock()
