@@ -1419,7 +1419,12 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if t, ok := depTag.(dependencyTag); ok && t.library {
-			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
+			depIsStatic := false
+			switch depTag {
+			case staticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag:
+				depIsStatic = true
+			}
+			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok && !depIsStatic {
 				depIsStubs := dependentLibrary.buildStubs()
 				depHasStubs := ccDep.HasStubsVariants()
 				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
