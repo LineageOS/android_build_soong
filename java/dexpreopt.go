@@ -28,11 +28,11 @@ import (
 type dexpreopter struct {
 	dexpreoptProperties DexpreoptProperties
 
-	installPath   android.OutputPath
-	isPrivApp     bool
-	isSDKLibrary  bool
-	isTest        bool
-	isInstallable bool
+	installPath     android.OutputPath
+	uncompressedDex bool
+	isSDKLibrary    bool
+	isTest          bool
+	isInstallable   bool
 
 	builtInstalled []string
 }
@@ -145,19 +145,13 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		deps = append(deps, profileClassListing.Path())
 	}
 
-	uncompressedDex := false
-	if ctx.Config().UncompressPrivAppDex() &&
-		(d.isPrivApp || inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules())) {
-		uncompressedDex = true
-	}
-
 	dexpreoptConfig := dexpreopt.ModuleConfig{
 		Name:                ctx.ModuleName(),
 		DexLocation:         dexLocation,
 		BuildPath:           android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").String(),
 		DexPath:             dexJarFile.String(),
 		PreferCodeIntegrity: false,
-		UncompressedDex:     uncompressedDex,
+		UncompressedDex:     d.uncompressedDex,
 		HasApkLibraries:     false,
 		PreoptFlags:         nil,
 
