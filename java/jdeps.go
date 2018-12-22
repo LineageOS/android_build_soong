@@ -78,9 +78,9 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 		if data.Class != "" {
 			dpInfo.Classes = append(dpInfo.Classes, data.Class)
 		}
-		out := data.OutputFile.String()
-		if out != "" {
-			dpInfo.Installed_paths = append(dpInfo.Installed_paths, out)
+
+		if dep, ok := module.(Dependency); ok {
+			dpInfo.Installed_paths = append(dpInfo.Installed_paths, dep.ImplementationJars().Strings()...)
 		}
 		dpInfo.Classes = android.FirstUniqueStrings(dpInfo.Classes)
 		dpInfo.Installed_paths = android.FirstUniqueStrings(dpInfo.Installed_paths)
