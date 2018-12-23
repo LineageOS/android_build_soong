@@ -31,9 +31,9 @@ var (
 	genStubSrc = pctx.AndroidStaticRule("genStubSrc",
 		blueprint.RuleParams{
 			Command: "$toolPath --arch $arch --api $apiLevel --api-map " +
-				"$apiMap $vndk $in $out",
+				"$apiMap $flags $in $out",
 			CommandDeps: []string{"$toolPath"},
-		}, "arch", "apiLevel", "apiMap", "vndk")
+		}, "arch", "apiLevel", "apiMap", "flags")
 
 	ndkLibrarySuffix = ".ndk"
 
@@ -271,7 +271,7 @@ func (stub *stubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps Pa
 	return addStubLibraryCompilerFlags(flags)
 }
 
-func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vndk string) (Objects, android.ModuleGenPath) {
+func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, genstubFlags string) (Objects, android.ModuleGenPath) {
 	arch := ctx.Arch().ArchType.String()
 
 	stubSrcPath := android.PathForModuleGen(ctx, "stub.c")
@@ -288,7 +288,7 @@ func compileStubLibrary(ctx ModuleContext, flags Flags, symbolFile, apiLevel, vn
 			"arch":     arch,
 			"apiLevel": apiLevel,
 			"apiMap":   apiLevelsJson.String(),
-			"vndk":     vndk,
+			"flags":    genstubFlags,
 		},
 	})
 

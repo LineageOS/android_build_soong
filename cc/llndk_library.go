@@ -185,7 +185,7 @@ func NewLLndkStubLibrary() *Module {
 	return module
 }
 
-func llndkLibraryFactory() android.Module {
+func LlndkLibraryFactory() android.Module {
 	module := NewLLndkStubLibrary()
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
 	return module
@@ -219,6 +219,6 @@ func llndkHeadersFactory() android.Module {
 }
 
 func init() {
-	android.RegisterModuleType("llndk_library", llndkLibraryFactory)
+	android.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	android.RegisterModuleType("llndk_headers", llndkHeadersFactory)
 }

@@ -395,7 +395,7 @@ func extractExportIncludesFromFlags(flags []string) []string {
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	if library.buildStubs() {
-		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "")
+		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "--apex")
 		library.versionScriptPath = versionScript
 		return objs
 	}
@@ -807,6 +807,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			"-I" + android.PathForModuleGen(ctx, "sysprop", "include").String(),
 		}
 		library.reexportFlags(flags)
+		library.reexportDeps(library.baseCompiler.pathDeps)
 		library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
 	}
 

@@ -34,9 +34,9 @@ func init() {
 	android.RegisterModuleType("cc_defaults", defaultsFactory)
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", imageMutator).Parallel()
+		ctx.BottomUp("image", ImageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("vndk", vndkMutator).Parallel()
+		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
 		ctx.BottomUp("version", VersionMutator).Parallel()
@@ -1419,7 +1419,12 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if t, ok := depTag.(dependencyTag); ok && t.library {
-			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
+			depIsStatic := false
+			switch depTag {
+			case staticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag:
+				depIsStatic = true
+			}
+			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok && !depIsStatic {
 				depIsStubs := dependentLibrary.buildStubs()
 				depHasStubs := ccDep.HasStubsVariants()
 				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
@@ -1792,7 +1797,7 @@ func squashRecoverySrcs(m *Module) {
 	}
 }
 
-func imageMutator(mctx android.BottomUpMutatorContext) {
+func ImageMutator(mctx android.BottomUpMutatorContext) {
 	if mctx.Os() != android.Android {
 		return
 	}

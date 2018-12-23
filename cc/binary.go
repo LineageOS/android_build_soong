@@ -51,12 +51,12 @@ type BinaryLinkerProperties struct {
 }
 
 func init() {
-	android.RegisterModuleType("cc_binary", binaryFactory)
+	android.RegisterModuleType("cc_binary", BinaryFactory)
 	android.RegisterModuleType("cc_binary_host", binaryHostFactory)
 }
 
 // Module factory for binaries
-func binaryFactory() android.Module {
+func BinaryFactory() android.Module {
 	module, _ := NewBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
@@ -299,9 +299,6 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	var linkerDeps android.Paths
 
-	sharedLibs := deps.SharedLibs
-	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
-
 	if deps.LinkerFlagsFile.Valid() {
 		flags.LdFlags = append(flags.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
 		linkerDeps = append(linkerDeps, deps.LinkerFlagsFile.Path())
@@ -363,8 +360,15 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		binary.injectHostBionicLinkerSymbols(ctx, outputFile, deps.DynamicLinker.Path(), injectedOutputFile)
 	}
 
-	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
-	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+	var sharedLibs android.Paths
+	// Ignore shared libs for static executables.
+	if !binary.static() {
+		sharedLibs = deps.SharedLibs
+		sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
+		linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
+		linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
+	}
+
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
