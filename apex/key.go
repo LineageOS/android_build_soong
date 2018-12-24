@@ -65,8 +65,21 @@ func (m *apexKey) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	m.public_key_file = android.PathForModuleSrc(ctx, String(m.properties.Public_key))
-	m.private_key_file = android.PathForModuleSrc(ctx, String(m.properties.Private_key))
+	if ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild() {
+		// Flattened APEXes are not signed
+		return
+	}
+
+	m.public_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Public_key))
+	m.private_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Private_key))
+
+	// If not found, fall back to the local key pairs
+	if !android.ExistentPathForSource(ctx, m.public_key_file.String()).Valid() {
+		m.public_key_file = android.PathForModuleSrc(ctx, String(m.properties.Public_key))
+	}
+	if !android.ExistentPathForSource(ctx, m.private_key_file.String()).Valid() {
+		m.private_key_file = android.PathForModuleSrc(ctx, String(m.properties.Private_key))
+	}
 
 	pubKeyName := m.public_key_file.Base()[0 : len(m.public_key_file.Base())-len(m.public_key_file.Ext())]
 	privKeyName := m.private_key_file.Base()[0 : len(m.private_key_file.Base())-len(m.private_key_file.Ext())]
