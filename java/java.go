@@ -1427,6 +1427,9 @@ func (j *Module) HeaderJars() android.Paths {
 }
 
 func (j *Module) ImplementationJars() android.Paths {
+	if j.implementationJarFile == nil {
+		return nil
+	}
 	return android.Paths{j.implementationJarFile}
 }
 
@@ -1809,6 +1812,9 @@ func (j *Import) HeaderJars() android.Paths {
 }
 
 func (j *Import) ImplementationJars() android.Paths {
+	if j.combinedClasspathFile == nil {
+		return nil
+	}
 	return android.Paths{j.combinedClasspathFile}
 }
 
