@@ -122,15 +122,13 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []blueprint.Module {
 	if len(m.apexVariations) > 0 {
-		// The original module is mutated into "platform" variation.
-		variations := []string{"platform"}
-		for _, a := range m.apexVariations {
-			variations = append(variations, a)
-		}
+		variations := []string{""} // Original variation for platform
+		variations = append(variations, m.apexVariations...)
+
 		modules := mctx.CreateVariations(variations...)
 		for i, m := range modules {
 			if i == 0 {
-				continue // platform
+				continue
 			}
 			m.(ApexModule).setApexName(variations[i])
 		}
