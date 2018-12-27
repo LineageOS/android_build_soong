@@ -317,7 +317,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 					Err:  os.ErrNotExist,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(args.Stderr, "warning:", err)
+					fmt.Fprintln(z.stderr, "warning:", err)
 				} else {
 					return err
 				}
@@ -334,7 +334,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 					Err:  os.ErrNotExist,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(args.Stderr, "warning:", err)
+					fmt.Fprintln(z.stderr, "warning:", err)
 				} else {
 					return err
 				}
@@ -345,7 +345,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 					Err:  syscall.ENOTDIR,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(args.Stderr, "warning:", err)
+					fmt.Fprintln(z.stderr, "warning:", err)
 				} else {
 					return err
 				}
