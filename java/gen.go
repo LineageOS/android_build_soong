@@ -14,10 +14,6 @@
 
 package java
 
-// This file generates the final rules for compiling all C/C++.  All properties related to
-// compiling should have been translated into builderFlags or another argument to the Transform*
-// functions.
-
 import (
 	"github.com/google/blueprint"
 

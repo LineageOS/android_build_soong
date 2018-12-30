@@ -1420,9 +1420,12 @@ func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 	return instrumentedJar
 }
 
-var _ Dependency = (*Library)(nil)
+var _ Dependency = (*Module)(nil)
 
 func (j *Module) HeaderJars() android.Paths {
+	if j.headerJarFile == nil {
+		return nil
+	}
 	return android.Paths{j.headerJarFile}
 }
 
@@ -1441,14 +1444,19 @@ func (j *Module) ResourceJars() android.Paths {
 }
 
 func (j *Module) ImplementationAndResourcesJars() android.Paths {
+	if j.implementationAndResourcesJar == nil {
+		return nil
+	}
 	return android.Paths{j.implementationAndResourcesJar}
 }
 
 func (j *Module) AidlIncludeDirs() android.Paths {
+	// exportAidlIncludeDirs is type android.Paths already
 	return j.exportAidlIncludeDirs
 }
 
 func (j *Module) ExportedSdkLibs() []string {
+	// exportedSdkLibs is type []string
 	return j.exportedSdkLibs
 }
 
@@ -1808,6 +1816,9 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 var _ Dependency = (*Import)(nil)
 
 func (j *Import) HeaderJars() android.Paths {
+	if j.combinedClasspathFile == nil {
+		return nil
+	}
 	return android.Paths{j.combinedClasspathFile}
 }
 
@@ -1823,6 +1834,9 @@ func (j *Import) ResourceJars() android.Paths {
 }
 
 func (j *Import) ImplementationAndResourcesJars() android.Paths {
+	if j.combinedClasspathFile == nil {
+		return nil
+	}
 	return android.Paths{j.combinedClasspathFile}
 }
 
@@ -1833,6 +1847,10 @@ func (j *Import) AidlIncludeDirs() android.Paths {
 func (j *Import) ExportedSdkLibs() []string {
 	return j.exportedSdkLibs
 }
+
+// Add compile time check for interface implementation
+var _ android.IDEInfo = (*Import)(nil)
+var _ android.IDECustomizedModuleName = (*Import)(nil)
 
 // Collect information for opening IDE project files in java/jdeps.go.
 const (
