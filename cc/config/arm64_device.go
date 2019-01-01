@@ -94,6 +94,11 @@ func init() {
 	// Clang supports specific Kryo targeting
 	replaceFirst(arm64ClangCpuVariantCflags["kryo"], "-mcpu=cortex-a57", "-mcpu=kryo")
 
+	// cortex-a55 and cortex-a75 are not supported by GCC, but are supported by Clang,
+	// so override the definitions when building modules with Clang.
+	replaceFirst(arm64CpuVariantCflags["cortex-a55"], "-mcpu=cortex-a55", "-mcpu=cortex-a53")
+	replaceFirst(arm64CpuVariantCflags["cortex-a75"], "-mcpu=cortex-a55", "-mcpu=cortex-a53")
+
 	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
 	pctx.SourcePathVariable("Arm64GccRoot",
