@@ -98,7 +98,7 @@ var (
 			"-D__ARM_FEATURE_LPAE=1",
 		},
 		"cortex-a55": []string{
-			"-mcpu=cortex-a55",
+			"-mcpu=cortex-a53",
 			"-mfpu=neon-fp-armv8",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
 			// don't advertise.
@@ -107,7 +107,7 @@ var (
 			"-D__ARM_FEATURE_LPAE=1",
 		},
 		"cortex-a75": []string{
-			"-mcpu=cortex-a55",
+			"-mcpu=cortex-a53",
 			"-mfpu=neon-fp-armv8",
 			// Fake an ARM compiler flag as these processors support LPAE which GCC/clang
 			// don't advertise.
@@ -174,6 +174,11 @@ func init() {
 	// Krait is not supported by GCC, but is supported by Clang, so
 	// override the definitions when building modules with Clang.
 	replaceFirst(armClangCpuVariantCflags["krait"], "-mcpu=cortex-a15", "-mcpu=krait")
+
+	// cortex-a55 and cortex-a75 are not supported by GCC, but are supported by Clang,
+	// so override the definitions when building modules with Clang.
+	replaceFirst(armClangCpuVariantCflags["cortex-a55"], "-mcpu=cortex-a53", "-mcpu=cortex-a55")
+	replaceFirst(armClangCpuVariantCflags["cortex-a75"], "-mcpu=cortex-a53", "-mcpu=cortex-a55")
 
 	// The reason we use "-march=armv8-a+crc", instead of "-march=armv8-a", for
 	// gcc is the latter would conflict with any specified/supported -mcpu!
