@@ -175,6 +175,11 @@ func init() {
 	// override the definitions when building modules with Clang.
 	replaceFirst(armClangCpuVariantCflags["krait"], "-mcpu=cortex-a15", "-mcpu=krait")
 
+	// cortex-a55 and cortex-a75 are not supported by GCC, but are supported by Clang,
+	// so override the definitions when building modules with Clang.
+	replaceFirst(armCpuVariantCflags["cortex-a55"], "-mcpu=cortex-a55", "-mcpu=cortex-a53")
+	replaceFirst(armCpuVariantCflags["cortex-a75"], "-mcpu=cortex-a55", "-mcpu=cortex-a53")
+
 	// The reason we use "-march=armv8-a+crc", instead of "-march=armv8-a", for
 	// gcc is the latter would conflict with any specified/supported -mcpu!
 	// All armv8-a cores supported by gcc 4.9 support crc, so it's safe
