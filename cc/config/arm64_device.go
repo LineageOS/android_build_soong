@@ -50,12 +50,10 @@ var (
 			"-mcpu=cortex-a53",
 		},
 		"cortex-a55": []string{
-			"-mcpu=cortex-a55",
+			"-mcpu=cortex-a53",
 		},
 		"cortex-a75": []string{
-			// Use the cortex-a55 since it is similar to the little
-			// core (cortex-a55) and is sensitive to ordering.
-			"-mcpu=cortex-a55",
+			"-mcpu=cortex-a53",
 		},
 		"kryo": []string{
 			// Use the cortex-a57 cpu since some compilers
@@ -93,6 +91,13 @@ func init() {
 
 	// Clang supports specific Kryo targeting
 	replaceFirst(arm64ClangCpuVariantCflags["kryo"], "-mcpu=cortex-a57", "-mcpu=kryo")
+
+	// cortex-a55 and cortex-a75 are not supported by GCC, but are supported by Clang,
+	// so override the definitions when building modules with Clang.
+	replaceFirst(arm64ClangCpuVariantCflags["cortex-a55"], "-mcpu=cortex-a53", "-mcpu=cortex-a55")
+	// Use the cortex-a55 since it is similar to the little
+	// core (cortex-a55) and is sensitive to ordering.
+	replaceFirst(arm64ClangCpuVariantCflags["cortex-a75"], "-mcpu=cortex-a53", "-mcpu=cortex-a55")
 
 	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
