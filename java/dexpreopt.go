@@ -147,14 +147,14 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	}
 
 	dexpreoptConfig := dexpreopt.ModuleConfig{
-		Name:            ctx.ModuleName(),
-		DexLocation:     dexLocation,
-		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").String(),
-		DexPath:         dexJarFile.String(),
-		PreferIntegrity: false,
-		UncompressedDex: uncompressedDex,
-		HasApkLibraries: false,
-		PreoptFlags:     nil,
+		Name:                ctx.ModuleName(),
+		DexLocation:         dexLocation,
+		BuildPath:           android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").String(),
+		DexPath:             dexJarFile.String(),
+		PreferCodeIntegrity: false,
+		UncompressedDex:     uncompressedDex,
+		HasApkLibraries:     false,
+		PreoptFlags:         nil,
 
 		ProfileClassListing:  profileClassListing.String(),
 		ProfileIsTextListing: profileIsTextListing,

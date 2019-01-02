@@ -61,9 +61,9 @@ def parse_args():
                       help='specify additional <uses-library> tag to add. android:requred is set to false')
   parser.add_argument('--uses-non-sdk-api', dest='uses_non_sdk_api', action='store_true',
                       help='manifest is for a package built against the platform')
-  parser.add_argument('--prefer-integrity', dest='prefer_integrity', action='store_true',
-                      help=('specify if the app prefers strict integrity. Should not be conflict if ' +
-                            'already declared in the manifest.'))
+  parser.add_argument('--prefer-code-integrity', dest='prefer_code_integrity', action='store_true',
+                      help=('specify if the app prefers strict code integrity. Should not be conflict '
+                            'if already declared in the manifest.'))
   parser.add_argument('input', help='input AndroidManifest.xml file')
   parser.add_argument('output', help='output AndroidManifest.xml file')
   return parser.parse_args()
@@ -272,7 +272,7 @@ def add_uses_non_sdk_api(doc):
     application.setAttributeNode(attr)
 
 
-def add_prefer_integrity(doc):
+def add_prefer_code_integrity(doc):
   manifest = parse_manifest(doc)
   elems = get_children_with_tag(manifest, 'application')
   application = elems[0] if len(elems) == 1 else None
@@ -285,13 +285,13 @@ def add_prefer_integrity(doc):
     manifest.insertBefore(doc.createTextNode(indent), first)
     manifest.insertBefore(application, first)
 
-  attr = application.getAttributeNodeNS(android_ns, 'preferIntegrity')
+  attr = application.getAttributeNodeNS(android_ns, 'preferCodeIntegrity')
   if attr is None:
-    attr = doc.createAttributeNS(android_ns, 'android:preferIntegrity')
+    attr = doc.createAttributeNS(android_ns, 'android:preferCodeIntegrity')
     attr.value = 'true'
     application.setAttributeNode(attr)
   elif attr.value != 'true':
-    raise RuntimeError('existing attribute mismatches the option of --prefer-integrity')
+    raise RuntimeError('existing attribute mismatches the option of --prefer-code-integrity')
 
 
 def write_xml(f, doc):
@@ -321,8 +321,8 @@ def main():
     if args.uses_non_sdk_api:
       add_uses_non_sdk_api(doc)
 
-    if args.prefer_integrity:
-      add_prefer_integrity(doc)
+    if args.prefer_code_integrity:
+      add_prefer_code_integrity(doc)
 
     with open(args.output, 'wb') as f:
       write_xml(f, doc)
