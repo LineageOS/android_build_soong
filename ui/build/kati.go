@@ -18,6 +18,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -95,6 +97,22 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	cmd.Stderr = cmd.Stdout
 
 	envFunc(cmd.Environment)
+
+	if _, ok := cmd.Environment.Get("BUILD_USERNAME"); !ok {
+		u, err := user.Current()
+		if err != nil {
+			ctx.Println("Failed to get current user")
+		}
+		cmd.Environment.Set("BUILD_USERNAME", u.Username)
+	}
+
+	if _, ok := cmd.Environment.Get("BUILD_HOSTNAME"); !ok {
+		hostname, err := os.Hostname()
+		if err != nil {
+			ctx.Println("Failed to read hostname")
+		}
+		cmd.Environment.Set("BUILD_HOSTNAME", hostname)
+	}
 
 	cmd.StartOrFatal()
 	status.KatiReader(ctx.Status.StartTool(), pipe)
