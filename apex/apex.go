@@ -863,7 +863,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 					fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 					fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
 					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString(), name, fi.installDir))
-					fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", fi.builtFile.Base())
+					fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
 					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
 					fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
@@ -897,7 +897,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFiles[apexType].String())
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
-				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", name+apexType.suffix())
+				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
