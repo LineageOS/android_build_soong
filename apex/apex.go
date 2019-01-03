@@ -56,12 +56,12 @@ var (
 			`--file_contexts ${file_contexts} ` +
 			`--canned_fs_config ${canned_fs_config} ` +
 			`--payload_type image ` +
-			`--key ${key} ${image_dir} ${out} `,
+			`--key ${key} ${opt_flags} ${image_dir} ${out} `,
 		CommandDeps: []string{"${apexer}", "${avbtool}", "${e2fsdroid}", "${merge_zips}",
 			"${mke2fs}", "${resize2fs}", "${sefcontext_compile}",
 			"${soong_zip}", "${zipalign}", "${aapt2}"},
 		Description: "APEX ${image_dir} => ${out}",
-	}, "tool_path", "image_dir", "copy_commands", "manifest", "file_contexts", "canned_fs_config", "key")
+	}, "tool_path", "image_dir", "copy_commands", "manifest", "file_contexts", "canned_fs_config", "key", "opt_flags")
 
 	zipApexRule = pctx.StaticRule("zipApexRule", blueprint.RuleParams{
 		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
@@ -518,6 +518,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	filesInfo := []apexFile{}
 
 	var keyFile android.Path
+	var pubKeyFile android.Path
 	var certificate java.Certificate
 
 	if a.properties.Payload_type == nil || *a.properties.Payload_type == "image" {
@@ -576,6 +577,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case keyTag:
 				if key, ok := child.(*apexKey); ok {
 					keyFile = key.private_key_file
+					if !key.installable() && ctx.Config().Debuggable() {
+						// If the key is not installed, bundled it with the APEX.
+						// Note: this bundled key is valid only for non-production builds
+						// (eng/userdebug).
+						pubKeyFile = key.public_key_file
+					}
 					return false
 				} else {
 					ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
@@ -640,18 +647,19 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.filesInfo = filesInfo
 
 	if a.apexTypes.zip() {
-		a.buildUnflattenedApex(ctx, keyFile, certificate, zipApex)
+		a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, zipApex)
 	}
 	if a.apexTypes.image() {
 		if ctx.Config().FlattenApex() {
 			a.buildFlattenedApex(ctx)
 		} else {
-			a.buildUnflattenedApex(ctx, keyFile, certificate, imageApex)
+			a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, imageApex)
 		}
 	}
 }
 
-func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile android.Path, certificate java.Certificate, apexType apexPackaging) {
+func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile android.Path,
+	pubKeyFile android.Path, certificate java.Certificate, apexType apexPackaging) {
 	cert := String(a.properties.Certificate)
 	if cert != "" && android.SrcIsModule(cert) == "" {
 		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
@@ -739,8 +747,14 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		}
 		fileContexts := fileContextsOptionalPath.Path()
 
+		optFlags := []string{}
+
 		// Additional implicit inputs.
 		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, keyFile)
+		if pubKeyFile != nil {
+			implicitInputs = append(implicitInputs, pubKeyFile)
+			optFlags = append(optFlags, "--pubkey "+pubKeyFile.String())
+		}
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexRule,
@@ -755,6 +769,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 				"file_contexts":    fileContexts.String(),
 				"canned_fs_config": cannedFsConfig.String(),
 				"key":              keyFile.String(),
+				"opt_flags":        strings.Join(optFlags, " "),
 			},
 		})
 

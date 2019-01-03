@@ -45,6 +45,9 @@ type apexKeyProperties struct {
 	Public_key *string
 	// Path to the private key file in pem format. Used to sign APEXs.
 	Private_key *string
+
+	// Whether this key is installable to one of the partitions. Defualt: true.
+	Installable *bool
 }
 
 func apexKeyFactory() android.Module {
@@ -52,6 +55,10 @@ func apexKeyFactory() android.Module {
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
 	return module
+}
+
+func (m *apexKey) installable() bool {
+	return m.properties.Installable == nil || proptools.Bool(m.properties.Installable)
 }
 
 func (m *apexKey) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -71,7 +78,9 @@ func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	m.keyName = pubKeyName
 
-	ctx.InstallFile(android.PathForModuleInstall(ctx, "etc/security/apex"), m.keyName, m.public_key_file)
+	if m.installable() {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "etc/security/apex"), m.keyName, m.public_key_file)
+	}
 }
 
 func (m *apexKey) AndroidMk() android.AndroidMkData {
@@ -82,6 +91,7 @@ func (m *apexKey) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", "$(TARGET_OUT)/etc/security/apex")
 				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", m.keyName)
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !m.installable())
 			},
 		},
 	}
