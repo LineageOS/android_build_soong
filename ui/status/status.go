@@ -260,6 +260,10 @@ func (s *Status) message(level MsgLevel, msg string) {
 	}
 }
 
+func (s *Status) Status(msg string) {
+	s.message(StatusLvl, msg)
+}
+
 type toolStatus struct {
 	status *Status
 

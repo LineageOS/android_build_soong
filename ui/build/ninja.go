@@ -97,6 +97,7 @@ func runNinja(ctx Context, config Config) {
 		}
 	}()
 
+	ctx.Status.Status("Starting ninja...")
 	cmd.RunAndPrintOrFatal()
 }
 
