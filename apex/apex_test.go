@@ -664,5 +664,5 @@ func TestStaticLinking(t *testing.T) {
 	ldFlags := ctx.ModuleForTests("not_in_apex", "android_arm64_armv8-a_core").Rule("ld").Args["libFlags"]
 
 	// Ensure that not_in_apex is linking with the static variant of mylib
-	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_core_static/mylib.a")
+	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_core_static_platform/mylib.a")
 }
