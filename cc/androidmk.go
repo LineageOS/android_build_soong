@@ -59,7 +59,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 
 	ret := android.AndroidMkData{
 		OutputFile: c.outputFile,
-		Required:   c.Properties.AndroidMkRuntimeLibs,
+		Required:   append(c.Properties.AndroidMkRuntimeLibs, c.Properties.ApexesProvidingSharedLibs...),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
 
 		Extra: []android.AndroidMkExtraFunc{
@@ -75,9 +75,6 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				}
 				if len(c.Properties.AndroidMkWholeStaticLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_WHOLE_STATIC_LIBRARIES := "+strings.Join(c.Properties.AndroidMkWholeStaticLibs, " "))
-				}
-				if len(c.Properties.ApexesProvidingSharedLibs) > 0 {
-					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(c.Properties.ApexesProvidingSharedLibs, " "))
 				}
 				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.getMakeLinkType())
 				if c.useVndk() {
