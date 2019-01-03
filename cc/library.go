@@ -1059,7 +1059,7 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 			stubsVersionsFor(mctx.Config())[mctx.ModuleName()] = copiedVersions
 
 			// "" is for the non-stubs variant
-			versions = append(versions, "")
+			versions = append([]string{""}, versions...)
 
 			modules := mctx.CreateVariations(versions...)
 			for i, m := range modules {
