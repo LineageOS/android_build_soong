@@ -66,7 +66,7 @@ var testModuleConfig = ModuleConfig{
 	DexLocation:            "",
 	BuildPath:              "",
 	DexPath:                "",
-	PreferIntegrity:        false,
+	PreferCodeIntegrity:    false,
 	UncompressedDex:        false,
 	HasApkLibraries:        false,
 	PreoptFlags:            nil,
