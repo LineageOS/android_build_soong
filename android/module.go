@@ -190,6 +190,7 @@ type Module interface {
 	GetProperties() []interface{}
 
 	BuildParamsForTests() []BuildParams
+	VariablesForTests() map[string]string
 }
 
 type nameProperties struct {
@@ -473,6 +474,7 @@ type ModuleBase struct {
 
 	// For tests
 	buildParams []BuildParams
+	variables   map[string]string
 
 	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
 }
@@ -487,6 +489,10 @@ func (a *ModuleBase) GetProperties() []interface{} {
 
 func (a *ModuleBase) BuildParamsForTests() []BuildParams {
 	return a.buildParams
+}
+
+func (a *ModuleBase) VariablesForTests() map[string]string {
+	return a.variables
 }
 
 func (a *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool) {
@@ -781,6 +787,7 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		installDeps:            a.computeInstallDeps(blueprintCtx),
 		installFiles:           a.installFiles,
 		missingDeps:            blueprintCtx.GetMissingDependencies(),
+		variables:              make(map[string]string),
 	}
 
 	desc := "//" + ctx.ModuleDir() + ":" + ctx.ModuleName() + " "
@@ -842,6 +849,7 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	a.buildParams = ctx.buildParams
+	a.variables = ctx.variables
 }
 
 type androidBaseContextImpl struct {
@@ -864,6 +872,7 @@ type androidModuleContext struct {
 
 	// For tests
 	buildParams []BuildParams
+	variables   map[string]string
 }
 
 func (a *androidModuleContext) ninjaError(desc string, outputs []string, err error) {
@@ -928,6 +937,10 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 }
 
 func (a *androidModuleContext) Variable(pctx PackageContext, name, value string) {
+	if a.config.captureBuild {
+		a.variables[name] = value
+	}
+
 	a.ModuleContext.Variable(pctx.PackageContext, name, value)
 }
 
