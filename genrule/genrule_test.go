@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"reflect"
 )
 
 var buildDir string
@@ -54,7 +55,9 @@ func testContext(config android.Config, bp string,
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(GenRuleFactory))
+	ctx.RegisterModuleType("genrule_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("tool", android.ModuleFactoryAdaptor(toolFactory))
+	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
 
 	bp += `
@@ -463,6 +466,46 @@ func TestGenruleCmd(t *testing.T) {
 		})
 	}
 
+}
+
+func TestGenruleDefaults(t *testing.T) {
+	config := android.TestArchConfig(buildDir, nil)
+	bp := `
+				genrule_defaults {
+					name: "gen_defaults1",
+					cmd: "cp $(in) $(out)",
+				}
+
+				genrule_defaults {
+					name: "gen_defaults2",
+					srcs: ["in1"],
+				}
+
+				genrule {
+					name: "gen",
+					out: ["out"],
+					defaults: ["gen_defaults1", "gen_defaults2"],
+				}
+			`
+	ctx := testContext(config, bp, nil)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	if errs == nil {
+		_, errs = ctx.PrepareBuildActions(config)
+	}
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	gen := ctx.ModuleForTests("gen", "").Module().(*Module)
+
+	expectedCmd := "'cp ${in} __SBOX_OUT_FILES__'"
+	if gen.rawCommand != expectedCmd {
+		t.Errorf("Expected cmd: %q, actual: %q", expectedCmd, gen.rawCommand)
+	}
+
+	expectedSrcs := []string{"in1"}
+	if !reflect.DeepEqual(expectedSrcs, gen.properties.Srcs) {
+		t.Errorf("Expected srcs: %q, actual: %q", expectedSrcs, gen.properties.Srcs)
+	}
 }
 
 type testTool struct {
