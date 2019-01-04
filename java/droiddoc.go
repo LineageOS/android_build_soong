@@ -400,6 +400,7 @@ type droiddocBuilderFlags struct {
 
 	metalavaStubsFlags                string
 	metalavaAnnotationsFlags          string
+	metalavaMergeAnnoDirFlags         string
 	metalavaInclusionAnnotationsFlags string
 	metalavaApiLevelsAnnotationsFlags string
 
@@ -1413,8 +1414,8 @@ func (d *Droidstubs) collectStubsFlags(ctx android.ModuleContext,
 }
 
 func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
-	implicits *android.Paths, implicitOutputs *android.WritablePaths) string {
-	var flags string
+	implicits *android.Paths, implicitOutputs *android.WritablePaths) (string, string) {
+	var flags, mergeAnnoDirFlags string
 	if Bool(d.properties.Annotations_enabled) {
 		flags += " --include-annotations"
 		validatingNullability :=
@@ -1451,17 +1452,18 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 		ctx.VisitDirectDepsWithTag(metalavaMergeAnnotationsDirTag, func(m android.Module) {
 			if t, ok := m.(*ExportedDroiddocDir); ok {
 				*implicits = append(*implicits, t.deps...)
-				flags += " --merge-qualifier-annotations " + t.dir.String()
+				mergeAnnoDirFlags += " --merge-qualifier-annotations " + t.dir.String()
 			} else {
 				ctx.PropertyErrorf("merge_annotations_dirs",
 					"module %q is not a metalava merge-annotations dir", ctx.OtherModuleName(m))
 			}
 		})
+		flags += mergeAnnoDirFlags
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		flags += " --hide HiddenTypedefConstant --hide SuperfluousPrefix --hide AnnotationExtraction"
 	}
 
-	return flags
+	return flags, mergeAnnoDirFlags
 }
 
 func (d *Droidstubs) collectInclusionAnnotationsFlags(ctx android.ModuleContext,
@@ -1644,7 +1646,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	flags.metalavaStubsFlags = d.collectStubsFlags(ctx, &implicitOutputs)
-	flags.metalavaAnnotationsFlags = d.collectAnnotationsFlags(ctx, &implicits, &implicitOutputs)
+	flags.metalavaAnnotationsFlags, flags.metalavaMergeAnnoDirFlags =
+		d.collectAnnotationsFlags(ctx, &implicits, &implicitOutputs)
 	flags.metalavaInclusionAnnotationsFlags = d.collectInclusionAnnotationsFlags(ctx, &implicits, &implicitOutputs)
 	flags.metalavaApiLevelsAnnotationsFlags = d.collectAPILevelsAnnotationsFlags(ctx, &implicits, &implicitOutputs)
 	flags.metalavaApiToXmlFlags = d.collectApiToXmlFlags(ctx, &implicits, &implicitOutputs)
@@ -1670,7 +1673,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
 		opts := " " + d.Javadoc.args + " --check-compatibility:api:current " + apiFile.String() +
 			" --check-compatibility:removed:current " + removedApiFile.String() +
-			flags.metalavaInclusionAnnotationsFlags
+			flags.metalavaInclusionAnnotationsFlags + flags.metalavaMergeAnnoDirFlags + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
 			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
@@ -1701,7 +1704,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "check_last_released_api.timestamp")
 		opts := " " + d.Javadoc.args + " --check-compatibility:api:released " + apiFile.String() +
 			flags.metalavaInclusionAnnotationsFlags + " --check-compatibility:removed:released " +
-			removedApiFile.String() + " "
+			removedApiFile.String() + flags.metalavaMergeAnnoDirFlags + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
 			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
