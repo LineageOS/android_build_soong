@@ -28,6 +28,8 @@ import (
 )
 
 func init() {
+	android.RegisterModuleType("genrule_defaults", defaultsFactory)
+
 	android.RegisterModuleType("gensrcs", GenSrcsFactory)
 	android.RegisterModuleType("genrule", GenRuleFactory)
 }
@@ -95,6 +97,7 @@ type generatorProperties struct {
 
 type Module struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
 	// For other packages to make their own genrules with extra
 	// properties
@@ -502,6 +505,7 @@ func NewGenRule() *Module {
 func GenRuleFactory() android.Module {
 	m := NewGenRule()
 	android.InitAndroidModule(m)
+	android.InitDefaultableModule(m)
 	return m
 }
 
@@ -512,3 +516,35 @@ type genRuleProperties struct {
 
 var Bool = proptools.Bool
 var String = proptools.String
+
+//
+// Defaults
+//
+type Defaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+}
+
+func (d *Defaults) DepsMutator(ctx android.BottomUpMutatorContext) {
+}
+
+func defaultsFactory() android.Module {
+	return DefaultsFactory()
+}
+
+func DefaultsFactory(props ...interface{}) android.Module {
+	module := &Defaults{}
+
+	module.AddProperties(props...)
+	module.AddProperties(
+		&generatorProperties{},
+		&genRuleProperties{},
+	)
+
+	android.InitDefaultsModule(module)
+
+	return module
+}
