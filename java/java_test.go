@@ -1185,3 +1185,65 @@ func TestCompilerFlags(t *testing.T) {
 		}
 	}
 }
+
+// TODO(jungjw): Consider making this more robust by ignoring path order.
+func checkPatchModuleFlag(t *testing.T, ctx *android.TestContext, moduleName string, expected string) {
+	variables := ctx.ModuleForTests(moduleName, "android_common").Module().VariablesForTests()
+	flags := strings.Split(variables["javacFlags"], " ")
+	got := ""
+	for _, flag := range flags {
+		keyEnd := strings.Index(flag, "=")
+		if keyEnd > -1 && flag[:keyEnd] == "--patch-module" {
+			got = flag[keyEnd+1:]
+			break
+		}
+	}
+	if expected != got {
+		t.Errorf("Unexpected patch-module flag for module %q - expected %q, but got %q", moduleName, expected, got)
+	}
+}
+
+func TestPatchModule(t *testing.T) {
+	bp := `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			no_standard_libs: true,
+			system_modules: "none",
+			patch_module: "java.base",
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["c.java"],
+			patch_module: "java.base",
+		}
+	`
+
+	t.Run("1.8", func(t *testing.T) {
+		// Test default javac 1.8
+		ctx := testJava(t, bp)
+
+		checkPatchModuleFlag(t, ctx, "foo", "")
+		checkPatchModuleFlag(t, ctx, "bar", "")
+		checkPatchModuleFlag(t, ctx, "baz", "")
+	})
+
+	t.Run("1.9", func(t *testing.T) {
+		// Test again with javac 1.9
+		config := testConfig(map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
+		ctx := testContext(config, bp, nil)
+		run(t, ctx, config)
+
+		checkPatchModuleFlag(t, ctx, "foo", "")
+		expected := "java.base=.:" + buildDir
+		checkPatchModuleFlag(t, ctx, "bar", expected)
+		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework")}, ":")
+		checkPatchModuleFlag(t, ctx, "baz", expected)
+	})
+}
