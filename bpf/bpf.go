@@ -125,6 +125,14 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 	}
 }
 
+// Implements SourceFileProducer interface so that the obj output can be used in the data property
+// of other modules.
+func (bpf *bpf) Srcs() android.Paths {
+	return bpf.objs
+}
+
+var _ android.SourceFileProducer = (*bpf)(nil)
+
 func bpfFactory() android.Module {
 	module := &bpf{}
 
