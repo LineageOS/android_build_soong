@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 )
 
@@ -37,7 +38,7 @@ func testForDanglingRules(ctx Context, config Config) {
 		return
 	}
 
-	ctx.BeginTrace("test for dangling rules")
+	ctx.BeginTrace(metrics.TestRun, "test for dangling rules")
 	defer ctx.EndTrace()
 
 	ts := ctx.Status.StartTool()

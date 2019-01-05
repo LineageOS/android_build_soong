@@ -25,6 +25,7 @@ import (
 	"github.com/google/blueprint/microfactory"
 
 	"android/soong/ui/build/paths"
+	"android/soong/ui/metrics"
 )
 
 func parsePathDir(dir string) []string {
@@ -57,7 +58,7 @@ func SetupPath(ctx Context, config Config) {
 		return
 	}
 
-	ctx.BeginTrace("path")
+	ctx.BeginTrace(metrics.RunSetupTool, "path")
 	defer ctx.EndTrace()
 
 	origPath, _ := config.Environment().Get("PATH")
