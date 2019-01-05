@@ -22,11 +22,12 @@ import (
 	"strings"
 	"time"
 
+	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 )
 
 func runNinja(ctx Context, config Config) {
-	ctx.BeginTrace("ninja")
+	ctx.BeginTrace(metrics.PrimaryNinja, "ninja")
 	defer ctx.EndTrace()
 
 	fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
