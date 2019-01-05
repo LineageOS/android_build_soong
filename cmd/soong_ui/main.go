@@ -26,6 +26,7 @@ import (
 
 	"android/soong/ui/build"
 	"android/soong/ui/logger"
+	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
@@ -73,6 +74,8 @@ func main() {
 	trace := tracer.New(log)
 	defer trace.Close()
 
+	met := metrics.New()
+
 	stat := &status.Status{}
 	defer stat.Finish()
 	stat.AddOutput(terminal.NewStatusOutput(writer, os.Getenv("NINJA_STATUS")))
@@ -87,6 +90,7 @@ func main() {
 	buildCtx := build.Context{ContextImpl: &build.ContextImpl{
 		Context: ctx,
 		Logger:  log,
+		Metrics: met,
 		Tracer:  trace,
 		Writer:  writer,
 		Status:  stat,
@@ -99,6 +103,9 @@ func main() {
 	}
 
 	build.SetupOutDir(buildCtx, config)
+
+	metricsPath := filepath.Join(config.OutDir(), "build_metrics")
+	defer met.Dump(metricsPath)
 
 	logsDir := config.OutDir()
 	if config.Dist() {
@@ -116,7 +123,7 @@ func main() {
 			if start_time, err := strconv.ParseUint(start, 10, 64); err == nil {
 				log.Verbosef("Took %dms to start up.",
 					time.Since(time.Unix(0, int64(start_time))).Nanoseconds()/time.Millisecond.Nanoseconds())
-				buildCtx.CompleteTrace("startup", start_time, uint64(time.Now().UnixNano()))
+				buildCtx.CompleteTrace(metrics.RunSetupTool, "startup", start_time, uint64(time.Now().UnixNano()))
 			}
 		}
 

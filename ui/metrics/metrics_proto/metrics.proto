@@ -1,0 +1,129 @@
+// Copyright 2018 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+package build_metrics;
+option go_package = "metrics_proto";
+
+message MetricsBase {
+  // Timestamp generated when the build starts.
+  optional int64 build_date_timestamp = 1;
+
+  // It is usually used to specify the branch name [and release candidate].
+  optional string build_id  = 2;
+
+  // The platform version codename, eg. P, Q, REL.
+  optional string platform_version_codename = 3;
+
+  // The target product information, eg. aosp_arm.
+  optional string target_product = 4;
+
+  enum BUILDVARIANT {
+    USER = 0;
+    USERDEBUG = 1;
+    ENG = 2;
+  }
+  // The target build variant information, eg. eng.
+  optional BUILDVARIANT target_build_variant = 5 [default = ENG];
+
+  enum ARCH {
+    UNKNOWN = 0;
+    ARM = 1;
+    ARM64 = 2;
+    X86 = 3;
+    X86_64 = 4;
+  }
+  // The target arch information, eg. arm.
+  optional ARCH target_arch = 6 [default = UNKNOWN];
+
+  // The target arch variant information, eg. armv7-a-neon.
+  optional string target_arch_variant = 7;
+
+  // The target cpu variant information, eg. generic.
+  optional string target_cpu_variant = 8;
+
+  // The host arch information, eg. x86_64.
+  optional ARCH host_arch = 9 [default = UNKNOWN];
+
+  // The host 2nd arch information, eg. x86.
+  optional ARCH host_2nd_arch = 10 [default = UNKNOWN];
+
+  // The host os information, eg. linux.
+  optional string host_os = 11;
+
+  // The host os extra information, eg. Linux-4.17.0-3rodete2-amd64-x86_64-Debian-GNU.
+  optional string host_os_extra = 12;
+
+  // The host cross os information, eg. windows.
+  optional string host_cross_os = 13;
+
+  // The host cross arch information, eg. x86.
+  optional string host_cross_arch = 14;
+
+  // The host cross 2nd arch information, eg. x86_64.
+  optional string host_cross_2nd_arch = 15;
+
+  // The directory for generated built artifacts installation, eg. out.
+  optional string out_dir = 16;
+
+  // The metrics for calling various tools (microfactory) before Soong_UI starts.
+  repeated PerfInfo setup_tools = 17;
+
+  // The metrics for calling Kati by multiple times.
+  repeated PerfInfo kati_runs = 18;
+
+  // The metrics for calling Soong.
+  repeated PerfInfo soong_runs = 19;
+
+  // The metrics for calling Ninja.
+  repeated PerfInfo ninja_runs = 20;
+}
+
+message PerfInfo {
+  // The description for the phase/action/part while the tool running.
+  optional string desc = 1;
+
+  // The name for the running phase/action/part.
+  optional string name = 2;
+
+  // The absolute start time.
+  // The number of nanoseconds elapsed since January 1, 1970 UTC.
+  optional uint64 start_time = 3;
+
+  // The real running time.
+  // The number of nanoseconds elapsed since start_time.
+  optional uint64 real_time = 4;
+
+  // The number of MB for memory use.
+  optional uint64 memory_use = 5;
+}
+
+message ModuleTypeInfo {
+  enum BUILDSYSTEM {
+    UNKNOWN = 0;
+    SOONG = 1;
+    MAKE = 2;
+  }
+  // The build system, eg. Soong or Make.
+  optional BUILDSYSTEM build_system = 1 [default = UNKNOWN];
+
+  // The module type, eg. java_library, cc_binary, and etc.
+  optional string module_type = 2;
+
+  // The number of logical modules.
+  optional uint32 num_of_modules = 3;
+}
