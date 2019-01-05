@@ -76,16 +76,19 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		toolchain_library {
 			name: "libatomic",
 			vendor_available: true,
+			src: "",
 		}
 
 		toolchain_library {
 			name: "libcompiler_rt-extras",
 			vendor_available: true,
+			src: "",
 		}
 
 		toolchain_library {
 			name: "libgcc",
 			vendor_available: true,
+			src: "",
 		}
 
 		cc_library {
