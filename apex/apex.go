@@ -757,6 +757,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 			optFlags = append(optFlags, "--pubkey "+pubKeyFile.String())
 		}
 
+		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
+		if overridden {
+			optFlags = append(optFlags, "--override_apk_package_name "+manifestPackageName)
+		}
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexRule,
 			Implicits:   implicitInputs,

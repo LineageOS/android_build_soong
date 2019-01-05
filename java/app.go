@@ -184,6 +184,11 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO: LOCAL_PACKAGE_OVERRIDES
 	//    $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
 
+	manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
+	if overridden {
+		linkFlags = append(linkFlags, "--rename-manifest-package "+manifestPackageName)
+	}
+
 	a.aapt.buildActions(ctx, sdkContext(a), linkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
