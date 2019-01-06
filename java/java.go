@@ -1601,6 +1601,7 @@ func TestFactory() android.Module {
 		&module.testProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.Module.dexpreopter.isTest = true
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module

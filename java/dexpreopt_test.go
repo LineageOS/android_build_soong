@@ -83,6 +83,15 @@ func TestDexpreoptEnabled(t *testing.T) {
 			enabled: false,
 		},
 		{
+			name: "java test",
+			bp: `
+				java_test {
+					name: "foo",
+					srcs: ["a.java"],
+				}`,
+			enabled: false,
+		},
+		{
 			name: "android test",
 			bp: `
 				android_test {
