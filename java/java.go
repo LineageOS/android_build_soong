@@ -1326,6 +1326,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		j.dexJarFile = dexOutputFile
 
+		j.dexpreopter.isInstallable = Bool(j.properties.Installable)
 		dexOutputFile = j.dexpreopt(ctx, dexOutputFile)
 
 		j.maybeStrippedDexJarFile = dexOutputFile

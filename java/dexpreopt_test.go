@@ -109,6 +109,16 @@ func TestDexpreoptEnabled(t *testing.T) {
 				}`,
 			enabled: false,
 		},
+		{
+			name: "compile_dex",
+			bp: `
+				java_library {
+					name: "foo",
+					srcs: ["a.java"],
+					compile_dex: true,
+				}`,
+			enabled: false,
+		},
 	}
 
 	for _, test := range tests {
