@@ -1011,8 +1011,15 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	}
 
 	if j.properties.Patch_module != nil && flags.javaVersion == "1.9" {
-		patchClasspath := ".:" + flags.classpath.FormJavaClassPath("")
-		javacFlags = append(javacFlags, "--patch-module="+String(j.properties.Patch_module)+"="+patchClasspath)
+		// Manually specify build directory in case it is not under the repo root.
+		// (javac doesn't seem to expand into symbolc links when searching for patch-module targets, so
+		// just adding a symlink under the root doesn't help.)
+		patchPaths := ".:" + ctx.Config().BuildDir()
+		classPath := flags.classpath.FormJavaClassPath("")
+		if classPath != "" {
+			patchPaths += ":" + classPath
+		}
+		javacFlags = append(javacFlags, "--patch-module="+String(j.properties.Patch_module)+"="+patchPaths)
 	}
 
 	// systemModules

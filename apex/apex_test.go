@@ -227,6 +227,10 @@ func TestBasicApex(t *testing.T) {
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+
+	// Ensure that the platform variant ends with _core_shared
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
 }
 
 func TestBasicZipApex(t *testing.T) {

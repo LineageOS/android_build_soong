@@ -634,6 +634,10 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
 		// Host modules do not need ABI dumps.
 		return false
 	}
+	if !ctx.mod.IsForPlatform() {
+		// APEX variants do not need ABI dumps.
+		return false
+	}
 	if inList(ctx.baseModuleName(), llndkLibraries) {
 		return true
 	}

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 )
 
@@ -101,7 +102,7 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 }
 
 func runKatiBuild(ctx Context, config Config) {
-	ctx.BeginTrace("kati build")
+	ctx.BeginTrace(metrics.RunKati, "kati build")
 	defer ctx.EndTrace()
 
 	args := []string{
@@ -137,7 +138,7 @@ func runKatiBuild(ctx Context, config Config) {
 }
 
 func runKatiPackage(ctx Context, config Config) {
-	ctx.BeginTrace("kati package")
+	ctx.BeginTrace(metrics.RunKati, "kati package")
 	defer ctx.EndTrace()
 
 	args := []string{
@@ -178,7 +179,7 @@ func runKatiPackage(ctx Context, config Config) {
 }
 
 func runKatiCleanSpec(ctx Context, config Config) {
-	ctx.BeginTrace("kati cleanspec")
+	ctx.BeginTrace(metrics.RunKati, "kati cleanspec")
 	defer ctx.EndTrace()
 
 	runKati(ctx, config, katiCleanspecSuffix, []string{

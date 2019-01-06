@@ -22,15 +22,16 @@ import (
 
 	"github.com/google/blueprint/microfactory"
 
+	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 )
 
 func runSoong(ctx Context, config Config) {
-	ctx.BeginTrace("soong")
+	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
 
 	func() {
-		ctx.BeginTrace("blueprint bootstrap")
+		ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
 		defer ctx.EndTrace()
 
 		cmd := Command(ctx, config, "blueprint bootstrap", "build/blueprint/bootstrap.bash", "-t")
@@ -48,7 +49,7 @@ func runSoong(ctx Context, config Config) {
 	}()
 
 	func() {
-		ctx.BeginTrace("environment check")
+		ctx.BeginTrace(metrics.RunSoong, "environment check")
 		defer ctx.EndTrace()
 
 		envFile := filepath.Join(config.SoongOutDir(), ".soong.environment")
@@ -84,7 +85,7 @@ func runSoong(ctx Context, config Config) {
 	cfg.TrimPath = absPath(ctx, ".")
 
 	func() {
-		ctx.BeginTrace("minibp")
+		ctx.BeginTrace(metrics.RunSoong, "minibp")
 		defer ctx.EndTrace()
 
 		minibp := filepath.Join(config.SoongOutDir(), ".minibootstrap/minibp")
@@ -94,7 +95,7 @@ func runSoong(ctx Context, config Config) {
 	}()
 
 	func() {
-		ctx.BeginTrace("bpglob")
+		ctx.BeginTrace(metrics.RunSoong, "bpglob")
 		defer ctx.EndTrace()
 
 		bpglob := filepath.Join(config.SoongOutDir(), ".minibootstrap/bpglob")
@@ -104,7 +105,7 @@ func runSoong(ctx Context, config Config) {
 	}()
 
 	ninja := func(name, file string) {
-		ctx.BeginTrace(name)
+		ctx.BeginTrace(metrics.RunSoong, name)
 		defer ctx.EndTrace()
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")

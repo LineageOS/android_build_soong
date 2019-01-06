@@ -23,6 +23,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"android/soong/ui/metrics"
 )
 
 // This file provides an interface to the Finder for use in Soong UI
@@ -31,7 +33,7 @@ import (
 // NewSourceFinder returns a new Finder configured to search for source files.
 // Callers of NewSourceFinder should call <f.Shutdown()> when done
 func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
-	ctx.BeginTrace("find modules")
+	ctx.BeginTrace(metrics.RunSetupTool, "find modules")
 	defer ctx.EndTrace()
 
 	dir, err := os.Getwd()
