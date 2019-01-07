@@ -23,7 +23,7 @@ export TRACE_BEGIN_SOONG=$(date +%s%N)
 function gettop
 {
     local TOPFILE=build/soong/root.bp
-    if [ -z "${TOP-}" -a -f "${TOP-}/${TOPFILE}" ] ; then
+    if [ -n "${TOP-}" -a -f "${TOP-}/${TOPFILE}" ] ; then
         # The following circumlocution ensures we remove symlinks from TOP.
         (cd $TOP; PWD= /bin/pwd)
     else
