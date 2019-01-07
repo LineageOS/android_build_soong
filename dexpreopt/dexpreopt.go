@@ -201,6 +201,8 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 	vdexPath := pathtools.ReplaceExtension(odexPath, "vdex")
 	vdexInstallPath := pathtools.ReplaceExtension(odexInstallPath, "vdex")
 
+	invocationPath := pathtools.ReplaceExtension(odexPath, "invocation")
+
 	// bootImageLocation is $OUT/dex_bootjars/system/framework/boot.art, but dex2oat actually reads
 	// $OUT/dex_bootjars/system/framework/arm64/boot.art
 	var bootImagePath string
@@ -265,11 +267,11 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 		const hidlManager = "android.hidl.manager-V1.0-java"
 
 		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
-      pathForLibrary(module, hidlManager))
+			pathForLibrary(module, hidlManager))
 		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
 			filepath.Join("/system/framework", hidlManager+".jar"))
 		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
-      pathForLibrary(module, hidlBase))
+			pathForLibrary(module, hidlBase))
 		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
 			filepath.Join("/system/framework", hidlBase+".jar"))
 	} else {
@@ -291,7 +293,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 		rule.Command().Textf(`uses_library_names="%s"`, strings.Join(verifyUsesLibs, " "))
 		rule.Command().Textf(`optional_uses_library_names="%s"`, strings.Join(verifyOptionalUsesLibs, " "))
 		rule.Command().Textf(`aapt_binary="%s"`, global.Tools.Aapt)
-		rule.Command().Textf(`dex_preopt_host_libraries="%s"`, strings.Join(classLoaderContextHost, " " ))
+		rule.Command().Textf(`dex_preopt_host_libraries="%s"`, strings.Join(classLoaderContextHost, " "))
 		rule.Command().Textf(`dex_preopt_target_libraries="%s"`, strings.Join(classLoaderContextTarget, " "))
 		rule.Command().Textf(`conditional_host_libs_28="%s"`, strings.Join(conditionalClassLoaderContextHost28, " "))
 		rule.Command().Textf(`conditional_target_libs_28="%s"`, strings.Join(conditionalClassLoaderContextTarget28, " "))
@@ -305,6 +307,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 		Text(`ANDROID_LOG_TAGS="*:e"`).
 		Tool(global.Tools.Dex2oat).
 		Flag("--avoid-storing-invocation").
+		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
 		Flag("--runtime-arg").FlagWithArg("-Xms", global.Dex2oatXms).
 		Flag("--runtime-arg").FlagWithArg("-Xmx", global.Dex2oatXmx).
 		Flag("${class_loader_context_arg}").
