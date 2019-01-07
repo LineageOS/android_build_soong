@@ -144,6 +144,7 @@ func init() {
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
+			"LOCAL_OVERRIDES_PACKAGES":    "overrides",
 
 			"LOCAL_ANNOTATION_PROCESSORS":        "annotation_processors",
 			"LOCAL_ANNOTATION_PROCESSOR_CLASSES": "annotation_processor_classes",
