@@ -374,6 +374,7 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	targets := ctx.MultiTargets()
+	config := ctx.DeviceConfig()
 	has32BitTarget := false
 	for _, target := range targets {
 		if target.Arch.ArchType.Multilib == "lib32" {
@@ -385,7 +386,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		// multilib.both.
 		ctx.AddFarVariationDependencies([]blueprint.Variation{
 			{Mutator: "arch", Variation: target.String()},
-			{Mutator: "image", Variation: a.getImageVariation()},
+			{Mutator: "image", Variation: a.getImageVariation(config)},
 			{Mutator: "link", Variation: "shared"},
 		}, sharedLibTag, a.properties.Native_shared_libs...)
 
@@ -393,21 +394,21 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		addDependenciesForNativeModules(ctx,
 			a.properties.Multilib.Both.Native_shared_libs,
 			a.properties.Multilib.Both.Binaries, target.String(),
-			a.getImageVariation())
+			a.getImageVariation(config))
 
 		if i == 0 {
 			// When multilib.* is omitted for binaries, it implies
 			// multilib.first.
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{Mutator: "arch", Variation: target.String()},
-				{Mutator: "image", Variation: a.getImageVariation()},
+				{Mutator: "image", Variation: a.getImageVariation(config)},
 			}, executableTag, a.properties.Binaries...)
 
 			// Add native modules targetting the first ABI
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.First.Native_shared_libs,
 				a.properties.Multilib.First.Binaries, target.String(),
-				a.getImageVariation())
+				a.getImageVariation(config))
 		}
 
 		switch target.Arch.ArchType.Multilib {
@@ -416,24 +417,24 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Lib32.Native_shared_libs,
 				a.properties.Multilib.Lib32.Binaries, target.String(),
-				a.getImageVariation())
+				a.getImageVariation(config))
 
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Prefer32.Native_shared_libs,
 				a.properties.Multilib.Prefer32.Binaries, target.String(),
-				a.getImageVariation())
+				a.getImageVariation(config))
 		case "lib64":
 			// Add native modules targetting 64-bit ABI
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Lib64.Native_shared_libs,
 				a.properties.Multilib.Lib64.Binaries, target.String(),
-				a.getImageVariation())
+				a.getImageVariation(config))
 
 			if !has32BitTarget {
 				addDependenciesForNativeModules(ctx,
 					a.properties.Multilib.Prefer32.Native_shared_libs,
 					a.properties.Multilib.Prefer32.Binaries, target.String(),
-					a.getImageVariation())
+					a.getImageVariation(config))
 			}
 		}
 
@@ -471,8 +472,8 @@ func (a *apexBundle) installable() bool {
 	return a.properties.Installable == nil || proptools.Bool(a.properties.Installable)
 }
 
-func (a *apexBundle) getImageVariation() string {
-	if proptools.Bool(a.properties.Use_vendor) {
+func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
+	if config.VndkVersion() != "" && proptools.Bool(a.properties.Use_vendor) {
 		return "vendor"
 	} else {
 		return "core"
