@@ -104,9 +104,6 @@ func main() {
 
 	build.SetupOutDir(buildCtx, config)
 
-	metricsPath := filepath.Join(config.OutDir(), "build_metrics")
-	defer met.Dump(metricsPath)
-
 	logsDir := config.OutDir()
 	if config.Dist() {
 		logsDir = filepath.Join(config.DistDir(), "logs")
@@ -117,6 +114,8 @@ func main() {
 	trace.SetOutput(filepath.Join(logsDir, "build.trace"))
 	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, "verbose.log")))
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, "error.log")))
+
+	defer met.Dump(filepath.Join(logsDir, "build_metrics"))
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
