@@ -12,6 +12,9 @@ PYTHON_BINARY = '%interpreter%'
 MAIN_FILE = '%main%'
 PYTHON_PATH = 'PYTHONPATH'
 
+# Don't imply 'import site' on initialization
+PYTHON_ARG = '-S'
+
 def SearchPathEnv(name):
   search_path = os.getenv('PATH', os.defpath).split(os.pathsep)
   for directory in search_path:
@@ -73,7 +76,7 @@ def Main():
     python_program = FindPythonBinary()
     if python_program is None:
       raise AssertionError('Could not find python binary: ' + PYTHON_BINARY)
-    args = [python_program, main_filepath] + args
+    args = [python_program, PYTHON_ARG, main_filepath] + args
 
     os.environ.update(new_env)
 
