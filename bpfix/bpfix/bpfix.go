@@ -205,6 +205,11 @@ func rewriteIncorrectAndroidmkPrebuilts(f *Fixer) error {
 		if mod.Type != "java_import" {
 			continue
 		}
+		host, _ := getLiteralBoolPropertyValue(mod, "host")
+		if host {
+			mod.Type = "java_import_host"
+			removeProperty(mod, "host")
+		}
 		srcs, ok := getLiteralListProperty(mod, "srcs")
 		if !ok {
 			continue
@@ -703,6 +708,24 @@ func getLiteralStringPropertyValue(mod *parser.Module, name string) (s string, f
 	}
 
 	return stringValue.Value, true
+}
+
+func getLiteralBoolProperty(mod *parser.Module, name string) (b *parser.Bool, found bool) {
+	prop, ok := mod.GetProperty(name)
+	if !ok {
+		return nil, false
+	}
+	b, ok = prop.Value.(*parser.Bool)
+	return b, ok
+}
+
+func getLiteralBoolPropertyValue(mod *parser.Module, name string) (s bool, found bool) {
+	boolValue, ok := getLiteralBoolProperty(mod, name)
+	if !ok {
+		return false, false
+	}
+
+	return boolValue.Value, true
 }
 
 func propertyIndex(props []*parser.Property, propertyName string) int {
