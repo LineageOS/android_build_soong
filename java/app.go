@@ -213,7 +213,6 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		installDir = filepath.Join("app", ctx.ModuleName())
 	}
 	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, ctx.ModuleName()+".apk")
-	a.dexpreopter.isPrivApp = Bool(a.appProperties.Privileged)
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
