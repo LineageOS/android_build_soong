@@ -554,6 +554,10 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			LOCAL_SRC_FILES := d.java
 			LOCAL_UNINSTALLABLE_MODULE := false
 			include $(BUILD_JAVA_LIBRARY)
+
+			include $(CLEAR_VARS)
+			LOCAL_SRC_FILES := $(call all-java-files-under, src gen)
+			include $(BUILD_STATIC_JAVA_LIBRARY)
 		`,
 		expected: `
 			java_library {
@@ -573,6 +577,13 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			java_library {
 				installable: true,
 				srcs: ["d.java"],
+			}
+
+			java_library {
+				srcs: [
+					"src/**/*.java",
+					"gen/**/*.java",
+				],
 			}
 		`,
 	},
