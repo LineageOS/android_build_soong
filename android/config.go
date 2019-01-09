@@ -862,6 +862,24 @@ func (c *deviceConfig) PlatPrivateSepolicyDirs() []string {
 	return c.config.productVariables.BoardPlatPrivateSepolicyDirs
 }
 
+func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName string, overridden bool) {
+	overrides := c.config.productVariables.ManifestPackageNameOverrides
+	if overrides == nil || len(overrides) == 0 {
+		return "", false
+	}
+	for _, o := range overrides {
+		split := strings.Split(o, ":")
+		if len(split) != 2 {
+			// This shouldn't happen as this is first checked in make, but just in case.
+			panic(fmt.Errorf("invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>", o))
+		}
+		if matchPattern(split[0], name) {
+			return substPattern(split[0], split[1], name), true
+		}
+	}
+	return "", false
+}
+
 func (c *config) SecondArchIsTranslated() bool {
 	deviceTargets := c.Targets[Android]
 	if len(deviceTargets) < 2 {
