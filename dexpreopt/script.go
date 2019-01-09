@@ -147,6 +147,11 @@ func (c *Command) Implicit(path string) *Command {
 	return c
 }
 
+func (c *Command) Implicits(paths []string) *Command {
+	c.inputs = append(c.inputs, paths...)
+	return c
+}
+
 func (c *Command) Output(path string) *Command {
 	c.outputs = append(c.outputs, path)
 	return c.Text(path)
