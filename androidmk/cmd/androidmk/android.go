@@ -144,6 +144,7 @@ func init() {
 			"LOCAL_AAPT_FLAGS":            "aaptflags",
 			"LOCAL_PACKAGE_SPLITS":        "package_splits",
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
+			"LOCAL_OVERRIDES_PACKAGES":    "overrides",
 
 			"LOCAL_ANNOTATION_PROCESSORS":        "annotation_processors",
 			"LOCAL_ANNOTATION_PROCESSOR_CLASSES": "annotation_processor_classes",
@@ -738,27 +739,31 @@ var conditionalTranslations = map[string]map[bool]string{
 		true: "product_variables.pdk"},
 }
 
-func mydir(args []string) string {
-	return "."
+func mydir(args []string) []string {
+	return []string{"."}
 }
 
-func allFilesUnder(wildcard string) func(args []string) string {
-	return func(args []string) string {
-		dir := ""
+func allFilesUnder(wildcard string) func(args []string) []string {
+	return func(args []string) []string {
+		dirs := []string{""}
 		if len(args) > 0 {
-			dir = strings.TrimSpace(args[0])
+			dirs = strings.Fields(args[0])
 		}
 
-		return fmt.Sprintf("%s/**/"+wildcard, dir)
+		paths := make([]string, len(dirs))
+		for i := range paths {
+			paths[i] = fmt.Sprintf("%s/**/"+wildcard, dirs[i])
+		}
+		return paths
 	}
 }
 
-func allSubdirJavaFiles(args []string) string {
-	return "**/*.java"
+func allSubdirJavaFiles(args []string) []string {
+	return []string{"**/*.java"}
 }
 
-func includeIgnored(args []string) string {
-	return include_ignored
+func includeIgnored(args []string) []string {
+	return []string{include_ignored}
 }
 
 var moduleTypes = map[string]string{

@@ -21,13 +21,13 @@ import (
 type Scope interface {
 	Get(name string) string
 	Set(name, value string)
-	Call(name string, args []string) string
-	SetFunc(name string, f func([]string) string)
+	Call(name string, args []string) []string
+	SetFunc(name string, f func([]string) []string)
 }
 
 type scope struct {
 	variables map[string]string
-	functions map[string]func([]string) string
+	functions map[string]func([]string) []string
 	parent    Scope
 }
 
@@ -47,22 +47,22 @@ func (s *scope) Set(name, value string) {
 	s.variables[name] = value
 }
 
-func (s *scope) Call(name string, args []string) string {
+func (s *scope) Call(name string, args []string) []string {
 	if f, ok := s.functions[name]; ok {
 		return f(args)
 	}
 
-	return "<func:'" + name + "' unset>"
+	return []string{"<func:'" + name + "' unset>"}
 }
 
-func (s *scope) SetFunc(name string, f func([]string) string) {
+func (s *scope) SetFunc(name string, f func([]string) []string) {
 	s.functions[name] = f
 }
 
 func NewScope(parent Scope) Scope {
 	return &scope{
 		variables: make(map[string]string),
-		functions: make(map[string]func([]string) string),
+		functions: make(map[string]func([]string) []string),
 		parent:    parent,
 	}
 }
@@ -74,7 +74,7 @@ func init() {
 	builtinScope[builtinDollar] = "$"
 }
 
-func (v Variable) EvalFunction(scope Scope) (string, bool) {
+func (v Variable) EvalFunction(scope Scope) ([]string, bool) {
 	f := v.Name.SplitN(" \t", 2)
 	if len(f) > 1 && f[0].Const() {
 		fname := f[0].Value(nil)
@@ -88,17 +88,20 @@ func (v Variable) EvalFunction(scope Scope) (string, bool) {
 			if fname == "call" {
 				return scope.Call(argVals[0], argVals[1:]), true
 			} else {
-				return "__builtin_func:" + fname + " " + strings.Join(argVals, " "), true
+				return []string{"__builtin_func:" + fname + " " + strings.Join(argVals, " ")}, true
 			}
 		}
 	}
 
-	return "", false
+	return []string{""}, false
 }
 
 func (v Variable) Value(scope Scope) string {
 	if ret, ok := v.EvalFunction(scope); ok {
-		return ret
+		if len(ret) > 1 {
+			panic("Expected a single value, but instead got a list")
+		}
+		return ret[0]
 	}
 	if scope == nil {
 		panic("Cannot take the value of a variable in a nil scope")
