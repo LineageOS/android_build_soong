@@ -42,6 +42,7 @@ type variableAssignmentContext struct {
 
 var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	// custom functions
+	"LOCAL_32_BIT_ONLY":           local32BitOnly,
 	"LOCAL_AIDL_INCLUDES":         localAidlIncludes,
 	"LOCAL_C_INCLUDES":            localIncludeDirs,
 	"LOCAL_EXPORT_C_INCLUDE_DIRS": exportIncludeDirs,
@@ -358,6 +359,20 @@ func exportIncludeDirs(ctx variableAssignmentContext) error {
 	// Add any paths that could not be converted to local relative paths to export_include_dirs
 	// anyways, they will cause an error if they don't exist and can be fixed manually.
 	return splitAndAssign(ctx, classifyLocalOrGlobalPath, map[string]string{"global": "export_include_dirs", "local": "export_include_dirs"})
+}
+
+func local32BitOnly(ctx variableAssignmentContext) error {
+	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.BoolType)
+	if err != nil {
+		return err
+	}
+	if val.(*bpparser.Bool).Value {
+		thirtyTwo := &bpparser.String{
+			Value: "32",
+		}
+		setVariable(ctx.file, false, ctx.prefix, "compile_multilib", thirtyTwo, true)
+	}
+	return nil
 }
 
 func localAidlIncludes(ctx variableAssignmentContext) error {
