@@ -28,10 +28,11 @@ import (
 type dexpreopter struct {
 	dexpreoptProperties DexpreoptProperties
 
-	installPath  android.OutputPath
-	isPrivApp    bool
-	isSDKLibrary bool
-	isTest       bool
+	installPath   android.OutputPath
+	isPrivApp     bool
+	isSDKLibrary  bool
+	isTest        bool
+	isInstallable bool
 
 	builtInstalled []string
 }
@@ -71,6 +72,10 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 	}
 
 	if !BoolDefault(d.dexpreoptProperties.Dex_preopt.Enabled, true) {
+		return true
+	}
+
+	if !d.isInstallable {
 		return true
 	}
 

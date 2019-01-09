@@ -83,6 +83,15 @@ func TestDexpreoptEnabled(t *testing.T) {
 			enabled: false,
 		},
 		{
+			name: "java test",
+			bp: `
+				java_test {
+					name: "foo",
+					srcs: ["a.java"],
+				}`,
+			enabled: false,
+		},
+		{
 			name: "android test",
 			bp: `
 				android_test {
@@ -97,6 +106,16 @@ func TestDexpreoptEnabled(t *testing.T) {
 				android_test_helper_app {
 					name: "foo",
 					srcs: ["a.java"],
+				}`,
+			enabled: false,
+		},
+		{
+			name: "compile_dex",
+			bp: `
+				java_library {
+					name: "foo",
+					srcs: ["a.java"],
+					compile_dex: true,
 				}`,
 			enabled: false,
 		},
