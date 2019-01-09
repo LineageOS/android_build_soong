@@ -29,6 +29,14 @@ func stringToStringValue(s string) bpparser.Expression {
 	}
 }
 
+func stringListToStringValueList(list []string) []bpparser.Expression {
+	valList := make([]bpparser.Expression, len(list))
+	for i, l := range list {
+		valList[i] = stringToStringValue(l)
+	}
+	return valList
+}
+
 func addValues(val1, val2 bpparser.Expression) (bpparser.Expression, error) {
 	if val1 == nil {
 		return val2, nil
@@ -63,7 +71,10 @@ func makeToStringExpression(ms *mkparser.MakeString, scope mkparser.Scope) (bppa
 
 	for i, s := range ms.Strings[1:] {
 		if ret, ok := ms.Variables[i].EvalFunction(scope); ok {
-			val, err = addValues(val, stringToStringValue(ret))
+			if len(ret) > 1 {
+				return nil, fmt.Errorf("Unexpected list value %s", ms.Dump())
+			}
+			val, err = addValues(val, stringToStringValue(ret[0]))
 		} else {
 			name := ms.Variables[i].Name
 			if !name.Const() {
@@ -125,9 +136,7 @@ func makeToListExpression(ms *mkparser.MakeString, scope mkparser.Scope) (bppars
 	for _, f := range fields {
 		if len(f.Variables) == 1 && f.Strings[0] == "" && f.Strings[1] == "" {
 			if ret, ok := f.Variables[0].EvalFunction(scope); ok {
-				listValue.Values = append(listValue.Values, &bpparser.String{
-					Value: ret,
-				})
+				listValue.Values = append(listValue.Values, stringListToStringValueList(ret)...)
 			} else {
 				// Variable by itself, variable is probably a list
 				if !f.Variables[0].Name.Const() {
