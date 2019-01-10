@@ -478,6 +478,20 @@ func (c *configImpl) UseGoma() bool {
 	return false
 }
 
+func (c *configImpl) StartGoma() bool {
+	if !c.UseGoma() {
+		return false
+	}
+
+	if v, ok := c.environ.Get("NOSTART_GOMA"); ok {
+		v = strings.TrimSpace(v)
+		if v != "" && v != "false" {
+			return false
+		}
+	}
+	return true
+}
+
 // RemoteParallel controls how many remote jobs (i.e., commands which contain
 // gomacc) are run in parallel.  Note the parallelism of all other jobs is
 // still limited by Parallel()
