@@ -27,6 +27,7 @@ import (
 var classpathTestcases = []struct {
 	name          string
 	unbundled     bool
+	pdk           bool
 	moduleType    string
 	host          android.OsClass
 	properties    string
@@ -155,6 +156,30 @@ var classpathTestcases = []struct {
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
 		classpath:     []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
+
+	{
+		name:          "pdk default",
+		pdk:           true,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/17/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+	},
+	{
+		name:          "pdk current",
+		pdk:           true,
+		properties:    `sdk_version: "current",`,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/17/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+	},
+	{
+		name:          "pdk 14",
+		pdk:           true,
+		properties:    `sdk_version: "14",`,
+		bootclasspath: []string{`""`},
+		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
+		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+	},
 }
 
 func TestClasspath(t *testing.T) {
@@ -209,6 +234,9 @@ func TestClasspath(t *testing.T) {
 				if testcase.unbundled {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 				}
+				if testcase.pdk {
+					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
+				}
 				ctx := testContext(config, bp, nil)
 				run(t, ctx, config)
 
@@ -240,6 +268,9 @@ func TestClasspath(t *testing.T) {
 				config := testConfig(map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
 				if testcase.unbundled {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+				}
+				if testcase.pdk {
+					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
 				}
 				ctx := testContext(config, bp, nil)
 				run(t, ctx, config)

@@ -19,9 +19,16 @@ import (
 	"android/soong/java/config"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
+
+func init() {
+	android.RegisterPreSingletonType("sdk", sdkSingletonFactory)
+}
+
+const sdkSingletonKey = "sdkSingletonKey"
 
 type sdkContext interface {
 	// sdkVersion eturns the sdk_version property of the current module, or an empty string if it is not set.
@@ -67,26 +74,20 @@ func sdkVersionToNumberAsString(ctx android.BaseContext, v string) (string, erro
 
 func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 	v := sdkContext.sdkVersion()
+	// For PDK builds, use the latest SDK version instead of "current"
+	if ctx.Config().IsPdkBuild() && (v == "" || v == "current") {
+		sdkVersions := ctx.Config().Get(sdkSingletonKey).([]int)
+		latestSdkVersion := 0
+		if len(sdkVersions) > 0 {
+			latestSdkVersion = sdkVersions[len(sdkVersions)-1]
+		}
+		v = strconv.Itoa(latestSdkVersion)
+	}
+
 	i, err := sdkVersionToNumber(ctx, v)
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 		return sdkDep{}
-	}
-
-	// Ensures that the specificed system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor apks)
-	// or PRODUCT_SYSTEMSDK_VERSIONS (for other apks or when BOARD_SYSTEMSDK_VERSIONS is not set)
-	if strings.HasPrefix(v, "system_") && i != android.FutureApiLevel {
-		allowed_versions := ctx.DeviceConfig().PlatformSystemSdkVersions()
-		if ctx.DeviceSpecific() || ctx.SocSpecific() {
-			if len(ctx.DeviceConfig().SystemSdkVersions()) > 0 {
-				allowed_versions = ctx.DeviceConfig().SystemSdkVersions()
-			}
-		}
-		version := strings.TrimPrefix(v, "system_")
-		if len(allowed_versions) > 0 && !android.InList(version, allowed_versions) {
-			ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
-				v, allowed_versions)
-		}
 	}
 
 	toPrebuilt := func(sdk string) sdkDep {
@@ -148,6 +149,22 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		return ret
 	}
 
+	// Ensures that the specificed system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor apks)
+	// or PRODUCT_SYSTEMSDK_VERSIONS (for other apks or when BOARD_SYSTEMSDK_VERSIONS is not set)
+	if strings.HasPrefix(v, "system_") && i != android.FutureApiLevel {
+		allowed_versions := ctx.DeviceConfig().PlatformSystemSdkVersions()
+		if ctx.DeviceSpecific() || ctx.SocSpecific() {
+			if len(ctx.DeviceConfig().SystemSdkVersions()) > 0 {
+				allowed_versions = ctx.DeviceConfig().SystemSdkVersions()
+			}
+		}
+		version := strings.TrimPrefix(v, "system_")
+		if len(allowed_versions) > 0 && !android.InList(version, allowed_versions) {
+			ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
+				v, allowed_versions)
+		}
+	}
+
 	if ctx.Config().UnbundledBuildPrebuiltSdks() && v != "" {
 		return toPrebuilt(v)
 	}
@@ -169,4 +186,33 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 	default:
 		return toPrebuilt(v)
 	}
+}
+
+func sdkSingletonFactory() android.Singleton {
+	return sdkSingleton{}
+}
+
+type sdkSingleton struct{}
+
+func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	sdkJars, err := ctx.GlobWithDeps("prebuilts/sdk/*/public/android.jar", nil)
+	if err != nil {
+		ctx.Errorf("failed to glob prebuilts/sdk/*/public/android.jar: %s", err.Error())
+	}
+
+	var sdkVersions []int
+	for _, sdkJar := range sdkJars {
+		dir := filepath.Base(filepath.Dir(filepath.Dir(sdkJar)))
+		v, err := strconv.Atoi(dir)
+		if scerr, ok := err.(*strconv.NumError); ok && scerr.Err == strconv.ErrSyntax {
+			continue
+		} else if err != nil {
+			ctx.Errorf("invalid sdk jar %q, %s, %v", sdkJar, err.Error())
+		}
+		sdkVersions = append(sdkVersions, v)
+	}
+
+	sort.Ints(sdkVersions)
+
+	ctx.Config().Once(sdkSingletonKey, func() interface{} { return sdkVersions })
 }

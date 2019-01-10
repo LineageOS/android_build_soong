@@ -98,6 +98,7 @@ func testContext(config android.Config, bp string,
 		ctx.TopDown("java_sdk_library", sdkLibraryMutator).Parallel()
 	})
 	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(OverlaySingletonFactory))
+	ctx.RegisterPreSingletonType("sdk", android.SingletonFactoryAdaptor(sdkSingletonFactory))
 
 	// Register module types and mutators from cc needed for JNI testing
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
@@ -181,6 +182,9 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/14/public/android.jar":         nil,
 		"prebuilts/sdk/14/public/framework.aidl":      nil,
 		"prebuilts/sdk/14/system/android.jar":         nil,
+		"prebuilts/sdk/17/public/android.jar":         nil,
+		"prebuilts/sdk/17/public/framework.aidl":      nil,
+		"prebuilts/sdk/17/system/android.jar":         nil,
 		"prebuilts/sdk/current/core/android.jar":      nil,
 		"prebuilts/sdk/current/public/android.jar":    nil,
 		"prebuilts/sdk/current/public/framework.aidl": nil,
