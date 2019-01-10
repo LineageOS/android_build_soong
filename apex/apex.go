@@ -40,7 +40,7 @@ var (
 		Command: `echo '/ 1000 1000 0755' > ${out} && ` +
 			`echo '/apex_manifest.json 1000 1000 0644' >> ${out} && ` +
 			`echo ${ro_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0644"}' >> ${out} && ` +
-			`echo ${exec_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0755"}' >> ${out}`,
+			`echo ${exec_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 0 2000 0755"}' >> ${out}`,
 		Description: "fs_config ${out}",
 	}, "ro_paths", "exec_paths")
 
@@ -755,6 +755,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		if pubKeyFile != nil {
 			implicitInputs = append(implicitInputs, pubKeyFile)
 			optFlags = append(optFlags, "--pubkey "+pubKeyFile.String())
+		}
+
+		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
+		if overridden {
+			optFlags = append(optFlags, "--override_apk_package_name "+manifestPackageName)
 		}
 
 		ctx.Build(pctx, android.BuildParams{
