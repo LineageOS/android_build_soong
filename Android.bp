@@ -249,6 +249,7 @@ bootstrap_go_package {
         "java/java_resources.go",
         "java/prebuilt_apis.go",
         "java/proto.go",
+        "java/sdk.go",
         "java/sdk_library.go",
         "java/support_libraries.go",
         "java/system_modules.go",
@@ -258,6 +259,7 @@ bootstrap_go_package {
         "java/dexpreopt_test.go",
         "java/java_test.go",
         "java/jdeps_test.go",
+        "java/sdk_test.go",
     ],
     pluginFor: ["soong_build"],
 }
