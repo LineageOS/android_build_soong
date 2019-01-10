@@ -82,6 +82,7 @@ var testModuleConfig = ModuleConfig{
 	NoCreateAppImage:       false,
 	ForceCreateAppImage:    false,
 	PresignedPrebuilt:      false,
+	NoStripping:            false,
 	StripInputPath:         "",
 	StripOutputPath:        "",
 }
@@ -162,47 +163,60 @@ func TestDexPreoptProfile(t *testing.T) {
 }
 
 func TestStripDex(t *testing.T) {
-	global, module := testGlobalConfig, testModuleConfig
-
-	module.Name = "test"
-	module.DexLocation = "/system/app/test/test.apk"
-	module.BuildPath = "out/test/test.apk"
-	module.Archs = []string{"arm"}
-	module.StripInputPath = "$1"
-	module.StripOutputPath = "$2"
-
-	rule, err := GenerateStripRule(global, module)
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name  string
+		setup func(global *GlobalConfig, module *ModuleConfig)
+		strip bool
+	}{
+		{
+			name:  "default strip",
+			setup: func(global *GlobalConfig, module *ModuleConfig) {},
+			strip: true,
+		},
+		{
+			name:  "global no stripping",
+			setup: func(global *GlobalConfig, module *ModuleConfig) { global.DefaultNoStripping = true },
+			strip: false,
+		},
+		{
+			name:  "module no stripping",
+			setup: func(global *GlobalConfig, module *ModuleConfig) { module.NoStripping = true },
+			strip: false,
+		},
 	}
 
-	want := `zip2zip -i $1 -o $2 -x "classes*.dex"`
-	if len(rule.Commands()) < 1 || !strings.Contains(rule.Commands()[0], want) {
-		t.Errorf("\nwant commands[0] to have:\n   %v\ngot:\n   %v", want, rule.Commands()[0])
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 
-func TestNoStripDex(t *testing.T) {
-	global, module := testGlobalConfig, testModuleConfig
+			global, module := testGlobalConfig, testModuleConfig
 
-	global.DefaultNoStripping = true
+			module.Name = "test"
+			module.DexLocation = "/system/app/test/test.apk"
+			module.BuildPath = "out/test/test.apk"
+			module.Archs = []string{"arm"}
+			module.StripInputPath = "$1"
+			module.StripOutputPath = "$2"
 
-	module.Name = "test"
-	module.DexLocation = "/system/app/test/test.apk"
-	module.BuildPath = "out/test/test.apk"
-	module.Archs = []string{"arm"}
-	module.StripInputPath = "$1"
-	module.StripOutputPath = "$2"
+			test.setup(&global, &module)
 
-	rule, err := GenerateStripRule(global, module)
-	if err != nil {
-		t.Error(err)
-	}
+			rule, err := GenerateStripRule(global, module)
+			if err != nil {
+				t.Error(err)
+			}
 
-	wantCommands := []string{
-		"cp -f $1 $2",
-	}
-	if !reflect.DeepEqual(rule.Commands(), wantCommands) {
-		t.Errorf("\nwant commands:\n   %v\ngot:\n   %v", wantCommands, rule.Commands())
+			if test.strip {
+				want := `zip2zip -i $1 -o $2 -x "classes*.dex"`
+				if len(rule.Commands()) < 1 || !strings.Contains(rule.Commands()[0], want) {
+					t.Errorf("\nwant commands[0] to have:\n   %v\ngot:\n   %v", want, rule.Commands()[0])
+				}
+			} else {
+				wantCommands := []string{
+					"cp -f $1 $2",
+				}
+				if !reflect.DeepEqual(rule.Commands(), wantCommands) {
+					t.Errorf("\nwant commands:\n   %v\ngot:\n   %v", wantCommands, rule.Commands())
+				}
+			}
+		})
 	}
 }
