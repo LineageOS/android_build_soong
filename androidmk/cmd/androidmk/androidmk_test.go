@@ -643,12 +643,14 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			include $(CLEAR_VARS)
 			LOCAL_SRC_FILES := test.java
 			LOCAL_RESOURCE_DIR := res
+			LOCAL_JACK_COVERAGE_INCLUDE_FILTER := foo.*
 			include $(BUILD_STATIC_JAVA_LIBRARY)
 
 			include $(CLEAR_VARS)
 			LOCAL_SRC_FILES := test.java
 			LOCAL_STATIC_LIBRARIES := foo
 			LOCAL_STATIC_ANDROID_LIBRARIES := bar
+			LOCAL_JACK_COVERAGE_EXCLUDE_FILTER := bar.*
 			include $(BUILD_STATIC_JAVA_LIBRARY)
 
 			include $(CLEAR_VARS)
@@ -666,6 +668,9 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			android_library {
 				srcs: ["test.java"],
 				resource_dirs: ["res"],
+				jacoco: {
+					include_filter: ["foo.*"],
+				},
 			}
 
 			android_library {
@@ -674,6 +679,9 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 					"foo",
 					"bar",
 				],
+				jacoco: {
+					exclude_filter: ["bar.*"],
+				},
 			}
 
 			android_library {
