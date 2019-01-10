@@ -43,6 +43,9 @@ type DexpreoptProperties struct {
 		// true.
 		Enabled *bool
 
+		// If true, never strip the dex files from the final jar when dexpreopting.  Defaults to false.
+		No_stripping *bool
+
 		// If true, generate an app image (.art file) for this module.
 		App_image *bool
 
@@ -171,6 +174,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		NoCreateAppImage:    !BoolDefault(d.dexpreoptProperties.Dex_preopt.App_image, true),
 		ForceCreateAppImage: BoolDefault(d.dexpreoptProperties.Dex_preopt.App_image, false),
 
+		NoStripping:     Bool(d.dexpreoptProperties.Dex_preopt.No_stripping),
 		StripInputPath:  dexJarFile.String(),
 		StripOutputPath: strippedDexJarFile.String(),
 	}
