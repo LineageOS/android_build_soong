@@ -156,6 +156,11 @@ func Build(ctx Context, config Config, what int) {
 
 	SetupPath(ctx, config)
 
+	if config.StartGoma() {
+		// Ensure start Goma compiler_proxy
+		startGoma(ctx, config)
+	}
+
 	if what&BuildProductConfig != 0 {
 		// Run make for product config
 		runMakeProductConfig(ctx, config)
