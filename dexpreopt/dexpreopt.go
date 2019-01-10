@@ -454,6 +454,10 @@ func shouldStripDex(module ModuleConfig, global GlobalConfig) bool {
 		strip = false
 	}
 
+	if module.NoStripping {
+		strip = false
+	}
+
 	// Don't strip modules that are not on the system partition in case the oat/vdex version in system ROM
 	// doesn't match the one in other partitions. It needs to be able to fall back to the APK for that case.
 	if !strings.HasPrefix(module.DexLocation, SystemPartition) {
