@@ -492,6 +492,13 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 				versions: ["27", "28", "29"],
 			},
 		}
+
+		cc_library {
+			name: "libBootstrap",
+			srcs: ["mylib.cpp"],
+			stl: "none",
+			bootstrap: true,
+		}
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
@@ -499,11 +506,11 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 
 	// Ensure that mylib, libm, libdl are included.
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
-	ensureContains(t, copyCmds, "image.apex/lib64/libm.so")
-	ensureContains(t, copyCmds, "image.apex/lib64/libdl.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/bionic/libm.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/bionic/libdl.so")
 
 	// Ensure that libc is not included (since it has stubs and not listed in native_shared_libs)
-	ensureNotContains(t, copyCmds, "image.apex/lib64/libc.so")
+	ensureNotContains(t, copyCmds, "image.apex/lib64/bionic/libc.so")
 
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_shared_myapex").Rule("ld").Args["libFlags"]
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
@@ -538,6 +545,12 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 	// ... Cflags from stub is correctly exported to mylib
 	ensureContains(t, mylibCFlags, "__LIBDL_API__=27")
 	ensureContains(t, mylibSharedCFlags, "__LIBDL_API__=27")
+
+	// Ensure that libBootstrap is depending on the platform variant of bionic libs
+	libFlags := ctx.ModuleForTests("libBootstrap", "android_arm64_armv8-a_core_shared").Rule("ld").Args["libFlags"]
+	ensureContains(t, libFlags, "libc/android_arm64_armv8-a_core_shared/libc.so")
+	ensureContains(t, libFlags, "libm/android_arm64_armv8-a_core_shared/libm.so")
+	ensureContains(t, libFlags, "libdl/android_arm64_armv8-a_core_shared/libdl.so")
 }
 
 func TestFilesInSubDir(t *testing.T) {

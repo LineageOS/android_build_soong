@@ -201,6 +201,10 @@ type BaseProperties struct {
 	Recovery_available *bool
 
 	InRecovery bool `blueprint:"mutated"`
+
+	// Allows this module to use non-APEX version of libraries. Useful
+	// for building binaries that are started before APEXes are activated.
+	Bootstrap *bool
 }
 
 type VendorProperties struct {
@@ -250,6 +254,8 @@ type ModuleContextIntf interface {
 	isPgoCompile() bool
 	useClangLld(actx ModuleContext) bool
 	isApex() bool
+	hasStubsVariants() bool
+	isStubs() bool
 }
 
 type ModuleContext interface {
@@ -676,6 +682,14 @@ func (ctx *moduleContextImpl) isApex() bool {
 	return ctx.mod.ApexName() != ""
 }
 
+func (ctx *moduleContextImpl) hasStubsVariants() bool {
+	return ctx.mod.HasStubsVariants()
+}
+
+func (ctx *moduleContextImpl) isStubs() bool {
+	return ctx.mod.IsStubs()
+}
+
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	return &Module{
 		hod:      hod,
@@ -855,6 +869,18 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			return
 		}
 		c.outputFile = android.OptionalPathForPath(outputFile)
+
+		// If a lib is directly included in any of the APEXes, unhide the stubs
+		// variant having the latest version gets visible to make. In addition,
+		// the non-stubs variant is renamed to <libname>.bootstrap. This is to
+		// force anything in the make world to link against the stubs library.
+		// (unless it is explicitly referenced via .bootstrap suffix or the
+		// module is marked with 'bootstrap: true').
+		if c.HasStubsVariants() && android.DirectlyInAnyApex(ctx.baseModuleName()) &&
+			!c.inRecovery() && !c.useVndk() && !c.static() && c.IsStubs() {
+			c.Properties.HideFromMake = false // unhide
+			// Note: this is still non-installable
+		}
 	}
 
 	if c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid() {
@@ -1446,8 +1472,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					// If not building for APEX, use stubs only when it is from
 					// an APEX (and not from platform)
 					useThisDep = (depInPlatform != depIsStubs)
-					if c.inRecovery() {
-						// However, for recovery modules, since there is no APEX there,
+					if c.inRecovery() || Bool(c.Properties.Bootstrap) {
+						// However, for recovery or bootstrap modules,
 						// always link to non-stub variant
 						useThisDep = !depIsStubs
 					}
