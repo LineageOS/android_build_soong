@@ -124,13 +124,15 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 
 	ctx.MockFileSystem(map[string][]byte{
 		"Android.bp":                                []byte(bp),
-		"testkey.avbpubkey":                         nil,
-		"testkey.pem":                               nil,
 		"build/target/product/security":             nil,
 		"apex_manifest.json":                        nil,
 		"system/sepolicy/apex/myapex-file_contexts": nil,
 		"mylib.cpp":                                 nil,
 		"myprebuilt":                                nil,
+		"vendor/foo/devkeys/test.x509.pem":          nil,
+		"vendor/foo/devkeys/test.pk8":               nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":      nil,
+		"vendor/foo/devkeys/testkey.pem":            nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -148,6 +150,7 @@ func setup(t *testing.T) (config android.Config, buildDir string) {
 
 	config = android.TestArchConfig(buildDir, nil)
 	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
+	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
 	return
 }
 
@@ -682,4 +685,47 @@ func TestStaticLinking(t *testing.T) {
 
 	// Ensure that not_in_apex is linking with the static variant of mylib
 	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_core_static/mylib.a")
+}
+
+func TestKeys(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+	`)
+
+	// check the APEX keys
+	keys := ctx.ModuleForTests("myapex.key", "").Module().(*apexKey)
+
+	if keys.public_key_file.String() != "vendor/foo/devkeys/testkey.avbpubkey" {
+		t.Errorf("public key %q is not %q", keys.public_key_file.String(),
+			"vendor/foo/devkeys/testkey.avbpubkey")
+	}
+	if keys.private_key_file.String() != "vendor/foo/devkeys/testkey.pem" {
+		t.Errorf("private key %q is not %q", keys.private_key_file.String(),
+			"vendor/foo/devkeys/testkey.pem")
+	}
+
+	// check the APK certs
+	certs := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("signapk").Args["certificates"]
+	if certs != "vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8" {
+		t.Errorf("cert and private key %q are not %q", certs,
+			"vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8")
+	}
 }

@@ -448,15 +448,17 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: "android_common"},
 	}, prebuiltTag, a.properties.Prebuilts...)
 
-	if String(a.properties.Key) == "" {
-		ctx.ModuleErrorf("key is missing")
-		return
-	}
-	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
+	if !ctx.Config().FlattenApex() || ctx.Config().UnbundledBuild() {
+		if String(a.properties.Key) == "" {
+			ctx.ModuleErrorf("key is missing")
+			return
+		}
+		ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
 
-	cert := android.SrcIsModule(String(a.properties.Certificate))
-	if cert != "" {
-		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+		cert := android.SrcIsModule(String(a.properties.Certificate))
+		if cert != "" {
+			ctx.AddDependency(ctx.Module(), certificateTag, cert)
+		}
 	}
 }
 
@@ -626,7 +628,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return false
 	})
 
-	if keyFile == nil {
+	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
+	if !a.flattened && keyFile == nil {
 		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
 		return
 	}
@@ -656,7 +659,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		filesInfo[i].moduleName = ctx.ModuleName() + "." + filesInfo[i].moduleName
 	}
 
-	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
