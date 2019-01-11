@@ -54,7 +54,9 @@ func runNinja(ctx Context, config Config) {
 
 	args = append(args, "-f", config.CombinedNinjaFile())
 
-	args = append(args, "-w", "dupbuild=err")
+	args = append(args,
+		"-w", "dupbuild=err",
+		"-w", "missingdepfile=err")
 
 	cmd := Command(ctx, config, "ninja", executable, args...)
 	if config.HasKatiSuffix() {
