@@ -398,6 +398,15 @@ func (c *Module) OutputFile() android.OptionalPath {
 	return c.outputFile
 }
 
+func (c *Module) UnstrippedOutputFile() android.Path {
+	if library, ok := c.linker.(*libraryDecorator); ok {
+		return library.unstrippedOutputFile
+	} else if binary, ok := c.linker.(*binaryDecorator); ok {
+		return binary.unstrippedOutputFile
+	}
+	return nil
+}
+
 func (c *Module) Init() android.Module {
 	c.AddProperties(&c.Properties, &c.VendorProperties)
 	if c.compiler != nil {

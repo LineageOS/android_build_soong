@@ -346,6 +346,7 @@ type apexBundle struct {
 	bundleModuleFile android.WritablePath
 	outputFiles      map[apexPackaging]android.WritablePath
 	installDir       android.OutputPath
+	runtimeDir       android.OutputPath
 
 	// list of files to be included in this apex
 	filesInfo []apexFile
@@ -660,6 +661,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
+	a.runtimeDir = android.PathForOutput(ctx, "target", "product", ctx.Config().DeviceName(), "apex")
 	a.filesInfo = filesInfo
 
 	if a.apexTypes.zip() {
@@ -886,50 +888,60 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 }
 
 func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkData {
-	// Only image APEXes can be flattened.
-	if a.flattened && apexType.image() {
-		return android.AndroidMkData{
-			Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-				moduleNames := []string{}
-				for _, fi := range a.filesInfo {
-					if !android.InList(fi.moduleName, moduleNames) {
-						moduleNames = append(moduleNames, fi.moduleName)
+	return android.AndroidMkData{
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			moduleNames := []string{}
+			for _, fi := range a.filesInfo {
+				if !android.InList(fi.moduleName, moduleNames) {
+					moduleNames = append(moduleNames, fi.moduleName)
+				}
+			}
+
+			for _, fi := range a.filesInfo {
+				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+				fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
+				if a.flattened {
+					// /system/apex/<name>/{lib|framework|...}
+					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
+						a.installDir.RelPathString(), name, fi.installDir))
+				} else {
+					// /apex/<name>/{lib|framework|...}
+					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
+						a.runtimeDir.RelPathString(), name, fi.installDir))
+				}
+				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
+				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", fi.builtFile.Base())
+				fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
+				archStr := fi.archType.String()
+				if archStr != "common" {
+					fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
+				}
+				if fi.class == nativeSharedLib || fi.class == nativeExecutable {
+					if cc, ok := fi.module.(*cc.Module); ok && cc.UnstrippedOutputFile() != nil {
+						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
 					}
 				}
+				if fi.class == javaSharedLib {
+					javaModule := fi.module.(*java.Library)
+					fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", javaModule.ImplementationAndResourcesJars()[0].String())
+					fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", javaModule.HeaderJars()[0].String())
+					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
+					fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+					fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+				} else {
+					fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
+				}
+			}
+			if a.flattened && apexType.image() {
+				// Only image APEXes can be flattened.
 				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 				fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
-
-				for _, fi := range a.filesInfo {
-					fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
-					fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-					fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
-					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString(), name, fi.installDir))
-					fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
-					fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
-					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
-					archStr := fi.archType.String()
-					if archStr != "common" {
-						fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
-					}
-					if fi.class == javaSharedLib {
-						javaModule := fi.module.(*java.Library)
-						fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", javaModule.ImplementationAndResourcesJars()[0].String())
-						fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", javaModule.HeaderJars()[0].String())
-						fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
-						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
-						fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
-					} else {
-						fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
-					}
-				}
-			}}
-	} else {
-		return android.AndroidMkData{
-			Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			} else {
 				// zip-apex is the less common type so have the name refer to the image-apex
 				// only and use {name}.zip if you want the zip-apex
 				if apexType == zipApex && a.apexTypes == both {
@@ -944,13 +956,14 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
+				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
 				if apexType == imageApex {
 					fmt.Fprintln(w, "ALL_MODULES.$(LOCAL_MODULE).BUNDLE :=", a.bundleModuleFile.String())
 				}
-			}}
-	}
+			}
+		}}
 }
 
 func ApexBundleFactory() android.Module {
