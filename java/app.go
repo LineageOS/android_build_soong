@@ -263,6 +263,20 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	packageFile := android.PathForModuleOut(ctx, "package.apk")
 	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
+
+	if !a.Module.Platform() {
+		certPath := a.certificate.Pem.String()
+		systemCertPath := ctx.Config().DefaultAppCertificateDir(ctx).String()
+		if strings.HasPrefix(certPath, systemCertPath) {
+			enforceSystemCert := ctx.Config().EnforceSystemCertificate()
+			whitelist := ctx.Config().EnforceSystemCertificateWhitelist()
+
+			if enforceSystemCert && !inList(a.Module.Name(), whitelist) {
+				ctx.PropertyErrorf("certificate", "The module in product partition cannot be signed with certificate in system.")
+			}
+		}
+	}
+
 	a.outputFile = packageFile
 
 	bundleFile := android.PathForModuleOut(ctx, "base.zip")

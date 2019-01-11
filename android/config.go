@@ -950,6 +950,14 @@ func (c *config) FlattenApex() bool {
 	return Bool(c.productVariables.FlattenApex)
 }
 
+func (c *config) EnforceSystemCertificate() bool {
+	return Bool(c.productVariables.EnforceSystemCertificate)
+}
+
+func (c *config) EnforceSystemCertificateWhitelist() []string {
+	return c.productVariables.EnforceSystemCertificateWhitelist
+}
+
 func stringSlice(s *[]string) []string {
 	if s != nil {
 		return *s
