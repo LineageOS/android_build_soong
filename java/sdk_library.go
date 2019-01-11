@@ -124,6 +124,12 @@ type sdkLibraryProperties struct {
 	// This applies to the stubs lib.
 	Compile_dex *bool
 
+	// the java library (in classpath) for documentation that provides java srcs and srcjars.
+	Srcs_lib *string
+
+	// the base dirs under srcs_lib will be scanned for java srcs.
+	Srcs_lib_whitelist_dirs []string
+
 	// the sub dirs under srcs_lib_whitelist_dirs will be scanned for java srcs.
 	// Defaults to "android.annotation".
 	Srcs_lib_whitelist_pkgs []string
@@ -541,6 +547,10 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 		} else {
 			props.Srcs_lib_whitelist_pkgs = []string{"android.annotation"}
 		}
+	} else {
+		props.Srcs_lib = module.properties.Srcs_lib
+		props.Srcs_lib_whitelist_dirs = module.properties.Srcs_lib_whitelist_dirs
+		props.Srcs_lib_whitelist_pkgs = module.properties.Srcs_lib_whitelist_pkgs
 	}
 
 	if Bool(module.properties.Metalava_enabled) == true {
