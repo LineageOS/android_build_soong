@@ -850,7 +850,15 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
 		// with other ordinary files.
 		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
-		a.filesInfo = append(a.filesInfo, apexFile{manifest, ctx.ModuleName() + ".apex_manifest.json", android.Common, ".", etc, nil})
+
+		// rename to apex_manifest.json
+		copiedManifest := android.PathForModuleOut(ctx, "apex_manifest.json")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  manifest,
+			Output: copiedManifest,
+		})
+		a.filesInfo = append(a.filesInfo, apexFile{copiedManifest, ctx.ModuleName() + ".apex_manifest.json", android.Common, ".", etc, nil})
 
 		for _, fi := range a.filesInfo {
 			dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)
