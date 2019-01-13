@@ -95,11 +95,38 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *Rule
 
 	rule = &Rule{}
 
-	dexpreoptDisabled := contains(global.DisablePreoptModules, module.Name)
+	generateProfile := module.ProfileClassListing != "" && !global.DisableGenerateProfile
 
-	if contains(global.BootJars, module.Name) {
-		// Don't preopt individual boot jars, they will be preopted together
-		dexpreoptDisabled = true
+	var profile string
+	if generateProfile {
+		profile = profileCommand(global, module, rule)
+	}
+
+	if !dexpreoptDisabled(global, module) {
+		// Don't preopt individual boot jars, they will be preopted together.
+		// This check is outside dexpreoptDisabled because they still need to be stripped.
+		if !contains(global.BootJars, module.Name) {
+			appImage := (generateProfile || module.ForceCreateAppImage || global.DefaultAppImages) &&
+				!module.NoCreateAppImage
+
+			generateDM := shouldGenerateDM(module, global)
+
+			for _, arch := range module.Archs {
+				imageLocation := module.DexPreoptImageLocation
+				if imageLocation == "" {
+					imageLocation = global.DefaultDexPreoptImageLocation[arch]
+				}
+				dexpreoptCommand(global, module, rule, profile, arch, imageLocation, appImage, generateDM)
+			}
+		}
+	}
+
+	return rule, nil
+}
+
+func dexpreoptDisabled(global GlobalConfig, module ModuleConfig) bool {
+	if contains(global.DisablePreoptModules, module.Name) {
+		return true
 	}
 
 	// If OnlyPreoptBootImageAndSystemServer=true and module is not in boot class path skip
@@ -108,32 +135,10 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *Rule
 	// or performance. If PreoptExtractedApk is true, we ignore the only preopt boot image options.
 	if global.OnlyPreoptBootImageAndSystemServer && !contains(global.BootJars, module.Name) &&
 		!contains(global.SystemServerJars, module.Name) && !module.PreoptExtractedApk {
-		dexpreoptDisabled = true
+		return true
 	}
 
-	generateProfile := module.ProfileClassListing != "" && !global.DisableGenerateProfile
-
-	var profile string
-	if generateProfile {
-		profile = profileCommand(global, module, rule)
-	}
-
-	if !dexpreoptDisabled {
-		appImage := (generateProfile || module.ForceCreateAppImage || global.DefaultAppImages) &&
-			!module.NoCreateAppImage
-
-		generateDM := shouldGenerateDM(module, global)
-
-		for _, arch := range module.Archs {
-			imageLocation := module.DexPreoptImageLocation
-			if imageLocation == "" {
-				imageLocation = global.DefaultDexPreoptImageLocation[arch]
-			}
-			dexpreoptCommand(global, module, rule, profile, arch, imageLocation, appImage, generateDM)
-		}
-	}
-
-	return rule, nil
+	return false
 }
 
 func profileCommand(global GlobalConfig, module ModuleConfig, rule *Rule) string {
@@ -444,6 +449,14 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, prof
 // dex2oat time it will not be stripped even if strip=true.
 func shouldStripDex(module ModuleConfig, global GlobalConfig) bool {
 	strip := !global.DefaultNoStripping
+
+	if dexpreoptDisabled(global, module) {
+		strip = false
+	}
+
+	if module.NoStripping {
+		strip = false
+	}
 
 	// Don't strip modules that are not on the system partition in case the oat/vdex version in system ROM
 	// doesn't match the one in other partitions. It needs to be able to fall back to the APK for that case.

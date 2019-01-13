@@ -448,15 +448,17 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: "android_common"},
 	}, prebuiltTag, a.properties.Prebuilts...)
 
-	if String(a.properties.Key) == "" {
-		ctx.ModuleErrorf("key is missing")
-		return
-	}
-	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
+	if !ctx.Config().FlattenApex() || ctx.Config().UnbundledBuild() {
+		if String(a.properties.Key) == "" {
+			ctx.ModuleErrorf("key is missing")
+			return
+		}
+		ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
 
-	cert := android.SrcIsModule(String(a.properties.Certificate))
-	if cert != "" {
-		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+		cert := android.SrcIsModule(String(a.properties.Certificate))
+		if cert != "" {
+			ctx.AddDependency(ctx.Module(), certificateTag, cert)
+		}
 	}
 }
 
@@ -491,6 +493,19 @@ func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, di
 	}
 	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
+	}
+	switch cc.Name() {
+	case "libc", "libm", "libdl":
+		// Special case for bionic libs. This is to prevent the bionic libs
+		// from being included in the search path /apex/com.android.apex/lib.
+		// This exclusion is required because bionic libs in the runtime APEX
+		// are available via the legacy paths /system/lib/libc.so, etc. By the
+		// init process, the bionic libs in the APEX are bind-mounted to the
+		// legacy paths and thus will be loaded into the default linker namespace.
+		// If the bionic libs are directly in /apex/com.android.apex/lib then
+		// the same libs will be again loaded to the runtime linker namespace,
+		// which will result double loading of bionic libs that isn't supported.
+		dirInApex = filepath.Join(dirInApex, "bionic")
 	}
 
 	fileToCopy = cc.OutputFile().Path()
@@ -613,7 +628,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return false
 	})
 
-	if keyFile == nil {
+	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
+	if !a.flattened && keyFile == nil {
 		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
 		return
 	}
@@ -643,7 +659,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		filesInfo[i].moduleName = ctx.ModuleName() + "." + filesInfo[i].moduleName
 	}
 
-	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
@@ -837,7 +852,15 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
 		// with other ordinary files.
 		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
-		a.filesInfo = append(a.filesInfo, apexFile{manifest, ctx.ModuleName() + ".apex_manifest.json", android.Common, ".", etc, nil})
+
+		// rename to apex_manifest.json
+		copiedManifest := android.PathForModuleOut(ctx, "apex_manifest.json")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  manifest,
+			Output: copiedManifest,
+		})
+		a.filesInfo = append(a.filesInfo, apexFile{copiedManifest, ctx.ModuleName() + ".apex_manifest.json", android.Common, ".", etc, nil})
 
 		for _, fi := range a.filesInfo {
 			dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)

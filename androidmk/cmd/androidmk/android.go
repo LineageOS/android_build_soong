@@ -158,6 +158,10 @@ func init() {
 			"LOCAL_SHARED_ANDROID_LIBRARIES": "android_libs",
 			"LOCAL_STATIC_ANDROID_LIBRARIES": "android_static_libs",
 			"LOCAL_ADDITIONAL_CERTIFICATES":  "additional_certificates",
+
+			// Jacoco filters:
+			"LOCAL_JACK_COVERAGE_INCLUDE_FILTER": "jacoco.include_filter",
+			"LOCAL_JACK_COVERAGE_EXCLUDE_FILTER": "jacoco.exclude_filter",
 		})
 
 	addStandardProperties(bpparser.BoolType,

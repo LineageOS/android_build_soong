@@ -561,6 +561,19 @@ func (c *config) DefaultAppCertificate(ctx PathContext) (pem, key SourcePath) {
 	}
 }
 
+func (c *config) ApexKeyDir(ctx ModuleContext) SourcePath {
+	// TODO(b/121224311): define another variable such as TARGET_APEX_KEY_OVERRIDE
+	defaultCert := String(c.productVariables.DefaultAppCertificate)
+	if defaultCert == "" || filepath.Dir(defaultCert) == "build/target/product/security" {
+		// When defaultCert is unset or is set to the testkeys path, use the APEX keys
+		// that is under the module dir
+		return PathForModuleSrc(ctx).SourcePath
+	} else {
+		// If not, APEX keys are under the specified directory
+		return PathForSource(ctx, filepath.Dir(defaultCert))
+	}
+}
+
 func (c *config) AllowMissingDependencies() bool {
 	return Bool(c.productVariables.Allow_missing_dependencies)
 }
@@ -948,6 +961,14 @@ func (c *config) ExcludeDraftNdkApis() bool {
 
 func (c *config) FlattenApex() bool {
 	return Bool(c.productVariables.FlattenApex)
+}
+
+func (c *config) EnforceSystemCertificate() bool {
+	return Bool(c.productVariables.EnforceSystemCertificate)
+}
+
+func (c *config) EnforceSystemCertificateWhitelist() []string {
+	return c.productVariables.EnforceSystemCertificateWhitelist
 }
 
 func stringSlice(s *[]string) []string {

@@ -113,6 +113,7 @@ type ModuleConfig struct {
 
 	PresignedPrebuilt bool
 
+	NoStripping     bool
 	StripInputPath  string
 	StripOutputPath string
 }
