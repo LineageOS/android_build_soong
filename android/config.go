@@ -749,6 +749,14 @@ func (c *config) ModulesLoadedByPrivilegedModules() []string {
 	return c.productVariables.ModulesLoadedByPrivilegedModules
 }
 
+func (c *config) BootJars() []string {
+	return c.productVariables.BootJars
+}
+
+func (c *config) PreoptBootJars() []string {
+	return c.productVariables.PreoptBootJars
+}
+
 func (c *config) DisableDexPreopt(name string) bool {
 	return Bool(c.productVariables.DisableDexPreopt) || InList(name, c.productVariables.DisableDexPreoptModules)
 }
