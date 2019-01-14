@@ -72,7 +72,9 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 		androidMkModulesList = append(androidMkModulesList, module)
 	})
 
-	sort.Sort(ModulesByName{androidMkModulesList, ctx})
+	sort.SliceStable(androidMkModulesList, func(i, j int) bool {
+		return ctx.ModuleName(androidMkModulesList[i]) < ctx.ModuleName(androidMkModulesList[j])
+	})
 
 	transMk := PathForOutput(ctx, "Android"+String(ctx.Config().productVariables.Make_suffix)+".mk")
 	if ctx.Failed() {
