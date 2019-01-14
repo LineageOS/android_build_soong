@@ -36,6 +36,7 @@ type GlobalConfig struct {
 	PreoptBootClassPathDexLocations []string // virtual locations of boot class path files
 
 	BootJars         []string // modules for jars that form the boot class path
+	PreoptBootJars   []string // modules for jars that form the boot image
 	SystemServerJars []string // jars that form the system server
 	SystemServerApps []string // apps that are loaded into system server
 	SpeedApps        []string // apps that should be speed optimized
