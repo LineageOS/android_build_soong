@@ -123,7 +123,6 @@ var Configuration = map[string]PathConfig{
 	"unzip":     Allowed,
 	"wc":        Allowed,
 	"which":     Allowed,
-	"xargs":     Allowed,
 	"xz":        Allowed,
 	"zip":       Allowed,
 	"zipinfo":   Allowed,
@@ -176,6 +175,7 @@ var Configuration = map[string]PathConfig{
 	"uniq":     Toybox,
 	"unix2dos": Toybox,
 	"whoami":   Toybox,
+	"xargs":    Toybox,
 	"xxd":      Toybox,
 }
 
