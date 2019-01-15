@@ -16,6 +16,7 @@ package python
 
 import (
 	"android/soong/android"
+	"android/soong/tradefed"
 )
 
 // This file contains the module types for building Python test.
@@ -29,12 +30,18 @@ type TestProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
 	Test_config *string `android:"arch_variant"`
+
+	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
+	// should be installed with the module.
+	Test_config_template *string `android:"arch_variant"`
 }
 
 type testDecorator struct {
 	*binaryDecorator
 
 	testProperties TestProperties
+
+	testConfig android.Path
 }
 
 func (test *testDecorator) bootstrapperProps() []interface{} {
@@ -42,6 +49,9 @@ func (test *testDecorator) bootstrapperProps() []interface{} {
 }
 
 func (test *testDecorator) install(ctx android.ModuleContext, file android.Path) {
+	test.testConfig = tradefed.AutoGenPythonBinaryHostTestConfig(ctx, test.testProperties.Test_config,
+		test.testProperties.Test_config_template)
+
 	test.binaryDecorator.pythonInstaller.dir = "nativetest"
 	test.binaryDecorator.pythonInstaller.dir64 = "nativetest64"
 
