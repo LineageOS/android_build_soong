@@ -106,6 +106,7 @@ module {
 var archVariants = map[ArchType][]string{}
 var archFeatures = map[ArchType][]string{}
 var archFeatureMap = map[ArchType]map[string][]string{}
+var defaultArchFeatureMap = map[OsType]map[ArchType][]string{}
 
 func RegisterArchVariants(arch ArchType, variants ...string) {
 	checkCalledFromInit()
@@ -117,9 +118,24 @@ func RegisterArchFeatures(arch ArchType, features ...string) {
 	archFeatures[arch] = append(archFeatures[arch], features...)
 }
 
+func RegisterDefaultArchVariantFeatures(os OsType, arch ArchType, features ...string) {
+	checkCalledFromInit()
+
+	for _, feature := range features {
+		if !InList(feature, archFeatures[arch]) {
+			panic(fmt.Errorf("Invalid feature %q for arch %q variant \"\"", feature, arch))
+		}
+	}
+
+	if defaultArchFeatureMap[os] == nil {
+		defaultArchFeatureMap[os] = make(map[ArchType][]string)
+	}
+	defaultArchFeatureMap[os][arch] = features
+}
+
 func RegisterArchVariantFeatures(arch ArchType, variant string, features ...string) {
 	checkCalledFromInit()
-	if variant != "" && !InList(variant, archVariants[arch]) {
+	if !InList(variant, archVariants[arch]) {
 		panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
 	}
 
@@ -952,7 +968,7 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 			return
 		}
 
-		arch, err := decodeArch(archName, archVariant, cpuVariant, abi)
+		arch, err := decodeArch(os, archName, archVariant, cpuVariant, abi)
 		if err != nil {
 			targetErr = err
 			return
@@ -1127,11 +1143,11 @@ func getNdkAbisConfig() []archConfig {
 	}
 }
 
-func decodeArchSettings(archConfigs []archConfig) ([]Target, error) {
+func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
 	var ret []Target
 
 	for _, config := range archConfigs {
-		arch, err := decodeArch(config.arch, &config.archVariant,
+		arch, err := decodeArch(os, config.arch, &config.archVariant,
 			&config.cpuVariant, &config.abi)
 		if err != nil {
 			return nil, err
@@ -1147,7 +1163,7 @@ func decodeArchSettings(archConfigs []archConfig) ([]Target, error) {
 }
 
 // Convert a set of strings from product variables into a single Arch struct
-func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Arch, error) {
+func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi *[]string) (Arch, error) {
 	stringPtr := func(p *string) string {
 		if p != nil {
 			return *p
@@ -1190,8 +1206,14 @@ func decodeArch(arch string, archVariant, cpuVariant *string, abi *[]string) (Ar
 		}
 	}
 
-	if featureMap, ok := archFeatureMap[archType]; ok {
-		a.ArchFeatures = featureMap[a.ArchVariant]
+	if a.ArchVariant == "" {
+		if featureMap, ok := defaultArchFeatureMap[os]; ok {
+			a.ArchFeatures = featureMap[archType]
+		}
+	} else {
+		if featureMap, ok := archFeatureMap[archType]; ok {
+			a.ArchFeatures = featureMap[a.ArchVariant]
+		}
 	}
 
 	return a, nil

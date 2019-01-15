@@ -81,7 +81,7 @@ func init() {
 		"aes_ni",
 		"avx",
 		"popcnt")
-	android.RegisterArchVariantFeatures(android.X86_64, "",
+	android.RegisterDefaultArchVariantFeatures(android.Android, android.X86_64,
 		"ssse3",
 		"sse4",
 		"sse4_1",
