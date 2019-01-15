@@ -482,6 +482,11 @@ func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
 	}
 }
 
+func (a *apexBundle) IsSanitizerEnabled() bool {
+	// APEX can be mutated for sanitizers
+	return true
+}
+
 func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
 	// Decide the APEX-local directory by the multilib of the library
 	// In the future, we may query this to the module.
@@ -903,6 +908,9 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 
 				for _, fi := range a.filesInfo {
+					if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
+						continue
+					}
 					fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 					fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 					fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
