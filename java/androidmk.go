@@ -157,6 +157,12 @@ func (binary *Binary) AndroidMk() android.AndroidMkData {
 				func(w io.Writer, outputFile android.Path) {
 					fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", binary.headerJarFile.String())
 					fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", binary.implementationAndResourcesJar.String())
+					if binary.dexJarFile != nil {
+						fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", binary.dexJarFile.String())
+					}
+					if len(binary.dexpreopter.builtInstalled) > 0 {
+						fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", strings.Join(binary.dexpreopter.builtInstalled, " "))
+					}
 				},
 			},
 			Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
