@@ -1619,27 +1619,6 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 }
 
-type ModulesByName struct {
-	slice []blueprint.Module
-	ctx   interface {
-		ModuleName(blueprint.Module) string
-		ModuleSubDir(blueprint.Module) string
-	}
-}
-
-func (s ModulesByName) Len() int { return len(s.slice) }
-func (s ModulesByName) Less(i, j int) bool {
-	mi, mj := s.slice[i], s.slice[j]
-	ni, nj := s.ctx.ModuleName(mi), s.ctx.ModuleName(mj)
-
-	if ni != nj {
-		return ni < nj
-	} else {
-		return s.ctx.ModuleSubDir(mi) < s.ctx.ModuleSubDir(mj)
-	}
-}
-func (s ModulesByName) Swap(i, j int) { s.slice[i], s.slice[j] = s.slice[j], s.slice[i] }
-
 // Collect information for opening IDE project files in java/jdeps.go.
 type IDEInfo interface {
 	IDEInfo(ideInfo *IdeInfo)
