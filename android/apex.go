@@ -178,8 +178,16 @@ func DirectlyInApex(apexName string, moduleName string) bool {
 	return false
 }
 
+type hostContext interface {
+	Host() bool
+}
+
 // Tests whether a module named moduleName is directly depended on by any APEX.
-func DirectlyInAnyApex(moduleName string) bool {
+func DirectlyInAnyApex(ctx hostContext, moduleName string) bool {
+	if ctx.Host() {
+		// Host has no APEX.
+		return false
+	}
 	apexNamesMapMutex.Lock()
 	defer apexNamesMapMutex.Unlock()
 	if apexNames, ok := apexNamesMap()[moduleName]; ok {
