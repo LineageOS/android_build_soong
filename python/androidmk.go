@@ -70,6 +70,11 @@ func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 		if p.testProperties.Test_config != nil {
 			fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=",
 				*p.testProperties.Test_config)
+		} else {
+			if p.testConfig != nil {
+				fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=",
+					p.testConfig.String())
+			}
 		}
 	})
 	base.subAndroidMk(ret, p.binaryDecorator.pythonInstaller)
