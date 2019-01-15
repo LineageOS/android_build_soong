@@ -409,6 +409,11 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 				a.properties.Multilib.First.Native_shared_libs,
 				a.properties.Multilib.First.Binaries, target.String(),
 				a.getImageVariation(config))
+
+			// When multilib.* is omitted for prebuilts, it implies multilib.first.
+			ctx.AddFarVariationDependencies([]blueprint.Variation{
+				{Mutator: "arch", Variation: target.String()},
+			}, prebuiltTag, a.properties.Prebuilts...)
 		}
 
 		switch target.Arch.ArchType.Multilib {
@@ -443,10 +448,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
 		{Mutator: "arch", Variation: "android_common"},
 	}, javaLibTag, a.properties.Java_libs...)
-
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: "android_common"},
-	}, prebuiltTag, a.properties.Prebuilts...)
 
 	if !ctx.Config().FlattenApex() || ctx.Config().UnbundledBuild() {
 		if String(a.properties.Key) == "" {
