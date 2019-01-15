@@ -107,7 +107,6 @@ var Configuration = map[string]PathConfig{
 	"python":    Allowed,
 	"python2.7": Allowed,
 	"python3":   Allowed,
-	"readlink":  Allowed,
 	"realpath":  Allowed,
 	"rm":        Allowed,
 	"rsync":     Allowed,
@@ -123,7 +122,6 @@ var Configuration = map[string]PathConfig{
 	"unzip":     Allowed,
 	"wc":        Allowed,
 	"which":     Allowed,
-	"xargs":     Allowed,
 	"xz":        Allowed,
 	"zip":       Allowed,
 	"zipinfo":   Allowed,
@@ -164,6 +162,7 @@ var Configuration = map[string]PathConfig{
 	"od":       Toybox,
 	"paste":    Toybox,
 	"pwd":      Toybox,
+	"readlink": Toybox,
 	"rmdir":    Toybox,
 	"setsid":   Toybox,
 	"sleep":    Toybox,
@@ -176,6 +175,7 @@ var Configuration = map[string]PathConfig{
 	"uniq":     Toybox,
 	"unix2dos": Toybox,
 	"whoami":   Toybox,
+	"xargs":    Toybox,
 	"xxd":      Toybox,
 }
 

@@ -135,10 +135,6 @@ func init() {
 		// codebase for it.
 		"-Wno-inconsistent-missing-override",
 
-		// Bug: http://b/29823425 Disable -Wnull-dereference until the
-		// new instances detected by this warning are fixed.
-		"-Wno-null-dereference",
-
 		// Enable clang's thread-safety annotations in libcxx.
 		// Turn off -Wthread-safety-negative, to avoid breaking projects that use -Weverything.
 		"-D_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS",
@@ -184,6 +180,10 @@ func init() {
 		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
 		// this new warning are fixed.
 		"-Wno-null-pointer-arithmetic",
+
+		// Bug: http://b/29823425 Disable -Wnull-dereference until the
+		// new instances detected by this warning are fixed.
+		"-Wno-null-dereference",
 	}, " "))
 }
 
