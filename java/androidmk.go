@@ -33,9 +33,6 @@ func (library *Library) AndroidMkHostDex(w io.Writer, name string, data android.
 		} else {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.implementationAndResourcesJar.String())
 		}
-		if library.installFile == nil {
-			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
-		}
 		if library.dexJarFile != nil {
 			fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
 		}

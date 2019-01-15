@@ -1395,7 +1395,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.deviceProperties.UncompressDex = j.shouldUncompressDex(ctx)
 	j.compile(ctx)
 
-	if Bool(j.properties.Installable) || ctx.Host() {
+	if (Bool(j.properties.Installable) || ctx.Host()) && !android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
 		if j.deviceProperties.UncompressDex {
 			alignedOutputFile := android.PathForModuleOut(ctx, "aligned", ctx.ModuleName()+".jar")
 			TransformZipAlign(ctx, alignedOutputFile, j.outputFile)
