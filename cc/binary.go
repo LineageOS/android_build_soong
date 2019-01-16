@@ -249,7 +249,11 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				} else {
 					switch ctx.Os() {
 					case android.Android:
-						flags.DynamicLinker = "/system/bin/linker"
+						if ctx.bootstrap() {
+							flags.DynamicLinker = "/system/bin/bootstrap/linker"
+						} else {
+							flags.DynamicLinker = "/system/bin/linker"
+						}
 						if flags.Toolchain.Is64Bit() {
 							flags.DynamicLinker += "64"
 						}
