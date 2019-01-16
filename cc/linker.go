@@ -150,6 +150,9 @@ type BaseLinkerProperties struct {
 
 	// local file name to pass to the linker as --version_script
 	Version_script *string `android:"arch_variant"`
+
+	// Local file name to pass to the linker as --symbol-ordering-file
+	Symbol_ordering_file *string `android:"arch_variant"`
 }
 
 func NewBaseLinker(sanitize *sanitize) *baseLinker {
@@ -278,6 +281,8 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		android.ExtractSourceDeps(ctx,
 			linker.Properties.Target.Vendor.Version_script)
 	}
+
+	android.ExtractSourceDeps(ctx, linker.Properties.Symbol_ordering_file)
 
 	return deps
 }
@@ -432,6 +437,16 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 					flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
 				}
 			}
+		}
+	}
+
+	if !linker.dynamicProperties.BuildStubs {
+		symbolOrderingFile := ctx.ExpandOptionalSource(
+			linker.Properties.Symbol_ordering_file, "Symbol_ordering_file")
+		if symbolOrderingFile.Valid() {
+			flags.LdFlags = append(flags.LdFlags,
+				"-Wl,--symbol-ordering-file,"+symbolOrderingFile.String())
+			flags.LdFlagsDeps = append(flags.LdFlagsDeps, symbolOrderingFile.Path())
 		}
 	}
 
