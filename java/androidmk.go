@@ -75,6 +75,11 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := JAVA_LIBRARIES")
+				if library.dexJarFile != nil {
+					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.dexJarFile.String())
+				} else {
+					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.implementationAndResourcesJar.String())
+				}
 				if library.installFile == nil {
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 				}
