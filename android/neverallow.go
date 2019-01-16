@@ -100,7 +100,6 @@ func createLibcoreRules() []*rule {
 		"core-all",
 		"core-oj",
 		"core-libart",
-		"core-simple",
 		"okhttp",
 		"bouncycastle",
 		"conscrypt",

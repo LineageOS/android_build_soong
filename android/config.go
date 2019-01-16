@@ -303,7 +303,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	}
 
 	if archConfig != nil {
-		androidTargets, err := decodeArchSettings(archConfig)
+		androidTargets, err := decodeArchSettings(Android, archConfig)
 		if err != nil {
 			return Config{}, err
 		}
@@ -649,7 +649,7 @@ func (c *config) EnableCFI() bool {
 
 func (c *config) EnableXOM() bool {
 	if c.productVariables.EnableXOM == nil {
-		return false
+		return true
 	} else {
 		return Bool(c.productVariables.EnableXOM)
 	}

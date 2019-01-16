@@ -30,6 +30,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("NATIVE_BENCHMARK_TEST_CONFIG_TEMPLATE", "${NativeBenchmarkTestConfigTemplate}")
 	ctx.Strict("NATIVE_HOST_TEST_CONFIG_TEMPLATE", "${NativeHostTestConfigTemplate}")
 	ctx.Strict("NATIVE_TEST_CONFIG_TEMPLATE", "${NativeTestConfigTemplate}")
+	ctx.Strict("PYTHON_BINARY_HOST_TEST_CONFIG_TEMPLATE", "${PythonBinaryHostTestConfigTemplate}")
 
 	ctx.Strict("EMPTY_TEST_CONFIG", "${EmptyTestConfig}")
 }

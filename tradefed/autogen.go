@@ -118,6 +118,22 @@ func AutoGenJavaTestConfig(ctx android.ModuleContext, testConfigProp *string, te
 	return path
 }
 
+func AutoGenPythonBinaryHostTestConfig(ctx android.ModuleContext, testConfigProp *string,
+	testConfigTemplateProp *string) android.Path {
+
+	path, autogenPath := testConfigPath(ctx, testConfigProp)
+	if autogenPath != nil {
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplate(ctx, autogenPath, templatePath.String())
+		} else {
+			autogenTemplate(ctx, autogenPath, "${PythonBinaryHostTestConfigTemplate}")
+		}
+		return autogenPath
+	}
+	return path
+}
+
 var autogenInstrumentationTest = pctx.StaticRule("autogenInstrumentationTest", blueprint.RuleParams{
 	Command: "${AutoGenTestConfigScript} $out $in ${EmptyTestConfig} $template",
 	CommandDeps: []string{
