@@ -143,9 +143,6 @@ func (c *Cmd) wrapSandbox() {
 		// For now, just map everything. Eventually we should limit this, especially to make most things readonly.
 		"-B", "/",
 
-		// Enable networking for now. TODO: remove
-		"-N",
-
 		// Disable newcgroup for now, since it may require newer kernels
 		// TODO: try out cgroups
 		"--disable_clone_newcgroup",
