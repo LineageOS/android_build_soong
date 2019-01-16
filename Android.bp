@@ -243,6 +243,7 @@ bootstrap_go_package {
         "java/droiddoc.go",
         "java/gen.go",
         "java/genrule.go",
+        "java/hiddenapi.go",
         "java/jacoco.go",
         "java/java.go",
         "java/jdeps.go",

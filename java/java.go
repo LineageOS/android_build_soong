@@ -1172,10 +1172,23 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
 	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
+		// Dex compilation
 		var dexOutputFile android.ModuleOutPath
 		dexOutputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
+		}
+
+		// Hidden API CSV generation and dex encoding
+		isBootJar := inList(ctx.ModuleName(), ctx.Config().BootJars())
+		if isBootJar || inList(ctx.ModuleName(), ctx.Config().HiddenAPIExtraAppUsageJars()) {
+			// Derive the greylist from classes jar.
+			hiddenAPIGenerateCSV(ctx, j.implementationJarFile)
+		}
+		if isBootJar {
+			hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", jarName)
+			hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile)
+			dexOutputFile = hiddenAPIJar
 		}
 
 		// merge dex jar with resources if necessary
@@ -1189,6 +1202,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		j.dexJarFile = dexOutputFile
 
+		// Dexpreopting
 		j.dexpreopter.isInstallable = Bool(j.properties.Installable)
 		j.dexpreopter.uncompressedDex = j.deviceProperties.UncompressDex
 		dexOutputFile = j.dexpreopt(ctx, dexOutputFile)
