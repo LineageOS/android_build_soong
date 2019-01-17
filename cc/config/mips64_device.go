@@ -55,15 +55,6 @@ const (
 )
 
 func init() {
-	android.RegisterArchVariants(android.Mips64,
-		"mips64r2",
-		"mips64r6")
-	android.RegisterArchFeatures(android.Mips64,
-		"rev6",
-		"msa")
-	android.RegisterArchVariantFeatures(android.Mips64, "mips64r6",
-		"rev6")
-
 	pctx.StaticVariable("mips64GccVersion", mips64GccVersion)
 
 	pctx.SourcePathVariable("Mips64GccRoot",
