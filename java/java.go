@@ -998,12 +998,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enable_sharding = true
-			if len(j.properties.Annotation_processors) != 0 ||
-				len(j.properties.Annotation_processor_classes) != 0 {
-				ctx.PropertyErrorf("javac_shard_size",
-					"%q cannot be set when annotation processors are enabled.",
-					j.properties.Javac_shard_size)
-			}
+			// Formerly, there was a check here that prevented annotation processors
+			// from being used when sharding was enabled, as some annotation processors
+			// do not function correctly in sharded environments. It was removed to
+			// allow for the use of annotation processors that do function correctly
+			// with sharding enabled. See: b/77284273.
 		}
 		j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinJars)
 		if ctx.Failed() {
