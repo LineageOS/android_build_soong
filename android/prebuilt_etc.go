@@ -170,7 +170,7 @@ func PrebuiltEtcFactory() Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module)
 	// This module is device-only
-	InitAndroidArchModule(module, DeviceSupported, MultilibCommon)
+	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
 	return module
 }
 

@@ -101,7 +101,7 @@ func TestPrebuiltEtcOutputPath(t *testing.T) {
 		}
 	`)
 
-	p := ctx.ModuleForTests("foo.conf", "android_common_core").Module().(*PrebuiltEtc)
+	p := ctx.ModuleForTests("foo.conf", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
 	if p.outputFilePath.Base() != "foo.installed.conf" {
 		t.Errorf("expected foo.installed.conf, got %q", p.outputFilePath.Base())
 	}
@@ -120,12 +120,12 @@ func TestPrebuiltEtcGlob(t *testing.T) {
 		}
 	`)
 
-	p := ctx.ModuleForTests("my_foo", "android_common_core").Module().(*PrebuiltEtc)
+	p := ctx.ModuleForTests("my_foo", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
 	if p.outputFilePath.Base() != "my_foo" {
 		t.Errorf("expected my_foo, got %q", p.outputFilePath.Base())
 	}
 
-	p = ctx.ModuleForTests("my_bar", "android_common_core").Module().(*PrebuiltEtc)
+	p = ctx.ModuleForTests("my_bar", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
 	if p.outputFilePath.Base() != "bar.conf" {
 		t.Errorf("expected bar.conf, got %q", p.outputFilePath.Base())
 	}
