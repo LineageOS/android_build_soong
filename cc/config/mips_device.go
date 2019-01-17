@@ -89,22 +89,6 @@ const (
 )
 
 func init() {
-	android.RegisterArchVariants(android.Mips,
-		"mips32_fp",
-		"mips32r2_fp",
-		"mips32r2_fp_xburst",
-		"mips32r2dsp_fp",
-		"mips32r2dspr2_fp",
-		"mips32r6")
-	android.RegisterArchFeatures(android.Mips,
-		"dspr2",
-		"rev6",
-		"msa")
-	android.RegisterArchVariantFeatures(android.Mips, "mips32r2dspr2_fp",
-		"dspr2")
-	android.RegisterArchVariantFeatures(android.Mips, "mips32r6",
-		"rev6")
-
 	pctx.StaticVariable("mipsGccVersion", mipsGccVersion)
 
 	pctx.SourcePathVariable("MipsGccRoot",

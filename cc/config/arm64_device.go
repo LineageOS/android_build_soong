@@ -86,20 +86,6 @@ const (
 )
 
 func init() {
-	android.RegisterArchVariants(android.Arm64,
-		"armv8_a",
-		"armv8_2a",
-		"cortex-a53",
-		"cortex-a55",
-		"cortex-a72",
-		"cortex-a73",
-		"cortex-a75",
-		"cortex-a76",
-		"kryo",
-		"kryo385",
-		"exynos-m1",
-		"exynos-m2")
-
 	pctx.StaticVariable("arm64GccVersion", arm64GccVersion)
 
 	pctx.SourcePathVariable("Arm64GccRoot",

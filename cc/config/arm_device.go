@@ -168,35 +168,6 @@ const (
 )
 
 func init() {
-	android.RegisterArchFeatures(android.Arm,
-		"neon")
-
-	android.RegisterArchVariants(android.Arm,
-		"armv7-a",
-		"armv7-a-neon",
-		"armv8-a",
-		"armv8-2a",
-		"cortex-a7",
-		"cortex-a8",
-		"cortex-a9",
-		"cortex-a15",
-		"cortex-a53",
-		"cortex-a53-a57",
-		"cortex-a55",
-		"cortex-a72",
-		"cortex-a73",
-		"cortex-a75",
-		"cortex-a76",
-		"krait",
-		"kryo",
-		"kryo385",
-		"exynos-m1",
-		"exynos-m2")
-
-	android.RegisterArchVariantFeatures(android.Arm, "armv7-a-neon", "neon")
-	android.RegisterArchVariantFeatures(android.Arm, "armv8-a", "neon")
-	android.RegisterArchVariantFeatures(android.Arm, "armv8-2a", "neon")
-
 	pctx.StaticVariable("armGccVersion", armGccVersion)
 
 	pctx.SourcePathVariable("ArmGccRoot",
