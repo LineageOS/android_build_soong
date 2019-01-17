@@ -103,20 +103,216 @@ module {
 }
 */
 
-var archVariants = map[ArchType][]string{}
-var archFeatures = map[ArchType][]string{}
-var archFeatureMap = map[ArchType]map[string][]string{}
+var archVariants = map[ArchType][]string{
+	Arm: {
+		"armv7-a",
+		"armv7-a-neon",
+		"armv8-a",
+		"armv8-2a",
+		"cortex-a7",
+		"cortex-a8",
+		"cortex-a9",
+		"cortex-a15",
+		"cortex-a53",
+		"cortex-a53-a57",
+		"cortex-a55",
+		"cortex-a72",
+		"cortex-a73",
+		"cortex-a75",
+		"cortex-a76",
+		"krait",
+		"kryo",
+		"kryo385",
+		"exynos-m1",
+		"exynos-m2",
+	},
+	Arm64: {
+		"armv8_a",
+		"armv8_2a",
+		"cortex-a53",
+		"cortex-a55",
+		"cortex-a72",
+		"cortex-a73",
+		"cortex-a75",
+		"cortex-a76",
+		"kryo",
+		"kryo385",
+		"exynos-m1",
+		"exynos-m2",
+	},
+	Mips: {
+		"mips32_fp",
+		"mips32r2_fp",
+		"mips32r2_fp_xburst",
+		"mips32r2dsp_fp",
+		"mips32r2dspr2_fp",
+		"mips32r6",
+	},
+	Mips64: {
+		"mips64r2",
+		"mips64r6",
+	},
+	X86: {
+		"atom",
+		"haswell",
+		"ivybridge",
+		"sandybridge",
+		"silvermont",
+		"x86_64",
+	},
+	X86_64: {
+		"haswell",
+		"ivybridge",
+		"sandybridge",
+		"silvermont",
+	},
+}
+
+var archFeatures = map[ArchType][]string{
+	Arm: {
+		"neon",
+	},
+	Mips: {
+		"dspr2",
+		"rev6",
+		"msa",
+	},
+	Mips64: {
+		"rev6",
+		"msa",
+	},
+	X86: {
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"aes_ni",
+		"avx",
+		"popcnt",
+		"movbe",
+	},
+	X86_64: {
+		"ssse3",
+		"sse4",
+		"sse4_1",
+		"sse4_2",
+		"aes_ni",
+		"avx",
+		"popcnt",
+	},
+}
+
+var archFeatureMap = map[ArchType]map[string][]string{
+	Arm: {
+		"armv7-a-neon": {
+			"neon",
+		},
+		"armv8-a": {
+			"neon",
+		},
+		"armv8-2a": {
+			"neon",
+		},
+	},
+	Mips: {
+		"mips32r2dspr2_fp": {
+			"dspr2",
+		},
+		"mips32r6": {
+			"rev6",
+		},
+	},
+	Mips64: {
+		"mips64r6": {
+			"rev6",
+		},
+	},
+	X86: {
+		"atom": {
+			"ssse3",
+			"movbe",
+		},
+		"haswell": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"aes_ni",
+			"avx",
+			"popcnt",
+			"movbe",
+		},
+		"ivybridge": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"aes_ni",
+			"avx",
+			"popcnt",
+		},
+		"sandybridge": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"popcnt",
+		},
+		"silvermont": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"aes_ni",
+			"popcnt",
+			"movbe",
+		},
+		"x86_64": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"popcnt",
+		},
+	},
+	X86_64: {
+		"haswell": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"aes_ni",
+			"avx",
+			"popcnt",
+		},
+		"ivybridge": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"aes_ni",
+			"avx",
+			"popcnt",
+		},
+		"sandybridge": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"popcnt",
+		},
+		"silvermont": {
+			"ssse3",
+			"sse4",
+			"sse4_1",
+			"sse4_2",
+			"aes_ni",
+			"popcnt",
+		},
+	},
+}
+
 var defaultArchFeatureMap = map[OsType]map[ArchType][]string{}
-
-func RegisterArchVariants(arch ArchType, variants ...string) {
-	checkCalledFromInit()
-	archVariants[arch] = append(archVariants[arch], variants...)
-}
-
-func RegisterArchFeatures(arch ArchType, features ...string) {
-	checkCalledFromInit()
-	archFeatures[arch] = append(archFeatures[arch], features...)
-}
 
 func RegisterDefaultArchVariantFeatures(os OsType, arch ArchType, features ...string) {
 	checkCalledFromInit()
@@ -131,24 +327,6 @@ func RegisterDefaultArchVariantFeatures(os OsType, arch ArchType, features ...st
 		defaultArchFeatureMap[os] = make(map[ArchType][]string)
 	}
 	defaultArchFeatureMap[os][arch] = features
-}
-
-func RegisterArchVariantFeatures(arch ArchType, variant string, features ...string) {
-	checkCalledFromInit()
-	if !InList(variant, archVariants[arch]) {
-		panic(fmt.Errorf("Invalid variant %q for arch %q", variant, arch))
-	}
-
-	for _, feature := range features {
-		if !InList(feature, archFeatures[arch]) {
-			panic(fmt.Errorf("Invalid feature %q for arch %q variant %q", feature, arch, variant))
-		}
-	}
-
-	if archFeatureMap[arch] == nil {
-		archFeatureMap[arch] = make(map[string][]string)
-	}
-	archFeatureMap[arch][variant] = features
 }
 
 // An Arch indicates a single CPU architecture.
