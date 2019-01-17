@@ -629,14 +629,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 			case SdkLibraryDependency:
-				sdkVersion := j.sdkVersion()
-				linkType := javaSdk
-				if strings.HasPrefix(sdkVersion, "system_") || strings.HasPrefix(sdkVersion, "test_") {
-					linkType = javaSystem
-				} else if sdkVersion == "" {
-					linkType = javaPlatform
-				}
-				deps.classpath = append(deps.classpath, dep.ImplementationJars(linkType)...)
+				deps.classpath = append(deps.classpath, dep.ImplementationJars(ctx, j.sdkVersion())...)
 			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)

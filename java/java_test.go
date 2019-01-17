@@ -861,7 +861,6 @@ func TestJavaSdkLibrary(t *testing.T) {
 	ctx.ModuleForTests("foo"+sdkDocsSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkSystemApiSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkTestApiSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkImplLibrarySuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_common")
 	ctx.ModuleForTests("foo.api.public.28", "")
 	ctx.ModuleForTests("foo.api.system.28", "")
@@ -874,9 +873,9 @@ func TestJavaSdkLibrary(t *testing.T) {
 			"foo.stubs.system.jar")
 	}
 	// ... and not to the impl lib
-	if strings.Contains(bazJavac.Args["classpath"], "foo.impl.jar") {
+	if strings.Contains(bazJavac.Args["classpath"], "foo.jar") {
 		t.Errorf("baz javac classpath %v should not contain %q", bazJavac.Args["classpath"],
-			"foo.impl.jar")
+			"foo.jar")
 	}
 	// test if baz is not linked to the system variant of foo
 	if strings.Contains(bazJavac.Args["classpath"], "foo.stubs.jar") {

@@ -32,6 +32,9 @@ type AndroidMkContext interface {
 	Name() string
 	Target() android.Target
 	subAndroidMk(*android.AndroidMkData, interface{})
+	Arch() android.Arch
+	Os() android.OsType
+	Host() bool
 	useVndk() bool
 	static() bool
 	inRecovery() bool
@@ -189,9 +192,9 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 			}
 		})
 	}
-
-	if len(library.Properties.Stubs.Versions) > 0 && android.DirectlyInAnyApex(ctx.Name()) &&
-		!ctx.inRecovery() && !ctx.useVndk() && !ctx.static() {
+	if len(library.Properties.Stubs.Versions) > 0 &&
+		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.inRecovery() && !ctx.useVndk() &&
+		!ctx.static() {
 		if !library.buildStubs() {
 			ret.SubName = ".bootstrap"
 		}

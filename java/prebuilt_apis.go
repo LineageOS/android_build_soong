@@ -17,7 +17,6 @@ package java
 import (
 	"android/soong/android"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -66,14 +65,9 @@ func parseJarPath(ctx android.BaseModuleContext, path string) (module string, ap
 	return
 }
 
-func parseApiFilePath(ctx android.BaseModuleContext, path string) (module string, apiver int, scope string) {
+func parseApiFilePath(ctx android.BaseModuleContext, path string) (module string, apiver string, scope string) {
 	elements := strings.Split(path, "/")
-	ver, err := strconv.Atoi(elements[0])
-	if err != nil {
-		ctx.ModuleErrorf("invalid version %q found in path: %q", elements[0], path)
-		return
-	}
-	apiver = ver
+	apiver = elements[0]
 
 	scope = elements[1]
 	if scope != "public" && scope != "system" && scope != "test" {
@@ -151,7 +145,7 @@ func prebuiltApiFiles(mctx android.TopDownMutatorContext) {
 	type latestApiInfo struct {
 		module string
 		scope  string
-		apiver int
+		apiver string
 		path   string
 	}
 	m := make(map[string]latestApiInfo)
@@ -160,14 +154,15 @@ func prebuiltApiFiles(mctx android.TopDownMutatorContext) {
 		// create a filegroup for each api txt file
 		localPath := strings.TrimPrefix(f, mydir)
 		module, apiver, scope := parseApiFilePath(mctx, localPath)
-		createFilegroup(mctx, module, scope, strconv.Itoa(apiver), localPath)
+		createFilegroup(mctx, module, scope, apiver, localPath)
 
 		// find the latest apiver
 		key := module + "." + scope
 		info, ok := m[key]
 		if !ok {
 			m[key] = latestApiInfo{module, scope, apiver, localPath}
-		} else if apiver > info.apiver {
+		} else if len(apiver) > len(info.apiver) || (len(apiver) == len(info.apiver) &&
+			strings.Compare(apiver, info.apiver) > 0) {
 			info.apiver = apiver
 			info.path = localPath
 		}

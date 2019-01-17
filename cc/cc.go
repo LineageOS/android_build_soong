@@ -244,6 +244,10 @@ type ModuleContextIntf interface {
 	useSdk() bool
 	sdkVersion() string
 	useVndk() bool
+	isNdk() bool
+	isLlndk() bool
+	isLlndkPublic() bool
+	isVndkPrivate() bool
 	isVndk() bool
 	isVndkSp() bool
 	isVndkExt() bool
@@ -473,6 +477,25 @@ func (c *Module) useVndk() bool {
 	return c.Properties.UseVndk
 }
 
+func (c *Module) isNdk() bool {
+	return inList(c.Name(), ndkMigratedLibs)
+}
+
+func (c *Module) isLlndk() bool {
+	// Returns true for both LLNDK (public) and LLNDK-private libs.
+	return inList(c.Name(), llndkLibraries)
+}
+
+func (c *Module) isLlndkPublic() bool {
+	// Returns true only for LLNDK (public) libs.
+	return c.isLlndk() && !c.isVndkPrivate()
+}
+
+func (c *Module) isVndkPrivate() bool {
+	// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
+	return inList(c.Name(), vndkPrivateLibraries)
+}
+
 func (c *Module) isVndk() bool {
 	if vndkdep := c.vndkdep; vndkdep != nil {
 		return vndkdep.isVndk()
@@ -604,6 +627,22 @@ func (ctx *moduleContextImpl) useVndk() bool {
 	return ctx.mod.useVndk()
 }
 
+func (ctx *moduleContextImpl) isNdk() bool {
+	return ctx.mod.isNdk()
+}
+
+func (ctx *moduleContextImpl) isLlndk() bool {
+	return ctx.mod.isLlndk()
+}
+
+func (ctx *moduleContextImpl) isLlndkPublic() bool {
+	return ctx.mod.isLlndkPublic()
+}
+
+func (ctx *moduleContextImpl) isVndkPrivate() bool {
+	return ctx.mod.isVndkPrivate()
+}
+
 func (ctx *moduleContextImpl) isVndk() bool {
 	return ctx.mod.isVndk()
 }
@@ -642,16 +681,16 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
 		// APEX variants do not need ABI dumps.
 		return false
 	}
-	if inList(ctx.baseModuleName(), llndkLibraries) {
+	if ctx.isNdk() {
 		return true
 	}
-	if inList(ctx.baseModuleName(), ndkMigratedLibs) {
+	if ctx.isLlndkPublic() {
 		return true
 	}
-	if ctx.useVndk() && ctx.isVndk() {
+	if ctx.useVndk() && ctx.isVndk() && !ctx.isVndkPrivate() {
 		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext and this is not
 		// VNDK-private.
-		return Bool(ctx.mod.VendorProperties.Vendor_available) || ctx.isVndkExt()
+		return true
 	}
 	return false
 }
@@ -874,7 +913,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		// force anything in the make world to link against the stubs library.
 		// (unless it is explicitly referenced via .bootstrap suffix or the
 		// module is marked with 'bootstrap: true').
-		if c.HasStubsVariants() && android.DirectlyInAnyApex(ctx.baseModuleName()) &&
+		if c.HasStubsVariants() &&
+			android.DirectlyInAnyApex(ctx, ctx.baseModuleName()) &&
 			!c.inRecovery() && !c.useVndk() && !c.static() && c.IsStubs() {
 			c.Properties.HideFromMake = false // unhide
 			// Note: this is still non-installable
@@ -1456,7 +1496,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depIsStubs := dependentLibrary.buildStubs()
 				depHasStubs := ccDep.HasStubsVariants()
 				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
-				depInPlatform := !android.DirectlyInAnyApex(depName)
+				depInPlatform := !android.DirectlyInAnyApex(ctx, depName)
 
 				var useThisDep bool
 				if depIsStubs && explicitlyVersioned {

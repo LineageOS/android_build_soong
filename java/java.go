@@ -336,8 +336,8 @@ type Dependency interface {
 }
 
 type SdkLibraryDependency interface {
-	HeaderJars(linkType linkType) android.Paths
-	ImplementationJars(linkType linkType) android.Paths
+	HeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths
+	ImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths
 }
 
 type SrcDependency interface {
@@ -729,8 +729,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		case SdkLibraryDependency:
 			switch tag {
 			case libTag:
-				linkType, _ := getLinkType(j, ctx.ModuleName())
-				deps.classpath = append(deps.classpath, dep.HeaderJars(linkType)...)
+				deps.classpath = append(deps.classpath, dep.HeaderJars(ctx, j.sdkVersion())...)
 				// names of sdk libs that are directly depended are exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
 			default:
@@ -747,6 +746,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticJars = append(deps.staticJars, dep.Srcs()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.Srcs()...)
 			case android.DefaultsDepTag, android.SourceDepTag:
+				// Nothing to do
+			case publicApiFileTag, systemApiFileTag, testApiFileTag:
 				// Nothing to do
 			default:
 				ctx.ModuleErrorf("dependency on genrule %q may only be in srcs, libs, or static_libs", otherName)
