@@ -51,29 +51,8 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func createTestContext(t *testing.T, config android.Config, bp string) *android.TestContext {
-	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(BinaryFactory))
-	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
-	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
-	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
-	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(ToolchainLibraryFactory))
-	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(LlndkLibraryFactory))
-	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
-	ctx.RegisterModuleType("vendor_public_library", android.ModuleFactoryAdaptor(vendorPublicLibraryFactory))
-	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(ObjectFactory))
-	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", ImageMutator).Parallel()
-		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("vndk", VndkMutator).Parallel()
-		ctx.BottomUp("version", VersionMutator).Parallel()
-		ctx.BottomUp("begin", BeginMutator).Parallel()
-	})
-	ctx.Register()
-
-	// add some modules that are required by the compiler and/or linker
-	bp = bp + `
+func gatherRequiredDeps(os android.OsType) string {
+	ret := `
 		toolchain_library {
 			name: "libatomic",
 			vendor_available: true,
@@ -215,8 +194,45 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 		cc_library {
 			name: "libprotobuf-cpp-lite",
 		}
+		`
+	if os == android.Fuchsia {
+		ret += `
+		cc_library {
+			name: "libbioniccompat",
+			stl: "none",
+		}
+		cc_library {
+			name: "libcompiler_rt",
+			stl: "none",
+		}
+		`
+	}
+	return ret
+}
 
-`
+func createTestContext(t *testing.T, config android.Config, bp string, os android.OsType) *android.TestContext {
+	ctx := android.NewTestArchContext()
+	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(BinaryFactory))
+	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
+	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
+	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
+	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(ToolchainLibraryFactory))
+	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(LlndkLibraryFactory))
+	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
+	ctx.RegisterModuleType("vendor_public_library", android.ModuleFactoryAdaptor(vendorPublicLibraryFactory))
+	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(ObjectFactory))
+	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
+	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("image", ImageMutator).Parallel()
+		ctx.BottomUp("link", LinkageMutator).Parallel()
+		ctx.BottomUp("vndk", VndkMutator).Parallel()
+		ctx.BottomUp("version", VersionMutator).Parallel()
+		ctx.BottomUp("begin", BeginMutator).Parallel()
+	})
+	ctx.Register()
+
+	// add some modules that are required by the compiler and/or linker
+	bp = bp + gatherRequiredDeps(os)
 
 	ctx.MockFileSystem(map[string][]byte{
 		"Android.bp":  []byte(bp),
@@ -232,8 +248,12 @@ func createTestContext(t *testing.T, config android.Config, bp string) *android.
 }
 
 func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.TestContext {
+	return testCcWithConfigForOs(t, bp, config, android.Android)
+}
+
+func testCcWithConfigForOs(t *testing.T, bp string, config android.Config, os android.OsType) *android.TestContext {
 	t.Helper()
-	ctx := createTestContext(t, config, bp)
+	ctx := createTestContext(t, config, bp, os)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -266,7 +286,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
-	ctx := createTestContext(t, config, bp)
+	ctx := createTestContext(t, config, bp, android.Android)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	if len(errs) > 0 {
@@ -288,6 +308,69 @@ const (
 	vendorVariant   = "android_arm64_armv8-a_vendor_shared"
 	recoveryVariant = "android_arm64_armv8-a_recovery_shared"
 )
+
+func TestFuchsiaDeps(t *testing.T) {
+	t.Helper()
+
+	bp := `
+		cc_library {
+			name: "libTest",
+			srcs: ["foo.c"],
+			target: {
+				fuchsia: {
+					srcs: ["bar.c"],
+				},
+			},
+		}`
+
+	config := android.TestArchConfigFuchsia(buildDir, nil)
+	ctx := testCcWithConfigForOs(t, bp, config, android.Fuchsia)
+
+	rt := false
+	fb := false
+
+	ld := ctx.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
+	implicits := ld.Implicits
+	for _, lib := range implicits {
+		if strings.Contains(lib.Rel(), "libcompiler_rt") {
+			rt = true
+		}
+
+		if strings.Contains(lib.Rel(), "libbioniccompat") {
+			fb = true
+		}
+	}
+
+	if !rt || !fb {
+		t.Errorf("fuchsia libs must link libcompiler_rt and libbioniccompat")
+	}
+}
+
+func TestFuchsiaTargetDecl(t *testing.T) {
+	t.Helper()
+
+	bp := `
+		cc_library {
+			name: "libTest",
+			srcs: ["foo.c"],
+			target: {
+				fuchsia: {
+					srcs: ["bar.c"],
+				},
+			},
+		}`
+
+	config := android.TestArchConfigFuchsia(buildDir, nil)
+	ctx := testCcWithConfigForOs(t, bp, config, android.Fuchsia)
+	ld := ctx.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
+	var objs []string
+	for _, o := range ld.Inputs {
+		objs = append(objs, o.Base())
+	}
+	if len(objs) != 2 || objs[0] != "foo.o" || objs[1] != "bar.o" {
+		t.Errorf("inputs of libTest must be []string{\"foo.o\", \"bar.o\"}, but was %#v.", objs)
+	}
+}
 
 func TestVendorSrc(t *testing.T) {
 	ctx := testCc(t, `

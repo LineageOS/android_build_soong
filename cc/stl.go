@@ -91,6 +91,26 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 				ctx.ModuleErrorf("stl: %q is not a supported STL for windows", s)
 				return ""
 			}
+		} else if ctx.Fuchsia() {
+			switch s {
+			case "c++_static":
+				return "libc++_static"
+			case "c++_shared":
+				return "libc++"
+			case "libc++", "libc++_static":
+				return s
+			case "none":
+				return ""
+			case "":
+				if ctx.static() {
+					return "libc++_static"
+				} else {
+					return "libc++"
+				}
+			default:
+				ctx.ModuleErrorf("stl: %q is not a supported STL on Fuchsia", s)
+				return ""
+			}
 		} else {
 			switch s {
 			case "libc++", "libc++_static":
@@ -248,8 +268,9 @@ var hostDynamicGccLibs, hostStaticGccLibs map[android.OsType][]string
 
 func init() {
 	hostDynamicGccLibs = map[android.OsType][]string{
-		android.Linux:  []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
-		android.Darwin: []string{"-lc", "-lSystem"},
+		android.Fuchsia: []string{"-lc", "-lunwind"},
+		android.Linux:   []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
+		android.Darwin:  []string{"-lc", "-lSystem"},
 		android.Windows: []string{"-Wl,--start-group", "-lmingw32", "-lgcc", "-lgcc_eh",
 			"-lmoldname", "-lmingwex", "-lmsvcrt", "-lucrt", "-lpthread",
 			"-ladvapi32", "-lshell32", "-luser32", "-lkernel32", "-lpsapi",

@@ -224,6 +224,22 @@ func TestConfig(buildDir string, env map[string]string) Config {
 	return Config{config}
 }
 
+func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
+	testConfig := TestConfig(buildDir, env)
+	config := testConfig.config
+
+	config.Targets = map[OsType][]Target{
+		Fuchsia: []Target{
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}},
+		},
+		BuildOs: []Target{
+			{BuildOs, Arch{ArchType: X86_64}},
+		},
+	}
+
+	return testConfig
+}
+
 // TestConfig returns a Config object suitable for using for tests that need to run the arch mutator
 func TestArchConfig(buildDir string, env map[string]string) Config {
 	testConfig := TestConfig(buildDir, env)
