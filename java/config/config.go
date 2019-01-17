@@ -154,4 +154,7 @@ func init() {
 	pctx.SourcePathsVariable("ManifestMergerClasspath", ":", ManifestMergerClasspath...)
 
 	pctx.HostBinToolVariable("ZipAlign", "zipalign")
+
+	pctx.HostBinToolVariable("Class2Greylist", "class2greylist")
+	pctx.HostBinToolVariable("HiddenAPI", "hiddenapi")
 }
