@@ -127,6 +127,9 @@ func (c *Cmd) wrapSandbox() {
 		// in soong_ui
 		"-e",
 
+		// Mount /proc read-write, necessary to run a nested nsjail or minijail0
+		"--proc_rw",
+
 		// Use a consistent user & group.
 		// Note that these are mapped back to the real UID/GID when
 		// doing filesystem operations, so they're rather arbitrary.
