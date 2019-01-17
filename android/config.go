@@ -983,6 +983,18 @@ func (c *config) EnforceSystemCertificateWhitelist() []string {
 	return c.productVariables.EnforceSystemCertificateWhitelist
 }
 
+func (c *config) HiddenAPIPublicList() string {
+	return String(c.productVariables.HiddenAPIPublicList)
+}
+
+func (c *config) HiddenAPIFlags() string {
+	return String(c.productVariables.HiddenAPIFlags)
+}
+
+func (c *config) HiddenAPIExtraAppUsageJars() []string {
+	return c.productVariables.HiddenAPIExtraAppUsageJars
+}
+
 func stringSlice(s *[]string) []string {
 	if s != nil {
 		return *s
