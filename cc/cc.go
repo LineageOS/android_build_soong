@@ -874,7 +874,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		// force anything in the make world to link against the stubs library.
 		// (unless it is explicitly referenced via .bootstrap suffix or the
 		// module is marked with 'bootstrap: true').
-		if c.HasStubsVariants() && android.DirectlyInAnyApex(ctx.baseModuleName()) &&
+		if c.HasStubsVariants() &&
+			android.DirectlyInAnyApex(ctx, ctx.baseModuleName()) &&
 			!c.inRecovery() && !c.useVndk() && !c.static() && c.IsStubs() {
 			c.Properties.HideFromMake = false // unhide
 			// Note: this is still non-installable
@@ -1456,7 +1457,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depIsStubs := dependentLibrary.buildStubs()
 				depHasStubs := ccDep.HasStubsVariants()
 				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
-				depInPlatform := !android.DirectlyInAnyApex(depName)
+				depInPlatform := !android.DirectlyInAnyApex(ctx, depName)
 
 				var useThisDep bool
 				if depIsStubs && explicitlyVersioned {
