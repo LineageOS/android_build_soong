@@ -586,6 +586,10 @@ func (c *config) UnbundledBuildPrebuiltSdks() bool {
 	return Bool(c.productVariables.Unbundled_build) && !Bool(c.productVariables.Unbundled_build_sdks_from_source)
 }
 
+func (c *config) Fuchsia() bool {
+	return Bool(c.productVariables.Fuchsia)
+}
+
 func (c *config) IsPdkBuild() bool {
 	return Bool(c.productVariables.Pdk)
 }
