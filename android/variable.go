@@ -243,6 +243,8 @@ type productVariables struct {
 
 	Product_is_iot *bool `json:",omitempty"`
 
+	Fuchsia *bool `json:",omitempty"`
+
 	DeviceKernelHeaders []string `json:",omitempty"`
 
 	ExtraVndkVersions []string `json:",omitempty"`
