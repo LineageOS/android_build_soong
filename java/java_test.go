@@ -121,6 +121,7 @@ func testContext(config android.Config, bp string,
 		"core.current.stubs",
 		"core.platform.api.stubs",
 		"kotlin-stdlib",
+		"kotlin-annotations",
 	}
 
 	for _, extra := range extraModules {
