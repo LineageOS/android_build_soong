@@ -363,8 +363,10 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	var sharedLibs android.Paths
 	// Ignore shared libs for static executables.
 	if !binary.static() {
-		sharedLibs = deps.SharedLibs
+		sharedLibs = deps.EarlySharedLibs
+		sharedLibs = append(sharedLibs, deps.SharedLibs...)
 		sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
+		linkerDeps = append(linkerDeps, deps.EarlySharedLibsDeps...)
 		linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 		linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	}
