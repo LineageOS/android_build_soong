@@ -4,6 +4,10 @@ Soong is the replacement for the old Android make-based build system.  It
 replaces Android.mk files with Android.bp files, which are JSON-like simple
 declarative descriptions of modules to build.
 
+See [Simple Build
+Configuration](https://source.android.com/compatibility/tests/development/blueprints)
+on source.android.com to read how Soong is configured for testing.
+
 ## Android.bp file format
 
 By design, Android.bp files are very simple.  There are no conditionals or
