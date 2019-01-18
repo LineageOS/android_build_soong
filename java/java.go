@@ -974,7 +974,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.classpath...)
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
-		TransformKotlinToClasses(ctx, kotlinJar, kotlinSrcFiles, srcJars, flags)
+		kotlinCompile(ctx, kotlinJar, kotlinSrcFiles, srcJars, flags)
 		if ctx.Failed() {
 			return
 		}

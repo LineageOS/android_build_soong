@@ -60,26 +60,6 @@ var (
 		"javacFlags", "bootClasspath", "classpath", "processorpath", "srcJars", "srcJarDir",
 		"outDir", "annoDir", "javaVersion")
 
-	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
-		blueprint.RuleParams{
-			Command: `rm -rf "$classesDir" "$srcJarDir" "$kotlinBuildFile" && mkdir -p "$classesDir" "$srcJarDir" && ` +
-				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.GenKotlinBuildFileCmd} $classpath $classesDir $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
-				`${config.KotlincCmd} $kotlincFlags ` +
-				`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir`,
-			CommandDeps: []string{
-				"${config.KotlincCmd}",
-				"${config.KotlinCompilerJar}",
-				"${config.GenKotlinBuildFileCmd}",
-				"${config.SoongZipCmd}",
-				"${config.ZipSyncCmd}",
-			},
-			Rspfile:        "$out.rsp",
-			RspfileContent: `$in`,
-		},
-		"kotlincFlags", "classpath", "srcJars", "srcJarDir", "classesDir", "kotlinJvmTarget", "kotlinBuildFile")
-
 	turbine = pctx.AndroidStaticRule("turbine",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
@@ -175,35 +155,6 @@ type javaBuilderFlags struct {
 	protoOutTypeFlag string // The flag itself: --java_out
 	protoOutParams   string // Parameters to that flag: --java_out=$protoOutParams:$outDir
 	protoRoot        bool
-}
-
-func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcJars android.Paths,
-	flags javaBuilderFlags) {
-
-	inputs := append(android.Paths(nil), srcFiles...)
-
-	var deps android.Paths
-	deps = append(deps, flags.kotlincClasspath...)
-	deps = append(deps, srcJars...)
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        kotlinc,
-		Description: "kotlinc",
-		Output:      outputFile,
-		Inputs:      inputs,
-		Implicits:   deps,
-		Args: map[string]string{
-			"classpath":       flags.kotlincClasspath.FormJavaClassPath("-classpath"),
-			"kotlincFlags":    flags.kotlincFlags,
-			"srcJars":         strings.Join(srcJars.Strings(), " "),
-			"classesDir":      android.PathForModuleOut(ctx, "kotlinc", "classes").String(),
-			"srcJarDir":       android.PathForModuleOut(ctx, "kotlinc", "srcJars").String(),
-			"kotlinBuildFile": android.PathForModuleOut(ctx, "kotlinc-build.xml").String(),
-			// http://b/69160377 kotlinc only supports -jvm-target 1.6 and 1.8
-			"kotlinJvmTarget": "1.8",
-		},
-	})
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
