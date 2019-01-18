@@ -313,6 +313,9 @@ type Module struct {
 	// filter out Exclude_srcs, will be used by android.IDEInfo struct
 	expandIDEInfoCompiledSrcs []string
 
+	// expanded Jarjar_rules
+	expandJarjarRules android.Path
+
 	dexpreopter
 }
 
@@ -475,6 +478,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
 	android.ExtractSourceDeps(ctx, j.properties.Manifest)
+	android.ExtractSourceDeps(ctx, j.properties.Jarjar_rules)
 
 	if j.hasSrcExt(".proto") {
 		protoDeps(ctx, &j.protoProperties)
@@ -940,6 +944,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// that IDEInfo struct will use
 	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, srcFiles.Strings()...)
 
+	if j.properties.Jarjar_rules != nil {
+		j.expandJarjarRules = ctx.ExpandSource(*j.properties.Jarjar_rules, "jarjar_rules")
+	}
+
 	jarName := ctx.ModuleName() + ".jar"
 
 	javaSrcFiles := srcFiles.FilterByExt(".java")
@@ -1143,17 +1151,16 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	// jarjar implementation jar if necessary
-	if j.properties.Jarjar_rules != nil {
-		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
+	if j.expandJarjarRules != nil {
 		// Transform classes.jar into classes-jarjar.jar
 		jarjarFile := android.PathForModuleOut(ctx, "jarjar", jarName)
-		TransformJarJar(ctx, jarjarFile, outputFile, jarjar_rules)
+		TransformJarJar(ctx, jarjarFile, outputFile, j.expandJarjarRules)
 		outputFile = jarjarFile
 
 		// jarjar resource jar if necessary
 		if j.resourceJar != nil {
 			resourceJarJarFile := android.PathForModuleOut(ctx, "res-jarjar", jarName)
-			TransformJarJar(ctx, resourceJarJarFile, j.resourceJar, jarjar_rules)
+			TransformJarJar(ctx, resourceJarJarFile, j.resourceJar, j.expandJarjarRules)
 			j.resourceJar = resourceJarJarFile
 		}
 
@@ -1296,11 +1303,10 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 		false, nil, []string{"META-INF"})
 	headerJar = combinedJar
 
-	if j.properties.Jarjar_rules != nil {
-		jarjar_rules := android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
+	if j.expandJarjarRules != nil {
 		// Transform classes.jar into classes-jarjar.jar
 		jarjarFile := android.PathForModuleOut(ctx, "turbine-jarjar", jarName)
-		TransformJarJar(ctx, jarjarFile, headerJar, jarjar_rules)
+		TransformJarJar(ctx, jarjarFile, headerJar, j.expandJarjarRules)
 		headerJar = jarjarFile
 		if ctx.Failed() {
 			return nil
@@ -1376,8 +1382,8 @@ func (j *Module) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Deps = append(dpInfo.Deps, j.CompilerDeps()...)
 	dpInfo.Srcs = append(dpInfo.Srcs, j.expandIDEInfoCompiledSrcs...)
 	dpInfo.Aidl_include_dirs = append(dpInfo.Aidl_include_dirs, j.deviceProperties.Aidl.Include_dirs...)
-	if j.properties.Jarjar_rules != nil {
-		dpInfo.Jarjar_rules = append(dpInfo.Jarjar_rules, *j.properties.Jarjar_rules)
+	if j.expandJarjarRules != nil {
+		dpInfo.Jarjar_rules = append(dpInfo.Jarjar_rules, j.expandJarjarRules.String())
 	}
 }
 
