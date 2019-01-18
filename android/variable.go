@@ -273,7 +273,7 @@ type productVariables struct {
 	EnforceSystemCertificateWhitelist []string `json:",omitempty"`
 
 	// TODO(ccross): move these to a Singleton in Soong
-	HiddenAPIPublicList        *string  `json:",omitempty"`
+	HiddenAPIStubFlags         *string  `json:",omitempty"`
 	HiddenAPIFlags             *string  `json:",omitempty"`
 	HiddenAPIExtraAppUsageJars []string `json:",omitempty"`
 }
