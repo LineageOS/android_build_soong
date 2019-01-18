@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1268,6 +1269,10 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 
 	if !a.skipInstall(fullInstallPath) {
 
+		relPath, err := filepath.Rel(path.Dir(fullInstallPath.String()), srcPath.String())
+		if err != nil {
+			panic(fmt.Sprintf("Unable to generate symlink between %q and %q: %s", fullInstallPath.Base(), srcPath.Base(), err))
+		}
 		a.Build(pctx, BuildParams{
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base(),
@@ -1275,7 +1280,7 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 			OrderOnly:   Paths{srcPath},
 			Default:     !a.Config().EmbeddedInMake(),
 			Args: map[string]string{
-				"fromPath": srcPath.String(),
+				"fromPath": relPath,
 			},
 		})
 
