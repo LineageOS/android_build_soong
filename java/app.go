@@ -261,7 +261,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	certificates = append([]Certificate{a.certificate}, certificateDeps...)
 
-	packageFile := android.PathForModuleOut(ctx, "package.apk")
+	packageFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".apk")
 	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 
 	if !a.Module.Platform() {
