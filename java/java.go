@@ -1180,15 +1180,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 
 		// Hidden API CSV generation and dex encoding
-		isBootJar := inList(ctx.ModuleName(), ctx.Config().BootJars())
-		if isBootJar || inList(ctx.ModuleName(), ctx.Config().HiddenAPIExtraAppUsageJars()) {
-			// Derive the greylist from classes jar.
-			hiddenAPIGenerateCSV(ctx, j.implementationJarFile)
-		}
-		if isBootJar {
-			hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", jarName)
-			hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile)
-			dexOutputFile = hiddenAPIJar
+		if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+			isBootJar := inList(ctx.ModuleName(), ctx.Config().BootJars())
+			if isBootJar || inList(ctx.ModuleName(), ctx.Config().HiddenAPIExtraAppUsageJars()) {
+				// Derive the greylist from classes jar.
+				hiddenAPIGenerateCSV(ctx, j.implementationJarFile)
+			}
+			if isBootJar {
+				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", jarName)
+				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile)
+				dexOutputFile = hiddenAPIJar
+			}
 		}
 
 		// merge dex jar with resources if necessary
