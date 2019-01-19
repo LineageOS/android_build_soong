@@ -240,11 +240,11 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
 		}
 
-		var systemSharedLibs []string
-		if !ctx.useSdk() && !ctx.useVndk() {
-			systemSharedLibs = linker.Properties.System_shared_libs
-		}
+		systemSharedLibs := linker.Properties.System_shared_libs
 		if systemSharedLibs == nil {
+			// Provide a default system_shared_libs if it is unspecified. Note: If an
+			// empty list [] is specified, it implies that the module declines the
+			// default system_shared_libs.
 			systemSharedLibs = []string{"libc", "libm", "libdl"}
 		}
 
