@@ -1188,7 +1188,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			}
 			if isBootJar {
 				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", jarName)
-				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile)
+				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile, j.deviceProperties.UncompressDex)
 				dexOutputFile = hiddenAPIJar
 			}
 		}
