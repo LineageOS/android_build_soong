@@ -123,16 +123,17 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	`
 
 	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp":                                []byte(bp),
-		"build/target/product/security":             nil,
-		"apex_manifest.json":                        nil,
-		"system/sepolicy/apex/myapex-file_contexts": nil,
-		"mylib.cpp":                                 nil,
-		"myprebuilt":                                nil,
-		"vendor/foo/devkeys/test.x509.pem":          nil,
-		"vendor/foo/devkeys/test.pk8":               nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":      nil,
-		"vendor/foo/devkeys/testkey.pem":            nil,
+		"Android.bp":                                   []byte(bp),
+		"build/target/product/security":                nil,
+		"apex_manifest.json":                           nil,
+		"system/sepolicy/apex/myapex-file_contexts":    nil,
+		"system/sepolicy/apex/otherapex-file_contexts": nil,
+		"mylib.cpp":                                    nil,
+		"myprebuilt":                                   nil,
+		"vendor/foo/devkeys/test.x509.pem":             nil,
+		"vendor/foo/devkeys/test.pk8":                  nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":         nil,
+		"vendor/foo/devkeys/testkey.pem":               nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -728,4 +729,48 @@ func TestKeys(t *testing.T) {
 		t.Errorf("cert and private key %q are not %q", certs,
 			"vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8")
 	}
+}
+
+func TestMacro(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex {
+			name: "otherapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	// non-APEX variant does not have __ANDROID__APEX__ defined
+	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+
+	// APEX variant has __ANDROID_APEX__=<apexname> defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+
+	// APEX variant has __ANDROID_APEX__=<apexname> defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_otherapex").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
 }

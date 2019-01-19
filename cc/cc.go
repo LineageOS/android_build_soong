@@ -258,7 +258,7 @@ type ModuleContextIntf interface {
 	getVndkExtendsModuleName() string
 	isPgoCompile() bool
 	useClangLld(actx ModuleContext) bool
-	isApex() bool
+	apexName() string
 	hasStubsVariants() bool
 	isStubs() bool
 }
@@ -720,9 +720,8 @@ func (ctx *moduleContextImpl) getVndkExtendsModuleName() string {
 	return ctx.mod.getVndkExtendsModuleName()
 }
 
-// Tests if this module is built for APEX
-func (ctx *moduleContextImpl) isApex() bool {
-	return ctx.mod.ApexName() != ""
+func (ctx *moduleContextImpl) apexName() string {
+	return ctx.mod.ApexName()
 }
 
 func (ctx *moduleContextImpl) hasStubsVariants() bool {
