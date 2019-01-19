@@ -63,6 +63,10 @@ var fixSteps = []fixStep{
 		fix:  rewriteIncorrectAndroidmkPrebuilts,
 	},
 	{
+		name: "rewriteCtsModuleTypes",
+		fix:  rewriteCtsModuleTypes,
+	},
+	{
 		name: "rewriteIncorrectAndroidmkAndroidLibraries",
 		fix:  rewriteIncorrectAndroidmkAndroidLibraries,
 	},
@@ -232,6 +236,52 @@ func rewriteIncorrectAndroidmkPrebuilts(f *Fixer) error {
 			// An android_library_import doesn't get installed, so setting "installable = false" isn't supported
 			removeProperty(mod, "installable")
 		}
+	}
+
+	return nil
+}
+
+func rewriteCtsModuleTypes(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+
+		if mod.Type != "cts_support_package" && mod.Type != "cts_package" &&
+			mod.Type != "cts_target_java_library" &&
+			mod.Type != "cts_host_java_library" {
+
+			continue
+		}
+
+		var defStr string
+		switch mod.Type {
+		case "cts_support_package":
+			mod.Type = "android_test"
+			defStr = "cts_support_defaults"
+		case "cts_package":
+			mod.Type = "android_test"
+			defStr = "cts_defaults"
+		case "cts_target_java_library":
+			mod.Type = "java_library"
+			defStr = "cts_defaults"
+		case "cts_host_java_library":
+			mod.Type = "java_library_host"
+			defStr = "cts_defaults"
+		}
+
+		defaults := &parser.Property{
+			Name: "defaults",
+			Value: &parser.List{
+				Values: []parser.Expression{
+					&parser.String{
+						Value: defStr,
+					},
+				},
+			},
+		}
+		mod.Properties = append(mod.Properties, defaults)
 	}
 
 	return nil
