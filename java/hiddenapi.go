@@ -68,17 +68,26 @@ var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", bluepr
 		`  echo "--input-dex=$${INPUT_DEX}"; ` +
 		`  echo "--output-dex=$tmpDir/dex-output/$$(basename $${INPUT_DEX})"; ` +
 		`done | xargs ${config.HiddenAPI} encode --api-flags=$flags && ` +
-		`${config.SoongZipCmd} -o $tmpDir/dex.jar -C $tmpDir/dex-output -f "$tmpDir/dex-output/classes*.dex" && ` +
+		`${config.SoongZipCmd} $soongZipFlags -o $tmpDir/dex.jar -C $tmpDir/dex-output -f "$tmpDir/dex-output/classes*.dex" && ` +
 		`${config.MergeZipsCmd} -D -zipToNotStrip $tmpDir/dex.jar -stripFile "classes*.dex" $out $tmpDir/dex.jar $in`,
 	CommandDeps: []string{
 		"${config.HiddenAPI}",
 		"${config.SoongZipCmd}",
 		"${config.MergeZipsCmd}",
 	},
-}, "flags", "tmpDir")
+}, "flags", "tmpDir", "soongZipFlags")
 
-func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, dexInput android.WritablePath) {
+func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, dexInput android.WritablePath,
+	uncompressDex bool) {
+
 	flags := &bootImagePath{ctx.Config().HiddenAPIFlags()}
+
+	// The encode dex rule requires unzipping and rezipping the classes.dex files, ensure that if it was uncompressed
+	// in the input it stays uncompressed in the output.
+	soongZipFlags := ""
+	if uncompressDex {
+		soongZipFlags = "-L 0"
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIEncodeDexRule,
@@ -87,8 +96,9 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 		Output:      output,
 		Implicit:    flags,
 		Args: map[string]string{
-			"flags":  flags.String(),
-			"tmpDir": android.PathForModuleOut(ctx, "hiddenapi", "dex").String(),
+			"flags":         flags.String(),
+			"tmpDir":        android.PathForModuleOut(ctx, "hiddenapi", "dex").String(),
+			"soongZipFlags": soongZipFlags,
 		},
 	})
 
