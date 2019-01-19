@@ -752,6 +752,61 @@ cc_library_shared {
 }
 `,
 	},
+	{
+		desc: "BUILD_CTS_SUPPORT_PACKAGE",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_PACKAGE_NAME := FooTest
+LOCAL_COMPATIBILITY_SUITE := cts
+include $(BUILD_CTS_SUPPORT_PACKAGE)
+`,
+		expected: `
+android_test {
+    name: "FooTest",
+    defaults: ["cts_support_defaults"],
+    test_suites: ["cts"],
+}
+`,
+	},
+	{
+		desc: "BUILD_CTS_PACKAGE",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_PACKAGE_NAME := FooTest
+LOCAL_COMPATIBILITY_SUITE := cts
+include $(BUILD_CTS_PACKAGE)
+`,
+		expected: `
+android_test {
+    name: "FooTest",
+    defaults: ["cts_defaults"],
+    test_suites: ["cts"],
+}
+`,
+	},
+	{
+		desc: "BUILD_CTS_*_JAVA_LIBRARY",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foolib
+include $(BUILD_CTS_TARGET_JAVA_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := foolib-host
+include $(BUILD_CTS_HOST_JAVA_LIBRARY)
+`,
+		expected: `
+java_library {
+    name: "foolib",
+    defaults: ["cts_defaults"],
+}
+
+java_library_host {
+    name: "foolib-host",
+    defaults: ["cts_defaults"],
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {

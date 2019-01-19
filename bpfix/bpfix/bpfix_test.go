@@ -621,3 +621,74 @@ func TestRewritePrebuilts(t *testing.T) {
 		})
 	}
 }
+
+func TestRewriteCtsModuleTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "cts_support_package",
+			in: `
+				cts_support_package {
+					name: "foo",
+				}
+			`,
+			out: `
+				android_test {
+					name: "foo",
+					defaults: ["cts_support_defaults"],
+				}
+			`,
+		},
+		{
+			name: "cts_package",
+			in: `
+				cts_package {
+					name: "foo",
+				}
+			`,
+			out: `
+				android_test {
+					name: "foo",
+					defaults: ["cts_defaults"],
+				}
+			`,
+		},
+		{
+			name: "cts_target_java_library",
+			in: `
+				cts_target_java_library {
+					name: "foo",
+				}
+			`,
+			out: `
+				java_library {
+					name: "foo",
+					defaults: ["cts_defaults"],
+				}
+			`,
+		},
+		{
+			name: "cts_host_java_library",
+			in: `
+				cts_host_java_library {
+					name: "foo",
+				}
+			`,
+			out: `
+				java_library_host {
+					name: "foo",
+					defaults: ["cts_defaults"],
+				}
+			`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, rewriteCtsModuleTypes)
+		})
+	}
+}
