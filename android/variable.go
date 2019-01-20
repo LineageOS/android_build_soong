@@ -243,6 +243,8 @@ type productVariables struct {
 
 	Product_is_iot *bool `json:",omitempty"`
 
+	Fuchsia *bool `json:",omitempty"`
+
 	DeviceKernelHeaders []string `json:",omitempty"`
 
 	ExtraVndkVersions []string `json:",omitempty"`
@@ -269,6 +271,11 @@ type productVariables struct {
 
 	EnforceSystemCertificate          *bool    `json:",omitempty"`
 	EnforceSystemCertificateWhitelist []string `json:",omitempty"`
+
+	// TODO(ccross): move these to a Singleton in Soong
+	HiddenAPIPublicList        *string  `json:",omitempty"`
+	HiddenAPIFlags             *string  `json:",omitempty"`
+	HiddenAPIExtraAppUsageJars []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

@@ -998,12 +998,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enable_sharding = true
-			if len(j.properties.Annotation_processors) != 0 ||
-				len(j.properties.Annotation_processor_classes) != 0 {
-				ctx.PropertyErrorf("javac_shard_size",
-					"%q cannot be set when annotation processors are enabled.",
-					j.properties.Javac_shard_size)
-			}
+			// Formerly, there was a check here that prevented annotation processors
+			// from being used when sharding was enabled, as some annotation processors
+			// do not function correctly in sharded environments. It was removed to
+			// allow for the use of annotation processors that do function correctly
+			// with sharding enabled. See: b/77284273.
 		}
 		j.headerJarFile = j.compileJavaHeader(ctx, uniqueSrcFiles, srcJars, deps, flags, jarName, kotlinJars)
 		if ctx.Failed() {
@@ -1173,10 +1172,25 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
 	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
+		// Dex compilation
 		var dexOutputFile android.ModuleOutPath
 		dexOutputFile = j.compileDex(ctx, flags, outputFile, jarName)
 		if ctx.Failed() {
 			return
+		}
+
+		// Hidden API CSV generation and dex encoding
+		if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+			isBootJar := inList(ctx.ModuleName(), ctx.Config().BootJars())
+			if isBootJar || inList(ctx.ModuleName(), ctx.Config().HiddenAPIExtraAppUsageJars()) {
+				// Derive the greylist from classes jar.
+				hiddenAPIGenerateCSV(ctx, j.implementationJarFile)
+			}
+			if isBootJar {
+				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", jarName)
+				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile, j.deviceProperties.UncompressDex)
+				dexOutputFile = hiddenAPIJar
+			}
 		}
 
 		// merge dex jar with resources if necessary
@@ -1190,6 +1204,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 		j.dexJarFile = dexOutputFile
 
+		// Dexpreopting
 		j.dexpreopter.isInstallable = Bool(j.properties.Installable)
 		j.dexpreopter.uncompressedDex = j.deviceProperties.UncompressDex
 		dexOutputFile = j.dexpreopt(ctx, dexOutputFile)

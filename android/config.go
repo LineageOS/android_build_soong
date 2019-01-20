@@ -586,6 +586,10 @@ func (c *config) UnbundledBuildPrebuiltSdks() bool {
 	return Bool(c.productVariables.Unbundled_build) && !Bool(c.productVariables.Unbundled_build_sdks_from_source)
 }
 
+func (c *config) Fuchsia() bool {
+	return Bool(c.productVariables.Fuchsia)
+}
+
 func (c *config) IsPdkBuild() bool {
 	return Bool(c.productVariables.Pdk)
 }
@@ -977,6 +981,18 @@ func (c *config) EnforceSystemCertificate() bool {
 
 func (c *config) EnforceSystemCertificateWhitelist() []string {
 	return c.productVariables.EnforceSystemCertificateWhitelist
+}
+
+func (c *config) HiddenAPIPublicList() string {
+	return String(c.productVariables.HiddenAPIPublicList)
+}
+
+func (c *config) HiddenAPIFlags() string {
+	return String(c.productVariables.HiddenAPIFlags)
+}
+
+func (c *config) HiddenAPIExtraAppUsageJars() []string {
+	return c.productVariables.HiddenAPIExtraAppUsageJars
 }
 
 func stringSlice(s *[]string) []string {

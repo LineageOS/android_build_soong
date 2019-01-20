@@ -1652,17 +1652,14 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		// Export the shared libs to Make.
 		switch depTag {
 		case sharedDepTag, sharedExportDepTag, lateSharedDepTag:
-			// Dependency to the stubs lib which is already included in an APEX
-			// is not added to the androidmk dependency
 			if dependentLibrary, ok := ccDep.linker.(*libraryDecorator); ok {
 				if dependentLibrary.buildStubs() && android.InAnyApex(depName) {
-					// Also add the dependency to the APEX(es) providing the library so that
+					// Add the dependency to the APEX(es) providing the library so that
 					// m <module> can trigger building the APEXes as well.
 					for _, an := range android.GetApexesForModule(depName) {
 						c.Properties.ApexesProvidingSharedLibs = append(
 							c.Properties.ApexesProvidingSharedLibs, an)
 					}
-					break
 				}
 			}
 
