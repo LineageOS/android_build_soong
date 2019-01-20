@@ -916,7 +916,6 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 					fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 					fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
 					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString(), name, fi.installDir))
-					fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
 					fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
 					fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
 					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
@@ -926,12 +925,17 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 					}
 					if fi.class == javaSharedLib {
 						javaModule := fi.module.(*java.Library)
+						// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
+						// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
+						// we will have foo.jar.jar
+						fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", strings.TrimSuffix(fi.builtFile.Base(), ".jar"))
 						fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", javaModule.ImplementationAndResourcesJars()[0].String())
 						fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", javaModule.HeaderJars()[0].String())
 						fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
 						fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
 						fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
 					} else {
+						fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
 						fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 					}
 				}
