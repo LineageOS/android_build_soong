@@ -100,7 +100,9 @@ var (
 		"imagehlp",
 		"iphlpapi",
 		"netapi32",
+		"oleaut32",
 		"ole32",
+		"opengl32",
 		"powrprof",
 		"psapi",
 		"pthread",
@@ -108,6 +110,7 @@ var (
 		"uuid",
 		"version",
 		"ws2_32",
+		"windowscodecs",
 	}, "-l")
 )
 
