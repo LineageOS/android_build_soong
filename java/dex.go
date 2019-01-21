@@ -215,6 +215,11 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 			},
 		})
 	}
+	if j.deviceProperties.UncompressDex {
+		alignedJavalibJar := android.PathForModuleOut(ctx, "aligned", jarName)
+		TransformZipAlign(ctx, alignedJavalibJar, javalibJar)
+		javalibJar = alignedJavalibJar
+	}
 
 	return javalibJar
 }
