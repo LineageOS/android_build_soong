@@ -25,24 +25,24 @@ import (
 )
 
 var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", blueprint.RuleParams{
-	Command:     "${config.Class2Greylist} --public-api-list ${publicAPIList} $in $outFlag $out",
+	Command:     "${config.Class2Greylist} --stub-api-flags ${stubAPIFlags} $in $outFlag $out",
 	CommandDeps: []string{"${config.Class2Greylist}"},
-}, "outFlag", "publicAPIList")
+}, "outFlag", "stubAPIFlags")
 
 func hiddenAPIGenerateCSV(ctx android.ModuleContext, classesJar android.Path) {
 	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
 	metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
-	publicList := &bootImagePath{ctx.Config().HiddenAPIPublicList()}
+	stubFlagsCSV := &bootImagePath{ctx.Config().HiddenAPIStubFlags()}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
 		Description: "hiddenapi flags",
 		Input:       classesJar,
 		Output:      flagsCSV,
-		Implicit:    publicList,
+		Implicit:    stubFlagsCSV,
 		Args: map[string]string{
-			"outFlag":       "--write-flags-csv",
-			"publicAPIList": publicList.String(),
+			"outFlag":      "--write-flags-csv",
+			"stubAPIFlags": stubFlagsCSV.String(),
 		},
 	})
 
@@ -51,10 +51,10 @@ func hiddenAPIGenerateCSV(ctx android.ModuleContext, classesJar android.Path) {
 		Description: "hiddenapi metadata",
 		Input:       classesJar,
 		Output:      metadataCSV,
-		Implicit:    publicList,
+		Implicit:    stubFlagsCSV,
 		Args: map[string]string{
-			"outFlag":       "--write-metadata-csv",
-			"publicAPIList": publicList.String(),
+			"outFlag":      "--write-metadata-csv",
+			"stubAPIFlags": stubFlagsCSV.String(),
 		},
 	})
 
