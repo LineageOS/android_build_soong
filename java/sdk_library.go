@@ -396,7 +396,9 @@ func (module *sdkLibrary) createStubsLibrary(mctx android.TopDownMutatorContext,
 	props.Sdk_version = proptools.StringPtr(module.sdkVersion(apiScope))
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	// Unbundled apps will use the prebult one from /prebuilts/sdk
-	props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
+	if mctx.Config().UnbundledBuildPrebuiltSdks() {
+		props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
+	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.No_standard_libs = module.Library.Module.properties.No_standard_libs
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
@@ -596,7 +598,7 @@ func (module *sdkLibrary) PrebuiltJars(ctx android.BaseContext, sdkVersion strin
 // to satisfy SdkLibraryDependency interface
 func (module *sdkLibrary) HeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
-	if ctx.Config().UnbundledBuild() {
+	if ctx.Config().UnbundledBuildPrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
 	} else {
 		if strings.HasPrefix(sdkVersion, "system_") {
@@ -612,7 +614,7 @@ func (module *sdkLibrary) HeaderJars(ctx android.BaseContext, sdkVersion string)
 // to satisfy SdkLibraryDependency interface
 func (module *sdkLibrary) ImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
-	if ctx.Config().UnbundledBuild() {
+	if ctx.Config().UnbundledBuildPrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
 	} else {
 		if strings.HasPrefix(sdkVersion, "system_") {
