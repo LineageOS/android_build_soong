@@ -1315,6 +1315,13 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 		// the NDK.
 		return
 	}
+
+	if strings.HasPrefix(ctx.ModuleName(), "libclang_rt.") && to.Name() == "libc++" {
+		// Bug: http://b/121358700 - Allow libclang_rt.* shared libraries (with sdk_version)
+		// to link to libc++ (non-NDK and without sdk_version).
+		return
+	}
+
 	if String(to.Properties.Sdk_version) == "" {
 		// NDK code linking to platform code is never okay.
 		ctx.ModuleErrorf("depends on non-NDK-built library %q",
