@@ -51,6 +51,10 @@ var (
 			"-march=atom",
 			"-mfpmath=sse",
 		},
+		"broadwell": []string{
+			"-march=broadwell",
+			"-mfpmath=sse",
+		},
 		"haswell": []string{
 			"-march=core-avx2",
 			"-mfpmath=sse",
@@ -65,6 +69,10 @@ var (
 		},
 		"silvermont": []string{
 			"-march=slm",
+			"-mfpmath=sse",
+		},
+		"skylake": []string{
+			"-march=skylake",
 			"-mfpmath=sse",
 		},
 	}
