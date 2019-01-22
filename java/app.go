@@ -79,8 +79,6 @@ type AndroidApp struct {
 
 	appProperties appProperties
 
-	extraLinkFlags []string
-
 	installJniLibs []jniLib
 
 	bundleFile android.Path
@@ -155,29 +153,29 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
-	linkFlags := append([]string(nil), a.extraLinkFlags...)
+	aaptLinkFlags := []string{}
 
+	// Add TARGET_AAPT_CHARACTERISTICS values to AAPT link flags if they exist and --product flags were not provided.
 	hasProduct := false
 	for _, f := range a.aaptProperties.Aaptflags {
 		if strings.HasPrefix(f, "--product") {
 			hasProduct = true
+			break
 		}
 	}
-
-	// Product characteristics
 	if !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
-		linkFlags = append(linkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
+		aaptLinkFlags = append(aaptLinkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
 	}
 
 	if !Bool(a.aaptProperties.Aapt_include_all_resources) {
 		// Product AAPT config
 		for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
-			linkFlags = append(linkFlags, "-c", aaptConfig)
+			aaptLinkFlags = append(aaptLinkFlags, "-c", aaptConfig)
 		}
 
 		// Product AAPT preferred config
 		if len(ctx.Config().ProductAAPTPreferredConfig()) > 0 {
-			linkFlags = append(linkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
+			aaptLinkFlags = append(aaptLinkFlags, "--preferred-density", ctx.Config().ProductAAPTPreferredConfig())
 		}
 	}
 
@@ -186,10 +184,10 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
 	if overridden {
-		linkFlags = append(linkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
 	}
 
-	a.aapt.buildActions(ctx, sdkContext(a), linkFlags...)
+	a.aapt.buildActions(ctx, sdkContext(a), aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
