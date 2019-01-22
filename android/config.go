@@ -983,8 +983,8 @@ func (c *config) EnforceSystemCertificateWhitelist() []string {
 	return c.productVariables.EnforceSystemCertificateWhitelist
 }
 
-func (c *config) HiddenAPIPublicList() string {
-	return String(c.productVariables.HiddenAPIPublicList)
+func (c *config) HiddenAPIStubFlags() string {
+	return String(c.productVariables.HiddenAPIStubFlags)
 }
 
 func (c *config) HiddenAPIFlags() string {
