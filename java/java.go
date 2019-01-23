@@ -379,6 +379,7 @@ var (
 	frameworkResTag       = dependencyTag{name: "framework-res"}
 	frameworkApkTag       = dependencyTag{name: "framework-apk"}
 	kotlinStdlibTag       = dependencyTag{name: "kotlin-stdlib"}
+	kotlinAnnotationsTag  = dependencyTag{name: "kotlin-annotations"}
 	proguardRaiseTag      = dependencyTag{name: "proguard-raise"}
 	certificateTag        = dependencyTag{name: "certificate"}
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
@@ -483,6 +484,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
 		ctx.AddVariationDependencies(nil, kotlinStdlibTag, "kotlin-stdlib")
+		if len(j.properties.Annotation_processors) > 0 {
+			ctx.AddVariationDependencies(nil, kotlinAnnotationsTag, "kotlin-annotations")
+		}
 	}
 
 	if j.shouldInstrumentStatic(ctx) {
@@ -564,6 +568,7 @@ type deps struct {
 	systemModules      android.Path
 	aidlPreprocess     android.OptionalPath
 	kotlinStdlib       android.Paths
+	kotlinAnnotations  android.Paths
 }
 
 func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer) {
@@ -723,6 +728,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				}
 			case kotlinStdlibTag:
 				deps.kotlinStdlib = dep.HeaderJars()
+			case kotlinAnnotationsTag:
+				deps.kotlinAnnotations = dep.HeaderJars()
 			}
 
 			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
@@ -969,18 +976,28 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		kotlinSrcFiles = append(kotlinSrcFiles, uniqueSrcFiles...)
 		kotlinSrcFiles = append(kotlinSrcFiles, srcFiles.FilterByExt(".kt")...)
 
-		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.bootClasspath...)
-		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.kotlinStdlib...)
-		flags.kotlincClasspath = append(flags.kotlincClasspath, deps.classpath...)
+		flags.classpath = append(flags.classpath, deps.kotlinStdlib...)
+		flags.classpath = append(flags.classpath, deps.kotlinAnnotations...)
+
+		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.bootClasspath...)
+		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.classpath...)
+
+		if len(flags.processorPath) > 0 {
+			// Use kapt for annotation processing
+			kaptSrcJar := android.PathForModuleOut(ctx, "kapt", "kapt-sources.jar")
+			kotlinKapt(ctx, kaptSrcJar, kotlinSrcFiles, srcJars, flags)
+			srcJars = append(srcJars, kaptSrcJar)
+			// Disable annotation processing in javac, it's already been handled by kapt
+			flags.processorPath = nil
+		}
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
-		TransformKotlinToClasses(ctx, kotlinJar, kotlinSrcFiles, srcJars, flags)
+		kotlinCompile(ctx, kotlinJar, kotlinSrcFiles, srcJars, flags)
 		if ctx.Failed() {
 			return
 		}
 
 		// Make javac rule depend on the kotlinc rule
-		flags.classpath = append(flags.classpath, deps.kotlinStdlib...)
 		flags.classpath = append(flags.classpath, kotlinJar)
 
 		// Jar kotlin classes into the final jar after javac
