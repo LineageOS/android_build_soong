@@ -69,6 +69,8 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_BUILT_MODULE_STEM":       skip,
 	"LOCAL_USE_AAPT2":               skip, // Always enabled in Soong
 	"LOCAL_JAR_EXCLUDE_FILES":       skip, // Soong never excludes files from jars
+
+	"LOCAL_ANNOTATION_PROCESSOR_CLASSES": skip, // Soong gets the processor classes from the plugin
 }
 
 // adds a group of properties all having the same type
@@ -147,8 +149,7 @@ func init() {
 			"LOCAL_COMPATIBILITY_SUITE":   "test_suites",
 			"LOCAL_OVERRIDES_PACKAGES":    "overrides",
 
-			"LOCAL_ANNOTATION_PROCESSORS":        "annotation_processors",
-			"LOCAL_ANNOTATION_PROCESSOR_CLASSES": "annotation_processor_classes",
+			"LOCAL_ANNOTATION_PROCESSORS": "plugins",
 
 			"LOCAL_PROGUARD_FLAGS":      "optimize.proguard_flags",
 			"LOCAL_PROGUARD_FLAG_FILES": "optimize.proguard_flags_files",
