@@ -111,14 +111,22 @@ var (
 )
 
 const (
-	linuxGccVersion = "4.8"
+	linuxGccVersion   = "4.8.3"
+	linuxGlibcVersion = "2.17"
 )
 
 func init() {
 	pctx.StaticVariable("LinuxGccVersion", linuxGccVersion)
+	pctx.StaticVariable("LinuxGlibcVersion", linuxGlibcVersion)
+	// Most places use the full GCC version. A few only use up to the first two numbers.
+	if p := strings.Split(linuxGccVersion, "."); len(p) > 2 {
+		pctx.StaticVariable("ShortLinuxGccVersion", strings.Join(p[:2], "."))
+	} else {
+		pctx.StaticVariable("ShortLinuxGccVersion", linuxGccVersion)
+	}
 
 	pctx.SourcePathVariable("LinuxGccRoot",
-		"prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-linux-glibc2.15-${LinuxGccVersion}")
+		"prebuilts/gcc/${HostPrebuiltTag}/host/x86_64-linux-glibc${LinuxGlibcVersion}-${ShortLinuxGccVersion}")
 
 	pctx.StaticVariable("LinuxGccTriple", "x86_64-linux")
 
