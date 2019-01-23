@@ -1674,6 +1674,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// they merely serve as Make dependencies and do not affect this lib itself.
 			c.Properties.AndroidMkSharedLibs = append(
 				c.Properties.AndroidMkSharedLibs, makeLibName(depName))
+		case ndkStubDepTag, ndkLateStubDepTag:
+			ndkStub := ccDep.linker.(*stubDecorator)
+			c.Properties.AndroidMkSharedLibs = append(
+				c.Properties.AndroidMkSharedLibs,
+				depName+"."+ndkStub.properties.ApiLevel)
 		case staticDepTag, staticExportDepTag, lateStaticDepTag:
 			c.Properties.AndroidMkStaticLibs = append(
 				c.Properties.AndroidMkStaticLibs, makeLibName(depName))
