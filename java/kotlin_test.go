@@ -87,10 +87,10 @@ func TestKapt(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java", "b.kt"],
-			annotation_processors: ["bar"],
+			plugins: ["bar"],
 		}
 
-		java_library_host {
+		java_plugin {
 			name: "bar",
 		}
 		`)
