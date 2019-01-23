@@ -14,6 +14,8 @@
 
 package config
 
+import "strings"
+
 var (
 	KotlinStdlibJar     = "external/kotlinc/lib/kotlin-stdlib.jar"
 	KotlincIllegalFlags = []string{
@@ -25,5 +27,14 @@ var (
 func init() {
 	pctx.SourcePathVariable("KotlincCmd", "external/kotlinc/bin/kotlinc")
 	pctx.SourcePathVariable("KotlinCompilerJar", "external/kotlinc/lib/kotlin-compiler.jar")
+	pctx.SourcePathVariable("KotlinKaptJar", "external/kotlinc/lib/kotlin-annotation-processing.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
+
+	// These flags silence "Illegal reflective access" warnings when running kotlinc in OpenJDK9
+	pctx.StaticVariable("KotlincSuppressJDK9Warnings", strings.Join([]string{
+		"-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+		"-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+		"-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+		"-J--add-opens=java.base/sun.net.www.protocol.jar=ALL-UNNAMED",
+	}, " "))
 }
