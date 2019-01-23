@@ -44,7 +44,7 @@ var (
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
-				`$processorpath $javacFlags $bootClasspath $classpath ` +
+				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -57,7 +57,7 @@ var (
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "processorpath", "srcJars", "srcJarDir",
+		"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
 		"outDir", "annoDir", "javaVersion")
 
 	turbine = pctx.AndroidStaticRule("turbine",
@@ -141,6 +141,7 @@ type javaBuilderFlags struct {
 	bootClasspath classpath
 	classpath     classpath
 	processorPath classpath
+	processor     string
 	systemModules classpath
 	aidlFlags     string
 	javaVersion   string
@@ -254,6 +255,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	deps = append(deps, flags.classpath...)
 	deps = append(deps, flags.processorPath...)
 
+	// TODO(b/77284273): pass -processor:none if no plugins are listed
+	processor := ""
+	if flags.processor != "" {
+		processor = "-processor " + flags.processor
+	}
+
 	srcJarDir := "srcjars"
 	outDir := "classes"
 	annoDir := "anno"
@@ -274,6 +281,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"bootClasspath": bootClasspath,
 			"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
 			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
+			"processor":     processor,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
 			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
 			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),

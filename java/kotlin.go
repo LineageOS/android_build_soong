@@ -87,6 +87,7 @@ var kapt = pctx.AndroidGomaStaticRule("kapt",
 			`-P plugin:org.jetbrains.kotlin.kapt3:aptMode=stubsAndApt ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:javacArguments=$encodedJavacFlags ` +
 			`$kaptProcessorPath ` +
+			`$kaptProcessor ` +
 			`-Xbuild-file=$kotlinBuildFile && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $kaptDir/sources -D $kaptDir/sources`,
 		CommandDeps: []string{
@@ -100,7 +101,8 @@ var kapt = pctx.AndroidGomaStaticRule("kapt",
 		Rspfile:        "$out.rsp",
 		RspfileContent: `$in`,
 	},
-	"kotlincFlags", "encodedJavacFlags", "kaptProcessorPath", "classpath", "srcJars", "srcJarDir", "kaptDir", "kotlinJvmTarget", "kotlinBuildFile")
+	"kotlincFlags", "encodedJavacFlags", "kaptProcessorPath", "kaptProcessor",
+	"classpath", "srcJars", "srcJarDir", "kaptDir", "kotlinJvmTarget", "kotlinBuildFile")
 
 // kotlinKapt performs Kotlin-compatible annotation processing.  It takes .kt and .java sources and srcjars, and runs
 // annotation processors over all of them, producing a srcjar of generated code in outputFile.  The srcjar should be
@@ -116,6 +118,11 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 	deps = append(deps, flags.processorPath...)
 
 	kaptProcessorPath := flags.processorPath.FormTurbineClasspath("-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=")
+
+	kaptProcessor := ""
+	if flags.processor != "" {
+		kaptProcessor = "-P plugin:org.jetbrains.kotlin.kapt3:processor=" + flags.processor
+	}
 
 	encodedJavacFlags := kaptEncodeFlags([][2]string{
 		{"-source", flags.javaVersion},
@@ -135,6 +142,7 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 			"srcJarDir":         android.PathForModuleOut(ctx, "kapt", "srcJars").String(),
 			"kotlinBuildFile":   android.PathForModuleOut(ctx, "kapt", "build.xml").String(),
 			"kaptProcessorPath": strings.Join(kaptProcessorPath, " "),
+			"kaptProcessor":     kaptProcessor,
 			"kaptDir":           android.PathForModuleOut(ctx, "kapt/gen").String(),
 			"encodedJavacFlags": encodedJavacFlags,
 		},
