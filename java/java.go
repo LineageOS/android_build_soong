@@ -1413,12 +1413,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
 	if (Bool(j.properties.Installable) || ctx.Host()) && !android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
-		if j.deviceProperties.UncompressDex {
-			alignedOutputFile := android.PathForModuleOut(ctx, "aligned", ctx.ModuleName()+".jar")
-			TransformZipAlign(ctx, alignedOutputFile, j.outputFile)
-			j.outputFile = alignedOutputFile
-		}
-
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			ctx.ModuleName()+".jar", j.outputFile)
 	}

@@ -85,22 +85,30 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 	// The encode dex rule requires unzipping and rezipping the classes.dex files, ensure that if it was uncompressed
 	// in the input it stays uncompressed in the output.
 	soongZipFlags := ""
+	tmpOutput := output
+	tmpDir := android.PathForModuleOut(ctx, "hiddenapi", "dex")
 	if uncompressDex {
 		soongZipFlags = "-L 0"
+		tmpOutput = android.PathForModuleOut(ctx, "hiddenapi", "unaligned", "unaligned.jar")
+		tmpDir = android.PathForModuleOut(ctx, "hiddenapi", "unaligned")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIEncodeDexRule,
 		Description: "hiddenapi encode dex",
 		Input:       dexInput,
-		Output:      output,
+		Output:      tmpOutput,
 		Implicit:    flags,
 		Args: map[string]string{
 			"flags":         flags.String(),
-			"tmpDir":        android.PathForModuleOut(ctx, "hiddenapi", "dex").String(),
+			"tmpDir":        tmpDir.String(),
 			"soongZipFlags": soongZipFlags,
 		},
 	})
+
+	if uncompressDex {
+		TransformZipAlign(ctx, output, tmpOutput)
+	}
 
 	hiddenAPISaveDexInputs(ctx, dexInput)
 }
