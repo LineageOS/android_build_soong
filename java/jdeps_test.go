@@ -76,7 +76,7 @@ func TestCollectJavaLibraryPropertiesAddAidlIncludeDirs(t *testing.T) {
 func TestCollectJavaLibraryPropertiesAddJarjarRules(t *testing.T) {
 	expected := "Jarjar_rules.txt"
 	module := LibraryFactory().(*Library)
-	module.properties.Jarjar_rules = &expected
+	module.expandJarjarRules = android.PathForTesting(expected)
 	dpInfo := &android.IdeInfo{}
 
 	module.IDEInfo(dpInfo)
