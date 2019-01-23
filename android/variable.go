@@ -195,6 +195,8 @@ type productVariables struct {
 	Arc                              *bool `json:",omitempty"`
 	MinimizeJavaDebugInfo            *bool `json:",omitempty"`
 
+	Check_elf_files *bool `json:",omitempty"`
+
 	UncompressPrivAppDex             *bool    `json:",omitempty"`
 	ModulesLoadedByPrivilegedModules []string `json:",omitempty"`
 
