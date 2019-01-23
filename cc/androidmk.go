@@ -362,3 +362,40 @@ func (c *vendorPublicLibraryStubDecorator) AndroidMk(ctx AndroidMkContext, ret *
 		fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
 	})
 }
+
+func (p *prebuiltLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		if p.properties.Check_elf_files != nil {
+			fmt.Fprintln(w, "LOCAL_CHECK_ELF_FILES :=", *p.properties.Check_elf_files)
+		} else {
+			// soong_cc_prebuilt.mk does not include check_elf_file.mk by default
+			// because cc_library_shared and cc_binary use soong_cc_prebuilt.mk as well.
+			// In order to turn on prebuilt ABI checker, set `LOCAL_CHECK_ELF_FILES` to
+			// true if `p.properties.Check_elf_files` is not specified.
+			fmt.Fprintln(w, "LOCAL_CHECK_ELF_FILES := true")
+		}
+	})
+}
+
+func (p *prebuiltLibraryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, p.libraryDecorator)
+	if p.shared() {
+		ctx.subAndroidMk(ret, &p.prebuiltLinker)
+		androidMkWriteAllowUndefinedSymbols(p.baseLinker, ret)
+	}
+}
+
+func (p *prebuiltBinaryLinker) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, p.binaryDecorator)
+	ctx.subAndroidMk(ret, &p.prebuiltLinker)
+	androidMkWriteAllowUndefinedSymbols(p.baseLinker, ret)
+}
+
+func androidMkWriteAllowUndefinedSymbols(linker *baseLinker, ret *android.AndroidMkData) {
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		allow := linker.Properties.Allow_undefined_symbols
+		if allow != nil {
+			fmt.Fprintln(w, "LOCAL_ALLOW_UNDEFINED_SYMBOLS :=", *allow)
+		}
+	})
+}
