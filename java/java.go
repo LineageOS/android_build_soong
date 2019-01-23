@@ -114,11 +114,11 @@ type CompilerProperties struct {
 	// If set to true, include sources used to compile the module in to the final jar
 	Include_srcs *bool
 
-	// List of modules to use as annotation processors
+	// List of modules to use as annotation processors.  Deprecated, use plugins instead.
 	Annotation_processors []string
 
-	// List of classes to pass to javac to use as annotation processors
-	Annotation_processor_classes []string
+	// List of modules to use as annotation processors
+	Plugins []string
 
 	// The number of Java source entries each Javac instance can process
 	Javac_shard_size *int64
@@ -377,6 +377,7 @@ var (
 	staticLibTag          = dependencyTag{name: "staticlib"}
 	libTag                = dependencyTag{name: "javalib"}
 	annoTag               = dependencyTag{name: "annotation processor"}
+	pluginTag             = dependencyTag{name: "plugin"}
 	bootClasspathTag      = dependencyTag{name: "bootclasspath"}
 	systemModulesTag      = dependencyTag{name: "system modules"}
 	frameworkResTag       = dependencyTag{name: "framework-res"}
@@ -474,6 +475,10 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
 	}, annoTag, j.properties.Annotation_processors...)
 
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
+	}, pluginTag, j.properties.Plugins...)
+
 	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
@@ -563,6 +568,7 @@ type deps struct {
 	classpath          classpath
 	bootClasspath      classpath
 	processorPath      classpath
+	processorClasses   []string
 	staticJars         android.Paths
 	staticHeaderJars   android.Paths
 	staticResourceJars android.Paths
@@ -573,6 +579,8 @@ type deps struct {
 	aidlPreprocess     android.OptionalPath
 	kotlinStdlib       android.Paths
 	kotlinAnnotations  android.Paths
+
+	disableTurbine bool
 }
 
 func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer) {
@@ -712,6 +720,16 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
 			case annoTag:
 				deps.processorPath = append(deps.processorPath, dep.ImplementationAndResourcesJars()...)
+			case pluginTag:
+				if plugin, ok := dep.(*Plugin); ok {
+					deps.processorPath = append(deps.processorPath, dep.ImplementationAndResourcesJars()...)
+					if plugin.pluginProperties.Processor_class != nil {
+						deps.processorClasses = append(deps.processorClasses, *plugin.pluginProperties.Processor_class)
+					}
+					deps.disableTurbine = deps.disableTurbine || Bool(plugin.pluginProperties.Generates_api)
+				} else {
+					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
+				}
 			case frameworkResTag:
 				if (ctx.ModuleName() == "framework") || (ctx.ModuleName() == "framework-annotation-proc") {
 					// framework.jar has a one-off dependency on the R.java and Manifest.java files
@@ -858,6 +876,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
 	flags.classpath = append(flags.classpath, deps.classpath...)
 	flags.processorPath = append(flags.processorPath, deps.processorPath...)
+
+	flags.processor = strings.Join(deps.processorClasses, ",")
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && flags.javaVersion != "1.9" &&
 		!Bool(j.properties.No_standard_libs) &&
@@ -1020,7 +1040,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	j.compiledSrcJars = srcJars
 
 	enable_sharding := false
-	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") {
+	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !deps.disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enable_sharding = true
 			// Formerly, there was a check here that prevented annotation processors
