@@ -493,7 +493,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
 		ctx.AddVariationDependencies(nil, kotlinStdlibTag, "kotlin-stdlib")
-		if len(j.properties.Annotation_processors) > 0 {
+		if len(j.properties.Annotation_processors) > 0 || len(j.properties.Plugins) > 0 {
 			ctx.AddVariationDependencies(nil, kotlinAnnotationsTag, "kotlin-annotations")
 		}
 	}
@@ -1017,6 +1017,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			srcJars = append(srcJars, kaptSrcJar)
 			// Disable annotation processing in javac, it's already been handled by kapt
 			flags.processorPath = nil
+			flags.processor = ""
 		}
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
