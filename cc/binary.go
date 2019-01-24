@@ -196,7 +196,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 			if binary.Properties.Static_executable == nil && ctx.Config().HostStaticBinaries() {
 				binary.Properties.Static_executable = BoolPtr(true)
 			}
-		} else {
+		} else if !ctx.Fuchsia() {
 			// Static executables are not supported on Darwin or Windows
 			binary.Properties.Static_executable = nil
 		}
