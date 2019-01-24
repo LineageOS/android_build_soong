@@ -454,3 +454,89 @@ func TestJNI(t *testing.T) {
 		})
 	}
 }
+
+func TestCertificates(t *testing.T) {
+	testCases := []struct {
+		name                string
+		bp                  string
+		certificateOverride string
+		expected            string
+	}{
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			certificateOverride: "",
+			expected:            "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+		},
+		{
+			name: "module certificate property",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: ":new_certificate"
+				}
+
+				android_app_certificate {
+					name: "new_certificate",
+			    certificate: "cert/new_cert",
+				}
+			`,
+			certificateOverride: "",
+			expected:            "cert/new_cert.x509.pem cert/new_cert.pk8",
+		},
+		{
+			name: "path certificate property",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: "expiredkey"
+				}
+			`,
+			certificateOverride: "",
+			expected:            "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
+		},
+		{
+			name: "certificate overrides",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: "expiredkey"
+				}
+
+				android_app_certificate {
+					name: "new_certificate",
+			    certificate: "cert/new_cert",
+				}
+			`,
+			certificateOverride: "foo:new_certificate",
+			expected:            "cert/new_cert.x509.pem cert/new_cert.pk8",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			config := testConfig(nil)
+			if test.certificateOverride != "" {
+				config.TestProductVariables.CertificateOverrides = []string{test.certificateOverride}
+			}
+			ctx := testAppContext(config, test.bp, nil)
+
+			run(t, ctx, config)
+			foo := ctx.ModuleForTests("foo", "android_common")
+
+			signapk := foo.Output("foo.apk")
+			signFlags := signapk.Args["certificates"]
+			if test.expected != signFlags {
+				t.Errorf("Incorrect signing flags, expected: %q, got: %q", test.expected, signFlags)
+			}
+		})
+	}
+}
