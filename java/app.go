@@ -152,7 +152,7 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 			inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules()))
 }
 
-func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
+func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	aaptLinkFlags := []string{}
 
 	// Add TARGET_AAPT_CHARACTERISTICS values to AAPT link flags if they exist and --product flags were not provided.
@@ -191,7 +191,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
+}
 
+func (a *AndroidApp) proguardBuildActions(ctx android.ModuleContext) {
 	var staticLibProguardFlagFiles android.Paths
 	ctx.VisitDirectDeps(func(m android.Module) {
 		if lib, ok := m.(AndroidLibraryDependency); ok && ctx.OtherModuleDependencyTag(m) == staticLibTag {
@@ -203,7 +205,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, staticLibProguardFlagFiles...)
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
+}
 
+func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.deviceProperties.UncompressDex = a.shouldUncompressDex(ctx)
 
 	var installDir string
@@ -221,12 +225,11 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
 
-	dexJarFile := a.maybeStrippedDexJarFile
+	return a.maybeStrippedDexJarFile
+}
 
-	var certificates []Certificate
-
+func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
 	var jniJarFile android.WritablePath
-	jniLibs, certificateDeps := a.collectAppDeps(ctx)
 	if len(jniLibs) > 0 {
 		embedJni := ctx.Config().UnbundledBuild() || a.appProperties.EmbedJNI
 		if embedJni {
@@ -236,11 +239,10 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 			a.installJniLibs = jniLibs
 		}
 	}
+	return jniJarFile
+}
 
-	if ctx.Failed() {
-		return
-	}
-
+func (a *AndroidApp) certificateBuildActions(certificateDeps []Certificate, ctx android.ModuleContext) []Certificate {
 	cert := a.getCertString(ctx)
 	certModule := android.SrcIsModule(cert)
 	if certModule != "" {
@@ -257,11 +259,6 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		a.certificate = Certificate{pem, key}
 	}
 
-	certificates = append([]Certificate{a.certificate}, certificateDeps...)
-
-	packageFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".apk")
-	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
-
 	if !a.Module.Platform() {
 		certPath := a.certificate.Pem.String()
 		systemCertPath := ctx.Config().DefaultAppCertificateDir(ctx).String()
@@ -275,12 +272,37 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
+	return append([]Certificate{a.certificate}, certificateDeps...)
+}
+
+func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
+	// Process all building blocks, from AAPT to certificates.
+	a.aaptBuildActions(ctx)
+
+	a.proguardBuildActions(ctx)
+
+	dexJarFile := a.dexBuildActions(ctx)
+
+	jniLibs, certificateDeps := a.collectAppDeps(ctx)
+	jniJarFile := a.jniBuildActions(jniLibs, ctx)
+
+	if ctx.Failed() {
+		return
+	}
+
+	certificates := a.certificateBuildActions(certificateDeps, ctx)
+
+	// Build a final signed app package.
+	packageFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".apk")
+	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 	a.outputFile = packageFile
 
+	// Build an app bundle.
 	bundleFile := android.PathForModuleOut(ctx, "base.zip")
 	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
 	a.bundleFile = bundleFile
 
+	// Install the app package.
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
