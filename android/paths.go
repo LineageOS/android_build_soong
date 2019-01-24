@@ -503,16 +503,9 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 		return ret, err
 	}
 
-	abs, err := filepath.Abs(ret.String())
-	if err != nil {
-		return ret, err
-	}
-	buildroot, err := filepath.Abs(ctx.Config().buildDir)
-	if err != nil {
-		return ret, err
-	}
-	if strings.HasPrefix(abs, buildroot) {
-		return ret, fmt.Errorf("source path %s is in output", abs)
+	// absolute path already checked by validateSafePath
+	if strings.HasPrefix(ret.String(), ctx.Config().buildDir) {
+		return ret, fmt.Errorf("source path %s is in output", ret.String())
 	}
 
 	return ret, err
@@ -526,16 +519,9 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 		return ret, err
 	}
 
-	abs, err := filepath.Abs(ret.String())
-	if err != nil {
-		return ret, err
-	}
-	buildroot, err := filepath.Abs(ctx.Config().buildDir)
-	if err != nil {
-		return ret, err
-	}
-	if strings.HasPrefix(abs, buildroot) {
-		return ret, fmt.Errorf("source path %s is in output", abs)
+	// absolute path already checked by validatePath
+	if strings.HasPrefix(ret.String(), ctx.Config().buildDir) {
+		return ret, fmt.Errorf("source path %s is in output", ret.String())
 	}
 
 	return ret, nil
