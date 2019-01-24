@@ -29,7 +29,7 @@ var (
 
 	DefaultBootclasspathLibraries = []string{"core.platform.api.stubs", "core-lambda-stubs"}
 	DefaultSystemModules          = "core-platform-api-stubs-system-modules"
-	DefaultLibraries              = []string{"ext", "framework"}
+	DefaultLibraries              = []string{"ext", "framework", "updatable_media_stubs"}
 	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
 	SdkLambdaStubsPath            = "prebuilts/sdk/tools/core-lambda-stubs.jar"
 
@@ -43,6 +43,7 @@ var (
 		"android.car7",
 		"core-oj",
 		"core-libart",
+		"updatable-media",
 	}
 
 	ManifestMergerClasspath = []string{
