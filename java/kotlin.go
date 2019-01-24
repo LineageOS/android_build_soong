@@ -121,7 +121,7 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 
 	kaptProcessor := ""
 	if flags.processor != "" {
-		kaptProcessor = "-P plugin:org.jetbrains.kotlin.kapt3:processor=" + flags.processor
+		kaptProcessor = "-P plugin:org.jetbrains.kotlin.kapt3:processors=" + flags.processor
 	}
 
 	encodedJavacFlags := kaptEncodeFlags([][2]string{
