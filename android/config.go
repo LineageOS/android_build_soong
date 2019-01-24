@@ -893,7 +893,16 @@ func (c *deviceConfig) PlatPrivateSepolicyDirs() []string {
 }
 
 func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName string, overridden bool) {
-	overrides := c.config.productVariables.ManifestPackageNameOverrides
+	return findOverrideValue(c.config.productVariables.ManifestPackageNameOverrides, name,
+		"invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>")
+}
+
+func (c *deviceConfig) OverrideCertificateFor(name string) (certificatePath string, overridden bool) {
+	return findOverrideValue(c.config.productVariables.CertificateOverrides, name,
+		"invalid override rule %q in PRODUCT_CERTIFICATE_OVERRIDES should be <module_name>:<certificate_module_name>")
+}
+
+func findOverrideValue(overrides []string, name string, errorMsg string) (newValue string, overridden bool) {
 	if overrides == nil || len(overrides) == 0 {
 		return "", false
 	}
@@ -901,7 +910,7 @@ func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName
 		split := strings.Split(o, ":")
 		if len(split) != 2 {
 			// This shouldn't happen as this is first checked in make, but just in case.
-			panic(fmt.Errorf("invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>", o))
+			panic(fmt.Errorf(errorMsg, o))
 		}
 		if matchPattern(split[0], name) {
 			return substPattern(split[0], split[1], name), true

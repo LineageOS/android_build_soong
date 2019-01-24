@@ -71,6 +71,7 @@ func testContext(config android.Config, bp string,
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
+	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(AndroidAppCertificateFactory))
 	ctx.RegisterModuleType("android_library", android.ModuleFactoryAdaptor(AndroidLibraryFactory))
 	ctx.RegisterModuleType("android_test", android.ModuleFactoryAdaptor(AndroidTestFactory))
 	ctx.RegisterModuleType("android_test_helper_app", android.ModuleFactoryAdaptor(AndroidTestHelperAppFactory))
@@ -226,6 +227,9 @@ func testContext(config android.Config, bp string,
 		"bar-doc/IFoo.aidl":              nil,
 		"bar-doc/known_oj_tags.txt":      nil,
 		"external/doclava/templates-sdk": nil,
+
+		"cert/new_cert.x509.pem": nil,
+		"cert/new_cert.pk8":      nil,
 	}
 
 	for k, v := range fs {

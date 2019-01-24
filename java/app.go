@@ -120,7 +120,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 	}
 
-	cert := android.SrcIsModule(String(a.appProperties.Certificate))
+	cert := android.SrcIsModule(a.getCertString(ctx))
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
@@ -241,7 +241,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	cert := String(a.appProperties.Certificate)
+	cert := a.getCertString(ctx)
 	certModule := android.SrcIsModule(cert)
 	if certModule != "" {
 		a.certificate = certificateDeps[0]
@@ -325,6 +325,14 @@ func (a *AndroidApp) collectAppDeps(ctx android.ModuleContext) ([]jniLib, []Cert
 	})
 
 	return jniLibs, certificates
+}
+
+func (a *AndroidApp) getCertString(ctx android.BaseContext) string {
+	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
+	if overridden {
+		return ":" + certificate
+	}
+	return String(a.appProperties.Certificate)
 }
 
 func AndroidAppFactory() android.Module {
