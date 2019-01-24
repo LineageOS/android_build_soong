@@ -44,7 +44,7 @@ var (
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
-				`$processorpath $javacFlags $bootClasspath $classpath ` +
+				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
@@ -57,28 +57,8 @@ var (
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
 		},
-		"javacFlags", "bootClasspath", "classpath", "processorpath", "srcJars", "srcJarDir",
+		"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
 		"outDir", "annoDir", "javaVersion")
-
-	kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
-		blueprint.RuleParams{
-			Command: `rm -rf "$classesDir" "$srcJarDir" "$kotlinBuildFile" && mkdir -p "$classesDir" "$srcJarDir" && ` +
-				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.GenKotlinBuildFileCmd} $classpath $classesDir $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
-				`${config.KotlincCmd} $kotlincFlags ` +
-				`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir`,
-			CommandDeps: []string{
-				"${config.KotlincCmd}",
-				"${config.KotlinCompilerJar}",
-				"${config.GenKotlinBuildFileCmd}",
-				"${config.SoongZipCmd}",
-				"${config.ZipSyncCmd}",
-			},
-			Rspfile:        "$out.rsp",
-			RspfileContent: `$in`,
-		},
-		"kotlincFlags", "classpath", "srcJars", "srcJarDir", "classesDir", "kotlinJvmTarget", "kotlinBuildFile")
 
 	turbine = pctx.AndroidStaticRule("turbine",
 		blueprint.RuleParams{
@@ -161,6 +141,7 @@ type javaBuilderFlags struct {
 	bootClasspath classpath
 	classpath     classpath
 	processorPath classpath
+	processor     string
 	systemModules classpath
 	aidlFlags     string
 	javaVersion   string
@@ -175,35 +156,6 @@ type javaBuilderFlags struct {
 	protoOutTypeFlag string // The flag itself: --java_out
 	protoOutParams   string // Parameters to that flag: --java_out=$protoOutParams:$outDir
 	protoRoot        bool
-}
-
-func TransformKotlinToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcJars android.Paths,
-	flags javaBuilderFlags) {
-
-	inputs := append(android.Paths(nil), srcFiles...)
-
-	var deps android.Paths
-	deps = append(deps, flags.kotlincClasspath...)
-	deps = append(deps, srcJars...)
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        kotlinc,
-		Description: "kotlinc",
-		Output:      outputFile,
-		Inputs:      inputs,
-		Implicits:   deps,
-		Args: map[string]string{
-			"classpath":       flags.kotlincClasspath.FormJavaClassPath("-classpath"),
-			"kotlincFlags":    flags.kotlincFlags,
-			"srcJars":         strings.Join(srcJars.Strings(), " "),
-			"classesDir":      android.PathForModuleOut(ctx, "kotlinc", "classes").String(),
-			"srcJarDir":       android.PathForModuleOut(ctx, "kotlinc", "srcJars").String(),
-			"kotlinBuildFile": android.PathForModuleOut(ctx, "kotlinc-build.xml").String(),
-			// http://b/69160377 kotlinc only supports -jvm-target 1.6 and 1.8
-			"kotlinJvmTarget": "1.8",
-		},
-	})
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
@@ -249,7 +201,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		// ensure java does not fall back to the default bootclasspath.
 		bootClasspath = `--bootclasspath ""`
 	} else {
-		bootClasspath = strings.Join(flags.bootClasspath.FormTurbineClasspath("--bootclasspath"), " ")
+		bootClasspath = strings.Join(flags.bootClasspath.FormTurbineClasspath("--bootclasspath "), " ")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -262,7 +214,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"classpath":     strings.Join(flags.classpath.FormTurbineClasspath("--classpath"), " "),
+			"classpath":     strings.Join(flags.classpath.FormTurbineClasspath("--classpath "), " "),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 			"javaVersion":   flags.javaVersion,
 		},
@@ -303,6 +255,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	deps = append(deps, flags.classpath...)
 	deps = append(deps, flags.processorPath...)
 
+	// TODO(b/77284273): pass -processor:none if no plugins are listed
+	processor := ""
+	if flags.processor != "" {
+		processor = "-processor " + flags.processor
+	}
+
 	srcJarDir := "srcjars"
 	outDir := "classes"
 	annoDir := "anno"
@@ -323,6 +281,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"bootClasspath": bootClasspath,
 			"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
 			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
+			"processor":     processor,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
 			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
 			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
@@ -464,7 +423,7 @@ func (x *classpath) FormTurbineClasspath(optName string) []string {
 	}
 	flags := make([]string, len(*x))
 	for i, v := range *x {
-		flags[i] = optName + " " + v.String()
+		flags[i] = optName + v.String()
 	}
 
 	return flags

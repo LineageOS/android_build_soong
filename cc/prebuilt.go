@@ -31,8 +31,13 @@ type prebuiltLinkerInterface interface {
 
 type prebuiltLinker struct {
 	android.Prebuilt
+
 	properties struct {
 		Srcs []string `android:"arch_variant"`
+
+		// Check the prebuilt ELF files (e.g. DT_SONAME, DT_NEEDED, resolution of undefined
+		// symbols, etc), default true.
+		Check_elf_files *bool
 	}
 }
 
@@ -54,11 +59,7 @@ var _ prebuiltLinkerInterface = (*prebuiltLibraryLinker)(nil)
 func (p *prebuiltLibraryLinker) linkerInit(ctx BaseModuleContext) {}
 
 func (p *prebuiltLibraryLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
-	// export_header_lib_headers needs to be passed along
-	return Deps{
-		HeaderLibs:               p.baseLinker.Properties.Header_libs,
-		ReexportHeaderLibHeaders: p.baseLinker.Properties.Export_header_lib_headers,
-	}
+	return p.libraryDecorator.linkerDeps(ctx, deps)
 }
 
 func (p *prebuiltLibraryLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
