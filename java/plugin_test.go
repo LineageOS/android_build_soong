@@ -38,9 +38,8 @@ func TestNoPlugin(t *testing.T) {
 		t.Errorf("want empty processorpath, got %q", javac.Args["processorpath"])
 	}
 
-	// TODO(b/77284273): test for -processor:none if no plugins are enabled
-	if javac.Args["processor"] != "" {
-		t.Errorf("want no -processor argument, got %q", javac.Args["processor"])
+	if javac.Args["processor"] != "-proc:none" {
+		t.Errorf("want '-proc:none' argument, got %q", javac.Args["processor"])
 	}
 }
 
