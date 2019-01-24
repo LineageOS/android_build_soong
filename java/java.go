@@ -1244,7 +1244,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName)
 			TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
 				false, nil, nil)
-			dexOutputFile = combinedJar
+			if j.deviceProperties.UncompressDex {
+				combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName)
+				TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
+				dexOutputFile = combinedAlignedJar
+			} else {
+				dexOutputFile = combinedJar
+			}
 		}
 
 		j.dexJarFile = dexOutputFile
