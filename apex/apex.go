@@ -118,7 +118,7 @@ func init() {
 	// projects, and hence cannot built 'aapt2'. Use the SDK prebuilt instead.
 	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {
 		pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
-			if !android.ExistentPathForSource(ctx, "frameworks/base").Valid() {
+			if !ctx.Config().FrameworksBaseDirExists(ctx) {
 				return filepath.Join(prebuiltDir, runtime.GOOS, "bin", tool)
 			} else {
 				return pctx.HostBinToolPath(ctx, tool).String()
