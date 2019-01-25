@@ -110,57 +110,55 @@ var testEnforceRROTests = []struct {
 	name                       string
 	enforceRROTargets          []string
 	enforceRROExcludedOverlays []string
-	fooOverlayFiles            []string
-	fooRRODirs                 []string
-	barOverlayFiles            []string
-	barRRODirs                 []string
+	overlayFiles               map[string][]string
+	rroDirs                    map[string][]string
 }{
 	{
 		name:                       "no RRO",
 		enforceRROTargets:          nil,
 		enforceRROExcludedOverlays: nil,
-		fooOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
-			"device/vendor/blah/overlay/foo/res/values/strings.xml",
+		overlayFiles: map[string][]string{
+			"foo": []string{
+				"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+				"device/vendor/blah/overlay/foo/res/values/strings.xml",
+			},
+			"bar": []string{
+				"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+				"device/vendor/blah/overlay/bar/res/values/strings.xml",
+			},
 		},
-		fooRRODirs: nil,
-		barOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-			"device/vendor/blah/overlay/bar/res/values/strings.xml",
+		rroDirs: map[string][]string{
+			"foo": nil,
+			"bar": nil,
 		},
-		barRRODirs: nil,
 	},
 	{
 		name:                       "enforce RRO on foo",
 		enforceRROTargets:          []string{"foo"},
 		enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
-		fooOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+		overlayFiles: map[string][]string{
+			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+			"bar": []string{
+				"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+				"device/vendor/blah/overlay/bar/res/values/strings.xml",
+			},
 		},
-		fooRRODirs: []string{
-			"device/vendor/blah/overlay/foo/res",
+		rroDirs: map[string][]string{
+			"foo": []string{"device/vendor/blah/overlay/foo/res"},
+			"bar": nil,
 		},
-		barOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-			"device/vendor/blah/overlay/bar/res/values/strings.xml",
-		},
-		barRRODirs: nil,
 	},
 	{
 		name:                       "enforce RRO on all",
 		enforceRROTargets:          []string{"*"},
 		enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
-		fooOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+		overlayFiles: map[string][]string{
+			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+			"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
 		},
-		fooRRODirs: []string{
-			"device/vendor/blah/overlay/foo/res",
-		},
-		barOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-		},
-		barRRODirs: []string{
-			"device/vendor/blah/overlay/bar/res",
+		rroDirs: map[string][]string{
+			"foo": []string{"device/vendor/blah/overlay/foo/res"},
+			"bar": []string{"device/vendor/blah/overlay/bar/res"},
 		},
 	},
 }
@@ -222,27 +220,19 @@ func TestEnforceRRO(t *testing.T) {
 				return overlayFiles, rroDirs
 			}
 
-			fooOverlayFiles, fooRRODirs := getOverlays("foo")
-			barOverlayFiles, barRRODirs := getOverlays("bar")
+			apps := []string{"foo", "bar"}
+			for _, app := range apps {
+				overlayFiles, rroDirs := getOverlays(app)
 
-			if !reflect.DeepEqual(fooOverlayFiles, testCase.fooOverlayFiles) {
-				t.Errorf("expected foo overlay files:\n  %#v\n got:\n  %#v",
-					testCase.fooOverlayFiles, fooOverlayFiles)
+				if !reflect.DeepEqual(overlayFiles, testCase.overlayFiles[app]) {
+					t.Errorf("expected %s overlay files:\n  %#v\n got:\n  %#v",
+						app, testCase.overlayFiles[app], overlayFiles)
+				}
+				if !reflect.DeepEqual(rroDirs, testCase.rroDirs[app]) {
+					t.Errorf("expected %s rroDirs:  %#v\n got:\n  %#v",
+						app, testCase.rroDirs[app], rroDirs)
+				}
 			}
-			if !reflect.DeepEqual(fooRRODirs, testCase.fooRRODirs) {
-				t.Errorf("expected foo rroDirs:  %#v\n got:\n  %#v",
-					testCase.fooRRODirs, fooRRODirs)
-			}
-
-			if !reflect.DeepEqual(barOverlayFiles, testCase.barOverlayFiles) {
-				t.Errorf("expected bar overlay files:\n  %#v\n got:\n  %#v",
-					testCase.barOverlayFiles, barOverlayFiles)
-			}
-			if !reflect.DeepEqual(barRRODirs, testCase.barRRODirs) {
-				t.Errorf("expected bar rroDirs:  %#v\n got:\n  %#v",
-					testCase.barRRODirs, barRRODirs)
-			}
-
 		})
 	}
 }
