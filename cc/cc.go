@@ -599,7 +599,7 @@ func (ctx *moduleContextImpl) staticBinary() bool {
 }
 
 func (ctx *moduleContextImpl) useSdk() bool {
-	if ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRecovery() {
+	if ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRecovery() && !ctx.ctx.Fuchsia() {
 		return String(ctx.mod.Properties.Sdk_version) != ""
 	}
 	return false
@@ -668,6 +668,11 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
 	if ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") {
 		return false
 	}
+
+	if ctx.ctx.Fuchsia() {
+		return false
+	}
+
 	if sanitize := ctx.mod.sanitize; sanitize != nil {
 		if !sanitize.isVariantOnProductionDevice() {
 			return false
