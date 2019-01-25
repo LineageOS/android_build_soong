@@ -807,6 +807,23 @@ java_library_host {
 }
 `,
 	},
+	{
+		desc: "LOCAL_ANNOTATION_PROCESSORS",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foolib
+LOCAL_ANNOTATION_PROCESSORS := bar
+LOCAL_ANNOTATION_PROCESSOR_CLASSES := com.bar
+include $(BUILD_STATIC_JAVA_LIBRARY)
+`,
+		expected: `
+java_library {
+    name: "foolib",
+    plugins: ["bar"],
+
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
