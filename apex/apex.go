@@ -570,6 +570,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case executableTag:
 				if cc, ok := child.(*cc.Module); ok {
+					if !cc.Arch().Native {
+						// There is only one 'bin' directory so we shouldn't bother copying in
+						// native-bridge'd binaries and only use main ones.
+						return true
+					}
 					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, cc.Arch().ArchType, dirInApex, nativeExecutable, cc})
 					return true
