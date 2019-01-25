@@ -271,6 +271,7 @@ type productVariables struct {
 
 	ManifestPackageNameOverrides []string `json:",omitempty"`
 	CertificateOverrides         []string `json:",omitempty"`
+	PackageNameOverrides         []string `json:",omitempty"`
 
 	EnforceSystemCertificate          *bool    `json:",omitempty"`
 	EnforceSystemCertificateWhitelist []string `json:",omitempty"`

@@ -190,14 +190,14 @@ func (m TestingModule) maybeOutput(file string) (BuildParams, []string) {
 	return BuildParams{}, searchedOutputs
 }
 
-// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputspath whose String() or Rel()
+// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
 // value matches the provided string.  Returns an empty BuildParams if no rule is found.
 func (m TestingModule) MaybeOutput(file string) BuildParams {
 	p, _ := m.maybeOutput(file)
 	return p
 }
 
-// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputspath whose String() or Rel()
+// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
 // value matches the provided string.  Panics if no rule is found.
 func (m TestingModule) Output(file string) BuildParams {
 	p, searchedOutputs := m.maybeOutput(file)
@@ -206,6 +206,19 @@ func (m TestingModule) Output(file string) BuildParams {
 			file, searchedOutputs))
 	}
 	return p
+}
+
+// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
+func (m TestingModule) AllOutputs() []string {
+	var outputFullPaths []string
+	for _, p := range m.module.BuildParamsForTests() {
+		outputs := append(WritablePaths(nil), p.Outputs...)
+		if p.Output != nil {
+			outputs = append(outputs, p.Output)
+		}
+		outputFullPaths = append(outputFullPaths, outputs.Strings()...)
+	}
+	return outputFullPaths
 }
 
 func FailIfErrored(t *testing.T, errs []error) {
