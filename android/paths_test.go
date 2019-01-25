@@ -630,3 +630,64 @@ func TestMaybeRel(t *testing.T) {
 		})
 	}
 }
+
+func TestPathForSource(t *testing.T) {
+	testCases := []struct {
+		name     string
+		buildDir string
+		src      string
+		err      string
+	}{
+		{
+			name:     "normal",
+			buildDir: "out",
+			src:      "a/b/c",
+		},
+		{
+			name:     "abs",
+			buildDir: "out",
+			src:      "/a/b/c",
+			err:      "is outside directory",
+		},
+		{
+			name:     "in out dir",
+			buildDir: "out",
+			src:      "out/a/b/c",
+			err:      "is in output",
+		},
+	}
+
+	funcs := []struct {
+		name string
+		f    func(ctx PathContext, pathComponents ...string) (SourcePath, error)
+	}{
+		{"pathForSource", pathForSource},
+		{"safePathForSource", safePathForSource},
+	}
+
+	for _, f := range funcs {
+		t.Run(f.name, func(t *testing.T) {
+			for _, test := range testCases {
+				t.Run(test.name, func(t *testing.T) {
+					testConfig := TestConfig(test.buildDir, nil)
+					ctx := &configErrorWrapper{config: testConfig}
+					_, err := f.f(ctx, test.src)
+					if len(ctx.errors) > 0 {
+						t.Fatalf("unexpected errors %v", ctx.errors)
+					}
+					if err != nil {
+						if test.err == "" {
+							t.Fatalf("unexpected error %q", err.Error())
+						} else if !strings.Contains(err.Error(), test.err) {
+							t.Fatalf("incorrect error, want substring %q got %q", test.err, err.Error())
+						}
+					} else {
+						if test.err != "" {
+							t.Fatalf("missing error %q", test.err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
