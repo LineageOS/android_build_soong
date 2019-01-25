@@ -1570,7 +1570,7 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 
 func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
 	apiFile, removedApiFile android.Path, implicits android.Paths,
-	javaVersion, bootclasspathArgs, classpathArgs, sourcepathArgs, opts, msg string,
+	javaVersion, bootclasspathArgs, classpathArgs, sourcepathArgs, opts, subdir, msg string,
 	output android.WritablePath) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        metalavaApiCheck,
@@ -1580,7 +1580,7 @@ func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
 		Implicits: append(android.Paths{apiFile, removedApiFile, d.apiFile, d.removedApiFile},
 			implicits...),
 		Args: map[string]string{
-			"srcJarDir":         android.PathForModuleOut(ctx, "apicheck-srcjars").String(),
+			"srcJarDir":         android.PathForModuleOut(ctx, subdir, "srcjars").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
 			"javaVersion":       javaVersion,
 			"bootclasspathArgs": bootclasspathArgs,
@@ -1669,7 +1669,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			flags.metalavaInclusionAnnotationsFlags + flags.metalavaMergeAnnoDirFlags + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
-			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
+			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts, "current-apicheck",
 			fmt.Sprintf(`\n******************************\n`+
 				`You have tried to change the API from what has been previously approved.\n\n`+
 				`To make these errors go away, you have two choices:\n`+
@@ -1700,7 +1700,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			removedApiFile.String() + flags.metalavaMergeAnnoDirFlags + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
-			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
+			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts, "last-apicheck",
 			`\n******************************\n`+
 				`You have tried to change the API from what has been previously released in\n`+
 				`an SDK.  Please fix the errors listed above.\n`+
