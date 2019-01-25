@@ -616,10 +616,10 @@ func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib st
 	}
 }
 
-func filterArchStructFields(fields []reflect.StructField) []reflect.StructField {
-	var ret []reflect.StructField
+func filterArchStructFields(fields []reflect.StructField) (filteredFields []reflect.StructField, filtered bool) {
 	for _, field := range fields {
 		if !proptools.HasTag(field, "android", "arch_variant") {
+			filtered = true
 			continue
 		}
 
@@ -637,15 +637,17 @@ func filterArchStructFields(fields []reflect.StructField) []reflect.StructField 
 		// Recurse into structs
 		switch field.Type.Kind() {
 		case reflect.Struct:
-			var ok bool
-			field.Type, ok = filterArchStruct(field.Type)
-			if !ok {
+			var subFiltered bool
+			field.Type, subFiltered = filterArchStruct(field.Type)
+			filtered = filtered || subFiltered
+			if field.Type == nil {
 				continue
 			}
 		case reflect.Ptr:
 			if field.Type.Elem().Kind() == reflect.Struct {
-				nestedType, ok := filterArchStruct(field.Type.Elem())
-				if !ok {
+				nestedType, subFiltered := filterArchStruct(field.Type.Elem())
+				filtered = filtered || subFiltered
+				if nestedType == nil {
 					continue
 				}
 				field.Type = reflect.PtrTo(nestedType)
@@ -654,13 +656,17 @@ func filterArchStructFields(fields []reflect.StructField) []reflect.StructField 
 			panic("Interfaces are not supported in arch_variant properties")
 		}
 
-		ret = append(ret, field)
+		filteredFields = append(filteredFields, field)
 	}
 
-	return ret
+	return filteredFields, filtered
 }
 
-func filterArchStruct(prop reflect.Type) (reflect.Type, bool) {
+// filterArchStruct takes a reflect.Type that is either a sturct or a pointer to a struct, and returns a reflect.Type
+// that only contains the fields in the original type that have an `android:"arch_variant"` struct tag, and a bool
+// that is true if the new struct type has fewer fields than the original type.  If there are no fields in the
+// original type with the struct tag it returns nil and true.
+func filterArchStruct(prop reflect.Type) (filteredProp reflect.Type, filtered bool) {
 	var fields []reflect.StructField
 
 	ptr := prop.Kind() == reflect.Ptr
@@ -672,13 +678,20 @@ func filterArchStruct(prop reflect.Type) (reflect.Type, bool) {
 		fields = append(fields, prop.Field(i))
 	}
 
-	fields = filterArchStructFields(fields)
+	filteredFields, filtered := filterArchStructFields(fields)
 
-	if len(fields) == 0 {
-		return nil, false
+	if len(filteredFields) == 0 {
+		return nil, true
 	}
 
-	ret := reflect.StructOf(fields)
+	if !filtered {
+		if ptr {
+			return reflect.PtrTo(prop), false
+		}
+		return prop, false
+	}
+
+	ret := reflect.StructOf(filteredFields)
 	if ptr {
 		ret = reflect.PtrTo(ret)
 	}
@@ -686,7 +699,13 @@ func filterArchStruct(prop reflect.Type) (reflect.Type, bool) {
 	return ret, true
 }
 
-func filterArchStructSharded(prop reflect.Type) ([]reflect.Type, bool) {
+// filterArchStruct takes a reflect.Type that is either a sturct or a pointer to a struct, and returns a list of
+// reflect.Type that only contains the fields in the original type that have an `android:"arch_variant"` struct tag,
+// and a bool that is true if the new struct type has fewer fields than the original type.  If there are no fields in
+// the original type with the struct tag it returns nil and true.  Each returned struct type will have a maximum of
+// 10 top level fields in it to attempt to avoid hitting the reflect.StructOf name length limit, although the limit
+// can still be reached with a single struct field with many fields in it.
+func filterArchStructSharded(prop reflect.Type) (filteredProp []reflect.Type, filtered bool) {
 	var fields []reflect.StructField
 
 	ptr := prop.Kind() == reflect.Ptr
@@ -698,24 +717,29 @@ func filterArchStructSharded(prop reflect.Type) ([]reflect.Type, bool) {
 		fields = append(fields, prop.Field(i))
 	}
 
-	fields = filterArchStructFields(fields)
+	fields, filtered = filterArchStructFields(fields)
+	if !filtered {
+		if ptr {
+			return []reflect.Type{reflect.PtrTo(prop)}, false
+		}
+		return []reflect.Type{prop}, false
+	}
 
 	if len(fields) == 0 {
-		return nil, false
+		return nil, true
 	}
 
 	shards := shardFields(fields, 10)
 
-	var ret []reflect.Type
 	for _, shard := range shards {
 		s := reflect.StructOf(shard)
 		if ptr {
 			s = reflect.PtrTo(s)
 		}
-		ret = append(ret, s)
+		filteredProp = append(filteredProp, s)
 	}
 
-	return ret, true
+	return filteredProp, true
 }
 
 func shardFields(fields []reflect.StructField, shardSize int) [][]reflect.StructField {
@@ -730,9 +754,12 @@ func shardFields(fields []reflect.StructField, shardSize int) [][]reflect.Struct
 	return ret
 }
 
+// createArchType takes a reflect.Type that is either a struct or a pointer to a struct, and returns a list of
+// reflect.Type that contains the arch-variant properties inside structs for each architecture, os, target, multilib,
+// etc.
 func createArchType(props reflect.Type) []reflect.Type {
-	propShards, ok := filterArchStructSharded(props)
-	if !ok {
+	propShards, _ := filterArchStructSharded(props)
+	if len(propShards) == 0 {
 		return nil
 	}
 
