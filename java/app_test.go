@@ -530,3 +530,66 @@ func TestCertificates(t *testing.T) {
 		})
 	}
 }
+
+func TestPackageNameOverride(t *testing.T) {
+	testCases := []struct {
+		name                string
+		bp                  string
+		packageNameOverride string
+		expected            []string
+	}{
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			packageNameOverride: "",
+			expected: []string{
+				buildDir + "/.intermediates/foo/android_common/foo.apk",
+				buildDir + "/target/product/test_device/system/app/foo/foo.apk",
+			},
+		},
+		{
+			name: "overridden",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			packageNameOverride: "foo:bar",
+			expected: []string{
+				// The package apk should be still be the original name for test dependencies.
+				buildDir + "/.intermediates/foo/android_common/foo.apk",
+				buildDir + "/target/product/test_device/system/app/bar/bar.apk",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			config := testConfig(nil)
+			if test.packageNameOverride != "" {
+				config.TestProductVariables.PackageNameOverrides = []string{test.packageNameOverride}
+			}
+			ctx := testAppContext(config, test.bp, nil)
+
+			run(t, ctx, config)
+			foo := ctx.ModuleForTests("foo", "android_common")
+
+			outputs := foo.AllOutputs()
+			outputMap := make(map[string]bool)
+			for _, o := range outputs {
+				outputMap[o] = true
+			}
+			for _, e := range test.expected {
+				if _, exist := outputMap[e]; !exist {
+					t.Errorf("Can't find %q in output files.\nAll outputs:%v", e, outputs)
+				}
+			}
+		})
+	}
+}

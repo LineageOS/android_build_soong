@@ -82,6 +82,9 @@ type AndroidApp struct {
 	installJniLibs []jniLib
 
 	bundleFile android.Path
+
+	// the install APK name is normally the same as the module name, but can be overridden with PRODUCT_PACKAGE_NAME_OVERRIDES.
+	installApkName string
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -215,11 +218,11 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		installDir = "framework"
 	} else if Bool(a.appProperties.Privileged) {
-		installDir = filepath.Join("priv-app", ctx.ModuleName())
+		installDir = filepath.Join("priv-app", a.installApkName)
 	} else {
-		installDir = filepath.Join("app", ctx.ModuleName())
+		installDir = filepath.Join("app", a.installApkName)
 	}
-	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, ctx.ModuleName()+".apk")
+	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
@@ -276,6 +279,9 @@ func (a *AndroidApp) certificateBuildActions(certificateDeps []Certificate, ctx 
 }
 
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
+	// Check if the install APK name needs to be overridden.
+	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(ctx.ModuleName())
+
 	// Process all building blocks, from AAPT to certificates.
 	a.aaptBuildActions(ctx)
 
@@ -307,9 +313,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
 	} else if Bool(a.appProperties.Privileged) {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app", ctx.ModuleName()), ctx.ModuleName()+".apk", a.outputFile)
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app", a.installApkName), a.installApkName+".apk", a.outputFile)
 	} else {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "app", ctx.ModuleName()), ctx.ModuleName()+".apk", a.outputFile)
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "app", a.installApkName), a.installApkName+".apk", a.outputFile)
 	}
 }
 
