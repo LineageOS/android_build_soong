@@ -1500,7 +1500,7 @@ func (d *Droidstubs) collectAPILevelsAnnotationsFlags(ctx android.ModuleContext,
 					}
 				}
 				*implicits = append(*implicits, androidJars...)
-				flags += " --android-jar-pattern " + t.dir.String() + "/%/android.jar "
+				flags += " --android-jar-pattern " + t.dir.String() + "/%/public/android.jar "
 			} else {
 				ctx.PropertyErrorf("api_levels_annotations_dirs",
 					"module %q is not a metalava api-levels-annotations dir", ctx.OtherModuleName(m))
