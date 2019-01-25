@@ -47,7 +47,8 @@ var (
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir && ` +
+				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.JavacCmd}",
 				"${config.SoongZipCmd}",
