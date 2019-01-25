@@ -255,8 +255,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	deps = append(deps, flags.classpath...)
 	deps = append(deps, flags.processorPath...)
 
-	// TODO(b/77284273): pass -processor:none if no plugins are listed
-	processor := ""
+	processor := "-proc:none"
 	if flags.processor != "" {
 		processor = "-processor " + flags.processor
 	}

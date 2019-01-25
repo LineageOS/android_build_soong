@@ -149,9 +149,8 @@ func TestKapt(t *testing.T) {
 	if javac.Args["processorPath"] != "" {
 		t.Errorf("expected processorPath '', got %q", javac.Args["processorPath"])
 	}
-	// TODO(b/77284273): test for -processor:none
-	if javac.Args["processor"] != "" {
-		t.Errorf("expected processor '', got %q", javac.Args["processor"])
+	if javac.Args["processor"] != "-proc:none" {
+		t.Errorf("expected processor '-proc:none', got %q", javac.Args["processor"])
 	}
 }
 
