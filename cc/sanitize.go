@@ -809,7 +809,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				mctx.AddFarVariationDependencies([]blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
 					{Mutator: "arch", Variation: mctx.Target().String()},
-				}, sharedDepTag, runtimeLibrary)
+				}, earlySharedDepTag, runtimeLibrary)
 			}
 			// static lib does not have dependency to the runtime library. The
 			// dependency will be added to the executables or shared libs using
