@@ -1421,10 +1421,10 @@ type Library struct {
 }
 
 func (j *Library) shouldUncompressDex(ctx android.ModuleContext) bool {
-	// Store uncompressed (and do not strip) dex files from boot class path jars that are not
-	// part of the boot image.
+	// Store uncompressed (and do not strip) dex files from boot class path jars that are
+	// in an apex.
 	if inList(ctx.ModuleName(), ctx.Config().BootJars()) &&
-		!inList(ctx.ModuleName(), ctx.Config().PreoptBootJars()) {
+		android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
 		return true
 	}
 	return false
