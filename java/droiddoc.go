@@ -34,7 +34,9 @@ var (
 				`$opts $bootclasspathArgs $classpathArgs $sourcepathArgs ` +
 				`-d $outDir -quiet  && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir $postDoclavaCmds`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir $postDoclavaCmds && ` +
+				`rm -rf "$srcJarDir"`,
+
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.JavadocCmd}",
@@ -74,7 +76,8 @@ var (
 				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
 				`$opts && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
+				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.JavaCmd}",
@@ -94,7 +97,7 @@ var (
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
-				`$opts && touch $out ) || ` +
+				`$opts && touch $out && rm -rf "$srcJarDir") || ` +
 				`( echo -e "$msg" ; exit 38 )`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
@@ -120,7 +123,8 @@ var (
 				`${config.JavaCmd} -jar ${config.DokkaJar} $srcJarDir ` +
 				`$classpathArgs -format dac -dacRoot /reference/kotlin -output $outDir $opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
+				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.DokkaJar}",
