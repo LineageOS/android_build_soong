@@ -20,7 +20,7 @@ import (
 
 type moduleType struct {
 	name    string
-	factory blueprint.ModuleFactory
+	factory ModuleFactory
 }
 
 var moduleTypes []moduleType
@@ -39,8 +39,6 @@ type mutator struct {
 	topDownMutator  blueprint.TopDownMutator
 	parallel        bool
 }
-
-var mutators []*mutator
 
 type ModuleFactory func() Module
 
@@ -65,7 +63,7 @@ func SingletonFactoryAdaptor(factory SingletonFactory) blueprint.SingletonFactor
 }
 
 func RegisterModuleType(name string, factory ModuleFactory) {
-	moduleTypes = append(moduleTypes, moduleType{name, ModuleFactoryAdaptor(factory)})
+	moduleTypes = append(moduleTypes, moduleType{name, factory})
 }
 
 func RegisterSingletonType(name string, factory SingletonFactory) {
@@ -90,7 +88,7 @@ func (ctx *Context) Register() {
 	}
 
 	for _, t := range moduleTypes {
-		ctx.RegisterModuleType(t.name, t.factory)
+		ctx.RegisterModuleType(t.name, ModuleFactoryAdaptor(t.factory))
 	}
 
 	for _, t := range singletons {
@@ -104,4 +102,12 @@ func (ctx *Context) Register() {
 
 	// Register env last so that it can track all used environment variables
 	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
+}
+
+func ModuleTypeFactories() map[string]ModuleFactory {
+	ret := make(map[string]ModuleFactory)
+	for _, t := range moduleTypes {
+		ret[t.name] = t.factory
+	}
+	return ret
 }
