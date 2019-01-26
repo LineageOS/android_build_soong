@@ -81,6 +81,7 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 		"--werror_suffix_rules",
 		"--warn_real_to_phony",
 		"--warn_phony_looks_real",
+		"--top_level_phony",
 		"--kati_stats",
 	}, args...)
 
