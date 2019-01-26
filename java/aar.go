@@ -332,7 +332,7 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 	a.Module.compile(ctx, a.aaptSrcJar)
 
-	a.aarFile = android.PathForOutput(ctx, ctx.ModuleName()+".aar")
+	a.aarFile = android.PathForModuleOut(ctx, ctx.ModuleName()+".aar")
 	var res android.Paths
 	if a.androidLibraryProperties.BuildAAR {
 		BuildAAR(ctx, a.aarFile, a.outputFile, a.manifestPath, a.rTxt, res)
