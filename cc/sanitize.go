@@ -167,6 +167,11 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Never = BoolPtr(true)
 	}
 
+	// Sanitizers do not work on Fuchsia yet.
+	if ctx.Fuchsia() {
+		s.Never = BoolPtr(true)
+	}
+
 	// Never always wins.
 	if Bool(s.Never) {
 		return
@@ -667,10 +672,10 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 
 // Add the dependency to the runtime library for each of the sanitizer variants
 func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
-	if mctx.Os() != android.Android {
-		return
-	}
 	if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
+		if !c.Enabled() {
+			return
+		}
 		var sanitizers []string
 		var diagSanitizers []string
 
@@ -804,7 +809,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				mctx.AddFarVariationDependencies([]blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
 					{Mutator: "arch", Variation: mctx.Target().String()},
-				}, sharedDepTag, runtimeLibrary)
+				}, earlySharedDepTag, runtimeLibrary)
 			}
 			// static lib does not have dependency to the runtime library. The
 			// dependency will be added to the executables or shared libs using

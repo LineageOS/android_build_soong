@@ -15,6 +15,7 @@
 package java
 
 import (
+	"android/soong/android"
 	"strconv"
 	"strings"
 	"testing"
@@ -92,12 +93,18 @@ func TestKapt(t *testing.T) {
 
 		java_plugin {
 			name: "bar",
+			processor_class: "com.bar",
+			srcs: ["b.java"],
 		}
 		`)
+
+	buildOS := android.BuildOs.String()
 
 	kapt := ctx.ModuleForTests("foo", "android_common").Rule("kapt")
 	kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+
+	bar := ctx.ModuleForTests("bar", buildOS+"_common").Rule("javac").Output.String()
 
 	// Test that the kotlin and java sources are passed to kapt and kotlinc
 	if len(kapt.Inputs) != 2 || kapt.Inputs[0].String() != "a.java" || kapt.Inputs[1].String() != "b.kt" {
@@ -126,6 +133,24 @@ func TestKapt(t *testing.T) {
 	}
 	if javac.Args["srcJars"] != kapt.Output.String() {
 		t.Errorf("expected %q in javac srcjars %v", kapt.Output.String(), kotlinc.Args["srcJars"])
+	}
+
+	// Test that the processors are passed to kapt
+	expectedProcessorPath := "-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=" + bar
+	if kapt.Args["kaptProcessorPath"] != expectedProcessorPath {
+		t.Errorf("expected kaptProcessorPath %q, got %q", expectedProcessorPath, kapt.Args["kaptProcessorPath"])
+	}
+	expectedProcessor := "-P plugin:org.jetbrains.kotlin.kapt3:processors=com.bar"
+	if kapt.Args["kaptProcessor"] != expectedProcessor {
+		t.Errorf("expected kaptProcessor %q, got %q", expectedProcessor, kapt.Args["kaptProcessor"])
+	}
+
+	// Test that the processors are not passed to javac
+	if javac.Args["processorPath"] != "" {
+		t.Errorf("expected processorPath '', got %q", javac.Args["processorPath"])
+	}
+	if javac.Args["processor"] != "-proc:none" {
+		t.Errorf("expected processor '-proc:none', got %q", javac.Args["processor"])
 	}
 }
 

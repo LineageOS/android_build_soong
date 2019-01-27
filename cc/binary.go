@@ -196,7 +196,7 @@ func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 			if binary.Properties.Static_executable == nil && ctx.Config().HostStaticBinaries() {
 				binary.Properties.Static_executable = BoolPtr(true)
 			}
-		} else {
+		} else if !ctx.Fuchsia() {
 			// Static executables are not supported on Darwin or Windows
 			binary.Properties.Static_executable = nil
 		}
@@ -363,8 +363,10 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	var sharedLibs android.Paths
 	// Ignore shared libs for static executables.
 	if !binary.static() {
-		sharedLibs = deps.SharedLibs
+		sharedLibs = deps.EarlySharedLibs
+		sharedLibs = append(sharedLibs, deps.SharedLibs...)
 		sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
+		linkerDeps = append(linkerDeps, deps.EarlySharedLibsDeps...)
 		linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 		linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	}

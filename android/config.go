@@ -224,6 +224,22 @@ func TestConfig(buildDir string, env map[string]string) Config {
 	return Config{config}
 }
 
+func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
+	testConfig := TestConfig(buildDir, env)
+	config := testConfig.config
+
+	config.Targets = map[OsType][]Target{
+		Fuchsia: []Target{
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}},
+		},
+		BuildOs: []Target{
+			{BuildOs, Arch{ArchType: X86_64}},
+		},
+	}
+
+	return testConfig
+}
+
 // TestConfig returns a Config object suitable for using for tests that need to run the arch mutator
 func TestArchConfig(buildDir string, env map[string]string) Config {
 	testConfig := TestConfig(buildDir, env)
@@ -774,6 +790,10 @@ func (c *config) DexPreoptProfileDir() string {
 	return String(c.productVariables.DexPreoptProfileDir)
 }
 
+func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
+	return ExistentPathForSource(ctx, "frameworks", "base").Valid()
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
@@ -889,7 +909,27 @@ func (c *deviceConfig) PlatPrivateSepolicyDirs() []string {
 }
 
 func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName string, overridden bool) {
-	overrides := c.config.productVariables.ManifestPackageNameOverrides
+	return findOverrideValue(c.config.productVariables.ManifestPackageNameOverrides, name,
+		"invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>")
+}
+
+func (c *deviceConfig) OverrideCertificateFor(name string) (certificatePath string, overridden bool) {
+	return findOverrideValue(c.config.productVariables.CertificateOverrides, name,
+		"invalid override rule %q in PRODUCT_CERTIFICATE_OVERRIDES should be <module_name>:<certificate_module_name>")
+}
+
+func (c *deviceConfig) OverridePackageNameFor(name string) string {
+	newName, overridden := findOverrideValue(
+		c.config.productVariables.PackageNameOverrides,
+		name,
+		"invalid override rule %q in PRODUCT_PACKAGE_NAME_OVERRIDES should be <module_name>:<package_name>")
+	if overridden {
+		return newName
+	}
+	return name
+}
+
+func findOverrideValue(overrides []string, name string, errorMsg string) (newValue string, overridden bool) {
 	if overrides == nil || len(overrides) == 0 {
 		return "", false
 	}
@@ -897,7 +937,7 @@ func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName
 		split := strings.Split(o, ":")
 		if len(split) != 2 {
 			// This shouldn't happen as this is first checked in make, but just in case.
-			panic(fmt.Errorf("invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>", o))
+			panic(fmt.Errorf(errorMsg, o))
 		}
 		if matchPattern(split[0], name) {
 			return substPattern(split[0], split[1], name), true

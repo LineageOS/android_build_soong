@@ -32,7 +32,8 @@ var kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 			`${config.GenKotlinBuildFileCmd} $classpath $classesDir $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
 			`${config.KotlincCmd} ${config.JavacHeapFlags} $kotlincFlags ` +
 			`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile && ` +
-			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir`,
+			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir && ` +
+			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
 			"${config.KotlinCompilerJar}",
@@ -89,7 +90,8 @@ var kapt = pctx.AndroidGomaStaticRule("kapt",
 			`$kaptProcessorPath ` +
 			`$kaptProcessor ` +
 			`-Xbuild-file=$kotlinBuildFile && ` +
-			`${config.SoongZipCmd} -jar -o $out -C $kaptDir/sources -D $kaptDir/sources`,
+			`${config.SoongZipCmd} -jar -o $out -C $kaptDir/sources -D $kaptDir/sources && ` +
+			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
 			"${config.KotlinCompilerJar}",
@@ -121,7 +123,7 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 
 	kaptProcessor := ""
 	if flags.processor != "" {
-		kaptProcessor = "-P plugin:org.jetbrains.kotlin.kapt3:processor=" + flags.processor
+		kaptProcessor = "-P plugin:org.jetbrains.kotlin.kapt3:processors=" + flags.processor
 	}
 
 	encodedJavacFlags := kaptEncodeFlags([][2]string{

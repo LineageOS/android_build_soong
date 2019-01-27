@@ -29,27 +29,23 @@ import (
 	"android/soong/genrule"
 )
 
+type StaticSharedLibraryProperties struct {
+	Srcs   []string `android:"arch_variant"`
+	Cflags []string `android:"arch_variant"`
+
+	Enabled            *bool    `android:"arch_variant"`
+	Whole_static_libs  []string `android:"arch_variant"`
+	Static_libs        []string `android:"arch_variant"`
+	Shared_libs        []string `android:"arch_variant"`
+	System_shared_libs []string `android:"arch_variant"`
+
+	Export_shared_lib_headers []string `android:"arch_variant"`
+	Export_static_lib_headers []string `android:"arch_variant"`
+}
+
 type LibraryProperties struct {
-	Static struct {
-		Srcs   []string `android:"arch_variant"`
-		Cflags []string `android:"arch_variant"`
-
-		Enabled            *bool    `android:"arch_variant"`
-		Whole_static_libs  []string `android:"arch_variant"`
-		Static_libs        []string `android:"arch_variant"`
-		Shared_libs        []string `android:"arch_variant"`
-		System_shared_libs []string `android:"arch_variant"`
-	} `android:"arch_variant"`
-	Shared struct {
-		Srcs   []string `android:"arch_variant"`
-		Cflags []string `android:"arch_variant"`
-
-		Enabled            *bool    `android:"arch_variant"`
-		Whole_static_libs  []string `android:"arch_variant"`
-		Static_libs        []string `android:"arch_variant"`
-		Shared_libs        []string `android:"arch_variant"`
-		System_shared_libs []string `android:"arch_variant"`
-	} `android:"arch_variant"`
+	Static StaticSharedLibraryProperties `android:"arch_variant"`
+	Shared StaticSharedLibraryProperties `android:"arch_variant"`
 
 	// local file name to pass to the linker as -unexported_symbols_list
 	Unexported_symbols_list *string `android:"arch_variant"`
@@ -539,6 +535,9 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			library.Properties.Static.Whole_static_libs...)
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
+
+		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.Properties.Static.Export_shared_lib_headers...)
+		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.Properties.Static.Export_static_lib_headers...)
 	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
 			if !ctx.useSdk() {
@@ -560,6 +559,9 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Shared.Whole_static_libs...)
 		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Shared.Static_libs...)
 		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Shared.Shared_libs...)
+
+		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.Properties.Shared.Export_shared_lib_headers...)
+		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.Properties.Shared.Export_static_lib_headers...)
 	}
 	if ctx.useVndk() {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
@@ -696,9 +698,11 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	}
 
-	sharedLibs := deps.SharedLibs
+	sharedLibs := deps.EarlySharedLibs
+	sharedLibs = append(sharedLibs, deps.SharedLibs...)
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
 
+	linkerDeps = append(linkerDeps, deps.EarlySharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)

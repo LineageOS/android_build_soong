@@ -150,8 +150,13 @@ func init() {
 
 	pctx.StaticVariable("CommonClangGlobalCflags",
 		strings.Join(append(ClangFilterUnknownCflags(commonGlobalCflags), "${ClangExtraCflags}"), " "))
-	pctx.StaticVariable("DeviceClangGlobalCflags",
-		strings.Join(append(ClangFilterUnknownCflags(deviceGlobalCflags), "${ClangExtraTargetCflags}"), " "))
+	pctx.VariableFunc("DeviceClangGlobalCflags", func(ctx android.PackageVarContext) string {
+		if ctx.Config().Fuchsia() {
+			return strings.Join(ClangFilterUnknownCflags(deviceGlobalCflags), " ")
+		} else {
+			return strings.Join(append(ClangFilterUnknownCflags(deviceGlobalCflags), "${ClangExtraTargetCflags}"), " ")
+		}
+	})
 	pctx.StaticVariable("HostClangGlobalCflags",
 		strings.Join(ClangFilterUnknownCflags(hostGlobalCflags), " "))
 	pctx.StaticVariable("NoOverrideClangGlobalCflags",

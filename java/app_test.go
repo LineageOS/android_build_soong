@@ -110,57 +110,55 @@ var testEnforceRROTests = []struct {
 	name                       string
 	enforceRROTargets          []string
 	enforceRROExcludedOverlays []string
-	fooOverlayFiles            []string
-	fooRRODirs                 []string
-	barOverlayFiles            []string
-	barRRODirs                 []string
+	overlayFiles               map[string][]string
+	rroDirs                    map[string][]string
 }{
 	{
 		name:                       "no RRO",
 		enforceRROTargets:          nil,
 		enforceRROExcludedOverlays: nil,
-		fooOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
-			"device/vendor/blah/overlay/foo/res/values/strings.xml",
+		overlayFiles: map[string][]string{
+			"foo": []string{
+				"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+				"device/vendor/blah/overlay/foo/res/values/strings.xml",
+			},
+			"bar": []string{
+				"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+				"device/vendor/blah/overlay/bar/res/values/strings.xml",
+			},
 		},
-		fooRRODirs: nil,
-		barOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-			"device/vendor/blah/overlay/bar/res/values/strings.xml",
+		rroDirs: map[string][]string{
+			"foo": nil,
+			"bar": nil,
 		},
-		barRRODirs: nil,
 	},
 	{
 		name:                       "enforce RRO on foo",
 		enforceRROTargets:          []string{"foo"},
 		enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
-		fooOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+		overlayFiles: map[string][]string{
+			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+			"bar": []string{
+				"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+				"device/vendor/blah/overlay/bar/res/values/strings.xml",
+			},
 		},
-		fooRRODirs: []string{
-			"device/vendor/blah/overlay/foo/res",
+		rroDirs: map[string][]string{
+			"foo": []string{"device/vendor/blah/overlay/foo/res"},
+			"bar": nil,
 		},
-		barOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-			"device/vendor/blah/overlay/bar/res/values/strings.xml",
-		},
-		barRRODirs: nil,
 	},
 	{
 		name:                       "enforce RRO on all",
 		enforceRROTargets:          []string{"*"},
 		enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
-		fooOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+		overlayFiles: map[string][]string{
+			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+			"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
 		},
-		fooRRODirs: []string{
-			"device/vendor/blah/overlay/foo/res",
-		},
-		barOverlayFiles: []string{
-			"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-		},
-		barRRODirs: []string{
-			"device/vendor/blah/overlay/bar/res",
+		rroDirs: map[string][]string{
+			"foo": []string{"device/vendor/blah/overlay/foo/res"},
+			"bar": []string{"device/vendor/blah/overlay/bar/res"},
 		},
 	},
 }
@@ -222,27 +220,19 @@ func TestEnforceRRO(t *testing.T) {
 				return overlayFiles, rroDirs
 			}
 
-			fooOverlayFiles, fooRRODirs := getOverlays("foo")
-			barOverlayFiles, barRRODirs := getOverlays("bar")
+			apps := []string{"foo", "bar"}
+			for _, app := range apps {
+				overlayFiles, rroDirs := getOverlays(app)
 
-			if !reflect.DeepEqual(fooOverlayFiles, testCase.fooOverlayFiles) {
-				t.Errorf("expected foo overlay files:\n  %#v\n got:\n  %#v",
-					testCase.fooOverlayFiles, fooOverlayFiles)
+				if !reflect.DeepEqual(overlayFiles, testCase.overlayFiles[app]) {
+					t.Errorf("expected %s overlay files:\n  %#v\n got:\n  %#v",
+						app, testCase.overlayFiles[app], overlayFiles)
+				}
+				if !reflect.DeepEqual(rroDirs, testCase.rroDirs[app]) {
+					t.Errorf("expected %s rroDirs:  %#v\n got:\n  %#v",
+						app, testCase.rroDirs[app], rroDirs)
+				}
 			}
-			if !reflect.DeepEqual(fooRRODirs, testCase.fooRRODirs) {
-				t.Errorf("expected foo rroDirs:  %#v\n got:\n  %#v",
-					testCase.fooRRODirs, fooRRODirs)
-			}
-
-			if !reflect.DeepEqual(barOverlayFiles, testCase.barOverlayFiles) {
-				t.Errorf("expected bar overlay files:\n  %#v\n got:\n  %#v",
-					testCase.barOverlayFiles, barOverlayFiles)
-			}
-			if !reflect.DeepEqual(barRRODirs, testCase.barRRODirs) {
-				t.Errorf("expected bar rroDirs:  %#v\n got:\n  %#v",
-					testCase.barRRODirs, barRRODirs)
-			}
-
 		})
 	}
 }
@@ -450,6 +440,155 @@ func TestJNI(t *testing.T) {
 			}
 			if !reflect.DeepEqual(abis, test.abis) {
 				t.Errorf("want abis %v, got %v", test.abis, abis)
+			}
+		})
+	}
+}
+
+func TestCertificates(t *testing.T) {
+	testCases := []struct {
+		name                string
+		bp                  string
+		certificateOverride string
+		expected            string
+	}{
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			certificateOverride: "",
+			expected:            "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+		},
+		{
+			name: "module certificate property",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: ":new_certificate"
+				}
+
+				android_app_certificate {
+					name: "new_certificate",
+			    certificate: "cert/new_cert",
+				}
+			`,
+			certificateOverride: "",
+			expected:            "cert/new_cert.x509.pem cert/new_cert.pk8",
+		},
+		{
+			name: "path certificate property",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: "expiredkey"
+				}
+			`,
+			certificateOverride: "",
+			expected:            "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
+		},
+		{
+			name: "certificate overrides",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: "expiredkey"
+				}
+
+				android_app_certificate {
+					name: "new_certificate",
+			    certificate: "cert/new_cert",
+				}
+			`,
+			certificateOverride: "foo:new_certificate",
+			expected:            "cert/new_cert.x509.pem cert/new_cert.pk8",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			config := testConfig(nil)
+			if test.certificateOverride != "" {
+				config.TestProductVariables.CertificateOverrides = []string{test.certificateOverride}
+			}
+			ctx := testAppContext(config, test.bp, nil)
+
+			run(t, ctx, config)
+			foo := ctx.ModuleForTests("foo", "android_common")
+
+			signapk := foo.Output("foo.apk")
+			signFlags := signapk.Args["certificates"]
+			if test.expected != signFlags {
+				t.Errorf("Incorrect signing flags, expected: %q, got: %q", test.expected, signFlags)
+			}
+		})
+	}
+}
+
+func TestPackageNameOverride(t *testing.T) {
+	testCases := []struct {
+		name                string
+		bp                  string
+		packageNameOverride string
+		expected            []string
+	}{
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			packageNameOverride: "",
+			expected: []string{
+				buildDir + "/.intermediates/foo/android_common/foo.apk",
+				buildDir + "/target/product/test_device/system/app/foo/foo.apk",
+			},
+		},
+		{
+			name: "overridden",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			packageNameOverride: "foo:bar",
+			expected: []string{
+				// The package apk should be still be the original name for test dependencies.
+				buildDir + "/.intermediates/foo/android_common/foo.apk",
+				buildDir + "/target/product/test_device/system/app/bar/bar.apk",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			config := testConfig(nil)
+			if test.packageNameOverride != "" {
+				config.TestProductVariables.PackageNameOverrides = []string{test.packageNameOverride}
+			}
+			ctx := testAppContext(config, test.bp, nil)
+
+			run(t, ctx, config)
+			foo := ctx.ModuleForTests("foo", "android_common")
+
+			outputs := foo.AllOutputs()
+			outputMap := make(map[string]bool)
+			for _, o := range outputs {
+				outputMap[o] = true
+			}
+			for _, e := range test.expected {
+				if _, exist := outputMap[e]; !exist {
+					t.Errorf("Can't find %q in output files.\nAll outputs:%v", e, outputs)
+				}
 			}
 		})
 	}

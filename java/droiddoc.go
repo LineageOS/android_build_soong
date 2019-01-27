@@ -34,7 +34,9 @@ var (
 				`$opts $bootclasspathArgs $classpathArgs $sourcepathArgs ` +
 				`-d $outDir -quiet  && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir $postDoclavaCmds`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir $postDoclavaCmds && ` +
+				`rm -rf "$srcJarDir"`,
+
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.JavadocCmd}",
@@ -74,7 +76,8 @@ var (
 				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
 				`$opts && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
+				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.JavaCmd}",
@@ -94,7 +97,7 @@ var (
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
-				`$opts && touch $out ) || ` +
+				`$opts && touch $out && rm -rf "$srcJarDir") || ` +
 				`( echo -e "$msg" ; exit 38 )`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
@@ -120,7 +123,8 @@ var (
 				`${config.JavaCmd} -jar ${config.DokkaJar} $srcJarDir ` +
 				`$classpathArgs -format dac -dacRoot /reference/kotlin -output $outDir $opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
-				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir`,
+				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
+				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
 				"${config.DokkaJar}",
@@ -1500,7 +1504,7 @@ func (d *Droidstubs) collectAPILevelsAnnotationsFlags(ctx android.ModuleContext,
 					}
 				}
 				*implicits = append(*implicits, androidJars...)
-				flags += " --android-jar-pattern " + t.dir.String() + "/%/android.jar "
+				flags += " --android-jar-pattern " + t.dir.String() + "/%/public/android.jar "
 			} else {
 				ctx.PropertyErrorf("api_levels_annotations_dirs",
 					"module %q is not a metalava api-levels-annotations dir", ctx.OtherModuleName(m))
@@ -1570,7 +1574,7 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 
 func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
 	apiFile, removedApiFile android.Path, implicits android.Paths,
-	javaVersion, bootclasspathArgs, classpathArgs, sourcepathArgs, opts, msg string,
+	javaVersion, bootclasspathArgs, classpathArgs, sourcepathArgs, opts, subdir, msg string,
 	output android.WritablePath) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        metalavaApiCheck,
@@ -1580,7 +1584,7 @@ func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
 		Implicits: append(android.Paths{apiFile, removedApiFile, d.apiFile, d.removedApiFile},
 			implicits...),
 		Args: map[string]string{
-			"srcJarDir":         android.PathForModuleOut(ctx, "apicheck-srcjars").String(),
+			"srcJarDir":         android.PathForModuleOut(ctx, subdir, "srcjars").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
 			"javaVersion":       javaVersion,
 			"bootclasspathArgs": bootclasspathArgs,
@@ -1669,7 +1673,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			flags.metalavaInclusionAnnotationsFlags + flags.metalavaMergeAnnoDirFlags + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
-			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
+			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts, "current-apicheck",
 			fmt.Sprintf(`\n******************************\n`+
 				`You have tried to change the API from what has been previously approved.\n\n`+
 				`To make these errors go away, you have two choices:\n`+
@@ -1700,7 +1704,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			removedApiFile.String() + flags.metalavaMergeAnnoDirFlags + " "
 
 		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
-			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts,
+			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts, "last-apicheck",
 			`\n******************************\n`+
 				`You have tried to change the API from what has been previously released in\n`+
 				`an SDK.  Please fix the errors listed above.\n`+

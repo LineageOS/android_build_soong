@@ -114,9 +114,6 @@ type CompilerProperties struct {
 	// If set to true, include sources used to compile the module in to the final jar
 	Include_srcs *bool
 
-	// List of modules to use as annotation processors.  Deprecated, use plugins instead.
-	Annotation_processors []string
-
 	// List of modules to use as annotation processors
 	Plugins []string
 
@@ -376,7 +373,6 @@ type jniDependencyTag struct {
 var (
 	staticLibTag          = dependencyTag{name: "staticlib"}
 	libTag                = dependencyTag{name: "javalib"}
-	annoTag               = dependencyTag{name: "annotation processor"}
 	pluginTag             = dependencyTag{name: "plugin"}
 	bootClasspathTag      = dependencyTag{name: "bootclasspath"}
 	systemModulesTag      = dependencyTag{name: "system modules"}
@@ -471,9 +467,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
-	}, annoTag, j.properties.Annotation_processors...)
 
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
 		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
@@ -493,7 +486,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
 		ctx.AddVariationDependencies(nil, kotlinStdlibTag, "kotlin-stdlib")
-		if len(j.properties.Annotation_processors) > 0 {
+		if len(j.properties.Plugins) > 0 {
 			ctx.AddVariationDependencies(nil, kotlinAnnotationsTag, "kotlin-annotations")
 		}
 	}
@@ -718,8 +711,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars()...)
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
-			case annoTag:
-				deps.processorPath = append(deps.processorPath, dep.ImplementationAndResourcesJars()...)
 			case pluginTag:
 				if plugin, ok := dep.(*Plugin); ok {
 					deps.processorPath = append(deps.processorPath, dep.ImplementationAndResourcesJars()...)
@@ -1017,6 +1008,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			srcJars = append(srcJars, kaptSrcJar)
 			// Disable annotation processing in javac, it's already been handled by kapt
 			flags.processorPath = nil
+			flags.processor = ""
 		}
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
@@ -1243,7 +1235,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName)
 			TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
 				false, nil, nil)
-			dexOutputFile = combinedJar
+			if j.deviceProperties.UncompressDex {
+				combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName)
+				TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
+				dexOutputFile = combinedAlignedJar
+			} else {
+				dexOutputFile = combinedJar
+			}
 		}
 
 		j.dexJarFile = dexOutputFile
@@ -1423,10 +1421,10 @@ type Library struct {
 }
 
 func (j *Library) shouldUncompressDex(ctx android.ModuleContext) bool {
-	// Store uncompressed (and do not strip) dex files from boot class path jars that are not
-	// part of the boot image.
+	// Store uncompressed (and do not strip) dex files from boot class path jars that are
+	// in an apex.
 	if inList(ctx.ModuleName(), ctx.Config().BootJars()) &&
-		!inList(ctx.ModuleName(), ctx.Config().PreoptBootJars()) {
+		android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
 		return true
 	}
 	return false

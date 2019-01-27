@@ -71,6 +71,7 @@ bootstrap_go_package {
         "android/env.go",
     ],
     testSrcs: [
+        "android/arch_test.go",
         "android/config_test.go",
         "android/expand_test.go",
         "android/namespace_test.go",
@@ -97,10 +98,12 @@ bootstrap_go_package {
 
         "cc/config/arm_device.go",
         "cc/config/arm64_device.go",
+        "cc/config/arm64_fuchsia_device.go",
         "cc/config/mips_device.go",
         "cc/config/mips64_device.go",
         "cc/config/x86_device.go",
         "cc/config/x86_64_device.go",
+        "cc/config/x86_64_fuchsia_device.go",
 
         "cc/config/x86_darwin_host.go",
         "cc/config/x86_linux_host.go",

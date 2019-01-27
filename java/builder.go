@@ -47,7 +47,8 @@ var (
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir`,
+				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir && ` +
+				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.JavacCmd}",
 				"${config.SoongZipCmd}",
@@ -255,8 +256,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	deps = append(deps, flags.classpath...)
 	deps = append(deps, flags.processorPath...)
 
-	// TODO(b/77284273): pass -processor:none if no plugins are listed
-	processor := ""
+	processor := "-proc:none"
 	if flags.processor != "" {
 		processor = "-processor " + flags.processor
 	}
