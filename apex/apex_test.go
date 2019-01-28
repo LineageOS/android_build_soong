@@ -41,6 +41,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(cc.LibrarySharedFactory))
+	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(cc.LibraryHeaderFactory))
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(cc.BinaryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
@@ -130,6 +131,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"system/sepolicy/apex/otherapex-file_contexts": nil,
 		"mylib.cpp":                                    nil,
 		"myprebuilt":                                   nil,
+		"my_include":                                   nil,
 		"vendor/foo/devkeys/test.x509.pem":             nil,
 		"vendor/foo/devkeys/test.pk8":                  nil,
 		"vendor/foo/devkeys/testkey.avbpubkey":         nil,
@@ -773,4 +775,52 @@ func TestMacro(t *testing.T) {
 	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_otherapex").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+}
+
+func TestHeaderLibsDependency(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library_headers {
+			name: "mylib_headers",
+			export_include_dirs: ["my_include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			header_libs: ["mylib_headers"],
+			export_header_lib_headers: ["mylib_headers"],
+			stubs: {
+				versions: ["1", "2", "3"],
+			},
+		}
+
+		cc_library {
+			name: "otherlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			shared_libs: ["mylib"],
+		}
+	`)
+
+	cFlags := ctx.ModuleForTests("otherlib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
+
+	// Ensure that the include path of the header lib is exported to 'otherlib'
+	ensureContains(t, cFlags, "-Imy_include")
 }
