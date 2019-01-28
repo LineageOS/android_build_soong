@@ -199,7 +199,7 @@ var (
 			// TODO(b/78139997): Add -check-all-apis back
 			commandStr := "($sAbiDiffer $allowFlags -lib $libName -arch $arch -o ${out} -new $in -old $referenceDump)"
 			commandStr += "|| (echo ' ---- Please update abi references by running $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l ${libName} ----'"
-			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiff/)"
+			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiffs/)"
 			commandStr += " && exit 1)"
 			return blueprint.RuleParams{
 				Command:     commandStr,
