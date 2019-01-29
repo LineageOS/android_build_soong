@@ -170,14 +170,14 @@ func generateCompdbProject(compiledModule CompiledInterface, ctx android.Singlet
 		return
 	}
 
-	pathToCC, err := ctx.Eval(pctx, "${config.ClangBin}/")
+	rootDir := getCompdbAndroidSrcRootDirectory(ctx)
+	pathToCC, err := ctx.Eval(pctx, rootDir+"/${config.ClangBin}/")
 	ccPath := "/bin/false"
 	cxxPath := "/bin/false"
 	if err == nil {
 		ccPath = pathToCC + "clang"
 		cxxPath = pathToCC + "clang++"
 	}
-	rootDir := getCompdbAndroidSrcRootDirectory(ctx)
 	for _, src := range srcs {
 		if _, ok := builds[src.String()]; !ok {
 			builds[src.String()] = compDbEntry{
