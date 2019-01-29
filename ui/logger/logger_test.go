@@ -196,3 +196,17 @@ func TestRecoverNonFatal(t *testing.T) {
 	log.Panic("Test")
 	t.Errorf("Should not get here")
 }
+
+func TestRuntimePanic(t *testing.T) {
+	defer func() {
+		if p := recover(); p == nil {
+			t.Errorf("Panic not thrown")
+		}
+	}()
+	defer Recover(func(err error) {
+		t.Errorf("Recover function should not be called")
+	})
+	var i *int
+	*i = 0
+	t.Errorf("Should not get here")
+}
