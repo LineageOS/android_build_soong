@@ -692,3 +692,62 @@ func TestRewriteCtsModuleTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestRewritePrebuiltEtc(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "prebuilt_etc src",
+			in: `
+			prebuilt_etc {
+			name: "foo",
+			srcs: ["bar"],
+		}
+		`,
+			out: `prebuilt_etc {
+			name: "foo",
+			src: "bar",
+		}
+		`,
+		},
+		{
+			name: "prebuilt_etc src",
+			in: `
+			prebuilt_etc {
+			name: "foo",
+			srcs: FOO,
+		}
+		`,
+			out: `prebuilt_etc {
+			name: "foo",
+			src: FOO,
+		}
+		`,
+		},
+		{
+			name: "prebuilt_etc src",
+			in: `
+			prebuilt_etc {
+			name: "foo",
+			srcs: ["bar", "baz"],
+		}
+		`,
+			out: `prebuilt_etc {
+			name: "foo",
+			src: "ERROR: LOCAL_SRC_FILES should contain at most one item",
+
+		}
+		`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return rewriteAndroidmkPrebuiltEtc(fixer)
+			})
+		})
+	}
+}
