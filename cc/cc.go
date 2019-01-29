@@ -772,6 +772,15 @@ func (c *Module) Name() string {
 	return name
 }
 
+func (c *Module) Symlinks() []string {
+	if p, ok := c.installer.(interface {
+		symlinkList() []string
+	}); ok {
+		return p.symlinkList()
+	}
+	return nil
+}
+
 // orderDeps reorders dependencies into a list such that if module A depends on B, then
 // A will precede B in the resultant list.
 // This is convenient for passing into a linker.
