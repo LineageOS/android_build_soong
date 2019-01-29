@@ -483,9 +483,17 @@ func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
 	}
 }
 
-func (a *apexBundle) IsSanitizerEnabled() bool {
-	// APEX can be mutated for sanitizers
-	return true
+func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizerName string) bool {
+	globalSanitizerNames := []string{}
+	if a.Host() {
+		globalSanitizerNames = ctx.Config().SanitizeHost()
+	} else {
+		arches := ctx.Config().SanitizeDeviceArch()
+		if len(arches) == 0 || android.InList(a.Arch().ArchType.Name, arches) {
+			globalSanitizerNames = ctx.Config().SanitizeDevice()
+		}
+	}
+	return android.InList(sanitizerName, globalSanitizerNames)
 }
 
 func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
