@@ -107,6 +107,16 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 			recovery_available: true,
 		}
 
+		cc_object {
+			name: "crtbegin_static",
+			stl: "none",
+		}
+
+		cc_object {
+			name: "crtend_android",
+			stl: "none",
+		}
+
 		llndk_library {
 			name: "libc",
 			symbol_file: "",
@@ -194,6 +204,11 @@ func TestBasicApex(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
+			multilib: {
+				both: {
+					binaries: ["foo",],
+				}
+			}
 		}
 
 		apex_key {
@@ -207,6 +222,25 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			shared_libs: ["mylib2"],
 			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_binary {
+			name: "foo",
+			srcs: ["mylib.cpp"],
+			compile_multilib: "both",
+			multilib: {
+					lib32: {
+							suffix: "32",
+					},
+					lib64: {
+							suffix: "64",
+					},
+			},
+			symlinks: ["foo_link_"],
+			symlink_preferred_arch: true,
+			system_shared_libs: [],
+			static_executable: true,
 			stl: "none",
 		}
 
@@ -237,6 +271,23 @@ func TestBasicApex(t *testing.T) {
 	// Ensure that the platform variant ends with _core_shared
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
+
+	// Ensure that all symlinks are present.
+	found_foo_link_64 := false
+	found_foo := false
+	for _, cmd := range strings.Split(copyCmds, " && ") {
+		if strings.HasPrefix(cmd, "ln -s foo64") {
+			if strings.HasSuffix(cmd, "bin/foo") {
+				found_foo = true
+			} else if strings.HasSuffix(cmd, "bin/foo_link_64") {
+				found_foo_link_64 = true
+			}
+		}
+	}
+	good := found_foo && found_foo_link_64
+	if !good {
+		t.Errorf("Could not find all expected symlinks! foo: %t, foo_link_64: %t. Command was %s", found_foo, found_foo_link_64, copyCmds)
+	}
 }
 
 func TestBasicZipApex(t *testing.T) {
@@ -671,17 +722,6 @@ func TestStaticLinking(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 		}
-
-		cc_object {
-			name: "crtbegin_static",
-			stl: "none",
-		}
-
-		cc_object {
-			name: "crtend_android",
-			stl: "none",
-		}
-
 	`)
 
 	ldFlags := ctx.ModuleForTests("not_in_apex", "android_arm64_armv8-a_core").Rule("ld").Args["libFlags"]
