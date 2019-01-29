@@ -382,11 +382,8 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
 	binary.coverageOutputFile = TransformCoverageFilesToLib(ctx, objs, builderFlags, binary.getStem(ctx))
 
-	return ret
-}
-
-func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
-	binary.baseInstaller.install(ctx, file)
+	// Need to determine symlinks early since some targets (ie APEX) need this
+	// information but will not call 'install'
 	for _, symlink := range binary.Properties.Symlinks {
 		binary.symlinks = append(binary.symlinks,
 			symlink+String(binary.Properties.Suffix)+ctx.toolchain().ExecutableSuffix())
@@ -401,6 +398,15 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 		}
 	}
 
+	return ret
+}
+
+func (binary *binaryDecorator) symlinkList() []string {
+	return binary.symlinks
+}
+
+func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
+	binary.baseInstaller.install(ctx, file)
 	for _, symlink := range binary.symlinks {
 		ctx.InstallSymlink(binary.baseInstaller.installDir(ctx), symlink, binary.baseInstaller.path)
 	}
