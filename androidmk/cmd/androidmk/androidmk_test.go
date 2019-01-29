@@ -824,6 +824,210 @@ java_library {
 }
 `,
 	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_ETC",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_SRC_FILES := mymod
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	src: "mymod",
+	sub_dir: "foo/bar",
+
+}
+`,
+	},
+
+	{
+		desc: "prebuilt_etc_PRODUCT_OUT/system/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(PRODUCT_OUT)/system/etc/foo/bar
+LOCAL_SRC_FILES := $(LOCAL_MODULE)
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+
+	src: "etc.test1",
+	sub_dir: "foo/bar",
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_ODM/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_ODM)/etc/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+    device_specific: true,
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_PRODUCT/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/etc/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	product_specific: true,
+
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_PRODUCT_ETC",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT_ETC)/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	product_specific: true,
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_PRODUCT_SERVICES/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT_SERVICES)/etc/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	product_services_specific: true,
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_PRODUCT_SERVICES_ETC",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT_SERVICES_ETC)/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	product_services_specific: true,
+
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_VENDOR/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/etc/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	proprietary: true,
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_PRODUCT_OUT/TARGET_COPY_OUT_VENDOR/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(PRODUCT_OUT)/$(TARGET_COPY_OUT_VENDOR)/etc/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	proprietary: true,
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_OUT_VENDOR_ETC",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_ETC)/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	proprietary: true,
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_etc_TARGET_RECOVERY_ROOT_OUT/system/etc",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := etc.test1
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/system/etc/foo/bar
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_etc {
+	name: "etc.test1",
+	sub_dir: "foo/bar",
+	recovery: true,
+
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
