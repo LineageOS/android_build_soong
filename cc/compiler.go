@@ -341,6 +341,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_RECOVERY__")
 	}
 
+	if ctx.apexName() != "" {
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_APEX__="+ctx.apexName())
+	}
+
 	instructionSet := String(compiler.Properties.Instruction_set)
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
