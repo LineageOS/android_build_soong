@@ -34,6 +34,8 @@ type pythonInstaller struct {
 	relative string
 
 	path android.OutputPath
+
+	androidMkSharedLibs []string
 }
 
 func NewPythonInstaller(dir, dir64 string) *pythonInstaller {
@@ -58,4 +60,8 @@ func (installer *pythonInstaller) installDir(ctx android.ModuleContext) android.
 
 func (installer *pythonInstaller) install(ctx android.ModuleContext, file android.Path) {
 	installer.path = ctx.InstallFile(installer.installDir(ctx), file.Base(), file)
+}
+
+func (installer *pythonInstaller) setAndroidMkSharedLibs(sharedLibs []string) {
+	installer.androidMkSharedLibs = sharedLibs
 }
