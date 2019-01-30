@@ -87,14 +87,14 @@ type Tools struct {
 }
 
 type ModuleConfig struct {
-	Name                string
-	DexLocation         string // dex location on device
-	BuildPath           string
-	DexPath             string
-	PreferCodeIntegrity bool
-	UncompressedDex     bool
-	HasApkLibraries     bool
-	PreoptFlags         []string
+	Name            string
+	DexLocation     string // dex location on device
+	BuildPath       string
+	DexPath         string
+	UseEmbeddedDex  bool
+	UncompressedDex bool
+	HasApkLibraries bool
+	PreoptFlags     []string
 
 	ProfileClassListing  string
 	ProfileIsTextListing bool

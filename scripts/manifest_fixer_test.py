@@ -346,12 +346,12 @@ class AddUsesNonSdkApiTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
 
-class PreferCodeIntegrityTest(unittest.TestCase):
-  """Unit tests for add_prefer_code_integrity function."""
+class UseEmbeddedDexTest(unittest.TestCase):
+  """Unit tests for add_use_embedded_dex function."""
 
   def run_test(self, input_manifest):
     doc = minidom.parseString(input_manifest)
-    manifest_fixer.add_prefer_code_integrity(doc)
+    manifest_fixer.add_use_embedded_dex(doc)
     output = StringIO.StringIO()
     manifest_fixer.write_xml(output, doc)
     return output.getvalue()
@@ -362,23 +362,23 @@ class PreferCodeIntegrityTest(unittest.TestCase):
       '    <application%s/>\n'
       '</manifest>\n')
 
-  def prefer_code_integrity(self, value):
-    return ' android:preferCodeIntegrity="%s"' % value
+  def use_embedded_dex(self, value):
+    return ' android:useEmbeddedDex="%s"' % value
 
   def test_manifest_with_undeclared_preference(self):
     manifest_input = self.manifest_tmpl % ''
-    expected = self.manifest_tmpl % self.prefer_code_integrity('true')
+    expected = self.manifest_tmpl % self.use_embedded_dex('true')
     output = self.run_test(manifest_input)
     self.assertEqual(output, expected)
 
-  def test_manifest_with_prefer_code_integrity(self):
-    manifest_input = self.manifest_tmpl % self.prefer_code_integrity('true')
+  def test_manifest_with_use_embedded_dex(self):
+    manifest_input = self.manifest_tmpl % self.use_embedded_dex('true')
     expected = manifest_input
     output = self.run_test(manifest_input)
     self.assertEqual(output, expected)
 
-  def test_manifest_with_not_prefer_code_integrity(self):
-    manifest_input = self.manifest_tmpl % self.prefer_code_integrity('false')
+  def test_manifest_with_not_use_embedded_dex(self):
+    manifest_input = self.manifest_tmpl % self.use_embedded_dex('false')
     self.assertRaises(RuntimeError, self.run_test, manifest_input)
 
 if __name__ == '__main__':
