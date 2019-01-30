@@ -83,6 +83,10 @@ var fixSteps = []fixStep{
 		fix:  rewriteJavaStaticLibs,
 	},
 	{
+		name: "rewritePrebuiltEtc",
+		fix:  rewriteAndroidmkPrebuiltEtc,
+	},
+	{
 		name: "mergeMatchingModuleProperties",
 		fix:  runPatchListMod(mergeMatchingModuleProperties),
 	},
@@ -404,6 +408,156 @@ func rewriteAndroidmkJavaLibs(f *Fixer) error {
 		}
 	}
 
+	return nil
+}
+
+// Helper function to get the value of a string-valued property in a given compound property.
+func getStringProperty(prop *parser.Property, fieldName string) string {
+	if propsAsMap, ok := prop.Value.(*parser.Map); ok {
+		for _, propField := range propsAsMap.Properties {
+			if fieldName == propField.Name {
+				if propFieldAsString, ok := propField.Value.(*parser.String); ok {
+					return propFieldAsString.Value
+				} else {
+					return ""
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// Create sub_dir: attribute for the given path
+func makePrebuiltEtcDestination(mod *parser.Module, path string) {
+	mod.Properties = append(mod.Properties, &parser.Property{
+		Name:  "sub_dir",
+		Value: &parser.String{Value: path},
+	})
+}
+
+// Set the value of the given attribute to the error message
+func indicateAttributeError(mod *parser.Module, attributeName string, format string, a ...interface{}) error {
+	msg := fmt.Sprintf(format, a...)
+	mod.Properties = append(mod.Properties, &parser.Property{
+		Name:  attributeName,
+		Value: &parser.String{Value: "ERROR: " + msg},
+	})
+	return errors.New(msg)
+}
+
+// If a variable is LOCAL_MODULE, get its value from the 'name' attribute.
+// This handles the statement
+//    LOCAL_SRC_FILES := $(LOCAL_MODULE)
+// which occurs often.
+func resolveLocalModule(mod *parser.Module, val parser.Expression) parser.Expression {
+	if varLocalName, ok := val.(*parser.Variable); ok {
+		if varLocalName.Name == "LOCAL_MODULE" {
+			if v, ok := getLiteralStringProperty(mod, "name"); ok {
+				return v
+			}
+		}
+	}
+	return val
+}
+
+// A prefix to strip before setting 'filename' attribute and an array of boolean attributes to set.
+type filenamePrefixToFlags struct {
+	prefix string
+	flags  []string
+}
+
+var localModulePathRewrite = map[string][]filenamePrefixToFlags{
+	"HOST_OUT":                        {{prefix: "/etc"}},
+	"PRODUCT_OUT":                     {{prefix: "/system/etc"}, {prefix: "/vendor/etc", flags: []string{"proprietary"}}},
+	"TARGET_OUT":                      {{prefix: "/etc"}},
+	"TARGET_OUT_ETC":                  {{prefix: ""}},
+	"TARGET_OUT_PRODUCT":              {{prefix: "/etc", flags: []string{"product_specific"}}},
+	"TARGET_OUT_PRODUCT_ETC":          {{prefix: "", flags: []string{"product_specific"}}},
+	"TARGET_OUT_ODM":                  {{prefix: "/etc", flags: []string{"device_specific"}}},
+	"TARGET_OUT_PRODUCT_SERVICES":     {{prefix: "/etc", flags: []string{"product_services_specific"}}},
+	"TARGET_OUT_PRODUCT_SERVICES_ETC": {{prefix: "", flags: []string{"product_services_specific"}}},
+	"TARGET_OUT_VENDOR":               {{prefix: "/etc", flags: []string{"proprietary"}}},
+	"TARGET_OUT_VENDOR_ETC":           {{prefix: "", flags: []string{"proprietary"}}},
+	"TARGET_RECOVERY_ROOT_OUT":        {{prefix: "/system/etc", flags: []string{"recovery"}}},
+}
+
+// rewriteAndroidPrebuiltEtc fixes prebuilt_etc rule
+func rewriteAndroidmkPrebuiltEtc(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !ok {
+			continue
+		}
+
+		if mod.Type != "prebuilt_etc" && mod.Type != "prebuilt_etc_host" {
+			continue
+		}
+
+		// The rewriter converts LOCAL_SRC_FILES to `srcs` attribute. Convert
+		// it to 'src' attribute (which is where the file is installed). If the
+		// value 'srcs' is a list, we can convert it only if it contains a single
+		// element.
+		if srcs, ok := mod.GetProperty("srcs"); ok {
+			if srcList, ok := srcs.Value.(*parser.List); ok {
+				removeProperty(mod, "srcs")
+				if len(srcList.Values) == 1 {
+					mod.Properties = append(mod.Properties,
+						&parser.Property{Name: "src", NamePos: srcs.NamePos, ColonPos: srcs.ColonPos, Value: resolveLocalModule(mod, srcList.Values[0])})
+				} else if len(srcList.Values) > 1 {
+					indicateAttributeError(mod, "src", "LOCAL_SRC_FILES should contain at most one item")
+				}
+			} else if _, ok = srcs.Value.(*parser.Variable); ok {
+				removeProperty(mod, "srcs")
+				mod.Properties = append(mod.Properties,
+					&parser.Property{Name: "src", NamePos: srcs.NamePos, ColonPos: srcs.ColonPos, Value: resolveLocalModule(mod, srcs.Value)})
+			} else {
+				renameProperty(mod, "srcs", "src")
+			}
+		}
+
+		// The rewriter converts LOCAL_MODULE_PATH attribute into a struct attribute
+		// 'local_module_path'. Analyze its contents and create the correct sub_dir:,
+		// filename: and boolean attributes combination
+		const local_module_path = "local_module_path"
+		if prop_local_module_path, ok := mod.GetProperty(local_module_path); ok {
+			removeProperty(mod, local_module_path)
+			prefixVariableName := getStringProperty(prop_local_module_path, "var")
+			path := getStringProperty(prop_local_module_path, "fixed")
+			if prefixRewrites, ok := localModulePathRewrite[prefixVariableName]; ok {
+				rewritten := false
+				for _, prefixRewrite := range prefixRewrites {
+					if path == prefixRewrite.prefix {
+						rewritten = true
+					} else if trimmedPath := strings.TrimPrefix(path, prefixRewrite.prefix+"/"); trimmedPath != path {
+						makePrebuiltEtcDestination(mod, trimmedPath)
+						rewritten = true
+					}
+					if rewritten {
+						for _, flag := range prefixRewrite.flags {
+							mod.Properties = append(mod.Properties, &parser.Property{Name: flag, Value: &parser.Bool{Value: true, Token: "true"}})
+						}
+						break
+					}
+				}
+				if !rewritten {
+					expectedPrefices := ""
+					sep := ""
+					for _, prefixRewrite := range prefixRewrites {
+						expectedPrefices += sep
+						sep = ", "
+						expectedPrefices += prefixRewrite.prefix
+					}
+					return indicateAttributeError(mod, "filename",
+						"LOCAL_MODULE_PATH value under $(%s) should start with %s", prefixVariableName, expectedPrefices)
+				}
+				if prefixVariableName == "HOST_OUT" {
+					mod.Type = "prebuilt_etc_host"
+				}
+			} else {
+				return indicateAttributeError(mod, "filename", "Cannot handle $(%s) for the prebuilt_etc", prefixVariableName)
+			}
+		}
+	}
 	return nil
 }
 

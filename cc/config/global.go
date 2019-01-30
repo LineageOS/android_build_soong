@@ -176,7 +176,6 @@ func init() {
 			"hardware/libhardware/include",
 			"hardware/libhardware_legacy/include",
 			"hardware/ril/include",
-			"libnativehelper/include",
 			"frameworks/native/include",
 			"frameworks/native/opengl/include",
 			"frameworks/av/include",

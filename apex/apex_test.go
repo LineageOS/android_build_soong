@@ -41,6 +41,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(cc.LibrarySharedFactory))
+	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(cc.LibraryHeaderFactory))
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(cc.BinaryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
@@ -106,6 +107,16 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 			recovery_available: true,
 		}
 
+		cc_object {
+			name: "crtbegin_static",
+			stl: "none",
+		}
+
+		cc_object {
+			name: "crtend_android",
+			stl: "none",
+		}
+
 		llndk_library {
 			name: "libc",
 			symbol_file: "",
@@ -123,16 +134,18 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	`
 
 	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp":                                []byte(bp),
-		"build/target/product/security":             nil,
-		"apex_manifest.json":                        nil,
-		"system/sepolicy/apex/myapex-file_contexts": nil,
-		"mylib.cpp":                                 nil,
-		"myprebuilt":                                nil,
-		"vendor/foo/devkeys/test.x509.pem":          nil,
-		"vendor/foo/devkeys/test.pk8":               nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":      nil,
-		"vendor/foo/devkeys/testkey.pem":            nil,
+		"Android.bp":                                   []byte(bp),
+		"build/target/product/security":                nil,
+		"apex_manifest.json":                           nil,
+		"system/sepolicy/apex/myapex-file_contexts":    nil,
+		"system/sepolicy/apex/otherapex-file_contexts": nil,
+		"mylib.cpp":                                    nil,
+		"myprebuilt":                                   nil,
+		"my_include":                                   nil,
+		"vendor/foo/devkeys/test.x509.pem":             nil,
+		"vendor/foo/devkeys/test.pk8":                  nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":         nil,
+		"vendor/foo/devkeys/testkey.pem":               nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -191,6 +204,11 @@ func TestBasicApex(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
+			multilib: {
+				both: {
+					binaries: ["foo",],
+				}
+			}
 		}
 
 		apex_key {
@@ -204,6 +222,25 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			shared_libs: ["mylib2"],
 			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_binary {
+			name: "foo",
+			srcs: ["mylib.cpp"],
+			compile_multilib: "both",
+			multilib: {
+					lib32: {
+							suffix: "32",
+					},
+					lib64: {
+							suffix: "64",
+					},
+			},
+			symlinks: ["foo_link_"],
+			symlink_preferred_arch: true,
+			system_shared_libs: [],
+			static_executable: true,
 			stl: "none",
 		}
 
@@ -234,6 +271,23 @@ func TestBasicApex(t *testing.T) {
 	// Ensure that the platform variant ends with _core_shared
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
+
+	// Ensure that all symlinks are present.
+	found_foo_link_64 := false
+	found_foo := false
+	for _, cmd := range strings.Split(copyCmds, " && ") {
+		if strings.HasPrefix(cmd, "ln -s foo64") {
+			if strings.HasSuffix(cmd, "bin/foo") {
+				found_foo = true
+			} else if strings.HasSuffix(cmd, "bin/foo_link_64") {
+				found_foo_link_64 = true
+			}
+		}
+	}
+	good := found_foo && found_foo_link_64
+	if !good {
+		t.Errorf("Could not find all expected symlinks! foo: %t, foo_link_64: %t. Command was %s", found_foo, found_foo_link_64, copyCmds)
+	}
 }
 
 func TestBasicZipApex(t *testing.T) {
@@ -668,17 +722,6 @@ func TestStaticLinking(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 		}
-
-		cc_object {
-			name: "crtbegin_static",
-			stl: "none",
-		}
-
-		cc_object {
-			name: "crtend_android",
-			stl: "none",
-		}
-
 	`)
 
 	ldFlags := ctx.ModuleForTests("not_in_apex", "android_arm64_armv8-a_core").Rule("ld").Args["libFlags"]
@@ -728,4 +771,96 @@ func TestKeys(t *testing.T) {
 		t.Errorf("cert and private key %q are not %q", certs,
 			"vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8")
 	}
+}
+
+func TestMacro(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex {
+			name: "otherapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	// non-APEX variant does not have __ANDROID__APEX__ defined
+	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+
+	// APEX variant has __ANDROID_APEX__=<apexname> defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+
+	// APEX variant has __ANDROID_APEX__=<apexname> defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_otherapex").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+}
+
+func TestHeaderLibsDependency(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library_headers {
+			name: "mylib_headers",
+			export_include_dirs: ["my_include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			header_libs: ["mylib_headers"],
+			export_header_lib_headers: ["mylib_headers"],
+			stubs: {
+				versions: ["1", "2", "3"],
+			},
+		}
+
+		cc_library {
+			name: "otherlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			shared_libs: ["mylib"],
+		}
+	`)
+
+	cFlags := ctx.ModuleForTests("otherlib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
+
+	// Ensure that the include path of the header lib is exported to 'otherlib'
+	ensureContains(t, cFlags, "-Imy_include")
 }

@@ -258,7 +258,7 @@ type ModuleContextIntf interface {
 	getVndkExtendsModuleName() string
 	isPgoCompile() bool
 	useClangLld(actx ModuleContext) bool
-	isApex() bool
+	apexName() string
 	hasStubsVariants() bool
 	isStubs() bool
 }
@@ -720,9 +720,8 @@ func (ctx *moduleContextImpl) getVndkExtendsModuleName() string {
 	return ctx.mod.getVndkExtendsModuleName()
 }
 
-// Tests if this module is built for APEX
-func (ctx *moduleContextImpl) isApex() bool {
-	return ctx.mod.ApexName() != ""
+func (ctx *moduleContextImpl) apexName() string {
+	return ctx.mod.ApexName()
 }
 
 func (ctx *moduleContextImpl) hasStubsVariants() bool {
@@ -771,6 +770,15 @@ func (c *Module) Name() string {
 		name = p.Name(name)
 	}
 	return name
+}
+
+func (c *Module) Symlinks() []string {
+	if p, ok := c.installer.(interface {
+		symlinkList() []string
+	}); ok {
+		return p.symlinkList()
+	}
+	return nil
 }
 
 // orderDeps reorders dependencies into a list such that if module A depends on B, then
@@ -1143,11 +1151,11 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		deps.ReexportSharedLibHeaders, _ = rewriteNdkLibs(deps.ReexportSharedLibHeaders)
 	}
 
+	buildStubs := false
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
 			if library.buildStubs() {
-				// Stubs lib does not have dependency to other libraries. Don't proceed.
-				return
+				buildStubs = true
 			}
 		}
 	}
@@ -1157,7 +1165,26 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		if inList(lib, deps.ReexportHeaderLibHeaders) {
 			depTag = headerExportDepTag
 		}
-		actx.AddVariationDependencies(nil, depTag, lib)
+		if buildStubs {
+			imageVariation := "core"
+			if c.useVndk() {
+				imageVariation = "vendor"
+			} else if c.inRecovery() {
+				imageVariation = "recovery"
+			}
+			actx.AddFarVariationDependencies([]blueprint.Variation{
+				{Mutator: "arch", Variation: ctx.Target().String()},
+				{Mutator: "image", Variation: imageVariation},
+			}, depTag, lib)
+		} else {
+			actx.AddVariationDependencies(nil, depTag, lib)
+		}
+	}
+
+	if buildStubs {
+		// Stubs lib does not have dependency to other static/shared libraries.
+		// Don't proceed.
+		return
 	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{
