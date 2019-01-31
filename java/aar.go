@@ -26,6 +26,7 @@ type AndroidLibraryDependency interface {
 	Dependency
 	ExportPackage() android.Path
 	ExportedProguardFlagFiles() android.Paths
+	ExportedRRODirs() android.Paths
 	ExportedStaticPackages() android.Paths
 	ExportedManifest() android.Path
 }
@@ -78,6 +79,14 @@ type aapt struct {
 
 func (a *aapt) ExportPackage() android.Path {
 	return a.exportPackage
+}
+
+func (a *aapt) ExportedRRODirs() android.Paths {
+	return a.rroDirs
+}
+
+func (a *aapt) ExportedManifest() android.Path {
+	return a.manifestPath
 }
 
 func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, manifestPath android.Path) (flags []string,
@@ -164,7 +173,7 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
 }
 
 func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, extraLinkFlags ...string) {
-	transitiveStaticLibs, staticLibManifests, libDeps, libFlags := aaptLibs(ctx, sdkContext)
+	transitiveStaticLibs, staticLibManifests, staticRRODirs, libDeps, libFlags := aaptLibs(ctx, sdkContext)
 
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
@@ -173,6 +182,8 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests, a.isLibrary)
 
 	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs := a.aapt2Flags(ctx, sdkContext, manifestPath)
+
+	rroDirs = append(rroDirs, staticRRODirs...)
 
 	linkFlags = append(linkFlags, libFlags...)
 	linkDeps = append(linkDeps, libDeps...)
@@ -235,7 +246,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
 func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, staticLibManifests,
-	deps android.Paths, flags []string) {
+	staticRRODirs, deps android.Paths, flags []string) {
 
 	var sharedLibs android.Paths
 
@@ -263,6 +274,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				staticLibManifests = append(staticLibManifests, aarDep.ExportedManifest())
+				staticRRODirs = append(staticRRODirs, aarDep.ExportedRRODirs()...)
 			}
 		}
 	})
@@ -279,8 +291,9 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 	}
 
 	transitiveStaticLibs = android.FirstUniquePaths(transitiveStaticLibs)
+	staticRRODirs = android.FirstUniquePaths(staticRRODirs)
 
-	return transitiveStaticLibs, staticLibManifests, deps, flags
+	return transitiveStaticLibs, staticLibManifests, staticRRODirs, deps, flags
 }
 
 type AndroidLibrary struct {
@@ -301,10 +314,6 @@ func (a *AndroidLibrary) ExportedProguardFlagFiles() android.Paths {
 
 func (a *AndroidLibrary) ExportedStaticPackages() android.Paths {
 	return a.exportedStaticPackages
-}
-
-func (a *AndroidLibrary) ExportedManifest() android.Path {
-	return a.manifestPath
 }
 
 var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
@@ -426,6 +435,10 @@ func (a *AARImport) ExportedProguardFlagFiles() android.Paths {
 	return android.Paths{a.proguardFlags}
 }
 
+func (a *AARImport) ExportedRRODirs() android.Paths {
+	return nil
+}
+
 func (a *AARImport) ExportedStaticPackages() android.Paths {
 	return a.exportedStaticPackages
 }
@@ -518,9 +531,10 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkFlags = append(linkFlags, "--manifest "+a.manifest.String())
 	linkDeps = append(linkDeps, a.manifest)
 
-	transitiveStaticLibs, staticLibManifests, libDeps, libFlags := aaptLibs(ctx, sdkContext(a))
+	transitiveStaticLibs, staticLibManifests, staticRRODirs, libDeps, libFlags := aaptLibs(ctx, sdkContext(a))
 
 	_ = staticLibManifests
+	_ = staticRRODirs
 
 	linkDeps = append(linkDeps, libDeps...)
 	linkFlags = append(linkFlags, libFlags...)

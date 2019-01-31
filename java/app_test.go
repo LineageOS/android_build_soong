@@ -150,8 +150,13 @@ func TestEnforceRRO(t *testing.T) {
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
 				},
 			},
+
 			rroDirs: map[string][]string{
-				"foo": []string{"device/vendor/blah/overlay/foo/res"},
+				"foo": []string{
+					"device/vendor/blah/overlay/foo/res",
+					// Enforce RRO on "foo" could imply RRO on static dependencies, but for now it doesn't.
+					// "device/vendor/blah/overlay/lib/res",
+				},
 				"bar": nil,
 			},
 		},
@@ -172,7 +177,10 @@ func TestEnforceRRO(t *testing.T) {
 				"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
 			},
 			rroDirs: map[string][]string{
-				"foo": []string{"device/vendor/blah/overlay/foo/res"},
+				"foo": []string{
+					"device/vendor/blah/overlay/foo/res",
+					"device/vendor/blah/overlay/lib/res",
+				},
 				"bar": []string{"device/vendor/blah/overlay/bar/res"},
 			},
 		},
