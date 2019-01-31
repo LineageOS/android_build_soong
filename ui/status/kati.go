@@ -121,6 +121,7 @@ func KatiReader(st ToolStatus, pipe io.ReadCloser) {
 	}
 
 	scanner := bufio.NewScanner(pipe)
+	scanner.Buffer(nil, 2*1024*1024)
 	for scanner.Scan() {
 		parser.parseLine(scanner.Text())
 	}
