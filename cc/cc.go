@@ -404,6 +404,15 @@ func (c *Module) OutputFile() android.OptionalPath {
 	return c.outputFile
 }
 
+func (c *Module) UnstrippedOutputFile() android.Path {
+	if library, ok := c.linker.(*libraryDecorator); ok {
+		return library.unstrippedOutputFile
+	} else if binary, ok := c.linker.(*binaryDecorator); ok {
+		return binary.unstrippedOutputFile
+	}
+	return nil
+}
+
 func (c *Module) Init() android.Module {
 	c.AddProperties(&c.Properties, &c.VendorProperties)
 	if c.compiler != nil {
@@ -1166,15 +1175,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			depTag = headerExportDepTag
 		}
 		if buildStubs {
-			imageVariation := "core"
-			if c.useVndk() {
-				imageVariation = "vendor"
-			} else if c.inRecovery() {
-				imageVariation = "recovery"
-			}
 			actx.AddFarVariationDependencies([]blueprint.Variation{
 				{Mutator: "arch", Variation: ctx.Target().String()},
-				{Mutator: "image", Variation: imageVariation},
+				{Mutator: "image", Variation: c.imageVariation()},
 			}, depTag, lib)
 		} else {
 			actx.AddVariationDependencies(nil, depTag, lib)
@@ -1834,6 +1837,16 @@ func (c *Module) IsInstallableToApex() bool {
 		return shared.shared()
 	}
 	return false
+}
+
+func (c *Module) imageVariation() string {
+	variation := "core"
+	if c.useVndk() {
+		variation = "vendor"
+	} else if c.inRecovery() {
+		variation = "recovery"
+	}
+	return variation
 }
 
 //
