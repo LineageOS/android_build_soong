@@ -241,6 +241,9 @@ type apexBundleProperties struct {
 	// Default is false.
 	Use_vendor *bool
 
+	// For telling the apex to ignore special handling for system libraries such as bionic. Default is false.
+	Ignore_system_library_special_case *bool
+
 	Multilib apexMultilibProperties
 }
 
@@ -528,7 +531,7 @@ func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizer
 	return android.InList(sanitizerName, globalSanitizerNames)
 }
 
-func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
+func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fileToCopy android.Path, dirInApex string) {
 	// Decide the APEX-local directory by the multilib of the library
 	// In the future, we may query this to the module.
 	switch cc.Arch().ArchType.Multilib {
@@ -540,18 +543,20 @@ func getCopyManifestForNativeLibrary(cc *cc.Module) (fileToCopy android.Path, di
 	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
 	}
-	switch cc.Name() {
-	case "libc", "libm", "libdl":
-		// Special case for bionic libs. This is to prevent the bionic libs
-		// from being included in the search path /apex/com.android.apex/lib.
-		// This exclusion is required because bionic libs in the runtime APEX
-		// are available via the legacy paths /system/lib/libc.so, etc. By the
-		// init process, the bionic libs in the APEX are bind-mounted to the
-		// legacy paths and thus will be loaded into the default linker namespace.
-		// If the bionic libs are directly in /apex/com.android.apex/lib then
-		// the same libs will be again loaded to the runtime linker namespace,
-		// which will result double loading of bionic libs that isn't supported.
-		dirInApex = filepath.Join(dirInApex, "bionic")
+	if handleSpecialLibs {
+		switch cc.Name() {
+		case "libc", "libm", "libdl":
+			// Special case for bionic libs. This is to prevent the bionic libs
+			// from being included in the search path /apex/com.android.apex/lib.
+			// This exclusion is required because bionic libs in the runtime APEX
+			// are available via the legacy paths /system/lib/libc.so, etc. By the
+			// init process, the bionic libs in the APEX are bind-mounted to the
+			// legacy paths and thus will be loaded into the default linker namespace.
+			// If the bionic libs are directly in /apex/com.android.apex/lib then
+			// the same libs will be again loaded to the runtime linker namespace,
+			// which will result double loading of bionic libs that isn't supported.
+			dirInApex = filepath.Join(dirInApex, "bionic")
+		}
 	}
 
 	fileToCopy = cc.OutputFile().Path()
@@ -594,6 +599,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
+
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		if _, ok := parent.(*apexBundle); ok {
 			// direct dependencies
@@ -602,7 +609,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch depTag {
 			case sharedLibTag:
 				if cc, ok := child.(*cc.Module); ok {
-					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc)
+					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
 					return true
 				} else {
@@ -670,7 +677,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return false
 					}
 					depName := ctx.OtherModuleName(child)
-					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc)
+					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
 					return true
 				}
