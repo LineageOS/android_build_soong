@@ -44,10 +44,6 @@ func androidResourceGlob(ctx android.ModuleContext, dir android.Path) android.Pa
 type overlayGlobResult struct {
 	dir   string
 	paths android.DirectorySortedPaths
-
-	// Set to true of the product has selected that values in this overlay should not be moved to
-	// Runtime Resource Overlay (RRO) packages.
-	excludeFromRRO bool
 }
 
 const overlayDataKey = "overlayDataKey"
@@ -69,10 +65,11 @@ func overlayResourceGlob(ctx android.ModuleContext, dir android.Path) (res []glo
 		files := data.paths.PathsInDirectory(filepath.Join(data.dir, dir.String()))
 		if len(files) > 0 {
 			overlayModuleDir := android.PathForSource(ctx, data.dir, dir.String())
+
 			// If enforce RRO is enabled for this module and this overlay is not in the
 			// exclusion list, ignore the overlay.  The list of ignored overlays will be
 			// passed to Make to be turned into an RRO package.
-			if rroEnabled && !data.excludeFromRRO {
+			if rroEnabled && !ctx.Config().EnforceRROExcludedOverlay(overlayModuleDir.String()) {
 				rroDirs = append(rroDirs, overlayModuleDir)
 			} else {
 				res = append(res, globbedResourceDir{
@@ -101,10 +98,6 @@ func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		overlay := overlayDirs[len(overlayDirs)-1-i]
 		var result overlayGlobResult
 		result.dir = overlay
-
-		// Mark overlays that will not have Runtime Resource Overlays enforced on them
-		// based on the product config
-		result.excludeFromRRO = ctx.Config().EnforceRROExcludedOverlay(overlay)
 
 		files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), androidResourceIgnoreFilenames)
 		if err != nil {
