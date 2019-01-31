@@ -149,9 +149,13 @@ var testEnforceRROTests = []struct {
 		},
 	},
 	{
-		name:                       "enforce RRO on all",
-		enforceRROTargets:          []string{"*"},
-		enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
+		name:              "enforce RRO on all",
+		enforceRROTargets: []string{"*"},
+		enforceRROExcludedOverlays: []string{
+			// Excluding specific apps/res directories also allowed.
+			"device/vendor/blah/static_overlay/foo",
+			"device/vendor/blah/static_overlay/bar/res",
+		},
 		overlayFiles: map[string][]string{
 			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
 			"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
@@ -208,11 +212,12 @@ func TestEnforceRRO(t *testing.T) {
 
 			getOverlays := func(moduleName string) ([]string, []string) {
 				module := ctx.ModuleForTests(moduleName, "android_common")
-				overlayCompiledPaths := module.Output("aapt2/overlay.list").Inputs.Strings()
-
+				overlayFile := module.MaybeOutput("aapt2/overlay.list")
 				var overlayFiles []string
-				for _, o := range overlayCompiledPaths {
-					overlayFiles = append(overlayFiles, module.Output(o).Inputs.Strings()...)
+				if overlayFile.Rule != nil {
+					for _, o := range overlayFile.Inputs.Strings() {
+						overlayFiles = append(overlayFiles, module.Output(o).Inputs.Strings()...)
+					}
 				}
 
 				rroDirs := module.Module().(*AndroidApp).rroDirs.Strings()
