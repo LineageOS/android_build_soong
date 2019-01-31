@@ -50,7 +50,7 @@ func (xom *xom) flags(ctx ModuleContext, flags Flags) Flags {
 	// If any static dependencies have XOM disabled, we should disable XOM in this module,
 	// the assumption being if it's been explicitly disabled then there's probably incompatible
 	// code in the library which may get pulled in.
-	if !ctx.static() && !disableXom {
+	if !disableXom {
 		ctx.VisitDirectDeps(func(m android.Module) {
 			cc, ok := m.(*Module)
 			if !ok || cc.xom == nil || !cc.static() {
