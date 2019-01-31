@@ -883,6 +883,18 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 					library.baseInstaller.subDir += "-" + vndkVersion
 				}
 			}
+		} else if len(library.Properties.Stubs.Versions) > 0 && android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
+			// If a library in an APEX has stable versioned APIs, we basically don't need
+			// to have the platform variant of the library in /system partition because
+			// platform components can just use the lib from the APEX without fearing about
+			// compatibility. However, if the library is required for some early processes
+			// before the APEX is activated, the platform variant may also be required.
+			// In that case, it is installed to the subdirectory 'bootstrap' in order to
+			// be distinguished/isolated from other non-bootstrap libraries in /system/lib
+			// so that the bootstrap libraries are used only when the APEX isn't ready.
+			if !library.buildStubs() && ctx.Arch().Native {
+				library.baseInstaller.subDir = "bootstrap"
+			}
 		}
 		library.baseInstaller.install(ctx, file)
 	}
