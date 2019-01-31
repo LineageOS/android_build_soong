@@ -1169,7 +1169,7 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	targets := make(map[OsType][]Target)
 	var targetErr error
 
-	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi *[]string) {
+	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi []string) {
 		if targetErr != nil {
 			return
 		}
@@ -1358,7 +1358,7 @@ func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
 
 	for _, config := range archConfigs {
 		arch, err := decodeArch(os, config.arch, &config.archVariant,
-			&config.cpuVariant, &config.abi)
+			&config.cpuVariant, config.abi)
 		if err != nil {
 			return nil, err
 		}
@@ -1373,19 +1373,12 @@ func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
 }
 
 // Convert a set of strings from product variables into a single Arch struct
-func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi *[]string) (Arch, error) {
+func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []string) (Arch, error) {
 	stringPtr := func(p *string) string {
 		if p != nil {
 			return *p
 		}
 		return ""
-	}
-
-	slicePtr := func(p *[]string) []string {
-		if p != nil {
-			return *p
-		}
-		return nil
 	}
 
 	archType, ok := archTypeMap[arch]
@@ -1397,7 +1390,7 @@ func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi *[]
 		ArchType:    archType,
 		ArchVariant: stringPtr(archVariant),
 		CpuVariant:  stringPtr(cpuVariant),
-		Abi:         slicePtr(abi),
+		Abi:         abi,
 		Native:      true,
 	}
 
