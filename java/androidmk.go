@@ -382,7 +382,7 @@ func (ddoc *Droiddoc) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, ddoc.Name()+"-check-last-released-api:",
 						ddoc.checkLastReleasedApiTimestamp.String())
 
-					if ddoc.Name() == "api-stubs-docs" {
+					if ddoc.Name() == "api-stubs-docs" || ddoc.Name() == "system-api-stubs-docs" {
 						fmt.Fprintln(w, ".PHONY: checkapi")
 						fmt.Fprintln(w, "checkapi:",
 							ddoc.checkLastReleasedApiTimestamp.String())
@@ -469,7 +469,7 @@ func (dstubs *Droidstubs) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, dstubs.Name()+"-check-last-released-api:",
 						dstubs.checkLastReleasedApiTimestamp.String())
 
-					if dstubs.Name() == "api-stubs-docs" {
+					if dstubs.Name() == "api-stubs-docs" || dstubs.Name() == "system-api-stubs-docs" {
 						fmt.Fprintln(w, ".PHONY: checkapi")
 						fmt.Fprintln(w, "checkapi:",
 							dstubs.checkLastReleasedApiTimestamp.String())
