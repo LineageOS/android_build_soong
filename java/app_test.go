@@ -120,6 +120,8 @@ func TestEnforceRRO(t *testing.T) {
 			enforceRROExcludedOverlays: nil,
 			overlayFiles: map[string][]string{
 				"foo": []string{
+					buildDir + "/.intermediates/lib/android_common/package-res.apk",
+					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 					"device/vendor/blah/overlay/foo/res/values/strings.xml",
 				},
@@ -138,7 +140,11 @@ func TestEnforceRRO(t *testing.T) {
 			enforceRROTargets:          []string{"foo"},
 			enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
 			overlayFiles: map[string][]string{
-				"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+				"foo": []string{
+					buildDir + "/.intermediates/lib/android_common/package-res.apk",
+					"foo/res/res/values/strings.xml",
+					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+				},
 				"bar": []string{
 					"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
@@ -158,7 +164,11 @@ func TestEnforceRRO(t *testing.T) {
 				"device/vendor/blah/static_overlay/bar/res",
 			},
 			overlayFiles: map[string][]string{
-				"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+				"foo": []string{
+					buildDir + "/.intermediates/lib/android_common/package-res.apk",
+					"foo/res/res/values/strings.xml",
+					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+				},
 				"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
 			},
 			rroDirs: map[string][]string{
@@ -177,8 +187,10 @@ func TestEnforceRRO(t *testing.T) {
 	fs := map[string][]byte{
 		"foo/res/res/values/strings.xml":                               nil,
 		"bar/res/res/values/strings.xml":                               nil,
+		"lib/res/res/values/strings.xml":                               nil,
 		"device/vendor/blah/overlay/foo/res/values/strings.xml":        nil,
 		"device/vendor/blah/overlay/bar/res/values/strings.xml":        nil,
+		"device/vendor/blah/overlay/lib/res/values/strings.xml":        nil,
 		"device/vendor/blah/static_overlay/foo/res/values/strings.xml": nil,
 		"device/vendor/blah/static_overlay/bar/res/values/strings.xml": nil,
 		"device/vendor/blah/overlay2/res/values/strings.xml":           nil,
@@ -188,11 +200,17 @@ func TestEnforceRRO(t *testing.T) {
 			android_app {
 				name: "foo",
 				resource_dirs: ["foo/res"],
+				static_libs: ["lib"],
 			}
 
 			android_app {
 				name: "bar",
 				resource_dirs: ["bar/res"],
+			}
+
+			android_library {
+				name: "lib",
+				resource_dirs: ["lib/res"],
 			}
 		`
 
@@ -216,7 +234,15 @@ func TestEnforceRRO(t *testing.T) {
 				var overlayFiles []string
 				if overlayFile.Rule != nil {
 					for _, o := range overlayFile.Inputs.Strings() {
-						overlayFiles = append(overlayFiles, module.Output(o).Inputs.Strings()...)
+						overlayOutput := module.MaybeOutput(o)
+						if overlayOutput.Rule != nil {
+							// If the overlay is compiled as part of this module (i.e. a .arsc.flat file),
+							// verify the inputs to the .arsc.flat rule.
+							overlayFiles = append(overlayFiles, overlayOutput.Inputs.Strings()...)
+						} else {
+							// Otherwise, verify the full path to the output of the other module
+							overlayFiles = append(overlayFiles, o)
+						}
 					}
 				}
 
