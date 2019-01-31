@@ -15,6 +15,7 @@
 package java
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -32,7 +33,7 @@ var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", bl
 func hiddenAPIGenerateCSV(ctx android.ModuleContext, classesJar android.Path) {
 	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
 	metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
-	stubFlagsCSV := &bootImagePath{ctx.Config().HiddenAPIStubFlags()}
+	stubFlagsCSV := &hiddenAPIPath{ctx.Config().HiddenAPIStubFlags()}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
@@ -80,7 +81,7 @@ var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", bluepr
 func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, dexInput android.WritablePath,
 	uncompressDex bool) {
 
-	flagsCsv := &bootImagePath{ctx.Config().HiddenAPIFlags()}
+	flagsCsv := &hiddenAPIPath{ctx.Config().HiddenAPIFlags()}
 
 	// The encode dex rule requires unzipping and rezipping the classes.dex files, ensure that if it was uncompressed
 	// in the input it stays uncompressed in the output.
@@ -168,3 +169,14 @@ func hiddenAPIMakeVars(ctx android.MakeVarsContext) {
 	export("SOONG_HIDDENAPI_GREYLIST_METADATA", metadataCSVList)
 	export("SOONG_HIDDENAPI_DEX_INPUTS", dexInputList)
 }
+
+type hiddenAPIPath struct {
+	path string
+}
+
+var _ android.Path = (*hiddenAPIPath)(nil)
+
+func (p *hiddenAPIPath) String() string { return p.path }
+func (p *hiddenAPIPath) Ext() string    { return filepath.Ext(p.path) }
+func (p *hiddenAPIPath) Base() string   { return filepath.Base(p.path) }
+func (p *hiddenAPIPath) Rel() string    { return p.path }

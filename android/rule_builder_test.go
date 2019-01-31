@@ -1,0 +1,148 @@
+// Copyright 2019 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package android
+
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
+
+func TestRuleBuilder(t *testing.T) {
+	rule := RuleBuilder{}
+
+	cmd := rule.Command().
+		Flag("Flag").
+		FlagWithArg("FlagWithArg=", "arg").
+		FlagWithInput("FlagWithInput=", "input").
+		FlagWithOutput("FlagWithOutput=", "output").
+		Implicit("Implicit").
+		ImplicitOutput("ImplicitOutput").
+		Input("Input").
+		Output("Output").
+		Text("Text").
+		Tool("Tool")
+
+	rule.Command().
+		Text("command2").
+		Input("input2").
+		Output("output2").
+		Tool("tool2")
+
+	// Test updates to the first command after the second command has been started
+	cmd.Text("after command2")
+	// Test updating a command when the previous update did not replace the cmd variable
+	cmd.Text("old cmd")
+
+	// Test a command that uses the output of a previous command as an input
+	rule.Command().
+		Text("command3").
+		Input("input3").
+		Input("output2").
+		Output("output3")
+
+	wantCommands := []string{
+		"Flag FlagWithArg=arg FlagWithInput=input FlagWithOutput=output Input Output Text Tool after command2 old cmd",
+		"command2 input2 output2 tool2",
+		"command3 input3 output2 output3",
+	}
+	wantInputs := []string{"Implicit", "Input", "input", "input2", "input3"}
+	wantOutputs := []string{"ImplicitOutput", "Output", "output", "output2", "output3"}
+	wantTools := []string{"Tool", "tool2"}
+
+	if !reflect.DeepEqual(rule.Commands(), wantCommands) {
+		t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", wantCommands, rule.Commands())
+	}
+	if !reflect.DeepEqual(rule.Inputs(), wantInputs) {
+		t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", wantInputs, rule.Inputs())
+	}
+	if !reflect.DeepEqual(rule.Outputs(), wantOutputs) {
+		t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", wantOutputs, rule.Outputs())
+	}
+	if !reflect.DeepEqual(rule.Tools(), wantTools) {
+		t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", wantTools, rule.Tools())
+	}
+}
+
+func testRuleBuilderFactory() Module {
+	module := &testRuleBuilderModule{}
+	module.AddProperties(&module.properties)
+	InitAndroidModule(module)
+	return module
+}
+
+type testRuleBuilderModule struct {
+	ModuleBase
+	properties struct {
+		Src string
+	}
+}
+
+func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	rule := RuleBuilder{}
+
+	in := PathForSource(ctx, t.properties.Src)
+	out := PathForModuleOut(ctx, ctx.ModuleName())
+
+	rule.Command().Tool("cp").Input(in.String()).Output(out.String())
+
+	rule.Build(pctx, ctx, "rule", "desc")
+}
+
+func TestRuleBuilder_Build(t *testing.T) {
+	buildDir, err := ioutil.TempDir("", "soong_test_rule_builder")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(buildDir)
+
+	bp := `
+		rule_builder_test {
+			name: "foo",
+			src: "bar",
+		}
+	`
+
+	config := TestConfig(buildDir, nil)
+	ctx := NewTestContext()
+	ctx.MockFileSystem(map[string][]byte{
+		"Android.bp": []byte(bp),
+		"bar":        nil,
+		"cp":         nil,
+	})
+	ctx.RegisterModuleType("rule_builder_test", ModuleFactoryAdaptor(testRuleBuilderFactory))
+	ctx.Register()
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	foo := ctx.ModuleForTests("foo", "").Rule("rule")
+
+	// TODO: make RuleParams accessible to tests and verify rule.Command().Tools() ends up in CommandDeps
+
+	if len(foo.Implicits) != 1 || foo.Implicits[0].String() != "bar" {
+		t.Errorf("want foo.Implicits = [%q], got %q", "bar", foo.Implicits.Strings())
+	}
+
+	wantOutput := filepath.Join(buildDir, ".intermediates", "foo", "foo")
+	if len(foo.Outputs) != 1 || foo.Outputs[0].String() != wantOutput {
+		t.Errorf("want foo.Outputs = [%q], got %q", wantOutput, foo.Outputs.Strings())
+	}
+
+}
