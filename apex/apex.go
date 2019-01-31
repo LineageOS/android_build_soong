@@ -177,6 +177,29 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+type apexNativeDependencies struct {
+	// List of native libraries
+	Native_shared_libs []string
+	// List of native executables
+	Binaries []string
+}
+type apexMultilibProperties struct {
+	// Native dependencies whose compile_multilib is "first"
+	First apexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "both"
+	Both apexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "prefer32"
+	Prefer32 apexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "32"
+	Lib32 apexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "64"
+	Lib64 apexNativeDependencies
+}
+
 type apexBundleProperties struct {
 	// Json manifest file describing meta info of this APEX bundle. Default:
 	// "apex_manifest.json"
@@ -218,36 +241,26 @@ type apexBundleProperties struct {
 	// Default is false.
 	Use_vendor *bool
 
-	Multilib struct {
-		First struct {
-			// List of native libraries whose compile_multilib is "first"
-			Native_shared_libs []string
-			// List of native executables whose compile_multilib is "first"
-			Binaries []string
+	Multilib apexMultilibProperties
+}
+
+type apexTargetBundleProperties struct {
+	Target struct {
+		// Multilib properties only for android.
+		Android struct {
+			Multilib apexMultilibProperties
 		}
-		Both struct {
-			// List of native libraries whose compile_multilib is "both"
-			Native_shared_libs []string
-			// List of native executables whose compile_multilib is "both"
-			Binaries []string
+		// Multilib properties only for host.
+		Host struct {
+			Multilib apexMultilibProperties
 		}
-		Prefer32 struct {
-			// List of native libraries whose compile_multilib is "prefer32"
-			Native_shared_libs []string
-			// List of native executables whose compile_multilib is "prefer32"
-			Binaries []string
+		// Multilib properties only for host linux_bionic.
+		Linux_bionic struct {
+			Multilib apexMultilibProperties
 		}
-		Lib32 struct {
-			// List of native libraries whose compile_multilib is "32"
-			Native_shared_libs []string
-			// List of native executables whose compile_multilib is "32"
-			Binaries []string
-		}
-		Lib64 struct {
-			// List of native libraries whose compile_multilib is "64"
-			Native_shared_libs []string
-			// List of native executables whose compile_multilib is "64"
-			Binaries []string
+		// Multilib properties only for host linux_glibc.
+		Linux_glibc struct {
+			Multilib apexMultilibProperties
 		}
 	}
 }
@@ -339,7 +352,8 @@ type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
-	properties apexBundleProperties
+	properties       apexBundleProperties
+	targetProperties apexTargetBundleProperties
 
 	apexTypes apexPackaging
 
@@ -372,9 +386,26 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 	}, executableTag, binaries...)
 }
 
+func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
+	if ctx.Os().Class == android.Device {
+		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
+	} else {
+		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Host.Multilib, nil)
+		if ctx.Os().Bionic() {
+			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_bionic.Multilib, nil)
+		} else {
+			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_glibc.Multilib, nil)
+		}
+	}
+}
+
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
+
 	targets := ctx.MultiTargets()
 	config := ctx.DeviceConfig()
+
+	a.combineProperties(ctx)
+
 	has32BitTarget := false
 	for _, target := range targets {
 		if target.Arch.ArchType.Multilib == "lib32" {
@@ -1028,6 +1059,7 @@ func ApexBundleFactory() android.Module {
 		outputFiles: map[apexPackaging]android.WritablePath{},
 	}
 	module.AddProperties(&module.properties)
+	module.AddProperties(&module.targetProperties)
 	module.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
 		return class == android.Device && ctx.Config().DevicePrefer32BitExecutables()
 	})
