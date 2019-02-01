@@ -106,68 +106,68 @@ func TestApp(t *testing.T) {
 	}
 }
 
-var testEnforceRROTests = []struct {
-	name                       string
-	enforceRROTargets          []string
-	enforceRROExcludedOverlays []string
-	overlayFiles               map[string][]string
-	rroDirs                    map[string][]string
-}{
-	{
-		name:                       "no RRO",
-		enforceRROTargets:          nil,
-		enforceRROExcludedOverlays: nil,
-		overlayFiles: map[string][]string{
-			"foo": []string{
-				"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
-				"device/vendor/blah/overlay/foo/res/values/strings.xml",
-			},
-			"bar": []string{
-				"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-				"device/vendor/blah/overlay/bar/res/values/strings.xml",
-			},
-		},
-		rroDirs: map[string][]string{
-			"foo": nil,
-			"bar": nil,
-		},
-	},
-	{
-		name:                       "enforce RRO on foo",
-		enforceRROTargets:          []string{"foo"},
-		enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
-		overlayFiles: map[string][]string{
-			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
-			"bar": []string{
-				"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
-				"device/vendor/blah/overlay/bar/res/values/strings.xml",
-			},
-		},
-		rroDirs: map[string][]string{
-			"foo": []string{"device/vendor/blah/overlay/foo/res"},
-			"bar": nil,
-		},
-	},
-	{
-		name:              "enforce RRO on all",
-		enforceRROTargets: []string{"*"},
-		enforceRROExcludedOverlays: []string{
-			// Excluding specific apps/res directories also allowed.
-			"device/vendor/blah/static_overlay/foo",
-			"device/vendor/blah/static_overlay/bar/res",
-		},
-		overlayFiles: map[string][]string{
-			"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
-			"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
-		},
-		rroDirs: map[string][]string{
-			"foo": []string{"device/vendor/blah/overlay/foo/res"},
-			"bar": []string{"device/vendor/blah/overlay/bar/res"},
-		},
-	},
-}
-
 func TestEnforceRRO(t *testing.T) {
+	testCases := []struct {
+		name                       string
+		enforceRROTargets          []string
+		enforceRROExcludedOverlays []string
+		overlayFiles               map[string][]string
+		rroDirs                    map[string][]string
+	}{
+		{
+			name:                       "no RRO",
+			enforceRROTargets:          nil,
+			enforceRROExcludedOverlays: nil,
+			overlayFiles: map[string][]string{
+				"foo": []string{
+					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
+					"device/vendor/blah/overlay/foo/res/values/strings.xml",
+				},
+				"bar": []string{
+					"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+					"device/vendor/blah/overlay/bar/res/values/strings.xml",
+				},
+			},
+			rroDirs: map[string][]string{
+				"foo": nil,
+				"bar": nil,
+			},
+		},
+		{
+			name:                       "enforce RRO on foo",
+			enforceRROTargets:          []string{"foo"},
+			enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
+			overlayFiles: map[string][]string{
+				"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+				"bar": []string{
+					"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
+					"device/vendor/blah/overlay/bar/res/values/strings.xml",
+				},
+			},
+			rroDirs: map[string][]string{
+				"foo": []string{"device/vendor/blah/overlay/foo/res"},
+				"bar": nil,
+			},
+		},
+		{
+			name:              "enforce RRO on all",
+			enforceRROTargets: []string{"*"},
+			enforceRROExcludedOverlays: []string{
+				// Excluding specific apps/res directories also allowed.
+				"device/vendor/blah/static_overlay/foo",
+				"device/vendor/blah/static_overlay/bar/res",
+			},
+			overlayFiles: map[string][]string{
+				"foo": []string{"device/vendor/blah/static_overlay/foo/res/values/strings.xml"},
+				"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
+			},
+			rroDirs: map[string][]string{
+				"foo": []string{"device/vendor/blah/overlay/foo/res"},
+				"bar": []string{"device/vendor/blah/overlay/bar/res"},
+			},
+		},
+	}
+
 	resourceOverlays := []string{
 		"device/vendor/blah/overlay",
 		"device/vendor/blah/overlay2",
@@ -196,7 +196,7 @@ func TestEnforceRRO(t *testing.T) {
 			}
 		`
 
-	for _, testCase := range testEnforceRROTests {
+	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			config := testConfig(nil)
 			config.TestProductVariables.ResourceOverlays = resourceOverlays
