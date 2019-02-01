@@ -79,7 +79,8 @@ const (
 	scs
 )
 
-func (t sanitizerType) String() string {
+// Name of the sanitizer variation for this sanitizer type
+func (t sanitizerType) variationName() string {
 	switch t {
 	case asan:
 		return "asan"
@@ -93,6 +94,26 @@ func (t sanitizerType) String() string {
 		return "cfi"
 	case scs:
 		return "scs"
+	default:
+		panic(fmt.Errorf("unknown sanitizerType %d", t))
+	}
+}
+
+// This is the sanitizer names in SANITIZE_[TARGET|HOST]
+func (t sanitizerType) name() string {
+	switch t {
+	case asan:
+		return "address"
+	case hwasan:
+		return "hwaddress"
+	case tsan:
+		return "thread"
+	case intOverflow:
+		return "integer_overflow"
+	case cfi:
+		return "cfi"
+	case scs:
+		return "shadow-call-stack"
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -830,14 +851,14 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
 			if c.isDependencyRoot() && c.sanitize.isSanitizerEnabled(t) {
-				modules := mctx.CreateVariations(t.String())
+				modules := mctx.CreateVariations(t.variationName())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
 			} else if c.sanitize.isSanitizerEnabled(t) || c.sanitize.Properties.SanitizeDep {
 				// Save original sanitizer status before we assign values to variant
 				// 0 as that overwrites the original.
 				isSanitizerEnabled := c.sanitize.isSanitizerEnabled(t)
 
-				modules := mctx.CreateVariations("", t.String())
+				modules := mctx.CreateVariations("", t.variationName())
 				modules[0].(*Module).sanitize.SetSanitizer(t, false)
 				modules[1].(*Module).sanitize.SetSanitizer(t, true)
 
@@ -926,9 +947,9 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				}
 			}
 			c.sanitize.Properties.SanitizeDep = false
-		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok && sanitizeable.IsSanitizerEnabled(mctx, t.String()) {
+		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok && sanitizeable.IsSanitizerEnabled(mctx, t.name()) {
 			// APEX modules fall here
-			mctx.CreateVariations(t.String())
+			mctx.CreateVariations(t.variationName())
 		}
 	}
 }
