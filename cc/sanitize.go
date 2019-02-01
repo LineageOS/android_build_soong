@@ -35,7 +35,7 @@ var (
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 	asanLibs    = []string{"libasan"}
 
-	hwasanCflags = []string{"-mllvm", "-hwasan-with-ifunc=0", "-fno-omit-frame-pointer", "-Wno-frame-larger-than=", "-mllvm", "-hwasan-create-frame-descriptions=0"}
+	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=", "-mllvm", "-hwasan-create-frame-descriptions=0"}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
