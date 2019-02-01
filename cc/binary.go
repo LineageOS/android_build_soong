@@ -405,6 +405,10 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	return ret
 }
 
+func (binary *binaryDecorator) unstrippedOutputFilePath() android.Path {
+	return binary.unstrippedOutputFile
+}
+
 func (binary *binaryDecorator) symlinkList() []string {
 	return binary.symlinks
 }
