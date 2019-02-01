@@ -54,7 +54,7 @@ do_strip() {
     # ${CROSS_COMPILE}strip --strip-all does not strip .ARM.attributes,
     # so we tell llvm-strip to keep it too.
     if [ ! -z "${use_llvm_strip}" ]; then
-        "${CLANG_BIN}/llvm-strip" --strip-all -keep=.ARM.attributes "${infile}" -o "${outfile}.tmp"
+        "${CLANG_BIN}/llvm-strip" --strip-all -keep-section=.ARM.attributes "${infile}" -o "${outfile}.tmp"
     else
         "${CROSS_COMPILE}strip" --strip-all "${infile}" -o "${outfile}.tmp"
     fi
@@ -75,7 +75,7 @@ do_strip_keep_mini_debug_info() {
     rm -f "${outfile}.dynsyms" "${outfile}.funcsyms" "${outfile}.keep_symbols" "${outfile}.debug" "${outfile}.mini_debuginfo" "${outfile}.mini_debuginfo.xz"
     local fail=
     if [ ! -z "${use_llvm_strip}" ]; then
-        "${CLANG_BIN}/llvm-strip" --strip-all -keep=.ARM.attributes -remove-section=.comment "${infile}" -o "${outfile}.tmp" || fail=true
+        "${CLANG_BIN}/llvm-strip" --strip-all -keep-section=.ARM.attributes -remove-section=.comment "${infile}" -o "${outfile}.tmp" || fail=true
     else
         "${CROSS_COMPILE}strip" --strip-all -R .comment "${infile}" -o "${outfile}.tmp" || fail=true
     fi
