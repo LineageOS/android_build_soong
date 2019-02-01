@@ -740,6 +740,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	return ret
 }
 
+func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
+	return library.unstrippedOutputFile
+}
+
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
 	isLlndk := inList(ctx.baseModuleName(), llndkLibraries) || inList(ctx.baseModuleName(), ndkMigratedLibs)
 
