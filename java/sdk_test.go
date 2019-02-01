@@ -39,14 +39,14 @@ var classpathTestcases = []struct {
 		name:          "default",
 		bootclasspath: []string{"core.platform.api.stubs", "core-lambda-stubs"},
 		system:        "core-platform-api-stubs-system-modules",
-		classpath:     []string{"ext", "framework"},
+		classpath:     []string{"ext", "framework", "updatable_media_stubs"},
 	},
 	{
 		name:          "blank sdk version",
 		properties:    `sdk_version: "",`,
 		bootclasspath: []string{"core.platform.api.stubs", "core-lambda-stubs"},
 		system:        "core-platform-api-stubs-system-modules",
-		classpath:     []string{"ext", "framework"},
+		classpath:     []string{"ext", "framework", "updatable_media_stubs"},
 	},
 	{
 

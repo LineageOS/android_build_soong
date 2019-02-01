@@ -117,6 +117,7 @@ func testContext(config android.Config, bp string,
 		"core-lambda-stubs",
 		"framework",
 		"ext",
+		"updatable_media_stubs",
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
@@ -955,7 +956,7 @@ func TestPatchModule(t *testing.T) {
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		expected := "java.base=.:" + buildDir
 		checkPatchModuleFlag(t, ctx, "bar", expected)
-		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework")}, ":")
+		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework"), moduleToPath("updatable_media_stubs")}, ":")
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
 }
