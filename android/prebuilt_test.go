@@ -212,9 +212,6 @@ func (p *prebuiltModule) Name() string {
 	return p.prebuilt.Name(p.ModuleBase.Name())
 }
 
-func (p *prebuiltModule) DepsMutator(ctx BottomUpMutatorContext) {
-}
-
 func (p *prebuiltModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 

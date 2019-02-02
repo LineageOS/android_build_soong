@@ -519,8 +519,6 @@ func toolFactory() android.Module {
 	return module
 }
 
-func (t *testTool) DepsMutator(ctx android.BottomUpMutatorContext) {}
-
 func (t *testTool) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	t.outputFile = android.PathForTesting("out", ctx.ModuleName())
 }

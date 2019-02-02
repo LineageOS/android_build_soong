@@ -1816,9 +1816,6 @@ type DocDefaults struct {
 func (*DocDefaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
-func (d *DocDefaults) DepsMutator(ctx android.BottomUpMutatorContext) {
-}
-
 func DocDefaultsFactory() android.Module {
 	module := &DocDefaults{}
 

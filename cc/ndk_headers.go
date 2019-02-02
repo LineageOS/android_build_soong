@@ -93,9 +93,6 @@ type headerModule struct {
 	licensePath  android.ModuleSrcPath
 }
 
-func (m *headerModule) DepsMutator(ctx android.BottomUpMutatorContext) {
-}
-
 func getHeaderInstallDir(ctx android.ModuleContext, header android.Path, from string,
 	to string) android.OutputPath {
 	// Output path is the sysroot base + "usr/include" + to directory + directory component
@@ -208,9 +205,6 @@ type versionedHeaderModule struct {
 
 	installPaths android.Paths
 	licensePath  android.ModuleSrcPath
-}
-
-func (m *versionedHeaderModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -333,9 +327,6 @@ type preprocessedHeadersModule struct {
 
 	installPaths android.Paths
 	licensePath  android.ModuleSrcPath
-}
-
-func (m *preprocessedHeadersModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (m *preprocessedHeadersModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
