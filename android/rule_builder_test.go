@@ -93,10 +93,26 @@ type testRuleBuilderModule struct {
 }
 
 func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	rule := RuleBuilder{}
-
 	in := PathForSource(ctx, t.properties.Src)
 	out := PathForModuleOut(ctx, ctx.ModuleName())
+
+	testRuleBuilder_Build(ctx, in, out)
+}
+
+type testRuleBuilderSingleton struct{}
+
+func testRuleBuilderSingletonFactory() Singleton {
+	return &testRuleBuilderSingleton{}
+}
+
+func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
+	in := PathForSource(ctx, "bar")
+	out := PathForOutput(ctx, "baz")
+	testRuleBuilder_Build(ctx, in, out)
+}
+
+func testRuleBuilder_Build(ctx BuilderContext, in Path, out WritablePath) {
+	rule := RuleBuilder{}
 
 	rule.Command().Tool("cp").Input(in.String()).Output(out.String())
 
@@ -125,6 +141,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 		"cp":         nil,
 	})
 	ctx.RegisterModuleType("rule_builder_test", ModuleFactoryAdaptor(testRuleBuilderFactory))
+	ctx.RegisterSingletonType("rule_builder_test", SingletonFactoryAdaptor(testRuleBuilderSingletonFactory))
 	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})

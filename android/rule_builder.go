@@ -111,22 +111,46 @@ func (r *RuleBuilder) Commands() []string {
 	return commands
 }
 
-func (r *RuleBuilder) Build(pctx PackageContext, ctx ModuleContext, name string, desc string) {
+type BuilderContext interface {
+	PathContext
+	Rule(PackageContext, string, blueprint.RuleParams, ...string) blueprint.Rule
+	Build(PackageContext, BuildParams)
+}
+
+func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string, desc string) {
+	// TODO: convert RuleBuilder arguments and storage to Paths
+	mctx, _ := ctx.(ModuleContext)
 	var inputs Paths
 	for _, input := range r.Inputs() {
-		rel, isRel := MaybeRel(ctx, PathForModuleOut(ctx).String(), input)
-		if isRel {
-			inputs = append(inputs, PathForModuleOut(ctx, rel))
-		} else {
-			// TODO: use PathForOutput once boot image is moved to where PathForOutput can find it.
-			inputs = append(inputs, &unknownRulePath{input})
+		// Module output paths
+		if mctx != nil {
+			rel, isRel := MaybeRel(ctx, PathForModuleOut(mctx).String(), input)
+			if isRel {
+				inputs = append(inputs, PathForModuleOut(mctx, rel))
+				continue
+			}
 		}
+
+		// Other output paths
+		rel, isRel := MaybeRel(ctx, PathForOutput(ctx).String(), input)
+		if isRel {
+			inputs = append(inputs, PathForOutput(ctx, rel))
+			continue
+		}
+
+		// TODO: remove this once boot image is moved to where PathForOutput can find it.
+		inputs = append(inputs, &unknownRulePath{input})
 	}
 
 	var outputs WritablePaths
 	for _, output := range r.Outputs() {
-		rel := Rel(ctx, PathForModuleOut(ctx).String(), output)
-		outputs = append(outputs, PathForModuleOut(ctx, rel))
+		if mctx != nil {
+			rel := Rel(ctx, PathForModuleOut(mctx).String(), output)
+			outputs = append(outputs, PathForModuleOut(mctx, rel))
+		} else {
+			rel := Rel(ctx, PathForOutput(ctx).String(), output)
+			outputs = append(outputs, PathForOutput(ctx, rel))
+		}
 	}
 
 	if len(r.Commands()) > 0 {
