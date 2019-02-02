@@ -484,17 +484,15 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: "android_common"},
 	}, javaLibTag, a.properties.Java_libs...)
 
-	if !ctx.Config().FlattenApex() || ctx.Config().UnbundledBuild() {
-		if String(a.properties.Key) == "" {
-			ctx.ModuleErrorf("key is missing")
-			return
-		}
-		ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
+	if String(a.properties.Key) == "" {
+		ctx.ModuleErrorf("key is missing")
+		return
+	}
+	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
 
-		cert := android.SrcIsModule(String(a.properties.Certificate))
-		if cert != "" {
-			ctx.AddDependency(ctx.Module(), certificateTag, cert)
-		}
+	cert := android.SrcIsModule(String(a.properties.Certificate))
+	if cert != "" {
+		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
 }
 
@@ -690,7 +688,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
-	if !a.flattened && keyFile == nil {
+	if keyFile == nil {
 		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
 		return
 	}
@@ -727,11 +725,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, zipApex)
 	}
 	if a.apexTypes.image() {
-		if ctx.Config().FlattenApex() {
-			a.buildFlattenedApex(ctx)
-		} else {
-			a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, imageApex)
-		}
+		// Build rule for unflattened APEX is created even when ctx.Config().FlattenApex()
+		// is true. This is to support referencing APEX via ":<module_name" syntax
+		// in other modules. It is in AndroidMk where the selection of flattened
+		// or unflattened APEX is made.
+		a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, imageApex)
+		a.buildFlattenedApex(ctx)
 	}
 }
 
@@ -910,7 +909,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
-	if a.installable() {
+	if a.installable() && !ctx.Config().FlattenApex() {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "apex"), ctx.ModuleName()+suffix, a.outputFiles[apexType])
 	}
 }
@@ -930,9 +929,11 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 		})
 		a.filesInfo = append(a.filesInfo, apexFile{copiedManifest, ctx.ModuleName() + ".apex_manifest.json", ".", etc, nil, nil})
 
-		for _, fi := range a.filesInfo {
-			dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)
-			ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
+		if ctx.Config().FlattenApex() {
+			for _, fi := range a.filesInfo {
+				dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)
+				ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
+			}
 		}
 	}
 }
