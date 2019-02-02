@@ -15,15 +15,103 @@
 package android
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
+func ExampleRuleBuilder() {
+	rule := NewRuleBuilder()
+
+	rule.Command().Tool("ld").Inputs([]string{"a.o", "b.o"}).FlagWithOutput("-o ", "linked")
+	rule.Command().Text("echo success")
+
+	// To add the command to the build graph:
+	// rule.Build(pctx, ctx, "link", "link")
+
+	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
+	fmt.Printf("tools: %q\n", rule.Tools())
+	fmt.Printf("inputs: %q\n", rule.Inputs())
+	fmt.Printf("outputs: %q\n", rule.Outputs())
+
+	// Output:
+	// commands: "ld a.o b.o -o linked && echo success"
+	// tools: ["ld"]
+	// inputs: ["a.o" "b.o"]
+	// outputs: ["linked"]
+}
+
+func ExampleRuleBuilderCommand() {
+	rule := NewRuleBuilder()
+
+	// chained
+	rule.Command().Tool("ld").Inputs([]string{"a.o", "b.o"}).FlagWithOutput("-o ", "linked")
+
+	// unchained
+	cmd := rule.Command()
+	cmd.Tool("ld")
+	cmd.Inputs([]string{"a.o", "b.o"})
+	cmd.FlagWithOutput("-o ", "linked")
+
+	// mixed:
+	cmd = rule.Command().Tool("ld")
+	cmd.Inputs([]string{"a.o", "b.o"})
+	cmd.FlagWithOutput("-o ", "linked")
+}
+
+func ExampleRuleBuilderCommand_Flag() {
+	fmt.Println(NewRuleBuilder().Command().
+		Tool("ls").Flag("-l"))
+	// Output:
+	// ls -l
+}
+
+func ExampleRuleBuilderCommand_FlagWithArg() {
+	fmt.Println(NewRuleBuilder().Command().
+		Tool("ls").
+		FlagWithArg("--sort=", "time"))
+	// Output:
+	// ls --sort=time
+}
+
+func ExampleRuleBuilderCommand_FlagForEachInput() {
+	fmt.Println(NewRuleBuilder().Command().
+		Tool("turbine").
+		FlagForEachInput("--classpath ", []string{"a.jar", "b.jar"}))
+	// Output:
+	// turbine --classpath a.jar --classpath b.jar
+}
+
+func ExampleRuleBuilderCommand_FlagWithInputList() {
+	fmt.Println(NewRuleBuilder().Command().
+		Tool("java").
+		FlagWithInputList("-classpath=", []string{"a.jar", "b.jar"}, ":"))
+	// Output:
+	// java -classpath=a.jar:b.jar
+}
+
+func ExampleRuleBuilderCommand_FlagWithInput() {
+	fmt.Println(NewRuleBuilder().Command().
+		Tool("java").
+		FlagWithInput("-classpath=", "a"))
+	// Output:
+	// java -classpath=a
+}
+
+func ExampleRuleBuilderCommand_FlagWithList() {
+	fmt.Println(NewRuleBuilder().Command().
+		Tool("ls").
+		FlagWithList("--sort=", []string{"time", "size"}, ","))
+	// Output:
+	// ls --sort=time,size
+}
+
 func TestRuleBuilder(t *testing.T) {
-	rule := RuleBuilder{}
+	rule := NewRuleBuilder()
 
 	cmd := rule.Command().
 		Flag("Flag").
@@ -112,7 +200,7 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 }
 
 func testRuleBuilder_Build(ctx BuilderContext, in Path, out WritablePath) {
-	rule := RuleBuilder{}
+	rule := NewRuleBuilder()
 
 	rule.Command().Tool("cp").Input(in.String()).Output(out.String())
 

@@ -63,7 +63,7 @@ func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.
 
 	tools := global.Tools
 
-	rule = &android.RuleBuilder{}
+	rule = android.NewRuleBuilder()
 
 	strip := shouldStripDex(module, global)
 
@@ -95,7 +95,7 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *andr
 		}
 	}()
 
-	rule = &android.RuleBuilder{}
+	rule = android.NewRuleBuilder()
 
 	generateProfile := module.ProfileClassListing != "" && !global.DisableGenerateProfile
 
