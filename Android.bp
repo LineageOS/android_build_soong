@@ -61,6 +61,7 @@ bootstrap_go_package {
         "android/prebuilt_etc.go",
         "android/proto.go",
         "android/register.go",
+        "android/sh_binary.go",
         "android/singleton.go",
         "android/testing.go",
         "android/util.go",

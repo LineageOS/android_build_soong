@@ -864,3 +864,83 @@ func TestHeaderLibsDependency(t *testing.T) {
 	// Ensure that the include path of the header lib is exported to 'otherlib'
 	ensureContains(t, cFlags, "-Imy_include")
 }
+
+func TestApexWithTarget(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			multilib: {
+				first: {
+					native_shared_libs: ["mylib_common"],
+				}
+			},
+			target: {
+				android: {
+					multilib: {
+						first: {
+							native_shared_libs: ["mylib"],
+						}
+					}
+				},
+				host: {
+					multilib: {
+						first: {
+							native_shared_libs: ["mylib2"],
+						}
+					}
+				}
+			}
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib_common",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			compile_multilib: "first",
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			compile_multilib: "first",
+		}
+	`)
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that main rule creates an output
+	ensureContains(t, apexRule.Output.String(), "myapex.apex.unsigned")
+
+	// Ensure that apex variant is created for the direct dep
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared_myapex")
+
+	// Ensure that both direct and indirect deps are copied into apex
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib_common.so")
+	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+
+	// Ensure that the platform variant ends with _core_shared
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
+}
