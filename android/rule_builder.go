@@ -27,14 +27,17 @@ import (
 // RuleBuilder provides an alternative to ModuleContext.Rule and ModuleContext.Build to add a command line to the build
 // graph.
 type RuleBuilder struct {
-	commands []*RuleBuilderCommand
-	installs []RuleBuilderInstall
-	restat   bool
+	commands       []*RuleBuilderCommand
+	installs       []RuleBuilderInstall
+	temporariesSet map[string]bool
+	restat         bool
 }
 
 // NewRuleBuilder returns a newly created RuleBuilder.
 func NewRuleBuilder() *RuleBuilder {
-	return &RuleBuilder{}
+	return &RuleBuilder{
+		temporariesSet: make(map[string]bool),
+	}
 }
 
 // RuleBuilderInstall is a tuple of install from and to locations.
@@ -61,6 +64,25 @@ func (r *RuleBuilder) Command() *RuleBuilderCommand {
 	command := &RuleBuilderCommand{}
 	r.commands = append(r.commands, command)
 	return command
+}
+
+// Temporary marks an output of a command as an intermediate file that will be used as an input to another command
+// in the same rule, and should not be listed in Outputs.
+func (r *RuleBuilder) Temporary(path string) {
+	r.temporariesSet[path] = true
+}
+
+// DeleteTemporaryFiles adds a command to the rule that deletes any outputs that have been marked using Temporary
+// when the rule runs.  DeleteTemporaryFiles should be called after all calls to Temporary.
+func (r *RuleBuilder) DeleteTemporaryFiles() {
+	var temporariesList []string
+
+	for intermediate := range r.temporariesSet {
+		temporariesList = append(temporariesList, intermediate)
+	}
+	sort.Strings(temporariesList)
+
+	r.Command().Text("rm").Flag("-f").Outputs(temporariesList)
 }
 
 // Inputs returns the list of paths that were passed to the RuleBuilderCommand methods that take input paths, such
@@ -104,7 +126,9 @@ func (r *RuleBuilder) Outputs() []string {
 
 	var outputList []string
 	for output := range outputs {
-		outputList = append(outputList, output)
+		if !r.temporariesSet[output] {
+			outputList = append(outputList, output)
+		}
 	}
 	sort.Strings(outputList)
 	return outputList
@@ -115,13 +139,27 @@ func (r *RuleBuilder) Installs() []RuleBuilderInstall {
 	return append([]RuleBuilderInstall(nil), r.installs...)
 }
 
+func (r *RuleBuilder) toolsSet() map[string]bool {
+	tools := make(map[string]bool)
+	for _, c := range r.commands {
+		for _, tool := range c.tools {
+			tools[tool] = true
+		}
+	}
+
+	return tools
+}
+
 // Tools returns the list of paths that were passed to the RuleBuilderCommand.Tool method.
 func (r *RuleBuilder) Tools() []string {
-	var tools []string
-	for _, c := range r.commands {
-		tools = append(tools, c.tools...)
+	toolsSet := r.toolsSet()
+
+	var toolsList []string
+	for tool := range toolsSet {
+		toolsList = append(toolsList, tool)
 	}
-	return tools
+	sort.Strings(toolsList)
+	return toolsList
 }
 
 // Commands returns a slice containing a the built command line for each call to RuleBuilder.Command.

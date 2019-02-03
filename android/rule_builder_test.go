@@ -45,6 +45,45 @@ func ExampleRuleBuilder() {
 	// outputs: ["linked"]
 }
 
+func ExampleRuleBuilder_Temporary() {
+	rule := NewRuleBuilder()
+
+	rule.Command().Tool("cp").Input("a").Output("b")
+	rule.Command().Tool("cp").Input("b").Output("c")
+	rule.Temporary("b")
+
+	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
+	fmt.Printf("tools: %q\n", rule.Tools())
+	fmt.Printf("inputs: %q\n", rule.Inputs())
+	fmt.Printf("outputs: %q\n", rule.Outputs())
+
+	// Output:
+	// commands: "cp a b && cp b c"
+	// tools: ["cp"]
+	// inputs: ["a"]
+	// outputs: ["c"]
+}
+
+func ExampleRuleBuilder_DeleteTemporaryFiles() {
+	rule := NewRuleBuilder()
+
+	rule.Command().Tool("cp").Input("a").Output("b")
+	rule.Command().Tool("cp").Input("b").Output("c")
+	rule.Temporary("b")
+	rule.DeleteTemporaryFiles()
+
+	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
+	fmt.Printf("tools: %q\n", rule.Tools())
+	fmt.Printf("inputs: %q\n", rule.Inputs())
+	fmt.Printf("outputs: %q\n", rule.Outputs())
+
+	// Output:
+	// commands: "cp a b && cp b c && rm -f b"
+	// tools: ["cp"]
+	// inputs: ["a"]
+	// outputs: ["c"]
+}
+
 func ExampleRuleBuilderCommand() {
 	rule := NewRuleBuilder()
 
