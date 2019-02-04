@@ -222,9 +222,6 @@ func newMockCcLibraryModule() Module {
 	return m
 }
 
-func (p *mockCcLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
-}
-
 func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
@@ -242,9 +239,6 @@ func newMockJavaLibraryModule() Module {
 	m.AddProperties(&m.properties)
 	InitAndroidModule(m)
 	return m
-}
-
-func (p *mockJavaLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (p *mockJavaLibraryModule) GenerateAndroidBuildActions(ModuleContext) {

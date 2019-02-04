@@ -144,18 +144,18 @@ type productVariables struct {
 	Platform_vndk_version             *string  `json:",omitempty"`
 	Platform_systemsdk_versions       []string `json:",omitempty"`
 
-	DeviceName              *string   `json:",omitempty"`
-	DeviceArch              *string   `json:",omitempty"`
-	DeviceArchVariant       *string   `json:",omitempty"`
-	DeviceCpuVariant        *string   `json:",omitempty"`
-	DeviceAbi               *[]string `json:",omitempty"`
-	DeviceVndkVersion       *string   `json:",omitempty"`
-	DeviceSystemSdkVersions *[]string `json:",omitempty"`
+	DeviceName              *string  `json:",omitempty"`
+	DeviceArch              *string  `json:",omitempty"`
+	DeviceArchVariant       *string  `json:",omitempty"`
+	DeviceCpuVariant        *string  `json:",omitempty"`
+	DeviceAbi               []string `json:",omitempty"`
+	DeviceVndkVersion       *string  `json:",omitempty"`
+	DeviceSystemSdkVersions []string `json:",omitempty"`
 
-	DeviceSecondaryArch        *string   `json:",omitempty"`
-	DeviceSecondaryArchVariant *string   `json:",omitempty"`
-	DeviceSecondaryCpuVariant  *string   `json:",omitempty"`
-	DeviceSecondaryAbi         *[]string `json:",omitempty"`
+	DeviceSecondaryArch        *string  `json:",omitempty"`
+	DeviceSecondaryArchVariant *string  `json:",omitempty"`
+	DeviceSecondaryCpuVariant  *string  `json:",omitempty"`
+	DeviceSecondaryAbi         []string `json:",omitempty"`
 
 	HostArch          *string `json:",omitempty"`
 	HostSecondaryArch *string `json:",omitempty"`
@@ -164,14 +164,14 @@ type productVariables struct {
 	CrossHostArch          *string `json:",omitempty"`
 	CrossHostSecondaryArch *string `json:",omitempty"`
 
-	ResourceOverlays           *[]string `json:",omitempty"`
-	EnforceRROTargets          *[]string `json:",omitempty"`
-	EnforceRROExcludedOverlays *[]string `json:",omitempty"`
+	ResourceOverlays           []string `json:",omitempty"`
+	EnforceRROTargets          []string `json:",omitempty"`
+	EnforceRROExcludedOverlays []string `json:",omitempty"`
 
-	AAPTCharacteristics *string   `json:",omitempty"`
-	AAPTConfig          *[]string `json:",omitempty"`
-	AAPTPreferredConfig *string   `json:",omitempty"`
-	AAPTPrebuiltDPI     *[]string `json:",omitempty"`
+	AAPTCharacteristics *string  `json:",omitempty"`
+	AAPTConfig          []string `json:",omitempty"`
+	AAPTPreferredConfig *string  `json:",omitempty"`
+	AAPTPrebuiltDPI     []string `json:",omitempty"`
 
 	DefaultAppCertificate *string `json:",omitempty"`
 
@@ -207,14 +207,14 @@ type productVariables struct {
 	DisableDexPreoptModules []string `json:",omitempty"`
 	DexPreoptProfileDir     *string  `json:",omitempty"`
 
-	IntegerOverflowExcludePaths *[]string `json:",omitempty"`
+	IntegerOverflowExcludePaths []string `json:",omitempty"`
 
-	EnableCFI       *bool     `json:",omitempty"`
-	CFIExcludePaths *[]string `json:",omitempty"`
-	CFIIncludePaths *[]string `json:",omitempty"`
+	EnableCFI       *bool    `json:",omitempty"`
+	CFIExcludePaths []string `json:",omitempty"`
+	CFIIncludePaths []string `json:",omitempty"`
 
-	EnableXOM       *bool     `json:",omitempty"`
-	XOMExcludePaths *[]string `json:",omitempty"`
+	EnableXOM       *bool    `json:",omitempty"`
+	XOMExcludePaths []string `json:",omitempty"`
 
 	VendorPath          *string `json:",omitempty"`
 	OdmPath             *string `json:",omitempty"`
@@ -224,9 +224,9 @@ type productVariables struct {
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`
 
-	NativeCoverage       *bool     `json:",omitempty"`
-	CoveragePaths        *[]string `json:",omitempty"`
-	CoverageExcludePaths *[]string `json:",omitempty"`
+	NativeCoverage       *bool    `json:",omitempty"`
+	CoveragePaths        []string `json:",omitempty"`
+	CoverageExcludePaths []string `json:",omitempty"`
 
 	DevicePrefer32BitApps        *bool `json:",omitempty"`
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
@@ -306,16 +306,16 @@ func (v *productVariables) SetDefaultConfig() {
 		DeviceArch:                 stringPtr("arm64"),
 		DeviceArchVariant:          stringPtr("armv8-a"),
 		DeviceCpuVariant:           stringPtr("generic"),
-		DeviceAbi:                  &[]string{"arm64-v8a"},
+		DeviceAbi:                  []string{"arm64-v8a"},
 		DeviceSecondaryArch:        stringPtr("arm"),
 		DeviceSecondaryArchVariant: stringPtr("armv8-a"),
 		DeviceSecondaryCpuVariant:  stringPtr("generic"),
-		DeviceSecondaryAbi:         &[]string{"armeabi-v7a", "armeabi"},
+		DeviceSecondaryAbi:         []string{"armeabi-v7a", "armeabi"},
 
-		AAPTConfig:          &[]string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+		AAPTConfig:          []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 		AAPTPreferredConfig: stringPtr("xhdpi"),
 		AAPTCharacteristics: stringPtr("nosdcard"),
-		AAPTPrebuiltDPI:     &[]string{"xhdpi", "xxhdpi"},
+		AAPTPrebuiltDPI:     []string{"xhdpi", "xxhdpi"},
 
 		Malloc_not_svelte: boolPtr(true),
 		Safestack:         boolPtr(false),
