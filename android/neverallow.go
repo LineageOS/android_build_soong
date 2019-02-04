@@ -51,6 +51,7 @@ func createNeverAllows() []*rule {
 	rules := []*rule{}
 	rules = append(rules, createTrebleRules()...)
 	rules = append(rules, createLibcoreRules()...)
+	rules = append(rules, createMediaRules()...)
 	return rules
 }
 
@@ -123,6 +124,14 @@ func createLibcoreRules() []*rule {
 		rules = append(rules, r)
 	}
 	return rules
+}
+
+func createMediaRules() []*rule {
+	return []*rule{
+		neverallow().
+			with("libs", "updatable-media").
+			because("updatable-media includes private APIs. Use updatable_media_stubs instead."),
+	}
 }
 
 func neverallowMutator(ctx BottomUpMutatorContext) {
