@@ -503,9 +503,6 @@ func AndroidAppCertificateFactory() android.Module {
 	return module
 }
 
-func (c *AndroidAppCertificate) DepsMutator(ctx android.BottomUpMutatorContext) {
-}
-
 func (c *AndroidAppCertificate) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	cert := String(c.properties.Certificate)
 	c.Certificate = Certificate{

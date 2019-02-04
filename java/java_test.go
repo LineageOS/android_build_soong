@@ -61,7 +61,7 @@ func testConfig(env map[string]string) android.Config {
 		env["ANDROID_JAVA8_HOME"] = "jdk8"
 	}
 	config := android.TestArchConfig(buildDir, env)
-	config.TestProductVariables.DeviceSystemSdkVersions = &[]string{"14", "15"}
+	config.TestProductVariables.DeviceSystemSdkVersions = []string{"14", "15"}
 	return config
 
 }
