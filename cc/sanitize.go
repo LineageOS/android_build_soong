@@ -444,7 +444,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
 		} else {
 			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
-			flags.DynamicLinker = "/system/bin/linker_asan"
+			if ctx.bootstrap() {
+				flags.DynamicLinker = "/system/bin/bootstrap/linker_asan"
+			} else {
+				flags.DynamicLinker = "/system/bin/linker_asan"
+			}
 			if flags.Toolchain.Is64Bit() {
 				flags.DynamicLinker += "64"
 			}
