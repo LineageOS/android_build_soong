@@ -1840,9 +1840,6 @@ type Defaults struct {
 func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
-func (d *Defaults) DepsMutator(ctx android.BottomUpMutatorContext) {
-}
-
 func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }

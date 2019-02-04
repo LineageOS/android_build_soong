@@ -366,9 +366,6 @@ type NamespaceModule struct {
 	}
 }
 
-func (n *NamespaceModule) DepsMutator(context BottomUpMutatorContext) {
-}
-
 func (n *NamespaceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
