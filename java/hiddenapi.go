@@ -121,7 +121,7 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 	hiddenAPISaveDexInputs(ctx, dexInput)
 }
 
-const hiddenAPIOutputsKey = "hiddenAPIOutputsKey"
+var hiddenAPIOutputsKey = android.NewOnceKey("hiddenAPIOutputsKey")
 
 var hiddenAPIOutputsLock sync.Mutex
 

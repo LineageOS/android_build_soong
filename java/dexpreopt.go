@@ -81,12 +81,14 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 	return false
 }
 
+var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
+
 func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
 	if d.dexpreoptDisabled(ctx) {
 		return dexJarFile
 	}
 
-	globalConfig := ctx.Config().Once("DexpreoptGlobalConfig", func() interface{} {
+	globalConfig := ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
 		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
 			ctx.AddNinjaFileDeps(f)
 			globalConfig, err := dexpreopt.LoadGlobalConfig(f)

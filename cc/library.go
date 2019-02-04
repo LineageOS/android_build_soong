@@ -968,8 +968,10 @@ func (library *libraryDecorator) stubsVersion() string {
 	return library.MutatedProperties.StubsVersion
 }
 
+var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
+
 func versioningMacroNamesList(config android.Config) *map[string]string {
-	return config.Once("versioningMacroNamesList", func() interface{} {
+	return config.Once(versioningMacroNamesListKey, func() interface{} {
 		m := make(map[string]string)
 		return &m
 	}).(*map[string]string)
@@ -1059,9 +1061,11 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+var stubVersionsKey = android.NewOnceKey("stubVersions")
+
 // maps a module name to the list of stubs versions available for the module
 func stubsVersionsFor(config android.Config) map[string][]string {
-	return config.Once("stubVersions", func() interface{} {
+	return config.Once(stubVersionsKey, func() interface{} {
 		return make(map[string][]string)
 	}).(map[string][]string)
 }

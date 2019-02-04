@@ -139,6 +139,7 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []blu
 
 var apexData OncePer
 var apexNamesMapMutex sync.Mutex
+var apexNamesKey = NewOnceKey("apexNames")
 
 // This structure maintains the global mapping in between modules and APEXes.
 // Examples:
@@ -147,7 +148,7 @@ var apexNamesMapMutex sync.Mutex
 // apexNamesMap()["foo"]["bar"] == false: module foo is indirectly depended on by APEX bar
 // apexNamesMap()["foo"]["bar"] doesn't exist: foo is not built for APEX bar
 func apexNamesMap() map[string]map[string]bool {
-	return apexData.Once("apexNames", func() interface{} {
+	return apexData.Once(apexNamesKey, func() interface{} {
 		return make(map[string]map[string]bool)
 	}).(map[string]map[string]bool)
 }
