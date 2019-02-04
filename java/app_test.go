@@ -199,12 +199,12 @@ func TestEnforceRRO(t *testing.T) {
 	for _, testCase := range testEnforceRROTests {
 		t.Run(testCase.name, func(t *testing.T) {
 			config := testConfig(nil)
-			config.TestProductVariables.ResourceOverlays = &resourceOverlays
+			config.TestProductVariables.ResourceOverlays = resourceOverlays
 			if testCase.enforceRROTargets != nil {
-				config.TestProductVariables.EnforceRROTargets = &testCase.enforceRROTargets
+				config.TestProductVariables.EnforceRROTargets = testCase.enforceRROTargets
 			}
 			if testCase.enforceRROExcludedOverlays != nil {
-				config.TestProductVariables.EnforceRROExcludedOverlays = &testCase.enforceRROExcludedOverlays
+				config.TestProductVariables.EnforceRROExcludedOverlays = testCase.enforceRROExcludedOverlays
 			}
 
 			ctx := testAppContext(config, bp, fs)

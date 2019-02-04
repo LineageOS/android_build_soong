@@ -47,10 +47,6 @@ type prebuiltApis struct {
 	properties prebuiltApisProperties
 }
 
-func (module *prebuiltApis) DepsMutator(ctx android.BottomUpMutatorContext) {
-	// no need to implement
-}
-
 func (module *prebuiltApis) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// no need to implement
 }

@@ -481,6 +481,8 @@ type ModuleBase struct {
 	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
 }
 
+func (a *ModuleBase) DepsMutator(BottomUpMutatorContext) {}
+
 func (a *ModuleBase) AddProperties(props ...interface{}) {
 	a.registerProps = append(a.registerProps, props...)
 }

@@ -202,10 +202,10 @@ func TestConfig(buildDir string, env map[string]string) Config {
 		productVariables: productVariables{
 			DeviceName:           stringPtr("test_device"),
 			Platform_sdk_version: intPtr(26),
-			AAPTConfig:           &[]string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+			AAPTConfig:           []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 			AAPTPreferredConfig:  stringPtr("xhdpi"),
 			AAPTCharacteristics:  stringPtr("nosdcard"),
-			AAPTPrebuiltDPI:      &[]string{"xhdpi", "xxhdpi"},
+			AAPTPrebuiltDPI:      []string{"xhdpi", "xxhdpi"},
 		},
 
 		buildDir:     buildDir,
@@ -476,10 +476,7 @@ func (c *config) DeviceName() string {
 }
 
 func (c *config) ResourceOverlays() []string {
-	if c.productVariables.ResourceOverlays == nil {
-		return nil
-	}
-	return *c.productVariables.ResourceOverlays
+	return c.productVariables.ResourceOverlays
 }
 
 func (c *config) PlatformVersionName() string {
@@ -544,7 +541,7 @@ func (c *config) PlatformVersionCombinedCodenames() []string {
 }
 
 func (c *config) ProductAAPTConfig() []string {
-	return stringSlice(c.productVariables.AAPTConfig)
+	return c.productVariables.AAPTConfig
 }
 
 func (c *config) ProductAAPTPreferredConfig() string {
@@ -556,7 +553,7 @@ func (c *config) ProductAAPTCharacteristics() string {
 }
 
 func (c *config) ProductAAPTPrebuiltDPI() []string {
-	return stringSlice(c.productVariables.AAPTPrebuiltDPI)
+	return c.productVariables.AAPTPrebuiltDPI
 }
 
 func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
@@ -734,10 +731,10 @@ func (c *config) ArtUseReadBarrier() bool {
 func (c *config) EnforceRROForModule(name string) bool {
 	enforceList := c.productVariables.EnforceRROTargets
 	if enforceList != nil {
-		if len(*enforceList) == 1 && (*enforceList)[0] == "*" {
+		if len(enforceList) == 1 && (enforceList)[0] == "*" {
 			return true
 		}
-		return InList(name, *enforceList)
+		return InList(name, enforceList)
 	}
 	return false
 }
@@ -745,7 +742,7 @@ func (c *config) EnforceRROForModule(name string) bool {
 func (c *config) EnforceRROExcludedOverlay(path string) bool {
 	excluded := c.productVariables.EnforceRROExcludedOverlays
 	if excluded != nil {
-		for _, exclude := range *excluded {
+		for _, exclude := range excluded {
 			if strings.HasPrefix(path, exclude) {
 				return true
 			}
@@ -830,10 +827,7 @@ func (c *deviceConfig) ExtraVndkVersions() []string {
 }
 
 func (c *deviceConfig) SystemSdkVersions() []string {
-	if c.config.productVariables.DeviceSystemSdkVersions == nil {
-		return nil
-	}
-	return *c.config.productVariables.DeviceSystemSdkVersions
+	return c.config.productVariables.DeviceSystemSdkVersions
 }
 
 func (c *deviceConfig) PlatformSystemSdkVersions() []string {
@@ -876,12 +870,12 @@ func (c *deviceConfig) NativeCoverageEnabled() bool {
 func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	coverage := false
 	if c.config.productVariables.CoveragePaths != nil {
-		if PrefixInList(path, *c.config.productVariables.CoveragePaths) {
+		if PrefixInList(path, c.config.productVariables.CoveragePaths) {
 			coverage = true
 		}
 	}
 	if coverage && c.config.productVariables.CoverageExcludePaths != nil {
-		if PrefixInList(path, *c.config.productVariables.CoverageExcludePaths) {
+		if PrefixInList(path, c.config.productVariables.CoverageExcludePaths) {
 			coverage = false
 		}
 	}
@@ -962,28 +956,28 @@ func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	if c.productVariables.IntegerOverflowExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, *c.productVariables.IntegerOverflowExcludePaths)
+	return PrefixInList(path, c.productVariables.IntegerOverflowExcludePaths)
 }
 
 func (c *config) CFIDisabledForPath(path string) bool {
 	if c.productVariables.CFIExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, *c.productVariables.CFIExcludePaths)
+	return PrefixInList(path, c.productVariables.CFIExcludePaths)
 }
 
 func (c *config) CFIEnabledForPath(path string) bool {
 	if c.productVariables.CFIIncludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, *c.productVariables.CFIIncludePaths)
+	return PrefixInList(path, c.productVariables.CFIIncludePaths)
 }
 
 func (c *config) XOMDisabledForPath(path string) bool {
 	if c.productVariables.XOMExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, *c.productVariables.XOMExcludePaths)
+	return PrefixInList(path, c.productVariables.XOMExcludePaths)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
@@ -1034,12 +1028,4 @@ func (c *config) HiddenAPIFlags() string {
 
 func (c *config) HiddenAPIExtraAppUsageJars() []string {
 	return c.productVariables.HiddenAPIExtraAppUsageJars
-}
-
-func stringSlice(s *[]string) []string {
-	if s != nil {
-		return *s
-	} else {
-		return nil
-	}
 }
