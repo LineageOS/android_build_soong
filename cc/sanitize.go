@@ -370,8 +370,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 
-	// Disable Scudo if ASan or TSan is enabled.
-	if Bool(s.Address) || Bool(s.Thread) || Bool(s.Hwaddress) {
+	// Disable Scudo if ASan or TSan is enabled, or if it's disabled globally.
+	if Bool(s.Address) || Bool(s.Thread) || Bool(s.Hwaddress) || ctx.Config().DisableScudo() {
 		s.Scudo = nil
 	}
 
