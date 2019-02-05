@@ -178,14 +178,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		makeVarsToolchain(ctx, "2ND_", hostTargets[1])
 	}
 
-	crossTargets := ctx.Config().Targets[android.Windows]
-	if len(crossTargets) > 0 {
-		makeVarsToolchain(ctx, "", crossTargets[0])
-		if len(crossTargets) > 1 {
-			makeVarsToolchain(ctx, "2ND_", crossTargets[1])
-		}
-	}
-
 	deviceTargets := ctx.Config().Targets[android.Android]
 	makeVarsToolchain(ctx, "", deviceTargets[0])
 	if len(deviceTargets) > 1 {
@@ -199,8 +191,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	switch target.Os.Class {
 	case android.Host:
 		typePrefix = "HOST_"
-	case android.HostCross:
-		typePrefix = "HOST_CROSS_"
 	case android.Device:
 		typePrefix = "TARGET_"
 	}
@@ -301,10 +291,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"STRIP", gccCmd(toolchain, "strip"))
 	}
 
-	if target.Os == android.Windows {
-		ctx.Strict(makePrefix+"OBJDUMP", gccCmd(toolchain, "objdump"))
-	}
-
 	if target.Os.Class == android.Device {
 		ctx.Strict(makePrefix+"OBJCOPY", gccCmd(toolchain, "objcopy"))
 		ctx.Strict(makePrefix+"LD", gccCmd(toolchain, "ld"))
@@ -313,7 +299,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
 	}
 
-	if target.Os.Class == android.Host || target.Os.Class == android.HostCross {
+	if target.Os.Class == android.Host {
 		ctx.Strict(makePrefix+"AVAILABLE_LIBRARIES", strings.Join(toolchain.AvailableLibraries(), " "))
 	}
 
