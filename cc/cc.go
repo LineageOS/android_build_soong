@@ -315,6 +315,7 @@ type installer interface {
 	inData() bool
 	inSanitizerDir() bool
 	hostToolPath() android.OptionalPath
+	relativeInstallPath() string
 }
 
 type dependencyTag struct {
@@ -411,6 +412,13 @@ func (c *Module) UnstrippedOutputFile() android.Path {
 		return c.linker.unstrippedOutputFilePath()
 	}
 	return nil
+}
+
+func (c *Module) RelativeInstallPath() string {
+	if c.installer != nil {
+		return c.installer.relativeInstallPath()
+	}
+	return ""
 }
 
 func (c *Module) Init() android.Module {
