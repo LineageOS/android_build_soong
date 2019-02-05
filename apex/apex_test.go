@@ -615,7 +615,10 @@ func TestFilesInSubDir(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			binaries: ["mybin"],
 			prebuilts: ["myetc"],
+			compile_multilib: "both",
 		}
 
 		apex_key {
@@ -629,15 +632,43 @@ func TestFilesInSubDir(t *testing.T) {
 			src: "myprebuilt",
 			sub_dir: "foo/bar",
 		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			relative_install_path: "foo/bar",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_binary {
+			name: "mybin",
+			srcs: ["mylib.cpp"],
+			relative_install_path: "foo/bar",
+			system_shared_libs: [],
+			static_executable: true,
+			stl: "none",
+		}
 	`)
 
 	generateFsRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("generateFsConfig")
 	dirs := strings.Split(generateFsRule.Args["exec_paths"], " ")
 
-	// Ensure that etc, etc/foo, and etc/foo/bar are all listed
+	// Ensure that the subdirectories are all listed
 	ensureListContains(t, dirs, "etc")
 	ensureListContains(t, dirs, "etc/foo")
 	ensureListContains(t, dirs, "etc/foo/bar")
+	ensureListContains(t, dirs, "lib64")
+	ensureListContains(t, dirs, "lib64/foo")
+	ensureListContains(t, dirs, "lib64/foo/bar")
+	ensureListContains(t, dirs, "lib")
+	ensureListContains(t, dirs, "lib/foo")
+	ensureListContains(t, dirs, "lib/foo/bar")
+
+	// TODO(b/123721777) respect relative path for binaries
+	// ensureListContains(t, dirs, "bin")
+	// ensureListContains(t, dirs, "bin/foo")
+	// ensureListContains(t, dirs, "bin/foo/bar")
 }
 
 func TestUseVendor(t *testing.T) {
