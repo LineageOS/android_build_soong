@@ -148,6 +148,17 @@ var neverallowTests = []struct {
 		},
 		expectedError: "Only core libraries projects can depend on core-libart",
 	},
+	{
+		name: "dependency on updatable-media",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "needs_updatable_media",
+					libs: ["updatable-media"],
+				}`),
+		},
+		expectedError: "updatable-media includes private APIs. Use updatable_media_stubs instead.",
+	},
 }
 
 func TestNeverallow(t *testing.T) {
@@ -222,9 +233,6 @@ func newMockCcLibraryModule() Module {
 	return m
 }
 
-func (p *mockCcLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
-}
-
 func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
@@ -242,9 +250,6 @@ func newMockJavaLibraryModule() Module {
 	m.AddProperties(&m.properties)
 	InitAndroidModule(m)
 	return m
-}
-
-func (p *mockJavaLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (p *mockJavaLibraryModule) GenerateAndroidBuildActions(ModuleContext) {

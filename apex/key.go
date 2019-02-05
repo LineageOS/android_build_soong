@@ -19,6 +19,7 @@ import (
 	"io"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -59,9 +60,6 @@ func apexKeyFactory() android.Module {
 
 func (m *apexKey) installable() bool {
 	return m.properties.Installable == nil || proptools.Bool(m.properties.Installable)
-}
-
-func (m *apexKey) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
