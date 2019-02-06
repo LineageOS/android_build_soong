@@ -958,20 +958,26 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 	}
 }
 
+var cfiStaticLibsKey = android.NewOnceKey("cfiStaticLibs")
+
 func cfiStaticLibs(config android.Config) *[]string {
-	return config.Once("cfiStaticLibs", func() interface{} {
+	return config.Once(cfiStaticLibsKey, func() interface{} {
 		return &[]string{}
 	}).(*[]string)
 }
+
+var hwasanStaticLibsKey = android.NewOnceKey("hwasanStaticLibs")
 
 func hwasanStaticLibs(config android.Config) *[]string {
-	return config.Once("hwasanStaticLibs", func() interface{} {
+	return config.Once(hwasanStaticLibsKey, func() interface{} {
 		return &[]string{}
 	}).(*[]string)
 }
 
+var hwasanVendorStaticLibsKey = android.NewOnceKey("hwasanVendorStaticLibs")
+
 func hwasanVendorStaticLibs(config android.Config) *[]string {
-	return config.Once("hwasanVendorStaticLibs", func() interface{} {
+	return config.Once(hwasanVendorStaticLibsKey, func() interface{} {
 		return &[]string{}
 	}).(*[]string)
 }
