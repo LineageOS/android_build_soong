@@ -317,9 +317,9 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	builderFlags := flagsToBuilderFlags(flags)
 
 	if binary.stripper.needsStrip(ctx) {
-		// b/80093681, GNU strip/objcopy bug.
-		// Use llvm-{strip,objcopy} when clang lld is used.
-		builderFlags.stripUseLlvmStrip = binary.baseLinker.useClangLld(ctx)
+		if ctx.Darwin() {
+			builderFlags.stripUseGnuStrip = true
+		}
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		binary.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)

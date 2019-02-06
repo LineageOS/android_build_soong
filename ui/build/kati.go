@@ -202,8 +202,11 @@ func runKatiCleanSpec(ctx Context, config Config) {
 	defer ctx.EndTrace()
 
 	runKati(ctx, config, katiCleanspecSuffix, []string{
+		"--werror_writable",
 		"--werror_implicit_rules",
 		"--werror_overriding_commands",
+		"--werror_real_to_phony",
+		"--werror_phony_looks_real",
 		"-f", "build/make/core/cleanbuild.mk",
 		"SOONG_MAKEVARS_MK=" + config.SoongMakeVarsMk(),
 		"TARGET_DEVICE_DIR=" + config.TargetDeviceDir(),
