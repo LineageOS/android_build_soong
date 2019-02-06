@@ -63,11 +63,6 @@ func (m *apexKey) installable() bool {
 }
 
 func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild() {
-		// Flattened APEXes are not signed
-		return
-	}
-
 	m.public_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Public_key))
 	m.private_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Private_key))
 
