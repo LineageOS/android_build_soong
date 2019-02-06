@@ -25,6 +25,7 @@ import (
 
 func init() {
 	RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
+	RegisterModuleType("prebuilt_etc_host", prebuiltEtcHostFactory)
 
 	PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
@@ -149,6 +150,9 @@ func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE_OWNER :=", *p.commonProperties.Owner)
 			}
 			fmt.Fprintln(w, "LOCAL_MODULE_TAGS := optional")
+			if p.Host() {
+				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			}
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", p.outputFilePath.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
 			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", p.outputFilePath.Base())
@@ -178,6 +182,14 @@ func PrebuiltEtcFactory() Module {
 	return module
 }
 
+func prebuiltEtcHostFactory() Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module)
+	// This module is host-only
+	InitAndroidArchModule(module, HostSupported, MultilibCommon)
+	return module
+}
+
 const (
 	// coreMode is the variant for modules to be installed to system.
 	coreMode = "core"
@@ -190,7 +202,7 @@ const (
 // system or recovery.
 func prebuiltEtcMutator(mctx BottomUpMutatorContext) {
 	m, ok := mctx.Module().(*PrebuiltEtc)
-	if !ok {
+	if !ok || m.Host() {
 		return
 	}
 
