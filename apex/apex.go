@@ -274,6 +274,7 @@ const (
 	etc apexFileClass = iota
 	nativeSharedLib
 	nativeExecutable
+	shBinary
 	javaSharedLib
 )
 
@@ -333,7 +334,7 @@ func (class apexFileClass) NameInMake() string {
 		return "ETC"
 	case nativeSharedLib:
 		return "SHARED_LIBRARIES"
-	case nativeExecutable:
+	case nativeExecutable, shBinary:
 		return "EXECUTABLES"
 	case javaSharedLib:
 		return "JAVA_LIBRARIES"
@@ -570,6 +571,12 @@ func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirIn
 	return
 }
 
+func getCopyManifestForShBinary(sh *android.ShBinary) (fileToCopy android.Path, dirInApex string) {
+	dirInApex = filepath.Join("bin", sh.SubDir())
+	fileToCopy = sh.OutputFile()
+	return
+}
+
 func getCopyManifestForJavaLibrary(java *java.Library) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = "javalib"
 	fileToCopy = java.DexJarFile()
@@ -626,8 +633,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeExecutable, cc, cc.Symlinks()})
 					return true
+				} else if sh, ok := child.(*android.ShBinary); ok {
+					fileToCopy, dirInApex := getCopyManifestForShBinary(sh)
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, shBinary, sh, nil})
 				} else {
-					ctx.PropertyErrorf("binaries", "%q is not a cc_binary module", depName)
+					ctx.PropertyErrorf("binaries", "%q is neithher cc_binary nor sh_binary", depName)
 				}
 			case javaLibTag:
 				if java, ok := child.(*java.Library); ok {
