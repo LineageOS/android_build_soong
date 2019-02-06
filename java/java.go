@@ -1239,8 +1239,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		j.dexJarFile = dexOutputFile
 
 		// Dexpreopting
-		j.dexpreopter.isInstallable = Bool(j.properties.Installable)
-		j.dexpreopter.uncompressedDex = j.deviceProperties.UncompressDex
 		dexOutputFile = j.dexpreopt(ctx, dexOutputFile)
 
 		j.maybeStrippedDexJarFile = dexOutputFile
@@ -1417,10 +1415,13 @@ type Library struct {
 }
 
 func (j *Library) shouldUncompressDex(ctx android.ModuleContext) bool {
-	// Store uncompressed (and do not strip) dex files from boot class path jars that are
-	// in an apex.
-	if inList(ctx.ModuleName(), ctx.Config().BootJars()) &&
-		android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
+	// Store uncompressed (and do not strip) dex files from boot class path jars.
+	if inList(ctx.ModuleName(), ctx.Config().BootJars()) {
+		return true
+	}
+
+	// Store uncompressed dex files that are preopted on /system.
+	if !j.dexpreopter.dexpreoptDisabled(ctx) && (ctx.Host() || !odexOnSystemOther(ctx, j.dexpreopter.installPath)) {
 		return true
 	}
 	if ctx.Config().UncompressPrivAppDex() &&
@@ -1434,7 +1435,9 @@ func (j *Library) shouldUncompressDex(ctx android.ModuleContext) bool {
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", ctx.ModuleName()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
-	j.deviceProperties.UncompressDex = j.shouldUncompressDex(ctx)
+	j.dexpreopter.isInstallable = Bool(j.properties.Installable)
+	j.dexpreopter.uncompressedDex = j.shouldUncompressDex(ctx)
+	j.deviceProperties.UncompressDex = j.dexpreopter.uncompressedDex
 	j.compile(ctx)
 
 	if (Bool(j.properties.Installable) || ctx.Host()) && !android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
