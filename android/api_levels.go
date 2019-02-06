@@ -51,8 +51,10 @@ func GetApiLevelsJson(ctx PathContext) WritablePath {
 	return PathForOutput(ctx, "api_levels.json")
 }
 
+var apiLevelsMapKey = NewOnceKey("ApiLevelsMap")
+
 func getApiLevelsMap(config Config) map[string]int {
-	return config.Once("ApiLevelsMap", func() interface{} {
+	return config.Once(apiLevelsMapKey, func() interface{} {
 		baseApiLevel := 9000
 		apiLevelsMap := map[string]int{
 			"G":     9,

@@ -28,7 +28,7 @@ func init() {
 	android.RegisterPreSingletonType("sdk", sdkSingletonFactory)
 }
 
-const sdkSingletonKey = "sdkSingletonKey"
+var sdkSingletonKey = android.NewOnceKey("sdkSingletonKey")
 
 type sdkContext interface {
 	// sdkVersion eturns the sdk_version property of the current module, or an empty string if it is not set.

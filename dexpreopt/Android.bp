@@ -4,12 +4,12 @@ bootstrap_go_package {
     srcs: [
         "config.go",
         "dexpreopt.go",
-        "script.go",
     ],
     testSrcs: [
         "dexpreopt_test.go",
     ],
     deps: [
         "blueprint-pathtools",
+        "soong-android",
     ],
 }

@@ -879,7 +879,7 @@ func InitArchModule(m Module) {
 				propertiesValue.Interface()))
 		}
 
-		archPropTypes := archPropTypeMap.Once(t, func() interface{} {
+		archPropTypes := archPropTypeMap.Once(NewCustomOnceKey(t), func() interface{} {
 			return createArchType(t)
 		}).([]reflect.Type)
 

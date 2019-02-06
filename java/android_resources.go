@@ -46,7 +46,7 @@ type overlayGlobResult struct {
 	paths android.DirectorySortedPaths
 }
 
-const overlayDataKey = "overlayDataKey"
+var overlayDataKey = android.NewOnceKey("overlayDataKey")
 
 type globbedResourceDir struct {
 	dir   android.Path

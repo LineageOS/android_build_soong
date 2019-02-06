@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"android/soong/android"
 	"android/soong/dexpreopt"
 
 	"github.com/google/blueprint/pathtools"
@@ -121,7 +122,7 @@ func writeScripts(global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
 		panic(err)
 	}
 
-	write := func(rule *dexpreopt.Rule, file string) {
+	write := func(rule *android.RuleBuilder, file string) {
 		script := &bytes.Buffer{}
 		script.WriteString(scriptHeader)
 		for _, c := range rule.Commands() {
