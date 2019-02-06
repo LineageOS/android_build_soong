@@ -206,6 +206,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// Not used, but useful to be in the soong.log
 		"BUILD_BROKEN_ANDROIDMK_EXPORTS",
 		"BUILD_BROKEN_DUP_COPY_HEADERS",
+		"BUILD_BROKEN_ENG_DEBUG_TAGS",
 	}, exportEnvVars...), BannerVars...)
 
 	make_vars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true)
