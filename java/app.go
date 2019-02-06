@@ -95,10 +95,6 @@ func (a *AndroidApp) ExportedStaticPackages() android.Paths {
 	return nil
 }
 
-func (a *AndroidApp) ExportedManifest() android.Path {
-	return a.manifestPath
-}
-
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
 
 type Certificate struct {
