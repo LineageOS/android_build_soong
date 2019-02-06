@@ -250,8 +250,8 @@ func warningsAreAllowed(subdir string) bool {
 	return false
 }
 
-func addToModuleList(ctx ModuleContext, list string, module string) {
-	getNamedMapForConfig(ctx.Config(), list).Store(module, true)
+func addToModuleList(ctx ModuleContext, key android.OnceKey, module string) {
+	getNamedMapForConfig(ctx.Config(), key).Store(module, true)
 }
 
 // Create a Flags struct that collects the compile flags from global values,
@@ -503,10 +503,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if len(compiler.Properties.Srcs) > 0 {
 		module := ctx.ModuleDir() + "/Android.bp:" + ctx.ModuleName()
 		if inList("-Wno-error", flags.CFlags) || inList("-Wno-error", flags.CppFlags) {
-			addToModuleList(ctx, modulesUsingWnoError, module)
+			addToModuleList(ctx, modulesUsingWnoErrorKey, module)
 		} else if !inList("-Werror", flags.CFlags) && !inList("-Werror", flags.CppFlags) {
 			if warningsAreAllowed(ctx.ModuleDir()) {
-				addToModuleList(ctx, modulesAddedWall, module)
+				addToModuleList(ctx, modulesAddedWallKey, module)
 				flags.CFlags = append([]string{"-Wall"}, flags.CFlags...)
 			} else {
 				flags.CFlags = append([]string{"-Wall", "-Werror"}, flags.CFlags...)

@@ -15,12 +15,6 @@
 package java
 
 import (
-	"path/filepath"
-	"strings"
-
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 	"android/soong/dexpreopt"
 )
@@ -87,12 +81,14 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 	return false
 }
 
+var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
+
 func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
 	if d.dexpreoptDisabled(ctx) {
 		return dexJarFile
 	}
 
-	globalConfig := ctx.Config().Once("DexpreoptGlobalConfig", func() interface{} {
+	globalConfig := ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
 		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
 			ctx.AddNinjaFileDeps(f)
 			globalConfig, err := dexpreopt.LoadGlobalConfig(f)
@@ -185,41 +181,10 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		return dexJarFile
 	}
 
-	var inputs android.Paths
-	for _, input := range dexpreoptRule.Inputs() {
-		if input == "" {
-			// Tests sometimes have empty configuration values that lead to empty inputs
-			continue
-		}
-		rel, isRel := android.MaybeRel(ctx, android.PathForModuleOut(ctx).String(), input)
-		if isRel {
-			inputs = append(inputs, android.PathForModuleOut(ctx, rel))
-		} else {
-			// TODO: use PathForOutput once boot image is moved to where PathForOutput can find it.
-			inputs = append(inputs, &bootImagePath{input})
-		}
-	}
-
-	var outputs android.WritablePaths
-	for _, output := range dexpreoptRule.Outputs() {
-		rel := android.Rel(ctx, android.PathForModuleOut(ctx).String(), output)
-		outputs = append(outputs, android.PathForModuleOut(ctx, rel))
-	}
+	dexpreoptRule.Build(pctx, ctx, "dexpreopt", "dexpreopt")
 
 	for _, install := range dexpreoptRule.Installs() {
 		d.builtInstalled = append(d.builtInstalled, install.From+":"+install.To)
-	}
-
-	if len(dexpreoptRule.Commands()) > 0 {
-		ctx.Build(pctx, android.BuildParams{
-			Rule: ctx.Rule(pctx, "dexpreopt", blueprint.RuleParams{
-				Command:     strings.Join(proptools.NinjaEscape(dexpreoptRule.Commands()), " && "),
-				CommandDeps: dexpreoptRule.Tools(),
-			}),
-			Implicits:   inputs,
-			Outputs:     outputs,
-			Description: "dexpreopt",
-		})
 	}
 
 	stripRule, err := dexpreopt.GenerateStripRule(globalConfig, dexpreoptConfig)
@@ -228,26 +193,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		return dexJarFile
 	}
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule: ctx.Rule(pctx, "dexpreopt_strip", blueprint.RuleParams{
-			Command:     strings.Join(proptools.NinjaEscape(stripRule.Commands()), " && "),
-			CommandDeps: stripRule.Tools(),
-		}),
-		Input:       dexJarFile,
-		Output:      strippedDexJarFile,
-		Description: "dexpreopt strip",
-	})
+	stripRule.Build(pctx, ctx, "dexpreopt_strip", "dexpreopt strip")
 
 	return strippedDexJarFile
 }
-
-type bootImagePath struct {
-	path string
-}
-
-var _ android.Path = (*bootImagePath)(nil)
-
-func (p *bootImagePath) String() string { return p.path }
-func (p *bootImagePath) Ext() string    { return filepath.Ext(p.path) }
-func (p *bootImagePath) Base() string   { return filepath.Base(p.path) }
-func (p *bootImagePath) Rel() string    { return p.path }
