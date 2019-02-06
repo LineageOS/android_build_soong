@@ -627,8 +627,10 @@ func (module *sdkLibrary) ImplementationJars(ctx android.BaseContext, sdkVersion
 	}
 }
 
+var javaSdkLibrariesKey = android.NewOnceKey("javaSdkLibraries")
+
 func javaSdkLibraries(config android.Config) *[]string {
-	return config.Once("javaSdkLibraries", func() interface{} {
+	return config.Once(javaSdkLibrariesKey, func() interface{} {
 		return &[]string{}
 	}).(*[]string)
 }
