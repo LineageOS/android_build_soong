@@ -75,8 +75,7 @@ func main() {
 	bootstrap.Main(ctx.Context, configuration, configuration.ConfigFileName, configuration.ProductVariablesFileName)
 
 	if docFile != "" {
-		err := writeDocs(ctx, docFile)
-		if err != nil {
+		if err := writeDocs(ctx, docFile); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
