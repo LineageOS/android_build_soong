@@ -1378,6 +1378,7 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 		// NDK code linking to platform code is never okay.
 		ctx.ModuleErrorf("depends on non-NDK-built library %q",
 			ctx.OtherModuleName(to))
+		return
 	}
 
 	// At this point we know we have two NDK libraries, but we need to
