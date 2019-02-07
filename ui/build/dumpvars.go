@@ -214,11 +214,13 @@ func runMakeProductConfig(ctx Context, config Config) {
 		ctx.Fatalln("Error dumping make vars:", err)
 	}
 
+	env := config.Environment()
 	// Print the banner like make does
-	ctx.Writer.Print(Banner(make_vars))
+	if !env.IsEnvTrue("ANDROID_QUIET_BUILD") {
+		ctx.Writer.Print(Banner(make_vars))
+	}
 
 	// Populate the environment
-	env := config.Environment()
 	for _, name := range exportEnvVars {
 		if make_vars[name] == "" {
 			env.Unset(name)
