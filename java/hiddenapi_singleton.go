@@ -19,6 +19,7 @@ import (
 )
 
 func init() {
+	android.RegisterPreSingletonType("pre-hiddenapi", hiddenAPIPreSingletonFactory)
 	android.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
 }
 
@@ -41,6 +42,18 @@ func hiddenAPISingletonPaths(ctx android.PathContext) hiddenAPISingletonPathsStr
 			metadata:  android.PathForOutput(ctx, "hiddenapi", "hiddenapi-greylist.csv"),
 		}
 	}).(hiddenAPISingletonPathsStruct)
+}
+
+func hiddenAPIPreSingletonFactory() android.Singleton {
+	return hiddenAPIPreSingleton{}
+}
+
+type hiddenAPIPreSingleton struct{}
+
+// hiddenAPI pre-singleton rules to ensure paths are always generated before
+// makevars
+func (hiddenAPIPreSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	hiddenAPISingletonPaths(ctx)
 }
 
 func hiddenAPISingletonFactory() android.Singleton {
