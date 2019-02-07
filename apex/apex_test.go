@@ -33,6 +33,8 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("apex", android.ModuleFactoryAdaptor(ApexBundleFactory))
 	ctx.RegisterModuleType("apex_key", android.ModuleFactoryAdaptor(apexKeyFactory))
+	ctx.RegisterModuleType("apex_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -201,8 +203,8 @@ func ensureListNotContains(t *testing.T, result []string, notExpected string) {
 // Minimal test
 func TestBasicApex(t *testing.T) {
 	ctx := testApex(t, `
-		apex {
-			name: "myapex",
+		apex_defaults {
+			name: "myapex-defaults",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
 			multilib: {
@@ -210,6 +212,11 @@ func TestBasicApex(t *testing.T) {
 					binaries: ["foo",],
 				}
 			}
+		}
+
+		apex {
+			name: "myapex",
+			defaults: ["myapex-defaults"],
 		}
 
 		apex_key {
