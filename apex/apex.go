@@ -147,13 +147,18 @@ func init() {
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
 func apexDepsMutator(mctx android.TopDownMutatorContext) {
-	if _, ok := mctx.Module().(*apexBundle); ok {
+	if a, ok := mctx.Module().(*apexBundle); ok {
 		apexBundleName := mctx.ModuleName()
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			depName := mctx.OtherModuleName(child)
 			// If the parent is apexBundle, this child is directly depended.
 			_, directDep := parent.(*apexBundle)
-			android.UpdateApexDependency(apexBundleName, depName, directDep)
+			if a.installable() {
+				// TODO(b/123892969): Workaround for not having any way to annotate test-apexs
+				// non-installable apex's cannot be installed and so should not prevent libraries from being
+				// installed to the system.
+				android.UpdateApexDependency(apexBundleName, depName, directDep)
+			}
 
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
 				am.BuildForApex(apexBundleName)
