@@ -251,6 +251,7 @@ bootstrap_go_package {
         "java/gen.go",
         "java/genrule.go",
         "java/hiddenapi.go",
+        "java/hiddenapi_singleton.go",
         "java/jacoco.go",
         "java/java.go",
         "java/jdeps.go",
