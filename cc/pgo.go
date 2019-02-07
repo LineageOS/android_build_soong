@@ -36,7 +36,8 @@ var (
 	}
 )
 
-const pgoProfileProjectsConfigKey = "PgoProfileProjects"
+var pgoProfileProjectsConfigKey = android.NewOnceKey("PgoProfileProjects")
+
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
 const profileSamplingFlag = "-gline-tables-only"
 const profileUseInstrumentFormat = "-fprofile-use=%s"
@@ -49,7 +50,7 @@ func getPgoProfileProjects(config android.DeviceConfig) []string {
 }
 
 func recordMissingProfileFile(ctx BaseModuleContext, missing string) {
-	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFile).Store(missing, true)
+	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
 }
 
 type PgoProperties struct {

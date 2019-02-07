@@ -39,6 +39,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/android"
+
 	"github.com/google/blueprint/pathtools"
 )
 
@@ -47,7 +49,7 @@ const SystemOtherPartition = "/system_other/"
 
 // GenerateStripRule generates a set of commands that will take an APK or JAR as an input and strip the dex files if
 // they are no longer necessary after preopting.
-func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *Rule, err error) {
+func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
@@ -61,7 +63,7 @@ func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *Rule, er
 
 	tools := global.Tools
 
-	rule = &Rule{}
+	rule = android.NewRuleBuilder()
 
 	strip := shouldStripDex(module, global)
 
@@ -81,7 +83,7 @@ func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *Rule, er
 
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
-func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *Rule, err error) {
+func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
@@ -93,7 +95,7 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *Rule
 		}
 	}()
 
-	rule = &Rule{}
+	rule = android.NewRuleBuilder()
 
 	generateProfile := module.ProfileClassListing != "" && !global.DisableGenerateProfile
 
@@ -141,7 +143,7 @@ func dexpreoptDisabled(global GlobalConfig, module ModuleConfig) bool {
 	return false
 }
 
-func profileCommand(global GlobalConfig, module ModuleConfig, rule *Rule) string {
+func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder) string {
 	profilePath := filepath.Join(filepath.Dir(module.BuildPath), "profile.prof")
 	profileInstalledPath := module.DexLocation + ".prof"
 
@@ -178,8 +180,8 @@ func profileCommand(global GlobalConfig, module ModuleConfig, rule *Rule) string
 	return profilePath
 }
 
-func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *Rule, profile, arch, bootImageLocation string,
-	appImage, generateDM bool) {
+func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
+	profile, arch, bootImageLocation string, appImage, generateDM bool) {
 
 	// HACK: make soname in Soong-generated .odex files match Make.
 	base := filepath.Base(module.DexLocation)

@@ -152,7 +152,9 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		ret.Class = "SHARED_LIBRARIES"
 		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 			fmt.Fprintln(w, "LOCAL_SOONG_TOC :=", library.toc().String())
-			fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
+			if !library.buildStubs() {
+				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
+			}
 			if len(library.Properties.Overrides) > 0 {
 				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(library.Properties.Overrides, " "))
 			}

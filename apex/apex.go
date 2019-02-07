@@ -274,6 +274,7 @@ const (
 	etc apexFileClass = iota
 	nativeSharedLib
 	nativeExecutable
+	shBinary
 	javaSharedLib
 )
 
@@ -333,7 +334,7 @@ func (class apexFileClass) NameInMake() string {
 		return "ETC"
 	case nativeSharedLib:
 		return "SHARED_LIBRARIES"
-	case nativeExecutable:
+	case nativeExecutable, shBinary:
 		return "EXECUTABLES"
 	case javaSharedLib:
 		return "JAVA_LIBRARIES"
@@ -570,6 +571,12 @@ func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirIn
 	return
 }
 
+func getCopyManifestForShBinary(sh *android.ShBinary) (fileToCopy android.Path, dirInApex string) {
+	dirInApex = filepath.Join("bin", sh.SubDir())
+	fileToCopy = sh.OutputFile()
+	return
+}
+
 func getCopyManifestForJavaLibrary(java *java.Library) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = "javalib"
 	fileToCopy = java.DexJarFile()
@@ -626,8 +633,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeExecutable, cc, cc.Symlinks()})
 					return true
+				} else if sh, ok := child.(*android.ShBinary); ok {
+					fileToCopy, dirInApex := getCopyManifestForShBinary(sh)
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, shBinary, sh, nil})
 				} else {
-					ctx.PropertyErrorf("binaries", "%q is not a cc_binary module", depName)
+					ctx.PropertyErrorf("binaries", "%q is neithher cc_binary nor sh_binary", depName)
 				}
 			case javaLibTag:
 				if java, ok := child.(*java.Library); ok {
@@ -954,91 +964,99 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 		}}
 }
 
+func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string) []string {
+	moduleNames := []string{}
+
+	for _, fi := range a.filesInfo {
+		if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
+			continue
+		}
+		if !android.InList(fi.moduleName, moduleNames) {
+			moduleNames = append(moduleNames, fi.moduleName)
+		}
+		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
+		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
+		if a.flattened {
+			// /system/apex/<name>/{lib|framework|...}
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
+				a.installDir.RelPathString(), name, fi.installDir))
+		} else {
+			// /apex/<name>/{lib|framework|...}
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(PRODUCT_OUT)",
+				"apex", name, fi.installDir))
+		}
+		fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
+		fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
+		if fi.module != nil {
+			archStr := fi.module.Target().Arch.ArchType.String()
+			host := false
+			switch fi.module.Target().Os.Class {
+			case android.Host:
+				if archStr != "common" {
+					fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
+				}
+				host = true
+			case android.HostCross:
+				if archStr != "common" {
+					fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
+				}
+				host = true
+			case android.Device:
+				if archStr != "common" {
+					fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
+				}
+			}
+			if host {
+				makeOs := fi.module.Target().Os.String()
+				if fi.module.Target().Os == android.Linux || fi.module.Target().Os == android.LinuxBionic {
+					makeOs = "linux"
+				}
+				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
+				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			}
+		}
+		if fi.class == javaSharedLib {
+			javaModule := fi.module.(*java.Library)
+			// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
+			// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
+			// we will have foo.jar.jar
+			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", strings.TrimSuffix(fi.builtFile.Base(), ".jar"))
+			fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", javaModule.ImplementationAndResourcesJars()[0].String())
+			fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", javaModule.HeaderJars()[0].String())
+			fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
+			fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
+			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+		} else if fi.class == nativeSharedLib || fi.class == nativeExecutable {
+			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
+			if cc, ok := fi.module.(*cc.Module); ok && cc.UnstrippedOutputFile() != nil {
+				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
+			}
+			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
+		} else {
+			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
+			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
+		}
+	}
+	return moduleNames
+}
+
 func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
-			for _, fi := range a.filesInfo {
-				if !android.InList(fi.moduleName, moduleNames) {
-					moduleNames = append(moduleNames, fi.moduleName)
-				}
+			if a.installable() {
+				a.androidMkForFiles(w, name, moduleDir)
 			}
 
-			for _, fi := range a.filesInfo {
-				if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
-					continue
-				}
-				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
-				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-				fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
-				if a.flattened {
-					// /system/apex/<name>/{lib|framework|...}
-					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
-						a.installDir.RelPathString(), name, fi.installDir))
-				} else {
-					// /apex/<name>/{lib|framework|...}
-					fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(PRODUCT_OUT)",
-						"apex", name, fi.installDir))
-				}
-				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
-				fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
-				if fi.module != nil {
-					archStr := fi.module.Target().Arch.ArchType.String()
-					host := false
-					switch fi.module.Target().Os.Class {
-					case android.Host:
-						if archStr != "common" {
-							fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
-						}
-						host = true
-					case android.HostCross:
-						if archStr != "common" {
-							fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
-						}
-						host = true
-					case android.Device:
-						if archStr != "common" {
-							fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
-						}
-					}
-					if host {
-						makeOs := fi.module.Target().Os.String()
-						if fi.module.Target().Os == android.Linux || fi.module.Target().Os == android.LinuxBionic {
-							makeOs = "linux"
-						}
-						fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
-						fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
-					}
-				}
-				if fi.class == javaSharedLib {
-					javaModule := fi.module.(*java.Library)
-					// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
-					// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
-					// we will have foo.jar.jar
-					fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", strings.TrimSuffix(fi.builtFile.Base(), ".jar"))
-					fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", javaModule.ImplementationAndResourcesJars()[0].String())
-					fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", javaModule.HeaderJars()[0].String())
-					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
-					fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
-					fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
-				} else if fi.class == nativeSharedLib || fi.class == nativeExecutable {
-					fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-					if cc, ok := fi.module.(*cc.Module); ok && cc.UnstrippedOutputFile() != nil {
-						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
-					}
-					fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
-				} else {
-					fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-					fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
-				}
-			}
 			if a.flattened && apexType.image() {
 				// Only image APEXes can be flattened.
 				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 				fmt.Fprintln(w, "LOCAL_MODULE :=", name)
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
+				if len(moduleNames) > 0 {
+					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
+				}
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 			} else {
 				// zip-apex is the less common type so have the name refer to the image-apex
@@ -1055,7 +1073,9 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
+				if len(moduleNames) > 0 {
+					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
+				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
 				if apexType == imageApex {
