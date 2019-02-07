@@ -1046,7 +1046,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
 			if a.installable() {
-				a.androidMkForFiles(w, name, moduleDir)
+				moduleNames = a.androidMkForFiles(w, name, moduleDir)
 			}
 
 			if a.flattened && apexType.image() {
