@@ -563,6 +563,10 @@ func (a *AARImport) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{a.classpathFile}
 }
 
+func (a *AARImport) DexJar() android.Path {
+	return nil
+}
+
 func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }

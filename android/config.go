@@ -1022,14 +1022,14 @@ func (c *config) EnforceSystemCertificateWhitelist() []string {
 	return c.productVariables.EnforceSystemCertificateWhitelist
 }
 
-func (c *config) HiddenAPIStubFlags() string {
-	return String(c.productVariables.HiddenAPIStubFlags)
+func (c *config) ProductHiddenAPIStubs() []string {
+	return c.productVariables.ProductHiddenAPIStubs
 }
 
-func (c *config) HiddenAPIFlags() string {
-	return String(c.productVariables.HiddenAPIFlags)
+func (c *config) ProductHiddenAPIStubsSystem() []string {
+	return c.productVariables.ProductHiddenAPIStubsSystem
 }
 
-func (c *config) HiddenAPIExtraAppUsageJars() []string {
-	return c.productVariables.HiddenAPIExtraAppUsageJars
+func (c *config) ProductHiddenAPIStubsTest() []string {
+	return c.productVariables.ProductHiddenAPIStubsTest
 }
