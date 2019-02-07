@@ -172,7 +172,8 @@ func main() {
 
 	stat := &status.Status{}
 	defer stat.Finish()
-	stat.AddOutput(terminal.NewStatusOutput(writer, ""))
+	stat.AddOutput(terminal.NewStatusOutput(writer, "",
+		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
 
 	var failures failureCount
 	stat.AddOutput(&failures)
@@ -389,7 +390,8 @@ func buildProduct(mpctx *mpContext, product string) {
 		Thread:  mpctx.Tracer.NewThread(product),
 		Status:  &status.Status{},
 	}}
-	ctx.Status.AddOutput(terminal.NewStatusOutput(ctx.Writer, ""))
+	ctx.Status.AddOutput(terminal.NewStatusOutput(ctx.Writer, "",
+		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
 
 	config := build.NewConfig(ctx, flag.Args()...)
 	config.Environment().Set("OUT_DIR", outDir)
