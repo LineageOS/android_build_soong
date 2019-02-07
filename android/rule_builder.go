@@ -31,6 +31,7 @@ type RuleBuilder struct {
 	installs       []RuleBuilderInstall
 	temporariesSet map[string]bool
 	restat         bool
+	missingDeps    []string
 }
 
 // NewRuleBuilder returns a newly created RuleBuilder.
@@ -43,6 +44,15 @@ func NewRuleBuilder() *RuleBuilder {
 // RuleBuilderInstall is a tuple of install from and to locations.
 type RuleBuilderInstall struct {
 	From, To string
+}
+
+// MissingDeps adds modules to the list of missing dependencies.  If MissingDeps
+// is called with a non-empty input, any call to Build will result in a rule
+// that will print an error listing the missing dependencies and fail.
+// MissingDeps should only be called if Config.AllowMissingDependencies() is
+// true.
+func (r *RuleBuilder) MissingDeps(missingDeps []string) {
+	r.missingDeps = append(r.missingDeps, missingDeps...)
 }
 
 // Restat marks the rule as a restat rule, which will be passed to ModuleContext.Rule in BuildParams.Restat.
@@ -217,6 +227,18 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 			rel := Rel(ctx, PathForOutput(ctx).String(), output)
 			outputs = append(outputs, PathForOutput(ctx, rel))
 		}
+	}
+
+	if len(r.missingDeps) > 0 {
+		ctx.Build(pctx, BuildParams{
+			Rule:        ErrorRule,
+			Outputs:     outputs,
+			Description: desc,
+			Args: map[string]string{
+				"error": "missing dependencies: " + strings.Join(r.missingDeps, ", "),
+			},
+		})
+		return
 	}
 
 	if len(r.Commands()) > 0 {

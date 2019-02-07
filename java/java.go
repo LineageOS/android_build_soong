@@ -313,6 +313,7 @@ type Module struct {
 	// expanded Jarjar_rules
 	expandJarjarRules android.Path
 
+	hiddenAPI
 	dexpreopter
 }
 
@@ -331,6 +332,7 @@ type Dependency interface {
 	ImplementationJars() android.Paths
 	ResourceJars() android.Paths
 	ImplementationAndResourcesJars() android.Paths
+	DexJar() android.Path
 	AidlIncludeDirs() android.Paths
 	ExportedSdkLibs() []string
 }
@@ -1216,18 +1218,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 
 		// Hidden API CSV generation and dex encoding
-		if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-			isBootJar := inList(ctx.ModuleName(), ctx.Config().BootJars())
-			if isBootJar || inList(ctx.ModuleName(), ctx.Config().HiddenAPIExtraAppUsageJars()) {
-				// Derive the greylist from classes jar.
-				hiddenAPIGenerateCSV(ctx, j.implementationJarFile)
-			}
-			if isBootJar {
-				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", jarName)
-				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexOutputFile, j.deviceProperties.UncompressDex)
-				dexOutputFile = hiddenAPIJar
-			}
-		}
+		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
+			j.deviceProperties.UncompressDex)
 
 		// merge dex jar with resources if necessary
 		if j.resourceJar != nil {
@@ -1363,6 +1355,10 @@ func (j *Module) ImplementationJars() android.Paths {
 		return nil
 	}
 	return android.Paths{j.implementationJarFile}
+}
+
+func (j *Module) DexJar() android.Path {
+	return j.dexJarFile
 }
 
 func (j *Module) ResourceJars() android.Paths {
@@ -1773,6 +1769,10 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 		return nil
 	}
 	return android.Paths{j.combinedClasspathFile}
+}
+
+func (j *Import) DexJar() android.Path {
+	return nil
 }
 
 func (j *Import) AidlIncludeDirs() android.Paths {
