@@ -100,7 +100,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	// Filter vendor_public_library that are exported to make
 	exportedVendorPublicLibraries := []string{}
-	ctx.SingletonContext().VisitAllModules(func(module android.Module) {
+	ctx.VisitAllModules(func(module android.Module) {
 		if ccModule, ok := module.(*Module); ok {
 			baseName := ccModule.BaseModuleName()
 			if inList(baseName, vendorPublicLibraries) && module.ExportedToMake() {

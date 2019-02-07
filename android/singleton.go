@@ -22,6 +22,7 @@ import (
 // SingletonContext
 type SingletonContext interface {
 	Config() Config
+	DeviceConfig() DeviceConfig
 
 	ModuleName(module blueprint.Module) string
 	ModuleDir(module blueprint.Module) string
@@ -91,6 +92,10 @@ type singletonContextAdaptor struct {
 
 func (s singletonContextAdaptor) Config() Config {
 	return s.SingletonContext.Config().(Config)
+}
+
+func (s singletonContextAdaptor) DeviceConfig() DeviceConfig {
+	return DeviceConfig{s.Config().deviceConfig}
 }
 
 func (s singletonContextAdaptor) Variable(pctx PackageContext, name, value string) {
