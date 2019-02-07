@@ -137,6 +137,7 @@ func init() {
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 
 	android.RegisterModuleType("apex", ApexBundleFactory)
+	android.RegisterModuleType("apex_defaults", defaultsFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -1101,5 +1102,33 @@ func ApexBundleFactory() android.Module {
 	})
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	return module
+}
+
+//
+// Defaults
+//
+type Defaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+}
+
+func defaultsFactory() android.Module {
+	return DefaultsFactory()
+}
+
+func DefaultsFactory(props ...interface{}) android.Module {
+	module := &Defaults{}
+
+	module.AddProperties(props...)
+	module.AddProperties(
+		&apexBundleProperties{},
+		&apexTargetBundleProperties{},
+	)
+
+	android.InitDefaultsModule(module)
 	return module
 }
