@@ -53,6 +53,7 @@ var (
 		"OpenMAXAL",
 		"OpenSLES",
 		"stdc++",
+		"sync",
 		"vulkan",
 		"z",
 	}
