@@ -263,9 +263,9 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bo
 }
 
 // PathsWithOptionalDefaultForModuleSrc returns Paths rooted from the module's
-// local source directory. If none are provided, use the default if it exists.
+// local source directory. If input is nil, use the default if it exists.  If input is empty, returns nil.
 func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def string) Paths {
-	if len(input) > 0 {
+	if input != nil {
 		return PathsForModuleSrc(ctx, input)
 	}
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
