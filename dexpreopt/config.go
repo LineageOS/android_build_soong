@@ -91,7 +91,6 @@ type ModuleConfig struct {
 	DexLocation     string // dex location on device
 	BuildPath       string
 	DexPath         string
-	UseEmbeddedDex  bool
 	UncompressedDex bool
 	HasApkLibraries bool
 	PreoptFlags     []string
