@@ -136,7 +136,8 @@ func init() {
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 
-	android.RegisterModuleType("apex", ApexBundleFactory)
+	android.RegisterModuleType("apex", apexBundleFactory)
+	android.RegisterModuleType("apex_test", testApexBundleFactory)
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -154,7 +155,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 			depName := mctx.OtherModuleName(child)
 			// If the parent is apexBundle, this child is directly depended.
 			_, directDep := parent.(*apexBundle)
-			if a.installable() {
+			if a.installable() && !a.testApex {
 				// TODO(b/123892969): Workaround for not having any way to annotate test-apexs
 				// non-installable apex's cannot be installed and so should not prevent libraries from being
 				// installed to the system.
@@ -375,6 +376,8 @@ type apexBundle struct {
 	filesInfo []apexFile
 
 	flattened bool
+
+	testApex bool
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -1091,9 +1094,18 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 		}}
 }
 
-func ApexBundleFactory() android.Module {
+func testApexBundleFactory() android.Module {
+	return ApexBundleFactory( /*testApex*/ true)
+}
+
+func apexBundleFactory() android.Module {
+	return ApexBundleFactory( /*testApex*/ false)
+}
+
+func ApexBundleFactory(testApex bool) android.Module {
 	module := &apexBundle{
 		outputFiles: map[apexPackaging]android.WritablePath{},
+		testApex:    testApex,
 	}
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.targetProperties)
