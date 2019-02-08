@@ -106,6 +106,64 @@ func TestApp(t *testing.T) {
 	}
 }
 
+func TestResourceDirs(t *testing.T) {
+	testCases := []struct {
+		name      string
+		prop      string
+		resources []string
+	}{
+		{
+			name:      "no resource_dirs",
+			prop:      "",
+			resources: []string{"res/res/values/strings.xml"},
+		},
+		{
+			name:      "resource_dirs",
+			prop:      `resource_dirs: ["res"]`,
+			resources: []string{"res/res/values/strings.xml"},
+		},
+		{
+			name:      "empty resource_dirs",
+			prop:      `resource_dirs: []`,
+			resources: nil,
+		},
+	}
+
+	fs := map[string][]byte{
+		"res/res/values/strings.xml": nil,
+	}
+
+	bp := `
+			android_app {
+				name: "foo",
+				%s
+			}
+		`
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			config := testConfig(nil)
+			ctx := testContext(config, fmt.Sprintf(bp, testCase.prop), fs)
+			run(t, ctx, config)
+
+			module := ctx.ModuleForTests("foo", "android_common")
+			resourceList := module.MaybeOutput("aapt2/res.list")
+
+			var resources []string
+			if resourceList.Rule != nil {
+				for _, compiledResource := range resourceList.Inputs.Strings() {
+					resources = append(resources, module.Output(compiledResource).Inputs.Strings()...)
+				}
+			}
+
+			if !reflect.DeepEqual(resources, testCase.resources) {
+				t.Errorf("expected resource files %q, got %q",
+					testCase.resources, resources)
+			}
+		})
+	}
+}
+
 func TestEnforceRRO(t *testing.T) {
 	testCases := []struct {
 		name                       string
