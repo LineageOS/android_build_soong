@@ -119,9 +119,12 @@ def should_omit_version(version, arch, api, vndk, apex):
         return True
     if 'platform-only' in version.tags:
         return True
-    if 'vndk' in version.tags and not vndk:
-        return True
-    if 'apex' in version.tags and not apex:
+
+    no_vndk_no_apex = 'vndk' not in version.tags and 'apex' not in version.tags
+    keep = no_vndk_no_apex or \
+           ('vndk' in version.tags and vndk) or \
+           ('apex' in version.tags and apex)
+    if not keep:
         return True
     if not symbol_in_arch(version.tags, arch):
         return True
@@ -132,9 +135,11 @@ def should_omit_version(version, arch, api, vndk, apex):
 
 def should_omit_symbol(symbol, arch, api, vndk, apex):
     """Returns True if the symbol should be omitted."""
-    if not vndk and 'vndk' in symbol.tags:
-        return True
-    if not apex and 'apex' in symbol.tags:
+    no_vndk_no_apex = 'vndk' not in symbol.tags and 'apex' not in symbol.tags
+    keep = no_vndk_no_apex or \
+           ('vndk' in symbol.tags and vndk) or \
+           ('apex' in symbol.tags and apex)
+    if not keep:
         return True
     if not symbol_in_arch(symbol.tags, arch):
         return True
