@@ -28,9 +28,8 @@ func init() {
 func supportLibrariesMakeVarsProvider(ctx android.MakeVarsContext) {
 	var supportAars, supportJars []string
 
-	sctx := ctx.SingletonContext()
-	sctx.VisitAllModules(func(module android.Module) {
-		dir := sctx.ModuleDir(module)
+	ctx.VisitAllModules(func(module android.Module) {
+		dir := ctx.ModuleDir(module)
 		switch {
 		case strings.HasPrefix(dir, "prebuilts/sdk/current/extras"),
 			dir == "prebuilts/sdk/current/androidx",
@@ -43,7 +42,7 @@ func supportLibrariesMakeVarsProvider(ctx android.MakeVarsContext) {
 			return
 		}
 
-		name := sctx.ModuleName(module)
+		name := ctx.ModuleName(module)
 		if strings.HasSuffix(name, "-nodeps") {
 			return
 		}
@@ -54,7 +53,7 @@ func supportLibrariesMakeVarsProvider(ctx android.MakeVarsContext) {
 		case *Library, *Import:
 			supportJars = append(supportJars, name)
 		default:
-			sctx.ModuleErrorf(module, "unknown module type %t", module)
+			ctx.ModuleErrorf(module, "unknown module type %t", module)
 		}
 	})
 
