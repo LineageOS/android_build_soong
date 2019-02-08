@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -38,7 +40,21 @@ func androidMakeVarsProvider(ctx MakeVarsContext) {
 type MakeVarsContext interface {
 	Config() Config
 	DeviceConfig() DeviceConfig
-	SingletonContext() SingletonContext
+	AddNinjaFileDeps(deps ...string)
+	Fs() pathtools.FileSystem
+
+	ModuleName(module blueprint.Module) string
+	ModuleDir(module blueprint.Module) string
+	ModuleSubDir(module blueprint.Module) string
+	ModuleType(module blueprint.Module) string
+	BlueprintFile(module blueprint.Module) string
+
+	ModuleErrorf(module blueprint.Module, format string, args ...interface{})
+	Errorf(format string, args ...interface{})
+	Failed() bool
+
+	VisitAllModules(visit func(Module))
+	VisitAllModulesIf(pred func(Module) bool, visit func(Module))
 
 	// Verify the make variable matches the Soong version, fail the build
 	// if it does not. If the make variable is empty, just set it.
@@ -66,6 +82,8 @@ type MakeVarsContext interface {
 	CheckRaw(name, value string)
 }
 
+var _ PathContext = MakeVarsContext(nil)
+
 type MakeVarsProvider func(ctx MakeVarsContext)
 
 func RegisterMakeVarsProvider(pctx PackageContext, provider MakeVarsProvider) {
@@ -92,8 +110,8 @@ type makeVarsProvider struct {
 var makeVarsProviders []makeVarsProvider
 
 type makeVarsContext struct {
+	SingletonContext
 	config Config
-	ctx    SingletonContext
 	pctx   PackageContext
 	vars   []makeVarsVariable
 }
@@ -121,9 +139,8 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	vars := []makeVarsVariable{}
 	for _, provider := range makeVarsProviders {
 		mctx := &makeVarsContext{
-			config: ctx.Config(),
-			ctx:    ctx,
-			pctx:   provider.pctx,
+			SingletonContext: ctx,
+			pctx:             provider.pctx,
 		}
 
 		provider.call(mctx)
@@ -229,22 +246,14 @@ my_check_failed :=
 	return buf.Bytes()
 }
 
-func (c *makeVarsContext) Config() Config {
-	return c.config
-}
-
 func (c *makeVarsContext) DeviceConfig() DeviceConfig {
-	return DeviceConfig{c.config.deviceConfig}
-}
-
-func (c *makeVarsContext) SingletonContext() SingletonContext {
-	return c.ctx
+	return DeviceConfig{c.Config().deviceConfig}
 }
 
 var ninjaDescaper = strings.NewReplacer("$$", "$")
 
 func (c *makeVarsContext) Eval(ninjaStr string) (string, error) {
-	s, err := c.ctx.Eval(c.pctx, ninjaStr)
+	s, err := c.SingletonContext.Eval(c.pctx, ninjaStr)
 	if err != nil {
 		return "", err
 	}
@@ -265,7 +274,7 @@ func (c *makeVarsContext) addVariableRaw(name, value string, strict, sort bool) 
 func (c *makeVarsContext) addVariable(name, ninjaStr string, strict, sort bool) {
 	value, err := c.Eval(ninjaStr)
 	if err != nil {
-		c.ctx.Errorf(err.Error())
+		c.SingletonContext.Errorf(err.Error())
 	}
 	c.addVariableRaw(name, value, strict, sort)
 }
