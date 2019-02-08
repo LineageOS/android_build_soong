@@ -53,11 +53,13 @@ type aaptProperties struct {
 	Aapt_include_all_resources *bool
 
 	// list of directories relative to the Blueprints file containing assets.
-	// Defaults to "assets"
+	// Defaults to ["assets"] if a directory called assets exists.  Set to []
+	// to disable the default.
 	Asset_dirs []string
 
 	// list of directories relative to the Blueprints file containing
-	// Android resources
+	// Android resources.  Defaults to ["res"] if a directory called res exists.
+	// Set to [] to disable the default.
 	Resource_dirs []string
 
 	// path to AndroidManifest.xml.  If unset, defaults to "AndroidManifest.xml".
