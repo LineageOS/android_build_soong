@@ -751,6 +751,8 @@ class IntegrationTest(unittest.TestCase):
                 wibble;
                 wizzes; # vndk
                 waggle; # apex
+                bubble; # apex vndk
+                duddle; # vndk apex
             } VERSION_2;
 
             VERSION_5 { # versioned=14
@@ -771,6 +773,8 @@ class IntegrationTest(unittest.TestCase):
             void qux() {}
             void wibble() {}
             void waggle() {}
+            void bubble() {}
+            void duddle() {}
             void wobble() {}
         """)
         self.assertEqual(expected_src, src_file.getvalue())
@@ -788,6 +792,8 @@ class IntegrationTest(unittest.TestCase):
                 global:
                     wibble;
                     waggle;
+                    bubble;
+                    duddle;
             } VERSION_2;
         """)
         self.assertEqual(expected_version, version_file.getvalue())
