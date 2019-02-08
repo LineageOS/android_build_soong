@@ -19,7 +19,6 @@ import (
 )
 
 func init() {
-	android.RegisterPreSingletonType("pre-hiddenapi", hiddenAPIPreSingletonFactory)
 	android.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
 }
 
@@ -42,18 +41,6 @@ func hiddenAPISingletonPaths(ctx android.PathContext) hiddenAPISingletonPathsStr
 			metadata:  android.PathForOutput(ctx, "hiddenapi", "hiddenapi-greylist.csv"),
 		}
 	}).(hiddenAPISingletonPathsStruct)
-}
-
-func hiddenAPIPreSingletonFactory() android.Singleton {
-	return hiddenAPIPreSingleton{}
-}
-
-type hiddenAPIPreSingleton struct{}
-
-// hiddenAPI pre-singleton rules to ensure paths are always generated before
-// makevars
-func (hiddenAPIPreSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	hiddenAPISingletonPaths(ctx)
 }
 
 func hiddenAPISingletonFactory() android.Singleton {
@@ -296,7 +283,7 @@ func init() {
 // Both paths are used to call dist-for-goals.
 func hiddenAPIMakeVars(ctx android.MakeVarsContext) {
 	if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		singletonPaths := ctx.Config().Get(hiddenAPISingletonPathsKey).(hiddenAPISingletonPathsStruct)
+		singletonPaths := hiddenAPISingletonPaths(ctx)
 		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", singletonPaths.flags.String())
 		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_GREYLIST_METADATA", singletonPaths.metadata.String())
 	}
