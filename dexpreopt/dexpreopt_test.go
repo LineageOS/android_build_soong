@@ -48,7 +48,7 @@ var testGlobalConfig = GlobalConfig{
 	Dex2oatXmx:                         "",
 	Dex2oatXms:                         "",
 	EmptyDirectory:                     "",
-	DefaultDexPreoptImageLocation:      nil,
+	DefaultDexPreoptImage:              nil,
 	CpuVariant:                         nil,
 	InstructionSetFeatures:             nil,
 	Tools: Tools{
@@ -63,28 +63,28 @@ var testGlobalConfig = GlobalConfig{
 }
 
 var testModuleConfig = ModuleConfig{
-	Name:                   "",
-	DexLocation:            "",
-	BuildPath:              "",
-	DexPath:                "",
-	UncompressedDex:        false,
-	HasApkLibraries:        false,
-	PreoptFlags:            nil,
-	ProfileClassListing:    "",
-	ProfileIsTextListing:   false,
-	EnforceUsesLibraries:   false,
-	OptionalUsesLibraries:  nil,
-	UsesLibraries:          nil,
-	LibraryPaths:           nil,
-	Archs:                  nil,
-	DexPreoptImageLocation: "",
-	PreoptExtractedApk:     false,
-	NoCreateAppImage:       false,
-	ForceCreateAppImage:    false,
-	PresignedPrebuilt:      false,
-	NoStripping:            false,
-	StripInputPath:         "",
-	StripOutputPath:        "",
+	Name:                  "",
+	DexLocation:           "",
+	BuildPath:             "",
+	DexPath:               "",
+	UncompressedDex:       false,
+	HasApkLibraries:       false,
+	PreoptFlags:           nil,
+	ProfileClassListing:   "",
+	ProfileIsTextListing:  false,
+	EnforceUsesLibraries:  false,
+	OptionalUsesLibraries: nil,
+	UsesLibraries:         nil,
+	LibraryPaths:          nil,
+	Archs:                 []string{"arm"},
+	DexPreoptImages:       []string{"system/framework/arm/boot.art"},
+	PreoptExtractedApk:    false,
+	NoCreateAppImage:      false,
+	ForceCreateAppImage:   false,
+	PresignedPrebuilt:     false,
+	NoStripping:           false,
+	StripInputPath:        "",
+	StripOutputPath:       "",
 }
 
 func TestDexPreopt(t *testing.T) {
@@ -93,7 +93,6 @@ func TestDexPreopt(t *testing.T) {
 	module.Name = "test"
 	module.DexLocation = "/system/app/test/test.apk"
 	module.BuildPath = "out/test/test.apk"
-	module.Archs = []string{"arm"}
 
 	rule, err := GenerateDexpreoptRule(global, module)
 	if err != nil {
@@ -119,7 +118,6 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	module.Name = "test"
 	module.DexLocation = "/system/app/test/test.apk"
 	module.BuildPath = "out/test/test.apk"
-	module.Archs = []string{"arm"}
 
 	rule, err := GenerateDexpreoptRule(global, module)
 	if err != nil {
@@ -143,7 +141,6 @@ func TestDexPreoptProfile(t *testing.T) {
 	module.DexLocation = "/system/app/test/test.apk"
 	module.BuildPath = "out/test/test.apk"
 	module.ProfileClassListing = "profile"
-	module.Archs = []string{"arm"}
 
 	rule, err := GenerateDexpreoptRule(global, module)
 	if err != nil {
@@ -193,7 +190,6 @@ func TestStripDex(t *testing.T) {
 			module.Name = "test"
 			module.DexLocation = "/system/app/test/test.apk"
 			module.BuildPath = "out/test/test.apk"
-			module.Archs = []string{"arm"}
 			module.StripInputPath = "$1"
 			module.StripOutputPath = "$2"
 
