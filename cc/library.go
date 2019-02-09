@@ -1032,6 +1032,9 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 				sharedCompiler.baseCompiler.Properties.Srcs
 			sharedCompiler.baseCompiler.Properties.Srcs = nil
 			sharedCompiler.baseCompiler.Properties.Generated_sources = nil
+		} else {
+			// This dep is just to reference static variant from shared variant
+			mctx.AddInterVariantDependency(staticVariantTag, shared, static)
 		}
 	}
 }
