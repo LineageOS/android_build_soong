@@ -68,7 +68,11 @@ type appProperties struct {
 	// list of native libraries that will be provided in or alongside the resulting jar
 	Jni_libs []string `android:"arch_variant"`
 
-	EmbedJNI bool `blueprint:"mutated"`
+	// Store native libraries uncompressed in the APK and set the android:extractNativeLibs="false" manifest
+	// flag so that they are used from inside the APK at runtime.  Defaults to true for android_test modules unless
+	// sdk_version or min_sdk_version is set to a version that doesn't support it (<23), defaults to false for other
+	// module types where the native libraries are generally preinstalled outside the APK.
+	Use_embedded_native_libs *bool
 }
 
 type AndroidApp struct {
@@ -136,7 +140,19 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.aapt.uncompressedJNI = a.shouldUncompressJNI(ctx)
 	a.generateAndroidBuildActions(ctx)
+}
+
+// shouldUncompressJNI returns true if the native libraries should be stored in the APK uncompressed and the
+// extractNativeLibs application flag should be set to false in the manifest.
+func (a *AndroidApp) shouldUncompressJNI(ctx android.ModuleContext) bool {
+	minSdkVersion, err := sdkVersionToNumber(ctx, a.minSdkVersion())
+	if err != nil {
+		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.minSdkVersion(), err)
+	}
+
+	return minSdkVersion >= 23 && Bool(a.appProperties.Use_embedded_native_libs)
 }
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
@@ -230,10 +246,10 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
 	var jniJarFile android.WritablePath
 	if len(jniLibs) > 0 {
-		embedJni := ctx.Config().UnbundledBuild() || a.appProperties.EmbedJNI
+		embedJni := ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs)
 		if embedJni {
 			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
-			TransformJniLibsToJar(ctx, jniJarFile, jniLibs)
+			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.shouldUncompressJNI(ctx))
 		} else {
 			a.installJniLibs = jniLibs
 		}
@@ -428,7 +444,7 @@ func AndroidTestFactory() android.Module {
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
-	module.appProperties.EmbedJNI = true
+	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
 
 	module.AddProperties(
@@ -464,7 +480,7 @@ func AndroidTestHelperAppFactory() android.Module {
 	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
-	module.appProperties.EmbedJNI = true
+	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
 
 	module.AddProperties(
