@@ -63,8 +63,12 @@ def parse_args():
                       help='manifest is for a package built against the platform')
   parser.add_argument('--use-embedded-dex', dest='use_embedded_dex', action='store_true',
                       help=('specify if the app wants to use embedded dex and avoid extracted,'
-                            'locally compiled code. Should not be conflict if already declared '
+                            'locally compiled code. Must not conflict if already declared '
                             'in the manifest.'))
+  parser.add_argument('--extract-native-libs', dest='extract_native_libs',
+                      default=None, type=lambda x: (str(x).lower() == 'true'),
+                      help=('specify if the app wants to use embedded native libraries. Must not conflict '
+                            'if already declared in the manifest.'))
   parser.add_argument('input', help='input AndroidManifest.xml file')
   parser.add_argument('output', help='output AndroidManifest.xml file')
   return parser.parse_args()
@@ -295,6 +299,30 @@ def add_use_embedded_dex(doc):
     raise RuntimeError('existing attribute mismatches the option of --use-embedded-dex')
 
 
+def add_extract_native_libs(doc, extract_native_libs):
+  manifest = parse_manifest(doc)
+  elems = get_children_with_tag(manifest, 'application')
+  application = elems[0] if len(elems) == 1 else None
+  if len(elems) > 1:
+    raise RuntimeError('found multiple <application> tags')
+  elif not elems:
+    application = doc.createElement('application')
+    indent = get_indent(manifest.firstChild, 1)
+    first = manifest.firstChild
+    manifest.insertBefore(doc.createTextNode(indent), first)
+    manifest.insertBefore(application, first)
+
+  value = str(extract_native_libs).lower()
+  attr = application.getAttributeNodeNS(android_ns, 'extractNativeLibs')
+  if attr is None:
+    attr = doc.createAttributeNS(android_ns, 'android:extractNativeLibs')
+    attr.value = value
+    application.setAttributeNode(attr)
+  elif attr.value != value:
+    raise RuntimeError('existing attribute extractNativeLibs="%s" conflicts with --extract-native-libs="%s"' %
+                       (attr.value, value))
+
+
 def write_xml(f, doc):
   f.write('<?xml version="1.0" encoding="utf-8"?>\n')
   for node in doc.childNodes:
@@ -324,6 +352,9 @@ def main():
 
     if args.use_embedded_dex:
       add_use_embedded_dex(doc)
+
+    if args.extract_native_libs is not None:
+      add_extract_native_libs(doc, args.extract_native_libs)
 
     with open(args.output, 'wb') as f:
       write_xml(f, doc)
