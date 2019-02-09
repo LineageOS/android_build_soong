@@ -381,5 +381,48 @@ class UseEmbeddedDexTest(unittest.TestCase):
     manifest_input = self.manifest_tmpl % self.use_embedded_dex('false')
     self.assertRaises(RuntimeError, self.run_test, manifest_input)
 
+
+class AddExtractNativeLibsTest(unittest.TestCase):
+  """Unit tests for add_extract_native_libs function."""
+
+  def run_test(self, input_manifest, value):
+    doc = minidom.parseString(input_manifest)
+    manifest_fixer.add_extract_native_libs(doc, value)
+    output = StringIO.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+    '    <application%s/>\n'
+    '</manifest>\n')
+
+  def extract_native_libs(self, value):
+    return ' android:extractNativeLibs="%s"' % value
+
+  def test_set_true(self):
+    manifest_input = self.manifest_tmpl % ''
+    expected = self.manifest_tmpl % self.extract_native_libs('true')
+    output = self.run_test(manifest_input, True)
+    self.assertEqual(output, expected)
+
+  def test_set_false(self):
+    manifest_input = self.manifest_tmpl % ''
+    expected = self.manifest_tmpl % self.extract_native_libs('false')
+    output = self.run_test(manifest_input, False)
+    self.assertEqual(output, expected)
+
+  def test_match(self):
+    manifest_input = self.manifest_tmpl % self.extract_native_libs('true')
+    expected = manifest_input
+    output = self.run_test(manifest_input, True)
+    self.assertEqual(output, expected)
+
+  def test_conflict(self):
+    manifest_input = self.manifest_tmpl % self.extract_native_libs('true')
+    self.assertRaises(RuntimeError, self.run_test, manifest_input, False)
+
+
 if __name__ == '__main__':
   unittest.main()

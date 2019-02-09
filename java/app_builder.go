@@ -200,14 +200,14 @@ func BuildBundleModule(ctx android.ModuleContext, outputFile android.WritablePat
 }
 
 func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.WritablePath,
-	jniLibs []jniLib) {
+	jniLibs []jniLib, uncompressJNI bool) {
 
 	var deps android.Paths
 	jarArgs := []string{
 		"-j", // junk paths, they will be added back with -P arguments
 	}
 
-	if !ctx.Config().UnbundledBuild() {
+	if uncompressJNI {
 		jarArgs = append(jarArgs, "-L 0")
 	}
 
