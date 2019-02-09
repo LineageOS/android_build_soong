@@ -215,6 +215,7 @@ func createTestContext(t *testing.T, config android.Config, bp string, os androi
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(BinaryFactory))
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
+	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(LibraryStaticFactory))
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(ToolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(LlndkLibraryFactory))
@@ -1964,5 +1965,45 @@ func TestStaticExecutable(t *testing.T) {
 		if strings.Contains(libFlags, lib) {
 			t.Errorf("Shared lib %q was found in %q", lib, libFlags)
 		}
+	}
+}
+
+func TestStaticDepsOrderWithStubs(t *testing.T) {
+	ctx := testCc(t, `
+		cc_binary {
+			name: "mybin",
+			srcs: ["foo.c"],
+			static_libs: ["libB"],
+			static_executable: true,
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libB",
+			srcs: ["foo.c"],
+			shared_libs: ["libC"],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libC",
+			srcs: ["foo.c"],
+			stl: "none",
+			stubs: {
+				versions: ["1"],
+			},
+		}`)
+
+	mybin := ctx.ModuleForTests("mybin", "android_arm64_armv8-a_core").Module().(*Module)
+	actual := mybin.depsInLinkOrder
+	expected := getOutputPaths(ctx, "android_arm64_armv8-a_core_static", []string{"libB", "libC"})
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("staticDeps orderings were not propagated correctly"+
+			"\nactual:   %v"+
+			"\nexpected: %v",
+			actual,
+			expected,
+		)
 	}
 }
