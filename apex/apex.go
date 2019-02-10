@@ -136,7 +136,9 @@ func init() {
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 
-	android.RegisterModuleType("apex", ApexBundleFactory)
+	android.RegisterModuleType("apex", apexBundleFactory)
+	android.RegisterModuleType("apex_test", testApexBundleFactory)
+	android.RegisterModuleType("apex_defaults", defaultsFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -147,13 +149,18 @@ func init() {
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
 func apexDepsMutator(mctx android.TopDownMutatorContext) {
-	if _, ok := mctx.Module().(*apexBundle); ok {
+	if a, ok := mctx.Module().(*apexBundle); ok {
 		apexBundleName := mctx.ModuleName()
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			depName := mctx.OtherModuleName(child)
 			// If the parent is apexBundle, this child is directly depended.
 			_, directDep := parent.(*apexBundle)
-			android.UpdateApexDependency(apexBundleName, depName, directDep)
+			if a.installable() && !a.testApex {
+				// TODO(b/123892969): Workaround for not having any way to annotate test-apexs
+				// non-installable apex's cannot be installed and so should not prevent libraries from being
+				// installed to the system.
+				android.UpdateApexDependency(apexBundleName, depName, directDep)
+			}
 
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
 				am.BuildForApex(apexBundleName)
@@ -369,6 +376,8 @@ type apexBundle struct {
 	filesInfo []apexFile
 
 	flattened bool
+
+	testApex bool
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -1046,7 +1055,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
 			if a.installable() {
-				a.androidMkForFiles(w, name, moduleDir)
+				moduleNames = a.androidMkForFiles(w, name, moduleDir)
 			}
 
 			if a.flattened && apexType.image() {
@@ -1085,9 +1094,18 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 		}}
 }
 
-func ApexBundleFactory() android.Module {
+func testApexBundleFactory() android.Module {
+	return ApexBundleFactory( /*testApex*/ true)
+}
+
+func apexBundleFactory() android.Module {
+	return ApexBundleFactory( /*testApex*/ false)
+}
+
+func ApexBundleFactory(testApex bool) android.Module {
 	module := &apexBundle{
 		outputFiles: map[apexPackaging]android.WritablePath{},
+		testApex:    testApex,
 	}
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.targetProperties)
@@ -1096,5 +1114,33 @@ func ApexBundleFactory() android.Module {
 	})
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	return module
+}
+
+//
+// Defaults
+//
+type Defaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+}
+
+func defaultsFactory() android.Module {
+	return DefaultsFactory()
+}
+
+func DefaultsFactory(props ...interface{}) android.Module {
+	module := &Defaults{}
+
+	module.AddProperties(props...)
+	module.AddProperties(
+		&apexBundleProperties{},
+		&apexTargetBundleProperties{},
+	)
+
+	android.InitDefaultsModule(module)
 	return module
 }

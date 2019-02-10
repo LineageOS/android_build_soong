@@ -78,7 +78,8 @@ func main() {
 
 	stat := &status.Status{}
 	defer stat.Finish()
-	stat.AddOutput(terminal.NewStatusOutput(writer, os.Getenv("NINJA_STATUS")))
+	stat.AddOutput(terminal.NewStatusOutput(writer, os.Getenv("NINJA_STATUS"),
+		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
 	stat.AddOutput(trace.StatusTracer())
 
 	build.SetupSignals(log, cancel, func() {

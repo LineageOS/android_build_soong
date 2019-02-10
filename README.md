@@ -34,7 +34,7 @@ Every module must have a `name` property, and the value must be unique across
 all Android.bp files.
 
 For a list of valid module types and their properties see
-[$OUT_DIR/soong/.bootstrap/docs/soong_build.html](http://go/Android.bp).
+[$OUT_DIR/soong/docs/soong_build.html](http://go/Android.bp).
 
 ### Globs
 

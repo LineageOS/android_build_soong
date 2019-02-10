@@ -53,11 +53,13 @@ type aaptProperties struct {
 	Aapt_include_all_resources *bool
 
 	// list of directories relative to the Blueprints file containing assets.
-	// Defaults to "assets"
+	// Defaults to ["assets"] if a directory called assets exists.  Set to []
+	// to disable the default.
 	Asset_dirs []string
 
 	// list of directories relative to the Blueprints file containing
-	// Android resources
+	// Android resources.  Defaults to ["res"] if a directory called res exists.
+	// Set to [] to disable the default.
 	Resource_dirs []string
 
 	// path to AndroidManifest.xml.  If unset, defaults to "AndroidManifest.xml".
@@ -73,6 +75,7 @@ type aapt struct {
 	rTxt                  android.Path
 	extraAaptPackagesFile android.Path
 	isLibrary             bool
+	uncompressedJNI       bool
 
 	aaptProperties aaptProperties
 }
@@ -179,11 +182,13 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
-	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests, a.isLibrary)
+	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests, a.isLibrary, a.uncompressedJNI)
 
 	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs := a.aapt2Flags(ctx, sdkContext, manifestPath)
 
 	rroDirs = append(rroDirs, staticRRODirs...)
+	// TODO(b/124035856): stop de-duping when there are no more dupe resource dirs.
+	rroDirs = android.FirstUniquePaths(rroDirs)
 
 	linkFlags = append(linkFlags, libFlags...)
 	linkDeps = append(linkDeps, libDeps...)
@@ -326,7 +331,7 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.isLibrary = true
+	a.aapt.isLibrary = true
 	a.aapt.buildActions(ctx, sdkContext(a))
 
 	ctx.CheckbuildFile(a.proguardOptionsFile)
@@ -561,6 +566,10 @@ func (a *AARImport) ResourceJars() android.Paths {
 
 func (a *AARImport) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{a.classpathFile}
+}
+
+func (a *AARImport) DexJar() android.Path {
+	return nil
 }
 
 func (a *AARImport) AidlIncludeDirs() android.Paths {

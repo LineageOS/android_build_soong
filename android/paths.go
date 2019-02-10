@@ -244,7 +244,7 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bo
 		}
 		path := filepath.Clean(p)
 		if !strings.HasPrefix(path, prefix) {
-			reportPathErrorf(ctx, "Path '%s' is not in module source directory '%s'", p, prefix)
+			reportPathErrorf(ctx, "Path %q is not in module source directory %q", p, prefix)
 			continue
 		}
 
@@ -263,9 +263,9 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bo
 }
 
 // PathsWithOptionalDefaultForModuleSrc returns Paths rooted from the module's
-// local source directory. If none are provided, use the default if it exists.
+// local source directory. If input is nil, use the default if it exists.  If input is empty, returns nil.
 func PathsWithOptionalDefaultForModuleSrc(ctx ModuleContext, input []string, def string) Paths {
-	if len(input) > 0 {
+	if input != nil {
 		return PathsForModuleSrc(ctx, input)
 	}
 	// Use Glob so that if the default doesn't exist, a dependency is added so that when it
@@ -505,7 +505,7 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 
 	// absolute path already checked by validateSafePath
 	if strings.HasPrefix(ret.String(), ctx.Config().buildDir) {
-		return ret, fmt.Errorf("source path %s is in output", ret.String())
+		return ret, fmt.Errorf("source path %q is in output", ret.String())
 	}
 
 	return ret, err
@@ -521,7 +521,7 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 
 	// absolute path already checked by validatePath
 	if strings.HasPrefix(ret.String(), ctx.Config().buildDir) {
-		return ret, fmt.Errorf("source path %s is in output", ret.String())
+		return ret, fmt.Errorf("source path %q is in output", ret.String())
 	}
 
 	return ret, nil
@@ -575,7 +575,7 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 	} else if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
 		reportPathErrorf(ctx, "%s: %s", path, err.Error())
 	} else if !exists {
-		reportPathErrorf(ctx, "source path %s does not exist", path)
+		reportPathErrorf(ctx, "source path %q does not exist", path)
 	}
 	return path
 }
@@ -740,7 +740,7 @@ func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
 	if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
 		reportPathErrorf(ctx, "%s: %s", path, err.Error())
 	} else if !exists {
-		reportPathErrorf(ctx, "module source path %s does not exist", path)
+		reportPathErrorf(ctx, "module source path %q does not exist", path)
 	}
 
 	return path

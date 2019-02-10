@@ -348,6 +348,7 @@ var (
 	linkerFlagsDepTag     = dependencyTag{name: "linker flags file"}
 	dynamicLinkerDepTag   = dependencyTag{name: "dynamic linker"}
 	reuseObjTag           = dependencyTag{name: "reuse objects"}
+	staticVariantTag      = dependencyTag{name: "static variant"}
 	ndkStubDepTag         = dependencyTag{name: "ndk stub", library: true}
 	ndkLateStubDepTag     = dependencyTag{name: "ndk late stub", library: true}
 	vndkExtDepTag         = dependencyTag{name: "vndk extends", library: true}
@@ -1378,6 +1379,7 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 		// NDK code linking to platform code is never okay.
 		ctx.ModuleErrorf("depends on non-NDK-built library %q",
 			ctx.OtherModuleName(to))
+		return
 	}
 
 	// At this point we know we have two NDK libraries, but we need to
@@ -1531,6 +1533,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.Objs = depPaths.Objs.Append(objs)
 				depPaths.ReexportedFlags = append(depPaths.ReexportedFlags, flags...)
 				depPaths.ReexportedFlagsDeps = append(depPaths.ReexportedFlagsDeps, deps...)
+				return
+			}
+		}
+
+		if depTag == staticVariantTag {
+			if _, ok := ccDep.compiler.(libraryInterface); ok {
+				c.staticVariant = ccDep
 				return
 			}
 		}

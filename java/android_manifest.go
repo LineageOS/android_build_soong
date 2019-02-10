@@ -15,12 +15,13 @@
 package java
 
 import (
-	"android/soong/java/config"
+	"fmt"
 	"strings"
 
 	"github.com/google/blueprint"
 
 	"android/soong/android"
+	"android/soong/java/config"
 )
 
 var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
@@ -43,11 +44,22 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	"libs")
 
 func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
-	staticLibManifests android.Paths, isLibrary bool) android.Path {
+	staticLibManifests android.Paths, isLibrary bool, uncompressedJNI bool) android.Path {
 
 	var args []string
 	if isLibrary {
 		args = append(args, "--library")
+	} else {
+		minSdkVersion, err := sdkVersionToNumber(ctx, sdkContext.minSdkVersion())
+		if err != nil {
+			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+		}
+		if minSdkVersion >= 23 {
+			args = append(args, fmt.Sprintf("--extract-native-libs=%v", !uncompressedJNI))
+		} else if uncompressedJNI {
+			ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%d doesn't support it",
+				minSdkVersion)
+		}
 	}
 
 	// Inject minSdkVersion into the manifest
