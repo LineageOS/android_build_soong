@@ -695,14 +695,17 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	j.sourcepaths = android.PathsForModuleSrc(ctx, j.properties.Local_sourcepaths)
 
 	j.argFiles = ctx.ExpandSources(j.properties.Arg_files, nil)
-	argFilesMap := map[string]android.Path{}
+	argFilesMap := map[string]string{}
+	argFileLabels := []string{}
 
-	for _, f := range j.argFiles {
-		if _, exists := argFilesMap[f.Rel()]; !exists {
-			argFilesMap[f.Rel()] = f
+	for _, label := range j.properties.Arg_files {
+		var paths = ctx.ExpandSources([]string{label}, nil)
+		if _, exists := argFilesMap[label]; !exists {
+			argFilesMap[label] = strings.Join(paths.Strings(), " ")
+			argFileLabels = append(argFileLabels, label)
 		} else {
 			ctx.ModuleErrorf("multiple arg_files for %q, %q and %q",
-				f, argFilesMap[f.Rel()], f.Rel())
+				label, argFilesMap[label], paths)
 		}
 	}
 
@@ -710,10 +713,11 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	j.args, err = android.Expand(String(j.properties.Args), func(name string) (string, error) {
 		if strings.HasPrefix(name, "location ") {
 			label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
-			if f, ok := argFilesMap[label]; ok {
-				return f.String(), nil
+			if paths, ok := argFilesMap[label]; ok {
+				return paths, nil
 			} else {
-				return "", fmt.Errorf("unknown location label %q", label)
+				return "", fmt.Errorf("unknown location label %q, expecting one of %q",
+					label, strings.Join(argFileLabels, ", "))
 			}
 		} else if name == "genDir" {
 			return android.PathForModuleGen(ctx).String(), nil
