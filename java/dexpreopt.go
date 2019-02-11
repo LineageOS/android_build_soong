@@ -83,7 +83,11 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 
 var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
 
-func getGlobalConfig(ctx android.ModuleContext) dexpreopt.GlobalConfig {
+func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
+	if d.dexpreoptDisabled(ctx) {
+		return dexJarFile
+	}
+
 	globalConfig := ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
 		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
 			ctx.AddNinjaFileDeps(f)
@@ -95,19 +99,6 @@ func getGlobalConfig(ctx android.ModuleContext) dexpreopt.GlobalConfig {
 		}
 		return dexpreopt.GlobalConfig{}
 	}).(dexpreopt.GlobalConfig)
-	return globalConfig
-}
-
-func odexOnSystemOther(ctx android.ModuleContext, installPath android.OutputPath) bool {
-	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), getGlobalConfig(ctx))
-}
-
-func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
-	if d.dexpreoptDisabled(ctx) {
-		return dexJarFile
-	}
-
-	globalConfig := getGlobalConfig(ctx)
 
 	var archs []string
 	for _, a := range ctx.MultiTargets() {
