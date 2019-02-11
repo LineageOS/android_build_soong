@@ -28,7 +28,7 @@ func testPrebuiltEtc(t *testing.T, bp string) *TestContext {
 	defer tearDown(buildDir)
 	ctx := NewTestArchContext()
 	ctx.RegisterModuleType("prebuilt_etc", ModuleFactoryAdaptor(PrebuiltEtcFactory))
-	ctx.RegisterModuleType("prebuilt_etc_host", ModuleFactoryAdaptor(prebuiltEtcHostFactory))
+	ctx.RegisterModuleType("prebuilt_etc_host", ModuleFactoryAdaptor(PrebuiltEtcHostFactory))
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
 	})
