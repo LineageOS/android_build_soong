@@ -25,7 +25,7 @@ import (
 
 func init() {
 	RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
-	RegisterModuleType("prebuilt_etc_host", prebuiltEtcHostFactory)
+	RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
 
 	PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
@@ -182,7 +182,7 @@ func PrebuiltEtcFactory() Module {
 	return module
 }
 
-func prebuiltEtcHostFactory() Module {
+func PrebuiltEtcHostFactory() Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module)
 	// This module is host-only
