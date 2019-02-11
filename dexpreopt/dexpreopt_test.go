@@ -36,6 +36,7 @@ var testGlobalConfig = GlobalConfig{
 	DefaultCompilerFilter:              "",
 	SystemServerCompilerFilter:         "",
 	GenerateDMFiles:                    false,
+	NeverAllowStripping:                false,
 	NoDebugInfo:                        false,
 	AlwaysSystemServerDebugInfo:        false,
 	NeverSystemServerDebugInfo:         false,
@@ -107,6 +108,23 @@ func TestDexPreopt(t *testing.T) {
 
 	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
 		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
+	}
+}
+
+func TestDexPreoptStrip(t *testing.T) {
+	// Test that we panic if we strip in a configuration where stripping is not allowed.
+	global, module := testGlobalConfig, testModuleConfig
+
+	global.NeverAllowStripping = true
+	module.NoStripping = false
+	module.Name = "test"
+	module.DexLocation = "/system/app/test/test.apk"
+	module.BuildPath = "out/test/test.apk"
+	module.Archs = []string{"arm"}
+
+	_, err := GenerateStripRule(global, module)
+	if err == nil {
+		t.Errorf("Expected an error when calling GenerateStripRule on a stripped module")
 	}
 }
 
