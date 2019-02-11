@@ -76,7 +76,7 @@ var testModuleConfig = ModuleConfig{
 	OptionalUsesLibraries: nil,
 	UsesLibraries:         nil,
 	LibraryPaths:          nil,
-	Archs:                 []string{"arm"},
+	Archs:                 []android.ArchType{android.Arm},
 	DexPreoptImages:       []string{"system/framework/arm/boot.art"},
 	PreoptExtractedApk:    false,
 	NoCreateAppImage:      false,
