@@ -28,7 +28,7 @@ type dexpreopter struct {
 	isTest          bool
 	isInstallable   bool
 
-	builtInstalled []string
+	builtInstalled string
 }
 
 type DexpreoptProperties struct {
@@ -196,9 +196,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 
 	dexpreoptRule.Build(pctx, ctx, "dexpreopt", "dexpreopt")
 
-	for _, install := range dexpreoptRule.Installs() {
-		d.builtInstalled = append(d.builtInstalled, install.From+":"+install.To)
-	}
+	d.builtInstalled = dexpreoptRule.Installs().String()
 
 	stripRule, err := dexpreopt.GenerateStripRule(globalConfig, dexpreoptConfig)
 	if err != nil {
