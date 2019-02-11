@@ -145,6 +145,9 @@ type sdkLibrary struct {
 	testApiFilePath   android.Path
 }
 
+var _ Dependency = (*sdkLibrary)(nil)
+var _ SdkLibraryDependency = (*sdkLibrary)(nil)
+
 func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies to the stubs library
 	ctx.AddVariationDependencies(nil, publicApiStubsTag, module.stubsName(apiScopePublic))
@@ -596,7 +599,7 @@ func (module *sdkLibrary) PrebuiltJars(ctx android.BaseContext, sdkVersion strin
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibrary) HeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *sdkLibrary) SdkHeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildPrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
@@ -612,7 +615,7 @@ func (module *sdkLibrary) HeaderJars(ctx android.BaseContext, sdkVersion string)
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibrary) ImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *sdkLibrary) SdkImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildPrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
