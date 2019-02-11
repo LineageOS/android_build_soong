@@ -46,7 +46,8 @@ type GlobalConfig struct {
 	DefaultCompilerFilter      string // default compiler filter to pass to dex2oat, overridden by --compiler-filter= in module-specific dex2oat flags
 	SystemServerCompilerFilter string // default compiler filter to pass to dex2oat for system server jars
 
-	GenerateDMFiles bool // generate Dex Metadata files
+	GenerateDMFiles     bool // generate Dex Metadata files
+	NeverAllowStripping bool // whether stripping should not be done - used as build time check to make sure dex files are always available
 
 	NoDebugInfo                 bool // don't generate debug info by default
 	AlwaysSystemServerDebugInfo bool // always generate mini debug info for system server modules (overrides NoDebugInfo=true)
