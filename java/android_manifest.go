@@ -44,7 +44,7 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	"libs")
 
 func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
-	staticLibManifests android.Paths, isLibrary bool, uncompressedJNI bool) android.Path {
+	staticLibManifests android.Paths, isLibrary bool, uncompressedJNI, useEmbeddedDex bool) android.Path {
 
 	var args []string
 	if isLibrary {
@@ -60,6 +60,10 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 			ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%d doesn't support it",
 				minSdkVersion)
 		}
+	}
+
+	if useEmbeddedDex {
+		args = append(args, "--use-embedded-dex=true")
 	}
 
 	// Inject minSdkVersion into the manifest

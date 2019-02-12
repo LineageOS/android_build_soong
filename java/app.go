@@ -73,6 +73,10 @@ type appProperties struct {
 	// sdk_version or min_sdk_version is set to a version that doesn't support it (<23), defaults to false for other
 	// module types where the native libraries are generally preinstalled outside the APK.
 	Use_embedded_native_libs *bool
+
+	// Store dex files uncompressed in the APK and set the android:useEmbeddedDex="true" manifest attribute so that
+	// they are used from inside the APK at runtime.
+	Use_embedded_dex *bool
 }
 
 type AndroidApp struct {
@@ -141,6 +145,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.uncompressedJNI = a.shouldUncompressJNI(ctx)
+	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
 	a.generateAndroidBuildActions(ctx)
 }
 
@@ -157,6 +162,10 @@ func (a *AndroidApp) shouldUncompressJNI(ctx android.ModuleContext) bool {
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
 func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
+	if Bool(a.appProperties.Use_embedded_dex) {
+		return true
+	}
+
 	if ctx.Config().UnbundledBuild() {
 		return false
 	}
