@@ -252,6 +252,19 @@ type apexBundleProperties struct {
 	Ignore_system_library_special_case *bool
 
 	Multilib apexMultilibProperties
+
+	Prefer_sanitize struct {
+		// Prefer native libraries with asan if available
+		Address *bool
+		// Prefer native libraries with hwasan if available
+		Hwaddress *bool
+		// Prefer native libraries with tsan if available
+		Thread *bool
+		// Prefer native libraries with integer_overflow if available
+		Integer_overflow *bool
+		// Prefer native libraries with cfi if available
+		Cfi *bool
+	}
 }
 
 type apexTargetBundleProperties struct {
@@ -527,6 +540,31 @@ func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
 }
 
 func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizerName string) bool {
+	// If this APEX is configured to prefer a sanitizer, use it
+	switch sanitizerName {
+	case "asan":
+		if proptools.Bool(a.properties.Prefer_sanitize.Address) {
+			return true
+		}
+	case "hwasan":
+		if proptools.Bool(a.properties.Prefer_sanitize.Hwaddress) {
+			return true
+		}
+	case "tsan":
+		if proptools.Bool(a.properties.Prefer_sanitize.Thread) {
+			return true
+		}
+	case "cfi":
+		if proptools.Bool(a.properties.Prefer_sanitize.Cfi) {
+			return true
+		}
+	case "integer_overflow":
+		if proptools.Bool(a.properties.Prefer_sanitize.Integer_overflow) {
+			return true
+		}
+	}
+
+	// Then follow the global setting
 	globalSanitizerNames := []string{}
 	if a.Host() {
 		globalSanitizerNames = ctx.Config().SanitizeHost()
