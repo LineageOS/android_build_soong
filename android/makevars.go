@@ -92,10 +92,6 @@ func RegisterMakeVarsProvider(pctx PackageContext, provider MakeVarsProvider) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func init() {
-	RegisterSingletonType("makevars", makeVarsSingletonFunc)
-}
-
 func makeVarsSingletonFunc() Singleton {
 	return &makeVarsSingleton{}
 }
