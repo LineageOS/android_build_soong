@@ -66,9 +66,9 @@ type GlobalConfig struct {
 
 	EmptyDirectory string // path to an empty directory
 
-	DefaultDexPreoptImageLocation map[string]string // default boot image location for each architecture
-	CpuVariant                    map[string]string // cpu variant for each architecture
-	InstructionSetFeatures        map[string]string // instruction set for each architecture
+	DefaultDexPreoptImage  map[string]string // default boot image location for each architecture
+	CpuVariant             map[string]string // cpu variant for each architecture
+	InstructionSetFeatures map[string]string // instruction set for each architecture
 
 	Tools Tools // paths to tools possibly used by the generated commands
 }
@@ -103,8 +103,8 @@ type ModuleConfig struct {
 	UsesLibraries         []string
 	LibraryPaths          map[string]string
 
-	Archs                  []string
-	DexPreoptImageLocation string
+	Archs           []string
+	DexPreoptImages []string
 
 	PreoptExtractedApk bool // Overrides OnlyPreoptModules
 
