@@ -517,10 +517,18 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
 
-	cert := android.SrcIsModule(String(a.properties.Certificate))
+	cert := android.SrcIsModule(a.getCertString(ctx))
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
+}
+
+func (a *apexBundle) getCertString(ctx android.BaseContext) string {
+	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
+	if overridden {
+		return ":" + certificate
+	}
+	return String(a.properties.Certificate)
 }
 
 func (a *apexBundle) Srcs() android.Paths {
