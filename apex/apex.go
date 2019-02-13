@@ -966,7 +966,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
-	if a.installable() && !ctx.Config().FlattenApex() {
+	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "apex"), ctx.ModuleName()+suffix, a.outputFiles[apexType])
 	}
 }
