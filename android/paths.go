@@ -697,6 +697,16 @@ func (p OutputPath) Join(ctx PathContext, paths ...string) OutputPath {
 	return p.withRel(path)
 }
 
+// ReplaceExtension creates a new OutputPath with the extension replaced with ext.
+func (p OutputPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
+	if strings.Contains(ext, "/") {
+		reportPathErrorf(ctx, "extension %q cannot contain /", ext)
+	}
+	ret := PathForOutput(ctx, pathtools.ReplaceExtension(p.path, ext))
+	ret.rel = p.rel
+	return ret
+}
+
 // PathForIntermediates returns an OutputPath representing the top-level
 // intermediates directory.
 func PathForIntermediates(ctx PathContext, paths ...string) OutputPath {
