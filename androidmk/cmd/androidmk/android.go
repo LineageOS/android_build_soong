@@ -105,6 +105,7 @@ func init() {
 			"LOCAL_MANIFEST_FILE":           "manifest",
 
 			"LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING": "dex_preopt.profile",
+			"LOCAL_TEST_CONFIG":                      "test_config",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -513,8 +514,8 @@ func strip() func(ctx variableAssignmentContext) error {
 
 func prebuiltClass(ctx variableAssignmentContext) error {
 	class := ctx.mkvalue.Value(ctx.file.scope)
-	if v, ok := prebuiltTypes[class]; ok {
-		ctx.file.scope.Set("BUILD_PREBUILT", v)
+	if _, ok := prebuiltTypes[class]; ok {
+		ctx.file.scope.Set("BUILD_PREBUILT", class)
 	} else {
 		// reset to default
 		ctx.file.scope.Set("BUILD_PREBUILT", "prebuilt")
@@ -873,6 +874,19 @@ var prebuiltTypes = map[string]string{
 
 var soongModuleTypes = map[string]bool{}
 
+var includePathToModule = map[string]string{
+	"test/vts/tools/build/Android.host_config.mk": "vts_config",
+	// The rest will be populated dynamically in androidScope below
+}
+
+func mapIncludePath(path string) (string, bool) {
+	if path == clear_vars || path == include_ignored {
+		return path, true
+	}
+	module, ok := includePathToModule[path]
+	return module, ok
+}
+
 func androidScope() mkparser.Scope {
 	globalScope := mkparser.NewScope(nil)
 	globalScope.Set("CLEAR_VARS", clear_vars)
@@ -887,12 +901,17 @@ func androidScope() mkparser.Scope {
 	globalScope.SetFunc("first-makefiles-under", includeIgnored)
 	globalScope.SetFunc("all-named-subdir-makefiles", includeIgnored)
 	globalScope.SetFunc("all-subdir-makefiles", includeIgnored)
-	for k, v := range moduleTypes {
-		globalScope.Set(k, v)
-		soongModuleTypes[v] = true
+
+	// The scope maps each known variable to a path, and then includePathToModule maps a path
+	// to a module. We don't care what the actual path value is so long as the value in scope
+	// is mapped, so we might as well use variable name as key, too.
+	for varName, moduleName := range moduleTypes {
+		path := varName
+		globalScope.Set(varName, path)
+		includePathToModule[path] = moduleName
 	}
-	for _, v := range prebuiltTypes {
-		soongModuleTypes[v] = true
+	for varName, moduleName := range prebuiltTypes {
+		includePathToModule[varName] = moduleName
 	}
 
 	return globalScope
