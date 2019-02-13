@@ -30,10 +30,10 @@ import (
 // It also creates <module>-api.<scope>.latest for the lastest <ver>.
 //
 func init() {
-	android.RegisterModuleType("prebuilt_apis", prebuiltApisFactory)
+	android.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
 
 	android.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_apis", prebuiltApisMutator).Parallel()
+		ctx.TopDown("prebuilt_apis", PrebuiltApisMutator).Parallel()
 	})
 }
 
@@ -176,14 +176,14 @@ func prebuiltApiFiles(mctx android.TopDownMutatorContext) {
 	}
 }
 
-func prebuiltApisMutator(mctx android.TopDownMutatorContext) {
+func PrebuiltApisMutator(mctx android.TopDownMutatorContext) {
 	if _, ok := mctx.Module().(*prebuiltApis); ok {
 		prebuiltApiFiles(mctx)
 		prebuiltSdkStubs(mctx)
 	}
 }
 
-func prebuiltApisFactory() android.Module {
+func PrebuiltApisFactory() android.Module {
 	module := &prebuiltApis{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
