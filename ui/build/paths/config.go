@@ -74,7 +74,6 @@ func GetConfig(name string) PathConfig {
 }
 
 var Configuration = map[string]PathConfig{
-	"awk":       Allowed,
 	"bash":      Allowed,
 	"bc":        Allowed,
 	"bzip2":     Allowed,
@@ -127,6 +126,7 @@ var Configuration = map[string]PathConfig{
 	"pkg-config": Forbidden,
 
 	// On Linux we'll use the toybox versions of these instead.
+	"awk":       Toybox, // Strictly one-true-awk, but...
 	"basename":  Toybox,
 	"cat":       Toybox,
 	"chmod":     Toybox,
