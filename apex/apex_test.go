@@ -24,6 +24,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
 )
 
 func testApex(t *testing.T, bp string) *android.TestContext {
@@ -51,6 +52,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
 	ctx.RegisterModuleType("prebuilt_etc", android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory))
 	ctx.RegisterModuleType("sh_binary", android.ModuleFactoryAdaptor(android.ShBinaryFactory))
+	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(java.AndroidAppCertificateFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", cc.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
@@ -138,18 +140,23 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	`
 
 	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp":                                   []byte(bp),
-		"build/target/product/security":                nil,
-		"apex_manifest.json":                           nil,
-		"system/sepolicy/apex/myapex-file_contexts":    nil,
-		"system/sepolicy/apex/otherapex-file_contexts": nil,
-		"mylib.cpp":                                    nil,
-		"myprebuilt":                                   nil,
-		"my_include":                                   nil,
-		"vendor/foo/devkeys/test.x509.pem":             nil,
-		"vendor/foo/devkeys/test.pk8":                  nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":         nil,
-		"vendor/foo/devkeys/testkey.pem":               nil,
+		"Android.bp":                                        []byte(bp),
+		"build/target/product/security":                     nil,
+		"apex_manifest.json":                                nil,
+		"system/sepolicy/apex/myapex-file_contexts":         nil,
+		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
+		"system/sepolicy/apex/otherapex-file_contexts":      nil,
+		"mylib.cpp":                            nil,
+		"myprebuilt":                           nil,
+		"my_include":                           nil,
+		"vendor/foo/devkeys/test.x509.pem":     nil,
+		"vendor/foo/devkeys/test.pk8":          nil,
+		"testkey.x509.pem":                     nil,
+		"testkey.pk8":                          nil,
+		"testkey.override.x509.pem":            nil,
+		"testkey.override.pk8":                 nil,
+		"vendor/foo/devkeys/testkey.avbpubkey": nil,
+		"vendor/foo/devkeys/testkey.pem":       nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -168,6 +175,7 @@ func setup(t *testing.T) (config android.Config, buildDir string) {
 	config = android.TestArchConfig(buildDir, nil)
 	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
 	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
+	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
 	return
 }
 
@@ -773,8 +781,9 @@ func TestStaticLinking(t *testing.T) {
 func TestKeys(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
-			name: "myapex",
+			name: "myapex_keytest",
 			key: "myapex.key",
+			certificate: ":myapex.certificate",
 			native_shared_libs: ["mylib"],
 		}
 
@@ -791,6 +800,16 @@ func TestKeys(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 
+		android_app_certificate {
+			name: "myapex.certificate",
+			certificate: "testkey",
+		}
+
+		android_app_certificate {
+			name: "myapex.certificate.override",
+			certificate: "testkey.override",
+		}
+
 	`)
 
 	// check the APEX keys
@@ -805,11 +824,11 @@ func TestKeys(t *testing.T) {
 			"vendor/foo/devkeys/testkey.pem")
 	}
 
-	// check the APK certs
-	certs := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("signapk").Args["certificates"]
-	if certs != "vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8" {
+	// check the APK certs. It should be overridden to myapex.certificate.override
+	certs := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest").Rule("signapk").Args["certificates"]
+	if certs != "testkey.override.x509.pem testkey.override.pk8" {
 		t.Errorf("cert and private key %q are not %q", certs,
-			"vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8")
+			"testkey.override.509.pem testkey.override.pk8")
 	}
 }
 
