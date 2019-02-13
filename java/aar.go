@@ -367,6 +367,12 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	a.exportedStaticPackages = android.FirstUniquePaths(a.exportedStaticPackages)
 }
 
+// android_library builds and links sources into a `.jar` file for the device along with Android resources.
+//
+// An android_library has a single variant that produces a `.jar` file containing `.class` files that were
+// compiled against the device bootclasspath, along with a `package-res.apk` file containing  Android resources compiled
+// with aapt2.  This module is not suitable for installing on a device, but can be used as a `static_libs` dependency of
+// an android_app module.
 func AndroidLibraryFactory() android.Module {
 	module := &AndroidLibrary{}
 
@@ -584,6 +590,10 @@ func (a *AARImport) ExportedSdkLibs() []string {
 
 var _ android.PrebuiltInterface = (*Import)(nil)
 
+// android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
+//
+// This module is not suitable for installing on a device, but can be used as a `static_libs` dependency of
+// an android_app module.
 func AARImportFactory() android.Module {
 	module := &AARImport{}
 

@@ -25,8 +25,37 @@ func init() {
 }
 
 // java_genrule is a genrule that can depend on other java_* objects.
-// The cmd may be run multiple times, once for each of the different host/device
-// variations.
+//
+// By default a java_genrule has a single variant that will run against the device variant of its dependencies and
+// produce an output that can be used as an input to a device java rule.
+//
+// Specifying `host_supported: true` will produce two variants, one that uses device dependencie sand one that uses
+// host dependencies.  Each variant will run the command.
+//
+// Use a java_genrule instead of a genrule when it needs to depend on or be depended on by other java modules, unless
+// the dependency is for a generated source file.
+//
+// Examples:
+//
+// Use a java_genrule to package generated java resources:
+//
+//     java_genrule {
+//     name: "generated_resources",
+//         tools: [
+//             "generator",
+//             "soong_zip",
+//         ],
+//         srcs: ["generator_inputs/**/*"],
+//         out: ["generated_android_icu4j_resources.jar"],
+//         cmd: "$(location generator) $(in) -o $(genDir) " +
+//             "&& $(location soong_zip) -o $(out) -C $(genDir)/res -D $(genDir)/res",
+//     }
+//
+//     java_library {
+//         name: "lib_with_generated_resources",
+//         srcs: ["src/**/*.java"],
+//         static_libs: ["generated_resources"],
+//     }
 func genRuleFactory() android.Module {
 	module := genrule.NewGenRule()
 
@@ -36,8 +65,9 @@ func genRuleFactory() android.Module {
 }
 
 // java_genrule_host is a genrule that can depend on other java_* objects.
-// The cmd may be run multiple times, once for each of the different host/device
-// variations.
+//
+// A java_genrule_host has a single variant that will run against the host variant of its dependencies and
+// produce an output that can be used as an input to a host java rule.
 func genRuleFactoryHost() android.Module {
 	module := genrule.NewGenRule()
 
