@@ -68,6 +68,9 @@ func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.
 	strip := shouldStripDex(module, global)
 
 	if strip {
+		if global.NeverAllowStripping {
+			panic(fmt.Errorf("Stripping requested on %q, though the product does not allow it", module.DexLocation))
+		}
 		// Only strips if the dex files are not already uncompressed
 		rule.Command().
 			Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, module.StripInputPath).
@@ -496,7 +499,7 @@ func shouldGenerateDM(module ModuleConfig, global GlobalConfig) bool {
 		contains(module.PreoptFlags, "--compiler-filter=verify")
 }
 
-func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
+func OdexOnSystemOtherByName(name string, dexLocation string, global GlobalConfig) bool {
 	if !global.HasSystemOther {
 		return false
 	}
@@ -505,17 +508,21 @@ func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
 		return false
 	}
 
-	if contains(global.SpeedApps, module.Name) || contains(global.SystemServerApps, module.Name) {
+	if contains(global.SpeedApps, name) || contains(global.SystemServerApps, name) {
 		return false
 	}
 
 	for _, f := range global.PatternsOnSystemOther {
-		if makefileMatch(filepath.Join(SystemPartition, f), module.DexLocation) {
+		if makefileMatch(filepath.Join(SystemPartition, f), dexLocation) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
+	return OdexOnSystemOtherByName(module.Name, module.DexLocation, global)
 }
 
 // PathToLocation converts .../system/framework/arm64/boot.art to .../system/framework/boot.art
