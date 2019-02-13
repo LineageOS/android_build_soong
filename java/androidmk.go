@@ -65,7 +65,7 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
 				}
 				if len(library.dexpreopter.builtInstalled) > 0 {
-					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", strings.Join(library.dexpreopter.builtInstalled, " "))
+					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", library.dexpreopter.builtInstalled)
 				}
 				fmt.Fprintln(w, "LOCAL_SDK_VERSION :=", library.sdkVersion())
 				fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", library.implementationAndResourcesJar.String())
@@ -166,7 +166,7 @@ func (binary *Binary) AndroidMk() android.AndroidMkData {
 						fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", binary.dexJarFile.String())
 					}
 					if len(binary.dexpreopter.builtInstalled) > 0 {
-						fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", strings.Join(binary.dexpreopter.builtInstalled, " "))
+						fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", binary.dexpreopter.builtInstalled)
 					}
 				},
 			},
@@ -260,7 +260,7 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_SOONG_JNI_LIBS_"+jniLib.target.Arch.ArchType.String(), "+=", jniLib.name)
 				}
 				if len(app.dexpreopter.builtInstalled) > 0 {
-					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", strings.Join(app.dexpreopter.builtInstalled, " "))
+					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", app.dexpreopter.builtInstalled)
 				}
 			},
 		},

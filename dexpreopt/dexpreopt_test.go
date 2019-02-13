@@ -100,7 +100,7 @@ func TestDexPreopt(t *testing.T) {
 		t.Error(err)
 	}
 
-	wantInstalls := []android.RuleBuilderInstall{
+	wantInstalls := android.RuleBuilderInstalls{
 		{"out/test/oat/arm/package.odex", "/system/app/test/oat/arm/test.odex"},
 		{"out/test/oat/arm/package.vdex", "/system/app/test/oat/arm/test.vdex"},
 	}
@@ -141,7 +141,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 		t.Error(err)
 	}
 
-	wantInstalls := []android.RuleBuilderInstall{
+	wantInstalls := android.RuleBuilderInstalls{
 		{"out/test/oat/arm/package.odex", "/system_other/app/test/oat/arm/test.odex"},
 		{"out/test/oat/arm/package.vdex", "/system_other/app/test/oat/arm/test.vdex"},
 	}
@@ -164,7 +164,7 @@ func TestDexPreoptProfile(t *testing.T) {
 		t.Error(err)
 	}
 
-	wantInstalls := []android.RuleBuilderInstall{
+	wantInstalls := android.RuleBuilderInstalls{
 		{"out/test/profile.prof", "/system/app/test/test.apk.prof"},
 		{"out/test/oat/arm/package.art", "/system/app/test/oat/arm/test.art"},
 		{"out/test/oat/arm/package.odex", "/system/app/test/oat/arm/test.odex"},
