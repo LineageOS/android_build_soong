@@ -119,6 +119,11 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		archs = archs[:1]
 	}
 
+	var images []string
+	for _, arch := range archs {
+		images = append(images, globalConfig.DefaultDexPreoptImage[arch])
+	}
+
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
 
 	strippedDexJarFile := android.PathForModuleOut(ctx, "dexpreopt", dexJarFile.Base())
@@ -161,8 +166,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		UsesLibraries:         nil,
 		LibraryPaths:          nil,
 
-		Archs:                  archs,
-		DexPreoptImageLocation: "",
+		Archs:           archs,
+		DexPreoptImages: images,
 
 		PreoptExtractedApk: false,
 
