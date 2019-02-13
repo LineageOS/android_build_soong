@@ -113,12 +113,9 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *andr
 
 			generateDM := shouldGenerateDM(module, global)
 
-			for _, arch := range module.Archs {
-				imageLocation := module.DexPreoptImageLocation
-				if imageLocation == "" {
-					imageLocation = global.DefaultDexPreoptImageLocation[arch]
-				}
-				dexpreoptCommand(global, module, rule, profile, arch, imageLocation, appImage, generateDM)
+			for i, arch := range module.Archs {
+				image := module.DexPreoptImages[i]
+				dexpreoptCommand(global, module, rule, profile, arch, image, appImage, generateDM)
 			}
 		}
 	}
@@ -181,7 +178,7 @@ func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.Rule
 }
 
 func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
-	profile, arch, bootImageLocation string, appImage, generateDM bool) {
+	profile, arch, bootImage string, appImage, generateDM bool) {
 
 	// HACK: make soname in Soong-generated .odex files match Make.
 	base := filepath.Base(module.DexLocation)
@@ -213,11 +210,11 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 
 	invocationPath := pathtools.ReplaceExtension(odexPath, "invocation")
 
-	// bootImageLocation is $OUT/dex_bootjars/system/framework/boot.art, but dex2oat actually reads
-	// $OUT/dex_bootjars/system/framework/arm64/boot.art
-	var bootImagePath string
-	if bootImageLocation != "" {
-		bootImagePath = filepath.Join(filepath.Dir(bootImageLocation), arch, filepath.Base(bootImageLocation))
+	// bootImage is .../dex_bootjars/system/framework/arm64/boot.art, but dex2oat wants
+	// .../dex_bootjars/system/framework/boot.art on the command line
+	var bootImageLocation string
+	if bootImage != "" {
+		bootImageLocation = PathToLocation(bootImage, arch)
 	}
 
 	// Lists of used and optional libraries from the build config to be verified against the manifest in the APK
@@ -325,7 +322,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 		Flag("--runtime-arg").FlagWithArg("-Xbootclasspath-locations:", bcp_locations).
 		Flag("${class_loader_context_arg}").
 		Flag("${stored_class_loader_context_arg}").
-		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImagePath).
+		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImage).
 		FlagWithInput("--dex-file=", module.DexPath).
 		FlagWithArg("--dex-location=", module.DexLocation).
 		FlagWithOutput("--oat-file=", odexPath).ImplicitOutput(vdexPath).
@@ -519,6 +516,15 @@ func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
 	}
 
 	return false
+}
+
+// PathToLocation converts .../system/framework/arm64/boot.art to .../system/framework/boot.art
+func PathToLocation(path, arch string) string {
+	pathArch := filepath.Base(filepath.Dir(path))
+	if pathArch != arch {
+		panic(fmt.Errorf("last directory in %q must be %q", path, arch))
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(path)), filepath.Base(path))
 }
 
 func pathForLibrary(module ModuleConfig, lib string) string {
