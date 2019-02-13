@@ -294,6 +294,15 @@ func (c *RuleBuilderCommand) FlagWithArg(flag, arg string) *RuleBuilderCommand {
 	return c.Text(flag + arg)
 }
 
+// FlagForEachArg adds the specified flag joined with each argument to the command line.  The result is identical to
+// calling FlagWithArg for argument.
+func (c *RuleBuilderCommand) FlagForEachArg(flag string, args []string) *RuleBuilderCommand {
+	for _, arg := range args {
+		c.FlagWithArg(flag, arg)
+	}
+	return c
+}
+
 // FlagWithArg adds the specified flag and list of arguments to the command line, with the arguments joined by sep
 // and no separator between the flag and arguments.  The flag and arguments should not contain input or output paths or
 // the rule will not have them listed in its dependencies or outputs.
