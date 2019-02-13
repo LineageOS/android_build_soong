@@ -691,3 +691,15 @@ func TestPathForSource(t *testing.T) {
 		})
 	}
 }
+
+func ExampleOutputPath_ReplaceExtension() {
+	ctx := &configErrorWrapper{
+		config: TestConfig("out", nil),
+	}
+	p := PathForOutput(ctx, "system/framework/boot.art")
+	p2 := p.ReplaceExtension(ctx, "oat")
+	fmt.Println(p, p2)
+
+	// Output:
+	// out/system/framework/boot.art out/system/framework/boot.oat
+}
