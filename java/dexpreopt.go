@@ -100,14 +100,14 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		return dexpreopt.GlobalConfig{}
 	}).(dexpreopt.GlobalConfig)
 
-	var archs []string
+	var archs []android.ArchType
 	for _, a := range ctx.MultiTargets() {
-		archs = append(archs, a.Arch.ArchType.String())
+		archs = append(archs, a.Arch.ArchType)
 	}
 	if len(archs) == 0 {
 		// assume this is a java library, dexpreopt for all arches for now
 		for _, target := range ctx.Config().Targets[android.Android] {
-			archs = append(archs, target.Arch.ArchType.String())
+			archs = append(archs, target.Arch.ArchType)
 		}
 		if inList(ctx.ModuleName(), globalConfig.SystemServerJars) && !d.isSDKLibrary {
 			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.

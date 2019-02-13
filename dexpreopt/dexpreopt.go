@@ -115,7 +115,7 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *andr
 
 			for i, arch := range module.Archs {
 				image := module.DexPreoptImages[i]
-				dexpreoptCommand(global, module, rule, profile, arch, image, appImage, generateDM)
+				dexpreoptCommand(global, module, rule, arch, profile, image, appImage, generateDM)
 			}
 		}
 	}
@@ -178,7 +178,7 @@ func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.Rule
 }
 
 func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
-	profile, arch, bootImage string, appImage, generateDM bool) {
+	arch android.ArchType, profile, bootImage string, appImage, generateDM bool) {
 
 	// HACK: make soname in Soong-generated .odex files match Make.
 	base := filepath.Base(module.DexLocation)
@@ -192,7 +192,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 		return filepath.Join(
 			filepath.Dir(path),
 			"oat",
-			arch,
+			arch.String(),
 			pathtools.ReplaceExtension(filepath.Base(path), "odex"))
 	}
 
@@ -328,7 +328,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 		FlagWithOutput("--oat-file=", odexPath).ImplicitOutput(vdexPath).
 		// Pass an empty directory, dex2oat shouldn't be reading arbitrary files
 		FlagWithArg("--android-root=", global.EmptyDirectory).
-		FlagWithArg("--instruction-set=", arch).
+		FlagWithArg("--instruction-set=", arch.String()).
 		FlagWithArg("--instruction-set-variant=", global.CpuVariant[arch]).
 		FlagWithArg("--instruction-set-features=", global.InstructionSetFeatures[arch]).
 		Flag("--no-generate-debug-info").
@@ -519,10 +519,10 @@ func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
 }
 
 // PathToLocation converts .../system/framework/arm64/boot.art to .../system/framework/boot.art
-func PathToLocation(path, arch string) string {
+func PathToLocation(path string, arch android.ArchType) string {
 	pathArch := filepath.Base(filepath.Dir(path))
-	if pathArch != arch {
-		panic(fmt.Errorf("last directory in %q must be %q", path, arch))
+	if pathArch != arch.String() {
+		panic(fmt.Errorf("last directory in %q must be %q", path, arch.String()))
 	}
 	return filepath.Join(filepath.Dir(filepath.Dir(path)), filepath.Base(path))
 }
