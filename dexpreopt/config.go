@@ -17,6 +17,8 @@ package dexpreopt
 import (
 	"encoding/json"
 	"io/ioutil"
+
+	"android/soong/android"
 )
 
 // GlobalConfig stores the configuration for dex preopting set by the product
@@ -66,9 +68,9 @@ type GlobalConfig struct {
 
 	EmptyDirectory string // path to an empty directory
 
-	DefaultDexPreoptImage  map[string]string // default boot image location for each architecture
-	CpuVariant             map[string]string // cpu variant for each architecture
-	InstructionSetFeatures map[string]string // instruction set for each architecture
+	DefaultDexPreoptImage  map[android.ArchType]string // default boot image location for each architecture
+	CpuVariant             map[android.ArchType]string // cpu variant for each architecture
+	InstructionSetFeatures map[android.ArchType]string // instruction set for each architecture
 
 	Tools Tools // paths to tools possibly used by the generated commands
 }
@@ -103,7 +105,7 @@ type ModuleConfig struct {
 	UsesLibraries         []string
 	LibraryPaths          map[string]string
 
-	Archs           []string
+	Archs           []android.ArchType
 	DexPreoptImages []string
 
 	PreoptExtractedApk bool // Overrides OnlyPreoptModules
