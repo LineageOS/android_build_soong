@@ -395,6 +395,7 @@ func (a *AndroidApp) getCertString(ctx android.BaseContext) string {
 	return String(a.appProperties.Certificate)
 }
 
+// android_app compiles sources and Android resources into an Android application package `.apk` file.
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
 
@@ -457,6 +458,8 @@ func (a *AndroidTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+// android_test compiles test sources and Android resources into an Android application package `.apk` file and
+// creates an `AndroidTest.xml` file to allow running the test with `atest` or a `TEST_MAPPING` file.
 func AndroidTestFactory() android.Module {
 	module := &AndroidTest{}
 
@@ -494,6 +497,9 @@ type AndroidTestHelperApp struct {
 	appTestHelperAppProperties appTestHelperAppProperties
 }
 
+// android_test_helper_app compiles sources and Android resources into an Android application package `.apk` file that
+// will be used by tests, but does not produce an `AndroidTest.xml` file so the module will not be run directly as a
+// test.
 func AndroidTestHelperAppFactory() android.Module {
 	module := &AndroidTestHelperApp{}
 
@@ -528,6 +534,8 @@ type AndroidAppCertificateProperties struct {
 	Certificate *string
 }
 
+// android_app_certificate modules can be referenced by the certificates property of android_app modules to select
+// the signing key.
 func AndroidAppCertificateFactory() android.Module {
 	module := &AndroidAppCertificate{}
 	module.AddProperties(&module.properties)
