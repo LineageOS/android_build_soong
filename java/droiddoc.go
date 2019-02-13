@@ -630,10 +630,10 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			}
 		case libTag:
 			switch dep := module.(type) {
+			case SdkLibraryDependency:
+				deps.classpath = append(deps.classpath, dep.SdkImplementationJars(ctx, j.sdkVersion())...)
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
-			case SdkLibraryDependency:
-				deps.classpath = append(deps.classpath, dep.ImplementationJars(ctx, j.sdkVersion())...)
 			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)

@@ -338,8 +338,8 @@ type Dependency interface {
 }
 
 type SdkLibraryDependency interface {
-	HeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths
-	ImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths
+	SdkHeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths
+	SdkImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths
 }
 
 type SrcDependency interface {
@@ -698,6 +698,15 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 		}
 		switch dep := module.(type) {
+		case SdkLibraryDependency:
+			switch tag {
+			case libTag:
+				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
+				// names of sdk libs that are directly depended are exported
+				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
+			default:
+				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
+			}
 		case Dependency:
 			switch tag {
 			case bootClasspathTag:
@@ -748,15 +757,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 
 			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
-		case SdkLibraryDependency:
-			switch tag {
-			case libTag:
-				deps.classpath = append(deps.classpath, dep.HeaderJars(ctx, j.sdkVersion())...)
-				// names of sdk libs that are directly depended are exported
-				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
-			default:
-				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
-			}
 		case android.SourceFileProducer:
 			switch tag {
 			case libTag:
