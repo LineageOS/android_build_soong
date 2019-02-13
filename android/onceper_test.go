@@ -133,3 +133,14 @@ func TestNewCustomOnceKey(t *testing.T) {
 		t.Errorf(`second call to Once with the NewCustomOnceKey from equal key should return "a": %q`, b)
 	}
 }
+
+func TestOncePerReentrant(t *testing.T) {
+	once := OncePer{}
+	key1 := NewOnceKey("key")
+	key2 := NewOnceKey("key")
+
+	a := once.Once(key1, func() interface{} { return once.Once(key2, func() interface{} { return "a" }) })
+	if a != "a" {
+		t.Errorf(`reentrant Once should return "a": %q`, a)
+	}
+}
