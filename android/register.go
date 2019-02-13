@@ -99,5 +99,9 @@ func (ctx *Context) Register() {
 
 	registerMutators(ctx.Context, preArch, preDeps, postDeps)
 
+	// Register makevars after other singletons so they can export values through makevars
+	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(makeVarsSingletonFunc))
+
+	// Register env last so that it can track all used environment variables
 	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
 }
