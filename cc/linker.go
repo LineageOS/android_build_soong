@@ -225,14 +225,9 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 
 	if ctx.toolchain().Bionic() {
-		// Allow individual projects to opt out of libcrt,builtins
-		// b/117565638
+		// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
 		if !Bool(linker.Properties.No_libcrt) {
-			// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
-			// TODO: Also enable for libc and libm
-			if ctx.ModuleName() != "libc" && ctx.ModuleName() != "libm" {
-				deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
-			}
+			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
 		}
 
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
