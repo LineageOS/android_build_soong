@@ -73,7 +73,7 @@ func startGoma(ctx Context, config Config) {
 
 	cmd := Command(ctx, config, "goma_ctl.py ensure_start", gomaCtl, "ensure_start")
 
-	if err := cmd.Run(); err != nil {
-		ctx.Fatalf("goma_ctl.py ensure_start failed with: %v\n", err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		ctx.Fatalf("goma_ctl.py ensure_start failed with: %v\n%s\n", err, output)
 	}
 }
