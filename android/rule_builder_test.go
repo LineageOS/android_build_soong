@@ -84,6 +84,19 @@ func ExampleRuleBuilder_DeleteTemporaryFiles() {
 	// outputs: ["c"]
 }
 
+func ExampleRuleBuilder_Installs() {
+	rule := NewRuleBuilder()
+
+	rule.Command().Tool("ld").Inputs([]string{"a.o", "b.o"}).FlagWithOutput("-o ", "linked")
+	rule.Install("linked", "/bin/linked")
+	rule.Install("linked", "/sbin/linked")
+
+	fmt.Printf("rule.Installs().String() = %q\n", rule.Installs().String())
+
+	// Output:
+	// rule.Installs().String() = "linked:/bin/linked linked:/sbin/linked"
+}
+
 func ExampleRuleBuilderCommand() {
 	rule := NewRuleBuilder()
 
