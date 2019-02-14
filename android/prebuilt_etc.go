@@ -20,12 +20,12 @@ import (
 	"strings"
 )
 
-// prebuilt_etc is for prebuilts that will be installed to
-// <partition>/etc/<subdir>
+// TODO(jungw): Now that it handles more than the ones in etc/, consider renaming this file.
 
 func init() {
 	RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
 	RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
+	RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
 
 	PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
@@ -60,8 +60,10 @@ type PrebuiltEtc struct {
 
 	properties prebuiltEtcProperties
 
-	sourceFilePath         Path
-	outputFilePath         OutputPath
+	sourceFilePath Path
+	outputFilePath OutputPath
+	// The base install location, e.g. "etc" for prebuilt_etc, "usr/share" for prebuilt_usr_share.
+	installDirBase         string
 	installDirPath         OutputPath
 	additionalDependencies *Paths
 }
@@ -124,7 +126,7 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 		return
 	}
 	p.outputFilePath = PathForModuleOut(ctx, filename).OutputPath
-	p.installDirPath = PathForModuleInstall(ctx, "etc", String(p.properties.Sub_dir))
+	p.installDirPath = PathForModuleInstall(ctx, p.installDirBase, String(p.properties.Sub_dir))
 
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.
@@ -174,8 +176,9 @@ func InitPrebuiltEtcModule(p *PrebuiltEtc) {
 	p.AddProperties(&p.properties)
 }
 
+// prebuilt_etc is for prebuilts that will be installed to <partition>/etc/<subdir>
 func PrebuiltEtcFactory() Module {
-	module := &PrebuiltEtc{}
+	module := &PrebuiltEtc{installDirBase: "etc"}
 	InitPrebuiltEtcModule(module)
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
@@ -183,10 +186,19 @@ func PrebuiltEtcFactory() Module {
 }
 
 func PrebuiltEtcHostFactory() Module {
-	module := &PrebuiltEtc{}
+	module := &PrebuiltEtc{installDirBase: "etc"}
 	InitPrebuiltEtcModule(module)
 	// This module is host-only
 	InitAndroidArchModule(module, HostSupported, MultilibCommon)
+	return module
+}
+
+// prebuilt_usr_share is for prebuilts that will be installed to <partition>/usr/share/<subdir>
+func PrebuiltUserShareFactory() Module {
+	module := &PrebuiltEtc{installDirBase: "usr/share"}
+	InitPrebuiltEtcModule(module)
+	// This module is device-only
+	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
 	return module
 }
 
