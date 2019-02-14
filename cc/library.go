@@ -67,6 +67,11 @@ type LibraryProperties struct {
 		Export_proto_headers *bool
 	}
 
+	Sysprop struct {
+		// Whether platform owns this sysprop library.
+		Platform *bool
+	}
+
 	Static_ndk_lib *bool
 
 	Stubs struct {
@@ -836,9 +841,27 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	}
 
 	if library.baseCompiler.hasSrcExt(".sysprop") {
-		flags := []string{
+		internalFlags := []string{
 			"-I" + android.PathForModuleGen(ctx, "sysprop", "include").String(),
 		}
+		systemFlags := []string{
+			"-I" + android.PathForModuleGen(ctx, "sysprop/system", "include").String(),
+		}
+
+		flags := internalFlags
+
+		if library.Properties.Sysprop.Platform != nil {
+			isProduct := ctx.ProductSpecific() && !ctx.useVndk()
+			isVendor := ctx.useVndk()
+			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
+
+			useSystem := isProduct || (isOwnerPlatform == isVendor)
+
+			if useSystem {
+				flags = systemFlags
+			}
+		}
+
 		library.reexportFlags(flags)
 		library.reexportDeps(library.baseCompiler.pathDeps)
 		library.reuseExportedFlags = append(library.reuseExportedFlags, flags...)
