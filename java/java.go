@@ -78,12 +78,11 @@ type CompilerProperties struct {
 	// list of files that should be excluded from java_resources and java_resource_dirs
 	Exclude_java_resources []string `android:"arch_variant"`
 
-	// don't build against the default libraries (bootclasspath, legacy-test, core-junit,
-	// ext, and framework for device targets)
+	// don't build against the default libraries (bootclasspath, ext, and framework for device
+	// targets)
 	No_standard_libs *bool
 
-	// don't build against the framework libraries (legacy-test, core-junit,
-	// ext, and framework for device targets)
+	// don't build against the framework libraries (ext, and framework for device targets)
 	No_framework_libs *bool
 
 	// list of module-specific flags that will be used for javac compiles
