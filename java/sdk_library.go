@@ -100,7 +100,13 @@ type sdkLibraryProperties struct {
 	// list of package names that must be hidden from the API
 	Hidden_api_packages []string
 
-	// Additional droiddoc options
+	// local files that are used within user customized droiddoc options.
+	Droiddoc_option_files []string
+
+	// additional droiddoc options
+	// Available variables for substitution:
+	//
+	//  $(location <label>): the path to the droiddoc_option_files with name <label>
 	Droiddoc_options []string
 
 	// the java library (in classpath) for documentation that provides java srcs and srcjars.
@@ -144,6 +150,9 @@ type sdkLibrary struct {
 	systemApiFilePath android.Path
 	testApiFilePath   android.Path
 }
+
+var _ Dependency = (*sdkLibrary)(nil)
+var _ SdkLibraryDependency = (*sdkLibrary)(nil)
 
 func (module *sdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies to the stubs library
@@ -431,6 +440,7 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 		Srcs_lib_whitelist_dirs          []string
 		Srcs_lib_whitelist_pkgs          []string
 		Libs                             []string
+		Arg_files                        []string
 		Args                             *string
 		Api_tag_name                     *string
 		Api_filename                     *string
@@ -478,6 +488,7 @@ func (module *sdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 	case apiScopeTest:
 		droiddocArgs = droiddocArgs + " -showAnnotation android.annotation.TestApi"
 	}
+	props.Arg_files = module.sdkLibraryProperties.Droiddoc_option_files
 	props.Args = proptools.StringPtr(droiddocArgs)
 
 	// List of APIs identified from the provided source files are created. They are later
@@ -596,7 +607,7 @@ func (module *sdkLibrary) PrebuiltJars(ctx android.BaseContext, sdkVersion strin
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibrary) HeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *sdkLibrary) SdkHeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildPrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
@@ -612,7 +623,7 @@ func (module *sdkLibrary) HeaderJars(ctx android.BaseContext, sdkVersion string)
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibrary) ImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *sdkLibrary) SdkImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildPrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)

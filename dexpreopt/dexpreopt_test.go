@@ -36,6 +36,7 @@ var testGlobalConfig = GlobalConfig{
 	DefaultCompilerFilter:              "",
 	SystemServerCompilerFilter:         "",
 	GenerateDMFiles:                    false,
+	NeverAllowStripping:                false,
 	NoDebugInfo:                        false,
 	AlwaysSystemServerDebugInfo:        false,
 	NeverSystemServerDebugInfo:         false,
@@ -48,7 +49,7 @@ var testGlobalConfig = GlobalConfig{
 	Dex2oatXmx:                         "",
 	Dex2oatXms:                         "",
 	EmptyDirectory:                     "",
-	DefaultDexPreoptImageLocation:      nil,
+	DefaultDexPreoptImage:              nil,
 	CpuVariant:                         nil,
 	InstructionSetFeatures:             nil,
 	Tools: Tools{
@@ -63,28 +64,28 @@ var testGlobalConfig = GlobalConfig{
 }
 
 var testModuleConfig = ModuleConfig{
-	Name:                   "",
-	DexLocation:            "",
-	BuildPath:              "",
-	DexPath:                "",
-	UncompressedDex:        false,
-	HasApkLibraries:        false,
-	PreoptFlags:            nil,
-	ProfileClassListing:    "",
-	ProfileIsTextListing:   false,
-	EnforceUsesLibraries:   false,
-	OptionalUsesLibraries:  nil,
-	UsesLibraries:          nil,
-	LibraryPaths:           nil,
-	Archs:                  nil,
-	DexPreoptImageLocation: "",
-	PreoptExtractedApk:     false,
-	NoCreateAppImage:       false,
-	ForceCreateAppImage:    false,
-	PresignedPrebuilt:      false,
-	NoStripping:            false,
-	StripInputPath:         "",
-	StripOutputPath:        "",
+	Name:                  "",
+	DexLocation:           "",
+	BuildPath:             "",
+	DexPath:               "",
+	UncompressedDex:       false,
+	HasApkLibraries:       false,
+	PreoptFlags:           nil,
+	ProfileClassListing:   "",
+	ProfileIsTextListing:  false,
+	EnforceUsesLibraries:  false,
+	OptionalUsesLibraries: nil,
+	UsesLibraries:         nil,
+	LibraryPaths:          nil,
+	Archs:                 []android.ArchType{android.Arm},
+	DexPreoptImages:       []string{"system/framework/arm/boot.art"},
+	PreoptExtractedApk:    false,
+	NoCreateAppImage:      false,
+	ForceCreateAppImage:   false,
+	PresignedPrebuilt:     false,
+	NoStripping:           false,
+	StripInputPath:        "",
+	StripOutputPath:       "",
 }
 
 func TestDexPreopt(t *testing.T) {
@@ -93,7 +94,6 @@ func TestDexPreopt(t *testing.T) {
 	module.Name = "test"
 	module.DexLocation = "/system/app/test/test.apk"
 	module.BuildPath = "out/test/test.apk"
-	module.Archs = []string{"arm"}
 
 	rule, err := GenerateDexpreoptRule(global, module)
 	if err != nil {
@@ -110,6 +110,22 @@ func TestDexPreopt(t *testing.T) {
 	}
 }
 
+func TestDexPreoptStrip(t *testing.T) {
+	// Test that we panic if we strip in a configuration where stripping is not allowed.
+	global, module := testGlobalConfig, testModuleConfig
+
+	global.NeverAllowStripping = true
+	module.NoStripping = false
+	module.Name = "test"
+	module.DexLocation = "/system/app/test/test.apk"
+	module.BuildPath = "out/test/test.apk"
+
+	_, err := GenerateStripRule(global, module)
+	if err == nil {
+		t.Errorf("Expected an error when calling GenerateStripRule on a stripped module")
+	}
+}
+
 func TestDexPreoptSystemOther(t *testing.T) {
 	global, module := testGlobalConfig, testModuleConfig
 
@@ -119,7 +135,6 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	module.Name = "test"
 	module.DexLocation = "/system/app/test/test.apk"
 	module.BuildPath = "out/test/test.apk"
-	module.Archs = []string{"arm"}
 
 	rule, err := GenerateDexpreoptRule(global, module)
 	if err != nil {
@@ -143,7 +158,6 @@ func TestDexPreoptProfile(t *testing.T) {
 	module.DexLocation = "/system/app/test/test.apk"
 	module.BuildPath = "out/test/test.apk"
 	module.ProfileClassListing = "profile"
-	module.Archs = []string{"arm"}
 
 	rule, err := GenerateDexpreoptRule(global, module)
 	if err != nil {
@@ -193,7 +207,6 @@ func TestStripDex(t *testing.T) {
 			module.Name = "test"
 			module.DexLocation = "/system/app/test/test.apk"
 			module.BuildPath = "out/test/test.apk"
-			module.Archs = []string{"arm"}
 			module.StripInputPath = "$1"
 			module.StripOutputPath = "$2"
 

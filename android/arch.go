@@ -15,9 +15,11 @@
 package android
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -367,6 +369,23 @@ func newArch(name, multilib string) ArchType {
 
 func (a ArchType) String() string {
 	return a.Name
+}
+
+var _ encoding.TextMarshaler = ArchType{}
+
+func (a ArchType) MarshalText() ([]byte, error) {
+	return []byte(strconv.Quote(a.String())), nil
+}
+
+var _ encoding.TextUnmarshaler = &ArchType{}
+
+func (a *ArchType) UnmarshalText(text []byte) error {
+	if u, ok := archTypeMap[string(text)]; ok {
+		*a = u
+		return nil
+	}
+
+	return fmt.Errorf("unknown ArchType %q", text)
 }
 
 var BuildOs = func() OsType {

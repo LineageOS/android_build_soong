@@ -17,6 +17,8 @@ package dexpreopt
 import (
 	"encoding/json"
 	"io/ioutil"
+
+	"android/soong/android"
 )
 
 // GlobalConfig stores the configuration for dex preopting set by the product
@@ -46,7 +48,8 @@ type GlobalConfig struct {
 	DefaultCompilerFilter      string // default compiler filter to pass to dex2oat, overridden by --compiler-filter= in module-specific dex2oat flags
 	SystemServerCompilerFilter string // default compiler filter to pass to dex2oat for system server jars
 
-	GenerateDMFiles bool // generate Dex Metadata files
+	GenerateDMFiles     bool // generate Dex Metadata files
+	NeverAllowStripping bool // whether stripping should not be done - used as build time check to make sure dex files are always available
 
 	NoDebugInfo                 bool // don't generate debug info by default
 	AlwaysSystemServerDebugInfo bool // always generate mini debug info for system server modules (overrides NoDebugInfo=true)
@@ -66,9 +69,9 @@ type GlobalConfig struct {
 
 	EmptyDirectory string // path to an empty directory
 
-	DefaultDexPreoptImageLocation map[string]string // default boot image location for each architecture
-	CpuVariant                    map[string]string // cpu variant for each architecture
-	InstructionSetFeatures        map[string]string // instruction set for each architecture
+	DefaultDexPreoptImage  map[android.ArchType]string // default boot image location for each architecture
+	CpuVariant             map[android.ArchType]string // cpu variant for each architecture
+	InstructionSetFeatures map[android.ArchType]string // instruction set for each architecture
 
 	Tools Tools // paths to tools possibly used by the generated commands
 }
@@ -103,8 +106,8 @@ type ModuleConfig struct {
 	UsesLibraries         []string
 	LibraryPaths          map[string]string
 
-	Archs                  []string
-	DexPreoptImageLocation string
+	Archs           []android.ArchType
+	DexPreoptImages []string
 
 	PreoptExtractedApk bool // Overrides OnlyPreoptModules
 

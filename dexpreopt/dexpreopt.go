@@ -68,6 +68,9 @@ func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.
 	strip := shouldStripDex(module, global)
 
 	if strip {
+		if global.NeverAllowStripping {
+			panic(fmt.Errorf("Stripping requested on %q, though the product does not allow it", module.DexLocation))
+		}
 		// Only strips if the dex files are not already uncompressed
 		rule.Command().
 			Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, module.StripInputPath).
@@ -113,12 +116,9 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *andr
 
 			generateDM := shouldGenerateDM(module, global)
 
-			for _, arch := range module.Archs {
-				imageLocation := module.DexPreoptImageLocation
-				if imageLocation == "" {
-					imageLocation = global.DefaultDexPreoptImageLocation[arch]
-				}
-				dexpreoptCommand(global, module, rule, profile, arch, imageLocation, appImage, generateDM)
+			for i, arch := range module.Archs {
+				image := module.DexPreoptImages[i]
+				dexpreoptCommand(global, module, rule, arch, profile, image, appImage, generateDM)
 			}
 		}
 	}
@@ -181,7 +181,7 @@ func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.Rule
 }
 
 func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
-	profile, arch, bootImageLocation string, appImage, generateDM bool) {
+	arch android.ArchType, profile, bootImage string, appImage, generateDM bool) {
 
 	// HACK: make soname in Soong-generated .odex files match Make.
 	base := filepath.Base(module.DexLocation)
@@ -195,7 +195,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 		return filepath.Join(
 			filepath.Dir(path),
 			"oat",
-			arch,
+			arch.String(),
 			pathtools.ReplaceExtension(filepath.Base(path), "odex"))
 	}
 
@@ -213,11 +213,11 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 
 	invocationPath := pathtools.ReplaceExtension(odexPath, "invocation")
 
-	// bootImageLocation is $OUT/dex_bootjars/system/framework/boot.art, but dex2oat actually reads
-	// $OUT/dex_bootjars/system/framework/arm64/boot.art
-	var bootImagePath string
-	if bootImageLocation != "" {
-		bootImagePath = filepath.Join(filepath.Dir(bootImageLocation), arch, filepath.Base(bootImageLocation))
+	// bootImage is .../dex_bootjars/system/framework/arm64/boot.art, but dex2oat wants
+	// .../dex_bootjars/system/framework/boot.art on the command line
+	var bootImageLocation string
+	if bootImage != "" {
+		bootImageLocation = PathToLocation(bootImage, arch)
 	}
 
 	// Lists of used and optional libraries from the build config to be verified against the manifest in the APK
@@ -325,13 +325,13 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 		Flag("--runtime-arg").FlagWithArg("-Xbootclasspath-locations:", bcp_locations).
 		Flag("${class_loader_context_arg}").
 		Flag("${stored_class_loader_context_arg}").
-		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImagePath).
+		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImage).
 		FlagWithInput("--dex-file=", module.DexPath).
 		FlagWithArg("--dex-location=", module.DexLocation).
 		FlagWithOutput("--oat-file=", odexPath).ImplicitOutput(vdexPath).
 		// Pass an empty directory, dex2oat shouldn't be reading arbitrary files
 		FlagWithArg("--android-root=", global.EmptyDirectory).
-		FlagWithArg("--instruction-set=", arch).
+		FlagWithArg("--instruction-set=", arch.String()).
 		FlagWithArg("--instruction-set-variant=", global.CpuVariant[arch]).
 		FlagWithArg("--instruction-set-features=", global.InstructionSetFeatures[arch]).
 		Flag("--no-generate-debug-info").
@@ -499,7 +499,7 @@ func shouldGenerateDM(module ModuleConfig, global GlobalConfig) bool {
 		contains(module.PreoptFlags, "--compiler-filter=verify")
 }
 
-func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
+func OdexOnSystemOtherByName(name string, dexLocation string, global GlobalConfig) bool {
 	if !global.HasSystemOther {
 		return false
 	}
@@ -508,17 +508,30 @@ func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
 		return false
 	}
 
-	if contains(global.SpeedApps, module.Name) || contains(global.SystemServerApps, module.Name) {
+	if contains(global.SpeedApps, name) || contains(global.SystemServerApps, name) {
 		return false
 	}
 
 	for _, f := range global.PatternsOnSystemOther {
-		if makefileMatch(filepath.Join(SystemPartition, f), module.DexLocation) {
+		if makefileMatch(filepath.Join(SystemPartition, f), dexLocation) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
+	return OdexOnSystemOtherByName(module.Name, module.DexLocation, global)
+}
+
+// PathToLocation converts .../system/framework/arm64/boot.art to .../system/framework/boot.art
+func PathToLocation(path string, arch android.ArchType) string {
+	pathArch := filepath.Base(filepath.Dir(path))
+	if pathArch != arch.String() {
+		panic(fmt.Errorf("last directory in %q must be %q", path, arch.String()))
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(path)), filepath.Base(path))
 }
 
 func pathForLibrary(module ModuleConfig, lib string) string {

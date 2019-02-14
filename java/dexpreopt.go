@@ -83,11 +83,7 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 
 var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
 
-func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
-	if d.dexpreoptDisabled(ctx) {
-		return dexJarFile
-	}
-
+func getGlobalConfig(ctx android.ModuleContext) dexpreopt.GlobalConfig {
 	globalConfig := ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
 		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
 			ctx.AddNinjaFileDeps(f)
@@ -99,15 +95,28 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		}
 		return dexpreopt.GlobalConfig{}
 	}).(dexpreopt.GlobalConfig)
+	return globalConfig
+}
 
-	var archs []string
+func odexOnSystemOther(ctx android.ModuleContext, installPath android.OutputPath) bool {
+	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), getGlobalConfig(ctx))
+}
+
+func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
+	if d.dexpreoptDisabled(ctx) {
+		return dexJarFile
+	}
+
+	globalConfig := getGlobalConfig(ctx)
+
+	var archs []android.ArchType
 	for _, a := range ctx.MultiTargets() {
-		archs = append(archs, a.Arch.ArchType.String())
+		archs = append(archs, a.Arch.ArchType)
 	}
 	if len(archs) == 0 {
 		// assume this is a java library, dexpreopt for all arches for now
 		for _, target := range ctx.Config().Targets[android.Android] {
-			archs = append(archs, target.Arch.ArchType.String())
+			archs = append(archs, target.Arch.ArchType)
 		}
 		if inList(ctx.ModuleName(), globalConfig.SystemServerJars) && !d.isSDKLibrary {
 			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.
@@ -117,6 +126,11 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	if ctx.Config().SecondArchIsTranslated() {
 		// Only preopt primary arch for translated arch since there is only an image there.
 		archs = archs[:1]
+	}
+
+	var images []string
+	for _, arch := range archs {
+		images = append(images, globalConfig.DefaultDexPreoptImage[arch])
 	}
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
@@ -161,8 +175,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		UsesLibraries:         nil,
 		LibraryPaths:          nil,
 
-		Archs:                  archs,
-		DexPreoptImageLocation: "",
+		Archs:           archs,
+		DexPreoptImages: images,
 
 		PreoptExtractedApk: false,
 

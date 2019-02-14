@@ -212,6 +212,10 @@ type apexBundleProperties struct {
 	// "apex_manifest.json"
 	Manifest *string
 
+	// AndroidManifest.xml file used for the zip container of this APEX bundle.
+	// If unspecified, a default one is automatically generated.
+	AndroidManifest *string
+
 	// Determines the file contexts file for setting security context to each file in this APEX bundle.
 	// Specifically, when this is set to <value>, /system/sepolicy/apex/<value>_file_contexts file is
 	// used.
@@ -513,10 +517,18 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
 
-	cert := android.SrcIsModule(String(a.properties.Certificate))
+	cert := android.SrcIsModule(a.getCertString(ctx))
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
+}
+
+func (a *apexBundle) getCertString(ctx android.BaseContext) string {
+	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
+	if overridden {
+		return ":" + certificate
+	}
+	return String(a.properties.Certificate)
 }
 
 func (a *apexBundle) Srcs() android.Paths {
@@ -901,6 +913,12 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 			optFlags = append(optFlags, "--override_apk_package_name "+manifestPackageName)
 		}
 
+		if a.properties.AndroidManifest != nil {
+			androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
+			implicitInputs = append(implicitInputs, androidManifestFile)
+			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
+		}
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexRule,
 			Implicits:   implicitInputs,
@@ -966,7 +984,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
-	if a.installable() && !ctx.Config().FlattenApex() {
+	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "apex"), ctx.ModuleName()+suffix, a.outputFiles[apexType])
 	}
 }
