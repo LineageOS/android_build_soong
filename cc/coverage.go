@@ -111,6 +111,8 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 			// Just turn off for now.
 		} else if c.useVndk() || c.hasVendorVariant() {
 			// Do not enable coverage for VNDK libraries
+		} else if c.IsStubs() {
+			// Do not enable coverage for platform stub libraries
 		} else if c.isNDKStubLibrary() {
 			// Do not enable coverage for NDK stub libraries
 		} else if c.coverage != nil {
