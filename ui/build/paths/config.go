@@ -125,9 +125,6 @@ var Configuration = map[string]PathConfig{
 	"ld.gold":    Forbidden,
 	"pkg-config": Forbidden,
 
-	// On Linux we'll use one-true-awk instead.
-	"awk": LinuxOnlyPrebuilt,
-
 	// On Linux we'll use the toybox versions of these instead.
 	"basename":  LinuxOnlyPrebuilt,
 	"cat":       LinuxOnlyPrebuilt,
