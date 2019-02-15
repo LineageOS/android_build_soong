@@ -61,7 +61,7 @@ type BaseLinkerProperties struct {
 	No_libgcc *bool
 
 	// don't link in libclang_rt.builtins-*.a
-	No_libcrt *bool
+	No_libcrt *bool `android:"arch_variant"`
 
 	// Use clang lld instead of gnu ld.
 	Use_clang_lld *bool `android:"arch_variant"`
