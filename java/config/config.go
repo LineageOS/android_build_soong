@@ -33,7 +33,12 @@ var (
 	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
 	SdkLambdaStubsPath            = "prebuilts/sdk/tools/core-lambda-stubs.jar"
 
-	// A list of the jars that provide information about usages of the hidden API.
+	// A list of the non-boot jars that provide hidden APIs, i.e. libraries.
+	HiddenAPIProvidingNonBootJars = []string{
+		"android.test.base",
+	}
+
+	// A list of the non-boot jars that provide information about usages of the hidden API.
 	HiddenAPIExtraAppUsageJars = []string{
 		// The core-oj-hiddenapi provides information for the core-oj jar.
 		"core-oj-hiddenapi",
