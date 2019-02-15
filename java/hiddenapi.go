@@ -15,8 +15,6 @@
 package java
 
 import (
-	"path/filepath"
-
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -175,14 +173,3 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 		TransformZipAlign(ctx, output, tmpOutput)
 	}
 }
-
-type hiddenAPIPath struct {
-	path string
-}
-
-var _ android.Path = (*hiddenAPIPath)(nil)
-
-func (p *hiddenAPIPath) String() string { return p.path }
-func (p *hiddenAPIPath) Ext() string    { return filepath.Ext(p.path) }
-func (p *hiddenAPIPath) Base() string   { return filepath.Base(p.path) }
-func (p *hiddenAPIPath) Rel() string    { return p.path }
