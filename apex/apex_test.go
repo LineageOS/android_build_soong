@@ -53,6 +53,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("prebuilt_etc", android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory))
 	ctx.RegisterModuleType("sh_binary", android.ModuleFactoryAdaptor(android.ShBinaryFactory))
 	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(java.AndroidAppCertificateFactory))
+	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", cc.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
@@ -143,6 +144,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"Android.bp":                                        []byte(bp),
 		"build/target/product/security":                     nil,
 		"apex_manifest.json":                                nil,
+		"AndroidManifest.xml":                               nil,
 		"system/sepolicy/apex/myapex-file_contexts":         nil,
 		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
 		"system/sepolicy/apex/otherapex-file_contexts":      nil,
@@ -214,6 +216,8 @@ func TestBasicApex(t *testing.T) {
 	ctx := testApex(t, `
 		apex_defaults {
 			name: "myapex-defaults",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
 			multilib: {
@@ -232,6 +236,16 @@ func TestBasicApex(t *testing.T) {
 			name: "myapex.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
+		}
+
+		filegroup {
+			name: "myapex.manifest",
+			srcs: ["apex_manifest.json"],
+		}
+
+		filegroup {
+			name: "myapex.androidmanifest",
+			srcs: ["AndroidManifest.xml"],
 		}
 
 		cc_library {
