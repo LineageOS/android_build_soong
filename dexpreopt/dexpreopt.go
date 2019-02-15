@@ -37,6 +37,7 @@ package dexpreopt
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"android/soong/android"
@@ -52,7 +53,9 @@ const SystemOtherPartition = "/system_other/"
 func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(error); ok {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			} else if e, ok := r.(error); ok {
 				err = e
 				rule = nil
 			} else {
@@ -86,10 +89,14 @@ func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.
 
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
-func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
+func GenerateDexpreoptRule(ctx android.PathContext,
+	global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
+
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(error); ok {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			} else if e, ok := r.(error); ok {
 				err = e
 				rule = nil
 			} else {
@@ -100,11 +107,11 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *andr
 
 	rule = android.NewRuleBuilder()
 
-	generateProfile := module.ProfileClassListing != "" && !global.DisableGenerateProfile
+	generateProfile := module.ProfileClassListing.Valid() && !global.DisableGenerateProfile
 
-	var profile string
+	var profile android.WritablePath
 	if generateProfile {
-		profile = profileCommand(global, module, rule)
+		profile = profileCommand(ctx, global, module, rule)
 	}
 
 	if !dexpreoptDisabled(global, module) {
@@ -118,7 +125,7 @@ func GenerateDexpreoptRule(global GlobalConfig, module ModuleConfig) (rule *andr
 
 			for i, arch := range module.Archs {
 				image := module.DexPreoptImages[i]
-				dexpreoptCommand(global, module, rule, arch, profile, image, appImage, generateDM)
+				dexpreoptCommand(ctx, global, module, rule, arch, profile, image, appImage, generateDM)
 			}
 		}
 	}
@@ -143,8 +150,10 @@ func dexpreoptDisabled(global GlobalConfig, module ModuleConfig) bool {
 	return false
 }
 
-func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder) string {
-	profilePath := filepath.Join(filepath.Dir(module.BuildPath), "profile.prof")
+func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig,
+	rule *android.RuleBuilder) android.WritablePath {
+
+	profilePath := module.BuildPath.InSameDir(ctx, "profile.prof")
 	profileInstalledPath := module.DexLocation + ".prof"
 
 	if !module.ProfileIsTextListing {
@@ -158,13 +167,13 @@ func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.Rule
 	if module.ProfileIsTextListing {
 		// The profile is a test listing of classes (used for framework jars).
 		// We need to generate the actual binary profile before being able to compile.
-		cmd.FlagWithInput("--create-profile-from=", module.ProfileClassListing)
+		cmd.FlagWithInput("--create-profile-from=", module.ProfileClassListing.Path())
 	} else {
 		// The profile is binary profile (used for apps). Run it through profman to
 		// ensure the profile keys match the apk.
 		cmd.
 			Flag("--copy-and-update-profile-key").
-			FlagWithInput("--profile-file=", module.ProfileClassListing)
+			FlagWithInput("--profile-file=", module.ProfileClassListing.Path())
 	}
 
 	cmd.
@@ -180,8 +189,8 @@ func profileCommand(global GlobalConfig, module ModuleConfig, rule *android.Rule
 	return profilePath
 }
 
-func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
-	arch android.ArchType, profile, bootImage string, appImage, generateDM bool) {
+func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
+	arch android.ArchType, profile, bootImage android.Path, appImage, generateDM bool) {
 
 	// HACK: make soname in Soong-generated .odex files match Make.
 	base := filepath.Base(module.DexLocation)
@@ -199,21 +208,21 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 			pathtools.ReplaceExtension(filepath.Base(path), "odex"))
 	}
 
-	odexPath := toOdexPath(filepath.Join(filepath.Dir(module.BuildPath), base))
+	odexPath := module.BuildPath.InSameDir(ctx, "oat", arch.String(), pathtools.ReplaceExtension(base, "odex"))
 	odexInstallPath := toOdexPath(module.DexLocation)
 	if odexOnSystemOther(module, global) {
 		odexInstallPath = strings.Replace(odexInstallPath, SystemPartition, SystemOtherPartition, 1)
 	}
 
-	vdexPath := pathtools.ReplaceExtension(odexPath, "vdex")
+	vdexPath := odexPath.ReplaceExtension(ctx, "vdex")
 	vdexInstallPath := pathtools.ReplaceExtension(odexInstallPath, "vdex")
 
-	invocationPath := pathtools.ReplaceExtension(odexPath, "invocation")
+	invocationPath := odexPath.ReplaceExtension(ctx, "invocation")
 
 	// bootImage is .../dex_bootjars/system/framework/arm64/boot.art, but dex2oat wants
 	// .../dex_bootjars/system/framework/boot.art on the command line
 	var bootImageLocation string
-	if bootImage != "" {
+	if bootImage != nil {
 		bootImageLocation = PathToLocation(bootImage, arch)
 	}
 
@@ -227,18 +236,20 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 	var filteredOptionalUsesLibs []string
 
 	// The class loader context using paths in the build
-	var classLoaderContextHost []string
+	var classLoaderContextHost android.Paths
 
 	// The class loader context using paths as they will be on the device
 	var classLoaderContextTarget []string
 
 	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 28
-	var conditionalClassLoaderContextHost28 []string
+	var conditionalClassLoaderContextHost28 android.Paths
 	var conditionalClassLoaderContextTarget28 []string
 
 	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 29
-	var conditionalClassLoaderContextHost29 []string
+	var conditionalClassLoaderContextHost29 android.Paths
 	var conditionalClassLoaderContextTarget29 []string
+
+	var classLoaderContextHostString string
 
 	if module.EnforceUsesLibraries {
 		verifyUsesLibs = copyOf(module.UsesLibraries)
@@ -281,31 +292,41 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 			pathForLibrary(module, hidlBase))
 		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
 			filepath.Join("/system/framework", hidlBase+".jar"))
+
+		classLoaderContextHostString = strings.Join(classLoaderContextHost.Strings(), ":")
 	} else {
 		// Pass special class loader context to skip the classpath and collision check.
 		// This will get removed once LOCAL_USES_LIBRARIES is enforced.
 		// Right now LOCAL_USES_LIBRARIES is opt in, for the case where it's not specified we still default
 		// to the &.
-		classLoaderContextHost = []string{`\&`}
+		classLoaderContextHostString = `\&`
 	}
 
-	rule.Command().FlagWithArg("mkdir -p ", filepath.Dir(odexPath))
+	rule.Command().FlagWithArg("mkdir -p ", filepath.Dir(odexPath.String()))
 	rule.Command().FlagWithOutput("rm -f ", odexPath)
 	// Set values in the environment of the rule.  These may be modified by construct_context.sh.
-	rule.Command().FlagWithArg("class_loader_context_arg=--class-loader-context=",
-		strings.Join(classLoaderContextHost, ":"))
+	rule.Command().FlagWithArg("class_loader_context_arg=--class-loader-context=", classLoaderContextHostString)
 	rule.Command().Text(`stored_class_loader_context_arg=""`)
 
 	if module.EnforceUsesLibraries {
 		rule.Command().Textf(`uses_library_names="%s"`, strings.Join(verifyUsesLibs, " "))
 		rule.Command().Textf(`optional_uses_library_names="%s"`, strings.Join(verifyOptionalUsesLibs, " "))
 		rule.Command().Textf(`aapt_binary="%s"`, global.Tools.Aapt)
-		rule.Command().Textf(`dex_preopt_host_libraries="%s"`, strings.Join(classLoaderContextHost, " "))
-		rule.Command().Textf(`dex_preopt_target_libraries="%s"`, strings.Join(classLoaderContextTarget, " "))
-		rule.Command().Textf(`conditional_host_libs_28="%s"`, strings.Join(conditionalClassLoaderContextHost28, " "))
-		rule.Command().Textf(`conditional_target_libs_28="%s"`, strings.Join(conditionalClassLoaderContextTarget28, " "))
-		rule.Command().Textf(`conditional_host_libs_29="%s"`, strings.Join(conditionalClassLoaderContextHost29, " "))
-		rule.Command().Textf(`conditional_target_libs_29="%s"`, strings.Join(conditionalClassLoaderContextTarget29, " "))
+		rule.Command().Textf(`dex_preopt_host_libraries="%s"`,
+			strings.Join(classLoaderContextHost.Strings(), " ")).
+			Implicits(classLoaderContextHost)
+		rule.Command().Textf(`dex_preopt_target_libraries="%s"`,
+			strings.Join(classLoaderContextTarget, " "))
+		rule.Command().Textf(`conditional_host_libs_28="%s"`,
+			strings.Join(conditionalClassLoaderContextHost28.Strings(), " ")).
+			Implicits(conditionalClassLoaderContextHost28)
+		rule.Command().Textf(`conditional_target_libs_28="%s"`,
+			strings.Join(conditionalClassLoaderContextTarget28, " "))
+		rule.Command().Textf(`conditional_host_libs_29="%s"`,
+			strings.Join(conditionalClassLoaderContextHost29.Strings(), " ")).
+			Implicits(conditionalClassLoaderContextHost29)
+		rule.Command().Textf(`conditional_target_libs_29="%s"`,
+			strings.Join(conditionalClassLoaderContextTarget29, " "))
 		rule.Command().Text("source").Tool(global.Tools.VerifyUsesLibraries).Input(module.DexPath)
 		rule.Command().Text("source").Tool(global.Tools.ConstructContext)
 	}
@@ -364,7 +385,7 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 			// Apps loaded into system server, and apps the product default to being compiled with the
 			// 'speed' compiler filter.
 			compilerFilter = "speed"
-		} else if profile != "" {
+		} else if profile != nil {
 			// For non system server jars, use speed-profile when we have a profile.
 			compilerFilter = "speed-profile"
 		} else if global.DefaultCompilerFilter != "" {
@@ -377,9 +398,9 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 
 	if generateDM {
 		cmd.FlagWithArg("--copy-dex-files=", "false")
-		dmPath := filepath.Join(filepath.Dir(module.BuildPath), "generated.dm")
+		dmPath := module.BuildPath.InSameDir(ctx, "generated.dm")
 		dmInstalledPath := pathtools.ReplaceExtension(module.DexLocation, "dm")
-		tmpPath := filepath.Join(filepath.Dir(module.BuildPath), "primary.vdex")
+		tmpPath := module.BuildPath.InSameDir(ctx, "primary.vdex")
 		rule.Command().Text("cp -f").Input(vdexPath).Output(tmpPath)
 		rule.Command().Tool(global.Tools.SoongZip).
 			FlagWithArg("-L", "9").
@@ -428,15 +449,15 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 	cmd.FlagWithArg("--compilation-reason=", "prebuilt")
 
 	if appImage {
-		appImagePath := pathtools.ReplaceExtension(odexPath, "art")
+		appImagePath := odexPath.ReplaceExtension(ctx, "art")
 		appImageInstallPath := pathtools.ReplaceExtension(odexInstallPath, "art")
 		cmd.FlagWithOutput("--app-image-file=", appImagePath).
 			FlagWithArg("--image-format=", "lz4")
 		rule.Install(appImagePath, appImageInstallPath)
 	}
 
-	if profile != "" {
-		cmd.FlagWithArg("--profile-file=", profile)
+	if profile != nil {
+		cmd.FlagWithInput("--profile-file=", profile)
 	}
 
 	rule.Install(odexPath, odexInstallPath)
@@ -522,17 +543,17 @@ func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
 }
 
 // PathToLocation converts .../system/framework/arm64/boot.art to .../system/framework/boot.art
-func PathToLocation(path string, arch android.ArchType) string {
-	pathArch := filepath.Base(filepath.Dir(path))
+func PathToLocation(path android.Path, arch android.ArchType) string {
+	pathArch := filepath.Base(filepath.Dir(path.String()))
 	if pathArch != arch.String() {
 		panic(fmt.Errorf("last directory in %q must be %q", path, arch.String()))
 	}
-	return filepath.Join(filepath.Dir(filepath.Dir(path)), filepath.Base(path))
+	return filepath.Join(filepath.Dir(filepath.Dir(path.String())), filepath.Base(path.String()))
 }
 
-func pathForLibrary(module ModuleConfig, lib string) string {
-	path := module.LibraryPaths[lib]
-	if path == "" {
+func pathForLibrary(module ModuleConfig, lib string) android.Path {
+	path, ok := module.LibraryPaths[lib]
+	if !ok {
 		panic(fmt.Errorf("unknown library path for %q", lib))
 	}
 	return path
