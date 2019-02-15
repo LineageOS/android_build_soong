@@ -177,9 +177,9 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
 	outDir := android.PathForModuleOut(ctx, "dex")
 
-	zipFlags := ""
+	zipFlags := "--ignore_missing_files"
 	if j.deviceProperties.UncompressDex {
-		zipFlags = "-L 0"
+		zipFlags += " -L 0"
 	}
 
 	if useR8 {
