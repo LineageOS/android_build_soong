@@ -164,11 +164,12 @@ func TestResourceDirs(t *testing.T) {
 	}
 }
 
-func TestEnforceRRO(t *testing.T) {
+func TestAndroidResources(t *testing.T) {
 	testCases := []struct {
 		name                       string
 		enforceRROTargets          []string
 		enforceRROExcludedOverlays []string
+		resourceFiles              map[string][]string
 		overlayFiles               map[string][]string
 		rroDirs                    map[string][]string
 	}{
@@ -176,16 +177,28 @@ func TestEnforceRRO(t *testing.T) {
 			name:                       "no RRO",
 			enforceRROTargets:          nil,
 			enforceRROExcludedOverlays: nil,
+			resourceFiles: map[string][]string{
+				"foo":  nil,
+				"bar":  {"bar/res/res/values/strings.xml"},
+				"lib":  nil,
+				"lib2": {"lib2/res/res/values/strings.xml"},
+			},
 			overlayFiles: map[string][]string{
-				"foo": []string{
+				"foo": {
+					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					buildDir + "/.intermediates/lib/android_common/package-res.apk",
 					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 					"device/vendor/blah/overlay/foo/res/values/strings.xml",
 				},
-				"bar": []string{
+				"bar": {
 					"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
+				},
+				"lib": {
+					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
+					"lib/res/res/values/strings.xml",
+					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
 			},
 			rroDirs: map[string][]string{
@@ -197,25 +210,38 @@ func TestEnforceRRO(t *testing.T) {
 			name:                       "enforce RRO on foo",
 			enforceRROTargets:          []string{"foo"},
 			enforceRROExcludedOverlays: []string{"device/vendor/blah/static_overlay"},
+			resourceFiles: map[string][]string{
+				"foo":  nil,
+				"bar":  {"bar/res/res/values/strings.xml"},
+				"lib":  nil,
+				"lib2": {"lib2/res/res/values/strings.xml"},
+			},
 			overlayFiles: map[string][]string{
-				"foo": []string{
+				"foo": {
+					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					buildDir + "/.intermediates/lib/android_common/package-res.apk",
 					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 				},
-				"bar": []string{
+				"bar": {
 					"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
+				},
+				"lib": {
+					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
+					"lib/res/res/values/strings.xml",
+					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
 			},
 
 			rroDirs: map[string][]string{
-				"foo": []string{
+				"foo": {
 					"device/vendor/blah/overlay/foo/res",
 					// Enforce RRO on "foo" could imply RRO on static dependencies, but for now it doesn't.
 					// "device/vendor/blah/overlay/lib/res",
 				},
 				"bar": nil,
+				"lib": nil,
 			},
 		},
 		{
@@ -226,20 +252,32 @@ func TestEnforceRRO(t *testing.T) {
 				"device/vendor/blah/static_overlay/foo",
 				"device/vendor/blah/static_overlay/bar/res",
 			},
+			resourceFiles: map[string][]string{
+				"foo":  nil,
+				"bar":  {"bar/res/res/values/strings.xml"},
+				"lib":  nil,
+				"lib2": {"lib2/res/res/values/strings.xml"},
+			},
 			overlayFiles: map[string][]string{
-				"foo": []string{
+				"foo": {
+					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					buildDir + "/.intermediates/lib/android_common/package-res.apk",
 					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 				},
-				"bar": []string{"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
+				"bar": {"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
+				"lib": {
+					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
+					"lib/res/res/values/strings.xml",
+				},
 			},
 			rroDirs: map[string][]string{
-				"foo": []string{
+				"foo": {
 					"device/vendor/blah/overlay/foo/res",
 					"device/vendor/blah/overlay/lib/res",
 				},
-				"bar": []string{"device/vendor/blah/overlay/bar/res"},
+				"bar": {"device/vendor/blah/overlay/bar/res"},
+				"lib": {"device/vendor/blah/overlay/lib/res"},
 			},
 		},
 	}
@@ -254,6 +292,7 @@ func TestEnforceRRO(t *testing.T) {
 		"foo/res/res/values/strings.xml":                               nil,
 		"bar/res/res/values/strings.xml":                               nil,
 		"lib/res/res/values/strings.xml":                               nil,
+		"lib2/res/res/values/strings.xml":                              nil,
 		"device/vendor/blah/overlay/foo/res/values/strings.xml":        nil,
 		"device/vendor/blah/overlay/bar/res/values/strings.xml":        nil,
 		"device/vendor/blah/overlay/lib/res/values/strings.xml":        nil,
@@ -277,6 +316,12 @@ func TestEnforceRRO(t *testing.T) {
 			android_library {
 				name: "lib",
 				resource_dirs: ["lib/res"],
+				static_libs: ["lib2"],
+			}
+
+			android_library {
+				name: "lib2",
+				resource_dirs: ["lib2/res"],
 			}
 		`
 
@@ -294,40 +339,52 @@ func TestEnforceRRO(t *testing.T) {
 			ctx := testAppContext(config, bp, fs)
 			run(t, ctx, config)
 
-			getOverlays := func(moduleName string) ([]string, []string) {
-				module := ctx.ModuleForTests(moduleName, "android_common")
-				overlayFile := module.MaybeOutput("aapt2/overlay.list")
-				var overlayFiles []string
-				if overlayFile.Rule != nil {
-					for _, o := range overlayFile.Inputs.Strings() {
-						overlayOutput := module.MaybeOutput(o)
-						if overlayOutput.Rule != nil {
-							// If the overlay is compiled as part of this module (i.e. a .arsc.flat file),
-							// verify the inputs to the .arsc.flat rule.
-							overlayFiles = append(overlayFiles, overlayOutput.Inputs.Strings()...)
-						} else {
-							// Otherwise, verify the full path to the output of the other module
-							overlayFiles = append(overlayFiles, o)
-						}
+			resourceListToFiles := func(module android.TestingModule, list []string) (files []string) {
+				for _, o := range list {
+					res := module.MaybeOutput(o)
+					if res.Rule != nil {
+						// If the overlay is compiled as part of this module (i.e. a .arsc.flat file),
+						// verify the inputs to the .arsc.flat rule.
+						files = append(files, res.Inputs.Strings()...)
+					} else {
+						// Otherwise, verify the full path to the output of the other module
+						files = append(files, o)
 					}
 				}
-
-				rroDirs := module.Module().(*AndroidApp).rroDirs.Strings()
-
-				return overlayFiles, rroDirs
+				return files
 			}
 
-			apps := []string{"foo", "bar"}
-			for _, app := range apps {
-				overlayFiles, rroDirs := getOverlays(app)
-
-				if !reflect.DeepEqual(overlayFiles, testCase.overlayFiles[app]) {
-					t.Errorf("expected %s overlay files:\n  %#v\n got:\n  %#v",
-						app, testCase.overlayFiles[app], overlayFiles)
+			getResources := func(moduleName string) (resourceFiles, overlayFiles, rroDirs []string) {
+				module := ctx.ModuleForTests(moduleName, "android_common")
+				resourceList := module.MaybeOutput("aapt2/res.list")
+				if resourceList.Rule != nil {
+					resourceFiles = resourceListToFiles(module, resourceList.Inputs.Strings())
 				}
-				if !reflect.DeepEqual(rroDirs, testCase.rroDirs[app]) {
+				overlayList := module.MaybeOutput("aapt2/overlay.list")
+				if overlayList.Rule != nil {
+					overlayFiles = resourceListToFiles(module, overlayList.Inputs.Strings())
+				}
+
+				rroDirs = module.Module().(AndroidLibraryDependency).ExportedRRODirs().Strings()
+
+				return resourceFiles, overlayFiles, rroDirs
+			}
+
+			modules := []string{"foo", "bar", "lib", "lib2"}
+			for _, module := range modules {
+				resourceFiles, overlayFiles, rroDirs := getResources(module)
+
+				if !reflect.DeepEqual(resourceFiles, testCase.resourceFiles[module]) {
+					t.Errorf("expected %s resource files:\n  %#v\n got:\n  %#v",
+						module, testCase.resourceFiles[module], resourceFiles)
+				}
+				if !reflect.DeepEqual(overlayFiles, testCase.overlayFiles[module]) {
+					t.Errorf("expected %s overlay files:\n  %#v\n got:\n  %#v",
+						module, testCase.overlayFiles[module], overlayFiles)
+				}
+				if !reflect.DeepEqual(rroDirs, testCase.rroDirs[module]) {
 					t.Errorf("expected %s rroDirs:  %#v\n got:\n  %#v",
-						app, testCase.rroDirs[app], rroDirs)
+						module, testCase.rroDirs[module], rroDirs)
 				}
 			}
 		})
