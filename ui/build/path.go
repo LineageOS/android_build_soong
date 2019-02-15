@@ -147,10 +147,11 @@ func SetupPath(ctx Context, config Config) {
 
 	myPath, _ = filepath.Abs(myPath)
 
-	// Use the toybox prebuilts on linux
+	// We put some prebuilts in $PATH, since it's infeasible to add dependencies for all of
+	// them.
 	if runtime.GOOS == "linux" {
-		toyboxPath, _ := filepath.Abs("prebuilts/build-tools/toybox/linux-x86")
-		myPath = toyboxPath + string(os.PathListSeparator) + myPath
+		prebuiltsPath, _ := filepath.Abs("prebuilts/build-tools/path/" + runtime.GOOS + "-x86")
+		myPath = prebuiltsPath + string(os.PathListSeparator) + myPath
 	}
 
 	config.Environment().Set("PATH", myPath)
