@@ -26,9 +26,9 @@ type PathConfig struct {
 	// Whether to exit with an error instead of invoking the underlying tool.
 	Error bool
 
-	// Whether we use a toybox prebuilt for this tool. Since we don't have
-	// toybox for Darwin, we'll use the host version instead.
-	Toybox bool
+	// Whether we use a linux-specific prebuilt for this tool. On Darwin,
+	// we'll allow the host executable instead.
+	LinuxOnlyPrebuilt bool
 }
 
 var Allowed = PathConfig{
@@ -59,11 +59,11 @@ var Missing = PathConfig{
 	Error:   true,
 }
 
-var Toybox = PathConfig{
-	Symlink: false,
-	Log:     true,
-	Error:   true,
-	Toybox:  true,
+var LinuxOnlyPrebuilt = PathConfig{
+	Symlink:           false,
+	Log:               true,
+	Error:             true,
+	LinuxOnlyPrebuilt: true,
 }
 
 func GetConfig(name string) PathConfig {
@@ -126,57 +126,56 @@ var Configuration = map[string]PathConfig{
 	"pkg-config": Forbidden,
 
 	// On Linux we'll use the toybox versions of these instead.
-	"awk":       Toybox, // Strictly one-true-awk, but...
-	"basename":  Toybox,
-	"cat":       Toybox,
-	"chmod":     Toybox,
-	"cmp":       Toybox,
-	"cp":        Toybox,
-	"comm":      Toybox,
-	"cut":       Toybox,
-	"dirname":   Toybox,
-	"du":        Toybox,
-	"echo":      Toybox,
-	"env":       Toybox,
-	"expr":      Toybox,
-	"head":      Toybox,
-	"getconf":   Toybox,
-	"hostname":  Toybox,
-	"id":        Toybox,
-	"ln":        Toybox,
-	"ls":        Toybox,
-	"md5sum":    Toybox,
-	"mkdir":     Toybox,
-	"mktemp":    Toybox,
-	"mv":        Toybox,
-	"od":        Toybox,
-	"paste":     Toybox,
-	"pgrep":     Toybox,
-	"pkill":     Toybox,
-	"ps":        Toybox,
-	"pwd":       Toybox,
-	"readlink":  Toybox,
-	"rm":        Toybox,
-	"rmdir":     Toybox,
-	"setsid":    Toybox,
-	"sha1sum":   Toybox,
-	"sha256sum": Toybox,
-	"sha512sum": Toybox,
-	"sleep":     Toybox,
-	"sort":      Toybox,
-	"stat":      Toybox,
-	"tail":      Toybox,
-	"tee":       Toybox,
-	"touch":     Toybox,
-	"true":      Toybox,
-	"uname":     Toybox,
-	"uniq":      Toybox,
-	"unix2dos":  Toybox,
-	"wc":        Toybox,
-	"whoami":    Toybox,
-	"which":     Toybox,
-	"xargs":     Toybox,
-	"xxd":       Toybox,
+	"basename":  LinuxOnlyPrebuilt,
+	"cat":       LinuxOnlyPrebuilt,
+	"chmod":     LinuxOnlyPrebuilt,
+	"cmp":       LinuxOnlyPrebuilt,
+	"cp":        LinuxOnlyPrebuilt,
+	"comm":      LinuxOnlyPrebuilt,
+	"cut":       LinuxOnlyPrebuilt,
+	"dirname":   LinuxOnlyPrebuilt,
+	"du":        LinuxOnlyPrebuilt,
+	"echo":      LinuxOnlyPrebuilt,
+	"env":       LinuxOnlyPrebuilt,
+	"expr":      LinuxOnlyPrebuilt,
+	"head":      LinuxOnlyPrebuilt,
+	"getconf":   LinuxOnlyPrebuilt,
+	"hostname":  LinuxOnlyPrebuilt,
+	"id":        LinuxOnlyPrebuilt,
+	"ln":        LinuxOnlyPrebuilt,
+	"ls":        LinuxOnlyPrebuilt,
+	"md5sum":    LinuxOnlyPrebuilt,
+	"mkdir":     LinuxOnlyPrebuilt,
+	"mktemp":    LinuxOnlyPrebuilt,
+	"mv":        LinuxOnlyPrebuilt,
+	"od":        LinuxOnlyPrebuilt,
+	"paste":     LinuxOnlyPrebuilt,
+	"pgrep":     LinuxOnlyPrebuilt,
+	"pkill":     LinuxOnlyPrebuilt,
+	"ps":        LinuxOnlyPrebuilt,
+	"pwd":       LinuxOnlyPrebuilt,
+	"readlink":  LinuxOnlyPrebuilt,
+	"rm":        LinuxOnlyPrebuilt,
+	"rmdir":     LinuxOnlyPrebuilt,
+	"setsid":    LinuxOnlyPrebuilt,
+	"sha1sum":   LinuxOnlyPrebuilt,
+	"sha256sum": LinuxOnlyPrebuilt,
+	"sha512sum": LinuxOnlyPrebuilt,
+	"sleep":     LinuxOnlyPrebuilt,
+	"sort":      LinuxOnlyPrebuilt,
+	"stat":      LinuxOnlyPrebuilt,
+	"tail":      LinuxOnlyPrebuilt,
+	"tee":       LinuxOnlyPrebuilt,
+	"touch":     LinuxOnlyPrebuilt,
+	"true":      LinuxOnlyPrebuilt,
+	"uname":     LinuxOnlyPrebuilt,
+	"uniq":      LinuxOnlyPrebuilt,
+	"unix2dos":  LinuxOnlyPrebuilt,
+	"wc":        LinuxOnlyPrebuilt,
+	"whoami":    LinuxOnlyPrebuilt,
+	"which":     LinuxOnlyPrebuilt,
+	"xargs":     LinuxOnlyPrebuilt,
+	"xxd":       LinuxOnlyPrebuilt,
 }
 
 func init() {
@@ -185,10 +184,10 @@ func init() {
 		Configuration["sw_vers"] = Allowed
 		Configuration["xcrun"] = Allowed
 
-		// We don't have toybox prebuilts for darwin, so allow the
-		// host versions.
+		// We don't have darwin prebuilts for some tools (like toybox),
+		// so allow the host versions.
 		for name, config := range Configuration {
-			if config.Toybox {
+			if config.LinuxOnlyPrebuilt {
 				Configuration[name] = Allowed
 			}
 		}
