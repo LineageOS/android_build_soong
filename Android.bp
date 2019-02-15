@@ -267,6 +267,7 @@ bootstrap_go_package {
         "java/sdk_library.go",
         "java/support_libraries.go",
         "java/system_modules.go",
+        "java/testing.go",
     ],
     testSrcs: [
         "java/app_test.go",
