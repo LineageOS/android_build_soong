@@ -511,6 +511,14 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
+
+	if String(a.properties.Manifest) != "" {
+		android.ExtractSourceDeps(ctx, a.properties.Manifest)
+	}
+
+	if String(a.properties.AndroidManifest) != "" {
+		android.ExtractSourceDeps(ctx, a.properties.AndroidManifest)
+	}
 }
 
 func (a *apexBundle) getCertString(ctx android.BaseContext) string {
@@ -793,7 +801,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		certificate = java.Certificate{pem, key}
 	}
 
-	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+	manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
 
 	var abis []string
 	for _, target := range ctx.MultiTargets() {
@@ -890,7 +898,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		}
 
 		if a.properties.AndroidManifest != nil {
-			androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
+			androidManifestFile := ctx.ExpandSource(proptools.String(a.properties.AndroidManifest), "androidManifest")
 			implicitInputs = append(implicitInputs, androidManifestFile)
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
@@ -969,7 +977,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
 		// with other ordinary files.
-		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+		manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
 
 		// rename to apex_manifest.json
 		copiedManifest := android.PathForModuleOut(ctx, "apex_manifest.json")
