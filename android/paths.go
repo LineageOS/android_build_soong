@@ -677,6 +677,15 @@ func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
 	return OutputPath{basePath{path, ctx.Config(), ""}}
 }
 
+// PathsForOutput returns Paths rooted from buildDir
+func PathsForOutput(ctx PathContext, paths []string) WritablePaths {
+	ret := make(WritablePaths, len(paths))
+	for i, path := range paths {
+		ret[i] = PathForOutput(ctx, path)
+	}
+	return ret
+}
+
 func (p OutputPath) writablePath() {}
 
 func (p OutputPath) String() string {
@@ -703,6 +712,18 @@ func (p OutputPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 		reportPathErrorf(ctx, "extension %q cannot contain /", ext)
 	}
 	ret := PathForOutput(ctx, pathtools.ReplaceExtension(p.path, ext))
+	ret.rel = p.rel
+	return ret
+}
+
+// InSameDir creates a new OutputPath from the directory of the current OutputPath joined with the elements in paths.
+func (p OutputPath) InSameDir(ctx PathContext, paths ...string) OutputPath {
+	path, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	ret := PathForOutput(ctx, filepath.Dir(p.path), path)
 	ret.rel = p.rel
 	return ret
 }
@@ -1019,6 +1040,14 @@ func (p testPath) String() string {
 	return p.path
 }
 
+type testWritablePath struct {
+	testPath
+}
+
+func (p testPath) writablePath() {}
+
+// PathForTesting returns a Path constructed from joining the elements of paths with '/'.  It should only be used from
+// within tests.
 func PathForTesting(paths ...string) Path {
 	p, err := validateSafePath(paths...)
 	if err != nil {
@@ -1027,13 +1056,53 @@ func PathForTesting(paths ...string) Path {
 	return testPath{basePath{path: p, rel: p}}
 }
 
-func PathsForTesting(strs []string) Paths {
+// PathsForTesting returns a Path constructed from each element in strs. It should only be used from within tests.
+func PathsForTesting(strs ...string) Paths {
 	p := make(Paths, len(strs))
 	for i, s := range strs {
 		p[i] = PathForTesting(s)
 	}
 
 	return p
+}
+
+// WritablePathForTesting returns a Path constructed from joining the elements of paths with '/'.  It should only be
+// used from within tests.
+func WritablePathForTesting(paths ...string) WritablePath {
+	p, err := validateSafePath(paths...)
+	if err != nil {
+		panic(err)
+	}
+	return testWritablePath{testPath{basePath{path: p, rel: p}}}
+}
+
+// WritablePathsForTesting returns a Path constructed from each element in strs. It should only be used from within
+// tests.
+func WritablePathsForTesting(strs ...string) WritablePaths {
+	p := make(WritablePaths, len(strs))
+	for i, s := range strs {
+		p[i] = WritablePathForTesting(s)
+	}
+
+	return p
+}
+
+type testPathContext struct {
+	config Config
+	fs     pathtools.FileSystem
+}
+
+func (x *testPathContext) Fs() pathtools.FileSystem   { return x.fs }
+func (x *testPathContext) Config() Config             { return x.config }
+func (x *testPathContext) AddNinjaFileDeps(...string) {}
+
+// PathContextForTesting returns a PathContext that can be used in tests, for example to create an OutputPath with
+// PathForOutput.
+func PathContextForTesting(config Config, fs map[string][]byte) PathContext {
+	return &testPathContext{
+		config: config,
+		fs:     pathtools.MockFs(fs),
+	}
 }
 
 // Rel performs the same function as filepath.Rel, but reports errors to a PathContext, and reports an error if
