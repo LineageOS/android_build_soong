@@ -70,7 +70,7 @@ func (once *OncePer) Get(key OnceKey) interface{} {
 		panic(fmt.Errorf("Get() called before Once()"))
 	}
 
-	return v
+	return once.maybeWaitFor(key, v)
 }
 
 // OnceStringSlice is the same as Once, but returns the value cast to a []string
