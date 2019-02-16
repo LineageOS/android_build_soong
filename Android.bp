@@ -253,6 +253,7 @@ bootstrap_go_package {
         "java/dex.go",
         "java/dexpreopt.go",
         "java/dexpreopt_bootjars.go",
+        "java/dexpreopt_config.go",
         "java/droiddoc.go",
         "java/gen.go",
         "java/genrule.go",

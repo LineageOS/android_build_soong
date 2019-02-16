@@ -87,34 +87,6 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 	return false
 }
 
-var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
-var dexpreoptTestGlobalConfigKey = android.NewOnceKey("TestDexpreoptGlobalConfig")
-
-func setDexpreoptGlobalConfig(config android.Config, globalConfig dexpreopt.GlobalConfig) {
-	config.Once(dexpreoptTestGlobalConfigKey, func() interface{} { return globalConfig })
-}
-
-func dexpreoptGlobalConfig(ctx android.PathContext) dexpreopt.GlobalConfig {
-	return ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
-		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
-			ctx.AddNinjaFileDeps(f)
-			globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, f)
-			if err != nil {
-				panic(err)
-			}
-			return globalConfig
-		}
-
-		// No global config filename set, see if there is a test config set
-		return ctx.Config().Once(dexpreoptTestGlobalConfigKey, func() interface{} {
-			// Nope, return a config with preopting disabled
-			return dexpreopt.GlobalConfig{
-				DisablePreopt: true,
-			}
-		})
-	}).(dexpreopt.GlobalConfig)
-}
-
 func odexOnSystemOther(ctx android.ModuleContext, installPath android.OutputPath) bool {
 	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), dexpreoptGlobalConfig(ctx))
 }
@@ -124,7 +96,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		return dexJarFile
 	}
 
-	info := dexpreoptBootJarsInfo(ctx)
+	global := dexpreoptGlobalConfig(ctx)
+	bootImage := defaultBootImageConfig(ctx)
 
 	var archs []android.ArchType
 	for _, a := range ctx.MultiTargets() {
@@ -135,7 +108,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		for _, target := range ctx.Config().Targets[android.Android] {
 			archs = append(archs, target.Arch.ArchType)
 		}
-		if inList(ctx.ModuleName(), info.global.SystemServerJars) && !d.isSDKLibrary {
+		if inList(ctx.ModuleName(), global.SystemServerJars) && !d.isSDKLibrary {
 			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.
 			archs = archs[:1]
 		}
@@ -147,7 +120,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 
 	var images android.Paths
 	for _, arch := range archs {
-		images = append(images, info.images[arch])
+		images = append(images, bootImage.images[arch])
 	}
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
@@ -165,7 +138,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 			profileIsTextListing = true
 		} else {
 			profileClassListing = android.ExistentPathForSource(ctx,
-				info.global.ProfileDir, ctx.ModuleName()+".prof")
+				global.ProfileDir, ctx.ModuleName()+".prof")
 		}
 	}
 
@@ -189,8 +162,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		Archs:           archs,
 		DexPreoptImages: images,
 
-		PreoptBootClassPathDexFiles:     info.preoptBootDex.Paths(),
-		PreoptBootClassPathDexLocations: info.preoptBootLocations,
+		PreoptBootClassPathDexFiles:     bootImage.dexPaths.Paths(),
+		PreoptBootClassPathDexLocations: bootImage.dexLocations,
 
 		PreoptExtractedApk: false,
 
@@ -202,7 +175,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		StripOutputPath: strippedDexJarFile.OutputPath,
 	}
 
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, info.global, dexpreoptConfig)
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, global, dexpreoptConfig)
 	if err != nil {
 		ctx.ModuleErrorf("error generating dexpreopt rule: %s", err.Error())
 		return dexJarFile
@@ -212,7 +185,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 
 	d.builtInstalled = dexpreoptRule.Installs().String()
 
-	stripRule, err := dexpreopt.GenerateStripRule(info.global, dexpreoptConfig)
+	stripRule, err := dexpreopt.GenerateStripRule(global, dexpreoptConfig)
 	if err != nil {
 		ctx.ModuleErrorf("error generating dexpreopt strip rule: %s", err.Error())
 		return dexJarFile
