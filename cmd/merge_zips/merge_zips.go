@@ -66,7 +66,6 @@ var (
 	stripDirEntries  = flag.Bool("D", false, "strip directory entries from the output zip file")
 	manifest         = flag.String("m", "", "manifest file to insert in jar")
 	pyMain           = flag.String("pm", "", "__main__.py file to insert in par")
-	entrypoint       = flag.String("e", "", "par entrypoint file to insert in par")
 	prefix           = flag.String("prefix", "", "A file to prefix to the zip file")
 	ignoreDuplicates = flag.Bool("ignore-duplicates", false, "take each entry from the first zip it exists in and don't warn")
 )
@@ -79,7 +78,7 @@ func init() {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [--prefix script] [-e entrypoint] [-pm __main__.py] output [inputs...]")
+		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [--prefix script] [-pm __main__.py] output [inputs...]")
 		flag.PrintDefaults()
 	}
 
@@ -139,16 +138,12 @@ func main() {
 		log.Fatal(errors.New("must specify -j when specifying a manifest via -m"))
 	}
 
-	if *entrypoint != "" && !*emulatePar {
-		log.Fatal(errors.New("must specify -p when specifying a entrypoint via -e"))
-	}
-
 	if *pyMain != "" && !*emulatePar {
 		log.Fatal(errors.New("must specify -p when specifying a Python __main__.py via -pm"))
 	}
 
 	// do merge
-	err = mergeZips(readers, writer, *manifest, *entrypoint, *pyMain, *sortEntries, *emulateJar, *emulatePar,
+	err = mergeZips(readers, writer, *manifest, *pyMain, *sortEntries, *emulateJar, *emulatePar,
 		*stripDirEntries, *ignoreDuplicates, []string(stripFiles), []string(stripDirs), map[string]bool(zipsToNotStrip))
 	if err != nil {
 		log.Fatal(err)
@@ -249,7 +244,7 @@ type fileMapping struct {
 	source zipSource
 }
 
-func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoint, pyMain string,
+func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, pyMain string,
 	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool,
 	stripFiles, stripDirs []string, zipsToNotStrip map[string]bool) error {
 
@@ -287,22 +282,6 @@ func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, entrypoin
 
 		fileSource := bufferEntry{fh, buf}
 		addMapping(jar.ManifestFile, fileSource)
-	}
-
-	if entrypoint != "" {
-		buf, err := ioutil.ReadFile(entrypoint)
-		if err != nil {
-			return err
-		}
-		fh := &zip.FileHeader{
-			Name:               "entry_point.txt",
-			Method:             zip.Store,
-			UncompressedSize64: uint64(len(buf)),
-		}
-		fh.SetMode(0700)
-		fh.SetModTime(jar.DefaultTime)
-		fileSource := bufferEntry{fh, buf}
-		addMapping("entry_point.txt", fileSource)
 	}
 
 	if pyMain != "" {
