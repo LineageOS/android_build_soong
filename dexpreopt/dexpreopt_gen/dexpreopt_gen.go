@@ -133,10 +133,10 @@ func writeScripts(global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
 		depFile := &bytes.Buffer{}
 
 		fmt.Fprint(depFile, `: \`+"\n")
-		for _, tool := range dexpreoptRule.Tools() {
+		for _, tool := range rule.Tools() {
 			fmt.Fprintf(depFile, `    %s \`+"\n", tool)
 		}
-		for _, input := range dexpreoptRule.Inputs() {
+		for _, input := range rule.Inputs() {
 			// Assume the rule that ran the script already has a dependency on the input file passed on the
 			// command line.
 			if input != "$1" {
