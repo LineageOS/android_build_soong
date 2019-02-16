@@ -221,7 +221,7 @@ func TestMergeZips(t *testing.T) {
 			out := &bytes.Buffer{}
 			writer := zip.NewWriter(out)
 
-			err := mergeZips(readers, writer, "", "", "",
+			err := mergeZips(readers, writer, "", "",
 				test.sort, test.jar, false, test.stripDirEntries, test.ignoreDuplicates,
 				test.stripFiles, test.stripDirs, test.zipsToNotStrip)
 
