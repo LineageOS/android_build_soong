@@ -215,16 +215,16 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 
 	compiledOverlay = append(compiledOverlay, transitiveStaticLibs...)
 
-	if a.isLibrary {
-		// For a static library we treat all the resources equally with no overlay.
-		for _, compiledResDir := range compiledResDirs {
-			compiledRes = append(compiledRes, compiledResDir...)
-		}
-	} else if len(transitiveStaticLibs) > 0 {
+	if len(transitiveStaticLibs) > 0 {
 		// If we are using static android libraries, every source file becomes an overlay.
 		// This is to emulate old AAPT behavior which simulated library support.
 		for _, compiledResDir := range compiledResDirs {
 			compiledOverlay = append(compiledOverlay, compiledResDir...)
+		}
+	} else if a.isLibrary {
+		// Otherwise, for a static library we treat all the resources equally with no overlay.
+		for _, compiledResDir := range compiledResDirs {
+			compiledRes = append(compiledRes, compiledResDir...)
 		}
 	} else if len(compiledResDirs) > 0 {
 		// Without static libraries, the first directory is our directory, which can then be
@@ -278,8 +278,8 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 			}
 		case staticLibTag:
 			if exportPackage != nil {
-				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
+				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				staticLibManifests = append(staticLibManifests, aarDep.ExportedManifest())
 				staticRRODirs = append(staticRRODirs, aarDep.ExportedRRODirs()...)
 			}

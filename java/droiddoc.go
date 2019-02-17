@@ -171,12 +171,11 @@ type JavadocProperties struct {
 	// list of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
-	// don't build against the default libraries (bootclasspath, legacy-test, core-junit,
-	// ext, and framework for device targets)
+	// don't build against the default libraries (bootclasspath, ext, and framework for device
+	// targets)
 	No_standard_libs *bool
 
-	// don't build against the framework libraries (legacy-test, core-junit,
-	// ext, and framework for device targets)
+	// don't build against the framework libraries (ext, and framework for device targets)
 	No_framework_libs *bool
 
 	// the java library (in classpath) for documentation that provides java srcs and srcjars.
@@ -598,6 +597,9 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		switch srcFile.Ext() {
 		case ".aidl":
 			javaFile := genAidl(ctx, srcFile, flags.aidlFlags)
+			outSrcFiles = append(outSrcFiles, javaFile)
+		case ".sysprop":
+			javaFile := genSysprop(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)

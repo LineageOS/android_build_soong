@@ -19,17 +19,32 @@ import (
 	"bytes"
 	"html/template"
 	"io/ioutil"
+	"reflect"
+	"sort"
 
 	"github.com/google/blueprint/bootstrap"
+	"github.com/google/blueprint/bootstrap/bpdoc"
 )
 
 func writeDocs(ctx *android.Context, filename string) error {
-	moduleTypeList, err := bootstrap.ModuleTypeDocs(ctx.Context)
+	moduleTypeFactories := android.ModuleTypeFactories()
+	bpModuleTypeFactories := make(map[string]reflect.Value)
+	for moduleType, factory := range moduleTypeFactories {
+		bpModuleTypeFactories[moduleType] = reflect.ValueOf(factory)
+	}
+
+	packages, err := bootstrap.ModuleTypeDocs(ctx.Context, bpModuleTypeFactories)
 	if err != nil {
 		return err
 	}
 
 	buf := &bytes.Buffer{}
+
+	var moduleTypeList []*bpdoc.ModuleType
+	for _, pkg := range packages {
+		moduleTypeList = append(moduleTypeList, pkg.ModuleTypes...)
+	}
+	sort.Slice(moduleTypeList, func(i, j int) bool { return moduleTypeList[i].Name < moduleTypeList[j].Name })
 
 	unique := 0
 

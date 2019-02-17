@@ -123,7 +123,7 @@ type hooks struct {
 	install []func(InstallHookContext)
 }
 
-func loadHookMutator(ctx TopDownMutatorContext) {
+func LoadHookMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
 		// Cast through *androidTopDownMutatorContext because AppendProperties is implemented
 		// on *androidTopDownMutatorContext but not exposed through TopDownMutatorContext

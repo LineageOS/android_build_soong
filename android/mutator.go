@@ -74,7 +74,7 @@ type RegisterMutatorFunc func(RegisterMutatorsContext)
 
 var preArch = []RegisterMutatorFunc{
 	func(ctx RegisterMutatorsContext) {
-		ctx.TopDown("load_hooks", loadHookMutator).Parallel()
+		ctx.TopDown("load_hooks", LoadHookMutator).Parallel()
 	},
 	RegisterNamespaceMutator,
 	RegisterPrebuiltsPreArchMutators,

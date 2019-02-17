@@ -41,6 +41,7 @@ func init() {
 		ctx.BottomUp("test_per_src", testPerSrcMutator).Parallel()
 		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
+		ctx.BottomUp("sysprop", SyspropMutator).Parallel()
 	})
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -62,7 +63,7 @@ func init() {
 		ctx.TopDown("sanitize_runtime_deps", sanitizerRuntimeDepsMutator)
 		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
 
-		ctx.BottomUp("coverage", coverageLinkingMutator).Parallel()
+		ctx.BottomUp("coverage", coverageMutator).Parallel()
 		ctx.TopDown("vndk_deps", sabiDepsMutator)
 
 		ctx.TopDown("lto_deps", ltoDepsMutator)
@@ -257,6 +258,7 @@ type ModuleContextIntf interface {
 	baseModuleName() string
 	getVndkExtendsModuleName() string
 	isPgoCompile() bool
+	isNDKStubLibrary() bool
 	useClangLld(actx ModuleContext) bool
 	apexName() string
 	hasStubsVariants() bool
@@ -496,6 +498,10 @@ func (c *Module) useVndk() bool {
 	return c.Properties.UseVndk
 }
 
+func (c *Module) isCoverageVariant() bool {
+	return c.coverage.Properties.IsCoverageVariant
+}
+
 func (c *Module) isNdk() bool {
 	return inList(c.Name(), ndkMigratedLibs)
 }
@@ -525,6 +531,13 @@ func (c *Module) isVndk() bool {
 func (c *Module) isPgoCompile() bool {
 	if pgo := c.pgo; pgo != nil {
 		return pgo.Properties.PgoCompile
+	}
+	return false
+}
+
+func (c *Module) isNDKStubLibrary() bool {
+	if _, ok := c.compiler.(*stubDecorator); ok {
+		return true
 	}
 	return false
 }
@@ -672,6 +685,10 @@ func (ctx *moduleContextImpl) isVndk() bool {
 
 func (ctx *moduleContextImpl) isPgoCompile() bool {
 	return ctx.mod.isPgoCompile()
+}
+
+func (ctx *moduleContextImpl) isNDKStubLibrary() bool {
+	return ctx.mod.isNDKStubLibrary()
 }
 
 func (ctx *moduleContextImpl) isVndkSp() bool {
@@ -955,7 +972,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		// module is marked with 'bootstrap: true').
 		if c.HasStubsVariants() &&
 			android.DirectlyInAnyApex(ctx, ctx.baseModuleName()) &&
-			!c.inRecovery() && !c.useVndk() && !c.static() && c.IsStubs() {
+			!c.inRecovery() && !c.useVndk() && !c.static() && !c.isCoverageVariant() &&
+			c.IsStubs() {
 			c.Properties.HideFromMake = false // unhide
 			// Note: this is still non-installable
 		}
@@ -1211,11 +1229,18 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		{Mutator: "link", Variation: "static"},
 	}, wholeStaticDepTag, deps.WholeStaticLibs...)
 
+	syspropImplLibraries := syspropImplLibraries(actx.Config())
+
 	for _, lib := range deps.StaticLibs {
 		depTag := staticDepTag
 		if inList(lib, deps.ReexportStaticLibHeaders) {
 			depTag = staticExportDepTag
 		}
+
+		if impl, ok := syspropImplLibraries[lib]; ok {
+			lib = impl
+		}
+
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
 		}, depTag, lib)
@@ -1253,12 +1278,18 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	var sharedLibNames []string
 
 	for _, lib := range deps.SharedLibs {
-		name, version := stubsLibNameAndVersion(lib)
-		sharedLibNames = append(sharedLibNames, name)
 		depTag := sharedDepTag
 		if inList(lib, deps.ReexportSharedLibHeaders) {
 			depTag = sharedExportDepTag
 		}
+
+		if impl, ok := syspropImplLibraries[lib]; ok {
+			lib = impl
+		}
+
+		name, version := stubsLibNameAndVersion(lib)
+		sharedLibNames = append(sharedLibNames, name)
+
 		addSharedLibDependencies(depTag, name, version)
 	}
 
