@@ -156,6 +156,8 @@ type bootstrapper interface {
 	bootstrap(ctx android.ModuleContext, ActualVersion string, embeddedLauncher bool,
 		srcsPathMappings []pathMapping, srcsZip android.Path,
 		depsSrcsZips android.Paths) android.OptionalPath
+
+	autorun() bool
 }
 
 type installer interface {
@@ -307,9 +309,14 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled(pyVersion2) {
 			ctx.AddVariationDependencies(nil, pythonLibTag, "py2-stdlib")
+
+			launcherModule := "py2-launcher"
+			if p.bootstrapper.autorun() {
+				launcherModule = "py2-launcher-autorun"
+			}
 			ctx.AddFarVariationDependencies([]blueprint.Variation{
 				{Mutator: "arch", Variation: ctx.Target().String()},
-			}, launcherTag, "py2-launcher")
+			}, launcherTag, launcherModule)
 
 			// Add py2-launcher shared lib dependencies. Ideally, these should be
 			// derived from the `shared_libs` property of "py2-launcher". However, we
@@ -422,7 +429,11 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 			p.properties.Actual_version, ctx.ModuleName()))
 	}
 	expandedSrcs := ctx.ExpandSources(srcs, exclude_srcs)
-	if len(expandedSrcs) == 0 {
+	requiresSrcs := true
+	if p.bootstrapper != nil && !p.bootstrapper.autorun() {
+		requiresSrcs = false
+	}
+	if len(expandedSrcs) == 0 && requiresSrcs {
 		ctx.ModuleErrorf("doesn't have any source files!")
 	}
 
@@ -656,4 +667,5 @@ func (p *Module) InstallInData() bool {
 }
 
 var Bool = proptools.Bool
+var BoolDefault = proptools.BoolDefault
 var String = proptools.String
