@@ -42,6 +42,11 @@ type BinaryProperties struct {
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
 	Test_suites []string `android:"arch_variant"`
+
+	// whether to use `main` when starting the executable. The default is true, when set to
+	// false it will act much like the normal `python` executable, but with the sources and
+	// libraries automatically included in the PYTHONPATH.
+	Autorun *bool `android:"arch_variant"`
 }
 
 type binaryDecorator struct {
@@ -74,6 +79,10 @@ func PythonBinaryHostFactory() android.Module {
 	return module.Init()
 }
 
+func (binary *binaryDecorator) autorun() bool {
+	return BoolDefault(binary.binaryProperties.Autorun, true)
+}
+
 func (binary *binaryDecorator) bootstrapperProps() []interface{} {
 	return []interface{}{&binary.binaryProperties}
 }
@@ -82,7 +91,10 @@ func (binary *binaryDecorator) bootstrap(ctx android.ModuleContext, actualVersio
 	embeddedLauncher bool, srcsPathMappings []pathMapping, srcsZip android.Path,
 	depsSrcsZips android.Paths) android.OptionalPath {
 
-	main := binary.getPyMainFile(ctx, srcsPathMappings)
+	main := ""
+	if binary.autorun() {
+		main = binary.getPyMainFile(ctx, srcsPathMappings)
+	}
 
 	var launcherPath android.OptionalPath
 	if embeddedLauncher {
