@@ -199,9 +199,6 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 			pathtools.ReplaceExtension(filepath.Base(path), "odex"))
 	}
 
-	bcp := strings.Join(global.PreoptBootClassPathDexFiles, ":")
-	bcp_locations := strings.Join(global.PreoptBootClassPathDexLocations, ":")
-
 	odexPath := toOdexPath(filepath.Join(filepath.Dir(module.BuildPath), base))
 	odexInstallPath := toOdexPath(module.DexLocation)
 	if odexOnSystemOther(module, global) {
@@ -320,9 +317,8 @@ func dexpreoptCommand(global GlobalConfig, module ModuleConfig, rule *android.Ru
 		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
 		Flag("--runtime-arg").FlagWithArg("-Xms", global.Dex2oatXms).
 		Flag("--runtime-arg").FlagWithArg("-Xmx", global.Dex2oatXmx).
-		Flag("--runtime-arg").FlagWithArg("-Xbootclasspath:", bcp).
-		Implicits(global.PreoptBootClassPathDexFiles).
-		Flag("--runtime-arg").FlagWithArg("-Xbootclasspath-locations:", bcp_locations).
+		Flag("--runtime-arg").FlagWithInputList("-Xbootclasspath:", module.PreoptBootClassPathDexFiles, ":").
+		Flag("--runtime-arg").FlagWithList("-Xbootclasspath-locations:", module.PreoptBootClassPathDexLocations, ":").
 		Flag("${class_loader_context_arg}").
 		Flag("${stored_class_loader_context_arg}").
 		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImage).

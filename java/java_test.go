@@ -15,7 +15,6 @@
 package java
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -54,16 +53,7 @@ func TestMain(m *testing.M) {
 }
 
 func testConfig(env map[string]string) android.Config {
-	if env == nil {
-		env = make(map[string]string)
-	}
-	if env["ANDROID_JAVA8_HOME"] == "" {
-		env["ANDROID_JAVA8_HOME"] = "jdk8"
-	}
-	config := android.TestArchConfig(buildDir, env)
-	config.TestProductVariables.DeviceSystemSdkVersions = []string{"14", "15"}
-	return config
-
+	return TestConfig(buildDir, env)
 }
 
 func testContext(config android.Config, bp string,
@@ -113,53 +103,7 @@ func testContext(config android.Config, bp string,
 
 	ctx.Register()
 
-	extraModules := []string{
-		"core-lambda-stubs",
-		"framework",
-		"ext",
-		"android_stubs_current",
-		"android_system_stubs_current",
-		"android_test_stubs_current",
-		"core.current.stubs",
-		"core.platform.api.stubs",
-		"kotlin-stdlib",
-		"kotlin-annotations",
-	}
-
-	for _, extra := range extraModules {
-		bp += fmt.Sprintf(`
-			java_library {
-				name: "%s",
-				srcs: ["a.java"],
-				no_standard_libs: true,
-				sdk_version: "core_current",
-				system_modules: "core-platform-api-stubs-system-modules",
-			}
-		`, extra)
-	}
-
-	bp += `
-		android_app {
-			name: "framework-res",
-			no_framework_libs: true,
-		}
-	`
-
-	systemModules := []string{
-		"core-system-modules",
-		"core-platform-api-stubs-system-modules",
-		"android_stubs_current_system_modules",
-		"android_system_stubs_current_system_modules",
-		"android_test_stubs_current_system_modules",
-	}
-
-	for _, extra := range systemModules {
-		bp += fmt.Sprintf(`
-			java_system_modules {
-				name: "%s",
-			}
-		`, extra)
-	}
+	bp += GatherRequiredDepsForTest()
 
 	mockFS := map[string][]byte{
 		"Android.bp":             []byte(bp),
