@@ -1039,7 +1039,7 @@ var splitListForSizeTestCases = []struct {
 
 func TestSplitListForSize(t *testing.T) {
 	for _, testCase := range splitListForSizeTestCases {
-		out, _ := splitListForSize(android.PathsForTesting(testCase.in), testCase.size)
+		out, _ := splitListForSize(android.PathsForTesting(testCase.in...), testCase.size)
 
 		var outStrings [][]string
 
