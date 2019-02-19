@@ -1527,7 +1527,7 @@ type Test struct {
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template)
+	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template, j.testProperties.Test_suites)
 	j.data = ctx.ExpandSources(j.testProperties.Data, nil)
 
 	j.Library.GenerateAndroidBuildActions(ctx)
