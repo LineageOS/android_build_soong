@@ -34,11 +34,12 @@ type GlobalConfig struct {
 
 	DisableGenerateProfile bool // don't generate profiles
 
-	PreoptBootClassPathDexFiles     []string // file paths of boot class path files
-	PreoptBootClassPathDexLocations []string // virtual locations of boot class path files
+	BootJars []string // modules for jars that form the boot class path
 
-	BootJars         []string // modules for jars that form the boot class path
-	PreoptBootJars   []string // modules for jars that form the boot image
+	TargetCoreJars                []string // modules for jars that are in the runtime apex
+	ProductUpdatableBootModules   []string
+	ProductUpdatableBootLocations []string
+
 	SystemServerJars []string // jars that form the system server
 	SystemServerApps []string // apps that are loaded into system server
 	SpeedApps        []string // apps that should be speed optimized
@@ -64,14 +65,21 @@ type GlobalConfig struct {
 
 	DefaultAppImages bool // build app images (TODO: .art files?) by default
 
-	Dex2oatXmx string // max heap size
-	Dex2oatXms string // initial heap size
+	Dex2oatXmx string // max heap size for dex2oat
+	Dex2oatXms string // initial heap size for dex2oat
 
 	EmptyDirectory string // path to an empty directory
 
-	DefaultDexPreoptImage  map[android.ArchType]string // default boot image location for each architecture
 	CpuVariant             map[android.ArchType]string // cpu variant for each architecture
 	InstructionSetFeatures map[android.ArchType]string // instruction set for each architecture
+
+	// Only used for boot image
+	DirtyImageObjects string   // path to a dirty-image-objects file
+	PreloadedClasses  string   // path to a preloaded-classes file
+	BootImageProfiles []string // path to a boot-image-profile.txt file
+	BootFlags         string   // extra flags to pass to dex2oat for the boot image
+	Dex2oatImageXmx   string   // max heap size for dex2oat for the boot image
+	Dex2oatImageXms   string   // initial heap size for dex2oat for the boot image
 
 	Tools Tools // paths to tools possibly used by the generated commands
 }
@@ -108,6 +116,9 @@ type ModuleConfig struct {
 
 	Archs           []android.ArchType
 	DexPreoptImages []string
+
+	PreoptBootClassPathDexFiles     []string // file paths of boot class path files
+	PreoptBootClassPathDexLocations []string // virtual locations of boot class path files
 
 	PreoptExtractedApk bool // Overrides OnlyPreoptModules
 
