@@ -109,8 +109,6 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 		if mctx.Host() {
 			// TODO(dwillemsen): because of -nodefaultlibs, we must depend on libclang_rt.profile-*.a
 			// Just turn off for now.
-		} else if c.useVndk() || c.hasVendorVariant() {
-			// Do not enable coverage for VNDK libraries
 		} else if c.IsStubs() {
 			// Do not enable coverage for platform stub libraries
 		} else if c.isNDKStubLibrary() {
