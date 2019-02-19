@@ -197,8 +197,8 @@ var (
 	sAbiDiff = pctx.AndroidRuleFunc("sAbiDiff",
 		func(ctx android.PackageRuleContext) blueprint.RuleParams {
 			// TODO(b/78139997): Add -check-all-apis back
-			commandStr := "($sAbiDiffer $allowFlags -lib $libName -arch $arch -o ${out} -new $in -old $referenceDump)"
-			commandStr += "|| (echo ' ---- Please update abi references by running $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l ${libName} ----'"
+			commandStr := "($sAbiDiffer ${allowFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
+			commandStr += "|| (echo 'error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py ${createReferenceDumpFlags} -l ${libName}'"
 			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiffs/)"
 			commandStr += " && exit 1)"
 			return blueprint.RuleParams{
@@ -206,7 +206,7 @@ var (
 				CommandDeps: []string{"$sAbiDiffer"},
 			}
 		},
-		"allowFlags", "referenceDump", "libName", "arch")
+		"allowFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
 
 	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
 		blueprint.RuleParams{
@@ -711,16 +711,19 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 }
 
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string, isVndkExt bool) android.OptionalPath {
+	baseName, exportedHeaderFlags string, isLlndk, isVndkExt bool) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+	createReferenceDumpFlags := ""
+
 	localAbiCheckAllowFlags := append([]string(nil), abiCheckAllowFlags...)
 	if exportedHeaderFlags == "" {
 		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-advice-only")
 	}
-	if inList(libName, llndkLibraries) {
+	if isLlndk {
 		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-consider-opaque-types-different")
+		createReferenceDumpFlags = "--llndk"
 	}
 	if isVndkExt {
 		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-allow-extensions")
@@ -733,10 +736,11 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 		Input:       inputDump,
 		Implicit:    referenceDump,
 		Args: map[string]string{
-			"referenceDump": referenceDump.String(),
-			"libName":       libName,
-			"arch":          ctx.Arch().ArchType.Name,
-			"allowFlags":    strings.Join(localAbiCheckAllowFlags, " "),
+			"referenceDump":            referenceDump.String(),
+			"libName":                  libName,
+			"arch":                     ctx.Arch().ArchType.Name,
+			"allowFlags":               strings.Join(localAbiCheckAllowFlags, " "),
+			"createReferenceDumpFlags": createReferenceDumpFlags,
 		},
 	})
 	return android.OptionalPathForPath(outputFile)
