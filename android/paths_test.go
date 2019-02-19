@@ -703,3 +703,15 @@ func ExampleOutputPath_ReplaceExtension() {
 	// Output:
 	// out/system/framework/boot.art out/system/framework/boot.oat
 }
+
+func ExampleOutputPath_FileInSameDir() {
+	ctx := &configErrorWrapper{
+		config: TestConfig("out", nil),
+	}
+	p := PathForOutput(ctx, "system/framework/boot.art")
+	p2 := p.InSameDir(ctx, "oat", "arm", "boot.vdex")
+	fmt.Println(p, p2)
+
+	// Output:
+	// out/system/framework/boot.art out/system/framework/oat/arm/boot.vdex
+}
