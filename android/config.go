@@ -779,7 +779,11 @@ func (c *config) PreoptBootJars() []string {
 	return c.productVariables.PreoptBootJars
 }
 
-func (c *config) DisableDexPreopt(name string) bool {
+func (c *config) DisableDexPreopt() bool {
+	return Bool(c.productVariables.DisableDexPreopt)
+}
+
+func (c *config) DisableDexPreoptForModule(name string) bool {
 	return Bool(c.productVariables.DisableDexPreopt) || InList(name, c.productVariables.DisableDexPreoptModules)
 }
 
