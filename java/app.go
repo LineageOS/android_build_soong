@@ -186,6 +186,8 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
+	a.aapt.usesNonSdkApis = Bool(a.Module.deviceProperties.Platform_apis)
+
 	aaptLinkFlags := []string{}
 
 	// Add TARGET_AAPT_CHARACTERISTICS values to AAPT link flags if they exist and --product flags were not provided.
@@ -441,7 +443,7 @@ type AndroidTest struct {
 func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateAndroidBuildActions(ctx)
 
-	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.testProperties.Test_config_template, a.manifestPath)
+	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites)
 	a.data = ctx.ExpandSources(a.testProperties.Data, nil)
 }
 
