@@ -20,6 +20,11 @@ import (
 	"strings"
 )
 
+// CopyOf returns a new slice that has the same contents as s.
+func CopyOf(s []string) []string {
+	return append([]string(nil), s...)
+}
+
 func JoinWithPrefix(strs []string, prefix string) string {
 	if len(strs) == 0 {
 		return ""
