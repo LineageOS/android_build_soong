@@ -36,7 +36,7 @@ type GlobalConfig struct {
 
 	BootJars []string // modules for jars that form the boot class path
 
-	TargetCoreJars                []string // modules for jars that are in the runtime apex
+	RuntimeApexJars               []string // modules for jars that are in the runtime apex
 	ProductUpdatableBootModules   []string
 	ProductUpdatableBootLocations []string
 
