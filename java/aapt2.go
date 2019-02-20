@@ -109,6 +109,31 @@ func aapt2CompileDirs(ctx android.ModuleContext, flata android.WritablePath, dir
 	})
 }
 
+var aapt2CompileZipRule = pctx.AndroidStaticRule("aapt2CompileZip",
+	blueprint.RuleParams{
+		Command: `${config.ZipSyncCmd} -d $resZipDir $in && ` +
+			`${config.Aapt2Cmd} compile -o $out $cFlags --legacy --dir $resZipDir`,
+		CommandDeps: []string{
+			"${config.Aapt2Cmd}",
+			"${config.ZipSyncCmd}",
+		},
+	}, "cFlags", "resZipDir")
+
+func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip android.Path) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        aapt2CompileZipRule,
+		Description: "aapt2 compile zip",
+		Input:       zip,
+		Output:      flata,
+		Args: map[string]string{
+			// Always set --pseudo-localize, it will be stripped out later for release
+			// builds that don't want it.
+			"cFlags":    "--pseudo-localize",
+			"resZipDir": android.PathForModuleOut(ctx, "aapt2", "reszip", flata.Base()).String(),
+		},
+	})
+}
+
 var aapt2LinkRule = pctx.AndroidStaticRule("aapt2Link",
 	blueprint.RuleParams{
 		Command: `rm -rf $genDir && ` +
