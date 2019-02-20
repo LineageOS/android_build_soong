@@ -16,6 +16,7 @@ package android
 
 import (
 	"testing"
+	"time"
 )
 
 func TestOncePer_Once(t *testing.T) {
@@ -31,6 +32,21 @@ func TestOncePer_Once(t *testing.T) {
 
 	if b != "a" {
 		t.Errorf(`second call to Once with the same key should return "a": %q`, b)
+	}
+}
+
+func TestOncePer_Once_wait(t *testing.T) {
+	once := OncePer{}
+	key := NewOnceKey("key")
+
+	ch := make(chan bool)
+
+	go once.Once(key, func() interface{} { close(ch); time.Sleep(100 * time.Millisecond); return "foo" })
+	<-ch
+	a := once.Once(key, func() interface{} { return "bar" }).(string)
+
+	if a != "foo" {
+		t.Errorf("expect %q, got %q", "foo", a)
 	}
 }
 
@@ -63,6 +79,21 @@ func TestOncePer_Get_panic(t *testing.T) {
 	}()
 
 	once.Get(key)
+}
+
+func TestOncePer_Get_wait(t *testing.T) {
+	once := OncePer{}
+	key := NewOnceKey("key")
+
+	ch := make(chan bool)
+
+	go once.Once(key, func() interface{} { close(ch); time.Sleep(100 * time.Millisecond); return "foo" })
+	<-ch
+	a := once.Get(key).(string)
+
+	if a != "foo" {
+		t.Errorf("expect %q, got %q", "foo", a)
+	}
 }
 
 func TestOncePer_OnceStringSlice(t *testing.T) {
