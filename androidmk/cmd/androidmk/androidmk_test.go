@@ -1028,6 +1028,19 @@ prebuilt_etc {
 }
 `,
 	},
+	{
+		desc: "vts_config",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := vtsconf
+include test/vts/tools/build/Android.host_config.mk
+`,
+		expected: `
+vts_config {
+	name: "vtsconf",
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {

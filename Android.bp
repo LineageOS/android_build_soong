@@ -67,6 +67,7 @@ bootstrap_go_package {
         "android/testing.go",
         "android/util.go",
         "android/variable.go",
+        "android/vts_config.go",
         "android/writedocs.go",
 
         // Lock down environment access last
@@ -85,6 +86,7 @@ bootstrap_go_package {
         "android/rule_builder_test.go",
         "android/util_test.go",
         "android/variable_test.go",
+        "android/vts_config_test.go",
     ],
 }
 
