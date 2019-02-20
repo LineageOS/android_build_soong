@@ -29,7 +29,7 @@ var testGlobalConfig = GlobalConfig{
 	PatternsOnSystemOther:              nil,
 	DisableGenerateProfile:             false,
 	BootJars:                           nil,
-	TargetCoreJars:                     nil,
+	RuntimeApexJars:                    nil,
 	ProductUpdatableBootModules:        nil,
 	ProductUpdatableBootLocations:      nil,
 	SystemServerJars:                   nil,
