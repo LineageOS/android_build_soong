@@ -113,7 +113,7 @@ func concat(lists ...[]string) []string {
 }
 
 func computeBootClasspath(ctx android.PathContext, info *bootJarsInfo) {
-	runtimeModules := android.RemoveListFromList(info.global.TargetCoreJars, info.global.ProductUpdatableBootModules)
+	runtimeModules := info.global.RuntimeApexJars
 	nonFrameworkModules := concat(runtimeModules, info.global.ProductUpdatableBootModules)
 	frameworkModules := android.RemoveListFromList(info.global.BootJars, nonFrameworkModules)
 
