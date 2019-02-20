@@ -399,7 +399,7 @@ func bootImageProfileRule(ctx android.SingletonContext, info *bootJarsInfo, miss
 	var bootImageProfile string
 	if len(info.global.BootImageProfiles) > 1 {
 		combinedBootImageProfile := info.dir.Join(ctx, "boot-image-profile.txt")
-		rule.Command().Text("cat").Inputs(info.global.BootImageProfiles).Output(combinedBootImageProfile.String())
+		rule.Command().Text("cat").Inputs(info.global.BootImageProfiles).Text(">").Output(combinedBootImageProfile.String())
 		bootImageProfile = combinedBootImageProfile.String()
 	} else {
 		bootImageProfile = info.global.BootImageProfiles[0]
