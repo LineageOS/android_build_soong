@@ -107,6 +107,7 @@ module {
 
 var archVariants = map[ArchType][]string{
 	Arm: {
+		"armv7-a",
 		"armv7-a-neon",
 		"armv8-a",
 		"armv8-2a",
@@ -1314,6 +1315,7 @@ type archConfig struct {
 
 func getMegaDeviceConfig() []archConfig {
 	return []archConfig{
+		{"arm", "armv7-a", "generic", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "generic", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a7", []string{"armeabi-v7a"}},
 		{"arm", "armv7-a-neon", "cortex-a8", []string{"armeabi-v7a"}},
@@ -1365,7 +1367,7 @@ func getMegaDeviceConfig() []archConfig {
 
 func getNdkAbisConfig() []archConfig {
 	return []archConfig{
-		{"arm", "armv7-a-neon", "", []string{"armeabi"}},
+		{"arm", "armv7-a", "", []string{"armeabi"}},
 		{"arm64", "armv8-a", "", []string{"arm64-v8a"}},
 		{"x86", "", "", []string{"x86"}},
 		{"x86_64", "", "", []string{"x86_64"}},
