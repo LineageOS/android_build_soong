@@ -775,10 +775,6 @@ func (c *config) BootJars() []string {
 	return c.productVariables.BootJars
 }
 
-func (c *config) PreoptBootJars() []string {
-	return c.productVariables.PreoptBootJars
-}
-
 func (c *config) DexpreoptGlobalConfig() string {
 	return String(c.productVariables.DexpreoptGlobalConfig)
 }
