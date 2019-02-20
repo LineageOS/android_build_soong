@@ -44,13 +44,15 @@ func hiddenAPISingletonPaths(ctx android.PathContext) hiddenAPISingletonPathsStr
 }
 
 func hiddenAPISingletonFactory() android.Singleton {
-	return hiddenAPISingleton{}
+	return &hiddenAPISingleton{}
 }
 
-type hiddenAPISingleton struct{}
+type hiddenAPISingleton struct {
+	flags, metadata android.Path
+}
 
 // hiddenAPI singleton rules
-func (hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) {
+func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true
 	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		return
@@ -60,10 +62,24 @@ func (hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	// These rules depend on files located in frameworks/base, skip them if running in a tree that doesn't have them.
 	if ctx.Config().FrameworksBaseDirExists(ctx) {
-		flagsRule(ctx)
-		metadataRule(ctx)
+		h.flags = flagsRule(ctx)
+		h.metadata = metadataRule(ctx)
 	} else {
-		emptyFlagsRule(ctx)
+		h.flags = emptyFlagsRule(ctx)
+	}
+}
+
+// Export paths to Make.  INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
+// Both paths are used to call dist-for-goals.
+func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+		return
+	}
+
+	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", h.flags.String())
+
+	if h.metadata != nil {
+		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_GREYLIST_METADATA", h.metadata.String())
 	}
 }
 
@@ -170,7 +186,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 
 // flagsRule creates a rule to build hiddenapi-flags.csv out of flags.csv files generated for boot image modules and
 // the greylists.
-func flagsRule(ctx android.SingletonContext) {
+func flagsRule(ctx android.SingletonContext) android.Path {
 	var flagsCSV android.Paths
 
 	var greylistIgnoreConflicts android.Path
@@ -187,7 +203,7 @@ func flagsRule(ctx android.SingletonContext) {
 
 	if greylistIgnoreConflicts == nil {
 		ctx.Errorf("failed to find removed_dex_api_filename from hiddenapi-lists-docs module")
-		return
+		return nil
 	}
 
 	rule := android.NewRuleBuilder()
@@ -216,11 +232,13 @@ func flagsRule(ctx android.SingletonContext) {
 	commitChangeForRestat(rule, tempPath, outputPath)
 
 	rule.Build(pctx, ctx, "hiddenAPIFlagsFile", "hiddenapi flags")
+
+	return outputPath
 }
 
 // emptyFlagsRule creates a rule to build an empty hiddenapi-flags.csv, which is needed by master-art-host builds that
 // have a partial manifest without frameworks/base but still need to build a boot image.
-func emptyFlagsRule(ctx android.SingletonContext) {
+func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 	rule := android.NewRuleBuilder()
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
@@ -229,11 +247,13 @@ func emptyFlagsRule(ctx android.SingletonContext) {
 	rule.Command().Text("touch").Output(outputPath.String())
 
 	rule.Build(pctx, ctx, "emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
+
+	return outputPath
 }
 
 // metadataRule creates a rule to build hiddenapi-greylist.csv out of the metadata.csv files generated for boot image
 // modules.
-func metadataRule(ctx android.SingletonContext) {
+func metadataRule(ctx android.SingletonContext) android.Path {
 	var metadataCSV android.Paths
 
 	ctx.VisitAllModules(func(module android.Module) {
@@ -255,6 +275,8 @@ func metadataRule(ctx android.SingletonContext) {
 		Output(outputPath.String())
 
 	rule.Build(pctx, ctx, "hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
+
+	return outputPath
 }
 
 // commitChangeForRestat adds a command to a rule that updates outputPath from tempPath if they are different.  It
@@ -273,18 +295,4 @@ func commitChangeForRestat(rule *android.RuleBuilder, tempPath, outputPath andro
 		Text("mv").Input(tempPath.String()).Output(outputPath.String()).Text(";").
 		Text("fi").
 		Text(")")
-}
-
-func init() {
-	android.RegisterMakeVarsProvider(pctx, hiddenAPIMakeVars)
-}
-
-// Export paths to Make.  INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
-// Both paths are used to call dist-for-goals.
-func hiddenAPIMakeVars(ctx android.MakeVarsContext) {
-	if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		singletonPaths := hiddenAPISingletonPaths(ctx)
-		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", singletonPaths.flags.String())
-		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_GREYLIST_METADATA", singletonPaths.metadata.String())
-	}
 }
