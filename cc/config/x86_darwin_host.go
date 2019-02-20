@@ -79,6 +79,7 @@ var (
 		"-framework Foundation",
 		"-framework IOKit",
 		"-framework Security",
+		"-framework SystemConfiguration",
 	)
 )
 
