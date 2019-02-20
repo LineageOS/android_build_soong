@@ -90,6 +90,25 @@ func RegisterMakeVarsProvider(pctx PackageContext, provider MakeVarsProvider) {
 	makeVarsProviders = append(makeVarsProviders, makeVarsProvider{pctx, provider})
 }
 
+// SingletonMakeVarsProvider is a Singleton with an extra method to provide extra values to be exported to Make.
+type SingletonMakeVarsProvider interface {
+	Singleton
+
+	// MakeVars uses a MakeVarsContext to provide extra values to be exported to Make.
+	MakeVars(ctx MakeVarsContext)
+}
+
+// registerSingletonMakeVarsProvider adds a singleton that implements SingletonMakeVarsProvider to the list of
+// MakeVarsProviders to run.
+func registerSingletonMakeVarsProvider(singleton SingletonMakeVarsProvider) {
+	makeVarsProviders = append(makeVarsProviders, makeVarsProvider{pctx, SingletonmakeVarsProviderAdapter(singleton)})
+}
+
+// SingletonmakeVarsProviderAdapter converts a SingletonMakeVarsProvider to a MakeVarsProvider.
+func SingletonmakeVarsProviderAdapter(singleton SingletonMakeVarsProvider) MakeVarsProvider {
+	return func(ctx MakeVarsContext) { singleton.MakeVars(ctx) }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 func makeVarsSingletonFunc() Singleton {

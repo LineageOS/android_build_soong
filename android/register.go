@@ -58,6 +58,9 @@ type SingletonFactory func() Singleton
 func SingletonFactoryAdaptor(factory SingletonFactory) blueprint.SingletonFactory {
 	return func() blueprint.Singleton {
 		singleton := factory()
+		if makevars, ok := singleton.(SingletonMakeVarsProvider); ok {
+			registerSingletonMakeVarsProvider(makevars)
+		}
 		return singletonAdaptor{singleton}
 	}
 }
