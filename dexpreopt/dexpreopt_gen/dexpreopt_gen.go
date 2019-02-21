@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
@@ -33,7 +34,16 @@ var (
 	stripScriptPath     = flag.String("strip_script", "", "path to output strip script")
 	globalConfigPath    = flag.String("global", "", "path to global configuration file")
 	moduleConfigPath    = flag.String("module", "", "path to module configuration file")
+	outDir              = flag.String("out_dir", "", "path to output directory")
 )
+
+type pathContext struct {
+	config android.Config
+}
+
+func (x *pathContext) Fs() pathtools.FileSystem   { return pathtools.OsFs }
+func (x *pathContext) Config() android.Config     { return x.config }
+func (x *pathContext) AddNinjaFileDeps(...string) {}
 
 func main() {
 	flag.Parse()
@@ -66,17 +76,25 @@ func main() {
 		usage("path to module configuration file is required")
 	}
 
-	globalConfig, err := dexpreopt.LoadGlobalConfig(*globalConfigPath)
+	ctx := &pathContext{android.TestConfig(*outDir, nil)}
+
+	globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, *globalConfigPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading global config %q: %s\n", *globalConfigPath, err)
 		os.Exit(2)
 	}
 
-	moduleConfig, err := dexpreopt.LoadModuleConfig(*moduleConfigPath)
+	moduleConfig, err := dexpreopt.LoadModuleConfig(ctx, *moduleConfigPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading module config %q: %s\n", *moduleConfigPath, err)
 		os.Exit(2)
 	}
+
+	// This shouldn't be using *PathForTesting, but it's outside of soong_build so its OK for now.
+	moduleConfig.StripInputPath = android.PathForTesting("$1")
+	moduleConfig.StripOutputPath = android.WritablePathForTesting("$2")
+
+	moduleConfig.DexPath = android.PathForTesting("$1")
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -92,30 +110,30 @@ func main() {
 		}
 	}()
 
-	writeScripts(globalConfig, moduleConfig, *dexpreoptScriptPath, *stripScriptPath)
+	writeScripts(ctx, globalConfig, moduleConfig, *dexpreoptScriptPath, *stripScriptPath)
 }
 
-func writeScripts(global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
+func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
 	dexpreoptScriptPath, stripScriptPath string) {
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(global, module)
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
 		panic(err)
 	}
 
-	installDir := filepath.Join(filepath.Dir(module.BuildPath), "dexpreopt_install")
+	installDir := module.BuildPath.InSameDir(ctx, "dexpreopt_install")
 
-	dexpreoptRule.Command().FlagWithArg("rm -rf ", installDir)
-	dexpreoptRule.Command().FlagWithArg("mkdir -p ", installDir)
+	dexpreoptRule.Command().FlagWithArg("rm -rf ", installDir.String())
+	dexpreoptRule.Command().FlagWithArg("mkdir -p ", installDir.String())
 
 	for _, install := range dexpreoptRule.Installs() {
-		installPath := filepath.Join(installDir, install.To)
-		dexpreoptRule.Command().Text("mkdir -p").Flag(filepath.Dir(installPath))
+		installPath := installDir.Join(ctx, strings.TrimPrefix(install.To, "/"))
+		dexpreoptRule.Command().Text("mkdir -p").Flag(filepath.Dir(installPath.String()))
 		dexpreoptRule.Command().Text("cp -f").Input(install.From).Output(installPath)
 	}
 	dexpreoptRule.Command().Tool(global.Tools.SoongZip).
-		FlagWithOutput("-o ", "$2").
-		FlagWithArg("-C ", installDir).
-		FlagWithArg("-D ", installDir)
+		FlagWithArg("-o ", "$2").
+		FlagWithArg("-C ", installDir.String()).
+		FlagWithArg("-D ", installDir.String())
 
 	stripRule, err := dexpreopt.GenerateStripRule(global, module)
 	if err != nil {
@@ -139,7 +157,7 @@ func writeScripts(global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
 		for _, input := range rule.Inputs() {
 			// Assume the rule that ran the script already has a dependency on the input file passed on the
 			// command line.
-			if input != "$1" {
+			if input.String() != "$1" {
 				fmt.Fprintf(depFile, `    %s \`+"\n", input)
 			}
 		}
@@ -159,13 +177,13 @@ func writeScripts(global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
 	}
 
 	// The written scripts will assume the input is $1 and the output is $2
-	if module.DexPath != "$1" {
+	if module.DexPath.String() != "$1" {
 		panic(fmt.Errorf("module.DexPath must be '$1', was %q", module.DexPath))
 	}
-	if module.StripInputPath != "$1" {
+	if module.StripInputPath.String() != "$1" {
 		panic(fmt.Errorf("module.StripInputPath must be '$1', was %q", module.StripInputPath))
 	}
-	if module.StripOutputPath != "$2" {
+	if module.StripOutputPath.String() != "$2" {
 		panic(fmt.Errorf("module.StripOutputPath must be '$2', was %q", module.StripOutputPath))
 	}
 
