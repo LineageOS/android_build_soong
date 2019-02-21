@@ -21,98 +21,47 @@ import (
 	"testing"
 )
 
-var testGlobalConfig = GlobalConfig{
-	DefaultNoStripping:                 false,
-	DisablePreoptModules:               nil,
-	OnlyPreoptBootImageAndSystemServer: false,
-	HasSystemOther:                     false,
-	PatternsOnSystemOther:              nil,
-	DisableGenerateProfile:             false,
-	BootJars:                           nil,
-	RuntimeApexJars:                    nil,
-	ProductUpdatableBootModules:        nil,
-	ProductUpdatableBootLocations:      nil,
-	SystemServerJars:                   nil,
-	SystemServerApps:                   nil,
-	SpeedApps:                          nil,
-	PreoptFlags:                        nil,
-	DefaultCompilerFilter:              "",
-	SystemServerCompilerFilter:         "",
-	GenerateDMFiles:                    false,
-	NeverAllowStripping:                false,
-	NoDebugInfo:                        false,
-	AlwaysSystemServerDebugInfo:        false,
-	NeverSystemServerDebugInfo:         false,
-	AlwaysOtherDebugInfo:               false,
-	NeverOtherDebugInfo:                false,
-	MissingUsesLibraries:               nil,
-	IsEng:                              false,
-	SanitizeLite:                       false,
-	DefaultAppImages:                   false,
-	Dex2oatXmx:                         "",
-	Dex2oatXms:                         "",
-	EmptyDirectory:                     "",
-	CpuVariant:                         nil,
-	InstructionSetFeatures:             nil,
-	DirtyImageObjects:                  "",
-	PreloadedClasses:                   "",
-	BootImageProfiles:                  nil,
-	BootFlags:                          "",
-	Dex2oatImageXmx:                    "",
-	Dex2oatImageXms:                    "",
-	Tools: Tools{
-		Profman:             "profman",
-		Dex2oat:             "dex2oat",
-		Aapt:                "aapt",
-		SoongZip:            "soong_zip",
-		Zip2zip:             "zip2zip",
-		VerifyUsesLibraries: "verify_uses_libraries.sh",
-		ConstructContext:    "construct_context.sh",
-	},
-}
-
-var testModuleConfig = ModuleConfig{
-	Name:                            "",
-	DexLocation:                     "",
-	BuildPath:                       "",
-	DexPath:                         "",
-	UncompressedDex:                 false,
-	HasApkLibraries:                 false,
-	PreoptFlags:                     nil,
-	ProfileClassListing:             "",
-	ProfileIsTextListing:            false,
-	EnforceUsesLibraries:            false,
-	OptionalUsesLibraries:           nil,
-	UsesLibraries:                   nil,
-	LibraryPaths:                    nil,
-	Archs:                           []android.ArchType{android.Arm},
-	DexPreoptImages:                 []string{"system/framework/arm/boot.art"},
-	PreoptBootClassPathDexFiles:     nil,
-	PreoptBootClassPathDexLocations: nil,
-	PreoptExtractedApk:              false,
-	NoCreateAppImage:                false,
-	ForceCreateAppImage:             false,
-	PresignedPrebuilt:               false,
-	NoStripping:                     false,
-	StripInputPath:                  "",
-	StripOutputPath:                 "",
+func testModuleConfig(ctx android.PathContext) ModuleConfig {
+	return ModuleConfig{
+		Name:                            "test",
+		DexLocation:                     "/system/app/test/test.apk",
+		BuildPath:                       android.PathForOutput(ctx, "test/test.apk"),
+		DexPath:                         android.PathForOutput(ctx, "test/dex/test.jar"),
+		UncompressedDex:                 false,
+		HasApkLibraries:                 false,
+		PreoptFlags:                     nil,
+		ProfileClassListing:             android.OptionalPath{},
+		ProfileIsTextListing:            false,
+		EnforceUsesLibraries:            false,
+		OptionalUsesLibraries:           nil,
+		UsesLibraries:                   nil,
+		LibraryPaths:                    nil,
+		Archs:                           []android.ArchType{android.Arm},
+		DexPreoptImages:                 android.Paths{android.PathForTesting("system/framework/arm/boot.art")},
+		PreoptBootClassPathDexFiles:     nil,
+		PreoptBootClassPathDexLocations: nil,
+		PreoptExtractedApk:              false,
+		NoCreateAppImage:                false,
+		ForceCreateAppImage:             false,
+		PresignedPrebuilt:               false,
+		NoStripping:                     false,
+		StripInputPath:                  android.PathForOutput(ctx, "unstripped/test.apk"),
+		StripOutputPath:                 android.PathForOutput(ctx, "stripped/test.apk"),
+	}
 }
 
 func TestDexPreopt(t *testing.T) {
-	global, module := testGlobalConfig, testModuleConfig
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
 
-	module.Name = "test"
-	module.DexLocation = "/system/app/test/test.apk"
-	module.BuildPath = "out/test/test.apk"
-
-	rule, err := GenerateDexpreoptRule(global, module)
+	rule, err := GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	wantInstalls := android.RuleBuilderInstalls{
-		{"out/test/oat/arm/package.odex", "/system/app/test/oat/arm/test.odex"},
-		{"out/test/oat/arm/package.vdex", "/system/app/test/oat/arm/test.vdex"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.odex"), "/system/app/test/oat/arm/test.odex"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system/app/test/oat/arm/test.vdex"},
 	}
 
 	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
@@ -122,13 +71,11 @@ func TestDexPreopt(t *testing.T) {
 
 func TestDexPreoptStrip(t *testing.T) {
 	// Test that we panic if we strip in a configuration where stripping is not allowed.
-	global, module := testGlobalConfig, testModuleConfig
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
 
 	global.NeverAllowStripping = true
 	module.NoStripping = false
-	module.Name = "test"
-	module.DexLocation = "/system/app/test/test.apk"
-	module.BuildPath = "out/test/test.apk"
 
 	_, err := GenerateStripRule(global, module)
 	if err == nil {
@@ -137,23 +84,20 @@ func TestDexPreoptStrip(t *testing.T) {
 }
 
 func TestDexPreoptSystemOther(t *testing.T) {
-	global, module := testGlobalConfig, testModuleConfig
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
 
 	global.HasSystemOther = true
 	global.PatternsOnSystemOther = []string{"app/%"}
 
-	module.Name = "test"
-	module.DexLocation = "/system/app/test/test.apk"
-	module.BuildPath = "out/test/test.apk"
-
-	rule, err := GenerateDexpreoptRule(global, module)
+	rule, err := GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	wantInstalls := android.RuleBuilderInstalls{
-		{"out/test/oat/arm/package.odex", "/system_other/app/test/oat/arm/test.odex"},
-		{"out/test/oat/arm/package.vdex", "/system_other/app/test/oat/arm/test.vdex"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.odex"), "/system_other/app/test/oat/arm/test.odex"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system_other/app/test/oat/arm/test.vdex"},
 	}
 
 	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
@@ -162,23 +106,21 @@ func TestDexPreoptSystemOther(t *testing.T) {
 }
 
 func TestDexPreoptProfile(t *testing.T) {
-	global, module := testGlobalConfig, testModuleConfig
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
 
-	module.Name = "test"
-	module.DexLocation = "/system/app/test/test.apk"
-	module.BuildPath = "out/test/test.apk"
-	module.ProfileClassListing = "profile"
+	module.ProfileClassListing = android.OptionalPathForPath(android.PathForTesting("profile"))
 
-	rule, err := GenerateDexpreoptRule(global, module)
+	rule, err := GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	wantInstalls := android.RuleBuilderInstalls{
-		{"out/test/profile.prof", "/system/app/test/test.apk.prof"},
-		{"out/test/oat/arm/package.art", "/system/app/test/oat/arm/test.art"},
-		{"out/test/oat/arm/package.odex", "/system/app/test/oat/arm/test.odex"},
-		{"out/test/oat/arm/package.vdex", "/system/app/test/oat/arm/test.vdex"},
+		{android.PathForOutput(ctx, "test/profile.prof"), "/system/app/test/test.apk.prof"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.art"), "/system/app/test/oat/arm/test.art"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.odex"), "/system/app/test/oat/arm/test.odex"},
+		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system/app/test/oat/arm/test.vdex"},
 	}
 
 	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
@@ -212,29 +154,24 @@ func TestStripDex(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			global, module := testGlobalConfig, testModuleConfig
-
-			module.Name = "test"
-			module.DexLocation = "/system/app/test/test.apk"
-			module.BuildPath = "out/test/test.apk"
-			module.StripInputPath = "$1"
-			module.StripOutputPath = "$2"
+			ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+			global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
 
 			test.setup(&global, &module)
 
 			rule, err := GenerateStripRule(global, module)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			if test.strip {
-				want := `zip2zip -i $1 -o $2 -x "classes*.dex"`
+				want := `zip2zip -i out/unstripped/test.apk -o out/stripped/test.apk -x "classes*.dex"`
 				if len(rule.Commands()) < 1 || !strings.Contains(rule.Commands()[0], want) {
 					t.Errorf("\nwant commands[0] to have:\n   %v\ngot:\n   %v", want, rule.Commands()[0])
 				}
 			} else {
 				wantCommands := []string{
-					"cp -f $1 $2",
+					"cp -f out/unstripped/test.apk out/stripped/test.apk",
 				}
 				if !reflect.DeepEqual(rule.Commands(), wantCommands) {
 					t.Errorf("\nwant commands:\n   %v\ngot:\n   %v", wantCommands, rule.Commands())
