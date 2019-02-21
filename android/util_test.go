@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -358,4 +359,48 @@ func TestRemoveFromList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ExampleCopyOf() {
+	a := []string{"1", "2", "3"}
+	b := CopyOf(a)
+	a[0] = "-1"
+	fmt.Printf("a = %q\n", a)
+	fmt.Printf("b = %q\n", b)
+
+	// Output:
+	// a = ["-1" "2" "3"]
+	// b = ["1" "2" "3"]
+}
+
+func ExampleCopyOf_append() {
+	a := make([]string, 1, 2)
+	a[0] = "foo"
+
+	fmt.Println("Without CopyOf:")
+	b := append(a, "bar")
+	c := append(a, "baz")
+	fmt.Printf("a = %q\n", a)
+	fmt.Printf("b = %q\n", b)
+	fmt.Printf("c = %q\n", c)
+
+	a = make([]string, 1, 2)
+	a[0] = "foo"
+
+	fmt.Println("With CopyOf:")
+	b = append(CopyOf(a), "bar")
+	c = append(CopyOf(a), "baz")
+	fmt.Printf("a = %q\n", a)
+	fmt.Printf("b = %q\n", b)
+	fmt.Printf("c = %q\n", c)
+
+	// Output:
+	// Without CopyOf:
+	// a = ["foo"]
+	// b = ["foo" "baz"]
+	// c = ["foo" "baz"]
+	// With CopyOf:
+	// a = ["foo"]
+	// b = ["foo" "bar"]
+	// c = ["foo" "baz"]
 }

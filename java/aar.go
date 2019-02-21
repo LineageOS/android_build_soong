@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/android"
+	"fmt"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -62,6 +63,9 @@ type aaptProperties struct {
 	// Set to [] to disable the default.
 	Resource_dirs []string
 
+	// list of zip files containing Android resources.
+	Resource_zips []string
+
 	// path to AndroidManifest.xml.  If unset, defaults to "AndroidManifest.xml".
 	Manifest *string
 }
@@ -95,7 +99,7 @@ func (a *aapt) ExportedManifest() android.Path {
 }
 
 func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, manifestPath android.Path) (flags []string,
-	deps android.Paths, resDirs, overlayDirs []globbedResourceDir, rroDirs android.Paths) {
+	deps android.Paths, resDirs, overlayDirs []globbedResourceDir, rroDirs, resZips android.Paths) {
 
 	hasVersionCode := false
 	hasVersionName := false
@@ -117,6 +121,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, mani
 	// Find implicit or explicit asset and resource dirs
 	assetDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets")
 	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs, "res")
+	resourceZips := ctx.ExpandSources(a.aaptProperties.Resource_zips, nil)
 
 	var linkDeps android.Paths
 
@@ -167,7 +172,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, mani
 		linkFlags = append(linkFlags, "--version-name ", versionName)
 	}
 
-	return linkFlags, linkDeps, resDirs, overlayDirs, rroDirs
+	return linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, resourceZips
 }
 
 func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
@@ -175,6 +180,8 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
 	if sdkDep.frameworkResModule != "" {
 		ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 	}
+
+	android.ExtractSourcesDeps(ctx, a.aaptProperties.Resource_zips)
 }
 
 func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, extraLinkFlags ...string) {
@@ -187,12 +194,9 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests, a.isLibrary,
 		a.uncompressedJNI, a.useEmbeddedDex, a.usesNonSdkApis)
 
-	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs := a.aapt2Flags(ctx, sdkContext, manifestPath)
+	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, resZips := a.aapt2Flags(ctx, sdkContext, manifestPath)
 
 	rroDirs = append(rroDirs, staticRRODirs...)
-	// TODO(b/124035856): stop de-duping when there are no more dupe resource dirs.
-	rroDirs = android.FirstUniquePaths(rroDirs)
-
 	linkFlags = append(linkFlags, libFlags...)
 	linkDeps = append(linkDeps, libDeps...)
 	linkFlags = append(linkFlags, extraLinkFlags...)
@@ -210,6 +214,12 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	var compiledResDirs []android.Paths
 	for _, dir := range resDirs {
 		compiledResDirs = append(compiledResDirs, aapt2Compile(ctx, dir.dir, dir.files).Paths())
+	}
+
+	for i, zip := range resZips {
+		flata := android.PathForModuleOut(ctx, fmt.Sprintf("reszip.%d.flata", i))
+		aapt2CompileZip(ctx, flata, zip)
+		compiledResDirs = append(compiledResDirs, android.Paths{flata})
 	}
 
 	var compiledRes, compiledOverlay android.Paths

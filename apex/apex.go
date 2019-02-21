@@ -379,8 +379,18 @@ type apexBundle struct {
 	outputFiles      map[apexPackaging]android.WritablePath
 	installDir       android.OutputPath
 
+	public_key_file   android.Path
+	private_key_file  android.Path
+	bundle_public_key bool
+
+	container_certificate_file android.Path
+	container_private_key_file android.Path
+
 	// list of files to be included in this apex
 	filesInfo []apexFile
+
+	// list of module names that this APEX is depending on
+	externalDeps []string
 
 	flattened bool
 
@@ -635,10 +645,6 @@ func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy an
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	filesInfo := []apexFile{}
 
-	var keyFile android.Path
-	var pubKeyFile android.Path
-	var certificate java.Certificate
-
 	if a.properties.Payload_type == nil || *a.properties.Payload_type == "image" {
 		a.apexTypes = imageApex
 	} else if *a.properties.Payload_type == "zip" {
@@ -704,20 +710,20 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case keyTag:
 				if key, ok := child.(*apexKey); ok {
-					keyFile = key.private_key_file
-					if !key.installable() && ctx.Config().Debuggable() {
-						// If the key is not installed, bundled it with the APEX.
-						// Note: this bundled key is valid only for non-production builds
-						// (eng/userdebug).
-						pubKeyFile = key.public_key_file
-					}
+					a.private_key_file = key.private_key_file
+					a.public_key_file = key.public_key_file
+					// If the key is not installed, bundled it with the APEX.
+					// Note: this bundled key is valid only for non-production builds
+					// (eng/userdebug).
+					a.bundle_public_key = !key.installable() && ctx.Config().Debuggable()
 					return false
 				} else {
 					ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
 				}
 			case certificateTag:
 				if dep, ok := child.(*java.AndroidAppCertificate); ok {
-					certificate = dep.Certificate
+					a.container_certificate_file = dep.Certificate.Pem
+					a.container_private_key_file = dep.Certificate.Key
 					return false
 				} else {
 					ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", depName)
@@ -728,6 +734,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
 				if cc, ok := child.(*cc.Module); ok {
 					if cc.IsStubs() || cc.HasStubsVariants() {
+						// If the dependency is a stubs lib, don't include it in this APEX,
+						// but make sure that the lib is installed on the device.
+						// In case no APEX is having the lib, the lib is installed to the system
+						// partition.
+						if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
+							a.externalDeps = append(a.externalDeps, cc.Name())
+						}
+						// Don't track further
 						return false
 					}
 					depName := ctx.OtherModuleName(child)
@@ -741,7 +755,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
-	if keyFile == nil {
+	if a.private_key_file == nil {
 		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
 		return
 	}
@@ -775,30 +789,28 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.filesInfo = filesInfo
 
 	if a.apexTypes.zip() {
-		a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, zipApex)
+		a.buildUnflattenedApex(ctx, zipApex)
 	}
 	if a.apexTypes.image() {
 		// Build rule for unflattened APEX is created even when ctx.Config().FlattenApex()
 		// is true. This is to support referencing APEX via ":<module_name" syntax
 		// in other modules. It is in AndroidMk where the selection of flattened
 		// or unflattened APEX is made.
-		a.buildUnflattenedApex(ctx, keyFile, pubKeyFile, certificate, imageApex)
+		a.buildUnflattenedApex(ctx, imageApex)
 		a.buildFlattenedApex(ctx)
 	}
 }
 
-func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile android.Path,
-	pubKeyFile android.Path, certificate java.Certificate, apexType apexPackaging) {
+func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType apexPackaging) {
 	cert := String(a.properties.Certificate)
 	if cert != "" && android.SrcIsModule(cert) == "" {
 		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
-		certificate = java.Certificate{
-			defaultDir.Join(ctx, cert+".x509.pem"),
-			defaultDir.Join(ctx, cert+".pk8"),
-		}
+		a.container_certificate_file = defaultDir.Join(ctx, cert+".x509.pem")
+		a.container_private_key_file = defaultDir.Join(ctx, cert+".pk8")
 	} else if cert == "" {
 		pem, key := ctx.Config().DefaultAppCertificate(ctx)
-		certificate = java.Certificate{pem, key}
+		a.container_certificate_file = pem
+		a.container_private_key_file = key
 	}
 
 	manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
@@ -886,10 +898,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		optFlags := []string{}
 
 		// Additional implicit inputs.
-		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, keyFile)
-		if pubKeyFile != nil {
-			implicitInputs = append(implicitInputs, pubKeyFile)
-			optFlags = append(optFlags, "--pubkey "+pubKeyFile.String())
+		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, a.private_key_file)
+		if a.bundle_public_key {
+			implicitInputs = append(implicitInputs, a.public_key_file)
+			optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
 		}
 
 		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
@@ -915,7 +927,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 				"manifest":         manifest.String(),
 				"file_contexts":    fileContexts.String(),
 				"canned_fs_config": cannedFsConfig.String(),
-				"key":              keyFile.String(),
+				"key":              a.private_key_file.String(),
 				"opt_flags":        strings.Join(optFlags, " "),
 			},
 		})
@@ -962,14 +974,14 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, keyFile and
 		Output:      a.outputFiles[apexType],
 		Input:       unsignedOutputFile,
 		Args: map[string]string{
-			"certificates": strings.Join([]string{certificate.Pem.String(), certificate.Key.String()}, " "),
+			"certificates": a.container_certificate_file.String() + " " + a.container_private_key_file.String(),
 			"flags":        "-a 4096", //alignment
 		},
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
 	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "apex"), ctx.ModuleName()+suffix, a.outputFiles[apexType])
+		ctx.InstallFile(a.installDir, ctx.ModuleName()+suffix, a.outputFiles[apexType])
 	}
 }
 
@@ -1124,6 +1136,9 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
+				}
+				if len(a.externalDeps) > 0 {
+					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.externalDeps, " "))
 				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 

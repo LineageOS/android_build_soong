@@ -112,6 +112,18 @@ func protoDeps(ctx BaseModuleContext, deps Deps, p *android.ProtoProperties, sta
 	case "nanopb-c-enable_malloc":
 		lib = "libprotobuf-c-nano-enable_malloc"
 		static = true
+	case "nanopb-c-16bit":
+		lib = "libprotobuf-c-nano-16bit"
+		static = true
+	case "nanopb-c-enable_malloc-16bit":
+		lib = "libprotobuf-c-nano-enable_malloc-16bit"
+		static = true
+	case "nanopb-c-32bit":
+		lib = "libprotobuf-c-nano-32bit"
+		static = true
+	case "nanopb-c-enable_malloc-32bit":
+		lib = "libprotobuf-c-nano-enable_malloc-32bit"
+		static = true
 	default:
 		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
 			String(p.Proto.Type))
@@ -142,7 +154,7 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 	var plugin string
 
 	switch String(p.Proto.Type) {
-	case "nanopb-c", "nanopb-c-enable_malloc":
+	case "nanopb-c", "nanopb-c-enable_malloc", "nanopb-c-16bit", "nanopb-c-enable_malloc-16bit", "nanopb-c-32bit", "nanopb-c-enable_malloc-32bit":
 		flags.protoC = true
 		flags.protoOptionsFile = true
 		flags.protoOutTypeFlag = "--nanopb_out"
