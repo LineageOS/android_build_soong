@@ -170,14 +170,14 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	rule.MissingDeps(missingDeps)
 
 	rule.Command().
-		Tool(pctx.HostBinToolPath(ctx, "hiddenapi")).
+		Tool(pctx.HostBinToolPath(ctx, "hiddenapi").String()).
 		Text("list").
-		FlagForEachInput("--boot-dex=", bootDexJars).
-		FlagWithInputList("--public-stub-classpath=", publicStubPaths, ":").
-		FlagWithInputList("--public-stub-classpath=", systemStubPaths, ":").
-		FlagWithInputList("--public-stub-classpath=", testStubPaths, ":").
-		FlagWithInputList("--core-platform-stub-classpath=", corePlatformStubPaths, ":").
-		FlagWithOutput("--out-api-flags=", tempPath)
+		FlagForEachInput("--boot-dex=", bootDexJars.Strings()).
+		FlagWithInputList("--public-stub-classpath=", publicStubPaths.Strings(), ":").
+		FlagWithInputList("--public-stub-classpath=", systemStubPaths.Strings(), ":").
+		FlagWithInputList("--public-stub-classpath=", testStubPaths.Strings(), ":").
+		FlagWithInputList("--core-platform-stub-classpath=", corePlatformStubPaths.Strings(), ":").
+		FlagWithOutput("--out-api-flags=", tempPath.String())
 
 	commitChangeForRestat(rule, tempPath, outputPath)
 
@@ -214,20 +214,20 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
 
 	rule.Command().
-		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/generate_hiddenapi_lists.py")).
-		FlagWithInput("--csv ", stubFlags).
-		Inputs(flagsCSV).
+		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/generate_hiddenapi_lists.py").String()).
+		FlagWithInput("--csv ", stubFlags.String()).
+		Inputs(flagsCSV.Strings()).
 		FlagWithInput("--greylist ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist.txt").String()).
 		FlagWithInput("--greylist-ignore-conflicts ",
-			greylistIgnoreConflicts).
+			greylistIgnoreConflicts.String()).
 		FlagWithInput("--greylist-max-p ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-p.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-p.txt").String()).
 		FlagWithInput("--greylist-max-o-ignore-conflicts ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-o.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-o.txt").String()).
 		FlagWithInput("--blacklist ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blacklist.txt")).
-		FlagWithOutput("--output ", tempPath)
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blacklist.txt").String()).
+		FlagWithOutput("--output ", tempPath.String())
 
 	commitChangeForRestat(rule, tempPath, outputPath)
 
@@ -243,8 +243,8 @@ func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 
-	rule.Command().Text("rm").Flag("-f").Output(outputPath)
-	rule.Command().Text("touch").Output(outputPath)
+	rule.Command().Text("rm").Flag("-f").Output(outputPath.String())
+	rule.Command().Text("touch").Output(outputPath.String())
 
 	rule.Build(pctx, ctx, "emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
 
@@ -269,10 +269,10 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 	outputPath := hiddenAPISingletonPaths(ctx).metadata
 
 	rule.Command().
-		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/merge_csv.py")).
-		Inputs(metadataCSV).
+		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/merge_csv.py").String()).
+		Inputs(metadataCSV.Strings()).
 		Text(">").
-		Output(outputPath)
+		Output(outputPath.String())
 
 	rule.Build(pctx, ctx, "hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
 
@@ -284,15 +284,15 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 // the rule.
 func commitChangeForRestat(rule *android.RuleBuilder, tempPath, outputPath android.WritablePath) {
 	rule.Restat()
-	rule.Temporary(tempPath)
+	rule.Temporary(tempPath.String())
 	rule.Command().
 		Text("(").
 		Text("if").
-		Text("cmp -s").Input(tempPath).Output(outputPath).Text(";").
+		Text("cmp -s").Input(tempPath.String()).Output(outputPath.String()).Text(";").
 		Text("then").
-		Text("rm").Input(tempPath).Text(";").
+		Text("rm").Input(tempPath.String()).Text(";").
 		Text("else").
-		Text("mv").Input(tempPath).Output(outputPath).Text(";").
+		Text("mv").Input(tempPath.String()).Output(outputPath.String()).Text(";").
 		Text("fi").
 		Text(")")
 }
