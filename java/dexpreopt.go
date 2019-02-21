@@ -86,28 +86,18 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 }
 
 var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
-var dexpreoptTestGlobalConfigKey = android.NewOnceKey("TestDexpreoptGlobalConfig")
-
-func setDexpreoptGlobalConfig(config android.Config, globalConfig dexpreopt.GlobalConfig) {
-	config.Once(dexpreoptTestGlobalConfigKey, func() interface{} { return globalConfig })
-}
 
 func dexpreoptGlobalConfig(ctx android.PathContext) dexpreopt.GlobalConfig {
 	return ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
 		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
 			ctx.AddNinjaFileDeps(f)
-			globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, f)
+			globalConfig, err := dexpreopt.LoadGlobalConfig(f)
 			if err != nil {
 				panic(err)
 			}
 			return globalConfig
 		}
-
-		// No global config filename set, see if there is a test config set
-		return ctx.Config().Once(dexpreoptTestGlobalConfigKey, func() interface{} {
-			// Nope, return an empty config
-			return dexpreopt.GlobalConfig{}
-		})
+		return dexpreopt.GlobalConfig{}
 	}).(dexpreopt.GlobalConfig)
 }
 
@@ -141,14 +131,16 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		archs = archs[:1]
 	}
 
-	var images android.Paths
+	var images []string
 	for _, arch := range archs {
-		images = append(images, info.images[arch])
+		images = append(images, info.images[arch].String())
 	}
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
 
 	strippedDexJarFile := android.PathForModuleOut(ctx, "dexpreopt", dexJarFile.Base())
+
+	deps := android.Paths{dexJarFile}
 
 	var profileClassListing android.OptionalPath
 	profileIsTextListing := false
@@ -165,16 +157,20 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		}
 	}
 
+	if profileClassListing.Valid() {
+		deps = append(deps, profileClassListing.Path())
+	}
+
 	dexpreoptConfig := dexpreopt.ModuleConfig{
 		Name:            ctx.ModuleName(),
 		DexLocation:     dexLocation,
-		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").OutputPath,
-		DexPath:         dexJarFile,
+		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").String(),
+		DexPath:         dexJarFile.String(),
 		UncompressedDex: d.uncompressedDex,
 		HasApkLibraries: false,
 		PreoptFlags:     nil,
 
-		ProfileClassListing:  profileClassListing,
+		ProfileClassListing:  profileClassListing.String(),
 		ProfileIsTextListing: profileIsTextListing,
 
 		EnforceUsesLibraries:  false,
@@ -185,7 +181,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		Archs:           archs,
 		DexPreoptImages: images,
 
-		PreoptBootClassPathDexFiles:     info.preoptBootDex.Paths(),
+		PreoptBootClassPathDexFiles:     info.preoptBootDex.Strings(),
 		PreoptBootClassPathDexLocations: info.preoptBootLocations,
 
 		PreoptExtractedApk: false,
@@ -194,11 +190,11 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		ForceCreateAppImage: BoolDefault(d.dexpreoptProperties.Dex_preopt.App_image, false),
 
 		NoStripping:     Bool(d.dexpreoptProperties.Dex_preopt.No_stripping),
-		StripInputPath:  dexJarFile,
-		StripOutputPath: strippedDexJarFile.OutputPath,
+		StripInputPath:  dexJarFile.String(),
+		StripOutputPath: strippedDexJarFile.String(),
 	}
 
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, info.global, dexpreoptConfig)
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(info.global, dexpreoptConfig)
 	if err != nil {
 		ctx.ModuleErrorf("error generating dexpreopt rule: %s", err.Error())
 		return dexJarFile
