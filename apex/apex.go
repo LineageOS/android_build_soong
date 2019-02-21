@@ -389,6 +389,9 @@ type apexBundle struct {
 	// list of files to be included in this apex
 	filesInfo []apexFile
 
+	// list of module names that this APEX is depending on
+	externalDeps []string
+
 	flattened bool
 
 	testApex bool
@@ -731,6 +734,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
 				if cc, ok := child.(*cc.Module); ok {
 					if cc.IsStubs() || cc.HasStubsVariants() {
+						// If the dependency is a stubs lib, don't include it in this APEX,
+						// but make sure that the lib is installed on the device.
+						// In case no APEX is having the lib, the lib is installed to the system
+						// partition.
+						if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
+							a.externalDeps = append(a.externalDeps, cc.Name())
+						}
+						// Don't track further
 						return false
 					}
 					depName := ctx.OtherModuleName(child)
@@ -1125,6 +1136,9 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
+				}
+				if len(a.externalDeps) > 0 {
+					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.externalDeps, " "))
 				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
