@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -28,7 +29,7 @@ import (
 type RuleBuilder struct {
 	commands       []*RuleBuilderCommand
 	installs       RuleBuilderInstalls
-	temporariesSet map[WritablePath]bool
+	temporariesSet map[string]bool
 	restat         bool
 	missingDeps    []string
 }
@@ -36,14 +37,13 @@ type RuleBuilder struct {
 // NewRuleBuilder returns a newly created RuleBuilder.
 func NewRuleBuilder() *RuleBuilder {
 	return &RuleBuilder{
-		temporariesSet: make(map[WritablePath]bool),
+		temporariesSet: make(map[string]bool),
 	}
 }
 
 // RuleBuilderInstall is a tuple of install from and to locations.
 type RuleBuilderInstall struct {
-	From Path
-	To   string
+	From, To string
 }
 
 type RuleBuilderInstalls []RuleBuilderInstall
@@ -56,7 +56,7 @@ func (installs RuleBuilderInstalls) String() string {
 		if i != 0 {
 			sb.WriteRune(' ')
 		}
-		sb.WriteString(install.From.String())
+		sb.WriteString(install.From)
 		sb.WriteRune(':')
 		sb.WriteString(install.To)
 	}
@@ -80,7 +80,7 @@ func (r *RuleBuilder) Restat() *RuleBuilder {
 
 // Install associates an output of the rule with an install location, which can be retrieved later using
 // RuleBuilder.Installs.
-func (r *RuleBuilder) Install(from Path, to string) {
+func (r *RuleBuilder) Install(from, to string) {
 	r.installs = append(r.installs, RuleBuilderInstall{from, to})
 }
 
@@ -95,22 +95,19 @@ func (r *RuleBuilder) Command() *RuleBuilderCommand {
 
 // Temporary marks an output of a command as an intermediate file that will be used as an input to another command
 // in the same rule, and should not be listed in Outputs.
-func (r *RuleBuilder) Temporary(path WritablePath) {
+func (r *RuleBuilder) Temporary(path string) {
 	r.temporariesSet[path] = true
 }
 
 // DeleteTemporaryFiles adds a command to the rule that deletes any outputs that have been marked using Temporary
 // when the rule runs.  DeleteTemporaryFiles should be called after all calls to Temporary.
 func (r *RuleBuilder) DeleteTemporaryFiles() {
-	var temporariesList WritablePaths
+	var temporariesList []string
 
 	for intermediate := range r.temporariesSet {
 		temporariesList = append(temporariesList, intermediate)
 	}
-
-	sort.Slice(temporariesList, func(i, j int) bool {
-		return temporariesList[i].String() < temporariesList[j].String()
-	})
+	sort.Strings(temporariesList)
 
 	r.Command().Text("rm").Flag("-f").Outputs(temporariesList)
 }
@@ -118,35 +115,32 @@ func (r *RuleBuilder) DeleteTemporaryFiles() {
 // Inputs returns the list of paths that were passed to the RuleBuilderCommand methods that take input paths, such
 // as RuleBuilderCommand.Input, RuleBuilderComand.Implicit, or RuleBuilderCommand.FlagWithInput.  Inputs to a command
 // that are also outputs of another command in the same RuleBuilder are filtered out.
-func (r *RuleBuilder) Inputs() Paths {
+func (r *RuleBuilder) Inputs() []string {
 	outputs := r.outputSet()
 
-	inputs := make(map[string]Path)
+	inputs := make(map[string]bool)
 	for _, c := range r.commands {
 		for _, input := range c.inputs {
-			if _, isOutput := outputs[input.String()]; !isOutput {
-				inputs[input.String()] = input
+			if !outputs[input] {
+				inputs[input] = true
 			}
 		}
 	}
 
-	var inputList Paths
-	for _, input := range inputs {
+	var inputList []string
+	for input := range inputs {
 		inputList = append(inputList, input)
 	}
-
-	sort.Slice(inputList, func(i, j int) bool {
-		return inputList[i].String() < inputList[j].String()
-	})
+	sort.Strings(inputList)
 
 	return inputList
 }
 
-func (r *RuleBuilder) outputSet() map[string]WritablePath {
-	outputs := make(map[string]WritablePath)
+func (r *RuleBuilder) outputSet() map[string]bool {
+	outputs := make(map[string]bool)
 	for _, c := range r.commands {
 		for _, output := range c.outputs {
-			outputs[output.String()] = output
+			outputs[output] = true
 		}
 	}
 	return outputs
@@ -154,20 +148,16 @@ func (r *RuleBuilder) outputSet() map[string]WritablePath {
 
 // Outputs returns the list of paths that were passed to the RuleBuilderCommand methods that take output paths, such
 // as RuleBuilderCommand.Output, RuleBuilderCommand.ImplicitOutput, or RuleBuilderCommand.FlagWithInput.
-func (r *RuleBuilder) Outputs() WritablePaths {
+func (r *RuleBuilder) Outputs() []string {
 	outputs := r.outputSet()
 
-	var outputList WritablePaths
-	for _, output := range outputs {
+	var outputList []string
+	for output := range outputs {
 		if !r.temporariesSet[output] {
 			outputList = append(outputList, output)
 		}
 	}
-
-	sort.Slice(outputList, func(i, j int) bool {
-		return outputList[i].String() < outputList[j].String()
-	})
-
+	sort.Strings(outputList)
 	return outputList
 }
 
@@ -176,11 +166,11 @@ func (r *RuleBuilder) Installs() RuleBuilderInstalls {
 	return append(RuleBuilderInstalls(nil), r.installs...)
 }
 
-func (r *RuleBuilder) toolsSet() map[string]Path {
-	tools := make(map[string]Path)
+func (r *RuleBuilder) toolsSet() map[string]bool {
+	tools := make(map[string]bool)
 	for _, c := range r.commands {
 		for _, tool := range c.tools {
-			tools[tool.String()] = tool
+			tools[tool] = true
 		}
 	}
 
@@ -188,18 +178,14 @@ func (r *RuleBuilder) toolsSet() map[string]Path {
 }
 
 // Tools returns the list of paths that were passed to the RuleBuilderCommand.Tool method.
-func (r *RuleBuilder) Tools() Paths {
+func (r *RuleBuilder) Tools() []string {
 	toolsSet := r.toolsSet()
 
-	var toolsList Paths
-	for _, tool := range toolsSet {
+	var toolsList []string
+	for tool := range toolsSet {
 		toolsList = append(toolsList, tool)
 	}
-
-	sort.Slice(toolsList, func(i, j int) bool {
-		return toolsList[i].String() < toolsList[j].String()
-	})
-
+	sort.Strings(toolsList)
 	return toolsList
 }
 
@@ -225,10 +211,45 @@ var _ BuilderContext = SingletonContext(nil)
 // Build adds the built command line to the build graph, with dependencies on Inputs and Tools, and output files for
 // Outputs.
 func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string, desc string) {
+	// TODO: convert RuleBuilder arguments and storage to Paths
+	mctx, _ := ctx.(ModuleContext)
+	var inputs Paths
+	for _, input := range r.Inputs() {
+		// Module output paths
+		if mctx != nil {
+			rel, isRel := MaybeRel(ctx, PathForModuleOut(mctx).String(), input)
+			if isRel {
+				inputs = append(inputs, PathForModuleOut(mctx, rel))
+				continue
+			}
+		}
+
+		// Other output paths
+		rel, isRel := MaybeRel(ctx, PathForOutput(ctx).String(), input)
+		if isRel {
+			inputs = append(inputs, PathForOutput(ctx, rel))
+			continue
+		}
+
+		// TODO: remove this once boot image is moved to where PathForOutput can find it.
+		inputs = append(inputs, &unknownRulePath{input})
+	}
+
+	var outputs WritablePaths
+	for _, output := range r.Outputs() {
+		if mctx != nil {
+			rel := Rel(ctx, PathForModuleOut(mctx).String(), output)
+			outputs = append(outputs, PathForModuleOut(mctx, rel))
+		} else {
+			rel := Rel(ctx, PathForOutput(ctx).String(), output)
+			outputs = append(outputs, PathForOutput(ctx, rel))
+		}
+	}
+
 	if len(r.missingDeps) > 0 {
 		ctx.Build(pctx, BuildParams{
 			Rule:        ErrorRule,
-			Outputs:     r.Outputs(),
+			Outputs:     outputs,
 			Description: desc,
 			Args: map[string]string{
 				"error": "missing dependencies: " + strings.Join(r.missingDeps, ", "),
@@ -241,10 +262,10 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 		ctx.Build(pctx, BuildParams{
 			Rule: ctx.Rule(pctx, name, blueprint.RuleParams{
 				Command:     strings.Join(proptools.NinjaEscape(r.Commands()), " && "),
-				CommandDeps: r.Tools().Strings(),
+				CommandDeps: r.Tools(),
 			}),
-			Implicits:   r.Inputs(),
-			Outputs:     r.Outputs(),
+			Implicits:   inputs,
+			Outputs:     outputs,
 			Description: desc,
 		})
 	}
@@ -256,9 +277,9 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 // space as a separator from the previous method.
 type RuleBuilderCommand struct {
 	buf     []byte
-	inputs  Paths
-	outputs WritablePaths
-	tools   Paths
+	inputs  []string
+	outputs []string
+	tools   []string
 }
 
 // Text adds the specified raw text to the command line.  The text should not contain input or output paths or the
@@ -308,21 +329,21 @@ func (c *RuleBuilderCommand) FlagWithList(flag string, list []string, sep string
 
 // Tool adds the specified tool path to the command line.  The path will be also added to the dependencies returned by
 // RuleBuilder.Tools.
-func (c *RuleBuilderCommand) Tool(path Path) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Tool(path string) *RuleBuilderCommand {
 	c.tools = append(c.tools, path)
-	return c.Text(path.String())
+	return c.Text(path)
 }
 
 // Input adds the specified input path to the command line.  The path will also be added to the dependencies returned by
 // RuleBuilder.Inputs.
-func (c *RuleBuilderCommand) Input(path Path) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Input(path string) *RuleBuilderCommand {
 	c.inputs = append(c.inputs, path)
-	return c.Text(path.String())
+	return c.Text(path)
 }
 
 // Inputs adds the specified input paths to the command line, separated by spaces.  The paths will also be added to the
 // dependencies returned by RuleBuilder.Inputs.
-func (c *RuleBuilderCommand) Inputs(paths Paths) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Inputs(paths []string) *RuleBuilderCommand {
 	for _, path := range paths {
 		c.Input(path)
 	}
@@ -331,28 +352,28 @@ func (c *RuleBuilderCommand) Inputs(paths Paths) *RuleBuilderCommand {
 
 // Implicit adds the specified input path to the dependencies returned by RuleBuilder.Inputs without modifying the
 // command line.
-func (c *RuleBuilderCommand) Implicit(path Path) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Implicit(path string) *RuleBuilderCommand {
 	c.inputs = append(c.inputs, path)
 	return c
 }
 
 // Implicits adds the specified input paths to the dependencies returned by RuleBuilder.Inputs without modifying the
 // command line.
-func (c *RuleBuilderCommand) Implicits(paths Paths) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Implicits(paths []string) *RuleBuilderCommand {
 	c.inputs = append(c.inputs, paths...)
 	return c
 }
 
 // Output adds the specified output path to the command line.  The path will also be added to the outputs returned by
 // RuleBuilder.Outputs.
-func (c *RuleBuilderCommand) Output(path WritablePath) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Output(path string) *RuleBuilderCommand {
 	c.outputs = append(c.outputs, path)
-	return c.Text(path.String())
+	return c.Text(path)
 }
 
 // Outputs adds the specified output paths to the command line, separated by spaces.  The paths will also be added to
 // the outputs returned by RuleBuilder.Outputs.
-func (c *RuleBuilderCommand) Outputs(paths WritablePaths) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) Outputs(paths []string) *RuleBuilderCommand {
 	for _, path := range paths {
 		c.Output(path)
 	}
@@ -361,37 +382,37 @@ func (c *RuleBuilderCommand) Outputs(paths WritablePaths) *RuleBuilderCommand {
 
 // ImplicitOutput adds the specified output path to the dependencies returned by RuleBuilder.Outputs without modifying
 // the command line.
-func (c *RuleBuilderCommand) ImplicitOutput(path WritablePath) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) ImplicitOutput(path string) *RuleBuilderCommand {
 	c.outputs = append(c.outputs, path)
 	return c
 }
 
 // ImplicitOutputs adds the specified output paths to the dependencies returned by RuleBuilder.Outputs without modifying
 // the command line.
-func (c *RuleBuilderCommand) ImplicitOutputs(paths WritablePaths) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) ImplicitOutputs(paths []string) *RuleBuilderCommand {
 	c.outputs = append(c.outputs, paths...)
 	return c
 }
 
 // FlagWithInput adds the specified flag and input path to the command line, with no separator between them.  The path
 // will also be added to the dependencies returned by RuleBuilder.Inputs.
-func (c *RuleBuilderCommand) FlagWithInput(flag string, path Path) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) FlagWithInput(flag, path string) *RuleBuilderCommand {
 	c.inputs = append(c.inputs, path)
-	return c.Text(flag + path.String())
+	return c.Text(flag + path)
 }
 
 // FlagWithInputList adds the specified flag and input paths to the command line, with the inputs joined by sep
 // and no separator between the flag and inputs.  The input paths will also be added to the dependencies returned by
 // RuleBuilder.Inputs.
-func (c *RuleBuilderCommand) FlagWithInputList(flag string, paths Paths, sep string) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) FlagWithInputList(flag string, paths []string, sep string) *RuleBuilderCommand {
 	c.inputs = append(c.inputs, paths...)
-	return c.FlagWithList(flag, paths.Strings(), sep)
+	return c.FlagWithList(flag, paths, sep)
 }
 
 // FlagForEachInput adds the specified flag joined with each input path to the command line.  The input paths will also
 // be added to the dependencies returned by RuleBuilder.Inputs.  The result is identical to calling FlagWithInput for
 // each input path.
-func (c *RuleBuilderCommand) FlagForEachInput(flag string, paths Paths) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) FlagForEachInput(flag string, paths []string) *RuleBuilderCommand {
 	for _, path := range paths {
 		c.FlagWithInput(flag, path)
 	}
@@ -400,12 +421,23 @@ func (c *RuleBuilderCommand) FlagForEachInput(flag string, paths Paths) *RuleBui
 
 // FlagWithOutput adds the specified flag and output path to the command line, with no separator between them.  The path
 // will also be added to the outputs returned by RuleBuilder.Outputs.
-func (c *RuleBuilderCommand) FlagWithOutput(flag string, path WritablePath) *RuleBuilderCommand {
+func (c *RuleBuilderCommand) FlagWithOutput(flag, path string) *RuleBuilderCommand {
 	c.outputs = append(c.outputs, path)
-	return c.Text(flag + path.String())
+	return c.Text(flag + path)
 }
 
 // String returns the command line.
 func (c *RuleBuilderCommand) String() string {
 	return string(c.buf)
 }
+
+type unknownRulePath struct {
+	path string
+}
+
+var _ Path = (*unknownRulePath)(nil)
+
+func (p *unknownRulePath) String() string { return p.path }
+func (p *unknownRulePath) Ext() string    { return filepath.Ext(p.path) }
+func (p *unknownRulePath) Base() string   { return filepath.Base(p.path) }
+func (p *unknownRulePath) Rel() string    { return p.path }
