@@ -25,7 +25,7 @@ import (
 var desugar = pctx.AndroidStaticRule("desugar",
 	blueprint.RuleParams{
 		Command: `rm -rf $dumpDir && mkdir -p $dumpDir && ` +
-			`${config.JavaCmd} ` +
+			`${config.JavaCmd} ${config.DexFlags}` +
 			`-Djdk.internal.lambda.dumpProxyClasses=$$(cd $dumpDir && pwd) ` +
 			`$javaFlags ` +
 			`-jar ${config.DesugarJar} $classpathFlags $desugarFlags ` +
@@ -83,7 +83,7 @@ func (j *Module) desugar(ctx android.ModuleContext, flags javaBuilderFlags,
 var dx = pctx.AndroidStaticRule("dx",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.DxCmd} --dex --output=$outDir $dxFlags $in && ` +
+			`${config.DxCmd} ${config.DexFlags} --dex --output=$outDir $dxFlags $in && ` +
 			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
 			`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -97,7 +97,7 @@ var dx = pctx.AndroidStaticRule("dx",
 var d8 = pctx.AndroidStaticRule("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.D8Cmd} --output $outDir $dxFlags $in && ` +
+			`${config.D8Cmd} ${config.DexFlags} --output $outDir $dxFlags $in && ` +
 			`${config.SoongZipCmd} -o $outDir/classes.dex.jar -C $outDir -D $outDir && ` +
 			`${config.MergeZipsCmd} -D -stripFile "*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -111,7 +111,7 @@ var d8 = pctx.AndroidStaticRule("d8",
 var r8 = pctx.AndroidStaticRule("r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.R8Cmd} -injars $in --output $outDir ` +
+			`${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
 			`-printmapping $outDict ` +
 			`$dxFlags $r8Flags && ` +
