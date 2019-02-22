@@ -131,6 +131,28 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 	}
 }
 
+func (prebuilt *DexImport) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(prebuilt.maybeStrippedDexJarFile),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				if prebuilt.dexJarFile != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", prebuilt.dexJarFile.String())
+					// TODO(b/125517186): export the dex jar as a classes jar to match some mis-uses in Make until
+					// boot_jars_package_check.mk can check dex jars.
+					fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", prebuilt.dexJarFile.String())
+					fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", prebuilt.dexJarFile.String())
+				}
+				if len(prebuilt.dexpreopter.builtInstalled) > 0 {
+					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", prebuilt.dexpreopter.builtInstalled)
+				}
+			},
+		},
+	}
+}
+
 func (prebuilt *AARImport) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",

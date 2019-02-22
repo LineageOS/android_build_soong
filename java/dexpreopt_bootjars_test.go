@@ -37,13 +37,18 @@ func TestDexpreoptBootJars(t *testing.T) {
 			srcs: ["b.java"],
 			installable: true,
 		}
+
+		dex_import {
+			name: "baz",
+			jars: ["a.jar"],
+		}
 	`
 
 	config := testConfig(nil)
 
 	pathCtx := android.PathContextForTesting(config, nil)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
-	dexpreoptConfig.RuntimeApexJars = []string{"foo", "bar"}
+	dexpreoptConfig.RuntimeApexJars = []string{"foo", "bar", "baz"}
 	setDexpreoptTestGlobalConfig(config, dexpreoptConfig)
 
 	ctx := testContext(config, bp, nil)
@@ -59,6 +64,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 	expectedInputs := []string{
 		"dex_bootjars_input/foo.jar",
 		"dex_bootjars_input/bar.jar",
+		"dex_bootjars_input/baz.jar",
 	}
 
 	for i := range expectedInputs {
@@ -78,15 +84,19 @@ func TestDexpreoptBootJars(t *testing.T) {
 
 		"dex_bootjars/system/framework/arm64/boot.art",
 		"dex_bootjars/system/framework/arm64/boot-bar.art",
+		"dex_bootjars/system/framework/arm64/boot-baz.art",
 
 		"dex_bootjars/system/framework/arm64/boot.oat",
 		"dex_bootjars/system/framework/arm64/boot-bar.oat",
+		"dex_bootjars/system/framework/arm64/boot-baz.oat",
 
 		"dex_bootjars/system/framework/arm64/boot.vdex",
 		"dex_bootjars/system/framework/arm64/boot-bar.vdex",
+		"dex_bootjars/system/framework/arm64/boot-baz.vdex",
 
 		"dex_bootjars_unstripped/system/framework/arm64/boot.oat",
 		"dex_bootjars_unstripped/system/framework/arm64/boot-bar.oat",
+		"dex_bootjars_unstripped/system/framework/arm64/boot-baz.oat",
 	}
 
 	for i := range expectedOutputs {
