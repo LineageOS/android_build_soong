@@ -733,11 +733,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// indirect dependencies
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
 				if cc, ok := child.(*cc.Module); ok {
-					if cc.IsStubs() || cc.HasStubsVariants() {
+					if !a.Host() && (cc.IsStubs() || cc.HasStubsVariants()) {
 						// If the dependency is a stubs lib, don't include it in this APEX,
 						// but make sure that the lib is installed on the device.
 						// In case no APEX is having the lib, the lib is installed to the system
 						// partition.
+						//
+						// Always include if we are a host-apex however since those won't have any
+						// system libraries.
 						if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
 							a.externalDeps = append(a.externalDeps, cc.Name())
 						}
