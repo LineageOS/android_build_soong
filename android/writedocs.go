@@ -53,15 +53,19 @@ func (c *docsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	primaryBuilder := primaryBuilderPath(ctx)
 	soongDocs := ctx.Rule(pctx, "soongDocs",
 		blueprint.RuleParams{
-			Command: fmt.Sprintf("%s --soong_docs %s %s",
+			Command: fmt.Sprintf("rm -f ${outDir}/* && %s --soong_docs %s %s",
 				primaryBuilder.String(), docsFile.String(), strings.Join(os.Args[1:], " ")),
 			CommandDeps: []string{primaryBuilder.String()},
 			Description: fmt.Sprintf("%s docs $out", primaryBuilder.Base()),
-		})
+		},
+		"outDir")
 
 	ctx.Build(pctx, BuildParams{
 		Rule:   soongDocs,
 		Output: docsFile,
+		Args: map[string]string{
+			"outDir": PathForOutput(ctx, "docs").String(),
+		},
 	})
 
 	// Add a phony target for building the documentation
