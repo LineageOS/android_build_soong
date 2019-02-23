@@ -24,10 +24,30 @@ import (
 	"testing"
 )
 
+func pathContext() PathContext {
+	return PathContextForTesting(TestConfig("out", nil),
+		map[string][]byte{
+			"ld":      nil,
+			"a.o":     nil,
+			"b.o":     nil,
+			"cp":      nil,
+			"a":       nil,
+			"b":       nil,
+			"ls":      nil,
+			"turbine": nil,
+			"java":    nil,
+		})
+}
+
 func ExampleRuleBuilder() {
 	rule := NewRuleBuilder()
 
-	rule.Command().Tool("ld").Inputs([]string{"a.o", "b.o"}).FlagWithOutput("-o ", "linked")
+	ctx := pathContext()
+
+	rule.Command().
+		Tool(PathForSource(ctx, "ld")).
+		Inputs(PathsForTesting("a.o", "b.o")).
+		FlagWithOutput("-o ", PathForOutput(ctx, "linked"))
 	rule.Command().Text("echo success")
 
 	// To add the command to the build graph:
@@ -39,18 +59,26 @@ func ExampleRuleBuilder() {
 	fmt.Printf("outputs: %q\n", rule.Outputs())
 
 	// Output:
-	// commands: "ld a.o b.o -o linked && echo success"
+	// commands: "ld a.o b.o -o out/linked && echo success"
 	// tools: ["ld"]
 	// inputs: ["a.o" "b.o"]
-	// outputs: ["linked"]
+	// outputs: ["out/linked"]
 }
 
 func ExampleRuleBuilder_Temporary() {
 	rule := NewRuleBuilder()
 
-	rule.Command().Tool("cp").Input("a").Output("b")
-	rule.Command().Tool("cp").Input("b").Output("c")
-	rule.Temporary("b")
+	ctx := pathContext()
+
+	rule.Command().
+		Tool(PathForSource(ctx, "cp")).
+		Input(PathForSource(ctx, "a")).
+		Output(PathForOutput(ctx, "b"))
+	rule.Command().
+		Tool(PathForSource(ctx, "cp")).
+		Input(PathForOutput(ctx, "b")).
+		Output(PathForOutput(ctx, "c"))
+	rule.Temporary(PathForOutput(ctx, "b"))
 
 	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
 	fmt.Printf("tools: %q\n", rule.Tools())
@@ -58,18 +86,26 @@ func ExampleRuleBuilder_Temporary() {
 	fmt.Printf("outputs: %q\n", rule.Outputs())
 
 	// Output:
-	// commands: "cp a b && cp b c"
+	// commands: "cp a out/b && cp out/b out/c"
 	// tools: ["cp"]
 	// inputs: ["a"]
-	// outputs: ["c"]
+	// outputs: ["out/c"]
 }
 
 func ExampleRuleBuilder_DeleteTemporaryFiles() {
 	rule := NewRuleBuilder()
 
-	rule.Command().Tool("cp").Input("a").Output("b")
-	rule.Command().Tool("cp").Input("b").Output("c")
-	rule.Temporary("b")
+	ctx := pathContext()
+
+	rule.Command().
+		Tool(PathForSource(ctx, "cp")).
+		Input(PathForSource(ctx, "a")).
+		Output(PathForOutput(ctx, "b"))
+	rule.Command().
+		Tool(PathForSource(ctx, "cp")).
+		Input(PathForOutput(ctx, "b")).
+		Output(PathForOutput(ctx, "c"))
+	rule.Temporary(PathForOutput(ctx, "b"))
 	rule.DeleteTemporaryFiles()
 
 	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
@@ -78,93 +114,112 @@ func ExampleRuleBuilder_DeleteTemporaryFiles() {
 	fmt.Printf("outputs: %q\n", rule.Outputs())
 
 	// Output:
-	// commands: "cp a b && cp b c && rm -f b"
+	// commands: "cp a out/b && cp out/b out/c && rm -f out/b"
 	// tools: ["cp"]
 	// inputs: ["a"]
-	// outputs: ["c"]
+	// outputs: ["out/c"]
 }
 
 func ExampleRuleBuilder_Installs() {
 	rule := NewRuleBuilder()
 
-	rule.Command().Tool("ld").Inputs([]string{"a.o", "b.o"}).FlagWithOutput("-o ", "linked")
-	rule.Install("linked", "/bin/linked")
-	rule.Install("linked", "/sbin/linked")
+	ctx := pathContext()
+
+	out := PathForOutput(ctx, "linked")
+
+	rule.Command().
+		Tool(PathForSource(ctx, "ld")).
+		Inputs(PathsForTesting("a.o", "b.o")).
+		FlagWithOutput("-o ", out)
+	rule.Install(out, "/bin/linked")
+	rule.Install(out, "/sbin/linked")
 
 	fmt.Printf("rule.Installs().String() = %q\n", rule.Installs().String())
 
 	// Output:
-	// rule.Installs().String() = "linked:/bin/linked linked:/sbin/linked"
+	// rule.Installs().String() = "out/linked:/bin/linked out/linked:/sbin/linked"
 }
 
 func ExampleRuleBuilderCommand() {
 	rule := NewRuleBuilder()
 
+	ctx := pathContext()
+
 	// chained
-	rule.Command().Tool("ld").Inputs([]string{"a.o", "b.o"}).FlagWithOutput("-o ", "linked")
+	rule.Command().
+		Tool(PathForSource(ctx, "ld")).
+		Inputs(PathsForTesting("a.o", "b.o")).
+		FlagWithOutput("-o ", PathForOutput(ctx, "linked"))
 
 	// unchained
 	cmd := rule.Command()
-	cmd.Tool("ld")
-	cmd.Inputs([]string{"a.o", "b.o"})
-	cmd.FlagWithOutput("-o ", "linked")
+	cmd.Tool(PathForSource(ctx, "ld"))
+	cmd.Inputs(PathsForTesting("a.o", "b.o"))
+	cmd.FlagWithOutput("-o ", PathForOutput(ctx, "linked"))
 
 	// mixed:
-	cmd = rule.Command().Tool("ld")
-	cmd.Inputs([]string{"a.o", "b.o"})
-	cmd.FlagWithOutput("-o ", "linked")
+	cmd = rule.Command().Tool(PathForSource(ctx, "ld"))
+	cmd.Inputs(PathsForTesting("a.o", "b.o"))
+	cmd.FlagWithOutput("-o ", PathForOutput(ctx, "linked"))
 }
 
 func ExampleRuleBuilderCommand_Flag() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("ls").Flag("-l"))
+		Tool(PathForSource(ctx, "ls")).Flag("-l"))
 	// Output:
 	// ls -l
 }
 
 func ExampleRuleBuilderCommand_FlagWithArg() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("ls").
+		Tool(PathForSource(ctx, "ls")).
 		FlagWithArg("--sort=", "time"))
 	// Output:
 	// ls --sort=time
 }
 
 func ExampleRuleBuilderCommand_FlagForEachArg() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("ls").
+		Tool(PathForSource(ctx, "ls")).
 		FlagForEachArg("--sort=", []string{"time", "size"}))
 	// Output:
 	// ls --sort=time --sort=size
 }
 
 func ExampleRuleBuilderCommand_FlagForEachInput() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("turbine").
-		FlagForEachInput("--classpath ", []string{"a.jar", "b.jar"}))
+		Tool(PathForSource(ctx, "turbine")).
+		FlagForEachInput("--classpath ", PathsForTesting("a.jar", "b.jar")))
 	// Output:
 	// turbine --classpath a.jar --classpath b.jar
 }
 
 func ExampleRuleBuilderCommand_FlagWithInputList() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("java").
-		FlagWithInputList("-classpath=", []string{"a.jar", "b.jar"}, ":"))
+		Tool(PathForSource(ctx, "java")).
+		FlagWithInputList("-classpath=", PathsForTesting("a.jar", "b.jar"), ":"))
 	// Output:
 	// java -classpath=a.jar:b.jar
 }
 
 func ExampleRuleBuilderCommand_FlagWithInput() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("java").
-		FlagWithInput("-classpath=", "a"))
+		Tool(PathForSource(ctx, "java")).
+		FlagWithInput("-classpath=", PathForSource(ctx, "a")))
 	// Output:
 	// java -classpath=a
 }
 
 func ExampleRuleBuilderCommand_FlagWithList() {
+	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
-		Tool("ls").
+		Tool(PathForSource(ctx, "ls")).
 		FlagWithList("--sort=", []string{"time", "size"}, ","))
 	// Output:
 	// ls --sort=time,size
@@ -173,23 +228,35 @@ func ExampleRuleBuilderCommand_FlagWithList() {
 func TestRuleBuilder(t *testing.T) {
 	rule := NewRuleBuilder()
 
+	fs := map[string][]byte{
+		"input":    nil,
+		"Implicit": nil,
+		"Input":    nil,
+		"Tool":     nil,
+		"input2":   nil,
+		"tool2":    nil,
+		"input3":   nil,
+	}
+
+	ctx := PathContextForTesting(TestConfig("out", nil), fs)
+
 	cmd := rule.Command().
 		Flag("Flag").
 		FlagWithArg("FlagWithArg=", "arg").
-		FlagWithInput("FlagWithInput=", "input").
-		FlagWithOutput("FlagWithOutput=", "output").
-		Implicit("Implicit").
-		ImplicitOutput("ImplicitOutput").
-		Input("Input").
-		Output("Output").
+		FlagWithInput("FlagWithInput=", PathForSource(ctx, "input")).
+		FlagWithOutput("FlagWithOutput=", PathForOutput(ctx, "output")).
+		Implicit(PathForSource(ctx, "Implicit")).
+		ImplicitOutput(PathForOutput(ctx, "ImplicitOutput")).
+		Input(PathForSource(ctx, "Input")).
+		Output(PathForOutput(ctx, "Output")).
 		Text("Text").
-		Tool("Tool")
+		Tool(PathForSource(ctx, "Tool"))
 
 	rule.Command().
 		Text("command2").
-		Input("input2").
-		Output("output2").
-		Tool("tool2")
+		Input(PathForSource(ctx, "input2")).
+		Output(PathForOutput(ctx, "output2")).
+		Tool(PathForSource(ctx, "tool2"))
 
 	// Test updates to the first command after the second command has been started
 	cmd.Text("after command2")
@@ -199,18 +266,18 @@ func TestRuleBuilder(t *testing.T) {
 	// Test a command that uses the output of a previous command as an input
 	rule.Command().
 		Text("command3").
-		Input("input3").
-		Input("output2").
-		Output("output3")
+		Input(PathForSource(ctx, "input3")).
+		Input(PathForOutput(ctx, "output2")).
+		Output(PathForOutput(ctx, "output3"))
 
 	wantCommands := []string{
-		"Flag FlagWithArg=arg FlagWithInput=input FlagWithOutput=output Input Output Text Tool after command2 old cmd",
-		"command2 input2 output2 tool2",
-		"command3 input3 output2 output3",
+		"Flag FlagWithArg=arg FlagWithInput=input FlagWithOutput=out/output Input out/Output Text Tool after command2 old cmd",
+		"command2 input2 out/output2 tool2",
+		"command3 input3 out/output2 out/output3",
 	}
-	wantInputs := []string{"Implicit", "Input", "input", "input2", "input3"}
-	wantOutputs := []string{"ImplicitOutput", "Output", "output", "output2", "output3"}
-	wantTools := []string{"Tool", "tool2"}
+	wantInputs := PathsForSource(ctx, []string{"Implicit", "Input", "input", "input2", "input3"})
+	wantOutputs := PathsForOutput(ctx, []string{"ImplicitOutput", "Output", "output", "output2", "output3"})
+	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
 
 	if !reflect.DeepEqual(rule.Commands(), wantCommands) {
 		t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", wantCommands, rule.Commands())
@@ -262,7 +329,7 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 func testRuleBuilder_Build(ctx BuilderContext, in Path, out WritablePath) {
 	rule := NewRuleBuilder()
 
-	rule.Command().Tool("cp").Input(in.String()).Output(out.String())
+	rule.Command().Tool(PathForSource(ctx, "cp")).Input(in).Output(out)
 
 	rule.Build(pctx, ctx, "rule", "desc")
 }
