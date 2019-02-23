@@ -203,10 +203,6 @@ type productVariables struct {
 	BootJars       []string `json:",omitempty"`
 	PreoptBootJars []string `json:",omitempty"`
 
-	DisableDexPreopt        *bool    `json:",omitempty"`
-	DisableDexPreoptModules []string `json:",omitempty"`
-	DexPreoptProfileDir     *string  `json:",omitempty"`
-
 	IntegerOverflowExcludePaths []string `json:",omitempty"`
 
 	EnableCFI       *bool    `json:",omitempty"`
