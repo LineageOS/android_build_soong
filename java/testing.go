@@ -32,7 +32,7 @@ func TestConfig(buildDir string, env map[string]string) android.Config {
 	config.TestProductVariables.DeviceSystemSdkVersions = []string{"14", "15"}
 
 	pathCtx := android.PathContextForTesting(config, nil)
-	setDexpreoptGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
+	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	return config
 }
