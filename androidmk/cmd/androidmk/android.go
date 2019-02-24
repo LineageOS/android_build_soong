@@ -72,6 +72,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_JAR_EXCLUDE_FILES":       skip, // Soong never excludes files from jars
 
 	"LOCAL_ANNOTATION_PROCESSOR_CLASSES": skip, // Soong gets the processor classes from the plugin
+	"LOCAL_CTS_TEST_PACKAGE":             skip, // Obsolete
 }
 
 // adds a group of properties all having the same type
