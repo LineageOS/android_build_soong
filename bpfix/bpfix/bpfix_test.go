@@ -751,3 +751,36 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 		})
 	}
 }
+
+func TestRewriteAndroidTest(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "android_test valid module path",
+			in: `
+				android_test {
+					name: "foo",
+					local_module_path: {
+						var: "TARGET_OUT_DATA_APPS",
+					},
+				}
+			`,
+			out: `
+				android_test {
+					name: "foo",
+
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return rewriteAndroidTest(fixer)
+			})
+		})
+	}
+}

@@ -758,6 +758,7 @@ cc_library_shared {
 include $(CLEAR_VARS)
 LOCAL_PACKAGE_NAME := FooTest
 LOCAL_COMPATIBILITY_SUITE := cts
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_APPS)
 include $(BUILD_CTS_SUPPORT_PACKAGE)
 `,
 		expected: `
@@ -765,6 +766,7 @@ android_test {
     name: "FooTest",
     defaults: ["cts_support_defaults"],
     test_suites: ["cts"],
+
 }
 `,
 	},
@@ -774,6 +776,7 @@ android_test {
 include $(CLEAR_VARS)
 LOCAL_PACKAGE_NAME := FooTest
 LOCAL_COMPATIBILITY_SUITE := cts
+LOCAL_CTS_TEST_PACKAGE := foo.bar
 include $(BUILD_CTS_PACKAGE)
 `,
 		expected: `
@@ -781,6 +784,7 @@ android_test {
     name: "FooTest",
     defaults: ["cts_defaults"],
     test_suites: ["cts"],
+
 }
 `,
 	},
