@@ -335,13 +335,12 @@ It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
 func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missingDeps []string) android.WritablePath {
+	global := dexpreoptGlobalConfig(ctx)
+
+	if !global.UseProfileForBootImage || ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
+		return nil
+	}
 	return ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
-		global := dexpreoptGlobalConfig(ctx)
-
-		if !global.UseProfileForBootImage || ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
-			return nil
-		}
-
 		tools := global.Tools
 
 		rule := android.NewRuleBuilder()
