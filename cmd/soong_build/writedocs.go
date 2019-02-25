@@ -19,12 +19,18 @@ import (
 	"bytes"
 	"html/template"
 	"io/ioutil"
+	"path/filepath"
 	"reflect"
 	"sort"
 
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/bootstrap/bpdoc"
 )
+
+type perPackageTemplateData struct {
+	Name    string
+	Modules []moduleTypeTemplateData
+}
 
 type moduleTypeTemplateData struct {
 	Name       string
@@ -44,22 +50,7 @@ var propertyRank = map[string]int{
 }
 
 // For each module type, extract its documentation and convert it to the template data.
-func moduleTypeDocsToTemplates(ctx *android.Context) ([]moduleTypeTemplateData, error) {
-	moduleTypeFactories := android.ModuleTypeFactories()
-	bpModuleTypeFactories := make(map[string]reflect.Value)
-	for moduleType, factory := range moduleTypeFactories {
-		bpModuleTypeFactories[moduleType] = reflect.ValueOf(factory)
-	}
-
-	packages, err := bootstrap.ModuleTypeDocs(ctx.Context, bpModuleTypeFactories)
-	if err != nil {
-		return []moduleTypeTemplateData{}, err
-	}
-	var moduleTypeList []*bpdoc.ModuleType
-	for _, pkg := range packages {
-		moduleTypeList = append(moduleTypeList, pkg.ModuleTypes...)
-	}
-
+func moduleTypeDocsToTemplates(moduleTypeList []*bpdoc.ModuleType) []moduleTypeTemplateData {
 	result := make([]moduleTypeTemplateData, 0)
 
 	// Combine properties from all PropertyStruct's and reorder them -- first the ones
@@ -101,39 +92,121 @@ func moduleTypeDocsToTemplates(ctx *android.Context) ([]moduleTypeTemplateData, 
 		result = append(result, item)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
-	return result, err
+	return result
 }
 
 func writeDocs(ctx *android.Context, filename string) error {
-	buf := &bytes.Buffer{}
+	moduleTypeFactories := android.ModuleTypeFactories()
+	bpModuleTypeFactories := make(map[string]reflect.Value)
+	for moduleType, factory := range moduleTypeFactories {
+		bpModuleTypeFactories[moduleType] = reflect.ValueOf(factory)
+	}
 
-	// We need a module name getter/setter function because I couldn't
-	// find a way to keep it in a variable defined within the template.
-	currentModuleName := ""
-	data, err := moduleTypeDocsToTemplates(ctx)
+	packages, err := bootstrap.ModuleTypeDocs(ctx.Context, bpModuleTypeFactories)
 	if err != nil {
 		return err
 	}
-	tmpl, err := template.New("file").Funcs(map[string]interface{}{
-		"setModule": func(moduleName string) string {
-			currentModuleName = moduleName
-			return ""
-		},
-		"getModule": func() string {
-			return currentModuleName
-		},
-	}).Parse(fileTemplate)
+
+	// Produce the top-level, package list page first.
+	tmpl, err := template.New("file").Parse(packageListTemplate)
+	if err != nil {
+		return err
+	}
+	buf := &bytes.Buffer{}
 	if err == nil {
-		err = tmpl.Execute(buf, data)
+		err = tmpl.Execute(buf, packages)
 	}
 	if err == nil {
 		err = ioutil.WriteFile(filename, buf.Bytes(), 0666)
 	}
+
+	// Now, produce per-package module lists with detailed information.
+	for _, pkg := range packages {
+		// We need a module name getter/setter function because I couldn't
+		// find a way to keep it in a variable defined within the template.
+		currentModuleName := ""
+		tmpl, err := template.New("file").Funcs(map[string]interface{}{
+			"setModule": func(moduleName string) string {
+				currentModuleName = moduleName
+				return ""
+			},
+			"getModule": func() string {
+				return currentModuleName
+			},
+		}).Parse(perPackageTemplate)
+		if err != nil {
+			return err
+		}
+		buf := &bytes.Buffer{}
+		modules := moduleTypeDocsToTemplates(pkg.ModuleTypes)
+		data := perPackageTemplateData{Name: pkg.Name, Modules: modules}
+		err = tmpl.Execute(buf, data)
+		if err != nil {
+			return err
+		}
+		pkgFileName := filepath.Join(filepath.Dir(filename), pkg.Name+".html")
+		err = ioutil.WriteFile(pkgFileName, buf.Bytes(), 0666)
+		if err != nil {
+			return err
+		}
+	}
 	return err
 }
 
+// TODO(jungjw): Consider ordering by name.
 const (
-	fileTemplate = `
+	packageListTemplate = `
+<html>
+<head>
+<title>Build Docs</title>
+<link rel="stylesheet" href="https://www.gstatic.com/devrel-devsite/vc67ef93e81a468795c57df87eca3f8427d65cbe85f09fbb51c82a12b89aa3d7e/androidsource/css/app.css">
+<style>
+#main {
+  padding: 48px;
+}
+
+table{
+  table-layout: fixed;
+}
+
+td {
+  word-wrap:break-word;
+}
+</style>
+</head>
+<body>
+<div id="main">
+<H1>Soong Modules Reference</H1>
+The latest versions of Android use the Soong build system, which greatly simplifies build
+configuration over the previous Make-based system. This site contains the generated reference
+files for the Soong build system.
+
+<table class="module_types" summary="Table of Soong module types sorted by package">
+  <thead>
+    <tr>
+      <th style="width:20%">Package</th>
+      <th style="width:80%">Module types</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range $pkg := .}}
+      <tr>
+        <td>{{.Path}}</td>
+        <td>
+        {{range $i, $mod := .ModuleTypes}}{{if $i}}, {{end}}<a href="{{$pkg.Name}}.html#{{$mod.Name}}">{{$mod.Name}}</a>{{end}}
+        </td>
+      </tr>
+    {{end}}
+  </tbody>
+</table>
+</div>
+</body>
+</html>
+`
+)
+
+const (
+	perPackageTemplate = `
 <html>
 <head>
 <title>Build Docs</title>
@@ -174,21 +247,13 @@ li a:hover:not(.active) {
 <body>
 {{- /* Fixed sidebar with module types */ -}}
 <ul>
-<li><h3>Module Types:</h3></li>
-{{range $moduleType := .}}<li><a href="#{{$moduleType.Name}}">{{$moduleType.Name}}</a></li>
+<li><h3>{{.Name}} package</h3></li>
+{{range $moduleType := .Modules}}<li><a href="#{{$moduleType.Name}}">{{$moduleType.Name}}</a></li>
 {{end -}}
 </ul>
 {{/* Main panel with H1 section per module type */}}
 <div style="margin-left:30ch;padding:1px 16px;">
-<H1>Soong Modules Reference</H1>
-The latest versions of Android use the Soong build system, which greatly simplifies build
-configuration over the previous Make-based system. This site contains the generated reference
-files for the Soong build system.
-<p>
-See the <a href=https://source.android.com/setup/build/build-system>Android Build System</a>
-description for an overview of Soong and examples for its use.
-
-{{range $imodule, $moduleType := .}}
+{{range $moduleType := .Modules}}
 	{{setModule $moduleType.Name}}
 	<p>
   <h2 id="{{$moduleType.Name}}">{{$moduleType.Name}}</h2>
@@ -225,7 +290,6 @@ description for an overview of Soong and examples for its use.
     {{- end}}
   {{- end -}}
 {{- end -}}
-
 </div>
 <script>
   accordions = document.getElementsByClassName('accordion');
