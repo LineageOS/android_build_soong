@@ -712,7 +712,7 @@ func (p OutputPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 		reportPathErrorf(ctx, "extension %q cannot contain /", ext)
 	}
 	ret := PathForOutput(ctx, pathtools.ReplaceExtension(p.path, ext))
-	ret.rel = p.rel
+	ret.rel = pathtools.ReplaceExtension(p.rel, ext)
 	return ret
 }
 
@@ -724,7 +724,7 @@ func (p OutputPath) InSameDir(ctx PathContext, paths ...string) OutputPath {
 	}
 
 	ret := PathForOutput(ctx, filepath.Dir(p.path), path)
-	ret.rel = p.rel
+	ret.rel = filepath.Join(filepath.Dir(p.rel), path)
 	return ret
 }
 

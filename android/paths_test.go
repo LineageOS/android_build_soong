@@ -696,22 +696,26 @@ func ExampleOutputPath_ReplaceExtension() {
 	ctx := &configErrorWrapper{
 		config: TestConfig("out", nil),
 	}
-	p := PathForOutput(ctx, "system/framework/boot.art")
+	p := PathForOutput(ctx, "system/framework").Join(ctx, "boot.art")
 	p2 := p.ReplaceExtension(ctx, "oat")
 	fmt.Println(p, p2)
+	fmt.Println(p.Rel(), p2.Rel())
 
 	// Output:
 	// out/system/framework/boot.art out/system/framework/boot.oat
+	// boot.art boot.oat
 }
 
 func ExampleOutputPath_FileInSameDir() {
 	ctx := &configErrorWrapper{
 		config: TestConfig("out", nil),
 	}
-	p := PathForOutput(ctx, "system/framework/boot.art")
+	p := PathForOutput(ctx, "system/framework").Join(ctx, "boot.art")
 	p2 := p.InSameDir(ctx, "oat", "arm", "boot.vdex")
 	fmt.Println(p, p2)
+	fmt.Println(p.Rel(), p2.Rel())
 
 	// Output:
 	// out/system/framework/boot.art out/system/framework/oat/arm/boot.vdex
+	// boot.art oat/arm/boot.vdex
 }
