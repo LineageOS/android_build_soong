@@ -599,6 +599,14 @@ func (c *Module) bootstrap() bool {
 	return Bool(c.Properties.Bootstrap)
 }
 
+func isBionic(name string) bool {
+	switch name {
+	case "libc", "libm", "libdl", "linker":
+		return true
+	}
+	return false
+}
+
 type baseModuleContext struct {
 	android.BaseContext
 	moduleContextImpl
