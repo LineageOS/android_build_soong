@@ -76,10 +76,31 @@ type SingletonContext interface {
 
 type singletonAdaptor struct {
 	Singleton
+
+	buildParams []BuildParams
+	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 }
 
-func (s singletonAdaptor) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	s.Singleton.GenerateBuildActions(singletonContextAdaptor{ctx})
+var _ testBuildProvider = (*singletonAdaptor)(nil)
+
+func (s *singletonAdaptor) GenerateBuildActions(ctx blueprint.SingletonContext) {
+	sctx := &singletonContextAdaptor{SingletonContext: ctx}
+	if sctx.Config().captureBuild {
+		sctx.ruleParams = make(map[blueprint.Rule]blueprint.RuleParams)
+	}
+
+	s.Singleton.GenerateBuildActions(sctx)
+
+	s.buildParams = sctx.buildParams
+	s.ruleParams = sctx.ruleParams
+}
+
+func (s *singletonAdaptor) BuildParamsForTests() []BuildParams {
+	return s.buildParams
+}
+
+func (s *singletonAdaptor) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams {
+	return s.ruleParams
 }
 
 type Singleton interface {
@@ -88,35 +109,45 @@ type Singleton interface {
 
 type singletonContextAdaptor struct {
 	blueprint.SingletonContext
+
+	buildParams []BuildParams
+	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 }
 
-func (s singletonContextAdaptor) Config() Config {
+func (s *singletonContextAdaptor) Config() Config {
 	return s.SingletonContext.Config().(Config)
 }
 
-func (s singletonContextAdaptor) DeviceConfig() DeviceConfig {
+func (s *singletonContextAdaptor) DeviceConfig() DeviceConfig {
 	return DeviceConfig{s.Config().deviceConfig}
 }
 
-func (s singletonContextAdaptor) Variable(pctx PackageContext, name, value string) {
+func (s *singletonContextAdaptor) Variable(pctx PackageContext, name, value string) {
 	s.SingletonContext.Variable(pctx.PackageContext, name, value)
 }
 
-func (s singletonContextAdaptor) Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule {
-	return s.SingletonContext.Rule(pctx.PackageContext, name, params, argNames...)
+func (s *singletonContextAdaptor) Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule {
+	rule := s.SingletonContext.Rule(pctx.PackageContext, name, params, argNames...)
+	if s.Config().captureBuild {
+		s.ruleParams[rule] = params
+	}
+	return rule
 }
 
-func (s singletonContextAdaptor) Build(pctx PackageContext, params BuildParams) {
+func (s *singletonContextAdaptor) Build(pctx PackageContext, params BuildParams) {
+	if s.Config().captureBuild {
+		s.buildParams = append(s.buildParams, params)
+	}
 	bparams := convertBuildParams(params)
 	s.SingletonContext.Build(pctx.PackageContext, bparams)
 
 }
 
-func (s singletonContextAdaptor) SetNinjaBuildDir(pctx PackageContext, value string) {
+func (s *singletonContextAdaptor) SetNinjaBuildDir(pctx PackageContext, value string) {
 	s.SingletonContext.SetNinjaBuildDir(pctx.PackageContext, value)
 }
 
-func (s singletonContextAdaptor) Eval(pctx PackageContext, ninjaStr string) (string, error) {
+func (s *singletonContextAdaptor) Eval(pctx PackageContext, ninjaStr string) (string, error) {
 	return s.SingletonContext.Eval(pctx.PackageContext, ninjaStr)
 }
 
@@ -144,34 +175,34 @@ func predAdaptor(pred func(Module) bool) func(blueprint.Module) bool {
 	}
 }
 
-func (s singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
+func (s *singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
 	s.SingletonContext.VisitAllModules(visit)
 }
 
-func (s singletonContextAdaptor) VisitAllModules(visit func(Module)) {
+func (s *singletonContextAdaptor) VisitAllModules(visit func(Module)) {
 	s.SingletonContext.VisitAllModules(visitAdaptor(visit))
 }
 
-func (s singletonContextAdaptor) VisitAllModulesIf(pred func(Module) bool, visit func(Module)) {
+func (s *singletonContextAdaptor) VisitAllModulesIf(pred func(Module) bool, visit func(Module)) {
 	s.SingletonContext.VisitAllModulesIf(predAdaptor(pred), visitAdaptor(visit))
 }
 
-func (s singletonContextAdaptor) VisitDepsDepthFirst(module Module, visit func(Module)) {
+func (s *singletonContextAdaptor) VisitDepsDepthFirst(module Module, visit func(Module)) {
 	s.SingletonContext.VisitDepsDepthFirst(module, visitAdaptor(visit))
 }
 
-func (s singletonContextAdaptor) VisitDepsDepthFirstIf(module Module, pred func(Module) bool, visit func(Module)) {
+func (s *singletonContextAdaptor) VisitDepsDepthFirstIf(module Module, pred func(Module) bool, visit func(Module)) {
 	s.SingletonContext.VisitDepsDepthFirstIf(module, predAdaptor(pred), visitAdaptor(visit))
 }
 
-func (s singletonContextAdaptor) VisitAllModuleVariants(module Module, visit func(Module)) {
+func (s *singletonContextAdaptor) VisitAllModuleVariants(module Module, visit func(Module)) {
 	s.SingletonContext.VisitAllModuleVariants(module, visitAdaptor(visit))
 }
 
-func (s singletonContextAdaptor) PrimaryModule(module Module) Module {
+func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
 	return s.SingletonContext.PrimaryModule(module).(Module)
 }
 
-func (s singletonContextAdaptor) FinalModule(module Module) Module {
+func (s *singletonContextAdaptor) FinalModule(module Module) Module {
 	return s.SingletonContext.FinalModule(module).(Module)
 }
