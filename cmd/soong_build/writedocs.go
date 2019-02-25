@@ -108,14 +108,9 @@ func writeDocs(ctx *android.Context, filename string) error {
 	}
 
 	// Produce the top-level, package list page first.
-	tmpl, err := template.New("file").Parse(packageListTemplate)
-	if err != nil {
-		return err
-	}
+	tmpl := template.Must(template.Must(template.New("file").Parse(packageListTemplate)).Parse(copyBaseUrl))
 	buf := &bytes.Buffer{}
-	if err == nil {
-		err = tmpl.Execute(buf, packages)
-	}
+	err = tmpl.Execute(buf, packages)
 	if err == nil {
 		err = ioutil.WriteFile(filename, buf.Bytes(), 0666)
 	}
@@ -125,18 +120,16 @@ func writeDocs(ctx *android.Context, filename string) error {
 		// We need a module name getter/setter function because I couldn't
 		// find a way to keep it in a variable defined within the template.
 		currentModuleName := ""
-		tmpl, err := template.New("file").Funcs(map[string]interface{}{
-			"setModule": func(moduleName string) string {
-				currentModuleName = moduleName
-				return ""
-			},
-			"getModule": func() string {
-				return currentModuleName
-			},
-		}).Parse(perPackageTemplate)
-		if err != nil {
-			return err
-		}
+		tmpl := template.Must(
+			template.Must(template.New("file").Funcs(map[string]interface{}{
+				"setModule": func(moduleName string) string {
+					currentModuleName = moduleName
+					return ""
+				},
+				"getModule": func() string {
+					return currentModuleName
+				},
+			}).Parse(perPackageTemplate)).Parse(copyBaseUrl))
 		buf := &bytes.Buffer{}
 		modules := moduleTypeDocsToTemplates(pkg.ModuleTypes)
 		data := perPackageTemplateData{Name: pkg.Name, Modules: modules}
@@ -173,6 +166,7 @@ td {
   word-wrap:break-word;
 }
 </style>
+{{template "copyBaseUrl"}}
 </head>
 <body>
 <div id="main">
@@ -203,9 +197,7 @@ files for the Soong build system.
 </body>
 </html>
 `
-)
 
-const (
 	perPackageTemplate = `
 <html>
 <head>
@@ -243,6 +235,7 @@ li a:hover:not(.active) {
   color: white;
 }
 </style>
+{{template "copyBaseUrl"}}
 </head>
 <body>
 {{- /* Fixed sidebar with module types */ -}}
@@ -308,5 +301,24 @@ li a:hover:not(.active) {
   }
 </script>
 </body>
+`
+
+	copyBaseUrl = `
+{{define "copyBaseUrl"}}
+<script type="text/javascript">
+window.addEventListener('message', (e) => {
+  if (e != null && e.data != null && e.data.type === "SET_BASE" && e.data.base != null) {
+    const existingBase = document.querySelector('base');
+    if (existingBase != null) {
+      existingBase.parentElement.removeChild(existingBase);
+    }
+
+    const base = document.createElement('base');
+    base.setAttribute('href', e.data.base);
+    document.head.appendChild(base);
+  }
+});
+</script>
+{{end}}
 `
 )
