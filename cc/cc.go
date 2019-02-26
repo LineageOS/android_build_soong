@@ -1225,11 +1225,17 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		return
 	}
 
-	actx.AddVariationDependencies([]blueprint.Variation{
-		{Mutator: "link", Variation: "static"},
-	}, wholeStaticDepTag, deps.WholeStaticLibs...)
-
 	syspropImplLibraries := syspropImplLibraries(actx.Config())
+
+	for _, lib := range deps.WholeStaticLibs {
+		depTag := wholeStaticDepTag
+		if impl, ok := syspropImplLibraries[lib]; ok {
+			lib = impl
+		}
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, depTag, lib)
+	}
 
 	for _, lib := range deps.StaticLibs {
 		depTag := staticDepTag
