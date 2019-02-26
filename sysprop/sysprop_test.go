@@ -73,6 +73,7 @@ func testContext(config android.Config, bp string,
 	})
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
+	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
@@ -251,6 +252,12 @@ func TestSyspropLibrary(t *testing.T) {
 			static_libs: ["sysprop-platform"],
 		}
 
+		cc_library_static {
+			name: "cc-client-platform-static",
+			srcs: ["d.cpp"],
+			whole_static_libs: ["sysprop-platform"],
+		}
+
 		cc_library {
 			name: "cc-client-product",
 			srcs: ["d.cpp"],
@@ -300,10 +307,19 @@ func TestSyspropLibrary(t *testing.T) {
 	platformClient := ctx.ModuleForTests("cc-client-platform", coreVariant)
 	platformFlags := platformClient.Rule("cc").Args["cFlags"]
 
-	// Platform should use platform's internal header
+	// platform should use platform's internal header
 	if !strings.Contains(platformFlags, platformInternalPath) {
 		t.Errorf("flags for platform must contain %#v, but was %#v.",
 			platformInternalPath, platformFlags)
+	}
+
+	platformStaticClient := ctx.ModuleForTests("cc-client-platform-static", coreVariant)
+	platformStaticFlags := platformStaticClient.Rule("cc").Args["cFlags"]
+
+	// platform-static should use platform's internal header
+	if !strings.Contains(platformStaticFlags, platformInternalPath) {
+		t.Errorf("flags for platform-static must contain %#v, but was %#v.",
+			platformInternalPath, platformStaticFlags)
 	}
 
 	productClient := ctx.ModuleForTests("cc-client-product", coreVariant)
