@@ -42,9 +42,10 @@ type syspropLibraryProperties struct {
 }
 
 type commonProperties struct {
-	Srcs             []string
-	Recovery         *bool
-	Vendor_available *bool
+	Srcs               []string
+	Recovery           *bool
+	Recovery_available *bool
+	Vendor_available   *bool
 }
 
 var (
