@@ -112,6 +112,32 @@ cc_library_shared {
 }`,
 	},
 	{
+		desc: "Convert to local path",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res $(LOCAL_PATH)/res2
+LOCAL_ASSET_DIR := $(LOCAL_PATH)/asset
+LOCAL_JARJAR_RULES := $(LOCAL_PATH)/jarjar-rules.txt
+LOCAL_CERTIFICATE := $(LOCAL_PATH)/cert
+LOCAL_ADDITIONAL_CERTIFICATES := $(LOCAL_PATH)/cert1 $(LOCAL_PATH)/cert2
+include $(BUILD_PACKAGE)
+	`,
+		expected: `
+android_app {
+	resource_dirs: [
+		"res",
+		"res2",
+	],
+	asset_dirs: ["asset"],
+	jarjar_rules: "jarjar-rules.txt",
+	certificate: "cert",
+	additional_certificates: [
+		"cert1",
+		"cert2",
+	],
+}`,
+	},
+	{
 		desc: "LOCAL_MODULE_STEM",
 		in: `
 include $(CLEAR_VARS)
@@ -642,7 +668,7 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 		in: `
 			include $(CLEAR_VARS)
 			LOCAL_SRC_FILES := test.java
-			LOCAL_RESOURCE_DIR := res
+			LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
 			LOCAL_JACK_COVERAGE_INCLUDE_FILTER := foo.*
 			include $(BUILD_STATIC_JAVA_LIBRARY)
 
