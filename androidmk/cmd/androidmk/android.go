@@ -42,21 +42,26 @@ type variableAssignmentContext struct {
 
 var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	// custom functions
-	"LOCAL_32_BIT_ONLY":           local32BitOnly,
-	"LOCAL_AIDL_INCLUDES":         localAidlIncludes,
-	"LOCAL_C_INCLUDES":            localIncludeDirs,
-	"LOCAL_EXPORT_C_INCLUDE_DIRS": exportIncludeDirs,
-	"LOCAL_LDFLAGS":               ldflags,
-	"LOCAL_MODULE_CLASS":          prebuiltClass,
-	"LOCAL_MODULE_STEM":           stem,
-	"LOCAL_MODULE_HOST_OS":        hostOs,
-	"LOCAL_SANITIZE":              sanitize(""),
-	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
-	"LOCAL_STRIP_MODULE":          strip(),
-	"LOCAL_CFLAGS":                cflags,
-	"LOCAL_UNINSTALLABLE_MODULE":  invert("installable"),
-	"LOCAL_PROGUARD_ENABLED":      proguardEnabled,
-	"LOCAL_MODULE_PATH":           prebuiltModulePath,
+	"LOCAL_32_BIT_ONLY":             local32BitOnly,
+	"LOCAL_ADDITIONAL_CERTIFICATES": localizePathList("additional_certificates"),
+	"LOCAL_AIDL_INCLUDES":           localAidlIncludes,
+	"LOCAL_ASSET_DIR":               localizePathList("asset_dirs"),
+	"LOCAL_C_INCLUDES":              localIncludeDirs,
+	"LOCAL_CERTIFICATE":             localizePath("certificate"),
+	"LOCAL_EXPORT_C_INCLUDE_DIRS":   exportIncludeDirs,
+	"LOCAL_JARJAR_RULES":            localizePath("jarjar_rules"),
+	"LOCAL_LDFLAGS":                 ldflags,
+	"LOCAL_MODULE_CLASS":            prebuiltClass,
+	"LOCAL_MODULE_STEM":             stem,
+	"LOCAL_MODULE_HOST_OS":          hostOs,
+	"LOCAL_RESOURCE_DIR":            localizePathList("resource_dirs"),
+	"LOCAL_SANITIZE":                sanitize(""),
+	"LOCAL_SANITIZE_DIAG":           sanitize("diag."),
+	"LOCAL_STRIP_MODULE":            strip(),
+	"LOCAL_CFLAGS":                  cflags,
+	"LOCAL_UNINSTALLABLE_MODULE":    invert("installable"),
+	"LOCAL_PROGUARD_ENABLED":        proguardEnabled,
+	"LOCAL_MODULE_PATH":             prebuiltModulePath,
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -72,6 +77,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_JAR_EXCLUDE_FILES":       skip, // Soong never excludes files from jars
 
 	"LOCAL_ANNOTATION_PROCESSOR_CLASSES": skip, // Soong gets the processor classes from the plugin
+	"LOCAL_CTS_TEST_PACKAGE":             skip, // Obsolete
 }
 
 // adds a group of properties all having the same type
@@ -92,8 +98,6 @@ func init() {
 			"LOCAL_MIN_SDK_VERSION":         "min_sdk_version",
 			"LOCAL_NDK_STL_VARIANT":         "stl",
 			"LOCAL_JAR_MANIFEST":            "manifest",
-			"LOCAL_JARJAR_RULES":            "jarjar_rules",
-			"LOCAL_CERTIFICATE":             "certificate",
 			"LOCAL_PACKAGE_NAME":            "name",
 			"LOCAL_MODULE_RELATIVE_PATH":    "relative_install_path",
 			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
@@ -139,7 +143,6 @@ func init() {
 			"LOCAL_RENDERSCRIPT_FLAGS":    "renderscript.flags",
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
-			"LOCAL_RESOURCE_DIR":          "resource_dirs",
 			"LOCAL_JAVACFLAGS":            "javacflags",
 			"LOCAL_ERROR_PRONE_FLAGS":     "errorprone.javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
@@ -160,7 +163,6 @@ func init() {
 			// java_library_static to android_library.
 			"LOCAL_SHARED_ANDROID_LIBRARIES": "android_libs",
 			"LOCAL_STATIC_ANDROID_LIBRARIES": "android_static_libs",
-			"LOCAL_ADDITIONAL_CERTIFICATES":  "additional_certificates",
 
 			// Jacoco filters:
 			"LOCAL_JACK_COVERAGE_INCLUDE_FILTER": "jacoco.include_filter",
@@ -386,6 +388,64 @@ func local32BitOnly(ctx variableAssignmentContext) error {
 
 func localAidlIncludes(ctx variableAssignmentContext) error {
 	return splitAndAssign(ctx, classifyLocalOrGlobalPath, map[string]string{"global": "aidl.include_dirs", "local": "aidl.local_include_dirs"})
+}
+
+func localizePathList(attribute string) func(ctx variableAssignmentContext) error {
+	return func(ctx variableAssignmentContext) error {
+		paths, err := localizePaths(ctx)
+		if err == nil {
+			err = setVariable(ctx.file, ctx.append, ctx.prefix, attribute, paths, true)
+		}
+		return err
+	}
+}
+
+func localizePath(attribute string) func(ctx variableAssignmentContext) error {
+	return func(ctx variableAssignmentContext) error {
+		paths, err := localizePaths(ctx)
+		if err == nil {
+			pathList, ok := paths.(*bpparser.List)
+			if !ok {
+				panic("Expected list")
+			}
+			switch len(pathList.Values) {
+			case 0:
+				err = setVariable(ctx.file, ctx.append, ctx.prefix, attribute, &bpparser.List{}, true)
+			case 1:
+				err = setVariable(ctx.file, ctx.append, ctx.prefix, attribute, pathList.Values[0], true)
+			default:
+				err = fmt.Errorf("Expected single value for %s", attribute)
+			}
+		}
+		return err
+	}
+}
+
+// Convert the "full" paths (that is, from the top of the source tree) to the relative one
+// (from the directory containing the blueprint file) and set given attribute to it.
+// This is needed for some of makefile variables (e.g., LOCAL_RESOURCE_DIR).
+// At the moment only the paths of the `$(LOCAL_PATH)/foo/bar` format can be converted
+// (to `foo/bar` in this case) as we cannot convert a literal path without
+// knowing makefiles's location in the source tree. We just issue a warning in the latter case.
+func localizePaths(ctx variableAssignmentContext) (bpparser.Expression, error) {
+	bpvalue, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
+	var result bpparser.Expression
+	if err != nil {
+		return result, err
+	}
+	classifiedPaths, err := splitBpList(bpvalue, classifyLocalOrGlobalPath)
+	if err != nil {
+		return result, err
+	}
+	for pathClass, path := range classifiedPaths {
+		switch pathClass {
+		case "local":
+			result = path
+		default:
+			err = fmt.Errorf("Only $(LOCAL_PATH)/.. values are allowed")
+		}
+	}
+	return result, err
 }
 
 func stem(ctx variableAssignmentContext) error {

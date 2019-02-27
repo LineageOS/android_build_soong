@@ -111,6 +111,9 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	publicStubModules = append(publicStubModules, ctx.Config().ProductHiddenAPIStubs()...)
 	systemStubModules = append(systemStubModules, ctx.Config().ProductHiddenAPIStubsSystem()...)
 	testStubModules = append(testStubModules, ctx.Config().ProductHiddenAPIStubsTest()...)
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
+		publicStubModules = append(publicStubModules, "jacoco-stubs")
+	}
 
 	publicStubPaths := make(android.Paths, len(publicStubModules))
 	systemStubPaths := make(android.Paths, len(systemStubModules))

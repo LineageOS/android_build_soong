@@ -131,6 +131,52 @@ func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
 
 var defaultBootImageConfigKey = android.NewOnceKey("defaultBootImageConfig")
 
+func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
+	return ctx.Config().Once(apexBootImageConfigKey, func() interface{} {
+		global := dexpreoptGlobalConfig(ctx)
+
+		runtimeModules := global.RuntimeApexJars
+
+		var runtimeBootLocations []string
+
+		for _, m := range runtimeModules {
+			runtimeBootLocations = append(runtimeBootLocations,
+				filepath.Join("/apex/com.android.runtime/javalib", m+".jar"))
+		}
+
+		// The path to bootclasspath dex files needs to be known at module GenerateAndroidBuildAction time, before
+		// the bootclasspath modules have been compiled.  Set up known paths for them, the singleton rules will copy
+		// them there.
+		// TODO: use module dependencies instead
+		var runtimeBootDexPaths android.WritablePaths
+		for _, m := range runtimeModules {
+			runtimeBootDexPaths = append(runtimeBootDexPaths,
+				android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_apexjars_input", m+".jar"))
+		}
+
+		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_apexjars")
+		symbolsDir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_apexjars_unstripped")
+		images := make(map[android.ArchType]android.OutputPath)
+
+		for _, target := range ctx.Config().Targets[android.Android] {
+			images[target.Arch.ArchType] = dir.Join(ctx,
+				"system/framework", target.Arch.ArchType.String(), "apex.art")
+		}
+
+		return bootImageConfig{
+			name:         "apex",
+			modules:      runtimeModules,
+			dexLocations: runtimeBootLocations,
+			dexPaths:     runtimeBootDexPaths,
+			dir:          dir,
+			symbolsDir:   symbolsDir,
+			images:       images,
+		}
+	}).(bootImageConfig)
+}
+
+var apexBootImageConfigKey = android.NewOnceKey("apexBootImageConfig")
+
 func defaultBootclasspath(ctx android.PathContext) []string {
 	return ctx.Config().OnceStringSlice(defaultBootclasspathKey, func() []string {
 		global := dexpreoptGlobalConfig(ctx)
@@ -150,6 +196,7 @@ func init() {
 
 func dexpreoptConfigMakevars(ctx android.MakeVarsContext) {
 	ctx.Strict("PRODUCT_BOOTCLASSPATH", strings.Join(defaultBootclasspath(ctx), ":"))
+	ctx.Strict("PRODUCT_DEX2OAT_BOOTCLASSPATH", strings.Join(defaultBootImageConfig(ctx).dexLocations, ":"))
 	ctx.Strict("PRODUCT_SYSTEM_SERVER_CLASSPATH", strings.Join(systemServerClasspath(ctx), ":"))
 
 	ctx.Strict("DEXPREOPT_BOOT_JARS_MODULES", strings.Join(defaultBootImageConfig(ctx).modules, ":"))
