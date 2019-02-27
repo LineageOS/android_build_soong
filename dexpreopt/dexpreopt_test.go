@@ -64,7 +64,7 @@ func TestDexPreopt(t *testing.T) {
 		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system/app/test/oat/arm/test.vdex"},
 	}
 
-	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
+	if rule.Installs().String() != wantInstalls.String() {
 		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
 	}
 }
@@ -100,7 +100,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system_other/app/test/oat/arm/test.vdex"},
 	}
 
-	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
+	if rule.Installs().String() != wantInstalls.String() {
 		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
 	}
 }
@@ -123,7 +123,7 @@ func TestDexPreoptProfile(t *testing.T) {
 		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system/app/test/oat/arm/test.vdex"},
 	}
 
-	if !reflect.DeepEqual(rule.Installs(), wantInstalls) {
+	if rule.Installs().String() != wantInstalls.String() {
 		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
 	}
 }

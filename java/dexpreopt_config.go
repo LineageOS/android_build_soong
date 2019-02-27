@@ -114,7 +114,7 @@ func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
 
 		for _, target := range ctx.Config().Targets[android.Android] {
 			images[target.Arch.ArchType] = dir.Join(ctx,
-				"system/framework", target.Arch.ArchType.String(), "boot.art")
+				"system/framework", target.Arch.ArchType.String()).Join(ctx, "boot.art")
 		}
 
 		return bootImageConfig{
