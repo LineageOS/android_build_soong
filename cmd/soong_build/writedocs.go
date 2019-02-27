@@ -241,7 +241,7 @@ li a:hover:not(.active) {
 {{- /* Fixed sidebar with module types */ -}}
 <ul>
 <li><h3>{{.Name}} package</h3></li>
-{{range $moduleType := .Modules}}<li><a href="#{{$moduleType.Name}}">{{$moduleType.Name}}</a></li>
+{{range $moduleType := .Modules}}<li><a href="{{$.Name}}.html#{{$moduleType.Name}}">{{$moduleType.Name}}</a></li>
 {{end -}}
 </ul>
 {{/* Main panel with H1 section per module type */}}
@@ -255,7 +255,7 @@ li a:hover:not(.active) {
 	<div class="breadcrumb">
     {{range $i,$prop := $moduleType.Properties }}
 				{{ if gt $i 0 }},&nbsp;{{end -}}
-				<a href=#{{getModule}}.{{$prop.Name}}>{{$prop.Name}}</a>
+				<a href={{$.Name}}.html#{{getModule}}.{{$prop.Name}}>{{$prop.Name}}</a>
 		{{- end -}}
   </div>
 	{{- /* Property description */ -}}
