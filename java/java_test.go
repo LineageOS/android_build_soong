@@ -81,13 +81,11 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("droiddoc_host", android.ModuleFactoryAdaptor(DroiddocHostFactory))
 	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(ExportedDroiddocDirFactory))
 	ctx.RegisterModuleType("java_sdk_library", android.ModuleFactoryAdaptor(SdkLibraryFactory))
-	ctx.RegisterModuleType("override_module", android.ModuleFactoryAdaptor(android.OverrideModuleFactory))
 	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(PrebuiltApisFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("load_hooks", android.LoadHookMutator).Parallel()
 		ctx.TopDown("prebuilt_apis", PrebuiltApisMutator).Parallel()
 		ctx.TopDown("java_sdk_library", SdkLibraryMutator).Parallel()
 	})
