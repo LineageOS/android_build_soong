@@ -33,16 +33,13 @@ func init() {
 	android.RegisterModuleType("android_test", AndroidTestFactory)
 	android.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
 	android.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
+	android.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
 }
 
 // AndroidManifest.xml merging
 // package splits
 
 type appProperties struct {
-	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
-	// or an android_app_certificate module name in the form ":module".
-	Certificate *string
-
 	// Names of extra android_app_certificate modules to sign the apk with in the form ":module".
 	Additional_certificates []string
 
@@ -79,13 +76,23 @@ type appProperties struct {
 	Use_embedded_dex *bool
 }
 
+// android_app properties that can be overridden by override_android_app
+type overridableAppProperties struct {
+	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
+	// or an android_app_certificate module name in the form ":module".
+	Certificate *string
+}
+
 type AndroidApp struct {
 	Library
 	aapt
+	android.OverridableModuleBase
 
 	certificate Certificate
 
 	appProperties appProperties
+
+	overridableAppProperties overridableAppProperties
 
 	installJniLibs []jniLib
 
@@ -320,7 +327,7 @@ func (a *AndroidApp) certificateBuildActions(certificateDeps []Certificate, ctx 
 
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// Check if the install APK name needs to be overridden.
-	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(ctx.ModuleName())
+	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(a.Name())
 
 	// Process all building blocks, from AAPT to certificates.
 	a.aaptBuildActions(ctx)
@@ -339,6 +346,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	certificates := a.certificateBuildActions(certificateDeps, ctx)
 
 	// Build a final signed app package.
+	// TODO(jungjw): Consider changing this to installApkName.
 	packageFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".apk")
 	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 	a.outputFile = packageFile
@@ -413,7 +421,7 @@ func (a *AndroidApp) getCertString(ctx android.BaseContext) string {
 	if overridden {
 		return ":" + certificate
 	}
-	return String(a.appProperties.Certificate)
+	return String(a.overridableAppProperties.Certificate)
 }
 
 // android_app compiles sources and Android resources into an Android application package `.apk` file.
@@ -432,7 +440,8 @@ func AndroidAppFactory() android.Module {
 		&module.Module.dexpreoptProperties,
 		&module.Module.protoProperties,
 		&module.aaptProperties,
-		&module.appProperties)
+		&module.appProperties,
+		&module.overridableAppProperties)
 
 	module.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
 		return class == android.Device && ctx.Config().DevicePrefer32BitApps()
@@ -440,6 +449,7 @@ func AndroidAppFactory() android.Module {
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitOverridableModule(module, &module.appProperties.Overrides)
 
 	return module
 }
@@ -503,6 +513,7 @@ func AndroidTestFactory() android.Module {
 		&module.aaptProperties,
 		&module.appProperties,
 		&module.appTestProperties,
+		&module.overridableAppProperties,
 		&module.testProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
@@ -541,7 +552,8 @@ func AndroidTestHelperAppFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
-		&module.appTestHelperAppProperties)
+		&module.appTestHelperAppProperties,
+		&module.overridableAppProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
@@ -574,4 +586,25 @@ func (c *AndroidAppCertificate) GenerateAndroidBuildActions(ctx android.ModuleCo
 		android.PathForModuleSrc(ctx, cert+".x509.pem"),
 		android.PathForModuleSrc(ctx, cert+".pk8"),
 	}
+}
+
+type OverrideAndroidApp struct {
+	android.ModuleBase
+	android.OverrideModuleBase
+}
+
+func (i *OverrideAndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// All the overrides happen in the base module.
+	// TODO(jungjw): Check the base module type.
+}
+
+// override_android_app is used to create an android_app module based on another android_app by overriding
+// some of its properties.
+func OverrideAndroidAppModuleFactory() android.Module {
+	m := &OverrideAndroidApp{}
+	m.AddProperties(&overridableAppProperties{})
+
+	android.InitAndroidModule(m)
+	android.InitOverrideModule(m)
+	return m
 }
