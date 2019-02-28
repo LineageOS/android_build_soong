@@ -299,7 +299,7 @@ func (c *RuleBuilderCommand) FlagForEachArg(flag string, args []string) *RuleBui
 	return c
 }
 
-// FlagWithArg adds the specified flag and list of arguments to the command line, with the arguments joined by sep
+// FlagWithList adds the specified flag and list of arguments to the command line, with the arguments joined by sep
 // and no separator between the flag and arguments.  The flag and arguments should not contain input or output paths or
 // the rule will not have them listed in its dependencies or outputs.
 func (c *RuleBuilderCommand) FlagWithList(flag string, list []string, sep string) *RuleBuilderCommand {
