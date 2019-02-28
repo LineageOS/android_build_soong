@@ -89,7 +89,13 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	// Public API stubs
 	publicStubModules := []string{
 		"android_stubs_current",
-		"android.test.base.stubs",
+	}
+
+	// Add the android.test.base to the set of stubs only if the android.test.base module is on
+	// the boot jars list as the runtime will only enforce hiddenapi access against modules on
+	// that list.
+	if inList("android.test.base", ctx.Config().BootJars()) {
+		publicStubModules = append(publicStubModules, "android.test.base.stubs")
 	}
 
 	// System API stubs
