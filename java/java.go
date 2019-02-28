@@ -168,6 +168,9 @@ type CompilerProperties struct {
 	}
 
 	Instrument bool `blueprint:"mutated"`
+
+	// List of files to include in the META-INF/services folder of the resulting jar.
+	Services []string `android:"arch_variant"`
 }
 
 type CompilerDeviceProperties struct {
@@ -478,6 +481,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
 	android.ExtractSourceDeps(ctx, j.properties.Manifest)
 	android.ExtractSourceDeps(ctx, j.properties.Jarjar_rules)
+	android.ExtractSourcesDeps(ctx, j.properties.Services)
 
 	if j.hasSrcExt(".proto") {
 		protoDeps(ctx, &j.protoProperties)
@@ -1134,6 +1138,25 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	manifest := j.overrideManifest
 	if !manifest.Valid() && j.properties.Manifest != nil {
 		manifest = android.OptionalPathForPath(ctx.ExpandSource(*j.properties.Manifest, "manifest"))
+	}
+
+	services := ctx.ExpandSources(j.properties.Services, nil)
+	if len(services) > 0 {
+		servicesJar := android.PathForModuleOut(ctx, "services", jarName)
+		var zipargs []string
+		for _, file := range services {
+			serviceFile := file.String()
+			zipargs = append(zipargs, "-C", filepath.Dir(serviceFile), "-f", serviceFile)
+		}
+		ctx.Build(pctx, android.BuildParams{
+			Rule:      zip,
+			Output:    servicesJar,
+			Implicits: services,
+			Args: map[string]string{
+				"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscape(zipargs), " "),
+			},
+		})
+		jars = append(jars, servicesJar)
 	}
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
