@@ -392,7 +392,7 @@ func (a *AndroidApp) collectAppDeps(ctx android.ModuleContext) ([]jniLib, []Cert
 func (a *AndroidApp) getCertString(ctx android.BaseContext) string {
 	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
 	if overridden {
-		return ":" + certificate
+		return certificate
 	}
 	return String(a.appProperties.Certificate)
 }
