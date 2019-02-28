@@ -168,7 +168,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, mani
 		} else {
 			versionName = ctx.Config().AppsDefaultVersionName()
 		}
-		versionName = proptools.NinjaEscape([]string{versionName})[0]
+		versionName = proptools.NinjaEscape(versionName)
 		linkFlags = append(linkFlags, "--version-name ", versionName)
 	}
 

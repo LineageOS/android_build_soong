@@ -106,7 +106,7 @@ func jacocoFiltersToSpecs(filters []string) ([]string, error) {
 			return nil, err
 		}
 	}
-	return proptools.NinjaAndShellEscape(specs), nil
+	return proptools.NinjaAndShellEscapeList(specs), nil
 }
 
 func jacocoFilterToSpec(filter string) (string, error) {

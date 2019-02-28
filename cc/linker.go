@@ -392,7 +392,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	CheckBadLinkerFlags(ctx, "ldflags", linker.Properties.Ldflags)
 
-	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscape(linker.Properties.Ldflags)...)
+	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
 
 	if ctx.Host() {
 		rpath_prefix := `\$$ORIGIN/`
