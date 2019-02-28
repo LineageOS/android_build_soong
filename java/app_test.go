@@ -747,3 +747,30 @@ func TestPackageNameOverride(t *testing.T) {
 		})
 	}
 }
+
+func TestInstrumentationTargetOverridden(t *testing.T) {
+	bp := `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		android_test {
+			name: "bar",
+			instrumentation_for: "foo",
+		}
+		`
+	config := testConfig(nil)
+	config.TestProductVariables.ManifestPackageNameOverrides = []string{"foo:org.dandroid.bp"}
+	ctx := testAppContext(config, bp, nil)
+
+	run(t, ctx, config)
+
+	bar := ctx.ModuleForTests("bar", "android_common")
+	res := bar.Output("package-res.apk")
+	aapt2Flags := res.Args["flags"]
+	e := "--rename-instrumentation-target-package org.dandroid.bp"
+	if !strings.Contains(aapt2Flags, e) {
+		t.Errorf("target package renaming flag, %q is missing in aapt2 link flags, %q", e, aapt2Flags)
+	}
+}
