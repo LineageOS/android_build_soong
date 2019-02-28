@@ -895,16 +895,30 @@ func (c *deviceConfig) PlatPrivateSepolicyDirs() []string {
 }
 
 func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName string, overridden bool) {
+	if newManifestName, overridden := c.manifestPackageNameOverrides().Load(name); overridden {
+		return newManifestName.(string), true
+	}
 	return findOverrideValue(c.config.productVariables.ManifestPackageNameOverrides, name,
 		"invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>")
 }
 
 func (c *deviceConfig) OverrideCertificateFor(name string) (certificatePath string, overridden bool) {
-	return findOverrideValue(c.config.productVariables.CertificateOverrides, name,
+	if newCert, overridden := c.certificateOverrides().Load(name); overridden {
+		return newCert.(string), true
+	}
+	newCert, overridden := findOverrideValue(c.config.productVariables.CertificateOverrides, name,
 		"invalid override rule %q in PRODUCT_CERTIFICATE_OVERRIDES should be <module_name>:<certificate_module_name>")
+	if overridden {
+		// PRODUCT_CERTIFICATE_OVERRIDES only supports cert modules.
+		newCert = ":" + newCert
+	}
+	return newCert, overridden
 }
 
 func (c *deviceConfig) OverridePackageNameFor(name string) string {
+	if newName, overridden := c.moduleNameOverrides().Load(name); overridden {
+		return newName.(string)
+	}
 	newName, overridden := findOverrideValue(
 		c.config.productVariables.PackageNameOverrides,
 		name,
