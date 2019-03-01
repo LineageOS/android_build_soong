@@ -81,4 +81,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("CLASS2GREYLIST", "${Class2Greylist}")
 	ctx.Strict("HIDDENAPI", "${HiddenAPI}")
+
+	ctx.Strict("DEX_FLAGS", "${DexFlags}")
 }
