@@ -375,6 +375,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-cc",
         "soong-java",
+        "soong-python",
     ],
     srcs: [
         "apex/apex.go",
