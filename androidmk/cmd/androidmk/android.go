@@ -42,26 +42,24 @@ type variableAssignmentContext struct {
 
 var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	// custom functions
-	"LOCAL_32_BIT_ONLY":             local32BitOnly,
-	"LOCAL_ADDITIONAL_CERTIFICATES": localizePathList("additional_certificates"),
-	"LOCAL_AIDL_INCLUDES":           localAidlIncludes,
-	"LOCAL_ASSET_DIR":               localizePathList("asset_dirs"),
-	"LOCAL_C_INCLUDES":              localIncludeDirs,
-	"LOCAL_CERTIFICATE":             localizePath("certificate"),
-	"LOCAL_EXPORT_C_INCLUDE_DIRS":   exportIncludeDirs,
-	"LOCAL_JARJAR_RULES":            localizePath("jarjar_rules"),
-	"LOCAL_LDFLAGS":                 ldflags,
-	"LOCAL_MODULE_CLASS":            prebuiltClass,
-	"LOCAL_MODULE_STEM":             stem,
-	"LOCAL_MODULE_HOST_OS":          hostOs,
-	"LOCAL_RESOURCE_DIR":            localizePathList("resource_dirs"),
-	"LOCAL_SANITIZE":                sanitize(""),
-	"LOCAL_SANITIZE_DIAG":           sanitize("diag."),
-	"LOCAL_STRIP_MODULE":            strip(),
-	"LOCAL_CFLAGS":                  cflags,
-	"LOCAL_UNINSTALLABLE_MODULE":    invert("installable"),
-	"LOCAL_PROGUARD_ENABLED":        proguardEnabled,
-	"LOCAL_MODULE_PATH":             prebuiltModulePath,
+	"LOCAL_32_BIT_ONLY":           local32BitOnly,
+	"LOCAL_AIDL_INCLUDES":         localAidlIncludes,
+	"LOCAL_ASSET_DIR":             localizePathList("asset_dirs"),
+	"LOCAL_C_INCLUDES":            localIncludeDirs,
+	"LOCAL_EXPORT_C_INCLUDE_DIRS": exportIncludeDirs,
+	"LOCAL_JARJAR_RULES":          localizePath("jarjar_rules"),
+	"LOCAL_LDFLAGS":               ldflags,
+	"LOCAL_MODULE_CLASS":          prebuiltClass,
+	"LOCAL_MODULE_STEM":           stem,
+	"LOCAL_MODULE_HOST_OS":        hostOs,
+	"LOCAL_RESOURCE_DIR":          localizePathList("resource_dirs"),
+	"LOCAL_SANITIZE":              sanitize(""),
+	"LOCAL_SANITIZE_DIAG":         sanitize("diag."),
+	"LOCAL_STRIP_MODULE":          strip(),
+	"LOCAL_CFLAGS":                cflags,
+	"LOCAL_UNINSTALLABLE_MODULE":  invert("installable"),
+	"LOCAL_PROGUARD_ENABLED":      proguardEnabled,
+	"LOCAL_MODULE_PATH":           prebuiltModulePath,
 
 	// composite functions
 	"LOCAL_MODULE_TAGS": includeVariableIf(bpVariable{"tags", bpparser.ListType}, not(valueDumpEquals("optional"))),
@@ -98,6 +96,7 @@ func init() {
 			"LOCAL_MIN_SDK_VERSION":         "min_sdk_version",
 			"LOCAL_NDK_STL_VARIANT":         "stl",
 			"LOCAL_JAR_MANIFEST":            "manifest",
+			"LOCAL_CERTIFICATE":             "certificate",
 			"LOCAL_PACKAGE_NAME":            "name",
 			"LOCAL_MODULE_RELATIVE_PATH":    "relative_install_path",
 			"LOCAL_PROTOC_OPTIMIZE_TYPE":    "proto.type",
@@ -163,6 +162,7 @@ func init() {
 			// java_library_static to android_library.
 			"LOCAL_SHARED_ANDROID_LIBRARIES": "android_libs",
 			"LOCAL_STATIC_ANDROID_LIBRARIES": "android_static_libs",
+			"LOCAL_ADDITIONAL_CERTIFICATES":  "additional_certificates",
 
 			// Jacoco filters:
 			"LOCAL_JACK_COVERAGE_INCLUDE_FILTER": "jacoco.include_filter",
@@ -918,6 +918,7 @@ var moduleTypes = map[string]string{
 	"BUILD_HOST_DALVIK_JAVA_LIBRARY": "java_library_host_dalvik",
 	"BUILD_PACKAGE":                  "android_app",
 
+	"BUILD_CTS_EXECUTABLE":          "cc_binary",               // will be further massaged by bpfix depending on the output path
 	"BUILD_CTS_SUPPORT_PACKAGE":     "cts_support_package",     // will be rewritten to android_test by bpfix
 	"BUILD_CTS_PACKAGE":             "cts_package",             // will be rewritten to android_test by bpfix
 	"BUILD_CTS_TARGET_JAVA_LIBRARY": "cts_target_java_library", // will be rewritten to java_library by bpfix
