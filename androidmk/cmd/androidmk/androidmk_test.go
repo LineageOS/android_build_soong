@@ -118,8 +118,6 @@ include $(CLEAR_VARS)
 LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res $(LOCAL_PATH)/res2
 LOCAL_ASSET_DIR := $(LOCAL_PATH)/asset
 LOCAL_JARJAR_RULES := $(LOCAL_PATH)/jarjar-rules.txt
-LOCAL_CERTIFICATE := $(LOCAL_PATH)/cert
-LOCAL_ADDITIONAL_CERTIFICATES := $(LOCAL_PATH)/cert1 $(LOCAL_PATH)/cert2
 include $(BUILD_PACKAGE)
 	`,
 		expected: `
@@ -130,11 +128,6 @@ android_app {
 	],
 	asset_dirs: ["asset"],
 	jarjar_rules: "jarjar-rules.txt",
-	certificate: "cert",
-	additional_certificates: [
-		"cert1",
-		"cert2",
-	],
 }`,
 	},
 	{
