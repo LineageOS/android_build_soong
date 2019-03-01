@@ -154,6 +154,7 @@ type ModuleContext interface {
 	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
 	WalkDeps(visit func(Module, Module) bool)
+	WalkDepsBlueprint(visit func(blueprint.Module, blueprint.Module) bool)
 
 	Variable(pctx PackageContext, name, value string)
 	Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
@@ -1065,6 +1066,10 @@ func (a *androidModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, vis
 		func(module blueprint.Module) {
 			visit(module.(Module))
 		})
+}
+
+func (a *androidModuleContext) WalkDepsBlueprint(visit func(blueprint.Module, blueprint.Module) bool) {
+	a.ModuleContext.WalkDeps(visit)
 }
 
 func (a *androidModuleContext) WalkDeps(visit func(Module, Module) bool) {
