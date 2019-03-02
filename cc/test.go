@@ -243,8 +243,13 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	test.data = ctx.ExpandSources(test.Properties.Data, nil)
+	optionsMap := map[string]string{}
+	if Bool(test.testDecorator.Properties.Isolated) {
+		optionsMap["not-shardable"] = "true"
+	}
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
-		test.Properties.Test_config_template, test.Properties.Test_suites)
+		test.Properties.Test_config_template,
+		test.Properties.Test_suites, optionsMap)
 
 	test.binaryDecorator.baseInstaller.dir = "nativetest"
 	test.binaryDecorator.baseInstaller.dir64 = "nativetest64"
