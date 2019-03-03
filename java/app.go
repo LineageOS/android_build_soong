@@ -93,6 +93,8 @@ type AndroidApp struct {
 
 	// the install APK name is normally the same as the module name, but can be overridden with PRODUCT_PACKAGE_NAME_OVERRIDES.
 	installApkName string
+
+	additionalAaptFlags []string
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -221,6 +223,8 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	if overridden {
 		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
 	}
+
+	aaptLinkFlags = append(aaptLinkFlags, a.additionalAaptFlags...)
 
 	a.aapt.buildActions(ctx, sdkContext(a), aaptLinkFlags...)
 
@@ -441,6 +445,13 @@ type AndroidTest struct {
 }
 
 func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Check if the instrumentation target package is overridden before generating build actions.
+	if a.appTestProperties.Instrumentation_for != nil {
+		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(*a.appTestProperties.Instrumentation_for)
+		if overridden {
+			a.additionalAaptFlags = append(a.additionalAaptFlags, "--rename-instrumentation-target-package "+manifestPackageName)
+		}
+	}
 	a.generateAndroidBuildActions(ctx)
 
 	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites)

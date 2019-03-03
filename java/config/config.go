@@ -33,17 +33,6 @@ var (
 	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
 	SdkLambdaStubsPath            = "prebuilts/sdk/tools/core-lambda-stubs.jar"
 
-	// A list of the non-boot jars that provide hidden APIs, i.e. libraries.
-	HiddenAPIProvidingNonBootJars = []string{
-		"android.test.base",
-	}
-
-	// A list of the non-boot jars that provide information about usages of the hidden API.
-	HiddenAPIExtraAppUsageJars = []string{
-		// The core-oj-hiddenapi provides information for the core-oj jar.
-		"core-oj-hiddenapi",
-	}
-
 	DefaultJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
 
 	InstrumentFrameworkModules = []string{
@@ -73,6 +62,7 @@ func init() {
 
 	pctx.StaticVariable("JavacHeapSize", "2048M")
 	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
+	pctx.StaticVariable("DexFlags", "-JXX:+TieredCompilation -JXX:TieredStopAtLevel=1")
 
 	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
 		`-Xmaxerrs 9999999`,
