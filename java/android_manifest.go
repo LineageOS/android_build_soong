@@ -21,7 +21,6 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
-	"android/soong/java/config"
 )
 
 var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
@@ -37,9 +36,8 @@ var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
 
 var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	blueprint.RuleParams{
-		Command: `${config.JavaCmd} -classpath ${config.ManifestMergerClasspath} com.android.manifmerger.Merger ` +
-			`--main $in $libs --out $out`,
-		CommandDeps: config.ManifestMergerClasspath,
+		Command:     `${config.ManifestMergerCmd} --main $in $libs --out $out`,
+		CommandDeps: []string{"${config.ManifestMergerCmd}"},
 	},
 	"libs")
 

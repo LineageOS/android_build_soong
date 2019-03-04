@@ -75,9 +75,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("MANIFEST_FIXER", "${ManifestFixerCmd}")
 
-	ctx.Strict("ANDROID_MANIFEST_MERGER_DEPS", "${ManifestMergerJars}")
-	ctx.Strict("ANDROID_MANIFEST_MERGER",
-		"${JavaCmd} -classpath ${ManifestMergerClasspath} com.android.manifmerger.Merger")
+	ctx.Strict("ANDROID_MANIFEST_MERGER", "${ManifestMergerCmd}")
 
 	ctx.Strict("CLASS2GREYLIST", "${Class2Greylist}")
 	ctx.Strict("HIDDENAPI", "${HiddenAPI}")
