@@ -87,6 +87,7 @@ type variableProperties struct {
 			Cflags   []string
 			Cppflags []string
 			Init_rc  []string
+			Required []string
 		}
 
 		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging
