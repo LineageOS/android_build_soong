@@ -307,6 +307,10 @@ type DroiddocProperties struct {
 		Last_released ApiToCheck
 
 		Current ApiToCheck
+
+		// do not perform API check against Last_released, in the case that both two specified API
+		// files by Last_released are modules which don't exist.
+		Ignore_missing_latest_api *bool `blueprint:"mutated"`
 	}
 
 	// if set to true, generate docs through Dokka instead of Doclava.
@@ -349,6 +353,10 @@ type DroidstubsProperties struct {
 		Last_released ApiToCheck
 
 		Current ApiToCheck
+
+		// do not perform API check against Last_released, in the case that both two specified API
+		// files by Last_released are modules which don't exist.
+		Ignore_missing_latest_api *bool `blueprint:"mutated"`
 	}
 
 	// user can specify the version of previous released API file in order to do compatibility check.
@@ -425,6 +433,25 @@ func apiCheckEnabled(apiToCheck ApiToCheck, apiVersionTag string) bool {
 	}
 
 	return false
+}
+
+func ignoreMissingModules(ctx android.BottomUpMutatorContext, apiToCheck *ApiToCheck) {
+	api_file := String(apiToCheck.Api_file)
+	removed_api_file := String(apiToCheck.Removed_api_file)
+
+	api_module := android.SrcIsModule(api_file)
+	removed_api_module := android.SrcIsModule(removed_api_file)
+
+	if api_module == "" || removed_api_module == "" {
+		return
+	}
+
+	if ctx.OtherModuleExists(api_module) || ctx.OtherModuleExists(removed_api_module) {
+		return
+	}
+
+	apiToCheck.Api_file = nil
+	apiToCheck.Removed_api_file = nil
 }
 
 type ApiFilePath interface {
@@ -838,6 +865,10 @@ func (d *Droiddoc) ApiFilePath() android.Path {
 
 func (d *Droiddoc) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
+
+	if Bool(d.properties.Check_api.Ignore_missing_latest_api) {
+		ignoreMissingModules(ctx, &d.properties.Check_api.Last_released)
+	}
 
 	if String(d.properties.Custom_template) != "" {
 		ctx.AddDependency(ctx.Module(), droiddocTemplateTag, String(d.properties.Custom_template))
@@ -1282,6 +1313,10 @@ func (d *Droidstubs) ApiFilePath() android.Path {
 
 func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
+
+	if Bool(d.properties.Check_api.Ignore_missing_latest_api) {
+		ignoreMissingModules(ctx, &d.properties.Check_api.Last_released)
+	}
 
 	if apiCheckEnabled(d.properties.Check_api.Current, "current") {
 		android.ExtractSourceDeps(ctx, d.properties.Check_api.Current.Api_file)
