@@ -931,12 +931,12 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 		bparams.Implicits = append(bparams.Implicits, params.Implicit.String())
 	}
 
-	bparams.Outputs = proptools.NinjaEscape(bparams.Outputs)
-	bparams.ImplicitOutputs = proptools.NinjaEscape(bparams.ImplicitOutputs)
-	bparams.Inputs = proptools.NinjaEscape(bparams.Inputs)
-	bparams.Implicits = proptools.NinjaEscape(bparams.Implicits)
-	bparams.OrderOnly = proptools.NinjaEscape(bparams.OrderOnly)
-	bparams.Depfile = proptools.NinjaEscape([]string{bparams.Depfile})[0]
+	bparams.Outputs = proptools.NinjaEscapeList(bparams.Outputs)
+	bparams.ImplicitOutputs = proptools.NinjaEscapeList(bparams.ImplicitOutputs)
+	bparams.Inputs = proptools.NinjaEscapeList(bparams.Inputs)
+	bparams.Implicits = proptools.NinjaEscapeList(bparams.Implicits)
+	bparams.OrderOnly = proptools.NinjaEscapeList(bparams.OrderOnly)
+	bparams.Depfile = proptools.NinjaEscapeList([]string{bparams.Depfile})[0]
 
 	return bparams
 }

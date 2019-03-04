@@ -1152,7 +1152,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			Output:    servicesJar,
 			Implicits: services,
 			Args: map[string]string{
-				"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscape(zipargs), " "),
+				"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
 			},
 		})
 		jars = append(jars, servicesJar)

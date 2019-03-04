@@ -67,7 +67,7 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 	}
 	sort.Strings(options)
 	extraOptions := strings.Join(options, "\n        ")
-	extraOptions = proptools.NinjaAndShellEscape([]string{extraOptions})[0]
+	extraOptions = proptools.NinjaAndShellEscape(extraOptions)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        autogenTestConfig,
