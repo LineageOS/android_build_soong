@@ -224,7 +224,7 @@ func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.Writabl
 		Output:      outputFile,
 		Implicits:   deps,
 		Args: map[string]string{
-			"jarArgs": strings.Join(proptools.NinjaAndShellEscape(jarArgs), " "),
+			"jarArgs": strings.Join(proptools.NinjaAndShellEscapeList(jarArgs), " "),
 		},
 	})
 }

@@ -453,7 +453,7 @@ func NewGenSrcs() *Module {
 			}
 
 			// escape the command in case for example it contains '#', an odd number of '"', etc
-			command = fmt.Sprintf("bash -c %v", proptools.ShellEscape([]string{command})[0])
+			command = fmt.Sprintf("bash -c %v", proptools.ShellEscape(command))
 			commands = append(commands, command)
 		}
 		fullCommand := strings.Join(commands, " && ")
