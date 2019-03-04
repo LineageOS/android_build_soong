@@ -269,7 +269,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	CheckBadCompilerFlags(ctx, "vendor.cflags", compiler.Properties.Target.Vendor.Cflags)
 	CheckBadCompilerFlags(ctx, "recovery.cflags", compiler.Properties.Target.Recovery.Cflags)
 
-	esc := proptools.NinjaAndShellEscape
+	esc := proptools.NinjaAndShellEscapeList
 
 	flags.CFlags = append(flags.CFlags, esc(compiler.Properties.Cflags)...)
 	flags.CppFlags = append(flags.CppFlags, esc(compiler.Properties.Cppflags)...)
