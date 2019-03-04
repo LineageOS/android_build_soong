@@ -1133,7 +1133,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	}
 
 	jars = append(jars, deps.staticJars...)
-	jars = append(jars, deps.staticResourceJars...)
 
 	manifest := j.overrideManifest
 	if !manifest.Valid() && j.properties.Manifest != nil {
