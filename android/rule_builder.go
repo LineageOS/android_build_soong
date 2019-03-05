@@ -242,6 +242,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 			Rule: ctx.Rule(pctx, name, blueprint.RuleParams{
 				Command:     strings.Join(proptools.NinjaEscapeList(r.Commands()), " && "),
 				CommandDeps: r.Tools().Strings(),
+				Restat:      r.restat,
 			}),
 			Implicits:   r.Inputs(),
 			Outputs:     r.Outputs(),
