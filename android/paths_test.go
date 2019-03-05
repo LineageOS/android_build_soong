@@ -508,15 +508,27 @@ func TestPathForModuleInstall(t *testing.T) {
 }
 
 func TestDirectorySortedPaths(t *testing.T) {
+	config := TestConfig("out", nil)
+
+	ctx := PathContextForTesting(config, map[string][]byte{
+		"a.txt":   nil,
+		"a/txt":   nil,
+		"a/b/c":   nil,
+		"a/b/d":   nil,
+		"b":       nil,
+		"b/b.txt": nil,
+		"a/a.txt": nil,
+	})
+
 	makePaths := func() Paths {
 		return Paths{
-			PathForTesting("a.txt"),
-			PathForTesting("a/txt"),
-			PathForTesting("a/b/c"),
-			PathForTesting("a/b/d"),
-			PathForTesting("b"),
-			PathForTesting("b/b.txt"),
-			PathForTesting("a/a.txt"),
+			PathForSource(ctx, "a.txt"),
+			PathForSource(ctx, "a/txt"),
+			PathForSource(ctx, "a/b/c"),
+			PathForSource(ctx, "a/b/d"),
+			PathForSource(ctx, "b"),
+			PathForSource(ctx, "b/b.txt"),
+			PathForSource(ctx, "a/a.txt"),
 		}
 	}
 
