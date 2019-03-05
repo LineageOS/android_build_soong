@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 )
 
 func TestConfig(buildDir string, env map[string]string) android.Config {
@@ -30,9 +29,6 @@ func TestConfig(buildDir string, env map[string]string) android.Config {
 	}
 	config := android.TestArchConfig(buildDir, env)
 	config.TestProductVariables.DeviceSystemSdkVersions = []string{"14", "15"}
-
-	pathCtx := android.PathContextForTesting(config, nil)
-	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	return config
 }
