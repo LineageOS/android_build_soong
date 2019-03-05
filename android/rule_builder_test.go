@@ -331,6 +331,8 @@ func testRuleBuilder_Build(ctx BuilderContext, in Path, out WritablePath) {
 
 	rule.Command().Tool(PathForSource(ctx, "cp")).Input(in).Output(out)
 
+	rule.Restat()
+
 	rule.Build(pctx, ctx, "rule", "desc")
 }
 
@@ -375,6 +377,10 @@ func TestRuleBuilder_Build(t *testing.T) {
 
 		if len(params.Outputs) != 1 || params.Outputs[0].String() != wantOutput {
 			t.Errorf("want Outputs = [%q], got %q", wantOutput, params.Outputs.Strings())
+		}
+
+		if !params.RuleParams.Restat {
+			t.Errorf("want RuleParams.Restat = true, got %v", params.RuleParams.Restat)
 		}
 	}
 
