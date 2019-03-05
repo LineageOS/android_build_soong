@@ -281,7 +281,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 		cmd.Flag(extraFlags)
 	}
 
-	cmd.Textf(`|| ( echo %s ; false )`, proptools.ShellEscape([]string{failureMessage})[0])
+	cmd.Textf(`|| ( echo %s ; false )`, proptools.ShellEscape(failureMessage))
 
 	installDir := filepath.Join("/system/framework", arch.String())
 	vdexInstallDir := filepath.Join("/system/framework")

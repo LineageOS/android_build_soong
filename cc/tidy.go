@@ -69,7 +69,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	if len(withTidyFlags) > 0 {
 		flags.TidyFlags = append(flags.TidyFlags, withTidyFlags)
 	}
-	esc := proptools.NinjaAndShellEscape
+	esc := proptools.NinjaAndShellEscapeList
 	flags.TidyFlags = append(flags.TidyFlags, esc(tidy.Properties.Tidy_flags)...)
 	// If TidyFlags is empty, add default header filter.
 	if len(flags.TidyFlags) == 0 {

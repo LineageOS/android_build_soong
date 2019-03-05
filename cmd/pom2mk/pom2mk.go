@@ -483,7 +483,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	}
 
 	fmt.Println("# Automatically generated with:")
-	fmt.Println("# pom2mk", strings.Join(proptools.ShellEscape(os.Args[1:]), " "))
+	fmt.Println("# pom2mk", strings.Join(proptools.ShellEscapeList(os.Args[1:]), " "))
 	fmt.Println("LOCAL_PATH := $(call my-dir)")
 
 	for _, pom := range poms {

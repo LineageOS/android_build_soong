@@ -240,7 +240,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 	if len(r.Commands()) > 0 {
 		ctx.Build(pctx, BuildParams{
 			Rule: ctx.Rule(pctx, name, blueprint.RuleParams{
-				Command:     strings.Join(proptools.NinjaEscape(r.Commands()), " && "),
+				Command:     strings.Join(proptools.NinjaEscapeList(r.Commands()), " && "),
 				CommandDeps: r.Tools().Strings(),
 			}),
 			Implicits:   r.Inputs(),
