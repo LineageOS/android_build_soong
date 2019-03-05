@@ -208,7 +208,7 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 					file.errorf(x, "missing if before else")
 					continue
 				} else if conds[len(conds)-1] == nil {
-					file.errorf(x, "else from unsupported contitional")
+					file.errorf(x, "else from unsupported conditional")
 					continue
 				}
 				conds[len(conds)-1].eq = !conds[len(conds)-1].eq
@@ -217,7 +217,7 @@ func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 					file.errorf(x, "missing if before endif")
 					continue
 				} else if conds[len(conds)-1] == nil {
-					file.errorf(x, "endif from unsupported contitional")
+					file.errorf(x, "endif from unsupported conditional")
 					conds = conds[:len(conds)-1]
 				} else {
 					if assignmentCond == conds[len(conds)-1] {
