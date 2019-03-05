@@ -166,7 +166,7 @@ type testDataTest struct {
 	android.ModuleBase
 	data       android.Paths
 	Properties struct {
-		Data []string
+		Data []string `android:"path"`
 	}
 }
 
@@ -175,10 +175,6 @@ func newTest() android.Module {
 	m.AddProperties(&m.Properties)
 	android.InitAndroidModule(m)
 	return m
-}
-
-func (test *testDataTest) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, test.Properties.Data)
 }
 
 func (test *testDataTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {

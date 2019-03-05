@@ -31,11 +31,11 @@ type BaseCompilerProperties struct {
 	// list of source files used to compile the C/C++ module.  May be .c, .cpp, or .S files.
 	// srcs may reference the outputs of other modules that produce source files like genrule
 	// or filegroup using the syntax ":module".
-	Srcs []string `android:"arch_variant"`
+	Srcs []string `android:"path,arch_variant"`
 
 	// list of source files that should not be used to build the C/C++ module.
 	// This is most useful in the arch/multilib variants to remove non-common files
-	Exclude_srcs []string `android:"arch_variant"`
+	Exclude_srcs []string `android:"path,arch_variant"`
 
 	// list of module-specific flags that will be used for C and C++ compiles.
 	Cflags []string `android:"arch_variant"`
@@ -136,11 +136,11 @@ type BaseCompilerProperties struct {
 		Vendor struct {
 			// list of source files that should only be used in the
 			// vendor variant of the C/C++ module.
-			Srcs []string
+			Srcs []string `android:"path"`
 
 			// list of source files that should not be used to
 			// build the vendor variant of the C/C++ module.
-			Exclude_srcs []string
+			Exclude_srcs []string `android:"path"`
 
 			// List of additional cflags that should be used to build the vendor
 			// variant of the C/C++ module.
@@ -149,11 +149,11 @@ type BaseCompilerProperties struct {
 		Recovery struct {
 			// list of source files that should only be used in the
 			// recovery variant of the C/C++ module.
-			Srcs []string
+			Srcs []string `android:"path"`
 
 			// list of source files that should not be used to
 			// build the recovery variant of the C/C++ module.
-			Exclude_srcs []string
+			Exclude_srcs []string `android:"path"`
 
 			// List of additional cflags that should be used to build the recovery
 			// variant of the C/C++ module.
@@ -220,9 +220,6 @@ func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
-
-	android.ExtractSourcesDeps(ctx, compiler.Properties.Srcs)
-	android.ExtractSourcesDeps(ctx, compiler.Properties.Exclude_srcs)
 
 	if compiler.hasSrcExt(".proto") {
 		deps = protoDeps(ctx, deps, &compiler.Proto, Bool(compiler.Properties.Proto.Static))

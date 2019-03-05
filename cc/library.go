@@ -30,8 +30,8 @@ import (
 )
 
 type StaticSharedLibraryProperties struct {
-	Srcs   []string `android:"arch_variant"`
-	Cflags []string `android:"arch_variant"`
+	Srcs   []string `android:"path,arch_variant"`
+	Cflags []string `android:"path,arch_variant"`
 
 	Enabled            *bool    `android:"arch_variant"`
 	Whole_static_libs  []string `android:"arch_variant"`
@@ -48,11 +48,11 @@ type LibraryProperties struct {
 	Shared StaticSharedLibraryProperties `android:"arch_variant"`
 
 	// local file name to pass to the linker as -unexported_symbols_list
-	Unexported_symbols_list *string `android:"arch_variant"`
+	Unexported_symbols_list *string `android:"path,arch_variant"`
 	// local file name to pass to the linker as -force_symbols_not_weak_list
-	Force_symbols_not_weak_list *string `android:"arch_variant"`
+	Force_symbols_not_weak_list *string `android:"path,arch_variant"`
 	// local file name to pass to the linker as -force_symbols_weak_list
-	Force_symbols_weak_list *string `android:"arch_variant"`
+	Force_symbols_weak_list *string `android:"path,arch_variant"`
 
 	// rename host libraries to prevent overlap with system installed libraries
 	Unique_host_soname *bool
@@ -77,7 +77,7 @@ type LibraryProperties struct {
 	Stubs struct {
 		// Relative path to the symbol map. The symbol map provides the list of
 		// symbols that are exported for stubs variant of this library.
-		Symbol_file *string
+		Symbol_file *string `android:"path"`
 
 		// List versions to generate stubs libs for.
 		Versions []string
@@ -97,7 +97,7 @@ type LibraryProperties struct {
 	Header_abi_checker struct {
 		// Path to a symbol file that specifies the symbols to be included in the generated
 		// ABI dump file
-		Symbol_file *string
+		Symbol_file *string `android:"path"`
 
 		// Symbol versions that should be ignored from the symbol file
 		Exclude_symbol_versions []string
@@ -526,12 +526,6 @@ func (library *libraryDecorator) linkerInit(ctx BaseModuleContext) {
 func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = library.baseCompiler.compilerDeps(ctx, deps)
 
-	if library.static() {
-		android.ExtractSourcesDeps(ctx, library.Properties.Static.Srcs)
-	} else if library.shared() {
-		android.ExtractSourcesDeps(ctx, library.Properties.Shared.Srcs)
-	}
-
 	return deps
 }
 
@@ -595,10 +589,6 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, library.baseLinker.Properties.Target.Recovery.Exclude_shared_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, library.baseLinker.Properties.Target.Recovery.Exclude_static_libs)
 	}
-
-	android.ExtractSourceDeps(ctx, library.Properties.Unexported_symbols_list)
-	android.ExtractSourceDeps(ctx, library.Properties.Force_symbols_not_weak_list)
-	android.ExtractSourceDeps(ctx, library.Properties.Force_symbols_weak_list)
 
 	return deps
 }

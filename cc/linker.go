@@ -149,7 +149,7 @@ type BaseLinkerProperties struct {
 	Pack_relocations *bool `android:"arch_variant"`
 
 	// local file name to pass to the linker as --version_script
-	Version_script *string `android:"arch_variant"`
+	Version_script *string `android:"path,arch_variant"`
 
 	// Local file name to pass to the linker as --symbol-ordering-file
 	Symbol_ordering_file *string `android:"arch_variant"`
@@ -280,16 +280,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if ctx.Windows() {
 		deps.LateStaticLibs = append(deps.LateStaticLibs, "libwinpthread")
 	}
-
-	// Version_script is not needed when linking stubs lib where the version
-	// script is created from the symbol map file.
-	if !linker.dynamicProperties.BuildStubs {
-		android.ExtractSourceDeps(ctx, linker.Properties.Version_script)
-		android.ExtractSourceDeps(ctx,
-			linker.Properties.Target.Vendor.Version_script)
-	}
-
-	android.ExtractSourceDeps(ctx, linker.Properties.Symbol_ordering_file)
 
 	return deps
 }

@@ -196,7 +196,7 @@ type prebuiltModule struct {
 	ModuleBase
 	prebuilt   Prebuilt
 	properties struct {
-		Srcs []string
+		Srcs []string `android:"path"`
 	}
 }
 

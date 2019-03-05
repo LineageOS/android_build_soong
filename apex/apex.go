@@ -212,11 +212,11 @@ type apexMultilibProperties struct {
 type apexBundleProperties struct {
 	// Json manifest file describing meta info of this APEX bundle. Default:
 	// "apex_manifest.json"
-	Manifest *string
+	Manifest *string `android:"path"`
 
 	// AndroidManifest.xml file used for the zip container of this APEX bundle.
 	// If unspecified, a default one is automatically generated.
-	AndroidManifest *string
+	AndroidManifest *string `android:"path"`
 
 	// Determines the file contexts file for setting security context to each file in this APEX bundle.
 	// Specifically, when this is set to <value>, /system/sepolicy/apex/<value>_file_contexts file is
@@ -524,14 +524,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	cert := android.SrcIsModule(a.getCertString(ctx))
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
-	}
-
-	if String(a.properties.Manifest) != "" {
-		android.ExtractSourceDeps(ctx, a.properties.Manifest)
-	}
-
-	if String(a.properties.AndroidManifest) != "" {
-		android.ExtractSourceDeps(ctx, a.properties.AndroidManifest)
 	}
 }
 
