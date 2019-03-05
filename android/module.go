@@ -117,7 +117,6 @@ type ModuleContext interface {
 	ExpandSources(srcFiles, excludes []string) Paths
 	ExpandSource(srcFile, prop string) Path
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
-	ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths
 	Glob(globPattern string, excludes []string) Paths
 	GlobFiles(globPattern string, excludes []string) Paths
 
@@ -1421,39 +1420,6 @@ type SourceFileProducer interface {
 // Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
 // be tagged with `android:"path" to support automatic source module dependency resolution.
 func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
-	return ctx.ExpandSourcesSubDir(srcFiles, excludes, "")
-}
-
-// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
-// be tagged with `android:"path" to support automatic source module dependency resolution.
-func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
-	srcFiles := ctx.ExpandSourcesSubDir([]string{srcFile}, nil, "")
-	if len(srcFiles) == 1 {
-		return srcFiles[0]
-	} else if len(srcFiles) == 0 {
-		if ctx.Config().AllowMissingDependencies() {
-			ctx.AddMissingDependencies([]string{srcFile})
-		} else {
-			ctx.PropertyErrorf(prop, "%s path %s does not exist", prop, srcFile)
-		}
-		return nil
-	} else {
-		ctx.PropertyErrorf(prop, "module providing %s must produce exactly one file", prop)
-		return nil
-	}
-}
-
-// Returns an optional single path expanded from globs and modules referenced using ":module" syntax if
-// the srcFile is non-nil.  The property must be tagged with `android:"path" to support automatic source module
-// dependency resolution.
-func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop string) OptionalPath {
-	if srcFile != nil {
-		return OptionalPathForPath(ctx.ExpandSource(*srcFile, prop))
-	}
-	return OptionalPath{}
-}
-
-func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string, subDir string) Paths {
 	prefix := PathForModuleSrc(ctx).String()
 
 	var expandedExcludes []string
@@ -1508,20 +1474,46 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 			}
 		} else if pathtools.IsGlob(s) {
 			globbedSrcFiles := ctx.GlobFiles(filepath.Join(prefix, s), expandedExcludes)
-			for i, s := range globbedSrcFiles {
-				globbedSrcFiles[i] = s.(ModuleSrcPath).WithSubDir(ctx, subDir)
-			}
+			globbedSrcFiles = PathsWithModuleSrcSubDir(ctx, globbedSrcFiles, "")
 			expandedSrcFiles = append(expandedSrcFiles, globbedSrcFiles...)
 		} else {
-			p := PathForModuleSrc(ctx, s).WithSubDir(ctx, subDir)
+			p := PathForModuleSrc(ctx, s)
 			j := findStringInSlice(p.String(), expandedExcludes)
 			if j == -1 {
 				expandedSrcFiles = append(expandedSrcFiles, p)
 			}
-
 		}
 	}
 	return expandedSrcFiles
+}
+
+// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
+// be tagged with `android:"path" to support automatic source module dependency resolution.
+func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
+	srcFiles := ctx.ExpandSources([]string{srcFile}, nil)
+	if len(srcFiles) == 1 {
+		return srcFiles[0]
+	} else if len(srcFiles) == 0 {
+		if ctx.Config().AllowMissingDependencies() {
+			ctx.AddMissingDependencies([]string{srcFile})
+		} else {
+			ctx.PropertyErrorf(prop, "%s path %s does not exist", prop, srcFile)
+		}
+		return nil
+	} else {
+		ctx.PropertyErrorf(prop, "module providing %s must produce exactly one file", prop)
+		return nil
+	}
+}
+
+// Returns an optional single path expanded from globs and modules referenced using ":module" syntax if
+// the srcFile is non-nil.  The property must be tagged with `android:"path" to support automatic source module
+// dependency resolution.
+func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop string) OptionalPath {
+	if srcFile != nil {
+		return OptionalPathForPath(ctx.ExpandSource(*srcFile, prop))
+	}
+	return OptionalPath{}
 }
 
 func (ctx *androidModuleContext) RequiredModuleNames() []string {
