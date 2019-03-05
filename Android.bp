@@ -276,6 +276,7 @@ bootstrap_go_package {
     testSrcs: [
         "java/app_test.go",
         "java/dexpreopt_test.go",
+        "java/dexpreopt_bootjars_test.go",
         "java/java_test.go",
         "java/jdeps_test.go",
         "java/kotlin_test.go",
