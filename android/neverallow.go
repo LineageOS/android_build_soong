@@ -52,6 +52,7 @@ func createNeverAllows() []*rule {
 	rules = append(rules, createTrebleRules()...)
 	rules = append(rules, createLibcoreRules()...)
 	rules = append(rules, createMediaRules()...)
+	rules = append(rules, createJavaDeviceForHostRules()...)
 	return rules
 }
 
@@ -134,6 +135,20 @@ func createMediaRules() []*rule {
 	}
 }
 
+func createJavaDeviceForHostRules() []*rule {
+	javaDeviceForHostProjectsWhitelist := []string{
+		"external/robolectric-shadows",
+		"framework/layoutlib",
+	}
+
+	return []*rule{
+		neverallow().
+			notIn(javaDeviceForHostProjectsWhitelist...).
+			moduleType("java_device_for_host", "java_host_for_device").
+			because("java_device_for_host can only be used in whitelisted projects"),
+	}
+}
+
 func neverallowMutator(ctx BottomUpMutatorContext) {
 	m, ok := ctx.Module().(Module)
 	if !ok {
@@ -145,6 +160,10 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 
 	for _, n := range neverallows {
 		if !n.appliesToPath(dir) {
+			continue
+		}
+
+		if !n.appliesToModuleType(ctx.ModuleType()) {
 			continue
 		}
 
@@ -168,6 +187,9 @@ type rule struct {
 	paths       []string
 	unlessPaths []string
 
+	moduleTypes       []string
+	unlessModuleTypes []string
+
 	props       []ruleProperty
 	unlessProps []ruleProperty
 }
@@ -175,14 +197,27 @@ type rule struct {
 func neverallow() *rule {
 	return &rule{}
 }
+
 func (r *rule) in(path ...string) *rule {
 	r.paths = append(r.paths, cleanPaths(path)...)
 	return r
 }
+
 func (r *rule) notIn(path ...string) *rule {
 	r.unlessPaths = append(r.unlessPaths, cleanPaths(path)...)
 	return r
 }
+
+func (r *rule) moduleType(types ...string) *rule {
+	r.moduleTypes = append(r.moduleTypes, types...)
+	return r
+}
+
+func (r *rule) notModuleType(types ...string) *rule {
+	r.unlessModuleTypes = append(r.unlessModuleTypes, types...)
+	return r
+}
+
 func (r *rule) with(properties, value string) *rule {
 	r.props = append(r.props, ruleProperty{
 		fields: fieldNamesForProperties(properties),
@@ -190,6 +225,7 @@ func (r *rule) with(properties, value string) *rule {
 	})
 	return r
 }
+
 func (r *rule) without(properties, value string) *rule {
 	r.unlessProps = append(r.unlessProps, ruleProperty{
 		fields: fieldNamesForProperties(properties),
@@ -197,6 +233,7 @@ func (r *rule) without(properties, value string) *rule {
 	})
 	return r
 }
+
 func (r *rule) because(reason string) *rule {
 	r.reason = reason
 	return r
@@ -209,6 +246,12 @@ func (r *rule) String() string {
 	}
 	for _, v := range r.unlessPaths {
 		s += " -dir:" + v + "*"
+	}
+	for _, v := range r.moduleTypes {
+		s += " type:" + v
+	}
+	for _, v := range r.unlessModuleTypes {
+		s += " -type:" + v
 	}
 	for _, v := range r.props {
 		s += " " + strings.Join(v.fields, ".") + "=" + v.value
@@ -226,6 +269,10 @@ func (r *rule) appliesToPath(dir string) bool {
 	includePath := len(r.paths) == 0 || hasAnyPrefix(dir, r.paths)
 	excludePath := hasAnyPrefix(dir, r.unlessPaths)
 	return includePath && !excludePath
+}
+
+func (r *rule) appliesToModuleType(moduleType string) bool {
+	return (len(r.moduleTypes) == 0 || InList(moduleType, r.moduleTypes)) && !InList(moduleType, r.unlessModuleTypes)
 }
 
 func (r *rule) appliesToProperties(properties []interface{}) bool {
