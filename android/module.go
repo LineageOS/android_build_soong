@@ -193,6 +193,7 @@ type Module interface {
 	GetProperties() []interface{}
 
 	BuildParamsForTests() []BuildParams
+	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
 	VariablesForTests() map[string]string
 }
 
@@ -477,6 +478,7 @@ type ModuleBase struct {
 
 	// For tests
 	buildParams []BuildParams
+	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 	variables   map[string]string
 
 	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
@@ -494,6 +496,10 @@ func (a *ModuleBase) GetProperties() []interface{} {
 
 func (a *ModuleBase) BuildParamsForTests() []BuildParams {
 	return a.buildParams
+}
+
+func (a *ModuleBase) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams {
+	return a.ruleParams
 }
 
 func (a *ModuleBase) VariablesForTests() map[string]string {
@@ -795,6 +801,10 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		variables:              make(map[string]string),
 	}
 
+	if ctx.config.captureBuild {
+		ctx.ruleParams = make(map[blueprint.Rule]blueprint.RuleParams)
+	}
+
 	desc := "//" + ctx.ModuleDir() + ":" + ctx.ModuleName() + " "
 	var suffix []string
 	if ctx.Os().Class != Device && ctx.Os().Class != Generic {
@@ -854,6 +864,7 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	a.buildParams = ctx.buildParams
+	a.ruleParams = ctx.ruleParams
 	a.variables = ctx.variables
 }
 
@@ -877,6 +888,7 @@ type androidModuleContext struct {
 
 	// For tests
 	buildParams []BuildParams
+	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 	variables   map[string]string
 }
 
@@ -952,7 +964,13 @@ func (a *androidModuleContext) Variable(pctx PackageContext, name, value string)
 func (a *androidModuleContext) Rule(pctx PackageContext, name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
 
-	return a.ModuleContext.Rule(pctx.PackageContext, name, params, argNames...)
+	rule := a.ModuleContext.Rule(pctx.PackageContext, name, params, argNames...)
+
+	if a.config.captureBuild {
+		a.ruleParams[rule] = params
+	}
+
+	return rule
 }
 
 func (a *androidModuleContext) Build(pctx PackageContext, params BuildParams) {

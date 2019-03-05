@@ -61,7 +61,7 @@ func SingletonFactoryAdaptor(factory SingletonFactory) blueprint.SingletonFactor
 		if makevars, ok := singleton.(SingletonMakeVarsProvider); ok {
 			registerSingletonMakeVarsProvider(makevars)
 		}
-		return singletonAdaptor{singleton}
+		return &singletonAdaptor{Singleton: singleton}
 	}
 }
 
