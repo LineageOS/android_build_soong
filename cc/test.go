@@ -253,7 +253,7 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
-	test.data = ctx.ExpandSources(test.Properties.Data, nil)
+	test.data = android.PathsForModuleSrc(ctx, test.Properties.Data)
 	optionsMap := map[string]string{}
 	if Bool(test.testDecorator.Properties.Isolated) {
 		optionsMap["not-shardable"] = "true"
@@ -378,7 +378,7 @@ func (benchmark *benchmarkDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps
 }
 
 func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Path) {
-	benchmark.data = ctx.ExpandSources(benchmark.Properties.Data, nil)
+	benchmark.data = android.PathsForModuleSrc(ctx, benchmark.Properties.Data)
 	benchmark.testConfig = tradefed.AutoGenNativeBenchmarkTestConfig(ctx, benchmark.Properties.Test_config,
 		benchmark.Properties.Test_config_template, benchmark.Properties.Test_suites)
 

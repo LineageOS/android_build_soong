@@ -61,7 +61,7 @@ func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 
 	// Return the singleton source after expanding any filegroup in the
 	// sources.
-	return ctx.ExpandSource((*p.srcs)[0], "")
+	return PathForModuleSrc(ctx, (*p.srcs)[0])
 }
 
 func InitPrebuiltModule(module PrebuiltInterface, srcs *[]string) {
