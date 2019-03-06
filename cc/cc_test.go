@@ -71,6 +71,9 @@ func createTestContext(t *testing.T, config android.Config, bp string, os androi
 		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 	})
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
+	})
 	ctx.Register()
 
 	// add some modules that are required by the compiler and/or linker
@@ -426,6 +429,309 @@ func TestVndkDepError(t *testing.T) {
 				enabled: true,
 			},
 			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK lib depends on a non-VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			shared_libs: ["libnonvndk"],
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libnonvndk",
+			vendor_available: true,
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK-private lib depends on a non-VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndkprivate",
+			vendor_available: false,
+			vndk: {
+				enabled: true,
+			},
+			shared_libs: ["libnonvndk"],
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libnonvndk",
+			vendor_available: true,
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK-sp lib depends on a non-VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndksp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			shared_libs: ["libnonvndk"],
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libnonvndk",
+			vendor_available: true,
+			nocrt: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a VNDK-sp-private lib depends on a non-VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
+		cc_library {
+			name: "libvndkspprivate",
+			vendor_available: false,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+			shared_libs: ["libnonvndk"],
+			nocrt: true,
+		}
+
+		cc_library {
+			name: "libnonvndk",
+			vendor_available: true,
+			nocrt: true,
+		}
+	`)
+}
+
+func TestDoubleLoadbleDep(t *testing.T) {
+	// okay to link : LLNDK -> double_loadable VNDK
+	testCc(t, `
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libdoubleloadable"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libdoubleloadable",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			double_loadable: true,
+		}
+	`)
+	// okay to link : LLNDK -> VNDK-SP
+	testCc(t, `
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libvndksp"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libvndksp",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			},
+		}
+	`)
+	// okay to link : double_loadable -> double_loadable
+	testCc(t, `
+		cc_library {
+			name: "libdoubleloadable1",
+			shared_libs: ["libdoubleloadable2"],
+			vendor_available: true,
+			double_loadable: true,
+		}
+
+		cc_library {
+			name: "libdoubleloadable2",
+			vendor_available: true,
+			double_loadable: true,
+		}
+	`)
+	// okay to link : double_loadable VNDK -> double_loadable VNDK private
+	testCc(t, `
+		cc_library {
+			name: "libdoubleloadable",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			double_loadable: true,
+			shared_libs: ["libnondoubleloadable"],
+		}
+
+		cc_library {
+			name: "libnondoubleloadable",
+			vendor_available: false,
+			vndk: {
+				enabled: true,
+			},
+			double_loadable: true,
+		}
+	`)
+	// okay to link : LLNDK -> core-only -> vendor_available & double_loadable
+	testCc(t, `
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libcoreonly"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libcoreonly",
+			shared_libs: ["libvendoravailable"],
+		}
+
+		// indirect dependency of LLNDK
+		cc_library {
+			name: "libvendoravailable",
+			vendor_available: true,
+			double_loadable: true,
+		}
+	`)
+}
+
+func TestDoubleLoadableDepError(t *testing.T) {
+	// Check whether an error is emitted when a LLNDK depends on a non-double_loadable VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libnondoubleloadable"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libnondoubleloadable",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+		}
+	`)
+
+	// Check whether an error is emitted when a LLNDK depends on a non-double_loadable vendor_available lib.
+	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
+		cc_library {
+			name: "libllndk",
+			no_libgcc: true,
+			shared_libs: ["libnondoubleloadable"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libnondoubleloadable",
+			vendor_available: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a double_loadable lib depends on a non-double_loadable vendor_available lib.
+	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
+		cc_library {
+			name: "libdoubleloadable",
+			vendor_available: true,
+			double_loadable: true,
+			shared_libs: ["libnondoubleloadable"],
+		}
+
+		cc_library {
+			name: "libnondoubleloadable",
+			vendor_available: true,
+		}
+	`)
+
+	// Check whether an error is emitted when a double_loadable lib depends on a non-double_loadable VNDK lib.
+	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
+		cc_library {
+			name: "libdoubleloadable",
+			vendor_available: true,
+			double_loadable: true,
+			shared_libs: ["libnondoubleloadable"],
+		}
+
+		cc_library {
+			name: "libnondoubleloadable",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+		}
+	`)
+
+	// Check whether an error is emitted when a double_loadable VNDK depends on a non-double_loadable VNDK private lib.
+	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
+		cc_library {
+			name: "libdoubleloadable",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			double_loadable: true,
+			shared_libs: ["libnondoubleloadable"],
+		}
+
+		cc_library {
+			name: "libnondoubleloadable",
+			vendor_available: false,
+			vndk: {
+				enabled: true,
+			},
+		}
+	`)
+
+	// Check whether an error is emitted when a LLNDK depends on a non-double_loadable indirectly.
+	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libcoreonly"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libcoreonly",
+			shared_libs: ["libvendoravailable"],
+		}
+
+		// indirect dependency of LLNDK
+		cc_library {
+			name: "libvendoravailable",
+			vendor_available: true,
 		}
 	`)
 }
