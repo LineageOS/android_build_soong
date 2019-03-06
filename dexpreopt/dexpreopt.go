@@ -331,6 +331,14 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		rule.Command().Text("source").Tool(global.Tools.ConstructContext)
 	}
 
+	// Devices that do not have a product partition use a symlink from /product to /system/product.
+	// Because on-device dexopt will see dex locations starting with /product, we change the paths
+	// to mimic this behavior.
+	dexLocationArg := module.DexLocation
+	if strings.HasPrefix(dexLocationArg, "/system/product/") {
+		dexLocationArg = strings.TrimPrefix(dexLocationArg, "/system")
+	}
+
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
 		Tool(global.Tools.Dex2oat).
@@ -344,7 +352,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		Flag("${stored_class_loader_context_arg}").
 		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImage).
 		FlagWithInput("--dex-file=", module.DexPath).
-		FlagWithArg("--dex-location=", module.DexLocation).
+		FlagWithArg("--dex-location=", dexLocationArg).
 		FlagWithOutput("--oat-file=", odexPath).ImplicitOutput(vdexPath).
 		// Pass an empty directory, dex2oat shouldn't be reading arbitrary files
 		FlagWithArg("--android-root=", global.EmptyDirectory).
