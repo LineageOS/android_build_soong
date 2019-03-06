@@ -504,9 +504,9 @@ endif # b==false
 //  # b==false
 // echo end
 //
-// ANDROIDMK TRANSLATION ERROR: endif from unsupported contitional
+// ANDROIDMK TRANSLATION ERROR: endif from unsupported conditional
 // endif
-// ANDROIDMK TRANSLATION ERROR: endif from unsupported contitional
+// ANDROIDMK TRANSLATION ERROR: endif from unsupported conditional
 // endif
 		`,
 	},
