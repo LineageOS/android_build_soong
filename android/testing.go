@@ -31,7 +31,7 @@ func NewTestContext() *TestContext {
 
 	nameResolver := NewNameResolver(namespaceExportFilter)
 	ctx := &TestContext{
-		Context:      blueprint.NewContext(),
+		Context:      &Context{blueprint.NewContext()},
 		NameResolver: nameResolver,
 	}
 
@@ -47,7 +47,7 @@ func NewTestArchContext() *TestContext {
 }
 
 type TestContext struct {
-	*blueprint.Context
+	*Context
 	preArch, preDeps, postDeps []RegisterMutatorFunc
 	NameResolver               *NameResolver
 }
@@ -65,7 +65,7 @@ func (ctx *TestContext) PostDepsMutators(f RegisterMutatorFunc) {
 }
 
 func (ctx *TestContext) Register() {
-	registerMutators(ctx.Context, ctx.preArch, ctx.preDeps, ctx.postDeps)
+	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps)
 
 	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
 }
@@ -102,6 +102,24 @@ func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
 	return variants
 }
 
+// SingletonForTests returns a TestingSingleton for the singleton registered with the given name.
+func (ctx *TestContext) SingletonForTests(name string) TestingSingleton {
+	allSingletonNames := []string{}
+	for _, s := range ctx.Singletons() {
+		n := ctx.SingletonName(s)
+		if n == name {
+			return TestingSingleton{
+				singleton: s.(*singletonAdaptor).Singleton,
+				provider:  s.(testBuildProvider),
+			}
+		}
+		allSingletonNames = append(allSingletonNames, n)
+	}
+
+	panic(fmt.Errorf("failed to find singleton %q."+
+		"\nall singletons: %v", name, allSingletonNames))
+}
+
 // MockFileSystem causes the Context to replace all reads with accesses to the provided map of
 // filenames to contents stored as a byte slice.
 func (ctx *TestContext) MockFileSystem(files map[string][]byte) {
@@ -121,6 +139,95 @@ func (ctx *TestContext) MockFileSystem(files map[string][]byte) {
 	ctx.Context.MockFileSystem(files)
 }
 
+type testBuildProvider interface {
+	BuildParamsForTests() []BuildParams
+	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
+}
+
+type TestingBuildParams struct {
+	BuildParams
+	RuleParams blueprint.RuleParams
+}
+
+func newTestingBuildParams(provider testBuildProvider, bparams BuildParams) TestingBuildParams {
+	return TestingBuildParams{
+		BuildParams: bparams,
+		RuleParams:  provider.RuleParamsForTests()[bparams.Rule],
+	}
+}
+
+func maybeBuildParamsFromRule(provider testBuildProvider, rule string) TestingBuildParams {
+	for _, p := range provider.BuildParamsForTests() {
+		if strings.Contains(p.Rule.String(), rule) {
+			return newTestingBuildParams(provider, p)
+		}
+	}
+	return TestingBuildParams{}
+}
+
+func buildParamsFromRule(provider testBuildProvider, rule string) TestingBuildParams {
+	p := maybeBuildParamsFromRule(provider, rule)
+	if p.Rule == nil {
+		panic(fmt.Errorf("couldn't find rule %q", rule))
+	}
+	return p
+}
+
+func maybeBuildParamsFromDescription(provider testBuildProvider, desc string) TestingBuildParams {
+	for _, p := range provider.BuildParamsForTests() {
+		if p.Description == desc {
+			return newTestingBuildParams(provider, p)
+		}
+	}
+	return TestingBuildParams{}
+}
+
+func buildParamsFromDescription(provider testBuildProvider, desc string) TestingBuildParams {
+	p := maybeBuildParamsFromDescription(provider, desc)
+	if p.Rule == nil {
+		panic(fmt.Errorf("couldn't find description %q", desc))
+	}
+	return p
+}
+
+func maybeBuildParamsFromOutput(provider testBuildProvider, file string) (TestingBuildParams, []string) {
+	var searchedOutputs []string
+	for _, p := range provider.BuildParamsForTests() {
+		outputs := append(WritablePaths(nil), p.Outputs...)
+		if p.Output != nil {
+			outputs = append(outputs, p.Output)
+		}
+		for _, f := range outputs {
+			if f.String() == file || f.Rel() == file {
+				return newTestingBuildParams(provider, p), nil
+			}
+			searchedOutputs = append(searchedOutputs, f.Rel())
+		}
+	}
+	return TestingBuildParams{}, searchedOutputs
+}
+
+func buildParamsFromOutput(provider testBuildProvider, file string) TestingBuildParams {
+	p, searchedOutputs := maybeBuildParamsFromOutput(provider, file)
+	if p.Rule == nil {
+		panic(fmt.Errorf("couldn't find output %q.\nall outputs: %v",
+			file, searchedOutputs))
+	}
+	return p
+}
+
+func allOutputs(provider testBuildProvider) []string {
+	var outputFullPaths []string
+	for _, p := range provider.BuildParamsForTests() {
+		outputs := append(WritablePaths(nil), p.Outputs...)
+		if p.Output != nil {
+			outputs = append(outputs, p.Output)
+		}
+		outputFullPaths = append(outputFullPaths, outputs.Strings()...)
+	}
+	return outputFullPaths
+}
+
 // TestingModule is wrapper around an android.Module that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingModule struct {
@@ -134,91 +241,96 @@ func (m TestingModule) Module() Module {
 
 // MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
 // BuildParams if no rule is found.
-func (m TestingModule) MaybeRule(rule string) BuildParams {
-	for _, p := range m.module.BuildParamsForTests() {
-		if strings.Contains(p.Rule.String(), rule) {
-			return p
-		}
-	}
-	return BuildParams{}
+func (m TestingModule) MaybeRule(rule string) TestingBuildParams {
+	return maybeBuildParamsFromRule(m.module, rule)
 }
 
 // Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
-func (m TestingModule) Rule(rule string) BuildParams {
-	p := m.MaybeRule(rule)
-	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find rule %q", rule))
-	}
-	return p
+func (m TestingModule) Rule(rule string) TestingBuildParams {
+	return buildParamsFromRule(m.module, rule)
 }
 
 // MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
 // BuildParams if no rule is found.
-func (m TestingModule) MaybeDescription(desc string) BuildParams {
-	for _, p := range m.module.BuildParamsForTests() {
-		if p.Description == desc {
-			return p
-		}
-	}
-	return BuildParams{}
+func (m TestingModule) MaybeDescription(desc string) TestingBuildParams {
+	return maybeBuildParamsFromDescription(m.module, desc)
 }
 
 // Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
 // found.
-func (m TestingModule) Description(desc string) BuildParams {
-	p := m.MaybeDescription(desc)
-	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find description %q", desc))
-	}
-	return p
-}
-
-func (m TestingModule) maybeOutput(file string) (BuildParams, []string) {
-	var searchedOutputs []string
-	for _, p := range m.module.BuildParamsForTests() {
-		outputs := append(WritablePaths(nil), p.Outputs...)
-		if p.Output != nil {
-			outputs = append(outputs, p.Output)
-		}
-		for _, f := range outputs {
-			if f.String() == file || f.Rel() == file {
-				return p, nil
-			}
-			searchedOutputs = append(searchedOutputs, f.Rel())
-		}
-	}
-	return BuildParams{}, searchedOutputs
+func (m TestingModule) Description(desc string) TestingBuildParams {
+	return buildParamsFromDescription(m.module, desc)
 }
 
 // MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
 // value matches the provided string.  Returns an empty BuildParams if no rule is found.
-func (m TestingModule) MaybeOutput(file string) BuildParams {
-	p, _ := m.maybeOutput(file)
+func (m TestingModule) MaybeOutput(file string) TestingBuildParams {
+	p, _ := maybeBuildParamsFromOutput(m.module, file)
 	return p
 }
 
 // Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
 // value matches the provided string.  Panics if no rule is found.
-func (m TestingModule) Output(file string) BuildParams {
-	p, searchedOutputs := m.maybeOutput(file)
-	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find output %q.\nall outputs: %v",
-			file, searchedOutputs))
-	}
-	return p
+func (m TestingModule) Output(file string) TestingBuildParams {
+	return buildParamsFromOutput(m.module, file)
 }
 
 // AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
 func (m TestingModule) AllOutputs() []string {
-	var outputFullPaths []string
-	for _, p := range m.module.BuildParamsForTests() {
-		outputs := append(WritablePaths(nil), p.Outputs...)
-		if p.Output != nil {
-			outputs = append(outputs, p.Output)
-		}
-		outputFullPaths = append(outputFullPaths, outputs.Strings()...)
-	}
-	return outputFullPaths
+	return allOutputs(m.module)
+}
+
+// TestingSingleton is wrapper around an android.Singleton that provides methods to find information about individual
+// ctx.Build parameters for verification in tests.
+type TestingSingleton struct {
+	singleton Singleton
+	provider  testBuildProvider
+}
+
+// Singleton returns the Singleton wrapped by the TestingSingleton.
+func (s TestingSingleton) Singleton() Singleton {
+	return s.singleton
+}
+
+// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
+// BuildParams if no rule is found.
+func (s TestingSingleton) MaybeRule(rule string) TestingBuildParams {
+	return maybeBuildParamsFromRule(s.provider, rule)
+}
+
+// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
+func (s TestingSingleton) Rule(rule string) TestingBuildParams {
+	return buildParamsFromRule(s.provider, rule)
+}
+
+// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
+// BuildParams if no rule is found.
+func (s TestingSingleton) MaybeDescription(desc string) TestingBuildParams {
+	return maybeBuildParamsFromDescription(s.provider, desc)
+}
+
+// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
+// found.
+func (s TestingSingleton) Description(desc string) TestingBuildParams {
+	return buildParamsFromDescription(s.provider, desc)
+}
+
+// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
+// value matches the provided string.  Returns an empty BuildParams if no rule is found.
+func (s TestingSingleton) MaybeOutput(file string) TestingBuildParams {
+	p, _ := maybeBuildParamsFromOutput(s.provider, file)
+	return p
+}
+
+// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
+// value matches the provided string.  Panics if no rule is found.
+func (s TestingSingleton) Output(file string) TestingBuildParams {
+	return buildParamsFromOutput(s.provider, file)
+}
+
+// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
+func (s TestingSingleton) AllOutputs() []string {
+	return allOutputs(s.provider)
 }
 
 func FailIfErrored(t *testing.T, errs []error) {

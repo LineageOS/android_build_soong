@@ -70,7 +70,7 @@ type LibraryProperties struct {
 	Sysprop struct {
 		// Whether platform owns this sysprop library.
 		Platform *bool
-	}
+	} `blueprint:"mutated"`
 
 	Static_ndk_lib *bool
 

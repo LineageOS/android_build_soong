@@ -38,7 +38,9 @@ type syspropLibraryProperties struct {
 	// Determine who owns this sysprop library. Possible values are
 	// "Platform", "Vendor", or "Odm"
 	Property_owner string
-	Api_packages   []string
+
+	// list of package names that will be documented and publicized as API
+	Api_packages []string
 }
 
 type commonProperties struct {

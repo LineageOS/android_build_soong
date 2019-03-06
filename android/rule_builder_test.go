@@ -331,6 +331,8 @@ func testRuleBuilder_Build(ctx BuilderContext, in Path, out WritablePath) {
 
 	rule.Command().Tool(PathForSource(ctx, "cp")).Input(in).Output(out)
 
+	rule.Restat()
+
 	rule.Build(pctx, ctx, "rule", "desc")
 }
 
@@ -364,17 +366,30 @@ func TestRuleBuilder_Build(t *testing.T) {
 	_, errs = ctx.PrepareBuildActions(config)
 	FailIfErrored(t, errs)
 
-	foo := ctx.ModuleForTests("foo", "").Rule("rule")
+	check := func(t *testing.T, params TestingBuildParams, wantOutput string) {
+		if len(params.RuleParams.CommandDeps) != 1 || params.RuleParams.CommandDeps[0] != "cp" {
+			t.Errorf("want RuleParams.CommandDeps = [%q], got %q", "cp", params.RuleParams.CommandDeps)
+		}
 
-	// TODO: make RuleParams accessible to tests and verify rule.Command().Tools() ends up in CommandDeps
+		if len(params.Implicits) != 1 || params.Implicits[0].String() != "bar" {
+			t.Errorf("want Implicits = [%q], got %q", "bar", params.Implicits.Strings())
+		}
 
-	if len(foo.Implicits) != 1 || foo.Implicits[0].String() != "bar" {
-		t.Errorf("want foo.Implicits = [%q], got %q", "bar", foo.Implicits.Strings())
+		if len(params.Outputs) != 1 || params.Outputs[0].String() != wantOutput {
+			t.Errorf("want Outputs = [%q], got %q", wantOutput, params.Outputs.Strings())
+		}
+
+		if !params.RuleParams.Restat {
+			t.Errorf("want RuleParams.Restat = true, got %v", params.RuleParams.Restat)
+		}
 	}
 
-	wantOutput := filepath.Join(buildDir, ".intermediates", "foo", "foo")
-	if len(foo.Outputs) != 1 || foo.Outputs[0].String() != wantOutput {
-		t.Errorf("want foo.Outputs = [%q], got %q", wantOutput, foo.Outputs.Strings())
-	}
-
+	t.Run("module", func(t *testing.T) {
+		check(t, ctx.ModuleForTests("foo", "").Rule("rule"),
+			filepath.Join(buildDir, ".intermediates", "foo", "foo"))
+	})
+	t.Run("singleton", func(t *testing.T) {
+		check(t, ctx.SingletonForTests("rule_builder_test").Rule("rule"),
+			filepath.Join(buildDir, "baz"))
+	})
 }
