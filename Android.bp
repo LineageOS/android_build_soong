@@ -250,6 +250,7 @@ bootstrap_go_package {
         "java/app_builder.go",
         "java/app.go",
         "java/builder.go",
+        "java/device_host_converter.go",
         "java/dex.go",
         "java/dexpreopt.go",
         "java/dexpreopt_bootjars.go",
@@ -275,6 +276,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "java/app_test.go",
+        "java/device_host_converter_test.go",
         "java/dexpreopt_test.go",
         "java/dexpreopt_bootjars_test.go",
         "java/java_test.go",
