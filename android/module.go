@@ -88,6 +88,7 @@ type BaseContext interface {
 type BaseModuleContext interface {
 	ModuleName() string
 	ModuleDir() string
+	ModuleType() string
 	Config() Config
 
 	ContainsProperty(name string) bool
