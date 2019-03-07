@@ -204,6 +204,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"BUILD_BROKEN_PHONY_TARGETS",
 
 		// Not used, but useful to be in the soong.log
+		"BOARD_VNDK_VERSION",
 		"BUILD_BROKEN_ANDROIDMK_EXPORTS",
 		"BUILD_BROKEN_DUP_COPY_HEADERS",
 		"BUILD_BROKEN_ENG_DEBUG_TAGS",
