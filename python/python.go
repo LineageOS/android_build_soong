@@ -43,11 +43,11 @@ type VersionProperties struct {
 	// non-empty list of .py files under this strict Python version.
 	// srcs may reference the outputs of other modules that produce source files like genrule
 	// or filegroup using the syntax ":module".
-	Srcs []string `android:"arch_variant"`
+	Srcs []string `android:"path,arch_variant"`
 
 	// list of source files that should not be used to build the Python module.
 	// This is most useful in the arch/multilib variants to remove non-common files
-	Exclude_srcs []string `android:"arch_variant"`
+	Exclude_srcs []string `android:"path,arch_variant"`
 
 	// list of the Python libraries under this Python version.
 	Libs []string `android:"arch_variant"`
@@ -74,15 +74,15 @@ type BaseProperties struct {
 	// srcs may reference the outputs of other modules that produce source files like genrule
 	// or filegroup using the syntax ":module".
 	// Srcs has to be non-empty.
-	Srcs []string `android:"arch_variant"`
+	Srcs []string `android:"path,arch_variant"`
 
 	// list of source files that should not be used to build the C/C++ module.
 	// This is most useful in the arch/multilib variants to remove non-common files
-	Exclude_srcs []string `android:"arch_variant"`
+	Exclude_srcs []string `android:"path,arch_variant"`
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test. the file extension can be arbitrary except for (.py).
-	Data []string `android:"arch_variant"`
+	Data []string `android:"path,arch_variant"`
 
 	// list of the Python libraries compatible both with Python2 and Python3.
 	Libs []string `android:"arch_variant"`
@@ -288,21 +288,11 @@ func (p *Module) hasSrcExt(ctx android.BottomUpMutatorContext, ext string) bool 
 }
 
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
-	// deps from "data".
-	android.ExtractSourcesDeps(ctx, p.properties.Data)
-	// deps from "srcs".
-	android.ExtractSourcesDeps(ctx, p.properties.Srcs)
-	android.ExtractSourcesDeps(ctx, p.properties.Exclude_srcs)
-
 	if p.hasSrcExt(ctx, protoExt) && p.Name() != "libprotobuf-python" {
 		ctx.AddVariationDependencies(nil, pythonLibTag, "libprotobuf-python")
 	}
 	switch p.properties.Actual_version {
 	case pyVersion2:
-		// deps from "version.py2.srcs" property.
-		android.ExtractSourcesDeps(ctx, p.properties.Version.Py2.Srcs)
-		android.ExtractSourcesDeps(ctx, p.properties.Version.Py2.Exclude_srcs)
-
 		ctx.AddVariationDependencies(nil, pythonLibTag,
 			uniqueLibs(ctx, p.properties.Libs, "version.py2.libs",
 				p.properties.Version.Py2.Libs)...)
@@ -334,10 +324,6 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 
 	case pyVersion3:
-		// deps from "version.py3.srcs" property.
-		android.ExtractSourcesDeps(ctx, p.properties.Version.Py3.Srcs)
-		android.ExtractSourcesDeps(ctx, p.properties.Version.Py3.Exclude_srcs)
-
 		ctx.AddVariationDependencies(nil, pythonLibTag,
 			uniqueLibs(ctx, p.properties.Libs, "version.py3.libs",
 				p.properties.Version.Py3.Libs)...)

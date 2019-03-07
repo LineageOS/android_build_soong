@@ -58,7 +58,7 @@ func init() {
 
 type prebuiltEtcXmlProperties struct {
 	// Optional DTD that will be used to validate the xml file.
-	Schema *string
+	Schema *string `android:"path"`
 }
 
 type prebuiltEtcXml struct {
@@ -73,9 +73,6 @@ func (p *prebuiltEtcXml) timestampFilePath(ctx android.ModuleContext) android.Wr
 
 func (p *prebuiltEtcXml) DepsMutator(ctx android.BottomUpMutatorContext) {
 	p.PrebuiltEtc.DepsMutator(ctx)
-
-	// To support ":modulename" in schema
-	android.ExtractSourceDeps(ctx, p.properties.Schema)
 }
 
 func (p *prebuiltEtcXml) GenerateAndroidBuildActions(ctx android.ModuleContext) {

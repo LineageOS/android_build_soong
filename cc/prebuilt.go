@@ -33,7 +33,7 @@ type prebuiltLinker struct {
 	android.Prebuilt
 
 	properties struct {
-		Srcs []string `android:"arch_variant"`
+		Srcs []string `android:"path,arch_variant"`
 
 		// Check the prebuilt ELF files (e.g. DT_SONAME, DT_NEEDED, resolution of undefined
 		// symbols, etc), default true.

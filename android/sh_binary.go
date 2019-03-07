@@ -32,7 +32,7 @@ func init() {
 
 type shBinaryProperties struct {
 	// Source file of this prebuilt.
-	Src *string `android:"arch_variant"`
+	Src *string `android:"path,arch_variant"`
 
 	// optional subdirectory under which this file is installed into
 	Sub_dir *string `android:"arch_variant"`
@@ -61,9 +61,6 @@ func (s *ShBinary) DepsMutator(ctx BottomUpMutatorContext) {
 	if s.properties.Src == nil {
 		ctx.PropertyErrorf("src", "missing prebuilt source file")
 	}
-
-	// To support ":modulename" in src
-	ExtractSourceDeps(ctx, s.properties.Src)
 }
 
 func (s *ShBinary) SourceFilePath(ctx ModuleContext) Path {
