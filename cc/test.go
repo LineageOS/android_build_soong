@@ -120,6 +120,10 @@ func testPerSrcMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
 		if test, ok := m.linker.(testPerSrc); ok {
 			if test.testPerSrc() && len(test.srcs()) > 0 {
+				if duplicate, found := checkDuplicate(test.srcs()); found {
+					mctx.PropertyErrorf("srcs", "found a duplicate entry %q", duplicate)
+					return
+				}
 				testNames := make([]string, len(test.srcs()))
 				for i, src := range test.srcs() {
 					testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
@@ -131,6 +135,17 @@ func testPerSrcMutator(mctx android.BottomUpMutatorContext) {
 			}
 		}
 	}
+}
+
+func checkDuplicate(values []string) (duplicate string, found bool) {
+	seen := make(map[string]string)
+	for _, v := range values {
+		if duplicate, found = seen[v]; found {
+			return
+		}
+		seen[v] = v
+	}
+	return
 }
 
 type testDecorator struct {
