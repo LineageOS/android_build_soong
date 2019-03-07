@@ -62,11 +62,11 @@ func init() {
 type CompilerProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
 	// or .aidl files.
-	Srcs []string `android:"arch_variant"`
+	Srcs []string `android:"path,arch_variant"`
 
 	// list of source files that should not be used to build the Java module.
 	// This is most useful in the arch/multilib variants to remove non-common files
-	Exclude_srcs []string `android:"arch_variant"`
+	Exclude_srcs []string `android:"path,arch_variant"`
 
 	// list of directories containing Java resources
 	Java_resource_dirs []string `android:"arch_variant"`
@@ -75,10 +75,10 @@ type CompilerProperties struct {
 	Exclude_java_resource_dirs []string `android:"arch_variant"`
 
 	// list of files to use as Java resources
-	Java_resources []string `android:"arch_variant"`
+	Java_resources []string `android:"path,arch_variant"`
 
 	// list of files that should be excluded from java_resources and java_resource_dirs
-	Exclude_java_resources []string `android:"arch_variant"`
+	Exclude_java_resources []string `android:"path,arch_variant"`
 
 	// don't build against the default libraries (bootclasspath, ext, and framework for device
 	// targets)
@@ -100,10 +100,10 @@ type CompilerProperties struct {
 	Static_libs []string `android:"arch_variant"`
 
 	// manifest file to be included in resulting jar
-	Manifest *string
+	Manifest *string `android:"path"`
 
 	// if not blank, run jarjar using the specified rules file
-	Jarjar_rules *string `android:"arch_variant"`
+	Jarjar_rules *string `android:"path,arch_variant"`
 
 	// If not blank, set the java version passed to javac as -source and -target
 	Java_version *string
@@ -126,7 +126,7 @@ type CompilerProperties struct {
 
 	Openjdk9 struct {
 		// List of source files that should only be used when passing -source 1.9
-		Srcs []string
+		Srcs []string `android:"path"`
 
 		// List of javac flags that should only be used when passing -source 1.9
 		Javacflags []string
@@ -172,7 +172,7 @@ type CompilerProperties struct {
 	Instrument bool `blueprint:"mutated"`
 
 	// List of files to include in the META-INF/services folder of the resulting jar.
-	Services []string `android:"arch_variant"`
+	Services []string `android:"path,arch_variant"`
 }
 
 type CompilerDeviceProperties struct {
@@ -241,7 +241,7 @@ type CompilerDeviceProperties struct {
 		Proguard_flags []string
 
 		// Specifies the locations of files containing proguard flags.
-		Proguard_flags_files []string
+		Proguard_flags_files []string `android:"path"`
 	}
 
 	// When targeting 1.9, override the modules to use with --system
@@ -477,13 +477,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
 		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
 	}, pluginTag, j.properties.Plugins...)
-
-	android.ExtractSourcesDeps(ctx, j.properties.Srcs)
-	android.ExtractSourcesDeps(ctx, j.properties.Exclude_srcs)
-	android.ExtractSourcesDeps(ctx, j.properties.Java_resources)
-	android.ExtractSourceDeps(ctx, j.properties.Manifest)
-	android.ExtractSourceDeps(ctx, j.properties.Jarjar_rules)
-	android.ExtractSourcesDeps(ctx, j.properties.Services)
 
 	if j.hasSrcExt(".proto") {
 		protoDeps(ctx, &j.protoProperties)
@@ -1530,15 +1523,15 @@ type testProperties struct {
 
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
-	Test_config *string `android:"arch_variant"`
+	Test_config *string `android:"path,arch_variant"`
 
 	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
 	// should be installed with the module.
-	Test_config_template *string `android:"arch_variant"`
+	Test_config_template *string `android:"path,arch_variant"`
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
-	Data []string
+	Data []string `android:"path"`
 }
 
 type Test struct {
@@ -1555,13 +1548,6 @@ func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.data = ctx.ExpandSources(j.testProperties.Data, nil)
 
 	j.Library.GenerateAndroidBuildActions(ctx)
-}
-
-func (j *Test) DepsMutator(ctx android.BottomUpMutatorContext) {
-	j.deps(ctx)
-	android.ExtractSourceDeps(ctx, j.testProperties.Test_config)
-	android.ExtractSourceDeps(ctx, j.testProperties.Test_config_template)
-	android.ExtractSourcesDeps(ctx, j.testProperties.Data)
 }
 
 // java_test builds a and links sources into a `.jar` file for the device, and possibly for the host as well, and
@@ -1614,7 +1600,7 @@ func TestHostFactory() android.Module {
 
 type binaryProperties struct {
 	// installable script to execute the resulting jar
-	Wrapper *string
+	Wrapper *string `android:"path"`
 
 	// Name of the class containing main to be inserted into the manifest as Main-Class.
 	Main_class *string
@@ -1670,8 +1656,6 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Arch().ArchType == android.Common {
 		j.deps(ctx)
-	} else {
-		android.ExtractSourceDeps(ctx, j.binaryProperties.Wrapper)
 	}
 }
 
@@ -1724,7 +1708,7 @@ func BinaryHostFactory() android.Module {
 //
 
 type ImportProperties struct {
-	Jars []string
+	Jars []string `android:"path"`
 
 	Sdk_version *string
 
@@ -1775,7 +1759,6 @@ func (j *Import) Name() string {
 }
 
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, j.properties.Jars)
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 }
 

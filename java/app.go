@@ -459,9 +459,6 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (a *AndroidTest) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourceDeps(ctx, a.testProperties.Test_config)
-	android.ExtractSourceDeps(ctx, a.testProperties.Test_config_template)
-	android.ExtractSourcesDeps(ctx, a.testProperties.Data)
 	a.AndroidApp.DepsMutator(ctx)
 	if a.appTestProperties.Instrumentation_for != nil {
 		// The android_app dependency listed in instrumentation_for needs to be added to the classpath for javac,

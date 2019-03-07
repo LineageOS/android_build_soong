@@ -35,7 +35,7 @@ func init() {
 
 type prebuiltEtcProperties struct {
 	// Source file of this prebuilt.
-	Src *string `android:"arch_variant"`
+	Src *string `android:"path,arch_variant"`
 
 	// optional subdirectory under which this file is installed into
 	Sub_dir *string `android:"arch_variant"`
@@ -85,9 +85,6 @@ func (p *PrebuiltEtc) DepsMutator(ctx BottomUpMutatorContext) {
 	if p.properties.Src == nil {
 		ctx.PropertyErrorf("src", "missing prebuilt source file")
 	}
-
-	// To support ":modulename" in src
-	ExtractSourceDeps(ctx, p.properties.Src)
 }
 
 func (p *PrebuiltEtc) SourceFilePath(ctx ModuleContext) Path {

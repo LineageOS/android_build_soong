@@ -44,7 +44,7 @@ var (
 )
 
 type BpfProperties struct {
-	Srcs         []string
+	Srcs         []string `android:"path"`
 	Cflags       []string
 	Include_dirs []string
 }
@@ -93,10 +93,6 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		bpf.objs = append(bpf.objs, obj)
 	}
-}
-
-func (bpf *bpf) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, bpf.properties.Srcs)
 }
 
 func (bpf *bpf) AndroidMk() android.AndroidMkData {
