@@ -1064,6 +1064,17 @@ vts_config {
 }
 `,
 	},
+	{
+		desc: "comment with ESC",
+		in: `
+# Comment line 1 \
+# Comment line 2
+`,
+		expected: `
+// Comment line 1 \
+// Comment line 2
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
