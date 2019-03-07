@@ -83,16 +83,16 @@ type generatorProperties struct {
 	Tools []string
 
 	// Local file that is used as the tool
-	Tool_files []string
+	Tool_files []string `android:"path"`
 
 	// List of directories to export generated headers from
 	Export_include_dirs []string
 
 	// list of input files
-	Srcs []string `android:"arch_variant"`
+	Srcs []string `android:"path,arch_variant"`
 
 	// input files to exclude
-	Exclude_srcs []string `android:"arch_variant"`
+	Exclude_srcs []string `android:"path,arch_variant"`
 }
 
 type Module struct {
@@ -143,8 +143,6 @@ func (g *Module) GeneratedDeps() android.Paths {
 }
 
 func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, g.properties.Srcs)
-	android.ExtractSourcesDeps(ctx, g.properties.Tool_files)
 	if g, ok := ctx.Module().(*Module); ok {
 		for _, tool := range g.properties.Tools {
 			tag := hostToolDependencyTag{label: tool}

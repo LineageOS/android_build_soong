@@ -64,10 +64,10 @@ type aaptProperties struct {
 	Resource_dirs []string
 
 	// list of zip files containing Android resources.
-	Resource_zips []string
+	Resource_zips []string `android:"path"`
 
 	// path to AndroidManifest.xml.  If unset, defaults to "AndroidManifest.xml".
-	Manifest *string
+	Manifest *string `android:"path"`
 }
 
 type aapt struct {
@@ -180,8 +180,6 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
 	if sdkDep.frameworkResModule != "" {
 		ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 	}
-
-	android.ExtractSourcesDeps(ctx, a.aaptProperties.Resource_zips)
 }
 
 func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, extraLinkFlags ...string) {
@@ -406,7 +404,7 @@ func AndroidLibraryFactory() android.Module {
 //
 
 type AARImportProperties struct {
-	Aars []string
+	Aars []string `android:"path"`
 
 	Sdk_version     *string
 	Min_sdk_version *string

@@ -26,9 +26,9 @@ func init() {
 
 type fileGroupProperties struct {
 	// srcs lists files that will be included in this filegroup
-	Srcs []string
+	Srcs []string `android:"path"`
 
-	Exclude_srcs []string
+	Exclude_srcs []string `android:"path"`
 
 	// The base path to the files.  May be used by other modules to determine which portion
 	// of the path to use.  For example, when a filegroup is used as data in a cc_test rule,
@@ -57,11 +57,6 @@ func FileGroupFactory() Module {
 	module.AddProperties(&module.properties)
 	InitAndroidModule(module)
 	return module
-}
-
-func (fg *fileGroup) DepsMutator(ctx BottomUpMutatorContext) {
-	ExtractSourcesDeps(ctx, fg.properties.Srcs)
-	ExtractSourcesDeps(ctx, fg.properties.Exclude_srcs)
 }
 
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
