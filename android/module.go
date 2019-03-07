@@ -1437,7 +1437,7 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 		if m := SrcIsModule(e); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
 			if module == nil {
-				// Error will have been handled by ExtractSourcesDeps
+				ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
 				continue
 			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
@@ -1454,7 +1454,7 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 		if m := SrcIsModule(s); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
 			if module == nil {
-				// Error will have been handled by ExtractSourcesDeps
+				ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
 				continue
 			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {

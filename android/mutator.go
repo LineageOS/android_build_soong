@@ -91,6 +91,7 @@ var preDeps = []RegisterMutatorFunc{
 }
 
 var postDeps = []RegisterMutatorFunc{
+	registerPathDepsMutator,
 	RegisterPrebuiltsPostDepsMutators,
 	registerNeverallowMutator,
 }
