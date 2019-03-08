@@ -183,8 +183,8 @@ func stubFlagsRule(ctx android.SingletonContext) {
 		Text("list").
 		FlagForEachInput("--boot-dex=", bootDexJars).
 		FlagWithInputList("--public-stub-classpath=", publicStubPaths, ":").
-		FlagWithInputList("--public-stub-classpath=", systemStubPaths, ":").
-		FlagWithInputList("--public-stub-classpath=", testStubPaths, ":").
+		FlagWithInputList("--system-stub-classpath=", systemStubPaths, ":").
+		FlagWithInputList("--test-stub-classpath=", testStubPaths, ":").
 		FlagWithInputList("--core-platform-stub-classpath=", corePlatformStubPaths, ":").
 		FlagWithOutput("--out-api-flags=", tempPath)
 
