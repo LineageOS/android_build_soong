@@ -137,9 +137,6 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 		} else {
 			m.SkipInstall()
 		}
-		if len(*p.srcs) > 0 {
-			ExtractSourceDeps(ctx, &(*p.srcs)[0])
-		}
 	}
 }
 

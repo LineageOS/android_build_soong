@@ -70,13 +70,13 @@ type headerProperties struct {
 	To *string
 
 	// List of headers to install. Glob compatible. Common case is "include/**/*.h".
-	Srcs []string
+	Srcs []string `android:"path"`
 
 	// Source paths that should be excluded from the srcs glob.
-	Exclude_srcs []string
+	Exclude_srcs []string `android:"path"`
 
 	// Path to the NOTICE file associated with the headers.
-	License *string
+	License *string `android:"path"`
 
 	// True if this API is not yet ready to be shipped in the NDK. It will be
 	// available in the platform for testing, but will be excluded from the

@@ -260,16 +260,16 @@ type commonProperties struct {
 	Recovery *bool
 
 	// init.rc files to be installed if this module is installed
-	Init_rc []string
+	Init_rc []string `android:"path"`
 
 	// VINTF manifest fragments to be installed if this module is installed
-	Vintf_fragments []string
+	Vintf_fragments []string `android:"path"`
 
 	// names of other modules to install if this module is installed
 	Required []string `android:"arch_variant"`
 
 	// relative path to a file to include in the list of notices for the device
-	Notice *string
+	Notice *string `android:"path"`
 
 	Dist struct {
 		// copy the output of this module to the $DIST_DIR when `dist` is specified on the
@@ -1358,6 +1358,8 @@ var SourceDepTag sourceDependencyTag
 
 // Adds necessary dependencies to satisfy filegroup or generated sources modules listed in srcFiles
 // using ":module" syntax, if any.
+//
+// Deprecated: tag the property with `android:"path"` instead.
 func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 	var deps []string
 	set := make(map[string]bool)
@@ -1378,6 +1380,8 @@ func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 
 // Adds necessary dependencies to satisfy filegroup or generated sources modules specified in s
 // using ":module" syntax, if any.
+//
+// Deprecated: tag the property with `android:"path"` instead.
 func ExtractSourceDeps(ctx BottomUpMutatorContext, s *string) {
 	if s != nil {
 		if m := SrcIsModule(*s); m != "" {
@@ -1390,14 +1394,14 @@ type SourceFileProducer interface {
 	Srcs() Paths
 }
 
-// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.
-// ExtractSourcesDeps must have already been called during the dependency resolution phase.
+// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
+// be tagged with `android:"path" to support automatic source module dependency resolution.
 func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
 	return ctx.ExpandSourcesSubDir(srcFiles, excludes, "")
 }
 
-// Returns a single path expanded from globs and modules referenced using ":module" syntax.
-// ExtractSourceDeps must have already been called during the dependency resolution phase.
+// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
+// be tagged with `android:"path" to support automatic source module dependency resolution.
 func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
 	srcFiles := ctx.ExpandSourcesSubDir([]string{srcFile}, nil, "")
 	if len(srcFiles) == 1 {
@@ -1416,8 +1420,8 @@ func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
 }
 
 // Returns an optional single path expanded from globs and modules referenced using ":module" syntax if
-// the srcFile is non-nil.
-// ExtractSourceDeps must have already been called during the dependency resolution phase.
+// the srcFile is non-nil.  The property must be tagged with `android:"path" to support automatic source module
+// dependency resolution.
 func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop string) OptionalPath {
 	if srcFile != nil {
 		return OptionalPathForPath(ctx.ExpandSource(*srcFile, prop))
@@ -1437,7 +1441,11 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 		if m := SrcIsModule(e); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
 			if module == nil {
-				// Error will have been handled by ExtractSourcesDeps
+				if ctx.Config().AllowMissingDependencies() {
+					ctx.AddMissingDependencies([]string{m})
+				} else {
+					ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
+				}
 				continue
 			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
@@ -1454,7 +1462,11 @@ func (ctx *androidModuleContext) ExpandSourcesSubDir(srcFiles, excludes []string
 		if m := SrcIsModule(s); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
 			if module == nil {
-				// Error will have been handled by ExtractSourcesDeps
+				if ctx.Config().AllowMissingDependencies() {
+					ctx.AddMissingDependencies([]string{m})
+				} else {
+					ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
+				}
 				continue
 			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
