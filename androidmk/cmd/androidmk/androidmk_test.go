@@ -1075,6 +1075,25 @@ vts_config {
 // Comment line 2
 `,
 	},
+	{
+		desc: "Merge with variable reference",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_STATIC_ANDROID_LIBRARIES := $(FOO)
+LOCAL_STATIC_JAVA_LIBRARIES := javalib
+LOCAL_JAVA_RESOURCE_DIRS := $(FOO)
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_app {
+	name: "foo",
+	static_libs: FOO,
+	static_libs: ["javalib"],
+	java_resource_dirs: FOO,
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
