@@ -34,7 +34,7 @@ type perPackageTemplateData struct {
 
 type moduleTypeTemplateData struct {
 	Name       string
-	Synopsis   string
+	Synopsis   template.HTML
 	Properties []bpdoc.Property
 }
 
