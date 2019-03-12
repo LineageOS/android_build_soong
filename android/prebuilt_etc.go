@@ -174,7 +174,8 @@ func InitPrebuiltEtcModule(p *PrebuiltEtc) {
 	p.AddProperties(&p.properties)
 }
 
-// prebuilt_etc is for prebuilts that will be installed to <partition>/etc/<subdir>
+// prebuilt_etc is for a prebuilt artifact that is installed in
+// <partition>/etc/<sub_dir> directory.
 func PrebuiltEtcFactory() Module {
 	module := &PrebuiltEtc{installDirBase: "etc"}
 	InitPrebuiltEtcModule(module)
@@ -183,6 +184,8 @@ func PrebuiltEtcFactory() Module {
 	return module
 }
 
+// prebuilt_etc_host is for a host prebuilt artifact that is installed in
+// $(HOST_OUT)/etc/<sub_dir> directory.
 func PrebuiltEtcHostFactory() Module {
 	module := &PrebuiltEtc{installDirBase: "etc"}
 	InitPrebuiltEtcModule(module)
@@ -191,7 +194,8 @@ func PrebuiltEtcHostFactory() Module {
 	return module
 }
 
-// prebuilt_usr_share is for prebuilts that will be installed to <partition>/usr/share/<subdir>
+// prebuilt_usr_share is for a prebuilt artifact that is installed in
+// <partition>/usr/share/<sub_dir> directory.
 func PrebuiltUserShareFactory() Module {
 	module := &PrebuiltEtc{installDirBase: "usr/share"}
 	InitPrebuiltEtcModule(module)
@@ -200,7 +204,8 @@ func PrebuiltUserShareFactory() Module {
 	return module
 }
 
-// prebuild_usr_share_host is for host prebuilts that will be installed to <partition>/usr/share/<subdir>
+// prebuild_usr_share_host is for a host prebuilt artifact that is installed in
+// $(HOST_OUT)/usr/share/<sub_dir> directory.
 func PrebuiltUserShareHostFactory() Module {
 	module := &PrebuiltEtc{installDirBase: "usr/share"}
 	InitPrebuiltEtcModule(module)
