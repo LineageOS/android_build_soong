@@ -786,6 +786,14 @@ func mergeMatchingProperties(properties *[]*parser.Property, buf []byte, patchli
 }
 
 func mergeProperties(a, b *parser.Property, buf []byte, patchlist *parser.PatchList) error {
+	// The value of one of the properties may be a variable reference with no type assigned
+	// Bail out in this case. Soong will notice duplicate entries and will tell to merge them.
+	if _, isVar := a.Value.(*parser.Variable); isVar {
+		return nil
+	}
+	if _, isVar := b.Value.(*parser.Variable); isVar {
+		return nil
+	}
 	if a.Value.Type() != b.Value.Type() {
 		return fmt.Errorf("type mismatch when merging properties %q: %s and %s", a.Name, a.Value.Type(), b.Value.Type())
 	}
