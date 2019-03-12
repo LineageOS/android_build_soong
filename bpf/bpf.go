@@ -60,7 +60,7 @@ type bpf struct {
 func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	cflags := []string{
 		"-nostdlibinc",
-		"-O2",
+		"-O3",
 		"-isystem bionic/libc/include",
 		"-isystem bionic/libc/kernel/uapi",
 		// The architecture doesn't matter here, but asm/types.h is included by linux/types.h.

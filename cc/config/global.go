@@ -42,8 +42,8 @@ var (
 		"-fno-exceptions",
 		"-Wno-multichar",
 
-		"-O2",
-		"-g",
+		"-O3",
+		"-g0",
 
 		"-fno-strict-aliasing",
 	}
