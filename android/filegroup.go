@@ -49,9 +49,9 @@ type fileGroup struct {
 
 var _ SourceFileProducer = (*fileGroup)(nil)
 
-// filegroup modules contain a list of files, and can be used to export files across package
-// boundaries.  filegroups (and genrules) can be referenced from srcs properties of other modules
-// using the syntax ":module".
+// filegroup contains a list of files that are referenced by other modules
+// properties (such as "srcs") using the syntax ":<name>". filegroup are
+// also be used to export files across package boundaries.
 func FileGroupFactory() Module {
 	module := &fileGroup{}
 	module.AddProperties(&module.properties)
