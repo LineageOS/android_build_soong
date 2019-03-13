@@ -846,6 +846,12 @@ func TestOverrideAndroidApp(t *testing.T) {
 			name: "new_certificate",
 			certificate: "cert/new_cert",
 		}
+
+		override_android_app {
+			name: "baz",
+			base: "foo",
+			package_name: "org.dandroid.bp",
+		}
 		`)
 
 	expectedVariants := []struct {
@@ -854,18 +860,28 @@ func TestOverrideAndroidApp(t *testing.T) {
 		apkPath     string
 		signFlag    string
 		overrides   []string
+		aaptFlag    string
 	}{
 		{
 			variantName: "android_common",
 			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
 			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
 			overrides:   []string{"baz"},
+			aaptFlag:    "",
 		},
 		{
 			variantName: "bar_android_common",
 			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
 			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
 			overrides:   []string{"baz", "foo"},
+			aaptFlag:    "",
+		},
+		{
+			variantName: "baz_android_common",
+			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
+			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			overrides:   []string{"baz", "foo"},
+			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
 		},
 	}
 	for _, expected := range expectedVariants {
@@ -892,10 +908,18 @@ func TestOverrideAndroidApp(t *testing.T) {
 			t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected.signFlag, signFlag)
 		}
 
+		// Check if the overrides field values are correctly aggregated.
 		mod := variant.Module().(*AndroidApp)
 		if !reflect.DeepEqual(expected.overrides, mod.appProperties.Overrides) {
 			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
 				expected.overrides, mod.appProperties.Overrides)
+		}
+
+		// Check the package renaming flag, if exists.
+		res := variant.Output("package-res.apk")
+		aapt2Flags := res.Args["flags"]
+		if !strings.Contains(aapt2Flags, expected.aaptFlag) {
+			t.Errorf("package renaming flag, %q is missing in aapt2 link flags, %q", expected.aaptFlag, aapt2Flags)
 		}
 	}
 }
