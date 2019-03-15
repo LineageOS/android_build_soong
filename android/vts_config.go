@@ -19,14 +19,12 @@ import (
 	"io"
 )
 
-// Implements vts_config module
-
 func init() {
 	RegisterModuleType("vts_config", VtsConfigFactory)
 }
 
 type vtsConfigProperties struct {
-	// Test manifest file name if different from AndroidTest.xml.
+	// Override the default (AndroidTest.xml) test manifest file name.
 	Test_config *string
 }
 
@@ -61,7 +59,8 @@ func InitVtsConfigModule(me *VtsConfig) {
 	me.AddProperties(&me.properties)
 }
 
-// Defines VTS configuration.
+// vts_config generates a Vendor Test Suite (VTS) configuration file from the
+// <test_config> xml file and stores it in a subdirectory of $(HOST_OUT).
 func VtsConfigFactory() Module {
 	module := &VtsConfig{}
 	InitVtsConfigModule(module)
