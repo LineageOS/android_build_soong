@@ -133,3 +133,10 @@ func splitFileExt(name string) (string, string, string) {
 
 	return root, suffix, ext
 }
+
+// linkDirOnDevice/linkName -> target
+func makeSymlinkCmd(linkDirOnDevice string, linkName string, target string) string {
+	dir := filepath.Join("$(PRODUCT_OUT)", linkDirOnDevice)
+	return "mkdir -p " + dir + " && " +
+		"ln -sf " + target + " " + filepath.Join(dir, linkName)
+}
