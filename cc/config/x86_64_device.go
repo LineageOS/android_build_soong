@@ -57,6 +57,9 @@ var (
 		"skylake": []string{
 			"-march=skylake",
 		},
+		"stoneyridge": []string{
+			"-march=bdver4",
+		},
 	}
 
 	x86_64ArchFeatureCflags = map[string][]string{
