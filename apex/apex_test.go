@@ -696,10 +696,9 @@ func TestFilesInSubDir(t *testing.T) {
 	ensureListContains(t, dirs, "lib/foo")
 	ensureListContains(t, dirs, "lib/foo/bar")
 
-	// TODO(b/123721777) respect relative path for binaries
-	// ensureListContains(t, dirs, "bin")
-	// ensureListContains(t, dirs, "bin/foo")
-	// ensureListContains(t, dirs, "bin/foo/bar")
+	ensureListContains(t, dirs, "bin")
+	ensureListContains(t, dirs, "bin/foo")
+	ensureListContains(t, dirs, "bin/foo/bar")
 }
 
 func TestUseVendor(t *testing.T) {
