@@ -124,6 +124,7 @@ type ModuleContext interface {
 	InstallExecutable(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
 	InstallFile(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
 	InstallSymlink(installPath OutputPath, name string, srcPath OutputPath) OutputPath
+	InstallAbsoluteSymlink(installPath OutputPath, name string, absPath string) OutputPath
 	CheckbuildFile(srcPath Path)
 
 	AddMissingDependencies(deps []string)
@@ -1312,6 +1313,28 @@ func (a *androidModuleContext) InstallSymlink(installPath OutputPath, name strin
 
 		a.installFiles = append(a.installFiles, fullInstallPath)
 		a.checkbuildFiles = append(a.checkbuildFiles, srcPath)
+	}
+	return fullInstallPath
+}
+
+// installPath/name -> absPath where absPath might be a path that is available only at runtime
+// (e.g. /apex/...)
+func (a *androidModuleContext) InstallAbsoluteSymlink(installPath OutputPath, name string, absPath string) OutputPath {
+	fullInstallPath := installPath.Join(a, name)
+	a.module.base().hooks.runInstallHooks(a, fullInstallPath, true)
+
+	if !a.skipInstall(fullInstallPath) {
+		a.Build(pctx, BuildParams{
+			Rule:        Symlink,
+			Description: "install symlink " + fullInstallPath.Base() + " -> " + absPath,
+			Output:      fullInstallPath,
+			Default:     !a.Config().EmbeddedInMake(),
+			Args: map[string]string{
+				"fromPath": absPath,
+			},
+		})
+
+		a.installFiles = append(a.installFiles, fullInstallPath)
 	}
 	return fullInstallPath
 }

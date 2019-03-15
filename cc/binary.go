@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"path/filepath"
+
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -91,6 +93,8 @@ type binaryDecorator struct {
 
 	// Location of the file that should be copied to dist dir when requested
 	distFile android.OptionalPath
+
+	post_install_cmds []string
 }
 
 var _ linker = (*binaryDecorator)(nil)
@@ -249,7 +253,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				} else {
 					switch ctx.Os() {
 					case android.Android:
-						if ctx.bootstrap() {
+						if ctx.bootstrap() && !ctx.inRecovery() {
 							flags.DynamicLinker = "/system/bin/bootstrap/linker"
 						} else {
 							flags.DynamicLinker = "/system/bin/linker"
@@ -413,7 +417,29 @@ func (binary *binaryDecorator) symlinkList() []string {
 	return binary.symlinks
 }
 
+// /system/bin/linker -> /apex/com.android.runtime/bin/linker
+func (binary *binaryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, file android.Path) {
+	dir := binary.baseInstaller.installDir(ctx)
+	dirOnDevice := android.InstallPathToOnDevicePath(ctx, dir)
+	target := "/" + filepath.Join("apex", "com.android.runtime", dir.Base(), file.Base())
+
+	ctx.InstallAbsoluteSymlink(dir, file.Base(), target)
+	binary.post_install_cmds = append(binary.post_install_cmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
+
+	for _, symlink := range binary.symlinks {
+		ctx.InstallAbsoluteSymlink(dir, symlink, target)
+		binary.post_install_cmds = append(binary.post_install_cmds, makeSymlinkCmd(dirOnDevice, symlink, target))
+	}
+}
+
 func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
+	// Bionic binaries (e.g. linker) is installed to the bootstrap subdirectory.
+	// The original path becomes a symlink to the corresponding file in the
+	// runtime APEX.
+	if isBionic(ctx.baseModuleName()) && ctx.Arch().Native && ctx.apexName() == "" && !ctx.inRecovery() {
+		binary.installSymlinkToRuntimeApex(ctx, file)
+		binary.baseInstaller.subDir = "bootstrap"
+	}
 	binary.baseInstaller.install(ctx, file)
 	for _, symlink := range binary.symlinks {
 		ctx.InstallSymlink(binary.baseInstaller.installDir(ctx), symlink, binary.baseInstaller.path)
