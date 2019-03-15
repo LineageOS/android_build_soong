@@ -827,7 +827,7 @@ func TestKeys(t *testing.T) {
 	`)
 
 	// check the APEX keys
-	keys := ctx.ModuleForTests("myapex.key", "").Module().(*apexKey)
+	keys := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
 
 	if keys.public_key_file.String() != "vendor/foo/devkeys/testkey.avbpubkey" {
 		t.Errorf("public key %q is not %q", keys.public_key_file.String(),
@@ -1143,4 +1143,44 @@ func TestApexWithShBinary(t *testing.T) {
 	copyCmds := apexRule.Args["copy_commands"]
 
 	ensureContains(t, copyCmds, "image.apex/bin/script/myscript.sh")
+}
+
+func TestApexInProductPartition(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			product_specific: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+			product_specific: true,
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	apex := ctx.ModuleForTests("myapex", "android_common_myapex").Module().(*apexBundle)
+	expected := "target/product/test_device/product/apex"
+	actual := apex.installDir.RelPathString()
+	if actual != expected {
+		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
+	}
+
+	apex_key := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
+	expected = "target/product/test_device/product/etc/security/apex"
+	actual = apex_key.installDir.RelPathString()
+	if actual != expected {
+		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
+	}
+
 }
