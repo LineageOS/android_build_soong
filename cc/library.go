@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -289,6 +290,8 @@ type libraryDecorator struct {
 	distFile android.OptionalPath
 
 	versionScriptPath android.ModuleGenPath
+
+	post_install_cmds []string
 
 	// Decorated interafaces
 	*baseCompiler
@@ -888,6 +891,14 @@ func (library *libraryDecorator) toc() android.OptionalPath {
 	return library.tocFile
 }
 
+func (library *libraryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, file android.Path) {
+	dir := library.baseInstaller.installDir(ctx)
+	dirOnDevice := android.InstallPathToOnDevicePath(ctx, dir)
+	target := "/" + filepath.Join("apex", "com.android.runtime", dir.Base(), "bionic", file.Base())
+	ctx.InstallAbsoluteSymlink(dir, file.Base(), target)
+	library.post_install_cmds = append(library.post_install_cmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
+}
+
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if library.shared() {
 		if ctx.Device() && ctx.useVndk() {
@@ -905,15 +916,11 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 				}
 			}
 		} else if len(library.Properties.Stubs.Versions) > 0 && android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
-			// If a library in an APEX has stable versioned APIs, we basically don't need
-			// to have the platform variant of the library in /system partition because
-			// platform components can just use the lib from the APEX without fearing about
-			// compatibility. However, if the library is required for some early processes
-			// before the APEX is activated, the platform variant may also be required.
-			// In that case, it is installed to the subdirectory 'bootstrap' in order to
-			// be distinguished/isolated from other non-bootstrap libraries in /system/lib
-			// so that the bootstrap libraries are used only when the APEX isn't ready.
-			if !library.buildStubs() && ctx.Arch().Native {
+			// Bionic libraries (e.g. libc.so) is installed to the bootstrap subdirectory.
+			// The original path becomes a symlink to the corresponding file in the
+			// runtime APEX.
+			if isBionic(ctx.baseModuleName()) && !library.buildStubs() && ctx.Arch().Native && !ctx.inRecovery() {
+				library.installSymlinkToRuntimeApex(ctx, file)
 				library.baseInstaller.subDir = "bootstrap"
 			}
 		}

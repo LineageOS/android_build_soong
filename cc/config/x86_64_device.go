@@ -38,6 +38,10 @@ var (
 		"": []string{
 			"-march=x86-64",
 		},
+		"broadwell": []string{
+			"-march=broadwell",
+		},
+
 		"haswell": []string{
 			"-march=core-avx2",
 		},
@@ -50,6 +54,12 @@ var (
 		"silvermont": []string{
 			"-march=slm",
 		},
+		"skylake": []string{
+			"-march=skylake",
+		},
+		"stoneyridge": []string{
+			"-march=bdver4",
+		},
 	}
 
 	x86_64ArchFeatureCflags = map[string][]string{
@@ -59,6 +69,8 @@ var (
 		"sse4_2": []string{"-msse4.2"},
 		"popcnt": []string{"-mpopcnt"},
 		"avx":    []string{"-mavx"},
+		"avx2":   []string{"-mavx2"},
+		"avx512": []string{"-mavx512"},
 		"aes_ni": []string{"-maes"},
 	}
 )
