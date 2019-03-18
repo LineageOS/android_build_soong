@@ -17,11 +17,13 @@ package genrule
 import (
 	"io/ioutil"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"android/soong/android"
-	"reflect"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var buildDir string
@@ -122,6 +124,8 @@ func TestGenruleCmd(t *testing.T) {
 	testcases := []struct {
 		name string
 		prop string
+
+		allowMissingDependencies bool
 
 		err    string
 		expect string
@@ -425,6 +429,30 @@ func TestGenruleCmd(t *testing.T) {
 			`,
 			err: "must have at least one output file",
 		},
+		{
+			name: "srcs allow missing dependencies",
+			prop: `
+				srcs: [":missing"],
+				out: ["out"],
+				cmd: "cat $(location :missing) > $(out)",
+			`,
+
+			allowMissingDependencies: true,
+
+			expect: "cat ***missing srcs :missing*** > __SBOX_OUT_FILES__",
+		},
+		{
+			name: "tool allow missing dependencies",
+			prop: `
+				tools: [":missing"],
+				out: ["out"],
+				cmd: "$(location :missing) > $(out)",
+			`,
+
+			allowMissingDependencies: true,
+
+			expect: "***missing tool :missing*** > __SBOX_OUT_FILES__",
+		},
 	}
 
 	for _, test := range testcases {
@@ -435,7 +463,10 @@ func TestGenruleCmd(t *testing.T) {
 			bp += test.prop
 			bp += "}\n"
 
+			config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(test.allowMissingDependencies)
+
 			ctx := testContext(config, bp, nil)
+			ctx.SetAllowMissingDependencies(test.allowMissingDependencies)
 
 			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 			if errs == nil {
@@ -460,8 +491,8 @@ func TestGenruleCmd(t *testing.T) {
 			}
 
 			gen := ctx.ModuleForTests("gen", "").Module().(*Module)
-			if gen.rawCommand != "'"+test.expect+"'" {
-				t.Errorf("want %q, got %q", test.expect, gen.rawCommand)
+			if g, w := gen.rawCommand, "'"+test.expect+"'"; w != g {
+				t.Errorf("want %q, got %q", w, g)
 			}
 		})
 	}
