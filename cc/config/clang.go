@@ -169,6 +169,10 @@ func init() {
 
 		// Disable this warning because we don't care about behavior with older compilers.
 		"-Wno-return-std-move-in-c++11",
+
+		// Disable -Wstring-plus-int until the instances detected by this new warning is
+		// fixed.
+		"-Wno-string-plus-int",
 	}, " "))
 
 	// Extra cflags for projects under external/ directory to disable warnings that are infeasible
