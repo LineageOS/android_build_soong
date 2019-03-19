@@ -33,7 +33,7 @@ func pathDepsMutator(ctx BottomUpMutatorContext) {
 		return
 	}
 
-	props := m.base().customizableProperties
+	props := m.base().generalProperties
 
 	for _, ps := range props {
 		pathProperties := pathPropertiesForPropertyStruct(ctx, ps)
