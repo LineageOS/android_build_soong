@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 // sh_binary is for shell scripts (and batch files) that are installed as
@@ -28,6 +29,7 @@ import (
 func init() {
 	RegisterModuleType("sh_binary", ShBinaryFactory)
 	RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
+	RegisterModuleType("sh_test", ShTestFactory)
 }
 
 type shBinaryProperties struct {
@@ -48,6 +50,16 @@ type shBinaryProperties struct {
 	Installable *bool
 }
 
+type TestProperties struct {
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+
+	// the name of the test configuration (for example "AndroidTest.xml") that should be
+	// installed with the module.
+	Test_config *string `android:"arch_variant"`
+}
+
 type ShBinary struct {
 	ModuleBase
 
@@ -55,6 +67,12 @@ type ShBinary struct {
 
 	sourceFilePath Path
 	outputFilePath OutputPath
+}
+
+type ShTest struct {
+	ShBinary
+
+	testProperties TestProperties
 }
 
 func (s *ShBinary) DepsMutator(ctx BottomUpMutatorContext) {
@@ -119,6 +137,16 @@ func (s *ShBinary) AndroidMk() AndroidMkData {
 	}
 }
 
+func (s *ShTest) AndroidMk() AndroidMkData {
+	data := s.ShBinary.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile Path) {
+		fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+			strings.Join(s.testProperties.Test_suites, " "))
+		fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=", String(s.testProperties.Test_config))
+	})
+	return data
+}
+
 func InitShBinaryModule(s *ShBinary) {
 	s.AddProperties(&s.properties)
 }
@@ -138,5 +166,14 @@ func ShBinaryHostFactory() Module {
 	module := &ShBinary{}
 	InitShBinaryModule(module)
 	InitAndroidArchModule(module, HostSupported, MultilibFirst)
+	return module
+}
+
+func ShTestFactory() Module {
+	module := &ShTest{}
+	InitShBinaryModule(&module.ShBinary)
+	module.AddProperties(&module.testProperties)
+
+	InitAndroidArchModule(module, HostAndDeviceSupported, MultilibFirst)
 	return module
 }
