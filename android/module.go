@@ -383,6 +383,7 @@ func InitAndroidModule(m Module) {
 		&base.nameProperties,
 		&base.commonProperties,
 		&base.variableProperties)
+	base.generalProperties = m.GetProperties()
 	base.customizableProperties = m.GetProperties()
 }
 
