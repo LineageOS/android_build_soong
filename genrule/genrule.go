@@ -16,6 +16,7 @@ package genrule
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -115,6 +116,8 @@ type Module struct {
 
 	outputFiles android.Paths
 	outputDeps  android.Paths
+
+	subName string
 }
 
 type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) generateTask
@@ -157,6 +160,8 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	g.subName = ctx.ModuleSubDir()
+
 	if len(g.properties.Export_include_dirs) > 0 {
 		for _, dir := range g.properties.Export_include_dirs {
 			g.exportedIncludeDirs = append(g.exportedIncludeDirs,
@@ -397,6 +402,27 @@ func (g *Module) IDEInfo(dpInfo *android.IdeInfo) {
 			src = strings.Trim(src, ":")
 			dpInfo.Deps = append(dpInfo.Deps, src)
 		}
+	}
+}
+
+func (g *Module) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Include:    "$(BUILD_PHONY_PACKAGE)",
+		Class:      "FAKE",
+		OutputFile: android.OptionalPathForPath(g.outputFiles[0]),
+		SubName:    g.subName,
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=", strings.Join(g.outputFiles.Strings(), " "))
+			},
+		},
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			android.WriteAndroidMkData(w, data)
+			if data.SubName != "" {
+				fmt.Fprintln(w, ".PHONY:", name)
+				fmt.Fprintln(w, name, ":", name+g.subName)
+			}
+		},
 	}
 }
 
