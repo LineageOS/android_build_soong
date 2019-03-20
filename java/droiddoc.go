@@ -935,15 +935,15 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 	})
 
 	if len(d.properties.Html_dirs) > 0 {
-		htmlDir := android.PathForModuleSrc(ctx, d.properties.Html_dirs[0])
-		*implicits = append(*implicits, ctx.Glob(htmlDir.Join(ctx, "**/*").String(), nil)...)
-		args = args + " -htmldir " + htmlDir.String()
+		htmlDir := d.properties.Html_dirs[0]
+		*implicits = append(*implicits, ctx.ExpandSources([]string{filepath.Join(d.properties.Html_dirs[0], "**/*")}, nil)...)
+		args = args + " -htmldir " + htmlDir
 	}
 
 	if len(d.properties.Html_dirs) > 1 {
-		htmlDir2 := android.PathForModuleSrc(ctx, d.properties.Html_dirs[1])
-		*implicits = append(*implicits, ctx.Glob(htmlDir2.Join(ctx, "**/*").String(), nil)...)
-		args = args + " -htmldir2 " + htmlDir2.String()
+		htmlDir2 := d.properties.Html_dirs[1]
+		*implicits = append(*implicits, ctx.ExpandSources([]string{filepath.Join(htmlDir2, "**/*")}, nil)...)
+		args = args + " -htmldir2 " + htmlDir2
 	}
 
 	if len(d.properties.Html_dirs) > 2 {
@@ -1791,9 +1791,9 @@ func ExportedDroiddocDirFactory() android.Module {
 func (d *ExportedDroiddocDir) DepsMutator(android.BottomUpMutatorContext) {}
 
 func (d *ExportedDroiddocDir) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	path := android.PathForModuleSrc(ctx, String(d.properties.Path))
-	d.dir = path
-	d.deps = ctx.Glob(path.Join(ctx, "**/*").String(), nil)
+	path := String(d.properties.Path)
+	d.dir = android.PathForModuleSrc(ctx, path)
+	d.deps = ctx.ExpandSources([]string{filepath.Join(path, "**/*")}, nil)
 }
 
 //
