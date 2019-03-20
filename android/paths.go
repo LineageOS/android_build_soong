@@ -254,10 +254,9 @@ func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bo
 			continue
 		}
 
-		moduleSrcPath := ModuleSrcPath{srcPath}
-		moduleSrcPath.basePath.rel = srcPath.path
+		srcPath.basePath.rel = srcPath.path
 
-		ret = append(ret, moduleSrcPath)
+		ret = append(ret, srcPath)
 	}
 	return ret
 }
@@ -633,9 +632,7 @@ func (p SourcePath) join(ctx PathContext, paths ...string) SourcePath {
 // SourcePath is the path to a resource overlay directory.
 func (p SourcePath) OverlayPath(ctx ModuleContext, path Path) OptionalPath {
 	var relDir string
-	if moduleSrcPath, ok := path.(ModuleSrcPath); ok {
-		relDir = moduleSrcPath.path
-	} else if srcPath, ok := path.(SourcePath); ok {
+	if srcPath, ok := path.(SourcePath); ok {
 		relDir = srcPath.path
 	} else {
 		reportPathErrorf(ctx, "Cannot find relative path for %s(%s)", reflect.TypeOf(path).Name(), path)
@@ -747,35 +744,14 @@ func PathForIntermediates(ctx PathContext, paths ...string) OutputPath {
 	return PathForOutput(ctx, ".intermediates", path)
 }
 
-// ModuleSrcPath is a Path representing a file rooted from a module's local source dir
-type ModuleSrcPath struct {
-	SourcePath
-}
+var _ genPathProvider = SourcePath{}
+var _ objPathProvider = SourcePath{}
+var _ resPathProvider = SourcePath{}
 
-var _ Path = ModuleSrcPath{}
-var _ genPathProvider = ModuleSrcPath{}
-var _ objPathProvider = ModuleSrcPath{}
-var _ resPathProvider = ModuleSrcPath{}
-
-// PathForModuleSrc returns a ModuleSrcPath representing the paths... under the
+// PathForModuleSrc returns a Path representing the paths... under the
 // module's local source directory.
-func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
-	p, err := validatePath(paths...)
-	if err != nil {
-		reportPathError(ctx, err)
-	}
-
-	srcPath, err := pathForSource(ctx, ctx.ModuleDir(), p)
-	if err != nil {
-		reportPathError(ctx, err)
-	}
-
-	if pathtools.IsGlob(srcPath.String()) {
-		reportPathErrorf(ctx, "path may not contain a glob: %s", srcPath.String())
-	}
-
-	path := ModuleSrcPath{srcPath}
-	path.basePath.rel = p
+func PathForModuleSrc(ctx ModuleContext, paths ...string) Path {
+	path := pathForModuleSrc(ctx, paths...)
 
 	if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
 		reportPathErrorf(ctx, "%s: %s", path, err.Error())
@@ -785,12 +761,28 @@ func PathForModuleSrc(ctx ModuleContext, paths ...string) ModuleSrcPath {
 	return path
 }
 
+func pathForModuleSrc(ctx ModuleContext, paths ...string) SourcePath {
+	p, err := validatePath(paths...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	path, err := pathForSource(ctx, ctx.ModuleDir(), p)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	path.basePath.rel = p
+
+	return path
+}
+
 // PathsWithModuleSrcSubDir takes a list of Paths and returns a new list of Paths where Rel() on each path
 // will return the path relative to subDir in the module's source directory.  If any input paths are not located
 // inside subDir then a path error will be reported.
 func PathsWithModuleSrcSubDir(ctx ModuleContext, paths Paths, subDir string) Paths {
 	paths = append(Paths(nil), paths...)
-	subDirFullPath := PathForModuleSrc(ctx, subDir)
+	subDirFullPath := pathForModuleSrc(ctx, subDir)
 	for i, path := range paths {
 		rel := Rel(ctx, subDirFullPath.String(), path.String())
 		paths[i] = subDirFullPath.join(ctx, rel)
@@ -801,7 +793,7 @@ func PathsWithModuleSrcSubDir(ctx ModuleContext, paths Paths, subDir string) Pat
 // PathWithModuleSrcSubDir takes a Path and returns a Path where Rel() will return the path relative to subDir in the
 // module's source directory.  If the input path is not located inside subDir then a path error will be reported.
 func PathWithModuleSrcSubDir(ctx ModuleContext, path Path, subDir string) Path {
-	subDirFullPath := PathForModuleSrc(ctx, subDir)
+	subDirFullPath := pathForModuleSrc(ctx, subDir)
 	rel := Rel(ctx, subDirFullPath.String(), path.String())
 	return subDirFullPath.Join(ctx, rel)
 }
@@ -815,15 +807,15 @@ func OptionalPathForModuleSrc(ctx ModuleContext, p *string) OptionalPath {
 	return OptionalPathForPath(PathForModuleSrc(ctx, *p))
 }
 
-func (p ModuleSrcPath) genPathWithExt(ctx ModuleContext, subdir, ext string) ModuleGenPath {
+func (p SourcePath) genPathWithExt(ctx ModuleContext, subdir, ext string) ModuleGenPath {
 	return PathForModuleGen(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
 }
 
-func (p ModuleSrcPath) objPathWithExt(ctx ModuleContext, subdir, ext string) ModuleObjPath {
+func (p SourcePath) objPathWithExt(ctx ModuleContext, subdir, ext string) ModuleObjPath {
 	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
 }
 
-func (p ModuleSrcPath) resPathWithName(ctx ModuleContext, name string) ModuleResPath {
+func (p SourcePath) resPathWithName(ctx ModuleContext, name string) ModuleResPath {
 	// TODO: Use full directory if the new ctx is not the current ctx?
 	return PathForModuleRes(ctx, p.path, name)
 }

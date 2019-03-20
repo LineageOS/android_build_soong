@@ -581,7 +581,7 @@ func (c *config) ApexKeyDir(ctx ModuleContext) SourcePath {
 	if defaultCert == "" || filepath.Dir(defaultCert) == "build/target/product/security" {
 		// When defaultCert is unset or is set to the testkeys path, use the APEX keys
 		// that is under the module dir
-		return PathForModuleSrc(ctx).SourcePath
+		return pathForModuleSrc(ctx)
 	} else {
 		// If not, APEX keys are under the specified directory
 		return PathForSource(ctx, filepath.Dir(defaultCert))
