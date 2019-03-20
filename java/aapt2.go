@@ -161,7 +161,7 @@ var fileListToFileRule = pctx.AndroidStaticRule("fileListToFile",
 func aapt2Link(ctx android.ModuleContext,
 	packageRes, genJar, proguardOptions, rTxt, extraPackages android.WritablePath,
 	flags []string, deps android.Paths,
-	compiledRes, compiledOverlay android.Paths) {
+	compiledRes, compiledOverlay android.Paths, splitPackages android.WritablePaths) {
 
 	genDir := android.PathForModuleGen(ctx, "aapt2", "R")
 
@@ -196,12 +196,14 @@ func aapt2Link(ctx android.ModuleContext,
 		inFlags = append(inFlags, "-R", "@"+overlayFileList.String())
 	}
 
+	implicitOutputs := append(splitPackages, proguardOptions, genJar, rTxt, extraPackages)
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            aapt2LinkRule,
 		Description:     "aapt2 link",
 		Implicits:       deps,
 		Output:          packageRes,
-		ImplicitOutputs: android.WritablePaths{proguardOptions, genJar, rTxt, extraPackages},
+		ImplicitOutputs: implicitOutputs,
 		Args: map[string]string{
 			"flags":           strings.Join(flags, " "),
 			"inFlags":         strings.Join(inFlags, " "),
