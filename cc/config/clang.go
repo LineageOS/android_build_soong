@@ -97,6 +97,10 @@ func init() {
 	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
 		"-D__compiler_offsetof=__builtin_offsetof",
 
+		// Emit address-significance table which allows linker to perform safe ICF. Clang does
+		// not emit the table by default on Android since NDK still uses GNU binutils.
+		"-faddrsig",
+
 		// -Wimplicit-fallthrough is not enabled by -Wall.
 		"-Wimplicit-fallthrough",
 
