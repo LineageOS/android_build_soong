@@ -942,7 +942,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	if flags.javaVersion == "1.9" {
 		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
 	}
-	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 	if hasSrcExt(srcFiles.Strings(), ".proto") {
 		flags = protoFlags(ctx, &j.properties, &j.protoProperties, flags)
 	}
@@ -958,7 +958,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, srcFiles.Strings()...)
 
 	if j.properties.Jarjar_rules != nil {
-		j.expandJarjarRules = ctx.ExpandSource(*j.properties.Jarjar_rules, "jarjar_rules")
+		j.expandJarjarRules = android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
 	}
 
 	jarName := ctx.ModuleName() + ".jar"
@@ -1133,10 +1133,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 
 	manifest := j.overrideManifest
 	if !manifest.Valid() && j.properties.Manifest != nil {
-		manifest = android.OptionalPathForPath(ctx.ExpandSource(*j.properties.Manifest, "manifest"))
+		manifest = android.OptionalPathForPath(android.PathForModuleSrc(ctx, *j.properties.Manifest))
 	}
 
-	services := ctx.ExpandSources(j.properties.Services, nil)
+	services := android.PathsForModuleSrc(ctx, j.properties.Services)
 	if len(services) > 0 {
 		servicesJar := android.PathForModuleOut(ctx, "services", jarName)
 		var zipargs []string
@@ -1547,7 +1547,7 @@ type Test struct {
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template, j.testProperties.Test_suites)
-	j.data = ctx.ExpandSources(j.testProperties.Data, nil)
+	j.data = android.PathsForModuleSrc(ctx, j.testProperties.Data)
 
 	j.Library.GenerateAndroidBuildActions(ctx)
 }
@@ -1641,7 +1641,7 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.isWrapperVariant = true
 
 		if j.binaryProperties.Wrapper != nil {
-			j.wrapperFile = ctx.ExpandSource(*j.binaryProperties.Wrapper, "wrapper")
+			j.wrapperFile = android.PathForModuleSrc(ctx, *j.binaryProperties.Wrapper)
 		} else {
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 		}
@@ -1765,7 +1765,7 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	jars := ctx.ExpandSources(j.properties.Jars, nil)
+	jars := android.PathsForModuleSrc(ctx, j.properties.Jars)
 
 	jarName := ctx.ModuleName() + ".jar"
 	outputFile := android.PathForModuleOut(ctx, "combined", jarName)

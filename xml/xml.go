@@ -79,7 +79,7 @@ func (p *prebuiltEtcXml) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	p.PrebuiltEtc.GenerateAndroidBuildActions(ctx)
 
 	if p.properties.Schema != nil {
-		schema := ctx.ExpandSource(proptools.String(p.properties.Schema), "schema")
+		schema := android.PathForModuleSrc(ctx, proptools.String(p.properties.Schema))
 
 		switch schema.Ext() {
 		case ".dtd":

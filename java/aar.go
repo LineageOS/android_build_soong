@@ -130,7 +130,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, mani
 	// Find implicit or explicit asset and resource dirs
 	assetDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets")
 	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs, "res")
-	resourceZips := ctx.ExpandSources(a.aaptProperties.Resource_zips, nil)
+	resourceZips := android.PathsForModuleSrc(ctx, a.aaptProperties.Resource_zips)
 
 	var linkDeps android.Paths
 

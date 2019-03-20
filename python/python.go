@@ -414,7 +414,7 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
 			p.properties.Actual_version, ctx.ModuleName()))
 	}
-	expandedSrcs := ctx.ExpandSources(srcs, exclude_srcs)
+	expandedSrcs := android.PathsForModuleSrcExcludes(ctx, srcs, exclude_srcs)
 	requiresSrcs := true
 	if p.bootstrapper != nil && !p.bootstrapper.autorun() {
 		requiresSrcs = false
@@ -424,7 +424,7 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 	}
 
 	// expand data files from "data" property.
-	expandedData := ctx.ExpandSources(p.properties.Data, nil)
+	expandedData := android.PathsForModuleSrc(ctx, p.properties.Data)
 
 	// sanitize pkg_path.
 	pkgPath := String(p.properties.Pkg_path)
