@@ -839,7 +839,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		a.container_private_key_file = key
 	}
 
-	manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
+	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
 	var abis []string
 	for _, target := range ctx.MultiTargets() {
@@ -936,7 +936,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		}
 
 		if a.properties.AndroidManifest != nil {
-			androidManifestFile := ctx.ExpandSource(proptools.String(a.properties.AndroidManifest), "androidManifest")
+			androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
 			implicitInputs = append(implicitInputs, androidManifestFile)
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
@@ -1015,7 +1015,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
 		// with other ordinary files.
-		manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
+		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
 		// rename to apex_manifest.json
 		copiedManifest := android.PathForModuleOut(ctx, "apex_manifest.json")

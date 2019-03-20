@@ -46,7 +46,7 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 		}
 	}
 
-	excludeFiles = append(excludeFiles, ctx.ExpandSources(excludeResourceFiles, nil).Strings()...)
+	excludeFiles = append(excludeFiles, android.PathsForModuleSrc(ctx, excludeResourceFiles).Strings()...)
 
 	excludeFiles = append(excludeFiles, resourceExcludes...)
 
@@ -96,7 +96,7 @@ func SourceFilesToJarArgs(ctx android.ModuleContext,
 func resourceFilesToJarArgs(ctx android.ModuleContext,
 	res, exclude []string) (args []string, deps android.Paths) {
 
-	files := ctx.ExpandSources(res, exclude)
+	files := android.PathsForModuleSrcExcludes(ctx, res, exclude)
 
 	lastDir := ""
 	for i, f := range files {

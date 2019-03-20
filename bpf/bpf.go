@@ -76,7 +76,7 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	cflags = append(cflags, bpf.properties.Cflags...)
 
-	srcs := ctx.ExpandSources(bpf.properties.Srcs, nil)
+	srcs := android.PathsForModuleSrc(ctx, bpf.properties.Srcs)
 
 	for _, src := range srcs {
 		obj := android.ObjPathWithExt(ctx, "", src, "o")
