@@ -288,7 +288,8 @@ type Module struct {
 	proguardDictionary android.Path
 
 	// output file of the module, which may be a classes jar or a dex jar
-	outputFile android.Path
+	outputFile       android.Path
+	extraOutputFiles android.Paths
 
 	exportAidlIncludeDirs android.Paths
 
@@ -322,7 +323,7 @@ type Module struct {
 }
 
 func (j *Module) Srcs() android.Paths {
-	return android.Paths{j.outputFile}
+	return append(android.Paths{j.outputFile}, j.extraOutputFiles...)
 }
 
 func (j *Module) DexJarFile() android.Path {

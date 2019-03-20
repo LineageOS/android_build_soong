@@ -262,6 +262,10 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 				if len(app.dexpreopter.builtInstalled) > 0 {
 					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", app.dexpreopter.builtInstalled)
 				}
+				for _, split := range app.aapt.splits {
+					install := "$(LOCAL_MODULE_PATH)/" + strings.TrimSuffix(app.installApkName, ".apk") + split.suffix + ".apk"
+					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED +=", split.path.String()+":"+install)
+				}
 			},
 		},
 	}
