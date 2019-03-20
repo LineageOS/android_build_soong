@@ -25,7 +25,7 @@ type pathDepsMutatorTestModule struct {
 	ModuleBase
 	props struct {
 		Foo string   `android:"path"`
-		Bar []string `android:"path"`
+		Bar []string `android:"path,arch_variant"`
 		Baz *string  `android:"path"`
 		Qux string
 	}
@@ -36,7 +36,7 @@ type pathDepsMutatorTestModule struct {
 func pathDepsMutatorTestModuleFactory() Module {
 	module := &pathDepsMutatorTestModule{}
 	module.AddProperties(&module.props)
-	InitAndroidModule(module)
+	InitAndroidArchModule(module, DeviceSupported, MultilibBoth)
 	return module
 }
 
@@ -64,6 +64,23 @@ func TestPathDepsMutator(t *testing.T) {
 			}`,
 			deps: []string{"a", "b", "c"},
 		},
+		{
+			name: "arch variant",
+			bp: `
+			test {
+				name: "foo",
+				arch: {
+					arm64: {
+						bar: [":a"],
+					},
+					arm: {
+						bar: [":b"],
+					},
+				},
+				bar: [":c"],
+			}`,
+			deps: []string{"c", "a"},
+		},
 	}
 
 	buildDir, err := ioutil.TempDir("", "soong_path_properties_test")
@@ -74,8 +91,8 @@ func TestPathDepsMutator(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config := TestConfig(buildDir, nil)
-			ctx := NewTestContext()
+			config := TestArchConfig(buildDir, nil)
+			ctx := NewTestArchContext()
 
 			ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathDepsMutatorTestModuleFactory))
 			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
@@ -110,7 +127,7 @@ func TestPathDepsMutator(t *testing.T) {
 			_, errs = ctx.PrepareBuildActions(config)
 			FailIfErrored(t, errs)
 
-			m := ctx.ModuleForTests("foo", "").Module().(*pathDepsMutatorTestModule)
+			m := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*pathDepsMutatorTestModule)
 
 			if g, w := m.sourceDeps, test.deps; !reflect.DeepEqual(g, w) {
 				t.Errorf("want deps %q, got %q", w, g)
