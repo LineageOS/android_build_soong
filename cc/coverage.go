@@ -23,6 +23,9 @@ import (
 type CoverageProperties struct {
 	Native_coverage *bool
 
+	NeedCoverageVariant bool `blueprint:"mutated"`
+	NeedCoverageBuild   bool `blueprint:"mutated"`
+
 	CoverageEnabled   bool `blueprint:"mutated"`
 	IsCoverageVariant bool `blueprint:"mutated"`
 }
@@ -37,8 +40,6 @@ type coverage struct {
 func (cov *coverage) props() []interface{} {
 	return []interface{}{&cov.Properties}
 }
-
-func (cov *coverage) begin(ctx BaseModuleContext) {}
 
 func (cov *coverage) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
@@ -100,40 +101,47 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func coverageMutator(mctx android.BottomUpMutatorContext) {
+func (cov *coverage) begin(ctx BaseModuleContext) {
 	// Coverage is disabled globally
-	if !mctx.DeviceConfig().NativeCoverageEnabled() {
+	if !ctx.DeviceConfig().NativeCoverageEnabled() {
 		return
 	}
 
-	if c, ok := mctx.Module().(*Module); ok {
-		var needCoverageVariant bool
-		var needCoverageBuild bool
+	var needCoverageVariant bool
+	var needCoverageBuild bool
 
-		if mctx.Host() {
-			// TODO(dwillemsen): because of -nodefaultlibs, we must depend on libclang_rt.profile-*.a
-			// Just turn off for now.
-		} else if c.IsStubs() {
-			// Do not enable coverage for platform stub libraries
-		} else if c.isNDKStubLibrary() {
-			// Do not enable coverage for NDK stub libraries
-		} else if c.coverage != nil {
-			// Check if Native_coverage is set to false.  This property defaults to true.
-			needCoverageVariant = BoolDefault(c.coverage.Properties.Native_coverage, true)
+	if ctx.Host() {
+		// TODO(dwillemsen): because of -nodefaultlibs, we must depend on libclang_rt.profile-*.a
+		// Just turn off for now.
+	} else if ctx.isStubs() {
+		// Do not enable coverage for platform stub libraries
+	} else if ctx.isNDKStubLibrary() {
+		// Do not enable coverage for NDK stub libraries
+	} else {
+		// Check if Native_coverage is set to false.  This property defaults to true.
+		needCoverageVariant = BoolDefault(cov.Properties.Native_coverage, true)
 
-			if sdk_version := String(c.Properties.Sdk_version); sdk_version != "current" {
-				// Native coverage is not supported for SDK versions < 23
-				if fromApi, err := strconv.Atoi(sdk_version); err == nil && fromApi < 23 {
-					needCoverageVariant = false
-				}
-			}
-
-			if needCoverageVariant {
-				// Coverage variant is actually built with coverage if enabled for its module path
-				needCoverageBuild = mctx.DeviceConfig().CoverageEnabledForPath(mctx.ModuleDir())
+		if sdk_version := ctx.sdkVersion(); ctx.useSdk() && sdk_version != "current" {
+			// Native coverage is not supported for SDK versions < 23
+			if fromApi, err := strconv.Atoi(sdk_version); err == nil && fromApi < 23 {
+				needCoverageVariant = false
 			}
 		}
 
+		if needCoverageVariant {
+			// Coverage variant is actually built with coverage if enabled for its module path
+			needCoverageBuild = ctx.DeviceConfig().CoverageEnabledForPath(ctx.ModuleDir())
+		}
+	}
+
+	cov.Properties.NeedCoverageBuild = needCoverageBuild
+	cov.Properties.NeedCoverageVariant = needCoverageVariant
+}
+
+func coverageMutator(mctx android.BottomUpMutatorContext) {
+	if c, ok := mctx.Module().(*Module); ok && c.coverage != nil {
+		needCoverageVariant := c.coverage.Properties.NeedCoverageVariant
+		needCoverageBuild := c.coverage.Properties.NeedCoverageBuild
 		if needCoverageVariant {
 			m := mctx.CreateVariations("", "cov")
 
