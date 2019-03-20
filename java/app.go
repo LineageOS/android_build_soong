@@ -226,6 +226,8 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 
 	aaptLinkFlags = append(aaptLinkFlags, a.additionalAaptFlags...)
 
+	a.aapt.splitNames = a.appProperties.Package_splits
+
 	a.aapt.buildActions(ctx, sdkContext(a), aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
@@ -341,19 +343,32 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	CreateAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates)
 	a.outputFile = packageFile
 
+	for _, split := range a.aapt.splits {
+		// Sign the split APKs
+		packageFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"_"+split.suffix+".apk")
+		CreateAppPackage(ctx, packageFile, split.path, nil, nil, certificates)
+		a.extraOutputFiles = append(a.extraOutputFiles, packageFile)
+	}
+
 	// Build an app bundle.
 	bundleFile := android.PathForModuleOut(ctx, "base.zip")
 	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
 	a.bundleFile = bundleFile
 
 	// Install the app package.
+	var installDir android.OutputPath
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"), ctx.ModuleName()+".apk", a.outputFile)
+		installDir = android.PathForModuleInstall(ctx, "framework")
 	} else if Bool(a.appProperties.Privileged) {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "priv-app", a.installApkName), a.installApkName+".apk", a.outputFile)
+		installDir = android.PathForModuleInstall(ctx, "priv-app", a.installApkName)
 	} else {
-		ctx.InstallFile(android.PathForModuleInstall(ctx, "app", a.installApkName), a.installApkName+".apk", a.outputFile)
+		installDir = android.PathForModuleInstall(ctx, "app", a.installApkName)
+	}
+
+	ctx.InstallFile(installDir, a.installApkName+".apk", a.outputFile)
+	for _, split := range a.aapt.splits {
+		ctx.InstallFile(installDir, a.installApkName+"_"+split.suffix+".apk", split.path)
 	}
 }
 

@@ -65,7 +65,8 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
 	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate) {
 
-	unsignedApk := android.PathForModuleOut(ctx, "unsigned.apk")
+	unsignedApkName := strings.TrimSuffix(outputFile.Base(), ".apk") + "-unsigned.apk"
+	unsignedApk := android.PathForModuleOut(ctx, unsignedApkName)
 
 	var inputs android.Paths
 	if dexJarFile != nil {
