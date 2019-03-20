@@ -35,7 +35,11 @@ var (
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 	asanLibs    = []string{"libasan"}
 
-	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=", "-mllvm", "-hwasan-create-frame-descriptions=0"}
+	// TODO(pcc): Stop passing -hwasan-allow-ifunc here once it has been made
+	// the default.
+	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
+		"-mllvm", "-hwasan-create-frame-descriptions=0",
+		"-mllvm", "-hwasan-allow-ifunc"}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
