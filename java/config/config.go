@@ -41,6 +41,7 @@ var (
 		"services",
 		"android.car",
 		"android.car7",
+		"conscrypt",
 		"core-oj",
 		"core-libart",
 		"updatable-media",
