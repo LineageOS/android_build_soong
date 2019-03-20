@@ -1095,7 +1095,7 @@ android_app {
 `,
 	},
 	{
-		desc: "blah",
+		desc: "LOCAL_JACK_ENABLED and LOCAL_JACK_FLAGS skipped",
 		in: `
 include $(CLEAR_VARS)
 LOCAL_MODULE := foo
