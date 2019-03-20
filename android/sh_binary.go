@@ -82,7 +82,7 @@ func (s *ShBinary) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (s *ShBinary) SourceFilePath(ctx ModuleContext) Path {
-	return ctx.ExpandSource(String(s.properties.Src), "src")
+	return PathForModuleSrc(ctx, String(s.properties.Src))
 }
 
 func (s *ShBinary) OutputFile() OutputPath {
@@ -98,7 +98,7 @@ func (s *ShBinary) Installable() bool {
 }
 
 func (s *ShBinary) GenerateAndroidBuildActions(ctx ModuleContext) {
-	s.sourceFilePath = ctx.ExpandSource(String(s.properties.Src), "src")
+	s.sourceFilePath = PathForModuleSrc(ctx, String(s.properties.Src))
 	filename := String(s.properties.Filename)
 	filename_from_src := Bool(s.properties.Filename_from_src)
 	if filename == "" {

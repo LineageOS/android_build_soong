@@ -178,5 +178,5 @@ func newTest() android.Module {
 }
 
 func (test *testDataTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	test.data = ctx.ExpandSources(test.Properties.Data, nil)
+	test.data = android.PathsForModuleSrc(ctx, test.Properties.Data)
 }

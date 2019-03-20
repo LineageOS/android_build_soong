@@ -696,7 +696,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
 	// may contain filegroup or genrule.
-	srcFiles := ctx.ExpandSources(j.properties.Srcs, j.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 	flags := j.collectAidlFlags(ctx, deps)
 	srcFiles = j.genSources(ctx, srcFiles, flags)
 
@@ -715,12 +715,12 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	}
 	j.sourcepaths = android.PathsForModuleSrc(ctx, j.properties.Local_sourcepaths)
 
-	j.argFiles = ctx.ExpandSources(j.properties.Arg_files, nil)
+	j.argFiles = android.PathsForModuleSrc(ctx, j.properties.Arg_files)
 	argFilesMap := map[string]string{}
 	argFileLabels := []string{}
 
 	for _, label := range j.properties.Arg_files {
-		var paths = ctx.ExpandSources([]string{label}, nil)
+		var paths = android.PathsForModuleSrc(ctx, []string{label})
 		if _, exists := argFilesMap[label]; !exists {
 			argFilesMap[label] = strings.Join(paths.Strings(), " ")
 			argFileLabels = append(argFileLabels, label)
@@ -936,13 +936,13 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 
 	if len(d.properties.Html_dirs) > 0 {
 		htmlDir := d.properties.Html_dirs[0]
-		*implicits = append(*implicits, ctx.ExpandSources([]string{filepath.Join(d.properties.Html_dirs[0], "**/*")}, nil)...)
+		*implicits = append(*implicits, android.PathsForModuleSrc(ctx, []string{filepath.Join(d.properties.Html_dirs[0], "**/*")})...)
 		args = args + " -htmldir " + htmlDir
 	}
 
 	if len(d.properties.Html_dirs) > 1 {
 		htmlDir2 := d.properties.Html_dirs[1]
-		*implicits = append(*implicits, ctx.ExpandSources([]string{filepath.Join(htmlDir2, "**/*")}, nil)...)
+		*implicits = append(*implicits, android.PathsForModuleSrc(ctx, []string{filepath.Join(htmlDir2, "**/*")})...)
 		args = args + " -htmldir2 " + htmlDir2
 	}
 
@@ -950,7 +950,7 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 		ctx.PropertyErrorf("html_dirs", "Droiddoc only supports up to 2 html dirs")
 	}
 
-	knownTags := ctx.ExpandSources(d.properties.Knowntags, nil)
+	knownTags := android.PathsForModuleSrc(ctx, d.properties.Knowntags)
 	*implicits = append(*implicits, knownTags...)
 
 	for _, kt := range knownTags {
@@ -1415,12 +1415,12 @@ func (d *Droidstubs) collectAnnotationsFlags(ctx android.ModuleContext,
 				"has to be non-empty if annotations was enabled (unless validating nullability)")
 		}
 		if migratingNullability {
-			previousApi := ctx.ExpandSource(String(d.properties.Previous_api), "previous_api")
+			previousApi := android.PathForModuleSrc(ctx, String(d.properties.Previous_api))
 			*implicits = append(*implicits, previousApi)
 			flags += " --migrate-nullness " + previousApi.String()
 		}
 		if s := String(d.properties.Validate_nullability_from_list); s != "" {
-			flags += " --validate-nullability-from-list " + ctx.ExpandSource(s, "validate_nullability_from_list").String()
+			flags += " --validate-nullability-from-list " + android.PathForModuleSrc(ctx, s).String()
 		}
 		if validatingNullability {
 			d.nullabilityWarningsFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_nullability_warnings.txt")
@@ -1793,7 +1793,7 @@ func (d *ExportedDroiddocDir) DepsMutator(android.BottomUpMutatorContext) {}
 func (d *ExportedDroiddocDir) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	path := String(d.properties.Path)
 	d.dir = android.PathForModuleSrc(ctx, path)
-	d.deps = ctx.ExpandSources([]string{filepath.Join(path, "**/*")}, nil)
+	d.deps = android.PathsForModuleSrc(ctx, []string{filepath.Join(path, "**/*")})
 }
 
 //

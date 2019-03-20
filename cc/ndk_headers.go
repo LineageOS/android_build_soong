@@ -140,7 +140,7 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	srcFiles := ctx.ExpandSources(m.properties.Srcs, m.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
 	for _, header := range srcFiles {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From),
 			String(m.properties.To))
@@ -338,7 +338,7 @@ func (m *preprocessedHeadersModule) GenerateAndroidBuildActions(ctx android.Modu
 	preprocessor := android.PathForModuleSrc(ctx, String(m.properties.Preprocessor))
 	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
 
-	srcFiles := ctx.ExpandSources(m.properties.Srcs, m.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
 	installDir := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
 	for _, src := range srcFiles {
 		installPath := installDir.Join(ctx, src.Base())

@@ -88,7 +88,7 @@ func (p *PrebuiltEtc) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (p *PrebuiltEtc) SourceFilePath(ctx ModuleContext) Path {
-	return ctx.ExpandSource(String(p.properties.Src), "src")
+	return PathForModuleSrc(ctx, String(p.properties.Src))
 }
 
 // This allows other derivative modules (e.g. prebuilt_etc_xml) to perform
@@ -110,7 +110,7 @@ func (p *PrebuiltEtc) Installable() bool {
 }
 
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
-	p.sourceFilePath = ctx.ExpandSource(String(p.properties.Src), "src")
+	p.sourceFilePath = PathForModuleSrc(ctx, String(p.properties.Src))
 	filename := String(p.properties.Filename)
 	filename_from_src := Bool(p.properties.Filename_from_src)
 	if filename == "" {

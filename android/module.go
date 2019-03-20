@@ -854,7 +854,7 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		if a.commonProperties.Notice != nil {
 			// For filegroup-based notice file references.
-			a.noticeFile = ctx.ExpandSource(*a.commonProperties.Notice, "notice")
+			a.noticeFile = PathForModuleSrc(ctx, *a.commonProperties.Notice)
 		}
 	}
 
@@ -1419,91 +1419,18 @@ type SourceFileProducer interface {
 
 // Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
 // be tagged with `android:"path" to support automatic source module dependency resolution.
+//
+// Deprecated: use PathsForModuleSrc or PathsForModuleSrcExcludes instead.
 func (ctx *androidModuleContext) ExpandSources(srcFiles, excludes []string) Paths {
-	prefix := PathForModuleSrc(ctx).String()
-
-	var expandedExcludes []string
-	if excludes != nil {
-		expandedExcludes = make([]string, 0, len(excludes))
-	}
-
-	for _, e := range excludes {
-		if m := SrcIsModule(e); m != "" {
-			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
-			if module == nil {
-				if ctx.Config().AllowMissingDependencies() {
-					ctx.AddMissingDependencies([]string{m})
-				} else {
-					ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
-				}
-				continue
-			}
-			if srcProducer, ok := module.(SourceFileProducer); ok {
-				expandedExcludes = append(expandedExcludes, srcProducer.Srcs().Strings()...)
-			} else {
-				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
-			}
-		} else {
-			expandedExcludes = append(expandedExcludes, filepath.Join(prefix, e))
-		}
-	}
-	expandedSrcFiles := make(Paths, 0, len(srcFiles))
-	for _, s := range srcFiles {
-		if m := SrcIsModule(s); m != "" {
-			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
-			if module == nil {
-				if ctx.Config().AllowMissingDependencies() {
-					ctx.AddMissingDependencies([]string{m})
-				} else {
-					ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
-				}
-				continue
-			}
-			if srcProducer, ok := module.(SourceFileProducer); ok {
-				moduleSrcs := srcProducer.Srcs()
-				for _, e := range expandedExcludes {
-					for j, ms := range moduleSrcs {
-						if ms.String() == e {
-							moduleSrcs = append(moduleSrcs[:j], moduleSrcs[j+1:]...)
-						}
-					}
-				}
-				expandedSrcFiles = append(expandedSrcFiles, moduleSrcs...)
-			} else {
-				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
-			}
-		} else if pathtools.IsGlob(s) {
-			globbedSrcFiles := ctx.GlobFiles(filepath.Join(prefix, s), expandedExcludes)
-			globbedSrcFiles = PathsWithModuleSrcSubDir(ctx, globbedSrcFiles, "")
-			expandedSrcFiles = append(expandedSrcFiles, globbedSrcFiles...)
-		} else {
-			p := PathForModuleSrc(ctx, s)
-			j := findStringInSlice(p.String(), expandedExcludes)
-			if j == -1 {
-				expandedSrcFiles = append(expandedSrcFiles, p)
-			}
-		}
-	}
-	return expandedSrcFiles
+	return PathsForModuleSrcExcludes(ctx, srcFiles, excludes)
 }
 
 // Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
 // be tagged with `android:"path" to support automatic source module dependency resolution.
+//
+// Deprecated: use PathForModuleSrc instead.
 func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
-	srcFiles := ctx.ExpandSources([]string{srcFile}, nil)
-	if len(srcFiles) == 1 {
-		return srcFiles[0]
-	} else if len(srcFiles) == 0 {
-		if ctx.Config().AllowMissingDependencies() {
-			ctx.AddMissingDependencies([]string{srcFile})
-		} else {
-			ctx.PropertyErrorf(prop, "%s path %s does not exist", prop, srcFile)
-		}
-		return nil
-	} else {
-		ctx.PropertyErrorf(prop, "module providing %s must produce exactly one file", prop)
-		return nil
-	}
+	return PathForModuleSrc(ctx, srcFile)
 }
 
 // Returns an optional single path expanded from globs and modules referenced using ":module" syntax if
@@ -1511,7 +1438,7 @@ func (ctx *androidModuleContext) ExpandSource(srcFile, prop string) Path {
 // dependency resolution.
 func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop string) OptionalPath {
 	if srcFile != nil {
-		return OptionalPathForPath(ctx.ExpandSource(*srcFile, prop))
+		return OptionalPathForPath(PathForModuleSrc(ctx, *srcFile))
 	}
 	return OptionalPath{}
 }

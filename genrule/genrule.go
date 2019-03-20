@@ -225,14 +225,14 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	for _, toolFile := range g.properties.Tool_files {
-		paths := ctx.ExpandSources([]string{toolFile}, nil)
+		paths := android.PathsForModuleSrc(ctx, []string{toolFile})
 		g.deps = append(g.deps, paths...)
 		addLocationLabel(toolFile, paths.Strings())
 	}
 
 	var srcFiles android.Paths
 	for _, in := range g.properties.Srcs {
-		paths := ctx.ExpandSources([]string{in}, g.properties.Exclude_srcs)
+		paths := android.PathsForModuleSrcExcludes(ctx, []string{in}, g.properties.Exclude_srcs)
 		srcFiles = append(srcFiles, paths...)
 		addLocationLabel(in, paths.Strings())
 	}

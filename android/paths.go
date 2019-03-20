@@ -220,11 +220,104 @@ func ExistentPathsForSources(ctx PathContext, paths []string) Paths {
 // PathsForModuleSrc returns Paths rooted from the module's local source
 // directory
 func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
-	ret := make(Paths, len(paths))
-	for i, path := range paths {
-		ret[i] = PathForModuleSrc(ctx, path)
+	return PathsForModuleSrcExcludes(ctx, paths, nil)
+}
+
+func PathsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) Paths {
+	prefix := pathForModuleSrc(ctx).String()
+
+	var expandedExcludes []string
+	if excludes != nil {
+		expandedExcludes = make([]string, 0, len(excludes))
 	}
-	return ret
+
+	for _, e := range excludes {
+		if m := SrcIsModule(e); m != "" {
+			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
+			if module == nil {
+				if ctx.Config().AllowMissingDependencies() {
+					ctx.AddMissingDependencies([]string{m})
+				} else {
+					ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
+				}
+				continue
+			}
+			if srcProducer, ok := module.(SourceFileProducer); ok {
+				expandedExcludes = append(expandedExcludes, srcProducer.Srcs().Strings()...)
+			} else {
+				ctx.ModuleErrorf("srcs dependency %q is not a source file producing module", m)
+			}
+		} else {
+			expandedExcludes = append(expandedExcludes, filepath.Join(prefix, e))
+		}
+	}
+
+	if paths == nil {
+		return nil
+	}
+
+	expandedSrcFiles := make(Paths, 0, len(paths))
+	for _, s := range paths {
+		srcFiles, err := expandOneSrcPath(ctx, s, expandedExcludes)
+		if depErr, ok := err.(missingDependencyError); ok {
+			if ctx.Config().AllowMissingDependencies() {
+				ctx.AddMissingDependencies(depErr.missingDeps)
+			} else {
+				ctx.ModuleErrorf(`%s, is the property annotated with android:"path"?`, depErr.Error())
+			}
+		} else if err != nil {
+			reportPathError(ctx, err)
+		}
+		expandedSrcFiles = append(expandedSrcFiles, srcFiles...)
+	}
+	return expandedSrcFiles
+}
+
+type missingDependencyError struct {
+	missingDeps []string
+}
+
+func (e missingDependencyError) Error() string {
+	return "missing dependencies: " + strings.Join(e.missingDeps, ", ")
+}
+
+func expandOneSrcPath(ctx ModuleContext, s string, expandedExcludes []string) (Paths, error) {
+	if m := SrcIsModule(s); m != "" {
+		module := ctx.GetDirectDepWithTag(m, SourceDepTag)
+		if module == nil {
+			return nil, missingDependencyError{[]string{m}}
+		}
+		if srcProducer, ok := module.(SourceFileProducer); ok {
+			moduleSrcs := srcProducer.Srcs()
+			for _, e := range expandedExcludes {
+				for j := 0; j < len(moduleSrcs); j++ {
+					if moduleSrcs[j].String() == e {
+						moduleSrcs = append(moduleSrcs[:j], moduleSrcs[j+1:]...)
+						j--
+					}
+				}
+			}
+			return moduleSrcs, nil
+		} else {
+			return nil, fmt.Errorf("path dependency %q is not a source file producing module", m)
+		}
+	} else if pathtools.IsGlob(s) {
+		paths := ctx.GlobFiles(pathForModuleSrc(ctx, s).String(), expandedExcludes)
+		return PathsWithModuleSrcSubDir(ctx, paths, ""), nil
+	} else {
+		p := pathForModuleSrc(ctx, s)
+		if exists, _, err := ctx.Fs().Exists(p.String()); err != nil {
+			reportPathErrorf(ctx, "%s: %s", p, err.Error())
+		} else if !exists {
+			reportPathErrorf(ctx, "module source path %q does not exist", p)
+		}
+
+		j := findStringInSlice(p.String(), expandedExcludes)
+		if j >= 0 {
+			return nil, nil
+		}
+		return Paths{p}, nil
+	}
 }
 
 // pathsForModuleSrcFromFullPath returns Paths rooted from the module's local
@@ -750,15 +843,30 @@ var _ resPathProvider = SourcePath{}
 
 // PathForModuleSrc returns a Path representing the paths... under the
 // module's local source directory.
-func PathForModuleSrc(ctx ModuleContext, paths ...string) Path {
-	path := pathForModuleSrc(ctx, paths...)
-
-	if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
-		reportPathErrorf(ctx, "%s: %s", path, err.Error())
-	} else if !exists {
-		reportPathErrorf(ctx, "module source path %q does not exist", path)
+func PathForModuleSrc(ctx ModuleContext, pathComponents ...string) Path {
+	p, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
 	}
-	return path
+	paths, err := expandOneSrcPath(ctx, p, nil)
+	if err != nil {
+		if depErr, ok := err.(missingDependencyError); ok {
+			if ctx.Config().AllowMissingDependencies() {
+				ctx.AddMissingDependencies(depErr.missingDeps)
+			} else {
+				ctx.ModuleErrorf(`%s, is the property annotated with android:"path"?`, depErr.Error())
+			}
+		} else {
+			reportPathError(ctx, err)
+		}
+		return nil
+	} else if len(paths) == 0 {
+		reportPathErrorf(ctx, "%q produced no files, expected exactly one", p)
+		return nil
+	} else if len(paths) > 1 {
+		reportPathErrorf(ctx, "%q produced %d files, expected exactly one", p, len(paths))
+	}
+	return paths[0]
 }
 
 func pathForModuleSrc(ctx ModuleContext, paths ...string) SourcePath {
