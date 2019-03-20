@@ -119,6 +119,15 @@ func TestDexpreoptEnabled(t *testing.T) {
 				}`,
 			enabled: false,
 		},
+		{
+			name: "dex_import",
+			bp: `
+				dex_import {
+					name: "foo",
+					jars: ["a.jar"],
+				}`,
+			enabled: true,
+		},
 	}
 
 	for _, test := range tests {

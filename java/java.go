@@ -46,6 +46,7 @@ func init() {
 	android.RegisterModuleType("java_import_host", ImportFactoryHost)
 	android.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
 	android.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
+	android.RegisterModuleType("dex_import", DexImportFactory)
 
 	android.RegisterSingletonType("logtags", LogtagsSingleton)
 }
@@ -1431,14 +1432,14 @@ type Library struct {
 	Module
 }
 
-func (j *Library) shouldUncompressDex(ctx android.ModuleContext) bool {
+func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and do not strip) dex files from boot class path jars.
 	if inList(ctx.ModuleName(), ctx.Config().BootJars()) {
 		return true
 	}
 
 	// Store uncompressed dex files that are preopted on /system.
-	if !j.dexpreopter.dexpreoptDisabled(ctx) && (ctx.Host() || !odexOnSystemOther(ctx, j.dexpreopter.installPath)) {
+	if !dexpreopter.dexpreoptDisabled(ctx) && (ctx.Host() || !odexOnSystemOther(ctx, dexpreopter.installPath)) {
 		return true
 	}
 	if ctx.Config().UncompressPrivAppDex() &&
@@ -1453,7 +1454,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", ctx.ModuleName()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 	j.dexpreopter.isInstallable = Bool(j.properties.Installable)
-	j.dexpreopter.uncompressedDex = j.shouldUncompressDex(ctx)
+	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
 	j.deviceProperties.UncompressDex = j.dexpreopter.uncompressedDex
 	j.compile(ctx)
 
@@ -1901,6 +1902,113 @@ func ImportFactoryHost() android.Module {
 	return module
 }
 
+// dex_import module
+
+type DexImportProperties struct {
+	Jars []string
+}
+
+type DexImport struct {
+	android.ModuleBase
+	android.DefaultableModuleBase
+	prebuilt android.Prebuilt
+
+	properties DexImportProperties
+
+	dexJarFile              android.Path
+	maybeStrippedDexJarFile android.Path
+
+	dexpreopter
+}
+
+func (j *DexImport) Prebuilt() *android.Prebuilt {
+	return &j.prebuilt
+}
+
+func (j *DexImport) PrebuiltSrcs() []string {
+	return j.properties.Jars
+}
+
+func (j *DexImport) Name() string {
+	return j.prebuilt.Name(j.ModuleBase.Name())
+}
+
+func (j *DexImport) DepsMutator(ctx android.BottomUpMutatorContext) {
+	android.ExtractSourcesDeps(ctx, j.properties.Jars)
+}
+
+func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if len(j.properties.Jars) != 1 {
+		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
+	}
+
+	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", ctx.ModuleName()+".jar")
+	j.dexpreopter.isInstallable = true
+	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
+
+	inputJar := ctx.ExpandSource(j.properties.Jars[0], "jars")
+	dexOutputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar")
+
+	if j.dexpreopter.uncompressedDex {
+		rule := android.NewRuleBuilder()
+
+		temporary := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar.unaligned")
+		rule.Temporary(temporary)
+
+		// use zip2zip to uncompress classes*.dex files
+		rule.Command().
+			Tool(ctx.Config().HostToolPath(ctx, "zip2zip")).
+			FlagWithInput("-i ", inputJar).
+			FlagWithOutput("-o ", temporary).
+			FlagWithArg("-0 ", "'classes*.dex'")
+
+		// use zipalign to align uncompressed classes*.dex files
+		rule.Command().
+			Tool(ctx.Config().HostToolPath(ctx, "zipalign")).
+			Flag("-f").
+			Text("4").
+			Input(temporary).
+			Output(dexOutputFile)
+
+		rule.DeleteTemporaryFiles()
+
+		rule.Build(pctx, ctx, "uncompress_dex", "uncompress dex")
+	} else {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  inputJar,
+			Output: dexOutputFile,
+		})
+	}
+
+	j.dexJarFile = dexOutputFile
+
+	dexOutputFile = j.dexpreopt(ctx, dexOutputFile)
+
+	j.maybeStrippedDexJarFile = dexOutputFile
+
+	ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
+		ctx.ModuleName()+".jar", dexOutputFile)
+}
+
+func (j *DexImport) DexJar() android.Path {
+	return j.dexJarFile
+}
+
+// dex_import imports a `.jar` file containing classes.dex files.
+//
+// A dex_import module cannot be used as a dependency of a java_* or android_* module, it can only be installed
+// to the device.
+func DexImportFactory() android.Module {
+	module := &DexImport{}
+
+	module.AddProperties(&module.properties)
+
+	android.InitPrebuiltModule(module, &module.properties.Jars)
+	InitJavaModule(module, android.DeviceSupported)
+	return module
+}
+
 //
 // Defaults
 //
@@ -1963,6 +2071,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&ImportProperties{},
 		&AARImportProperties{},
 		&sdkLibraryProperties{},
+		&DexImportProperties{},
 	)
 
 	android.InitDefaultsModule(module)
