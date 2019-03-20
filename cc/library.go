@@ -347,9 +347,10 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 				)
 			}
 		} else {
-			f = append(f,
-				"-shared",
-				"-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix())
+			f = append(f, "-shared")
+			if !ctx.Windows() {
+				f = append(f, "-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix())
+			}
 		}
 
 		flags.LdFlags = append(f, flags.LdFlags...)
@@ -673,6 +674,14 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
 
+	var implicitOutputs android.WritablePaths
+	if ctx.Windows() {
+		importLibraryPath := android.PathForModuleOut(ctx, pathtools.ReplaceExtension(fileName, "a"))
+
+		flags.LdFlags = append(flags.LdFlags, "-Wl,--out-implib="+importLibraryPath.String())
+		implicitOutputs = append(implicitOutputs, importLibraryPath)
+	}
+
 	builderFlags := flagsToBuilderFlags(flags)
 
 	// Optimize out relinking against shared libraries whose interface hasn't changed by
@@ -724,7 +733,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
-		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile)
+		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
