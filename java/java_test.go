@@ -79,6 +79,7 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(SystemModulesFactory))
 	ctx.RegisterModuleType("java_genrule", android.ModuleFactoryAdaptor(genRuleFactory))
 	ctx.RegisterModuleType("java_plugin", android.ModuleFactoryAdaptor(PluginFactory))
+	ctx.RegisterModuleType("dex_import", android.ModuleFactoryAdaptor(DexImportFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
 	ctx.RegisterModuleType("droiddoc", android.ModuleFactoryAdaptor(DroiddocFactory))
@@ -330,6 +331,11 @@ func TestPrebuilts(t *testing.T) {
 			name: "baz",
 			jars: ["b.jar"],
 		}
+
+		dex_import {
+			name: "qux",
+			jars: ["b.jar"],
+		}
 		`)
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
@@ -344,6 +350,8 @@ func TestPrebuilts(t *testing.T) {
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != bazJar.String() {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, bazJar.String())
 	}
+
+	ctx.ModuleForTests("qux", "android_common").Rule("Cp")
 }
 
 func TestDefaults(t *testing.T) {
