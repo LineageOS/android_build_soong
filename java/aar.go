@@ -83,7 +83,16 @@ type aapt struct {
 	useEmbeddedDex        bool
 	usesNonSdkApis        bool
 
+	splitNames []string
+	splits     []split
+
 	aaptProperties aaptProperties
+}
+
+type split struct {
+	name   string
+	suffix string
+	path   android.Path
 }
 
 func (a *aapt) ExportPackage() android.Path {
@@ -248,8 +257,23 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 		compiledOverlay = append(compiledOverlay, aapt2Compile(ctx, dir.dir, dir.files).Paths()...)
 	}
 
+	var splitPackages android.WritablePaths
+	var splits []split
+
+	for _, s := range a.splitNames {
+		suffix := strings.Replace(s, ",", "_", -1)
+		path := android.PathForModuleOut(ctx, "package_"+suffix+".apk")
+		linkFlags = append(linkFlags, "--split", path.String()+":"+s)
+		splitPackages = append(splitPackages, path)
+		splits = append(splits, split{
+			name:   s,
+			suffix: suffix,
+			path:   path,
+		})
+	}
+
 	aapt2Link(ctx, packageRes, srcJar, proguardOptionsFile, rTxt, extraPackages,
-		linkFlags, linkDeps, compiledRes, compiledOverlay)
+		linkFlags, linkDeps, compiledRes, compiledOverlay, splitPackages)
 
 	a.aaptSrcJar = srcJar
 	a.exportPackage = packageRes
@@ -258,6 +282,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	a.rroDirs = rroDirs
 	a.extraAaptPackagesFile = extraPackages
 	a.rTxt = rTxt
+	a.splits = splits
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
@@ -564,7 +589,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	overlayRes := append(android.Paths{flata}, transitiveStaticLibs...)
 
 	aapt2Link(ctx, a.exportPackage, srcJar, proguardOptionsFile, rTxt, a.extraAaptPackagesFile,
-		linkFlags, linkDeps, nil, overlayRes)
+		linkFlags, linkDeps, nil, overlayRes, nil)
 }
 
 var _ Dependency = (*AARImport)(nil)
