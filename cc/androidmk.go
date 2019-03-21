@@ -185,6 +185,12 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		if library.coverageOutputFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", library.coverageOutputFile.String())
 		}
+
+		if library.useCoreVariant {
+			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+			fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
+			fmt.Fprintln(w, "LOCAL_VNDK_DEPEND_ON_CORE_VARIANT := true")
+		}
 	})
 
 	if library.shared() && !library.buildStubs() {

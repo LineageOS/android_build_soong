@@ -253,6 +253,8 @@ type productVariables struct {
 
 	PgoAdditionalProfileDirs []string `json:",omitempty"`
 
+	VndkUseCoreVariant *bool `json:",omitempty"`
+
 	BoardVendorSepolicyDirs      []string `json:",omitempty"`
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`
 	BoardPlatPublicSepolicyDirs  []string `json:",omitempty"`
