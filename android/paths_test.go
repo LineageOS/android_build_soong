@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 )
 
 type strsTestCase struct {
@@ -508,15 +509,27 @@ func TestPathForModuleInstall(t *testing.T) {
 }
 
 func TestDirectorySortedPaths(t *testing.T) {
+	config := TestConfig("out", nil)
+
+	ctx := PathContextForTesting(config, map[string][]byte{
+		"a.txt":   nil,
+		"a/txt":   nil,
+		"a/b/c":   nil,
+		"a/b/d":   nil,
+		"b":       nil,
+		"b/b.txt": nil,
+		"a/a.txt": nil,
+	})
+
 	makePaths := func() Paths {
 		return Paths{
-			PathForTesting("a.txt"),
-			PathForTesting("a/txt"),
-			PathForTesting("a/b/c"),
-			PathForTesting("a/b/d"),
-			PathForTesting("b"),
-			PathForTesting("b/b.txt"),
-			PathForTesting("a/a.txt"),
+			PathForSource(ctx, "a.txt"),
+			PathForSource(ctx, "a/txt"),
+			PathForSource(ctx, "a/b/c"),
+			PathForSource(ctx, "a/b/d"),
+			PathForSource(ctx, "b"),
+			PathForSource(ctx, "b/b.txt"),
+			PathForSource(ctx, "a/a.txt"),
 		}
 	}
 
@@ -694,39 +707,117 @@ func TestPathForSource(t *testing.T) {
 	}
 }
 
-type expandSourcesTestModule struct {
+type pathForModuleSrcTestModule struct {
 	ModuleBase
 	props struct {
 		Srcs         []string `android:"path"`
 		Exclude_srcs []string `android:"path"`
+
+		Src *string `android:"path"`
 	}
 
-	srcs Paths
+	src string
+	rel string
+
+	srcs []string
 	rels []string
+
+	missingDeps []string
 }
 
-func expandSourcesTestModuleFactory() Module {
-	module := &expandSourcesTestModule{}
+func pathForModuleSrcTestModuleFactory() Module {
+	module := &pathForModuleSrcTestModule{}
 	module.AddProperties(&module.props)
 	InitAndroidModule(module)
 	return module
 }
 
-func (p *expandSourcesTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	p.srcs = ctx.ExpandSources(p.props.Srcs, p.props.Exclude_srcs)
+func (p *pathForModuleSrcTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	srcs := PathsForModuleSrcExcludes(ctx, p.props.Srcs, p.props.Exclude_srcs)
+	p.srcs = srcs.Strings()
 
-	for _, src := range p.srcs {
+	for _, src := range srcs {
 		p.rels = append(p.rels, src.Rel())
+	}
+
+	if p.props.Src != nil {
+		src := PathForModuleSrc(ctx, *p.props.Src)
+		if src != nil {
+			p.src = src.String()
+			p.rel = src.Rel()
+		}
+	}
+
+	p.missingDeps = ctx.GetMissingDependencies()
+}
+
+type pathForModuleSrcTestCase struct {
+	name string
+	bp   string
+	srcs []string
+	rels []string
+	src  string
+	rel  string
+}
+
+func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSrcTestCase) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := TestConfig(buildDir, nil)
+			ctx := NewTestContext()
+
+			ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathForModuleSrcTestModuleFactory))
+			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
+
+			fgBp := `
+				filegroup {
+					name: "a",
+					srcs: ["src/a"],
+				}
+			`
+
+			mockFS := map[string][]byte{
+				"fg/Android.bp":     []byte(fgBp),
+				"foo/Android.bp":    []byte(test.bp),
+				"fg/src/a":          nil,
+				"foo/src/b":         nil,
+				"foo/src/c":         nil,
+				"foo/src/d":         nil,
+				"foo/src/e/e":       nil,
+				"foo/src_special/$": nil,
+			}
+
+			ctx.MockFileSystem(mockFS)
+
+			ctx.Register()
+			_, errs := ctx.ParseFileList(".", []string{"fg/Android.bp", "foo/Android.bp"})
+			FailIfErrored(t, errs)
+			_, errs = ctx.PrepareBuildActions(config)
+			FailIfErrored(t, errs)
+
+			m := ctx.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
+
+			if g, w := m.srcs, test.srcs; !reflect.DeepEqual(g, w) {
+				t.Errorf("want srcs %q, got %q", w, g)
+			}
+
+			if g, w := m.rels, test.rels; !reflect.DeepEqual(g, w) {
+				t.Errorf("want rels %q, got %q", w, g)
+			}
+
+			if g, w := m.src, test.src; g != w {
+				t.Errorf("want src %q, got %q", w, g)
+			}
+
+			if g, w := m.rel, test.rel; g != w {
+				t.Errorf("want rel %q, got %q", w, g)
+			}
+		})
 	}
 }
 
-func TestExpandSources(t *testing.T) {
-	tests := []struct {
-		name string
-		bp   string
-		srcs []string
-		rels []string
-	}{
+func TestPathsForModuleSrc(t *testing.T) {
+	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
 			bp: `
@@ -782,57 +873,118 @@ func TestExpandSources(t *testing.T) {
 		},
 	}
 
+	buildDir, err := ioutil.TempDir("", "soong_paths_for_module_src_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(buildDir)
+
+	testPathForModuleSrc(t, buildDir, tests)
+}
+
+func TestPathForModuleSrc(t *testing.T) {
+	tests := []pathForModuleSrcTestCase{
+		{
+			name: "path",
+			bp: `
+			test {
+				name: "foo",
+				src: "src/b",
+			}`,
+			src: "foo/src/b",
+			rel: "src/b",
+		},
+		{
+			name: "glob",
+			bp: `
+			test {
+				name: "foo",
+				src: "src/e/*",
+			}`,
+			src: "foo/src/e/e",
+			rel: "src/e/e",
+		},
+		{
+			name: "filegroup",
+			bp: `
+			test {
+				name: "foo",
+				src: ":a",
+			}`,
+			src: "fg/src/a",
+			rel: "src/a",
+		},
+		{
+			name: "special characters glob",
+			bp: `
+			test {
+				name: "foo",
+				src: "src_special/*",
+			}`,
+			src: "foo/src_special/$",
+			rel: "src_special/$",
+		},
+	}
+
 	buildDir, err := ioutil.TempDir("", "soong_path_for_module_src_test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(buildDir)
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			config := TestConfig(buildDir, nil)
-			ctx := NewTestContext()
+	testPathForModuleSrc(t, buildDir, tests)
+}
 
-			ctx.RegisterModuleType("test", ModuleFactoryAdaptor(expandSourcesTestModuleFactory))
-			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
-
-			fgBp := `
-				filegroup {
-					name: "a",
-					srcs: ["src/a"],
-				}
-			`
-
-			mockFS := map[string][]byte{
-				"fg/Android.bp":     []byte(fgBp),
-				"foo/Android.bp":    []byte(test.bp),
-				"fg/src/a":          nil,
-				"foo/src/b":         nil,
-				"foo/src/c":         nil,
-				"foo/src/d":         nil,
-				"foo/src/e/e":       nil,
-				"foo/src_special/$": nil,
-			}
-
-			ctx.MockFileSystem(mockFS)
-
-			ctx.Register()
-			_, errs := ctx.ParseFileList(".", []string{"fg/Android.bp", "foo/Android.bp"})
-			FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			FailIfErrored(t, errs)
-
-			m := ctx.ModuleForTests("foo", "").Module().(*expandSourcesTestModule)
-
-			if g, w := m.srcs.Strings(), test.srcs; !reflect.DeepEqual(g, w) {
-				t.Errorf("want srcs %q, got %q", w, g)
-			}
-
-			if g, w := m.rels, test.rels; !reflect.DeepEqual(g, w) {
-				t.Errorf("want rels %q, got %q", w, g)
-			}
-		})
+func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
+	buildDir, err := ioutil.TempDir("", "soong_paths_for_module_src_allow_missing_dependencies_test")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer os.RemoveAll(buildDir)
+
+	config := TestConfig(buildDir, nil)
+	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+
+	ctx := NewTestContext()
+	ctx.SetAllowMissingDependencies(true)
+
+	ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathForModuleSrcTestModuleFactory))
+
+	bp := `
+		test {
+			name: "foo",
+			srcs: [":a"],
+			exclude_srcs: [":b"],
+			src: ":c",
+		}
+	`
+
+	mockFS := map[string][]byte{
+		"Android.bp": []byte(bp),
+	}
+
+	ctx.MockFileSystem(mockFS)
+
+	ctx.Register()
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	foo := ctx.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
+
+	if g, w := foo.missingDeps, []string{"a", "b", "c"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("want missing deps %q, got %q", w, g)
+	}
+
+	if g, w := foo.srcs, []string{}; !reflect.DeepEqual(g, w) {
+		t.Errorf("want srcs %q, got %q", w, g)
+	}
+
+	if g, w := foo.src, ""; g != w {
+		t.Errorf("want src %q, got %q", w, g)
+	}
+
 }
 
 func ExampleOutputPath_ReplaceExtension() {

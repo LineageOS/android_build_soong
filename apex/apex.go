@@ -218,6 +218,10 @@ type apexBundleProperties struct {
 	// If unspecified, a default one is automatically generated.
 	AndroidManifest *string `android:"path"`
 
+	// Canonical name of the APEX bundle in the manifest file.
+	// If unspecified, defaults to the value of name
+	Apex_name *string
+
 	// Determines the file contexts file for setting security context to each file in this APEX bundle.
 	// Specifically, when this is set to <value>, /system/sepolicy/apex/<value>_file_contexts file is
 	// used.
@@ -835,7 +839,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		a.container_private_key_file = key
 	}
 
-	manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
+	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
 	var abis []string
 	for _, target := range ctx.MultiTargets() {
@@ -932,7 +936,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		}
 
 		if a.properties.AndroidManifest != nil {
-			androidManifestFile := ctx.ExpandSource(proptools.String(a.properties.AndroidManifest), "androidManifest")
+			androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
 			implicitInputs = append(implicitInputs, androidManifestFile)
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
@@ -1011,7 +1015,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
 		// with other ordinary files.
-		manifest := ctx.ExpandSource(proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"), "manifest")
+		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
 		// rename to apex_manifest.json
 		copiedManifest := android.PathForModuleOut(ctx, "apex_manifest.json")
@@ -1063,17 +1067,19 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
+		// /apex/<name>/{lib|framework|...}
+		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex",
+			proptools.StringDefault(a.properties.Apex_name, name), fi.installDir)
 		if a.flattened && apexType.image() {
 			// /system/apex/<name>/{lib|framework|...}
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
 				a.installDir.RelPathString(), name, fi.installDir))
+			fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			if len(fi.symlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
 			}
 		} else {
-			// /apex/<name>/{lib|framework|...}
-			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(PRODUCT_OUT)",
-				"apex", name, fi.installDir))
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
 		}
 		fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
 		fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())

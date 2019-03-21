@@ -39,20 +39,20 @@ func ResourceDirsToJarArgs(ctx android.ModuleContext,
 	var excludeFiles []string
 
 	for _, exclude := range excludeResourceDirs {
-		dirs := ctx.Glob(android.PathForModuleSrc(ctx).Join(ctx, exclude).String(), nil)
+		dirs := ctx.Glob(android.PathForSource(ctx, ctx.ModuleDir()).Join(ctx, exclude).String(), nil)
 		for _, dir := range dirs {
 			excludeDirs = append(excludeDirs, dir.String())
-			excludeFiles = append(excludeFiles, dir.(android.ModuleSrcPath).Join(ctx, "**/*").String())
+			excludeFiles = append(excludeFiles, dir.(android.SourcePath).Join(ctx, "**/*").String())
 		}
 	}
 
-	excludeFiles = append(excludeFiles, ctx.ExpandSources(excludeResourceFiles, nil).Strings()...)
+	excludeFiles = append(excludeFiles, android.PathsForModuleSrc(ctx, excludeResourceFiles).Strings()...)
 
 	excludeFiles = append(excludeFiles, resourceExcludes...)
 
 	for _, resourceDir := range resourceDirs {
 		// resourceDir may be a glob, resolve it first
-		dirs := ctx.Glob(android.PathForModuleSrc(ctx).Join(ctx, resourceDir).String(), excludeDirs)
+		dirs := ctx.Glob(android.PathForSource(ctx, ctx.ModuleDir()).Join(ctx, resourceDir).String(), excludeDirs)
 		for _, dir := range dirs {
 			files := ctx.GlobFiles(filepath.Join(dir.String(), "**/*"), excludeFiles)
 
@@ -96,7 +96,7 @@ func SourceFilesToJarArgs(ctx android.ModuleContext,
 func resourceFilesToJarArgs(ctx android.ModuleContext,
 	res, exclude []string) (args []string, deps android.Paths) {
 
-	files := ctx.ExpandSources(res, exclude)
+	files := android.PathsForModuleSrcExcludes(ctx, res, exclude)
 
 	lastDir := ""
 	for i, f := range files {

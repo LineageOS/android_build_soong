@@ -106,6 +106,30 @@ func TestApp(t *testing.T) {
 	}
 }
 
+func TestAppSplits(t *testing.T) {
+	ctx := testApp(t, `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					package_splits: ["v4", "v7,hdpi"],
+				}`)
+
+	foo := ctx.ModuleForTests("foo", "android_common")
+
+	expectedOutputs := []string{
+		filepath.Join(buildDir, ".intermediates/foo/android_common/foo.apk"),
+		filepath.Join(buildDir, ".intermediates/foo/android_common/foo_v4.apk"),
+		filepath.Join(buildDir, ".intermediates/foo/android_common/foo_v7_hdpi.apk"),
+	}
+	for _, expectedOutput := range expectedOutputs {
+		foo.Output(expectedOutput)
+	}
+
+	if g, w := foo.Module().(*AndroidApp).Srcs().Strings(), expectedOutputs; !reflect.DeepEqual(g, w) {
+		t.Errorf("want Srcs() = %q, got %q", w, g)
+	}
+}
+
 func TestResourceDirs(t *testing.T) {
 	testCases := []struct {
 		name      string

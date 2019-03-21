@@ -97,6 +97,10 @@ func init() {
 	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
 		"-D__compiler_offsetof=__builtin_offsetof",
 
+		// Emit address-significance table which allows linker to perform safe ICF. Clang does
+		// not emit the table by default on Android since NDK still uses GNU binutils.
+		"-faddrsig",
+
 		// -Wimplicit-fallthrough is not enabled by -Wall.
 		"-Wimplicit-fallthrough",
 
@@ -169,10 +173,6 @@ func init() {
 
 		// Disable this warning because we don't care about behavior with older compilers.
 		"-Wno-return-std-move-in-c++11",
-
-		// Disable -Wstring-plus-int until the instances detected by this new warning is
-		// fixed.
-		"-Wno-string-plus-int",
 	}, " "))
 
 	// Extra cflags for projects under external/ directory to disable warnings that are infeasible

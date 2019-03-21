@@ -35,7 +35,11 @@ var (
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 	asanLibs    = []string{"libasan"}
 
-	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=", "-mllvm", "-hwasan-create-frame-descriptions=0"}
+	// TODO(pcc): Stop passing -hwasan-allow-ifunc here once it has been made
+	// the default.
+	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
+		"-mllvm", "-hwasan-create-frame-descriptions=0",
+		"-mllvm", "-hwasan-allow-ifunc"}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
@@ -50,12 +54,7 @@ var (
 
 	intOverflowCflags = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
 
-	// Pass -Xclang before -fsanitize-minimal-runtime to work around a driver
-	// check which rejects -fsanitize-minimal-runtime together with
-	// -fsanitize=shadow-call-stack even though this combination of flags
-	// is valid.
-	// TODO(pcc): Remove the -Xclang once LLVM r346526 is rolled into the compiler.
-	minimalRuntimeFlags = []string{"-Xclang", "-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
+	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
 	hwasanGlobalOptions = []string{"heap_history_size=1023,stack_history_size=512"}
 )
@@ -312,10 +311,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// SCS is only implemented on AArch64.
-	// We also disable SCS if ASAN, TSAN or HWASAN are enabled because Clang considers
-	// them to be incompatible, although they are in fact compatible.
-	// TODO(pcc): Remove these checks once r347282 is rolled into the compiler.
-	if ctx.Arch().ArchType != android.Arm64 || Bool(s.Address) || Bool(s.Thread) || Bool(s.Hwaddress) {
+	if ctx.Arch().ArchType != android.Arm64 {
 		s.Scs = nil
 	}
 

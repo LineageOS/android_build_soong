@@ -60,7 +60,11 @@ func FileGroupFactory() Module {
 }
 
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
-	fg.srcs = ctx.ExpandSourcesSubDir(fg.properties.Srcs, fg.properties.Exclude_srcs, String(fg.properties.Path))
+	fg.srcs = PathsForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs)
+
+	if fg.properties.Path != nil {
+		fg.srcs = PathsWithModuleSrcSubDir(ctx, fg.srcs, String(fg.properties.Path))
+	}
 }
 
 func (fg *fileGroup) Srcs() Paths {
