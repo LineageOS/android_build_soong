@@ -39,7 +39,8 @@ var (
 	// the default.
 	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
 		"-mllvm", "-hwasan-create-frame-descriptions=0",
-		"-mllvm", "-hwasan-allow-ifunc"}
+		"-mllvm", "-hwasan-allow-ifunc",
+		"-fsanitize-hwaddress-abi=platform"}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
