@@ -27,7 +27,7 @@ type AndroidLibraryDependency interface {
 	Dependency
 	ExportPackage() android.Path
 	ExportedProguardFlagFiles() android.Paths
-	ExportedRRODirs() android.Paths
+	ExportedRRODirs() []rroDir
 	ExportedStaticPackages() android.Paths
 	ExportedManifest() android.Path
 }
@@ -75,7 +75,7 @@ type aapt struct {
 	exportPackage         android.Path
 	manifestPath          android.Path
 	proguardOptionsFile   android.Path
-	rroDirs               android.Paths
+	rroDirs               []rroDir
 	rTxt                  android.Path
 	extraAaptPackagesFile android.Path
 	isLibrary             bool
@@ -99,7 +99,7 @@ func (a *aapt) ExportPackage() android.Path {
 	return a.exportPackage
 }
 
-func (a *aapt) ExportedRRODirs() android.Paths {
+func (a *aapt) ExportedRRODirs() []rroDir {
 	return a.rroDirs
 }
 
@@ -108,7 +108,7 @@ func (a *aapt) ExportedManifest() android.Path {
 }
 
 func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, manifestPath android.Path) (flags []string,
-	deps android.Paths, resDirs, overlayDirs []globbedResourceDir, rroDirs, resZips android.Paths) {
+	deps android.Paths, resDirs, overlayDirs []globbedResourceDir, rroDirs []rroDir, resZips android.Paths) {
 
 	hasVersionCode := false
 	hasVersionName := false
@@ -286,8 +286,8 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, staticLibManifests,
-	staticRRODirs, deps android.Paths, flags []string) {
+func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, staticLibManifests android.Paths,
+	staticRRODirs []rroDir, deps android.Paths, flags []string) {
 
 	var sharedLibs android.Paths
 
@@ -315,7 +315,16 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				staticLibManifests = append(staticLibManifests, aarDep.ExportedManifest())
-				staticRRODirs = append(staticRRODirs, aarDep.ExportedRRODirs()...)
+
+			outer:
+				for _, d := range aarDep.ExportedRRODirs() {
+					for _, e := range staticRRODirs {
+						if d.path == e.path {
+							continue outer
+						}
+					}
+					staticRRODirs = append(staticRRODirs, d)
+				}
 			}
 		}
 	})
@@ -332,7 +341,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 	}
 
 	transitiveStaticLibs = android.FirstUniquePaths(transitiveStaticLibs)
-	staticRRODirs = android.FirstUniquePaths(staticRRODirs)
 
 	return transitiveStaticLibs, staticLibManifests, staticRRODirs, deps, flags
 }
@@ -482,7 +490,7 @@ func (a *AARImport) ExportedProguardFlagFiles() android.Paths {
 	return android.Paths{a.proguardFlags}
 }
 
-func (a *AARImport) ExportedRRODirs() android.Paths {
+func (a *AARImport) ExportedRRODirs() []rroDir {
 	return nil
 }
 
