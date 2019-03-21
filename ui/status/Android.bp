@@ -28,6 +28,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "kati_test.go",
+        "ninja_test.go",
         "status_test.go",
     ],
 }
