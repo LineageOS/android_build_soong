@@ -180,12 +180,16 @@ func (s *stdLogger) SetOutput(path string) *stdLogger {
 	return s
 }
 
+type panicWriter struct{}
+
+func (panicWriter) Write([]byte) (int, error) { panic("write to panicWriter") }
+
 // Close disables logging to the file and closes the file handle.
 func (s *stdLogger) Close() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.file != nil {
-		s.fileLogger.SetOutput(ioutil.Discard)
+		s.fileLogger.SetOutput(panicWriter{})
 		s.file.Close()
 		s.file = nil
 	}
