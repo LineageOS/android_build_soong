@@ -139,6 +139,7 @@ func (s *ShBinary) AndroidMk() AndroidMkData {
 
 func (s *ShTest) AndroidMk() AndroidMkData {
 	data := s.ShBinary.AndroidMk()
+	data.Class = "NATIVE_TESTS"
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile Path) {
 		fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
 			strings.Join(s.testProperties.Test_suites, " "))
