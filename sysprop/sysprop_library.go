@@ -82,7 +82,11 @@ func syspropLibraryFactory() android.Module {
 }
 
 func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
-	if m.syspropLibraryProperties.Api_packages == nil {
+	if len(m.commonProperties.Srcs) == 0 {
+		ctx.PropertyErrorf("srcs", "sysprop_library must specify srcs")
+	}
+
+	if len(m.syspropLibraryProperties.Api_packages) == 0 {
 		ctx.PropertyErrorf("api_packages", "sysprop_library must specify api_packages")
 	}
 
