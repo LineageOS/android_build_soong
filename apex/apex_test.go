@@ -161,6 +161,8 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"vendor/foo/devkeys/testkey.pem":       nil,
 		"NOTICE":                               nil,
 		"custom_notice":                        nil,
+		"testkey2.avbpubkey":                   nil,
+		"testkey2.pem":                         nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -1193,4 +1195,37 @@ func TestApexInProductPartition(t *testing.T) {
 		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 	}
 
+}
+
+func TestApexKeyFromOtherModule(t *testing.T) {
+	ctx := testApex(t, `
+		apex_key {
+			name: "myapex.key",
+			public_key: ":my.avbpubkey",
+			private_key: ":my.pem",
+			product_specific: true,
+		}
+
+		filegroup {
+			name: "my.avbpubkey",
+			srcs: ["testkey2.avbpubkey"],
+		}
+
+		filegroup {
+			name: "my.pem",
+			srcs: ["testkey2.pem"],
+		}
+	`)
+
+	apex_key := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
+	expected_pubkey := "testkey2.avbpubkey"
+	actual_pubkey := apex_key.public_key_file.String()
+	if actual_pubkey != expected_pubkey {
+		t.Errorf("wrong public key path. expected %q. actual %q", expected_pubkey, actual_pubkey)
+	}
+	expected_privkey := "testkey2.pem"
+	actual_privkey := apex_key.private_key_file.String()
+	if actual_privkey != expected_privkey {
+		t.Errorf("wrong private key path. expected %q. actual %q", expected_privkey, actual_privkey)
+	}
 }
