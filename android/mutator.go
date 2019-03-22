@@ -79,6 +79,7 @@ var preArch = []RegisterMutatorFunc{
 	RegisterNamespaceMutator,
 	RegisterPrebuiltsPreArchMutators,
 	RegisterDefaultsPreArchMutators,
+	RegisterOverridePreArchMutators,
 }
 
 func registerArchMutator(ctx RegisterMutatorsContext) {

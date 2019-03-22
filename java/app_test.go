@@ -827,3 +827,75 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 		t.Errorf("target package renaming flag, %q is missing in aapt2 link flags, %q", e, aapt2Flags)
 	}
 }
+
+func TestOverrideAndroidApp(t *testing.T) {
+	ctx := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			overrides: ["baz"],
+		}
+
+		override_android_app {
+			name: "bar",
+			base: "foo",
+			certificate: ":new_certificate",
+		}
+
+		android_app_certificate {
+			name: "new_certificate",
+			certificate: "cert/new_cert",
+		}
+		`)
+
+	expectedVariants := []struct {
+		variantName string
+		apkName     string
+		apkPath     string
+		signFlag    string
+		overrides   []string
+	}{
+		{
+			variantName: "android_common",
+			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
+			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			overrides:   []string{"baz"},
+		},
+		{
+			variantName: "bar_android_common",
+			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
+			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
+			overrides:   []string{"baz", "foo"},
+		},
+	}
+	for _, expected := range expectedVariants {
+		variant := ctx.ModuleForTests("foo", expected.variantName)
+
+		// Check the final apk name
+		outputs := variant.AllOutputs()
+		expectedApkPath := buildDir + expected.apkPath
+		found := false
+		for _, o := range outputs {
+			if o == expectedApkPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Can't find %q in output files.\nAll outputs:%v", expectedApkPath, outputs)
+		}
+
+		// Check the certificate paths
+		signapk := variant.Output("foo.apk")
+		signFlag := signapk.Args["certificates"]
+		if expected.signFlag != signFlag {
+			t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected.signFlag, signFlag)
+		}
+
+		mod := variant.Module().(*AndroidApp)
+		if !reflect.DeepEqual(expected.overrides, mod.appProperties.Overrides) {
+			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
+				expected.overrides, mod.appProperties.Overrides)
+		}
+	}
+}
