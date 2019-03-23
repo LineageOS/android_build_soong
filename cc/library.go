@@ -293,6 +293,10 @@ type libraryDecorator struct {
 
 	post_install_cmds []string
 
+	// If useCoreVariant is true, the vendor variant of a VNDK library is
+	// not installed.
+	useCoreVariant bool
+
 	// Decorated interafaces
 	*baseCompiler
 	*baseLinker
@@ -914,6 +918,9 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			if ctx.isVndkSp() {
 				library.baseInstaller.subDir = "vndk-sp"
 			} else if ctx.isVndk() {
+				if ctx.DeviceConfig().VndkUseCoreVariant() && !ctx.mustUseVendorVariant() {
+					library.useCoreVariant = true
+				}
 				library.baseInstaller.subDir = "vndk"
 			}
 

@@ -22,13 +22,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-// prebuilt_apis is a meta-module that generates filegroup modules for all
-// API txt files found under the directory where the Android.bp is located.
-// Specificaly, an API file located at ./<ver>/<scope>/api/<module>.txt
-// generates a filegroup module named <module>-api.<scope>.<ver>.
-//
-// It also creates <module>-api.<scope>.latest for the lastest <ver>.
-//
 func init() {
 	android.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
 
@@ -188,6 +181,12 @@ func PrebuiltApisMutator(mctx android.TopDownMutatorContext) {
 	}
 }
 
+// prebuilt_apis is a meta-module that generates filegroup modules for all
+// API txt files found under the directory where the Android.bp is located.
+// Specifically, an API file located at ./<ver>/<scope>/api/<module>.txt
+// generates a filegroup module named <module>-api.<scope>.<ver>.
+//
+// It also creates <module>-api.<scope>.latest for the latest <ver>.
 func PrebuiltApisFactory() android.Module {
 	module := &prebuiltApis{}
 	module.AddProperties(&module.properties)

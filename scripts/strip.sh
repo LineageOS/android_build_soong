@@ -28,6 +28,7 @@
 #   --keep-mini-debug-info
 #   --keep-symbols
 #   --use-gnu-strip
+#   --remove-build-id
 
 set -o pipefail
 
@@ -41,6 +42,7 @@ Options:
         --keep-mini-debug-info  Keep compressed debug info in out-file
         --keep-symbols          Keep symbols in out-file
         --use-gnu-strip         Use strip/objcopy instead of llvm-{strip,objcopy}
+        --remove-build-id       Remove the gnu build-id section in out-file
 EOF
     exit 1
 }
@@ -110,6 +112,16 @@ do_add_gnu_debuglink() {
     fi
 }
 
+do_remove_build_id() {
+    if [ -z "${use_gnu_strip}" ]; then
+        "${CLANG_BIN}/llvm-strip" -remove-section=.note.gnu.build-id "${outfile}.tmp" -o "${outfile}.tmp.no-build-id"
+    else
+        "${CROSS_COMPILE}strip" --remove-section=.note.gnu.build-id "${outfile}.tmp" -o "${outfile}.tmp.no-build-id"
+    fi
+    rm -f "${outfile}.tmp"
+    mv "${outfile}.tmp.no-build-id" "${outfile}.tmp"
+}
+
 while getopts $OPTSTRING opt; do
     case "$opt" in
 	d) depsfile="${OPTARG}" ;;
@@ -120,7 +132,7 @@ while getopts $OPTSTRING opt; do
 		add-gnu-debuglink) add_gnu_debuglink=true ;;
 		keep-mini-debug-info) keep_mini_debug_info=true ;;
 		keep-symbols) keep_symbols=true ;;
-		use-gnu-strip) use_gnu_strip=true ;;
+		remove-build-id) remove_build_id=true ;;
 		*) echo "Unknown option --${OPTARG}"; usage ;;
 	    esac;;
 	?) usage ;;
@@ -165,6 +177,10 @@ fi
 
 if [ ! -z "${add_gnu_debuglink}" ]; then
     do_add_gnu_debuglink
+fi
+
+if [ ! -z "${remove_build_id}" ]; then
+    do_remove_build_id
 fi
 
 rm -f "${outfile}"

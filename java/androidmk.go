@@ -257,10 +257,24 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_NO_STANDARD_LIBRARIES := true")
 				}
 
-				if len(app.rroDirs) > 0 {
+				filterRRO := func(filter overlayType) android.Paths {
+					var paths android.Paths
+					for _, d := range app.rroDirs {
+						if d.overlayType == filter {
+							paths = append(paths, d.path)
+						}
+					}
 					// Reverse the order, Soong stores rroDirs in aapt2 order (low to high priority), but Make
 					// expects it in LOCAL_RESOURCE_DIRS order (high to low priority).
-					fmt.Fprintln(w, "LOCAL_SOONG_RRO_DIRS :=", strings.Join(android.ReversePaths(app.rroDirs).Strings(), " "))
+					return android.ReversePaths(paths)
+				}
+				deviceRRODirs := filterRRO(device)
+				if len(deviceRRODirs) > 0 {
+					fmt.Fprintln(w, "LOCAL_SOONG_DEVICE_RRO_DIRS :=", strings.Join(deviceRRODirs.Strings(), " "))
+				}
+				productRRODirs := filterRRO(product)
+				if len(productRRODirs) > 0 {
+					fmt.Fprintln(w, "LOCAL_SOONG_PRODUCT_RRO_DIRS :=", strings.Join(productRRODirs.Strings(), " "))
 				}
 
 				if Bool(app.appProperties.Export_package_resources) {

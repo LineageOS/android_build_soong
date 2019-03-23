@@ -201,6 +201,7 @@ func init() {
 			"LOCAL_DEX_PREOPT_GENERATE_PROFILE": "dex_preopt.profile_guided",
 
 			"LOCAL_PRIVATE_PLATFORM_APIS": "platform_apis",
+			"LOCAL_JETIFIER_ENABLED":      "jetifier",
 		})
 }
 
