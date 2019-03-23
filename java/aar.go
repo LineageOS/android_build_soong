@@ -446,7 +446,7 @@ type AARImportProperties struct {
 	Libs        []string
 
 	// if set to true, run Jetifier against .aar file. Defaults to false.
-	Jetifier_enabled *bool
+	Jetifier *bool
 }
 
 type AARImport struct {
@@ -540,7 +540,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	aarName := ctx.ModuleName() + ".aar"
 	var aar android.Path
 	aar = android.PathForModuleSrc(ctx, a.properties.Aars[0])
-	if Bool(a.properties.Jetifier_enabled) {
+	if Bool(a.properties.Jetifier) {
 		inputFile := aar
 		aar = android.PathForModuleOut(ctx, "jetifier", aarName)
 		TransformJetifier(ctx, aar.(android.WritablePath), inputFile)
