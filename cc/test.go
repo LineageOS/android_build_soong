@@ -30,6 +30,12 @@ type TestProperties struct {
 	Isolated *bool
 }
 
+// Test option struct.
+type TestOptions struct {
+	// The UID that you want to run the test as on a device.
+	Run_test_as *string
+}
+
 type TestBinaryProperties struct {
 	// Create a separate binary for each source file.  Useful when there is
 	// global state that can not be torn down and reset between each test suite.
@@ -55,6 +61,9 @@ type TestBinaryProperties struct {
 	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
 	// should be installed with the module.
 	Test_config_template *string `android:"path,arch_variant"`
+
+	// Test options.
+	Test_options TestOptions
 }
 
 func init() {
@@ -258,6 +267,11 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	if Bool(test.testDecorator.Properties.Isolated) {
 		optionsMap["not-shardable"] = "true"
 	}
+
+	if test.Properties.Test_options.Run_test_as != nil {
+		optionsMap["run-test-as"] = String(test.Properties.Test_options.Run_test_as)
+	}
+
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
 		test.Properties.Test_config_template,
 		test.Properties.Test_suites, optionsMap)
