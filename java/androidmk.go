@@ -95,22 +95,36 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 	}
 }
 
+// Called for modules that are a component of a test suite.
+func testSuiteComponent(w io.Writer, test_suites []string) {
+	fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
+	if len(test_suites) > 0 {
+		fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+			strings.Join(test_suites, " "))
+	} else {
+		fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
+	}
+}
+
 func (j *Test) AndroidMk() android.AndroidMkData {
 	data := j.Library.AndroidMk()
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
-		if len(j.testProperties.Test_suites) > 0 {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
-				strings.Join(j.testProperties.Test_suites, " "))
-		} else {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
-		}
+		testSuiteComponent(w, j.testProperties.Test_suites)
 		if j.testConfig != nil {
 			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", j.testConfig.String())
 		}
 	})
 
 	androidMkWriteTestData(j.data, &data)
+
+	return data
+}
+
+func (j *TestHelperLibrary) AndroidMk() android.AndroidMkData {
+	data := j.Library.AndroidMk()
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
+		testSuiteComponent(w, j.testHelperLibraryProperties.Test_suites)
+	})
 
 	return data
 }
@@ -321,13 +335,7 @@ func (a *AndroidApp) getOverriddenPackages() []string {
 func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 	data := a.AndroidApp.AndroidMk()
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
-		if len(a.testProperties.Test_suites) > 0 {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
-				strings.Join(a.testProperties.Test_suites, " "))
-		} else {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
-		}
+		testSuiteComponent(w, a.testProperties.Test_suites)
 		if a.testConfig != nil {
 			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", a.testConfig.String())
 		}
@@ -340,13 +348,7 @@ func (a *AndroidTest) AndroidMk() android.AndroidMkData {
 func (a *AndroidTestHelperApp) AndroidMk() android.AndroidMkData {
 	data := a.AndroidApp.AndroidMk()
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_MODULE_TAGS := tests")
-		if len(a.appTestHelperAppProperties.Test_suites) > 0 {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
-				strings.Join(a.appTestHelperAppProperties.Test_suites, " "))
-		} else {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := null-suite")
-		}
+		testSuiteComponent(w, a.appTestHelperAppProperties.Test_suites)
 	})
 
 	return data
