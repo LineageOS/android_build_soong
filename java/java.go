@@ -41,6 +41,7 @@ func init() {
 	android.RegisterModuleType("java_binary", BinaryFactory)
 	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
 	android.RegisterModuleType("java_test", TestFactory)
+	android.RegisterModuleType("java_test_helper_library", TestHelperLibraryFactory)
 	android.RegisterModuleType("java_test_host", TestHostFactory)
 	android.RegisterModuleType("java_import", ImportFactory)
 	android.RegisterModuleType("java_import_host", ImportFactoryHost)
@@ -1536,6 +1537,12 @@ type testProperties struct {
 	Data []string `android:"path"`
 }
 
+type testHelperLibraryProperties struct {
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+}
+
 type Test struct {
 	Library
 
@@ -1545,10 +1552,20 @@ type Test struct {
 	data       android.Paths
 }
 
+type TestHelperLibrary struct {
+	Library
+
+	testHelperLibraryProperties testHelperLibraryProperties
+}
+
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template, j.testProperties.Test_suites)
 	j.data = android.PathsForModuleSrc(ctx, j.testProperties.Data)
 
+	j.Library.GenerateAndroidBuildActions(ctx)
+}
+
+func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.Library.GenerateAndroidBuildActions(ctx)
 }
 
@@ -1572,6 +1589,21 @@ func TestFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
+
+	InitJavaModule(module, android.HostAndDeviceSupported)
+	return module
+}
+
+// java_test_helper_library creates a java library and makes sure that it is added to the appropriate test suite.
+func TestHelperLibraryFactory() android.Module {
+	module := &TestHelperLibrary{}
+
+	module.AddProperties(
+		&module.Module.properties,
+		&module.Module.deviceProperties,
+		&module.Module.dexpreoptProperties,
+		&module.Module.protoProperties,
+		&module.testHelperLibraryProperties)
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
