@@ -66,7 +66,7 @@ func (installer *baseInstaller) installDir(ctx ModuleContext) android.OutputPath
 	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
 		dir = installer.dir64
 	}
-	if !ctx.Host() && !ctx.Arch().Native {
+	if (!ctx.Host() && !ctx.Arch().Native) || ctx.Target().NativeBridge == android.NativeBridgeEnabled {
 		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
 	if installer.location == InstallInData && ctx.useVndk() {
