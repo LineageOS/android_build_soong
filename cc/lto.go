@@ -91,22 +91,22 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, ltoFlag)
 		flags.LdFlags = append(flags.LdFlags, ltoFlag)
 
-		if ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && Bool(lto.Properties.Lto.Thin) && !lto.useClangLld(ctx) {
+		if ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && Bool(lto.Properties.Lto.Thin) && lto.useClangLld(ctx) {
 			// Set appropriate ThinLTO cache policy
-			cacheDirFormat := "-Wl,-plugin-opt,cache-dir="
+			cacheDirFormat := "-Wl,--thinlto-cache-dir="
 			cacheDir := android.PathForOutput(ctx, "thinlto-cache").String()
 			flags.LdFlags = append(flags.LdFlags, cacheDirFormat+cacheDir)
 
 			// Limit the size of the ThinLTO cache to the lesser of 10% of available
 			// disk space and 10GB.
-			cachePolicyFormat := "-Wl,-plugin-opt,cache-policy="
+			cachePolicyFormat := "-Wl,--thinlto-cache-policy="
 			policy := "cache_size=10%:cache_size_bytes=10g"
 			flags.LdFlags = append(flags.LdFlags, cachePolicyFormat+policy)
 		}
 
 		// If the module does not have a profile, be conservative and do not inline
 		// or unroll loops during LTO, in order to prevent significant size bloat.
-		if !ctx.isPgoCompile() && !lto.useClangLld(ctx) {
+		if !ctx.isPgoCompile() {
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-inline-threshold=0")
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-plugin-opt,-unroll-threshold=0")
 		}
