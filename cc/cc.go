@@ -1966,6 +1966,11 @@ type Defaults struct {
 func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
+// cc_defaults provides a set of properties that can be inherited by other cc
+// modules. A module can use the properties from a cc_defaults using
+// `defaults: ["<:default_module_name>"]`. Properties of both modules are
+// merged (when possible) by prepending the default module's values to the
+// depending module's values.
 func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }
