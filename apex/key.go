@@ -93,7 +93,7 @@ func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	pubKeyName := m.public_key_file.Base()[0 : len(m.public_key_file.Base())-len(m.public_key_file.Ext())]
 	privKeyName := m.private_key_file.Base()[0 : len(m.private_key_file.Base())-len(m.private_key_file.Ext())]
 
-	if pubKeyName != privKeyName {
+	if m.properties.Public_key != nil && m.properties.Private_key != nil && pubKeyName != privKeyName {
 		ctx.ModuleErrorf("public_key %q (keyname:%q) and private_key %q (keyname:%q) do not have same keyname",
 			m.public_key_file.String(), pubKeyName, m.private_key_file, privKeyName)
 		return
