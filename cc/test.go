@@ -74,31 +74,41 @@ func init() {
 	android.RegisterModuleType("cc_benchmark_host", BenchmarkHostFactory)
 }
 
-// Module factory for tests
+// cc_test generates a test config file and an executable binary file to test
+// specific functionality on a device. The executable binary gets an implicit
+// static_libs dependency on libgtests unless the gtest flag is set to false.
 func TestFactory() android.Module {
 	module := NewTest(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-// Module factory for test libraries
+// cc_test_library creates an archive of files (i.e. .o files) which is later
+// referenced by another module (such as cc_test, cc_defaults or cc_test_library)
+// for archiving or linking.
 func TestLibraryFactory() android.Module {
 	module := NewTestLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-// Module factory for benchmarks
+// cc_benchmark compiles an executable binary that performs benchmark testing
+// of a specific component in a device. Additional files such as test suites
+// and test configuration are installed on the side of the compiled executed
+// binary.
 func BenchmarkFactory() android.Module {
 	module := NewBenchmark(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-// Module factory for host tests
+// cc_test_host compiles a test host binary.
 func TestHostFactory() android.Module {
 	module := NewTest(android.HostSupported)
 	return module.Init()
 }
 
-// Module factory for host benchmarks
+// cc_benchmark_host compiles an executable binary that performs benchmark
+// testing of a specific component in the host. Additional files such as
+// test suites and test configuration are installed on the side of the
+// compiled executed binary.
 func BenchmarkHostFactory() android.Module {
 	module := NewBenchmark(android.HostSupported)
 	return module.Init()
