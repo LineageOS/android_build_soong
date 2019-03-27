@@ -877,6 +877,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
+			certificate: "expiredkey",
 			overrides: ["baz"],
 		}
 
@@ -909,7 +910,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		{
 			variantName: "android_common",
 			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
-			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			signFlag:    "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
 			overrides:   []string{"baz"},
 			aaptFlag:    "",
 		},
@@ -923,7 +924,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		{
 			variantName: "baz_android_common",
 			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
-			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			signFlag:    "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
 			overrides:   []string{"baz", "foo"},
 			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
 		},
