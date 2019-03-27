@@ -73,6 +73,7 @@ func testContext(config android.Config, bp string,
 	})
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
+	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(cc.LibraryHeaderFactory))
 	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
@@ -270,6 +271,25 @@ func TestSyspropLibrary(t *testing.T) {
 			srcs: ["d.cpp"],
 			soc_specific: true,
 			static_libs: ["sysprop-platform", "sysprop-vendor"],
+		}
+
+		cc_library_headers {
+			name: "libbase_headers",
+			vendor_available: true,
+			recovery_available: true,
+		}
+
+		cc_library {
+			name: "liblog",
+			no_libgcc: true,
+			nocrt: true,
+			system_shared_libs: [],
+			recovery_available: true,
+		}
+
+		llndk_library {
+			name: "liblog",
+			symbol_file: "",
 		}
 		`)
 
