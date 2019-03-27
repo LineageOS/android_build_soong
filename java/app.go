@@ -81,6 +81,9 @@ type overridableAppProperties struct {
 	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
 	// or an android_app_certificate module name in the form ":module".
 	Certificate *string
+
+	// the package name of this app. The package name in the manifest file is used if one was not given.
+	Package_name *string
 }
 
 type AndroidApp struct {
@@ -223,11 +226,12 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	// TODO: LOCAL_PACKAGE_OVERRIDES
-	//    $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
-
 	manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
-	if overridden {
+	if overridden || a.overridableAppProperties.Package_name != nil {
+		// The product override variable has a priority over the package_name property.
+		if !overridden {
+			manifestPackageName = *a.overridableAppProperties.Package_name
+		}
 		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
 	}
 
