@@ -51,6 +51,10 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 	moduleInfos := make(map[string]android.IdeInfo)
 
 	ctx.VisitAllModules(func(module android.Module) {
+		if !module.Enabled() {
+			return
+		}
+
 		ideInfoProvider, ok := module.(android.IDEInfo)
 		if !ok {
 			return

@@ -66,7 +66,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 		}
 		if ctx.useSdk() && ctx.Device() {
 			switch s {
-			case "":
+			case "", "system":
 				return "ndk_system"
 			case "c++_shared", "c++_static":
 				return "ndk_lib" + s

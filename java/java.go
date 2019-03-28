@@ -1726,7 +1726,7 @@ type ImportProperties struct {
 	Exclude_dirs []string
 
 	// if set to true, run Jetifier against .jar file. Defaults to false.
-	Jetifier_enabled *bool
+	Jetifier *bool
 }
 
 type Import struct {
@@ -1771,7 +1771,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	outputFile := android.PathForModuleOut(ctx, "combined", jarName)
 	TransformJarsToJar(ctx, outputFile, "for prebuilts", jars, android.OptionalPath{},
 		false, j.properties.Exclude_files, j.properties.Exclude_dirs)
-	if Bool(j.properties.Jetifier_enabled) {
+	if Bool(j.properties.Jetifier) {
 		inputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "jetifier", jarName)
 		TransformJetifier(ctx, outputFile, inputFile)
@@ -2068,6 +2068,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&androidLibraryProperties{},
 		&appProperties{},
 		&appTestProperties{},
+		&overridableAppProperties{},
 		&ImportProperties{},
 		&AARImportProperties{},
 		&sdkLibraryProperties{},

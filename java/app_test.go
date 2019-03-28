@@ -211,9 +211,11 @@ func TestAndroidResources(t *testing.T) {
 				"foo": {
 					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					buildDir + "/.intermediates/lib/android_common/package-res.apk",
+					buildDir + "/.intermediates/lib3/android_common/package-res.apk",
 					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 					"device/vendor/blah/overlay/foo/res/values/strings.xml",
+					"product/vendor/blah/overlay/foo/res/values/strings.xml",
 				},
 				"bar": {
 					"device/vendor/blah/static_overlay/bar/res/values/strings.xml",
@@ -244,6 +246,7 @@ func TestAndroidResources(t *testing.T) {
 				"foo": {
 					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					buildDir + "/.intermediates/lib/android_common/package-res.apk",
+					buildDir + "/.intermediates/lib3/android_common/package-res.apk",
 					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 				},
@@ -260,9 +263,10 @@ func TestAndroidResources(t *testing.T) {
 
 			rroDirs: map[string][]string{
 				"foo": {
-					"device/vendor/blah/overlay/foo/res",
+					"device:device/vendor/blah/overlay/foo/res",
 					// Enforce RRO on "foo" could imply RRO on static dependencies, but for now it doesn't.
 					// "device/vendor/blah/overlay/lib/res",
+					"product:product/vendor/blah/overlay/foo/res",
 				},
 				"bar": nil,
 				"lib": nil,
@@ -286,6 +290,7 @@ func TestAndroidResources(t *testing.T) {
 				"foo": {
 					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					buildDir + "/.intermediates/lib/android_common/package-res.apk",
+					buildDir + "/.intermediates/lib3/android_common/package-res.apk",
 					"foo/res/res/values/strings.xml",
 					"device/vendor/blah/static_overlay/foo/res/values/strings.xml",
 				},
@@ -297,19 +302,25 @@ func TestAndroidResources(t *testing.T) {
 			},
 			rroDirs: map[string][]string{
 				"foo": {
-					"device/vendor/blah/overlay/foo/res",
-					"device/vendor/blah/overlay/lib/res",
+					"device:device/vendor/blah/overlay/foo/res",
+					"product:product/vendor/blah/overlay/foo/res",
+					// Lib dep comes after the direct deps
+					"device:device/vendor/blah/overlay/lib/res",
 				},
-				"bar": {"device/vendor/blah/overlay/bar/res"},
-				"lib": {"device/vendor/blah/overlay/lib/res"},
+				"bar": {"device:device/vendor/blah/overlay/bar/res"},
+				"lib": {"device:device/vendor/blah/overlay/lib/res"},
 			},
 		},
 	}
 
-	resourceOverlays := []string{
+	deviceResourceOverlays := []string{
 		"device/vendor/blah/overlay",
 		"device/vendor/blah/overlay2",
 		"device/vendor/blah/static_overlay",
+	}
+
+	productResourceOverlays := []string{
+		"product/vendor/blah/overlay",
 	}
 
 	fs := map[string][]byte{
@@ -323,13 +334,14 @@ func TestAndroidResources(t *testing.T) {
 		"device/vendor/blah/static_overlay/foo/res/values/strings.xml": nil,
 		"device/vendor/blah/static_overlay/bar/res/values/strings.xml": nil,
 		"device/vendor/blah/overlay2/res/values/strings.xml":           nil,
+		"product/vendor/blah/overlay/foo/res/values/strings.xml":       nil,
 	}
 
 	bp := `
 			android_app {
 				name: "foo",
 				resource_dirs: ["foo/res"],
-				static_libs: ["lib"],
+				static_libs: ["lib", "lib3"],
 			}
 
 			android_app {
@@ -347,12 +359,19 @@ func TestAndroidResources(t *testing.T) {
 				name: "lib2",
 				resource_dirs: ["lib2/res"],
 			}
+
+			// This library has the same resources as lib (should not lead to dupe RROs)
+			android_library {
+				name: "lib3",
+				resource_dirs: ["lib/res"]
+			}
 		`
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			config := testConfig(nil)
-			config.TestProductVariables.ResourceOverlays = resourceOverlays
+			config.TestProductVariables.DeviceResourceOverlays = deviceResourceOverlays
+			config.TestProductVariables.ProductResourceOverlays = productResourceOverlays
 			if testCase.enforceRROTargets != nil {
 				config.TestProductVariables.EnforceRROTargets = testCase.enforceRROTargets
 			}
@@ -389,7 +408,17 @@ func TestAndroidResources(t *testing.T) {
 					overlayFiles = resourceListToFiles(module, overlayList.Inputs.Strings())
 				}
 
-				rroDirs = module.Module().(AndroidLibraryDependency).ExportedRRODirs().Strings()
+				for _, d := range module.Module().(AndroidLibraryDependency).ExportedRRODirs() {
+					var prefix string
+					if d.overlayType == device {
+						prefix = "device:"
+					} else if d.overlayType == product {
+						prefix = "product:"
+					} else {
+						t.Fatalf("Unexpected overlayType %d", d.overlayType)
+					}
+					rroDirs = append(rroDirs, prefix+d.path.String())
+				}
 
 				return resourceFiles, overlayFiles, rroDirs
 			}
@@ -796,5 +825,77 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 	e := "--rename-instrumentation-target-package org.dandroid.bp"
 	if !strings.Contains(aapt2Flags, e) {
 		t.Errorf("target package renaming flag, %q is missing in aapt2 link flags, %q", e, aapt2Flags)
+	}
+}
+
+func TestOverrideAndroidApp(t *testing.T) {
+	ctx := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			overrides: ["baz"],
+		}
+
+		override_android_app {
+			name: "bar",
+			base: "foo",
+			certificate: ":new_certificate",
+		}
+
+		android_app_certificate {
+			name: "new_certificate",
+			certificate: "cert/new_cert",
+		}
+		`)
+
+	expectedVariants := []struct {
+		variantName string
+		apkName     string
+		apkPath     string
+		signFlag    string
+		overrides   []string
+	}{
+		{
+			variantName: "android_common",
+			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
+			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			overrides:   []string{"baz"},
+		},
+		{
+			variantName: "bar_android_common",
+			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
+			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
+			overrides:   []string{"baz", "foo"},
+		},
+	}
+	for _, expected := range expectedVariants {
+		variant := ctx.ModuleForTests("foo", expected.variantName)
+
+		// Check the final apk name
+		outputs := variant.AllOutputs()
+		expectedApkPath := buildDir + expected.apkPath
+		found := false
+		for _, o := range outputs {
+			if o == expectedApkPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Can't find %q in output files.\nAll outputs:%v", expectedApkPath, outputs)
+		}
+
+		// Check the certificate paths
+		signapk := variant.Output("foo.apk")
+		signFlag := signapk.Args["certificates"]
+		if expected.signFlag != signFlag {
+			t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected.signFlag, signFlag)
+		}
+
+		mod := variant.Module().(*AndroidApp)
+		if !reflect.DeepEqual(expected.overrides, mod.appProperties.Overrides) {
+			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
+				expected.overrides, mod.appProperties.Overrides)
+		}
 	}
 }
