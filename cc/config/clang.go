@@ -132,13 +132,13 @@ func init() {
 
 		// Warnings from clang-8.0
 		"-Wno-defaulted-function-deleted",
-	}, " "))
 
-	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
 		// Disable -Winconsistent-missing-override until we can clean up the existing
 		// codebase for it.
 		"-Wno-inconsistent-missing-override",
+	}, " "))
 
+	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
 		// Enable clang's thread-safety annotations in libcxx.
 		// Turn off -Wthread-safety-negative, to avoid breaking projects that use -Weverything.
 		"-D_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS",
