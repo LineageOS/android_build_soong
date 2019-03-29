@@ -171,6 +171,14 @@ func ExampleRuleBuilderCommand_Flag() {
 	// ls -l
 }
 
+func ExampleRuleBuilderCommand_Flags() {
+	ctx := pathContext()
+	fmt.Println(NewRuleBuilder().Command().
+		Tool(PathForSource(ctx, "ls")).Flags([]string{"-l", "-a"}))
+	// Output:
+	// ls -l -a
+}
+
 func ExampleRuleBuilderCommand_FlagWithArg() {
 	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().

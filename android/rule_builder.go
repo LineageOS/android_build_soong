@@ -284,6 +284,15 @@ func (c *RuleBuilderCommand) Flag(flag string) *RuleBuilderCommand {
 	return c.Text(flag)
 }
 
+// Flags adds the specified raw text to the command line.  The text should not contain input or output paths or the
+// rule will not have them listed in its dependencies or outputs.
+func (c *RuleBuilderCommand) Flags(flags []string) *RuleBuilderCommand {
+	for _, flag := range flags {
+		c.Text(flag)
+	}
+	return c
+}
+
 // FlagWithArg adds the specified flag and argument text to the command line, with no separator between them.  The flag
 // and argument should not contain input or output paths or the rule will not have them listed in its dependencies or
 // outputs.
