@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 
@@ -27,9 +28,9 @@ import (
 	"android/soong/ui/status/ninja_frontend"
 )
 
-// NinjaReader reads the protobuf frontend format from ninja and translates it
+// NewNinjaReader reads the protobuf frontend format from ninja and translates it
 // into calls on the ToolStatus API.
-func NinjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
+func NewNinjaReader(ctx logger.Logger, status ToolStatus, fifo string) *NinjaReader {
 	os.Remove(fifo)
 
 	err := syscall.Mkfifo(fifo, 0666)
@@ -37,14 +38,69 @@ func NinjaReader(ctx logger.Logger, status ToolStatus, fifo string) {
 		ctx.Fatalf("Failed to mkfifo(%q): %v", fifo, err)
 	}
 
-	go ninjaReader(status, fifo)
+	n := &NinjaReader{
+		status: status,
+		fifo:   fifo,
+		done:   make(chan bool),
+		cancel: make(chan bool),
+	}
+
+	go n.run()
+
+	return n
 }
 
-func ninjaReader(status ToolStatus, fifo string) {
-	f, err := os.Open(fifo)
-	if err != nil {
-		status.Error(fmt.Sprintf("Failed to open fifo: %v", err))
+type NinjaReader struct {
+	status ToolStatus
+	fifo   string
+	done   chan bool
+	cancel chan bool
+}
+
+const NINJA_READER_CLOSE_TIMEOUT = 5 * time.Second
+
+// Close waits for NinjaReader to finish reading from the fifo, or 5 seconds.
+func (n *NinjaReader) Close() {
+	// Signal the goroutine to stop if it is blocking opening the fifo.
+	close(n.cancel)
+
+	timeoutCh := time.After(NINJA_READER_CLOSE_TIMEOUT)
+
+	select {
+	case <-n.done:
+		// Nothing
+	case <-timeoutCh:
+		n.status.Error(fmt.Sprintf("ninja fifo didn't finish after %s", NINJA_READER_CLOSE_TIMEOUT.String()))
 	}
+
+	return
+}
+
+func (n *NinjaReader) run() {
+	defer close(n.done)
+
+	// Opening the fifo can block forever if ninja never opens the write end, do it in a goroutine so this
+	// method can exit on cancel.
+	fileCh := make(chan *os.File)
+	go func() {
+		f, err := os.Open(n.fifo)
+		if err != nil {
+			n.status.Error(fmt.Sprintf("Failed to open fifo: %v", err))
+			close(fileCh)
+			return
+		}
+		fileCh <- f
+	}()
+
+	var f *os.File
+
+	select {
+	case f = <-fileCh:
+		// Nothing
+	case <-n.cancel:
+		return
+	}
+
 	defer f.Close()
 
 	r := bufio.NewReader(f)
@@ -55,7 +111,7 @@ func ninjaReader(status ToolStatus, fifo string) {
 		size, err := readVarInt(r)
 		if err != nil {
 			if err != io.EOF {
-				status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
+				n.status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
 			}
 			return
 		}
@@ -64,9 +120,9 @@ func ninjaReader(status ToolStatus, fifo string) {
 		_, err = io.ReadFull(r, buf)
 		if err != nil {
 			if err == io.EOF {
-				status.Print(fmt.Sprintf("Missing message of size %d from ninja\n", size))
+				n.status.Print(fmt.Sprintf("Missing message of size %d from ninja\n", size))
 			} else {
-				status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
+				n.status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
 			}
 			return
 		}
@@ -74,13 +130,13 @@ func ninjaReader(status ToolStatus, fifo string) {
 		msg := &ninja_frontend.Status{}
 		err = proto.Unmarshal(buf, msg)
 		if err != nil {
-			status.Print(fmt.Sprintf("Error reading message from ninja: %v", err))
+			n.status.Print(fmt.Sprintf("Error reading message from ninja: %v", err))
 			continue
 		}
 
 		// Ignore msg.BuildStarted
 		if msg.TotalEdges != nil {
-			status.SetTotalActions(int(msg.TotalEdges.GetTotalEdges()))
+			n.status.SetTotalActions(int(msg.TotalEdges.GetTotalEdges()))
 		}
 		if msg.EdgeStarted != nil {
 			action := &Action{
@@ -88,7 +144,7 @@ func ninjaReader(status ToolStatus, fifo string) {
 				Outputs:     msg.EdgeStarted.Outputs,
 				Command:     msg.EdgeStarted.GetCommand(),
 			}
-			status.StartAction(action)
+			n.status.StartAction(action)
 			running[msg.EdgeStarted.GetId()] = action
 		}
 		if msg.EdgeFinished != nil {
@@ -101,7 +157,7 @@ func ninjaReader(status ToolStatus, fifo string) {
 					err = fmt.Errorf("exited with code: %d", exitCode)
 				}
 
-				status.FinishAction(ActionResult{
+				n.status.FinishAction(ActionResult{
 					Action: started,
 					Output: msg.EdgeFinished.GetOutput(),
 					Error:  err,
@@ -112,17 +168,17 @@ func ninjaReader(status ToolStatus, fifo string) {
 			message := "ninja: " + msg.Message.GetMessage()
 			switch msg.Message.GetLevel() {
 			case ninja_frontend.Status_Message_INFO:
-				status.Status(message)
+				n.status.Status(message)
 			case ninja_frontend.Status_Message_WARNING:
-				status.Print("warning: " + message)
+				n.status.Print("warning: " + message)
 			case ninja_frontend.Status_Message_ERROR:
-				status.Error(message)
+				n.status.Error(message)
 			default:
-				status.Print(message)
+				n.status.Print(message)
 			}
 		}
 		if msg.BuildFinished != nil {
-			status.Finish()
+			n.status.Finish()
 		}
 	}
 }

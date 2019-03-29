@@ -631,12 +631,14 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			LOCAL_SRC_FILES := test.jar
 			LOCAL_MODULE_CLASS := JAVA_LIBRARIES
 			LOCAL_STATIC_ANDROID_LIBRARIES :=
+			LOCAL_JETIFIER_ENABLED := true
 			include $(BUILD_PREBUILT)
 		`,
 		expected: `
 			java_import {
 				jars: ["test.jar"],
 
+				jetifier: true,
 			}
 		`,
 	},

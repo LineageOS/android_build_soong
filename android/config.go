@@ -475,8 +475,12 @@ func (c *config) DeviceName() string {
 	return *c.productVariables.DeviceName
 }
 
-func (c *config) ResourceOverlays() []string {
-	return c.productVariables.ResourceOverlays
+func (c *config) DeviceResourceOverlays() []string {
+	return c.productVariables.DeviceResourceOverlays
+}
+
+func (c *config) ProductResourceOverlays() []string {
+	return c.productVariables.ProductResourceOverlays
 }
 
 func (c *config) PlatformVersionName() string {
@@ -816,6 +820,10 @@ func (c *deviceConfig) PlatformVndkVersion() string {
 
 func (c *deviceConfig) ExtraVndkVersions() []string {
 	return c.config.productVariables.ExtraVndkVersions
+}
+
+func (c *deviceConfig) VndkUseCoreVariant() bool {
+	return Bool(c.config.productVariables.VndkUseCoreVariant)
 }
 
 func (c *deviceConfig) SystemSdkVersions() []string {

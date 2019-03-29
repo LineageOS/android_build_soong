@@ -319,7 +319,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 		}
 	}
 
-	if amod.noticeFile != nil {
+	if amod.noticeFile.Valid() {
 		fmt.Fprintln(&data.preamble, "LOCAL_NOTICE_FILE :=", amod.noticeFile.String())
 	}
 
