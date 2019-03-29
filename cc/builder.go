@@ -70,6 +70,8 @@ var (
 			CommandDeps:    []string{"$ldCmd"},
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
+			// clang -Wl,--out-implib doesn't update its output file if it hasn't changed.
+			Restat: true,
 		},
 		"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags")
 
