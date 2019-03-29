@@ -149,6 +149,7 @@ func init() {
 	android.RegisterModuleType("apex", apexBundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
+	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -1281,5 +1282,73 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	)
 
 	android.InitDefaultsModule(module)
+	return module
+}
+
+//
+// Prebuilt APEX
+//
+type Prebuilt struct {
+	android.ModuleBase
+	prebuilt android.Prebuilt
+
+	properties PrebuiltProperties
+
+	inputApex  android.Path
+	installDir android.OutputPath
+}
+
+type PrebuiltProperties struct {
+	// the path to the prebuilt .apex file to import.
+	Src string `android:"arch_variant"`
+
+	// the name of the apex_key module that contains the matching public key to be installed.
+	Key *string
+}
+
+func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if String(p.properties.Key) == "" {
+		ctx.ModuleErrorf("key is missing")
+		return
+	}
+	ctx.AddDependency(ctx.Module(), keyTag, *p.properties.Key)
+}
+
+func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// TODO(jungjw): Check the key validity.
+	p.inputApex = p.prebuilt.SingleSourcePath(ctx)
+	p.installDir = android.PathForModuleInstall(ctx, "apex")
+	ctx.InstallFile(p.installDir, ctx.ModuleName()+imageApexSuffix, p.inputApex)
+}
+
+func (p *Prebuilt) Prebuilt() *android.Prebuilt {
+	return &p.prebuilt
+}
+
+func (p *Prebuilt) Name() string {
+	return p.prebuilt.Name(p.ModuleBase.Name())
+}
+
+func (p *Prebuilt) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(p.inputApex),
+		Include:    "$(BUILD_PREBUILT)",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", p.installDir.RelPathString()))
+				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", p.BaseModuleName()+imageApexSuffix)
+				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(p.properties.Key))
+			},
+		},
+	}
+}
+
+// prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
+func PrebuiltFactory() android.Module {
+	module := &Prebuilt{}
+	module.AddProperties(&module.properties)
+	android.InitSingleSourcePrebuiltModule(module, &module.properties.Src)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
