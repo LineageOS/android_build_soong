@@ -267,6 +267,7 @@ type ModuleContextIntf interface {
 	isStubs() bool
 	bootstrap() bool
 	mustUseVendorVariant() bool
+	nativeCoverage() bool
 }
 
 type ModuleContext interface {
@@ -312,6 +313,8 @@ type linker interface {
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
 	appendLdflags([]string)
 	unstrippedOutputFilePath() android.Path
+
+	nativeCoverage() bool
 }
 
 type installer interface {
@@ -604,6 +607,10 @@ func (c *Module) bootstrap() bool {
 	return Bool(c.Properties.Bootstrap)
 }
 
+func (c *Module) nativeCoverage() bool {
+	return c.linker != nil && c.linker.nativeCoverage()
+}
+
 func isBionic(name string) bool {
 	switch name {
 	case "libc", "libm", "libdl", "linker":
@@ -792,6 +799,10 @@ func (ctx *moduleContextImpl) isStubs() bool {
 
 func (ctx *moduleContextImpl) bootstrap() bool {
 	return ctx.mod.bootstrap()
+}
+
+func (ctx *moduleContextImpl) nativeCoverage() bool {
+	return ctx.mod.nativeCoverage()
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {

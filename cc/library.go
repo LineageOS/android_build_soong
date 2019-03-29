@@ -761,6 +761,13 @@ func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
 	return library.unstrippedOutputFile
 }
 
+func (library *libraryDecorator) nativeCoverage() bool {
+	if library.header() || library.buildStubs() {
+		return false
+	}
+	return true
+}
+
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
 	isLlndk := inList(ctx.baseModuleName(), llndkLibraries) || inList(ctx.baseModuleName(), ndkMigratedLibs)
 

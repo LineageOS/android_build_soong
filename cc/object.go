@@ -114,3 +114,7 @@ func (object *objectLinker) link(ctx ModuleContext,
 func (object *objectLinker) unstrippedOutputFilePath() android.Path {
 	return nil
 }
+
+func (object *objectLinker) nativeCoverage() bool {
+	return true
+}
