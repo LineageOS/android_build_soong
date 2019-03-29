@@ -17,6 +17,7 @@ package android
 import (
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -35,21 +36,61 @@ type ProtoFlags struct {
 	SubDir                ModuleGenPath
 	OutTypeFlag           string
 	OutParams             []string
+	Deps                  Paths
+}
+
+type protoDependencyTag struct {
+	blueprint.BaseDependencyTag
+	name string
+}
+
+var ProtoPluginDepTag = protoDependencyTag{name: "plugin"}
+
+func ProtoDeps(ctx BottomUpMutatorContext, p *ProtoProperties) {
+	if String(p.Proto.Plugin) != "" && String(p.Proto.Type) != "" {
+		ctx.ModuleErrorf("only one of proto.type and proto.plugin can be specified.")
+	}
+
+	if plugin := String(p.Proto.Plugin); plugin != "" {
+		ctx.AddFarVariationDependencies([]blueprint.Variation{
+			{Mutator: "arch", Variation: ctx.Config().BuildOsVariant},
+		}, ProtoPluginDepTag, "protoc-gen-"+plugin)
+	}
 }
 
 func GetProtoFlags(ctx ModuleContext, p *ProtoProperties) ProtoFlags {
-	var protoFlags []string
+	var flags []string
+	var deps Paths
+
 	if len(p.Proto.Local_include_dirs) > 0 {
 		localProtoIncludeDirs := PathsForModuleSrc(ctx, p.Proto.Local_include_dirs)
-		protoFlags = append(protoFlags, JoinWithPrefix(localProtoIncludeDirs.Strings(), "-I"))
+		flags = append(flags, JoinWithPrefix(localProtoIncludeDirs.Strings(), "-I"))
 	}
 	if len(p.Proto.Include_dirs) > 0 {
 		rootProtoIncludeDirs := PathsForSource(ctx, p.Proto.Include_dirs)
-		protoFlags = append(protoFlags, JoinWithPrefix(rootProtoIncludeDirs.Strings(), "-I"))
+		flags = append(flags, JoinWithPrefix(rootProtoIncludeDirs.Strings(), "-I"))
+	}
+
+	ctx.VisitDirectDepsWithTag(ProtoPluginDepTag, func(dep Module) {
+		if hostTool, ok := dep.(HostToolProvider); !ok || !hostTool.HostToolPath().Valid() {
+			ctx.PropertyErrorf("proto.plugin", "module %q is not a host tool provider",
+				ctx.OtherModuleName(dep))
+		} else {
+			plugin := String(p.Proto.Plugin)
+			deps = append(deps, hostTool.HostToolPath().Path())
+			flags = append(flags, "--plugin=protoc-gen-"+plugin+"="+hostTool.HostToolPath().String())
+		}
+	})
+
+	var protoOutFlag string
+	if plugin := String(p.Proto.Plugin); plugin != "" {
+		protoOutFlag = "--" + plugin + "_out"
 	}
 
 	return ProtoFlags{
-		Flags:                 protoFlags,
+		Flags:                 flags,
+		Deps:                  deps,
+		OutTypeFlag:           protoOutFlag,
 		CanonicalPathFromRoot: proptools.BoolDefault(p.Proto.Canonical_path_from_root, true),
 		Dir:                   PathForModuleGen(ctx, "proto"),
 		SubDir:                PathForModuleGen(ctx, "proto", ctx.ModuleDir()),
@@ -60,6 +101,9 @@ type ProtoProperties struct {
 	Proto struct {
 		// Proto generator type.  C++: full or lite.  Java: micro, nano, stream, or lite.
 		Type *string `android:"arch_variant"`
+
+		// Proto plugin to use as the generator.  Must be a cc_binary_host module.
+		Plugin *string `android:"arch_variant"`
 
 		// list of directories that will be added to the protoc include paths.
 		Include_dirs []string
