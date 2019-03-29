@@ -108,6 +108,10 @@ func (p *prebuiltLibraryLinker) shared() bool {
 	return p.libraryDecorator.shared()
 }
 
+func (p *prebuiltLibraryLinker) nativeCoverage() bool {
+	return false
+}
+
 func prebuiltSharedLibraryFactory() android.Module {
 	module, _ := NewPrebuiltSharedLibrary(android.HostAndDeviceSupported)
 	return module.Init()
