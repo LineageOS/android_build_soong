@@ -417,6 +417,10 @@ func (binary *binaryDecorator) symlinkList() []string {
 	return binary.symlinks
 }
 
+func (binary *binaryDecorator) nativeCoverage() bool {
+	return true
+}
+
 // /system/bin/linker -> /apex/com.android.runtime/bin/linker
 func (binary *binaryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, file android.Path) {
 	dir := binary.baseInstaller.installDir(ctx)

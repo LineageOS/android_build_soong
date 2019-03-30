@@ -153,42 +153,48 @@ func init() {
 	android.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 }
 
-// Module factory for combined static + shared libraries, device by default but with possible host
-// support
+// cc_library creates both static and/or shared libraries for a device and/or
+// host. By default, a cc_library has a single variant that targets the device.
+// Specifying `host_supported: true` also creates a library that targets the
+// host.
 func LibraryFactory() android.Module {
 	module, _ := NewLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-// Module factory for static libraries
+// cc_library_static creates a static library for a device and/or host binary.
 func LibraryStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
-// Module factory for shared libraries
+// cc_library_shared creates a shared library for a device and/or host.
 func LibrarySharedFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
-// Module factory for host static libraries
+// cc_library_host_static creates a static library that is linkable to a host
+// binary.
 func LibraryHostStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
-// Module factory for host shared libraries
+// cc_library_host_shared creates a shared library that is usable on a host.
 func LibraryHostSharedFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
-// Module factory for header-only libraries
+// cc_library_headers contains a set of c/c++ headers which are imported by
+// other soong cc modules using the header_libs property. For best practices,
+// use export_include_dirs property or LOCAL_EXPORT_C_INCLUDE_DIRS for
+// Make.
 func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
@@ -753,6 +759,13 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
 	return library.unstrippedOutputFile
+}
+
+func (library *libraryDecorator) nativeCoverage() bool {
+	if library.header() || library.buildStubs() {
+		return false
+	}
+	return true
 }
 
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {

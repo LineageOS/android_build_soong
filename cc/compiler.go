@@ -226,7 +226,8 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 
 	if compiler.hasSrcExt(".sysprop") {
-		deps.SharedLibs = append(deps.SharedLibs, "libbase")
+		deps.HeaderLibs = append(deps.HeaderLibs, "libbase_headers")
+		deps.SharedLibs = append(deps.SharedLibs, "liblog")
 	}
 
 	if Bool(compiler.Properties.Openmp) {
