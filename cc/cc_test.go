@@ -1833,13 +1833,13 @@ func TestStaticLibDepExport(t *testing.T) {
 	// Check the shared version of lib2.
 	variant := "android_arm64_armv8-a_core_shared"
 	module := ctx.ModuleForTests("lib2", variant).Module().(*Module)
-	checkStaticLibs(t, []string{"lib1", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc"}, module)
+	checkStaticLibs(t, []string{"lib1", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc_stripped"}, module)
 
 	// Check the static version of lib2.
 	variant = "android_arm64_armv8-a_core_static"
 	module = ctx.ModuleForTests("lib2", variant).Module().(*Module)
 	// libc++_static is linked additionally.
-	checkStaticLibs(t, []string{"lib1", "libc++_static", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc"}, module)
+	checkStaticLibs(t, []string{"lib1", "libc++_static", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc_stripped"}, module)
 }
 
 var compilerFlagsTestCases = []struct {

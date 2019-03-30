@@ -228,10 +228,10 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		// libclang_rt.builtins, libgcc and libatomic have to be last on the command line
 		if !Bool(linker.Properties.No_libcrt) {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
-		}
-
-		deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
-		if !Bool(linker.Properties.No_libgcc) {
+			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
+			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc_stripped")
+		} else if !Bool(linker.Properties.No_libgcc) {
+			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
 		}
 
