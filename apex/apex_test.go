@@ -171,7 +171,8 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"custom_notice":                        nil,
 		"testkey2.avbpubkey":                   nil,
 		"testkey2.pem":                         nil,
-		"myapex.apex":                          nil,
+		"myapex-arm64.apex":                    nil,
+		"myapex-arm.apex":                      nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -1243,7 +1244,14 @@ func TestPrebuilt(t *testing.T) {
 	ctx := testApex(t, `
 		prebuilt_apex {
 			name: "myapex",
-			src: "myapex.apex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
 			key: "myapex.key"
 		}
 
@@ -1256,6 +1264,11 @@ func TestPrebuilt(t *testing.T) {
 	`)
 
 	prebuilt := ctx.ModuleForTests("myapex", "android_common").Module().(*Prebuilt)
+
+	expectedInput := "myapex-arm64.apex"
+	if prebuilt.inputApex.String() != expectedInput {
+		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
+	}
 
 	// Check if the key module is added as a required module.
 	buf := &bytes.Buffer{}
