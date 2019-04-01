@@ -24,6 +24,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -265,6 +266,15 @@ func run() error {
 		if err != nil {
 			return err
 		}
+
+		// Update the timestamp of the output file in case the tool wrote an old timestamp (for example, tar can extract
+		// files with old timestamps).
+		now := time.Now()
+		err = os.Chtimes(tempPath, now, now)
+		if err != nil {
+			return err
+		}
+
 		err = os.Rename(tempPath, destPath)
 		if err != nil {
 			return err
