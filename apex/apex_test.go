@@ -15,8 +15,6 @@
 package apex
 
 import (
-	"bufio"
-	"bytes"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -1248,14 +1246,6 @@ func TestPrebuilt(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			key: "myapex.key"
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-			product_specific: true,
 		}
 	`)
 
@@ -1264,25 +1254,5 @@ func TestPrebuilt(t *testing.T) {
 	expectedInput := "myapex-arm64.apex"
 	if prebuilt.inputApex.String() != expectedInput {
 		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
-	}
-
-	// Check if the key module is added as a required module.
-	buf := &bytes.Buffer{}
-	prebuilt.AndroidMk().Extra[0](buf, nil)
-	found := false
-	scanner := bufio.NewScanner(bytes.NewReader(buf.Bytes()))
-	expected := "myapex.key"
-	for scanner.Scan() {
-		line := scanner.Text()
-		tok := strings.Split(line, " := ")
-		if tok[0] == "LOCAL_REQUIRED_MODULES" {
-			found = true
-			if tok[1] != "myapex.key" {
-				t.Errorf("Unexpected LOCAL_REQUIRED_MODULES '%s', expected '%s'", tok[1], expected)
-			}
-		}
-	}
-	if !found {
-		t.Errorf("Couldn't find a LOCAL_REQUIRED_MODULES entry")
 	}
 }

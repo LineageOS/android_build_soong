@@ -1317,18 +1317,9 @@ type PrebuiltProperties struct {
 			Src *string
 		}
 	}
-
-	// the name of the apex_key module that contains the matching public key to be installed.
-	Key *string
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if String(p.properties.Key) == "" {
-		ctx.ModuleErrorf("key is missing")
-		return
-	}
-	ctx.AddDependency(ctx.Module(), keyTag, *p.properties.Key)
-
 	// This is called before prebuilt_select and prebuilt_postdeps mutators
 	// The mutators requires that src to be set correctly for each arch so that
 	// arch variants are disabled when src is not provided for the arch.
@@ -1380,7 +1371,6 @@ func (p *Prebuilt) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", p.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", p.BaseModuleName()+imageApexSuffix)
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(p.properties.Key))
 			},
 		},
 	}
