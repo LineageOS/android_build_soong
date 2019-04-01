@@ -299,6 +299,10 @@ func TestBasicApex(t *testing.T) {
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
+
+	optFlags := apexRule.Args["opt_flags"]
+	ensureContains(t, optFlags, "--pubkey vendor/foo/devkeys/testkey.avbpubkey")
+
 	copyCmds := apexRule.Args["copy_commands"]
 
 	// Ensure that main rule creates an output
@@ -1197,14 +1201,6 @@ func TestApexInProductPartition(t *testing.T) {
 	if actual != expected {
 		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 	}
-
-	apex_key := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
-	expected = "target/product/test_device/product/etc/security/apex"
-	actual = apex_key.installDir.RelPathString()
-	if actual != expected {
-		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
-	}
-
 }
 
 func TestApexKeyFromOtherModule(t *testing.T) {
