@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -37,6 +38,9 @@ func TestProto(t *testing.T) {
 	})
 
 	t.Run("plugin", func(t *testing.T) {
+		if runtime.GOOS != "linux" {
+			t.Skip("TODO(b/129763458): cc_binary_host tests fail on mac when trying to exec xcrun")
+		}
 		ctx := testCc(t, `
 		cc_binary_host {
 			name: "protoc-gen-foobar",
