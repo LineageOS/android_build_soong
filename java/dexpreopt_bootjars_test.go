@@ -103,7 +103,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 		expectedOutputs[i] = filepath.Join(buildDir, "test_device", expectedOutputs[i])
 	}
 
-	outputs := bootArt.Outputs.Strings()
+	outputs := append(android.WritablePaths{bootArt.Output}, bootArt.ImplicitOutputs...).Strings()
 	sort.Strings(outputs)
 	sort.Strings(expectedOutputs)
 
