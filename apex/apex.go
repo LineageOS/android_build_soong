@@ -396,9 +396,8 @@ type apexBundle struct {
 	outputFiles      map[apexPackaging]android.WritablePath
 	installDir       android.OutputPath
 
-	public_key_file   android.Path
-	private_key_file  android.Path
-	bundle_public_key bool
+	public_key_file  android.Path
+	private_key_file android.Path
 
 	container_certificate_file android.Path
 	container_private_key_file android.Path
@@ -746,10 +745,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if key, ok := child.(*apexKey); ok {
 					a.private_key_file = key.private_key_file
 					a.public_key_file = key.public_key_file
-					// If the key is not installed, bundled it with the APEX.
-					// Note: this bundled key is valid only for non-production builds
-					// (eng/userdebug).
-					a.bundle_public_key = !key.installable() && ctx.Config().Debuggable()
 					return false
 				} else {
 					ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
@@ -968,11 +963,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		optFlags := []string{}
 
 		// Additional implicit inputs.
-		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, a.private_key_file)
-		if a.bundle_public_key {
-			implicitInputs = append(implicitInputs, a.public_key_file)
-			optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
-		}
+		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, a.private_key_file, a.public_key_file)
+		optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
 
 		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
 		if overridden {
@@ -1057,7 +1049,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
-		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
+		// For flattened APEX, do nothing but make sure that apex_manifest.json and apex_pubkey are also copied along
 		// with other ordinary files.
 		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
@@ -1069,6 +1061,15 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 			Output: copiedManifest,
 		})
 		a.filesInfo = append(a.filesInfo, apexFile{copiedManifest, ctx.ModuleName() + ".apex_manifest.json", ".", etc, nil, nil})
+
+		// rename to apex_pubkey
+		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  a.public_key_file,
+			Output: copiedPubkey,
+		})
+		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, ctx.ModuleName() + ".apex_pubkey", ".", etc, nil, nil})
 
 		if ctx.Config().FlattenApex() {
 			for _, fi := range a.filesInfo {
@@ -1215,7 +1216,6 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
 				if a.installable() && a.mergedNoticeFile != nil {
 					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNoticeFile.String())
 				}
@@ -1317,18 +1317,9 @@ type PrebuiltProperties struct {
 			Src *string
 		}
 	}
-
-	// the name of the apex_key module that contains the matching public key to be installed.
-	Key *string
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if String(p.properties.Key) == "" {
-		ctx.ModuleErrorf("key is missing")
-		return
-	}
-	ctx.AddDependency(ctx.Module(), keyTag, *p.properties.Key)
-
 	// This is called before prebuilt_select and prebuilt_postdeps mutators
 	// The mutators requires that src to be set correctly for each arch so that
 	// arch variants are disabled when src is not provided for the arch.
@@ -1380,7 +1371,6 @@ func (p *Prebuilt) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", p.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", p.BaseModuleName()+imageApexSuffix)
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(p.properties.Key))
 			},
 		},
 	}
