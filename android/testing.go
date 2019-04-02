@@ -196,6 +196,7 @@ func maybeBuildParamsFromOutput(provider testBuildProvider, file string) (Testin
 	var searchedOutputs []string
 	for _, p := range provider.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
+		outputs = append(outputs, p.ImplicitOutputs...)
 		if p.Output != nil {
 			outputs = append(outputs, p.Output)
 		}
@@ -222,6 +223,7 @@ func allOutputs(provider testBuildProvider) []string {
 	var outputFullPaths []string
 	for _, p := range provider.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
+		outputs = append(outputs, p.ImplicitOutputs...)
 		if p.Output != nil {
 			outputs = append(outputs, p.Output)
 		}
