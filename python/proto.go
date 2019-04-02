@@ -29,7 +29,7 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.P
 	rule.Command().Text("rm -rf").Flag(outDir.String())
 	rule.Command().Text("mkdir -p").Flag(outDir.String())
 
-	android.ProtoRule(ctx, rule, protoFile, flags, nil, outDir, depFile, nil)
+	android.ProtoRule(ctx, rule, protoFile, flags, flags.Deps, outDir, depFile, nil)
 
 	// Proto generated python files have an unknown package name in the path, so package the entire output directory
 	// into a srcszip.
