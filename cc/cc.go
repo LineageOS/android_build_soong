@@ -163,7 +163,6 @@ type Flags struct {
 	GroupStaticLibs bool
 
 	proto            android.ProtoFlags
-	protoDeps        android.Paths
 	protoC           bool // Whether to use C instead of C++
 	protoOptionsFile bool // Whether to look for a .options file next to the .proto
 }
@@ -1591,6 +1590,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					ctx.ModuleErrorf("module %q is not a genrule", depName)
 				}
 			}
+			return
+		}
+
+		if depTag == android.ProtoPluginDepTag {
 			return
 		}
 

@@ -84,7 +84,6 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 
 		groupStaticLibs: in.GroupStaticLibs,
 
-		protoDeps:        in.protoDeps,
 		proto:            in.proto,
 		protoC:           in.protoC,
 		protoOptionsFile: in.protoOptionsFile,

@@ -1425,6 +1425,10 @@ type SourceFileProducer interface {
 	Srcs() Paths
 }
 
+type HostToolProvider interface {
+	HostToolPath() OptionalPath
+}
+
 // Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
 // be tagged with `android:"path" to support automatic source module dependency resolution.
 //
