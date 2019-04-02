@@ -50,11 +50,11 @@ var classpathTestcases = []struct {
 	},
 	{
 
-		name:          "sdk v14",
-		properties:    `sdk_version: "14",`,
+		name:          "sdk v25",
+		properties:    `sdk_version: "25",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+		classpath:     []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
 
@@ -72,11 +72,11 @@ var classpathTestcases = []struct {
 	},
 	{
 
-		name:          "system_14",
-		properties:    `sdk_version: "system_14",`,
+		name:          "system_25",
+		properties:    `sdk_version: "system_25",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+		classpath:     []string{"prebuilts/sdk/25/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
 
@@ -140,12 +140,12 @@ var classpathTestcases = []struct {
 	},
 	{
 
-		name:          "unbundled sdk v14",
+		name:          "unbundled sdk v25",
 		unbundled:     true,
-		properties:    `sdk_version: "14",`,
+		properties:    `sdk_version: "25",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+		classpath:     []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
 
@@ -162,7 +162,7 @@ var classpathTestcases = []struct {
 		pdk:           true,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/17/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+		classpath:     []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
 		name:          "pdk current",
@@ -170,15 +170,15 @@ var classpathTestcases = []struct {
 		properties:    `sdk_version: "current",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/17/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+		classpath:     []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 	{
-		name:          "pdk 14",
+		name:          "pdk 25",
 		pdk:           true,
-		properties:    `sdk_version: "14",`,
+		properties:    `sdk_version: "25",`,
 		bootclasspath: []string{`""`},
 		system:        "bootclasspath", // special value to tell 1.9 test to expect bootclasspath
-		classpath:     []string{"prebuilts/sdk/14/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+		classpath:     []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 	},
 }
 
@@ -283,6 +283,44 @@ func TestClasspath(t *testing.T) {
 				}
 				if got != expected {
 					t.Errorf("bootclasspath expected %q != got %q", expected, got)
+				}
+			})
+
+			// Test again with PLATFORM_VERSION_CODENAME=REL
+			t.Run("REL", func(t *testing.T) {
+				config := testConfig(nil)
+				config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("REL")
+				config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(true)
+
+				if testcase.unbundled {
+					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+				}
+				if testcase.pdk {
+					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
+				}
+				ctx := testContext(config, bp, nil)
+				run(t, ctx, config)
+
+				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
+
+				got := javac.Args["bootClasspath"]
+				if got != bc {
+					t.Errorf("bootclasspath expected %q != got %q", bc, got)
+				}
+
+				got = javac.Args["classpath"]
+				if got != c {
+					t.Errorf("classpath expected %q != got %q", c, got)
+				}
+
+				var deps []string
+				if len(bootclasspath) > 0 && bootclasspath[0] != `""` {
+					deps = append(deps, bootclasspath...)
+				}
+				deps = append(deps, classpath...)
+
+				if !reflect.DeepEqual(javac.Implicits.Strings(), deps) {
+					t.Errorf("implicits expected %q != got %q", deps, javac.Implicits.Strings())
 				}
 			})
 		})
