@@ -150,13 +150,17 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 
 	data := AndroidMkData{}
 	data.Required = append(data.Required, "modA", "moduleB")
+	data.Host_required = append(data.Host_required, "hostModA", "hostModB")
+	data.Target_required = append(data.Target_required, "targetModA")
 
 	expected := map[string]string{
-		"LOCAL_MODULE":                "foo",
-		"LOCAL_MODULE_CLASS":          "ETC",
-		"LOCAL_MODULE_OWNER":          "abc",
-		"LOCAL_INSTALLED_MODULE_STEM": "foo.conf",
-		"LOCAL_REQUIRED_MODULES":      "modA moduleB",
+		"LOCAL_MODULE":                  "foo",
+		"LOCAL_MODULE_CLASS":            "ETC",
+		"LOCAL_MODULE_OWNER":            "abc",
+		"LOCAL_INSTALLED_MODULE_STEM":   "foo.conf",
+		"LOCAL_REQUIRED_MODULES":        "modA moduleB",
+		"LOCAL_HOST_REQUIRED_MODULES":   "hostModA hostModB",
+		"LOCAL_TARGET_REQUIRED_MODULES": "targetModA",
 	}
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
