@@ -516,9 +516,11 @@ func (p *Module) createSrcsZip(ctx android.ModuleContext, pkgPath string) androi
 	}
 	var zips android.Paths
 	if len(protoSrcs) > 0 {
+		protoFlags := android.GetProtoFlags(ctx, &p.protoProperties)
+		protoFlags.OutTypeFlag = "--python_out"
+
 		for _, srcFile := range protoSrcs {
-			zip := genProto(ctx, &p.protoProperties, srcFile,
-				android.ProtoFlags(ctx, &p.protoProperties), pkgPath)
+			zip := genProto(ctx, srcFile, protoFlags, pkgPath)
 			zips = append(zips, zip)
 		}
 	}
