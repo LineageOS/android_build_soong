@@ -14,6 +14,12 @@
 
 package android
 
+import (
+	"strings"
+
+	"github.com/google/blueprint/proptools"
+)
+
 // TODO(ccross): protos are often used to communicate between multiple modules.  If the only
 // way to convert a proto to source is to reference it as a source file, and external modules cannot
 // reference source files in other modules, then every module that owns a proto file will need to
@@ -22,9 +28,17 @@ package android
 // and then external modules could depend on the proto module but use their own settings to
 // generate the source.
 
-func ProtoFlags(ctx ModuleContext, p *ProtoProperties) []string {
-	protoFlags := []string{}
+type ProtoFlags struct {
+	Flags                 []string
+	CanonicalPathFromRoot bool
+	Dir                   ModuleGenPath
+	SubDir                ModuleGenPath
+	OutTypeFlag           string
+	OutParams             []string
+}
 
+func GetProtoFlags(ctx ModuleContext, p *ProtoProperties) ProtoFlags {
+	var protoFlags []string
 	if len(p.Proto.Local_include_dirs) > 0 {
 		localProtoIncludeDirs := PathsForModuleSrc(ctx, p.Proto.Local_include_dirs)
 		protoFlags = append(protoFlags, JoinWithPrefix(localProtoIncludeDirs.Strings(), "-I"))
@@ -34,24 +48,12 @@ func ProtoFlags(ctx ModuleContext, p *ProtoProperties) []string {
 		protoFlags = append(protoFlags, JoinWithPrefix(rootProtoIncludeDirs.Strings(), "-I"))
 	}
 
-	return protoFlags
-}
-
-func ProtoCanonicalPathFromRoot(ctx ModuleContext, p *ProtoProperties) bool {
-	if p.Proto.Canonical_path_from_root == nil {
-		return true
+	return ProtoFlags{
+		Flags:                 protoFlags,
+		CanonicalPathFromRoot: proptools.BoolDefault(p.Proto.Canonical_path_from_root, true),
+		Dir:                   PathForModuleGen(ctx, "proto"),
+		SubDir:                PathForModuleGen(ctx, "proto", ctx.ModuleDir()),
 	}
-	return *p.Proto.Canonical_path_from_root
-}
-
-// ProtoDir returns the module's "gen/proto" directory
-func ProtoDir(ctx ModuleContext) ModuleGenPath {
-	return PathForModuleGen(ctx, "proto")
-}
-
-// ProtoSubDir returns the module's "gen/proto/path/to/module" directory
-func ProtoSubDir(ctx ModuleContext) ModuleGenPath {
-	return PathForModuleGen(ctx, "proto", ctx.ModuleDir())
 }
 
 type ProtoProperties struct {
@@ -75,4 +77,29 @@ type ProtoProperties struct {
 		// false in the future.
 		Canonical_path_from_root *bool
 	} `android:"arch_variant"`
+}
+
+func ProtoRule(ctx ModuleContext, rule *RuleBuilder, protoFile Path, flags ProtoFlags, deps Paths,
+	outDir WritablePath, depFile WritablePath, outputs WritablePaths) {
+
+	var protoBase string
+	if flags.CanonicalPathFromRoot {
+		protoBase = "."
+	} else {
+		rel := protoFile.Rel()
+		protoBase = strings.TrimSuffix(protoFile.String(), rel)
+	}
+
+	rule.Command().
+		Tool(ctx.Config().HostToolPath(ctx, "aprotoc")).
+		FlagWithArg(flags.OutTypeFlag+"=", strings.Join(flags.OutParams, ",")+":"+outDir.String()).
+		FlagWithDepFile("--dependency_out=", depFile).
+		FlagWithArg("-I ", protoBase).
+		Flags(flags.Flags).
+		Input(protoFile).
+		Implicits(deps).
+		ImplicitOutputs(outputs)
+
+	rule.Command().
+		Tool(ctx.Config().HostToolPath(ctx, "dep_fixer")).Flag(depFile.String())
 }

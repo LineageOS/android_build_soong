@@ -261,12 +261,9 @@ type builderFlags struct {
 	stripUseGnuStrip       bool
 
 	protoDeps        android.Paths
-	protoFlags       string
-	protoOutTypeFlag string
-	protoOutParams   string
+	proto            android.ProtoFlags
 	protoC           bool
 	protoOptionsFile bool
-	protoRoot        bool
 }
 
 type Objects struct {
