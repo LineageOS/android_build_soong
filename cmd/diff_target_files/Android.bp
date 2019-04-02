@@ -1,0 +1,16 @@
+blueprint_go_binary {
+    name: "diff_target_files",
+    srcs: [
+        "compare.go",
+        "diff_target_files.go",
+        "glob.go",
+        "target_files.go",
+        "whitelist.go",
+        "zip_artifact.go",
+    ],
+    testSrcs: [
+        "compare_test.go",
+        "glob_test.go",
+        "whitelist_test.go",
+    ],
+}
