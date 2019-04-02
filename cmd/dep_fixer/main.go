@@ -29,30 +29,42 @@ import (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s <depfile.d>", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [-o <output>] <depfile.d> [<depfile.d>...]", os.Args[0])
 		flag.PrintDefaults()
 	}
 	output := flag.String("o", "", "Optional output file (defaults to rewriting source if necessary)")
 	flag.Parse()
 
-	if flag.NArg() != 1 {
-		log.Fatal("Expected a single file as an argument")
+	if flag.NArg() < 1 {
+		log.Fatal("Expected at least one input file as an argument")
 	}
 
-	old, err := ioutil.ReadFile(flag.Arg(0))
-	if err != nil {
-		log.Fatalf("Error opening %q: %v", flag.Arg(0), err)
+	var mergedDeps *Deps
+	var firstInput []byte
+
+	for i, arg := range flag.Args() {
+		input, err := ioutil.ReadFile(arg)
+		if err != nil {
+			log.Fatalf("Error opening %q: %v", arg, err)
+		}
+
+		deps, err := Parse(arg, bytes.NewBuffer(append([]byte(nil), input...)))
+		if err != nil {
+			log.Fatalf("Failed to parse: %v", err)
+		}
+
+		if i == 0 {
+			mergedDeps = deps
+			firstInput = input
+		} else {
+			mergedDeps.Inputs = append(mergedDeps.Inputs, deps.Inputs...)
+		}
 	}
 
-	deps, err := Parse(flag.Arg(0), bytes.NewBuffer(append([]byte(nil), old...)))
-	if err != nil {
-		log.Fatalf("Failed to parse: %v", err)
-	}
-
-	new := deps.Print()
+	new := mergedDeps.Print()
 
 	if *output == "" || *output == flag.Arg(0) {
-		if !bytes.Equal(old, new) {
+		if !bytes.Equal(firstInput, new) {
 			err := ioutil.WriteFile(flag.Arg(0), new, 0666)
 			if err != nil {
 				log.Fatalf("Failed to write: %v", err)

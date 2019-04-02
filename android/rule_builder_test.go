@@ -171,6 +171,14 @@ func ExampleRuleBuilderCommand_Flag() {
 	// ls -l
 }
 
+func ExampleRuleBuilderCommand_Flags() {
+	ctx := pathContext()
+	fmt.Println(NewRuleBuilder().Command().
+		Tool(PathForSource(ctx, "ls")).Flags([]string{"-l", "-a"}))
+	// Output:
+	// ls -l -a
+}
+
 func ExampleRuleBuilderCommand_FlagWithArg() {
 	ctx := pathContext()
 	fmt.Println(NewRuleBuilder().Command().
@@ -229,23 +237,27 @@ func TestRuleBuilder(t *testing.T) {
 	rule := NewRuleBuilder()
 
 	fs := map[string][]byte{
-		"input":    nil,
-		"Implicit": nil,
-		"Input":    nil,
-		"Tool":     nil,
-		"input2":   nil,
-		"tool2":    nil,
-		"input3":   nil,
+		"dep_fixer": nil,
+		"input":     nil,
+		"Implicit":  nil,
+		"Input":     nil,
+		"Tool":      nil,
+		"input2":    nil,
+		"tool2":     nil,
+		"input3":    nil,
 	}
 
 	ctx := PathContextForTesting(TestConfig("out", nil), fs)
 
 	cmd := rule.Command().
+		DepFile(PathForOutput(ctx, "DepFile")).
 		Flag("Flag").
 		FlagWithArg("FlagWithArg=", "arg").
+		FlagWithDepFile("FlagWithDepFile=", PathForOutput(ctx, "depfile")).
 		FlagWithInput("FlagWithInput=", PathForSource(ctx, "input")).
 		FlagWithOutput("FlagWithOutput=", PathForOutput(ctx, "output")).
 		Implicit(PathForSource(ctx, "Implicit")).
+		ImplicitDepFile(PathForOutput(ctx, "ImplicitDepFile")).
 		ImplicitOutput(PathForOutput(ctx, "ImplicitOutput")).
 		Input(PathForSource(ctx, "Input")).
 		Output(PathForOutput(ctx, "Output")).
@@ -254,6 +266,7 @@ func TestRuleBuilder(t *testing.T) {
 
 	rule.Command().
 		Text("command2").
+		DepFile(PathForOutput(ctx, "depfile2")).
 		Input(PathForSource(ctx, "input2")).
 		Output(PathForOutput(ctx, "output2")).
 		Tool(PathForSource(ctx, "tool2"))
@@ -271,25 +284,37 @@ func TestRuleBuilder(t *testing.T) {
 		Output(PathForOutput(ctx, "output3"))
 
 	wantCommands := []string{
-		"Flag FlagWithArg=arg FlagWithInput=input FlagWithOutput=out/output Input out/Output Text Tool after command2 old cmd",
-		"command2 input2 out/output2 tool2",
+		"out/DepFile Flag FlagWithArg=arg FlagWithDepFile=out/depfile FlagWithInput=input FlagWithOutput=out/output Input out/Output Text Tool after command2 old cmd",
+		"command2 out/depfile2 input2 out/output2 tool2",
 		"command3 input3 out/output2 out/output3",
 	}
+
+	wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer out/DepFile out/depfile out/ImplicitDepFile out/depfile2"
+
 	wantInputs := PathsForSource(ctx, []string{"Implicit", "Input", "input", "input2", "input3"})
 	wantOutputs := PathsForOutput(ctx, []string{"ImplicitOutput", "Output", "output", "output2", "output3"})
+	wantDepFiles := PathsForOutput(ctx, []string{"DepFile", "depfile", "ImplicitDepFile", "depfile2"})
 	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
 
-	if !reflect.DeepEqual(rule.Commands(), wantCommands) {
-		t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", wantCommands, rule.Commands())
+	if g, w := rule.Commands(), wantCommands; !reflect.DeepEqual(g, w) {
+		t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", w, g)
 	}
-	if !reflect.DeepEqual(rule.Inputs(), wantInputs) {
-		t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", wantInputs, rule.Inputs())
+
+	if g, w := rule.depFileMergerCmd(ctx, rule.DepFiles()).String(), wantDepMergerCommand; g != w {
+		t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
 	}
-	if !reflect.DeepEqual(rule.Outputs(), wantOutputs) {
-		t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", wantOutputs, rule.Outputs())
+
+	if g, w := rule.Inputs(), wantInputs; !reflect.DeepEqual(w, g) {
+		t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", w, g)
 	}
-	if !reflect.DeepEqual(rule.Tools(), wantTools) {
-		t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", wantTools, rule.Tools())
+	if g, w := rule.Outputs(), wantOutputs; !reflect.DeepEqual(w, g) {
+		t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", w, g)
+	}
+	if g, w := rule.DepFiles(), wantDepFiles; !reflect.DeepEqual(w, g) {
+		t.Errorf("\nwant rule.DepFiles() = %#v\n                  got %#v", w, g)
+	}
+	if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
+		t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
 	}
 }
 
@@ -375,8 +400,8 @@ func TestRuleBuilder_Build(t *testing.T) {
 			t.Errorf("want Implicits = [%q], got %q", "bar", params.Implicits.Strings())
 		}
 
-		if len(params.Outputs) != 1 || params.Outputs[0].String() != wantOutput {
-			t.Errorf("want Outputs = [%q], got %q", wantOutput, params.Outputs.Strings())
+		if params.Output.String() != wantOutput {
+			t.Errorf("want Output = %q, got %q", wantOutput, params.Output)
 		}
 
 		if !params.RuleParams.Restat {
