@@ -70,16 +70,6 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 
 		cc_library {
-			name: "libbase",
-			no_libgcc: true,
-			nocrt: true,
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			}
-		}
-		cc_library {
 			name: "libc",
 			no_libgcc: true,
 			nocrt: true,

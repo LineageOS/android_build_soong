@@ -16,6 +16,8 @@ package java
 
 import (
 	"android/soong/android"
+	"android/soong/cc"
+
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -537,43 +539,8 @@ func TestAppSdkVersion(t *testing.T) {
 	}
 }
 
-func TestJNI(t *testing.T) {
-	ctx := testJava(t, `
-		toolchain_library {
-			name: "libcompiler_rt-extras",
-			src: "",
-		}
-
-		toolchain_library {
-			name: "libatomic",
-			src: "",
-		}
-
-		toolchain_library {
-			name: "libgcc",
-			src: "",
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-aarch64-android",
-			src: "",
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-arm-android",
-			src: "",
-		}
-
-		cc_object {
-			name: "crtbegin_so",
-			stl: "none",
-		}
-
-		cc_object {
-			name: "crtend_so",
-			stl: "none",
-		}
-
+func TestJNIABI(t *testing.T) {
+	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
 			system_shared_libs: [],
@@ -615,13 +582,6 @@ func TestJNI(t *testing.T) {
 		}
 		`)
 
-	// check the existence of the internal modules
-	ctx.ModuleForTests("test", "android_common")
-	ctx.ModuleForTests("test_first", "android_common")
-	ctx.ModuleForTests("test_both", "android_common")
-	ctx.ModuleForTests("test_32", "android_common")
-	ctx.ModuleForTests("test_64", "android_common")
-
 	testCases := []struct {
 		name string
 		abis []string
@@ -650,6 +610,90 @@ func TestJNI(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestJNIPackaging(t *testing.T) {
+	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		cc_library {
+			name: "libjni",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		android_app {
+			name: "app",
+			jni_libs: ["libjni"],
+		}
+
+		android_app {
+			name: "app_noembed",
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: false,
+		}
+
+		android_app {
+			name: "app_embed",
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: true,
+		}
+
+		android_test {
+			name: "test",
+			no_framework_libs: true,
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_noembed",
+			no_framework_libs: true,
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: false,
+		}
+
+		android_test_helper_app {
+			name: "test_helper",
+			no_framework_libs: true,
+			jni_libs: ["libjni"],
+		}
+
+		android_test_helper_app {
+			name: "test_helper_noembed",
+			no_framework_libs: true,
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: false,
+		}
+		`)
+
+	testCases := []struct {
+		name       string
+		packaged   bool
+		compressed bool
+	}{
+		{"app", false, false},
+		{"app_noembed", false, false},
+		{"app_embed", true, false},
+		{"test", true, false},
+		{"test_noembed", true, true},
+		{"test_helper", true, false},
+		{"test_helper_noembed", true, true},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			app := ctx.ModuleForTests(test.name, "android_common")
+			jniLibZip := app.MaybeOutput("jnilibs.zip")
+			if g, w := (jniLibZip.Rule != nil), test.packaged; g != w {
+				t.Errorf("expected jni packaged %v, got %v", w, g)
+			}
+
+			if jniLibZip.Rule != nil {
+				if g, w := !strings.Contains(jniLibZip.Args["jarArgs"], "-L 0"), test.compressed; g != w {
+					t.Errorf("expected jni compressed %v, got %v", w, g)
+				}
+			}
+		})
+	}
+
 }
 
 func TestCertificates(t *testing.T) {
@@ -833,6 +877,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
+			certificate: "expiredkey",
 			overrides: ["baz"],
 		}
 
@@ -846,6 +891,12 @@ func TestOverrideAndroidApp(t *testing.T) {
 			name: "new_certificate",
 			certificate: "cert/new_cert",
 		}
+
+		override_android_app {
+			name: "baz",
+			base: "foo",
+			package_name: "org.dandroid.bp",
+		}
 		`)
 
 	expectedVariants := []struct {
@@ -854,18 +905,28 @@ func TestOverrideAndroidApp(t *testing.T) {
 		apkPath     string
 		signFlag    string
 		overrides   []string
+		aaptFlag    string
 	}{
 		{
 			variantName: "android_common",
 			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
-			signFlag:    "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			signFlag:    "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
 			overrides:   []string{"baz"},
+			aaptFlag:    "",
 		},
 		{
 			variantName: "bar_android_common",
 			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
 			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
 			overrides:   []string{"baz", "foo"},
+			aaptFlag:    "",
+		},
+		{
+			variantName: "baz_android_common",
+			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
+			signFlag:    "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
+			overrides:   []string{"baz", "foo"},
+			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
 		},
 	}
 	for _, expected := range expectedVariants {
@@ -892,10 +953,18 @@ func TestOverrideAndroidApp(t *testing.T) {
 			t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected.signFlag, signFlag)
 		}
 
+		// Check if the overrides field values are correctly aggregated.
 		mod := variant.Module().(*AndroidApp)
 		if !reflect.DeepEqual(expected.overrides, mod.appProperties.Overrides) {
 			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
 				expected.overrides, mod.appProperties.Overrides)
+		}
+
+		// Check the package renaming flag, if exists.
+		res := variant.Output("package-res.apk")
+		aapt2Flags := res.Args["flags"]
+		if !strings.Contains(aapt2Flags, expected.aaptFlag) {
+			t.Errorf("package renaming flag, %q is missing in aapt2 link flags, %q", expected.aaptFlag, aapt2Flags)
 		}
 	}
 }

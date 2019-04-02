@@ -15,6 +15,8 @@
 package apex
 
 import (
+	"bufio"
+	"bytes"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -36,11 +38,14 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("apex_test", android.ModuleFactoryAdaptor(testApexBundleFactory))
 	ctx.RegisterModuleType("apex_key", android.ModuleFactoryAdaptor(apexKeyFactory))
 	ctx.RegisterModuleType("apex_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
+	ctx.RegisterModuleType("prebuilt_apex", android.ModuleFactoryAdaptor(PrebuiltFactory))
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
 		ctx.BottomUp("apex", apexMutator)
+		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
+		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
 	})
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
@@ -54,6 +59,9 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("sh_binary", android.ModuleFactoryAdaptor(android.ShBinaryFactory))
 	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(java.AndroidAppCertificateFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
+	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
+	})
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", cc.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
@@ -163,6 +171,8 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"custom_notice":                        nil,
 		"testkey2.avbpubkey":                   nil,
 		"testkey2.pem":                         nil,
+		"myapex-arm64.apex":                    nil,
+		"myapex-arm.apex":                      nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -1227,5 +1237,56 @@ func TestApexKeyFromOtherModule(t *testing.T) {
 	actual_privkey := apex_key.private_key_file.String()
 	if actual_privkey != expected_privkey {
 		t.Errorf("wrong private key path. expected %q. actual %q", expected_privkey, actual_privkey)
+	}
+}
+
+func TestPrebuilt(t *testing.T) {
+	ctx := testApex(t, `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			key: "myapex.key"
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+			product_specific: true,
+		}
+	`)
+
+	prebuilt := ctx.ModuleForTests("myapex", "android_common").Module().(*Prebuilt)
+
+	expectedInput := "myapex-arm64.apex"
+	if prebuilt.inputApex.String() != expectedInput {
+		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
+	}
+
+	// Check if the key module is added as a required module.
+	buf := &bytes.Buffer{}
+	prebuilt.AndroidMk().Extra[0](buf, nil)
+	found := false
+	scanner := bufio.NewScanner(bytes.NewReader(buf.Bytes()))
+	expected := "myapex.key"
+	for scanner.Scan() {
+		line := scanner.Text()
+		tok := strings.Split(line, " := ")
+		if tok[0] == "LOCAL_REQUIRED_MODULES" {
+			found = true
+			if tok[1] != "myapex.key" {
+				t.Errorf("Unexpected LOCAL_REQUIRED_MODULES '%s', expected '%s'", tok[1], expected)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Couldn't find a LOCAL_REQUIRED_MODULES entry")
 	}
 }

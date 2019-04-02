@@ -31,6 +31,9 @@ type TidyProperties struct {
 
 	// Extra checks to enable or disable in clang-tidy
 	Tidy_checks []string
+
+	// Checks that should be treated as errors.
+	Tidy_checks_as_errors []string
 }
 
 type tidyFeature struct {
@@ -116,5 +119,9 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
+	if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
+		tidyChecksAsErrors := "-warnings-as-errors=" + strings.Join(esc(tidy.Properties.Tidy_checks_as_errors), ",")
+		flags.TidyFlags = append(flags.TidyFlags, tidyChecksAsErrors)
+	}
 	return flags
 }

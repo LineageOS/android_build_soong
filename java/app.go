@@ -74,6 +74,11 @@ type appProperties struct {
 	// Store dex files uncompressed in the APK and set the android:useEmbeddedDex="true" manifest attribute so that
 	// they are used from inside the APK at runtime.
 	Use_embedded_dex *bool
+
+	// Forces native libraries to always be packaged into the APK,
+	// Use_embedded_native_libs still selects whether they are stored uncompressed and aligned or compressed.
+	// True for android_test* modules.
+	AlwaysPackageNativeLibs bool `blueprint:"mutated"`
 }
 
 // android_app properties that can be overridden by override_android_app
@@ -81,6 +86,9 @@ type overridableAppProperties struct {
 	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
 	// or an android_app_certificate module name in the form ":module".
 	Certificate *string
+
+	// the package name of this app. The package name in the manifest file is used if one was not given.
+	Package_name *string
 }
 
 type AndroidApp struct {
@@ -223,11 +231,12 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	// TODO: LOCAL_PACKAGE_OVERRIDES
-	//    $(addprefix --rename-manifest-package , $(PRIVATE_MANIFEST_PACKAGE_NAME)) \
-
 	manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
-	if overridden {
+	if overridden || a.overridableAppProperties.Package_name != nil {
+		// The product override variable has a priority over the package_name property.
+		if !overridden {
+			manifestPackageName = *a.overridableAppProperties.Package_name
+		}
 		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
 	}
 
@@ -281,7 +290,8 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
 	var jniJarFile android.WritablePath
 	if len(jniLibs) > 0 {
-		embedJni := ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs)
+		embedJni := ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs) ||
+			a.appProperties.AlwaysPackageNativeLibs
 		if embedJni {
 			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
 			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.shouldUncompressJNI(ctx))
@@ -503,6 +513,7 @@ func AndroidTestFactory() android.Module {
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
+	module.appProperties.AlwaysPackageNativeLibs = true
 	module.Module.dexpreopter.isTest = true
 
 	module.AddProperties(
@@ -543,6 +554,7 @@ func AndroidTestHelperAppFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
+	module.appProperties.AlwaysPackageNativeLibs = true
 	module.Module.dexpreopter.isTest = true
 
 	module.AddProperties(

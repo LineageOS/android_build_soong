@@ -77,3 +77,7 @@ func (library *toolchainLibraryDecorator) link(ctx ModuleContext,
 
 	return android.PathForSource(ctx, *library.Properties.Src)
 }
+
+func (library *toolchainLibraryDecorator) nativeCoverage() bool {
+	return false
+}

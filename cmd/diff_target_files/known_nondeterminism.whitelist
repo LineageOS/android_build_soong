@@ -1,0 +1,10 @@
+// List of files that are known to be non-deterministic, along with the
+// bug number to tracking fixing the non-determinism.
+[
+  {
+    "Paths": [
+       // b/120039850
+      "system/framework/oat/*/services.art"
+    ]
+  }
+]

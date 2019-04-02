@@ -267,6 +267,7 @@ type ModuleContextIntf interface {
 	isStubs() bool
 	bootstrap() bool
 	mustUseVendorVariant() bool
+	nativeCoverage() bool
 }
 
 type ModuleContext interface {
@@ -312,6 +313,8 @@ type linker interface {
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
 	appendLdflags([]string)
 	unstrippedOutputFilePath() android.Path
+
+	nativeCoverage() bool
 }
 
 type installer interface {
@@ -604,6 +607,10 @@ func (c *Module) bootstrap() bool {
 	return Bool(c.Properties.Bootstrap)
 }
 
+func (c *Module) nativeCoverage() bool {
+	return c.linker != nil && c.linker.nativeCoverage()
+}
+
 func isBionic(name string) bool {
 	switch name {
 	case "libc", "libm", "libdl", "linker":
@@ -792,6 +799,10 @@ func (ctx *moduleContextImpl) isStubs() bool {
 
 func (ctx *moduleContextImpl) bootstrap() bool {
 	return ctx.mod.bootstrap()
+}
+
+func (ctx *moduleContextImpl) nativeCoverage() bool {
+	return ctx.mod.nativeCoverage()
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
@@ -1966,6 +1977,11 @@ type Defaults struct {
 func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
+// cc_defaults provides a set of properties that can be inherited by other cc
+// modules. A module can use the properties from a cc_defaults using
+// `defaults: ["<:default_module_name>"]`. Properties of both modules are
+// merged (when possible) by prepending the default module's values to the
+// depending module's values.
 func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }

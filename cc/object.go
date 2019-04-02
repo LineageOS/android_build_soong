@@ -33,6 +33,9 @@ type objectLinker struct {
 	Properties ObjectLinkerProperties
 }
 
+// cc_object runs the compiler without running the linker. It is rarely
+// necessary, but sometimes used to generate .s files from .c files to use as
+// input to a cc_genrule module.
 func ObjectFactory() android.Module {
 	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
 	module.linker = &objectLinker{
@@ -110,4 +113,8 @@ func (object *objectLinker) link(ctx ModuleContext,
 
 func (object *objectLinker) unstrippedOutputFilePath() android.Path {
 	return nil
+}
+
+func (object *objectLinker) nativeCoverage() bool {
+	return true
 }
