@@ -63,7 +63,7 @@ func init() {
 	android.RegisterModuleType("preprocessed_ndk_headers", preprocessedNdkHeadersFactory)
 	android.RegisterSingletonType("ndk", NdkSingleton)
 
-	pctx.Import("android/soong/common")
+	pctx.Import("android/soong/android")
 }
 
 func getNdkInstallBase(ctx android.PathContext) android.OutputPath {

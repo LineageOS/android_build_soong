@@ -15,7 +15,7 @@
 // soong_glob is the command line tool that checks if the list of files matching a glob has
 // changed, and only updates the output file list if it has changed.  It is used to optimize
 // out build.ninja regenerations when non-matching files are added.  See
-// android/soong/common/glob.go for a longer description.
+// android/soong/android/glob.go for a longer description.
 package main
 
 import (
