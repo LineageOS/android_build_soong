@@ -1,0 +1,18 @@
+[
+  // Ignore date, version and hostname properties in build.prop and prop.default files.
+  {
+    "Paths": [
+      "**/build.prop",
+      "**/prop.default"
+    ],
+    "IgnoreMatchingLines": [
+      "ro\\..*build\\.date=.*",
+      "ro\\..*build\\.date\\.utc=.*",
+      "ro\\..*build\\.version\\.incremental=.*",
+      "ro\\..*build\\.fingerprint=.*",
+      "ro\\.build\\.display\\.id=.*",
+      "ro\\.build\\.description=.*",
+      "ro\\.build\\.host=.*"
+    ]
+  }
+]
