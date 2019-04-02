@@ -481,6 +481,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
 	}, pluginTag, j.properties.Plugins...)
 
+	android.ProtoDeps(ctx, &j.protoProperties)
 	if j.hasSrcExt(".proto") {
 		protoDeps(ctx, &j.protoProperties)
 	}
@@ -768,12 +769,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
 				deps.staticJars = append(deps.staticJars, dep.Srcs()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.Srcs()...)
-			case android.DefaultsDepTag, android.SourceDepTag:
-				// Nothing to do
-			case publicApiFileTag, systemApiFileTag, testApiFileTag:
-				// Nothing to do
-			default:
-				ctx.ModuleErrorf("dependency on genrule %q may only be in srcs, libs, or static_libs", otherName)
 			}
 		default:
 			switch tag {

@@ -527,4 +527,4 @@ func (t *testTool) HostToolPath() android.OptionalPath {
 	return android.OptionalPathForPath(t.outputFile)
 }
 
-var _ HostToolProvider = (*testTool)(nil)
+var _ android.HostToolProvider = (*testTool)(nil)

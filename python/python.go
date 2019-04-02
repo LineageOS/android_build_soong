@@ -288,6 +288,8 @@ func (p *Module) hasSrcExt(ctx android.BottomUpMutatorContext, ext string) bool 
 }
 
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
+	android.ProtoDeps(ctx, &p.protoProperties)
+
 	if p.hasSrcExt(ctx, protoExt) && p.Name() != "libprotobuf-python" {
 		ctx.AddVariationDependencies(nil, pythonLibTag, "libprotobuf-python")
 	}
