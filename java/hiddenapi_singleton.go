@@ -236,6 +236,8 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-o.txt")).
 		FlagWithInput("--blacklist ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blacklist.txt")).
+		FlagWithInput("--greylist-packages ",
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-packages.txt")).
 		FlagWithOutput("--output ", tempPath)
 
 	commitChangeForRestat(rule, tempPath, outputPath)
