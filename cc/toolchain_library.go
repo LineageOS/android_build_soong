@@ -48,6 +48,9 @@ func (library *toolchainLibraryDecorator) linkerProps() []interface{} {
 	return append(props, &library.Properties)
 }
 
+// toolchain_library is used internally by the build tool to link the specified
+// static library in src property to the device libraries that are shipped with
+// gcc.
 func ToolchainLibraryFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
