@@ -39,8 +39,8 @@ func (library *Library) AndroidMkHostDex(w io.Writer, name string, data android.
 		fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", library.headerJarFile.String())
 		fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", library.implementationAndResourcesJar.String())
 		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(data.Required, " "))
-		if r := library.deviceProperties.Target.Hostdex.Required; len(r) > 0 {
-			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(r, " "))
+		if len(data.Required) > 0 {
+			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(data.Required, " "))
 		}
 		fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
 	}
