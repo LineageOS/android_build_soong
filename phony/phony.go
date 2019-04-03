@@ -34,7 +34,7 @@ type phony struct {
 func PhonyFactory() android.Module {
 	module := &phony{}
 
-	android.InitAndroidModule(module)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	return module
 }
 
@@ -51,6 +51,9 @@ func (p *phony) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+			if p.Host() {
+				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			}
 			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES := "+strings.Join(p.requiredModuleNames, " "))
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 		},
