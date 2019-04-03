@@ -290,6 +290,10 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 	if ctx.Darwin() {
 		return false
 	}
+	// http://b/110800681 - lld cannot link Android's Windows modules yet.
+	if ctx.Windows() {
+		return false
+	}
 	if linker.Properties.Use_clang_lld != nil {
 		return Bool(linker.Properties.Use_clang_lld)
 	}
@@ -343,7 +347,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			// darwin defaults to treating undefined symbols as errors
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
 		}
-	} else if !ctx.Darwin() && !ctx.Windows() {
+	} else if !ctx.Darwin() {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 	}
 
@@ -380,7 +384,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
 
-	if ctx.Host() && !ctx.Windows() {
+	if ctx.Host() {
 		rpath_prefix := `\$$ORIGIN/`
 		if ctx.Darwin() {
 			rpath_prefix = "@loader_path/"
