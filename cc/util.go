@@ -84,13 +84,9 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 
 		groupStaticLibs: in.GroupStaticLibs,
 
-		protoDeps:        in.protoDeps,
-		protoFlags:       strings.Join(in.protoFlags, " "),
-		protoOutTypeFlag: in.protoOutTypeFlag,
-		protoOutParams:   strings.Join(in.protoOutParams, ","),
+		proto:            in.proto,
 		protoC:           in.protoC,
 		protoOptionsFile: in.protoOptionsFile,
-		protoRoot:        in.ProtoRoot,
 	}
 }
 

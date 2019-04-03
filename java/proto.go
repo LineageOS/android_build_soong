@@ -15,108 +15,83 @@
 package java
 
 import (
-	"strings"
-
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
-func init() {
-	pctx.HostBinToolVariable("protocCmd", "aprotoc")
-	pctx.HostBinToolVariable("depFixCmd", "dep_fixer")
-}
-
-var (
-	proto = pctx.AndroidStaticRule("protoc",
-		blueprint.RuleParams{
-			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
-				`$protocCmd $protoOut=$protoOutParams:$out.tmp --dependency_out=$out.d -I $protoBase $protoFlags $in && ` +
-				`$depFixCmd $out.d && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
-			CommandDeps: []string{
-				"$protocCmd",
-				"$depFixCmd",
-				"${config.SoongZipCmd}",
-			},
-			Depfile: "${out}.d",
-			Deps:    blueprint.DepsGCC,
-		}, "protoBase", "protoFlags", "protoOut", "protoOutParams")
-)
-
-func genProto(ctx android.ModuleContext, protoFile android.Path, flags javaBuilderFlags) android.Path {
+func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.ProtoFlags) android.Path {
 	srcJarFile := android.GenPathWithExt(ctx, "proto", protoFile, "srcjar")
 
-	var protoBase string
-	if flags.protoRoot {
-		protoBase = "."
-	} else {
-		protoBase = strings.TrimSuffix(protoFile.String(), protoFile.Rel())
-	}
+	outDir := srcJarFile.ReplaceExtension(ctx, "tmp")
+	depFile := srcJarFile.ReplaceExtension(ctx, "srcjar.d")
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        proto,
-		Description: "protoc " + protoFile.Rel(),
-		Output:      srcJarFile,
-		Input:       protoFile,
-		Args: map[string]string{
-			"protoBase":      protoBase,
-			"protoOut":       flags.protoOutTypeFlag,
-			"protoOutParams": flags.protoOutParams,
-			"protoFlags":     strings.Join(flags.protoFlags, " "),
-		},
-	})
+	rule := android.NewRuleBuilder()
+
+	rule.Command().Text("rm -rf").Flag(outDir.String())
+	rule.Command().Text("mkdir -p").Flag(outDir.String())
+
+	android.ProtoRule(ctx, rule, protoFile, flags, flags.Deps, outDir, depFile, nil)
+
+	// Proto generated java files have an unknown package name in the path, so package the entire output directory
+	// into a srcjar.
+	rule.Command().
+		Tool(ctx.Config().HostToolPath(ctx, "soong_zip")).
+		Flag("-jar").
+		FlagWithOutput("-o ", srcJarFile).
+		FlagWithArg("-C ", outDir.String()).
+		FlagWithArg("-D ", outDir.String())
+
+	rule.Command().Text("rm -rf").Flag(outDir.String())
+
+	rule.Build(pctx, ctx, "protoc_"+protoFile.Rel(), "protoc "+protoFile.Rel())
 
 	return srcJarFile
 }
 
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
-	switch String(p.Proto.Type) {
-	case "micro":
-		ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-micro")
-	case "nano":
-		ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-nano")
-	case "lite", "":
-		ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-lite")
-	case "full":
-		if ctx.Host() {
-			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-full")
-		} else {
-			ctx.PropertyErrorf("proto.type", "full java protos only supported on the host")
+	if String(p.Proto.Plugin) == "" {
+		switch String(p.Proto.Type) {
+		case "micro":
+			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-micro")
+		case "nano":
+			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-nano")
+		case "lite", "":
+			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-lite")
+		case "full":
+			if ctx.Host() {
+				ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-full")
+			} else {
+				ctx.PropertyErrorf("proto.type", "full java protos only supported on the host")
+			}
+		default:
+			ctx.PropertyErrorf("proto.type", "unknown proto type %q",
+				String(p.Proto.Type))
 		}
-	default:
-		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
-			String(p.Proto.Type))
 	}
 }
 
 func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.ProtoProperties,
 	flags javaBuilderFlags) javaBuilderFlags {
 
-	switch String(p.Proto.Type) {
-	case "micro":
-		flags.protoOutTypeFlag = "--javamicro_out"
-	case "nano":
-		flags.protoOutTypeFlag = "--javanano_out"
-	case "lite":
-		flags.protoOutTypeFlag = "--java_out"
-		flags.protoOutParams = "lite"
-	case "full", "":
-		flags.protoOutTypeFlag = "--java_out"
-	default:
-		ctx.PropertyErrorf("proto.type", "unknown proto type %q",
-			String(p.Proto.Type))
-	}
+	flags.proto = android.GetProtoFlags(ctx, p)
 
-	if len(j.Proto.Output_params) > 0 {
-		if flags.protoOutParams != "" {
-			flags.protoOutParams += ","
+	if String(p.Proto.Plugin) == "" {
+		switch String(p.Proto.Type) {
+		case "micro":
+			flags.proto.OutTypeFlag = "--javamicro_out"
+		case "nano":
+			flags.proto.OutTypeFlag = "--javanano_out"
+		case "lite":
+			flags.proto.OutTypeFlag = "--java_out"
+			flags.proto.OutParams = append(flags.proto.OutParams, "lite")
+		case "full", "":
+			flags.proto.OutTypeFlag = "--java_out"
+		default:
+			ctx.PropertyErrorf("proto.type", "unknown proto type %q",
+				String(p.Proto.Type))
 		}
-		flags.protoOutParams += strings.Join(j.Proto.Output_params, ",")
 	}
 
-	flags.protoFlags = android.ProtoFlags(ctx, p)
-	flags.protoRoot = android.ProtoCanonicalPathFromRoot(ctx, p)
+	flags.proto.OutParams = append(flags.proto.OutParams, j.Proto.Output_params...)
 
 	return flags
 }

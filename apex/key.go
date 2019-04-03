@@ -16,8 +16,6 @@ package apex
 
 import (
 	"fmt"
-	"io"
-	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -39,7 +37,6 @@ type apexKey struct {
 
 	public_key_file  android.Path
 	private_key_file android.Path
-	installDir       android.OutputPath
 
 	keyName string
 }
@@ -64,7 +61,7 @@ func apexKeyFactory() android.Module {
 }
 
 func (m *apexKey) installable() bool {
-	return m.properties.Installable == nil || proptools.Bool(m.properties.Installable)
+	return false
 }
 
 func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -99,25 +96,6 @@ func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 	m.keyName = pubKeyName
-
-	m.installDir = android.PathForModuleInstall(ctx, "etc/security/apex")
-	if m.installable() {
-		ctx.InstallFile(m.installDir, m.keyName, m.public_key_file)
-	}
-}
-
-func (m *apexKey) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
-		Class:      "ETC",
-		OutputFile: android.OptionalPathForPath(m.public_key_file),
-		Extra: []android.AndroidMkExtraFunc{
-			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", m.installDir.RelPathString()))
-				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", m.keyName)
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !m.installable())
-			},
-		},
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////

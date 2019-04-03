@@ -118,7 +118,7 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			javaFile := genLogtags(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".proto":
-			srcJarFile := genProto(ctx, srcFile, flags)
+			srcJarFile := genProto(ctx, srcFile, flags.proto)
 			outSrcFiles = append(outSrcFiles, srcJarFile)
 		case ".sysprop":
 			srcJarFile := genSysprop(ctx, srcFile)

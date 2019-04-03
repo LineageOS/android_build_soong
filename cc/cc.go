@@ -162,13 +162,9 @@ type Flags struct {
 
 	GroupStaticLibs bool
 
-	protoDeps        android.Paths
-	protoFlags       []string // Flags that apply to proto source files
-	protoOutTypeFlag string   // The output type, --cpp_out for example
-	protoOutParams   []string // Flags that modify the output of proto generated files
-	protoC           bool     // Whether to use C instead of C++
-	protoOptionsFile bool     // Whether to look for a .options file next to the .proto
-	ProtoRoot        bool
+	proto            android.ProtoFlags
+	protoC           bool // Whether to use C instead of C++
+	protoOptionsFile bool // Whether to look for a .options file next to the .proto
 }
 
 type ObjectLinkerProperties struct {
@@ -1594,6 +1590,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					ctx.ModuleErrorf("module %q is not a genrule", depName)
 				}
 			}
+			return
+		}
+
+		if depTag == android.ProtoPluginDepTag {
 			return
 		}
 

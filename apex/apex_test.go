@@ -15,8 +15,6 @@
 package apex
 
 import (
-	"bufio"
-	"bytes"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -299,6 +297,10 @@ func TestBasicApex(t *testing.T) {
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
+
+	optFlags := apexRule.Args["opt_flags"]
+	ensureContains(t, optFlags, "--pubkey vendor/foo/devkeys/testkey.avbpubkey")
+
 	copyCmds := apexRule.Args["copy_commands"]
 
 	// Ensure that main rule creates an output
@@ -1197,14 +1199,6 @@ func TestApexInProductPartition(t *testing.T) {
 	if actual != expected {
 		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 	}
-
-	apex_key := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
-	expected = "target/product/test_device/product/etc/security/apex"
-	actual = apex_key.installDir.RelPathString()
-	if actual != expected {
-		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
-	}
-
 }
 
 func TestApexKeyFromOtherModule(t *testing.T) {
@@ -1252,14 +1246,6 @@ func TestPrebuilt(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			key: "myapex.key"
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-			product_specific: true,
 		}
 	`)
 
@@ -1268,25 +1254,5 @@ func TestPrebuilt(t *testing.T) {
 	expectedInput := "myapex-arm64.apex"
 	if prebuilt.inputApex.String() != expectedInput {
 		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
-	}
-
-	// Check if the key module is added as a required module.
-	buf := &bytes.Buffer{}
-	prebuilt.AndroidMk().Extra[0](buf, nil)
-	found := false
-	scanner := bufio.NewScanner(bytes.NewReader(buf.Bytes()))
-	expected := "myapex.key"
-	for scanner.Scan() {
-		line := scanner.Text()
-		tok := strings.Split(line, " := ")
-		if tok[0] == "LOCAL_REQUIRED_MODULES" {
-			found = true
-			if tok[1] != "myapex.key" {
-				t.Errorf("Unexpected LOCAL_REQUIRED_MODULES '%s', expected '%s'", tok[1], expected)
-			}
-		}
-	}
-	if !found {
-		t.Errorf("Couldn't find a LOCAL_REQUIRED_MODULES entry")
 	}
 }
