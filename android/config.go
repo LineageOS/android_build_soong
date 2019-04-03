@@ -200,12 +200,14 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 func TestConfig(buildDir string, env map[string]string) Config {
 	config := &config{
 		productVariables: productVariables{
-			DeviceName:           stringPtr("test_device"),
-			Platform_sdk_version: intPtr(26),
-			AAPTConfig:           []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
-			AAPTPreferredConfig:  stringPtr("xhdpi"),
-			AAPTCharacteristics:  stringPtr("nosdcard"),
-			AAPTPrebuiltDPI:      []string{"xhdpi", "xxhdpi"},
+			DeviceName:                  stringPtr("test_device"),
+			Platform_sdk_version:        intPtr(26),
+			DeviceSystemSdkVersions:     []string{"14", "15"},
+			Platform_systemsdk_versions: []string{"25", "26"},
+			AAPTConfig:                  []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+			AAPTPreferredConfig:         stringPtr("xhdpi"),
+			AAPTCharacteristics:         stringPtr("nosdcard"),
+			AAPTPrebuiltDPI:             []string{"xhdpi", "xxhdpi"},
 		},
 
 		buildDir:     buildDir,
