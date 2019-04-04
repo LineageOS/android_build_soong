@@ -1256,3 +1256,20 @@ func TestPrebuilt(t *testing.T) {
 		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
 	}
 }
+
+func TestPrebuiltFilenameOverride(t *testing.T) {
+	ctx := testApex(t, `
+		prebuilt_apex {
+			name: "myapex",
+			src: "myapex-arm.apex",
+			filename: "notmyapex.apex",
+		}
+	`)
+
+	p := ctx.ModuleForTests("myapex", "android_common").Module().(*Prebuilt)
+
+	expected := "notmyapex.apex"
+	if p.installFilename != expected {
+		t.Errorf("installFilename invalid. expected: %q, actual: %q", expected, p.installFilename)
+	}
+}
