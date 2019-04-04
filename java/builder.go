@@ -133,7 +133,7 @@ var (
 )
 
 func init() {
-	pctx.Import("android/soong/common")
+	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java/config")
 }
 

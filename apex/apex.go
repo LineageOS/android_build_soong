@@ -119,7 +119,7 @@ var (
 )
 
 func init() {
-	pctx.Import("android/soong/common")
+	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java")
 	pctx.HostBinToolVariable("apexer", "apexer")
 	// ART minimal builds (using the master-art manifest) do not have the "frameworks/base"
