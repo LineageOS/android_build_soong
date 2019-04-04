@@ -153,42 +153,48 @@ func init() {
 	android.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 }
 
-// Module factory for combined static + shared libraries, device by default but with possible host
-// support
+// cc_library creates both static and/or shared libraries for a device and/or
+// host. By default, a cc_library has a single variant that targets the device.
+// Specifying `host_supported: true` also creates a library that targets the
+// host.
 func LibraryFactory() android.Module {
 	module, _ := NewLibrary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-// Module factory for static libraries
+// cc_library_static creates a static library for a device and/or host binary.
 func LibraryStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
-// Module factory for shared libraries
+// cc_library_shared creates a shared library for a device and/or host.
 func LibrarySharedFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
-// Module factory for host static libraries
+// cc_library_host_static creates a static library that is linkable to a host
+// binary.
 func LibraryHostStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyStatic()
 	return module.Init()
 }
 
-// Module factory for host shared libraries
+// cc_library_host_shared creates a shared library that is usable on a host.
 func LibraryHostSharedFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
 	return module.Init()
 }
 
-// Module factory for header-only libraries
+// cc_library_headers contains a set of c/c++ headers which are imported by
+// other soong cc modules using the header_libs property. For best practices,
+// use export_include_dirs property or LOCAL_EXPORT_C_INCLUDE_DIRS for
+// Make.
 func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
@@ -293,6 +299,10 @@ type libraryDecorator struct {
 
 	post_install_cmds []string
 
+	// If useCoreVariant is true, the vendor variant of a VNDK library is
+	// not installed.
+	useCoreVariant bool
+
 	// Decorated interafaces
 	*baseCompiler
 	*baseLinker
@@ -347,10 +357,9 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 				)
 			}
 		} else {
-			f = append(f, "-shared")
-			if !ctx.Windows() {
-				f = append(f, "-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix())
-			}
+			f = append(f,
+				"-shared",
+				"-Wl,-soname,"+libName+flags.Toolchain.ShlibSuffix())
 		}
 
 		flags.LdFlags = append(f, flags.LdFlags...)
@@ -674,14 +683,6 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := outputFile
 
-	var implicitOutputs android.WritablePaths
-	if ctx.Windows() {
-		importLibraryPath := android.PathForModuleOut(ctx, pathtools.ReplaceExtension(fileName, "a"))
-
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--out-implib="+importLibraryPath.String())
-		implicitOutputs = append(implicitOutputs, importLibraryPath)
-	}
-
 	builderFlags := flagsToBuilderFlags(flags)
 
 	// Optimize out relinking against shared libraries whose interface hasn't changed by
@@ -733,7 +734,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
-		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs)
+		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
@@ -749,6 +750,13 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
 	return library.unstrippedOutputFile
+}
+
+func (library *libraryDecorator) nativeCoverage() bool {
+	if library.header() || library.buildStubs() {
+		return false
+	}
+	return true
 }
 
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
@@ -831,10 +839,10 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	if Bool(library.Properties.Proto.Export_proto_headers) {
 		if library.baseCompiler.hasSrcExt(".proto") {
 			includes := []string{}
-			if flags.ProtoRoot {
-				includes = append(includes, "-I"+android.ProtoSubDir(ctx).String())
+			if flags.proto.CanonicalPathFromRoot {
+				includes = append(includes, "-I"+flags.proto.SubDir.String())
 			}
-			includes = append(includes, "-I"+android.ProtoDir(ctx).String())
+			includes = append(includes, "-I"+flags.proto.Dir.String())
 			library.reexportFlags(includes)
 			library.reuseExportedFlags = append(library.reuseExportedFlags, includes...)
 			library.reexportDeps(library.baseCompiler.pathDeps) // TODO: restrict to proto deps
@@ -914,6 +922,9 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			if ctx.isVndkSp() {
 				library.baseInstaller.subDir = "vndk-sp"
 			} else if ctx.isVndk() {
+				if ctx.DeviceConfig().VndkUseCoreVariant() && !ctx.mustUseVendorVariant() {
+					library.useCoreVariant = true
+				}
 				library.baseInstaller.subDir = "vndk"
 			}
 

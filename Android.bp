@@ -55,6 +55,7 @@ bootstrap_go_package {
         "android/namespace.go",
         "android/neverallow.go",
         "android/onceper.go",
+        "android/override_module.go",
         "android/package_ctx.go",
         "android/path_properties.go",
         "android/paths.go",
@@ -103,6 +104,7 @@ bootstrap_go_package {
         "cc/config/global.go",
         "cc/config/tidy.go",
         "cc/config/toolchain.go",
+        "cc/config/vndk.go",
 
         "cc/config/arm_device.go",
         "cc/config/arm64_device.go",
@@ -191,6 +193,7 @@ bootstrap_go_package {
         "cc/gen_test.go",
         "cc/genrule_test.go",
         "cc/library_test.go",
+        "cc/proto_test.go",
         "cc/test_data_test.go",
         "cc/util_test.go",
     ],

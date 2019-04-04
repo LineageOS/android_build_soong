@@ -90,6 +90,12 @@ var (
 		CommandDeps: []string{"${zip2zip}"},
 		Description: "app bundle",
 	}, "abi")
+
+	apexMergeNoticeRule = pctx.StaticRule("apexMergeNoticeRule", blueprint.RuleParams{
+		Command:     `${mergenotice} --output $out $inputs`,
+		CommandDeps: []string{"${mergenotice}"},
+		Description: "merge notice files into $out",
+	}, "inputs")
 )
 
 var imageApexSuffix = ".apex"
@@ -138,9 +144,12 @@ func init() {
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 
+	pctx.SourcePathVariable("mergenotice", "build/soong/scripts/mergenotice.py")
+
 	android.RegisterModuleType("apex", apexBundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
+	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -387,12 +396,13 @@ type apexBundle struct {
 	outputFiles      map[apexPackaging]android.WritablePath
 	installDir       android.OutputPath
 
-	public_key_file   android.Path
-	private_key_file  android.Path
-	bundle_public_key bool
+	public_key_file  android.Path
+	private_key_file android.Path
 
 	container_certificate_file android.Path
 	container_private_key_file android.Path
+
+	mergedNoticeFile android.WritablePath
 
 	// list of files to be included in this apex
 	filesInfo []apexFile
@@ -735,10 +745,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if key, ok := child.(*apexKey); ok {
 					a.private_key_file = key.private_key_file
 					a.public_key_file = key.public_key_file
-					// If the key is not installed, bundled it with the APEX.
-					// Note: this bundled key is valid only for non-production builds
-					// (eng/userdebug).
-					a.bundle_public_key = !key.installable() && ctx.Config().Debuggable()
 					return false
 				} else {
 					ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
@@ -814,6 +820,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
+	a.buildNoticeFile(ctx)
+
 	if a.apexTypes.zip() {
 		a.buildUnflattenedApex(ctx, zipApex)
 	}
@@ -824,6 +832,37 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// or unflattened APEX is made.
 		a.buildUnflattenedApex(ctx, imageApex)
 		a.buildFlattenedApex(ctx)
+	}
+}
+
+func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext) {
+	noticeFiles := []android.Path{}
+	noticeFilesString := []string{}
+	for _, f := range a.filesInfo {
+		if f.module != nil {
+			notice := f.module.NoticeFile()
+			if notice.Valid() {
+				noticeFiles = append(noticeFiles, notice.Path())
+				noticeFilesString = append(noticeFilesString, notice.Path().String())
+			}
+		}
+	}
+	// append the notice file specified in the apex module itself
+	if a.NoticeFile().Valid() {
+		noticeFiles = append(noticeFiles, a.NoticeFile().Path())
+		noticeFilesString = append(noticeFilesString, a.NoticeFile().Path().String())
+	}
+
+	if len(noticeFiles) > 0 {
+		a.mergedNoticeFile = android.PathForModuleOut(ctx, "NOTICE")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   apexMergeNoticeRule,
+			Inputs: noticeFiles,
+			Output: a.mergedNoticeFile,
+			Args: map[string]string{
+				"inputs": strings.Join(noticeFilesString, " "),
+			},
+		})
 	}
 }
 
@@ -924,11 +963,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		optFlags := []string{}
 
 		// Additional implicit inputs.
-		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, a.private_key_file)
-		if a.bundle_public_key {
-			implicitInputs = append(implicitInputs, a.public_key_file)
-			optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
-		}
+		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, a.private_key_file, a.public_key_file)
+		optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
 
 		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
 		if overridden {
@@ -1013,7 +1049,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
-		// For flattened APEX, do nothing but make sure that apex_manifest.json file is also copied along
+		// For flattened APEX, do nothing but make sure that apex_manifest.json and apex_pubkey are also copied along
 		// with other ordinary files.
 		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
@@ -1025,6 +1061,15 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 			Output: copiedManifest,
 		})
 		a.filesInfo = append(a.filesInfo, apexFile{copiedManifest, ctx.ModuleName() + ".apex_manifest.json", ".", etc, nil, nil})
+
+		// rename to apex_pubkey
+		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  a.public_key_file,
+			Output: copiedPubkey,
+		})
+		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, ctx.ModuleName() + ".apex_pubkey", ".", etc, nil, nil})
 
 		if ctx.Config().FlattenApex() {
 			for _, fi := range a.filesInfo {
@@ -1077,6 +1122,10 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 			fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			if len(fi.symlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
+			}
+
+			if fi.module != nil && fi.module.NoticeFile().Valid() {
+				fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", fi.module.NoticeFile().Path().String())
 			}
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
@@ -1167,7 +1216,9 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
-				fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", String(a.properties.Key))
+				if a.installable() && a.mergedNoticeFile != nil {
+					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNoticeFile.String())
+				}
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
 				}
@@ -1231,5 +1282,105 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	)
 
 	android.InitDefaultsModule(module)
+	return module
+}
+
+//
+// Prebuilt APEX
+//
+type Prebuilt struct {
+	android.ModuleBase
+	prebuilt android.Prebuilt
+
+	properties PrebuiltProperties
+
+	inputApex  android.Path
+	installDir android.OutputPath
+}
+
+type PrebuiltProperties struct {
+	// the path to the prebuilt .apex file to import.
+	Source string `blueprint:"mutated"`
+
+	Src  *string
+	Arch struct {
+		Arm struct {
+			Src *string
+		}
+		Arm64 struct {
+			Src *string
+		}
+		X86 struct {
+			Src *string
+		}
+		X86_64 struct {
+			Src *string
+		}
+	}
+}
+
+func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// This is called before prebuilt_select and prebuilt_postdeps mutators
+	// The mutators requires that src to be set correctly for each arch so that
+	// arch variants are disabled when src is not provided for the arch.
+	if len(ctx.MultiTargets()) != 1 {
+		ctx.ModuleErrorf("compile_multilib shouldn't be \"both\" for prebuilt_apex")
+		return
+	}
+	var src string
+	switch ctx.MultiTargets()[0].Arch.ArchType {
+	case android.Arm:
+		src = String(p.properties.Arch.Arm.Src)
+	case android.Arm64:
+		src = String(p.properties.Arch.Arm64.Src)
+	case android.X86:
+		src = String(p.properties.Arch.X86.Src)
+	case android.X86_64:
+		src = String(p.properties.Arch.X86_64.Src)
+	default:
+		ctx.ModuleErrorf("prebuilt_apex does not support %q", ctx.MultiTargets()[0].Arch.String())
+		return
+	}
+	if src == "" {
+		src = String(p.properties.Src)
+	}
+	p.properties.Source = src
+}
+
+func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// TODO(jungjw): Check the key validity.
+	p.inputApex = p.Prebuilt().SingleSourcePath(ctx)
+	p.installDir = android.PathForModuleInstall(ctx, "apex")
+	ctx.InstallFile(p.installDir, ctx.ModuleName()+imageApexSuffix, p.inputApex)
+}
+
+func (p *Prebuilt) Prebuilt() *android.Prebuilt {
+	return &p.prebuilt
+}
+
+func (p *Prebuilt) Name() string {
+	return p.prebuilt.Name(p.ModuleBase.Name())
+}
+
+func (p *Prebuilt) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(p.inputApex),
+		Include:    "$(BUILD_PREBUILT)",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", p.installDir.RelPathString()))
+				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", p.BaseModuleName()+imageApexSuffix)
+			},
+		},
+	}
+}
+
+// prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
+func PrebuiltFactory() android.Module {
+	module := &Prebuilt{}
+	module.AddProperties(&module.properties)
+	android.InitSingleSourcePrebuiltModule(module, &module.properties.Source)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }

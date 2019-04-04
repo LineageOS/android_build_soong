@@ -49,8 +49,10 @@ type SourceFileGenerator interface {
 	GeneratedDeps() android.Paths
 }
 
+// Alias for android.HostToolProvider
+// Deprecated: use android.HostToolProvider instead.
 type HostToolProvider interface {
-	HostToolPath() android.OptionalPath
+	android.HostToolProvider
 }
 
 type hostToolDependencyTag struct {
@@ -193,7 +195,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				tool := ctx.OtherModuleName(module)
 				var path android.OptionalPath
 
-				if t, ok := module.(HostToolProvider); ok {
+				if t, ok := module.(android.HostToolProvider); ok {
 					if !t.(android.Module).Enabled() {
 						if ctx.Config().AllowMissingDependencies() {
 							ctx.AddMissingDependencies([]string{tool})

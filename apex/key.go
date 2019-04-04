@@ -16,8 +16,6 @@ package apex
 
 import (
 	"fmt"
-	"io"
-	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -39,17 +37,16 @@ type apexKey struct {
 
 	public_key_file  android.Path
 	private_key_file android.Path
-	installDir       android.OutputPath
 
 	keyName string
 }
 
 type apexKeyProperties struct {
-	// Path to the public key file in avbpubkey format. Installed to the device.
+	// Path or module to the public key file in avbpubkey format. Installed to the device.
 	// Base name of the file is used as the ID for the key.
-	Public_key *string
-	// Path to the private key file in pem format. Used to sign APEXs.
-	Private_key *string
+	Public_key *string `android:"path"`
+	// Path or module to the private key file in pem format. Used to sign APEXs.
+	Private_key *string `android:"path"`
 
 	// Whether this key is installable to one of the partitions. Defualt: true.
 	Installable *bool
@@ -64,49 +61,41 @@ func apexKeyFactory() android.Module {
 }
 
 func (m *apexKey) installable() bool {
-	return m.properties.Installable == nil || proptools.Bool(m.properties.Installable)
+	return false
 }
 
 func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	m.public_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Public_key))
-	m.private_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Private_key))
-
-	// If not found, fall back to the local key pairs
-	if !android.ExistentPathForSource(ctx, m.public_key_file.String()).Valid() {
+	// If the keys are from other modules (i.e. :module syntax) respect it.
+	// Otherwise, try to locate the key files in the default cert dir or
+	// in the local module dir
+	if android.SrcIsModule(String(m.properties.Public_key)) != "" {
 		m.public_key_file = android.PathForModuleSrc(ctx, String(m.properties.Public_key))
+	} else {
+		m.public_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Public_key))
+		// If not found, fall back to the local key pairs
+		if !android.ExistentPathForSource(ctx, m.public_key_file.String()).Valid() {
+			m.public_key_file = android.PathForModuleSrc(ctx, String(m.properties.Public_key))
+		}
 	}
-	if !android.ExistentPathForSource(ctx, m.private_key_file.String()).Valid() {
+
+	if android.SrcIsModule(String(m.properties.Private_key)) != "" {
 		m.private_key_file = android.PathForModuleSrc(ctx, String(m.properties.Private_key))
+	} else {
+		m.private_key_file = ctx.Config().ApexKeyDir(ctx).Join(ctx, String(m.properties.Private_key))
+		if !android.ExistentPathForSource(ctx, m.private_key_file.String()).Valid() {
+			m.private_key_file = android.PathForModuleSrc(ctx, String(m.properties.Private_key))
+		}
 	}
 
 	pubKeyName := m.public_key_file.Base()[0 : len(m.public_key_file.Base())-len(m.public_key_file.Ext())]
 	privKeyName := m.private_key_file.Base()[0 : len(m.private_key_file.Base())-len(m.private_key_file.Ext())]
 
-	if pubKeyName != privKeyName {
+	if m.properties.Public_key != nil && m.properties.Private_key != nil && pubKeyName != privKeyName {
 		ctx.ModuleErrorf("public_key %q (keyname:%q) and private_key %q (keyname:%q) do not have same keyname",
 			m.public_key_file.String(), pubKeyName, m.private_key_file, privKeyName)
 		return
 	}
 	m.keyName = pubKeyName
-
-	m.installDir = android.PathForModuleInstall(ctx, "etc/security/apex")
-	if m.installable() {
-		ctx.InstallFile(m.installDir, m.keyName, m.public_key_file)
-	}
-}
-
-func (m *apexKey) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
-		Class:      "ETC",
-		OutputFile: android.OptionalPathForPath(m.public_key_file),
-		Extra: []android.AndroidMkExtraFunc{
-			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", m.installDir.RelPathString()))
-				fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", m.keyName)
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !m.installable())
-			},
-		},
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////

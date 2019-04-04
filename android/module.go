@@ -189,6 +189,7 @@ type Module interface {
 	InstallInRecovery() bool
 	SkipInstall()
 	ExportedToMake() bool
+	NoticeFile() OptionalPath
 
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
@@ -466,7 +467,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       Paths
 	checkbuildFiles    Paths
-	noticeFile         Path
+	noticeFile         OptionalPath
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -667,6 +668,10 @@ func (a *ModuleBase) Owner() string {
 	return String(a.commonProperties.Owner)
 }
 
+func (a *ModuleBase) NoticeFile() OptionalPath {
+	return a.noticeFile
+}
+
 func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
@@ -852,9 +857,12 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		a.installFiles = append(a.installFiles, ctx.installFiles...)
 		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
 
-		if a.commonProperties.Notice != nil {
-			// For filegroup-based notice file references.
-			a.noticeFile = PathForModuleSrc(ctx, *a.commonProperties.Notice)
+		notice := proptools.StringDefault(a.commonProperties.Notice, "NOTICE")
+		if m := SrcIsModule(notice); m != "" {
+			a.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
+		} else {
+			noticePath := filepath.Join(ctx.ModuleDir(), notice)
+			a.noticeFile = ExistentPathForSource(ctx, noticePath)
 		}
 	}
 
@@ -1415,6 +1423,10 @@ func ExtractSourceDeps(ctx BottomUpMutatorContext, s *string) {
 
 type SourceFileProducer interface {
 	Srcs() Paths
+}
+
+type HostToolProvider interface {
+	HostToolPath() OptionalPath
 }
 
 // Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must

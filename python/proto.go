@@ -16,58 +16,35 @@ package python
 
 import (
 	"android/soong/android"
-	"strings"
-
-	"github.com/google/blueprint"
 )
 
-func init() {
-	pctx.HostBinToolVariable("protocCmd", "aprotoc")
-}
+func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.ProtoFlags, pkgPath string) android.Path {
+	srcsZipFile := android.PathForModuleGen(ctx, protoFile.Base()+".srcszip")
 
-var (
-	proto = pctx.AndroidStaticRule("protoc",
-		blueprint.RuleParams{
-			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
-				`$protocCmd --python_out=$out.tmp --dependency_out=$out.d -I $protoBase $protoFlags $in && ` +
-				`$parCmd -o $out $pkgPathArgs -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
-			CommandDeps: []string{
-				"$protocCmd",
-				"$parCmd",
-			},
-			Depfile: "${out}.d",
-			Deps:    blueprint.DepsGCC,
-		}, "protoBase", "protoFlags", "pkgPathArgs")
-)
+	outDir := srcsZipFile.ReplaceExtension(ctx, "tmp")
+	depFile := srcsZipFile.ReplaceExtension(ctx, "srcszip.d")
 
-func genProto(ctx android.ModuleContext, p *android.ProtoProperties,
-	protoFile android.Path, protoFlags []string, pkgPath string) android.Path {
-	srcJarFile := android.PathForModuleGen(ctx, protoFile.Base()+".srcszip")
+	rule := android.NewRuleBuilder()
 
-	protoRoot := android.ProtoCanonicalPathFromRoot(ctx, p)
+	rule.Command().Text("rm -rf").Flag(outDir.String())
+	rule.Command().Text("mkdir -p").Flag(outDir.String())
 
-	var protoBase string
-	if protoRoot {
-		protoBase = "."
-	} else {
-		protoBase = strings.TrimSuffix(protoFile.String(), protoFile.Rel())
-	}
+	android.ProtoRule(ctx, rule, protoFile, flags, flags.Deps, outDir, depFile, nil)
 
-	var pkgPathArgs string
+	// Proto generated python files have an unknown package name in the path, so package the entire output directory
+	// into a srcszip.
+	zipCmd := rule.Command().
+		Tool(ctx.Config().HostToolPath(ctx, "soong_zip")).
+		FlagWithOutput("-o ", srcsZipFile).
+		FlagWithArg("-C ", outDir.String()).
+		FlagWithArg("-D ", outDir.String())
 	if pkgPath != "" {
-		pkgPathArgs = "-P " + pkgPath
+		zipCmd.FlagWithArg("-P ", pkgPath)
 	}
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        proto,
-		Description: "protoc " + protoFile.Rel(),
-		Output:      srcJarFile,
-		Input:       protoFile,
-		Args: map[string]string{
-			"protoBase":   protoBase,
-			"protoFlags":  strings.Join(protoFlags, " "),
-			"pkgPathArgs": pkgPathArgs,
-		},
-	})
 
-	return srcJarFile
+	rule.Command().Text("rm -rf").Flag(outDir.String())
+
+	rule.Build(pctx, ctx, "protoc_"+protoFile.Rel(), "protoc "+protoFile.Rel())
+
+	return srcsZipFile
 }

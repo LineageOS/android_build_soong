@@ -57,13 +57,13 @@ func init() {
 	android.RegisterModuleType("cc_binary_host", binaryHostFactory)
 }
 
-// Module factory for binaries
+// cc_binary produces a binary that is runnable on a device.
 func BinaryFactory() android.Module {
 	module, _ := NewBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-// Module factory for host binaries
+// cc_binary_host produces a binary that is runnable on a host.
 func binaryHostFactory() android.Module {
 	module, _ := NewBinary(android.HostSupported)
 	return module.Init()
@@ -384,7 +384,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
-		builderFlags, outputFile, nil)
+		builderFlags, outputFile)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
@@ -415,6 +415,10 @@ func (binary *binaryDecorator) unstrippedOutputFilePath() android.Path {
 
 func (binary *binaryDecorator) symlinkList() []string {
 	return binary.symlinks
+}
+
+func (binary *binaryDecorator) nativeCoverage() bool {
+	return true
 }
 
 // /system/bin/linker -> /apex/com.android.runtime/bin/linker

@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 type VndkProperties struct {
@@ -191,11 +192,12 @@ func vndkIsVndkDepAllowed(from *vndkdep, to *vndkdep) error {
 }
 
 var (
-	vndkCoreLibraries    []string
-	vndkSpLibraries      []string
-	llndkLibraries       []string
-	vndkPrivateLibraries []string
-	vndkLibrariesLock    sync.Mutex
+	vndkCoreLibraries             []string
+	vndkSpLibraries               []string
+	llndkLibraries                []string
+	vndkPrivateLibraries          []string
+	vndkUsingCoreVariantLibraries []string
+	vndkLibrariesLock             sync.Mutex
 )
 
 // gather list of vndk-core, vndk-sp, and ll-ndk libs
@@ -223,6 +225,12 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 				if m.vndkdep.isVndk() && !m.vndkdep.isVndkExt() {
 					vndkLibrariesLock.Lock()
 					defer vndkLibrariesLock.Unlock()
+					if mctx.DeviceConfig().VndkUseCoreVariant() && !inList(name, config.VndkMustUseVendorVariantList) {
+						if !inList(name, vndkUsingCoreVariantLibraries) {
+							vndkUsingCoreVariantLibraries = append(vndkUsingCoreVariantLibraries, name)
+							sort.Strings(vndkUsingCoreVariantLibraries)
+						}
+					}
 					if m.vndkdep.isVndkSp() {
 						if !inList(name, vndkSpLibraries) {
 							vndkSpLibraries = append(vndkSpLibraries, name)

@@ -221,12 +221,14 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
 
+	android.ProtoDeps(ctx, &compiler.Proto)
 	if compiler.hasSrcExt(".proto") {
 		deps = protoDeps(ctx, deps, &compiler.Proto, Bool(compiler.Properties.Proto.Static))
 	}
 
 	if compiler.hasSrcExt(".sysprop") {
-		deps.SharedLibs = append(deps.SharedLibs, "libbase")
+		deps.HeaderLibs = append(deps.HeaderLibs, "libbase_headers")
+		deps.SharedLibs = append(deps.SharedLibs, "liblog")
 	}
 
 	if Bool(compiler.Properties.Openmp) {

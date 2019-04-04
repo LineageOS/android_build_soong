@@ -338,6 +338,10 @@ func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
 }
 
+func (stub *stubDecorator) nativeCoverage() bool {
+	return false
+}
+
 func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	arch := ctx.Target().Arch.ArchType.Name
 	apiLevel := stub.properties.ApiLevel
