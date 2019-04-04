@@ -1317,6 +1317,12 @@ type PrebuiltProperties struct {
 			Src *string
 		}
 	}
+
+	Installable *bool
+}
+
+func (p *Prebuilt) installable() bool {
+	return p.properties.Installable == nil || proptools.Bool(p.properties.Installable)
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1351,7 +1357,9 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(jungjw): Check the key validity.
 	p.inputApex = p.Prebuilt().SingleSourcePath(ctx)
 	p.installDir = android.PathForModuleInstall(ctx, "apex")
-	ctx.InstallFile(p.installDir, ctx.ModuleName()+imageApexSuffix, p.inputApex)
+	if p.installable() {
+		ctx.InstallFile(p.installDir, ctx.ModuleName()+imageApexSuffix, p.inputApex)
+	}
 }
 
 func (p *Prebuilt) Prebuilt() *android.Prebuilt {
@@ -1371,6 +1379,7 @@ func (p *Prebuilt) AndroidMk() android.AndroidMkData {
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", p.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", p.BaseModuleName()+imageApexSuffix)
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !p.installable())
 			},
 		},
 	}
