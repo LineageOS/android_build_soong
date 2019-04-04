@@ -255,6 +255,17 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			}
 		}
 
+		if inList("libc_scudo", deps.SharedLibs) {
+			// libc_scudo is an alternate implementation of all
+			// allocation functions (malloc, free), that uses
+			// the scudo allocator instead of the default native
+			// allocator. If this library is in the list, make
+			// sure it's first so it properly overrides the
+			// allocation functions of all other shared libraries.
+			_, deps.SharedLibs = removeFromList("libc_scudo", deps.SharedLibs)
+			deps.SharedLibs = append([]string{"libc_scudo"}, deps.SharedLibs...)
+		}
+
 		// If libc and libdl are both in system_shared_libs make sure libdl comes after libc
 		// to avoid loading libdl before libc.
 		if inList("libdl", systemSharedLibs) && inList("libc", systemSharedLibs) &&
@@ -288,6 +299,10 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 	// Clang lld is not ready for for Darwin host executables yet.
 	// See https://lld.llvm.org/AtomLLD.html for status of lld for Mach-O.
 	if ctx.Darwin() {
+		return false
+	}
+	// http://b/110800681 - lld cannot link Android's Windows modules yet.
+	if ctx.Windows() {
 		return false
 	}
 	if linker.Properties.Use_clang_lld != nil {
@@ -343,7 +358,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			// darwin defaults to treating undefined symbols as errors
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
 		}
-	} else if !ctx.Darwin() && !ctx.Windows() {
+	} else if !ctx.Darwin() {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 	}
 
@@ -380,7 +395,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
 
-	if ctx.Host() && !ctx.Windows() {
+	if ctx.Host() {
 		rpath_prefix := `\$$ORIGIN/`
 		if ctx.Darwin() {
 			rpath_prefix = "@loader_path/"

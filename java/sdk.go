@@ -84,7 +84,7 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		v = strconv.Itoa(latestSdkVersion)
 	}
 
-	i, err := sdkVersionToNumber(ctx, v)
+	numericSdkVersion, err := sdkVersionToNumber(ctx, v)
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 		return sdkDep{}
@@ -151,15 +151,14 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 
 	// Ensures that the specificed system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor apks)
 	// or PRODUCT_SYSTEMSDK_VERSIONS (for other apks or when BOARD_SYSTEMSDK_VERSIONS is not set)
-	if strings.HasPrefix(v, "system_") && i != android.FutureApiLevel {
+	if strings.HasPrefix(v, "system_") && numericSdkVersion != android.FutureApiLevel {
 		allowed_versions := ctx.DeviceConfig().PlatformSystemSdkVersions()
 		if ctx.DeviceSpecific() || ctx.SocSpecific() {
 			if len(ctx.DeviceConfig().SystemSdkVersions()) > 0 {
 				allowed_versions = ctx.DeviceConfig().SystemSdkVersions()
 			}
 		}
-		version := strings.TrimPrefix(v, "system_")
-		if len(allowed_versions) > 0 && !android.InList(version, allowed_versions) {
+		if len(allowed_versions) > 0 && !android.InList(strconv.Itoa(numericSdkVersion), allowed_versions) {
 			ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
 				v, allowed_versions)
 		}
