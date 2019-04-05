@@ -85,10 +85,12 @@ type variableProperties struct {
 		// are used for dogfooding and performance testing, and should be as similar to user builds
 		// as possible.
 		Debuggable struct {
-			Cflags   []string
-			Cppflags []string
-			Init_rc  []string
-			Required []string
+			Cflags          []string
+			Cppflags        []string
+			Init_rc         []string
+			Required        []string
+			Host_required   []string
+			Target_required []string
 		}
 
 		// eng is true for -eng builds, and can be used to turn on additionaly heavyweight debugging

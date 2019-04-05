@@ -133,6 +133,8 @@ type ModuleContext interface {
 	InstallInRecovery() bool
 
 	RequiredModuleNames() []string
+	HostRequiredModuleNames() []string
+	TargetRequiredModuleNames() []string
 
 	// android.ModuleContext methods
 	// These are duplicated instead of embedded so that can eventually be wrapped to take an
@@ -268,6 +270,12 @@ type commonProperties struct {
 
 	// names of other modules to install if this module is installed
 	Required []string `android:"arch_variant"`
+
+	// names of other modules to install on host if this module is installed
+	Host_required []string `android:"arch_variant"`
+
+	// names of other modules to install on target if this module is installed
+	Target_required []string `android:"arch_variant"`
 
 	// relative path to a file to include in the list of notices for the device
 	Notice *string `android:"path"`
@@ -1457,6 +1465,14 @@ func (ctx *androidModuleContext) ExpandOptionalSource(srcFile *string, prop stri
 
 func (ctx *androidModuleContext) RequiredModuleNames() []string {
 	return ctx.module.base().commonProperties.Required
+}
+
+func (ctx *androidModuleContext) HostRequiredModuleNames() []string {
+	return ctx.module.base().commonProperties.Host_required
+}
+
+func (ctx *androidModuleContext) TargetRequiredModuleNames() []string {
+	return ctx.module.base().commonProperties.Target_required
 }
 
 func (ctx *androidModuleContext) Glob(globPattern string, excludes []string) Paths {
