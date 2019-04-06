@@ -32,6 +32,7 @@ type GlobalConfig struct {
 	OnlyPreoptBootImageAndSystemServer bool // only preopt jars in the boot image or system server
 
 	GenerateApexImage bool // generate an extra boot image only containing jars from the runtime apex
+	UseApexImage      bool // use the apex image by default
 
 	HasSystemOther        bool     // store odex files that match PatternsOnSystemOther on the system_other partition
 	PatternsOnSystemOther []string // patterns (using '%' to denote a prefix match) to put odex on the system_other partition
