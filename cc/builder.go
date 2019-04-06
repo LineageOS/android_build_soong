@@ -150,8 +150,8 @@ var (
 
 	clangTidy = pctx.AndroidStaticRule("clangTidy",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && CLANG_TIDY=${config.ClangBin}/clang-tidy ${config.ClangTidyShellPath} $tidyFlags $in -- $cFlags && touch $out",
-			CommandDeps: []string{"${config.ClangBin}/clang-tidy", "${config.ClangTidyShellPath}"},
+			Command:     "rm -f $out && ${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
+			CommandDeps: []string{"${config.ClangBin}/clang-tidy"},
 		},
 		"cFlags", "tidyFlags")
 
