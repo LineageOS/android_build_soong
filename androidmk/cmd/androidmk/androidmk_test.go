@@ -577,6 +577,10 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 			include $(CLEAR_VARS)
 			LOCAL_SRC_FILES := $(call all-java-files-under, src gen)
 			include $(BUILD_STATIC_JAVA_LIBRARY)
+
+			include $(CLEAR_VARS)
+			LOCAL_JAVA_RESOURCE_FILES := foo bar
+			include $(BUILD_STATIC_JAVA_LIBRARY)
 		`,
 		expected: `
 			java_library {
@@ -602,6 +606,13 @@ include $(call all-makefiles-under,$(LOCAL_PATH))
 				srcs: [
 					"src/**/*.java",
 					"gen/**/*.java",
+				],
+			}
+
+			java_library {
+				java_resources: [
+					"foo",
+					"bar",
 				],
 			}
 		`,

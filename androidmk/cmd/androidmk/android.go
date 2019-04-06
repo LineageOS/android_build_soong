@@ -146,6 +146,7 @@ func init() {
 			"LOCAL_RENDERSCRIPT_FLAGS":    "renderscript.flags",
 
 			"LOCAL_JAVA_RESOURCE_DIRS":    "java_resource_dirs",
+			"LOCAL_JAVA_RESOURCE_FILES":   "java_resources",
 			"LOCAL_JAVACFLAGS":            "javacflags",
 			"LOCAL_ERROR_PRONE_FLAGS":     "errorprone.javacflags",
 			"LOCAL_DX_FLAGS":              "dxflags",
