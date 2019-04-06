@@ -501,6 +501,22 @@ func (c *config) PlatformSdkCodename() string {
 	return String(c.productVariables.Platform_sdk_codename)
 }
 
+func (c *config) PlatformSecurityPatch() string {
+	return String(c.productVariables.Platform_security_patch)
+}
+
+func (c *config) PlatformPreviewSdkVersion() string {
+	return String(c.productVariables.Platform_preview_sdk_version)
+}
+
+func (c *config) PlatformMinSupportedTargetSdkVersion() string {
+	return String(c.productVariables.Platform_min_supported_target_sdk_version)
+}
+
+func (c *config) PlatformBaseOS() string {
+	return String(c.productVariables.Platform_base_os)
+}
+
 func (c *config) MinSupportedSdkVersion() int {
 	return 16
 }

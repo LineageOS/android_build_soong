@@ -73,7 +73,7 @@ var (
 
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
-	pctx.Import("android/soong/common")
+	pctx.Import("android/soong/android")
 
 	pctx.HostBinToolVariable("parCmd", "soong_zip")
 	pctx.HostBinToolVariable("mergeParCmd", "merge_zips")
