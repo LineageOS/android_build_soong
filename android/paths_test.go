@@ -714,6 +714,8 @@ type pathForModuleSrcTestModule struct {
 		Exclude_srcs []string `android:"path"`
 
 		Src *string `android:"path"`
+
+		Module_handles_missing_deps bool
 	}
 
 	src string
@@ -733,7 +735,12 @@ func pathForModuleSrcTestModuleFactory() Module {
 }
 
 func (p *pathForModuleSrcTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	srcs := PathsForModuleSrcExcludes(ctx, p.props.Srcs, p.props.Exclude_srcs)
+	var srcs Paths
+	if p.props.Module_handles_missing_deps {
+		srcs, p.missingDeps = PathsAndMissingDepsForModuleSrcExcludes(ctx, p.props.Srcs, p.props.Exclude_srcs)
+	} else {
+		srcs = PathsForModuleSrcExcludes(ctx, p.props.Srcs, p.props.Exclude_srcs)
+	}
 	p.srcs = srcs.Strings()
 
 	for _, src := range srcs {
@@ -748,7 +755,9 @@ func (p *pathForModuleSrcTestModule) GenerateAndroidBuildActions(ctx ModuleConte
 		}
 	}
 
-	p.missingDeps = ctx.GetMissingDependencies()
+	if !p.props.Module_handles_missing_deps {
+		p.missingDeps = ctx.GetMissingDependencies()
+	}
 }
 
 type pathForModuleSrcTestCase struct {
@@ -957,6 +966,13 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 			exclude_srcs: [":b"],
 			src: ":c",
 		}
+
+		test {
+			name: "bar",
+			srcs: [":d"],
+			exclude_srcs: [":e"],
+			module_handles_missing_deps: true,
+		}
 	`
 
 	mockFS := map[string][]byte{
@@ -974,17 +990,26 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 	foo := ctx.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
 
 	if g, w := foo.missingDeps, []string{"a", "b", "c"}; !reflect.DeepEqual(g, w) {
-		t.Errorf("want missing deps %q, got %q", w, g)
+		t.Errorf("want foo missing deps %q, got %q", w, g)
 	}
 
 	if g, w := foo.srcs, []string{}; !reflect.DeepEqual(g, w) {
-		t.Errorf("want srcs %q, got %q", w, g)
+		t.Errorf("want foo srcs %q, got %q", w, g)
 	}
 
 	if g, w := foo.src, ""; g != w {
-		t.Errorf("want src %q, got %q", w, g)
+		t.Errorf("want foo src %q, got %q", w, g)
 	}
 
+	bar := ctx.ModuleForTests("bar", "").Module().(*pathForModuleSrcTestModule)
+
+	if g, w := bar.missingDeps, []string{"d", "e"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("want bar missing deps %q, got %q", w, g)
+	}
+
+	if g, w := bar.srcs, []string{}; !reflect.DeepEqual(g, w) {
+		t.Errorf("want bar srcs %q, got %q", w, g)
+	}
 }
 
 func ExampleOutputPath_ReplaceExtension() {

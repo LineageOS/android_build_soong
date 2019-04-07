@@ -189,6 +189,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	if len(g.properties.Tools) > 0 {
+		seenTools := make(map[string]bool)
+
 		ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
 			switch tag := ctx.OtherModuleDependencyTag(module).(type) {
 			case hostToolDependencyTag:
@@ -220,11 +222,25 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if path.Valid() {
 					g.deps = append(g.deps, path.Path())
 					addLocationLabel(tag.label, []string{path.Path().String()})
+					seenTools[tag.label] = true
 				} else {
 					ctx.ModuleErrorf("host tool %q missing output file", tool)
 				}
 			}
 		})
+
+		// If AllowMissingDependencies is enabled, the build will not have stopped when
+		// AddFarVariationDependencies was called on a missing tool, which will result in nonsensical
+		// "cmd: unknown location label ..." errors later.  Add a dummy file to the local label.  The
+		// command that uses this dummy file will never be executed because the rule will be replaced with
+		// an android.Error rule reporting the missing dependencies.
+		if ctx.Config().AllowMissingDependencies() {
+			for _, tool := range g.properties.Tools {
+				if !seenTools[tool] {
+					addLocationLabel(tool, []string{"***missing tool " + tool + "***"})
+				}
+			}
+		}
 	}
 
 	if ctx.Failed() {
@@ -239,9 +255,24 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var srcFiles android.Paths
 	for _, in := range g.properties.Srcs {
-		paths := android.PathsForModuleSrcExcludes(ctx, []string{in}, g.properties.Exclude_srcs)
-		srcFiles = append(srcFiles, paths...)
-		addLocationLabel(in, paths.Strings())
+		paths, missingDeps := android.PathsAndMissingDepsForModuleSrcExcludes(ctx, []string{in}, g.properties.Exclude_srcs)
+		if len(missingDeps) > 0 {
+			if !ctx.Config().AllowMissingDependencies() {
+				panic(fmt.Errorf("should never get here, the missing dependencies %q should have been reported in DepsMutator",
+					missingDeps))
+			}
+
+			// If AllowMissingDependencies is enabled, the build will not have stopped when
+			// the dependency was added on a missing SourceFileProducer module, which will result in nonsensical
+			// "cmd: label ":..." has no files" errors later.  Add a dummy file to the local label.  The
+			// command that uses this dummy file will never be executed because the rule will be replaced with
+			// an android.Error rule reporting the missing dependencies.
+			ctx.AddMissingDependencies(missingDeps)
+			addLocationLabel(in, []string{"***missing srcs " + in + "***"})
+		} else {
+			srcFiles = append(srcFiles, paths...)
+			addLocationLabel(in, paths.Strings())
+		}
 	}
 
 	task := g.taskGenerator(ctx, String(g.properties.Cmd), srcFiles)
