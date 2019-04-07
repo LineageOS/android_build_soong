@@ -27,6 +27,10 @@ var (
 func init() {
 	pctx.SourcePathVariable("KotlincCmd", "external/kotlinc/bin/kotlinc")
 	pctx.SourcePathVariable("KotlinCompilerJar", "external/kotlinc/lib/kotlin-compiler.jar")
+	pctx.SourcePathVariable("KotlinPreloaderJar", "external/kotlinc/lib/kotlin-preloader.jar")
+	pctx.SourcePathVariable("KotlinReflectJar", "external/kotlinc/lib/kotlin-reflect.jar")
+	pctx.SourcePathVariable("KotlinScriptRuntimeJar", "external/kotlinc/lib/kotlin-script-runtime.jar")
+	pctx.SourcePathVariable("KotlinTrove4jJar", "external/kotlinc/lib/trove4j.jar")
 	pctx.SourcePathVariable("KotlinKaptJar", "external/kotlinc/lib/kotlin-annotation-processing.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
 
