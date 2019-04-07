@@ -303,9 +303,15 @@ func stringPtr(v string) *string {
 
 func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
-		Platform_sdk_version:              intPtr(26),
-		Platform_version_active_codenames: []string{"P"},
-		Platform_version_future_codenames: []string{"P"},
+		BuildNumberFromFile: stringPtr("123456789"),
+
+		Platform_version_name:             stringPtr("Q"),
+		Platform_sdk_version:              intPtr(28),
+		Platform_sdk_codename:             stringPtr("Q"),
+		Platform_sdk_final:                boolPtr(false),
+		Platform_version_active_codenames: []string{"Q"},
+		Platform_version_future_codenames: []string{"Q"},
+		Platform_vndk_version:             stringPtr("Q"),
 
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),
