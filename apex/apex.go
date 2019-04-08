@@ -1297,6 +1297,7 @@ type Prebuilt struct {
 	inputApex       android.Path
 	installDir      android.OutputPath
 	installFilename string
+	outputApex      android.WritablePath
 }
 
 type PrebuiltProperties struct {
@@ -1357,6 +1358,10 @@ func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 	p.properties.Source = src
 }
 
+func (p *Prebuilt) Srcs() android.Paths {
+	return android.Paths{p.outputApex}
+}
+
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(jungjw): Check the key validity.
 	p.inputApex = p.Prebuilt().SingleSourcePath(ctx)
@@ -1365,6 +1370,12 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if !strings.HasSuffix(p.installFilename, imageApexSuffix) {
 		ctx.ModuleErrorf("filename should end in %s for prebuilt_apex", imageApexSuffix)
 	}
+	p.outputApex = android.PathForModuleOut(ctx, p.installFilename)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  p.inputApex,
+		Output: p.outputApex,
+	})
 	if p.installable() {
 		ctx.InstallFile(p.installDir, p.installFilename, p.inputApex)
 	}
