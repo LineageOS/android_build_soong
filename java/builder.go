@@ -113,6 +113,15 @@ var (
 		},
 		"rulesFile")
 
+	packageCheck = pctx.AndroidStaticRule("packageCheck",
+		blueprint.RuleParams{
+			Command: "rm -f $out && " +
+				"${config.PackageCheckCmd} $in $packages && " +
+				"touch $out",
+			CommandDeps: []string{"${config.PackageCheckCmd}"},
+		},
+		"packages")
+
 	jetifier = pctx.AndroidStaticRule("jetifier",
 		blueprint.RuleParams{
 			Command:     "${config.JavaCmd} -jar ${config.JetifierJar} -l error -o $out -i $in",
@@ -352,6 +361,19 @@ func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 		Implicit:    rulesFile,
 		Args: map[string]string{
 			"rulesFile": rulesFile.String(),
+		},
+	})
+}
+
+func CheckJarPackages(ctx android.ModuleContext, outputFile android.WritablePath,
+	classesJar android.Path, permittedPackages []string) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        packageCheck,
+		Description: "packageCheck",
+		Output:      outputFile,
+		Input:       classesJar,
+		Args: map[string]string{
+			"packages": strings.Join(permittedPackages, " "),
 		},
 	})
 }

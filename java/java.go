@@ -117,6 +117,10 @@ type CompilerProperties struct {
 	// If set to true, include sources used to compile the module in to the final jar
 	Include_srcs *bool
 
+	// If not empty, classes are restricted to the specified packages and their sub-packages.
+	// This restriction is checked after applying jarjar rules and including static libs.
+	Permitted_packages []string
+
 	// List of modules to use as annotation processors
 	Plugins []string
 
@@ -319,6 +323,9 @@ type Module struct {
 
 	// expanded Jarjar_rules
 	expandJarjarRules android.Path
+
+	// list of additional targets for checkbuild
+	additionalCheckedModules android.Paths
 
 	hiddenAPI
 	dexpreopter
@@ -1196,6 +1203,19 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			return
 		}
 	}
+
+	// Check package restrictions if necessary.
+	if len(j.properties.Permitted_packages) > 0 {
+		// Check packages and copy to package-checked file.
+		pkgckFile := android.PathForModuleOut(ctx, "package-check.stamp")
+		CheckJarPackages(ctx, pkgckFile, outputFile, j.properties.Permitted_packages)
+		j.additionalCheckedModules = append(j.additionalCheckedModules, pkgckFile)
+
+		if ctx.Failed() {
+			return
+		}
+	}
+
 	j.implementationJarFile = outputFile
 	if j.headerJarFile == nil {
 		j.headerJarFile = j.implementationJarFile
