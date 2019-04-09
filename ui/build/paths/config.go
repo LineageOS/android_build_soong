@@ -155,6 +155,7 @@ var Configuration = map[string]PathConfig{
 	"rm":        LinuxOnlyPrebuilt,
 	"rmdir":     LinuxOnlyPrebuilt,
 	"sed":       LinuxOnlyPrebuilt,
+	"seq":       LinuxOnlyPrebuilt,
 	"setsid":    LinuxOnlyPrebuilt,
 	"sha1sum":   LinuxOnlyPrebuilt,
 	"sha256sum": LinuxOnlyPrebuilt,
