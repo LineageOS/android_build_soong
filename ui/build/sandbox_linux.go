@@ -26,6 +26,8 @@ import (
 type Sandbox struct {
 	Enabled              bool
 	DisableWhenUsingGoma bool
+
+	AllowBuildBrokenUsesNetwork bool
 }
 
 var (
@@ -40,6 +42,8 @@ var (
 	ninjaSandbox    = Sandbox{
 		Enabled:              true,
 		DisableWhenUsingGoma: true,
+
+		AllowBuildBrokenUsesNetwork: true,
 	}
 )
 
@@ -152,10 +156,17 @@ func (c *Cmd) wrapSandbox() {
 
 		// Only log important warnings / errors
 		"-q",
-
-		// Stop parsing arguments
-		"--",
 	}
+
+	if c.Sandbox.AllowBuildBrokenUsesNetwork && c.config.BuildBrokenUsesNetwork() {
+		c.ctx.Printf("AllowBuildBrokenUsesNetwork: %v", c.Sandbox.AllowBuildBrokenUsesNetwork)
+		c.ctx.Printf("BuildBrokenUsesNetwork: %v", c.config.BuildBrokenUsesNetwork())
+		sandboxArgs = append(sandboxArgs, "-N")
+	}
+
+	// Stop nsjail from parsing arguments
+	sandboxArgs = append(sandboxArgs, "--")
+
 	c.Args = append(sandboxArgs, c.Args[1:]...)
 	c.Path = nsjailPath
 
