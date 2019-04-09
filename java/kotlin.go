@@ -27,11 +27,12 @@ import (
 
 var kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 	blueprint.RuleParams{
-		Command: `rm -rf "$classesDir" "$srcJarDir" "$kotlinBuildFile" && mkdir -p "$classesDir" "$srcJarDir" && ` +
+		Command: `rm -rf "$classesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
+			`mkdir -p "$classesDir" "$srcJarDir" "$emptyDir" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 			`${config.GenKotlinBuildFileCmd} $classpath $classesDir $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
 			`${config.KotlincCmd} ${config.JavacHeapFlags} $kotlincFlags ` +
-			`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile && ` +
+			`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile -kotlin-home $emptyDir && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir && ` +
 			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
@@ -49,7 +50,7 @@ var kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 		Rspfile:        "$out.rsp",
 		RspfileContent: `$in`,
 	},
-	"kotlincFlags", "classpath", "srcJars", "srcJarDir", "classesDir", "kotlinJvmTarget", "kotlinBuildFile")
+	"kotlincFlags", "classpath", "srcJars", "srcJarDir", "classesDir", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir")
 
 // kotlinCompile takes .java and .kt sources and srcJars, and compiles the .kt sources into a classes jar in outputFile.
 func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
@@ -73,6 +74,7 @@ func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
 			"classesDir":      android.PathForModuleOut(ctx, "kotlinc", "classes").String(),
 			"srcJarDir":       android.PathForModuleOut(ctx, "kotlinc", "srcJars").String(),
 			"kotlinBuildFile": android.PathForModuleOut(ctx, "kotlinc-build.xml").String(),
+			"emptyDir":        android.PathForModuleOut(ctx, "kotlinc", "empty").String(),
 			// http://b/69160377 kotlinc only supports -jvm-target 1.6 and 1.8
 			"kotlinJvmTarget": "1.8",
 		},
