@@ -584,7 +584,7 @@ func (c *config) DefaultAppCertificateDir(ctx PathContext) SourcePath {
 	if defaultCert != "" {
 		return PathForSource(ctx, filepath.Dir(defaultCert))
 	} else {
-		return PathForSource(ctx, "build/target/product/security")
+		return PathForSource(ctx, "build/make/target/product/security")
 	}
 }
 
@@ -601,7 +601,7 @@ func (c *config) DefaultAppCertificate(ctx PathContext) (pem, key SourcePath) {
 func (c *config) ApexKeyDir(ctx ModuleContext) SourcePath {
 	// TODO(b/121224311): define another variable such as TARGET_APEX_KEY_OVERRIDE
 	defaultCert := String(c.productVariables.DefaultAppCertificate)
-	if defaultCert == "" || filepath.Dir(defaultCert) == "build/target/product/security" {
+	if defaultCert == "" || filepath.Dir(defaultCert) == "build/make/target/product/security" {
 		// When defaultCert is unset or is set to the testkeys path, use the APEX keys
 		// that is under the module dir
 		return pathForModuleSrc(ctx)
