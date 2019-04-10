@@ -84,8 +84,10 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 	})
 
 	var certificateArgs []string
+	var deps android.Paths
 	for _, c := range certificates {
 		certificateArgs = append(certificateArgs, c.Pem.String(), c.Key.String())
+		deps = append(deps, c.Pem, c.Key)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -93,6 +95,7 @@ func CreateAppPackage(ctx android.ModuleContext, outputFile android.WritablePath
 		Description: "signapk",
 		Output:      outputFile,
 		Input:       unsignedApk,
+		Implicits:   deps,
 		Args: map[string]string{
 			"certificates": strings.Join(certificateArgs, " "),
 		},
