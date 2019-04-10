@@ -1032,3 +1032,7 @@ func (c *config) ProductHiddenAPIStubsSystem() []string {
 func (c *config) ProductHiddenAPIStubsTest() []string {
 	return c.productVariables.ProductHiddenAPIStubsTest
 }
+
+func (c *deviceConfig) TargetFSConfigGen() *string {
+	return c.config.productVariables.TargetFSConfigGen
+}
