@@ -158,7 +158,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 
 	ctx.MockFileSystem(map[string][]byte{
 		"Android.bp":                                        []byte(bp),
-		"build/target/product/security":                     nil,
+		"build/make/target/product/security":                nil,
 		"apex_manifest.json":                                nil,
 		"AndroidManifest.xml":                               nil,
 		"system/sepolicy/apex/myapex-file_contexts":         nil,

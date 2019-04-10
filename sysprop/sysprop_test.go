@@ -136,8 +136,8 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/Android.bp":                                            []byte(`prebuilt_apis { name: "sdk", api_dirs: ["28", "current"],}`),
 
 		// For framework-res, which is an implicit dependency for framework
-		"AndroidManifest.xml":                   nil,
-		"build/target/product/security/testkey": nil,
+		"AndroidManifest.xml":                        nil,
+		"build/make/target/product/security/testkey": nil,
 
 		"build/soong/scripts/jar-wrapper.sh": nil,
 
