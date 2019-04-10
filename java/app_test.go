@@ -712,7 +712,7 @@ func TestCertificates(t *testing.T) {
 				}
 			`,
 			certificateOverride: "",
-			expected:            "build/target/product/security/testkey.x509.pem build/target/product/security/testkey.pk8",
+			expected:            "build/make/target/product/security/testkey.x509.pem build/make/target/product/security/testkey.pk8",
 		},
 		{
 			name: "module certificate property",
@@ -741,7 +741,7 @@ func TestCertificates(t *testing.T) {
 				}
 			`,
 			certificateOverride: "",
-			expected:            "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
+			expected:            "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
 		},
 		{
 			name: "certificate overrides",
@@ -910,7 +910,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		{
 			variantName: "android_common",
 			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
-			signFlag:    "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
+			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
 			overrides:   []string{"baz"},
 			aaptFlag:    "",
 		},
@@ -924,7 +924,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		{
 			variantName: "baz_android_common",
 			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
-			signFlag:    "build/target/product/security/expiredkey.x509.pem build/target/product/security/expiredkey.pk8",
+			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
 			overrides:   []string{"baz", "foo"},
 			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
 		},
