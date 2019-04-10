@@ -32,41 +32,88 @@ import (
 	"android/soong/ui/tracer"
 )
 
+// A command represents an operation to be executed in the soong build
+// system.
+type command struct {
+	// the flag name (must have double dashes)
+	flag string
+
+	// description for the flag (to display when running help)
+	description string
+
+	// Creates the build configuration based on the args and build context.
+	config func(ctx build.Context, args ...string) build.Config
+
+	// Returns what type of IO redirection this Command requires.
+	stdio func() terminal.StdioInterface
+
+	// run the command
+	run func(ctx build.Context, config build.Config, args []string, logsDir string)
+}
+
+const makeModeFlagName = "--make-mode"
+
+// list of supported commands (flags) supported by soong ui
+var commands []command = []command{
+	{
+		flag:        makeModeFlagName,
+		description: "build the modules by the target name (i.e. soong_docs)",
+		config: func(ctx build.Context, args ...string) build.Config {
+			return build.NewConfig(ctx, args...)
+		},
+		stdio: func() terminal.StdioInterface {
+			return terminal.StdioImpl{}
+		},
+		run: make,
+	}, {
+		flag:        "--dumpvar-mode",
+		description: "print the value of the legacy make variable VAR to stdout",
+		config:      dumpVarConfig,
+		stdio:       customStdio,
+		run:         dumpVar,
+	}, {
+		flag:        "--dumpvars-mode",
+		description: "dump the values of one or more legacy make variables, in shell syntax",
+		config:      dumpVarConfig,
+		stdio:       customStdio,
+		run:         dumpVars,
+	},
+}
+
+// indexList returns the index of first found s. -1 is return if s is not
+// found.
 func indexList(s string, list []string) int {
 	for i, l := range list {
 		if l == s {
 			return i
 		}
 	}
-
 	return -1
 }
 
+// inList returns true if one or more of s is in the list.
 func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
 }
 
+// Main execution of soong_ui. The command format is as follows:
+//
+//    soong_ui <command> [<arg 1> <arg 2> ... <arg n>]
+//
+// Command is the type of soong_ui execution. Only one type of
+// execution is specified. The args are specific to the command.
 func main() {
-	var stdio terminal.StdioInterface
-	stdio = terminal.StdioImpl{}
-
-	// dumpvar uses stdout, everything else should be in stderr
-	if os.Args[1] == "--dumpvar-mode" || os.Args[1] == "--dumpvars-mode" {
-		stdio = terminal.NewCustomStdio(os.Stdin, os.Stderr, os.Stderr)
+	c, args := getCommand(os.Args)
+	if c == nil {
+		fmt.Fprintf(os.Stderr, "The `soong` native UI is not yet available.\n")
+		os.Exit(1)
 	}
 
-	writer := terminal.NewWriter(stdio)
+	writer := terminal.NewWriter(c.stdio())
 	defer writer.Finish()
 
 	log := logger.New(writer)
 	defer log.Cleanup()
-
-	if len(os.Args) < 2 || !(inList("--make-mode", os.Args) ||
-		os.Args[1] == "--dumpvars-mode" ||
-		os.Args[1] == "--dumpvar-mode") {
-
-		log.Fatalln("The `soong` native UI is not yet available.")
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -96,12 +143,8 @@ func main() {
 		Writer:  writer,
 		Status:  stat,
 	}}
-	var config build.Config
-	if os.Args[1] == "--dumpvars-mode" || os.Args[1] == "--dumpvar-mode" {
-		config = build.NewConfig(buildCtx)
-	} else {
-		config = build.NewConfig(buildCtx, os.Args[1:]...)
-	}
+
+	config := c.config(buildCtx, args...)
 
 	build.SetupOutDir(buildCtx, config)
 
@@ -141,28 +184,7 @@ func main() {
 	defer f.Shutdown()
 	build.FindSources(buildCtx, config, f)
 
-	if os.Args[1] == "--dumpvar-mode" {
-		dumpVar(buildCtx, config, os.Args[2:])
-	} else if os.Args[1] == "--dumpvars-mode" {
-		dumpVars(buildCtx, config, os.Args[2:])
-	} else {
-		if config.IsVerbose() {
-			writer.Print("! The argument `showcommands` is no longer supported.")
-			writer.Print("! Instead, the verbose log is always written to a compressed file in the output dir:")
-			writer.Print("!")
-			writer.Print(fmt.Sprintf("!   gzip -cd %s/verbose.log.gz | less -R", logsDir))
-			writer.Print("!")
-			writer.Print("! Older versions are saved in verbose.log.#.gz files")
-			writer.Print("")
-			time.Sleep(5 * time.Second)
-		}
-
-		toBuild := build.BuildAll
-		if config.Checkbuild() {
-			toBuild |= build.RunBuildTests
-		}
-		build.Build(buildCtx, config, toBuild)
-	}
+	c.run(buildCtx, config, args, logsDir)
 }
 
 func fixBadDanglingLink(ctx build.Context, name string) {
@@ -179,7 +201,7 @@ func fixBadDanglingLink(ctx build.Context, name string) {
 	}
 }
 
-func dumpVar(ctx build.Context, config build.Config, args []string) {
+func dumpVar(ctx build.Context, config build.Config, args []string, _ string) {
 	flags := flag.NewFlagSet("dumpvar", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s --dumpvar-mode [--abs] <VAR>\n\n", os.Args[0])
@@ -229,7 +251,7 @@ func dumpVar(ctx build.Context, config build.Config, args []string) {
 	}
 }
 
-func dumpVars(ctx build.Context, config build.Config, args []string) {
+func dumpVars(ctx build.Context, config build.Config, args []string, _ string) {
 	flags := flag.NewFlagSet("dumpvars", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s --dumpvars-mode [--vars=\"VAR VAR ...\"]\n\n", os.Args[0])
@@ -295,4 +317,60 @@ func dumpVars(ctx build.Context, config build.Config, args []string) {
 		}
 		fmt.Printf("%s%s='%s'\n", *absVarPrefix, name, strings.Join(res, " "))
 	}
+}
+
+func customStdio() terminal.StdioInterface {
+	return terminal.NewCustomStdio(os.Stdin, os.Stderr, os.Stderr)
+}
+
+// dumpVarConfig does not require any arguments to be parsed by the NewConfig.
+func dumpVarConfig(ctx build.Context, args ...string) build.Config {
+	return build.NewConfig(ctx)
+}
+
+func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
+	if config.IsVerbose() {
+		writer := ctx.Writer
+		writer.Print("! The argument `showcommands` is no longer supported.")
+		writer.Print("! Instead, the verbose log is always written to a compressed file in the output dir:")
+		writer.Print("!")
+		writer.Print(fmt.Sprintf("!   gzip -cd %s/verbose.log.gz | less -R", logsDir))
+		writer.Print("!")
+		writer.Print("! Older versions are saved in verbose.log.#.gz files")
+		writer.Print("")
+		time.Sleep(5 * time.Second)
+	}
+
+	toBuild := build.BuildAll
+	if config.Checkbuild() {
+		toBuild |= build.RunBuildTests
+	}
+	build.Build(ctx, config, toBuild)
+}
+
+// getCommand finds the appropriate command based on args[1] flag. args[0]
+// is the soong_ui filename.
+func getCommand(args []string) (*command, []string) {
+	if len(args) < 2 {
+		return nil, args
+	}
+
+	for _, c := range commands {
+		if c.flag == args[1] {
+			return &c, args[2:]
+		}
+
+		// special case for --make-mode: if soong_ui was called from
+		// build/make/core/main.mk, the makeparallel with --ninja
+		// option specified puts the -j<num> before --make-mode.
+		// TODO: Remove this hack once it has been fixed.
+		if c.flag == makeModeFlagName {
+			if inList(makeModeFlagName, args) {
+				return &c, args[1:]
+			}
+		}
+	}
+
+	// command not found
+	return nil, args
 }
