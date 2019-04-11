@@ -90,6 +90,10 @@ var buildBrokenSettings = []struct {
 			"Changes.md#LOCAL_MODULE_TAGS",
 		},
 	},
+	{
+		name:     "BUILD_BROKEN_USES_NETWORK",
+		behavior: DefaultDeprecated,
+	},
 }
 
 type ProductBranch struct {
