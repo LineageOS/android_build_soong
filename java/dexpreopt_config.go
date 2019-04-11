@@ -111,6 +111,7 @@ func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
 		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_bootjars")
 		symbolsDir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_bootjars_unstripped")
 		images := make(map[android.ArchType]android.OutputPath)
+		zip := dir.Join(ctx, "boot.zip")
 
 		for _, target := range ctx.Config().Targets[android.Android] {
 			images[target.Arch.ArchType] = dir.Join(ctx,
@@ -125,6 +126,7 @@ func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
 			dir:          dir,
 			symbolsDir:   symbolsDir,
 			images:       images,
+			zip:          zip,
 		}
 	}).(bootImageConfig)
 }
