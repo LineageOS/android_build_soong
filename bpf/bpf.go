@@ -91,7 +91,7 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			},
 		})
 
-		bpf.objs = append(bpf.objs, obj)
+		bpf.objs = append(bpf.objs, obj.WithoutRel())
 	}
 }
 
