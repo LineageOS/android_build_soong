@@ -203,6 +203,9 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// Used to turn on --werror_ options in Kati
 		"BUILD_BROKEN_PHONY_TARGETS",
 
+		// Whether to enable the network during the build
+		"BUILD_BROKEN_USES_NETWORK",
+
 		// Not used, but useful to be in the soong.log
 		"BOARD_VNDK_VERSION",
 		"BUILD_BROKEN_ANDROIDMK_EXPORTS",
@@ -238,4 +241,5 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetPdkBuild(make_vars["TARGET_BUILD_PDK"] == "true")
 	config.SetBuildBrokenDupRules(make_vars["BUILD_BROKEN_DUP_RULES"] == "true")
 	config.SetBuildBrokenPhonyTargets(make_vars["BUILD_BROKEN_PHONY_TARGETS"] == "true")
+	config.SetBuildBrokenUsesNetwork(make_vars["BUILD_BROKEN_USES_NETWORK"] == "true")
 }
