@@ -328,6 +328,9 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [
+        {{- range .BpJarDeps}}
+        "{{.}}",
+        {{- end}}
         {{- range .BpAarDeps}}
         "{{.}}",
         {{- end}}
@@ -349,7 +352,7 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     {{- end}}
     static_libs: [
         "{{.BpName}}-nodeps",
-         {{- range .BpJarDeps}}
+        {{- range .BpJarDeps}}
         "{{.}}",
         {{- end}}
         {{- range .BpAarDeps}}
