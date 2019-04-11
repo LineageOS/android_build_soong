@@ -128,6 +128,7 @@ func createLibcoreRules() []*rule {
 
 func createJavaDeviceForHostRules() []*rule {
 	javaDeviceForHostProjectsWhitelist := []string{
+		"external/guava",
 		"external/robolectric-shadows",
 		"framework/layoutlib",
 	}
