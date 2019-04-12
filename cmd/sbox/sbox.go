@@ -56,7 +56,7 @@ func usageViolation(violation string) {
 	}
 
 	fmt.Fprintf(os.Stderr,
-		"Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> --overwrite [--depfile-out depFile] <outputFile> [<outputFile>...]\n"+
+		"Usage: sbox -c <commandToRun> --sandbox-path <sandboxPath> --output-root <outputRoot> [--depfile-out depFile] <outputFile> [<outputFile>...]\n"+
 			"\n"+
 			"Deletes <outputRoot>,"+
 			"runs <commandToRun>,"+
