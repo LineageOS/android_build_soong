@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	pctx = NewPackageContext("android/soong/common")
+	pctx = NewPackageContext("android/soong/android")
 
 	cpPreserveSymlinks = pctx.VariableConfigMethod("cpPreserveSymlinks",
 		Config.CpPreserveSymlinksFlags)
