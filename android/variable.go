@@ -137,14 +137,18 @@ type productVariables struct {
 	BuildNumberFromFile *string `json:",omitempty"`
 	DateFromFile        *string `json:",omitempty"`
 
-	Platform_version_name             *string  `json:",omitempty"`
-	Platform_sdk_version              *int     `json:",omitempty"`
-	Platform_sdk_codename             *string  `json:",omitempty"`
-	Platform_sdk_final                *bool    `json:",omitempty"`
-	Platform_version_active_codenames []string `json:",omitempty"`
-	Platform_version_future_codenames []string `json:",omitempty"`
-	Platform_vndk_version             *string  `json:",omitempty"`
-	Platform_systemsdk_versions       []string `json:",omitempty"`
+	Platform_version_name                     *string  `json:",omitempty"`
+	Platform_sdk_version                      *int     `json:",omitempty"`
+	Platform_sdk_codename                     *string  `json:",omitempty"`
+	Platform_sdk_final                        *bool    `json:",omitempty"`
+	Platform_version_active_codenames         []string `json:",omitempty"`
+	Platform_version_future_codenames         []string `json:",omitempty"`
+	Platform_vndk_version                     *string  `json:",omitempty"`
+	Platform_systemsdk_versions               []string `json:",omitempty"`
+	Platform_security_patch                   *string  `json:",omitempty"`
+	Platform_preview_sdk_version              *string  `json:",omitempty"`
+	Platform_min_supported_target_sdk_version *string  `json:",omitempty"`
+	Platform_base_os                          *string  `json:",omitempty"`
 
 	DeviceName              *string  `json:",omitempty"`
 	DeviceArch              *string  `json:",omitempty"`
