@@ -55,8 +55,7 @@ type apexKeyProperties struct {
 func apexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
-	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitAndroidArchModule(module, android.HostAndDeviceDefault, android.MultilibCommon)
 	return module
 }
 
