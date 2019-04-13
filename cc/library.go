@@ -804,7 +804,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		refAbiDumpFile := getRefAbiDumpFile(ctx, vndkVersion, fileName)
 		if refAbiDumpFile != nil {
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
-				refAbiDumpFile, fileName, exportedHeaderFlags, ctx.isLlndk(), ctx.isVndkExt())
+				refAbiDumpFile, fileName, exportedHeaderFlags, ctx.isLlndk(), ctx.isNdk(), ctx.isVndkExt())
 		}
 	}
 }
