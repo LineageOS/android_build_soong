@@ -35,12 +35,12 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.P
 	// into a srcszip.
 	zipCmd := rule.Command().
 		Tool(ctx.Config().HostToolPath(ctx, "soong_zip")).
-		FlagWithOutput("-o ", srcsZipFile).
-		FlagWithArg("-C ", outDir.String()).
-		FlagWithArg("-D ", outDir.String())
+		FlagWithOutput("-o ", srcsZipFile)
 	if pkgPath != "" {
 		zipCmd.FlagWithArg("-P ", pkgPath)
 	}
+	zipCmd.FlagWithArg("-C ", outDir.String()).
+		FlagWithArg("-D ", outDir.String())
 
 	rule.Command().Text("rm -rf").Flag(outDir.String())
 
