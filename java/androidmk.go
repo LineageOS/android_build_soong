@@ -581,6 +581,32 @@ func (dstubs *Droidstubs) AndroidMk() android.AndroidMkData {
 	}
 }
 
+func (app *AndroidAppImport) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "APPS",
+		OutputFile: android.OptionalPathForPath(app.outputFile),
+		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				if Bool(app.properties.Privileged) {
+					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
+				}
+				if app.certificate != nil {
+					fmt.Fprintln(w, "LOCAL_CERTIFICATE :=", app.certificate.Pem.String())
+				} else {
+					fmt.Fprintln(w, "LOCAL_CERTIFICATE := PRESIGNED")
+				}
+				if len(app.properties.Overrides) > 0 {
+					fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES :=", strings.Join(app.properties.Overrides, " "))
+				}
+				if len(app.dexpreopter.builtInstalled) > 0 {
+					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", app.dexpreopter.builtInstalled)
+				}
+			},
+		},
+	}
+}
+
 func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
 	var testFiles []string
 	for _, d := range data {
