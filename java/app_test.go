@@ -1151,3 +1151,87 @@ func TestUncompressDex(t *testing.T) {
 		})
 	}
 }
+
+func TestAndroidAppImport(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "platform",
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+		t.Errorf("can't find dexpreopt outputs")
+	}
+
+	// Check cert signing flag.
+	signedApk := variant.Output("signed/foo.apk")
+	signingFlag := signedApk.Args["certificates"]
+	expected := "build/make/target/product/security/platform.x509.pem build/make/target/product/security/platform.pk8"
+	if expected != signingFlag {
+		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
+	}
+}
+
+func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "platform",
+			dex_preopt: {
+				enabled: false,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs. They shouldn't exist.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule != nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule != nil {
+		t.Errorf("dexpreopt shouldn't have run.")
+	}
+}
+
+func TestAndroidAppImport_Presigned(t *testing.T) {
+	ctx := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	// Check dexpreopt outputs.
+	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+		t.Errorf("can't find dexpreopt outputs")
+	}
+	// Make sure stripping wasn't done.
+	stripRule := variant.Output("dexpreopt/foo.apk")
+	if !strings.HasPrefix(stripRule.RuleParams.Command, "cp -f") {
+		t.Errorf("unexpected, non-skipping strip command: %q", stripRule.RuleParams.Command)
+	}
+
+	// Make sure signing was skipped and aligning was done instead.
+	if variant.MaybeOutput("signed/foo.apk").Rule != nil {
+		t.Errorf("signing rule shouldn't be included.")
+	}
+	if variant.MaybeOutput("zip-aligned/foo.apk").Rule == nil {
+		t.Errorf("can't find aligning rule")
+	}
+}
