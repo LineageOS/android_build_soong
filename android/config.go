@@ -924,6 +924,10 @@ func (c *deviceConfig) PlatPrivateSepolicyDirs() []string {
 	return c.config.productVariables.BoardPlatPrivateSepolicyDirs
 }
 
+func (c *deviceConfig) SepolicyM4Defs() []string {
+	return c.config.productVariables.BoardSepolicyM4Defs
+}
+
 func (c *deviceConfig) OverrideManifestPackageNameFor(name string) (manifestName string, overridden bool) {
 	return findOverrideValue(c.config.productVariables.ManifestPackageNameOverrides, name,
 		"invalid override rule %q in PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES should be <module_name>:<manifest_name>")
@@ -1055,4 +1059,16 @@ func (c *config) ProductHiddenAPIStubsTest() []string {
 
 func (c *deviceConfig) TargetFSConfigGen() []string {
 	return c.config.productVariables.TargetFSConfigGen
+}
+
+func (c *config) ProductPublicSepolicyDirs() []string {
+	return c.productVariables.ProductPublicSepolicyDirs
+}
+
+func (c *config) ProductPrivateSepolicyDirs() []string {
+	return c.productVariables.ProductPrivateSepolicyDirs
+}
+
+func (c *config) ProductCompatibleProperty() bool {
+	return Bool(c.productVariables.ProductCompatibleProperty)
 }
