@@ -57,9 +57,6 @@ type BaseCompilerProperties struct {
 	// compiling with clang
 	Clang_asflags []string `android:"arch_variant"`
 
-	// list of module-specific flags that will be used for .y and .yy compiles
-	Yaccflags []string
-
 	// the instruction set architecture to use to compile the C/C++
 	// module.
 	Instruction_set *string `android:"arch_variant"`
@@ -102,6 +99,8 @@ type BaseCompilerProperties struct {
 
 	// if set to false, use -std=c++* instead of -std=gnu++*
 	Gnu_extensions *bool
+
+	Yacc *YaccProperties
 
 	Aidl struct {
 		// list of directories that will be added to the aidl include paths.
@@ -275,7 +274,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.ConlyFlags = append(flags.ConlyFlags, esc(compiler.Properties.Conlyflags)...)
 	flags.AsFlags = append(flags.AsFlags, esc(compiler.Properties.Asflags)...)
 	flags.YasmFlags = append(flags.YasmFlags, esc(compiler.Properties.Asflags)...)
-	flags.YaccFlags = append(flags.YaccFlags, esc(compiler.Properties.Yaccflags)...)
+
+	flags.Yacc = compiler.Properties.Yacc
 
 	// Include dir cflags
 	localIncludeDirs := android.PathsForModuleSrc(ctx, compiler.Properties.Local_include_dirs)
