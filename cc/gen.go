@@ -24,21 +24,12 @@ import (
 
 func init() {
 	pctx.SourcePathVariable("lexCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/flex")
-	pctx.SourcePathVariable("yaccCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/bison")
-	pctx.SourcePathVariable("yaccDataDir", "prebuilts/build-tools/common/bison")
 
 	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
 	pctx.HostBinToolVariable("syspropCmd", "sysprop_cpp")
 }
 
 var (
-	yacc = pctx.AndroidStaticRule("yacc",
-		blueprint.RuleParams{
-			Command:     "BISON_PKGDATADIR=$yaccDataDir $yaccCmd -d $yaccFlags --defines=$hFile -o $out $in",
-			CommandDeps: []string{"$yaccCmd"},
-		},
-		"yaccFlags", "hFile")
-
 	lex = pctx.AndroidStaticRule("lex",
 		blueprint.RuleParams{
 			Command:     "$lexCmd -o$out $in",
@@ -70,22 +61,57 @@ var (
 		"windmcCmd")
 )
 
-func genYacc(ctx android.ModuleContext, yaccFile android.Path, outFile android.ModuleGenPath, yaccFlags string) (headerFile android.ModuleGenPath) {
-	headerFile = android.GenPathWithExt(ctx, "yacc", yaccFile, "h")
+type YaccProperties struct {
+	// list of module-specific flags that will be used for .y and .yy compiles
+	Flags []string
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:           yacc,
-		Description:    "yacc " + yaccFile.Rel(),
-		Output:         outFile,
-		ImplicitOutput: headerFile,
-		Input:          yaccFile,
-		Args: map[string]string{
-			"yaccFlags": yaccFlags,
-			"hFile":     headerFile.String(),
-		},
-	})
+	// whether the yacc files will produce a location.hh file
+	Gen_location_hh *bool
 
-	return headerFile
+	// whether the yacc files will product a position.hh file
+	Gen_position_hh *bool
+}
+
+func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile android.Path,
+	outFile android.ModuleGenPath, props *YaccProperties) (headerFiles android.Paths) {
+
+	outDir := android.PathForModuleGen(ctx, "yacc")
+	headerFile := android.GenPathWithExt(ctx, "yacc", yaccFile, "h")
+	ret := android.Paths{headerFile}
+
+	cmd := rule.Command()
+
+	// Fix up #line markers to not use the sbox temporary directory
+	sedCmd := "sed -i.bak 's#__SBOX_OUT_DIR__#" + outDir.String() + "#'"
+	rule.Command().Text(sedCmd).Input(outFile)
+	rule.Command().Text(sedCmd).Input(headerFile)
+
+	var flags []string
+	if props != nil {
+		flags = props.Flags
+
+		if Bool(props.Gen_location_hh) {
+			locationHeader := outFile.InSameDir(ctx, "location.hh")
+			ret = append(ret, locationHeader)
+			cmd.ImplicitOutput(locationHeader)
+			rule.Command().Text(sedCmd).Input(locationHeader)
+		}
+		if Bool(props.Gen_position_hh) {
+			positionHeader := outFile.InSameDir(ctx, "position.hh")
+			ret = append(ret, positionHeader)
+			cmd.ImplicitOutput(positionHeader)
+			rule.Command().Text(sedCmd).Input(positionHeader)
+		}
+	}
+
+	cmd.Text("BISON_PKGDATADIR=prebuilts/build-tools/common/bison").
+		Tool(ctx.Config().PrebuiltBuildTool(ctx, "bison")).
+		Flag("-d").
+		Flags(flags).
+		FlagWithOutput("--defines=", headerFile).
+		Flag("-o").Output(outFile).Input(yaccFile)
+
+	return ret
 }
 
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.ModuleGenPath, aidlFlags string) android.Paths {
@@ -159,19 +185,26 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	buildFlags builderFlags) (android.Paths, android.Paths) {
 
 	var deps android.Paths
-
 	var rsFiles android.Paths
+
+	var yaccRule_ *android.RuleBuilder
+	yaccRule := func() *android.RuleBuilder {
+		if yaccRule_ == nil {
+			yaccRule_ = android.NewRuleBuilder().Sbox(android.PathForModuleGen(ctx, "yacc"))
+		}
+		return yaccRule_
+	}
 
 	for i, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".y":
 			cFile := android.GenPathWithExt(ctx, "yacc", srcFile, "c")
 			srcFiles[i] = cFile
-			deps = append(deps, genYacc(ctx, srcFile, cFile, buildFlags.yaccFlags))
+			deps = append(deps, genYacc(ctx, yaccRule(), srcFile, cFile, buildFlags.yacc)...)
 		case ".yy":
 			cppFile := android.GenPathWithExt(ctx, "yacc", srcFile, "cpp")
 			srcFiles[i] = cppFile
-			deps = append(deps, genYacc(ctx, srcFile, cppFile, buildFlags.yaccFlags))
+			deps = append(deps, genYacc(ctx, yaccRule(), srcFile, cppFile, buildFlags.yacc)...)
 		case ".l":
 			cFile := android.GenPathWithExt(ctx, "lex", srcFile, "c")
 			srcFiles[i] = cFile
@@ -201,6 +234,10 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			srcFiles[i] = cppFile
 			deps = append(deps, headerFile)
 		}
+	}
+
+	if yaccRule_ != nil {
+		yaccRule_.Build(pctx, ctx, "yacc", "gen yacc")
 	}
 
 	if len(rsFiles) > 0 {
