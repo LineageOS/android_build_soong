@@ -122,6 +122,15 @@ func (stub *vendorPublicLibraryStubDecorator) link(ctx ModuleContext, flags Flag
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
 }
 
+// vendor_public_library creates a stub shared library for a vendor public
+// library. This stub library is a build-time only artifact that provides
+// symbols that are exposed from a vendor public library. Example:
+//
+//    vendor_public_library {
+//        name: "libfoo",
+//        symbol_file: "libfoo.map.txt",
+//        export_public_headers: ["libfoo_headers"],
+//    }
 func vendorPublicLibraryFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyShared()
