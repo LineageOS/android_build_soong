@@ -152,7 +152,6 @@ const (
 <html>
 <head>
 <title>Build Docs</title>
-<link rel="stylesheet" href="https://www.gstatic.com/devrel-devsite/vc67ef93e81a468795c57df87eca3f8427d65cbe85f09fbb51c82a12b89aa3d7e/androidsource/css/app.css">
 <style>
 #main {
   padding: 48px;
@@ -164,6 +163,99 @@ table{
 
 td {
   word-wrap:break-word;
+}
+
+/* The following entries are copied from source.android.com's css file. */
+td,td code {
+    color: #202124
+}
+
+th,th code {
+    color: #fff;
+    font: 500 16px/24px Roboto,sans-serif
+}
+
+td,table.responsive tr:not(.alt) td td:first-child,table.responsive td tr:not(.alt) td:first-child {
+    background: rgba(255,255,255,.95);
+    vertical-align: top
+}
+
+td,td code {
+    padding: 7px 8px 8px
+}
+
+tr {
+    border: 0;
+    background: #78909c;
+    border-top: 1px solid #cfd8dc
+}
+
+th,td {
+    border: 0;
+    margin: 0;
+    text-align: left
+}
+
+th {
+    height: 48px;
+    padding: 8px;
+    vertical-align: middle
+}
+
+table {
+    border: 0;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font: 14px/20px Roboto,sans-serif;
+    margin: 16px 0;
+    width: 100%
+}
+
+h1 {
+    color: #80868b;
+    font: 300 34px/40px Roboto,sans-serif;
+    letter-spacing: -0.01em;
+    margin: 40px 0 20px
+}
+
+h1,h2,h3,h4,h5,h6 {
+    overflow: hidden;
+    padding: 0;
+    text-overflow: ellipsis
+}
+
+:link,:visited {
+    color: #039be5;
+    outline: 0;
+    text-decoration: none
+}
+
+body,html {
+    color: #202124;
+    font: 400 16px/24px Roboto,sans-serif;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    height: 100%;
+    margin: 0;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%
+}
+
+html {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box
+}
+
+*,*::before,*::after {
+    -webkit-box-sizing: inherit;
+    box-sizing: inherit
+}
+
+body,div,dl,dd,form,img,input,figure,menu {
+    margin: 0;
+    padding: 0
 }
 </style>
 {{template "copyBaseUrl"}}
