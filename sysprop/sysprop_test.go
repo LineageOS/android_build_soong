@@ -61,15 +61,11 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
 	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(java.SystemModulesFactory))
 	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(java.PrebuiltApisFactory))
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("load_hooks", android.LoadHookMutator).Parallel()
-	})
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("prebuilt_apis", java.PrebuiltApisMutator).Parallel()
-		ctx.TopDown("java_sdk_library", java.SdkLibraryMutator).Parallel()
 	})
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))

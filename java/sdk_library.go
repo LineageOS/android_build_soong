@@ -42,10 +42,6 @@ type stubsLibraryDependencyTag struct {
 	name string
 }
 
-type syspropLibraryInterface interface {
-	SyspropJavaModule() *SdkLibrary
-}
-
 var (
 	publicApiStubsTag = dependencyTag{name: "public"}
 	systemApiStubsTag = dependencyTag{name: "system"}
@@ -79,10 +75,6 @@ var (
 
 func init() {
 	android.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
-
-	android.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("java_sdk_library", SdkLibraryMutator).Parallel()
-	})
 
 	android.RegisterMakeVarsProvider(pctx, func(ctx android.MakeVarsContext) {
 		javaSdkLibraries := javaSdkLibraries(ctx.Config())
@@ -376,7 +368,7 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope apiScope) strin
 }
 
 // Creates a static java library that has API stubs
-func (module *SdkLibrary) createStubsLibrary(mctx android.TopDownMutatorContext, apiScope apiScope) {
+func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiScope apiScope) {
 	props := struct {
 		Name              *string
 		Srcs              []string
@@ -435,7 +427,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.TopDownMutatorContext,
 
 // Creates a droiddoc module that creates stubs source files from the given full source
 // files
-func (module *SdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScope apiScope) {
+func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiScope) {
 	props := struct {
 		Name                             *string
 		Srcs                             []string
@@ -534,7 +526,7 @@ func (module *SdkLibrary) createDocs(mctx android.TopDownMutatorContext, apiScop
 }
 
 // Creates the xml file that publicizes the runtime library
-func (module *SdkLibrary) createXmlFile(mctx android.TopDownMutatorContext) {
+func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	template := `
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Copyright (C) 2018 The Android Open Source Project
@@ -659,15 +651,7 @@ func javaSdkLibraries(config android.Config) *[]string {
 // For a java_sdk_library module, create internal modules for stubs, docs,
 // runtime libs and xml file. If requested, the stubs and docs are created twice
 // once for public API level and once for system API level
-func SdkLibraryMutator(mctx android.TopDownMutatorContext) {
-	if module, ok := mctx.Module().(*SdkLibrary); ok {
-		module.createInternalModules(mctx)
-	} else if module, ok := mctx.Module().(syspropLibraryInterface); ok {
-		module.SyspropJavaModule().createInternalModules(mctx)
-	}
-}
-
-func (module *SdkLibrary) createInternalModules(mctx android.TopDownMutatorContext) {
+func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 	if len(module.Library.Module.properties.Srcs) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
 	}
@@ -744,5 +728,6 @@ func SdkLibraryFactory() android.Module {
 	module := &SdkLibrary{}
 	module.InitSdkLibraryProperties()
 	InitJavaModule(module, android.HostAndDeviceSupported)
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) { module.CreateInternalModules(ctx) })
 	return module
 }
