@@ -159,6 +159,16 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
+// ndk_headers installs the sets of ndk headers defined in the srcs property
+// to the sysroot base + "usr/include" + to directory + directory component.
+// ndk_headers requires the license file to be specified. Example:
+//
+//    Given:
+//    sysroot base = "ndk/sysroot"
+//    from = "include/foo"
+//    to = "bar"
+//    header = "include/foo/woodly/doodly.h"
+//    output path = "ndk/sysroot/usr/include/bar/woodly/doodly.h"
 func ndkHeadersFactory() android.Module {
 	module := &headerModule{}
 	module.AddProperties(&module.properties)
@@ -278,6 +288,11 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 	return timestampFile
 }
 
+// versioned_ndk_headers preprocesses the headers with the bionic versioner:
+// https://android.googlesource.com/platform/bionic/+/master/tools/versioner/README.md.
+// Unlike the ndk_headers soong module, versioned_ndk_headers operates on a
+// directory level specified in `from` property. This is only used to process
+// the bionic/libc/include directory.
 func versionedNdkHeadersFactory() android.Module {
 	module := &versionedHeaderModule{}
 
@@ -360,6 +375,8 @@ func (m *preprocessedHeadersModule) GenerateAndroidBuildActions(ctx android.Modu
 	}
 }
 
+// preprocessed_ndk_headers preprocesses all the ndk headers listed in the srcs
+// property by executing the command defined in the preprocessor property.
 func preprocessedNdkHeadersFactory() android.Module {
 	module := &preprocessedHeadersModule{}
 
