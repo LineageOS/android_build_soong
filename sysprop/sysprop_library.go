@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/java"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -63,10 +64,6 @@ func (m *syspropLibrary) CcModuleName() string {
 	return "lib" + m.Name()
 }
 
-func (m *syspropLibrary) SyspropJavaModule() *java.SdkLibrary {
-	return &m.SdkLibrary
-}
-
 func syspropLibraryFactory() android.Module {
 	m := &syspropLibrary{}
 
@@ -77,7 +74,7 @@ func syspropLibraryFactory() android.Module {
 	m.InitSdkLibraryProperties()
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, "common")
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) { syspropLibraryHook(ctx, m) })
-
+	android.AddLoadHook(m, func(ctx android.LoadHookContext) { m.SdkLibrary.CreateInternalModules(ctx) })
 	return m
 }
 

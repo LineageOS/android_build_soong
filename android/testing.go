@@ -37,6 +37,8 @@ func NewTestContext() *TestContext {
 
 	ctx.SetNameInterface(nameResolver)
 
+	ctx.preArch = append(ctx.preArch, registerLoadHookMutator)
+
 	ctx.postDeps = append(ctx.postDeps, registerPathDepsMutator)
 
 	return ctx
