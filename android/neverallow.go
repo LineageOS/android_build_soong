@@ -137,6 +137,7 @@ func createMediaRules() []*rule {
 
 func createJavaDeviceForHostRules() []*rule {
 	javaDeviceForHostProjectsWhitelist := []string{
+		"external/guava",
 		"external/robolectric-shadows",
 		"framework/layoutlib",
 	}

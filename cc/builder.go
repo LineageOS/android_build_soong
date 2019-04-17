@@ -239,7 +239,6 @@ type builderFlags struct {
 	cppFlags        string
 	ldFlags         string
 	libFlags        string
-	yaccFlags       string
 	tidyFlags       string
 	sAbiFlags       string
 	yasmFlags       string
@@ -262,6 +261,8 @@ type builderFlags struct {
 	proto            android.ProtoFlags
 	protoC           bool
 	protoOptionsFile bool
+
+	yacc *YaccProperties
 }
 
 type Objects struct {

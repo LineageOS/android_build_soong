@@ -405,6 +405,10 @@ func (c *config) GoRoot() string {
 	return fmt.Sprintf("%s/prebuilts/go/%s", c.srcDir, c.PrebuiltOS())
 }
 
+func (c *config) PrebuiltBuildTool(ctx PathContext, tool string) Path {
+	return PathForSource(ctx, "prebuilts/build-tools", c.PrebuiltOS(), "bin", tool)
+}
+
 func (c *config) CpPreserveSymlinksFlags() string {
 	switch runtime.GOOS {
 	case "darwin":

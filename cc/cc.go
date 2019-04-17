@@ -136,7 +136,6 @@ type Flags struct {
 	ConlyFlags      []string // Flags that apply to C source files
 	CppFlags        []string // Flags that apply to C++ source files
 	ToolingCppFlags []string // Flags that apply to C++ source files parsed by clang LibTooling tools
-	YaccFlags       []string // Flags that apply to Yacc source files
 	aidlFlags       []string // Flags that apply to aidl source files
 	rsFlags         []string // Flags that apply to renderscript source files
 	LdFlags         []string // Flags that apply to linker command lines
@@ -165,6 +164,8 @@ type Flags struct {
 	proto            android.ProtoFlags
 	protoC           bool // Whether to use C instead of C++
 	protoOptionsFile bool // Whether to look for a .options file next to the .proto
+
+	Yacc *YaccProperties
 }
 
 type ObjectLinkerProperties struct {
