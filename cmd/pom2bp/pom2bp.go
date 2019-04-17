@@ -89,7 +89,9 @@ func (d ExtraDeps) Set(v string) error {
 	return nil
 }
 
-var extraDeps = make(ExtraDeps)
+var extraStaticLibs = make(ExtraDeps)
+
+var extraLibs = make(ExtraDeps)
 
 type Exclude map[string]bool
 
@@ -229,8 +231,12 @@ func (p Pom) BpAarDeps() []string {
 	return p.BpDeps("aar", []string{"compile", "runtime"})
 }
 
-func (p Pom) BpExtraDeps() []string {
-	return extraDeps[p.BpName()]
+func (p Pom) BpExtraStaticLibs() []string {
+	return extraStaticLibs[p.BpName()]
+}
+
+func (p Pom) BpExtraLibs() []string {
+	return extraLibs[p.BpName()]
 }
 
 // BpDeps obtains dependencies filtered by type and scope. The results of this
@@ -334,10 +340,17 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
         {{- range .BpAarDeps}}
         "{{.}}",
         {{- end}}
-        {{- range .BpExtraDeps}}
+        {{- range .BpExtraStaticLibs}}
         "{{.}}",
         {{- end}}
     ],
+    {{- if .BpExtraLibs}}
+    libs: [
+        {{- range .BpExtraLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- end}}
     {{- end}}
 }
 
@@ -358,10 +371,17 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
         {{- range .BpAarDeps}}
         "{{.}}",
         {{- end}}
-        {{- range .BpExtraDeps}}
+        {{- range .BpExtraStaticLibs}}
         "{{.}}",
         {{- end}}
     ],
+    {{- if .BpExtraLibs}}
+    libs: [
+        {{- range .BpExtraLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- end}}
     java_version: "1.7",
 }
 `))
@@ -461,7 +481,7 @@ func main() {
 The tool will extract the necessary information from *.pom files to create an Android.bp whose
 aar libraries can be linked against when using AAPT2.
 
-Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <module>=<module>[,<module>]] [<dir>] [-regen <file>]
+Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs <module>=<module>[,<module>]] [--extra-libs <module>=<module>[,<module>]] [<dir>] [-regen <file>]
 
   -rewrite <regex>=<replace>
      rewrite can be used to specify mappings between Maven projects and Android.bp modules. The -rewrite
@@ -471,9 +491,13 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
      the Android.bp module name using <replace>. If no matches are found, <artifactId> is used.
   -exclude <module>
      Don't put the specified module in the Android.bp file.
-  -extra-deps <module>=<module>[,<module>]
-     Some Android.bp modules have transitive dependencies that must be specified when they are
-     depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
+  -extra-static-libs <module>=<module>[,<module>]
+     Some Android.bp modules have transitive static dependencies that must be specified when they
+     are depended upon (like android-support-v7-mediarouter requires android-support-v7-appcompat).
+     This may be specified multiple times to declare these dependencies.
+  -extra-libs <module>=<module>[,<module>]
+     Some Android.bp modules have transitive runtime dependencies that must be specified when they
+     are depended upon (like androidx.test.rules requires android.test.base).
      This may be specified multiple times to declare these dependencies.
   -sdk-version <version>
      Sets LOCAL_SDK_VERSION := <version> for all modules.
@@ -493,7 +517,8 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	var regen string
 
 	flag.Var(&excludes, "exclude", "Exclude module")
-	flag.Var(&extraDeps, "extra-deps", "Extra dependencies needed when depending on a module")
+	flag.Var(&extraStaticLibs, "extra-static-libs", "Extra static dependencies needed when depending on a module")
+	flag.Var(&extraLibs, "extra-libs", "Extra runtime dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
