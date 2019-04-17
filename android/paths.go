@@ -217,13 +217,41 @@ func ExistentPathsForSources(ctx PathContext, paths []string) Paths {
 	return ret
 }
 
-// PathsForModuleSrc returns Paths rooted from the module's local source
-// directory
+// PathsForModuleSrc returns Paths rooted from the module's local source directory.  It expands globs and references
+// to SourceFileProducer modules using the ":name" syntax.  Properties passed as the paths argument must have been
+// annotated with struct tag `android:"path"` so that dependencies on SourceFileProducer modules will have already
+// been handled by the path_properties mutator.  If ctx.Config().AllowMissingDependencies() is true, then any missing
+// SourceFileProducer dependencies will cause the module to be marked as having missing dependencies.
 func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 	return PathsForModuleSrcExcludes(ctx, paths, nil)
 }
 
+// PathsForModuleSrcExcludes returns Paths rooted from the module's local source directory, excluding paths listed in
+// the excludes arguments.  It expands globs and references to SourceFileProducer modules in both paths and excludes
+// using the ":name" syntax.  Properties passed as the paths or excludes argument must have been annotated with struct
+// tag `android:"path"` so that dependencies on SourceFileProducer modules will have already been handled by the
+// path_properties mutator.  If ctx.Config().AllowMissingDependencies() is true, then any missing SourceFileProducer
+// dependencies will cause the module to be marked as having missing dependencies.
 func PathsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) Paths {
+	ret, missingDeps := PathsAndMissingDepsForModuleSrcExcludes(ctx, paths, excludes)
+	if ctx.Config().AllowMissingDependencies() {
+		ctx.AddMissingDependencies(missingDeps)
+	} else {
+		for _, m := range missingDeps {
+			ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
+		}
+	}
+	return ret
+}
+
+// PathsAndMissingDepsForModuleSrcExcludes returns Paths rooted from the module's local source directory, excluding
+// paths listed in the excludes arguments, and a list of missing dependencies.  It expands globs and references to
+// SourceFileProducer modules in both paths and excludes using the ":name" syntax.  Properties passed as the paths or
+// excludes argument must have been annotated with struct tag `android:"path"` so that dependencies on
+// SourceFileProducer modules will have already been handled by the path_properties mutator.  If
+// ctx.Config().AllowMissingDependencies() is true, then any missing SourceFileProducer dependencies will be returned,
+// and they will NOT cause the module to be marked as having missing dependencies.
+func PathsAndMissingDepsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) (Paths, []string) {
 	prefix := pathForModuleSrc(ctx).String()
 
 	var expandedExcludes []string
@@ -231,15 +259,13 @@ func PathsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) Path
 		expandedExcludes = make([]string, 0, len(excludes))
 	}
 
+	var missingExcludeDeps []string
+
 	for _, e := range excludes {
 		if m := SrcIsModule(e); m != "" {
 			module := ctx.GetDirectDepWithTag(m, SourceDepTag)
 			if module == nil {
-				if ctx.Config().AllowMissingDependencies() {
-					ctx.AddMissingDependencies([]string{m})
-				} else {
-					ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
-				}
+				missingExcludeDeps = append(missingExcludeDeps, m)
 				continue
 			}
 			if srcProducer, ok := module.(SourceFileProducer); ok {
@@ -253,24 +279,23 @@ func PathsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) Path
 	}
 
 	if paths == nil {
-		return nil
+		return nil, missingExcludeDeps
 	}
+
+	var missingDeps []string
 
 	expandedSrcFiles := make(Paths, 0, len(paths))
 	for _, s := range paths {
 		srcFiles, err := expandOneSrcPath(ctx, s, expandedExcludes)
 		if depErr, ok := err.(missingDependencyError); ok {
-			if ctx.Config().AllowMissingDependencies() {
-				ctx.AddMissingDependencies(depErr.missingDeps)
-			} else {
-				ctx.ModuleErrorf(`%s, is the property annotated with android:"path"?`, depErr.Error())
-			}
+			missingDeps = append(missingDeps, depErr.missingDeps...)
 		} else if err != nil {
 			reportPathError(ctx, err)
 		}
 		expandedSrcFiles = append(expandedSrcFiles, srcFiles...)
 	}
-	return expandedSrcFiles
+
+	return expandedSrcFiles, append(missingDeps, missingExcludeDeps...)
 }
 
 type missingDependencyError struct {

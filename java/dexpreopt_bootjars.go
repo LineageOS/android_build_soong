@@ -447,7 +447,14 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 		var imageNames []string
 		for _, current := range append(d.otherImages, image) {
 			imageNames = append(imageNames, current.name)
+			var arches []android.ArchType
 			for arch, _ := range current.images {
+				arches = append(arches, arch)
+			}
+
+			sort.Slice(arches, func(i, j int) bool { return arches[i].String() < arches[j].String() })
+
+			for _, arch := range arches {
 				ctx.Strict("DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_"+current.name+"_"+arch.String(), current.vdexInstalls[arch].String())
 				ctx.Strict("DEXPREOPT_IMAGE_"+current.name+"_"+arch.String(), current.images[arch].String())
 				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+current.name+"_"+arch.String(), current.installs[arch].String())
