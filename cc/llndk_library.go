@@ -182,6 +182,7 @@ func NewLLndkStubLibrary() *Module {
 	module.installer = nil
 
 	module.AddProperties(
+		&module.Properties,
 		&stub.Properties,
 		&library.MutatedProperties,
 		&library.flagExporter.Properties)
@@ -225,7 +226,10 @@ func llndkHeadersFactory() android.Module {
 	module.linker = decorator
 	module.installer = nil
 
-	module.AddProperties(&library.MutatedProperties, &library.flagExporter.Properties)
+	module.AddProperties(
+		&module.Properties,
+		&library.MutatedProperties,
+		&library.flagExporter.Properties)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
 
