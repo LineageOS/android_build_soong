@@ -15,13 +15,15 @@
 package java
 
 import (
-	"android/soong/android"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+	"android/soong/java/config"
 )
 
 var classpathTestcases = []struct {
@@ -37,16 +39,16 @@ var classpathTestcases = []struct {
 }{
 	{
 		name:          "default",
-		bootclasspath: []string{"core.platform.api.stubs", "core-lambda-stubs"},
-		system:        "core-platform-api-stubs-system-modules",
-		classpath:     []string{"ext", "framework", "updatable_media_stubs"},
+		bootclasspath: config.DefaultBootclasspathLibraries,
+		system:        config.DefaultSystemModules,
+		classpath:     config.DefaultLibraries,
 	},
 	{
 		name:          "blank sdk version",
 		properties:    `sdk_version: "",`,
-		bootclasspath: []string{"core.platform.api.stubs", "core-lambda-stubs"},
-		system:        "core-platform-api-stubs-system-modules",
-		classpath:     []string{"ext", "framework", "updatable_media_stubs"},
+		bootclasspath: config.DefaultBootclasspathLibraries,
+		system:        config.DefaultSystemModules,
+		classpath:     config.DefaultLibraries,
 	},
 	{
 
