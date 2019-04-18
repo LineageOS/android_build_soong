@@ -71,21 +71,12 @@ var buildBrokenSettings = []struct {
 	},
 	{
 		name:     "BUILD_BROKEN_ANDROIDMK_EXPORTS",
-		behavior: DefaultFalse,
+		behavior: DefaultDeprecated,
 		warnings: []string{"export_keyword"},
 	},
 	{
-		name:     "BUILD_BROKEN_PHONY_TARGETS",
-		behavior: DefaultFalse,
-		warnings: []string{
-			"depends on PHONY target",
-			"looks like a real file",
-			"writing to readonly directory",
-		},
-	},
-	{
 		name:     "BUILD_BROKEN_ENG_DEBUG_TAGS",
-		behavior: DefaultTrue,
+		behavior: DefaultDeprecated,
 		warnings: []string{
 			"Changes.md#LOCAL_MODULE_TAGS",
 		},
