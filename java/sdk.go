@@ -19,6 +19,7 @@ import (
 	"android/soong/java/config"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,11 +30,12 @@ import (
 func init() {
 	android.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	android.RegisterSingletonType("sdk", sdkSingletonFactory)
-	android.RegisterMakeVarsProvider(pctx, sdkFrameworkAidlMakeVars)
+	android.RegisterMakeVarsProvider(pctx, sdkMakeVars)
 }
 
 var sdkVersionsKey = android.NewOnceKey("sdkVersionsKey")
 var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
+var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
 type sdkContext interface {
 	// sdkVersion eturns the sdk_version property of the current module, or an empty string if it is not set.
@@ -171,7 +173,7 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		}
 	}
 
-	if ctx.Config().UnbundledBuildPrebuiltSdks() && v != "" {
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() && v != "" {
 		return toPrebuilt(v)
 	}
 
@@ -230,12 +232,16 @@ func sdkSingletonFactory() android.Singleton {
 type sdkSingleton struct{}
 
 func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	if ctx.Config().UnbundledBuildPrebuiltSdks() || ctx.Config().IsPdkBuild() {
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
 		return
 	}
 
-	// Create framework.aidl by extracting anything that implements android.os.Parcelable from the SDK stubs modules.
+	createSdkFrameworkAidl(ctx)
+	createAPIFingerprint(ctx)
+}
 
+// Create framework.aidl by extracting anything that implements android.os.Parcelable from the SDK stubs modules.
+func createSdkFrameworkAidl(ctx android.SingletonContext) {
 	stubsModules := []string{
 		"android_stubs_current",
 		"android_test_stubs_current",
@@ -308,10 +314,62 @@ func sdkFrameworkAidlPath(ctx android.PathContext) android.OutputPath {
 	}).(android.OutputPath)
 }
 
-func sdkFrameworkAidlMakeVars(ctx android.MakeVarsContext) {
-	if ctx.Config().UnbundledBuildPrebuiltSdks() || ctx.Config().IsPdkBuild() {
+// Create api_fingerprint.txt
+func createAPIFingerprint(ctx android.SingletonContext) {
+	out := apiFingerprintPath(ctx)
+
+	rule := android.NewRuleBuilder()
+
+	rule.Command().
+		Text("rm -f").Output(out)
+	cmd := rule.Command()
+
+	if ctx.Config().PlatformSdkCodename() == "REL" {
+		cmd.Text("echo REL >").Output(out)
+	} else if ctx.Config().IsPdkBuild() {
+		// TODO: get this from the PDK artifacts?
+		cmd.Text("echo PDK >").Output(out)
+	} else if !ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		in, err := ctx.GlobWithDeps("frameworks/base/api/*current.txt", nil)
+		if err != nil {
+			ctx.Errorf("error globbing API files: %s", err)
+		}
+
+		cmd.Text("cat").
+			Inputs(android.PathsForSource(ctx, in)).
+			Text("|")
+
+		if runtime.GOOS == "darwin" {
+			cmd.Text("md5")
+		} else {
+			cmd.Text("md5sum")
+		}
+
+		cmd.Text("| cut -d' ' -f1 >").
+			Output(out)
+	} else {
+		// Unbundled build
+		// TODO: use a prebuilt api_fingerprint.txt from prebuilts/sdk/current.txt once we have one
+		cmd.Text("echo").
+			Flag(ctx.Config().PlatformPreviewSdkVersion()).
+			Text(">").
+			Output(out)
+	}
+
+	rule.Build(pctx, ctx, "api_fingerprint", "generate api_fingerprint.txt")
+}
+
+func apiFingerprintPath(ctx android.PathContext) android.OutputPath {
+	return ctx.Config().Once(apiFingerprintPathKey, func() interface{} {
+		return android.PathForOutput(ctx, "api_fingerprint.txt")
+	}).(android.OutputPath)
+}
+
+func sdkMakeVars(ctx android.MakeVarsContext) {
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
 		return
 	}
 
 	ctx.Strict("FRAMEWORK_AIDL", sdkFrameworkAidlPath(ctx).String())
+	ctx.Strict("API_FINGERPRINT", apiFingerprintPath(ctx).String())
 }
