@@ -410,7 +410,7 @@ type sdkDep struct {
 	frameworkResModule string
 
 	jars android.Paths
-	aidl android.Path
+	aidl android.OptionalPath
 }
 
 type jniLib struct {
@@ -534,7 +534,7 @@ func (j *Module) hasSrcExt(ext string) bool {
 }
 
 func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
-	aidlIncludeDirs android.Paths) []string {
+	aidlIncludeDirs android.Paths) (string, android.Paths) {
 
 	aidlIncludes := android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Local_include_dirs)
 	aidlIncludes = append(aidlIncludes,
@@ -542,16 +542,24 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 	aidlIncludes = append(aidlIncludes,
 		android.PathsForSource(ctx, j.deviceProperties.Aidl.Include_dirs)...)
 
-	flags := []string{}
+	var flags []string
+	var deps android.Paths
 
 	if aidlPreprocess.Valid() {
 		flags = append(flags, "-p"+aidlPreprocess.String())
-	} else {
+		deps = append(deps, aidlPreprocess.Path())
+	} else if len(aidlIncludeDirs) > 0 {
 		flags = append(flags, android.JoinWithPrefix(aidlIncludeDirs.Strings(), "-I"))
 	}
 
-	flags = append(flags, android.JoinWithPrefix(j.exportAidlIncludeDirs.Strings(), "-I"))
-	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
+	if len(j.exportAidlIncludeDirs) > 0 {
+		flags = append(flags, android.JoinWithPrefix(j.exportAidlIncludeDirs.Strings(), "-I"))
+	}
+
+	if len(aidlIncludes) > 0 {
+		flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
+	}
+
 	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
 	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
@@ -565,7 +573,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 		flags = append(flags, "--transaction_names")
 	}
 
-	return flags
+	return strings.Join(flags, " "), deps
 }
 
 type deps struct {
@@ -683,7 +691,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		} else if sdkDep.useFiles {
 			// sdkDep.jar is actually equivalent to turbine header.jar.
 			deps.classpath = append(deps.classpath, sdkDep.jars...)
-			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, sdkDep.aidl)
+			deps.aidlPreprocess = sdkDep.aidl
+		} else {
+			deps.aidlPreprocess = sdkDep.aidl
 		}
 	}
 
@@ -724,6 +734,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
+				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 			case staticLibTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
@@ -731,6 +742,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars()...)
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
+				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 			case pluginTag:
 				if plugin, ok := dep.(*Plugin); ok {
 					deps.processorPath = append(deps.processorPath, dep.ImplementationAndResourcesJars()...)
@@ -765,7 +777,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.kotlinAnnotations = dep.HeaderJars()
 			}
 
-			deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 		case android.SourceFileProducer:
 			switch tag {
 			case libTag:
@@ -806,7 +817,7 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
 	if ctx.Config().IsPdkBuild() && (v == "" || v == "current") {
-		sdkVersions := ctx.Config().Get(sdkSingletonKey).([]int)
+		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
 		latestSdkVersion := 0
 		if len(sdkVersions) > 0 {
 			latestSdkVersion = sdkVersions[len(sdkVersions)-1]
@@ -919,12 +930,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	}
 
 	// aidl flags.
-	aidlFlags := j.aidlFlags(ctx, deps.aidlPreprocess, deps.aidlIncludeDirs)
-	if len(aidlFlags) > 0 {
-		// optimization.
-		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
-		flags.aidlFlags = "$aidlFlags"
-	}
+	flags.aidlFlags, flags.aidlDeps = j.aidlFlags(ctx, deps.aidlPreprocess, deps.aidlIncludeDirs)
 
 	if len(javacFlags) > 0 {
 		// optimization.
