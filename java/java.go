@@ -713,7 +713,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
 				// names of sdk libs that are directly depended are exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, otherName)
-			default:
+			case staticLibTag:
 				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
 			}
 		case Dependency:
