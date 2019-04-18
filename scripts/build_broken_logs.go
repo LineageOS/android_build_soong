@@ -60,11 +60,6 @@ var buildBrokenSettings = []struct {
 	warnings []string
 }{
 	{
-		name:     "BUILD_BROKEN_DUP_COPY_HEADERS",
-		behavior: DefaultDeprecated,
-		warnings: []string{"Duplicate header copy:"},
-	},
-	{
 		name:     "BUILD_BROKEN_DUP_RULES",
 		behavior: DefaultFalse,
 		warnings: []string{"overriding commands for target"},
