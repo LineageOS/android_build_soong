@@ -618,7 +618,7 @@ func (c *config) UnbundledBuild() bool {
 	return Bool(c.productVariables.Unbundled_build)
 }
 
-func (c *config) UnbundledBuildPrebuiltSdks() bool {
+func (c *config) UnbundledBuildUsePrebuiltSdks() bool {
 	return Bool(c.productVariables.Unbundled_build) && !Bool(c.productVariables.Unbundled_build_sdks_from_source)
 }
 
