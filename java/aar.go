@@ -30,7 +30,7 @@ type AndroidLibraryDependency interface {
 	ExportedProguardFlagFiles() android.Paths
 	ExportedRRODirs() []rroDir
 	ExportedStaticPackages() android.Paths
-	ExportedManifest() android.Path
+	ExportedManifests() android.Paths
 }
 
 func init() {
@@ -72,18 +72,20 @@ type aaptProperties struct {
 }
 
 type aapt struct {
-	aaptSrcJar            android.Path
-	exportPackage         android.Path
-	manifestPath          android.Path
-	proguardOptionsFile   android.Path
-	rroDirs               []rroDir
-	rTxt                  android.Path
-	extraAaptPackagesFile android.Path
-	noticeFile            android.OptionalPath
-	isLibrary             bool
-	uncompressedJNI       bool
-	useEmbeddedDex        bool
-	usesNonSdkApis        bool
+	aaptSrcJar              android.Path
+	exportPackage           android.Path
+	manifestPath            android.Path
+	transitiveManifestPaths android.Paths
+	proguardOptionsFile     android.Path
+	rroDirs                 []rroDir
+	rTxt                    android.Path
+	extraAaptPackagesFile   android.Path
+	mergedManifestFile      android.Path
+	noticeFile              android.OptionalPath
+	isLibrary               bool
+	uncompressedJNI         bool
+	useEmbeddedDex          bool
+	usesNonSdkApis          bool
 
 	splitNames []string
 	splits     []split
@@ -105,8 +107,8 @@ func (a *aapt) ExportedRRODirs() []rroDir {
 	return a.rroDirs
 }
 
-func (a *aapt) ExportedManifest() android.Path {
-	return a.manifestPath
+func (a *aapt) ExportedManifests() android.Paths {
+	return a.transitiveManifestPaths
 }
 
 func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, manifestPath android.Path) (flags []string,
@@ -200,14 +202,28 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
 }
 
 func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, extraLinkFlags ...string) {
-	transitiveStaticLibs, staticLibManifests, staticRRODirs, libDeps, libFlags := aaptLibs(ctx, sdkContext)
+	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, libDeps, libFlags := aaptLibs(ctx, sdkContext)
 
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
-	manifestPath := manifestMerger(ctx, manifestSrcPath, sdkContext, staticLibManifests, a.isLibrary,
-		a.uncompressedJNI, a.useEmbeddedDex, a.usesNonSdkApis)
+	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext,
+		a.isLibrary, a.uncompressedJNI, a.usesNonSdkApis, a.useEmbeddedDex)
+
+	a.transitiveManifestPaths = append(android.Paths{manifestPath}, transitiveStaticLibManifests...)
+
+	if len(transitiveStaticLibManifests) > 0 {
+		a.mergedManifestFile = manifestMerger(ctx, manifestPath, transitiveStaticLibManifests)
+		if !a.isLibrary {
+			// Only use the merged manifest for applications.  For libraries, the transitive closure of manifests
+			// will be propagated to the final application and merged there.  The merged manifest for libraries is
+			// only passed to Make, which can't handle transitive dependencies.
+			manifestPath = a.mergedManifestFile
+		}
+	} else {
+		a.mergedManifestFile = manifestPath
+	}
 
 	linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, resZips := a.aapt2Flags(ctx, sdkContext, manifestPath)
 
@@ -294,7 +310,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, staticLibManifests android.Paths,
+func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, transitiveStaticLibManifests android.Paths,
 	staticRRODirs []rroDir, deps android.Paths, flags []string) {
 
 	var sharedLibs android.Paths
@@ -322,7 +338,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 			if exportPackage != nil {
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
-				staticLibManifests = append(staticLibManifests, aarDep.ExportedManifest())
+				transitiveStaticLibManifests = append(transitiveStaticLibManifests, aarDep.ExportedManifests()...)
 
 			outer:
 				for _, d := range aarDep.ExportedRRODirs() {
@@ -349,8 +365,9 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 	}
 
 	transitiveStaticLibs = android.FirstUniquePaths(transitiveStaticLibs)
+	transitiveStaticLibManifests = android.FirstUniquePaths(transitiveStaticLibManifests)
 
-	return transitiveStaticLibs, staticLibManifests, staticRRODirs, deps, flags
+	return transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, deps, flags
 }
 
 type AndroidLibrary struct {
@@ -506,8 +523,8 @@ func (a *AARImport) ExportedStaticPackages() android.Paths {
 	return a.exportedStaticPackages
 }
 
-func (a *AARImport) ExportedManifest() android.Path {
-	return a.manifest
+func (a *AARImport) ExportedManifests() android.Paths {
+	return android.Paths{a.manifest}
 }
 
 func (a *AARImport) Prebuilt() *android.Prebuilt {
