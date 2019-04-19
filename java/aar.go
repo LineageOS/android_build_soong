@@ -214,7 +214,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	a.transitiveManifestPaths = append(android.Paths{manifestPath}, transitiveStaticLibManifests...)
 
 	if len(transitiveStaticLibManifests) > 0 {
-		a.mergedManifestFile = manifestMerger(ctx, manifestPath, transitiveStaticLibManifests)
+		a.mergedManifestFile = manifestMerger(ctx, manifestPath, transitiveStaticLibManifests, a.isLibrary)
 		if !a.isLibrary {
 			// Only use the merged manifest for applications.  For libraries, the transitive closure of manifests
 			// will be propagated to the final application and merged there.  The merged manifest for libraries is
