@@ -36,10 +36,10 @@ var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
 
 var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	blueprint.RuleParams{
-		Command:     `${config.ManifestMergerCmd} --main $in $libs --out $out`,
+		Command:     `${config.ManifestMergerCmd} $args --main $in $libs --out $out`,
 		CommandDeps: []string{"${config.ManifestMergerCmd}"},
 	},
-	"libs")
+	"args", "libs")
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
 func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
@@ -97,7 +97,15 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	return fixedManifest
 }
 
-func manifestMerger(ctx android.ModuleContext, manifest android.Path, staticLibManifests android.Paths) android.Path {
+func manifestMerger(ctx android.ModuleContext, manifest android.Path, staticLibManifests android.Paths,
+	isLibrary bool) android.Path {
+
+	var args string
+	if !isLibrary {
+		// Follow Gradle's behavior, only pass --remove-tools-declarations when merging app manifests.
+		args = "--remove-tools-declarations"
+	}
+
 	mergedManifest := android.PathForModuleOut(ctx, "manifest_merger", "AndroidManifest.xml")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        manifestMergerRule,
@@ -107,6 +115,7 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, staticLibM
 		Output:      mergedManifest,
 		Args: map[string]string{
 			"libs": android.JoinWithPrefix(staticLibManifests.Strings(), "--libs "),
+			"args": args,
 		},
 	})
 
