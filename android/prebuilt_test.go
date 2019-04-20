@@ -41,7 +41,7 @@ var prebuiltsTests = []struct {
 			prebuilt {
 				name: "bar",
 				prefer: false,
-				srcs: ["prebuilt"],
+				srcs: ["prebuilt_file"],
 			}`,
 		prebuilt: true,
 	},
@@ -51,7 +51,7 @@ var prebuiltsTests = []struct {
 			prebuilt {
 				name: "bar",
 				prefer: true,
-				srcs: ["prebuilt"],
+				srcs: ["prebuilt_file"],
 			}`,
 		prebuilt: true,
 	},
@@ -65,7 +65,7 @@ var prebuiltsTests = []struct {
 			prebuilt {
 				name: "bar",
 				prefer: false,
-				srcs: ["prebuilt"],
+				srcs: ["prebuilt_file"],
 			}`,
 		prebuilt: false,
 	},
@@ -79,7 +79,7 @@ var prebuiltsTests = []struct {
 			prebuilt {
 				name: "bar",
 				prefer: true,
-				srcs: ["prebuilt"],
+				srcs: ["prebuilt_file"],
 			}`,
 		prebuilt: true,
 	},
@@ -114,6 +114,7 @@ var prebuiltsTests = []struct {
 		modules: `
 			filegroup {
 				name: "fg",
+				srcs: ["prebuilt_file"],
 			}
 			prebuilt {
 				name: "bar",
@@ -143,10 +144,12 @@ func TestPrebuilts(t *testing.T) {
 			ctx.RegisterModuleType("source", ModuleFactoryAdaptor(newSourceModule))
 			ctx.Register()
 			ctx.MockFileSystem(map[string][]byte{
+				"prebuilt_file": nil,
+				"source_file":   nil,
 				"Blueprints": []byte(`
 					source {
 						name: "foo",
-						deps: ["bar"],
+						deps: [":bar"],
 					}
 					` + test.modules),
 			})
@@ -171,21 +174,45 @@ func TestPrebuilts(t *testing.T) {
 				}
 			})
 
+			deps := foo.Module().(*sourceModule).deps
+			if deps == nil || len(deps) != 1 {
+				t.Errorf("deps does not have single path, but is %v", deps)
+			}
+			var usingSourceFile, usingPrebuiltFile bool
+			if deps[0].String() == "source_file" {
+				usingSourceFile = true
+			}
+			if deps[0].String() == "prebuilt_file" {
+				usingPrebuiltFile = true
+			}
+
 			if test.prebuilt {
 				if !dependsOnPrebuiltModule {
 					t.Errorf("doesn't depend on prebuilt module")
+				}
+				if !usingPrebuiltFile {
+					t.Errorf("doesn't use prebuilt_file")
 				}
 
 				if dependsOnSourceModule {
 					t.Errorf("depends on source module")
 				}
+				if usingSourceFile {
+					t.Errorf("using source_file")
+				}
 			} else {
 				if dependsOnPrebuiltModule {
 					t.Errorf("depends on prebuilt module")
 				}
+				if usingPrebuiltFile {
+					t.Errorf("using prebuilt_file")
+				}
 
 				if !dependsOnSourceModule {
-					t.Errorf("doens't depend on source module")
+					t.Errorf("doesn't depend on source module")
+				}
+				if !usingSourceFile {
+					t.Errorf("doesn't use source_file")
 				}
 			}
 		})
@@ -198,6 +225,7 @@ type prebuiltModule struct {
 	properties struct {
 		Srcs []string `android:"path"`
 	}
+	src Path
 }
 
 func newPrebuiltModule() Module {
@@ -212,19 +240,28 @@ func (p *prebuiltModule) Name() string {
 	return p.prebuilt.Name(p.ModuleBase.Name())
 }
 
-func (p *prebuiltModule) GenerateAndroidBuildActions(ModuleContext) {
+func (p *prebuiltModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	if len(p.properties.Srcs) >= 1 {
+		p.src = p.prebuilt.SingleSourcePath(ctx)
+	}
 }
 
 func (p *prebuiltModule) Prebuilt() *Prebuilt {
 	return &p.prebuilt
 }
 
+func (p *prebuiltModule) Srcs() Paths {
+	return Paths{p.src}
+}
+
 type sourceModule struct {
 	ModuleBase
 	properties struct {
-		Deps []string
+		Deps []string `android:"path"`
 	}
 	dependsOnSourceModule, dependsOnPrebuiltModule bool
+	deps                                           Paths
+	src                                            Path
 }
 
 func newSourceModule() Module {
@@ -235,10 +272,15 @@ func newSourceModule() Module {
 }
 
 func (s *sourceModule) DepsMutator(ctx BottomUpMutatorContext) {
-	for _, d := range s.properties.Deps {
-		ctx.AddDependency(ctx.Module(), nil, d)
-	}
+	// s.properties.Deps are annotated with android:path, so they are
+	// automatically added to the dependency by pathDeps mutator
 }
 
 func (s *sourceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	s.deps = PathsForModuleSrc(ctx, s.properties.Deps)
+	s.src = PathForModuleSrc(ctx, "source_file")
+}
+
+func (s *sourceModule) Srcs() Paths {
+	return Paths{s.src}
 }
