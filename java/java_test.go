@@ -86,6 +86,7 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("droiddoc_host", android.ModuleFactoryAdaptor(DroiddocHostFactory))
 	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(ExportedDroiddocDirFactory))
 	ctx.RegisterModuleType("java_sdk_library", android.ModuleFactoryAdaptor(SdkLibraryFactory))
+	ctx.RegisterModuleType("java_sdk_library_import", android.ModuleFactoryAdaptor(sdkLibraryImportFactory))
 	ctx.RegisterModuleType("override_android_app", android.ModuleFactoryAdaptor(OverrideAndroidAppModuleFactory))
 	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(PrebuiltApisFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
@@ -323,7 +324,7 @@ func TestPrebuilts(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
-			libs: ["bar"],
+			libs: ["bar", "sdklib"],
 			static_libs: ["baz"],
 		}
 
@@ -341,15 +342,25 @@ func TestPrebuilts(t *testing.T) {
 			name: "qux",
 			jars: ["b.jar"],
 		}
+
+		java_sdk_library_import {
+			name: "sdklib",
+			jars: ["b.jar"],
+		}
 		`)
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	combineJar := ctx.ModuleForTests("foo", "android_common").Description("for javac")
 	barJar := ctx.ModuleForTests("bar", "android_common").Rule("combineJar").Output
 	bazJar := ctx.ModuleForTests("baz", "android_common").Rule("combineJar").Output
+	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").Rule("combineJar").Output
 
 	if !strings.Contains(javac.Args["classpath"], barJar.String()) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barJar.String())
+	}
+
+	if !strings.Contains(javac.Args["classpath"], sdklibStubsJar.String()) {
+		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], sdklibStubsJar.String())
 	}
 
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != bazJar.String() {
@@ -366,6 +377,7 @@ func TestDefaults(t *testing.T) {
 			srcs: ["a.java"],
 			libs: ["bar"],
 			static_libs: ["baz"],
+			optimize: {enabled: false},
 		}
 
 		java_library {
@@ -381,6 +393,22 @@ func TestDefaults(t *testing.T) {
 		java_library {
 			name: "baz",
 			srcs: ["c.java"],
+		}
+
+		android_test {
+			name: "atestOptimize",
+			defaults: ["defaults"],
+			optimize: {enabled: true},
+		}
+
+		android_test {
+			name: "atestNoOptimize",
+			defaults: ["defaults"],
+		}
+
+		android_test {
+			name: "atestDefault",
+			srcs: ["a.java"],
 		}
 		`)
 
@@ -399,6 +427,21 @@ func TestDefaults(t *testing.T) {
 	baz := ctx.ModuleForTests("baz", "android_common").Rule("javac").Output.String()
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
+	}
+
+	atestOptimize := ctx.ModuleForTests("atestOptimize", "android_common").MaybeRule("r8")
+	if atestOptimize.Output == nil {
+		t.Errorf("atestOptimize should optimize APK")
+	}
+
+	atestNoOptimize := ctx.ModuleForTests("atestNoOptimize", "android_common").MaybeRule("d8")
+	if atestNoOptimize.Output == nil {
+		t.Errorf("atestNoOptimize should not optimize APK")
+	}
+
+	atestDefault := ctx.ModuleForTests("atestDefault", "android_common").MaybeRule("r8")
+	if atestDefault.Output == nil {
+		t.Errorf("atestDefault should optimize APK")
 	}
 }
 
