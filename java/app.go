@@ -438,7 +438,7 @@ func (a *AndroidApp) getCertString(ctx android.BaseContext) string {
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
 
-	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+	module.Module.deviceProperties.Optimize.EnabledByDefault = true
 	module.Module.deviceProperties.Optimize.Shrink = proptools.BoolPtr(true)
 
 	module.Module.properties.Instrument = true
@@ -508,7 +508,7 @@ func (a *AndroidTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 func AndroidTestFactory() android.Module {
 	module := &AndroidTest{}
 
-	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+	module.Module.deviceProperties.Optimize.EnabledByDefault = true
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
@@ -550,7 +550,7 @@ type AndroidTestHelperApp struct {
 func AndroidTestHelperAppFactory() android.Module {
 	module := &AndroidTestHelperApp{}
 
-	module.Module.deviceProperties.Optimize.Enabled = proptools.BoolPtr(true)
+	module.Module.deviceProperties.Optimize.EnabledByDefault = true
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
