@@ -126,6 +126,7 @@ var hostModuleNames = HostModuleNames{}
 
 var sdkVersion string
 var useVersion string
+var jetifier bool
 
 func InList(s string, list []string) bool {
 	for _, l := range list {
@@ -257,6 +258,10 @@ func (p Pom) SdkVersion() string {
 	return sdkVersion
 }
 
+func (p Pom) Jetifier() bool {
+	return jetifier
+}
+
 func (p *Pom) FixDeps(modules map[string]*Pom) {
 	for _, d := range p.Dependencies {
 		if d.Type == "" {
@@ -331,6 +336,9 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     name: "{{.BpName}}-nodeps",
     {{.ImportProperty}}: ["{{.ArtifactFile}}"],
     sdk_version: "{{.SdkVersion}}",
+    {{- if .Jetifier}}
+    jetifier: true,
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [
@@ -500,10 +508,12 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
      are depended upon (like androidx.test.rules requires android.test.base).
      This may be specified multiple times to declare these dependencies.
   -sdk-version <version>
-     Sets LOCAL_SDK_VERSION := <version> for all modules.
+     Sets sdk_version: "<version>" for all modules.
   -use-version <version>
      If the maven directory contains multiple versions of artifacts and their pom files,
      -use-version can be used to only write Android.bp files for a specific version of those artifacts.
+  -jetifier
+     Sets jetifier: true for all modules.
   <dir>
      The directory to search for *.pom files under.
      The contents are written to stdout, to be put in the current directory (often as Android.bp)
@@ -521,8 +531,9 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
 	flag.Var(&extraLibs, "extra-libs", "Extra runtime dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
-	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
+	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to sdk_version")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
+	flag.BoolVar(&jetifier, "jetifier", false, "Sets jetifier: true on all modules")
 	flag.Bool("static-deps", false, "Ignored")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.Parse()

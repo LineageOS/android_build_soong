@@ -104,6 +104,7 @@ var excludes = make(Exclude)
 var sdkVersion string
 var useVersion string
 var staticDeps bool
+var jetifier bool
 
 func InList(s string, list []string) bool {
 	for _, l := range list {
@@ -195,6 +196,10 @@ func (p Pom) SdkVersion() string {
 	return sdkVersion
 }
 
+func (p Pom) Jetifier() bool {
+	return jetifier
+}
+
 func (p *Pom) FixDeps(modules map[string]*Pom) {
 	for _, d := range p.Dependencies {
 		if d.Type == "" {
@@ -229,6 +234,7 @@ LOCAL_STATIC_JAVA_LIBRARIES :={{range .MkJarDeps}} \
   {{.}}{{end}}
 LOCAL_STATIC_ANDROID_LIBRARIES :={{range .MkAarDeps}} \
   {{.}}{{end}}
+LOCAL_JETIFIER_ENABLED := {{if .Jetifier}}true{{end}}
 include $(BUILD_PREBUILT)
 `))
 
@@ -367,6 +373,8 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
      -use-version can be used to only write makefiles for a specific version of those artifacts.
   -static-deps
      Whether to statically include direct dependencies.
+  -jetifier
+     Enable jetifier in order to use androidx
   <dir>
      The directory to search for *.pom files under.
      The makefile is written to stdout, to be put in the current directory (often as Android.mk)
@@ -383,6 +391,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-deps <modul
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to LOCAL_SDK_VERSION")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
+	flag.BoolVar(&jetifier, "jetifier", false, "Enable jetifier in order to use androidx")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.Parse()
 
