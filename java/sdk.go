@@ -22,13 +22,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/google/blueprint/pathtools"
 )
 
 func init() {
-	android.RegisterPreSingletonType("sdk", sdkSingletonFactory)
+	android.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
+	android.RegisterSingletonType("sdk", sdkSingletonFactory)
+	android.RegisterMakeVarsProvider(pctx, sdkFrameworkAidlMakeVars)
 }
 
-var sdkSingletonKey = android.NewOnceKey("sdkSingletonKey")
+var sdkVersionsKey = android.NewOnceKey("sdkVersionsKey")
+var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 
 type sdkContext interface {
 	// sdkVersion eturns the sdk_version property of the current module, or an empty string if it is not set.
@@ -76,7 +81,7 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
 	if ctx.Config().IsPdkBuild() && (v == "" || v == "current") {
-		sdkVersions := ctx.Config().Get(sdkSingletonKey).([]int)
+		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
 		latestSdkVersion := 0
 		if len(sdkVersions) > 0 {
 			latestSdkVersion = sdkVersions[len(sdkVersions)-1]
@@ -130,17 +135,19 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		return sdkDep{
 			useFiles: true,
 			jars:     android.Paths{jarPath.Path(), lambdaStubsPath},
-			aidl:     aidlPath.Path(),
+			aidl:     android.OptionalPathForPath(aidlPath.Path()),
 		}
 	}
 
-	toModule := func(m, r string) sdkDep {
+	toModule := func(m, r string, aidl android.Path) sdkDep {
 		ret := sdkDep{
 			useModule:          true,
 			modules:            []string{m, config.DefaultLambdaStubsLibrary},
 			systemModules:      m + "_system_modules",
 			frameworkResModule: r,
+			aidl:               android.OptionalPathForPath(aidl),
 		}
+
 		if m == "core.current.stubs" {
 			ret.systemModules = "core-system-modules"
 		} else if m == "core.platform.api.stubs" {
@@ -175,25 +182,25 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 			frameworkResModule: "framework-res",
 		}
 	case "current":
-		return toModule("android_stubs_current", "framework-res")
+		return toModule("android_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
 	case "system_current":
-		return toModule("android_system_stubs_current", "framework-res")
+		return toModule("android_system_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
 	case "test_current":
-		return toModule("android_test_stubs_current", "framework-res")
+		return toModule("android_test_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
 	case "core_current":
-		return toModule("core.current.stubs", "")
+		return toModule("core.current.stubs", "", nil)
 	default:
 		return toPrebuilt(v)
 	}
 }
 
-func sdkSingletonFactory() android.Singleton {
-	return sdkSingleton{}
+func sdkPreSingletonFactory() android.Singleton {
+	return sdkPreSingleton{}
 }
 
-type sdkSingleton struct{}
+type sdkPreSingleton struct{}
 
-func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+func (sdkPreSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	sdkJars, err := ctx.GlobWithDeps("prebuilts/sdk/*/public/android.jar", nil)
 	if err != nil {
 		ctx.Errorf("failed to glob prebuilts/sdk/*/public/android.jar: %s", err.Error())
@@ -213,5 +220,98 @@ func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	sort.Ints(sdkVersions)
 
-	ctx.Config().Once(sdkSingletonKey, func() interface{} { return sdkVersions })
+	ctx.Config().Once(sdkVersionsKey, func() interface{} { return sdkVersions })
+}
+
+func sdkSingletonFactory() android.Singleton {
+	return sdkSingleton{}
+}
+
+type sdkSingleton struct{}
+
+func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	if ctx.Config().UnbundledBuildPrebuiltSdks() || ctx.Config().IsPdkBuild() {
+		return
+	}
+
+	// Create framework.aidl by extracting anything that implements android.os.Parcelable from the SDK stubs modules.
+
+	stubsModules := []string{
+		"android_stubs_current",
+		"android_test_stubs_current",
+		"android_system_stubs_current",
+	}
+
+	stubsJars := make([]android.Paths, len(stubsModules))
+
+	ctx.VisitAllModules(func(module android.Module) {
+		// Collect dex jar paths for the modules listed above.
+		if j, ok := module.(Dependency); ok {
+			name := ctx.ModuleName(module)
+			if i := android.IndexList(name, stubsModules); i != -1 {
+				stubsJars[i] = j.HeaderJars()
+			}
+		}
+	})
+
+	var missingDeps []string
+
+	for i := range stubsJars {
+		if stubsJars[i] == nil {
+			if ctx.Config().AllowMissingDependencies() {
+				missingDeps = append(missingDeps, stubsModules[i])
+			} else {
+				ctx.Errorf("failed to find dex jar path for module %q",
+					stubsModules[i])
+			}
+		}
+	}
+
+	rule := android.NewRuleBuilder()
+	rule.MissingDeps(missingDeps)
+
+	var aidls android.Paths
+	for _, jars := range stubsJars {
+		for _, jar := range jars {
+			aidl := android.PathForOutput(ctx, "aidl", pathtools.ReplaceExtension(jar.Base(), "aidl"))
+
+			rule.Command().
+				Text("rm -f").Output(aidl)
+			rule.Command().
+				Tool(ctx.Config().HostToolPath(ctx, "sdkparcelables")).
+				Input(jar).
+				Output(aidl)
+
+			aidls = append(aidls, aidl)
+		}
+	}
+
+	combinedAidl := sdkFrameworkAidlPath(ctx)
+	tempPath := combinedAidl.ReplaceExtension(ctx, "aidl.tmp")
+
+	rule.Command().
+		Text("rm -f").Output(tempPath)
+	rule.Command().
+		Text("cat").
+		Inputs(aidls).
+		Text("| sort -u >").
+		Output(tempPath)
+
+	commitChangeForRestat(rule, tempPath, combinedAidl)
+
+	rule.Build(pctx, ctx, "framework_aidl", "generate framework.aidl")
+}
+
+func sdkFrameworkAidlPath(ctx android.PathContext) android.OutputPath {
+	return ctx.Config().Once(sdkFrameworkAidlPathKey, func() interface{} {
+		return android.PathForOutput(ctx, "framework.aidl")
+	}).(android.OutputPath)
+}
+
+func sdkFrameworkAidlMakeVars(ctx android.MakeVarsContext) {
+	if ctx.Config().UnbundledBuildPrebuiltSdks() || ctx.Config().IsPdkBuild() {
+		return
+	}
+
+	ctx.Strict("FRAMEWORK_AIDL", sdkFrameworkAidlPath(ctx).String())
 }
