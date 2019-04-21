@@ -154,6 +154,7 @@ type javaBuilderFlags struct {
 	processor     string
 	systemModules classpath
 	aidlFlags     string
+	aidlDeps      android.Paths
 	javaVersion   string
 
 	errorProneExtraJavacFlags string
