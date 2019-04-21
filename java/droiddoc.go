@@ -404,6 +404,7 @@ type droiddocBuilderFlags struct {
 	sourcepathArgs     string
 	dokkaClasspathArgs string
 	aidlFlags          string
+	aidlDeps           android.Paths
 
 	doclavaStubsFlags string
 	doclavaDocsFlags  string
@@ -574,26 +575,23 @@ func (j *Javadoc) genWhitelistPathPrefixes(whitelistPathPrefixes map[string]bool
 func (j *Javadoc) collectAidlFlags(ctx android.ModuleContext, deps deps) droiddocBuilderFlags {
 	var flags droiddocBuilderFlags
 
-	// aidl flags.
-	aidlFlags := j.aidlFlags(ctx, deps.aidlPreprocess, deps.aidlIncludeDirs)
-	if len(aidlFlags) > 0 {
-		// optimization.
-		ctx.Variable(pctx, "aidlFlags", strings.Join(aidlFlags, " "))
-		flags.aidlFlags = "$aidlFlags"
-	}
+	flags.aidlFlags, flags.aidlDeps = j.aidlFlags(ctx, deps.aidlPreprocess, deps.aidlIncludeDirs)
 
 	return flags
 }
 
 func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.OptionalPath,
-	aidlIncludeDirs android.Paths) []string {
+	aidlIncludeDirs android.Paths) (string, android.Paths) {
 
 	aidlIncludes := android.PathsForModuleSrc(ctx, j.properties.Aidl.Local_include_dirs)
 	aidlIncludes = append(aidlIncludes, android.PathsForSource(ctx, j.properties.Aidl.Include_dirs)...)
 
 	var flags []string
+	var deps android.Paths
+
 	if aidlPreprocess.Valid() {
 		flags = append(flags, "-p"+aidlPreprocess.String())
+		deps = append(deps, aidlPreprocess.Path())
 	} else {
 		flags = append(flags, android.JoinWithPrefix(aidlIncludeDirs.Strings(), "-I"))
 	}
@@ -604,7 +602,7 @@ func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Op
 		flags = append(flags, "-I"+src.String())
 	}
 
-	return flags
+	return strings.Join(flags, " "), deps
 }
 
 func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
@@ -615,7 +613,7 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	for _, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".aidl":
-			javaFile := genAidl(ctx, srcFile, flags.aidlFlags)
+			javaFile := genAidl(ctx, srcFile, flags.aidlFlags, flags.aidlDeps)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".sysprop":
 			javaFile := genSysprop(ctx, srcFile)
