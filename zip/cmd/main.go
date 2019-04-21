@@ -105,12 +105,6 @@ var (
 	nonDeflatedFiles = make(uniqueSet)
 )
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "usage: soong_zip -o zipfile [-m manifest] [-C dir] [-f|-l file] [-D dir]...\n")
-	flag.PrintDefaults()
-	os.Exit(2)
-}
-
 func main() {
 	var expandedArgs []string
 	for _, arg := range os.Args {
@@ -128,7 +122,11 @@ func main() {
 	}
 
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
-	flags.Usage = usage
+	flags.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: soong_zip -o zipfile [-m manifest] [-C dir] [-f|-l file] [-D dir]...\n")
+		flags.PrintDefaults()
+		os.Exit(2)
+	}
 
 	out := flags.String("o", "", "file to write zip file to")
 	manifest := flags.String("m", "", "input jar manifest file name")
