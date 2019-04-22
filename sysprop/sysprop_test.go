@@ -106,6 +106,7 @@ func testContext(config android.Config, bp string,
 		"api/system-removed.txt": nil,
 		"api/test-current.txt":   nil,
 		"api/test-removed.txt":   nil,
+		"framework/aidl/a.aidl":  nil,
 
 		"prebuilts/sdk/current/core/android.jar":                              nil,
 		"prebuilts/sdk/current/public/android.jar":                            nil,
