@@ -74,6 +74,10 @@ func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 	}
 }
 
+func (p *Prebuilt) UsePrebuilt() bool {
+	return p.properties.UsePrebuilt
+}
+
 func InitPrebuiltModule(module PrebuiltInterface, srcs *[]string) {
 	p := module.Prebuilt()
 	module.AddProperties(&p.properties)
