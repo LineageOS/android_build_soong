@@ -74,7 +74,7 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 		ctx.Config().UnbundledBuild() &&
 		!ctx.Config().UnbundledBuildUsePrebuiltSdks() &&
 		ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
-		apiFingerprint := apiFingerprintPath(ctx)
+		apiFingerprint := ApiFingerprintPath(ctx)
 		targetSdkVersion += fmt.Sprintf(".$$(cat %s)", apiFingerprint.String())
 		deps = append(deps, apiFingerprint)
 	}
