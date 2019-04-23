@@ -37,7 +37,6 @@ func GatherRequiredDepsForTest() string {
 
 	extraModules := []string{
 		"core-lambda-stubs",
-		"framework",
 		"ext",
 		"updatable_media_stubs",
 		"android_stubs_current",
@@ -62,6 +61,17 @@ func GatherRequiredDepsForTest() string {
 	}
 
 	bp += `
+		java_library {
+			name: "framework",
+			srcs: ["a.java"],
+			no_standard_libs: true,
+			sdk_version: "core_current",
+			system_modules: "core-platform-api-stubs-system-modules",
+			aidl: {
+				export_include_dirs: ["framework/aidl"],
+			},
+		}
+
 		android_app {
 			name: "framework-res",
 			no_framework_libs: true,
