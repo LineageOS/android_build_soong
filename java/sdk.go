@@ -316,7 +316,7 @@ func sdkFrameworkAidlPath(ctx android.PathContext) android.OutputPath {
 
 // Create api_fingerprint.txt
 func createAPIFingerprint(ctx android.SingletonContext) {
-	out := apiFingerprintPath(ctx)
+	out := ApiFingerprintPath(ctx)
 
 	rule := android.NewRuleBuilder()
 
@@ -359,7 +359,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 	rule.Build(pctx, ctx, "api_fingerprint", "generate api_fingerprint.txt")
 }
 
-func apiFingerprintPath(ctx android.PathContext) android.OutputPath {
+func ApiFingerprintPath(ctx android.PathContext) android.OutputPath {
 	return ctx.Config().Once(apiFingerprintPathKey, func() interface{} {
 		return android.PathForOutput(ctx, "api_fingerprint.txt")
 	}).(android.OutputPath)
@@ -371,5 +371,5 @@ func sdkMakeVars(ctx android.MakeVarsContext) {
 	}
 
 	ctx.Strict("FRAMEWORK_AIDL", sdkFrameworkAidlPath(ctx).String())
-	ctx.Strict("API_FINGERPRINT", apiFingerprintPath(ctx).String())
+	ctx.Strict("API_FINGERPRINT", ApiFingerprintPath(ctx).String())
 }
