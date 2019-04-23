@@ -1034,6 +1034,39 @@ func (a *androidModuleContext) validateAndroidModule(module blueprint.Module) Mo
 	return aModule
 }
 
+func (a *androidModuleContext) getDirectDepInternal(name string, tag blueprint.DependencyTag) (blueprint.Module, blueprint.DependencyTag) {
+	type dep struct {
+		mod blueprint.Module
+		tag blueprint.DependencyTag
+	}
+	var deps []dep
+	a.VisitDirectDepsBlueprint(func(m blueprint.Module) {
+		if aModule, _ := m.(Module); aModule != nil && aModule.base().BaseModuleName() == name {
+			returnedTag := a.ModuleContext.OtherModuleDependencyTag(aModule)
+			if tag == nil || returnedTag == tag {
+				deps = append(deps, dep{aModule, returnedTag})
+			}
+		}
+	})
+	if len(deps) == 1 {
+		return deps[0].mod, deps[0].tag
+	} else if len(deps) >= 2 {
+		panic(fmt.Errorf("Multiple dependencies having same BaseModuleName() %q found from %q",
+			name, a.ModuleName()))
+	} else {
+		return nil, nil
+	}
+}
+
+func (a *androidModuleContext) GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module {
+	m, _ := a.getDirectDepInternal(name, tag)
+	return m
+}
+
+func (a *androidModuleContext) GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag) {
+	return a.getDirectDepInternal(name, nil)
+}
+
 func (a *androidModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {
 	a.ModuleContext.VisitDirectDeps(visit)
 }
