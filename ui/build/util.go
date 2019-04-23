@@ -44,6 +44,17 @@ func inList(s string, list []string) bool {
 	return indexList(s, list) != -1
 }
 
+// removeFromlist removes all occurrences of the string in list.
+func removeFromList(s string, list []string) []string {
+	filteredList := make([]string, 0, len(list))
+	for _, ls := range list {
+		if s != ls {
+			filteredList = append(filteredList, ls)
+		}
+	}
+	return filteredList
+}
+
 // ensureDirectoriesExist is a shortcut to os.MkdirAll, sending errors to the ctx logger.
 func ensureDirectoriesExist(ctx Context, dirs ...string) {
 	for _, dir := range dirs {
