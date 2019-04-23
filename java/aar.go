@@ -511,7 +511,7 @@ func (a *AARImport) Name() string {
 }
 
 func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if !ctx.Config().UnbundledBuildPrebuiltSdks() {
+	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(a))
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
 			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
