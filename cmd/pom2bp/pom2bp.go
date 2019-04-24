@@ -126,6 +126,7 @@ var hostModuleNames = HostModuleNames{}
 
 var sdkVersion string
 var useVersion string
+var staticDeps bool
 var jetifier bool
 
 func InList(s string, list []string) bool {
@@ -333,6 +334,38 @@ func (p *Pom) ExtractMinSdkVersion() error {
 
 var bpTemplate = template.Must(template.New("bp").Parse(`
 {{.ImportModuleType}} {
+    name: "{{.BpName}}",
+    {{.ImportProperty}}: ["{{.ArtifactFile}}"],
+    sdk_version: "{{.SdkVersion}}",
+    {{- if .Jetifier}}
+    jetifier: true,
+    {{- end}}
+    {{- if .IsAar}}
+    min_sdk_version: "{{.MinSdkVersion}}",
+    static_libs: [
+        {{- range .BpJarDeps}}
+        "{{.}}",
+        {{- end}}
+        {{- range .BpAarDeps}}
+        "{{.}}",
+        {{- end}}
+        {{- range .BpExtraStaticLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- if .BpExtraLibs}}
+    libs: [
+        {{- range .BpExtraLibs}}
+        "{{.}}",
+        {{- end}}
+    ],
+    {{- end}}
+    {{- end}}
+}
+`))
+
+var bpDepsTemplate = template.Must(template.New("bp").Parse(`
+{{.ImportModuleType}} {
     name: "{{.BpName}}-nodeps",
     {{.ImportProperty}}: ["{{.ArtifactFile}}"],
     sdk_version: "{{.SdkVersion}}",
@@ -533,8 +566,8 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
 	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to sdk_version")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
+	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
 	flag.BoolVar(&jetifier, "jetifier", false, "Sets jetifier: true on all modules")
-	flag.Bool("static-deps", false, "Ignored")
 	flag.StringVar(&regen, "regen", "", "Rewrite specified file")
 	flag.Parse()
 
@@ -648,7 +681,11 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
 
 	for _, pom := range poms {
 		var err error
-		err = bpTemplate.Execute(buf, pom)
+		if staticDeps {
+			err = bpDepsTemplate.Execute(buf, pom)
+		} else {
+			err = bpTemplate.Execute(buf, pom)
+		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error writing", pom.PomFile, pom.BpName(), err)
 			os.Exit(1)

@@ -977,6 +977,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
 
+		targetSdkVersion := ctx.Config().DefaultAppTargetSdk()
+		if targetSdkVersion == ctx.Config().PlatformSdkCodename() &&
+			ctx.Config().UnbundledBuild() &&
+			!ctx.Config().UnbundledBuildUsePrebuiltSdks() &&
+			ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
+			apiFingerprint := java.ApiFingerprintPath(ctx)
+			targetSdkVersion += fmt.Sprintf(".$$(cat %s)", apiFingerprint.String())
+			implicitInputs = append(implicitInputs, apiFingerprint)
+		}
+		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexRule,
 			Implicits:   implicitInputs,

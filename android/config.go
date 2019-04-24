@@ -198,6 +198,14 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 
 // TestConfig returns a Config object suitable for using for tests
 func TestConfig(buildDir string, env map[string]string) Config {
+	envCopy := make(map[string]string)
+	for k, v := range env {
+		envCopy[k] = v
+	}
+
+	// Copy the real PATH value to the test environment, it's needed by HostSystemTool() used in x86_darwin_host.go
+	envCopy["PATH"] = originalEnv["PATH"]
+
 	config := &config{
 		productVariables: productVariables{
 			DeviceName:                  stringPtr("test_device"),
@@ -212,7 +220,7 @@ func TestConfig(buildDir string, env map[string]string) Config {
 
 		buildDir:     buildDir,
 		captureBuild: true,
-		env:          env,
+		env:          envCopy,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
