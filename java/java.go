@@ -1632,6 +1632,9 @@ func TestHelperLibraryFactory() android.Module {
 		&module.Module.protoProperties,
 		&module.testHelperLibraryProperties)
 
+	module.Module.properties.Installable = proptools.BoolPtr(true)
+	module.Module.dexpreopter.isTest = true
+
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
