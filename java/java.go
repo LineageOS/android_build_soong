@@ -221,6 +221,13 @@ type CompilerDeviceProperties struct {
 	// If true, export a copy of the module as a -hostdex module for host testing.
 	Hostdex *bool
 
+	Target struct {
+		Hostdex struct {
+			// Additional required dependencies to add to -hostdex modules.
+			Required []string
+		}
+	}
+
 	// If set to true, compile dex regardless of installable.  Defaults to false.
 	Compile_dex *bool
 
