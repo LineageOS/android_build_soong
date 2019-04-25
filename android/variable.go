@@ -267,6 +267,7 @@ type productVariables struct {
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`
 	BoardPlatPublicSepolicyDirs  []string `json:",omitempty"`
 	BoardPlatPrivateSepolicyDirs []string `json:",omitempty"`
+	BoardSepolicyM4Defs          []string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
 
@@ -287,6 +288,10 @@ type productVariables struct {
 	ProductHiddenAPIStubs       []string `json:",omitempty"`
 	ProductHiddenAPIStubsSystem []string `json:",omitempty"`
 	ProductHiddenAPIStubsTest   []string `json:",omitempty"`
+
+	ProductPublicSepolicyDirs  []string `json:",omitempty"`
+	ProductPrivateSepolicyDirs []string `json:",omitempty"`
+	ProductCompatibleProperty  *bool    `json:",omitempty"`
 
 	TargetFSConfigGen []string `json:",omitempty"`
 }
