@@ -36,13 +36,14 @@ var manifestFixerRule = pctx.AndroidStaticRule("manifestFixer",
 
 var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	blueprint.RuleParams{
-		Command:     `${config.ManifestMergerCmd} --main $in $libs --out $out`,
+		Command:     `${config.ManifestMergerCmd} $args --main $in $libs --out $out`,
 		CommandDeps: []string{"${config.ManifestMergerCmd}"},
 	},
-	"libs")
+	"args", "libs")
 
-func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
-	staticLibManifests android.Paths, isLibrary, uncompressedJNI, useEmbeddedDex, usesNonSdkApis bool) android.Path {
+// Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
+func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
+	isLibrary, uncompressedJNI, usesNonSdkApis, useEmbeddedDex bool) android.Path {
 
 	var args []string
 	if isLibrary {
@@ -79,35 +80,44 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, sdkContext
 		deps = append(deps, apiFingerprint)
 	}
 
-	// Inject minSdkVersion into the manifest
 	fixedManifest := android.PathForModuleOut(ctx, "manifest_fixer", "AndroidManifest.xml")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:      manifestFixerRule,
-		Input:     manifest,
-		Implicits: deps,
-		Output:    fixedManifest,
+		Rule:        manifestFixerRule,
+		Description: "fix manifest",
+		Input:       manifest,
+		Implicits:   deps,
+		Output:      fixedManifest,
 		Args: map[string]string{
 			"minSdkVersion":    sdkVersionOrDefault(ctx, sdkContext.minSdkVersion()),
 			"targetSdkVersion": targetSdkVersion,
 			"args":             strings.Join(args, " "),
 		},
 	})
-	manifest = fixedManifest
 
-	// Merge static aar dependency manifests if necessary
-	if len(staticLibManifests) > 0 {
-		mergedManifest := android.PathForModuleOut(ctx, "manifest_merger", "AndroidManifest.xml")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:      manifestMergerRule,
-			Input:     manifest,
-			Implicits: staticLibManifests,
-			Output:    mergedManifest,
-			Args: map[string]string{
-				"libs": android.JoinWithPrefix(staticLibManifests.Strings(), "--libs "),
-			},
-		})
-		manifest = mergedManifest
+	return fixedManifest
+}
+
+func manifestMerger(ctx android.ModuleContext, manifest android.Path, staticLibManifests android.Paths,
+	isLibrary bool) android.Path {
+
+	var args string
+	if !isLibrary {
+		// Follow Gradle's behavior, only pass --remove-tools-declarations when merging app manifests.
+		args = "--remove-tools-declarations"
 	}
 
-	return manifest
+	mergedManifest := android.PathForModuleOut(ctx, "manifest_merger", "AndroidManifest.xml")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        manifestMergerRule,
+		Description: "merge manifest",
+		Input:       manifest,
+		Implicits:   staticLibManifests,
+		Output:      mergedManifest,
+		Args: map[string]string{
+			"libs": android.JoinWithPrefix(staticLibManifests.Strings(), "--libs "),
+			"args": args,
+		},
+	})
+
+	return mergedManifest
 }
