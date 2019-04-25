@@ -171,7 +171,7 @@ func (j *Module) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8F
 func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	classesJar android.Path, jarName string) android.ModuleOutPath {
 
-	useR8 := Bool(j.deviceProperties.Optimize.Enabled)
+	useR8 := j.deviceProperties.EffectiveOptimizeEnabled()
 
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", jarName)
