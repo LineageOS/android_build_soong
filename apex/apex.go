@@ -1373,11 +1373,15 @@ func (p *Prebuilt) Srcs() android.Paths {
 	return android.Paths{p.outputApex}
 }
 
+func (p *Prebuilt) InstallFilename() string {
+	return proptools.StringDefault(p.properties.Filename, p.BaseModuleName()+imageApexSuffix)
+}
+
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(jungjw): Check the key validity.
 	p.inputApex = p.Prebuilt().SingleSourcePath(ctx)
 	p.installDir = android.PathForModuleInstall(ctx, "apex")
-	p.installFilename = proptools.StringDefault(p.properties.Filename, ctx.ModuleName()+imageApexSuffix)
+	p.installFilename = p.InstallFilename()
 	if !strings.HasSuffix(p.installFilename, imageApexSuffix) {
 		ctx.ModuleErrorf("filename should end in %s for prebuilt_apex", imageApexSuffix)
 	}

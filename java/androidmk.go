@@ -91,6 +91,10 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_ADDITIONAL_CHECKED_MODULE +=", strings.Join(library.additionalCheckedModules.Strings(), " "))
 				}
 
+				if library.proguardDictionary != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", library.proguardDictionary.String())
+				}
+
 				// Temporary hack: export sources used to compile framework.jar to Make
 				// to be used for droiddoc
 				// TODO(ccross): remove this once droiddoc is in soong
@@ -372,9 +376,6 @@ func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
 		if a.aarFile != nil {
 			fmt.Fprintln(w, "LOCAL_SOONG_AAR :=", a.aarFile.String())
-		}
-		if a.proguardDictionary != nil {
-			fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", a.proguardDictionary.String())
 		}
 
 		if a.Name() == "framework-res" {

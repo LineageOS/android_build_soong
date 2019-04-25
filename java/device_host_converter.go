@@ -15,9 +15,12 @@
 package java
 
 import (
-	"android/soong/android"
+	"fmt"
+	"io"
 
 	"github.com/google/blueprint"
+
+	"android/soong/android"
 )
 
 type DeviceHostConverter struct {
@@ -30,6 +33,9 @@ type DeviceHostConverter struct {
 	implementationJars            android.Paths
 	implementationAndResourceJars android.Paths
 	resourceJars                  android.Paths
+
+	combinedHeaderJar         android.Path
+	combinedImplementationJar android.Path
 }
 
 type DeviceHostConverterProperties struct {
@@ -98,6 +104,27 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 			ctx.PropertyErrorf("libs", "module %q cannot be used as a dependency", ctx.OtherModuleName(m))
 		}
 	})
+
+	jarName := ctx.ModuleName() + ".jar"
+
+	if len(d.implementationAndResourceJars) > 1 {
+		outputFile := android.PathForModuleOut(ctx, "combined", jarName)
+		TransformJarsToJar(ctx, outputFile, "combine", d.implementationAndResourceJars,
+			android.OptionalPath{}, false, nil, nil)
+		d.combinedImplementationJar = outputFile
+	} else {
+		d.combinedImplementationJar = d.implementationAndResourceJars[0]
+	}
+
+	if len(d.headerJars) > 1 {
+		outputFile := android.PathForModuleOut(ctx, "turbine-combined", jarName)
+		TransformJarsToJar(ctx, outputFile, "turbine combine", d.headerJars,
+			android.OptionalPath{}, false, nil, nil)
+		d.combinedHeaderJar = outputFile
+	} else {
+		d.combinedHeaderJar = d.headerJars[0]
+	}
+
 }
 
 var _ Dependency = (*DeviceHostConverter)(nil)
@@ -128,4 +155,19 @@ func (d *DeviceHostConverter) AidlIncludeDirs() android.Paths {
 
 func (d *DeviceHostConverter) ExportedSdkLibs() []string {
 	return nil
+}
+
+func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "JAVA_LIBRARIES",
+		OutputFile: android.OptionalPathForPath(d.combinedImplementationJar),
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", d.combinedHeaderJar.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", d.combinedImplementationJar.String())
+			},
+		},
+	}
 }
