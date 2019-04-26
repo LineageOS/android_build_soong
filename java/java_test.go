@@ -168,7 +168,9 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/tools/core-lambda-stubs.jar":   nil,
 		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "current"],}`),
 
-		"prebuilts/apk/app.apk": nil,
+		"prebuilts/apk/app.apk":        nil,
+		"prebuilts/apk/app_xhdpi.apk":  nil,
+		"prebuilts/apk/app_xxhdpi.apk": nil,
 
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                        nil,

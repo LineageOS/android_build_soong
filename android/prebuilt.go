@@ -50,6 +50,11 @@ func (p *Prebuilt) Name(name string) string {
 	return "prebuilt_" + name
 }
 
+// The below source-related functions and the srcs, src fields are based on an assumption that
+// prebuilt modules have a static source property at the moment. Currently there is only one
+// exception, android_app_import, which chooses a source file depending on the product's DPI
+// preference configs. We'll want to add native support for dynamic source cases if we end up having
+// more modules like this.
 func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 	if p.srcs != nil {
 		if len(*p.srcs) == 0 {
