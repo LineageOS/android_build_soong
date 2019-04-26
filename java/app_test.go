@@ -15,17 +15,18 @@
 package java
 
 import (
-	"android/soong/android"
-	"android/soong/cc"
-
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+	"android/soong/cc"
 )
 
 var (
@@ -1233,5 +1234,83 @@ func TestAndroidAppImport_Presigned(t *testing.T) {
 	}
 	if variant.MaybeOutput("zip-aligned/foo.apk").Rule == nil {
 		t.Errorf("can't find aligning rule")
+	}
+}
+
+func TestAndroidAppImport_DpiVariants(t *testing.T) {
+	bp := `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			dpi_variants: {
+				xhdpi: {
+					apk: "prebuilts/apk/app_xhdpi.apk",
+				},
+				xxhdpi: {
+					apk: "prebuilts/apk/app_xxhdpi.apk",
+				},
+			},
+			certificate: "PRESIGNED",
+			dex_preopt: {
+				enabled: true,
+			},
+		}
+		`
+	testCases := []struct {
+		name                string
+		aaptPreferredConfig *string
+		aaptPrebuiltDPI     []string
+		expected            string
+	}{
+		{
+			name:                "no preferred",
+			aaptPreferredConfig: nil,
+			aaptPrebuiltDPI:     []string{},
+			expected:            "prebuilts/apk/app.apk",
+		},
+		{
+			name:                "AAPTPreferredConfig matches",
+			aaptPreferredConfig: proptools.StringPtr("xhdpi"),
+			aaptPrebuiltDPI:     []string{"xxhdpi", "lhdpi"},
+			expected:            "prebuilts/apk/app_xhdpi.apk",
+		},
+		{
+			name:                "AAPTPrebuiltDPI matches",
+			aaptPreferredConfig: proptools.StringPtr("mdpi"),
+			aaptPrebuiltDPI:     []string{"xxhdpi", "xhdpi"},
+			expected:            "prebuilts/apk/app_xxhdpi.apk",
+		},
+		{
+			name:                "non-first AAPTPrebuiltDPI matches",
+			aaptPreferredConfig: proptools.StringPtr("mdpi"),
+			aaptPrebuiltDPI:     []string{"ldpi", "xhdpi"},
+			expected:            "prebuilts/apk/app_xhdpi.apk",
+		},
+		{
+			name:                "no matches",
+			aaptPreferredConfig: proptools.StringPtr("mdpi"),
+			aaptPrebuiltDPI:     []string{"ldpi", "xxxhdpi"},
+			expected:            "prebuilts/apk/app.apk",
+		},
+	}
+
+	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
+	for _, test := range testCases {
+		config := testConfig(nil)
+		config.TestProductVariables.AAPTPreferredConfig = test.aaptPreferredConfig
+		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+		ctx := testAppContext(config, bp, nil)
+
+		run(t, ctx, config)
+
+		variant := ctx.ModuleForTests("foo", "android_common")
+		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
+		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
+		if len(matches) != 2 {
+			t.Errorf("failed to extract the src apk path from %q", jniRuleCommand)
+		}
+		if test.expected != matches[1] {
+			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, matches[1])
+		}
 	}
 }
