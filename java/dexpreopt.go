@@ -51,7 +51,7 @@ type DexpreoptProperties struct {
 		// If set, provides the path to profile relative to the Android.bp file.  If not set,
 		// defaults to searching for a file that matches the name of this module in the default
 		// profile location set by PRODUCT_DEX_PREOPT_PROFILE_DIR, or empty if not found.
-		Profile *string
+		Profile *string `android:"path"`
 	}
 }
 
