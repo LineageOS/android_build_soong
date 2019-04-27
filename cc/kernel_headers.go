@@ -32,6 +32,11 @@ func (stub *kernelHeadersDecorator) link(ctx ModuleContext, flags Flags, deps Pa
 	return stub.libraryDecorator.linkStatic(ctx, flags, deps, objs)
 }
 
+// kernel_headers retrieves the list of kernel headers directories from
+// TARGET_BOARD_KERNEL_HEADERS and TARGET_PRODUCT_KERNEL_HEADERS variables in
+// a makefile for compilation. See
+// https://android.googlesource.com/platform/build/+/master/core/config.mk
+// for more details on them.
 func kernelHeadersFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()

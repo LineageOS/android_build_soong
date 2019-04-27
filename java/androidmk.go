@@ -47,6 +47,9 @@ func (library *Library) AndroidMkHostDex(w io.Writer, name string, data android.
 		if len(data.Target_required) > 0 {
 			fmt.Fprintln(w, "LOCAL_TARGET_REQUIRED_MODULES :=", strings.Join(data.Target_required, " "))
 		}
+		if r := library.deviceProperties.Target.Hostdex.Required; len(r) > 0 {
+			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(r, " "))
+		}
 		fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
 	}
 }
@@ -387,7 +390,7 @@ func (a *AndroidLibrary) AndroidMk() android.AndroidMkData {
 
 		fmt.Fprintln(w, "LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE :=", a.exportPackage.String())
 		fmt.Fprintln(w, "LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES :=", a.extraAaptPackagesFile.String())
-		fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", a.manifestPath.String())
+		fmt.Fprintln(w, "LOCAL_FULL_MANIFEST_FILE :=", a.mergedManifestFile.String())
 		fmt.Fprintln(w, "LOCAL_SOONG_EXPORT_PROGUARD_FLAGS :=",
 			strings.Join(a.exportedProguardFlagFiles.Strings(), " "))
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
