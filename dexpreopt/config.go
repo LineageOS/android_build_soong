@@ -59,6 +59,7 @@ type GlobalConfig struct {
 	NeverAllowStripping bool // whether stripping should not be done - used as build time check to make sure dex files are always available
 
 	NoDebugInfo                 bool // don't generate debug info by default
+	DontResolveStartupStrings   bool // don't resolve string literals loaded during application startup.
 	AlwaysSystemServerDebugInfo bool // always generate mini debug info for system server modules (overrides NoDebugInfo=true)
 	NeverSystemServerDebugInfo  bool // never generate mini debug info for system server modules (overrides NoDebugInfo=false)
 	AlwaysOtherDebugInfo        bool // always generate mini debug info for non-system server modules (overrides NoDebugInfo=true)
@@ -301,6 +302,7 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		GenerateDMFiles:                    false,
 		NeverAllowStripping:                false,
 		NoDebugInfo:                        false,
+		DontResolveStartupStrings:          false,
 		AlwaysSystemServerDebugInfo:        false,
 		NeverSystemServerDebugInfo:         false,
 		AlwaysOtherDebugInfo:               false,
