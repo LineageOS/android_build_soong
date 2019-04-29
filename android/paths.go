@@ -967,7 +967,7 @@ func pathForModule(ctx ModuleContext) OutputPath {
 // PathForVndkRefAbiDump returns an OptionalPath representing the path of the
 // reference abi dump for the given module. This is not guaranteed to be valid.
 func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string,
-	isLlndk, isGzip bool) OptionalPath {
+	isLlndkOrNdk, isVndk, isGzip bool) OptionalPath {
 
 	arches := ctx.DeviceConfig().Arches()
 	if len(arches) == 0 {
@@ -980,10 +980,12 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string,
 	}
 
 	var dirName string
-	if isLlndk {
+	if isLlndkOrNdk {
 		dirName = "ndk"
-	} else {
+	} else if isVndk {
 		dirName = "vndk"
+	} else {
+		dirName = "platform" // opt-in libs
 	}
 
 	binderBitness := ctx.DeviceConfig().BinderBitness()
