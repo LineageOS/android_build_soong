@@ -26,12 +26,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-// This file implements namespaces
-const (
-	namespacePrefix = "//"
-	modulePrefix    = ":"
-)
-
 func init() {
 	RegisterModuleType("soong_namespace", NamespaceFactory)
 }
@@ -215,11 +209,11 @@ func (r *NameResolver) AllModules() []blueprint.ModuleGroup {
 // parses a fully-qualified path (like "//namespace_path:module_name") into a namespace name and a
 // module name
 func (r *NameResolver) parseFullyQualifiedName(name string) (namespaceName string, moduleName string, ok bool) {
-	if !strings.HasPrefix(name, namespacePrefix) {
+	if !strings.HasPrefix(name, "//") {
 		return "", "", false
 	}
-	name = strings.TrimPrefix(name, namespacePrefix)
-	components := strings.Split(name, modulePrefix)
+	name = strings.TrimPrefix(name, "//")
+	components := strings.Split(name, ":")
 	if len(components) != 2 {
 		return "", "", false
 	}
