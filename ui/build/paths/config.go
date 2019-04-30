@@ -76,6 +76,7 @@ func GetConfig(name string) PathConfig {
 var Configuration = map[string]PathConfig{
 	"bash":     Allowed,
 	"bc":       Allowed,
+	"bzip2":    Allowed,
 	"date":     Allowed,
 	"dd":       Allowed,
 	"diff":     Allowed,
@@ -103,6 +104,7 @@ var Configuration = map[string]PathConfig{
 	"timeout":  Allowed,
 	"tr":       Allowed,
 	"unzip":    Allowed,
+	"xz":       Allowed,
 	"zip":      Allowed,
 	"zipinfo":  Allowed,
 
