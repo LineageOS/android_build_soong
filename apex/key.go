@@ -16,6 +16,7 @@ package apex
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -105,12 +106,31 @@ type apexKeysText struct {
 
 func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 	s.output = android.PathForOutput(ctx, "apexkeys.txt")
-	var filecontent strings.Builder
+	apexModulesMap := make(map[string]android.Module)
 	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(android.Module); ok && !m.Enabled() {
-			return
+		if m, ok := module.(*apexBundle); ok && m.Enabled() && m.installable() {
+			apexModulesMap[m.Name()] = m
 		}
+	})
 
+	// Find prebuilts and let them override apexBundle if they are preferred
+	ctx.VisitAllModules(func(module android.Module) {
+		if m, ok := module.(*Prebuilt); ok && m.Enabled() && m.installable() &&
+			m.Prebuilt().UsePrebuilt() {
+			apexModulesMap[m.BaseModuleName()] = m
+		}
+	})
+
+	// iterating over map does not give consistent ordering in golang
+	var moduleNames []string
+	for key, _ := range apexModulesMap {
+		moduleNames = append(moduleNames, key)
+	}
+	sort.Strings(moduleNames)
+
+	var filecontent strings.Builder
+	for _, key := range moduleNames {
+		module := apexModulesMap[key]
 		if m, ok := module.(*apexBundle); ok {
 			fmt.Fprintf(&filecontent,
 				"name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q\\n",
@@ -119,8 +139,14 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 				m.private_key_file.String(),
 				m.container_certificate_file.String(),
 				m.container_private_key_file.String())
+		} else if m, ok := module.(*Prebuilt); ok {
+			fmt.Fprintf(&filecontent,
+				"name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q\\n",
+				m.InstallFilename(),
+				"PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED")
 		}
-	})
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.WriteFile,
 		Description: "apexkeys.txt",
