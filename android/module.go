@@ -210,6 +210,33 @@ type commonProperties struct {
 	// emit build rules for this module
 	Enabled *bool `android:"arch_variant"`
 
+	// Controls the visibility of this module to other modules. Allowable values are one or more of
+	// these formats:
+	//
+	//  ["//visibility:public"]: Anyone can use this module.
+	//  ["//visibility:private"]: Only rules in the module's package (not its subpackages) can use
+	//      this module.
+	//  ["//some/package:__pkg__", "//other/package:__pkg__"]: Only modules in some/package and
+	//      other/package (defined in some/package/*.bp and other/package/*.bp) have access to
+	//      this module. Note that sub-packages do not have access to the rule; for example,
+	//      //some/package/foo:bar or //other/package/testing:bla wouldn't have access. __pkg__
+	//      is a special module and must be used verbatim. It represents all of the modules in the
+	//      package.
+	//  ["//project:__subpackages__", "//other:__subpackages__"]: Only modules in packages project
+	//      or other or in one of their sub-packages have access to this module. For example,
+	//      //project:rule, //project/library:lib or //other/testing/internal:munge are allowed
+	//      to depend on this rule (but not //independent:evil)
+	//  ["//project"]: This is shorthand for ["//project:__pkg__"]
+	//  [":__subpackages__"]: This is shorthand for ["//project:__subpackages__"] where
+	//      //project is the module's package. e.g. using [":__subpackages__"] in
+	//      packages/apps/Settings/Android.bp is equivalent to
+	//      //packages/apps/Settings:__subpackages__.
+	//  ["//visibility:legacy_public"]: The default visibility, behaves as //visibility:public
+	//      for now. It is an error if it is used in a module.
+	// See https://android.googlesource.com/platform/build/soong/+/master/README.md#visibility for
+	// more details.
+	Visibility []string
+
 	// control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
 	// are "32" (compile for 32-bit only), "64" (compile for 64-bit only), "both" (compile for both
 	// architectures), or "first" (compile for 64-bit on a 64-bit platform, and 32-bit on a 32-bit

@@ -1184,8 +1184,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
 		} else if fi.class == nativeSharedLib || fi.class == nativeExecutable {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-			if cc, ok := fi.module.(*cc.Module); ok && cc.UnstrippedOutputFile() != nil {
-				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
+			if cc, ok := fi.module.(*cc.Module); ok {
+				if cc.UnstrippedOutputFile() != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
+				}
+				cc.AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {

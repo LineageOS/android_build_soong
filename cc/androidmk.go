@@ -145,6 +145,16 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(w io.Writer) {
 	}
 }
 
+func (library *libraryDecorator) androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
+	if library.sAbiOutputFile.Valid() {
+		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", library.sAbiOutputFile.String())
+		if library.sAbiDiff.Valid() && !library.static() {
+			fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", library.sAbiDiff.String())
+			fmt.Fprintln(w, "HEADER_ABI_DIFFS +=", library.sAbiDiff.String())
+		}
+	}
+}
+
 func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	if library.static() {
 		ret.Class = "STATIC_LIBRARIES"
@@ -169,14 +179,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 	ret.DistFile = library.distFile
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		library.androidMkWriteExportedFlags(w)
-		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := ")
-		if library.sAbiOutputFile.Valid() {
-			fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES += ", library.sAbiOutputFile.String())
-			if library.sAbiDiff.Valid() && !library.static() {
-				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES += ", library.sAbiDiff.String())
-				fmt.Fprintln(w, "HEADER_ABI_DIFFS += ", library.sAbiDiff.String())
-			}
-		}
+		library.androidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
 
 		_, _, ext := splitFileExt(outputFile.Base())
 
