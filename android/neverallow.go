@@ -98,32 +98,15 @@ func createLibcoreRules() []*rule {
 		"external/wycheproof",
 	}
 
-	var coreModules = []string{
-		"core-all",
-		"core-oj",
-		"core-libart",
-		"okhttp",
-		"bouncycastle",
-		"conscrypt",
-		"apache-xml",
-	}
-
-	// Core library constraints. Prevent targets adding dependencies on core
-	// library internals, which could lead to compatibility issues with the ART
-	// mainline module. They should use core.platform.api.stubs instead.
+	// Core library constraints. The no_standard_libs can only be used in core
+	// library projects. Access to core library targets is restricted using
+	// visibility rules.
 	rules := []*rule{
 		neverallow().
 			notIn(append(coreLibraryProjects, "development")...).
 			with("no_standard_libs", "true"),
 	}
 
-	for _, m := range coreModules {
-		r := neverallow().
-			notIn(coreLibraryProjects...).
-			with("libs", m).
-			because("Only core libraries projects can depend on " + m)
-		rules = append(rules, r)
-	}
 	return rules
 }
 
