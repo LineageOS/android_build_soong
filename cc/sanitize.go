@@ -77,6 +77,7 @@ const (
 	intOverflow
 	cfi
 	scs
+	fuzzer
 )
 
 // Name of the sanitizer variation for this sanitizer type
@@ -94,6 +95,8 @@ func (t sanitizerType) variationName() string {
 		return "cfi"
 	case scs:
 		return "scs"
+	case fuzzer:
+		return "fuzzer"
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -114,6 +117,8 @@ func (t sanitizerType) name() string {
 		return "cfi"
 	case scs:
 		return "shadow-call-stack"
+	case fuzzer:
+		return "fuzzer"
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -133,7 +138,7 @@ type SanitizeProperties struct {
 		Undefined        *bool    `android:"arch_variant"`
 		All_undefined    *bool    `android:"arch_variant"`
 		Misc_undefined   []string `android:"arch_variant"`
-		Coverage         *bool    `android:"arch_variant"`
+		Fuzzer           *bool    `android:"arch_variant"`
 		Safestack        *bool    `android:"arch_variant"`
 		Cfi              *bool    `android:"arch_variant"`
 		Integer_overflow *bool    `android:"arch_variant"`
@@ -223,22 +228,16 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Undefined = boolPtr(true)
 		}
 
-		if found, globalSanitizers = removeFromList("address", globalSanitizers); found {
-			if s.Address == nil {
-				s.Address = boolPtr(true)
-			} else if *s.Address == false {
-				// Coverage w/o address is an error. If globalSanitizers includes both, and the module
-				// disables address, then disable coverage as well.
-				_, globalSanitizers = removeFromList("coverage", globalSanitizers)
-			}
+		if found, globalSanitizers = removeFromList("address", globalSanitizers); found && s.Address == nil {
+			s.Address = boolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("thread", globalSanitizers); found && s.Thread == nil {
 			s.Thread = boolPtr(true)
 		}
 
-		if found, globalSanitizers = removeFromList("coverage", globalSanitizers); found && s.Coverage == nil {
-			s.Coverage = boolPtr(true)
+		if found, globalSanitizers = removeFromList("fuzzer", globalSanitizers); found && s.Fuzzer == nil {
+			s.Fuzzer = boolPtr(true)
 		}
 
 		if found, globalSanitizers = removeFromList("safe-stack", globalSanitizers); found && s.Safestack == nil {
@@ -346,7 +345,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	if ctx.staticBinary() {
 		s.Address = nil
-		s.Coverage = nil
+		s.Fuzzer = nil
 		s.Thread = nil
 	}
 
@@ -362,7 +361,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	if ctx.Os() != android.Windows && (Bool(s.All_undefined) || Bool(s.Undefined) || Bool(s.Address) || Bool(s.Thread) ||
-		Bool(s.Coverage) || Bool(s.Safestack) || Bool(s.Cfi) || Bool(s.Integer_overflow) || len(s.Misc_undefined) > 0 ||
+		Bool(s.Fuzzer) || Bool(s.Safestack) || Bool(s.Cfi) || Bool(s.Integer_overflow) || len(s.Misc_undefined) > 0 ||
 		Bool(s.Scudo) || Bool(s.Hwaddress) || Bool(s.Scs)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
@@ -377,10 +376,10 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Thread = nil
 	}
 
-	if Bool(s.Coverage) {
-		if !Bool(s.Address) {
-			ctx.ModuleErrorf(`Use of "coverage" also requires "address"`)
-		}
+	// TODO(b/131771163): CFI transiently depends on LTO, and thus Fuzzer is
+	// mutually incompatible.
+	if Bool(s.Fuzzer) {
+		s.Cfi = nil
 	}
 }
 
@@ -461,8 +460,13 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, hwasanCflags...)
 	}
 
-	if Bool(sanitize.Properties.Sanitize.Coverage) {
-		flags.CFlags = append(flags.CFlags, "-fsanitize-coverage=trace-pc-guard,indirect-calls,trace-cmp")
+	if Bool(sanitize.Properties.Sanitize.Fuzzer) {
+		flags.CFlags = append(flags.CFlags, "-fsanitize=fuzzer-no-link")
+		flags.LdFlags = append(flags.LdFlags, "-fsanitize=fuzzer-no-link")
+
+		// TODO(b/131771163): LTO and Fuzzer support is mutually incompatible.
+		_, flags.LdFlags = removeFromList("-flto", flags.LdFlags)
+		flags.LdFlags = append(flags.LdFlags, "-fno-lto")
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Cfi) {
@@ -497,19 +501,25 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.CFlags = append(flags.CFlags, sanitizeArg)
 		flags.AsFlags = append(flags.AsFlags, sanitizeArg)
 		if ctx.Host() {
-			flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover=all")
-			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
+			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
 		} else {
-			flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
-
 			if enableMinimalRuntime(sanitize) {
 				flags.CFlags = append(flags.CFlags, strings.Join(minimalRuntimeFlags, " "))
 				flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
 				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
 			}
+		}
+
+		if Bool(sanitize.Properties.Sanitize.Fuzzer) {
+			// When fuzzing, we wish to crash with diagnostics on any bug.
+			flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap=all", "-fno-sanitize-recover=all")
+		} else if ctx.Host() {
+			flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover=all")
+		} else {
+			flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
 		}
 		// http://b/119329758, Android core does not boot up with this sanitizer yet.
 		if toDisableImplicitIntegerChange(flags.CFlags) {
@@ -573,6 +583,8 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t sanitizerType) *bool {
 		return sanitize.Properties.Sanitize.Cfi
 	case scs:
 		return sanitize.Properties.Sanitize.Scs
+	case fuzzer:
+		return sanitize.Properties.Sanitize.Fuzzer
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -583,22 +595,21 @@ func (sanitize *sanitize) isUnsanitizedVariant() bool {
 		!sanitize.isSanitizerEnabled(hwasan) &&
 		!sanitize.isSanitizerEnabled(tsan) &&
 		!sanitize.isSanitizerEnabled(cfi) &&
-		!sanitize.isSanitizerEnabled(scs)
+		!sanitize.isSanitizerEnabled(scs) &&
+		!sanitize.isSanitizerEnabled(fuzzer)
 }
 
 func (sanitize *sanitize) isVariantOnProductionDevice() bool {
 	return !sanitize.isSanitizerEnabled(asan) &&
 		!sanitize.isSanitizerEnabled(hwasan) &&
-		!sanitize.isSanitizerEnabled(tsan)
+		!sanitize.isSanitizerEnabled(tsan) &&
+		!sanitize.isSanitizerEnabled(fuzzer)
 }
 
 func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 	switch t {
 	case asan:
 		sanitize.Properties.Sanitize.Address = boolPtr(b)
-		if !b {
-			sanitize.Properties.Sanitize.Coverage = nil
-		}
 	case hwasan:
 		sanitize.Properties.Sanitize.Hwaddress = boolPtr(b)
 	case tsan:
@@ -609,6 +620,8 @@ func (sanitize *sanitize) SetSanitizer(t sanitizerType, b bool) {
 		sanitize.Properties.Sanitize.Cfi = boolPtr(b)
 	case scs:
 		sanitize.Properties.Sanitize.Scs = boolPtr(b)
+	case fuzzer:
+		sanitize.Properties.Sanitize.Fuzzer = boolPtr(b)
 	default:
 		panic(fmt.Errorf("unknown sanitizerType %d", t))
 	}
@@ -793,6 +806,10 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			sanitizers = append(sanitizers, "shadow-call-stack")
 		}
 
+		if Bool(c.sanitize.Properties.Sanitize.Fuzzer) {
+			sanitizers = append(sanitizers, "fuzzer-no-link")
+		}
+
 		// Save the list of sanitizers. These will be used again when generating
 		// the build rules (for Cflags, etc.)
 		c.sanitize.Properties.Sanitizers = sanitizers
@@ -931,6 +948,19 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 							modules[1].(*Module).Properties.HideFromMake = true
 						}
 					}
+				} else if t == fuzzer {
+					// TODO(b/131771163): CFI and fuzzer support are mutually incompatible
+					// as CFI pulls in LTO.
+					if mctx.Device() {
+						modules[1].(*Module).sanitize.SetSanitizer(cfi, false)
+					}
+					if isSanitizerEnabled {
+						modules[0].(*Module).Properties.PreventInstall = true
+						modules[0].(*Module).Properties.HideFromMake = true
+					} else {
+						modules[1].(*Module).Properties.PreventInstall = true
+						modules[1].(*Module).Properties.HideFromMake = true
+					}
 				} else if t == hwasan {
 					if mctx.Device() {
 						// CFI and HWASAN are currently mutually exclusive so disable
@@ -996,6 +1026,7 @@ func hwasanVendorStaticLibs(config android.Config) *[]string {
 func enableMinimalRuntime(sanitize *sanitize) bool {
 	if !Bool(sanitize.Properties.Sanitize.Address) &&
 		!Bool(sanitize.Properties.Sanitize.Hwaddress) &&
+		!Bool(sanitize.Properties.Sanitize.Fuzzer) &&
 		(Bool(sanitize.Properties.Sanitize.Integer_overflow) ||
 			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) &&
 		!(Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||

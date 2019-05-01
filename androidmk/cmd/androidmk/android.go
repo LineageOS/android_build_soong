@@ -529,7 +529,7 @@ func sanitize(sub string) func(ctx variableAssignmentContext) error {
 				ctx.file.errorf(ctx.mkvalue, "unsupported sanitize expression")
 			case *bpparser.String:
 				switch v.Value {
-				case "never", "address", "coverage", "thread", "undefined", "cfi":
+				case "never", "address", "fuzzer", "thread", "undefined", "cfi":
 					bpTrue := &bpparser.Bool{
 						Value: true,
 					}
