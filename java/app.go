@@ -161,14 +161,14 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.aapt.uncompressedJNI = a.shouldUncompressJNI(ctx)
+	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
 	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
 	a.generateAndroidBuildActions(ctx)
 }
 
-// shouldUncompressJNI returns true if the native libraries should be stored in the APK uncompressed and the
+// Returns true if the native libraries should be stored in the APK uncompressed and the
 // extractNativeLibs application flag should be set to false in the manifest.
-func (a *AndroidApp) shouldUncompressJNI(ctx android.ModuleContext) bool {
+func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
 	minSdkVersion, err := sdkVersionToNumber(ctx, a.minSdkVersion())
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.minSdkVersion(), err)
@@ -294,7 +294,7 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext
 			a.appProperties.AlwaysPackageNativeLibs
 		if embedJni {
 			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
-			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.shouldUncompressJNI(ctx))
+			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.useEmbeddedNativeLibs(ctx))
 		} else {
 			a.installJniLibs = jniLibs
 		}
@@ -487,6 +487,8 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			a.additionalAaptFlags = append(a.additionalAaptFlags, "--rename-instrumentation-target-package "+manifestPackageName)
 		}
 	}
+	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
+	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
 	a.generateAndroidBuildActions(ctx)
 
 	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites)
