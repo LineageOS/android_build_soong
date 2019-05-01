@@ -33,9 +33,16 @@ var robolectricDefaultLibs = []string{
 	"truth-prebuilt",
 }
 
+var (
+	roboCoverageLibsTag = dependencyTag{name: "roboSrcs"}
+)
+
 type robolectricProperties struct {
 	// The name of the android_app module that the tests will run against.
 	Instrumentation_for *string
+
+	// Additional libraries for which coverage data should be generated
+	Coverage_libs []string
 
 	Test_options struct {
 		// Timeout in seconds when running the tests.
@@ -49,6 +56,8 @@ type robolectricTest struct {
 	robolectricProperties robolectricProperties
 
 	libs []string
+
+	roboSrcJar android.Path
 }
 
 func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -61,14 +70,73 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	ctx.AddVariationDependencies(nil, libTag, robolectricDefaultLibs...)
+
+	ctx.AddVariationDependencies(nil, roboCoverageLibsTag, r.robolectricProperties.Coverage_libs...)
 }
 
 func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	roboTestConfig := android.PathForModuleGen(ctx, "robolectric").
+		Join(ctx, "com/android/tools/test_config.properties")
+
+	// TODO: this inserts paths to built files into the test, it should really be inserting the contents.
+	instrumented := ctx.GetDirectDepsWithTag(instrumentationForTag)
+
+	if len(instrumented) != 1 {
+		panic(fmt.Errorf("expected exactly 1 instrumented dependency, got %d", len(instrumented)))
+	}
+
+	instrumentedApp, ok := instrumented[0].(*AndroidApp)
+	if !ok {
+		ctx.PropertyErrorf("instrumentation_for", "dependency must be an android_app")
+	}
+
+	generateRoboTestConfig(ctx, roboTestConfig, instrumentedApp)
+	r.extraResources = android.Paths{roboTestConfig}
+
 	r.Library.GenerateAndroidBuildActions(ctx)
+
+	roboSrcJar := android.PathForModuleGen(ctx, "robolectric", ctx.ModuleName()+".srcjar")
+	r.generateRoboSrcJar(ctx, roboSrcJar, instrumentedApp)
+	r.roboSrcJar = roboSrcJar
 
 	for _, dep := range ctx.GetDirectDepsWithTag(libTag) {
 		r.libs = append(r.libs, ctx.OtherModuleName(dep))
 	}
+}
+
+func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath, instrumentedApp *AndroidApp) {
+	manifest := instrumentedApp.mergedManifestFile
+	resourceApk := instrumentedApp.outputFile
+
+	rule := android.NewRuleBuilder()
+
+	rule.Command().Text("rm -f").Output(outputFile)
+	rule.Command().
+		Textf(`echo "android_merged_manifest=%s" >>`, manifest.String()).Output(outputFile).Text("&&").
+		Textf(`echo "android_resource_apk=%s" >>`, resourceApk.String()).Output(outputFile).
+		// Make it depend on the files to which it points so the test file's timestamp is updated whenever the
+		// contents change
+		Implicit(manifest).
+		Implicit(resourceApk)
+
+	rule.Build(pctx, ctx, "generate_test_config", "generate test_config.properties")
+}
+
+func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFile android.WritablePath,
+	instrumentedApp *AndroidApp) {
+
+	srcJarArgs := copyOf(instrumentedApp.srcJarArgs)
+	srcJarDeps := append(android.Paths(nil), instrumentedApp.srcJarDeps...)
+
+	for _, m := range ctx.GetDirectDepsWithTag(roboCoverageLibsTag) {
+		if dep, ok := m.(Dependency); ok {
+			depSrcJarArgs, depSrcJarDeps := dep.SrcJarArgs()
+			srcJarArgs = append(srcJarArgs, depSrcJarArgs...)
+			srcJarDeps = append(srcJarDeps, depSrcJarDeps...)
+		}
+	}
+
+	TransformResourcesToJar(ctx, outputFile, srcJarArgs, srcJarDeps)
 }
 
 func (r *robolectricTest) AndroidMk() android.AndroidMkData {
@@ -83,6 +151,7 @@ func (r *robolectricTest) AndroidMk() android.AndroidMkData {
 		fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES :=", name)
 		fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES += ", strings.Join(r.libs, " "))
 		fmt.Fprintln(w, "LOCAL_TEST_PACKAGE :=", String(r.robolectricProperties.Instrumentation_for))
+		fmt.Fprintln(w, "LOCAL_INSTRUMENT_SRCJARS :=", r.roboSrcJar.String())
 		if t := r.robolectricProperties.Test_options.Timeout; t != nil {
 			fmt.Fprintln(w, "LOCAL_ROBOTEST_TIMEOUT :=", *t)
 		}
