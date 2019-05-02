@@ -276,6 +276,7 @@ bootstrap_go_package {
         "java/plugin.go",
         "java/prebuilt_apis.go",
         "java/proto.go",
+        "java/robolectric.go",
         "java/sdk.go",
         "java/sdk_library.go",
         "java/support_libraries.go",
