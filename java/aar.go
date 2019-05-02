@@ -81,7 +81,7 @@ type aapt struct {
 	extraAaptPackagesFile   android.Path
 	mergedManifestFile      android.Path
 	isLibrary               bool
-	uncompressedJNI         bool
+	useEmbeddedNativeLibs   bool
 	useEmbeddedDex          bool
 	usesNonSdkApis          bool
 
@@ -201,7 +201,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
 	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext,
-		a.isLibrary, a.uncompressedJNI, a.usesNonSdkApis, a.useEmbeddedDex)
+		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex)
 
 	a.transitiveManifestPaths = append(android.Paths{manifestPath}, transitiveStaticLibManifests...)
 
