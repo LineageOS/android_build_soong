@@ -461,6 +461,9 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		appImageInstallPath := pathtools.ReplaceExtension(odexInstallPath, "art")
 		cmd.FlagWithOutput("--app-image-file=", appImagePath).
 			FlagWithArg("--image-format=", "lz4")
+		if !global.DontResolveStartupStrings {
+			cmd.FlagWithArg("--resolve-startup-const-strings=", "true")
+		}
 		rule.Install(appImagePath, appImageInstallPath)
 	}
 
