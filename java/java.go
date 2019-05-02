@@ -1253,9 +1253,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	// merge implementation jar with resources if necessary
 	implementationAndResourcesJar := outputFile
 	if j.resourceJar != nil {
-		jars := android.Paths{implementationAndResourcesJar, j.resourceJar}
+		jars := android.Paths{j.resourceJar, implementationAndResourcesJar}
 		combinedJar := android.PathForModuleOut(ctx, "withres", jarName)
-		TransformJarsToJar(ctx, combinedJar, "for resources", jars, android.OptionalPath{},
+		TransformJarsToJar(ctx, combinedJar, "for resources", jars, manifest,
 			false, nil, nil)
 		implementationAndResourcesJar = combinedJar
 	}
