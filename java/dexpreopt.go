@@ -111,7 +111,9 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	if len(archs) == 0 {
 		// assume this is a java library, dexpreopt for all arches for now
 		for _, target := range ctx.Config().Targets[android.Android] {
-			archs = append(archs, target.Arch.ArchType)
+			if target.NativeBridge == android.NativeBridgeDisabled {
+				archs = append(archs, target.Arch.ArchType)
+			}
 		}
 		if inList(ctx.ModuleName(), global.SystemServerJars) && !d.isSDKLibrary {
 			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.

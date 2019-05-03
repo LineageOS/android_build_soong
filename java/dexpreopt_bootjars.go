@@ -197,8 +197,10 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 		}
 
 		for _, target := range targets {
-			files := buildBootImageRuleForArch(ctx, image, target.Arch.ArchType, profile, missingDeps)
-			allFiles = append(allFiles, files.Paths()...)
+			if target.NativeBridge == android.NativeBridgeDisabled {
+				files := buildBootImageRuleForArch(ctx, image, target.Arch.ArchType, profile, missingDeps)
+				allFiles = append(allFiles, files.Paths()...)
+			}
 		}
 	}
 
