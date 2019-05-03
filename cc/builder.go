@@ -255,6 +255,7 @@ type builderFlags struct {
 	groupStaticLibs bool
 
 	stripKeepSymbols       bool
+	stripKeepSymbolsList   string
 	stripKeepMiniDebugInfo bool
 	stripAddGnuDebuglink   bool
 	stripUseGnuStrip       bool
@@ -834,6 +835,9 @@ func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
 	}
 	if flags.stripKeepSymbols {
 		args += " --keep-symbols"
+	}
+	if flags.stripKeepSymbolsList != "" {
+		args += " -k" + flags.stripKeepSymbolsList
 	}
 	if flags.stripUseGnuStrip {
 		args += " --use-gnu-strip"

@@ -15,15 +15,19 @@
 package cc
 
 import (
+	"strings"
+
 	"android/soong/android"
 )
 
 type StripProperties struct {
 	Strip struct {
-		None         *bool
-		All          *bool
-		Keep_symbols *bool
-	}
+		None              *bool    `android:"arch_variant"`
+		All               *bool    `android:"arch_variant"`
+		Keep_symbols      *bool    `android:"arch_variant"`
+		Keep_symbols_list []string `android:"arch_variant"`
+		Use_gnu_strip     *bool    `android:"arch_variant"`
+	} `android:"arch_variant"`
 }
 
 type stripper struct {
@@ -42,8 +46,13 @@ func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.
 	} else {
 		if Bool(stripper.StripProperties.Strip.Keep_symbols) {
 			flags.stripKeepSymbols = true
+		} else if len(stripper.StripProperties.Strip.Keep_symbols_list) > 0 {
+			flags.stripKeepSymbolsList = strings.Join(stripper.StripProperties.Strip.Keep_symbols_list, ",")
 		} else if !Bool(stripper.StripProperties.Strip.All) {
 			flags.stripKeepMiniDebugInfo = true
+		}
+		if Bool(stripper.StripProperties.Strip.Use_gnu_strip) {
+			flags.stripUseGnuStrip = true
 		}
 		if ctx.Config().Debuggable() && !flags.stripKeepMiniDebugInfo {
 			flags.stripAddGnuDebuglink = true
