@@ -480,6 +480,117 @@ toolchain_library {
 }
 
 toolchain_library {
+    name: "libgcc_stripped",
+    defaults: ["linux_bionic_supported"],
+    vendor_available: true,
+    recovery_available: true,
+
+    arch: {
+        arm: {
+            src: "prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/lib/gcc/arm-linux-androideabi/4.9.x/libgcc.a",
+            strip: {
+                keep_symbols_list: [
+                    // unwind-arm.o
+                    "_Unwind_Complete",
+                    "_Unwind_DeleteException",
+                    "_Unwind_GetCFA",
+                    "_Unwind_VRS_Get",
+                    "_Unwind_VRS_Pop",
+                    "_Unwind_VRS_Set",
+                    "__aeabi_unwind_cpp_pr0",
+                    "__aeabi_unwind_cpp_pr1",
+                    "__aeabi_unwind_cpp_pr2",
+                    "__gnu_Unwind_Backtrace",
+                    "__gnu_Unwind_ForcedUnwind",
+                    "__gnu_Unwind_RaiseException",
+                    "__gnu_Unwind_Resume",
+                    "__gnu_Unwind_Resume_or_Rethrow",
+
+                    // libunwind.o
+                    "_Unwind_Backtrace",
+                    "_Unwind_ForcedUnwind",
+                    "_Unwind_RaiseException",
+                    "_Unwind_Resume",
+                    "_Unwind_Resume_or_Rethrow",
+                    "___Unwind_Backtrace",
+                    "___Unwind_ForcedUnwind",
+                    "___Unwind_RaiseException",
+                    "___Unwind_Resume",
+                    "___Unwind_Resume_or_Rethrow",
+                    "__gnu_Unwind_Restore_VFP",
+                    "__gnu_Unwind_Restore_VFP_D",
+                    "__gnu_Unwind_Restore_VFP_D_16_to_31",
+                    "__gnu_Unwind_Restore_WMMXC",
+                    "__gnu_Unwind_Restore_WMMXD",
+                    "__gnu_Unwind_Save_VFP",
+                    "__gnu_Unwind_Save_VFP_D",
+                    "__gnu_Unwind_Save_VFP_D_16_to_31",
+                    "__gnu_Unwind_Save_WMMXC",
+                    "__gnu_Unwind_Save_WMMXD",
+                    "__restore_core_regs",
+                    "restore_core_regs",
+
+                    // pr-support.o
+                    "_Unwind_GetDataRelBase",
+                    "_Unwind_GetLanguageSpecificData",
+                    "_Unwind_GetRegionStart",
+                    "_Unwind_GetTextRelBase",
+                    "__gnu_unwind_execute",
+                    "__gnu_unwind_frame",
+                ],
+                use_gnu_strip: true,
+            },
+        },
+        arm64: {
+            src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/lib/gcc/aarch64-linux-android/4.9.x/libgcc.a",
+        },
+        x86: {
+            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/32/libgcc.a",
+
+        },
+        x86_64: {
+            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/libgcc.a",
+        },
+    },
+    strip: {
+        keep_symbols_list: [
+            // unwind-dw2.o
+            "_Unwind_Backtrace",
+            "_Unwind_DeleteException",
+            "_Unwind_FindEnclosingFunction",
+            "_Unwind_ForcedUnwind",
+            "_Unwind_GetCFA",
+            "_Unwind_GetDataRelBase",
+            "_Unwind_GetGR",
+            "_Unwind_GetIP",
+            "_Unwind_GetIPInfo",
+            "_Unwind_GetLanguageSpecificData",
+            "_Unwind_GetRegionStart",
+            "_Unwind_GetTextRelBase",
+            "_Unwind_RaiseException",
+            "_Unwind_Resume",
+            "_Unwind_Resume_or_Rethrow",
+            "_Unwind_SetGR",
+            "_Unwind_SetIP",
+            "__frame_state_for",
+
+            // unwind-dw2-fde-dip.o
+            "_Unwind_Find_FDE",
+            "__deregister_frame",
+            "__deregister_frame_info",
+            "__deregister_frame_info_bases",
+            "__register_frame",
+            "__register_frame_info",
+            "__register_frame_info_bases",
+            "__register_frame_info_table",
+            "__register_frame_info_table_bases",
+            "__register_frame_table",
+        ],
+        use_gnu_strip: true,
+    },
+}
+
+toolchain_library {
     name: "libwinpthread",
     host_supported: true,
     enabled: false,
