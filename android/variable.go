@@ -165,6 +165,16 @@ type productVariables struct {
 	DeviceSecondaryCpuVariant  *string  `json:",omitempty"`
 	DeviceSecondaryAbi         []string `json:",omitempty"`
 
+	NativeBridgeArch        *string  `json:",omitempty"`
+	NativeBridgeArchVariant *string  `json:",omitempty"`
+	NativeBridgeCpuVariant  *string  `json:",omitempty"`
+	NativeBridgeAbi         []string `json:",omitempty"`
+
+	NativeBridgeSecondaryArch        *string  `json:",omitempty"`
+	NativeBridgeSecondaryArchVariant *string  `json:",omitempty"`
+	NativeBridgeSecondaryCpuVariant  *string  `json:",omitempty"`
+	NativeBridgeSecondaryAbi         []string `json:",omitempty"`
+
 	HostArch          *string `json:",omitempty"`
 	HostSecondaryArch *string `json:",omitempty"`
 

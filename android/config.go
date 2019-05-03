@@ -234,16 +234,36 @@ func TestConfig(buildDir string, env map[string]string) Config {
 	return Config{config}
 }
 
+func TestArchConfigNativeBridge(buildDir string, env map[string]string) Config {
+	testConfig := TestConfig(buildDir, env)
+	config := testConfig.config
+
+	config.Targets = map[OsType][]Target{
+		Android: []Target{
+			{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled},
+			{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled},
+			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled},
+			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled},
+		},
+		BuildOs: []Target{
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled},
+			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled},
+		},
+	}
+
+	return testConfig
+}
+
 func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
 	testConfig := TestConfig(buildDir, env)
 	config := testConfig.config
 
 	config.Targets = map[OsType][]Target{
 		Fuchsia: []Target{
-			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}},
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}, NativeBridgeDisabled},
 		},
 		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}},
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled},
 		},
 	}
 
@@ -257,12 +277,12 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 
 	config.Targets = map[OsType][]Target{
 		Android: []Target{
-			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}},
-			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}},
+			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled},
+			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled},
 		},
 		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}},
-			{BuildOs, Arch{ArchType: X86}},
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled},
+			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled},
 		},
 	}
 
