@@ -1804,6 +1804,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				return libName + vendorPublicLibrarySuffix
 			} else if ccDep.inRecovery() && !ccDep.onlyInRecovery() {
 				return libName + recoverySuffix
+			} else if ccDep.Target().NativeBridge == android.NativeBridgeEnabled {
+				return libName + android.NativeBridgeSuffix
 			} else {
 				return libName
 			}

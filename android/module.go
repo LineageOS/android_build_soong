@@ -290,6 +290,9 @@ type commonProperties struct {
 	// Whether this module is installed to recovery partition
 	Recovery *bool
 
+	// Whether this module is built for non-native architecures (also known as native bridge binary)
+	Native_bridge_supported *bool `android:"arch_variant"`
+
 	// init.rc files to be installed if this module is installed
 	Init_rc []string `android:"path"`
 
