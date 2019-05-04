@@ -166,11 +166,13 @@ func Build(ctx Context, config Config, what int) {
 		runMakeProductConfig(ctx, config)
 	}
 
-	if inList("installclean", config.Arguments()) {
+	if inList("installclean", config.Arguments()) ||
+		inList("install-clean", config.Arguments()) {
 		installClean(ctx, config, what)
 		ctx.Println("Deleted images and staging directories.")
 		return
-	} else if inList("dataclean", config.Arguments()) {
+	} else if inList("dataclean", config.Arguments()) ||
+		inList("data-clean", config.Arguments()) {
 		dataClean(ctx, config, what)
 		ctx.Println("Deleted data files.")
 		return
