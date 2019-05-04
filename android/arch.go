@@ -683,13 +683,25 @@ func osByName(name string) OsType {
 	return NoOsType
 }
 
+type NativeBridgeSupport bool
+
+const (
+	NativeBridgeDisabled NativeBridgeSupport = false
+	NativeBridgeEnabled  NativeBridgeSupport = true
+)
+
 type Target struct {
-	Os   OsType
-	Arch Arch
+	Os           OsType
+	Arch         Arch
+	NativeBridge NativeBridgeSupport
 }
 
 func (target Target) String() string {
-	return target.Os.String() + "_" + target.Arch.String()
+	variant := ""
+	if target.NativeBridge {
+		variant = "native_bridge_"
+	}
+	return target.Os.String() + "_" + variant + target.Arch.String()
 }
 
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
@@ -748,6 +760,18 @@ func archMutator(mctx BottomUpMutatorContext) {
 		osTargets := mctx.Config().Targets[os]
 		if len(osTargets) == 0 {
 			continue
+		}
+
+		// Filter NativeBridge targets unless they are explicitly supported
+		if os == Android && !Bool(base.commonProperties.Native_bridge_supported) {
+			var targets []Target
+			for _, t := range osTargets {
+				if !t.NativeBridge {
+					targets = append(targets, t)
+				}
+			}
+
+			osTargets = targets
 		}
 
 		// only the primary arch in the recovery partition
@@ -1378,7 +1402,8 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	targets := make(map[OsType][]Target)
 	var targetErr error
 
-	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi []string) {
+	addTarget := func(os OsType, archName string, archVariant, cpuVariant *string, abi []string,
+		nativeBridgeEnabled NativeBridgeSupport) {
 		if targetErr != nil {
 			return
 		}
@@ -1391,8 +1416,9 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 
 		targets[os] = append(targets[os],
 			Target{
-				Os:   os,
-				Arch: arch,
+				Os:           os,
+				Arch:         arch,
+				NativeBridge: nativeBridgeEnabled,
 			})
 	}
 
@@ -1400,14 +1426,14 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		return nil, fmt.Errorf("No host primary architecture set")
 	}
 
-	addTarget(BuildOs, *variables.HostArch, nil, nil, nil)
+	addTarget(BuildOs, *variables.HostArch, nil, nil, nil, NativeBridgeDisabled)
 
 	if variables.HostSecondaryArch != nil && *variables.HostSecondaryArch != "" {
-		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil)
+		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil, NativeBridgeDisabled)
 	}
 
 	if Bool(config.Host_bionic) {
-		addTarget(LinuxBionic, "x86_64", nil, nil, nil)
+		addTarget(LinuxBionic, "x86_64", nil, nil, nil, NativeBridgeDisabled)
 	}
 
 	if String(variables.CrossHost) != "" {
@@ -1420,10 +1446,10 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 			return nil, fmt.Errorf("No cross-host primary architecture set")
 		}
 
-		addTarget(crossHostOs, *variables.CrossHostArch, nil, nil, nil)
+		addTarget(crossHostOs, *variables.CrossHostArch, nil, nil, nil, NativeBridgeDisabled)
 
 		if variables.CrossHostSecondaryArch != nil && *variables.CrossHostSecondaryArch != "" {
-			addTarget(crossHostOs, *variables.CrossHostSecondaryArch, nil, nil, nil)
+			addTarget(crossHostOs, *variables.CrossHostSecondaryArch, nil, nil, nil, NativeBridgeDisabled)
 		}
 	}
 
@@ -1434,17 +1460,31 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		}
 
 		addTarget(target, *variables.DeviceArch, variables.DeviceArchVariant,
-			variables.DeviceCpuVariant, variables.DeviceAbi)
+			variables.DeviceCpuVariant, variables.DeviceAbi, NativeBridgeDisabled)
 
 		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
 			addTarget(Android, *variables.DeviceSecondaryArch,
 				variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
-				variables.DeviceSecondaryAbi)
+				variables.DeviceSecondaryAbi, NativeBridgeDisabled)
 
 			deviceArches := targets[Android]
 			if deviceArches[0].Arch.ArchType.Multilib == deviceArches[1].Arch.ArchType.Multilib {
 				deviceArches[1].Arch.Native = false
 			}
+		}
+
+		if variables.NativeBridgeArch != nil && *variables.NativeBridgeArch != "" {
+			addTarget(Android, *variables.NativeBridgeArch,
+				variables.NativeBridgeArchVariant, variables.NativeBridgeCpuVariant,
+				variables.NativeBridgeAbi, NativeBridgeEnabled)
+		}
+
+		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" &&
+			variables.NativeBridgeSecondaryArch != nil && *variables.NativeBridgeSecondaryArch != "" {
+			addTarget(Android, *variables.NativeBridgeSecondaryArch,
+				variables.NativeBridgeSecondaryArchVariant,
+				variables.NativeBridgeSecondaryCpuVariant,
+				variables.NativeBridgeSecondaryAbi, NativeBridgeEnabled)
 		}
 	}
 

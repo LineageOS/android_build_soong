@@ -43,7 +43,7 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
 func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
-	isLibrary, uncompressedJNI, usesNonSdkApis, useEmbeddedDex bool) android.Path {
+	isLibrary, useEmbeddedNativeLibs, usesNonSdkApis, useEmbeddedDex bool) android.Path {
 
 	var args []string
 	if isLibrary {
@@ -54,8 +54,8 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
 		if minSdkVersion >= 23 {
-			args = append(args, fmt.Sprintf("--extract-native-libs=%v", !uncompressedJNI))
-		} else if uncompressedJNI {
+			args = append(args, fmt.Sprintf("--extract-native-libs=%v", !useEmbeddedNativeLibs))
+		} else if useEmbeddedNativeLibs {
 			ctx.ModuleErrorf("module attempted to store uncompressed native libraries, but minSdkVersion=%d doesn't support it",
 				minSdkVersion)
 		}

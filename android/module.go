@@ -143,6 +143,7 @@ type ModuleContext interface {
 	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
 	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
 
+	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
 	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
 
@@ -288,6 +289,9 @@ type commonProperties struct {
 
 	// Whether this module is installed to recovery partition
 	Recovery *bool
+
+	// Whether this module is built for non-native architecures (also known as native bridge binary)
+	Native_bridge_supported *bool `android:"arch_variant"`
 
 	// init.rc files to be installed if this module is installed
 	Init_rc []string `android:"path"`
@@ -1091,6 +1095,18 @@ func (a *androidModuleContext) getDirectDepInternal(name string, tag blueprint.D
 	} else {
 		return nil, nil
 	}
+}
+
+func (a *androidModuleContext) GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module {
+	var deps []Module
+	a.VisitDirectDepsBlueprint(func(m blueprint.Module) {
+		if aModule, _ := m.(Module); aModule != nil {
+			if a.ModuleContext.OtherModuleDependencyTag(aModule) == tag {
+				deps = append(deps, aModule)
+			}
+		}
+	})
+	return deps
 }
 
 func (a *androidModuleContext) GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module {
