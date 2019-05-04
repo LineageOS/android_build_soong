@@ -158,6 +158,7 @@ func (p *PrebuiltEtc) AndroidMk() AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_INSTALLED_MODULE_STEM :=", p.outputFilePath.Base())
 			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !p.Installable())
 			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(data.Required, " "))
+			fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", p.Arch().ArchType.String())
 			if p.additionalDependencies != nil {
 				fmt.Fprint(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=")
 				for _, path := range *p.additionalDependencies {

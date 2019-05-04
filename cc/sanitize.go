@@ -57,7 +57,7 @@ var (
 
 	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
-	hwasanGlobalOptions = []string{"heap_history_size=1023,stack_history_size=512"}
+	hwasanGlobalOptions = []string{"heap_history_size=1023,stack_history_size=512,export_memory_stats=0"}
 )
 
 type sanitizerType int

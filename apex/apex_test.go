@@ -93,6 +93,13 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		}
 
 		toolchain_library {
+			name: "libgcc_stripped",
+			src: "",
+			vendor_available: true,
+			recovery_available: true,
+		}
+
+		toolchain_library {
 			name: "libclang_rt.builtins-aarch64-android",
 			src: "",
 			vendor_available: true,
