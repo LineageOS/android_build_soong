@@ -64,6 +64,10 @@ func (*ndkPrebuiltObjectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
+// ndk_prebuilt_object exports a precompiled ndk object file for linking
+// operations. Soong's module name format is ndk_<NAME>.o.<sdk_version> where
+// the object is located under
+// ./prebuilts/ndk/current/platforms/android-<sdk_version>/arch-$(HOST_ARCH)/usr/lib/<NAME>.o.
 func ndkPrebuiltObjectFactory() android.Module {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.linker = &ndkPrebuiltObjectLinker{
@@ -98,6 +102,10 @@ func (*ndkPrebuiltStlLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
+// ndk_prebuilt_shared_stl exports a precompiled ndk shared standard template
+// library (stl) library for linking operation. The soong's module name format
+// is ndk_<NAME>.so where the library is located under
+// ./prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/$(HOST_ARCH)/<NAME>.so.
 func ndkPrebuiltSharedStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyShared()
@@ -113,6 +121,10 @@ func ndkPrebuiltSharedStlFactory() android.Module {
 	return module.Init()
 }
 
+// ndk_prebuilt_static_stl exports a precompiled ndk static standard template
+// library (stl) library for linking operation. The soong's module name format
+// is ndk_<NAME>.a where the library is located under
+// ./prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/$(HOST_ARCH)/<NAME>.a.
 func ndkPrebuiltStaticStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyStatic()
