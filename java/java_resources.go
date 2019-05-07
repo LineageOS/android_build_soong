@@ -98,6 +98,14 @@ func resourceFilesToJarArgs(ctx android.ModuleContext,
 
 	files := android.PathsForModuleSrcExcludes(ctx, res, exclude)
 
+	args = resourcePathsToJarArgs(files)
+
+	return args, files
+}
+
+func resourcePathsToJarArgs(files android.Paths) []string {
+	var args []string
+
 	lastDir := ""
 	for i, f := range files {
 		rel := f.Rel()
@@ -113,5 +121,5 @@ func resourceFilesToJarArgs(ctx android.ModuleContext,
 		lastDir = dir
 	}
 
-	return args, files
+	return args
 }
