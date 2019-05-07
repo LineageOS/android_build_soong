@@ -69,6 +69,13 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			src: "",
 		}
 
+		toolchain_library {
+			name: "libgcc_stripped",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
 		cc_library {
 			name: "libc",
 			no_libgcc: true,
