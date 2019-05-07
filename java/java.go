@@ -290,6 +290,10 @@ type Module struct {
 	// jar file containing only resources including from static library dependencies
 	resourceJar android.Path
 
+	// args and dependencies to package source files into a srcjar
+	srcJarArgs []string
+	srcJarDeps android.Paths
+
 	// jar file containing implementation classes and resources including static library
 	// dependencies
 	implementationAndResourcesJar android.Path
@@ -365,6 +369,7 @@ type Dependency interface {
 	DexJar() android.Path
 	AidlIncludeDirs() android.Paths
 	ExportedSdkLibs() []string
+	SrcJarArgs() ([]string, android.Paths)
 }
 
 type SdkLibraryDependency interface {
@@ -1113,6 +1118,14 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
+	j.srcJarArgs, j.srcJarDeps = resourcePathsToJarArgs(srcFiles), srcFiles
+
+	var includeSrcJar android.WritablePath
+	if Bool(j.properties.Include_srcs) {
+		includeSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+".srcjar")
+		TransformResourcesToJar(ctx, includeSrcJar, j.srcJarArgs, j.srcJarDeps)
+	}
+
 	dirArgs, dirDeps := ResourceDirsToJarArgs(ctx, j.properties.Java_resource_dirs,
 		j.properties.Exclude_java_resource_dirs, j.properties.Exclude_java_resources)
 	fileArgs, fileDeps := ResourceFilesToJarArgs(ctx, j.properties.Java_resources, j.properties.Exclude_java_resources)
@@ -1130,12 +1143,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 	resArgs = append(resArgs, extraArgs...)
 	resDeps = append(resDeps, extraDeps...)
 
-	if Bool(j.properties.Include_srcs) {
-		srcArgs, srcDeps := SourceFilesToJarArgs(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
-		resArgs = append(resArgs, srcArgs...)
-		resDeps = append(resDeps, srcDeps...)
-	}
-
 	if len(resArgs) > 0 {
 		resourceJar := android.PathForModuleOut(ctx, "res", jarName)
 		TransformResourcesToJar(ctx, resourceJar, resArgs, resDeps)
@@ -1145,17 +1152,22 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 		}
 	}
 
-	if len(deps.staticResourceJars) > 0 {
-		var jars android.Paths
-		if j.resourceJar != nil {
-			jars = append(jars, j.resourceJar)
-		}
-		jars = append(jars, deps.staticResourceJars...)
+	var resourceJars android.Paths
+	if j.resourceJar != nil {
+		resourceJars = append(resourceJars, j.resourceJar)
+	}
+	if Bool(j.properties.Include_srcs) {
+		resourceJars = append(resourceJars, includeSrcJar)
+	}
+	resourceJars = append(resourceJars, deps.staticResourceJars...)
 
+	if len(resourceJars) > 1 {
 		combinedJar := android.PathForModuleOut(ctx, "res-combined", jarName)
-		TransformJarsToJar(ctx, combinedJar, "for resources", jars, android.OptionalPath{},
+		TransformJarsToJar(ctx, combinedJar, "for resources", resourceJars, android.OptionalPath{},
 			false, nil, nil)
 		j.resourceJar = combinedJar
+	} else if len(resourceJars) == 1 {
+		j.resourceJar = resourceJars[0]
 	}
 
 	jars = append(jars, deps.staticJars...)
@@ -1441,6 +1453,10 @@ func (j *Module) AidlIncludeDirs() android.Paths {
 func (j *Module) ExportedSdkLibs() []string {
 	// exportedSdkLibs is type []string
 	return j.exportedSdkLibs
+}
+
+func (j *Module) SrcJarArgs() ([]string, android.Paths) {
+	return j.srcJarArgs, j.srcJarDeps
 }
 
 var _ logtagsProducer = (*Module)(nil)
@@ -1918,6 +1934,10 @@ func (j *Import) AidlIncludeDirs() android.Paths {
 
 func (j *Import) ExportedSdkLibs() []string {
 	return j.exportedSdkLibs
+}
+
+func (j *Import) SrcJarArgs() ([]string, android.Paths) {
+	return nil, nil
 }
 
 // Add compile time check for interface implementation

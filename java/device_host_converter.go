@@ -34,6 +34,9 @@ type DeviceHostConverter struct {
 	implementationAndResourceJars android.Paths
 	resourceJars                  android.Paths
 
+	srcJarArgs []string
+	srcJarDeps android.Paths
+
 	combinedHeaderJar         android.Path
 	combinedImplementationJar android.Path
 }
@@ -100,6 +103,10 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 			d.implementationJars = append(d.implementationJars, dep.ImplementationJars()...)
 			d.implementationAndResourceJars = append(d.implementationAndResourceJars, dep.ImplementationAndResourcesJars()...)
 			d.resourceJars = append(d.resourceJars, dep.ResourceJars()...)
+
+			srcJarArgs, srcJarDeps := dep.SrcJarArgs()
+			d.srcJarArgs = append(d.srcJarArgs, srcJarArgs...)
+			d.srcJarDeps = append(d.srcJarDeps, srcJarDeps...)
 		} else {
 			ctx.PropertyErrorf("libs", "module %q cannot be used as a dependency", ctx.OtherModuleName(m))
 		}
@@ -155,6 +162,10 @@ func (d *DeviceHostConverter) AidlIncludeDirs() android.Paths {
 
 func (d *DeviceHostConverter) ExportedSdkLibs() []string {
 	return nil
+}
+
+func (d *DeviceHostConverter) SrcJarArgs() ([]string, android.Paths) {
+	return d.srcJarArgs, d.srcJarDeps
 }
 
 func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {

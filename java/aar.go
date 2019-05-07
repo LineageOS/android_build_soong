@@ -647,6 +647,10 @@ func (a *AARImport) ExportedSdkLibs() []string {
 	return nil
 }
 
+func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {
+	return nil, nil
+}
+
 var _ android.PrebuiltInterface = (*Import)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
