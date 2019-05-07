@@ -84,6 +84,7 @@ var (
 		"-Wl,--fatal-warnings",
 		"-Wl,--no-undefined-version",
 		"-Wl,--exclude-libs,libgcc.a",
+		"-Wl,--exclude-libs,libgcc_stripped.a",
 	}
 
 	deviceGlobalLldflags = append(ClangFilterUnknownLldflags(deviceGlobalLdflags),
