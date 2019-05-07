@@ -482,12 +482,6 @@ func TestResources(t *testing.T) {
 			args: "-C java-res -f java-res/a/a -f java-res/b/b",
 		},
 		{
-			// Test that a module with "include_srcs: true" includes its source files in the resources jar
-			name: "include sources",
-			prop: `include_srcs: true`,
-			args: "-C . -f a.java -f b.java -f c.java",
-		},
-		{
 			// Test that a module with wildcards in java_resource_dirs has the correct path prefixes
 			name: "wildcard dirs",
 			prop: `java_resource_dirs: ["java-res/*"]`,
@@ -552,6 +546,69 @@ func TestResources(t *testing.T) {
 					fooRes.Args["jarArgs"], test.args)
 			}
 		})
+	}
+}
+
+func TestIncludeSrcs(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: [
+				"a.java",
+				"b.java",
+				"c.java",
+			],
+			include_srcs: true,
+		}
+
+		java_library {
+			name: "bar",
+			srcs: [
+				"a.java",
+				"b.java",
+				"c.java",
+			],
+			java_resource_dirs: ["java-res"],
+			include_srcs: true,
+		}
+	`)
+
+	// Test a library with include_srcs: true
+	foo := ctx.ModuleForTests("foo", "android_common").Output("withres/foo.jar")
+	fooSrcJar := ctx.ModuleForTests("foo", "android_common").Output("foo.srcjar")
+
+	if g, w := fooSrcJar.Output.String(), foo.Inputs.Strings(); !inList(g, w) {
+		t.Errorf("foo combined jars %v does not contain %q", w, g)
+	}
+
+	if g, w := fooSrcJar.Args["jarArgs"], "-C . -f a.java -f b.java -f c.java"; g != w {
+		t.Errorf("foo source jar args %q is not %q", w, g)
+	}
+
+	// Test a library with include_srcs: true and resources
+	bar := ctx.ModuleForTests("bar", "android_common").Output("withres/bar.jar")
+	barResCombined := ctx.ModuleForTests("bar", "android_common").Output("res-combined/bar.jar")
+	barRes := ctx.ModuleForTests("bar", "android_common").Output("res/bar.jar")
+	barSrcJar := ctx.ModuleForTests("bar", "android_common").Output("bar.srcjar")
+
+	if g, w := barSrcJar.Output.String(), barResCombined.Inputs.Strings(); !inList(g, w) {
+		t.Errorf("bar combined resource jars %v does not contain %q", w, g)
+	}
+
+	if g, w := barRes.Output.String(), barResCombined.Inputs.Strings(); !inList(g, w) {
+		t.Errorf("bar combined resource jars %v does not contain %q", w, g)
+	}
+
+	if g, w := barResCombined.Output.String(), bar.Inputs.Strings(); !inList(g, w) {
+		t.Errorf("bar combined jars %v does not contain %q", w, g)
+	}
+
+	if g, w := barSrcJar.Args["jarArgs"], "-C . -f a.java -f b.java -f c.java"; g != w {
+		t.Errorf("bar source jar args %q is not %q", w, g)
+	}
+
+	if g, w := barRes.Args["jarArgs"], "-C java-res -f java-res/a/a -f java-res/b/b"; g != w {
+		t.Errorf("bar resource jar args %q is not %q", w, g)
 	}
 }
 
