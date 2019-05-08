@@ -1380,7 +1380,7 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
 	combinedJar := android.PathForModuleOut(ctx, "turbine-combined", jarName)
 	TransformJarsToJar(ctx, combinedJar, "for turbine", jars, android.OptionalPath{},
-		false, nil, []string{"META-INF"})
+		false, nil, []string{"META-INF/TRANSITIVE"})
 	headerJar = combinedJar
 
 	if j.expandJarjarRules != nil {
