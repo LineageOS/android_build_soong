@@ -639,7 +639,7 @@ func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 	switch {
 	case name == "core.current.stubs" || name == "core.platform.api.stubs" ||
 		name == "stub-annotations" || name == "private-stub-annotations-jar" ||
-		name == "core-lambda-stubs":
+		name == "core-lambda-stubs" || name == "core-generated-annotation-stubs":
 		return javaCore, true
 	case ver == "core_current":
 		return javaCore, false
