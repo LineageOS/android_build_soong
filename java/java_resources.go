@@ -85,18 +85,18 @@ func ResourceFilesToJarArgs(ctx android.ModuleContext,
 	return resourceFilesToJarArgs(ctx, res, exclude)
 }
 
-// Convert java_resources properties to arguments to soong_zip -jar, keeping files that should
-// normally not used as resources like *.java
-func SourceFilesToJarArgs(ctx android.ModuleContext,
-	res, exclude []string) (args []string, deps android.Paths) {
-
-	return resourceFilesToJarArgs(ctx, res, exclude)
-}
-
 func resourceFilesToJarArgs(ctx android.ModuleContext,
 	res, exclude []string) (args []string, deps android.Paths) {
 
 	files := android.PathsForModuleSrcExcludes(ctx, res, exclude)
+
+	args = resourcePathsToJarArgs(files)
+
+	return args, files
+}
+
+func resourcePathsToJarArgs(files android.Paths) []string {
+	var args []string
 
 	lastDir := ""
 	for i, f := range files {
@@ -113,5 +113,5 @@ func resourceFilesToJarArgs(ctx android.ModuleContext,
 		lastDir = dir
 	}
 
-	return args, files
+	return args
 }
