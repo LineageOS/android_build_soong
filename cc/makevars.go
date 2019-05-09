@@ -64,6 +64,8 @@ func makeStringOfWarningAllowedProjects() string {
 }
 
 func makeVarsProvider(ctx android.MakeVarsContext) {
+	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
+
 	ctx.Strict("LLVM_RELEASE_VERSION", "${config.ClangShortVersion}")
 	ctx.Strict("LLVM_PREBUILTS_VERSION", "${config.ClangVersion}")
 	ctx.Strict("LLVM_PREBUILTS_BASE", "${config.ClangBase}")
@@ -92,18 +94,18 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
 
-	ctx.Strict("VNDK_CORE_LIBRARIES", strings.Join(vndkCoreLibraries, " "))
-	ctx.Strict("VNDK_SAMEPROCESS_LIBRARIES", strings.Join(vndkSpLibraries, " "))
-	ctx.Strict("LLNDK_LIBRARIES", strings.Join(llndkLibraries, " "))
-	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(vndkPrivateLibraries, " "))
-	ctx.Strict("VNDK_USING_CORE_VARIANT_LIBRARIES", strings.Join(vndkUsingCoreVariantLibraries, " "))
+	ctx.Strict("VNDK_CORE_LIBRARIES", strings.Join(*vndkCoreLibraries(ctx.Config()), " "))
+	ctx.Strict("VNDK_SAMEPROCESS_LIBRARIES", strings.Join(*vndkSpLibraries(ctx.Config()), " "))
+	ctx.Strict("LLNDK_LIBRARIES", strings.Join(*llndkLibraries(ctx.Config()), " "))
+	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(*vndkPrivateLibraries(ctx.Config()), " "))
+	ctx.Strict("VNDK_USING_CORE_VARIANT_LIBRARIES", strings.Join(*vndkUsingCoreVariantLibraries(ctx.Config()), " "))
 
 	// Filter vendor_public_library that are exported to make
 	exportedVendorPublicLibraries := []string{}
 	ctx.VisitAllModules(func(module android.Module) {
 		if ccModule, ok := module.(*Module); ok {
 			baseName := ccModule.BaseModuleName()
-			if inList(baseName, vendorPublicLibraries) && module.ExportedToMake() {
+			if inList(baseName, *vendorPublicLibraries) && module.ExportedToMake() {
 				if !inList(baseName, exportedVendorPublicLibraries) {
 					exportedVendorPublicLibraries = append(exportedVendorPublicLibraries, baseName)
 				}
