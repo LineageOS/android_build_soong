@@ -750,6 +750,19 @@ func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
 	return shouldUncompressDex(ctx, &a.dexpreopter)
 }
 
+func (a *AndroidAppImport) uncompressDex(
+	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
+	rule := android.NewRuleBuilder()
+	rule.Command().
+		Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
+		Tool(ctx.Config().HostToolPath(ctx, "zip2zip")).
+		FlagWithInput("-i ", inputPath).
+		FlagWithOutput("-o ", outputPath).
+		FlagWithArg("-0 ", "'classes*.dex'").
+		Textf(`; else cp -f %s %s; fi`, inputPath, outputPath)
+	rule.Build(pctx, ctx, "uncompress-dex", "Uncompress dex files")
+}
+
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if String(a.properties.Certificate) == "" && !Bool(a.properties.Presigned) {
 		ctx.PropertyErrorf("certificate", "No certificate specified for prebuilt")
@@ -778,6 +791,11 @@ func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext
 	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 	dexOutput := a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
+	if a.dexpreopter.uncompressedDex {
+		dexUncompressed := android.PathForModuleOut(ctx, "dex-uncompressed", ctx.ModuleName()+".apk")
+		a.uncompressDex(ctx, dexOutput, dexUncompressed.OutputPath)
+		dexOutput = dexUncompressed
+	}
 
 	// Sign or align the package
 	// TODO: Handle EXTERNAL
