@@ -638,6 +638,7 @@ toolchain_library {
 kernel_headers {
     name: "device_kernel_headers",
     vendor: true,
+    recovery_available: true,
 }
 
 cc_genrule {
