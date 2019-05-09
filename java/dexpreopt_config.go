@@ -72,6 +72,23 @@ func systemServerClasspath(ctx android.PathContext) []string {
 
 var systemServerClasspathKey = android.NewOnceKey("systemServerClasspath")
 
+// dexpreoptTargets returns the list of targets that are relevant to dexpreopting, which excludes architectures
+// supported through native bridge.
+func dexpreoptTargets(ctx android.PathContext) []android.Target {
+	var targets []android.Target
+	for i, target := range ctx.Config().Targets[android.Android] {
+		if ctx.Config().SecondArchIsTranslated() && i > 0 {
+			break
+		}
+
+		if target.NativeBridge == android.NativeBridgeDisabled {
+			targets = append(targets, target)
+		}
+	}
+
+	return targets
+}
+
 // defaultBootImageConfig returns the bootImageConfig that will be used to dexpreopt modules.  It is computed once the
 // first time it is called for any ctx.Config(), and returns the same slice for all future calls with the same
 // ctx.Config().
@@ -113,7 +130,9 @@ func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
 		images := make(map[android.ArchType]android.OutputPath)
 		zip := dir.Join(ctx, "boot.zip")
 
-		for _, target := range ctx.Config().Targets[android.Android] {
+		targets := dexpreoptTargets(ctx)
+
+		for _, target := range targets {
 			images[target.Arch.ArchType] = dir.Join(ctx,
 				"system/framework", target.Arch.ArchType.String()).Join(ctx, "boot.art")
 		}
@@ -126,6 +145,7 @@ func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
 			dir:          dir,
 			symbolsDir:   symbolsDir,
 			images:       images,
+			targets:      targets,
 			zip:          zip,
 		}
 	}).(bootImageConfig)
@@ -168,7 +188,9 @@ func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
 		symbolsDir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_apexjars_unstripped")
 		images := make(map[android.ArchType]android.OutputPath)
 
-		for _, target := range ctx.Config().Targets[android.Android] {
+		targets := dexpreoptTargets(ctx)
+
+		for _, target := range targets {
 			images[target.Arch.ArchType] = dir.Join(ctx,
 				"system/framework", target.Arch.ArchType.String(), "apex.art")
 		}
@@ -180,6 +202,7 @@ func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
 			dexPaths:     bootDexPaths,
 			dir:          dir,
 			symbolsDir:   symbolsDir,
+			targets:      targets,
 			images:       images,
 		}
 	}).(bootImageConfig)
