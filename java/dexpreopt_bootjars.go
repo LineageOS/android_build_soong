@@ -56,6 +56,7 @@ type bootImageConfig struct {
 	dexPaths     android.WritablePaths
 	dir          android.OutputPath
 	symbolsDir   android.OutputPath
+	targets      []android.Target
 	images       map[android.ArchType]android.OutputPath
 	zip          android.WritablePath
 }
@@ -191,16 +192,9 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 	var allFiles android.Paths
 
 	if !global.DisablePreopt {
-		targets := ctx.Config().Targets[android.Android]
-		if ctx.Config().SecondArchIsTranslated() {
-			targets = targets[:1]
-		}
-
-		for _, target := range targets {
-			if target.NativeBridge == android.NativeBridgeDisabled {
-				files := buildBootImageRuleForArch(ctx, image, target.Arch.ArchType, profile, missingDeps)
-				allFiles = append(allFiles, files.Paths()...)
-			}
+		for _, target := range image.targets {
+			files := buildBootImageRuleForArch(ctx, image, target.Arch.ArchType, profile, missingDeps)
+			allFiles = append(allFiles, files.Paths()...)
 		}
 	}
 
