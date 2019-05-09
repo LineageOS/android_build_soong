@@ -24,6 +24,7 @@
 #   -i ${file}: input file (required)
 #   -o ${file}: output file (required)
 #   -d ${file}: deps file (required)
+#   -k symbols: Symbols to keep (optional)
 #   --add-gnu-debuglink
 #   --keep-mini-debug-info
 #   --keep-symbols
@@ -32,11 +33,11 @@
 
 set -o pipefail
 
-OPTSTRING=d:i:o:-:
+OPTSTRING=d:i:o:k:-:
 
 usage() {
     cat <<EOF
-Usage: strip.sh [options] -i in-file -o out-file -d deps-file
+Usage: strip.sh [options] -k symbols -i in-file -o out-file -d deps-file
 Options:
         --add-gnu-debuglink     Add a gnu-debuglink section to out-file
         --keep-mini-debug-info  Keep compressed debug info in out-file
@@ -69,6 +70,20 @@ do_strip_keep_symbols() {
     else
         "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
     fi
+}
+
+do_strip_keep_symbol_list() {
+    if [ -z "${use_gnu_strip}" ]; then
+        echo "do_strip_keep_symbol_list does not work with llvm-objcopy"
+        echo "http://b/131631155"
+        usage
+    fi
+
+    echo "${symbols_to_keep}" | tr ',' '\n' > "${outfile}.symbolList"
+    KEEP_SYMBOLS="-w --strip-unneeded-symbol=* --keep-symbols="
+    KEEP_SYMBOLS+="${outfile}.symbolList"
+
+    "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
 }
 
 do_strip_keep_mini_debug_info() {
@@ -124,19 +139,21 @@ do_remove_build_id() {
 
 while getopts $OPTSTRING opt; do
     case "$opt" in
-	d) depsfile="${OPTARG}" ;;
-	i) infile="${OPTARG}" ;;
-	o) outfile="${OPTARG}" ;;
-	-)
-	    case "${OPTARG}" in
-		add-gnu-debuglink) add_gnu_debuglink=true ;;
-		keep-mini-debug-info) keep_mini_debug_info=true ;;
-		keep-symbols) keep_symbols=true ;;
-		remove-build-id) remove_build_id=true ;;
-		*) echo "Unknown option --${OPTARG}"; usage ;;
-	    esac;;
-	?) usage ;;
-	*) echo "'${opt}' '${OPTARG}'"
+        d) depsfile="${OPTARG}" ;;
+        i) infile="${OPTARG}" ;;
+        o) outfile="${OPTARG}" ;;
+        k) symbols_to_keep="${OPTARG}" ;;
+        -)
+            case "${OPTARG}" in
+                add-gnu-debuglink) add_gnu_debuglink=true ;;
+                keep-mini-debug-info) keep_mini_debug_info=true ;;
+                keep-symbols) keep_symbols=true ;;
+                remove-build-id) remove_build_id=true ;;
+                use-gnu-strip) use_gnu_strip=true ;;
+                *) echo "Unknown option --${OPTARG}"; usage ;;
+            esac;;
+        ?) usage ;;
+        *) echo "'${opt}' '${OPTARG}'"
     esac
 done
 
@@ -160,6 +177,11 @@ if [ ! -z "${keep_symbols}" -a ! -z "${keep_mini_debug_info}" ]; then
     usage
 fi
 
+if [ ! -z "${symbols_to_keep}" -a ! -z "${keep_symbols}" ]; then
+    echo "--keep-symbols and -k cannot be used together"
+    usage
+fi
+
 if [ ! -z "${add_gnu_debuglink}" -a ! -z "${keep_mini_debug_info}" ]; then
     echo "--add-gnu-debuglink cannot be used with --keep-mini-debug-info"
     usage
@@ -169,6 +191,8 @@ rm -f "${outfile}.tmp"
 
 if [ ! -z "${keep_symbols}" ]; then
     do_strip_keep_symbols
+elif [ ! -z "${symbols_to_keep}" ]; then
+    do_strip_keep_symbol_list
 elif [ ! -z "${keep_mini_debug_info}" ]; then
     do_strip_keep_mini_debug_info
 else
