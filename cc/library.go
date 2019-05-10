@@ -429,7 +429,7 @@ func (library *libraryDecorator) shouldCreateVndkSourceAbiDump(ctx ModuleContext
 	if library.Properties.Header_abi_checker.Enabled != nil {
 		return Bool(library.Properties.Header_abi_checker.Enabled)
 	}
-	return ctx.shouldCreateVndkSourceAbiDump()
+	return ctx.shouldCreateVndkSourceAbiDump(ctx.Config())
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
@@ -783,7 +783,7 @@ func (library *libraryDecorator) nativeCoverage() bool {
 }
 
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
-	isLlndkOrNdk := inList(ctx.baseModuleName(), llndkLibraries) || inList(ctx.baseModuleName(), ndkMigratedLibs)
+	isLlndkOrNdk := inList(ctx.baseModuleName(), *llndkLibraries(ctx.Config())) || inList(ctx.baseModuleName(), ndkMigratedLibs)
 
 	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndkOrNdk, ctx.isVndk(), false)
 	refAbiDumpGzipFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isLlndkOrNdk, ctx.isVndk(), true)
@@ -827,7 +827,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		refAbiDumpFile := getRefAbiDumpFile(ctx, vndkVersion, fileName)
 		if refAbiDumpFile != nil {
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
-				refAbiDumpFile, fileName, exportedHeaderFlags, ctx.isLlndk(), ctx.isNdk(), ctx.isVndkExt())
+				refAbiDumpFile, fileName, exportedHeaderFlags, ctx.isLlndk(ctx.Config()), ctx.isNdk(), ctx.isVndkExt())
 		}
 	}
 }

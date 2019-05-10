@@ -24,9 +24,15 @@ import (
 var (
 	vendorPublicLibrarySuffix = ".vendorpublic"
 
-	vendorPublicLibraries     = []string{}
+	vendorPublicLibrariesKey  = android.NewOnceKey("vendorPublicLibraries")
 	vendorPublicLibrariesLock sync.Mutex
 )
+
+func vendorPublicLibraries(config android.Config) *[]string {
+	return config.Once(vendorPublicLibrariesKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
 
 // Creates a stub shared library for a vendor public library. Vendor public libraries
 // are vendor libraries (owned by them and installed to /vendor partition) that are
@@ -82,12 +88,13 @@ func (stub *vendorPublicLibraryStubDecorator) compilerInit(ctx BaseModuleContext
 
 	vendorPublicLibrariesLock.Lock()
 	defer vendorPublicLibrariesLock.Unlock()
-	for _, lib := range vendorPublicLibraries {
+	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
+	for _, lib := range *vendorPublicLibraries {
 		if lib == name {
 			return
 		}
 	}
-	vendorPublicLibraries = append(vendorPublicLibraries, name)
+	*vendorPublicLibraries = append(*vendorPublicLibraries, name)
 }
 
 func (stub *vendorPublicLibraryStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {

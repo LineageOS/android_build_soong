@@ -817,7 +817,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		}
 
 		if mctx.Device() && runtimeLibrary != "" {
-			if inList(runtimeLibrary, llndkLibraries) && !c.static() && c.useVndk() {
+			if inList(runtimeLibrary, *llndkLibraries(mctx.Config())) && !c.static() && c.useVndk() {
 				runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
 			}
 
