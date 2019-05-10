@@ -369,14 +369,14 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 }
 
 func (c *config) fromEnv() error {
-	switch c.Getenv("EXPERIMENTAL_USE_OPENJDK9") {
-	case "", "1.8":
-		// Nothing, we always use OpenJDK9
+	switch c.Getenv("EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9") {
+	case "":
+		// Nothing, this is the default
 	case "true":
-		// Use OpenJDK9 and target 1.9
+		// Use -source 9 -target 9
 		c.targetOpenJDK9 = true
 	default:
-		return fmt.Errorf(`Invalid value for EXPERIMENTAL_USE_OPENJDK9, should be "", "1.8", or "true"`)
+		return fmt.Errorf(`Invalid value for EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9, should be "" or "true"`)
 	}
 
 	return nil
