@@ -272,8 +272,8 @@ func TestClasspath(t *testing.T) {
 				}
 			}
 
-			t.Run("1.8", func(t *testing.T) {
-				// Test default javac 1.8
+			t.Run("Java language level 8", func(t *testing.T) {
+				// Test default javac -source 1.8 -target 1.8
 				config := testConfig(nil)
 				if testcase.unbundled {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
@@ -299,9 +299,9 @@ func TestClasspath(t *testing.T) {
 				}
 			})
 
-			// Test again with javac 1.9
-			t.Run("1.9", func(t *testing.T) {
-				config := testConfig(map[string]string{"EXPERIMENTAL_USE_OPENJDK9": "true"})
+			// Test again with javac -source 9 -target 9
+			t.Run("Java language level 9", func(t *testing.T) {
+				config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "true"})
 				if testcase.unbundled {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 				}
