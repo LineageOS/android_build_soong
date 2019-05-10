@@ -115,6 +115,8 @@ func skipDexpreoptBootJars(ctx android.PathContext) bool {
 type dexpreoptBootJars struct {
 	defaultBootImage *bootImage
 	otherImages      []*bootImage
+
+	dexpreoptConfigForMake android.WritablePath
 }
 
 // dexpreoptBoot singleton rules
@@ -122,6 +124,9 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	if skipDexpreoptBootJars(ctx) {
 		return
 	}
+
+	d.dexpreoptConfigForMake = android.PathForOutput(ctx, ctx.Config().DeviceName(), "dexpreopt.config")
+	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 
 	global := dexpreoptGlobalConfig(ctx)
 
@@ -453,8 +458,24 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImage) {
 
 }
 
+func writeGlobalConfigForMake(ctx android.SingletonContext, path android.WritablePath) {
+	data := dexpreoptGlobalConfigRaw(ctx).data
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.WriteFile,
+		Output: path,
+		Args: map[string]string{
+			"content": string(data),
+		},
+	})
+}
+
 // Export paths for default boot image to Make
 func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
+	if d.dexpreoptConfigForMake != nil {
+		ctx.Strict("DEX_PREOPT_CONFIG_FOR_MAKE", d.dexpreoptConfigForMake.String())
+	}
+
 	image := d.defaultBootImage
 	if image != nil {
 		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
