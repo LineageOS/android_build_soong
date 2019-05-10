@@ -1299,6 +1299,10 @@ func (a *ModuleBase) MakeAsPlatform() {
 	a.commonProperties.Product_services_specific = boolPtr(false)
 }
 
+func (a *ModuleBase) EnableNativeBridgeSupportByDefault() {
+	a.commonProperties.Native_bridge_supported = boolPtr(true)
+}
+
 func (a *androidModuleContext) InstallInData() bool {
 	return a.module.InstallInData()
 }
