@@ -72,6 +72,7 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 		dpInfo.Aidl_include_dirs = android.FirstUniqueStrings(dpInfo.Aidl_include_dirs)
 		dpInfo.Jarjar_rules = android.FirstUniqueStrings(dpInfo.Jarjar_rules)
 		dpInfo.Jars = android.FirstUniqueStrings(dpInfo.Jars)
+		dpInfo.SrcJars = android.FirstUniqueStrings(dpInfo.SrcJars)
 		moduleInfos[name] = dpInfo
 
 		mkProvider, ok := module.(android.AndroidMkDataProvider)
