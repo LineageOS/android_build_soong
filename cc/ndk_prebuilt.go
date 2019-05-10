@@ -70,6 +70,7 @@ func (*ndkPrebuiltObjectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 // ./prebuilts/ndk/current/platforms/android-<sdk_version>/arch-$(HOST_ARCH)/usr/lib/<NAME>.o.
 func ndkPrebuiltObjectFactory() android.Module {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
+	module.ModuleBase.EnableNativeBridgeSupportByDefault()
 	module.linker = &ndkPrebuiltObjectLinker{
 		objectLinker: objectLinker{
 			baseLinker: NewBaseLinker(nil),
@@ -134,6 +135,7 @@ func ndkPrebuiltStaticStlFactory() android.Module {
 	}
 	module.installer = nil
 	module.Properties.HideFromMake = true
+	module.ModuleBase.EnableNativeBridgeSupportByDefault()
 	return module.Init()
 }
 
