@@ -192,13 +192,43 @@ func vndkIsVndkDepAllowed(from *vndkdep, to *vndkdep) error {
 }
 
 var (
-	vndkCoreLibraries             []string
-	vndkSpLibraries               []string
-	llndkLibraries                []string
-	vndkPrivateLibraries          []string
-	vndkUsingCoreVariantLibraries []string
-	vndkLibrariesLock             sync.Mutex
+	vndkCoreLibrariesKey             = android.NewOnceKey("vndkCoreLibrarires")
+	vndkSpLibrariesKey               = android.NewOnceKey("vndkSpLibrarires")
+	llndkLibrariesKey                = android.NewOnceKey("llndkLibrarires")
+	vndkPrivateLibrariesKey          = android.NewOnceKey("vndkPrivateLibrarires")
+	vndkUsingCoreVariantLibrariesKey = android.NewOnceKey("vndkUsingCoreVariantLibrarires")
+	vndkLibrariesLock                sync.Mutex
 )
+
+func vndkCoreLibraries(config android.Config) *[]string {
+	return config.Once(vndkCoreLibrariesKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
+
+func vndkSpLibraries(config android.Config) *[]string {
+	return config.Once(vndkSpLibrariesKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
+
+func llndkLibraries(config android.Config) *[]string {
+	return config.Once(llndkLibrariesKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
+
+func vndkPrivateLibraries(config android.Config) *[]string {
+	return config.Once(vndkPrivateLibrariesKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
+
+func vndkUsingCoreVariantLibraries(config android.Config) *[]string {
+	return config.Once(vndkUsingCoreVariantLibrariesKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
 
 // gather list of vndk-core, vndk-sp, and ll-ndk libs
 func VndkMutator(mctx android.BottomUpMutatorContext) {
@@ -206,15 +236,19 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 		if lib, ok := m.linker.(*llndkStubDecorator); ok {
 			vndkLibrariesLock.Lock()
 			defer vndkLibrariesLock.Unlock()
+
+			llndkLibraries := llndkLibraries(mctx.Config())
+			vndkPrivateLibraries := vndkPrivateLibraries(mctx.Config())
+
 			name := strings.TrimSuffix(m.Name(), llndkLibrarySuffix)
-			if !inList(name, llndkLibraries) {
-				llndkLibraries = append(llndkLibraries, name)
-				sort.Strings(llndkLibraries)
+			if !inList(name, *llndkLibraries) {
+				*llndkLibraries = append(*llndkLibraries, name)
+				sort.Strings(*llndkLibraries)
 			}
 			if !Bool(lib.Properties.Vendor_available) {
-				if !inList(name, vndkPrivateLibraries) {
-					vndkPrivateLibraries = append(vndkPrivateLibraries, name)
-					sort.Strings(vndkPrivateLibraries)
+				if !inList(name, *vndkPrivateLibraries) {
+					*vndkPrivateLibraries = append(*vndkPrivateLibraries, name)
+					sort.Strings(*vndkPrivateLibraries)
 				}
 			}
 		} else {
@@ -225,27 +259,33 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 				if m.vndkdep.isVndk() && !m.vndkdep.isVndkExt() {
 					vndkLibrariesLock.Lock()
 					defer vndkLibrariesLock.Unlock()
+
+					vndkUsingCoreVariantLibraries := vndkUsingCoreVariantLibraries(mctx.Config())
+					vndkSpLibraries := vndkSpLibraries(mctx.Config())
+					vndkCoreLibraries := vndkCoreLibraries(mctx.Config())
+					vndkPrivateLibraries := vndkPrivateLibraries(mctx.Config())
+
 					if mctx.DeviceConfig().VndkUseCoreVariant() && !inList(name, config.VndkMustUseVendorVariantList) {
-						if !inList(name, vndkUsingCoreVariantLibraries) {
-							vndkUsingCoreVariantLibraries = append(vndkUsingCoreVariantLibraries, name)
-							sort.Strings(vndkUsingCoreVariantLibraries)
+						if !inList(name, *vndkUsingCoreVariantLibraries) {
+							*vndkUsingCoreVariantLibraries = append(*vndkUsingCoreVariantLibraries, name)
+							sort.Strings(*vndkUsingCoreVariantLibraries)
 						}
 					}
 					if m.vndkdep.isVndkSp() {
-						if !inList(name, vndkSpLibraries) {
-							vndkSpLibraries = append(vndkSpLibraries, name)
-							sort.Strings(vndkSpLibraries)
+						if !inList(name, *vndkSpLibraries) {
+							*vndkSpLibraries = append(*vndkSpLibraries, name)
+							sort.Strings(*vndkSpLibraries)
 						}
 					} else {
-						if !inList(name, vndkCoreLibraries) {
-							vndkCoreLibraries = append(vndkCoreLibraries, name)
-							sort.Strings(vndkCoreLibraries)
+						if !inList(name, *vndkCoreLibraries) {
+							*vndkCoreLibraries = append(*vndkCoreLibraries, name)
+							sort.Strings(*vndkCoreLibraries)
 						}
 					}
 					if !Bool(m.VendorProperties.Vendor_available) {
-						if !inList(name, vndkPrivateLibraries) {
-							vndkPrivateLibraries = append(vndkPrivateLibraries, name)
-							sort.Strings(vndkPrivateLibraries)
+						if !inList(name, *vndkPrivateLibraries) {
+							*vndkPrivateLibraries = append(*vndkPrivateLibraries, name)
+							sort.Strings(*vndkPrivateLibraries)
 						}
 					}
 				}
