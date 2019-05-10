@@ -86,7 +86,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				if len(c.Properties.AndroidMkWholeStaticLibs) > 0 {
 					fmt.Fprintln(w, "LOCAL_WHOLE_STATIC_LIBRARIES := "+strings.Join(c.Properties.AndroidMkWholeStaticLibs, " "))
 				}
-				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.getMakeLinkType())
+				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.makeLinkType)
 				if c.useVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 				}
