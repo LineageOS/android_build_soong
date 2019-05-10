@@ -879,7 +879,6 @@ prebuilt_etc {
 }
 `,
 	},
-
 	{
 		desc: "prebuilt_etc_PRODUCT_OUT/system/etc",
 		in: `
@@ -1061,6 +1060,80 @@ prebuilt_etc {
 	sub_dir: "foo/bar",
 	recovery: true,
 
+}
+`,
+	},
+	{
+		desc: "prebuilt_usr_share",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT)/usr/share
+LOCAL_SRC_FILES := foo.txt
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_usr_share {
+	name: "foo",
+
+	src: "foo.txt",
+}
+`,
+	},
+	{
+		desc: "prebuilt_usr_share subdir_bar",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT)/usr/share/bar
+LOCAL_SRC_FILES := foo.txt
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_usr_share {
+	name: "foo",
+
+	src: "foo.txt",
+	sub_dir: "bar",
+}
+`,
+	},
+	{
+		desc: "prebuilt_usr_share_host",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(HOST_OUT)/usr/share
+LOCAL_SRC_FILES := foo.txt
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_usr_share_host {
+	name: "foo",
+
+	src: "foo.txt",
+}
+`,
+	},
+	{
+		desc: "prebuilt_usr_share_host subdir_bar",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(HOST_OUT)/usr/share/bar
+LOCAL_SRC_FILES := foo.txt
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_usr_share_host {
+	name: "foo",
+
+	src: "foo.txt",
+	sub_dir: "bar",
 }
 `,
 	},
