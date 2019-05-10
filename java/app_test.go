@@ -881,7 +881,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			name: "foo",
 			srcs: ["a.java"],
 			certificate: "expiredkey",
-			overrides: ["baz"],
+			overrides: ["qux"],
 		}
 
 		override_android_app {
@@ -903,6 +903,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		`)
 
 	expectedVariants := []struct {
+		moduleName  string
 		variantName string
 		apkName     string
 		apkPath     string
@@ -911,24 +912,27 @@ func TestOverrideAndroidApp(t *testing.T) {
 		aaptFlag    string
 	}{
 		{
+			moduleName:  "foo",
 			variantName: "android_common",
 			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
 			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			overrides:   []string{"baz"},
+			overrides:   []string{"qux"},
 			aaptFlag:    "",
 		},
 		{
-			variantName: "bar_android_common",
+			moduleName:  "bar",
+			variantName: "android_common_bar",
 			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
 			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
-			overrides:   []string{"baz", "foo"},
+			overrides:   []string{"qux", "foo"},
 			aaptFlag:    "",
 		},
 		{
-			variantName: "baz_android_common",
+			moduleName:  "baz",
+			variantName: "android_common_baz",
 			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
 			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			overrides:   []string{"baz", "foo"},
+			overrides:   []string{"qux", "foo"},
 			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
 		},
 	}
@@ -969,6 +973,47 @@ func TestOverrideAndroidApp(t *testing.T) {
 		if !strings.Contains(aapt2Flags, expected.aaptFlag) {
 			t.Errorf("package renaming flag, %q is missing in aapt2 link flags, %q", expected.aaptFlag, aapt2Flags)
 		}
+	}
+}
+
+func TestOverrideAndroidAppDependency(t *testing.T) {
+	ctx := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+		}
+
+		override_android_app {
+			name: "bar",
+			base: "foo",
+			package_name: "org.dandroid.bp",
+		}
+
+		android_test {
+			name: "baz",
+			srcs: ["b.java"],
+			instrumentation_for: "foo",
+		}
+
+		android_test {
+			name: "qux",
+			srcs: ["b.java"],
+			instrumentation_for: "bar",
+		}
+		`)
+
+	// Verify baz, which depends on the overridden module foo, has the correct classpath javac arg.
+	javac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
+	fooTurbine := filepath.Join(buildDir, ".intermediates", "foo", "android_common", "turbine-combined", "foo.jar")
+	if !strings.Contains(javac.Args["classpath"], fooTurbine) {
+		t.Errorf("baz classpath %v does not contain %q", javac.Args["classpath"], fooTurbine)
+	}
+
+	// Verify qux, which depends on the overriding module bar, has the correct classpath javac arg.
+	javac = ctx.ModuleForTests("qux", "android_common").Rule("javac")
+	barTurbine := filepath.Join(buildDir, ".intermediates", "foo", "android_common_bar", "turbine-combined", "foo.jar")
+	if !strings.Contains(javac.Args["classpath"], barTurbine) {
+		t.Errorf("qux classpath %v does not contain %q", javac.Args["classpath"], barTurbine)
 	}
 }
 
