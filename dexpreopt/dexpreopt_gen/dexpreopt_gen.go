@@ -78,7 +78,7 @@ func main() {
 
 	ctx := &pathContext{android.TestConfig(*outDir, nil)}
 
-	globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, *globalConfigPath)
+	globalConfig, _, err := dexpreopt.LoadGlobalConfig(ctx, *globalConfigPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading global config %q: %s\n", *globalConfigPath, err)
 		os.Exit(2)
