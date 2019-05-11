@@ -246,14 +246,14 @@ type ModuleContextIntf interface {
 	sdkVersion() string
 	useVndk() bool
 	isNdk() bool
-	isLlndk() bool
-	isLlndkPublic() bool
-	isVndkPrivate() bool
+	isLlndk(config android.Config) bool
+	isLlndkPublic(config android.Config) bool
+	isVndkPrivate(config android.Config) bool
 	isVndk() bool
 	isVndkSp() bool
 	isVndkExt() bool
 	inRecovery() bool
-	shouldCreateVndkSourceAbiDump() bool
+	shouldCreateVndkSourceAbiDump(config android.Config) bool
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
@@ -408,6 +408,8 @@ type Module struct {
 
 	// only non-nil when this is a shared library that reuses the objects of a static library
 	staticVariant *Module
+
+	makeLinkType string
 }
 
 func (c *Module) OutputFile() android.OptionalPath {
@@ -510,19 +512,19 @@ func (c *Module) isNdk() bool {
 	return inList(c.Name(), ndkMigratedLibs)
 }
 
-func (c *Module) isLlndk() bool {
+func (c *Module) isLlndk(config android.Config) bool {
 	// Returns true for both LLNDK (public) and LLNDK-private libs.
-	return inList(c.Name(), llndkLibraries)
+	return inList(c.Name(), *llndkLibraries(config))
 }
 
-func (c *Module) isLlndkPublic() bool {
+func (c *Module) isLlndkPublic(config android.Config) bool {
 	// Returns true only for LLNDK (public) libs.
-	return c.isLlndk() && !c.isVndkPrivate()
+	return c.isLlndk(config) && !c.isVndkPrivate(config)
 }
 
-func (c *Module) isVndkPrivate() bool {
+func (c *Module) isVndkPrivate(config android.Config) bool {
 	// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
-	return inList(c.Name(), vndkPrivateLibraries)
+	return inList(c.Name(), *vndkPrivateLibraries(config))
 }
 
 func (c *Module) isVndk() bool {
@@ -687,16 +689,16 @@ func (ctx *moduleContextImpl) isNdk() bool {
 	return ctx.mod.isNdk()
 }
 
-func (ctx *moduleContextImpl) isLlndk() bool {
-	return ctx.mod.isLlndk()
+func (ctx *moduleContextImpl) isLlndk(config android.Config) bool {
+	return ctx.mod.isLlndk(config)
 }
 
-func (ctx *moduleContextImpl) isLlndkPublic() bool {
-	return ctx.mod.isLlndkPublic()
+func (ctx *moduleContextImpl) isLlndkPublic(config android.Config) bool {
+	return ctx.mod.isLlndkPublic(config)
 }
 
-func (ctx *moduleContextImpl) isVndkPrivate() bool {
-	return ctx.mod.isVndkPrivate()
+func (ctx *moduleContextImpl) isVndkPrivate(config android.Config) bool {
+	return ctx.mod.isVndkPrivate(config)
 }
 
 func (ctx *moduleContextImpl) isVndk() bool {
@@ -728,7 +730,7 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 }
 
 // Check whether ABI dumps should be created for this module.
-func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
+func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump(config android.Config) bool {
 	if ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") {
 		return false
 	}
@@ -753,10 +755,10 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump() bool {
 	if ctx.isNdk() {
 		return true
 	}
-	if ctx.isLlndkPublic() {
+	if ctx.isLlndkPublic(config) {
 		return true
 	}
-	if ctx.useVndk() && ctx.isVndk() && !ctx.isVndkPrivate() {
+	if ctx.useVndk() && ctx.isVndk() && !ctx.isVndkPrivate(config) {
 		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext and this is not
 		// VNDK-private.
 		return true
@@ -907,6 +909,8 @@ func orderStaticModuleDeps(module *Module, staticDeps []*Module, sharedDeps []*M
 }
 
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+	c.makeLinkType = c.getMakeLinkType(actx.Config())
+
 	ctx := &moduleContext{
 		ModuleContext: actx,
 		moduleContextImpl: moduleContextImpl{
@@ -1186,6 +1190,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		//
 		// The caller can then know to add the variantLibs dependencies differently from the
 		// nonvariantLibs
+
+		llndkLibraries := llndkLibraries(actx.Config())
+		vendorPublicLibraries := vendorPublicLibraries(actx.Config())
 		rewriteNdkLibs := func(list []string) (nonvariantLibs []string, variantLibs []string) {
 			variantLibs = []string{}
 			nonvariantLibs = []string{}
@@ -1198,9 +1205,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					} else {
 						variantLibs = append(variantLibs, name+ndkLibrarySuffix)
 					}
-				} else if ctx.useVndk() && inList(name, llndkLibraries) {
+				} else if ctx.useVndk() && inList(name, *llndkLibraries) {
 					nonvariantLibs = append(nonvariantLibs, name+llndkLibrarySuffix)
-				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, vendorPublicLibraries) {
+				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, *vendorPublicLibraries) {
 					vendorPublicLib := name + vendorPublicLibrarySuffix
 					if actx.OtherModuleExists(vendorPublicLib) {
 						nonvariantLibs = append(nonvariantLibs, vendorPublicLib)
@@ -1501,6 +1508,7 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to *Module, tag depe
 // it is subject to be double loaded. Such lib should be explicitly marked as double_loadable: true
 // or as vndk-sp (vndk: { enabled: true, support_system_process: true}).
 func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
+	llndkLibraries := llndkLibraries(ctx.Config())
 	check := func(child, parent android.Module) bool {
 		to, ok := child.(*Module)
 		if !ok {
@@ -1517,7 +1525,7 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return true
 		}
 
-		if to.isVndkSp() || inList(child.Name(), llndkLibraries) || Bool(to.VendorProperties.Double_loadable) {
+		if to.isVndkSp() || inList(child.Name(), *llndkLibraries) || Bool(to.VendorProperties.Double_loadable) {
 			return false
 		}
 
@@ -1532,7 +1540,7 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 	}
 	if module, ok := ctx.Module().(*Module); ok {
 		if lib, ok := module.linker.(*libraryDecorator); ok && lib.shared() {
-			if inList(ctx.ModuleName(), llndkLibraries) || Bool(module.VendorProperties.Double_loadable) {
+			if inList(ctx.ModuleName(), *llndkLibraries) || Bool(module.VendorProperties.Double_loadable) {
 				ctx.WalkDeps(check)
 			}
 		}
@@ -1545,6 +1553,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	directStaticDeps := []*Module{}
 	directSharedDeps := []*Module{}
+
+	llndkLibraries := llndkLibraries(ctx.Config())
+	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
 
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
@@ -1788,8 +1799,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
 			libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
-			isLLndk := inList(libName, llndkLibraries)
-			isVendorPublicLib := inList(libName, vendorPublicLibraries)
+			isLLndk := inList(libName, *llndkLibraries)
+			isVendorPublicLib := inList(libName, *vendorPublicLibraries)
 			bothVendorAndCoreVariantsExist := ccDep.hasVendorVariant() || isLLndk
 
 			if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.isVndk() && !ccDep.mustUseVendorVariant() {
@@ -1919,10 +1930,12 @@ func (c *Module) staticBinary() bool {
 	return false
 }
 
-func (c *Module) getMakeLinkType() string {
+func (c *Module) getMakeLinkType(config android.Config) string {
 	if c.useVndk() {
-		if inList(c.Name(), vndkCoreLibraries) || inList(c.Name(), vndkSpLibraries) || inList(c.Name(), llndkLibraries) {
-			if inList(c.Name(), vndkPrivateLibraries) {
+		if inList(c.Name(), *vndkCoreLibraries(config)) ||
+			inList(c.Name(), *vndkSpLibraries(config)) ||
+			inList(c.Name(), *llndkLibraries(config)) {
+			if inList(c.Name(), *vndkPrivateLibraries(config)) {
 				return "native:vndk_private"
 			} else {
 				return "native:vndk"
@@ -1937,7 +1950,7 @@ func (c *Module) getMakeLinkType() string {
 		// TODO(b/114741097): use the correct ndk stl once build errors have been fixed
 		//family, link := getNdkStlFamilyAndLinkType(c)
 		//return fmt.Sprintf("native:ndk:%s:%s", family, link)
-	} else if inList(c.Name(), vndkUsingCoreVariantLibraries) {
+	} else if inList(c.Name(), *vndkUsingCoreVariantLibraries(config)) {
 		return "native:platform_vndk"
 	} else {
 		return "native:platform"
