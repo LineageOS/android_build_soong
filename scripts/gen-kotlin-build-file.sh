@@ -17,7 +17,7 @@
 # Generates kotlinc module xml file to standard output based on rsp files
 
 if [[ -z "$1" ]]; then
-  echo "usage: $0 <classpath> <outDir> <rspFiles>..." >&2
+  echo "usage: $0 <classpath> <name> <outDir> <rspFiles>..." >&2
   exit 1
 fi
 
@@ -27,8 +27,9 @@ if [[ $1 == "-classpath" ]]; then
 fi;
 
 classpath=$1
-out_dir=$2
-shift 2
+name=$2
+out_dir=$3
+shift 3
 
 # Path in the build file may be relative to the build file, we need to make them
 # absolute
@@ -44,7 +45,7 @@ get_abs_path () {
 }
 
 # Print preamble
-echo "<modules><module name=\"name\" type=\"java-production\" outputDir=\"${out_dir}\">"
+echo "<modules><module name=\"${name}\" type=\"java-production\" outputDir=\"${out_dir}\">"
 
 # Print classpath entries
 for file in $(echo "$classpath" | tr ":" "\n"); do
