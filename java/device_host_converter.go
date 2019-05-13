@@ -126,7 +126,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	if len(d.headerJars) > 1 {
 		outputFile := android.PathForModuleOut(ctx, "turbine-combined", jarName)
 		TransformJarsToJar(ctx, outputFile, "turbine combine", d.headerJars,
-			android.OptionalPath{}, false, nil, nil)
+			android.OptionalPath{}, false, nil, []string{"META-INF/TRANSITIVE"})
 		d.combinedHeaderJar = outputFile
 	} else {
 		d.combinedHeaderJar = d.headerJars[0]

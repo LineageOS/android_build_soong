@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -30,7 +31,7 @@ var kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 		Command: `rm -rf "$classesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
 			`mkdir -p "$classesDir" "$srcJarDir" "$emptyDir" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-			`${config.GenKotlinBuildFileCmd} $classpath $classesDir $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
+			`${config.GenKotlinBuildFileCmd} $classpath "$name" $classesDir $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
 			`${config.KotlincCmd} ${config.JavacHeapFlags} $kotlincFlags ` +
 			`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile -kotlin-home $emptyDir && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir && ` +
@@ -50,7 +51,8 @@ var kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
 		Rspfile:        "$out.rsp",
 		RspfileContent: `$in`,
 	},
-	"kotlincFlags", "classpath", "srcJars", "srcJarDir", "classesDir", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir")
+	"kotlincFlags", "classpath", "srcJars", "srcJarDir", "classesDir", "kotlinJvmTarget", "kotlinBuildFile",
+	"emptyDir", "name")
 
 // kotlinCompile takes .java and .kt sources and srcJars, and compiles the .kt sources into a classes jar in outputFile.
 func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
@@ -60,6 +62,9 @@ func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
 	var deps android.Paths
 	deps = append(deps, flags.kotlincClasspath...)
 	deps = append(deps, srcJars...)
+
+	kotlinName := filepath.Join(ctx.ModuleDir(), ctx.ModuleSubDir(), ctx.ModuleName())
+	kotlinName = strings.ReplaceAll(kotlinName, "/", "__")
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        kotlinc,
@@ -77,6 +82,7 @@ func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
 			"emptyDir":        android.PathForModuleOut(ctx, "kotlinc", "empty").String(),
 			// http://b/69160377 kotlinc only supports -jvm-target 1.6 and 1.8
 			"kotlinJvmTarget": "1.8",
+			"name":            kotlinName,
 		},
 	})
 }
@@ -85,7 +91,7 @@ var kapt = pctx.AndroidGomaStaticRule("kapt",
 	blueprint.RuleParams{
 		Command: `rm -rf "$srcJarDir" "$kotlinBuildFile" "$kaptDir" && mkdir -p "$srcJarDir" "$kaptDir" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-			`${config.GenKotlinBuildFileCmd} $classpath "" $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
+			`${config.GenKotlinBuildFileCmd} $classpath "$name" "" $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
 			`${config.KotlincCmd} ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} $kotlincFlags ` +
 			`-Xplugin=${config.KotlinKaptJar} ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:sources=$kaptDir/sources ` +
@@ -111,7 +117,7 @@ var kapt = pctx.AndroidGomaStaticRule("kapt",
 		RspfileContent: `$in`,
 	},
 	"kotlincFlags", "encodedJavacFlags", "kaptProcessorPath", "kaptProcessor",
-	"classpath", "srcJars", "srcJarDir", "kaptDir", "kotlinJvmTarget", "kotlinBuildFile")
+	"classpath", "srcJars", "srcJarDir", "kaptDir", "kotlinJvmTarget", "kotlinBuildFile", "name")
 
 // kotlinKapt performs Kotlin-compatible annotation processing.  It takes .kt and .java sources and srcjars, and runs
 // annotation processors over all of them, producing a srcjar of generated code in outputFile.  The srcjar should be
@@ -138,6 +144,9 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 		{"-target", flags.javaVersion},
 	})
 
+	kotlinName := filepath.Join(ctx.ModuleDir(), ctx.ModuleSubDir(), ctx.ModuleName())
+	kotlinName = strings.ReplaceAll(kotlinName, "/", "__")
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        kapt,
 		Description: "kapt",
@@ -154,6 +163,7 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 			"kaptProcessor":     kaptProcessor,
 			"kaptDir":           android.PathForModuleOut(ctx, "kapt/gen").String(),
 			"encodedJavacFlags": encodedJavacFlags,
+			"name":              kotlinName,
 		},
 	})
 }
