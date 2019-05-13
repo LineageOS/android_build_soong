@@ -517,7 +517,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if j.hasSrcExt(".kt") {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
-		ctx.AddVariationDependencies(nil, kotlinStdlibTag, "kotlin-stdlib")
+		ctx.AddVariationDependencies(nil, kotlinStdlibTag,
+			"kotlin-stdlib", "kotlin-stdlib-jdk7", "kotlin-stdlib-jdk8")
 		if len(j.properties.Plugins) > 0 {
 			ctx.AddVariationDependencies(nil, kotlinAnnotationsTag, "kotlin-annotations")
 		}
@@ -793,7 +794,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					deps.staticResourceJars = append(deps.staticResourceJars, dep.(*AndroidApp).exportPackage)
 				}
 			case kotlinStdlibTag:
-				deps.kotlinStdlib = dep.HeaderJars()
+				deps.kotlinStdlib = append(deps.kotlinStdlib, dep.HeaderJars()...)
 			case kotlinAnnotationsTag:
 				deps.kotlinAnnotations = dep.HeaderJars()
 			}
