@@ -852,6 +852,10 @@ func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
 	return ExistentPathForSource(ctx, "frameworks", "base").Valid()
 }
 
+func (c *config) VndkSnapshotBuildArtifacts() bool {
+	return Bool(c.productVariables.VndkSnapshotBuildArtifacts)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
