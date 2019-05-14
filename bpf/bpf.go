@@ -33,7 +33,7 @@ func init() {
 var (
 	pctx = android.NewPackageContext("android/soong/bpf")
 
-	cc = pctx.AndroidGomaStaticRule("cc",
+	ccRule = pctx.AndroidGomaStaticRule("ccRule",
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
@@ -82,7 +82,7 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		obj := android.ObjPathWithExt(ctx, "", src, "o")
 
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   cc,
+			Rule:   ccRule,
 			Input:  src,
 			Output: obj,
 			Args: map[string]string{

@@ -148,6 +148,12 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 
 		cc_object {
+			name: "crtbegin_dynamic",
+			recovery_available: true,
+			vendor_available: true,
+		}
+
+		cc_object {
 			name: "crtbegin_static",
 			recovery_available: true,
 			vendor_available: true,
@@ -194,6 +200,7 @@ func CreateTestContext(bp string, fs map[string][]byte,
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
 	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(LibraryStaticFactory))
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
+	ctx.RegisterModuleType("cc_test", android.ModuleFactoryAdaptor(TestFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(ToolchainLibraryFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(LlndkLibraryFactory))
 	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
