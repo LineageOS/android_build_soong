@@ -136,21 +136,29 @@ func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
 		global := dexpreoptGlobalConfig(ctx)
 
 		runtimeModules := global.RuntimeApexJars
+		nonFrameworkModules := concat(runtimeModules, global.ProductUpdatableBootModules)
+		frameworkModules := android.RemoveListFromList(global.BootJars, nonFrameworkModules)
+		imageModules := concat(runtimeModules, frameworkModules)
 
-		var runtimeBootLocations []string
+		var bootLocations []string
 
 		for _, m := range runtimeModules {
-			runtimeBootLocations = append(runtimeBootLocations,
+			bootLocations = append(bootLocations,
 				filepath.Join("/apex/com.android.runtime/javalib", m+".jar"))
+		}
+
+		for _, m := range frameworkModules {
+			bootLocations = append(bootLocations,
+				filepath.Join("/system/framework", m+".jar"))
 		}
 
 		// The path to bootclasspath dex files needs to be known at module GenerateAndroidBuildAction time, before
 		// the bootclasspath modules have been compiled.  Set up known paths for them, the singleton rules will copy
 		// them there.
 		// TODO: use module dependencies instead
-		var runtimeBootDexPaths android.WritablePaths
-		for _, m := range runtimeModules {
-			runtimeBootDexPaths = append(runtimeBootDexPaths,
+		var bootDexPaths android.WritablePaths
+		for _, m := range imageModules {
+			bootDexPaths = append(bootDexPaths,
 				android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_apexjars_input", m+".jar"))
 		}
 
@@ -165,9 +173,9 @@ func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
 
 		return bootImageConfig{
 			name:         "apex",
-			modules:      runtimeModules,
-			dexLocations: runtimeBootLocations,
-			dexPaths:     runtimeBootDexPaths,
+			modules:      imageModules,
+			dexLocations: bootLocations,
+			dexPaths:     bootDexPaths,
 			dir:          dir,
 			symbolsDir:   symbolsDir,
 			images:       images,
