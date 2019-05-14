@@ -40,7 +40,8 @@ func (once *OncePer) maybeWaitFor(key OnceKey, value interface{}) interface{} {
 }
 
 // Once computes a value the first time it is called with a given key per OncePer, and returns the
-// value without recomputing when called with the same key.  key must be hashable.
+// value without recomputing when called with the same key.  key must be hashable.  If value panics
+// the panic will be propagated but the next call to Once with the same key will return nil.
 func (once *OncePer) Once(key OnceKey, value func() interface{}) interface{} {
 	// Fast path: check if the key is already in the map
 	if v, ok := once.values.Load(key); ok {
@@ -54,10 +55,15 @@ func (once *OncePer) Once(key OnceKey, value func() interface{}) interface{} {
 		return once.maybeWaitFor(key, v)
 	}
 
-	// The waiter is inserted, call the value constructor, store it, and signal the waiter
-	v := value()
-	once.values.Store(key, v)
-	close(waiter)
+	// The waiter is inserted, call the value constructor, store it, and signal the waiter.  Use defer in case
+	// the function panics.
+	var v interface{}
+	defer func() {
+		once.values.Store(key, v)
+		close(waiter)
+	}()
+
+	v = value()
 
 	return v
 }
