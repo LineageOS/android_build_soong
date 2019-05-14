@@ -23,6 +23,7 @@ func init() {
 	RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
 	RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
 	RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
+	RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 
 	PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
@@ -239,4 +240,13 @@ func prebuiltEtcMutator(mctx BottomUpMutatorContext) {
 			m.properties.InRecovery = true
 		}
 	}
+}
+
+// prebuilt_font installs a font in <partition>/fonts directory.
+func PrebuiltFontFactory() Module {
+	module := &PrebuiltEtc{installDirBase: "fonts"}
+	InitPrebuiltEtcModule(module)
+	// This module is device-only
+	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	return module
 }
