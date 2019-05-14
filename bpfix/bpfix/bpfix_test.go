@@ -784,3 +784,52 @@ func TestRewriteAndroidTest(t *testing.T) {
 		})
 	}
 }
+
+func TestRewriteAndroidAppImport(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "android_app_import apk",
+			in: `
+				android_app_import {
+					name: "foo",
+					srcs: ["package.apk"],
+				}
+			`,
+			out: `
+				android_app_import {
+					name: "foo",
+					apk: "package.apk",
+				}
+			`,
+		},
+		{
+			name: "android_app_import presigned",
+			in: `
+				android_app_import {
+					name: "foo",
+					apk: "package.apk",
+					certificate: "PRESIGNED",
+				}
+			`,
+			out: `
+				android_app_import {
+					name: "foo",
+					apk: "package.apk",
+					presigned: true,
+
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return rewriteAndroidAppImport(fixer)
+			})
+		})
+	}
+}

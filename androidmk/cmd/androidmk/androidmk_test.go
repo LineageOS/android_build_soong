@@ -1112,6 +1112,32 @@ android_app {
 }
 		`,
 	},
+	{
+		desc: "android_app_import",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_SRC_FILES := foo.apk
+LOCAL_PRIVILEGED_MODULE := true
+LOCAL_MODULE_CLASS := APPS
+LOCAL_MODULE_TAGS := optional
+LOCAL_DEX_PREOPT := false
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+android_app_import {
+	name: "foo",
+
+	privileged: true,
+
+	dex_preopt: {
+		enabled: false,
+	},
+	apk: "foo.apk",
+
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {

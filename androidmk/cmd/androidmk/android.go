@@ -935,6 +935,7 @@ var prebuiltTypes = map[string]string{
 	"STATIC_LIBRARIES": "cc_prebuilt_library_static",
 	"EXECUTABLES":      "cc_prebuilt_binary",
 	"JAVA_LIBRARIES":   "java_import",
+	"APPS":             "android_app_import",
 	"ETC":              "prebuilt_etc",
 }
 

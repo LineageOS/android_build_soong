@@ -102,6 +102,10 @@ var fixSteps = []fixStep{
 		name: "rewriteAndroidTest",
 		fix:  rewriteAndroidTest,
 	},
+	{
+		name: "rewriteAndroidAppImport",
+		fix:  rewriteAndroidAppImport,
+	},
 }
 
 func NewFixRequest() FixRequest {
@@ -497,27 +501,8 @@ func rewriteAndroidmkPrebuiltEtc(f *Fixer) error {
 			continue
 		}
 
-		// The rewriter converts LOCAL_SRC_FILES to `srcs` attribute. Convert
-		// it to 'src' attribute (which is where the file is installed). If the
-		// value 'srcs' is a list, we can convert it only if it contains a single
-		// element.
-		if srcs, ok := mod.GetProperty("srcs"); ok {
-			if srcList, ok := srcs.Value.(*parser.List); ok {
-				removeProperty(mod, "srcs")
-				if len(srcList.Values) == 1 {
-					mod.Properties = append(mod.Properties,
-						&parser.Property{Name: "src", NamePos: srcs.NamePos, ColonPos: srcs.ColonPos, Value: resolveLocalModule(mod, srcList.Values[0])})
-				} else if len(srcList.Values) > 1 {
-					indicateAttributeError(mod, "src", "LOCAL_SRC_FILES should contain at most one item")
-				}
-			} else if _, ok = srcs.Value.(*parser.Variable); ok {
-				removeProperty(mod, "srcs")
-				mod.Properties = append(mod.Properties,
-					&parser.Property{Name: "src", NamePos: srcs.NamePos, ColonPos: srcs.ColonPos, Value: resolveLocalModule(mod, srcs.Value)})
-			} else {
-				renameProperty(mod, "srcs", "src")
-			}
-		}
+		// 'srcs' --> 'src' conversion
+		convertToSingleSource(mod, "src")
 
 		// The rewriter converts LOCAL_MODULE_PATH attribute into a struct attribute
 		// 'local_module_path'. Analyze its contents and create the correct sub_dir:,
@@ -587,6 +572,62 @@ func rewriteAndroidTest(f *Fixer) error {
 		}
 	}
 	return nil
+}
+
+func rewriteAndroidAppImport(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !(ok && mod.Type == "android_app_import") {
+			continue
+		}
+		// 'srcs' --> 'apk' conversion
+		convertToSingleSource(mod, "apk")
+		// Handle special certificate value, "PRESIGNED".
+		if cert, ok := mod.GetProperty("certificate"); ok {
+			if certStr, ok := cert.Value.(*parser.String); ok {
+				if certStr.Value == "PRESIGNED" {
+					removeProperty(mod, "certificate")
+					prop := &parser.Property{
+						Name: "presigned",
+						Value: &parser.Bool{
+							Value: true,
+						},
+					}
+					mod.Properties = append(mod.Properties, prop)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Converts the default source list property, 'srcs', to a single source property with a given name.
+// "LOCAL_MODULE" reference is also resolved during the conversion process.
+func convertToSingleSource(mod *parser.Module, srcPropertyName string) {
+	if srcs, ok := mod.GetProperty("srcs"); ok {
+		if srcList, ok := srcs.Value.(*parser.List); ok {
+			removeProperty(mod, "srcs")
+			if len(srcList.Values) == 1 {
+				mod.Properties = append(mod.Properties,
+					&parser.Property{
+						Name:     srcPropertyName,
+						NamePos:  srcs.NamePos,
+						ColonPos: srcs.ColonPos,
+						Value:    resolveLocalModule(mod, srcList.Values[0])})
+			} else if len(srcList.Values) > 1 {
+				indicateAttributeError(mod, srcPropertyName, "LOCAL_SRC_FILES should contain at most one item")
+			}
+		} else if _, ok = srcs.Value.(*parser.Variable); ok {
+			removeProperty(mod, "srcs")
+			mod.Properties = append(mod.Properties,
+				&parser.Property{Name: srcPropertyName,
+					NamePos:  srcs.NamePos,
+					ColonPos: srcs.ColonPos,
+					Value:    resolveLocalModule(mod, srcs.Value)})
+		} else {
+			renameProperty(mod, "srcs", "apk")
+		}
+	}
 }
 
 func runPatchListMod(modFunc func(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error) func(*Fixer) error {
