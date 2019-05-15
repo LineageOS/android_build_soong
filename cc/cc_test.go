@@ -1263,6 +1263,110 @@ func TestVndkUseVndkExtError(t *testing.T) {
 	`)
 }
 
+func TestMakeLinkType(t *testing.T) {
+	config := android.TestArchConfig(buildDir, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	// native:vndk
+	ctx := testCcWithConfig(t, `
+	cc_library {
+		name: "libvndk",
+		vendor_available: true,
+		vndk: {
+			enabled: true,
+		},
+	}
+	cc_library {
+		name: "libvndksp",
+		vendor_available: true,
+		vndk: {
+			enabled: true,
+			support_system_process: true,
+		},
+	}
+	cc_library {
+		name: "libvndkprivate",
+		vendor_available: false,
+		vndk: {
+			enabled: true,
+		},
+	}
+	cc_library {
+		name: "libvendor",
+		vendor: true,
+	}
+	cc_library {
+		name: "libvndkext",
+		vendor: true,
+		vndk: {
+			enabled: true,
+			extends: "libvndk",
+		},
+	}
+	vndk_prebuilt_shared {
+		name: "prevndk",
+		version: "27",
+		target_arch: "arm",
+		binder32bit: true,
+		vendor_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm: {
+				srcs: ["liba.so"],
+			},
+		},
+	}
+	cc_library {
+		name: "libllndk",
+	}
+	llndk_library {
+		name: "libllndk",
+		symbol_file: "",
+	}
+	cc_library {
+		name: "libllndkprivate",
+	}
+	llndk_library {
+		name: "libllndkprivate",
+		vendor_available: false,
+		symbol_file: "",
+	}`, config)
+
+	assertArrayString(t, *vndkCoreLibraries(config),
+		[]string{"libvndk", "libvndkprivate"})
+	assertArrayString(t, *vndkSpLibraries(config),
+		[]string{"libc++", "libvndksp"})
+	assertArrayString(t, *llndkLibraries(config),
+		[]string{"libc", "libdl", "libllndk", "libllndkprivate", "libm"})
+	assertArrayString(t, *vndkPrivateLibraries(config),
+		[]string{"libllndkprivate", "libvndkprivate"})
+
+	tests := []struct {
+		variant  string
+		name     string
+		expected string
+	}{
+		{vendorVariant, "libvndk", "native:vndk"},
+		{vendorVariant, "libvndksp", "native:vndk"},
+		{vendorVariant, "libvndkprivate", "native:vndk_private"},
+		{vendorVariant, "libvendor", "native:vendor"},
+		{vendorVariant, "libvndkext", "native:vendor"},
+		{vendorVariant, "prevndk.vndk.27.arm.binder32", "native:vndk"},
+		{vendorVariant, "libllndk.llndk", "native:vndk"},
+		{coreVariant, "libvndk", "native:platform"},
+		{coreVariant, "libvndkprivate", "native:platform"},
+		{coreVariant, "libllndk", "native:platform"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			module := ctx.ModuleForTests(test.name, test.variant).Module().(*Module)
+			assertString(t, module.makeLinkType, test.expected)
+		})
+	}
+}
+
 var (
 	str11 = "01234567891"
 	str10 = str11[:10]
@@ -2157,5 +2261,27 @@ func TestStaticDepsOrderWithStubs(t *testing.T) {
 			actual,
 			expected,
 		)
+	}
+}
+
+func assertString(t *testing.T, got, expected string) {
+	t.Helper()
+	if got != expected {
+		t.Errorf("expected %q got %q", expected, got)
+	}
+}
+
+func assertArrayString(t *testing.T, got, expected []string) {
+	t.Helper()
+	if len(got) != len(expected) {
+		t.Errorf("expected %d (%q) got (%d) %q", len(expected), expected, len(got), got)
+		return
+	}
+	for i := range got {
+		if got[i] != expected[i] {
+			t.Errorf("expected %d-th %q (%q) got %q (%q)",
+				i, expected[i], expected, got[i], got)
+			return
+		}
 	}
 }
