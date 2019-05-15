@@ -231,7 +231,7 @@ class AddUsesLibrariesTest(unittest.TestCase):
 
   def run_test(self, input_manifest, new_uses_libraries):
     doc = minidom.parseString(input_manifest)
-    manifest_fixer.add_uses_libraries(doc, new_uses_libraries)
+    manifest_fixer.add_uses_libraries(doc, new_uses_libraries, True)
     output = StringIO.StringIO()
     manifest_fixer.write_xml(output, doc)
     return output.getvalue()
