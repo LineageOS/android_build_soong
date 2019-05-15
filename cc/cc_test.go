@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -75,6 +76,7 @@ func createTestContext(t *testing.T, config android.Config, bp string, os androi
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
 	})
+	ctx.RegisterSingletonType("vndk-snapshot", android.SingletonFactoryAdaptor(VndkSnapshotSingleton))
 	ctx.Register()
 
 	// add some modules that are required by the compiler and/or linker
@@ -286,8 +288,28 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	}
 }
 
+func checkVndkSnapshot(t *testing.T, ctx *android.TestContext, name, subDir, variant string) {
+	vndkSnapshot := ctx.SingletonForTests("vndk-snapshot")
+
+	snapshotPath := filepath.Join(subDir, name+".so")
+	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
+	if !mod.outputFile.Valid() {
+		t.Errorf("%q must have output\n", name)
+		return
+	}
+
+	out := vndkSnapshot.Output(snapshotPath)
+	if out.Input != mod.outputFile.Path() {
+		t.Errorf("The input of VNDK snapshot must be %q, but %q", out.Input.String(), mod.outputFile.String())
+	}
+}
+
 func TestVndk(t *testing.T) {
-	ctx := testCc(t, `
+	config := android.TestArchConfig(buildDir, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+
+	ctx := testCcWithConfig(t, `
 		cc_library {
 			name: "libvndk",
 			vendor_available: true,
@@ -325,12 +347,35 @@ func TestVndk(t *testing.T) {
 			},
 			nocrt: true,
 		}
-	`)
+	`, config)
 
 	checkVndkModule(t, ctx, "libvndk", "vndk-VER", false, "")
 	checkVndkModule(t, ctx, "libvndk_private", "vndk-VER", false, "")
 	checkVndkModule(t, ctx, "libvndk_sp", "vndk-sp-VER", true, "")
 	checkVndkModule(t, ctx, "libvndk_sp_private", "vndk-sp-VER", true, "")
+
+	// Check VNDK snapshot output.
+
+	snapshotDir := "vndk-snapshot"
+	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+
+	vndkLibPath := filepath.Join(snapshotVariantPath, fmt.Sprintf("arch-%s-%s",
+		"arm64", "armv8-a"))
+	vndkLib2ndPath := filepath.Join(snapshotVariantPath, fmt.Sprintf("arch-%s-%s",
+		"arm", "armv7-a-neon"))
+
+	vndkCoreLibPath := filepath.Join(vndkLibPath, "shared", "vndk-core")
+	vndkSpLibPath := filepath.Join(vndkLibPath, "shared", "vndk-sp")
+	vndkCoreLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "vndk-core")
+	vndkSpLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "vndk-sp")
+
+	variant := "android_arm64_armv8-a_vendor_shared"
+	variant2nd := "android_arm_armv7-a-neon_vendor_shared"
+
+	checkVndkSnapshot(t, ctx, "libvndk", vndkCoreLibPath, variant)
+	checkVndkSnapshot(t, ctx, "libvndk", vndkCoreLib2ndPath, variant2nd)
+	checkVndkSnapshot(t, ctx, "libvndk_sp", vndkSpLibPath, variant)
+	checkVndkSnapshot(t, ctx, "libvndk_sp", vndkSpLib2ndPath, variant2nd)
 }
 
 func TestVndkDepError(t *testing.T) {
