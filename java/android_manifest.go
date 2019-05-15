@@ -66,7 +66,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	}
 
 	if useEmbeddedDex {
-		args = append(args, "--use-embedded-dex=true")
+		args = append(args, "--use-embedded-dex")
 	}
 
 	var deps android.Paths
