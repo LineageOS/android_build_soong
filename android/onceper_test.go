@@ -175,3 +175,43 @@ func TestOncePerReentrant(t *testing.T) {
 		t.Errorf(`reentrant Once should return "a": %q`, a)
 	}
 }
+
+// Test that a recovered panic in a Once function doesn't deadlock
+func TestOncePerPanic(t *testing.T) {
+	once := OncePer{}
+	key := NewOnceKey("key")
+
+	ch := make(chan interface{})
+
+	var a interface{}
+
+	go func() {
+		defer func() {
+			ch <- recover()
+		}()
+
+		a = once.Once(key, func() interface{} {
+			panic("foo")
+		})
+	}()
+
+	p := <-ch
+
+	if p.(string) != "foo" {
+		t.Errorf(`expected panic with "foo", got %#v`, p)
+	}
+
+	if a != nil {
+		t.Errorf(`expected a to be nil, got %#v`, a)
+	}
+
+	// If the call to Once that panicked leaves the key in a bad state this will deadlock
+	b := once.Once(key, func() interface{} {
+		return "bar"
+	})
+
+	// The second call to Once should return nil inserted by the first call that panicked.
+	if b != nil {
+		t.Errorf(`expected b to be nil, got %#v`, b)
+	}
+}
