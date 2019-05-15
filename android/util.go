@@ -52,6 +52,31 @@ func JoinWithPrefix(strs []string, prefix string) string {
 	return string(ret)
 }
 
+func JoinWithSuffix(strs []string, suffix string, separator string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+
+	if len(strs) == 1 {
+		return strs[0] + suffix
+	}
+
+	n := len(" ") * (len(strs) - 1)
+	for _, s := range strs {
+		n += len(suffix) + len(s)
+	}
+
+	ret := make([]byte, 0, n)
+	for i, s := range strs {
+		if i != 0 {
+			ret = append(ret, separator...)
+		}
+		ret = append(ret, s...)
+		ret = append(ret, suffix...)
+	}
+	return string(ret)
+}
+
 func sortedKeys(m map[string][]string) []string {
 	s := make([]string, 0, len(m))
 	for k := range m {
