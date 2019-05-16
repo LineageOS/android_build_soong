@@ -30,6 +30,7 @@ func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
 	ctx.RegisterModuleType("prebuilt_etc_host", ModuleFactoryAdaptor(PrebuiltEtcHostFactory))
 	ctx.RegisterModuleType("prebuilt_usr_share", ModuleFactoryAdaptor(PrebuiltUserShareFactory))
 	ctx.RegisterModuleType("prebuilt_usr_share_host", ModuleFactoryAdaptor(PrebuiltUserShareHostFactory))
+	ctx.RegisterModuleType("prebuilt_font", ModuleFactoryAdaptor(PrebuiltFontFactory))
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
 	})
@@ -215,6 +216,21 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 	buildOS := BuildOs.String()
 	p := ctx.ModuleForTests("foo.conf", buildOS+"_common").Module().(*PrebuiltEtc)
 	expected := filepath.Join("host", config.PrebuiltOS(), "usr", "share", "bar")
+	if p.installDirPath.RelPathString() != expected {
+		t.Errorf("expected %q, got %q", expected, p.installDirPath.RelPathString())
+	}
+}
+
+func TestPrebuiltFontInstallDirPath(t *testing.T) {
+	ctx, _ := testPrebuiltEtc(t, `
+		prebuilt_font {
+			name: "foo.conf",
+			src: "foo.conf",
+		}
+	`)
+
+	p := ctx.ModuleForTests("foo.conf", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
+	expected := "target/product/test_device/system/fonts"
 	if p.installDirPath.RelPathString() != expected {
 		t.Errorf("expected %q, got %q", expected, p.installDirPath.RelPathString())
 	}
