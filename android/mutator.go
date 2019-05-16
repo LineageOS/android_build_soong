@@ -77,7 +77,6 @@ var preArch = []RegisterMutatorFunc{
 	RegisterNamespaceMutator,
 	RegisterPrebuiltsPreArchMutators,
 	RegisterDefaultsPreArchMutators,
-	RegisterOverridePreArchMutators,
 	registerVisibilityRuleGatherer,
 }
 
@@ -95,6 +94,7 @@ var postDeps = []RegisterMutatorFunc{
 	RegisterPrebuiltsPostDepsMutators,
 	registerVisibilityRuleEnforcer,
 	registerNeverallowMutator,
+	RegisterOverridePostDepsMutators,
 }
 
 func PreArchMutators(f RegisterMutatorFunc) {
