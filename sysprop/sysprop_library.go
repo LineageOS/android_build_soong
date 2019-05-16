@@ -72,6 +72,7 @@ func syspropLibraryFactory() android.Module {
 		&m.syspropLibraryProperties,
 	)
 	m.InitSdkLibraryProperties()
+	m.SetNoDist()
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, "common")
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) { syspropLibraryHook(ctx, m) })
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) { m.SdkLibrary.CreateInternalModules(ctx) })
