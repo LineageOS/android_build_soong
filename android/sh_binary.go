@@ -16,7 +16,6 @@ package android
 
 import (
 	"fmt"
-	"io"
 	"strings"
 )
 
@@ -58,6 +57,10 @@ type TestProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
 	Test_config *string `android:"arch_variant"`
+
+	// list of files or filegroup modules that provide data that should be installed alongside
+	// the test.
+	Data []string `android:"path,arch_variant"`
 }
 
 type ShBinary struct {
@@ -73,6 +76,8 @@ type ShTest struct {
 	ShBinary
 
 	testProperties TestProperties
+
+	data Paths
 }
 
 func (s *ShBinary) DepsMutator(ctx BottomUpMutatorContext) {
@@ -122,30 +127,50 @@ func (s *ShBinary) GenerateAndroidBuildActions(ctx ModuleContext) {
 	})
 }
 
-func (s *ShBinary) AndroidMk() AndroidMkData {
-	return AndroidMkData{
+func (s *ShBinary) AndroidMkEntries() AndroidMkEntries {
+	return AndroidMkEntries{
 		Class:      "EXECUTABLES",
 		OutputFile: OptionalPathForPath(s.outputFilePath),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
-		Extra: []AndroidMkExtraFunc{
-			func(w io.Writer, outputFile Path) {
-				fmt.Fprintln(w, "LOCAL_MODULE_RELATIVE_PATH :=", String(s.properties.Sub_dir))
-				fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX :=")
-				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", s.outputFilePath.Rel())
-			},
+		AddCustomEntries: func(name, prefix, moduleDir string, entries *AndroidMkEntries) {
+			s.customAndroidMkEntries(entries)
 		},
 	}
 }
 
-func (s *ShTest) AndroidMk() AndroidMkData {
-	data := s.ShBinary.AndroidMk()
-	data.Class = "NATIVE_TESTS"
-	data.Extra = append(data.Extra, func(w io.Writer, outputFile Path) {
-		fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
-			strings.Join(s.testProperties.Test_suites, " "))
-		fmt.Fprintln(w, "LOCAL_TEST_CONFIG :=", String(s.testProperties.Test_config))
-	})
-	return data
+func (s *ShBinary) customAndroidMkEntries(entries *AndroidMkEntries) {
+	entries.SetString("LOCAL_MODULE_RELATIVE_PATH", String(s.properties.Sub_dir))
+	entries.SetString("LOCAL_MODULE_SUFFIX", "")
+	entries.SetString("LOCAL_MODULE_STEM", s.outputFilePath.Rel())
+}
+
+func (s *ShTest) GenerateAndroidBuildActions(ctx ModuleContext) {
+	s.ShBinary.GenerateAndroidBuildActions(ctx)
+
+	s.data = PathsForModuleSrc(ctx, s.testProperties.Data)
+}
+
+func (s *ShTest) AndroidMkEntries() AndroidMkEntries {
+	return AndroidMkEntries{
+		Class:      "NATIVE_TESTS",
+		OutputFile: OptionalPathForPath(s.outputFilePath),
+		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
+		AddCustomEntries: func(name, prefix, moduleDir string, entries *AndroidMkEntries) {
+			s.customAndroidMkEntries(entries)
+
+			entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
+			entries.SetString("LOCAL_TEST_CONFIG", String(s.testProperties.Test_config))
+			for _, d := range s.data {
+				rel := d.Rel()
+				path := d.String()
+				if !strings.HasSuffix(path, rel) {
+					panic(fmt.Errorf("path %q does not end with %q", path, rel))
+				}
+				path = strings.TrimSuffix(path, rel)
+				entries.AddStrings("LOCAL_TEST_DATA", path+":"+rel)
+			}
+		},
+	}
 }
 
 func InitShBinaryModule(s *ShBinary) {
