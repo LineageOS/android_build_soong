@@ -288,6 +288,10 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 
 	config.BuildOsVariant = config.Targets[BuildOs][0].String()
 	config.BuildOsCommonVariant = getCommonTargets(config.Targets[BuildOs])[0].String()
+	config.TestProductVariables.DeviceArch = proptools.StringPtr("arm64")
+	config.TestProductVariables.DeviceArchVariant = proptools.StringPtr("armv8-a")
+	config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm")
+	config.TestProductVariables.DeviceSecondaryArchVariant = proptools.StringPtr("armv7-a-neon")
 
 	return testConfig
 }
@@ -1099,4 +1103,24 @@ func (c *config) ProductPrivateSepolicyDirs() []string {
 
 func (c *config) ProductCompatibleProperty() bool {
 	return Bool(c.productVariables.ProductCompatibleProperty)
+}
+
+func (c *deviceConfig) BoardVndkRuntimeDisable() bool {
+	return Bool(c.config.productVariables.BoardVndkRuntimeDisable)
+}
+
+func (c *deviceConfig) DeviceArch() string {
+	return String(c.config.productVariables.DeviceArch)
+}
+
+func (c *deviceConfig) DeviceArchVariant() string {
+	return String(c.config.productVariables.DeviceArchVariant)
+}
+
+func (c *deviceConfig) DeviceSecondaryArch() string {
+	return String(c.config.productVariables.DeviceSecondaryArch)
+}
+
+func (c *deviceConfig) DeviceSecondaryArchVariant() string {
+	return String(c.config.productVariables.DeviceSecondaryArchVariant)
 }
