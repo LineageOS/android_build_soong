@@ -1,0 +1,8 @@
+{
+  "presubmit" : [
+    {
+      "name": "manifest_fixer_test",
+      "host": true
+    }
+  ]
+}

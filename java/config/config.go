@@ -142,7 +142,7 @@ func init() {
 
 	hostBinToolVariableWithPrebuilt("Aapt2Cmd", "prebuilts/sdk/tools", "aapt2")
 
-	pctx.SourcePathVariable("ManifestFixerCmd", "build/soong/scripts/manifest_fixer.py")
+	pctx.HostBinToolVariable("ManifestFixerCmd", "manifest_fixer")
 
 	pctx.HostBinToolVariable("ManifestMergerCmd", "manifest-merger")
 

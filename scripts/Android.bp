@@ -1,0 +1,33 @@
+python_binary_host {
+    name: "manifest_fixer",
+    main: "manifest_fixer.py",
+    srcs: [
+        "manifest_fixer.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+}
+
+python_test_host {
+    name: "manifest_fixer_test",
+    main: "manifest_fixer_test.py",
+    srcs: [
+        "manifest_fixer_test.py",
+        "manifest_fixer.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    test_suites: ["general-tests"],
+}
