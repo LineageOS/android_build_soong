@@ -1011,7 +1011,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 	}
 
-	if c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid() {
+	if c.installable() {
 		c.installer.install(ctx, c.outputFile.Path())
 		if ctx.Failed() {
 			return
@@ -1966,6 +1966,10 @@ func (c *Module) IsInstallableToApex() bool {
 		return shared.shared()
 	}
 	return false
+}
+
+func (c *Module) installable() bool {
+	return c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid()
 }
 
 func (c *Module) imageVariation() string {

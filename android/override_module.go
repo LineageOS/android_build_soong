@@ -84,8 +84,13 @@ type OverridableModule interface {
 	getOverrides() []OverrideModule
 
 	override(ctx BaseModuleContext, o OverrideModule)
+	getOverriddenBy() string
 
 	setOverridesProperty(overridesProperties *[]string)
+
+	// Due to complications with incoming dependencies, overrides are processed after DepsMutator.
+	// So, overridable properties need to be handled in a separate, dedicated deps mutator.
+	OverridablePropertiesDepsMutator(ctx BottomUpMutatorContext)
 }
 
 // Base module struct for overridable module types
@@ -106,6 +111,8 @@ type OverridableModuleBase struct {
 	// set this to a pointer to the property through the InitOverridableModule function, so that
 	// override information is propagated and aggregated correctly.
 	overridesProperty *[]string
+
+	overriddenBy string
 }
 
 func InitOverridableModule(m OverridableModule, overridesProperty *[]string) {
@@ -153,14 +160,23 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 			}
 		}
 	}
+	b.overriddenBy = o.Name()
+}
+
+func (b *OverridableModuleBase) getOverriddenBy() string {
+	return b.overriddenBy
+}
+
+func (b *OverridableModuleBase) OverridablePropertiesDepsMutator(ctx BottomUpMutatorContext) {
 }
 
 // Mutators for override/overridable modules. All the fun happens in these functions. It is critical
 // to keep them in this order and not put any order mutators between them.
-func RegisterOverridePreArchMutators(ctx RegisterMutatorsContext) {
+func RegisterOverridePostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("override_deps", overrideModuleDepsMutator).Parallel()
 	ctx.TopDown("register_override", registerOverrideMutator).Parallel()
 	ctx.BottomUp("perform_override", performOverrideMutator).Parallel()
+	ctx.BottomUp("overridable_deps", overridableModuleDepsMutator).Parallel()
 }
 
 type overrideBaseDependencyTag struct {
@@ -207,5 +223,22 @@ func performOverrideMutator(ctx BottomUpMutatorContext) {
 		for i, o := range overrides {
 			mods[i+1].(OverridableModule).override(ctx, o)
 		}
+	} else if o, ok := ctx.Module().(OverrideModule); ok {
+		// Create a variant of the overriding module with its own name. This matches the above local
+		// variant name rule for overridden modules, and thus allows ReplaceDependencies to match the
+		// two.
+		ctx.CreateLocalVariations(o.Name())
+	}
+}
+
+func overridableModuleDepsMutator(ctx BottomUpMutatorContext) {
+	if b, ok := ctx.Module().(OverridableModule); ok {
+		if o := b.getOverriddenBy(); o != "" {
+			// Redirect dependencies on the overriding module to this overridden module. Overriding
+			// modules are basically pseudo modules, and all build actions are associated to overridden
+			// modules. Therefore, dependencies on overriding modules need to be forwarded there as well.
+			ctx.ReplaceDependencies(o)
+		}
+		b.OverridablePropertiesDepsMutator(ctx)
 	}
 }
