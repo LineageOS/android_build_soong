@@ -52,14 +52,26 @@ func TestDexpreoptEnabled(t *testing.T) {
 				}`,
 			enabled: true,
 		},
-
 		{
 			name: "app without sources",
 			bp: `
 				android_app {
 					name: "foo",
 				}`,
-			// TODO(ccross): this should probably be false
+			enabled: false,
+		},
+		{
+			name: "app with libraries",
+			bp: `
+				android_app {
+					name: "foo",
+					static_libs: ["lib"],
+				}
+
+				java_library {
+					name: "lib",
+					srcs: ["a.java"],
+				}`,
 			enabled: true,
 		},
 		{
@@ -69,10 +81,8 @@ func TestDexpreoptEnabled(t *testing.T) {
 					name: "foo",
 					installable: true,
 				}`,
-			// TODO(ccross): this should probably be false
-			enabled: true,
+			enabled: false,
 		},
-
 		{
 			name: "static java library",
 			bp: `
