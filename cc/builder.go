@@ -254,11 +254,12 @@ type builderFlags struct {
 
 	groupStaticLibs bool
 
-	stripKeepSymbols       bool
-	stripKeepSymbolsList   string
-	stripKeepMiniDebugInfo bool
-	stripAddGnuDebuglink   bool
-	stripUseGnuStrip       bool
+	stripKeepSymbols              bool
+	stripKeepSymbolsList          string
+	stripKeepSymbolsAndDebugFrame bool
+	stripKeepMiniDebugInfo        bool
+	stripAddGnuDebuglink          bool
+	stripUseGnuStrip              bool
 
 	proto            android.ProtoFlags
 	protoC           bool
@@ -838,6 +839,9 @@ func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
 	}
 	if flags.stripKeepSymbolsList != "" {
 		args += " -k" + flags.stripKeepSymbolsList
+	}
+	if flags.stripKeepSymbolsAndDebugFrame {
+		args += " --keep-symbols-and-debug-frame"
 	}
 	if flags.stripUseGnuStrip {
 		args += " --use-gnu-strip"
