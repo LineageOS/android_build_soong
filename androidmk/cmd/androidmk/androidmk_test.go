@@ -1119,6 +1119,45 @@ prebuilt_usr_share_host {
 `,
 	},
 	{
+		desc: "prebuilt_font",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := font.ttf
+LOCAL_SRC_FILES := $(LOCAL_MODULE)
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH := $(TARGET_OUT)/fonts
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_font {
+	name: "font.ttf",
+	src: "font.ttf",
+
+}
+`,
+	},
+	{
+		desc: "prebuilt_font",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := font.ttf
+LOCAL_SRC_FILES := $(LOCAL_MODULE)
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT)/fonts
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_font {
+	name: "font.ttf",
+	src: "font.ttf",
+	product_specific: true,
+
+}
+`,
+	},
+	{
 		desc: "prebuilt_usr_share_host subdir_bar",
 		in: `
 include $(CLEAR_VARS)
