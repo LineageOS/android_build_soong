@@ -52,64 +52,13 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func createTestContext(t *testing.T, config android.Config, bp string, fs map[string][]byte,
-	os android.OsType) *android.TestContext {
-
-	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(BinaryFactory))
-	ctx.RegisterModuleType("cc_binary_host", android.ModuleFactoryAdaptor(binaryHostFactory))
-	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
-	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
-	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(LibraryStaticFactory))
-	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(LibraryHeaderFactory))
-	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(ToolchainLibraryFactory))
-	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(LlndkLibraryFactory))
-	ctx.RegisterModuleType("llndk_headers", android.ModuleFactoryAdaptor(llndkHeadersFactory))
-	ctx.RegisterModuleType("vendor_public_library", android.ModuleFactoryAdaptor(vendorPublicLibraryFactory))
-	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(ObjectFactory))
-	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", ImageMutator).Parallel()
-		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("vndk", VndkMutator).Parallel()
-		ctx.BottomUp("version", VersionMutator).Parallel()
-		ctx.BottomUp("begin", BeginMutator).Parallel()
-	})
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
-	})
-	ctx.RegisterSingletonType("vndk-snapshot", android.SingletonFactoryAdaptor(VndkSnapshotSingleton))
-
-	// add some modules that are required by the compiler and/or linker
-	bp = bp + GatherRequiredDepsForTest(os)
-
-	mockFS := map[string][]byte{
-		"Android.bp":  []byte(bp),
-		"foo.c":       nil,
-		"bar.c":       nil,
-		"a.proto":     nil,
-		"b.aidl":      nil,
-		"my_include":  nil,
-		"foo.map.txt": nil,
-		"liba.so":     nil,
-	}
-
-	for k, v := range fs {
-		mockFS[k] = v
-	}
-
-	ctx.MockFileSystem(mockFS)
-
-	return ctx
-}
-
 func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.TestContext {
 	return testCcWithConfigForOs(t, bp, config, android.Android)
 }
 
 func testCcWithConfigForOs(t *testing.T, bp string, config android.Config, os android.OsType) *android.TestContext {
 	t.Helper()
-	ctx := createTestContext(t, config, bp, nil, os)
+	ctx := CreateTestContext(bp, nil, os)
 	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -143,7 +92,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
-	ctx := createTestContext(t, config, bp, nil, android.Android)
+	ctx := CreateTestContext(bp, nil, android.Android)
 	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
