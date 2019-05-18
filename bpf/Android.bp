@@ -21,10 +21,14 @@ bootstrap_go_package {
         "blueprint",
         "blueprint-proptools",
         "soong-android",
+        "soong-cc",
         "soong-cc-config",
     ],
     srcs: [
         "bpf.go",
+    ],
+    testSrcs: [
+        "bpf_test.go",
     ],
     pluginFor: ["soong_build"],
 }
