@@ -142,6 +142,7 @@ func init() {
 
 	hostBinToolVariableWithPrebuilt("Aapt2Cmd", "prebuilts/sdk/tools", "aapt2")
 
+	pctx.HostBinToolVariable("ManifestCheckCmd", "manifest_check")
 	pctx.HostBinToolVariable("ManifestFixerCmd", "manifest_fixer")
 
 	pctx.HostBinToolVariable("ManifestMergerCmd", "manifest-merger")
