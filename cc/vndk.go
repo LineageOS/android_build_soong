@@ -49,6 +49,10 @@ type VndkProperties struct {
 
 		// Extending another module
 		Extends *string
+
+		// for vndk_prebuilt_shared, this is set by "version" property.
+		// Otherwise, this is set as PLATFORM_VNDK_VERSION.
+		Version string `blueprint:"mutated"`
 	}
 }
 
@@ -323,6 +327,14 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 
 	if !m.Enabled() {
 		return
+	}
+
+	if m.isVndk() {
+		if lib, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
+			m.vndkdep.Properties.Vndk.Version = lib.version()
+		} else {
+			m.vndkdep.Properties.Vndk.Version = mctx.DeviceConfig().PlatformVndkVersion()
+		}
 	}
 
 	if _, ok := m.linker.(*llndkStubDecorator); ok {
