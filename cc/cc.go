@@ -600,6 +600,9 @@ func (c *Module) HasStubsVariants() bool {
 	if library, ok := c.linker.(*libraryDecorator); ok {
 		return len(library.Properties.Stubs.Versions) > 0
 	}
+	if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+		return len(library.Properties.Stubs.Versions) > 0
+	}
 	return false
 }
 
@@ -617,6 +620,13 @@ func isBionic(name string) bool {
 		return true
 	}
 	return false
+}
+
+func installToBootstrap(name string, config android.Config) bool {
+	if name == "libclang_rt.hwasan-aarch64-android" {
+		return inList("hwaddress", config.SanitizeDevice())
+	}
+	return isBionic(name)
 }
 
 type baseModuleContext struct {
