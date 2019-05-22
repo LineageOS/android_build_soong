@@ -28,6 +28,7 @@
 #   --add-gnu-debuglink
 #   --keep-mini-debug-info
 #   --keep-symbols
+#   --keep-symbols-and-debug-frame
 #   --use-gnu-strip
 #   --remove-build-id
 
@@ -39,11 +40,12 @@ usage() {
     cat <<EOF
 Usage: strip.sh [options] -k symbols -i in-file -o out-file -d deps-file
 Options:
-        --add-gnu-debuglink     Add a gnu-debuglink section to out-file
-        --keep-mini-debug-info  Keep compressed debug info in out-file
-        --keep-symbols          Keep symbols in out-file
-        --use-gnu-strip         Use strip/objcopy instead of llvm-{strip,objcopy}
-        --remove-build-id       Remove the gnu build-id section in out-file
+        --add-gnu-debuglink             Add a gnu-debuglink section to out-file
+        --keep-mini-debug-info          Keep compressed debug info in out-file
+        --keep-symbols                  Keep symbols in out-file
+        --keep-symbols-and-debug-frame  Keep symbols and .debug_frame in out-file
+        --use-gnu-strip                 Use strip/objcopy instead of llvm-{strip,objcopy}
+        --remove-build-id               Remove the gnu build-id section in out-file
 EOF
     exit 1
 }
@@ -60,6 +62,15 @@ do_strip() {
         "${CLANG_BIN}/llvm-strip" --strip-all -keep-section=.ARM.attributes "${infile}" -o "${outfile}.tmp"
     else
         "${CROSS_COMPILE}strip" --strip-all "${infile}" -o "${outfile}.tmp"
+    fi
+}
+
+do_strip_keep_symbols_and_debug_frame() {
+    REMOVE_SECTIONS=`"${CROSS_COMPILE}readelf" -S "${infile}" | awk '/.debug_/ {if ($2 != ".debug_frame") {print "--remove-section " $2}}' | xargs`
+    if [ -z "${use_gnu_strip}" ]; then
+        "${CLANG_BIN}/llvm-objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
+    else
+        "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${REMOVE_SECTIONS}
     fi
 }
 
@@ -148,6 +159,7 @@ while getopts $OPTSTRING opt; do
                 add-gnu-debuglink) add_gnu_debuglink=true ;;
                 keep-mini-debug-info) keep_mini_debug_info=true ;;
                 keep-symbols) keep_symbols=true ;;
+                keep-symbols-and-debug-frame) keep_symbols_and_debug_frame=true ;;
                 remove-build-id) remove_build_id=true ;;
                 use-gnu-strip) use_gnu_strip=true ;;
                 *) echo "Unknown option --${OPTARG}"; usage ;;
@@ -177,6 +189,16 @@ if [ ! -z "${keep_symbols}" -a ! -z "${keep_mini_debug_info}" ]; then
     usage
 fi
 
+if [ ! -z "${keep_symbols}" -a ! -z "${keep_symbols_and_debug_frame}" ]; then
+    echo "--keep-symbols and --keep-symbols-and-debug-frame cannot be used together"
+    usage
+fi
+
+if [ ! -z "${keep_mini_debug_info}" -a ! -z "${keep_symbols_and_debug_frame}" ]; then
+    echo "--keep-symbols-mini-debug-info and --keep-symbols-and-debug-frame cannot be used together"
+    usage
+fi
+
 if [ ! -z "${symbols_to_keep}" -a ! -z "${keep_symbols}" ]; then
     echo "--keep-symbols and -k cannot be used together"
     usage
@@ -195,6 +217,8 @@ elif [ ! -z "${symbols_to_keep}" ]; then
     do_strip_keep_symbol_list
 elif [ ! -z "${keep_mini_debug_info}" ]; then
     do_strip_keep_mini_debug_info
+elif [ ! -z "${keep_symbols_and_debug_frame}" ]; then
+    do_strip_keep_symbols_and_debug_frame
 else
     do_strip
 fi
