@@ -957,7 +957,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 					library.baseInstaller.subDir += "-" + vndkVersion
 				}
 			}
-		} else if len(library.Properties.Stubs.Versions) > 0 {
+		} else if len(library.Properties.Stubs.Versions) > 0 && android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
 			// Bionic libraries (e.g. libc.so) is installed to the bootstrap subdirectory.
 			// The original path becomes a symlink to the corresponding file in the
 			// runtime APEX.
