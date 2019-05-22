@@ -123,11 +123,11 @@ var (
 	_ = pctx.SourcePathVariable("xzCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/xz")
 
 	// b/132822437: objcopy uses a file descriptor per .o file when called on .a files, which runs the system out of
-	// file descriptors on darwin.  Limit concurrent calls to 10 on darwin.
+	// file descriptors on darwin.  Limit concurrent calls to 5 on darwin.
 	darwinStripPool = func() blueprint.Pool {
 		if runtime.GOOS == "darwin" {
 			return pctx.StaticPool("darwinStripPool", blueprint.PoolParams{
-				Depth: 10,
+				Depth: 5,
 			})
 		} else {
 			return nil
