@@ -45,6 +45,8 @@ func GatherRequiredDepsForTest() string {
 		"core.current.stubs",
 		"core.platform.api.stubs",
 		"kotlin-stdlib",
+		"kotlin-stdlib-jdk7",
+		"kotlin-stdlib-jdk8",
 		"kotlin-annotations",
 	}
 
