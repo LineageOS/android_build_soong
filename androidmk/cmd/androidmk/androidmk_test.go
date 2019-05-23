@@ -809,6 +809,7 @@ include $(CLEAR_VARS)
 LOCAL_PACKAGE_NAME := FooTest
 LOCAL_COMPATIBILITY_SUITE := cts
 LOCAL_CTS_TEST_PACKAGE := foo.bar
+LOCAL_COMPATIBILITY_SUPPORT_FILES := file1
 include $(BUILD_CTS_PACKAGE)
 `,
 		expected: `
@@ -817,6 +818,7 @@ android_test {
     defaults: ["cts_defaults"],
     test_suites: ["cts"],
 
+    data: ["file1"],
 }
 `,
 	},
