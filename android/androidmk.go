@@ -28,10 +28,6 @@ import (
 	"github.com/google/blueprint/bootstrap"
 )
 
-var (
-	NativeBridgeSuffix = ".native_bridge"
-)
-
 func init() {
 	RegisterSingletonType("androidmk", AndroidMkSingleton)
 }
@@ -163,10 +159,6 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 			fmt.Fprintf(&a.header, "$(call dist-for-goals,%s,%s:%s)\n",
 				goals, distFile.String(), dest)
 		}
-	}
-
-	if amod.Target().NativeBridge {
-		a.SubName += NativeBridgeSuffix
 	}
 
 	fmt.Fprintln(&a.header, "\ninclude $(CLEAR_VARS)")
