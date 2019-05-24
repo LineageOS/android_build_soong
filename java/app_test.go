@@ -1178,3 +1178,64 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 		}
 	}
 }
+
+func TestStl(t *testing.T) {
+	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		cc_library {
+			name: "libjni",
+		}
+
+		android_test {
+			name: "stl",
+			jni_libs: ["libjni"],
+			compile_multilib: "both",
+			sdk_version: "current",
+			stl: "c++_shared",
+		}
+
+		android_test {
+			name: "system",
+			jni_libs: ["libjni"],
+			compile_multilib: "both",
+			sdk_version: "current",
+		}
+		`)
+
+	testCases := []struct {
+		name string
+		jnis []string
+	}{
+		{"stl",
+			[]string{
+				"libjni.so",
+				"libc++.so",
+			},
+		},
+		{"system",
+			[]string{
+				"libjni.so",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			app := ctx.ModuleForTests(test.name, "android_common")
+			jniLibZip := app.Output("jnilibs.zip")
+			var jnis []string
+			args := strings.Fields(jniLibZip.Args["jarArgs"])
+			for i := 0; i < len(args); i++ {
+				if args[i] == "-f" {
+					jnis = append(jnis, args[i+1])
+					i += 1
+				}
+			}
+			jnisJoined := strings.Join(jnis, " ")
+			for _, jni := range test.jnis {
+				if !strings.Contains(jnisJoined, jni) {
+					t.Errorf("missing jni %q in %q", jni, jnis)
+				}
+			}
+		})
+	}
+}
