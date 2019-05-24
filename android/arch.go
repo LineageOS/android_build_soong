@@ -1505,10 +1505,10 @@ func hasArmAbi(arch Arch) bool {
 	return false
 }
 
-// hasArmArch returns true if targets has at least arm Android arch
+// hasArmArch returns true if targets has at least non-native_bridge arm Android arch
 func hasArmAndroidArch(targets []Target) bool {
 	for _, target := range targets {
-		if target.Os == Android && target.Arch.ArchType == Arm {
+		if target.Os == Android && target.Arch.ArchType == Arm && target.NativeBridge == NativeBridgeDisabled {
 			return true
 		}
 	}
