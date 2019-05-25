@@ -90,6 +90,9 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.makeLinkType)
 				if c.useVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
+					if c.isVndk() && !c.static() {
+						fmt.Fprintln(w, "LOCAL_SOONG_VNDK_VERSION := "+c.vndkVersion())
+					}
 				}
 			},
 		},
