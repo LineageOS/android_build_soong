@@ -206,7 +206,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// Not used, but useful to be in the soong.log
 		"BOARD_VNDK_VERSION",
 		"BUILD_BROKEN_ANDROIDMK_EXPORTS",
-		"BUILD_BROKEN_ENG_DEBUG_TAGS",
 
 		"DEFAULT_WARNING_BUILD_MODULE_TYPES",
 		"DEFAULT_ERROR_BUILD_MODULE_TYPES",
