@@ -70,13 +70,6 @@ var buildBrokenSettings = []struct {
 		warnings: []string{"export_keyword"},
 	},
 	{
-		name:     "BUILD_BROKEN_ENG_DEBUG_TAGS",
-		behavior: DefaultDeprecated,
-		warnings: []string{
-			"Changes.md#LOCAL_MODULE_TAGS",
-		},
-	},
-	{
 		name:     "BUILD_BROKEN_USES_NETWORK",
 		behavior: DefaultDeprecated,
 	},
