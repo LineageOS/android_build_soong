@@ -1,10 +1,11 @@
 package android
 
 import (
-	"github.com/google/blueprint"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/google/blueprint"
 )
 
 var visibilityTests = []struct {
@@ -198,9 +199,16 @@ var visibilityTests = []struct {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
+			"other/Blueprints": []byte(`
+				mock_library {
+					name: "libother",
+					deps: ["libexample"],
+				}`),
 		},
 		expectedErrors: []string{
 			`module "libnested" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module; //top:libexample is only visible to \[//top:__pkg__\]`,
+			`module "libother" variant "android_common": depends on //top:libexample which is not` +
 				` visible to this module; //top:libexample is only visible to \[//top:__pkg__\]`,
 		},
 	},
@@ -223,9 +231,16 @@ var visibilityTests = []struct {
 					name: "libnested",
 					deps: ["libexample"],
 				}`),
+			"other/Blueprints": []byte(`
+				mock_library {
+					name: "libother",
+					deps: ["libexample"],
+				}`),
 		},
 		expectedErrors: []string{
 			`module "libnested" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module; //top:libexample is only visible to \[//top:__pkg__\]`,
+			`module "libother" variant "android_common": depends on //top:libexample which is not` +
 				` visible to this module; //top:libexample is only visible to \[//top:__pkg__\]`,
 		},
 	},
