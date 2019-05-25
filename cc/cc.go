@@ -534,6 +534,13 @@ func (c *Module) isVndk() bool {
 	return false
 }
 
+func (c *Module) vndkVersion() string {
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		return vndkdep.Properties.Vndk.Version
+	}
+	return ""
+}
+
 func (c *Module) isPgoCompile() bool {
 	if pgo := c.pgo; pgo != nil {
 		return pgo.Properties.PgoCompile
@@ -1826,7 +1833,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			} else if ccDep.inRecovery() && !ccDep.onlyInRecovery() {
 				return libName + recoverySuffix
 			} else if ccDep.Target().NativeBridge == android.NativeBridgeEnabled {
-				return libName + android.NativeBridgeSuffix
+				return libName + nativeBridgeSuffix
 			} else {
 				return libName
 			}

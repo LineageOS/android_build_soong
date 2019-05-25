@@ -809,6 +809,7 @@ include $(CLEAR_VARS)
 LOCAL_PACKAGE_NAME := FooTest
 LOCAL_COMPATIBILITY_SUITE := cts
 LOCAL_CTS_TEST_PACKAGE := foo.bar
+LOCAL_COMPATIBILITY_SUPPORT_FILES := file1
 include $(BUILD_CTS_PACKAGE)
 `,
 		expected: `
@@ -817,6 +818,7 @@ android_test {
     defaults: ["cts_defaults"],
     test_suites: ["cts"],
 
+    data: ["file1"],
 }
 `,
 	},
@@ -1234,6 +1236,32 @@ android_app {
 
 }
 		`,
+	},
+	{
+		desc: "android_app_import",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_SRC_FILES := foo.apk
+LOCAL_PRIVILEGED_MODULE := true
+LOCAL_MODULE_CLASS := APPS
+LOCAL_MODULE_TAGS := optional
+LOCAL_DEX_PREOPT := false
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+android_app_import {
+	name: "foo",
+
+	privileged: true,
+
+	dex_preopt: {
+		enabled: false,
+	},
+	apk: "foo.apk",
+
+}
+`,
 	},
 }
 

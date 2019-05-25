@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	vendorSuffix   = ".vendor"
-	recoverySuffix = ".recovery"
+	nativeBridgeSuffix = ".native_bridge"
+	vendorSuffix       = ".vendor"
+	recoverySuffix     = ".recovery"
 )
 
 type AndroidMkContext interface {
@@ -89,6 +90,9 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.makeLinkType)
 				if c.useVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
+					if c.isVndk() && !c.static() {
+						fmt.Fprintln(w, "LOCAL_SOONG_VNDK_VERSION := "+c.vndkVersion())
+					}
 				}
 			},
 		},
@@ -104,6 +108,10 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 		c.subAndroidMk(&ret, c.sanitize)
 	}
 	c.subAndroidMk(&ret, c.installer)
+
+	if c.Target().NativeBridge == android.NativeBridgeEnabled {
+		ret.SubName += nativeBridgeSuffix
+	}
 
 	if c.useVndk() && c.hasVendorVariant() {
 		// .vendor suffix is added only when we will have two variants: core and vendor.
@@ -132,6 +140,18 @@ func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, ret *andro
 			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(testFiles, " "))
 		})
 	}
+}
+
+func makeOverrideModuleNames(ctx AndroidMkContext, overrides []string) []string {
+	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
+		var result []string
+		for _, override := range overrides {
+			result = append(result, override+nativeBridgeSuffix)
+		}
+		return result
+	}
+
+	return overrides
 }
 
 func (library *libraryDecorator) androidMkWriteExportedFlags(w io.Writer) {
@@ -166,7 +186,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
 			}
 			if len(library.Properties.Overrides) > 0 {
-				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(library.Properties.Overrides, " "))
+				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(makeOverrideModuleNames(ctx, library.Properties.Overrides), " "))
 			}
 			if len(library.post_install_cmds) > 0 {
 				fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD := "+strings.Join(library.post_install_cmds, "&& "))
@@ -241,7 +261,7 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 		}
 
 		if len(binary.Properties.Overrides) > 0 {
-			fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(binary.Properties.Overrides, " "))
+			fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES := "+strings.Join(makeOverrideModuleNames(ctx, binary.Properties.Overrides), " "))
 		}
 		if len(binary.post_install_cmds) > 0 {
 			fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD := "+strings.Join(binary.post_install_cmds, "&& "))

@@ -123,6 +123,7 @@ func init() {
 			"LOCAL_SYSTEM_SHARED_LIBRARIES":       "system_shared_libs",
 			"LOCAL_ASFLAGS":                       "asflags",
 			"LOCAL_CLANG_ASFLAGS":                 "clang_asflags",
+			"LOCAL_COMPATIBILITY_SUPPORT_FILES":   "data",
 			"LOCAL_CONLYFLAGS":                    "conlyflags",
 			"LOCAL_CPPFLAGS":                      "cppflags",
 			"LOCAL_REQUIRED_MODULES":              "required",
@@ -936,6 +937,7 @@ var prebuiltTypes = map[string]string{
 	"STATIC_LIBRARIES": "cc_prebuilt_library_static",
 	"EXECUTABLES":      "cc_prebuilt_binary",
 	"JAVA_LIBRARIES":   "java_import",
+	"APPS":             "android_app_import",
 	"ETC":              "prebuilt_etc",
 }
 
