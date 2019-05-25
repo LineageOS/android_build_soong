@@ -534,6 +534,13 @@ func (c *Module) isVndk() bool {
 	return false
 }
 
+func (c *Module) vndkVersion() string {
+	if vndkdep := c.vndkdep; vndkdep != nil {
+		return vndkdep.Properties.Vndk.Version
+	}
+	return ""
+}
+
 func (c *Module) isPgoCompile() bool {
 	if pgo := c.pgo; pgo != nil {
 		return pgo.Properties.PgoCompile
