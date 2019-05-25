@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	vendorSuffix   = ".vendor"
-	recoverySuffix = ".recovery"
+	nativeBridgeSuffix = ".native_bridge"
+	vendorSuffix       = ".vendor"
+	recoverySuffix     = ".recovery"
 )
 
 type AndroidMkContext interface {
@@ -104,6 +105,10 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 		c.subAndroidMk(&ret, c.sanitize)
 	}
 	c.subAndroidMk(&ret, c.installer)
+
+	if c.Target().NativeBridge == android.NativeBridgeEnabled {
+		ret.SubName += nativeBridgeSuffix
+	}
 
 	if c.useVndk() && c.hasVendorVariant() {
 		// .vendor suffix is added only when we will have two variants: core and vendor.
