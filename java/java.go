@@ -1270,9 +1270,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			return
 		}
 
-		// Hidden API CSV generation and dex encoding
-		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
-			j.deviceProperties.UncompressDex)
+		if !ctx.Config().UnbundledBuild() {
+			// Hidden API CSV generation and dex encoding
+			dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
+				j.deviceProperties.UncompressDex)
+		}
 
 		// merge dex jar with resources if necessary
 		if j.resourceJar != nil {
