@@ -1,0 +1,71 @@
+python_binary_host {
+    name: "manifest_fixer",
+    main: "manifest_fixer.py",
+    srcs: [
+        "manifest_fixer.py",
+        "manifest.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+}
+
+python_test_host {
+    name: "manifest_fixer_test",
+    main: "manifest_fixer_test.py",
+    srcs: [
+        "manifest_fixer_test.py",
+        "manifest_fixer.py",
+        "manifest.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    test_suites: ["general-tests"],
+}
+
+python_binary_host {
+    name: "manifest_check",
+    main: "manifest_check.py",
+    srcs: [
+        "manifest_check.py",
+        "manifest.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+}
+
+python_test_host {
+    name: "manifest_check_test",
+    main: "manifest_check_test.py",
+    srcs: [
+        "manifest_check_test.py",
+        "manifest_check.py",
+        "manifest.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    test_suites: ["general-tests"],
+}
