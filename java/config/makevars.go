@@ -73,6 +73,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("EXTRACT_JAR_PACKAGES", "${ExtractJarPackagesCmd}")
 
+	ctx.Strict("MANIFEST_CHECK", "${ManifestCheckCmd}")
 	ctx.Strict("MANIFEST_FIXER", "${ManifestFixerCmd}")
 
 	ctx.Strict("ANDROID_MANIFEST_MERGER", "${ManifestMergerCmd}")
