@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Unit tests for manifest_fixer_test.py."""
+"""Unit tests for manifest_fixer.py."""
 
 import StringIO
 import sys
@@ -393,10 +393,10 @@ class AddExtractNativeLibsTest(unittest.TestCase):
     return output.getvalue()
 
   manifest_tmpl = (
-    '<?xml version="1.0" encoding="utf-8"?>\n'
-    '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
-    '    <application%s/>\n'
-    '</manifest>\n')
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+      '    <application%s/>\n'
+      '</manifest>\n')
 
   def extract_native_libs(self, value):
     return ' android:extractNativeLibs="%s"' % value
@@ -425,4 +425,4 @@ class AddExtractNativeLibsTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  unittest.main(verbosity=2)
