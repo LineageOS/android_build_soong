@@ -81,6 +81,8 @@ types are:
 Maps may values of any type, including nested maps.  Lists and maps may have
 trailing commas after the last value.
 
+Strings can contain double quotes using `\"`, for example `"cat \"a b\""`.
+
 ### Operators
 
 Strings, lists of strings, and maps can be appended using the `+` operator.
