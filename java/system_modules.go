@@ -87,11 +87,13 @@ func SystemModulesFactory() android.Module {
 	module := &SystemModules{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	return module
 }
 
 type SystemModules struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
 	properties SystemModulesProperties
 
