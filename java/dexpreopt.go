@@ -29,6 +29,12 @@ type dexpreopter struct {
 	isInstallable       bool
 	isPresignedPrebuilt bool
 
+	manifestFile     android.Path
+	usesLibs         []string
+	optionalUsesLibs []string
+	enforceUsesLibs  bool
+	libraryPaths     map[string]android.Path
+
 	builtInstalled string
 }
 
@@ -154,6 +160,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		DexLocation:     dexLocation,
 		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").OutputPath,
 		DexPath:         dexJarFile,
+		ManifestPath:    d.manifestFile,
 		UncompressedDex: d.uncompressedDex,
 		HasApkLibraries: false,
 		PreoptFlags:     nil,
@@ -161,10 +168,10 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		ProfileClassListing:  profileClassListing,
 		ProfileIsTextListing: profileIsTextListing,
 
-		EnforceUsesLibraries:  false,
-		OptionalUsesLibraries: nil,
-		UsesLibraries:         nil,
-		LibraryPaths:          nil,
+		EnforceUsesLibraries:         d.enforceUsesLibs,
+		PresentOptionalUsesLibraries: d.optionalUsesLibs,
+		UsesLibraries:                d.usesLibs,
+		LibraryPaths:                 d.libraryPaths,
 
 		Archs:           archs,
 		DexPreoptImages: images,
