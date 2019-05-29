@@ -71,7 +71,17 @@ type visibilityRule interface {
 	String() string
 }
 
-// A compositeRule is a visibility rule composed from other visibility rules.
+// A compositeRule is a visibility rule composed from a list of atomic visibility rules.
+//
+// The list corresponds to the list of strings in the visibility property after defaults expansion.
+// Even though //visibility:public is not allowed together with other rules in the visibility list
+// of a single module, it is allowed here to permit a module to override an inherited visibility
+// spec with public visibility.
+//
+// //visibility:private is not allowed in the same way, since we'd need to check for it during the
+// defaults expansion to make that work. No non-private visibility rules are allowed in a
+// compositeRule containing a privateRule.
+//
 // This array will only be [] if all the rules are invalid and will behave as if visibility was
 // ["//visibility:private"].
 type compositeRule []visibilityRule
@@ -126,6 +136,28 @@ func (r subpackagesRule) String() string {
 	return fmt.Sprintf("//%s:__subpackages__", r.pkgPrefix)
 }
 
+// visibilityRule for //visibility:public
+type publicRule struct{}
+
+func (r publicRule) matches(_ qualifiedModuleName) bool {
+	return true
+}
+
+func (r publicRule) String() string {
+	return "//visibility:public"
+}
+
+// visibilityRule for //visibility:private
+type privateRule struct{}
+
+func (r privateRule) matches(_ qualifiedModuleName) bool {
+	return false
+}
+
+func (r privateRule) String() string {
+	return "//visibility:private"
+}
+
 var visibilityRuleMap = NewOnceKey("visibilityRuleMap")
 
 // The map from qualifiedModuleName to visibilityRule.
@@ -135,8 +167,15 @@ func moduleToVisibilityRuleMap(ctx BaseModuleContext) *sync.Map {
 	}).(*sync.Map)
 }
 
+// The rule checker needs to be registered before defaults expansion to correctly check that
+// //visibility:xxx isn't combined with other packages in the same list in any one module.
+func registerVisibilityRuleChecker(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("visibilityRuleChecker", visibilityRuleChecker).Parallel()
+}
+
 // Visibility is not dependent on arch so this must be registered before the arch phase to avoid
-// having to process multiple variants for each module.
+// having to process multiple variants for each module. This goes after defaults expansion to gather
+// the complete visibility lists from flat lists.
 func registerVisibilityRuleGatherer(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("visibilityRuleGatherer", visibilityRuleGatherer).Parallel()
 }
@@ -146,11 +185,80 @@ func registerVisibilityRuleEnforcer(ctx RegisterMutatorsContext) {
 	ctx.TopDown("visibilityRuleEnforcer", visibilityRuleEnforcer).Parallel()
 }
 
-// Gathers the visibility rules, parses the visibility properties, stores them in a map by
-// qualifiedModuleName for retrieval during enforcement.
+// Checks the per-module visibility rule lists before defaults expansion.
+func visibilityRuleChecker(ctx BottomUpMutatorContext) {
+	qualified := createQualifiedModuleName(ctx)
+	if d, ok := ctx.Module().(Defaults); ok {
+		// Defaults modules don't store the payload properties in m.base().
+		for _, props := range d.properties() {
+			if cp, ok := props.(*commonProperties); ok {
+				if visibility := cp.Visibility; visibility != nil {
+					checkRules(ctx, qualified.pkg, visibility)
+				}
+			}
+		}
+	} else if m, ok := ctx.Module().(Module); ok {
+		if visibility := m.base().commonProperties.Visibility; visibility != nil {
+			checkRules(ctx, qualified.pkg, visibility)
+		}
+	}
+}
+
+func checkRules(ctx BottomUpMutatorContext, currentPkg string, visibility []string) {
+	ruleCount := len(visibility)
+	if ruleCount == 0 {
+		// This prohibits an empty list as its meaning is unclear, e.g. it could mean no visibility and
+		// it could mean public visibility. Requiring at least one rule makes the owner's intent
+		// clearer.
+		ctx.PropertyErrorf("visibility", "must contain at least one visibility rule")
+		return
+	}
+
+	for _, v := range visibility {
+		ok, pkg, name := splitRule(ctx, v, currentPkg)
+		if !ok {
+			// Visibility rule is invalid so ignore it. Keep going rather than aborting straight away to
+			// ensure all the rules on this module are checked.
+			ctx.PropertyErrorf("visibility",
+				"invalid visibility pattern %q must match"+
+					" //<package>:<module>, //<package> or :<module>",
+				v)
+			continue
+		}
+
+		if pkg == "visibility" {
+			switch name {
+			case "private", "public":
+			case "legacy_public":
+				ctx.PropertyErrorf("visibility", "//visibility:legacy_public must not be used")
+				continue
+			default:
+				ctx.PropertyErrorf("visibility", "unrecognized visibility rule %q", v)
+				continue
+			}
+			if ruleCount != 1 {
+				ctx.PropertyErrorf("visibility", "cannot mix %q with any other visibility rules", v)
+				continue
+			}
+		}
+
+		// If the current directory is not in the vendor tree then there are some additional
+		// restrictions on the rules.
+		if !isAncestor("vendor", currentPkg) {
+			if !isAllowedFromOutsideVendor(pkg, name) {
+				ctx.PropertyErrorf("visibility",
+					"%q is not allowed. Packages outside //vendor cannot make themselves visible to specific"+
+						" targets within //vendor, they can only use //vendor:__subpackages__.", v)
+				continue
+			}
+		}
+	}
+}
+
+// Gathers the flattened visibility rules after defaults expansion, parses the visibility
+// properties, stores them in a map by qualifiedModuleName for retrieval during enforcement.
 //
 // See ../README.md#Visibility for information on the format of the visibility rules.
-
 func visibilityRuleGatherer(ctx BottomUpMutatorContext) {
 	m, ok := ctx.Module().(Module)
 	if !ok {
@@ -169,72 +277,49 @@ func visibilityRuleGatherer(ctx BottomUpMutatorContext) {
 }
 
 func parseRules(ctx BottomUpMutatorContext, currentPkg string, visibility []string) compositeRule {
-	ruleCount := len(visibility)
-	if ruleCount == 0 {
-		// This prohibits an empty list as its meaning is unclear, e.g. it could mean no visibility and
-		// it could mean public visibility. Requiring at least one rule makes the owner's intent
-		// clearer.
-		ctx.PropertyErrorf("visibility", "must contain at least one visibility rule")
-		return nil
-	}
-
-	rules := make(compositeRule, 0, ruleCount)
+	rules := make(compositeRule, 0, len(visibility))
+	hasPrivateRule := false
+	hasNonPrivateRule := false
 	for _, v := range visibility {
 		ok, pkg, name := splitRule(ctx, v, currentPkg)
 		if !ok {
-			// Visibility rule is invalid so ignore it. Keep going rather than aborting straight away to
-			// ensure all the rules on this module are checked.
-			ctx.PropertyErrorf("visibility",
-				"invalid visibility pattern %q must match"+
-					" //<package>:<module>, //<package> or :<module>",
-				v)
 			continue
 		}
 
+		var r visibilityRule
+		isPrivateRule := false
 		if pkg == "visibility" {
-			if ruleCount != 1 {
-				ctx.PropertyErrorf("visibility", "cannot mix %q with any other visibility rules", v)
-				continue
-			}
 			switch name {
 			case "private":
-				rules = append(rules, packageRule{currentPkg})
-				continue
+				r = privateRule{}
+				isPrivateRule = true
 			case "public":
-				return nil
-			case "legacy_public":
-				ctx.PropertyErrorf("visibility", "//visibility:legacy_public must not be used")
-				return nil
+				r = publicRule{}
+			}
+		} else {
+			switch name {
+			case "__pkg__":
+				r = packageRule{pkg}
+			case "__subpackages__":
+				r = subpackagesRule{pkg}
 			default:
-				ctx.PropertyErrorf("visibility", "unrecognized visibility rule %q", v)
 				continue
 			}
 		}
 
-		// If the current directory is not in the vendor tree then there are some additional
-		// restrictions on the rules.
-		if !isAncestor("vendor", currentPkg) {
-			if !isAllowedFromOutsideVendor(pkg, name) {
-				ctx.PropertyErrorf("visibility",
-					"%q is not allowed. Packages outside //vendor cannot make themselves visible to specific"+
-						" targets within //vendor, they can only use //vendor:__subpackages__.", v)
-				continue
-			}
-		}
-
-		// Create the rule
-		var r visibilityRule
-		switch name {
-		case "__pkg__":
-			r = packageRule{pkg}
-		case "__subpackages__":
-			r = subpackagesRule{pkg}
-		default:
-			ctx.PropertyErrorf("visibility", "unrecognized visibility rule %q", v)
-			continue
+		if isPrivateRule {
+			hasPrivateRule = true
+		} else {
+			hasNonPrivateRule = true
 		}
 
 		rules = append(rules, r)
+	}
+
+	if hasPrivateRule && hasNonPrivateRule {
+		ctx.PropertyErrorf("visibility",
+			"cannot mix \"//visibility:private\" with any other visibility rules")
+		return compositeRule{privateRule{}}
 	}
 
 	return rules
@@ -274,8 +359,7 @@ func splitRule(ctx BaseModuleContext, ruleExpression string, currentPkg string) 
 }
 
 func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
-	_, ok := ctx.Module().(Module)
-	if !ok {
+	if _, ok := ctx.Module().(Module); !ok {
 		return
 	}
 
@@ -297,9 +381,7 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 		rule, ok := moduleToVisibilityRule.Load(depQualified)
 		if ok {
 			if !rule.(compositeRule).matches(qualified) {
-				ctx.ModuleErrorf(
-					"depends on %s which is not visible to this module; %s is only visible to %s",
-					depQualified, depQualified, rule)
+				ctx.ModuleErrorf("depends on %s which is not visible to this module", depQualified)
 			}
 		}
 	})
