@@ -95,14 +95,14 @@ type GlobalConfig struct {
 // Tools contains paths to tools possibly used by the generated commands.  If you add a new tool here you MUST add it
 // to the order-only dependency list in DEXPREOPT_GEN_DEPS.
 type Tools struct {
-	Profman  android.Path
-	Dex2oat  android.Path
-	Aapt     android.Path
-	SoongZip android.Path
-	Zip2zip  android.Path
+	Profman       android.Path
+	Dex2oat       android.Path
+	Aapt          android.Path
+	SoongZip      android.Path
+	Zip2zip       android.Path
+	ManifestCheck android.Path
 
-	VerifyUsesLibraries android.Path
-	ConstructContext    android.Path
+	ConstructContext android.Path
 }
 
 type ModuleConfig struct {
@@ -110,6 +110,7 @@ type ModuleConfig struct {
 	DexLocation     string // dex location on device
 	BuildPath       android.OutputPath
 	DexPath         android.Path
+	ManifestPath    android.Path
 	UncompressedDex bool
 	HasApkLibraries bool
 	PreoptFlags     []string
@@ -187,14 +188,14 @@ func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byt
 		BootImageProfiles []string
 
 		Tools struct {
-			Profman  string
-			Dex2oat  string
-			Aapt     string
-			SoongZip string
-			Zip2zip  string
+			Profman       string
+			Dex2oat       string
+			Aapt          string
+			SoongZip      string
+			Zip2zip       string
+			ManifestCheck string
 
-			VerifyUsesLibraries string
-			ConstructContext    string
+			ConstructContext string
 		}
 	}
 
@@ -214,7 +215,7 @@ func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byt
 	config.GlobalConfig.Tools.Aapt = constructPath(ctx, config.Tools.Aapt)
 	config.GlobalConfig.Tools.SoongZip = constructPath(ctx, config.Tools.SoongZip)
 	config.GlobalConfig.Tools.Zip2zip = constructPath(ctx, config.Tools.Zip2zip)
-	config.GlobalConfig.Tools.VerifyUsesLibraries = constructPath(ctx, config.Tools.VerifyUsesLibraries)
+	config.GlobalConfig.Tools.ManifestCheck = constructPath(ctx, config.Tools.ManifestCheck)
 	config.GlobalConfig.Tools.ConstructContext = constructPath(ctx, config.Tools.ConstructContext)
 
 	return config.GlobalConfig, data, nil
@@ -231,6 +232,7 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 		// used to construct the real value manually below.
 		BuildPath                   string
 		DexPath                     string
+		ManifestPath                string
 		ProfileClassListing         string
 		LibraryPaths                map[string]string
 		DexPreoptImages             []string
@@ -249,6 +251,7 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 	// Construct paths that require a PathContext.
 	config.ModuleConfig.BuildPath = constructPath(ctx, config.BuildPath).(android.OutputPath)
 	config.ModuleConfig.DexPath = constructPath(ctx, config.DexPath)
+	config.ModuleConfig.ManifestPath = constructPath(ctx, config.ManifestPath)
 	config.ModuleConfig.ProfileClassListing = android.OptionalPathForPath(constructPath(ctx, config.ProfileClassListing))
 	config.ModuleConfig.LibraryPaths = constructPathMap(ctx, config.LibraryPaths)
 	config.ModuleConfig.DexPreoptImages = constructPaths(ctx, config.DexPreoptImages)
@@ -324,13 +327,13 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		Dex2oatImageXmx:                    "",
 		Dex2oatImageXms:                    "",
 		Tools: Tools{
-			Profman:             android.PathForTesting("profman"),
-			Dex2oat:             android.PathForTesting("dex2oat"),
-			Aapt:                android.PathForTesting("aapt"),
-			SoongZip:            android.PathForTesting("soong_zip"),
-			Zip2zip:             android.PathForTesting("zip2zip"),
-			VerifyUsesLibraries: android.PathForTesting("verify_uses_libraries.sh"),
-			ConstructContext:    android.PathForTesting("construct_context.sh"),
+			Profman:          android.PathForTesting("profman"),
+			Dex2oat:          android.PathForTesting("dex2oat"),
+			Aapt:             android.PathForTesting("aapt"),
+			SoongZip:         android.PathForTesting("soong_zip"),
+			Zip2zip:          android.PathForTesting("zip2zip"),
+			ManifestCheck:    android.PathForTesting("manifest_check"),
+			ConstructContext: android.PathForTesting("construct_context.sh"),
 		},
 	}
 }
