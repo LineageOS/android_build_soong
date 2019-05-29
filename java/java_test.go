@@ -174,6 +174,8 @@ func testContext(config android.Config, bp string,
 
 		"build/soong/scripts/jar-wrapper.sh": nil,
 
+		"build/make/core/verify_uses_libraries.sh": nil,
+
 		"build/make/core/proguard.flags":             nil,
 		"build/make/core/proguard_basic_keeps.flags": nil,
 
