@@ -1103,10 +1103,6 @@ func (c *config) ProductCompatibleProperty() bool {
 	return Bool(c.productVariables.ProductCompatibleProperty)
 }
 
-func (c *config) MissingUsesLibraries() []string {
-	return c.productVariables.MissingUsesLibraries
-}
-
 func (c *deviceConfig) BoardVndkRuntimeDisable() bool {
 	return Bool(c.config.productVariables.BoardVndkRuntimeDisable)
 }

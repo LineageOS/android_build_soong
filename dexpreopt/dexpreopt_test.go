@@ -33,7 +33,7 @@ func testModuleConfig(ctx android.PathContext) ModuleConfig {
 		ProfileClassListing:             android.OptionalPath{},
 		ProfileIsTextListing:            false,
 		EnforceUsesLibraries:            false,
-		PresentOptionalUsesLibraries:    nil,
+		OptionalUsesLibraries:           nil,
 		UsesLibraries:                   nil,
 		LibraryPaths:                    nil,
 		Archs:                           []android.ArchType{android.Arm},

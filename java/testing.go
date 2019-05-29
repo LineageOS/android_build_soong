@@ -77,33 +77,6 @@ func GatherRequiredDepsForTest() string {
 			name: "framework-res",
 			no_framework_libs: true,
 		}
-
-		java_library {
-			name: "android.hidl.base-V1.0-java",
-			srcs: ["a.java"],
-			no_standard_libs: true,
-			sdk_version: "core_current",
-			system_modules: "core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-
-		java_library {
-			name: "android.hidl.manager-V1.0-java",
-			srcs: ["a.java"],
-			no_standard_libs: true,
-			sdk_version: "core_current",
-			system_modules: "core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-
-		java_library {
-			name: "org.apache.http.legacy",
-			srcs: ["a.java"],
-			no_standard_libs: true,
-			sdk_version: "core_current",
-			system_modules: "core-platform-api-stubs-system-modules",
-			installable: true,
-		}
 	`
 
 	systemModules := []string{
