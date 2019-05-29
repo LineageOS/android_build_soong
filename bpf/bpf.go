@@ -122,13 +122,18 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 	}
 }
 
-// Implements SourceFileProducer interface so that the obj output can be used in the data property
+// Implements OutputFileFileProducer interface so that the obj output can be used in the data property
 // of other modules.
-func (bpf *bpf) Srcs() android.Paths {
-	return bpf.objs
+func (bpf *bpf) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return bpf.objs, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
-var _ android.SourceFileProducer = (*bpf)(nil)
+var _ android.OutputFileProducer = (*bpf)(nil)
 
 func bpfFactory() android.Module {
 	module := &bpf{}
