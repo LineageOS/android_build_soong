@@ -65,6 +65,8 @@ type GlobalConfig struct {
 	AlwaysOtherDebugInfo        bool // always generate mini debug info for non-system server modules (overrides NoDebugInfo=true)
 	NeverOtherDebugInfo         bool // never generate mini debug info for non-system server modules (overrides NoDebugInfo=true)
 
+	MissingUsesLibraries []string // libraries that may be listed in OptionalUsesLibraries but will not be installed by the product
+
 	IsEng        bool // build is a eng variant
 	SanitizeLite bool // build is the second phase of a SANITIZE_LITE build
 
@@ -116,10 +118,10 @@ type ModuleConfig struct {
 	ProfileClassListing  android.OptionalPath
 	ProfileIsTextListing bool
 
-	EnforceUsesLibraries         bool
-	PresentOptionalUsesLibraries []string
-	UsesLibraries                []string
-	LibraryPaths                 map[string]android.Path
+	EnforceUsesLibraries  bool
+	OptionalUsesLibraries []string
+	UsesLibraries         []string
+	LibraryPaths          map[string]android.Path
 
 	Archs           []android.ArchType
 	DexPreoptImages []android.Path
@@ -308,6 +310,7 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		NeverSystemServerDebugInfo:         false,
 		AlwaysOtherDebugInfo:               false,
 		NeverOtherDebugInfo:                false,
+		MissingUsesLibraries:               nil,
 		IsEng:                              false,
 		SanitizeLite:                       false,
 		DefaultAppImages:                   false,
