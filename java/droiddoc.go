@@ -211,6 +211,7 @@ type JavadocProperties struct {
 	// Available variables for substitution:
 	//
 	//  $(location <label>): the path to the arg_files with name <label>
+	//  $$: a literal $
 	Args *string
 
 	// names of the output files used in args that will be generated
