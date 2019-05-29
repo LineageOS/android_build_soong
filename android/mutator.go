@@ -76,6 +76,7 @@ var preArch = []RegisterMutatorFunc{
 	registerLoadHookMutator,
 	RegisterNamespaceMutator,
 	RegisterPrebuiltsPreArchMutators,
+	registerVisibilityRuleChecker,
 	RegisterDefaultsPreArchMutators,
 	registerVisibilityRuleGatherer,
 }
