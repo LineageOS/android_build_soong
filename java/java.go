@@ -966,8 +966,6 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
-	hasSrcs := false
-
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)
 
 	deps := j.collectDeps(ctx)
@@ -982,9 +980,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	}
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
-	if len(srcFiles) > 0 {
-		hasSrcs = true
-	}
 
 	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
@@ -1181,7 +1176,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	if len(deps.staticJars) > 0 {
 		jars = append(jars, deps.staticJars...)
-		hasSrcs = true
 	}
 
 	manifest := j.overrideManifest
@@ -1293,7 +1287,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
-	if ctx.Device() && hasSrcs &&
+	if ctx.Device() && j.hasCode(ctx) &&
 		(Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
 		// Dex compilation
 		var dexOutputFile android.ModuleOutPath
@@ -1496,6 +1490,11 @@ func (j *Module) CompilerDeps() []string {
 	jdeps = append(jdeps, j.properties.Libs...)
 	jdeps = append(jdeps, j.properties.Static_libs...)
 	return jdeps
+}
+
+func (j *Module) hasCode(ctx android.ModuleContext) bool {
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+	return len(srcFiles) > 0 || len(ctx.GetDirectDepsWithTag(staticLibTag)) > 0
 }
 
 //
