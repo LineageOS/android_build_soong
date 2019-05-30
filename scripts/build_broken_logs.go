@@ -65,11 +65,6 @@ var buildBrokenSettings = []struct {
 		warnings: []string{"overriding commands for target"},
 	},
 	{
-		name:     "BUILD_BROKEN_ANDROIDMK_EXPORTS",
-		behavior: DefaultDeprecated,
-		warnings: []string{"export_keyword"},
-	},
-	{
 		name:     "BUILD_BROKEN_USES_NETWORK",
 		behavior: DefaultDeprecated,
 	},

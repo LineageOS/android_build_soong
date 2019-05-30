@@ -81,6 +81,8 @@ types are:
 Maps may values of any type, including nested maps.  Lists and maps may have
 trailing commas after the last value.
 
+Strings can contain double quotes using `\"`, for example `"cat \"a b\""`.
+
 ### Operators
 
 Strings, lists of strings, and maps can be appended using the `+` operator.
@@ -195,8 +197,10 @@ where `//project` is the module's package. e.g. using `[":__subpackages__"]` in
 * `["//visibility:legacy_public"]`: The default visibility, behaves as
 `//visibility:public` for now. It is an error if it is used in a module.
 
-The visibility rules of `//visibility:public` and `//visibility:private` can
-not be combined with any other visibility specifications.
+The visibility rules of `//visibility:public` and `//visibility:private` can not
+be combined with any other visibility specifications, except
+`//visibility:public` is allowed to override visibility specifications imported
+through the `defaults` property.
 
 Packages outside `vendor/` cannot make themselves visible to specific packages
 in `vendor/`, e.g. a module in `libcore` cannot declare that it is visible to
