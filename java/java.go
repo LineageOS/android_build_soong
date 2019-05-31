@@ -420,6 +420,7 @@ var (
 	proguardRaiseTag      = dependencyTag{name: "proguard-raise"}
 	certificateTag        = dependencyTag{name: "certificate"}
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
+	usesLibTag            = dependencyTag{name: "uses-library"}
 )
 
 type sdkDep struct {
