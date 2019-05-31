@@ -73,7 +73,7 @@ var (
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.JavaCmd}  ${config.JavaVmFlags} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
+				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
 				`$opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
@@ -95,7 +95,7 @@ var (
 		blueprint.RuleParams{
 			Command: `( rm -rf "$srcJarDir" && mkdir -p "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.JavaCmd}  ${config.JavaVmFlags} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
+				`${config.JavaCmd} -jar ${config.MetalavaJar} -encoding UTF-8 -source $javaVersion @$out.rsp @$srcJarDir/list ` +
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
 				`$opts && touch $out && rm -rf "$srcJarDir") || ` +
 				`( echo -e "$msg" ; exit 38 )`,
@@ -120,7 +120,7 @@ var (
 			Command: `rm -rf "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`mkdir -p "$outDir" "$srcJarDir" "$stubsDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`${config.JavaCmd} ${config.JavaVmFlags} -jar ${config.DokkaJar} $srcJarDir ` +
+				`${config.JavaCmd} -jar ${config.DokkaJar} $srcJarDir ` +
 				`$classpathArgs -format dac -dacRoot /reference/kotlin -output $outDir $opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -d -o $docZip -C $outDir -D $outDir && ` +
 				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
