@@ -46,7 +46,7 @@ type robolectricProperties struct {
 
 	Test_options struct {
 		// Timeout in seconds when running the tests.
-		Timeout *string
+		Timeout *int64
 	}
 }
 
