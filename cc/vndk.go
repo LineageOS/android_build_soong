@@ -467,6 +467,10 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 			return
 		}
 
+		if m.Target().NativeBridge == android.NativeBridgeEnabled {
+			return
+		}
+
 		lib, is_lib := m.linker.(*libraryDecorator)
 		prebuilt_lib, is_prebuilt_lib := m.linker.(*prebuiltLibraryLinker)
 
