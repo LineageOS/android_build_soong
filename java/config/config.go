@@ -69,8 +69,6 @@ func init() {
 		// b/65004097: prevent using java.lang.invoke.StringConcatFactory when using -target 1.9
 		`-XDstringConcat=inline`,
 	}, " "))
-	pctx.StaticVariable("JavaVmFlags", "-XX:OnError=\"cat hs_err_pid%p.log\"")
-	pctx.StaticVariable("JavacVmFlags", "-J-XX:OnError=\"cat hs_err_pid%p.log\"")
 
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 
