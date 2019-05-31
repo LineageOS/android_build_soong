@@ -658,6 +658,109 @@ var visibilityTests = []struct {
 				` visible to this module`,
 		},
 	},
+	// Package default_visibility tests
+	{
+		name: "package default_visibility property is checked",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//visibility:invalid"],
+				}`),
+		},
+		expectedErrors: []string{`default_visibility: unrecognized visibility rule "//visibility:invalid"`},
+	},
+	{
+		// This test relies on the default visibility being legacy_public.
+		name: "package default_visibility property used when no visibility specified",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}
+
+				mock_library {
+					name: "libexample",
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					deps: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module`,
+		},
+	},
+	{
+		name: "package default_visibility public does not override visibility private",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//visibility:public"],
+				}
+
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:private"],
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					deps: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module`,
+		},
+	},
+	{
+		name: "package default_visibility private does not override visibility public",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}
+
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:public"],
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					deps: ["libexample"],
+				}`),
+		},
+	},
+	{
+		name: "package default_visibility :__subpackages__",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: [":__subpackages__"],
+				}
+
+				mock_library {
+					name: "libexample",
+				}`),
+			"top/nested/Blueprints": []byte(`
+				mock_library {
+					name: "libnested",
+					deps: ["libexample"],
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					deps: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module`,
+		},
+	},
 }
 
 func TestVisibility(t *testing.T) {
@@ -692,8 +795,10 @@ func testVisibility(buildDir string, fs map[string][]byte) (*TestContext, []erro
 	config := TestArchConfig(buildDir, nil)
 
 	ctx := NewTestArchContext()
+	ctx.RegisterModuleType("package", ModuleFactoryAdaptor(PackageFactory))
 	ctx.RegisterModuleType("mock_library", ModuleFactoryAdaptor(newMockLibraryModule))
 	ctx.RegisterModuleType("mock_defaults", ModuleFactoryAdaptor(defaultsFactory))
+	ctx.PreArchMutators(registerPackageRenamer)
 	ctx.PreArchMutators(registerVisibilityRuleChecker)
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(registerVisibilityRuleGatherer)
