@@ -278,7 +278,7 @@ func TestSyspropLibrary(t *testing.T) {
 
 		cc_library {
 			name: "liblog",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
