@@ -41,7 +41,7 @@ func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
 }
 
 func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.ModuleOutPath,
-	flags builderFlags) {
+	flags builderFlags, isStaticLib bool) {
 	if ctx.Darwin() {
 		TransformDarwinStrip(ctx, in, out)
 	} else {
@@ -57,9 +57,19 @@ func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.
 		if Bool(stripper.StripProperties.Strip.Use_gnu_strip) {
 			flags.stripUseGnuStrip = true
 		}
-		if ctx.Config().Debuggable() && !flags.stripKeepMiniDebugInfo {
+		if ctx.Config().Debuggable() && !flags.stripKeepMiniDebugInfo && !isStaticLib {
 			flags.stripAddGnuDebuglink = true
 		}
 		TransformStrip(ctx, in, out, flags)
 	}
+}
+
+func (stripper *stripper) stripExecutableOrSharedLib(ctx ModuleContext, in android.Path,
+	out android.ModuleOutPath, flags builderFlags) {
+	stripper.strip(ctx, in, out, flags, false)
+}
+
+func (stripper *stripper) stripStaticLib(ctx ModuleContext, in android.Path, out android.ModuleOutPath,
+	flags builderFlags) {
+	stripper.strip(ctx, in, out, flags, true)
 }
