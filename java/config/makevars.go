@@ -39,8 +39,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("ANDROID_JAVA8_HOME", "prebuilts/jdk/jdk8/${hostPrebuiltTag}")
 	ctx.Strict("ANDROID_JAVA9_HOME", "prebuilts/jdk/jdk9/${hostPrebuiltTag}")
 	ctx.Strict("ANDROID_JAVA_TOOLCHAIN", "${JavaToolchain}")
-	ctx.Strict("JAVA", "${JavaCmd}")
-	ctx.Strict("JAVAC", "${JavacCmd}")
+	ctx.Strict("JAVA", "${JavaCmd} ${JavaVmFlags}")
+	ctx.Strict("JAVAC", "${JavacCmd} ${JavacVmFlags}")
 	ctx.Strict("JAR", "${JarCmd}")
 	ctx.Strict("JAR_ARGS", "${JarArgsCmd}")
 	ctx.Strict("JAVADOC", "${JavadocCmd}")
@@ -58,8 +58,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 		ctx.Strict("ERROR_PRONE_CHECKS", "${ErrorProneChecks}")
 	}
 
-	ctx.Strict("TARGET_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
-	ctx.Strict("HOST_JAVAC", "${JavacCmd} ${CommonJdkFlags}")
+	ctx.Strict("TARGET_JAVAC", "${JavacCmd}  ${JavacVmFlags} ${CommonJdkFlags}")
+	ctx.Strict("HOST_JAVAC", "${JavacCmd}  ${JavacVmFlags} ${CommonJdkFlags}")
 
 	ctx.Strict("JLINK", "${JlinkCmd}")
 	ctx.Strict("JMOD", "${JmodCmd}")
