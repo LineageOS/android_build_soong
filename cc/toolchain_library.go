@@ -86,7 +86,7 @@ func (library *toolchainLibraryDecorator) link(ctx ModuleContext,
 		fileName := ctx.ModuleName() + staticLibraryExtension
 		outputFile := android.PathForModuleOut(ctx, fileName)
 		buildFlags := flagsToBuilderFlags(flags)
-		library.stripper.strip(ctx, srcPath, outputFile, buildFlags)
+		library.stripper.stripStaticLib(ctx, srcPath, outputFile, buildFlags)
 		return outputFile
 	}
 
