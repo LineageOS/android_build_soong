@@ -326,7 +326,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		}
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
-		binary.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
+		binary.stripper.stripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
 
 	binary.unstrippedOutputFile = outputFile
@@ -350,7 +350,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			if binary.stripper.needsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
 				binary.distFile = android.OptionalPathForPath(out)
-				binary.stripper.strip(ctx, versionedOutputFile, out, builderFlags)
+				binary.stripper.stripExecutableOrSharedLib(ctx, versionedOutputFile, out, builderFlags)
 			}
 
 			binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
