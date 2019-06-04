@@ -721,7 +721,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
-		library.stripper.strip(ctx, outputFile, strippedOutputFile, builderFlags)
+		library.stripper.stripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
 
 	library.unstrippedOutputFile = outputFile
@@ -738,7 +738,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			if library.stripper.needsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
 				library.distFile = android.OptionalPathForPath(out)
-				library.stripper.strip(ctx, versionedOutputFile, out, builderFlags)
+				library.stripper.stripExecutableOrSharedLib(ctx, versionedOutputFile, out, builderFlags)
 			}
 
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
