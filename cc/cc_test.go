@@ -51,7 +51,9 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func createTestContext(t *testing.T, config android.Config, bp string, os android.OsType) *android.TestContext {
+func createTestContext(t *testing.T, config android.Config, bp string, fs map[string][]byte,
+	os android.OsType) *android.TestContext {
+
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(BinaryFactory))
 	ctx.RegisterModuleType("cc_binary_host", android.ModuleFactoryAdaptor(binaryHostFactory))
@@ -75,12 +77,11 @@ func createTestContext(t *testing.T, config android.Config, bp string, os androi
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
 	})
-	ctx.Register()
 
 	// add some modules that are required by the compiler and/or linker
 	bp = bp + GatherRequiredDepsForTest(os)
 
-	ctx.MockFileSystem(map[string][]byte{
+	mockFS := map[string][]byte{
 		"Android.bp":  []byte(bp),
 		"foo.c":       nil,
 		"bar.c":       nil,
@@ -88,7 +89,14 @@ func createTestContext(t *testing.T, config android.Config, bp string, os androi
 		"b.aidl":      nil,
 		"my_include":  nil,
 		"foo.map.txt": nil,
-	})
+		"liba.so":     nil,
+	}
+
+	for k, v := range fs {
+		mockFS[k] = v
+	}
+
+	ctx.MockFileSystem(mockFS)
 
 	return ctx
 }
@@ -99,7 +107,8 @@ func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.T
 
 func testCcWithConfigForOs(t *testing.T, bp string, config android.Config, os android.OsType) *android.TestContext {
 	t.Helper()
-	ctx := createTestContext(t, config, bp, os)
+	ctx := createTestContext(t, config, bp, nil, os)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -132,7 +141,8 @@ func testCcError(t *testing.T, pattern string, bp string) {
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
-	ctx := createTestContext(t, config, bp, android.Android)
+	ctx := createTestContext(t, config, bp, nil, android.Android)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	if len(errs) > 0 {
