@@ -530,8 +530,15 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	var modulePathTxtBuilder strings.Builder
 
+	modulePaths := modulePaths(ctx.Config())
+	var libs []string
+	for lib := range modulePaths {
+		libs = append(libs, lib)
+	}
+	sort.Strings(libs)
+
 	first := true
-	for lib, dir := range modulePaths(ctx.Config()) {
+	for _, lib := range libs {
 		if first {
 			first = false
 		} else {
@@ -539,7 +546,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		}
 		modulePathTxtBuilder.WriteString(lib)
 		modulePathTxtBuilder.WriteString(".so ")
-		modulePathTxtBuilder.WriteString(dir)
+		modulePathTxtBuilder.WriteString(modulePaths[lib])
 	}
 
 	ctx.Build(pctx, android.BuildParams{
