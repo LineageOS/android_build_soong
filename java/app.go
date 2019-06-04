@@ -175,7 +175,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 		if String(a.appProperties.Stl) == "c++_shared" {
 			if embedJni {
-				ctx.AddFarVariationDependencies(variation, tag, "libc++")
+				ctx.AddFarVariationDependencies(variation, tag, "ndk_libc++_shared")
 			}
 		}
 	}

@@ -1199,6 +1199,10 @@ func TestStl(t *testing.T) {
 			compile_multilib: "both",
 			sdk_version: "current",
 		}
+
+		ndk_prebuilt_shared_stl {
+			name: "ndk_libc++_shared",
+		}
 		`)
 
 	testCases := []struct {
@@ -1208,7 +1212,7 @@ func TestStl(t *testing.T) {
 		{"stl",
 			[]string{
 				"libjni.so",
-				"libc++.so",
+				"libc++_shared.so",
 			},
 		},
 		{"system",
