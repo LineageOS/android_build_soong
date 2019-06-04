@@ -393,6 +393,11 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 	if ctx.Device() {
 		if Bool(sanitize.Properties.Sanitize.Address) {
 			deps.StaticLibs = append(deps.StaticLibs, asanLibs...)
+			// Compiling asan and having libc_scudo in the same
+			// executable will cause the executable to crash.
+			// Remove libc_scudo since it is only used to override
+			// allocation functions which asan already overrides.
+			_, deps.SharedLibs = removeFromList("libc_scudo", deps.SharedLibs)
 		}
 	}
 

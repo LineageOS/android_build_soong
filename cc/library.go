@@ -22,7 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
@@ -1083,10 +1082,28 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 
 func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
-		if library, ok := m.linker.(libraryInterface); ok {
-			var modules []blueprint.Module
+		switch library := m.linker.(type) {
+		case prebuiltLibraryInterface:
+			// Always create both the static and shared variants for prebuilt libraries, and then disable the one
+			// that is not being used.  This allows them to share the name of a cc_library module, which requires that
+			// all the variants of the cc_library also exist on the prebuilt.
+			modules := mctx.CreateLocalVariations("static", "shared")
+			static := modules[0].(*Module)
+			shared := modules[1].(*Module)
+
+			static.linker.(prebuiltLibraryInterface).setStatic()
+			shared.linker.(prebuiltLibraryInterface).setShared()
+
+			if !library.buildStatic() {
+				static.linker.(prebuiltLibraryInterface).disablePrebuilt()
+			}
+			if !library.buildShared() {
+				shared.linker.(prebuiltLibraryInterface).disablePrebuilt()
+			}
+
+		case libraryInterface:
 			if library.buildStatic() && library.buildShared() {
-				modules = mctx.CreateLocalVariations("static", "shared")
+				modules := mctx.CreateLocalVariations("static", "shared")
 				static := modules[0].(*Module)
 				shared := modules[1].(*Module)
 
@@ -1096,10 +1113,10 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 				reuseStaticLibrary(mctx, static, shared)
 
 			} else if library.buildStatic() {
-				modules = mctx.CreateLocalVariations("static")
+				modules := mctx.CreateLocalVariations("static")
 				modules[0].(*Module).linker.(libraryInterface).setStatic()
 			} else if library.buildShared() {
-				modules = mctx.CreateLocalVariations("shared")
+				modules := mctx.CreateLocalVariations("shared")
 				modules[0].(*Module).linker.(libraryInterface).setShared()
 			}
 		}
