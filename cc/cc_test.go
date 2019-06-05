@@ -184,7 +184,7 @@ func TestVendorSrc(t *testing.T) {
 		cc_library {
 			name: "libTest",
 			srcs: ["foo.c"],
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			vendor_available: true,
@@ -647,7 +647,7 @@ func TestDoubleLoadableDepError(t *testing.T) {
 	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
 		cc_library {
 			name: "libllndk",
-			no_libgcc: true,
+			no_libcrt: true,
 			shared_libs: ["libnondoubleloadable"],
 		}
 
@@ -1786,7 +1786,7 @@ func TestLlndkHeaders(t *testing.T) {
 		shared_libs: ["libllndk"],
 		vendor: true,
 		srcs: ["foo.c"],
-		no_libgcc: true,
+		no_libcrt: true,
 		nocrt: true,
 	}
 	`)
@@ -1815,7 +1815,7 @@ const runtimeLibAndroidBp = `
 	cc_library {
 		name: "libvendor_available1",
 		vendor_available: true,
-		no_libgcc : true,
+		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
 	}
@@ -1823,7 +1823,7 @@ const runtimeLibAndroidBp = `
 		name: "libvendor_available2",
 		vendor_available: true,
 		runtime_libs: ["libvendor_available1"],
-		no_libgcc : true,
+		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
 	}
@@ -1836,21 +1836,21 @@ const runtimeLibAndroidBp = `
 				exclude_runtime_libs: ["libvendor_available1"],
 			}
 		},
-		no_libgcc : true,
+		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
 	}
 	cc_library {
 		name: "libcore",
 		runtime_libs: ["libvendor_available1"],
-		no_libgcc : true,
+		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
 	}
 	cc_library {
 		name: "libvendor1",
 		vendor: true,
-		no_libgcc : true,
+		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
 	}
@@ -1858,7 +1858,7 @@ const runtimeLibAndroidBp = `
 		name: "libvendor2",
 		vendor: true,
 		runtime_libs: ["libvendor_available1", "libvendor1"],
-		no_libgcc : true,
+		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
 	}
@@ -2050,7 +2050,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 		name: "libvendorpublic",
 		srcs: ["foo.c"],
 		vendor: true,
-		no_libgcc: true,
+		no_libcrt: true,
 		nocrt: true,
 	}
 
@@ -2059,7 +2059,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 		shared_libs: ["libvendorpublic"],
 		vendor: false,
 		srcs: ["foo.c"],
-		no_libgcc: true,
+		no_libcrt: true,
 		nocrt: true,
 	}
 	cc_library {
@@ -2067,7 +2067,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 		shared_libs: ["libvendorpublic"],
 		vendor: true,
 		srcs: ["foo.c"],
-		no_libgcc: true,
+		no_libcrt: true,
 		nocrt: true,
 	}
 	`)

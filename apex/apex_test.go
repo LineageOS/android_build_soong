@@ -585,7 +585,7 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 
 		cc_library {
 			name: "libc",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",
@@ -596,7 +596,7 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 
 		cc_library {
 			name: "libm",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",
@@ -607,7 +607,7 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 
 		cc_library {
 			name: "libdl",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",
