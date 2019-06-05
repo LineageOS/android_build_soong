@@ -24,6 +24,7 @@ func init() {
 	RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
 	RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
 	RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
+	RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 
 	PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
@@ -61,7 +62,9 @@ type PrebuiltEtc struct {
 	sourceFilePath Path
 	outputFilePath OutputPath
 	// The base install location, e.g. "etc" for prebuilt_etc, "usr/share" for prebuilt_usr_share.
-	installDirBase         string
+	installDirBase string
+	// The base install location when soc_specific property is set to true, e.g. "firmware" for prebuilt_firmware.
+	socInstallDirBase      string
 	installDirPath         OutputPath
 	additionalDependencies *Paths
 }
@@ -121,7 +124,14 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 		return
 	}
 	p.outputFilePath = PathForModuleOut(ctx, filename).OutputPath
-	p.installDirPath = PathForModuleInstall(ctx, p.installDirBase, String(p.properties.Sub_dir))
+
+	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
+	// socInstallDirBase.
+	installBaseDir := p.installDirBase
+	if ctx.SocSpecific() && p.socInstallDirBase != "" {
+		installBaseDir = p.socInstallDirBase
+	}
+	p.installDirPath = PathForModuleInstall(ctx, installBaseDir, String(p.properties.Sub_dir))
 
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.
@@ -245,6 +255,17 @@ func prebuiltEtcMutator(mctx BottomUpMutatorContext) {
 // prebuilt_font installs a font in <partition>/fonts directory.
 func PrebuiltFontFactory() Module {
 	module := &PrebuiltEtc{installDirBase: "fonts"}
+	InitPrebuiltEtcModule(module)
+	// This module is device-only
+	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	return module
+}
+
+// prebuilt_firmware installs a firmware file to <partition>/etc/firmware directory for system image.
+// If soc_specific property is set to true, the firmware file is installed to the vendor <partition>/firmware
+// directory for vendor image.
+func PrebuiltFirmwareFactory() Module {
+	module := &PrebuiltEtc{installDirBase: "etc/firmware", socInstallDirBase: "firmware"}
 	InitPrebuiltEtcModule(module)
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
