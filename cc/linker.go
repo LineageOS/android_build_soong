@@ -57,9 +57,6 @@ type BaseLinkerProperties struct {
 	// This flag should only be necessary for compiling low-level libraries like libc.
 	Allow_undefined_symbols *bool `android:"arch_variant"`
 
-	// don't link in libgcc.a
-	No_libgcc *bool
-
 	// don't link in libclang_rt.builtins-*.a
 	No_libcrt *bool `android:"arch_variant"`
 
@@ -230,9 +227,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc_stripped")
-		} else if !Bool(linker.Properties.No_libgcc) {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
 		}
 
 		systemSharedLibs := linker.Properties.System_shared_libs
