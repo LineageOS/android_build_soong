@@ -1179,6 +1179,84 @@ prebuilt_usr_share_host {
 `,
 	},
 	{
+		desc: "prebuilt_firmware subdir_bar in $(TARGET_OUT_ETC)",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/firmware/bar
+LOCAL_SRC_FILES := foo.fw
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_firmware {
+	name: "foo",
+
+	src: "foo.fw",
+	sub_dir: "bar",
+}
+`,
+	},
+	{
+		desc: "prebuilt_firmware subdir_bar in $(TARGET_OUT)",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT)/etc/firmware/bar
+LOCAL_SRC_FILES := foo.fw
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_firmware {
+	name: "foo",
+
+	src: "foo.fw",
+	sub_dir: "bar",
+}
+`,
+	},
+	{
+		desc: "prebuilt_firmware subdir_bar in $(TARGET_OUT_VENDOR)",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/firmware/bar
+LOCAL_SRC_FILES := foo.fw
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_firmware {
+	name: "foo",
+
+	src: "foo.fw",
+	sub_dir: "bar",
+	proprietary: true,
+}
+`,
+	},
+	{
+		desc: "prebuilt_firmware subdir_bar in $(TARGET_OUT)/vendor",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT)/vendor/firmware/bar
+LOCAL_SRC_FILES := foo.fw
+include $(BUILD_PREBUILT)
+`,
+		expected: `
+prebuilt_firmware {
+	name: "foo",
+
+	src: "foo.fw",
+	sub_dir: "bar",
+	proprietary: true,
+}
+`,
+	},
+	{
 		desc: "vts_config",
 		in: `
 include $(CLEAR_VARS)
