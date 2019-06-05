@@ -19,6 +19,7 @@ package cc
 // is handled in builder.go
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -1925,11 +1926,16 @@ func (c *Module) IntermPathForModuleOut() android.OptionalPath {
 	return c.outputFile
 }
 
-func (c *Module) Srcs() android.Paths {
-	if c.outputFile.Valid() {
-		return android.Paths{c.outputFile.Path()}
+func (c *Module) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		if c.outputFile.Valid() {
+			return android.Paths{c.outputFile.Path()}, nil
+		}
+		return android.Paths{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
-	return android.Paths{}
 }
 
 func (c *Module) static() bool {
@@ -2006,7 +2012,11 @@ func (c *Module) imageVariation() string {
 }
 
 func (c *Module) IDEInfo(dpInfo *android.IdeInfo) {
-	dpInfo.Srcs = append(dpInfo.Srcs, c.Srcs().Strings()...)
+	outputFiles, err := c.OutputFiles("")
+	if err != nil {
+		panic(err)
+	}
+	dpInfo.Srcs = append(dpInfo.Srcs, outputFiles.Strings()...)
 }
 
 func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
