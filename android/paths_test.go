@@ -760,6 +760,45 @@ func (p *pathForModuleSrcTestModule) GenerateAndroidBuildActions(ctx ModuleConte
 	}
 }
 
+type pathForModuleSrcOutputFileProviderModule struct {
+	ModuleBase
+	props struct {
+		Outs   []string
+		Tagged []string
+	}
+
+	outs   Paths
+	tagged Paths
+}
+
+func pathForModuleSrcOutputFileProviderModuleFactory() Module {
+	module := &pathForModuleSrcOutputFileProviderModule{}
+	module.AddProperties(&module.props)
+	InitAndroidModule(module)
+	return module
+}
+
+func (p *pathForModuleSrcOutputFileProviderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	for _, out := range p.props.Outs {
+		p.outs = append(p.outs, PathForModuleOut(ctx, out))
+	}
+
+	for _, tagged := range p.props.Tagged {
+		p.tagged = append(p.tagged, PathForModuleOut(ctx, tagged))
+	}
+}
+
+func (p *pathForModuleSrcOutputFileProviderModule) OutputFiles(tag string) (Paths, error) {
+	switch tag {
+	case "":
+		return p.outs, nil
+	case ".tagged":
+		return p.tagged, nil
+	default:
+		return nil, fmt.Errorf("unsupported tag %q", tag)
+	}
+}
+
 type pathForModuleSrcTestCase struct {
 	name string
 	bp   string
@@ -776,6 +815,7 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 			ctx := NewTestContext()
 
 			ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathForModuleSrcTestModuleFactory))
+			ctx.RegisterModuleType("output_file_provider", ModuleFactoryAdaptor(pathForModuleSrcOutputFileProviderModuleFactory))
 			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
 
 			fgBp := `
@@ -785,9 +825,18 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 				}
 			`
 
+			ofpBp := `
+				output_file_provider {
+					name: "b",
+					outs: ["gen/b"],
+					tagged: ["gen/c"],
+				}
+			`
+
 			mockFS := map[string][]byte{
 				"fg/Android.bp":     []byte(fgBp),
 				"foo/Android.bp":    []byte(test.bp),
+				"ofp/Android.bp":    []byte(ofpBp),
 				"fg/src/a":          nil,
 				"foo/src/b":         nil,
 				"foo/src/c":         nil,
@@ -799,7 +848,7 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 			ctx.MockFileSystem(mockFS)
 
 			ctx.Register()
-			_, errs := ctx.ParseFileList(".", []string{"fg/Android.bp", "foo/Android.bp"})
+			_, errs := ctx.ParseFileList(".", []string{"fg/Android.bp", "foo/Android.bp", "ofp/Android.bp"})
 			FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)
 			FailIfErrored(t, errs)
@@ -826,6 +875,12 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 }
 
 func TestPathsForModuleSrc(t *testing.T) {
+	buildDir, err := ioutil.TempDir("", "soong_paths_for_module_src_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(buildDir)
+
 	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
@@ -871,6 +926,26 @@ func TestPathsForModuleSrc(t *testing.T) {
 			rels: []string{"src/a"},
 		},
 		{
+			name: "output file provider",
+			bp: `
+			test {
+				name: "foo",
+				srcs: [":b"],
+			}`,
+			srcs: []string{buildDir + "/.intermediates/ofp/b/gen/b"},
+			rels: []string{"gen/b"},
+		},
+		{
+			name: "output file provider tagged",
+			bp: `
+			test {
+				name: "foo",
+				srcs: [":b{.tagged}"],
+			}`,
+			srcs: []string{buildDir + "/.intermediates/ofp/b/gen/c"},
+			rels: []string{"gen/c"},
+		},
+		{
 			name: "special characters glob",
 			bp: `
 			test {
@@ -882,16 +957,16 @@ func TestPathsForModuleSrc(t *testing.T) {
 		},
 	}
 
-	buildDir, err := ioutil.TempDir("", "soong_paths_for_module_src_test")
+	testPathForModuleSrc(t, buildDir, tests)
+}
+
+func TestPathForModuleSrc(t *testing.T) {
+	buildDir, err := ioutil.TempDir("", "soong_path_for_module_src_test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(buildDir)
 
-	testPathForModuleSrc(t, buildDir, tests)
-}
-
-func TestPathForModuleSrc(t *testing.T) {
 	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
@@ -924,6 +999,26 @@ func TestPathForModuleSrc(t *testing.T) {
 			rel: "src/a",
 		},
 		{
+			name: "output file provider",
+			bp: `
+			test {
+				name: "foo",
+				src: ":b",
+			}`,
+			src: buildDir + "/.intermediates/ofp/b/gen/b",
+			rel: "gen/b",
+		},
+		{
+			name: "output file provider tagged",
+			bp: `
+			test {
+				name: "foo",
+				src: ":b{.tagged}",
+			}`,
+			src: buildDir + "/.intermediates/ofp/b/gen/c",
+			rel: "gen/c",
+		},
+		{
 			name: "special characters glob",
 			bp: `
 			test {
@@ -934,12 +1029,6 @@ func TestPathForModuleSrc(t *testing.T) {
 			rel: "src_special/$",
 		},
 	}
-
-	buildDir, err := ioutil.TempDir("", "soong_path_for_module_src_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
 
 	testPathForModuleSrc(t, buildDir, tests)
 }
