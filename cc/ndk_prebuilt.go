@@ -25,7 +25,7 @@ import (
 func init() {
 	android.RegisterModuleType("ndk_prebuilt_object", ndkPrebuiltObjectFactory)
 	android.RegisterModuleType("ndk_prebuilt_static_stl", ndkPrebuiltStaticStlFactory)
-	android.RegisterModuleType("ndk_prebuilt_shared_stl", ndkPrebuiltSharedStlFactory)
+	android.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 }
 
 // NDK prebuilt libraries.
@@ -107,7 +107,7 @@ func (*ndkPrebuiltStlLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 // library (stl) library for linking operation. The soong's module name format
 // is ndk_<NAME>.so where the library is located under
 // ./prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/$(HOST_ARCH)/<NAME>.so.
-func ndkPrebuiltSharedStlFactory() android.Module {
+func NdkPrebuiltSharedStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyShared()
 	module.compiler = nil
