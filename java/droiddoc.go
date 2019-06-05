@@ -497,8 +497,13 @@ type Javadoc struct {
 	stubsSrcJar android.WritablePath
 }
 
-func (j *Javadoc) Srcs() android.Paths {
-	return android.Paths{j.stubsSrcJar}
+func (j *Javadoc) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{j.stubsSrcJar}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func JavadocFactory() android.Module {
@@ -519,7 +524,7 @@ func JavadocHostFactory() android.Module {
 	return module
 }
 
-var _ android.SourceFileProducer = (*Javadoc)(nil)
+var _ android.OutputFileProducer = (*Javadoc)(nil)
 
 func (j *Javadoc) sdkVersion() string {
 	return String(j.properties.Sdk_version)

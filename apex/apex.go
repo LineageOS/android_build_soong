@@ -560,11 +560,16 @@ func (a *apexBundle) getCertString(ctx android.BaseContext) string {
 	return String(a.properties.Certificate)
 }
 
-func (a *apexBundle) Srcs() android.Paths {
-	if file, ok := a.outputFiles[imageApex]; ok {
-		return android.Paths{file}
-	} else {
-		return nil
+func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		if file, ok := a.outputFiles[imageApex]; ok {
+			return android.Paths{file}, nil
+		} else {
+			return nil, nil
+		}
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
 }
 
@@ -1383,8 +1388,13 @@ func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 	p.properties.Source = src
 }
 
-func (p *Prebuilt) Srcs() android.Paths {
-	return android.Paths{p.outputApex}
+func (p *Prebuilt) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{p.outputApex}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func (p *Prebuilt) InstallFilename() string {
