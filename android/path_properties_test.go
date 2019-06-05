@@ -41,8 +41,10 @@ func pathDepsMutatorTestModuleFactory() Module {
 }
 
 func (p *pathDepsMutatorTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	ctx.VisitDirectDepsWithTag(SourceDepTag, func(dep Module) {
-		p.sourceDeps = append(p.sourceDeps, ctx.OtherModuleName(dep))
+	ctx.VisitDirectDeps(func(dep Module) {
+		if _, ok := ctx.OtherModuleDependencyTag(dep).(sourceOrOutputDependencyTag); ok {
+			p.sourceDeps = append(p.sourceDeps, ctx.OtherModuleName(dep))
+		}
 	})
 }
 
@@ -59,7 +61,7 @@ func TestPathDepsMutator(t *testing.T) {
 				name: "foo",
 				foo: ":a",
 				bar: [":b"],
-				baz: ":c",
+				baz: ":c{.bar}",
 				qux: ":d",
 			}`,
 			deps: []string{"a", "b", "c"},

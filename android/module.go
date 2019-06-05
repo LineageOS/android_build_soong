@@ -1462,39 +1462,60 @@ func findStringInSlice(str string, slice []string) int {
 	return -1
 }
 
-func SrcIsModule(s string) string {
+// SrcIsModule decodes module references in the format ":name" into the module name, or empty string if the input
+// was not a module reference.
+func SrcIsModule(s string) (module string) {
 	if len(s) > 1 && s[0] == ':' {
 		return s[1:]
 	}
 	return ""
 }
 
-type sourceDependencyTag struct {
-	blueprint.BaseDependencyTag
+// SrcIsModule decodes module references in the format ":name{.tag}" into the module name and tag, ":name" into the
+// module name and an empty string for the tag, or empty strings if the input was not a module reference.
+func SrcIsModuleWithTag(s string) (module, tag string) {
+	if len(s) > 1 && s[0] == ':' {
+		module = s[1:]
+		if tagStart := strings.IndexByte(module, '{'); tagStart > 0 {
+			if module[len(module)-1] == '}' {
+				tag = module[tagStart+1 : len(module)-1]
+				module = module[:tagStart]
+				return module, tag
+			}
+		}
+		return module, ""
+	}
+	return "", ""
 }
 
-var SourceDepTag sourceDependencyTag
+type sourceOrOutputDependencyTag struct {
+	blueprint.BaseDependencyTag
+	tag string
+}
+
+func sourceOrOutputDepTag(tag string) blueprint.DependencyTag {
+	return sourceOrOutputDependencyTag{tag: tag}
+}
+
+var SourceDepTag = sourceOrOutputDepTag("")
 
 // Adds necessary dependencies to satisfy filegroup or generated sources modules listed in srcFiles
 // using ":module" syntax, if any.
 //
 // Deprecated: tag the property with `android:"path"` instead.
 func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
-	var deps []string
 	set := make(map[string]bool)
 
 	for _, s := range srcFiles {
-		if m := SrcIsModule(s); m != "" {
-			if _, found := set[m]; found {
-				ctx.ModuleErrorf("found source dependency duplicate: %q!", m)
+		if m, t := SrcIsModuleWithTag(s); m != "" {
+			if _, found := set[s]; found {
+				ctx.ModuleErrorf("found source dependency duplicate: %q!", s)
 			} else {
-				set[m] = true
-				deps = append(deps, m)
+				set[s] = true
+				ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(t), m)
 			}
 		}
 	}
-
-	ctx.AddDependency(ctx.Module(), SourceDepTag, deps...)
 }
 
 // Adds necessary dependencies to satisfy filegroup or generated sources modules specified in s
@@ -1503,14 +1524,23 @@ func ExtractSourcesDeps(ctx BottomUpMutatorContext, srcFiles []string) {
 // Deprecated: tag the property with `android:"path"` instead.
 func ExtractSourceDeps(ctx BottomUpMutatorContext, s *string) {
 	if s != nil {
-		if m := SrcIsModule(*s); m != "" {
-			ctx.AddDependency(ctx.Module(), SourceDepTag, m)
+		if m, t := SrcIsModuleWithTag(*s); m != "" {
+			ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(t), m)
 		}
 	}
 }
 
+// A module that implements SourceFileProducer can be referenced from any property that is tagged with `android:"path"`
+// using the ":module" syntax and provides a list of paths to be used as if they were listed in the property.
 type SourceFileProducer interface {
 	Srcs() Paths
+}
+
+// A module that implements OutputFileProducer can be referenced from any property that is tagged with `android:"path"`
+// using the ":module" syntax or ":module{.tag}" syntax and provides a list of otuput files to be used as if they were
+// listed in the property.
+type OutputFileProducer interface {
+	OutputFiles(tag string) (Paths, error)
 }
 
 type HostToolProvider interface {
