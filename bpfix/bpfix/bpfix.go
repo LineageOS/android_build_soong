@@ -503,16 +503,18 @@ func (f etcPrebuiltModuleUpdate) update(m *parser.Module, path string) bool {
 }
 
 var localModuleUpdate = map[string][]etcPrebuiltModuleUpdate{
-	"HOST_OUT":                        {{prefix: "/etc", modType: "prebuilt_etc_host"}, {prefix: "/usr/share", modType: "prebuilt_usr_share_host"}},
-	"PRODUCT_OUT":                     {{prefix: "/system/etc"}, {prefix: "/vendor/etc", flags: []string{"proprietary"}}},
-	"TARGET_OUT":                      {{prefix: "/etc"}, {prefix: "/usr/share", modType: "prebuilt_usr_share"}, {prefix: "/fonts", modType: "prebuilt_font"}},
-	"TARGET_OUT_ETC":                  {{prefix: ""}},
+	"HOST_OUT":    {{prefix: "/etc", modType: "prebuilt_etc_host"}, {prefix: "/usr/share", modType: "prebuilt_usr_share_host"}},
+	"PRODUCT_OUT": {{prefix: "/system/etc"}, {prefix: "/vendor/etc", flags: []string{"proprietary"}}},
+	"TARGET_OUT": {{prefix: "/usr/share", modType: "prebuilt_usr_share"}, {prefix: "/fonts", modType: "prebuilt_font"},
+		{prefix: "/etc/firmware", modType: "prebuilt_firmware"}, {prefix: "/vendor/firmware", modType: "prebuilt_firmware", flags: []string{"proprietary"}},
+		{prefix: "/etc"}},
+	"TARGET_OUT_ETC":                  {{prefix: "/firmware", modType: "prebuilt_firmware"}, {prefix: ""}},
 	"TARGET_OUT_PRODUCT":              {{prefix: "/etc", flags: []string{"product_specific"}}, {prefix: "/fonts", modType: "prebuilt_font", flags: []string{"product_specific"}}},
 	"TARGET_OUT_PRODUCT_ETC":          {{prefix: "", flags: []string{"product_specific"}}},
 	"TARGET_OUT_ODM":                  {{prefix: "/etc", flags: []string{"device_specific"}}},
 	"TARGET_OUT_PRODUCT_SERVICES":     {{prefix: "/etc", flags: []string{"product_services_specific"}}},
 	"TARGET_OUT_PRODUCT_SERVICES_ETC": {{prefix: "", flags: []string{"product_services_specific"}}},
-	"TARGET_OUT_VENDOR":               {{prefix: "/etc", flags: []string{"proprietary"}}},
+	"TARGET_OUT_VENDOR":               {{prefix: "/etc", flags: []string{"proprietary"}}, {prefix: "/firmware", modType: "prebuilt_firmware", flags: []string{"proprietary"}}},
 	"TARGET_OUT_VENDOR_ETC":           {{prefix: "", flags: []string{"proprietary"}}},
 	"TARGET_RECOVERY_ROOT_OUT":        {{prefix: "/system/etc", flags: []string{"recovery"}}},
 }
