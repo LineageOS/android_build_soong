@@ -83,6 +83,7 @@ bootstrap_go_package {
         "android/config_test.go",
         "android/expand_test.go",
         "android/module_test.go",
+        "android/mutator_test.go",
         "android/namespace_test.go",
         "android/neverallow_test.go",
         "android/onceper_test.go",
