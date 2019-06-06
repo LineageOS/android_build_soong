@@ -43,7 +43,7 @@ var _ PathContext = ModuleContext(nil)
 type ModuleInstallPathContext interface {
 	PathContext
 
-	androidBaseContext
+	baseContext
 
 	InstallInData() bool
 	InstallInSanitizerDir() bool

@@ -129,18 +129,18 @@ func registerLoadHookMutator(ctx RegisterMutatorsContext) {
 
 func LoadHookMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
-		// Cast through *androidTopDownMutatorContext because AppendProperties is implemented
-		// on *androidTopDownMutatorContext but not exposed through TopDownMutatorContext
-		var loadHookCtx LoadHookContext = ctx.(*androidTopDownMutatorContext)
+		// Cast through *topDownMutatorContext because AppendProperties is implemented
+		// on *topDownMutatorContext but not exposed through TopDownMutatorContext
+		var loadHookCtx LoadHookContext = ctx.(*topDownMutatorContext)
 		m.base().hooks.runLoadHooks(loadHookCtx, m.base())
 	}
 }
 
 func archHookMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
-		// Cast through *androidTopDownMutatorContext because AppendProperties is implemented
-		// on *androidTopDownMutatorContext but not exposed through TopDownMutatorContext
-		var archHookCtx ArchHookContext = ctx.(*androidTopDownMutatorContext)
+		// Cast through *topDownMutatorContext because AppendProperties is implemented
+		// on *topDownMutatorContext but not exposed through TopDownMutatorContext
+		var archHookCtx ArchHookContext = ctx.(*topDownMutatorContext)
 		m.base().hooks.runArchHooks(archHookCtx, m.base())
 	}
 }

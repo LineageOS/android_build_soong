@@ -200,7 +200,7 @@ func p(in interface{}) string {
 }
 
 type moduleInstallPathContextImpl struct {
-	androidBaseContextImpl
+	baseContextImpl
 
 	inData         bool
 	inSanitizerDir bool
@@ -212,7 +212,7 @@ func (moduleInstallPathContextImpl) Fs() pathtools.FileSystem {
 }
 
 func (m moduleInstallPathContextImpl) Config() Config {
-	return m.androidBaseContextImpl.config
+	return m.baseContextImpl.config
 }
 
 func (moduleInstallPathContextImpl) AddNinjaFileDeps(deps ...string) {}
@@ -244,7 +244,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "host binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: hostTarget,
 				},
 			},
@@ -255,7 +255,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "system binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 				},
 			},
@@ -265,7 +265,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "vendor binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   socSpecificModule,
 				},
@@ -276,7 +276,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "odm binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   deviceSpecificModule,
 				},
@@ -287,7 +287,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "product binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productSpecificModule,
 				},
@@ -298,7 +298,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "product_services binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productServicesSpecificModule,
 				},
@@ -310,7 +310,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "system native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 				},
 				inData: true,
@@ -321,7 +321,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "vendor native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   socSpecificModule,
 				},
@@ -333,7 +333,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "odm native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   deviceSpecificModule,
 				},
@@ -345,7 +345,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "product native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productSpecificModule,
 				},
@@ -358,7 +358,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "product_services native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productServicesSpecificModule,
 				},
@@ -371,7 +371,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized system binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 				},
 				inSanitizerDir: true,
@@ -382,7 +382,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized vendor binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   socSpecificModule,
 				},
@@ -394,7 +394,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized odm binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   deviceSpecificModule,
 				},
@@ -406,7 +406,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized product binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productSpecificModule,
 				},
@@ -419,7 +419,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized product_services binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productServicesSpecificModule,
 				},
@@ -432,7 +432,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized system native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 				},
 				inData:         true,
@@ -444,7 +444,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized vendor native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   socSpecificModule,
 				},
@@ -457,7 +457,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized odm native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   deviceSpecificModule,
 				},
@@ -470,7 +470,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized product native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productSpecificModule,
 				},
@@ -483,7 +483,7 @@ func TestPathForModuleInstall(t *testing.T) {
 		{
 			name: "sanitized product_services native test binary",
 			ctx: &moduleInstallPathContextImpl{
-				androidBaseContextImpl: androidBaseContextImpl{
+				baseContextImpl: baseContextImpl{
 					target: deviceTarget,
 					kind:   productServicesSpecificModule,
 				},
@@ -497,7 +497,7 @@ func TestPathForModuleInstall(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.ctx.androidBaseContextImpl.config = testConfig
+			tc.ctx.baseContextImpl.config = testConfig
 			output := PathForModuleInstall(tc.ctx, tc.in...)
 			if output.basePath.path != tc.out {
 				t.Errorf("unexpected path:\n got: %q\nwant: %q\n",
