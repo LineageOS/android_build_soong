@@ -56,7 +56,30 @@ type BuildParams struct {
 
 type ModuleBuildParams BuildParams
 
-type baseContext interface {
+// BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
+// a Config instead of an interface{}, plus some extra methods that return Android-specific information
+// about the current module.
+type BaseModuleContext interface {
+	ModuleName() string
+	ModuleDir() string
+	ModuleType() string
+	Config() Config
+
+	ContainsProperty(name string) bool
+	Errorf(pos scanner.Position, fmt string, args ...interface{})
+	ModuleErrorf(fmt string, args ...interface{})
+	PropertyErrorf(property, fmt string, args ...interface{})
+	Failed() bool
+
+	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
+	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
+	// builder whenever a file matching the pattern as added or removed, without rerunning if a
+	// file that does not match the pattern is added to a searched directory.
+	GlobWithDeps(pattern string, excludes []string) ([]string, error)
+
+	Fs() pathtools.FileSystem
+	AddNinjaFileDeps(deps ...string)
+
 	Target() Target
 	TargetPrimary() bool
 	MultiTargets() []Target
@@ -78,37 +101,12 @@ type baseContext interface {
 	DeviceConfig() DeviceConfig
 }
 
+// Deprecated: use BaseModuleContext instead
 type BaseContext interface {
 	BaseModuleContext
-	baseContext
-}
-
-// BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
-// a Config instead of an interface{}.
-type BaseModuleContext interface {
-	ModuleName() string
-	ModuleDir() string
-	ModuleType() string
-	Config() Config
-
-	ContainsProperty(name string) bool
-	Errorf(pos scanner.Position, fmt string, args ...interface{})
-	ModuleErrorf(fmt string, args ...interface{})
-	PropertyErrorf(property, fmt string, args ...interface{})
-	Failed() bool
-
-	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
-	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
-	// builder whenever a file matching the pattern as added or removed, without rerunning if a
-	// file that does not match the pattern is added to a searched directory.
-	GlobWithDeps(pattern string, excludes []string) ([]string, error)
-
-	Fs() pathtools.FileSystem
-	AddNinjaFileDeps(deps ...string)
 }
 
 type ModuleContext interface {
-	baseContext
 	BaseModuleContext
 
 	// Deprecated: use ModuleContext.Build instead.
@@ -826,25 +824,26 @@ func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 	}
 }
 
-func (m *ModuleBase) baseContextFactory(ctx blueprint.BaseModuleContext) baseContextImpl {
-	return baseContextImpl{
-		target:        m.commonProperties.CompileTarget,
-		targetPrimary: m.commonProperties.CompilePrimary,
-		multiTargets:  m.commonProperties.CompileMultiTargets,
-		kind:          determineModuleKind(m, ctx),
-		config:        ctx.Config().(Config),
+func (m *ModuleBase) baseModuleContextFactory(ctx blueprint.BaseModuleContext) baseModuleContext {
+	return baseModuleContext{
+		BaseModuleContext: ctx,
+		target:            m.commonProperties.CompileTarget,
+		targetPrimary:     m.commonProperties.CompilePrimary,
+		multiTargets:      m.commonProperties.CompileMultiTargets,
+		kind:              determineModuleKind(m, ctx),
+		config:            ctx.Config().(Config),
 	}
 }
 
 func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) {
 	ctx := &moduleContext{
-		module:          m.module,
-		ModuleContext:   blueprintCtx,
-		baseContextImpl: m.baseContextFactory(blueprintCtx),
-		installDeps:     m.computeInstallDeps(blueprintCtx),
-		installFiles:    m.installFiles,
-		missingDeps:     blueprintCtx.GetMissingDependencies(),
-		variables:       make(map[string]string),
+		module:            m.module,
+		ModuleContext:     blueprintCtx,
+		baseModuleContext: m.baseModuleContextFactory(blueprintCtx),
+		installDeps:       m.computeInstallDeps(blueprintCtx),
+		installFiles:      m.installFiles,
+		missingDeps:       blueprintCtx.GetMissingDependencies(),
+		variables:         make(map[string]string),
 	}
 
 	if ctx.config.captureBuild {
@@ -917,7 +916,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.variables = ctx.variables
 }
 
-type baseContextImpl struct {
+type baseModuleContext struct {
+	blueprint.BaseModuleContext
 	target        Target
 	multiTargets  []Target
 	targetPrimary bool
@@ -928,7 +928,7 @@ type baseContextImpl struct {
 
 type moduleContext struct {
 	blueprint.ModuleContext
-	baseContextImpl
+	baseModuleContext
 	installDeps     Paths
 	installFiles    Paths
 	checkbuildFiles Paths
@@ -1210,82 +1210,82 @@ func (m *moduleContext) FinalModule() Module {
 	return m.ModuleContext.FinalModule().(Module)
 }
 
-func (b *baseContextImpl) Target() Target {
+func (b *baseModuleContext) Target() Target {
 	return b.target
 }
 
-func (b *baseContextImpl) TargetPrimary() bool {
+func (b *baseModuleContext) TargetPrimary() bool {
 	return b.targetPrimary
 }
 
-func (b *baseContextImpl) MultiTargets() []Target {
+func (b *baseModuleContext) MultiTargets() []Target {
 	return b.multiTargets
 }
 
-func (b *baseContextImpl) Arch() Arch {
+func (b *baseModuleContext) Arch() Arch {
 	return b.target.Arch
 }
 
-func (b *baseContextImpl) Os() OsType {
+func (b *baseModuleContext) Os() OsType {
 	return b.target.Os
 }
 
-func (b *baseContextImpl) Host() bool {
+func (b *baseModuleContext) Host() bool {
 	return b.target.Os.Class == Host || b.target.Os.Class == HostCross
 }
 
-func (b *baseContextImpl) Device() bool {
+func (b *baseModuleContext) Device() bool {
 	return b.target.Os.Class == Device
 }
 
-func (b *baseContextImpl) Darwin() bool {
+func (b *baseModuleContext) Darwin() bool {
 	return b.target.Os == Darwin
 }
 
-func (b *baseContextImpl) Fuchsia() bool {
+func (b *baseModuleContext) Fuchsia() bool {
 	return b.target.Os == Fuchsia
 }
 
-func (b *baseContextImpl) Windows() bool {
+func (b *baseModuleContext) Windows() bool {
 	return b.target.Os == Windows
 }
 
-func (b *baseContextImpl) Debug() bool {
+func (b *baseModuleContext) Debug() bool {
 	return b.debug
 }
 
-func (b *baseContextImpl) PrimaryArch() bool {
+func (b *baseModuleContext) PrimaryArch() bool {
 	if len(b.config.Targets[b.target.Os]) <= 1 {
 		return true
 	}
 	return b.target.Arch.ArchType == b.config.Targets[b.target.Os][0].Arch.ArchType
 }
 
-func (b *baseContextImpl) AConfig() Config {
+func (b *baseModuleContext) AConfig() Config {
 	return b.config
 }
 
-func (b *baseContextImpl) DeviceConfig() DeviceConfig {
+func (b *baseModuleContext) DeviceConfig() DeviceConfig {
 	return DeviceConfig{b.config.deviceConfig}
 }
 
-func (b *baseContextImpl) Platform() bool {
+func (b *baseModuleContext) Platform() bool {
 	return b.kind == platformModule
 }
 
-func (b *baseContextImpl) DeviceSpecific() bool {
+func (b *baseModuleContext) DeviceSpecific() bool {
 	return b.kind == deviceSpecificModule
 }
 
-func (b *baseContextImpl) SocSpecific() bool {
+func (b *baseModuleContext) SocSpecific() bool {
 	return b.kind == socSpecificModule
 }
 
-func (b *baseContextImpl) ProductSpecific() bool {
+func (b *baseModuleContext) ProductSpecific() bool {
 	return b.kind == productSpecificModule
 }
 
-func (b *baseContextImpl) ProductServicesSpecific() bool {
+func (b *baseModuleContext) ProductServicesSpecific() bool {
 	return b.kind == productServicesSpecificModule
 }
 

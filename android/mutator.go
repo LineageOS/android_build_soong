@@ -114,7 +114,6 @@ type TopDownMutator func(TopDownMutatorContext)
 
 type TopDownMutatorContext interface {
 	BaseModuleContext
-	baseContext
 
 	OtherModuleExists(name string) bool
 	Rename(name string)
@@ -143,7 +142,7 @@ type TopDownMutatorContext interface {
 
 type topDownMutatorContext struct {
 	blueprint.TopDownMutatorContext
-	baseContextImpl
+	baseModuleContext
 	walkPath []Module
 }
 
@@ -151,7 +150,6 @@ type BottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
 	BaseModuleContext
-	baseContext
 
 	OtherModuleExists(name string) bool
 	Rename(name string)
@@ -170,7 +168,7 @@ type BottomUpMutatorContext interface {
 
 type bottomUpMutatorContext struct {
 	blueprint.BottomUpMutatorContext
-	baseContextImpl
+	baseModuleContext
 }
 
 func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) MutatorHandle {
@@ -178,7 +176,7 @@ func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) Mutat
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &bottomUpMutatorContext{
 				BottomUpMutatorContext: ctx,
-				baseContextImpl:        a.base().baseContextFactory(ctx),
+				baseModuleContext:      a.base().baseModuleContextFactory(ctx),
 			}
 			m(actx)
 		}
@@ -193,7 +191,7 @@ func (x *registerMutatorsContext) TopDown(name string, m TopDownMutator) Mutator
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &topDownMutatorContext{
 				TopDownMutatorContext: ctx,
-				baseContextImpl:       a.base().baseContextFactory(ctx),
+				baseModuleContext:     a.base().baseModuleContextFactory(ctx),
 			}
 			m(actx)
 		}

@@ -552,7 +552,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (a *apexBundle) getCertString(ctx android.BaseContext) string {
+func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
 	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
 	if overridden {
 		return ":" + certificate

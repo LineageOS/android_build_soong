@@ -27,7 +27,7 @@ import (
 // been applied.
 type LoadHookContext interface {
 	// TODO: a new context that includes Config() but not Target(), etc.?
-	BaseContext
+	BaseModuleContext
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
 	CreateModule(blueprint.ModuleFactory, ...interface{})
@@ -36,7 +36,7 @@ type LoadHookContext interface {
 // Arch hooks are run after the module has been split into architecture variants, and can be used
 // to add architecture-specific properties.
 type ArchHookContext interface {
-	BaseContext
+	BaseModuleContext
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
 }
