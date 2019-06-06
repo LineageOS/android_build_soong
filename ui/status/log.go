@@ -15,11 +15,17 @@
 package status
 
 import (
-	"android/soong/ui/logger"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
+
+	"github.com/golang/protobuf/proto"
+
+	"android/soong/ui/logger"
+	"android/soong/ui/status/build_error_proto"
 )
 
 type verboseLog struct {
@@ -77,8 +83,7 @@ func (v *verboseLog) Write(p []byte) (int, error) {
 }
 
 type errorLog struct {
-	w io.WriteCloser
-
+	w     io.WriteCloser
 	empty bool
 }
 
@@ -102,20 +107,17 @@ func (e *errorLog) FinishAction(result ActionResult, counts Counts) {
 		return
 	}
 
-	cmd := result.Command
-	if cmd == "" {
-		cmd = result.Description
-	}
-
 	if !e.empty {
 		fmt.Fprintf(e.w, "\n\n")
 	}
 	e.empty = false
 
 	fmt.Fprintf(e.w, "FAILED: %s\n", result.Description)
+
 	if len(result.Outputs) > 0 {
 		fmt.Fprintf(e.w, "Outputs: %s\n", strings.Join(result.Outputs, " "))
 	}
+
 	fmt.Fprintf(e.w, "Error: %s\n", result.Error)
 	if result.Command != "" {
 		fmt.Fprintf(e.w, "Command: %s\n", result.Command)
@@ -143,4 +145,56 @@ func (e *errorLog) Message(level MsgLevel, message string) {
 func (e *errorLog) Write(p []byte) (int, error) {
 	fmt.Fprint(e.w, string(p))
 	return len(p), nil
+}
+
+type errorProtoLog struct {
+	errorProto soong_build_error_proto.BuildError
+	filename   string
+	log        logger.Logger
+}
+
+func NewProtoErrorLog(log logger.Logger, filename string) StatusOutput {
+	return &errorProtoLog{
+		errorProto: soong_build_error_proto.BuildError{},
+		filename:   filename,
+		log:        log,
+	}
+}
+
+func (e *errorProtoLog) StartAction(action *Action, counts Counts) {}
+
+func (e *errorProtoLog) FinishAction(result ActionResult, counts Counts) {
+	if result.Error == nil {
+		return
+	}
+
+	e.errorProto.ActionErrors = append(e.errorProto.ActionErrors, &soong_build_error_proto.BuildActionError{
+		Description: proto.String(result.Description),
+		Command:     proto.String(result.Command),
+		Output:      proto.String(result.Output),
+		Artifacts:   result.Outputs,
+		Error:       proto.String(result.Error.Error()),
+	})
+}
+
+func (e *errorProtoLog) Flush() {
+	data, err := proto.Marshal(&e.errorProto)
+	if err != nil {
+		e.log.Println("Failed to marshal build status proto: %v", err)
+		return
+	}
+	err = ioutil.WriteFile(e.filename, []byte(data), 0644)
+	if err != nil {
+		e.log.Println("Failed to write file %s: %v", e.errorProto, err)
+	}
+}
+
+func (e *errorProtoLog) Message(level MsgLevel, message string) {
+	if level > ErrorLvl {
+		e.errorProto.ErrorMessages = append(e.errorProto.ErrorMessages, message)
+	}
+}
+
+func (e *errorProtoLog) Write(p []byte) (int, error) {
+	return 0, errors.New("not supported")
 }
