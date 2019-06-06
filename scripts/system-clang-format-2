@@ -3,6 +3,7 @@ AllowShortFunctionsOnASingleLine: Inline
 ColumnLimit: 100
 CommentPragmas: NOLINT:.*
 DerivePointerAlignment: false
+IncludeBlocks: Preserve
 IndentWidth: 2
 PointerAlignment: Left
 TabWidth: 2
