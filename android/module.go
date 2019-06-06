@@ -338,6 +338,8 @@ type commonProperties struct {
 	SkipInstall bool `blueprint:"mutated"`
 
 	NamespaceExportedToMake bool `blueprint:"mutated"`
+
+	MissingDeps []string `blueprint:"mutated"`
 }
 
 type hostAndDeviceProperties struct {
@@ -841,9 +843,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		baseModuleContext: m.baseModuleContextFactory(blueprintCtx),
 		installDeps:       m.computeInstallDeps(blueprintCtx),
 		installFiles:      m.installFiles,
-		missingDeps:       blueprintCtx.GetMissingDependencies(),
 		variables:         make(map[string]string),
 	}
+
+	// Temporarily continue to call blueprintCtx.GetMissingDependencies() to maintain the previous behavior of never
+	// reporting missing dependency errors in Blueprint when AllowMissingDependencies == true.
+	// TODO: This will be removed once defaults modules handle missing dependency errors
+	blueprintCtx.GetMissingDependencies()
 
 	if ctx.config.captureBuild {
 		ctx.ruleParams = make(map[blueprint.Rule]blueprint.RuleParams)
@@ -931,7 +937,6 @@ type moduleContext struct {
 	installDeps     Paths
 	installFiles    Paths
 	checkbuildFiles Paths
-	missingDeps     []string
 	module          Module
 
 	// For tests
@@ -1032,24 +1037,33 @@ func (m *moduleContext) Build(pctx PackageContext, params BuildParams) {
 		bparams.Description = "${moduleDesc}" + params.Description + "${moduleDescSuffix}"
 	}
 
-	if m.missingDeps != nil {
+	if missingDeps := m.GetMissingDependencies(); len(missingDeps) > 0 {
 		m.ninjaError(bparams.Description, bparams.Outputs,
 			fmt.Errorf("module %s missing dependencies: %s\n",
-				m.ModuleName(), strings.Join(m.missingDeps, ", ")))
+				m.ModuleName(), strings.Join(missingDeps, ", ")))
 		return
 	}
 
 	m.ModuleContext.Build(pctx.PackageContext, bparams)
 }
 
+func (m *moduleContext) Module() Module {
+	return m.ModuleContext.Module().(Module)
+}
+
 func (m *moduleContext) GetMissingDependencies() []string {
-	return m.missingDeps
+	var missingDeps []string
+	missingDeps = append(missingDeps, m.Module().base().commonProperties.MissingDeps...)
+	missingDeps = append(missingDeps, m.ModuleContext.GetMissingDependencies()...)
+	missingDeps = FirstUniqueStrings(missingDeps)
+	return missingDeps
 }
 
 func (m *moduleContext) AddMissingDependencies(deps []string) {
 	if deps != nil {
-		m.missingDeps = append(m.missingDeps, deps...)
-		m.missingDeps = FirstUniqueStrings(m.missingDeps)
+		missingDeps := &m.Module().base().commonProperties.MissingDeps
+		*missingDeps = append(*missingDeps, deps...)
+		*missingDeps = FirstUniqueStrings(*missingDeps)
 	}
 }
 

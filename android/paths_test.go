@@ -758,6 +758,11 @@ func (p *pathForModuleSrcTestModule) GenerateAndroidBuildActions(ctx ModuleConte
 	if !p.props.Module_handles_missing_deps {
 		p.missingDeps = ctx.GetMissingDependencies()
 	}
+
+	ctx.Build(pctx, BuildParams{
+		Rule:   Touch,
+		Output: PathForModuleOut(ctx, "output"),
+	})
 }
 
 type pathForModuleSrcOutputFileProviderModule struct {
