@@ -151,7 +151,7 @@ func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
 		}
 
 		if m == "core.current.stubs" {
-			ret.systemModules = "core-system-modules"
+			ret.systemModules = "core-current-stubs-system-modules"
 		} else if m == "core.platform.api.stubs" {
 			ret.systemModules = "core-platform-api-stubs-system-modules"
 		}
