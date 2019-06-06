@@ -53,7 +53,7 @@ var optionalUsesLibs = []string{
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
 func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext, sdkLibraries []string,
-	isLibrary, useEmbeddedNativeLibs, usesNonSdkApis, useEmbeddedDex bool) android.Path {
+	isLibrary, useEmbeddedNativeLibs, usesNonSdkApis, useEmbeddedDex, hasNoCode bool) android.Path {
 
 	var args []string
 	if isLibrary {
@@ -85,6 +85,10 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		} else {
 			args = append(args, "--uses-library", usesLib)
 		}
+	}
+
+	if hasNoCode {
+		args = append(args, "--has-no-code")
 	}
 
 	var deps android.Paths
