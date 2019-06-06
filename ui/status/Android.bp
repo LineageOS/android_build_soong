@@ -19,6 +19,7 @@ bootstrap_go_package {
         "golang-protobuf-proto",
         "soong-ui-logger",
         "soong-ui-status-ninja_frontend",
+        "soong-ui-status-build_error_proto",
     ],
     srcs: [
         "kati.go",
@@ -39,5 +40,14 @@ bootstrap_go_package {
     deps: ["golang-protobuf-proto"],
     srcs: [
         "ninja_frontend/frontend.pb.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-ui-status-build_error_proto",
+    pkgPath: "android/soong/ui/status/build_error_proto",
+    deps: ["golang-protobuf-proto"],
+    srcs: [
+        "build_error_proto/build_error.pb.go",
     ],
 }
