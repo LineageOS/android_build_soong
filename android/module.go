@@ -526,83 +526,83 @@ type ModuleBase struct {
 	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
 }
 
-func (a *ModuleBase) DepsMutator(BottomUpMutatorContext) {}
+func (m *ModuleBase) DepsMutator(BottomUpMutatorContext) {}
 
-func (a *ModuleBase) AddProperties(props ...interface{}) {
-	a.registerProps = append(a.registerProps, props...)
+func (m *ModuleBase) AddProperties(props ...interface{}) {
+	m.registerProps = append(m.registerProps, props...)
 }
 
-func (a *ModuleBase) GetProperties() []interface{} {
-	return a.registerProps
+func (m *ModuleBase) GetProperties() []interface{} {
+	return m.registerProps
 }
 
-func (a *ModuleBase) BuildParamsForTests() []BuildParams {
-	return a.buildParams
+func (m *ModuleBase) BuildParamsForTests() []BuildParams {
+	return m.buildParams
 }
 
-func (a *ModuleBase) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams {
-	return a.ruleParams
+func (m *ModuleBase) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams {
+	return m.ruleParams
 }
 
-func (a *ModuleBase) VariablesForTests() map[string]string {
-	return a.variables
+func (m *ModuleBase) VariablesForTests() map[string]string {
+	return m.variables
 }
 
-func (a *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool) {
-	a.prefer32 = prefer32
+func (m *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool) {
+	m.prefer32 = prefer32
 }
 
 // Name returns the name of the module.  It may be overridden by individual module types, for
 // example prebuilts will prepend prebuilt_ to the name.
-func (a *ModuleBase) Name() string {
-	return String(a.nameProperties.Name)
+func (m *ModuleBase) Name() string {
+	return String(m.nameProperties.Name)
 }
 
 // BaseModuleName returns the name of the module as specified in the blueprints file.
-func (a *ModuleBase) BaseModuleName() string {
-	return String(a.nameProperties.Name)
+func (m *ModuleBase) BaseModuleName() string {
+	return String(m.nameProperties.Name)
 }
 
-func (a *ModuleBase) base() *ModuleBase {
-	return a
+func (m *ModuleBase) base() *ModuleBase {
+	return m
 }
 
-func (a *ModuleBase) SetTarget(target Target, multiTargets []Target, primary bool) {
-	a.commonProperties.CompileTarget = target
-	a.commonProperties.CompileMultiTargets = multiTargets
-	a.commonProperties.CompilePrimary = primary
+func (m *ModuleBase) SetTarget(target Target, multiTargets []Target, primary bool) {
+	m.commonProperties.CompileTarget = target
+	m.commonProperties.CompileMultiTargets = multiTargets
+	m.commonProperties.CompilePrimary = primary
 }
 
-func (a *ModuleBase) Target() Target {
-	return a.commonProperties.CompileTarget
+func (m *ModuleBase) Target() Target {
+	return m.commonProperties.CompileTarget
 }
 
-func (a *ModuleBase) TargetPrimary() bool {
-	return a.commonProperties.CompilePrimary
+func (m *ModuleBase) TargetPrimary() bool {
+	return m.commonProperties.CompilePrimary
 }
 
-func (a *ModuleBase) MultiTargets() []Target {
-	return a.commonProperties.CompileMultiTargets
+func (m *ModuleBase) MultiTargets() []Target {
+	return m.commonProperties.CompileMultiTargets
 }
 
-func (a *ModuleBase) Os() OsType {
-	return a.Target().Os
+func (m *ModuleBase) Os() OsType {
+	return m.Target().Os
 }
 
-func (a *ModuleBase) Host() bool {
-	return a.Os().Class == Host || a.Os().Class == HostCross
+func (m *ModuleBase) Host() bool {
+	return m.Os().Class == Host || m.Os().Class == HostCross
 }
 
-func (a *ModuleBase) Arch() Arch {
-	return a.Target().Arch
+func (m *ModuleBase) Arch() Arch {
+	return m.Target().Arch
 }
 
-func (a *ModuleBase) ArchSpecific() bool {
-	return a.commonProperties.ArchSpecific
+func (m *ModuleBase) ArchSpecific() bool {
+	return m.commonProperties.ArchSpecific
 }
 
-func (a *ModuleBase) OsClassSupported() []OsClass {
-	switch a.commonProperties.HostOrDeviceSupported {
+func (m *ModuleBase) OsClassSupported() []OsClass {
+	switch m.commonProperties.HostOrDeviceSupported {
 	case HostSupported:
 		return []OsClass{Host, HostCross}
 	case HostSupportedNoCross:
@@ -611,13 +611,13 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 		return []OsClass{Device}
 	case HostAndDeviceSupported, HostAndDeviceDefault:
 		var supported []OsClass
-		if Bool(a.hostAndDeviceProperties.Host_supported) ||
-			(a.commonProperties.HostOrDeviceSupported == HostAndDeviceDefault &&
-				a.hostAndDeviceProperties.Host_supported == nil) {
+		if Bool(m.hostAndDeviceProperties.Host_supported) ||
+			(m.commonProperties.HostOrDeviceSupported == HostAndDeviceDefault &&
+				m.hostAndDeviceProperties.Host_supported == nil) {
 			supported = append(supported, Host, HostCross)
 		}
-		if a.hostAndDeviceProperties.Device_supported == nil ||
-			*a.hostAndDeviceProperties.Device_supported {
+		if m.hostAndDeviceProperties.Device_supported == nil ||
+			*m.hostAndDeviceProperties.Device_supported {
 			supported = append(supported, Device)
 		}
 		return supported
@@ -626,49 +626,49 @@ func (a *ModuleBase) OsClassSupported() []OsClass {
 	}
 }
 
-func (a *ModuleBase) DeviceSupported() bool {
-	return a.commonProperties.HostOrDeviceSupported == DeviceSupported ||
-		a.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
-			(a.hostAndDeviceProperties.Device_supported == nil ||
-				*a.hostAndDeviceProperties.Device_supported)
+func (m *ModuleBase) DeviceSupported() bool {
+	return m.commonProperties.HostOrDeviceSupported == DeviceSupported ||
+		m.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
+			(m.hostAndDeviceProperties.Device_supported == nil ||
+				*m.hostAndDeviceProperties.Device_supported)
 }
 
-func (a *ModuleBase) Platform() bool {
-	return !a.DeviceSpecific() && !a.SocSpecific() && !a.ProductSpecific() && !a.ProductServicesSpecific()
+func (m *ModuleBase) Platform() bool {
+	return !m.DeviceSpecific() && !m.SocSpecific() && !m.ProductSpecific() && !m.ProductServicesSpecific()
 }
 
-func (a *ModuleBase) DeviceSpecific() bool {
-	return Bool(a.commonProperties.Device_specific)
+func (m *ModuleBase) DeviceSpecific() bool {
+	return Bool(m.commonProperties.Device_specific)
 }
 
-func (a *ModuleBase) SocSpecific() bool {
-	return Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
+func (m *ModuleBase) SocSpecific() bool {
+	return Bool(m.commonProperties.Vendor) || Bool(m.commonProperties.Proprietary) || Bool(m.commonProperties.Soc_specific)
 }
 
-func (a *ModuleBase) ProductSpecific() bool {
-	return Bool(a.commonProperties.Product_specific)
+func (m *ModuleBase) ProductSpecific() bool {
+	return Bool(m.commonProperties.Product_specific)
 }
 
-func (a *ModuleBase) ProductServicesSpecific() bool {
-	return Bool(a.commonProperties.Product_services_specific)
+func (m *ModuleBase) ProductServicesSpecific() bool {
+	return Bool(m.commonProperties.Product_services_specific)
 }
 
-func (a *ModuleBase) Enabled() bool {
-	if a.commonProperties.Enabled == nil {
-		return !a.Os().DefaultDisabled
+func (m *ModuleBase) Enabled() bool {
+	if m.commonProperties.Enabled == nil {
+		return !m.Os().DefaultDisabled
 	}
-	return *a.commonProperties.Enabled
+	return *m.commonProperties.Enabled
 }
 
-func (a *ModuleBase) SkipInstall() {
-	a.commonProperties.SkipInstall = true
+func (m *ModuleBase) SkipInstall() {
+	m.commonProperties.SkipInstall = true
 }
 
-func (a *ModuleBase) ExportedToMake() bool {
-	return a.commonProperties.NamespaceExportedToMake
+func (m *ModuleBase) ExportedToMake() bool {
+	return m.commonProperties.NamespaceExportedToMake
 }
 
-func (a *ModuleBase) computeInstallDeps(
+func (m *ModuleBase) computeInstallDeps(
 	ctx blueprint.ModuleContext) Paths {
 
 	result := Paths{}
@@ -683,35 +683,35 @@ func (a *ModuleBase) computeInstallDeps(
 	return result
 }
 
-func (a *ModuleBase) filesToInstall() Paths {
-	return a.installFiles
+func (m *ModuleBase) filesToInstall() Paths {
+	return m.installFiles
 }
 
-func (p *ModuleBase) NoAddressSanitizer() bool {
-	return p.noAddressSanitizer
+func (m *ModuleBase) NoAddressSanitizer() bool {
+	return m.noAddressSanitizer
 }
 
-func (p *ModuleBase) InstallInData() bool {
+func (m *ModuleBase) InstallInData() bool {
 	return false
 }
 
-func (p *ModuleBase) InstallInSanitizerDir() bool {
+func (m *ModuleBase) InstallInSanitizerDir() bool {
 	return false
 }
 
-func (p *ModuleBase) InstallInRecovery() bool {
-	return Bool(p.commonProperties.Recovery)
+func (m *ModuleBase) InstallInRecovery() bool {
+	return Bool(m.commonProperties.Recovery)
 }
 
-func (a *ModuleBase) Owner() string {
-	return String(a.commonProperties.Owner)
+func (m *ModuleBase) Owner() string {
+	return String(m.commonProperties.Owner)
 }
 
-func (a *ModuleBase) NoticeFile() OptionalPath {
-	return a.noticeFile
+func (m *ModuleBase) NoticeFile() OptionalPath {
+	return m.noticeFile
 }
 
-func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
+func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
 	ctx.VisitAllModuleVariants(func(module Module) {
@@ -736,7 +736,7 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 			Default:   !ctx.Config().EmbeddedInMake(),
 		})
 		deps = append(deps, name)
-		a.installTarget = name
+		m.installTarget = name
 	}
 
 	if len(allCheckbuildFiles) > 0 {
@@ -747,7 +747,7 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 			Implicits: allCheckbuildFiles,
 		})
 		deps = append(deps, name)
-		a.checkbuildTarget = name
+		m.checkbuildTarget = name
 	}
 
 	if len(deps) > 0 {
@@ -763,26 +763,26 @@ func (a *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 			Implicits: deps,
 		})
 
-		a.blueprintDir = ctx.ModuleDir()
+		m.blueprintDir = ctx.ModuleDir()
 	}
 }
 
-func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleKind {
-	var socSpecific = Bool(a.commonProperties.Vendor) || Bool(a.commonProperties.Proprietary) || Bool(a.commonProperties.Soc_specific)
-	var deviceSpecific = Bool(a.commonProperties.Device_specific)
-	var productSpecific = Bool(a.commonProperties.Product_specific)
-	var productServicesSpecific = Bool(a.commonProperties.Product_services_specific)
+func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleKind {
+	var socSpecific = Bool(m.commonProperties.Vendor) || Bool(m.commonProperties.Proprietary) || Bool(m.commonProperties.Soc_specific)
+	var deviceSpecific = Bool(m.commonProperties.Device_specific)
+	var productSpecific = Bool(m.commonProperties.Product_specific)
+	var productServicesSpecific = Bool(m.commonProperties.Product_services_specific)
 
 	msg := "conflicting value set here"
 	if socSpecific && deviceSpecific {
 		ctx.PropertyErrorf("device_specific", "a module cannot be specific to SoC and device at the same time.")
-		if Bool(a.commonProperties.Vendor) {
+		if Bool(m.commonProperties.Vendor) {
 			ctx.PropertyErrorf("vendor", msg)
 		}
-		if Bool(a.commonProperties.Proprietary) {
+		if Bool(m.commonProperties.Proprietary) {
 			ctx.PropertyErrorf("proprietary", msg)
 		}
-		if Bool(a.commonProperties.Soc_specific) {
+		if Bool(m.commonProperties.Soc_specific) {
 			ctx.PropertyErrorf("soc_specific", msg)
 		}
 	}
@@ -801,13 +801,13 @@ func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 		if deviceSpecific {
 			ctx.PropertyErrorf("device_specific", msg)
 		} else {
-			if Bool(a.commonProperties.Vendor) {
+			if Bool(m.commonProperties.Vendor) {
 				ctx.PropertyErrorf("vendor", msg)
 			}
-			if Bool(a.commonProperties.Proprietary) {
+			if Bool(m.commonProperties.Proprietary) {
 				ctx.PropertyErrorf("proprietary", msg)
 			}
-			if Bool(a.commonProperties.Soc_specific) {
+			if Bool(m.commonProperties.Soc_specific) {
 				ctx.PropertyErrorf("soc_specific", msg)
 			}
 		}
@@ -826,23 +826,23 @@ func determineModuleKind(a *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 	}
 }
 
-func (a *ModuleBase) baseContextFactory(ctx blueprint.BaseModuleContext) baseContextImpl {
+func (m *ModuleBase) baseContextFactory(ctx blueprint.BaseModuleContext) baseContextImpl {
 	return baseContextImpl{
-		target:        a.commonProperties.CompileTarget,
-		targetPrimary: a.commonProperties.CompilePrimary,
-		multiTargets:  a.commonProperties.CompileMultiTargets,
-		kind:          determineModuleKind(a, ctx),
+		target:        m.commonProperties.CompileTarget,
+		targetPrimary: m.commonProperties.CompilePrimary,
+		multiTargets:  m.commonProperties.CompileMultiTargets,
+		kind:          determineModuleKind(m, ctx),
 		config:        ctx.Config().(Config),
 	}
 }
 
-func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) {
+func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) {
 	ctx := &moduleContext{
-		module:          a.module,
+		module:          m.module,
 		ModuleContext:   blueprintCtx,
-		baseContextImpl: a.baseContextFactory(blueprintCtx),
-		installDeps:     a.computeInstallDeps(blueprintCtx),
-		installFiles:    a.installFiles,
+		baseContextImpl: m.baseContextFactory(blueprintCtx),
+		installDeps:     m.computeInstallDeps(blueprintCtx),
+		installFiles:    m.installFiles,
 		missingDeps:     blueprintCtx.GetMissingDependencies(),
 		variables:       make(map[string]string),
 	}
@@ -869,52 +869,52 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	ctx.Variable(pctx, "moduleDescSuffix", s)
 
 	// Some common property checks for properties that will be used later in androidmk.go
-	if a.commonProperties.Dist.Dest != nil {
-		_, err := validateSafePath(*a.commonProperties.Dist.Dest)
+	if m.commonProperties.Dist.Dest != nil {
+		_, err := validateSafePath(*m.commonProperties.Dist.Dest)
 		if err != nil {
 			ctx.PropertyErrorf("dist.dest", "%s", err.Error())
 		}
 	}
-	if a.commonProperties.Dist.Dir != nil {
-		_, err := validateSafePath(*a.commonProperties.Dist.Dir)
+	if m.commonProperties.Dist.Dir != nil {
+		_, err := validateSafePath(*m.commonProperties.Dist.Dir)
 		if err != nil {
 			ctx.PropertyErrorf("dist.dir", "%s", err.Error())
 		}
 	}
-	if a.commonProperties.Dist.Suffix != nil {
-		if strings.Contains(*a.commonProperties.Dist.Suffix, "/") {
+	if m.commonProperties.Dist.Suffix != nil {
+		if strings.Contains(*m.commonProperties.Dist.Suffix, "/") {
 			ctx.PropertyErrorf("dist.suffix", "Suffix may not contain a '/' character.")
 		}
 	}
 
-	if a.Enabled() {
-		a.module.GenerateAndroidBuildActions(ctx)
+	if m.Enabled() {
+		m.module.GenerateAndroidBuildActions(ctx)
 		if ctx.Failed() {
 			return
 		}
 
-		a.installFiles = append(a.installFiles, ctx.installFiles...)
-		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
+		m.installFiles = append(m.installFiles, ctx.installFiles...)
+		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
 
-		notice := proptools.StringDefault(a.commonProperties.Notice, "NOTICE")
-		if m := SrcIsModule(notice); m != "" {
-			a.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
+		notice := proptools.StringDefault(m.commonProperties.Notice, "NOTICE")
+		if module := SrcIsModule(notice); module != "" {
+			m.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
 		} else {
 			noticePath := filepath.Join(ctx.ModuleDir(), notice)
-			a.noticeFile = ExistentPathForSource(ctx, noticePath)
+			m.noticeFile = ExistentPathForSource(ctx, noticePath)
 		}
 	}
 
-	if a == ctx.FinalModule().(Module).base() {
-		a.generateModuleTarget(ctx)
+	if m == ctx.FinalModule().(Module).base() {
+		m.generateModuleTarget(ctx)
 		if ctx.Failed() {
 			return
 		}
 	}
 
-	a.buildParams = ctx.buildParams
-	a.ruleParams = ctx.ruleParams
-	a.variables = ctx.variables
+	m.buildParams = ctx.buildParams
+	m.ruleParams = ctx.ruleParams
+	m.variables = ctx.variables
 }
 
 type baseContextImpl struct {
@@ -1291,16 +1291,16 @@ func (b *baseContextImpl) ProductServicesSpecific() bool {
 
 // Makes this module a platform module, i.e. not specific to soc, device,
 // product, or product_services.
-func (a *ModuleBase) MakeAsPlatform() {
-	a.commonProperties.Vendor = boolPtr(false)
-	a.commonProperties.Proprietary = boolPtr(false)
-	a.commonProperties.Soc_specific = boolPtr(false)
-	a.commonProperties.Product_specific = boolPtr(false)
-	a.commonProperties.Product_services_specific = boolPtr(false)
+func (m *ModuleBase) MakeAsPlatform() {
+	m.commonProperties.Vendor = boolPtr(false)
+	m.commonProperties.Proprietary = boolPtr(false)
+	m.commonProperties.Soc_specific = boolPtr(false)
+	m.commonProperties.Product_specific = boolPtr(false)
+	m.commonProperties.Product_services_specific = boolPtr(false)
 }
 
-func (a *ModuleBase) EnableNativeBridgeSupportByDefault() {
-	a.commonProperties.Native_bridge_supported = boolPtr(true)
+func (m *ModuleBase) EnableNativeBridgeSupportByDefault() {
+	m.commonProperties.Native_bridge_supported = boolPtr(true)
 }
 
 func (m *moduleContext) InstallInData() bool {
