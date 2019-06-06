@@ -15,6 +15,7 @@
 package android
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -86,7 +87,9 @@ type ApexModuleBase struct {
 	ApexProperties ApexProperties
 
 	canHaveApexVariants bool
-	apexVariations      []string
+
+	apexVariationsLock sync.Mutex // protects apexVariations during parallel apexDepsMutator
+	apexVariations     []string
 }
 
 func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
@@ -94,6 +97,8 @@ func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 }
 
 func (m *ApexModuleBase) BuildForApex(apexName string) {
+	m.apexVariationsLock.Lock()
+	defer m.apexVariationsLock.Unlock()
 	if !InList(apexName, m.apexVariations) {
 		m.apexVariations = append(m.apexVariations, apexName)
 	}
@@ -122,6 +127,7 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []blueprint.Module {
 	if len(m.apexVariations) > 0 {
+		sort.Strings(m.apexVariations)
 		variations := []string{""} // Original variation for platform
 		variations = append(variations, m.apexVariations...)
 
