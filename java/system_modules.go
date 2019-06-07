@@ -42,7 +42,11 @@ var (
 			`${config.MergeZipsCmd} -j ${workDir}/module.jar ${workDir}/classes.jar $in && ` +
 			`${config.JmodCmd} create --module-version 9 --target-platform android ` +
 			`  --class-path ${workDir}/module.jar ${workDir}/jmod/${moduleName}.jmod && ` +
-			`${config.JlinkCmd} --module-path ${workDir}/jmod --add-modules ${moduleName} --output ${outDir} && ` +
+			`${config.JlinkCmd} --module-path ${workDir}/jmod --add-modules ${moduleName} --output ${outDir} ` +
+			// Note: The system-modules jlink plugin is disabled because (a) it is not
+			// useful on Android, and (b) it causes errors with later versions of jlink
+			// when the jdk.internal.module is absent from java.base (as it is here).
+			`  --disable-plugin system-modules && ` +
 			`cp ${config.JrtFsJar} ${outDir}/lib/`,
 		CommandDeps: []string{
 			"${moduleInfoJavaPath}",
