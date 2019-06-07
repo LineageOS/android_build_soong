@@ -938,16 +938,18 @@ type usesLibrary struct {
 }
 
 func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, noFrameworkLibs bool) {
-	ctx.AddVariationDependencies(nil, usesLibTag, u.usesLibraryProperties.Uses_libs...)
-	ctx.AddVariationDependencies(nil, usesLibTag, u.presentOptionalUsesLibs(ctx)...)
-	if !noFrameworkLibs {
-		// dexpreopt/dexpreopt.go needs the paths to the dex jars of these libraries in case construct_context.sh needs
-		// to pass them to dex2oat.  Add them as a dependency so we can determine the path to the dex jar of each
-		// library to dexpreopt.
-		ctx.AddVariationDependencies(nil, usesLibTag,
-			"org.apache.http.legacy",
-			"android.hidl.base-V1.0-java",
-			"android.hidl.manager-V1.0-java")
+	if !ctx.Config().UnbundledBuild() {
+		ctx.AddVariationDependencies(nil, usesLibTag, u.usesLibraryProperties.Uses_libs...)
+		ctx.AddVariationDependencies(nil, usesLibTag, u.presentOptionalUsesLibs(ctx)...)
+		if !noFrameworkLibs {
+			// dexpreopt/dexpreopt.go needs the paths to the dex jars of these libraries in case construct_context.sh needs
+			// to pass them to dex2oat.  Add them as a dependency so we can determine the path to the dex jar of each
+			// library to dexpreopt.
+			ctx.AddVariationDependencies(nil, usesLibTag,
+				"org.apache.http.legacy",
+				"android.hidl.base-V1.0-java",
+				"android.hidl.manager-V1.0-java")
+		}
 	}
 }
 
