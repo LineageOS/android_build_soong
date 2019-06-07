@@ -95,6 +95,9 @@ func createLibcoreRules() []*rule {
 		"external/icu",
 		"external/okhttp",
 		"external/wycheproof",
+
+		// Not really a core library but still needs access to same capabilities.
+		"development",
 	}
 
 	// Core library constraints. The no_standard_libs can only be used in core
@@ -102,7 +105,7 @@ func createLibcoreRules() []*rule {
 	// visibility rules.
 	rules := []*rule{
 		neverallow().
-			notIn(append(coreLibraryProjects, "development")...).
+			notIn(coreLibraryProjects...).
 			with("no_standard_libs", "true"),
 	}
 
