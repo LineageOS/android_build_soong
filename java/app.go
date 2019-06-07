@@ -159,8 +159,9 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.PropertyErrorf("stl", "sdk_version must be set in order to use c++_shared")
 	}
 
-	if !Bool(a.properties.No_framework_libs) && !Bool(a.properties.No_standard_libs) {
-		a.aapt.deps(ctx, sdkContext(a))
+	sdkDep := decodeSdkDep(ctx, sdkContext(a))
+	if sdkDep.hasFrameworkLibs() {
+		a.aapt.deps(ctx, sdkDep)
 	}
 
 	embedJni := a.shouldEmbedJnis(ctx)
@@ -180,7 +181,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	a.usesLibrary.deps(ctx, Bool(a.properties.No_framework_libs))
+	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
 }
 
 func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
@@ -783,7 +784,7 @@ func (a *AndroidAppImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
 
-	a.usesLibrary.deps(ctx, false)
+	a.usesLibrary.deps(ctx, true)
 }
 
 func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
@@ -937,11 +938,14 @@ type usesLibrary struct {
 	usesLibraryProperties UsesLibraryProperties
 }
 
-func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, noFrameworkLibs bool) {
+func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs bool) {
 	if !ctx.Config().UnbundledBuild() {
 		ctx.AddVariationDependencies(nil, usesLibTag, u.usesLibraryProperties.Uses_libs...)
 		ctx.AddVariationDependencies(nil, usesLibTag, u.presentOptionalUsesLibs(ctx)...)
-		if !noFrameworkLibs {
+		// Only add these extra dependencies if the module depends on framework libs. This avoids
+		// creating a cyclic dependency:
+		//     e.g. framework-res -> org.apache.http.legacy -> ... -> framework-res.
+		if hasFrameworkLibs {
 			// dexpreopt/dexpreopt.go needs the paths to the dex jars of these libraries in case construct_context.sh needs
 			// to pass them to dex2oat.  Add them as a dependency so we can determine the path to the dex jar of each
 			// library to dexpreopt.
