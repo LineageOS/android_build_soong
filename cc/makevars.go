@@ -95,7 +95,20 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("VNDK_CORE_LIBRARIES", strings.Join(vndkCoreLibraries, " "))
 	ctx.Strict("VNDK_SAMEPROCESS_LIBRARIES", strings.Join(vndkSpLibraries, " "))
-	ctx.Strict("LLNDK_LIBRARIES", strings.Join(llndkLibraries, " "))
+
+	// Make uses LLNDK_LIBRARIES to determine which libraries to install.
+	// HWASAN is only part of the LL-NDK in builds in which libc depends on HWASAN.
+	// Therefore, by removing the library here, we cause it to only be installed if libc
+	// depends on it.
+	installedLlndkLibraries := []string{}
+	for _, lib := range llndkLibraries {
+		if strings.HasPrefix(lib, "libclang_rt.hwasan-") {
+			continue
+		}
+		installedLlndkLibraries = append(installedLlndkLibraries, lib)
+	}
+	ctx.Strict("LLNDK_LIBRARIES", strings.Join(installedLlndkLibraries, " "))
+
 	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(vndkPrivateLibraries, " "))
 	ctx.Strict("VNDK_USING_CORE_VARIANT_LIBRARIES", strings.Join(vndkUsingCoreVariantLibraries, " "))
 
