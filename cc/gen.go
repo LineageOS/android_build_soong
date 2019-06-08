@@ -47,11 +47,11 @@ var (
 
 	sysprop = pctx.AndroidStaticRule("sysprop",
 		blueprint.RuleParams{
-			Command: "$syspropCmd --header-dir=$headerOutDir --system-header-dir=$systemOutDir " +
+			Command: "$syspropCmd --header-dir=$headerOutDir --public-header-dir=$publicOutDir " +
 				"--source-dir=$srcOutDir --include-name=$includeName $in",
 			CommandDeps: []string{"$syspropCmd"},
 		},
-		"headerOutDir", "systemOutDir", "srcOutDir", "includeName")
+		"headerOutDir", "publicOutDir", "srcOutDir", "includeName")
 
 	windmc = pctx.AndroidStaticRule("windmc",
 		blueprint.RuleParams{
@@ -141,7 +141,7 @@ func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.Mod
 
 func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Path, android.Path) {
 	headerFile := android.PathForModuleGen(ctx, "sysprop", "include", syspropFile.Rel()+".h")
-	systemHeaderFile := android.PathForModuleGen(ctx, "sysprop/system", "include", syspropFile.Rel()+".h")
+	publicHeaderFile := android.PathForModuleGen(ctx, "sysprop/public", "include", syspropFile.Rel()+".h")
 	cppFile := android.PathForModuleGen(ctx, "sysprop", syspropFile.Rel()+".cpp")
 
 	ctx.Build(pctx, android.BuildParams{
@@ -152,7 +152,7 @@ func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Pa
 		Input:          syspropFile,
 		Args: map[string]string{
 			"headerOutDir": filepath.Dir(headerFile.String()),
-			"systemOutDir": filepath.Dir(systemHeaderFile.String()),
+			"publicOutDir": filepath.Dir(publicHeaderFile.String()),
 			"srcOutDir":    filepath.Dir(cppFile.String()),
 			"includeName":  syspropFile.Rel() + ".h",
 		},
