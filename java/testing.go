@@ -109,6 +109,7 @@ func GatherRequiredDepsForTest() string {
 
 	systemModules := []string{
 		"core-system-modules",
+		"core-current-stubs-system-modules",
 		"core-platform-api-stubs-system-modules",
 		"android_stubs_current_system_modules",
 		"android_system_stubs_current_system_modules",

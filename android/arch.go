@@ -710,7 +710,7 @@ func (target Target) String() string {
 //    - The HostOrDeviceSupported value passed in to InitAndroidArchModule by the module type factory, which selects
 //      whether the module type can compile for host, device or both.
 //    - The host_supported and device_supported properties on the module.
-// If host is supported for the module, the Host and HostCross OsClasses are  are selected.  If device is supported
+// If host is supported for the module, the Host and HostCross OsClasses are selected.  If device is supported
 // for the module, the Device OsClass is selected.
 // Within each selected OsClass, the multilib selection is determined by:
 //    - The compile_multilib property if it set (which may be overriden by target.android.compile_multlib or

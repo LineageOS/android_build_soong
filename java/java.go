@@ -351,15 +351,22 @@ type Module struct {
 	dexpreopter
 }
 
-func (j *Module) Srcs() android.Paths {
-	return append(android.Paths{j.outputFile}, j.extraOutputFiles...)
+func (j *Module) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return append(android.Paths{j.outputFile}, j.extraOutputFiles...), nil
+	case ".jar":
+		return android.Paths{j.implementationAndResourcesJar}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func (j *Module) DexJarFile() android.Path {
 	return j.dexJarFile
 }
 
-var _ android.SourceFileProducer = (*Module)(nil)
+var _ android.OutputFileProducer = (*Module)(nil)
 
 type Dependency interface {
 	HeaderJars() android.Paths
@@ -813,8 +820,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 		default:
 			switch tag {
-			case android.DefaultsDepTag, android.SourceDepTag:
-				// Nothing to do
 			case systemModulesTag:
 				if deps.systemModules != nil {
 					panic("Found two system module dependencies")
@@ -824,8 +829,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					panic("Missing directory for system module dependency")
 				}
 				deps.systemModules = sm.outputFile
-			default:
-				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
 		}
 	})
@@ -966,8 +969,6 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
-	hasSrcs := false
-
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)
 
 	deps := j.collectDeps(ctx)
@@ -982,9 +983,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	}
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
-	if len(srcFiles) > 0 {
-		hasSrcs = true
-	}
 
 	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
@@ -1181,7 +1179,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	if len(deps.staticJars) > 0 {
 		jars = append(jars, deps.staticJars...)
-		hasSrcs = true
 	}
 
 	manifest := j.overrideManifest
@@ -1293,7 +1290,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
-	if ctx.Device() && hasSrcs &&
+	if ctx.Device() && j.hasCode(ctx) &&
 		(Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
 		// Dex compilation
 		var dexOutputFile android.ModuleOutPath
@@ -1496,6 +1493,11 @@ func (j *Module) CompilerDeps() []string {
 	jdeps = append(jdeps, j.properties.Libs...)
 	jdeps = append(jdeps, j.properties.Static_libs...)
 	return jdeps
+}
+
+func (j *Module) hasCode(ctx android.ModuleContext) bool {
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+	return len(srcFiles) > 0 || len(ctx.GetDirectDepsWithTag(staticLibTag)) > 0
 }
 
 //

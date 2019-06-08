@@ -78,7 +78,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 
 		cc_library {
 			name: "libc",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
@@ -89,7 +89,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 		cc_library {
 			name: "libm",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
@@ -100,7 +100,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 		cc_library {
 			name: "libdl",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
@@ -111,7 +111,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 		cc_library {
 			name: "libc++_static",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",
@@ -120,7 +120,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 		cc_library {
 			name: "libc++",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",
@@ -133,7 +133,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 		cc_library {
 			name: "libunwind_llvm",
-			no_libgcc: true,
+			no_libcrt: true,
 			nocrt: true,
 			system_shared_libs: [],
 			stl: "none",

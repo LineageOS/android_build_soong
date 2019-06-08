@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -250,8 +251,13 @@ func (p *prebuiltModule) Prebuilt() *Prebuilt {
 	return &p.prebuilt
 }
 
-func (p *prebuiltModule) Srcs() Paths {
-	return Paths{p.src}
+func (p *prebuiltModule) OutputFiles(tag string) (Paths, error) {
+	switch tag {
+	case "":
+		return Paths{p.src}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 type sourceModule struct {

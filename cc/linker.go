@@ -57,9 +57,6 @@ type BaseLinkerProperties struct {
 	// This flag should only be necessary for compiling low-level libraries like libc.
 	Allow_undefined_symbols *bool `android:"arch_variant"`
 
-	// don't link in libgcc.a
-	No_libgcc *bool
-
 	// don't link in libclang_rt.builtins-*.a
 	No_libcrt *bool `android:"arch_variant"`
 
@@ -230,9 +227,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc_stripped")
-		} else if !Bool(linker.Properties.No_libgcc) {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libgcc")
 		}
 
 		systemSharedLibs := linker.Properties.System_shared_libs
@@ -301,6 +295,10 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 	if ctx.Darwin() {
 		return false
 	}
+	// http://b/110800681 - lld cannot link Android's Windows modules yet.
+	if ctx.Windows() {
+		return false
+	}
 	if linker.Properties.Use_clang_lld != nil {
 		return Bool(linker.Properties.Use_clang_lld)
 	}
@@ -354,7 +352,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			// darwin defaults to treating undefined symbols as errors
 			flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
 		}
-	} else if !ctx.Darwin() && !ctx.Windows() {
+	} else if !ctx.Darwin() {
 		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
 	}
 
@@ -391,7 +389,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
 
-	if ctx.Host() && !ctx.Windows() {
+	if ctx.Host() {
 		rpath_prefix := `\$$ORIGIN/`
 		if ctx.Darwin() {
 			rpath_prefix = "@loader_path/"

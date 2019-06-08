@@ -130,8 +130,12 @@ func TestAppSplits(t *testing.T) {
 		foo.Output(expectedOutput)
 	}
 
-	if g, w := foo.Module().(*AndroidApp).Srcs().Strings(), expectedOutputs; !reflect.DeepEqual(g, w) {
-		t.Errorf("want Srcs() = %q, got %q", w, g)
+	outputFiles, err := foo.Module().(*AndroidApp).OutputFiles("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := outputFiles.Strings(), expectedOutputs; !reflect.DeepEqual(g, w) {
+		t.Errorf(`want OutputFiles("") = %q, got %q`, w, g)
 	}
 }
 
@@ -1199,6 +1203,10 @@ func TestStl(t *testing.T) {
 			compile_multilib: "both",
 			sdk_version: "current",
 		}
+
+		ndk_prebuilt_shared_stl {
+			name: "ndk_libc++_shared",
+		}
 		`)
 
 	testCases := []struct {
@@ -1208,7 +1216,7 @@ func TestStl(t *testing.T) {
 		{"stl",
 			[]string{
 				"libjni.so",
-				"libc++.so",
+				"libc++_shared.so",
 			},
 		},
 		{"system",
@@ -1317,5 +1325,75 @@ func TestUsesLibraries(t *testing.T) {
 
 	if w := `dex_preopt_target_libraries="/system/framework/foo.jar /system/framework/bar.jar"`; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
+	}
+}
+
+func TestCodelessApp(t *testing.T) {
+	testCases := []struct {
+		name   string
+		bp     string
+		noCode bool
+	}{
+		{
+			name: "normal",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+				}
+			`,
+			noCode: false,
+		},
+		{
+			name: "app without sources",
+			bp: `
+				android_app {
+					name: "foo",
+				}
+			`,
+			noCode: true,
+		},
+		{
+			name: "app with libraries",
+			bp: `
+				android_app {
+					name: "foo",
+					static_libs: ["lib"],
+				}
+
+				java_library {
+					name: "lib",
+					srcs: ["a.java"],
+				}
+			`,
+			noCode: false,
+		},
+		{
+			name: "app with sourceless libraries",
+			bp: `
+				android_app {
+					name: "foo",
+					static_libs: ["lib"],
+				}
+
+				java_library {
+					name: "lib",
+				}
+			`,
+			// TODO(jungjw): this should probably be true
+			noCode: false,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := testApp(t, test.bp)
+
+			foo := ctx.ModuleForTests("foo", "android_common")
+			manifestFixerArgs := foo.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
+			if strings.Contains(manifestFixerArgs, "--has-no-code") != test.noCode {
+				t.Errorf("unexpected manifest_fixer args: %q", manifestFixerArgs)
+			}
+		})
 	}
 }

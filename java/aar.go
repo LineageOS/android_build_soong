@@ -85,6 +85,7 @@ type aapt struct {
 	useEmbeddedDex          bool
 	usesNonSdkApis          bool
 	sdkLibraries            []string
+	hasNoCode               bool
 
 	splitNames []string
 	splits     []split
@@ -204,7 +205,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
 	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext, sdkLibraries,
-		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex)
+		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex, a.hasNoCode)
 
 	a.transitiveManifestPaths = append(android.Paths{manifestPath}, transitiveStaticLibManifests...)
 

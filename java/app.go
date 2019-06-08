@@ -175,7 +175,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 		if String(a.appProperties.Stl) == "c++_shared" {
 			if embedJni {
-				ctx.AddFarVariationDependencies(variation, tag, "libc++")
+				ctx.AddFarVariationDependencies(variation, tag, "ndk_libc++_shared")
 			}
 		}
 	}
@@ -242,6 +242,9 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	a.aapt.usesNonSdkApis = Bool(a.Module.deviceProperties.Platform_apis)
+
+	// Ask manifest_fixer to add or update the application element indicating this app has no code.
+	a.aapt.hasNoCode = !a.hasCode(ctx)
 
 	aaptLinkFlags := []string{}
 
