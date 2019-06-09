@@ -22,6 +22,7 @@ bootstrap_go_package {
         "util.go",
     ],
     testSrcs: [
+        "status_test.go",
         "util_test.go",
     ],
     darwin: {
