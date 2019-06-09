@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
-	"sync"
 )
 
 // Writer provides an interface to write temporary and permanent messages to
@@ -39,22 +37,6 @@ type Writer interface {
 	// On a dumb terminal, the status messages will be kept.
 	Print(str string)
 
-	// Status prints the first line of the string to the terminal,
-	// overwriting any previous status line. Strings longer than the width
-	// of the terminal will be cut off.
-	//
-	// On a dumb terminal, previous status messages will remain, and the
-	// entire first line of the string will be printed.
-	StatusLine(str string)
-
-	// StatusAndMessage prints the first line of status to the terminal,
-	// similarly to StatusLine(), then prints the full msg below that. The
-	// status line is retained.
-	//
-	// There is guaranteed to be no other output in between the status and
-	// message.
-	StatusAndMessage(status, msg string)
-
 	// Finish ensures that the output ends with a newline (preserving any
 	// current status line that is current displayed).
 	//
@@ -69,6 +51,7 @@ type Writer interface {
 	Write(p []byte) (n int, err error)
 
 	isSmartTerminal() bool
+	termWidth() (int, bool)
 }
 
 // NewWriter creates a new Writer based on the stdio and the TERM
@@ -76,124 +59,34 @@ type Writer interface {
 func NewWriter(stdio StdioInterface) Writer {
 	w := &writerImpl{
 		stdio: stdio,
-
-		haveBlankLine: true,
 	}
-
-	if term, ok := os.LookupEnv("TERM"); ok && term != "dumb" {
-		w.smartTerminal = isTerminal(stdio.Stdout())
-	}
-	w.stripEscapes = !w.smartTerminal
 
 	return w
 }
 
 type writerImpl struct {
 	stdio StdioInterface
-
-	haveBlankLine bool
-
-	// Protecting the above, we assume that smartTerminal and stripEscapes
-	// does not change after initial setup.
-	lock sync.Mutex
-
-	smartTerminal bool
-	stripEscapes  bool
-}
-
-func (w *writerImpl) isSmartTerminal() bool {
-	return w.smartTerminal
-}
-
-func (w *writerImpl) requestLine() {
-	if !w.haveBlankLine {
-		fmt.Fprintln(w.stdio.Stdout())
-		w.haveBlankLine = true
-	}
 }
 
 func (w *writerImpl) Print(str string) {
-	if w.stripEscapes {
-		str = string(stripAnsiEscapes([]byte(str)))
-	}
-
-	w.lock.Lock()
-	defer w.lock.Unlock()
-	w.print(str)
-}
-
-func (w *writerImpl) print(str string) {
-	if !w.haveBlankLine {
-		fmt.Fprint(w.stdio.Stdout(), "\r", "\x1b[K")
-		w.haveBlankLine = true
-	}
 	fmt.Fprint(w.stdio.Stdout(), str)
 	if len(str) == 0 || str[len(str)-1] != '\n' {
 		fmt.Fprint(w.stdio.Stdout(), "\n")
 	}
 }
 
-func (w *writerImpl) StatusLine(str string) {
-	w.lock.Lock()
-	defer w.lock.Unlock()
-
-	w.statusLine(str)
-}
-
-func (w *writerImpl) statusLine(str string) {
-	if !w.smartTerminal {
-		fmt.Fprintln(w.stdio.Stdout(), str)
-		return
-	}
-
-	idx := strings.IndexRune(str, '\n')
-	if idx != -1 {
-		str = str[0:idx]
-	}
-
-	// Limit line width to the terminal width, otherwise we'll wrap onto
-	// another line and we won't delete the previous line.
-	//
-	// Run this on every line in case the window has been resized while
-	// we're printing. This could be optimized to only re-run when we get
-	// SIGWINCH if it ever becomes too time consuming.
-	if max, ok := termWidth(w.stdio.Stdout()); ok {
-		if len(str) > max {
-			// TODO: Just do a max. Ninja elides the middle, but that's
-			// more complicated and these lines aren't that important.
-			str = str[:max]
-		}
-	}
-
-	// Move to the beginning on the line, print the output, then clear
-	// the rest of the line.
-	fmt.Fprint(w.stdio.Stdout(), "\r", str, "\x1b[K")
-	w.haveBlankLine = false
-}
-
-func (w *writerImpl) StatusAndMessage(status, msg string) {
-	if w.stripEscapes {
-		msg = string(stripAnsiEscapes([]byte(msg)))
-	}
-
-	w.lock.Lock()
-	defer w.lock.Unlock()
-
-	w.statusLine(status)
-	w.requestLine()
-	w.print(msg)
-}
-
-func (w *writerImpl) Finish() {
-	w.lock.Lock()
-	defer w.lock.Unlock()
-
-	w.requestLine()
-}
+func (w *writerImpl) Finish() {}
 
 func (w *writerImpl) Write(p []byte) (n int, err error) {
-	w.Print(string(p))
-	return len(p), nil
+	return w.stdio.Stdout().Write(p)
+}
+
+func (w *writerImpl) isSmartTerminal() bool {
+	return isSmartTerminal(w.stdio.Stdout())
+}
+
+func (w *writerImpl) termWidth() (int, bool) {
+	return termWidth(w.stdio.Stdout())
 }
 
 // StdioInterface represents a set of stdin/stdout/stderr Reader/Writers
