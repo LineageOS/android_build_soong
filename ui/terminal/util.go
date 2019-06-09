@@ -22,7 +22,7 @@ import (
 	"unsafe"
 )
 
-func isTerminal(w io.Writer) bool {
+func isSmartTerminal(w io.Writer) bool {
 	if f, ok := w.(*os.File); ok {
 		var termios syscall.Termios
 		_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, f.Fd(),
