@@ -16,12 +16,12 @@ package build
 
 import (
 	"context"
+	"io"
 
 	"android/soong/ui/logger"
 	"android/soong/ui/metrics"
 	"android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
-	"android/soong/ui/terminal"
 	"android/soong/ui/tracer"
 )
 
@@ -35,7 +35,7 @@ type ContextImpl struct {
 
 	Metrics *metrics.Metrics
 
-	Writer terminal.Writer
+	Writer io.Writer
 	Status *status.Status
 
 	Thread tracer.Thread

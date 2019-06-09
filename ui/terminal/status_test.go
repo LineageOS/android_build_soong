@@ -89,17 +89,9 @@ func TestStatusOutput(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Run("smart", func(t *testing.T) {
 				smart := &fakeSmartTerminal{termWidth: 40}
-				stdio := customStdio{
-					stdin:  nil,
-					stdout: smart,
-					stderr: nil,
-				}
-
-				writer := NewWriter(stdio)
-				stat := NewStatusOutput(writer, "", false)
+				stat := NewStatusOutput(smart, "", false)
 				tt.calls(stat)
 				stat.Flush()
-				writer.Finish()
 
 				if g, w := smart.String(), tt.smart; g != w {
 					t.Errorf("want:\n%q\ngot:\n%q", w, g)
@@ -108,17 +100,9 @@ func TestStatusOutput(t *testing.T) {
 
 			t.Run("dumb", func(t *testing.T) {
 				dumb := &bytes.Buffer{}
-				stdio := customStdio{
-					stdin:  nil,
-					stdout: dumb,
-					stderr: nil,
-				}
-
-				writer := NewWriter(stdio)
-				stat := NewStatusOutput(writer, "", false)
+				stat := NewStatusOutput(dumb, "", false)
 				tt.calls(stat)
 				stat.Flush()
-				writer.Finish()
 
 				if g, w := dumb.String(), tt.dumb; g != w {
 					t.Errorf("want:\n%q\ngot:\n%q", w, g)
@@ -267,15 +251,7 @@ func actionWithOuptutWithAnsiCodes(stat status.StatusOutput) {
 
 func TestSmartStatusOutputWidthChange(t *testing.T) {
 	smart := &fakeSmartTerminal{termWidth: 40}
-
-	stdio := customStdio{
-		stdin:  nil,
-		stdout: smart,
-		stderr: nil,
-	}
-
-	writer := NewWriter(stdio)
-	stat := NewStatusOutput(writer, "", false)
+	stat := NewStatusOutput(smart, "", false)
 
 	runner := newRunner(stat, 2)
 
@@ -287,7 +263,6 @@ func TestSmartStatusOutputWidthChange(t *testing.T) {
 	runner.finishAction(result)
 
 	stat.Flush()
-	writer.Finish()
 
 	w := "\r[  0% 0/2] action with very long descrip\x1b[K\r[ 50% 1/2] action with very lo\x1b[K\n"
 
