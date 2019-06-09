@@ -21,7 +21,7 @@ bootstrap_go_package {
         "format.go",
         "smart_status.go",
         "status.go",
-        "writer.go",
+        "stdio.go",
         "util.go",
     ],
     testSrcs: [

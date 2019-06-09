@@ -109,10 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	writer := terminal.NewWriter(c.stdio())
-	defer writer.Finish()
-
-	log := logger.New(writer)
+	log := logger.New(c.stdio().Stdout())
 	defer log.Cleanup()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -125,7 +122,7 @@ func main() {
 
 	stat := &status.Status{}
 	defer stat.Finish()
-	stat.AddOutput(terminal.NewStatusOutput(writer, os.Getenv("NINJA_STATUS"),
+	stat.AddOutput(terminal.NewStatusOutput(c.stdio().Stdout(), os.Getenv("NINJA_STATUS"),
 		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
 	stat.AddOutput(trace.StatusTracer())
 
@@ -140,7 +137,7 @@ func main() {
 		Logger:  log,
 		Metrics: met,
 		Tracer:  trace,
-		Writer:  writer,
+		Writer:  c.stdio().Stdout(),
 		Status:  stat,
 	}}
 
@@ -331,13 +328,13 @@ func dumpVarConfig(ctx build.Context, args ...string) build.Config {
 func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
 	if config.IsVerbose() {
 		writer := ctx.Writer
-		writer.Print("! The argument `showcommands` is no longer supported.")
-		writer.Print("! Instead, the verbose log is always written to a compressed file in the output dir:")
-		writer.Print("!")
-		writer.Print(fmt.Sprintf("!   gzip -cd %s/verbose.log.gz | less -R", logsDir))
-		writer.Print("!")
-		writer.Print("! Older versions are saved in verbose.log.#.gz files")
-		writer.Print("")
+		fmt.Fprintln(writer, "! The argument `showcommands` is no longer supported.")
+		fmt.Fprintln(writer, "! Instead, the verbose log is always written to a compressed file in the output dir:")
+		fmt.Fprintln(writer, "!")
+		fmt.Fprintf(writer, "!   gzip -cd %s/verbose.log.gz | less -R\n", logsDir)
+		fmt.Fprintln(writer, "!")
+		fmt.Fprintln(writer, "! Older versions are saved in verbose.log.#.gz files")
+		fmt.Fprintln(writer, "")
 		time.Sleep(5 * time.Second)
 	}
 

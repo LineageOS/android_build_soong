@@ -221,7 +221,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 	env := config.Environment()
 	// Print the banner like make does
 	if !env.IsEnvTrue("ANDROID_QUIET_BUILD") {
-		ctx.Writer.Print(Banner(make_vars))
+		fmt.Fprintln(ctx.Writer, Banner(make_vars))
 	}
 
 	// Populate the environment
