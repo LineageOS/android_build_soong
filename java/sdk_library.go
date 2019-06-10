@@ -591,7 +591,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	mctx.CreateModule(android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory), &etcProps)
 }
 
-func (module *SdkLibrary) PrebuiltJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
 	var api, v string
 	if sdkVersion == "" {
 		api = "system"
@@ -615,7 +615,7 @@ func (module *SdkLibrary) PrebuiltJars(ctx android.BaseContext, sdkVersion strin
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
@@ -631,7 +631,7 @@ func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseContext, sdkVersion stri
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
@@ -840,13 +840,13 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibraryImport) SdkHeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *sdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the prebuilt stubs.
 	return module.stubsPath
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibraryImport) SdkImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths {
+func (module *sdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
 	// This module is just a wrapper for the stubs.
 	return module.stubsPath
 }

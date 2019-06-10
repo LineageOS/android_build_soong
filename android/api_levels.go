@@ -85,7 +85,7 @@ func getApiLevelsMap(config Config) map[string]int {
 // * Numeric API levels are simply converted.
 // * "minimum" and "current" are not currently handled since the former is
 //   NDK specific and the latter has inconsistent meaning.
-func ApiStrToNum(ctx BaseContext, apiLevel string) (int, error) {
+func ApiStrToNum(ctx BaseModuleContext, apiLevel string) (int, error) {
 	num, ok := getApiLevelsMap(ctx.Config())[apiLevel]
 	if ok {
 		return num, nil
