@@ -945,17 +945,16 @@ type moduleContext struct {
 	variables   map[string]string
 }
 
-func (m *moduleContext) ninjaError(desc string, outputs []string, err error) {
-	m.ModuleContext.Build(pctx.PackageContext, blueprint.BuildParams{
+func (m *moduleContext) ninjaError(params BuildParams, err error) (PackageContext, BuildParams) {
+	return pctx, BuildParams{
 		Rule:        ErrorRule,
-		Description: desc,
-		Outputs:     outputs,
-		Optional:    true,
+		Description: params.Description,
+		Output:      params.Output,
+		Outputs:     params.Outputs,
 		Args: map[string]string{
 			"error": err.Error(),
 		},
-	})
-	return
+	}
 }
 
 func (m *moduleContext) Config() Config {
@@ -1027,24 +1026,20 @@ func (m *moduleContext) Rule(pctx PackageContext, name string, params blueprint.
 }
 
 func (m *moduleContext) Build(pctx PackageContext, params BuildParams) {
+	if params.Description != "" {
+		params.Description = "${moduleDesc}" + params.Description + "${moduleDescSuffix}"
+	}
+
+	if missingDeps := m.GetMissingDependencies(); len(missingDeps) > 0 {
+		pctx, params = m.ninjaError(params, fmt.Errorf("module %s missing dependencies: %s\n",
+			m.ModuleName(), strings.Join(missingDeps, ", ")))
+	}
+
 	if m.config.captureBuild {
 		m.buildParams = append(m.buildParams, params)
 	}
 
-	bparams := convertBuildParams(params)
-
-	if bparams.Description != "" {
-		bparams.Description = "${moduleDesc}" + params.Description + "${moduleDescSuffix}"
-	}
-
-	if missingDeps := m.GetMissingDependencies(); len(missingDeps) > 0 {
-		m.ninjaError(bparams.Description, bparams.Outputs,
-			fmt.Errorf("module %s missing dependencies: %s\n",
-				m.ModuleName(), strings.Join(missingDeps, ", ")))
-		return
-	}
-
-	m.ModuleContext.Build(pctx.PackageContext, bparams)
+	m.ModuleContext.Build(pctx.PackageContext, convertBuildParams(params))
 }
 
 func (m *moduleContext) Module() Module {
