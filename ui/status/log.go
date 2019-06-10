@@ -71,6 +71,11 @@ func (v *verboseLog) Message(level MsgLevel, message string) {
 	fmt.Fprintf(v.w, "%s%s\n", level.Prefix(), message)
 }
 
+func (v *verboseLog) Write(p []byte) (int, error) {
+	fmt.Fprint(v.w, string(p))
+	return len(p), nil
+}
+
 type errorLog struct {
 	w io.WriteCloser
 
@@ -133,4 +138,9 @@ func (e *errorLog) Message(level MsgLevel, message string) {
 	e.empty = false
 
 	fmt.Fprintf(e.w, "error: %s\n", message)
+}
+
+func (e *errorLog) Write(p []byte) (int, error) {
+	fmt.Fprint(e.w, string(p))
+	return len(p), nil
 }

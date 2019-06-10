@@ -64,3 +64,8 @@ func (s *dumbStatusOutput) FinishAction(result status.ActionResult, counts statu
 }
 
 func (s *dumbStatusOutput) Flush() {}
+
+func (s *dumbStatusOutput) Write(p []byte) (int, error) {
+	fmt.Fprint(s.writer, string(p))
+	return len(p), nil
+}

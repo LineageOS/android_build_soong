@@ -173,6 +173,9 @@ type StatusOutput interface {
 	// Flush is called when your outputs should be flushed / closed. No
 	// output is expected after this call.
 	Flush()
+
+	// Write lets StatusOutput implement io.Writer
+	Write(p []byte) (n int, err error)
 }
 
 // Status is the multiplexer / accumulator between ToolStatus instances (via
