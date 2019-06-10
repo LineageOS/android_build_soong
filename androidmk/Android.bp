@@ -30,6 +30,7 @@ blueprint_go_binary {
         "androidmk-parser",
         "blueprint-parser",
         "bpfix-lib",
+        "soong-android",
     ],
 }
 
