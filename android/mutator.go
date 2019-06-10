@@ -66,8 +66,8 @@ type registerMutatorsContext struct {
 }
 
 type RegisterMutatorsContext interface {
-	TopDown(name string, m AndroidTopDownMutator) MutatorHandle
-	BottomUp(name string, m AndroidBottomUpMutator) MutatorHandle
+	TopDown(name string, m TopDownMutator) MutatorHandle
+	BottomUp(name string, m BottomUpMutator) MutatorHandle
 }
 
 type RegisterMutatorFunc func(RegisterMutatorsContext)
@@ -110,52 +110,27 @@ func PostDepsMutators(f RegisterMutatorFunc) {
 	postDeps = append(postDeps, f)
 }
 
-type AndroidTopDownMutator func(TopDownMutatorContext)
+type TopDownMutator func(TopDownMutatorContext)
 
 type TopDownMutatorContext interface {
 	BaseModuleContext
-	androidBaseContext
 
-	OtherModuleExists(name string) bool
 	Rename(name string)
-	Module() Module
-
-	OtherModuleName(m blueprint.Module) string
-	OtherModuleDir(m blueprint.Module) string
-	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
-	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
 
 	CreateModule(blueprint.ModuleFactory, ...interface{})
-
-	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
-	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
-
-	VisitDirectDeps(visit func(Module))
-	VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
-	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
-	VisitDepsDepthFirst(visit func(Module))
-	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
-	WalkDeps(visit func(Module, Module) bool)
-	// GetWalkPath is supposed to be called in visit function passed in WalkDeps()
-	// and returns a top-down dependency path from a start module to current child module.
-	GetWalkPath() []Module
 }
 
-type androidTopDownMutatorContext struct {
-	blueprint.TopDownMutatorContext
-	androidBaseContextImpl
-	walkPath []Module
+type topDownMutatorContext struct {
+	bp blueprint.TopDownMutatorContext
+	baseModuleContext
 }
 
-type AndroidBottomUpMutator func(BottomUpMutatorContext)
+type BottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
 	BaseModuleContext
-	androidBaseContext
 
-	OtherModuleExists(name string) bool
 	Rename(name string)
-	Module() blueprint.Module
 
 	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string)
 	AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string)
@@ -168,17 +143,17 @@ type BottomUpMutatorContext interface {
 	ReplaceDependencies(string)
 }
 
-type androidBottomUpMutatorContext struct {
-	blueprint.BottomUpMutatorContext
-	androidBaseContextImpl
+type bottomUpMutatorContext struct {
+	bp blueprint.BottomUpMutatorContext
+	baseModuleContext
 }
 
-func (x *registerMutatorsContext) BottomUp(name string, m AndroidBottomUpMutator) MutatorHandle {
+func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) MutatorHandle {
 	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
-			actx := &androidBottomUpMutatorContext{
-				BottomUpMutatorContext: ctx,
-				androidBaseContextImpl: a.base().androidBaseContextFactory(ctx),
+			actx := &bottomUpMutatorContext{
+				bp:                ctx,
+				baseModuleContext: a.base().baseModuleContextFactory(ctx),
 			}
 			m(actx)
 		}
@@ -188,12 +163,12 @@ func (x *registerMutatorsContext) BottomUp(name string, m AndroidBottomUpMutator
 	return mutator
 }
 
-func (x *registerMutatorsContext) TopDown(name string, m AndroidTopDownMutator) MutatorHandle {
+func (x *registerMutatorsContext) TopDown(name string, m TopDownMutator) MutatorHandle {
 	f := func(ctx blueprint.TopDownMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
-			actx := &androidTopDownMutatorContext{
-				TopDownMutatorContext:  ctx,
-				androidBaseContextImpl: a.base().androidBaseContextFactory(ctx),
+			actx := &topDownMutatorContext{
+				bp:                ctx,
+				baseModuleContext: a.base().baseModuleContextFactory(ctx),
 			}
 			m(actx)
 		}
@@ -218,106 +193,13 @@ func depsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
-func (a *androidTopDownMutatorContext) Config() Config {
-	return a.config
-}
-
-func (a *androidBottomUpMutatorContext) Config() Config {
-	return a.config
-}
-
-func (a *androidTopDownMutatorContext) Module() Module {
-	module, _ := a.TopDownMutatorContext.Module().(Module)
-	return module
-}
-
-func (a *androidTopDownMutatorContext) VisitDirectDeps(visit func(Module)) {
-	a.TopDownMutatorContext.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil {
-			visit(aModule)
-		}
-	})
-}
-
-func (a *androidTopDownMutatorContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
-	a.TopDownMutatorContext.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil {
-			if a.TopDownMutatorContext.OtherModuleDependencyTag(aModule) == tag {
-				visit(aModule)
-			}
-		}
-	})
-}
-
-func (a *androidTopDownMutatorContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
-	a.TopDownMutatorContext.VisitDirectDepsIf(
-		// pred
-		func(module blueprint.Module) bool {
-			if aModule, _ := module.(Module); aModule != nil {
-				return pred(aModule)
-			} else {
-				return false
-			}
-		},
-		// visit
-		func(module blueprint.Module) {
-			visit(module.(Module))
-		})
-}
-
-func (a *androidTopDownMutatorContext) VisitDepsDepthFirst(visit func(Module)) {
-	a.TopDownMutatorContext.VisitDepsDepthFirst(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil {
-			visit(aModule)
-		}
-	})
-}
-
-func (a *androidTopDownMutatorContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
-	a.TopDownMutatorContext.VisitDepsDepthFirstIf(
-		// pred
-		func(module blueprint.Module) bool {
-			if aModule, _ := module.(Module); aModule != nil {
-				return pred(aModule)
-			} else {
-				return false
-			}
-		},
-		// visit
-		func(module blueprint.Module) {
-			visit(module.(Module))
-		})
-}
-
-func (a *androidTopDownMutatorContext) WalkDeps(visit func(Module, Module) bool) {
-	a.walkPath = []Module{a.Module()}
-	a.TopDownMutatorContext.WalkDeps(func(child, parent blueprint.Module) bool {
-		childAndroidModule, _ := child.(Module)
-		parentAndroidModule, _ := parent.(Module)
-		if childAndroidModule != nil && parentAndroidModule != nil {
-			// record walkPath before visit
-			for a.walkPath[len(a.walkPath)-1] != parentAndroidModule {
-				a.walkPath = a.walkPath[0 : len(a.walkPath)-1]
-			}
-			a.walkPath = append(a.walkPath, childAndroidModule)
-			return visit(childAndroidModule, parentAndroidModule)
-		} else {
-			return false
-		}
-	})
-}
-
-func (a *androidTopDownMutatorContext) GetWalkPath() []Module {
-	return a.walkPath
-}
-
-func (a *androidTopDownMutatorContext) AppendProperties(props ...interface{}) {
+func (t *topDownMutatorContext) AppendProperties(props ...interface{}) {
 	for _, p := range props {
-		err := proptools.AppendMatchingProperties(a.Module().base().customizableProperties,
+		err := proptools.AppendMatchingProperties(t.Module().base().customizableProperties,
 			p, nil)
 		if err != nil {
 			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-				a.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+				t.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
 			} else {
 				panic(err)
 			}
@@ -325,16 +207,74 @@ func (a *androidTopDownMutatorContext) AppendProperties(props ...interface{}) {
 	}
 }
 
-func (a *androidTopDownMutatorContext) PrependProperties(props ...interface{}) {
+func (t *topDownMutatorContext) PrependProperties(props ...interface{}) {
 	for _, p := range props {
-		err := proptools.PrependMatchingProperties(a.Module().base().customizableProperties,
+		err := proptools.PrependMatchingProperties(t.Module().base().customizableProperties,
 			p, nil)
 		if err != nil {
 			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-				a.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+				t.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
 			} else {
 				panic(err)
 			}
 		}
 	}
+}
+
+// android.topDownMutatorContext either has to embed blueprint.TopDownMutatorContext, in which case every method that
+// has an overridden version in android.BaseModuleContext has to be manually forwarded to BaseModuleContext to avoid
+// ambiguous method errors, or it has to store a blueprint.TopDownMutatorContext non-embedded, in which case every
+// non-overridden method has to be forwarded.  There are fewer non-overridden methods, so use the latter.  The following
+// methods forward to the identical blueprint versions for topDownMutatorContext and bottomUpMutatorContext.
+
+func (t *topDownMutatorContext) Rename(name string) {
+	t.bp.Rename(name)
+}
+
+func (t *topDownMutatorContext) CreateModule(factory blueprint.ModuleFactory, props ...interface{}) {
+	t.bp.CreateModule(factory, props...)
+}
+
+func (b *bottomUpMutatorContext) Rename(name string) {
+	b.bp.Rename(name)
+}
+
+func (b *bottomUpMutatorContext) AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) {
+	b.bp.AddDependency(module, tag, name...)
+}
+
+func (b *bottomUpMutatorContext) AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string) {
+	b.bp.AddReverseDependency(module, tag, name)
+}
+
+func (b *bottomUpMutatorContext) CreateVariations(variations ...string) []blueprint.Module {
+	return b.bp.CreateVariations(variations...)
+}
+
+func (b *bottomUpMutatorContext) CreateLocalVariations(variations ...string) []blueprint.Module {
+	return b.bp.CreateLocalVariations(variations...)
+}
+
+func (b *bottomUpMutatorContext) SetDependencyVariation(variation string) {
+	b.bp.SetDependencyVariation(variation)
+}
+
+func (b *bottomUpMutatorContext) AddVariationDependencies(variations []blueprint.Variation, tag blueprint.DependencyTag,
+	names ...string) {
+
+	b.bp.AddVariationDependencies(variations, tag, names...)
+}
+
+func (b *bottomUpMutatorContext) AddFarVariationDependencies(variations []blueprint.Variation,
+	tag blueprint.DependencyTag, names ...string) {
+
+	b.bp.AddFarVariationDependencies(variations, tag, names...)
+}
+
+func (b *bottomUpMutatorContext) AddInterVariantDependency(tag blueprint.DependencyTag, from, to blueprint.Module) {
+	b.bp.AddInterVariantDependency(tag, from, to)
+}
+
+func (b *bottomUpMutatorContext) ReplaceDependencies(name string) {
+	b.bp.ReplaceDependencies(name)
 }
