@@ -367,7 +367,7 @@ func expandOneSrcPath(ctx ModuleContext, s string, expandedExcludes []string) (P
 // each string. If incDirs is false, strip paths with a trailing '/' from the list.
 // It intended for use in globs that only list files that exist, so it allows '$' in
 // filenames.
-func pathsForModuleSrcFromFullPath(ctx BaseModuleContext, paths []string, incDirs bool) Paths {
+func pathsForModuleSrcFromFullPath(ctx ModuleContext, paths []string, incDirs bool) Paths {
 	prefix := filepath.Join(ctx.Config().srcDir, ctx.ModuleDir()) + "/"
 	if prefix == "./" {
 		prefix = ""
