@@ -85,3 +85,8 @@ func (s *statusOutput) FinishAction(result status.ActionResult, counts status.Co
 
 func (s *statusOutput) Flush()                                        {}
 func (s *statusOutput) Message(level status.MsgLevel, message string) {}
+
+func (s *statusOutput) Write(p []byte) (int, error) {
+	// Discard writes
+	return len(p), nil
+}
