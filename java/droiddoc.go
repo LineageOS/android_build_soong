@@ -1808,9 +1808,6 @@ type DocDefaults struct {
 	android.DefaultsModuleBase
 }
 
-func (*DocDefaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-}
-
 func DocDefaultsFactory() android.Module {
 	module := &DocDefaults{}
 

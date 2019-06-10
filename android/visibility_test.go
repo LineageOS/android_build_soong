@@ -759,6 +759,3 @@ func defaultsFactory() Module {
 	InitDefaultsModule(m)
 	return m
 }
-
-func (*mockDefaults) GenerateAndroidBuildActions(ctx ModuleContext) {
-}
