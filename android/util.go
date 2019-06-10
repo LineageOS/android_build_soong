@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"runtime"
 	"sort"
@@ -77,10 +78,15 @@ func JoinWithSuffix(strs []string, suffix string, separator string) string {
 	return string(ret)
 }
 
-func sortedKeys(m map[string][]string) []string {
-	s := make([]string, 0, len(m))
-	for k := range m {
-		s = append(s, k)
+func SortedStringKeys(m interface{}) []string {
+	v := reflect.ValueOf(m)
+	if v.Kind() != reflect.Map {
+		panic(fmt.Sprintf("%#v is not a map", m))
+	}
+	keys := v.MapKeys()
+	s := make([]string, 0, len(keys))
+	for _, key := range keys {
+		s = append(s, key.String())
 	}
 	sort.Strings(s)
 	return s

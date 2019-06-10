@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"text/scanner"
 
@@ -1658,17 +1657,8 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 		return
 	}
 
-	sortedKeys := func(m map[string]Paths) []string {
-		s := make([]string, 0, len(m))
-		for k := range m {
-			s = append(s, k)
-		}
-		sort.Strings(s)
-		return s
-	}
-
 	// Ensure ancestor directories are in modulesInDir
-	dirs := sortedKeys(modulesInDir)
+	dirs := SortedStringKeys(modulesInDir)
 	for _, dir := range dirs {
 		dir := parentDir(dir)
 		for dir != "." && dir != "/" {
@@ -1681,7 +1671,6 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	// Make directories build their direct subdirectories
-	dirs = sortedKeys(modulesInDir)
 	for _, dir := range dirs {
 		p := parentDir(dir)
 		if p != "." && p != "/" {
@@ -1738,8 +1727,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	// Wrap those into host|host-cross|target phony rules
-	osClasses := sortedKeys(osClass)
-	for _, class := range osClasses {
+	for _, class := range SortedStringKeys(osClass) {
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
 			Output:    PathForPhony(ctx, class),
