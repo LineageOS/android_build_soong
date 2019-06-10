@@ -402,12 +402,12 @@ func variableMutator(mctx BottomUpMutatorContext) {
 	}
 }
 
-func (a *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
+func (m *ModuleBase) setVariableProperties(ctx BottomUpMutatorContext,
 	prefix string, productVariablePropertyValue reflect.Value, variableValue interface{}) {
 
 	printfIntoProperties(ctx, prefix, productVariablePropertyValue, variableValue)
 
-	err := proptools.AppendMatchingProperties(a.generalProperties,
+	err := proptools.AppendMatchingProperties(m.generalProperties,
 		productVariablePropertyValue.Addr().Interface(), nil)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {

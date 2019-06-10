@@ -46,7 +46,7 @@ type sdkContext interface {
 	targetSdkVersion() string
 }
 
-func sdkVersionOrDefault(ctx android.BaseContext, v string) string {
+func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
 	switch v {
 	case "", "current", "system_current", "test_current", "core_current":
 		return ctx.Config().DefaultAppTargetSdk()
@@ -57,7 +57,7 @@ func sdkVersionOrDefault(ctx android.BaseContext, v string) string {
 
 // Returns a sdk version as a number.  For modules targeting an unreleased SDK (meaning it does not yet have a number)
 // it returns android.FutureApiLevel (10000).
-func sdkVersionToNumber(ctx android.BaseContext, v string) (int, error) {
+func sdkVersionToNumber(ctx android.BaseModuleContext, v string) (int, error) {
 	switch v {
 	case "", "current", "test_current", "system_current", "core_current":
 		return ctx.Config().DefaultAppTargetSdkInt(), nil
@@ -71,7 +71,7 @@ func sdkVersionToNumber(ctx android.BaseContext, v string) (int, error) {
 	}
 }
 
-func sdkVersionToNumberAsString(ctx android.BaseContext, v string) (string, error) {
+func sdkVersionToNumberAsString(ctx android.BaseModuleContext, v string) (string, error) {
 	n, err := sdkVersionToNumber(ctx, v)
 	if err != nil {
 		return "", err
@@ -79,7 +79,7 @@ func sdkVersionToNumberAsString(ctx android.BaseContext, v string) (string, erro
 	return strconv.Itoa(n), nil
 }
 
-func decodeSdkDep(ctx android.BaseContext, sdkContext sdkContext) sdkDep {
+func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
 	if ctx.Config().IsPdkBuild() && (v == "" || v == "current") {

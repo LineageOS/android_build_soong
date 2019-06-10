@@ -1129,7 +1129,7 @@ func InitArchModule(m Module) {
 
 var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
 
-func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
+func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 	dst interface{}, src reflect.Value, field, srcPrefix string) reflect.Value {
 
 	src = src.FieldByName(field)
@@ -1167,16 +1167,16 @@ func (a *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 }
 
 // Rewrite the module's properties structs to contain arch-specific values.
-func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
-	arch := a.Arch()
-	os := a.Os()
+func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
+	arch := m.Arch()
+	os := m.Os()
 
-	for i := range a.generalProperties {
-		genProps := a.generalProperties[i]
-		if a.archProperties[i] == nil {
+	for i := range m.generalProperties {
+		genProps := m.generalProperties[i]
+		if m.archProperties[i] == nil {
 			continue
 		}
-		for _, archProperties := range a.archProperties[i] {
+		for _, archProperties := range m.archProperties[i] {
 			archPropValues := reflect.ValueOf(archProperties).Elem()
 
 			archProp := archPropValues.FieldByName("Arch")
@@ -1197,7 +1197,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			if arch.ArchType != Common {
 				field := proptools.FieldNameForProperty(t.Name)
 				prefix := "arch." + t.Name
-				archStruct := a.appendProperties(ctx, genProps, archProp, field, prefix)
+				archStruct := m.appendProperties(ctx, genProps, archProp, field, prefix)
 
 				// Handle arch-variant-specific properties in the form:
 				// arch: {
@@ -1209,7 +1209,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				if v != "" {
 					field := proptools.FieldNameForProperty(v)
 					prefix := "arch." + t.Name + "." + v
-					a.appendProperties(ctx, genProps, archStruct, field, prefix)
+					m.appendProperties(ctx, genProps, archStruct, field, prefix)
 				}
 
 				// Handle cpu-variant-specific properties in the form:
@@ -1223,7 +1223,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 					if c != "" {
 						field := proptools.FieldNameForProperty(c)
 						prefix := "arch." + t.Name + "." + c
-						a.appendProperties(ctx, genProps, archStruct, field, prefix)
+						m.appendProperties(ctx, genProps, archStruct, field, prefix)
 					}
 				}
 
@@ -1236,7 +1236,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				for _, feature := range arch.ArchFeatures {
 					field := proptools.FieldNameForProperty(feature)
 					prefix := "arch." + t.Name + "." + feature
-					a.appendProperties(ctx, genProps, archStruct, field, prefix)
+					m.appendProperties(ctx, genProps, archStruct, field, prefix)
 				}
 
 				// Handle multilib-specific properties in the form:
@@ -1247,7 +1247,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				// },
 				field = proptools.FieldNameForProperty(t.Multilib)
 				prefix = "multilib." + t.Multilib
-				a.appendProperties(ctx, genProps, multilibProp, field, prefix)
+				m.appendProperties(ctx, genProps, multilibProp, field, prefix)
 			}
 
 			// Handle host-specific properties in the form:
@@ -1259,7 +1259,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			if os.Class == Host || os.Class == HostCross {
 				field = "Host"
 				prefix = "target.host"
-				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 
 			// Handle target OS generalities of the form:
@@ -1274,24 +1274,24 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			if os.Linux() {
 				field = "Linux"
 				prefix = "target.linux"
-				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
 
 				if arch.ArchType != Common {
 					field = "Linux_" + arch.ArchType.Name
 					prefix = "target.linux_" + arch.ArchType.Name
-					a.appendProperties(ctx, genProps, targetProp, field, prefix)
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				}
 			}
 
 			if os.Bionic() {
 				field = "Bionic"
 				prefix = "target.bionic"
-				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
 
 				if arch.ArchType != Common {
 					field = "Bionic_" + t.Name
 					prefix = "target.bionic_" + t.Name
-					a.appendProperties(ctx, genProps, targetProp, field, prefix)
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				}
 			}
 
@@ -1321,18 +1321,18 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			// },
 			field = os.Field
 			prefix = "target." + os.Name
-			a.appendProperties(ctx, genProps, targetProp, field, prefix)
+			m.appendProperties(ctx, genProps, targetProp, field, prefix)
 
 			if arch.ArchType != Common {
 				field = os.Field + "_" + t.Name
 				prefix = "target." + os.Name + "_" + t.Name
-				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 
 			if (os.Class == Host || os.Class == HostCross) && os != Windows {
 				field := "Not_windows"
 				prefix := "target.not_windows"
-				a.appendProperties(ctx, genProps, targetProp, field, prefix)
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 
 			// Handle 64-bit device properties in the form:
@@ -1352,11 +1352,11 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				if ctx.Config().Android64() {
 					field := "Android64"
 					prefix := "target.android64"
-					a.appendProperties(ctx, genProps, targetProp, field, prefix)
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				} else {
 					field := "Android32"
 					prefix := "target.android32"
-					a.appendProperties(ctx, genProps, targetProp, field, prefix)
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				}
 
 				if (arch.ArchType == X86 && (hasArmAbi(arch) ||
@@ -1365,7 +1365,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 						hasX86AndroidArch(ctx.Config().Targets[Android])) {
 					field := "Arm_on_x86"
 					prefix := "target.arm_on_x86"
-					a.appendProperties(ctx, genProps, targetProp, field, prefix)
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				}
 				if (arch.ArchType == X86_64 && (hasArmAbi(arch) ||
 					hasArmAndroidArch(ctx.Config().Targets[Android]))) ||
@@ -1373,7 +1373,7 @@ func (a *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 						hasX8664AndroidArch(ctx.Config().Targets[Android])) {
 					field := "Arm_on_x86_64"
 					prefix := "target.arm_on_x86_64"
-					a.appendProperties(ctx, genProps, targetProp, field, prefix)
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				}
 			}
 		}
