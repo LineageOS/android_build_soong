@@ -109,7 +109,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := logger.New(c.stdio().Stdout())
+	output := terminal.NewStatusOutput(c.stdio().Stdout(), os.Getenv("NINJA_STATUS"),
+		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD"))
+
+	log := logger.New(output)
 	defer log.Cleanup()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -122,8 +125,7 @@ func main() {
 
 	stat := &status.Status{}
 	defer stat.Finish()
-	stat.AddOutput(terminal.NewStatusOutput(c.stdio().Stdout(), os.Getenv("NINJA_STATUS"),
-		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
+	stat.AddOutput(output)
 	stat.AddOutput(trace.StatusTracer())
 
 	build.SetupSignals(log, cancel, func() {
@@ -137,7 +139,7 @@ func main() {
 		Logger:  log,
 		Metrics: met,
 		Tracer:  trace,
-		Writer:  c.stdio().Stdout(),
+		Writer:  output,
 		Status:  stat,
 	}}
 

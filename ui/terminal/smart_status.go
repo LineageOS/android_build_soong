@@ -104,6 +104,13 @@ func (s *smartStatusOutput) Flush() {
 	s.requestLine()
 }
 
+func (s *smartStatusOutput) Write(p []byte) (int, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.print(string(p))
+	return len(p), nil
+}
+
 func (s *smartStatusOutput) requestLine() {
 	if !s.haveBlankLine {
 		fmt.Fprintln(s.writer)
