@@ -16,8 +16,6 @@ package android
 
 import (
 	"errors"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -613,12 +611,6 @@ func mockFiles(bps map[string]string) (files map[string][]byte) {
 }
 
 func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) {
-	buildDir, err := ioutil.TempDir("", "soong_namespace_test")
-	if err != nil {
-		return nil, []error{err}
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 
 	ctx = NewTestContext()

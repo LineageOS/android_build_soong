@@ -15,19 +15,11 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 )
 
 func testVtsConfig(test *testing.T, bpFileContents string) *TestContext {
-	buildDir, err := ioutil.TempDir("", "soong_vts_config_test")
-	if err != nil {
-		test.Fatal(err)
-	}
-
 	config := TestArchConfig(buildDir, nil)
-	defer func() { os.RemoveAll(buildDir) }()
 
 	ctx := NewTestArchContext()
 	ctx.RegisterModuleType("vts_config", ModuleFactoryAdaptor(VtsConfigFactory))

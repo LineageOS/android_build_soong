@@ -1,8 +1,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -663,12 +661,6 @@ var visibilityTests = []struct {
 }
 
 func TestVisibility(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_neverallow_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	for _, test := range visibilityTests {
 		t.Run(test.name, func(t *testing.T) {
 			_, errs := testVisibility(buildDir, test.fs)

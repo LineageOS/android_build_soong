@@ -1,19 +1,11 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"reflect"
 	"testing"
 )
 
 func testShBinary(t *testing.T, bp string) (*TestContext, Config) {
-	buildDir, err := ioutil.TempDir("", "soong_sh_binary_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestArchConfig(buildDir, nil)
 
 	ctx := NewTestArchContext()
