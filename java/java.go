@@ -380,8 +380,8 @@ type Dependency interface {
 }
 
 type SdkLibraryDependency interface {
-	SdkHeaderJars(ctx android.BaseContext, sdkVersion string) android.Paths
-	SdkImplementationJars(ctx android.BaseContext, sdkVersion string) android.Paths
+	SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths
+	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths
 }
 
 type SrcDependency interface {
@@ -448,11 +448,11 @@ type jniLib struct {
 	target android.Target
 }
 
-func (j *Module) shouldInstrument(ctx android.BaseContext) bool {
+func (j *Module) shouldInstrument(ctx android.BaseModuleContext) bool {
 	return j.properties.Instrument && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT")
 }
 
-func (j *Module) shouldInstrumentStatic(ctx android.BaseContext) bool {
+func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {
 	return j.shouldInstrument(ctx) &&
 		(ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_STATIC") ||
 			ctx.Config().UnbundledBuild())
