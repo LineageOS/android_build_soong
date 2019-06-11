@@ -29,10 +29,6 @@ func includeDirsToFlags(dirs android.Paths) string {
 	return android.JoinWithPrefix(dirs.Strings(), "-I")
 }
 
-func includeFilesToFlags(files android.Paths) string {
-	return android.JoinWithPrefix(files.Strings(), "-include ")
-}
-
 func ldDirsToFlags(dirs []string) string {
 	return android.JoinWithPrefix(dirs, "-L")
 }

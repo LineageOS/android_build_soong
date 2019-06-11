@@ -28,8 +28,8 @@ var (
 )
 
 type SAbiProperties struct {
-	CreateSAbiDumps        bool `blueprint:"mutated"`
-	ReexportedIncludeFlags []string
+	CreateSAbiDumps    bool     `blueprint:"mutated"`
+	ReexportedIncludes []string `blueprint:"mutated"`
 }
 
 type sabi struct {
