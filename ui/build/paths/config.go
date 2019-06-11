@@ -79,7 +79,6 @@ var Configuration = map[string]PathConfig{
 	// We need bzip2 here even though we provide a bzip2 binary because
 	// GNU tar seems to avoid calling ours.
 	"bzip2":    Allowed,
-	"date":     Allowed,
 	"dd":       Allowed,
 	"diff":     Allowed,
 	"egrep":    Allowed,
@@ -132,6 +131,7 @@ var Configuration = map[string]PathConfig{
 	"cp":        LinuxOnlyPrebuilt,
 	"comm":      LinuxOnlyPrebuilt,
 	"cut":       LinuxOnlyPrebuilt,
+	"date":      LinuxOnlyPrebuilt,
 	"dirname":   LinuxOnlyPrebuilt,
 	"du":        LinuxOnlyPrebuilt,
 	"echo":      LinuxOnlyPrebuilt,
