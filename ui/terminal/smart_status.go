@@ -149,8 +149,10 @@ func (s *smartStatusOutput) statusLine(str string) {
 		}
 	}
 
-	// Move to the beginning on the line, print the output, then clear
-	// the rest of the line.
-	fmt.Fprint(s.writer, "\r", str, "\x1b[K")
+	// Move to the beginning on the line, turn on bold, print the output,
+	// turn off bold, then clear the rest of the line.
+	start := "\r\x1b[1m"
+	end := "\x1b[0m\x1b[K"
+	fmt.Fprint(s.writer, start, str, end)
 	s.haveBlankLine = false
 }
