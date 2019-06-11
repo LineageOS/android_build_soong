@@ -35,7 +35,7 @@ func isSmartTerminal(w io.Writer) bool {
 	return false
 }
 
-func termWidth(w io.Writer) (int, bool) {
+func termSize(w io.Writer) (width int, height int, ok bool) {
 	if f, ok := w.(*os.File); ok {
 		var winsize struct {
 			ws_row, ws_column    uint16
@@ -44,11 +44,11 @@ func termWidth(w io.Writer) (int, bool) {
 		_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, f.Fd(),
 			syscall.TIOCGWINSZ, uintptr(unsafe.Pointer(&winsize)),
 			0, 0, 0)
-		return int(winsize.ws_column), err == 0
+		return int(winsize.ws_column), int(winsize.ws_row), err == 0
 	} else if f, ok := w.(*fakeSmartTerminal); ok {
-		return f.termWidth, true
+		return f.termWidth, f.termHeight, true
 	}
-	return 0, false
+	return 0, 0, false
 }
 
 // stripAnsiEscapes strips ANSI control codes from a byte array in place.
@@ -106,5 +106,5 @@ func stripAnsiEscapes(input []byte) []byte {
 
 type fakeSmartTerminal struct {
 	bytes.Buffer
-	termWidth int
+	termWidth, termHeight int
 }
