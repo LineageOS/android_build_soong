@@ -137,13 +137,6 @@ func TestClasspath(t *testing.T) {
 			classpath:     []string{},
 		},
 		{
-			name:       "host nostdlib",
-			moduleType: "java_library_host",
-			host:       android.Host,
-			properties: `no_standard_libs: true`,
-			classpath:  []string{},
-		},
-		{
 
 			name:          "host supported default",
 			host:          android.Host,
