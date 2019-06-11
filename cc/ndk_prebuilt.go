@@ -151,7 +151,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 		ctx.ModuleErrorf("NDK prebuilt libraries must have an ndk_lib prefixed name")
 	}
 
-	ndk.exportIncludes(ctx, "-isystem ")
+	ndk.exportIncludesAsSystem(ctx)
 
 	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
 	libExt := flags.Toolchain.ShlibSuffix()
