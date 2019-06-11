@@ -171,10 +171,6 @@ type JavadocProperties struct {
 	// list of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
-	// don't build against the default libraries (bootclasspath, ext, and framework for device
-	// targets)
-	No_standard_libs *bool
-
 	// don't build against the framework libraries (ext, and framework for device targets)
 	No_framework_libs *bool
 
@@ -540,10 +536,6 @@ func (j *Javadoc) targetSdkVersion() string {
 
 func (j *Javadoc) noFrameworkLibs() bool {
 	return Bool(j.properties.No_framework_libs)
-}
-
-func (j *Javadoc) noStandardLibs() bool {
-	return Bool(j.properties.No_standard_libs)
 }
 
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {

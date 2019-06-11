@@ -1013,7 +1013,7 @@ func TestPatchModule(t *testing.T) {
 		java_library {
 			name: "bar",
 			srcs: ["b.java"],
-			no_standard_libs: true,
+			sdk_version: "none",
 			system_modules: "none",
 			patch_module: "java.base",
 		}

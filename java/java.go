@@ -82,10 +82,6 @@ type CompilerProperties struct {
 	// list of files that should be excluded from java_resources and java_resource_dirs
 	Exclude_java_resources []string `android:"path,arch_variant"`
 
-	// don't build against the default libraries (bootclasspath, ext, and framework for device
-	// targets)
-	No_standard_libs *bool
-
 	// don't build against the framework libraries (ext, and framework for device targets)
 	No_framework_libs *bool
 
@@ -490,10 +486,6 @@ func (j *Module) noFrameworkLibs() bool {
 	return Bool(j.properties.No_framework_libs)
 }
 
-func (j *Module) noStandardLibs() bool {
-	return Bool(j.properties.No_standard_libs)
-}
-
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
@@ -513,8 +505,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				}
 			}
 		} else if j.deviceProperties.System_modules == nil {
-			ctx.PropertyErrorf("no_standard_libs",
-				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
+			ctx.PropertyErrorf("sdk_version",
+				`system_modules is required to be set when sdk_version is "none", did you mean no_framework_libs?`)
 		} else if *j.deviceProperties.System_modules != "none" {
 			ctx.AddVariationDependencies(nil, systemModulesTag, *j.deviceProperties.System_modules)
 		}

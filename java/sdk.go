@@ -45,9 +45,6 @@ type sdkContext interface {
 	// targetSdkVersion returns the target_sdk_version property of the current module, or sdkVersion() if it is not set.
 	targetSdkVersion() string
 
-	// Temporarily provide access to the no_standard_libs property (where present).
-	noStandardLibs() bool
-
 	// Temporarily provide access to the no_frameworks_libs property (where present).
 	noFrameworkLibs() bool
 }
@@ -145,8 +142,7 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			jars:     android.Paths{jarPath.Path(), lambdaStubsPath},
 			aidl:     android.OptionalPathForPath(aidlPath.Path()),
 
-			// Pass values straight through for now to match previous behavior.
-			noStandardLibs:   sdkContext.noStandardLibs(),
+			// Pass value straight through for now to match previous behavior.
 			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 	}
@@ -159,8 +155,7 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			frameworkResModule: r,
 			aidl:               android.OptionalPathForPath(aidl),
 
-			// Pass values straight through for now to match previous behavior.
-			noStandardLibs:   sdkContext.noStandardLibs(),
+			// Pass value straight through for now to match previous behavior.
 			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 
@@ -197,8 +192,7 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
 
-			// Pass values straight through for now to match previous behavior.
-			noStandardLibs:   sdkContext.noStandardLibs(),
+			// Pass value straight through for now to match previous behavior.
 			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 	case "none":
