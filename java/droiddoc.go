@@ -1751,7 +1751,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		jdiff := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "jdiff.jar")
 		jdiffImplicits = append(jdiffImplicits, android.Paths{jdiff, d.apiXmlFile, d.lastReleasedApiXmlFile}...)
 
-		opts := " -encoding UTF-8 -source 1.8 -J-Xmx1600m -XDignore.symbol.file " +
+		opts := " -source 1.8 -J-Xmx1600m -XDignore.symbol.file " +
 			"-doclet jdiff.JDiff -docletpath " + jdiff.String() + " -quiet " +
 			"-newapi " + strings.TrimSuffix(d.apiXmlFile.Base(), d.apiXmlFile.Ext()) +
 			" -newapidir " + filepath.Dir(d.apiXmlFile.String()) +
