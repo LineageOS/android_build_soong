@@ -41,9 +41,7 @@ var _ PathContext = SingletonContext(nil)
 var _ PathContext = ModuleContext(nil)
 
 type ModuleInstallPathContext interface {
-	PathContext
-
-	androidBaseContext
+	BaseModuleContext
 
 	InstallInData() bool
 	InstallInSanitizerDir() bool

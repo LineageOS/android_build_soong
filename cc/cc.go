@@ -278,7 +278,7 @@ type ModuleContext interface {
 }
 
 type BaseModuleContext interface {
-	android.BaseContext
+	android.BaseModuleContext
 	ModuleContextIntf
 }
 
@@ -641,7 +641,7 @@ func installToBootstrap(name string, config android.Config) bool {
 }
 
 type baseModuleContext struct {
-	android.BaseContext
+	android.BaseModuleContext
 	moduleContextImpl
 }
 
@@ -1040,7 +1040,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 }
 
-func (c *Module) toolchain(ctx android.BaseContext) config.Toolchain {
+func (c *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
 	if c.cachedToolchain == nil {
 		c.cachedToolchain = config.FindToolchain(ctx.Os(), ctx.Arch())
 	}
@@ -1161,7 +1161,7 @@ func (c *Module) deps(ctx DepsContext) Deps {
 
 func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 	ctx := &baseModuleContext{
-		BaseContext: actx,
+		BaseModuleContext: actx,
 		moduleContextImpl: moduleContextImpl{
 			mod: c,
 		},

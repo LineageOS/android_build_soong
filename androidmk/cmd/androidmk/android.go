@@ -15,9 +15,9 @@
 package main
 
 import (
+	"android/soong/android"
 	mkparser "android/soong/androidmk/parser"
 	"fmt"
-	"sort"
 	"strings"
 
 	bpparser "github.com/google/blueprint/parser"
@@ -335,15 +335,6 @@ func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expr
 	}
 }
 
-func sortedMapKeys(inputMap map[string]string) (sortedKeys []string) {
-	keys := make([]string, 0, len(inputMap))
-	for key := range inputMap {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
 // splitAndAssign splits a Make list into components and then
 // creates the corresponding variable assignments.
 func splitAndAssign(ctx variableAssignmentContext, splitFunc listSplitFunc, namesByClassification map[string]string) error {
@@ -357,7 +348,7 @@ func splitAndAssign(ctx variableAssignmentContext, splitFunc listSplitFunc, name
 		return err
 	}
 
-	for _, nameClassification := range sortedMapKeys(namesByClassification) {
+	for _, nameClassification := range android.SortedStringKeys(namesByClassification) {
 		name := namesByClassification[nameClassification]
 		if component, ok := lists[nameClassification]; ok && !emptyList(component) {
 			err = setVariable(ctx.file, ctx.append, ctx.prefix, name, component, true)
