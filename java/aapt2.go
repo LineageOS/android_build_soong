@@ -94,32 +94,20 @@ func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Pat
 	return ret
 }
 
-func aapt2CompileDirs(ctx android.ModuleContext, flata android.WritablePath, dirs android.Paths, deps android.Paths) {
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        aapt2CompileRule,
-		Description: "aapt2 compile dirs",
-		Implicits:   deps,
-		Output:      flata,
-		Args: map[string]string{
-			"outDir": flata.String(),
-			// Always set --pseudo-localize, it will be stripped out later for release
-			// builds that don't want it.
-			"cFlags": "--pseudo-localize " + android.JoinWithPrefix(dirs.Strings(), "--dir "),
-		},
-	})
-}
-
 var aapt2CompileZipRule = pctx.AndroidStaticRule("aapt2CompileZip",
 	blueprint.RuleParams{
-		Command: `${config.ZipSyncCmd} -d $resZipDir $in && ` +
+		Command: `${config.ZipSyncCmd} -d $resZipDir $zipSyncFlags $in && ` +
 			`${config.Aapt2Cmd} compile -o $out $cFlags --legacy --dir $resZipDir`,
 		CommandDeps: []string{
 			"${config.Aapt2Cmd}",
 			"${config.ZipSyncCmd}",
 		},
-	}, "cFlags", "resZipDir")
+	}, "cFlags", "resZipDir", "zipSyncFlags")
 
-func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip android.Path) {
+func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip android.Path, zipPrefix string) {
+	if zipPrefix != "" {
+		zipPrefix = "--zip-prefix " + zipPrefix
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aapt2CompileZipRule,
 		Description: "aapt2 compile zip",
@@ -128,8 +116,9 @@ func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip 
 		Args: map[string]string{
 			// Always set --pseudo-localize, it will be stripped out later for release
 			// builds that don't want it.
-			"cFlags":    "--pseudo-localize",
-			"resZipDir": android.PathForModuleOut(ctx, "aapt2", "reszip", flata.Base()).String(),
+			"cFlags":       "--pseudo-localize",
+			"resZipDir":    android.PathForModuleOut(ctx, "aapt2", "reszip", flata.Base()).String(),
+			"zipSyncFlags": zipPrefix,
 		},
 	})
 }
