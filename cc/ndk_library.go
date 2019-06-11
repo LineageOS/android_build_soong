@@ -337,6 +337,7 @@ func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	if useVersionScript {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
 		flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
 	}
 
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
