@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
 	"android/soong/cc/config"
@@ -611,7 +612,7 @@ func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.P
 // and shared libraries, to a shared library (.so) or dynamic executable
 func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps android.Paths,
-	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags, outputFile android.WritablePath) {
+	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags, outputFile android.WritablePath, implicitOutputs android.WritablePaths) {
 
 	ldCmd := "${config.ClangBin}/clang++"
 
@@ -648,7 +649,11 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	}
 
 	for _, lib := range sharedLibs {
-		libFlagsList = append(libFlagsList, lib.String())
+		libFile := lib.String()
+		if ctx.Windows() {
+			libFile = pathtools.ReplaceExtension(libFile, "lib")
+		}
+		libFlagsList = append(libFlagsList, libFile)
 	}
 
 	deps = append(deps, staticLibs...)
@@ -659,11 +664,12 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        ld,
-		Description: "link " + outputFile.Base(),
-		Output:      outputFile,
-		Inputs:      objFiles,
-		Implicits:   deps,
+		Rule:            ld,
+		Description:     "link " + outputFile.Base(),
+		Output:          outputFile,
+		ImplicitOutputs: implicitOutputs,
+		Inputs:          objFiles,
+		Implicits:       deps,
 		Args: map[string]string{
 			"ldCmd":    ldCmd,
 			"crtBegin": crtBegin.String(),
