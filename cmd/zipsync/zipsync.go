@@ -30,6 +30,7 @@ var (
 	outputDir  = flag.String("d", "", "output dir")
 	outputFile = flag.String("l", "", "output list file")
 	filter     = flag.String("f", "", "optional filter pattern")
+	zipPrefix  = flag.String("zip-prefix", "", "optional prefix within the zip file to extract, stripping the prefix")
 )
 
 func must(err error) {
@@ -77,6 +78,10 @@ func main() {
 	var files []string
 	seen := make(map[string]string)
 
+	if *zipPrefix != "" {
+		*zipPrefix = filepath.Clean(*zipPrefix) + "/"
+	}
+
 	for _, input := range inputs {
 		reader, err := zip.OpenReader(input)
 		if err != nil {
@@ -85,23 +90,30 @@ func main() {
 		defer reader.Close()
 
 		for _, f := range reader.File {
+			name := f.Name
+			if *zipPrefix != "" {
+				if !strings.HasPrefix(name, *zipPrefix) {
+					continue
+				}
+				name = strings.TrimPrefix(name, *zipPrefix)
+			}
 			if *filter != "" {
-				if match, err := filepath.Match(*filter, filepath.Base(f.Name)); err != nil {
+				if match, err := filepath.Match(*filter, filepath.Base(name)); err != nil {
 					log.Fatal(err)
 				} else if !match {
 					continue
 				}
 			}
-			if filepath.IsAbs(f.Name) {
-				log.Fatalf("%q in %q is an absolute path", f.Name, input)
+			if filepath.IsAbs(name) {
+				log.Fatalf("%q in %q is an absolute path", name, input)
 			}
 
-			if prev, exists := seen[f.Name]; exists {
-				log.Fatalf("%q found in both %q and %q", f.Name, prev, input)
+			if prev, exists := seen[name]; exists {
+				log.Fatalf("%q found in both %q and %q", name, prev, input)
 			}
-			seen[f.Name] = input
+			seen[name] = input
 
-			filename := filepath.Join(*outputDir, f.Name)
+			filename := filepath.Join(*outputDir, name)
 			if f.FileInfo().IsDir() {
 				must(os.MkdirAll(filename, f.FileInfo().Mode()))
 			} else {
