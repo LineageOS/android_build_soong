@@ -29,8 +29,7 @@ import (
 	"android/soong/tradefed"
 )
 
-var supportedDpis = [...]string{"Ldpi", "Mdpi", "Hdpi", "Xhdpi", "Xxhdpi", "Xxxhdpi"}
-var dpiVariantsStruct reflect.Type
+var supportedDpis = []string{"ldpi", "mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"}
 
 func init() {
 	android.RegisterModuleType("android_app", AndroidAppFactory)
@@ -39,22 +38,6 @@ func init() {
 	android.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
 	android.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
 	android.RegisterModuleType("android_app_import", AndroidAppImportFactory)
-
-	// Dynamically construct a struct for the dpi_variants property in android_app_import.
-	perDpiStruct := reflect.StructOf([]reflect.StructField{
-		{
-			Name: "Apk",
-			Type: reflect.TypeOf((*string)(nil)),
-		},
-	})
-	dpiVariantsFields := make([]reflect.StructField, len(supportedDpis))
-	for i, dpi := range supportedDpis {
-		dpiVariantsFields[i] = reflect.StructField{
-			Name: string(dpi),
-			Type: perDpiStruct,
-		}
-	}
-	dpiVariantsStruct = reflect.StructOf(dpiVariantsFields)
 }
 
 // AndroidManifest.xml merging
@@ -702,7 +685,8 @@ type AndroidAppImport struct {
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
 
-	properties AndroidAppImportProperties
+	properties  AndroidAppImportProperties
+	dpiVariants interface{}
 
 	outputFile  android.Path
 	certificate *Certificate
@@ -712,27 +696,7 @@ type AndroidAppImport struct {
 
 type AndroidAppImportProperties struct {
 	// A prebuilt apk to import
-	Apk string
-
-	// Per-DPI settings. This property makes it possible to specify a different source apk path for
-	// each DPI.
-	//
-	// Example:
-	//
-	//     android_app_import {
-	//         name: "example_import",
-	//         apk: "prebuilts/example.apk",
-	//         dpi_variants: {
-	//             mdpi: {
-	//                 apk: "prebuilts/example_mdpi.apk",
-	//             },
-	//             xhdpi: {
-	//                 apk: "prebuilts/example_xhdpi.apk",
-	//             },
-	//         },
-	//         certificate: "PRESIGNED",
-	//     }
-	Dpi_variants interface{}
+	Apk *string
 
 	// The name of a certificate in the default certificate directory, blank to use the default
 	// product certificate, or an android_app_certificate module name in the form ":module".
@@ -755,39 +719,43 @@ type AndroidAppImportProperties struct {
 	Overrides []string
 }
 
-func getApkPathForDpi(dpiVariantsValue reflect.Value, dpi string) string {
-	dpiField := dpiVariantsValue.FieldByName(proptools.FieldNameForProperty(dpi))
-	if !dpiField.IsValid() {
-		return ""
+// Chooses a source APK path to use based on the module and product specs.
+func (a *AndroidAppImport) updateSrcApkPath(ctx android.LoadHookContext) {
+	config := ctx.Config()
+
+	dpiProps := reflect.ValueOf(a.dpiVariants).Elem().FieldByName("Dpi_variants")
+	// Try DPI variant matches in the reverse-priority order so that the highest priority match
+	// overwrites everything else.
+	// TODO(jungjw): Can we optimize this by making it priority order?
+	for i := len(config.ProductAAPTPrebuiltDPI()) - 1; i >= 0; i-- {
+		dpi := config.ProductAAPTPrebuiltDPI()[i]
+		if inList(dpi, supportedDpis) {
+			MergePropertiesFromVariant(ctx, &a.properties, dpiProps, dpi, "dpi_variants")
+		}
 	}
-	apkValue := dpiField.FieldByName("Apk").Elem()
-	if apkValue.IsValid() {
-		return apkValue.String()
+	if config.ProductAAPTPreferredConfig() != "" {
+		dpi := config.ProductAAPTPreferredConfig()
+		if inList(dpi, supportedDpis) {
+			MergePropertiesFromVariant(ctx, &a.properties, dpiProps, dpi, "dpi_variants")
+		}
 	}
-	return ""
 }
 
-// Chooses a source APK path to use based on the module's per-DPI settings and the product config.
-func (a *AndroidAppImport) getSrcApkPath(ctx android.ModuleContext) string {
-	config := ctx.Config()
-	dpiVariantsValue := reflect.ValueOf(a.properties.Dpi_variants).Elem()
-	if !dpiVariantsValue.IsValid() {
-		return a.properties.Apk
-	}
-	// Match PRODUCT_AAPT_PREF_CONFIG first and then PRODUCT_AAPT_PREBUILT_DPI.
-	if config.ProductAAPTPreferredConfig() != "" {
-		if apk := getApkPathForDpi(dpiVariantsValue, config.ProductAAPTPreferredConfig()); apk != "" {
-			return apk
-		}
-	}
-	for _, dpi := range config.ProductAAPTPrebuiltDPI() {
-		if apk := getApkPathForDpi(dpiVariantsValue, dpi); apk != "" {
-			return apk
-		}
+func MergePropertiesFromVariant(ctx android.BaseModuleContext,
+	dst interface{}, variantGroup reflect.Value, variant, variantGroupPath string) {
+	src := variantGroup.FieldByName(proptools.FieldNameForProperty(variant))
+	if !src.IsValid() {
+		ctx.ModuleErrorf("field %q does not exist", variantGroupPath+"."+variant)
 	}
 
-	// No match. Use the generic one.
-	return a.properties.Apk
+	err := proptools.ExtendMatchingProperties([]interface{}{dst}, src.Interface(), nil, proptools.OrderAppend)
+	if err != nil {
+		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+			ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+		} else {
+			panic(err)
+		}
+	}
 }
 
 func (a *AndroidAppImport) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -837,7 +805,7 @@ func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
 
-	srcApk := android.PathForModuleSrc(ctx, a.getSrcApkPath(ctx))
+	srcApk := a.prebuilt.SingleSourcePath(ctx)
 
 	// TODO: Install or embed JNI libraries
 
@@ -884,15 +852,55 @@ func (a *AndroidAppImport) Name() string {
 	return a.prebuilt.Name(a.ModuleBase.Name())
 }
 
+// Populates dpi_variants property and its fields at creation time.
+func (a *AndroidAppImport) addDpiVariants() {
+	// TODO(jungjw): Do we want to do some filtering here?
+	props := reflect.ValueOf(&a.properties).Type()
+
+	dpiFields := make([]reflect.StructField, len(supportedDpis))
+	for i, dpi := range supportedDpis {
+		dpiFields[i] = reflect.StructField{
+			Name: proptools.FieldNameForProperty(dpi),
+			Type: props,
+		}
+	}
+	dpiStruct := reflect.StructOf(dpiFields)
+	a.dpiVariants = reflect.New(reflect.StructOf([]reflect.StructField{
+		{
+			Name: "Dpi_variants",
+			Type: dpiStruct,
+		},
+	})).Interface()
+	a.AddProperties(a.dpiVariants)
+}
+
 // android_app_import imports a prebuilt apk with additional processing specified in the module.
+// DPI-specific apk source files can be specified using dpi_variants. Example:
+//
+//     android_app_import {
+//         name: "example_import",
+//         apk: "prebuilts/example.apk",
+//         dpi_variants: {
+//             mdpi: {
+//                 apk: "prebuilts/example_mdpi.apk",
+//             },
+//             xhdpi: {
+//                 apk: "prebuilts/example_xhdpi.apk",
+//             },
+//         },
+//         certificate: "PRESIGNED",
+//     }
 func AndroidAppImportFactory() android.Module {
 	module := &AndroidAppImport{}
-	module.properties.Dpi_variants = reflect.New(dpiVariantsStruct).Interface()
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.dexpreoptProperties)
+	module.addDpiVariants()
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		module.updateSrcApkPath(ctx)
+	})
 
 	InitJavaModule(module, android.DeviceSupported)
-	android.InitSingleSourcePrebuiltModule(module, &module.properties.Apk)
+	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
 	return module
 }
