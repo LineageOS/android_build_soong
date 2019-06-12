@@ -1295,9 +1295,6 @@ type Defaults struct {
 	android.DefaultsModuleBase
 }
 
-func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-}
-
 func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }
