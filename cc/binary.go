@@ -36,7 +36,7 @@ type BinaryLinkerProperties struct {
 	Prefix_symbols *string
 
 	// if set, install a symlink to the preferred architecture
-	Symlink_preferred_arch *bool
+	Symlink_preferred_arch *bool `android:"arch_variant"`
 
 	// install symlinks to the binary.  Symlink names will have the suffix and the binary
 	// extension (if any) appended
