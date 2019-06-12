@@ -101,6 +101,7 @@ type generatorProperties struct {
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 
 	// For other packages to make their own genrules with extra
 	// properties
