@@ -2131,9 +2131,6 @@ type Defaults struct {
 	android.DefaultsModuleBase
 }
 
-func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-}
-
 // java_defaults provides a set of properties that can be inherited by other java or android modules.
 //
 // A module can use the properties from a java_defaults module using `defaults: ["defaults_module_name"]`.  Each

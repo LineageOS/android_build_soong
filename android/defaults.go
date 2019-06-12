@@ -80,6 +80,9 @@ func (d *DefaultsModuleBase) properties() []interface{} {
 	return d.defaultableProperties
 }
 
+func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
+}
+
 func InitDefaultsModule(module DefaultableModule) {
 	module.AddProperties(
 		&hostAndDeviceProperties{},

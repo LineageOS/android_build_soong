@@ -17,8 +17,6 @@ package android
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -758,6 +756,11 @@ func (p *pathForModuleSrcTestModule) GenerateAndroidBuildActions(ctx ModuleConte
 	if !p.props.Module_handles_missing_deps {
 		p.missingDeps = ctx.GetMissingDependencies()
 	}
+
+	ctx.Build(pctx, BuildParams{
+		Rule:   Touch,
+		Output: PathForModuleOut(ctx, "output"),
+	})
 }
 
 type pathForModuleSrcOutputFileProviderModule struct {
@@ -875,12 +878,6 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 }
 
 func TestPathsForModuleSrc(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_paths_for_module_src_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
@@ -961,12 +958,6 @@ func TestPathsForModuleSrc(t *testing.T) {
 }
 
 func TestPathForModuleSrc(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_path_for_module_src_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
@@ -1034,12 +1025,6 @@ func TestPathForModuleSrc(t *testing.T) {
 }
 
 func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_paths_for_module_src_allow_missing_dependencies_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 
