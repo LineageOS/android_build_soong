@@ -16,8 +16,6 @@ package android
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -418,12 +416,6 @@ func testRuleBuilder_Build(ctx BuilderContext, in Path, out, outDep, outDir Writ
 }
 
 func TestRuleBuilder_Build(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_test_rule_builder")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	bp := `
 		rule_builder_test {
 			name: "foo",

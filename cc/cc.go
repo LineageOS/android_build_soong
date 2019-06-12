@@ -2060,9 +2060,6 @@ type Defaults struct {
 	android.ApexModuleBase
 }
 
-func (*Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-}
-
 // cc_defaults provides a set of properties that can be inherited by other cc
 // modules. A module can use the properties from a cc_defaults using
 // `defaults: ["<:default_module_name>"]`. Properties of both modules are
