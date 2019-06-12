@@ -31,7 +31,7 @@ import (
 var (
 	Signapk = pctx.AndroidStaticRule("signapk",
 		blueprint.RuleParams{
-			Command: `${config.JavaCmd} -Djava.library.path=$$(dirname $signapkJniLibrary) ` +
+			Command: `${config.JavaCmd} ${config.JavaVmFlags} -Djava.library.path=$$(dirname $signapkJniLibrary) ` +
 				`-jar $signapkCmd $flags $certificates $in $out`,
 			CommandDeps: []string{"$signapkCmd", "$signapkJniLibrary"},
 		},
