@@ -17,6 +17,7 @@ package terminal
 import (
 	"bytes"
 	"fmt"
+	"syscall"
 	"testing"
 
 	"android/soong/ui/status"
@@ -260,6 +261,8 @@ func TestSmartStatusOutputWidthChange(t *testing.T) {
 
 	runner.startAction(action)
 	smart.termWidth = 30
+	// Fake a SIGWINCH
+	stat.(*smartStatusOutput).sigwinch <- syscall.SIGWINCH
 	runner.finishAction(result)
 
 	stat.Flush()

@@ -17,8 +17,11 @@ package terminal
 import (
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"android/soong/ui/status"
 )
@@ -30,18 +33,29 @@ type smartStatusOutput struct {
 	lock sync.Mutex
 
 	haveBlankLine bool
+
+	termWidth int
+	sigwinch  chan os.Signal
 }
 
 // NewSmartStatusOutput returns a StatusOutput that represents the
 // current build status similarly to Ninja's built-in terminal
 // output.
 func NewSmartStatusOutput(w io.Writer, formatter formatter) status.StatusOutput {
-	return &smartStatusOutput{
+	s := &smartStatusOutput{
 		writer:    w,
 		formatter: formatter,
 
 		haveBlankLine: true,
+
+		sigwinch: make(chan os.Signal),
 	}
+
+	s.updateTermSize()
+
+	s.startSigwinch()
+
+	return s
 }
 
 func (s *smartStatusOutput) Message(level status.MsgLevel, message string) {
@@ -101,6 +115,8 @@ func (s *smartStatusOutput) Flush() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	s.stopSigwinch()
+
 	s.requestLine()
 }
 
@@ -137,16 +153,8 @@ func (s *smartStatusOutput) statusLine(str string) {
 
 	// Limit line width to the terminal width, otherwise we'll wrap onto
 	// another line and we won't delete the previous line.
-	//
-	// Run this on every line in case the window has been resized while
-	// we're printing. This could be optimized to only re-run when we get
-	// SIGWINCH if it ever becomes too time consuming.
-	if max, ok := termWidth(s.writer); ok {
-		if len(str) > max {
-			// TODO: Just do a max. Ninja elides the middle, but that's
-			// more complicated and these lines aren't that important.
-			str = str[:max]
-		}
+	if s.termWidth > 0 {
+		str = s.elide(str)
 	}
 
 	// Move to the beginning on the line, turn on bold, print the output,
@@ -155,4 +163,36 @@ func (s *smartStatusOutput) statusLine(str string) {
 	end := "\x1b[0m\x1b[K"
 	fmt.Fprint(s.writer, start, str, end)
 	s.haveBlankLine = false
+}
+
+func (s *smartStatusOutput) elide(str string) string {
+	if len(str) > s.termWidth {
+		// TODO: Just do a max. Ninja elides the middle, but that's
+		// more complicated and these lines aren't that important.
+		str = str[:s.termWidth]
+	}
+
+	return str
+}
+
+func (s *smartStatusOutput) startSigwinch() {
+	signal.Notify(s.sigwinch, syscall.SIGWINCH)
+	go func() {
+		for _ = range s.sigwinch {
+			s.lock.Lock()
+			s.updateTermSize()
+			s.lock.Unlock()
+		}
+	}()
+}
+
+func (s *smartStatusOutput) stopSigwinch() {
+	signal.Stop(s.sigwinch)
+	close(s.sigwinch)
+}
+
+func (s *smartStatusOutput) updateTermSize() {
+	if w, ok := termWidth(s.writer); ok {
+		s.termWidth = w
+	}
 }
