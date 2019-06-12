@@ -55,6 +55,14 @@ func TestClasspath(t *testing.T) {
 			aidl:          "",
 		},
 		{
+			name:          `sdk_version:"core_platform"`,
+			properties:    `sdk_version:"core_platform"`,
+			bootclasspath: config.DefaultBootclasspathLibraries,
+			system:        config.DefaultSystemModules,
+			classpath:     []string{},
+			aidl:          "",
+		},
+		{
 			name:          "blank sdk version",
 			properties:    `sdk_version: "",`,
 			bootclasspath: config.DefaultBootclasspathLibraries,

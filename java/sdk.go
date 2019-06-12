@@ -51,7 +51,7 @@ type sdkContext interface {
 
 func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
 	switch v {
-	case "", "none", "current", "system_current", "test_current", "core_current":
+	case "", "none", "current", "test_current", "system_current", "core_current", "core_platform":
 		return ctx.Config().DefaultAppTargetSdk()
 	default:
 		return v
@@ -62,7 +62,7 @@ func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
 // it returns android.FutureApiLevel (10000).
 func sdkVersionToNumber(ctx android.BaseModuleContext, v string) (int, error) {
 	switch v {
-	case "", "none", "current", "test_current", "system_current", "core_current":
+	case "", "none", "current", "test_current", "system_current", "core_current", "core_platform":
 		return ctx.Config().DefaultAppTargetSdkInt(), nil
 	default:
 		n := android.GetNumericSdkVersion(v)
@@ -182,7 +182,8 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 		}
 	}
 
-	if ctx.Config().UnbundledBuildUsePrebuiltSdks() && v != "" && v != "none" {
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() &&
+		v != "" && v != "none" && v != "core_platform" {
 		return toPrebuilt(v)
 	}
 
@@ -198,6 +199,12 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 	case "none":
 		return sdkDep{
 			noStandardLibs: true,
+		}
+	case "core_platform":
+		return sdkDep{
+			useDefaultLibs:     true,
+			frameworkResModule: "framework-res",
+			noFrameworksLibs:   true,
 		}
 	case "current":
 		return toModule("android_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))

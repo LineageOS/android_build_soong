@@ -674,7 +674,7 @@ func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 		return javaSdk, true
 	case ver == "current":
 		return javaSdk, false
-	case ver == "" || ver == "none":
+	case ver == "" || ver == "none" || ver == "core_platform":
 		return javaPlatform, false
 	default:
 		if _, err := strconv.Atoi(ver); err != nil {
@@ -852,7 +852,8 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 	var ret string
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
-	if ctx.Config().IsPdkBuild() && (v == "" || v == "none" || v == "current") {
+	if ctx.Config().IsPdkBuild() &&
+		(v == "" || v == "none" || v == "core_platform" || v == "current") {
 		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
 		latestSdkVersion := 0
 		if len(sdkVersions) > 0 {
@@ -871,7 +872,11 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		ret = "1.7"
 	} else if ctx.Device() && sdk <= 29 || !ctx.Config().TargetOpenJDK9() {
 		ret = "1.8"
-	} else if ctx.Device() && sdkContext.sdkVersion() != "" && sdkContext.sdkVersion() != "none" && sdk == android.FutureApiLevel {
+	} else if ctx.Device() &&
+		sdkContext.sdkVersion() != "" &&
+		sdkContext.sdkVersion() != "none" &&
+		sdkContext.sdkVersion() != "core_platform" &&
+		sdk == android.FutureApiLevel {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
 		ret = "1.8"
 	} else {

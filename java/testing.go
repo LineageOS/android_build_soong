@@ -73,7 +73,7 @@ func GatherRequiredDepsForTest() string {
 
 		android_app {
 			name: "framework-res",
-			no_framework_libs: true,
+			sdk_version: "core_platform",
 		}
 
 		java_library {
