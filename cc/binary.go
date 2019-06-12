@@ -106,13 +106,17 @@ func (binary *binaryDecorator) linkerProps() []interface{} {
 
 }
 
-func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
+func (binary *binaryDecorator) getStemWithoutSuffix(ctx BaseModuleContext) string {
 	stem := ctx.baseModuleName()
 	if String(binary.Properties.Stem) != "" {
 		stem = String(binary.Properties.Stem)
 	}
 
-	return stem + String(binary.Properties.Suffix)
+	return stem
+}
+
+func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
+	return binary.getStemWithoutSuffix(ctx) + String(binary.Properties.Suffix)
 }
 
 func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
@@ -384,7 +388,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
-		builderFlags, outputFile)
+		builderFlags, outputFile, nil)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
@@ -398,11 +402,11 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	}
 
 	if Bool(binary.Properties.Symlink_preferred_arch) {
-		if String(binary.Properties.Stem) == "" && String(binary.Properties.Suffix) == "" {
-			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify stem or suffix")
+		if String(binary.Properties.Suffix) == "" {
+			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify suffix")
 		}
 		if ctx.TargetPrimary() {
-			binary.symlinks = append(binary.symlinks, ctx.baseModuleName())
+			binary.symlinks = append(binary.symlinks, binary.getStemWithoutSuffix(ctx))
 		}
 	}
 
