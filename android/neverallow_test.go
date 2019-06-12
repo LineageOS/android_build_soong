@@ -15,8 +15,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -194,12 +192,6 @@ var neverallowTests = []struct {
 }
 
 func TestNeverallow(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_neverallow_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 
 	for _, test := range neverallowTests {
