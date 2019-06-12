@@ -115,35 +115,14 @@ type TopDownMutator func(TopDownMutatorContext)
 type TopDownMutatorContext interface {
 	BaseModuleContext
 
-	OtherModuleExists(name string) bool
 	Rename(name string)
-	Module() Module
-
-	OtherModuleName(m blueprint.Module) string
-	OtherModuleDir(m blueprint.Module) string
-	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
-	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
 
 	CreateModule(blueprint.ModuleFactory, ...interface{})
-
-	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
-	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
-
-	VisitDirectDeps(visit func(Module))
-	VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
-	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
-	VisitDepsDepthFirst(visit func(Module))
-	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
-	WalkDeps(visit func(Module, Module) bool)
-	// GetWalkPath is supposed to be called in visit function passed in WalkDeps()
-	// and returns a top-down dependency path from a start module to current child module.
-	GetWalkPath() []Module
 }
 
 type topDownMutatorContext struct {
-	blueprint.TopDownMutatorContext
+	bp blueprint.TopDownMutatorContext
 	baseModuleContext
-	walkPath []Module
 }
 
 type BottomUpMutator func(BottomUpMutatorContext)
@@ -151,9 +130,7 @@ type BottomUpMutator func(BottomUpMutatorContext)
 type BottomUpMutatorContext interface {
 	BaseModuleContext
 
-	OtherModuleExists(name string) bool
 	Rename(name string)
-	Module() blueprint.Module
 
 	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string)
 	AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string)
@@ -167,7 +144,7 @@ type BottomUpMutatorContext interface {
 }
 
 type bottomUpMutatorContext struct {
-	blueprint.BottomUpMutatorContext
+	bp blueprint.BottomUpMutatorContext
 	baseModuleContext
 }
 
@@ -175,8 +152,8 @@ func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) Mutat
 	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &bottomUpMutatorContext{
-				BottomUpMutatorContext: ctx,
-				baseModuleContext:      a.base().baseModuleContextFactory(ctx),
+				bp:                ctx,
+				baseModuleContext: a.base().baseModuleContextFactory(ctx),
 			}
 			m(actx)
 		}
@@ -190,8 +167,8 @@ func (x *registerMutatorsContext) TopDown(name string, m TopDownMutator) Mutator
 	f := func(ctx blueprint.TopDownMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			actx := &topDownMutatorContext{
-				TopDownMutatorContext: ctx,
-				baseModuleContext:     a.base().baseModuleContextFactory(ctx),
+				bp:                ctx,
+				baseModuleContext: a.base().baseModuleContextFactory(ctx),
 			}
 			m(actx)
 		}
@@ -214,99 +191,6 @@ func depsMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok && m.Enabled() {
 		m.DepsMutator(ctx)
 	}
-}
-
-func (t *topDownMutatorContext) Config() Config {
-	return t.config
-}
-
-func (b *bottomUpMutatorContext) Config() Config {
-	return b.config
-}
-
-func (t *topDownMutatorContext) Module() Module {
-	module, _ := t.TopDownMutatorContext.Module().(Module)
-	return module
-}
-
-func (t *topDownMutatorContext) VisitDirectDeps(visit func(Module)) {
-	t.TopDownMutatorContext.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil {
-			visit(aModule)
-		}
-	})
-}
-
-func (t *topDownMutatorContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
-	t.TopDownMutatorContext.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil {
-			if t.TopDownMutatorContext.OtherModuleDependencyTag(aModule) == tag {
-				visit(aModule)
-			}
-		}
-	})
-}
-
-func (t *topDownMutatorContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
-	t.TopDownMutatorContext.VisitDirectDepsIf(
-		// pred
-		func(module blueprint.Module) bool {
-			if aModule, _ := module.(Module); aModule != nil {
-				return pred(aModule)
-			} else {
-				return false
-			}
-		},
-		// visit
-		func(module blueprint.Module) {
-			visit(module.(Module))
-		})
-}
-
-func (t *topDownMutatorContext) VisitDepsDepthFirst(visit func(Module)) {
-	t.TopDownMutatorContext.VisitDepsDepthFirst(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil {
-			visit(aModule)
-		}
-	})
-}
-
-func (t *topDownMutatorContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
-	t.TopDownMutatorContext.VisitDepsDepthFirstIf(
-		// pred
-		func(module blueprint.Module) bool {
-			if aModule, _ := module.(Module); aModule != nil {
-				return pred(aModule)
-			} else {
-				return false
-			}
-		},
-		// visit
-		func(module blueprint.Module) {
-			visit(module.(Module))
-		})
-}
-
-func (t *topDownMutatorContext) WalkDeps(visit func(Module, Module) bool) {
-	t.walkPath = []Module{t.Module()}
-	t.TopDownMutatorContext.WalkDeps(func(child, parent blueprint.Module) bool {
-		childAndroidModule, _ := child.(Module)
-		parentAndroidModule, _ := parent.(Module)
-		if childAndroidModule != nil && parentAndroidModule != nil {
-			// record walkPath before visit
-			for t.walkPath[len(t.walkPath)-1] != parentAndroidModule {
-				t.walkPath = t.walkPath[0 : len(t.walkPath)-1]
-			}
-			t.walkPath = append(t.walkPath, childAndroidModule)
-			return visit(childAndroidModule, parentAndroidModule)
-		} else {
-			return false
-		}
-	})
-}
-
-func (t *topDownMutatorContext) GetWalkPath() []Module {
-	return t.walkPath
 }
 
 func (t *topDownMutatorContext) AppendProperties(props ...interface{}) {
@@ -335,4 +219,62 @@ func (t *topDownMutatorContext) PrependProperties(props ...interface{}) {
 			}
 		}
 	}
+}
+
+// android.topDownMutatorContext either has to embed blueprint.TopDownMutatorContext, in which case every method that
+// has an overridden version in android.BaseModuleContext has to be manually forwarded to BaseModuleContext to avoid
+// ambiguous method errors, or it has to store a blueprint.TopDownMutatorContext non-embedded, in which case every
+// non-overridden method has to be forwarded.  There are fewer non-overridden methods, so use the latter.  The following
+// methods forward to the identical blueprint versions for topDownMutatorContext and bottomUpMutatorContext.
+
+func (t *topDownMutatorContext) Rename(name string) {
+	t.bp.Rename(name)
+}
+
+func (t *topDownMutatorContext) CreateModule(factory blueprint.ModuleFactory, props ...interface{}) {
+	t.bp.CreateModule(factory, props...)
+}
+
+func (b *bottomUpMutatorContext) Rename(name string) {
+	b.bp.Rename(name)
+}
+
+func (b *bottomUpMutatorContext) AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) {
+	b.bp.AddDependency(module, tag, name...)
+}
+
+func (b *bottomUpMutatorContext) AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string) {
+	b.bp.AddReverseDependency(module, tag, name)
+}
+
+func (b *bottomUpMutatorContext) CreateVariations(variations ...string) []blueprint.Module {
+	return b.bp.CreateVariations(variations...)
+}
+
+func (b *bottomUpMutatorContext) CreateLocalVariations(variations ...string) []blueprint.Module {
+	return b.bp.CreateLocalVariations(variations...)
+}
+
+func (b *bottomUpMutatorContext) SetDependencyVariation(variation string) {
+	b.bp.SetDependencyVariation(variation)
+}
+
+func (b *bottomUpMutatorContext) AddVariationDependencies(variations []blueprint.Variation, tag blueprint.DependencyTag,
+	names ...string) {
+
+	b.bp.AddVariationDependencies(variations, tag, names...)
+}
+
+func (b *bottomUpMutatorContext) AddFarVariationDependencies(variations []blueprint.Variation,
+	tag blueprint.DependencyTag, names ...string) {
+
+	b.bp.AddFarVariationDependencies(variations, tag, names...)
+}
+
+func (b *bottomUpMutatorContext) AddInterVariantDependency(tag blueprint.DependencyTag, from, to blueprint.Module) {
+	b.bp.AddInterVariantDependency(tag, from, to)
+}
+
+func (b *bottomUpMutatorContext) ReplaceDependencies(name string) {
+	b.bp.ReplaceDependencies(name)
 }

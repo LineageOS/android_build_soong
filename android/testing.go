@@ -179,7 +179,7 @@ func buildParamsFromRule(provider testBuildProvider, rule string) TestingBuildPa
 
 func maybeBuildParamsFromDescription(provider testBuildProvider, desc string) TestingBuildParams {
 	for _, p := range provider.BuildParamsForTests() {
-		if p.Description == desc {
+		if strings.Contains(p.Description, desc) {
 			return newTestingBuildParams(provider, p)
 		}
 	}

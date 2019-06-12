@@ -16,8 +16,6 @@ package android
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -127,12 +125,6 @@ var prebuiltsTests = []struct {
 }
 
 func TestPrebuilts(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_prebuilt_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 
 	for _, test := range prebuiltsTests {
