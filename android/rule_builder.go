@@ -525,6 +525,15 @@ func (c *RuleBuilderCommand) Outputs(paths WritablePaths) *RuleBuilderCommand {
 	return c
 }
 
+// OutputDir adds the output directory to the command line. This is only available when used with RuleBuilder.Sbox,
+// and will be the temporary output directory managed by sbox, not the final one.
+func (c *RuleBuilderCommand) OutputDir() *RuleBuilderCommand {
+	if !c.sbox {
+		panic("OutputDir only valid with Sbox")
+	}
+	return c.Text("__SBOX_OUT_DIR__")
+}
+
 // DepFile adds the specified depfile path to the paths returned by RuleBuilder.DepFiles and adds it to the command
 // line, and causes RuleBuilder.Build file to set the depfile flag for ninja.  If multiple depfiles are added to
 // commands in a single RuleBuilder then RuleBuilder.Build will add an extra command to merge the depfiles together.

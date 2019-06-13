@@ -16,6 +16,7 @@ package cc
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint"
 
@@ -35,15 +36,6 @@ var (
 			Command:     "$lexCmd -o$out $in",
 			CommandDeps: []string{"$lexCmd"},
 		})
-
-	aidl = pctx.AndroidStaticRule("aidl",
-		blueprint.RuleParams{
-			Command:     "$aidlCmd -d${out}.d --ninja $aidlFlags $in $outDir $out",
-			CommandDeps: []string{"$aidlCmd"},
-			Depfile:     "${out}.d",
-			Deps:        blueprint.DepsGCC,
-		},
-		"aidlFlags", "outDir")
 
 	sysprop = pctx.AndroidStaticRule("sysprop",
 		blueprint.RuleParams{
@@ -114,20 +106,37 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 	return ret
 }
 
-func genAidl(ctx android.ModuleContext, aidlFile android.Path, outFile android.ModuleGenPath, aidlFlags string) android.Paths {
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        aidl,
-		Description: "aidl " + aidlFile.Rel(),
-		Output:      outFile,
-		Input:       aidlFile,
-		Args: map[string]string{
-			"aidlFlags": aidlFlags,
-			"outDir":    android.PathForModuleGen(ctx, "aidl").String(),
-		},
-	})
+func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile android.Path,
+	outFile, depFile android.ModuleGenPath, aidlFlags string) android.Paths {
 
-	// TODO: This should return the generated headers, not the source file.
-	return android.Paths{outFile}
+	aidlPackage := strings.TrimSuffix(aidlFile.Rel(), aidlFile.Base())
+	baseName := strings.TrimSuffix(aidlFile.Base(), aidlFile.Ext())
+	shortName := strings.TrimPrefix(baseName, "I")
+
+	outDir := android.PathForModuleGen(ctx, "aidl")
+	headerI := outDir.Join(ctx, aidlPackage, baseName+".h")
+	headerBn := outDir.Join(ctx, aidlPackage, "Bn"+shortName+".h")
+	headerBp := outDir.Join(ctx, aidlPackage, "Bp"+shortName+".h")
+
+	cmd := rule.Command()
+	cmd.Tool(ctx.Config().HostToolPath(ctx, "aidl-cpp")).
+		FlagWithDepFile("-d", depFile).
+		Flag("--ninja").
+		Flag(aidlFlags).
+		Input(aidlFile).
+		OutputDir().
+		Output(outFile).
+		ImplicitOutputs(android.WritablePaths{
+			headerI,
+			headerBn,
+			headerBp,
+		})
+
+	return android.Paths{
+		headerI,
+		headerBn,
+		headerBp,
+	}
 }
 
 func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
@@ -187,6 +196,8 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	var deps android.Paths
 	var rsFiles android.Paths
 
+	var aidlRule *android.RuleBuilder
+
 	var yaccRule_ *android.RuleBuilder
 	yaccRule := func() *android.RuleBuilder {
 		if yaccRule_ == nil {
@@ -218,9 +229,13 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			srcFiles[i] = ccFile
 			deps = append(deps, headerFile)
 		case ".aidl":
+			if aidlRule == nil {
+				aidlRule = android.NewRuleBuilder().Sbox(android.PathForModuleGen(ctx, "aidl"))
+			}
 			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
+			depFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp.d")
 			srcFiles[i] = cppFile
-			deps = append(deps, genAidl(ctx, srcFile, cppFile, buildFlags.aidlFlags)...)
+			deps = append(deps, genAidl(ctx, aidlRule, srcFile, cppFile, depFile, buildFlags.aidlFlags)...)
 		case ".rs", ".fs":
 			cppFile := rsGeneratedCppFile(ctx, srcFile)
 			rsFiles = append(rsFiles, srcFiles[i])
@@ -234,6 +249,10 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			srcFiles[i] = cppFile
 			deps = append(deps, headerFile)
 		}
+	}
+
+	if aidlRule != nil {
+		aidlRule.Build(pctx, ctx, "aidl", "gen aidl")
 	}
 
 	if yaccRule_ != nil {

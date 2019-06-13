@@ -15,16 +15,13 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
-	config, buildDir := setUp(t)
-	defer tearDown(buildDir)
+	config := TestArchConfig(buildDir, nil)
 	ctx := NewTestArchContext()
 	ctx.RegisterModuleType("prebuilt_etc", ModuleFactoryAdaptor(PrebuiltEtcFactory))
 	ctx.RegisterModuleType("prebuilt_etc_host", ModuleFactoryAdaptor(PrebuiltEtcHostFactory))
@@ -49,20 +46,6 @@ func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
 	FailIfErrored(t, errs)
 
 	return ctx, config
-}
-
-func setUp(t *testing.T) (config Config, buildDir string) {
-	buildDir, err := ioutil.TempDir("", "soong_prebuilt_etc_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	config = TestArchConfig(buildDir, nil)
-	return
-}
-
-func tearDown(buildDir string) {
-	os.RemoveAll(buildDir)
 }
 
 func TestPrebuiltEtcVariants(t *testing.T) {

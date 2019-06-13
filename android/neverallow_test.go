@@ -15,8 +15,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -159,15 +157,41 @@ var neverallowTests = []struct {
 		},
 		expectedError: "java_device_for_host can only be used in whitelisted projects",
 	},
+	// Libcore rule tests
+	{
+		name: "no_standard_libs: true inside core libraries",
+		fs: map[string][]byte{
+			"libcore/Blueprints": []byte(`
+				java_library {
+					name: "inside_core_libraries",
+					no_standard_libs: true,
+				}`),
+		},
+	},
+	{
+		name: "no_standard_libs: true outside core libraries",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "outside_core_libraries",
+					no_standard_libs: true,
+				}`),
+		},
+		expectedError: "module \"outside_core_libraries\": violates neverallow",
+	},
+	{
+		name: "no_standard_libs: false",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "outside_core_libraries",
+					no_standard_libs: false,
+				}`),
+		},
+	},
 }
 
 func TestNeverallow(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_neverallow_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 
 	for _, test := range neverallowTests {
@@ -238,7 +262,8 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
 type mockJavaLibraryProperties struct {
-	Libs []string
+	Libs             []string
+	No_standard_libs *bool
 }
 
 type mockJavaLibraryModule struct {
