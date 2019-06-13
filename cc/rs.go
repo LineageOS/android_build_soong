@@ -72,11 +72,12 @@ func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags str
 	stampFile := android.PathForModuleGen(ctx, "rs", "rs.stamp")
 	depFiles := make(android.WritablePaths, 0, len(rsFiles))
 	genFiles := make(android.WritablePaths, 0, 2*len(rsFiles))
+	headers := make(android.Paths, 0, len(rsFiles))
 	for _, rsFile := range rsFiles {
 		depFiles = append(depFiles, rsGeneratedDepFile(ctx, rsFile))
-		genFiles = append(genFiles,
-			rsGeneratedCppFile(ctx, rsFile),
-			rsGeneratedHFile(ctx, rsFile))
+		headerFile := rsGeneratedHFile(ctx, rsFile)
+		genFiles = append(genFiles, rsGeneratedCppFile(ctx, rsFile), headerFile)
+		headers = append(headers, headerFile)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -92,7 +93,7 @@ func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags str
 		},
 	})
 
-	return android.Paths{stampFile}
+	return headers
 }
 
 func rsFlags(ctx ModuleContext, flags Flags, properties *BaseCompilerProperties) Flags {
