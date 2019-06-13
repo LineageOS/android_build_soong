@@ -966,10 +966,12 @@ type moduleContext struct {
 
 func (m *moduleContext) ninjaError(params BuildParams, err error) (PackageContext, BuildParams) {
 	return pctx, BuildParams{
-		Rule:        ErrorRule,
-		Description: params.Description,
-		Output:      params.Output,
-		Outputs:     params.Outputs,
+		Rule:            ErrorRule,
+		Description:     params.Description,
+		Output:          params.Output,
+		Outputs:         params.Outputs,
+		ImplicitOutput:  params.ImplicitOutput,
+		ImplicitOutputs: params.ImplicitOutputs,
 		Args: map[string]string{
 			"error": err.Error(),
 		},
