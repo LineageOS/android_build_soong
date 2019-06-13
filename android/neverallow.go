@@ -53,6 +53,7 @@ func createNeverAllows() []*rule {
 	rules = append(rules, createLibcoreRules()...)
 	rules = append(rules, createMediaRules()...)
 	rules = append(rules, createJavaDeviceForHostRules()...)
+	rules = append(rules, createJavaLibraryHostRules()...)
 	return rules
 }
 
@@ -133,6 +134,15 @@ func createJavaDeviceForHostRules() []*rule {
 			notIn(javaDeviceForHostProjectsWhitelist...).
 			moduleType("java_device_for_host", "java_host_for_device").
 			because("java_device_for_host can only be used in whitelisted projects"),
+	}
+}
+
+func createJavaLibraryHostRules() []*rule {
+	return []*rule{
+		neverallow().
+			moduleType("java_library_host").
+			with("no_standard_libs", "true").
+			because("no_standard_libs makes no sense with java_library_host"),
 	}
 }
 
