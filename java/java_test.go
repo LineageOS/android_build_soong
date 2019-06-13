@@ -212,7 +212,7 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	ctx.Register()
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "prebuilts/sdk/Android.bp"})
+	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
