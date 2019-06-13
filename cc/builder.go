@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -92,20 +91,6 @@ var (
 			RspfileContent: "${in}",
 		},
 		"arCmd", "arFlags")
-
-	darwinAr = pctx.AndroidStaticRule("darwinAr",
-		blueprint.RuleParams{
-			Command:     "rm -f ${out} && ${config.MacArPath} $arFlags $out $in",
-			CommandDeps: []string{"${config.MacArPath}"},
-		},
-		"arFlags")
-
-	darwinAppendAr = pctx.AndroidStaticRule("darwinAppendAr",
-		blueprint.RuleParams{
-			Command:     "cp -f ${inAr} ${out}.tmp && ${config.MacArPath} $arFlags ${out}.tmp $in && mv ${out}.tmp ${out}",
-			CommandDeps: []string{"${config.MacArPath}", "${inAr}"},
-		},
-		"arFlags", "inAr")
 
 	darwinStrip = pctx.AndroidStaticRule("darwinStrip",
 		blueprint.RuleParams{
@@ -515,11 +500,6 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
 
-	if ctx.Darwin() {
-		transformDarwinObjToStaticLib(ctx, objFiles, flags, outputFile, deps)
-		return
-	}
-
 	arCmd := "${config.ClangBin}/llvm-ar"
 	arFlags := "crsD"
 	if !ctx.Darwin() {
@@ -540,82 +520,6 @@ func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 			"arCmd":   arCmd,
 		},
 	})
-}
-
-// Generate a rule for compiling multiple .o files to a static library (.a) on
-// darwin.  The darwin ar tool doesn't support @file for list files, and has a
-// very small command line length limit, so we have to split the ar into multiple
-// steps, each appending to the previous one.
-func transformDarwinObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
-	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
-
-	arFlags := "cqs"
-
-	if len(objFiles) == 0 {
-		dummy := android.PathForModuleOut(ctx, "dummy"+objectExtension)
-		dummyAr := android.PathForModuleOut(ctx, "dummy"+staticLibraryExtension)
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        emptyFile,
-			Description: "empty object file",
-			Output:      dummy,
-			Implicits:   deps,
-		})
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        darwinAr,
-			Description: "empty static archive",
-			Output:      dummyAr,
-			Input:       dummy,
-			Args: map[string]string{
-				"arFlags": arFlags,
-			},
-		})
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        darwinAppendAr,
-			Description: "static link " + outputFile.Base(),
-			Output:      outputFile,
-			Input:       dummy,
-			Args: map[string]string{
-				"arFlags": "d",
-				"inAr":    dummyAr.String(),
-			},
-		})
-
-		return
-	}
-
-	// ARG_MAX on darwin is 262144, use half that to be safe
-	objFilesLists, err := splitListForSize(objFiles, 131072)
-	if err != nil {
-		ctx.ModuleErrorf("%s", err.Error())
-	}
-
-	var in, out android.WritablePath
-	for i, l := range objFilesLists {
-		in = out
-		out = outputFile
-		if i != len(objFilesLists)-1 {
-			out = android.PathForModuleOut(ctx, outputFile.Base()+strconv.Itoa(i))
-		}
-
-		build := android.BuildParams{
-			Rule:        darwinAr,
-			Description: "static link " + out.Base(),
-			Output:      out,
-			Inputs:      l,
-			Implicits:   deps,
-			Args: map[string]string{
-				"arFlags": arFlags,
-			},
-		}
-		if i != 0 {
-			build.Rule = darwinAppendAr
-			build.Args["inAr"] = in.String()
-		}
-		ctx.Build(pctx, build)
-	}
 }
 
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
