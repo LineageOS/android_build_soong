@@ -189,6 +189,18 @@ var neverallowTests = []struct {
 				}`),
 		},
 	},
+	// java_library_host rule tests
+	{
+		name: "java_library_host with no_standard_libs: true",
+		fs: map[string][]byte{
+			"libcore/Blueprints": []byte(`
+				java_library_host {
+					name: "inside_core_libraries",
+					no_standard_libs: true,
+				}`),
+		},
+		expectedError: "module \"inside_core_libraries\": violates neverallow",
+	},
 }
 
 func TestNeverallow(t *testing.T) {
@@ -211,6 +223,7 @@ func testNeverallow(t *testing.T, config Config, fs map[string][]byte) (*TestCon
 	ctx := NewTestContext()
 	ctx.RegisterModuleType("cc_library", ModuleFactoryAdaptor(newMockCcLibraryModule))
 	ctx.RegisterModuleType("java_library", ModuleFactoryAdaptor(newMockJavaLibraryModule))
+	ctx.RegisterModuleType("java_library_host", ModuleFactoryAdaptor(newMockJavaLibraryModule))
 	ctx.RegisterModuleType("java_device_for_host", ModuleFactoryAdaptor(newMockJavaLibraryModule))
 	ctx.PostDepsMutators(registerNeverallowMutator)
 	ctx.Register()
