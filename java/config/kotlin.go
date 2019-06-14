@@ -32,6 +32,7 @@ func init() {
 	pctx.SourcePathVariable("KotlinScriptRuntimeJar", "external/kotlinc/lib/kotlin-script-runtime.jar")
 	pctx.SourcePathVariable("KotlinTrove4jJar", "external/kotlinc/lib/trove4j.jar")
 	pctx.SourcePathVariable("KotlinKaptJar", "external/kotlinc/lib/kotlin-annotation-processing.jar")
+	pctx.SourcePathVariable("KotlinAnnotationJar", "external/kotlinc/lib/annotations-13.0.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
 
 	// These flags silence "Illegal reflective access" warnings when running kotlinc in OpenJDK9
