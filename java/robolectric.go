@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -47,6 +48,9 @@ type robolectricProperties struct {
 	Test_options struct {
 		// Timeout in seconds when running the tests.
 		Timeout *int64
+
+		// Number of shards to use when running the tests.
+		Shards *int64
 	}
 }
 
@@ -55,7 +59,8 @@ type robolectricTest struct {
 
 	robolectricProperties robolectricProperties
 
-	libs []string
+	libs  []string
+	tests []string
 
 	roboSrcJar android.Path
 }
@@ -102,6 +107,39 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	for _, dep := range ctx.GetDirectDepsWithTag(libTag) {
 		r.libs = append(r.libs, ctx.OtherModuleName(dep))
 	}
+
+	// TODO: this could all be removed if tradefed was used as the test runner, it will find everything
+	// annotated as a test and run it.
+	for _, src := range r.compiledJavaSrcs {
+		s := src.Rel()
+		if !strings.HasSuffix(s, "Test.java") {
+			continue
+		} else if strings.HasSuffix(s, "/BaseRobolectricTest.java") {
+			continue
+		} else if strings.HasPrefix(s, "src/") {
+			s = strings.TrimPrefix(s, "src/")
+		}
+		r.tests = append(r.tests, s)
+	}
+}
+
+func shardTests(paths []string, shards int) [][]string {
+	if shards > len(paths) {
+		shards = len(paths)
+	}
+	if shards == 0 {
+		return nil
+	}
+	ret := make([][]string, 0, shards)
+	shardSize := (len(paths) + shards - 1) / shards
+	for len(paths) > shardSize {
+		ret = append(ret, paths[0:shardSize])
+		paths = paths[shardSize:]
+	}
+	if len(paths) > 0 {
+		ret = append(ret, paths)
+	}
+	return ret
 }
 
 func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath, instrumentedApp *AndroidApp) {
@@ -145,25 +183,51 @@ func (r *robolectricTest) AndroidMk() android.AndroidMkData {
 	data.Custom = func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 		android.WriteAndroidMkData(w, data)
 
-		fmt.Fprintln(w, "")
-		fmt.Fprintln(w, "include $(CLEAR_VARS)")
-		fmt.Fprintln(w, "LOCAL_MODULE := Run"+name)
-		fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES :=", name)
-		fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES += ", strings.Join(r.libs, " "))
-		fmt.Fprintln(w, "LOCAL_TEST_PACKAGE :=", String(r.robolectricProperties.Instrumentation_for))
-		fmt.Fprintln(w, "LOCAL_INSTRUMENT_SRCJARS :=", r.roboSrcJar.String())
-		if t := r.robolectricProperties.Test_options.Timeout; t != nil {
-			fmt.Fprintln(w, "LOCAL_ROBOTEST_TIMEOUT :=", *t)
+		if s := r.robolectricProperties.Test_options.Shards; s != nil && *s > 1 {
+			shards := shardTests(r.tests, int(*s))
+			for i, shard := range shards {
+				r.writeTestRunner(w, name, "Run"+name+strconv.Itoa(i), shard)
+			}
+
+			// TODO: add rules to dist the outputs of the individual tests, or combine them together?
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, ".PHONY:", "Run"+name)
+			fmt.Fprintln(w, "Run"+name, ": \\")
+			for i := range shards {
+				fmt.Fprintln(w, "   ", "Run"+name+strconv.Itoa(i), "\\")
+			}
+			fmt.Fprintln(w, "")
+		} else {
+			r.writeTestRunner(w, name, "Run"+name, r.tests)
 		}
-		fmt.Fprintln(w, "-include external/robolectric-shadows/run_robotests.mk")
 	}
 
 	return data
 }
 
+func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, tests []string) {
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "include $(CLEAR_VARS)")
+	fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+	fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES :=", module)
+	fmt.Fprintln(w, "LOCAL_JAVA_LIBRARIES += ", strings.Join(r.libs, " "))
+	fmt.Fprintln(w, "LOCAL_TEST_PACKAGE :=", String(r.robolectricProperties.Instrumentation_for))
+	fmt.Fprintln(w, "LOCAL_INSTRUMENT_SRCJARS :=", r.roboSrcJar.String())
+	fmt.Fprintln(w, "LOCAL_ROBOTEST_FILES :=", strings.Join(tests, " "))
+	if t := r.robolectricProperties.Test_options.Timeout; t != nil {
+		fmt.Fprintln(w, "LOCAL_ROBOTEST_TIMEOUT :=", *t)
+	}
+	fmt.Fprintln(w, "-include external/robolectric-shadows/run_robotests.mk")
+
+}
+
 // An android_robolectric_test module compiles tests against the Robolectric framework that can run on the local host
 // instead of on a device.  It also generates a rule with the name of the module prefixed with "Run" that can be
 // used to run the tests.  Running the tests with build rule will eventually be deprecated and replaced with atest.
+//
+// The test runner considers any file listed in srcs whose name ends with Test.java to be a test class, unless
+// it is named BaseRobolectricTest.java.  The path to the each source file must exactly match the package
+// name, or match the package name when the prefix "src/" is removed.
 func RobolectricTestFactory() android.Module {
 	module := &robolectricTest{}
 
