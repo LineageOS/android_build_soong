@@ -842,6 +842,19 @@ func TestExcludeFileGroupInSrcs(t *testing.T) {
 	}
 }
 
+func TestJavaLibrary(t *testing.T) {
+	config := testConfig(nil)
+	ctx := testContext(config, "", map[string][]byte{
+		"libcore/Android.bp": []byte(`
+				java_library {
+						name: "core",
+						sdk_version: "none",
+						system_modules: "none",
+				}`),
+	})
+	run(t, ctx, config)
+}
+
 func TestJavaSdkLibrary(t *testing.T) {
 	ctx := testJava(t, `
 		droiddoc_template {
