@@ -159,7 +159,8 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, publicApiStubsTag, module.stubsName(apiScopePublic))
 	ctx.AddVariationDependencies(nil, publicApiFileTag, module.docsName(apiScopePublic))
 
-	if !Bool(module.properties.No_standard_libs) {
+	sdkDep := decodeSdkDep(ctx, sdkContext(&module.Library))
+	if sdkDep.hasStandardLibs() {
 		ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
 		ctx.AddVariationDependencies(nil, systemApiFileTag, module.docsName(apiScopeSystem))
 		ctx.AddVariationDependencies(nil, testApiFileTag, module.docsName(apiScopeTest))
@@ -401,6 +402,8 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		}
 	}{}
 
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+
 	props.Name = proptools.StringPtr(module.stubsName(apiScope))
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.docsName(apiScope)}
@@ -411,7 +414,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
 	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
-	props.No_standard_libs = module.Library.Module.properties.No_standard_libs
+	props.No_standard_libs = proptools.BoolPtr(!sdkDep.hasStandardLibs())
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Openjdk9.Srcs = module.Library.Module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.Library.Module.properties.Openjdk9.Javacflags
@@ -462,6 +465,8 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		}
 	}{}
 
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
 	props.Srcs = append(props.Srcs, module.sdkLibraryProperties.Api_srcs...)
@@ -472,7 +477,7 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 	props.Libs = append(props.Libs, module.Library.Module.properties.Static_libs...)
 	props.Aidl.Include_dirs = module.Library.Module.deviceProperties.Aidl.Include_dirs
 	props.Aidl.Local_include_dirs = module.Library.Module.deviceProperties.Aidl.Local_include_dirs
-	props.No_standard_libs = module.Library.Module.properties.No_standard_libs
+	props.No_standard_libs = proptools.BoolPtr(!sdkDep.hasStandardLibs())
 	props.Java_version = module.Library.Module.properties.Java_version
 
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
@@ -701,7 +706,8 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 	module.createStubsLibrary(mctx, apiScopePublic)
 	module.createDocs(mctx, apiScopePublic)
 
-	if !Bool(module.properties.No_standard_libs) {
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	if sdkDep.hasStandardLibs() {
 		// for system API stubs
 		module.createStubsLibrary(mctx, apiScopeSystem)
 		module.createDocs(mctx, apiScopeSystem)
