@@ -47,6 +47,14 @@ func TestClasspath(t *testing.T) {
 			aidl:          "-Iframework/aidl",
 		},
 		{
+			name:          "no_framework_libs:true",
+			properties:    `no_framework_libs:true`,
+			bootclasspath: config.DefaultBootclasspathLibraries,
+			system:        config.DefaultSystemModules,
+			classpath:     []string{},
+			aidl:          "",
+		},
+		{
 			name:          "blank sdk version",
 			properties:    `sdk_version: "",`,
 			bootclasspath: config.DefaultBootclasspathLibraries,
@@ -127,13 +135,6 @@ func TestClasspath(t *testing.T) {
 			host:          android.Host,
 			bootclasspath: []string{"jdk8/jre/lib/jce.jar", "jdk8/jre/lib/rt.jar"},
 			classpath:     []string{},
-		},
-		{
-			name:       "host nostdlib",
-			moduleType: "java_library_host",
-			host:       android.Host,
-			properties: `no_standard_libs: true`,
-			classpath:  []string{},
 		},
 		{
 
