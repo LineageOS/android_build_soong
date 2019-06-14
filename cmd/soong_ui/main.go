@@ -158,7 +158,7 @@ func main() {
 	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, "verbose.log")))
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, "error.log")))
 
-	defer met.Dump(filepath.Join(logsDir, "build_metrics"))
+	defer met.Dump(filepath.Join(logsDir, "soong_metrics"))
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
