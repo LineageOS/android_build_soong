@@ -93,6 +93,28 @@ func TestImplicitlyImportRootNamespace(t *testing.T) {
 	// setupTest will report any errors
 }
 
+func TestDependingOnBlueprintModuleInRootNamespace(t *testing.T) {
+	_ = setupTest(t,
+		map[string]string{
+			".": `
+			blueprint_test_module {
+				name: "a",
+			}
+			`,
+			"dir1": `
+			soong_namespace {
+			}
+			blueprint_test_module {
+				name: "b",
+				deps: ["a"],
+			}
+			`,
+		},
+	)
+
+	// setupTest will report any errors
+}
+
 func TestDependingOnModuleInImportedNamespace(t *testing.T) {
 	ctx := setupTest(t,
 		map[string]string{
@@ -625,6 +647,7 @@ func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) 
 	ctx.MockFileSystem(bps)
 	ctx.RegisterModuleType("test_module", ModuleFactoryAdaptor(newTestModule))
 	ctx.RegisterModuleType("soong_namespace", ModuleFactoryAdaptor(NamespaceFactory))
+	ctx.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
 	ctx.PreArchMutators(RegisterNamespaceMutator)
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("rename", renameMutator)
@@ -649,6 +672,7 @@ func setupTestExpectErrs(bps map[string]string) (ctx *TestContext, errs []error)
 }
 
 func setupTest(t *testing.T, bps map[string]string) (ctx *TestContext) {
+	t.Helper()
 	ctx, errs := setupTestExpectErrs(bps)
 	FailIfErrored(t, errs)
 	return ctx
@@ -725,4 +749,23 @@ func newTestModule() Module {
 	m.AddProperties(&m.properties)
 	InitAndroidModule(m)
 	return m
+}
+
+type blueprintTestModule struct {
+	blueprint.SimpleName
+	properties struct {
+		Deps []string
+	}
+}
+
+func (b *blueprintTestModule) DynamicDependencies(ctx blueprint.DynamicDependerModuleContext) []string {
+	return b.properties.Deps
+}
+
+func (b *blueprintTestModule) GenerateBuildActions(blueprint.ModuleContext) {
+}
+
+func newBlueprintTestModule() (blueprint.Module, []interface{}) {
+	m := &blueprintTestModule{}
+	return m, []interface{}{&m.properties, &m.SimpleName.Properties}
 }
