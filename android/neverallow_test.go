@@ -91,21 +91,6 @@ var neverallowTests = []struct {
 		},
 		expectedError: "manifest enforcement should be independent",
 	},
-	{
-		name: "libhidltransport enforce_vintf_manifest.cflags",
-		fs: map[string][]byte{
-			"Blueprints": []byte(`
-				cc_library {
-					name: "libhidltransport",
-					product_variables: {
-						enforce_vintf_manifest: {
-							cflags: ["-DSHOULD_NOT_EXIST"],
-						},
-					},
-				}`),
-		},
-		expectedError: "",
-	},
 
 	{
 		name: "no treble_linker_namespaces.cflags",
