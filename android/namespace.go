@@ -230,6 +230,11 @@ func (r *NameResolver) parseFullyQualifiedName(name string) (namespaceName strin
 }
 
 func (r *NameResolver) getNamespacesToSearchForModule(sourceNamespace *Namespace) (searchOrder []*Namespace) {
+	if sourceNamespace.visibleNamespaces == nil {
+		// When handling dependencies before namespaceMutator, assume they are non-Soong Blueprint modules and give
+		// access to all namespaces.
+		return r.sortedNamespaces.sortedItems()
+	}
 	return sourceNamespace.visibleNamespaces
 }
 
