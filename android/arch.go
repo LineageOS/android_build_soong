@@ -713,7 +713,7 @@ func (target Target) String() string {
 // If host is supported for the module, the Host and HostCross OsClasses are selected.  If device is supported
 // for the module, the Device OsClass is selected.
 // Within each selected OsClass, the multilib selection is determined by:
-//    - The compile_multilib property if it set (which may be overriden by target.android.compile_multlib or
+//    - The compile_multilib property if it set (which may be overridden by target.android.compile_multilib or
 //      target.host.compile_multilib).
 //    - The default multilib passed to InitAndroidArchModule if compile_multilib was not set.
 // Valid multilib values include:
