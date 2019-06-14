@@ -61,7 +61,7 @@ var (
 			`--key ${key} ${opt_flags} ${image_dir} ${out} `,
 		CommandDeps: []string{"${apexer}", "${avbtool}", "${e2fsdroid}", "${merge_zips}",
 			"${mke2fs}", "${resize2fs}", "${sefcontext_compile}",
-			"${soong_zip}", "${zipalign}", "${aapt2}"},
+			"${soong_zip}", "${zipalign}", "${aapt2}", "prebuilts/sdk/current/public/android.jar"},
 		Description: "APEX ${image_dir} => ${out}",
 	}, "tool_path", "image_dir", "copy_commands", "manifest", "file_contexts", "canned_fs_config", "key", "opt_flags")
 
@@ -1062,6 +1062,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		Description: "signapk",
 		Output:      a.outputFiles[apexType],
 		Input:       unsignedOutputFile,
+		Implicits: []android.Path{
+			a.container_certificate_file,
+			a.container_private_key_file,
+		},
 		Args: map[string]string{
 			"certificates": a.container_certificate_file.String() + " " + a.container_private_key_file.String(),
 			"flags":        "-a 4096", //alignment
