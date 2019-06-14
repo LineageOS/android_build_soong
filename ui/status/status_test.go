@@ -27,6 +27,11 @@ func (c *counterOutput) FinishAction(result ActionResult, counts Counts) {
 func (c counterOutput) Message(level MsgLevel, msg string) {}
 func (c counterOutput) Flush()                             {}
 
+func (c counterOutput) Write(p []byte) (int, error) {
+	// Discard writes
+	return len(p), nil
+}
+
 func (c counterOutput) Expect(t *testing.T, counts Counts) {
 	if Counts(c) == counts {
 		return
