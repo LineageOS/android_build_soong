@@ -440,6 +440,16 @@ type sdkDep struct {
 
 	jars android.Paths
 	aidl android.OptionalPath
+
+	noStandardLibs, noFrameworksLibs bool
+}
+
+func (s sdkDep) hasStandardLibs() bool {
+	return !s.noStandardLibs
+}
+
+func (s sdkDep) hasFrameworkLibs() bool {
+	return !s.noStandardLibs && !s.noFrameworksLibs
 }
 
 type jniLib struct {
@@ -476,14 +486,22 @@ func (j *Module) targetSdkVersion() string {
 	return j.sdkVersion()
 }
 
+func (j *Module) noFrameworkLibs() bool {
+	return Bool(j.properties.No_framework_libs)
+}
+
+func (j *Module) noStandardLibs() bool {
+	return Bool(j.properties.No_standard_libs)
+}
+
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		if !Bool(j.properties.No_standard_libs) {
-			sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		if sdkDep.hasStandardLibs() {
 			if sdkDep.useDefaultLibs {
 				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-				if !Bool(j.properties.No_framework_libs) {
+				if sdkDep.hasFrameworkLibs() {
 					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
@@ -913,7 +931,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	flags.processor = strings.Join(deps.processorClasses, ",")
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && flags.javaVersion != "1.9" &&
-		!Bool(j.properties.No_standard_libs) &&
+		decodeSdkDep(ctx, sdkContext(j)).hasStandardLibs() &&
 		inList(flags.javaVersion, []string{"1.6", "1.7", "1.8"}) {
 		// Give host-side tools a version of OpenJDK's standard libraries
 		// close to what they're targeting. As of Dec 2017, AOSP is only
