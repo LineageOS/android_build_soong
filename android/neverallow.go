@@ -109,6 +109,9 @@ func createLibcoreRules() []*rule {
 		neverallow().
 			notIn(coreLibraryProjects...).
 			with("no_standard_libs", "true"),
+		neverallow().
+			notIn(coreLibraryProjects...).
+			with("sdk_version", "none"),
 	}
 
 	return rules

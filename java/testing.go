@@ -55,7 +55,7 @@ func GatherRequiredDepsForTest() string {
 			java_library {
 				name: "%s",
 				srcs: ["a.java"],
-				no_standard_libs: true,
+				sdk_version: "none",
 				system_modules: "core-platform-api-stubs-system-modules",
 			}
 		`, extra)
