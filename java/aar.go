@@ -188,8 +188,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext, mani
 	return linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, resourceZips
 }
 
-func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkContext sdkContext) {
-	sdkDep := decodeSdkDep(ctx, sdkContext)
+func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkDep sdkDep) {
 	if sdkDep.frameworkResModule != "" {
 		ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 	}
@@ -401,8 +400,9 @@ var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
 
 func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
-	if !Bool(a.properties.No_framework_libs) && !Bool(a.properties.No_standard_libs) {
-		a.aapt.deps(ctx, sdkContext(a))
+	sdkDep := decodeSdkDep(ctx, sdkContext(a))
+	if sdkDep.hasFrameworkLibs() {
+		a.aapt.deps(ctx, sdkDep)
 	}
 }
 
@@ -511,6 +511,14 @@ func (a *AARImport) minSdkVersion() string {
 
 func (a *AARImport) targetSdkVersion() string {
 	return a.sdkVersion()
+}
+
+func (a *AARImport) noFrameworkLibs() bool {
+	return false
+}
+
+func (a *AARImport) noStandardLibs() bool {
+	return false
 }
 
 var _ AndroidLibraryDependency = (*AARImport)(nil)
