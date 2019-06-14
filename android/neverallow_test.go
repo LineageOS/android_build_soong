@@ -178,6 +178,37 @@ var neverallowTests = []struct {
 				}`),
 		},
 	},
+	{
+		name: "sdk_version: \"none\" inside core libraries",
+		fs: map[string][]byte{
+			"libcore/Blueprints": []byte(`
+				java_library {
+					name: "inside_core_libraries",
+					sdk_version: "none",
+				}`),
+		},
+	},
+	{
+		name: "sdk_version: \"none\" outside core libraries",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "outside_core_libraries",
+					sdk_version: "none",
+				}`),
+		},
+		expectedError: "module \"outside_core_libraries\": violates neverallow",
+	},
+	{
+		name: "sdk_version: \"current\"",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "outside_core_libraries",
+					sdk_version: "current",
+				}`),
+		},
+	},
 	// java_library_host rule tests
 	{
 		name: "java_library_host with no_standard_libs: true",
@@ -266,6 +297,7 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 type mockJavaLibraryProperties struct {
 	Libs             []string
 	No_standard_libs *bool
+	Sdk_version      *string
 }
 
 type mockJavaLibraryModule struct {
