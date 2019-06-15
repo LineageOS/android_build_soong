@@ -40,7 +40,8 @@ var (
 	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
 		"-mllvm", "-hwasan-create-frame-descriptions=0",
 		"-mllvm", "-hwasan-allow-ifunc",
-		"-fsanitize-hwaddress-abi=platform"}
+		"-fsanitize-hwaddress-abi=platform",
+		"-fno-experimental-new-pass-manager"}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
