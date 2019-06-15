@@ -98,6 +98,7 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	flags javaBuilderFlags) android.Paths {
 
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
+	var protoSrcs android.Paths
 
 	aidlIncludeFlags := genAidlIncludeFlags(srcFiles)
 
@@ -111,11 +112,16 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			javaFile := genLogtags(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".proto":
-			srcJarFile := genProto(ctx, srcFile, flags.proto)
-			outSrcFiles = append(outSrcFiles, srcJarFile)
+			protoSrcs = append(protoSrcs, srcFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)
 		}
+	}
+
+	// Process all proto files together to support sharding them into one or more rules that produce srcjars.
+	if len(protoSrcs) > 0 {
+		srcJarFiles := genProto(ctx, protoSrcs, flags.proto)
+		outSrcFiles = append(outSrcFiles, srcJarFiles...)
 	}
 
 	return outSrcFiles
