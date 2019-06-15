@@ -27,10 +27,9 @@ import (
 
 var (
 	// Add flags to ignore warnings that profiles are old or missing for
-	// some functions, and turn on the experimental new pass manager.
+	// some functions.
 	profileUseOtherFlags = []string{
 		"-Wno-backend-plugin",
-		"-fexperimental-new-pass-manager",
 	}
 
 	globalPgoProfileProjects = []string{

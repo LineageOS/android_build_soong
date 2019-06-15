@@ -38,17 +38,23 @@ var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
 type sdkContext interface {
-	// sdkVersion eturns the sdk_version property of the current module, or an empty string if it is not set.
+	// sdkVersion returns the sdk_version property of the current module, or an empty string if it is not set.
 	sdkVersion() string
 	// minSdkVersion returns the min_sdk_version property of the current module, or sdkVersion() if it is not set.
 	minSdkVersion() string
 	// targetSdkVersion returns the target_sdk_version property of the current module, or sdkVersion() if it is not set.
 	targetSdkVersion() string
+
+	// Temporarily provide access to the no_standard_libs property (where present).
+	noStandardLibs() bool
+
+	// Temporarily provide access to the no_frameworks_libs property (where present).
+	noFrameworkLibs() bool
 }
 
 func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
 	switch v {
-	case "", "current", "system_current", "test_current", "core_current":
+	case "", "none", "current", "system_current", "test_current", "core_current":
 		return ctx.Config().DefaultAppTargetSdk()
 	default:
 		return v
@@ -59,7 +65,7 @@ func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
 // it returns android.FutureApiLevel (10000).
 func sdkVersionToNumber(ctx android.BaseModuleContext, v string) (int, error) {
 	switch v {
-	case "", "current", "test_current", "system_current", "core_current":
+	case "", "none", "current", "test_current", "system_current", "core_current":
 		return ctx.Config().DefaultAppTargetSdkInt(), nil
 	default:
 		n := android.GetNumericSdkVersion(v)
@@ -138,6 +144,10 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			useFiles: true,
 			jars:     android.Paths{jarPath.Path(), lambdaStubsPath},
 			aidl:     android.OptionalPathForPath(aidlPath.Path()),
+
+			// Pass values straight through for now to match previous behavior.
+			noStandardLibs:   sdkContext.noStandardLibs(),
+			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 	}
 
@@ -148,6 +158,10 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			systemModules:      m + "_system_modules",
 			frameworkResModule: r,
 			aidl:               android.OptionalPathForPath(aidl),
+
+			// Pass values straight through for now to match previous behavior.
+			noStandardLibs:   sdkContext.noStandardLibs(),
+			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 
 		if m == "core.current.stubs" {
@@ -173,7 +187,7 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 		}
 	}
 
-	if ctx.Config().UnbundledBuildUsePrebuiltSdks() && v != "" {
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() && v != "" && v != "none" {
 		return toPrebuilt(v)
 	}
 
@@ -182,6 +196,14 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 		return sdkDep{
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
+
+			// Pass values straight through for now to match previous behavior.
+			noStandardLibs:   sdkContext.noStandardLibs(),
+			noFrameworksLibs: sdkContext.noFrameworkLibs(),
+		}
+	case "none":
+		return sdkDep{
+			noStandardLibs: true,
 		}
 	case "current":
 		return toModule("android_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))

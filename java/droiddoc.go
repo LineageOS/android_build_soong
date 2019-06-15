@@ -538,16 +538,24 @@ func (j *Javadoc) targetSdkVersion() string {
 	return j.sdkVersion()
 }
 
+func (j *Javadoc) noFrameworkLibs() bool {
+	return Bool(j.properties.No_framework_libs)
+}
+
+func (j *Javadoc) noStandardLibs() bool {
+	return Bool(j.properties.No_standard_libs)
+}
+
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		if !Bool(j.properties.No_standard_libs) {
-			sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		if sdkDep.hasStandardLibs() {
 			if sdkDep.useDefaultLibs {
 				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				if ctx.Config().TargetOpenJDK9() {
 					ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
 				}
-				if !Bool(j.properties.No_framework_libs) {
+				if sdkDep.hasFrameworkLibs() {
 					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {

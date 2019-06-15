@@ -159,7 +159,8 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, publicApiStubsTag, module.stubsName(apiScopePublic))
 	ctx.AddVariationDependencies(nil, publicApiFileTag, module.docsName(apiScopePublic))
 
-	if !Bool(module.properties.No_standard_libs) {
+	sdkDep := decodeSdkDep(ctx, sdkContext(&module.Library))
+	if sdkDep.hasStandardLibs() {
 		ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
 		ctx.AddVariationDependencies(nil, systemApiFileTag, module.docsName(apiScopeSystem))
 		ctx.AddVariationDependencies(nil, testApiFileTag, module.docsName(apiScopeTest))
@@ -401,17 +402,22 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		}
 	}{}
 
+	sdkVersion := module.sdkVersion(apiScope)
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	if !sdkDep.hasStandardLibs() {
+		sdkVersion = "none"
+	}
+
 	props.Name = proptools.StringPtr(module.stubsName(apiScope))
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.docsName(apiScope)}
-	props.Sdk_version = proptools.StringPtr(module.sdkVersion(apiScope))
+	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	// Unbundled apps will use the prebult one from /prebuilts/sdk
 	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
 	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
-	props.No_standard_libs = module.Library.Module.properties.No_standard_libs
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Openjdk9.Srcs = module.Library.Module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.Library.Module.properties.Openjdk9.Javacflags
@@ -441,13 +447,13 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		Srcs_lib                         *string
 		Srcs_lib_whitelist_dirs          []string
 		Srcs_lib_whitelist_pkgs          []string
+		Sdk_version                      *string
 		Libs                             []string
 		Arg_files                        []string
 		Args                             *string
 		Api_tag_name                     *string
 		Api_filename                     *string
 		Removed_api_filename             *string
-		No_standard_libs                 *bool
 		Java_version                     *string
 		Merge_annotations_dirs           []string
 		Merge_inclusion_annotations_dirs []string
@@ -462,9 +468,16 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		}
 	}{}
 
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	sdkVersion := ""
+	if !sdkDep.hasStandardLibs() {
+		sdkVersion = "none"
+	}
+
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
 	props.Srcs = append(props.Srcs, module.sdkLibraryProperties.Api_srcs...)
+	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.Installable = proptools.BoolPtr(false)
 	// A droiddoc module has only one Libs property and doesn't distinguish between
 	// shared libs and static libs. So we need to add both of these libs to Libs property.
@@ -472,7 +485,6 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 	props.Libs = append(props.Libs, module.Library.Module.properties.Static_libs...)
 	props.Aidl.Include_dirs = module.Library.Module.deviceProperties.Aidl.Include_dirs
 	props.Aidl.Local_include_dirs = module.Library.Module.deviceProperties.Aidl.Local_include_dirs
-	props.No_standard_libs = module.Library.Module.properties.No_standard_libs
 	props.Java_version = module.Library.Module.properties.Java_version
 
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
@@ -593,7 +605,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 
 func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
 	var api, v string
-	if sdkVersion == "" {
+	if sdkVersion == "" || sdkVersion == "none" {
 		api = "system"
 		v = "current"
 	} else if strings.Contains(sdkVersion, "_") {
@@ -701,7 +713,8 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 	module.createStubsLibrary(mctx, apiScopePublic)
 	module.createDocs(mctx, apiScopePublic)
 
-	if !Bool(module.properties.No_standard_libs) {
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	if sdkDep.hasStandardLibs() {
 		// for system API stubs
 		module.createStubsLibrary(mctx, apiScopeSystem)
 		module.createDocs(mctx, apiScopeSystem)

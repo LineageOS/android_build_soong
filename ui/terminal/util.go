@@ -22,13 +22,15 @@ import (
 	"unsafe"
 )
 
-func isTerminal(w io.Writer) bool {
+func isSmartTerminal(w io.Writer) bool {
 	if f, ok := w.(*os.File); ok {
 		var termios syscall.Termios
 		_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, f.Fd(),
 			ioctlGetTermios, uintptr(unsafe.Pointer(&termios)),
 			0, 0, 0)
 		return err == 0
+	} else if _, ok := w.(*fakeSmartTerminal); ok {
+		return true
 	}
 	return false
 }
@@ -43,6 +45,8 @@ func termWidth(w io.Writer) (int, bool) {
 			syscall.TIOCGWINSZ, uintptr(unsafe.Pointer(&winsize)),
 			0, 0, 0)
 		return int(winsize.ws_column), err == 0
+	} else if f, ok := w.(*fakeSmartTerminal); ok {
+		return f.termWidth, true
 	}
 	return 0, false
 }
@@ -98,4 +102,9 @@ func stripAnsiEscapes(input []byte) []byte {
 	}
 
 	return input
+}
+
+type fakeSmartTerminal struct {
+	bytes.Buffer
+	termWidth int
 }

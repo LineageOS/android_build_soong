@@ -440,6 +440,16 @@ type sdkDep struct {
 
 	jars android.Paths
 	aidl android.OptionalPath
+
+	noStandardLibs, noFrameworksLibs bool
+}
+
+func (s sdkDep) hasStandardLibs() bool {
+	return !s.noStandardLibs
+}
+
+func (s sdkDep) hasFrameworkLibs() bool {
+	return !s.noStandardLibs && !s.noFrameworksLibs
 }
 
 type jniLib struct {
@@ -476,14 +486,22 @@ func (j *Module) targetSdkVersion() string {
 	return j.sdkVersion()
 }
 
+func (j *Module) noFrameworkLibs() bool {
+	return Bool(j.properties.No_framework_libs)
+}
+
+func (j *Module) noStandardLibs() bool {
+	return Bool(j.properties.No_standard_libs)
+}
+
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		if !Bool(j.properties.No_standard_libs) {
-			sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		if sdkDep.hasStandardLibs() {
 			if sdkDep.useDefaultLibs {
 				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
 				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-				if !Bool(j.properties.No_framework_libs) {
+				if sdkDep.hasFrameworkLibs() {
 					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
@@ -664,7 +682,7 @@ func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 		return javaSdk, true
 	case ver == "current":
 		return javaSdk, false
-	case ver == "":
+	case ver == "" || ver == "none":
 		return javaPlatform, false
 	default:
 		if _, err := strconv.Atoi(ver); err != nil {
@@ -842,7 +860,7 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 	var ret string
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
-	if ctx.Config().IsPdkBuild() && (v == "" || v == "current") {
+	if ctx.Config().IsPdkBuild() && (v == "" || v == "none" || v == "current") {
 		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
 		latestSdkVersion := 0
 		if len(sdkVersions) > 0 {
@@ -861,7 +879,7 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		ret = "1.7"
 	} else if ctx.Device() && sdk <= 29 || !ctx.Config().TargetOpenJDK9() {
 		ret = "1.8"
-	} else if ctx.Device() && sdkContext.sdkVersion() != "" && sdk == android.FutureApiLevel {
+	} else if ctx.Device() && sdkContext.sdkVersion() != "" && sdkContext.sdkVersion() != "none" && sdk == android.FutureApiLevel {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
 		ret = "1.8"
 	} else {
@@ -913,7 +931,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	flags.processor = strings.Join(deps.processorClasses, ",")
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && flags.javaVersion != "1.9" &&
-		!Bool(j.properties.No_standard_libs) &&
+		decodeSdkDep(ctx, sdkContext(j)).hasStandardLibs() &&
 		inList(flags.javaVersion, []string{"1.6", "1.7", "1.8"}) {
 		// Give host-side tools a version of OpenJDK's standard libraries
 		// close to what they're targeting. As of Dec 2017, AOSP is only

@@ -89,21 +89,6 @@ var neverallowTests = []struct {
 		},
 		expectedError: "manifest enforcement should be independent",
 	},
-	{
-		name: "libhidltransport enforce_vintf_manifest.cflags",
-		fs: map[string][]byte{
-			"Blueprints": []byte(`
-				cc_library {
-					name: "libhidltransport",
-					product_variables: {
-						enforce_vintf_manifest: {
-							cflags: ["-DSHOULD_NOT_EXIST"],
-						},
-					},
-				}`),
-		},
-		expectedError: "",
-	},
 
 	{
 		name: "no treble_linker_namespaces.cflags",
@@ -186,6 +171,37 @@ var neverallowTests = []struct {
 				java_library {
 					name: "outside_core_libraries",
 					no_standard_libs: false,
+				}`),
+		},
+	},
+	{
+		name: "sdk_version: \"none\" inside core libraries",
+		fs: map[string][]byte{
+			"libcore/Blueprints": []byte(`
+				java_library {
+					name: "inside_core_libraries",
+					sdk_version: "none",
+				}`),
+		},
+	},
+	{
+		name: "sdk_version: \"none\" outside core libraries",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "outside_core_libraries",
+					sdk_version: "none",
+				}`),
+		},
+		expectedError: "module \"outside_core_libraries\": violates neverallow",
+	},
+	{
+		name: "sdk_version: \"current\"",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "outside_core_libraries",
+					sdk_version: "current",
 				}`),
 		},
 	},
@@ -277,6 +293,7 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 type mockJavaLibraryProperties struct {
 	Libs             []string
 	No_standard_libs *bool
+	Sdk_version      *string
 }
 
 type mockJavaLibraryModule struct {

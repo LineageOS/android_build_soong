@@ -113,7 +113,7 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:          "nostdlib",
+			name:          "nostdlib - no_standard_libs: true",
 			properties:    `no_standard_libs: true, system_modules: "none"`,
 			system:        "none",
 			bootclasspath: []string{`""`},
@@ -121,8 +121,24 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:          "nostdlib system_modules",
+			name:          "nostdlib",
+			properties:    `sdk_version: "none", system_modules: "none"`,
+			system:        "none",
+			bootclasspath: []string{`""`},
+			classpath:     []string{},
+		},
+		{
+
+			name:          "nostdlib system_modules - no_standard_libs: true",
 			properties:    `no_standard_libs: true, system_modules: "core-platform-api-stubs-system-modules"`,
+			system:        "core-platform-api-stubs-system-modules",
+			bootclasspath: []string{`""`},
+			classpath:     []string{},
+		},
+		{
+
+			name:          "nostdlib system_modules",
+			properties:    `sdk_version: "none", system_modules: "core-platform-api-stubs-system-modules"`,
 			system:        "core-platform-api-stubs-system-modules",
 			bootclasspath: []string{`""`},
 			classpath:     []string{},
@@ -145,9 +161,15 @@ func TestClasspath(t *testing.T) {
 			bootclasspath: []string{"jdk8/jre/lib/jce.jar", "jdk8/jre/lib/rt.jar"},
 		},
 		{
-			name:       "host supported nostdlib",
+			name:       "host supported nostdlib - no_standard_libs: true",
 			host:       android.Host,
 			properties: `host_supported: true, no_standard_libs: true, system_modules: "none"`,
+			classpath:  []string{},
+		},
+		{
+			name:       "host supported nostdlib",
+			host:       android.Host,
+			properties: `host_supported: true, sdk_version: "none", system_modules: "none"`,
 			classpath:  []string{},
 		},
 		{

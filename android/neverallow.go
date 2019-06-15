@@ -72,7 +72,7 @@ func createTrebleRules() []*rule {
 
 		// TODO(b/67974785): always enforce the manifest
 		neverallow().
-			without("name", "libhidltransport").
+			without("name", "libhidltransport-impl-internal").
 			with("product_variables.enforce_vintf_manifest.cflags", "*").
 			because("manifest enforcement should be independent of ."),
 
@@ -109,6 +109,9 @@ func createLibcoreRules() []*rule {
 		neverallow().
 			notIn(coreLibraryProjects...).
 			with("no_standard_libs", "true"),
+		neverallow().
+			notIn(coreLibraryProjects...).
+			with("sdk_version", "none"),
 	}
 
 	return rules
