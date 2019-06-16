@@ -882,10 +882,10 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			isVendor := ctx.useVndk()
 			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
 
-			useSystem := isProduct || (isOwnerPlatform == isVendor)
+			usePublic := isProduct || (isOwnerPlatform == isVendor)
 
-			if useSystem {
-				dir = android.PathForModuleGen(ctx, "sysprop/system", "include").String()
+			if usePublic {
+				dir = android.PathForModuleGen(ctx, "sysprop/public", "include").String()
 			}
 		}
 
