@@ -313,13 +313,13 @@ func TestSyspropLibrary(t *testing.T) {
 	vendorVariant := "android_arm64_armv8-a_vendor_static"
 
 	platformInternalPath := "libsysprop-platform/android_arm64_armv8-a_core_static/gen/sysprop/include"
-	platformSystemCorePath := "libsysprop-platform/android_arm64_armv8-a_core_static/gen/sysprop/system/include"
-	platformSystemVendorPath := "libsysprop-platform/android_arm64_armv8-a_vendor_static/gen/sysprop/system/include"
+	platformPublicCorePath := "libsysprop-platform/android_arm64_armv8-a_core_static/gen/sysprop/public/include"
+	platformPublicVendorPath := "libsysprop-platform/android_arm64_armv8-a_vendor_static/gen/sysprop/public/include"
 
-	platformOnProductPath := "libsysprop-platform-on-product/android_arm64_armv8-a_core_static/gen/sysprop/system/include"
+	platformOnProductPath := "libsysprop-platform-on-product/android_arm64_armv8-a_core_static/gen/sysprop/public/include"
 
 	vendorInternalPath := "libsysprop-vendor/android_arm64_armv8-a_vendor_static/gen/sysprop/include"
-	vendorSystemPath := "libsysprop-vendor/android_arm64_armv8-a_core_static/gen/sysprop/system/include"
+	vendorPublicPath := "libsysprop-vendor/android_arm64_armv8-a_core_static/gen/sysprop/public/include"
 
 	platformClient := ctx.ModuleForTests("cc-client-platform", coreVariant)
 	platformFlags := platformClient.Rule("cc").Args["cFlags"]
@@ -342,20 +342,20 @@ func TestSyspropLibrary(t *testing.T) {
 	productClient := ctx.ModuleForTests("cc-client-product", coreVariant)
 	productFlags := productClient.Rule("cc").Args["cFlags"]
 
-	// Product should use platform's and vendor's system headers
+	// Product should use platform's and vendor's public headers
 	if !strings.Contains(productFlags, platformOnProductPath) ||
-		!strings.Contains(productFlags, vendorSystemPath) {
+		!strings.Contains(productFlags, vendorPublicPath) {
 		t.Errorf("flags for product must contain %#v and %#v, but was %#v.",
-			platformSystemCorePath, vendorSystemPath, productFlags)
+			platformPublicCorePath, vendorPublicPath, productFlags)
 	}
 
 	vendorClient := ctx.ModuleForTests("cc-client-vendor", vendorVariant)
 	vendorFlags := vendorClient.Rule("cc").Args["cFlags"]
 
-	// Vendor should use platform's system header and vendor's internal header
-	if !strings.Contains(vendorFlags, platformSystemVendorPath) ||
+	// Vendor should use platform's public header and vendor's internal header
+	if !strings.Contains(vendorFlags, platformPublicVendorPath) ||
 		!strings.Contains(vendorFlags, vendorInternalPath) {
 		t.Errorf("flags for vendor must contain %#v and %#v, but was %#v.",
-			platformSystemVendorPath, vendorInternalPath, vendorFlags)
+			platformPublicVendorPath, vendorInternalPath, vendorFlags)
 	}
 }
