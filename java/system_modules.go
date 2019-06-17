@@ -107,12 +107,6 @@ type SystemModules struct {
 type SystemModulesProperties struct {
 	// List of java library modules that should be included in the system modules
 	Libs []string
-
-	// List of prebuilt jars that should be included in the system modules
-	Jars []string
-
-	// Sdk version that should be included in the system modules
-	Sdk_version *string
 }
 
 func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -122,8 +116,6 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 		dep, _ := module.(Dependency)
 		jars = append(jars, dep.HeaderJars()...)
 	})
-
-	jars = append(jars, android.PathsForModuleSrc(ctx, system.properties.Jars)...)
 
 	system.outputFile = TransformJarsToSystemModules(ctx, "java.base", jars)
 }
