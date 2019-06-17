@@ -144,37 +144,6 @@ var neverallowTests = []struct {
 	},
 	// Libcore rule tests
 	{
-		name: "no_standard_libs: true inside core libraries",
-		fs: map[string][]byte{
-			"libcore/Blueprints": []byte(`
-				java_library {
-					name: "inside_core_libraries",
-					no_standard_libs: true,
-				}`),
-		},
-	},
-	{
-		name: "no_standard_libs: true outside core libraries",
-		fs: map[string][]byte{
-			"Blueprints": []byte(`
-				java_library {
-					name: "outside_core_libraries",
-					no_standard_libs: true,
-				}`),
-		},
-		expectedError: "module \"outside_core_libraries\": violates neverallow",
-	},
-	{
-		name: "no_standard_libs: false",
-		fs: map[string][]byte{
-			"Blueprints": []byte(`
-				java_library {
-					name: "outside_core_libraries",
-					no_standard_libs: false,
-				}`),
-		},
-	},
-	{
 		name: "sdk_version: \"none\" inside core libraries",
 		fs: map[string][]byte{
 			"libcore/Blueprints": []byte(`
@@ -204,18 +173,6 @@ var neverallowTests = []struct {
 					sdk_version: "current",
 				}`),
 		},
-	},
-	// java_library_host rule tests
-	{
-		name: "java_library_host with no_standard_libs: true",
-		fs: map[string][]byte{
-			"libcore/Blueprints": []byte(`
-				java_library_host {
-					name: "inside_core_libraries",
-					no_standard_libs: true,
-				}`),
-		},
-		expectedError: "module \"inside_core_libraries\": violates neverallow",
 	},
 }
 
@@ -291,9 +248,8 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
 type mockJavaLibraryProperties struct {
-	Libs             []string
-	No_standard_libs *bool
-	Sdk_version      *string
+	Libs        []string
+	Sdk_version *string
 }
 
 type mockJavaLibraryModule struct {
