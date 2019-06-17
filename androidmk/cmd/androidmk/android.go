@@ -185,7 +185,6 @@ func init() {
 			"LOCAL_NO_CRT":                     "nocrt",
 			"LOCAL_ALLOW_UNDEFINED_SYMBOLS":    "allow_undefined_symbols",
 			"LOCAL_RTTI_FLAG":                  "rtti",
-			"LOCAL_NO_STANDARD_LIBRARIES":      "no_standard_libs",
 			"LOCAL_PACK_MODULE_RELOCATIONS":    "pack_relocations",
 			"LOCAL_TIDY":                       "tidy",
 			"LOCAL_USE_CLANG_LLD":              "use_clang_lld",

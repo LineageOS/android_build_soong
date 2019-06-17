@@ -517,10 +517,6 @@ func (a *AARImport) noFrameworkLibs() bool {
 	return false
 }
 
-func (a *AARImport) noStandardLibs() bool {
-	return false
-}
-
 var _ AndroidLibraryDependency = (*AARImport)(nil)
 
 func (a *AARImport) ExportPackage() android.Path {
