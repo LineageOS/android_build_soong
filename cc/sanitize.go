@@ -467,6 +467,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		// TODO(b/131771163): LTO and Fuzzer support is mutually incompatible.
 		_, flags.LdFlags = removeFromList("-flto", flags.LdFlags)
 		flags.LdFlags = append(flags.LdFlags, "-fno-lto")
+
+		// TODO(b/133876586): Experimental PM breaks sanitizer coverage.
+		_, flags.CFlags = removeFromList("-fexperimental-new-pass-manager", flags.CFlags)
+		flags.CFlags = append(flags.CFlags, "-fno-experimental-new-pass-manager")
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Cfi) {
