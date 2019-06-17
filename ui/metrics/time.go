@@ -30,7 +30,7 @@ type timeEvent struct {
 
 type TimeTracer interface {
 	Begin(name, desc string, thread tracer.Thread)
-	End(thread tracer.Thread) metrics_proto.PerfInfo
+	End(thread tracer.Thread) soong_metrics_proto.PerfInfo
 }
 
 type timeTracerImpl struct {
@@ -51,11 +51,11 @@ func (t *timeTracerImpl) beginAt(name, desc string, atNanos uint64) {
 	t.activeEvents = append(t.activeEvents, timeEvent{name: name, desc: desc, atNanos: atNanos})
 }
 
-func (t *timeTracerImpl) End(thread tracer.Thread) metrics_proto.PerfInfo {
+func (t *timeTracerImpl) End(thread tracer.Thread) soong_metrics_proto.PerfInfo {
 	return t.endAt(t.now())
 }
 
-func (t *timeTracerImpl) endAt(atNanos uint64) metrics_proto.PerfInfo {
+func (t *timeTracerImpl) endAt(atNanos uint64) soong_metrics_proto.PerfInfo {
 	if len(t.activeEvents) < 1 {
 		panic("Internal error: No pending events for endAt to end!")
 	}
@@ -63,7 +63,7 @@ func (t *timeTracerImpl) endAt(atNanos uint64) metrics_proto.PerfInfo {
 	t.activeEvents = t.activeEvents[:len(t.activeEvents)-1]
 	realTime := atNanos - lastEvent.atNanos
 
-	return metrics_proto.PerfInfo{
+	return soong_metrics_proto.PerfInfo{
 		Desc:      &lastEvent.desc,
 		Name:      &lastEvent.name,
 		StartTime: &lastEvent.atNanos,
