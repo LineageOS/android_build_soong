@@ -82,10 +82,6 @@ type CompilerProperties struct {
 	// list of files that should be excluded from java_resources and java_resource_dirs
 	Exclude_java_resources []string `android:"path,arch_variant"`
 
-	// don't build against the default libraries (bootclasspath, ext, and framework for device
-	// targets)
-	No_standard_libs *bool
-
 	// don't build against the framework libraries (ext, and framework for device targets)
 	No_framework_libs *bool
 
@@ -490,10 +486,6 @@ func (j *Module) noFrameworkLibs() bool {
 	return Bool(j.properties.No_framework_libs)
 }
 
-func (j *Module) noStandardLibs() bool {
-	return Bool(j.properties.No_standard_libs)
-}
-
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
@@ -513,8 +505,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				}
 			}
 		} else if j.deviceProperties.System_modules == nil {
-			ctx.PropertyErrorf("no_standard_libs",
-				"system_modules is required to be set when no_standard_libs is true, did you mean no_framework_libs?")
+			ctx.PropertyErrorf("sdk_version",
+				`system_modules is required to be set when sdk_version is "none", did you mean no_framework_libs?`)
 		} else if *j.deviceProperties.System_modules != "none" {
 			ctx.AddVariationDependencies(nil, systemModulesTag, *j.deviceProperties.System_modules)
 		}
@@ -682,7 +674,7 @@ func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 		return javaSdk, true
 	case ver == "current":
 		return javaSdk, false
-	case ver == "" || ver == "none":
+	case ver == "" || ver == "none" || ver == "core_platform":
 		return javaPlatform, false
 	default:
 		if _, err := strconv.Atoi(ver); err != nil {
@@ -860,7 +852,8 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 	var ret string
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
-	if ctx.Config().IsPdkBuild() && (v == "" || v == "none" || v == "current") {
+	if ctx.Config().IsPdkBuild() &&
+		(v == "" || v == "none" || v == "core_platform" || v == "current") {
 		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
 		latestSdkVersion := 0
 		if len(sdkVersions) > 0 {
@@ -879,7 +872,11 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		ret = "1.7"
 	} else if ctx.Device() && sdk <= 29 || !ctx.Config().TargetOpenJDK9() {
 		ret = "1.8"
-	} else if ctx.Device() && sdkContext.sdkVersion() != "" && sdkContext.sdkVersion() != "none" && sdk == android.FutureApiLevel {
+	} else if ctx.Device() &&
+		sdkContext.sdkVersion() != "" &&
+		sdkContext.sdkVersion() != "none" &&
+		sdkContext.sdkVersion() != "core_platform" &&
+		sdk == android.FutureApiLevel {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
 		ret = "1.8"
 	} else {

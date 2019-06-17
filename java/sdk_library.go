@@ -385,7 +385,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		Device_specific   *bool
 		Product_specific  *bool
 		Compile_dex       *bool
-		No_standard_libs  *bool
 		System_modules    *string
 		Java_version      *string
 		Product_variables struct {

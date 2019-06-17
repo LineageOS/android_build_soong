@@ -546,7 +546,7 @@ func TestAppSdkVersion(t *testing.T) {
 	}
 }
 
-func TestJNIABI(t *testing.T) {
+func TestJNIABI_no_framework_libs_true(t *testing.T) {
 	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
@@ -619,7 +619,80 @@ func TestJNIABI(t *testing.T) {
 	}
 }
 
-func TestJNIPackaging(t *testing.T) {
+func TestJNIABI(t *testing.T) {
+	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		cc_library {
+			name: "libjni",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		android_test {
+			name: "test",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_first",
+			sdk_version: "core_platform",
+			compile_multilib: "first",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_both",
+			sdk_version: "core_platform",
+			compile_multilib: "both",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_32",
+			sdk_version: "core_platform",
+			compile_multilib: "32",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_64",
+			sdk_version: "core_platform",
+			compile_multilib: "64",
+			jni_libs: ["libjni"],
+		}
+		`)
+
+	testCases := []struct {
+		name string
+		abis []string
+	}{
+		{"test", []string{"arm64-v8a"}},
+		{"test_first", []string{"arm64-v8a"}},
+		{"test_both", []string{"arm64-v8a", "armeabi-v7a"}},
+		{"test_32", []string{"armeabi-v7a"}},
+		{"test_64", []string{"arm64-v8a"}},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			app := ctx.ModuleForTests(test.name, "android_common")
+			jniLibZip := app.Output("jnilibs.zip")
+			var abis []string
+			args := strings.Fields(jniLibZip.Args["jarArgs"])
+			for i := 0; i < len(args); i++ {
+				if args[i] == "-P" {
+					abis = append(abis, filepath.Base(args[i+1]))
+					i++
+				}
+			}
+			if !reflect.DeepEqual(abis, test.abis) {
+				t.Errorf("want abis %v, got %v", test.abis, abis)
+			}
+		})
+	}
+}
+
+func TestJNIPackaging_no_framework_libs_true(t *testing.T) {
 	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
@@ -700,7 +773,89 @@ func TestJNIPackaging(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestJNIPackaging(t *testing.T) {
+	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		cc_library {
+			name: "libjni",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		android_app {
+			name: "app",
+			jni_libs: ["libjni"],
+		}
+
+		android_app {
+			name: "app_noembed",
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: false,
+		}
+
+		android_app {
+			name: "app_embed",
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: true,
+		}
+
+		android_test {
+			name: "test",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni"],
+		}
+
+		android_test {
+			name: "test_noembed",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: false,
+		}
+
+		android_test_helper_app {
+			name: "test_helper",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni"],
+		}
+
+		android_test_helper_app {
+			name: "test_helper_noembed",
+			sdk_version: "core_platform",
+			jni_libs: ["libjni"],
+			use_embedded_native_libs: false,
+		}
+		`)
+
+	testCases := []struct {
+		name       string
+		packaged   bool
+		compressed bool
+	}{
+		{"app", false, false},
+		{"app_noembed", false, false},
+		{"app_embed", true, false},
+		{"test", true, false},
+		{"test_noembed", true, true},
+		{"test_helper", true, false},
+		{"test_helper_noembed", true, true},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			app := ctx.ModuleForTests(test.name, "android_common")
+			jniLibZip := app.MaybeOutput("jnilibs.zip")
+			if g, w := (jniLibZip.Rule != nil), test.packaged; g != w {
+				t.Errorf("expected jni packaged %v, got %v", w, g)
+			}
+
+			if jniLibZip.Rule != nil {
+				if g, w := !strings.Contains(jniLibZip.Args["jarArgs"], "-L 0"), test.compressed; g != w {
+					t.Errorf("expected jni compressed %v, got %v", w, g)
+				}
+			}
+		})
+	}
 }
 
 func TestCertificates(t *testing.T) {
