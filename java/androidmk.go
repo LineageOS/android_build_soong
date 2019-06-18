@@ -97,14 +97,6 @@ func (library *Library) AndroidMk() android.AndroidMkData {
 				if library.proguardDictionary != nil {
 					fmt.Fprintln(w, "LOCAL_SOONG_PROGUARD_DICT :=", library.proguardDictionary.String())
 				}
-
-				// Temporary hack: export sources used to compile framework.jar to Make
-				// to be used for droiddoc
-				// TODO(ccross): remove this once droiddoc is in soong
-				if (library.Name() == "framework") || (library.Name() == "framework-annotation-proc") {
-					fmt.Fprintln(w, "SOONG_FRAMEWORK_SRCS :=", strings.Join(library.compiledJavaSrcs.Strings(), " "))
-					fmt.Fprintln(w, "SOONG_FRAMEWORK_SRCJARS :=", strings.Join(library.compiledSrcJars.Strings(), " "))
-				}
 			},
 		},
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
