@@ -148,15 +148,16 @@ func init() {
 }
 
 type javaBuilderFlags struct {
-	javacFlags    string
-	bootClasspath classpath
-	classpath     classpath
-	processorPath classpath
-	processor     string
-	systemModules classpath
-	aidlFlags     string
-	aidlDeps      android.Paths
-	javaVersion   string
+	javacFlags        string
+	bootClasspath     classpath
+	classpath         classpath
+	processorPath     classpath
+	processor         string
+	systemModules     classpath
+	systemModulesDeps android.Paths
+	aidlFlags         string
+	aidlDeps          android.Paths
+	javaVersion       string
 
 	errorProneExtraJavacFlags string
 	errorProneProcessorPath   classpath
@@ -248,7 +249,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 
 	var bootClasspath string
 	if flags.javaVersion == "1.9" {
-		deps = append(deps, flags.systemModules...)
+		deps = append(deps, flags.systemModulesDeps...)
 		bootClasspath = flags.systemModules.FormJavaSystemModulesPath("--system=", ctx.Device())
 	} else {
 		deps = append(deps, flags.bootClasspath...)
@@ -430,7 +431,7 @@ func (x *classpath) FormJavaSystemModulesPath(optName string, forceEmpty bool) s
 	if len(*x) > 1 {
 		panic("more than one system module")
 	} else if len(*x) == 1 {
-		return optName + strings.TrimSuffix((*x)[0].String(), "lib/modules")
+		return optName + (*x)[0].String()
 	} else if forceEmpty {
 		return optName + "none"
 	} else {
