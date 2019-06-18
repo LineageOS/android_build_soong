@@ -254,7 +254,7 @@ func TestClasspath(t *testing.T) {
 			if testcase.system == "none" {
 				system = "--system=none"
 			} else if testcase.system != "" {
-				system = "--system=" + filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system") + "/"
+				system = "--system=" + filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system")
 			}
 
 			checkClasspath := func(t *testing.T, ctx *android.TestContext) {
