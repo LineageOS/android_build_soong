@@ -394,8 +394,6 @@ type apexBundle struct {
 	container_certificate_file android.Path
 	container_private_key_file android.Path
 
-	mergedNoticeFile android.WritablePath
-
 	// list of files to be included in this apex
 	filesInfo []apexFile
 
@@ -812,8 +810,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
-	a.buildNoticeFile(ctx)
-
 	if a.apexTypes.zip() {
 		a.buildUnflattenedApex(ctx, zipApex)
 	}
@@ -827,7 +823,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext) {
+func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName string) android.OptionalPath {
 	noticeFiles := []android.Path{}
 	for _, f := range a.filesInfo {
 		if f.module != nil {
@@ -842,10 +838,12 @@ func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext) {
 		noticeFiles = append(noticeFiles, a.NoticeFile().Path())
 	}
 
-	if len(noticeFiles) > 0 {
-		a.mergedNoticeFile = android.PathForModuleOut(ctx, "NOTICE")
-		android.MergeNotices(ctx, a.mergedNoticeFile, noticeFiles)
+	if len(noticeFiles) == 0 {
+		return android.OptionalPath{}
 	}
+
+	return android.OptionalPathForPath(
+		android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)))
 }
 
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType apexPackaging) {
@@ -969,6 +967,13 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 			implicitInputs = append(implicitInputs, apiFingerprint)
 		}
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
+
+		noticeFile := a.buildNoticeFile(ctx, ctx.ModuleName()+suffix)
+		if noticeFile.Valid() {
+			// If there's a NOTICE file, embed it as an asset file in the APEX.
+			implicitInputs = append(implicitInputs, noticeFile.Path())
+			optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeFile.String()))
+		}
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexRule,
@@ -1209,9 +1214,6 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
-				if a.installable() && a.mergedNoticeFile != nil {
-					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNoticeFile.String())
-				}
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
 				}
