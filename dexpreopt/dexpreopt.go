@@ -125,7 +125,8 @@ func GenerateDexpreoptRule(ctx android.PathContext,
 
 			for i, arch := range module.Archs {
 				image := module.DexPreoptImages[i]
-				dexpreoptCommand(ctx, global, module, rule, arch, profile, image, appImage, generateDM)
+				imageDeps := module.DexPreoptImagesDeps[i]
+				dexpreoptCommand(ctx, global, module, rule, arch, profile, image, imageDeps, appImage, generateDM)
 			}
 		}
 	}
@@ -190,7 +191,7 @@ func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleC
 }
 
 func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
-	arch android.ArchType, profile, bootImage android.Path, appImage, generateDM bool) {
+	arch android.ArchType, profile, bootImage android.Path, bootImageDeps android.Paths, appImage, generateDM bool) {
 
 	// HACK: make soname in Soong-generated .odex files match Make.
 	base := filepath.Base(module.DexLocation)
@@ -353,7 +354,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		Flag("--runtime-arg").FlagWithList("-Xbootclasspath-locations:", module.PreoptBootClassPathDexLocations, ":").
 		Flag("${class_loader_context_arg}").
 		Flag("${stored_class_loader_context_arg}").
-		FlagWithArg("--boot-image=", bootImageLocation).Implicit(bootImage).
+		FlagWithArg("--boot-image=", bootImageLocation).Implicits(bootImageDeps).
 		FlagWithInput("--dex-file=", module.DexPath).
 		FlagWithArg("--dex-location=", dexLocationArg).
 		FlagWithOutput("--oat-file=", odexPath).ImplicitOutput(vdexPath).
