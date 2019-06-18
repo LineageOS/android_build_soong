@@ -692,10 +692,11 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 				panic("Found two system module dependencies")
 			}
 			sm := module.(*SystemModules)
-			if sm.outputFile == nil {
+			if sm.outputDir == nil && len(sm.outputDeps) == 0 {
 				panic("Missing directory for system module dependency")
 			}
-			deps.systemModules = sm.outputFile
+			deps.systemModules = sm.outputDir
+			deps.systemModulesDeps = sm.outputDeps
 		}
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
@@ -776,6 +777,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if deps.systemModules != nil {
 			systemModules = append(systemModules, deps.systemModules)
 		}
+		implicits = append(implicits, deps.systemModulesDeps...)
 		bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
 		bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
 	}
