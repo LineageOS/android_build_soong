@@ -90,12 +90,6 @@ var (
 		CommandDeps: []string{"${zip2zip}"},
 		Description: "app bundle",
 	}, "abi")
-
-	apexMergeNoticeRule = pctx.StaticRule("apexMergeNoticeRule", blueprint.RuleParams{
-		Command:     `${mergenotice} --output $out $inputs`,
-		CommandDeps: []string{"${mergenotice}"},
-		Description: "merge notice files into $out",
-	}, "inputs")
 )
 
 var imageApexSuffix = ".apex"
@@ -143,8 +137,6 @@ func init() {
 	pctx.HostBinToolVariable("soong_zip", "soong_zip")
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
-
-	pctx.SourcePathVariable("mergenotice", "build/soong/scripts/mergenotice.py")
 
 	android.RegisterModuleType("apex", apexBundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
@@ -837,32 +829,22 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext) {
 	noticeFiles := []android.Path{}
-	noticeFilesString := []string{}
 	for _, f := range a.filesInfo {
 		if f.module != nil {
 			notice := f.module.NoticeFile()
 			if notice.Valid() {
 				noticeFiles = append(noticeFiles, notice.Path())
-				noticeFilesString = append(noticeFilesString, notice.Path().String())
 			}
 		}
 	}
 	// append the notice file specified in the apex module itself
 	if a.NoticeFile().Valid() {
 		noticeFiles = append(noticeFiles, a.NoticeFile().Path())
-		noticeFilesString = append(noticeFilesString, a.NoticeFile().Path().String())
 	}
 
 	if len(noticeFiles) > 0 {
 		a.mergedNoticeFile = android.PathForModuleOut(ctx, "NOTICE")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   apexMergeNoticeRule,
-			Inputs: noticeFiles,
-			Output: a.mergedNoticeFile,
-			Args: map[string]string{
-				"inputs": strings.Join(noticeFilesString, " "),
-			},
-		})
+		android.MergeNotices(ctx, a.mergedNoticeFile, noticeFiles)
 	}
 }
 
