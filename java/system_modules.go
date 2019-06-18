@@ -61,7 +61,7 @@ var (
 		"moduleName", "classpath", "outDir", "workDir")
 )
 
-func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, jars android.Paths) android.WritablePath {
+func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, jars android.Paths) (android.Path, android.Paths) {
 	outDir := android.PathForModuleOut(ctx, "system")
 	workDir := android.PathForModuleOut(ctx, "modules")
 	outputFile := android.PathForModuleOut(ctx, "system/lib/modules")
@@ -84,7 +84,7 @@ func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, 
 		},
 	})
 
-	return outputFile
+	return outDir, outputs.Paths()
 }
 
 func SystemModulesFactory() android.Module {
@@ -101,7 +101,8 @@ type SystemModules struct {
 
 	properties SystemModulesProperties
 
-	outputFile android.Path
+	outputDir  android.Path
+	outputDeps android.Paths
 }
 
 type SystemModulesProperties struct {
@@ -117,7 +118,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 		jars = append(jars, dep.HeaderJars()...)
 	})
 
-	system.outputFile = TransformJarsToSystemModules(ctx, "java.base", jars)
+	system.outputDir, system.outputDeps = TransformJarsToSystemModules(ctx, "java.base", jars)
 }
 
 func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -127,16 +128,22 @@ func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (system *SystemModules) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			makevar := "SOONG_SYSTEM_MODULES_" + name
 			fmt.Fprintln(w)
-			fmt.Fprintln(w, makevar, ":=", system.outputFile.String())
-			fmt.Fprintln(w, ".KATI_READONLY", ":=", makevar)
+
+			makevar := "SOONG_SYSTEM_MODULES_" + name
+			fmt.Fprintln(w, makevar, ":=$=", system.outputDir.String())
+			fmt.Fprintln(w)
+
+			makevar = "SOONG_SYSTEM_MODULES_LIBS_" + name
+			fmt.Fprintln(w, makevar, ":=$=", strings.Join(system.properties.Libs, " "))
+			fmt.Fprintln(w)
+
+			makevar = "SOONG_SYSTEM_MODULE_DEPS_" + name
+			fmt.Fprintln(w, makevar, ":=$=", strings.Join(system.outputDeps.Strings(), " "))
+			fmt.Fprintln(w)
+
 			fmt.Fprintln(w, name+":", "$("+makevar+")")
 			fmt.Fprintln(w, ".PHONY:", name)
-			fmt.Fprintln(w)
-			makevar = "SOONG_SYSTEM_MODULES_LIBS_" + name
-			fmt.Fprintln(w, makevar, ":=", strings.Join(system.properties.Libs, " "))
-			fmt.Fprintln(w, ".KATI_READONLY :=", makevar)
 		},
 	}
 }

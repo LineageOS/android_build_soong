@@ -121,8 +121,9 @@ type ModuleConfig struct {
 	UsesLibraries                []string
 	LibraryPaths                 map[string]android.Path
 
-	Archs           []android.ArchType
-	DexPreoptImages []android.Path
+	Archs               []android.ArchType
+	DexPreoptImages     []android.Path
+	DexPreoptImagesDeps []android.Paths
 
 	PreoptBootClassPathDexFiles     android.Paths // file paths of boot class path files
 	PreoptBootClassPathDexLocations []string      // virtual locations of boot class path files
@@ -256,6 +257,9 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 	config.ModuleConfig.PreoptBootClassPathDexFiles = constructPaths(ctx, config.PreoptBootClassPathDexFiles)
 	config.ModuleConfig.StripInputPath = constructPath(ctx, config.StripInputPath)
 	config.ModuleConfig.StripOutputPath = constructWritablePath(ctx, config.StripOutputPath)
+
+	// This needs to exist, but dependencies are already handled in Make, so we don't need to pass them through JSON.
+	config.ModuleConfig.DexPreoptImagesDeps = make([]android.Paths, len(config.ModuleConfig.DexPreoptImages))
 
 	return config.ModuleConfig, nil
 }
