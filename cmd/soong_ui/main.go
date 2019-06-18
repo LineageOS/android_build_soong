@@ -207,13 +207,13 @@ func fixBadDanglingLink(ctx build.Context, name string) {
 func dumpVar(ctx build.Context, config build.Config, args []string, _ string) {
 	flags := flag.NewFlagSet("dumpvar", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s --dumpvar-mode [--abs] <VAR>\n\n", os.Args[0])
-		fmt.Fprintln(os.Stderr, "In dumpvar mode, print the value of the legacy make variable VAR to stdout")
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintf(ctx.Writer, "usage: %s --dumpvar-mode [--abs] <VAR>\n\n", os.Args[0])
+		fmt.Fprintln(ctx.Writer, "In dumpvar mode, print the value of the legacy make variable VAR to stdout")
+		fmt.Fprintln(ctx.Writer, "")
 
-		fmt.Fprintln(os.Stderr, "'report_config' is a special case that prints the human-readable config banner")
-		fmt.Fprintln(os.Stderr, "from the beginning of the build.")
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(ctx.Writer, "'report_config' is a special case that prints the human-readable config banner")
+		fmt.Fprintln(ctx.Writer, "from the beginning of the build.")
+		fmt.Fprintln(ctx.Writer, "")
 		flags.PrintDefaults()
 	}
 	abs := flags.Bool("abs", false, "Print the absolute path of the value")
@@ -257,15 +257,15 @@ func dumpVar(ctx build.Context, config build.Config, args []string, _ string) {
 func dumpVars(ctx build.Context, config build.Config, args []string, _ string) {
 	flags := flag.NewFlagSet("dumpvars", flag.ExitOnError)
 	flags.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s --dumpvars-mode [--vars=\"VAR VAR ...\"]\n\n", os.Args[0])
-		fmt.Fprintln(os.Stderr, "In dumpvars mode, dump the values of one or more legacy make variables, in")
-		fmt.Fprintln(os.Stderr, "shell syntax. The resulting output may be sourced directly into a shell to")
-		fmt.Fprintln(os.Stderr, "set corresponding shell variables.")
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintf(ctx.Writer, "usage: %s --dumpvars-mode [--vars=\"VAR VAR ...\"]\n\n", os.Args[0])
+		fmt.Fprintln(ctx.Writer, "In dumpvars mode, dump the values of one or more legacy make variables, in")
+		fmt.Fprintln(ctx.Writer, "shell syntax. The resulting output may be sourced directly into a shell to")
+		fmt.Fprintln(ctx.Writer, "set corresponding shell variables.")
+		fmt.Fprintln(ctx.Writer, "")
 
-		fmt.Fprintln(os.Stderr, "'report_config' is a special case that dumps a variable containing the")
-		fmt.Fprintln(os.Stderr, "human-readable config banner from the beginning of the build.")
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(ctx.Writer, "'report_config' is a special case that dumps a variable containing the")
+		fmt.Fprintln(ctx.Writer, "human-readable config banner from the beginning of the build.")
+		fmt.Fprintln(ctx.Writer, "")
 		flags.PrintDefaults()
 	}
 
