@@ -210,6 +210,7 @@ type ZipArgs struct {
 	FileArgs                 []FileArg
 	OutputFilePath           string
 	EmulateJar               bool
+	SrcJar                   bool
 	AddDirectoryEntriesToZip bool
 	CompressionLevel         int
 	ManifestSourcePath       string
@@ -364,7 +365,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 		}
 	}
 
-	return z.write(w, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.NumParallelJobs)
+	return z.write(w, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.SrcJar, args.NumParallelJobs)
 }
 
 func Zip(args ZipArgs) error {
@@ -446,7 +447,9 @@ func jarSort(mappings []pathMapping) {
 	sort.SliceStable(mappings, less)
 }
 
-func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest string, emulateJar bool, parallelJobs int) error {
+func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest string, emulateJar, srcJar bool,
+	parallelJobs int) error {
+
 	z.errors = make(chan error)
 	defer close(z.errors)
 
@@ -489,7 +492,7 @@ func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest stri
 			if emulateJar && ele.dest == jar.ManifestFile {
 				err = z.addManifest(ele.dest, ele.src, ele.zipMethod)
 			} else {
-				err = z.addFile(ele.dest, ele.src, ele.zipMethod, emulateJar)
+				err = z.addFile(ele.dest, ele.src, ele.zipMethod, emulateJar, srcJar)
 			}
 			if err != nil {
 				z.errors <- err
@@ -588,7 +591,7 @@ func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest stri
 }
 
 // imports (possibly with compression) <src> into the zip at sub-path <dest>
-func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar bool) error {
+func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar, srcJar bool) error {
 	var fileSize int64
 	var executable bool
 
@@ -606,12 +609,9 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar bool) er
 			return nil
 		}
 		return err
-	} else if s.IsDir() {
-		if z.directories {
-			return z.writeDirectory(dest, src, emulateJar)
-		}
-		return nil
-	} else {
+	}
+
+	createParentDirs := func(dest, src string) error {
 		if err := z.writeDirectory(filepath.Dir(dest), src, emulateJar); err != nil {
 			return err
 		}
@@ -625,32 +625,64 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar bool) er
 
 		z.createdFiles[dest] = src
 
-		if s.Mode()&os.ModeSymlink != 0 {
-			return z.writeSymlink(dest, src)
-		} else if !s.Mode().IsRegular() {
-			return fmt.Errorf("%s is not a file, directory, or symlink", src)
+		return nil
+	}
+
+	if s.IsDir() {
+		if z.directories {
+			return z.writeDirectory(dest, src, emulateJar)
+		}
+		return nil
+	} else if s.Mode()&os.ModeSymlink != 0 {
+		err = createParentDirs(dest, src)
+		if err != nil {
+			return err
+		}
+
+		return z.writeSymlink(dest, src)
+	} else if s.Mode().IsRegular() {
+		r, err := z.fs.Open(src)
+		if err != nil {
+			return err
+		}
+
+		if srcJar && filepath.Ext(src) == ".java" {
+			// rewrite the destination using the package path if it can be determined
+			pkg, err := jar.JavaPackage(r, src)
+			if err != nil {
+				// ignore errors for now, leaving the file at in its original location in the zip
+			} else {
+				dest = filepath.Join(filepath.Join(strings.Split(pkg, ".")...), filepath.Base(src))
+			}
+
+			_, err = r.Seek(0, io.SeekStart)
+			if err != nil {
+				return err
+			}
 		}
 
 		fileSize = s.Size()
 		executable = s.Mode()&0100 != 0
-	}
 
-	r, err := z.fs.Open(src)
-	if err != nil {
-		return err
-	}
+		header := &zip.FileHeader{
+			Name:               dest,
+			Method:             method,
+			UncompressedSize64: uint64(fileSize),
+		}
 
-	header := &zip.FileHeader{
-		Name:               dest,
-		Method:             method,
-		UncompressedSize64: uint64(fileSize),
-	}
+		if executable {
+			header.SetMode(0700)
+		}
 
-	if executable {
-		header.SetMode(0700)
-	}
+		err = createParentDirs(dest, src)
+		if err != nil {
+			return err
+		}
 
-	return z.writeFileContents(header, r)
+		return z.writeFileContents(header, r)
+	} else {
+		return fmt.Errorf("%s is not a file, directory, or symlink", src)
+	}
 }
 
 func (z *ZipWriter) addManifest(dest string, src string, method uint16) error {
