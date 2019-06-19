@@ -17,9 +17,12 @@ package jar
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
+	"text/scanner"
 	"time"
+	"unicode"
 
 	"android/soong/third_party/zip"
 )
@@ -111,4 +114,112 @@ func manifestContents(contents []byte) ([]byte, error) {
 	}
 
 	return finalBytes, nil
+}
+
+var javaIgnorableIdentifier = &unicode.RangeTable{
+	R16: []unicode.Range16{
+		{0x00, 0x08, 1},
+		{0x0e, 0x1b, 1},
+		{0x7f, 0x9f, 1},
+	},
+	LatinOffset: 3,
+}
+
+func javaIdentRune(ch rune, i int) bool {
+	if unicode.IsLetter(ch) {
+		return true
+	}
+	if unicode.IsDigit(ch) && i > 0 {
+		return true
+	}
+
+	if unicode.In(ch,
+		unicode.Nl, // letter number
+		unicode.Sc, // currency symbol
+		unicode.Pc, // connecting punctuation
+	) {
+		return true
+	}
+
+	if unicode.In(ch,
+		unicode.Cf, // format
+		unicode.Mc, // combining mark
+		unicode.Mn, // non-spacing mark
+		javaIgnorableIdentifier,
+	) && i > 0 {
+		return true
+	}
+
+	return false
+}
+
+// JavaPackage parses the package out of a java source file by looking for the package statement, or the first valid
+// non-package statement, in which case it returns an empty string for the package.
+func JavaPackage(r io.Reader, src string) (string, error) {
+	var s scanner.Scanner
+	var sErr error
+
+	s.Init(r)
+	s.Filename = src
+	s.Error = func(s *scanner.Scanner, msg string) {
+		sErr = fmt.Errorf("error parsing %q: %s", src, msg)
+	}
+	s.IsIdentRune = javaIdentRune
+
+	tok := s.Scan()
+	if sErr != nil {
+		return "", sErr
+	}
+	if tok == scanner.Ident {
+		switch s.TokenText() {
+		case "package":
+		// Nothing
+		case "import":
+			// File has no package statement, first keyword is an import
+			return "", nil
+		case "class", "enum", "interface":
+			// File has no package statement, first keyword is a type declaration
+			return "", nil
+		case "public", "protected", "private", "abstract", "static", "final", "strictfp":
+			// File has no package statement, first keyword is a modifier
+			return "", nil
+		case "module", "open":
+			// File has no package statement, first keyword is a module declaration
+			return "", nil
+		default:
+			return "", fmt.Errorf(`expected first token of java file to be "package", got %q`, s.TokenText())
+		}
+	} else if tok == '@' {
+		// File has no package statement, first token is an annotation
+		return "", nil
+	} else if tok == scanner.EOF {
+		// File no package statement, it has no non-whitespace non-comment tokens
+		return "", nil
+	} else {
+		return "", fmt.Errorf(`expected first token of java file to be "package", got %q`, s.TokenText())
+	}
+
+	var pkg string
+	for {
+		tok = s.Scan()
+		if sErr != nil {
+			return "", sErr
+		}
+		if tok != scanner.Ident {
+			return "", fmt.Errorf(`expected "package <package>;", got "package %s%s"`, pkg, s.TokenText())
+		}
+		pkg += s.TokenText()
+
+		tok = s.Scan()
+		if sErr != nil {
+			return "", sErr
+		}
+		if tok == ';' {
+			return pkg, nil
+		} else if tok == '.' {
+			pkg += "."
+		} else {
+			return "", fmt.Errorf(`expected "package <package>;", got "package %s%s"`, pkg, s.TokenText())
+		}
+	}
 }
