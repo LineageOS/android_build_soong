@@ -136,6 +136,7 @@ func main() {
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
 	ignoreMissingFiles := flags.Bool("ignore_missing_files", false, "continue if a requested file does not exist")
 	symlinks := flags.Bool("symlinks", true, "store symbolic links in zip instead of following them")
+	srcJar := flags.Bool("srcjar", false, "move .java files to locations that match their package statement")
 
 	parallelJobs := flags.Int("parallel", runtime.NumCPU(), "number of parallel threads to use")
 	cpuProfile := flags.String("cpuprofile", "", "write cpu profile to file")
@@ -191,6 +192,7 @@ func main() {
 		FileArgs:                 fileArgsBuilder.FileArgs(),
 		OutputFilePath:           *out,
 		EmulateJar:               *emulateJar,
+		SrcJar:                   *srcJar,
 		AddDirectoryEntriesToZip: *directories,
 		CompressionLevel:         *compLevel,
 		ManifestSourcePath:       *manifest,
