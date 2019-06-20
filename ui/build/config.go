@@ -72,6 +72,9 @@ const (
 	// Builds all of the modules and their dependencies of a list of specified directories. All specified
 	// directories are relative to the root directory of the source tree.
 	BUILD_MODULES_IN_DIRECTORIES
+
+	// Build a list of specified modules. If none was specified, simply build the whole source tree.
+	BUILD_MODULES
 )
 
 // checkTopDir validates that the current directory is at the root directory of the source tree.
@@ -291,6 +294,8 @@ func getConfigArgs(action BuildAction, dir string, buildDependencies bool, ctx C
 	var targets []string
 
 	switch action {
+	case BUILD_MODULES:
+		// No additional processing is required when building a list of specific modules or all modules.
 	case BUILD_MODULES_IN_A_DIRECTORY:
 		// If dir is the root source tree, all the modules are built of the source tree are built so
 		// no need to find the build file.

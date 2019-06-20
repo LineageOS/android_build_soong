@@ -356,7 +356,7 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 	}{{
 		name:              "all-modules",
 		description:       "Build action: build from the top of the source tree.",
-		action:            build.BUILD_MODULES_IN_A_DIRECTORY,
+		action:            build.BUILD_MODULES,
 		buildDependencies: true,
 	}, {
 		name:              "modules-in-a-dir-no-deps",
