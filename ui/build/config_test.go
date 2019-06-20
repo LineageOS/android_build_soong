@@ -763,6 +763,51 @@ func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction,
 	}
 }
 
+func TestGetConfigArgsBuildModules(t *testing.T) {
+	tests := []buildActionTestCase{{
+		description:     "normal execution from the root source tree directory",
+		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
+		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp", "0/3/Android.mk"},
+		args:            []string{"-j", "fake_module", "fake_module2"},
+		curDir:          ".",
+		tidyOnly:        "",
+		expectedArgs:    []string{"-j", "fake_module", "fake_module2"},
+		expectedEnvVars: []envVar{},
+	}, {
+		description:     "normal execution in deep directory",
+		dirsInTrees:     []string{"0/1/2", "0/2", "0/3", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6"},
+		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6/Android.mk"},
+		args:            []string{"-j", "fake_module", "fake_module2", "-k"},
+		curDir:          "1/2/3/4/5/6/7/8/9",
+		tidyOnly:        "",
+		expectedArgs:    []string{"-j", "fake_module", "fake_module2", "-k"},
+		expectedEnvVars: []envVar{},
+	}, {
+		description:     "normal execution in deep directory, no targets",
+		dirsInTrees:     []string{"0/1/2", "0/2", "0/3", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6"},
+		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6/Android.mk"},
+		args:            []string{"-j", "-k"},
+		curDir:          "1/2/3/4/5/6/7/8/9",
+		tidyOnly:        "",
+		expectedArgs:    []string{"-j", "-k"},
+		expectedEnvVars: []envVar{},
+	}, {
+		description:     "normal execution in root source tree, no args",
+		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
+		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp"},
+		args:            []string{},
+		curDir:          "1/2/3/4/5/6/7/8/9",
+		tidyOnly:        "",
+		expectedArgs:    []string{},
+		expectedEnvVars: []envVar{},
+	}}
+	for _, tt := range tests {
+		t.Run("build action BUILD_MODULES with dependencies, "+tt.description, func(t *testing.T) {
+			testGetConfigArgs(t, tt, BUILD_MODULES, true)
+		})
+	}
+}
+
 // TODO: Remove this test case once mm shell build command has been deprecated.
 func TestGetConfigArgsBuildModulesInDirecotoryNoDeps(t *testing.T) {
 	tests := []buildActionTestCase{{
