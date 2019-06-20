@@ -161,6 +161,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("AIDL_CPP", "${aidlCmd}")
 
+	ctx.Strict("M4", "${m4Cmd}")
+
 	ctx.Strict("RS_GLOBAL_INCLUDES", "${config.RsGlobalIncludes}")
 
 	ctx.Strict("SOONG_STRIP_PATH", "${stripPath}")
