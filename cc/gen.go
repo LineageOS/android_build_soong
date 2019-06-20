@@ -25,6 +25,7 @@ import (
 
 func init() {
 	pctx.SourcePathVariable("lexCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/flex")
+	pctx.SourcePathVariable("m4Cmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/m4")
 
 	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
 	pctx.HostBinToolVariable("syspropCmd", "sysprop_cpp")
@@ -33,8 +34,8 @@ func init() {
 var (
 	lex = pctx.AndroidStaticRule("lex",
 		blueprint.RuleParams{
-			Command:     "$lexCmd -o$out $in",
-			CommandDeps: []string{"$lexCmd"},
+			Command:     "M4=$m4Cmd $lexCmd -o$out $in",
+			CommandDeps: []string{"$lexCmd", "$m4Cmd"},
 		})
 
 	sysprop = pctx.AndroidStaticRule("sysprop",
