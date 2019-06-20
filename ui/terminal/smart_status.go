@@ -225,9 +225,7 @@ func (s *smartStatusOutput) statusLine(str string) {
 
 	// Limit line width to the terminal width, otherwise we'll wrap onto
 	// another line and we won't delete the previous line.
-	if s.termWidth > 0 {
-		str = s.elide(str)
-	}
+	str = elide(str, s.termWidth)
 
 	// Move to the beginning on the line, turn on bold, print the output,
 	// turn off bold, then clear the rest of the line.
@@ -237,11 +235,11 @@ func (s *smartStatusOutput) statusLine(str string) {
 	s.haveBlankLine = false
 }
 
-func (s *smartStatusOutput) elide(str string) string {
-	if len(str) > s.termWidth {
+func elide(str string, width int) string {
+	if width > 0 && len(str) > width {
 		// TODO: Just do a max. Ninja elides the middle, but that's
 		// more complicated and these lines aren't that important.
-		str = str[:s.termWidth]
+		str = str[:width]
 	}
 
 	return str
@@ -344,9 +342,18 @@ func (s *smartStatusOutput) actionTable() {
 			desc = runningAction.action.Command
 		}
 
-		str := fmt.Sprintf("   %2d:%02d %s", seconds/60, seconds%60, desc)
-		str = s.elide(str)
-		fmt.Fprint(s.writer, str, ansi.clearToEndOfLine())
+		color := ""
+		if seconds >= 60 {
+			color = ansi.red() + ansi.bold()
+		} else if seconds >= 30 {
+			color = ansi.yellow() + ansi.bold()
+		}
+
+		durationStr := fmt.Sprintf("   %2d:%02d ", seconds/60, seconds%60)
+		desc = elide(desc, s.termWidth-len(durationStr))
+		durationStr = color + durationStr + ansi.regular()
+
+		fmt.Fprint(s.writer, durationStr, desc, ansi.clearToEndOfLine())
 		if tableLine < s.tableHeight-1 {
 			fmt.Fprint(s.writer, "\n")
 		}
@@ -385,6 +392,14 @@ func (ansiImpl) setScrollingMargins(top, bottom int) string {
 func (ansiImpl) resetScrollingMargins() string {
 	// Set Top and Bottom Margins DECSTBM
 	return fmt.Sprintf("\x1b[r")
+}
+
+func (ansiImpl) red() string {
+	return "\x1b[31m"
+}
+
+func (ansiImpl) yellow() string {
+	return "\x1b[33m"
 }
 
 func (ansiImpl) bold() string {
