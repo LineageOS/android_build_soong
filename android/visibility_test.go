@@ -761,6 +761,64 @@ var visibilityTests = []struct {
 				` visible to this module`,
 		},
 	},
+	{
+		name: "package default_visibility inherited to subpackages",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//outsider"],
+				}
+
+				mock_library {
+					name: "libexample",
+          visibility: [":__subpackages__"],
+				}`),
+			"top/nested/Blueprints": []byte(`
+				mock_library {
+					name: "libnested",
+					deps: ["libexample"],
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					deps: ["libexample", "libnested"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "liboutsider" variant "android_common": depends on //top:libexample which is not` +
+				` visible to this module`,
+		},
+	},
+	{
+		name: "package default_visibility inherited to subpackages",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}`),
+			"top/nested/Blueprints": []byte(`
+				package {
+					default_visibility: ["//outsider"],
+				}
+
+				mock_library {
+					name: "libnested",
+				}`),
+			"top/other/Blueprints": []byte(`
+				mock_library {
+					name: "libother",
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					deps: ["libother", "libnested"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "liboutsider" variant "android_common": depends on //top/other:libother which is` +
+				` not visible to this module`,
+		},
+	},
 }
 
 func TestVisibility(t *testing.T) {

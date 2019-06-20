@@ -142,9 +142,9 @@ Unlike most module type `package` does not have a `name` property. Instead the n
 name of the package, e.g. if the package is in `top/intermediate/package` then the package name is
 `//top/intermediate/package`.
 
-E.g. The following will set the default visibility for all the modules defined in the package
-(irrespective of whether they are in the same `.bp` file as the `package` module) to be visible to
-all the subpackages by default.
+E.g. The following will set the default visibility for all the modules defined in the package and
+any subpackages that do not set their own default visibility (irrespective of whether they are in
+the same `.bp` file as the `package` module) to be visible to all the subpackages by default.
 
 ```
 package {
@@ -230,7 +230,11 @@ If a module does not specify the `visibility` property then it uses the
 `default_visibility` property of the `package` module in the module's package.
 
 If the `default_visibility` property is not set for the module's package then
-the module uses `//visibility:legacy_public`.
+it will use the `default_visibility` of its closest ancestor package for which
+a `default_visibility` property is specified.
+
+If no `default_visibility` property can be found then the module uses the
+global default of `//visibility:legacy_public`.
 
 Once the build has been completely switched over to soong it is possible that a
 global refactoring will be done to change this to `//visibility:private` at
