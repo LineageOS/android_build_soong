@@ -138,7 +138,7 @@ func (system *SystemModules) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, makevar, ":=$=", strings.Join(system.properties.Libs, " "))
 			fmt.Fprintln(w)
 
-			makevar = "SOONG_SYSTEM_MODULE_DEPS_" + name
+			makevar = "SOONG_SYSTEM_MODULES_DEPS_" + name
 			fmt.Fprintln(w, makevar, ":=$=", strings.Join(system.outputDeps.Strings(), " "))
 			fmt.Fprintln(w)
 
