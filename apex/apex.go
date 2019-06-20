@@ -153,7 +153,7 @@ func init() {
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
-		ctx.BottomUp("apex", apexMutator)
+		ctx.BottomUp("apex", apexMutator).Parallel()
 	})
 }
 
