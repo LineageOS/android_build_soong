@@ -705,8 +705,8 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 			if !isSanitizableDependencyTag(mctx.OtherModuleDependencyTag(child)) {
 				return false
 			}
-			if d, ok := child.(*Module); ok && d.static() && d.sanitize != nil {
 
+			if d, ok := child.(*Module); ok && d.static() && d.sanitize != nil {
 				if enableMinimalRuntime(d.sanitize) {
 					// If a static dependency is built with the minimal runtime,
 					// make sure we include the ubsan minimal runtime.
@@ -717,8 +717,17 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 					// make sure we include the ubsan runtime.
 					c.sanitize.Properties.UbsanRuntimeDep = true
 				}
+
+				if c.sanitize.Properties.MinimalRuntimeDep &&
+					c.sanitize.Properties.UbsanRuntimeDep {
+					// both flags that this mutator might set are true, so don't bother recursing
+					return false
+				}
+
+				return true
+			} else {
+				return false
 			}
-			return true
 		})
 	}
 }
