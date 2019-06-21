@@ -142,6 +142,7 @@ func (n *NinjaReader) run() {
 			action := &Action{
 				Description: msg.EdgeStarted.GetDesc(),
 				Outputs:     msg.EdgeStarted.Outputs,
+				Inputs:      msg.EdgeStarted.Inputs,
 				Command:     msg.EdgeStarted.GetCommand(),
 			}
 			n.status.StartAction(action)

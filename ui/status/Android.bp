@@ -22,12 +22,14 @@ bootstrap_go_package {
         "soong-ui-status-build_error_proto",
     ],
     srcs: [
+        "critical_path.go",
         "kati.go",
         "log.go",
         "ninja.go",
         "status.go",
     ],
     testSrcs: [
+        "critical_path_test.go",
         "kati_test.go",
         "ninja_test.go",
         "status_test.go",
