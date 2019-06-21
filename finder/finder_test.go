@@ -891,8 +891,8 @@ func TestFileAdded(t *testing.T) {
 			IncludeFiles: []string{"findme.txt"},
 		},
 	)
-	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	filesystem.Clock.Tick()
+	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
 	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
@@ -1522,8 +1522,8 @@ func TestUpdatingDbIffChanged(t *testing.T) {
 			IncludeFiles: []string{"hi.txt"},
 		},
 	)
-	foundPaths := finder.FindAll()
 	filesystem.Clock.Tick()
+	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	// check results
 	assertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt"})
@@ -1583,8 +1583,8 @@ func TestDirectoryNotPermitted(t *testing.T) {
 			IncludeFiles: []string{"hi.txt"},
 		},
 	)
-	foundPaths := finder.FindAll()
 	filesystem.Clock.Tick()
+	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	allPaths := []string{"/tmp/hi.txt", "/tmp/a/hi.txt", "/tmp/a/a/hi.txt", "/tmp/b/hi.txt"}
 	// check results
@@ -1629,8 +1629,8 @@ func TestFileNotPermitted(t *testing.T) {
 			IncludeFiles: []string{"hi.txt"},
 		},
 	)
-	foundPaths := finder.FindAll()
 	filesystem.Clock.Tick()
+	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	// check results
 	assertSameResponse(t, foundPaths, []string{"/tmp/hi.txt"})
@@ -1650,8 +1650,8 @@ func TestCacheEntryPathUnexpectedError(t *testing.T) {
 			IncludeFiles: []string{"hi.txt"},
 		},
 	)
-	foundPaths := finder.FindAll()
 	filesystem.Clock.Tick()
+	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	// check results
 	assertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt"})
