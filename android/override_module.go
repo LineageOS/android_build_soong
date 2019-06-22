@@ -90,8 +90,6 @@ type OverridableModule interface {
 
 // Base module struct for overridable module types
 type OverridableModuleBase struct {
-	ModuleBase
-
 	// List of OverrideModules that override this base module
 	overrides []OverrideModule
 	// Used to parallelize registerOverrideMutator executions. Note that only addOverride locks this
@@ -137,7 +135,7 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 	// Adds the base module to the overrides property, if exists, of the overriding module. See the
 	// comment on OverridableModuleBase.overridesProperty for details.
 	if b.overridesProperty != nil {
-		*b.overridesProperty = append(*b.overridesProperty, b.Name())
+		*b.overridesProperty = append(*b.overridesProperty, ctx.ModuleName())
 	}
 	for _, p := range b.overridableProperties {
 		for _, op := range o.getOverridingProperties() {
