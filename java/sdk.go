@@ -44,9 +44,6 @@ type sdkContext interface {
 	minSdkVersion() string
 	// targetSdkVersion returns the target_sdk_version property of the current module, or sdkVersion() if it is not set.
 	targetSdkVersion() string
-
-	// Temporarily provide access to the no_frameworks_libs property (where present).
-	noFrameworkLibs() bool
 }
 
 func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
@@ -84,6 +81,7 @@ func sdkVersionToNumberAsString(ctx android.BaseModuleContext, v string) (string
 
 func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 	v := sdkContext.sdkVersion()
+
 	// For PDK builds, use the latest SDK version instead of "current"
 	if ctx.Config().IsPdkBuild() && (v == "" || v == "current") {
 		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
@@ -141,9 +139,6 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			useFiles: true,
 			jars:     android.Paths{jarPath.Path(), lambdaStubsPath},
 			aidl:     android.OptionalPathForPath(aidlPath.Path()),
-
-			// Pass value straight through for now to match previous behavior.
-			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 	}
 
@@ -154,9 +149,6 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			systemModules:      m + "_system_modules",
 			frameworkResModule: r,
 			aidl:               android.OptionalPathForPath(aidl),
-
-			// Pass value straight through for now to match previous behavior.
-			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 
 		if m == "core.current.stubs" {
@@ -192,9 +184,6 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 		return sdkDep{
 			useDefaultLibs:     true,
 			frameworkResModule: "framework-res",
-
-			// Pass value straight through for now to match previous behavior.
-			noFrameworksLibs: sdkContext.noFrameworkLibs(),
 		}
 	case "none":
 		return sdkDep{
