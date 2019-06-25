@@ -171,9 +171,6 @@ type JavadocProperties struct {
 	// list of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
-	// don't build against the framework libraries (ext, and framework for device targets)
-	No_framework_libs *bool
-
 	// the java library (in classpath) for documentation that provides java srcs and srcjars.
 	Srcs_lib *string
 
@@ -532,10 +529,6 @@ func (j *Javadoc) minSdkVersion() string {
 
 func (j *Javadoc) targetSdkVersion() string {
 	return j.sdkVersion()
-}
-
-func (j *Javadoc) noFrameworkLibs() bool {
-	return Bool(j.properties.No_framework_libs)
 }
 
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {

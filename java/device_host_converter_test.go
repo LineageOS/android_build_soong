@@ -126,7 +126,7 @@ func TestHostForDevice(t *testing.T) {
 
 		java_library {
 			name: "device_module",
-			no_framework_libs: true,
+			sdk_version: "core_platform",
 			srcs: ["b.java"],
 			java_resources: ["java-res/b/b"],
 			static_libs: ["host_for_device_module"],

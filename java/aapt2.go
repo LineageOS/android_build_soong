@@ -60,7 +60,9 @@ var aapt2CompileRule = pctx.AndroidStaticRule("aapt2Compile",
 	},
 	"outDir", "cFlags")
 
-func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Paths) android.WritablePaths {
+func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Paths,
+	flags []string) android.WritablePaths {
+
 	shards := shardPaths(paths, AAPT2_SHARD_SIZE)
 
 	ret := make(android.WritablePaths, 0, len(paths))
@@ -81,9 +83,7 @@ func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Pat
 			Outputs:     outPaths,
 			Args: map[string]string{
 				"outDir": android.PathForModuleOut(ctx, "aapt2", dir.String()).String(),
-				// Always set --pseudo-localize, it will be stripped out later for release
-				// builds that don't want it.
-				"cFlags": "--pseudo-localize",
+				"cFlags": strings.Join(flags, " "),
 			},
 		})
 	}
@@ -104,7 +104,9 @@ var aapt2CompileZipRule = pctx.AndroidStaticRule("aapt2CompileZip",
 		},
 	}, "cFlags", "resZipDir", "zipSyncFlags")
 
-func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip android.Path, zipPrefix string) {
+func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip android.Path, zipPrefix string,
+	flags []string) {
+
 	if zipPrefix != "" {
 		zipPrefix = "--zip-prefix " + zipPrefix
 	}
@@ -114,9 +116,7 @@ func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip 
 		Input:       zip,
 		Output:      flata,
 		Args: map[string]string{
-			// Always set --pseudo-localize, it will be stripped out later for release
-			// builds that don't want it.
-			"cFlags":       "--pseudo-localize",
+			"cFlags":       strings.Join(flags, " "),
 			"resZipDir":    android.PathForModuleOut(ctx, "aapt2", "reszip", flata.Base()).String(),
 			"zipSyncFlags": zipPrefix,
 		},

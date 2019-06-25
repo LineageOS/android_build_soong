@@ -47,14 +47,6 @@ func TestClasspath(t *testing.T) {
 			aidl:          "-Iframework/aidl",
 		},
 		{
-			name:          "no_framework_libs:true",
-			properties:    `no_framework_libs:true`,
-			bootclasspath: config.DefaultBootclasspathLibraries,
-			system:        config.DefaultSystemModules,
-			classpath:     []string{},
-			aidl:          "",
-		},
-		{
 			name:          `sdk_version:"core_platform"`,
 			properties:    `sdk_version:"core_platform"`,
 			bootclasspath: config.DefaultBootclasspathLibraries,
