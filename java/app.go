@@ -197,13 +197,14 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 		return true
 	}
 
-	if ctx.Config().UnbundledBuild() {
-		return false
-	}
-
-	// Uncompress dex in APKs of privileged apps
+	// Uncompress dex in APKs of privileged apps (even for unbundled builds, they may
+	// be preinstalled as prebuilts).
 	if ctx.Config().UncompressPrivAppDex() && Bool(a.appProperties.Privileged) {
 		return true
+	}
+
+	if ctx.Config().UnbundledBuild() {
+		return false
 	}
 
 	return shouldUncompressDex(ctx, &a.dexpreopter)
