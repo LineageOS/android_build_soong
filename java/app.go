@@ -188,15 +188,16 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 		return true
 	}
 
-	if ctx.Config().UnbundledBuild() {
-		return false
-	}
-
-	// Uncompress dex in APKs of privileged apps, and modules used by privileged apps.
+	// Uncompress dex in APKs of privileged apps, and modules used by privileged apps
+	// (even for unbundled builds, they may be preinstalled as prebuilts).
 	if ctx.Config().UncompressPrivAppDex() &&
 		(Bool(a.appProperties.Privileged) ||
 			inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules())) {
 		return true
+	}
+
+	if ctx.Config().UnbundledBuild() {
+		return false
 	}
 
 	// Uncompress if the dex files is preopted on /system.
