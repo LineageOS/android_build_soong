@@ -282,6 +282,32 @@ func TestSimple(t *testing.T) {
 	}
 }
 
+func TestSdkVersion(t *testing.T) {
+	ctx := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			vendor: true,
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+		}
+	`)
+
+	foo := ctx.ModuleForTests("foo", "android_common").Module().(*Library)
+	bar := ctx.ModuleForTests("bar", "android_common").Module().(*Library)
+
+	if foo.sdkVersion() != "system_current" {
+		t.Errorf("If sdk version of vendor module is empty, it must change to system_current.")
+	}
+
+	if bar.sdkVersion() != "" {
+		t.Errorf("If sdk version of non-vendor module is empty, it keeps empty.")
+	}
+}
+
 func TestArchSpecific(t *testing.T) {
 	ctx := testJava(t, `
 		java_library {

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -523,7 +524,7 @@ func JavadocHostFactory() android.Module {
 var _ android.OutputFileProducer = (*Javadoc)(nil)
 
 func (j *Javadoc) sdkVersion() string {
-	return String(j.properties.Sdk_version)
+	return proptools.StringDefault(j.properties.Sdk_version, defaultSdkVersion(j))
 }
 
 func (j *Javadoc) minSdkVersion() string {

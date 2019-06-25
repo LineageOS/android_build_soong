@@ -426,6 +426,18 @@ var (
 	usesLibTag            = dependencyTag{name: "uses-library"}
 )
 
+func defaultSdkVersion(ctx checkVendorModuleContext) string {
+	if ctx.SocSpecific() || ctx.DeviceSpecific() {
+		return "system_current"
+	}
+	return ""
+}
+
+type checkVendorModuleContext interface {
+	SocSpecific() bool
+	DeviceSpecific() bool
+}
+
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
@@ -465,7 +477,7 @@ func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {
 }
 
 func (j *Module) sdkVersion() string {
-	return String(j.deviceProperties.Sdk_version)
+	return proptools.StringDefault(j.deviceProperties.Sdk_version, defaultSdkVersion(j))
 }
 
 func (j *Module) minSdkVersion() string {
@@ -1869,7 +1881,7 @@ type Import struct {
 }
 
 func (j *Import) sdkVersion() string {
-	return String(j.properties.Sdk_version)
+	return proptools.StringDefault(j.properties.Sdk_version, defaultSdkVersion(j))
 }
 
 func (j *Import) minSdkVersion() string {
