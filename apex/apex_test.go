@@ -30,9 +30,12 @@ import (
 var buildDir string
 
 func testApex(t *testing.T, bp string) *android.TestContext {
-	var config android.Config
-	config, buildDir = setup(t)
-	defer teardown(buildDir)
+	config := android.TestArchConfig(buildDir, nil)
+	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
+	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
+	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
+	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
+	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("apex", android.ModuleFactoryAdaptor(apexBundleFactory))
@@ -191,22 +194,15 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	return ctx
 }
 
-func setup(t *testing.T) (config android.Config, buildDir string) {
-	buildDir, err := ioutil.TempDir("", "soong_apex_test")
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_apex_test")
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-
-	config = android.TestArchConfig(buildDir, nil)
-	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
-	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
-	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
-	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
-	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-	return
 }
 
-func teardown(buildDir string) {
+func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
@@ -1287,4 +1283,15 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 	if p.installFilename != expected {
 		t.Errorf("installFilename invalid. expected: %q, actual: %q", expected, p.installFilename)
 	}
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
 }
