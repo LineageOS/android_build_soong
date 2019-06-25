@@ -17,6 +17,7 @@ package java
 import (
 	"android/soong/android"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -80,6 +81,7 @@ type aapt struct {
 	rTxt                    android.Path
 	extraAaptPackagesFile   android.Path
 	mergedManifestFile      android.Path
+	noticeFile              android.OptionalPath
 	isLibrary               bool
 	useEmbeddedNativeLibs   bool
 	useEmbeddedDex          bool
@@ -151,10 +153,16 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
 		assetFiles = append(assetFiles, androidResourceGlob(ctx, dir)...)
 	}
 
+	assetDirStrings := assetDirs.Strings()
+	if a.noticeFile.Valid() {
+		assetDirStrings = append(assetDirStrings, filepath.Dir(a.noticeFile.Path().String()))
+		assetFiles = append(assetFiles, a.noticeFile.Path())
+	}
+
 	linkFlags = append(linkFlags, "--manifest "+manifestPath.String())
 	linkDeps = append(linkDeps, manifestPath)
 
-	linkFlags = append(linkFlags, android.JoinWithPrefix(assetDirs.Strings(), "-A "))
+	linkFlags = append(linkFlags, android.JoinWithPrefix(assetDirStrings, "-A "))
 	linkDeps = append(linkDeps, assetFiles...)
 
 	// SDK version flags
