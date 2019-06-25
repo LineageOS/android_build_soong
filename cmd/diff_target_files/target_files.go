@@ -28,7 +28,7 @@ var targetZipPartitions = []string{
 	"ODM/",
 	"OEM/",
 	"PRODUCT/",
-	"PRODUCT_SERVICES/",
+	"SYSTEM_EXT/",
 	"ROOT/",
 	"SYSTEM/",
 	"SYSTEM_OTHER/",

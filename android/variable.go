@@ -232,10 +232,10 @@ type productVariables struct {
 	EnableXOM       *bool    `json:",omitempty"`
 	XOMExcludePaths []string `json:",omitempty"`
 
-	VendorPath          *string `json:",omitempty"`
-	OdmPath             *string `json:",omitempty"`
-	ProductPath         *string `json:",omitempty"`
-	ProductServicesPath *string `json:",omitempty"`
+	VendorPath    *string `json:",omitempty"`
+	OdmPath       *string `json:",omitempty"`
+	ProductPath   *string `json:",omitempty"`
+	SystemExtPath *string `json:",omitempty"`
 
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`

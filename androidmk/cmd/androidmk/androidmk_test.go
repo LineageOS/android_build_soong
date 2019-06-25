@@ -957,37 +957,37 @@ prebuilt_etc {
 `,
 	},
 	{
-		desc: "prebuilt_etc_TARGET_OUT_PRODUCT_SERVICES/etc",
+		desc: "prebuilt_etc_TARGET_OUT_SYSTEM_EXT/etc",
 		in: `
 include $(CLEAR_VARS)
 LOCAL_MODULE := etc.test1
 LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT_SERVICES)/etc/foo/bar
+LOCAL_MODULE_PATH := $(TARGET_OUT_SYSTEM_EXT)/etc/foo/bar
 include $(BUILD_PREBUILT)
 `,
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
 	sub_dir: "foo/bar",
-	product_services_specific: true,
+	system_ext_specific: true,
 
 }
 `,
 	},
 	{
-		desc: "prebuilt_etc_TARGET_OUT_PRODUCT_SERVICES_ETC",
+		desc: "prebuilt_etc_TARGET_OUT_SYSTEM_EXT_ETC",
 		in: `
 include $(CLEAR_VARS)
 LOCAL_MODULE := etc.test1
 LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH := $(TARGET_OUT_PRODUCT_SERVICES_ETC)/foo/bar
+LOCAL_MODULE_PATH := $(TARGET_OUT_SYSTEM_EXT_ETC)/foo/bar
 include $(BUILD_PREBUILT)
 `,
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
 	sub_dir: "foo/bar",
-	product_services_specific: true,
+	system_ext_specific: true,
 
 
 }
