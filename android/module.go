@@ -901,14 +901,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if m.Enabled() {
-		m.module.GenerateAndroidBuildActions(ctx)
-		if ctx.Failed() {
-			return
-		}
-
-		m.installFiles = append(m.installFiles, ctx.installFiles...)
-		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
-
 		notice := proptools.StringDefault(m.commonProperties.Notice, "NOTICE")
 		if module := SrcIsModule(notice); module != "" {
 			m.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
@@ -916,6 +908,14 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			noticePath := filepath.Join(ctx.ModuleDir(), notice)
 			m.noticeFile = ExistentPathForSource(ctx, noticePath)
 		}
+
+		m.module.GenerateAndroidBuildActions(ctx)
+		if ctx.Failed() {
+			return
+		}
+
+		m.installFiles = append(m.installFiles, ctx.installFiles...)
+		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
 	} else if ctx.Config().AllowMissingDependencies() {
 		// If the module is not enabled it will not create any build rules, nothing will call
 		// ctx.GetMissingDependencies(), and blueprint will consider the missing dependencies to be unhandled
