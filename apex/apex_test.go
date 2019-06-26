@@ -27,9 +27,15 @@ import (
 	"android/soong/java"
 )
 
+var buildDir string
+
 func testApex(t *testing.T, bp string) *android.TestContext {
-	config, buildDir := setup(t)
-	defer teardown(buildDir)
+	config := android.TestArchConfig(buildDir, nil)
+	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
+	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
+	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
+	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
+	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("apex", android.ModuleFactoryAdaptor(apexBundleFactory))
@@ -188,22 +194,15 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	return ctx
 }
 
-func setup(t *testing.T) (config android.Config, buildDir string) {
-	buildDir, err := ioutil.TempDir("", "soong_apex_test")
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_apex_test")
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-
-	config = android.TestArchConfig(buildDir, nil)
-	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
-	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
-	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
-	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
-	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-	return
 }
 
-func teardown(buildDir string) {
+func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
@@ -310,6 +309,8 @@ func TestBasicApex(t *testing.T) {
 
 	optFlags := apexRule.Args["opt_flags"]
 	ensureContains(t, optFlags, "--pubkey vendor/foo/devkeys/testkey.avbpubkey")
+	// Ensure that the NOTICE output is being packaged as an asset.
+	ensureContains(t, optFlags, "--assets_dir "+buildDir+"/.intermediates/myapex/android_common_myapex/NOTICE")
 
 	copyCmds := apexRule.Args["copy_commands"]
 
@@ -347,10 +348,10 @@ func TestBasicApex(t *testing.T) {
 		t.Errorf("Could not find all expected symlinks! foo: %t, foo_link_64: %t. Command was %s", found_foo, found_foo_link_64, copyCmds)
 	}
 
-	apexMergeNoticeRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexMergeNoticeRule")
-	noticeInputs := strings.Split(apexMergeNoticeRule.Args["inputs"], " ")
-	if len(noticeInputs) != 3 {
-		t.Errorf("number of input notice files: expected = 3, actual = %d", len(noticeInputs))
+	mergeNoticesRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("mergeNoticesRule")
+	noticeInputs := mergeNoticesRule.Inputs.Strings()
+	if len(noticeInputs) != 2 {
+		t.Errorf("number of input notice files: expected = 2, actual = %q", len(noticeInputs))
 	}
 	ensureListContains(t, noticeInputs, "NOTICE")
 	ensureListContains(t, noticeInputs, "custom_notice")
@@ -1282,4 +1283,15 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 	if p.installFilename != expected {
 		t.Errorf("installFilename invalid. expected: %q, actual: %q", expected, p.installFilename)
 	}
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
 }
