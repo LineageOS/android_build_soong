@@ -79,11 +79,13 @@ type GlobalConfig struct {
 	InstructionSetFeatures map[android.ArchType]string // instruction set for each architecture
 
 	// Only used for boot image
-	DirtyImageObjects android.OptionalPath // path to a dirty-image-objects file
-	BootImageProfiles android.Paths        // path to a boot-image-profile.txt file
-	BootFlags         string               // extra flags to pass to dex2oat for the boot image
-	Dex2oatImageXmx   string               // max heap size for dex2oat for the boot image
-	Dex2oatImageXms   string               // initial heap size for dex2oat for the boot image
+	DirtyImageObjects      android.OptionalPath // path to a dirty-image-objects file
+	PreloadedClasses       android.OptionalPath // path to a preloaded-classes file
+	BootImageProfiles      android.Paths        // path to a boot-image-profile.txt file
+	UseProfileForBootImage bool                 // whether a profile should be used to compile the boot image
+	BootFlags              string               // extra flags to pass to dex2oat for the boot image
+	Dex2oatImageXmx        string               // max heap size for dex2oat for the boot image
+	Dex2oatImageXms        string               // initial heap size for dex2oat for the boot image
 
 	Tools Tools // paths to tools possibly used by the generated commands
 }
@@ -181,6 +183,7 @@ func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byt
 		// Copies of entries in GlobalConfig that are not constructable without extra parameters.  They will be
 		// used to construct the real value manually below.
 		DirtyImageObjects string
+		PreloadedClasses  string
 		BootImageProfiles []string
 
 		Tools struct {
@@ -203,6 +206,7 @@ func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byt
 
 	// Construct paths that require a PathContext.
 	config.GlobalConfig.DirtyImageObjects = android.OptionalPathForPath(constructPath(ctx, config.DirtyImageObjects))
+	config.GlobalConfig.PreloadedClasses = android.OptionalPathForPath(constructPath(ctx, config.PreloadedClasses))
 	config.GlobalConfig.BootImageProfiles = constructPaths(ctx, config.BootImageProfiles)
 
 	config.GlobalConfig.Tools.Profman = constructPath(ctx, config.Tools.Profman)
@@ -317,7 +321,9 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		CpuVariant:                         nil,
 		InstructionSetFeatures:             nil,
 		DirtyImageObjects:                  android.OptionalPath{},
+		PreloadedClasses:                   android.OptionalPath{},
 		BootImageProfiles:                  nil,
+		UseProfileForBootImage:             false,
 		BootFlags:                          "",
 		Dex2oatImageXmx:                    "",
 		Dex2oatImageXms:                    "",
