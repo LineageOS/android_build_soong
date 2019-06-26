@@ -968,3 +968,98 @@ func TestOverrideAndroidApp(t *testing.T) {
 		}
 	}
 }
+
+func TestEmbedNotice(t *testing.T) {
+	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			static_libs: ["javalib"],
+			jni_libs: ["libjni"],
+			notice: "APP_NOTICE",
+			embed_notices: true,
+		}
+
+		// No embed_notice flag
+		android_app {
+			name: "bar",
+			srcs: ["a.java"],
+			jni_libs: ["libjni"],
+			notice: "APP_NOTICE",
+		}
+
+		// No NOTICE files
+		android_app {
+			name: "baz",
+			srcs: ["a.java"],
+			embed_notices: true,
+		}
+
+		cc_library {
+			name: "libjni",
+			system_shared_libs: [],
+			stl: "none",
+			notice: "LIB_NOTICE",
+		}
+
+		java_library {
+			name: "javalib",
+			srcs: [
+				":gen",
+			],
+		}
+
+		genrule {
+			name: "gen",
+			tools: ["gentool"],
+			out: ["gen.java"],
+			notice: "GENRULE_NOTICE",
+		}
+
+		java_binary_host {
+			name: "gentool",
+			srcs: ["b.java"],
+			notice: "TOOL_NOTICE",
+		}
+	`)
+
+	// foo has NOTICE files to process, and embed_notices is true.
+	foo := ctx.ModuleForTests("foo", "android_common")
+	// verify merge notices rule.
+	mergeNotices := foo.Rule("mergeNoticesRule")
+	noticeInputs := mergeNotices.Inputs.Strings()
+	// TOOL_NOTICE should be excluded as it's a host module.
+	if len(mergeNotices.Inputs) != 3 {
+		t.Errorf("number of input notice files: expected = 3, actual = %q", noticeInputs)
+	}
+	if !inList("APP_NOTICE", noticeInputs) {
+		t.Errorf("APP_NOTICE is missing from notice files, %q", noticeInputs)
+	}
+	if !inList("LIB_NOTICE", noticeInputs) {
+		t.Errorf("LIB_NOTICE is missing from notice files, %q", noticeInputs)
+	}
+	if !inList("GENRULE_NOTICE", noticeInputs) {
+		t.Errorf("GENRULE_NOTICE is missing from notice files, %q", noticeInputs)
+	}
+	// aapt2 flags should include -A <NOTICE dir> so that its contents are put in the APK's /assets.
+	res := foo.Output("package-res.apk")
+	aapt2Flags := res.Args["flags"]
+	e := "-A " + buildDir + "/.intermediates/foo/android_common/NOTICE"
+	if !strings.Contains(aapt2Flags, e) {
+		t.Errorf("asset dir flag for NOTICE, %q is missing in aapt2 link flags, %q", e, aapt2Flags)
+	}
+
+	// bar has NOTICE files to process, but embed_notices is not set.
+	bar := ctx.ModuleForTests("bar", "android_common")
+	mergeNotices = bar.MaybeRule("mergeNoticesRule")
+	if mergeNotices.Rule != nil {
+		t.Errorf("mergeNotices shouldn't have run for bar")
+	}
+
+	// baz's embed_notice is true, but it doesn't have any NOTICE files.
+	baz := ctx.ModuleForTests("baz", "android_common")
+	mergeNotices = baz.MaybeRule("mergeNoticesRule")
+	if mergeNotices.Rule != nil {
+		t.Errorf("mergeNotices shouldn't have run for baz")
+	}
+}
