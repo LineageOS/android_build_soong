@@ -55,7 +55,7 @@ func pathsToAapt2Paths(ctx android.ModuleContext, resPaths android.Paths) androi
 
 var aapt2CompileRule = pctx.AndroidStaticRule("aapt2Compile",
 	blueprint.RuleParams{
-		Command:     `${config.Aapt2Cmd} compile -o $outDir $cFlags --legacy $in`,
+		Command:     `${config.Aapt2Cmd} compile -o $outDir $cFlags $in`,
 		CommandDeps: []string{"${config.Aapt2Cmd}"},
 	},
 	"outDir", "cFlags")
@@ -97,7 +97,7 @@ func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Pat
 var aapt2CompileZipRule = pctx.AndroidStaticRule("aapt2CompileZip",
 	blueprint.RuleParams{
 		Command: `${config.ZipSyncCmd} -d $resZipDir $zipSyncFlags $in && ` +
-			`${config.Aapt2Cmd} compile -o $out $cFlags --legacy --dir $resZipDir`,
+			`${config.Aapt2Cmd} compile -o $out $cFlags --dir $resZipDir`,
 		CommandDeps: []string{
 			"${config.Aapt2Cmd}",
 			"${config.ZipSyncCmd}",
