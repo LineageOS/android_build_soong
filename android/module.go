@@ -849,14 +849,6 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if a.Enabled() {
-		a.module.GenerateAndroidBuildActions(ctx)
-		if ctx.Failed() {
-			return
-		}
-
-		a.installFiles = append(a.installFiles, ctx.installFiles...)
-		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
-
 		notice := proptools.StringDefault(a.commonProperties.Notice, "NOTICE")
 		if m := SrcIsModule(notice); m != "" {
 			a.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
@@ -864,6 +856,14 @@ func (a *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			noticePath := filepath.Join(ctx.ModuleDir(), notice)
 			a.noticeFile = ExistentPathForSource(ctx, noticePath)
 		}
+
+		a.module.GenerateAndroidBuildActions(ctx)
+		if ctx.Failed() {
+			return
+		}
+
+		a.installFiles = append(a.installFiles, ctx.installFiles...)
+		a.checkbuildFiles = append(a.checkbuildFiles, ctx.checkbuildFiles...)
 	}
 
 	if a == ctx.FinalModule().(Module).base() {

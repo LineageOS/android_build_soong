@@ -208,6 +208,7 @@ func TestConfig(buildDir string, env map[string]string) Config {
 			AAPTPreferredConfig:         stringPtr("xhdpi"),
 			AAPTCharacteristics:         stringPtr("nosdcard"),
 			AAPTPrebuiltDPI:             []string{"xhdpi", "xxhdpi"},
+			UncompressPrivAppDex:        boolPtr(true),
 		},
 
 		buildDir:     buildDir,
