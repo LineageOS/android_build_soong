@@ -98,6 +98,7 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 	}
 
 	cmd.Text("BISON_PKGDATADIR=prebuilts/build-tools/common/bison").
+		FlagWithInput("M4=", ctx.Config().PrebuiltBuildTool(ctx, "m4")).
 		Tool(ctx.Config().PrebuiltBuildTool(ctx, "bison")).
 		Flag("-d").
 		Flags(flags).
