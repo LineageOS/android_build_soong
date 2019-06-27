@@ -29,7 +29,32 @@ import (
 
 var buildDir string
 
+func testApexError(t *testing.T, pattern, bp string) {
+	ctx, config := testApexContext(t, bp)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return
+	}
+	_, errs = ctx.PrepareBuildActions(config)
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return
+	}
+
+	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+}
+
 func testApex(t *testing.T, bp string) *android.TestContext {
+	ctx, config := testApexContext(t, bp)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+	return ctx
+}
+
+func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	config := android.TestArchConfig(buildDir, nil)
 	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
 	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
@@ -48,6 +73,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
 		ctx.BottomUp("apex", apexMutator)
+		ctx.BottomUp("apex_uses", apexUsesMutator)
 		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
 		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
 	})
@@ -168,8 +194,10 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"system/sepolicy/apex/myapex-file_contexts":         nil,
 		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
 		"system/sepolicy/apex/otherapex-file_contexts":      nil,
+		"system/sepolicy/apex/commonapex-file_contexts":     nil,
 		"mylib.cpp":                            nil,
 		"mytest.cpp":                           nil,
+		"mylib_common.cpp":                     nil,
 		"myprebuilt":                           nil,
 		"my_include":                           nil,
 		"vendor/foo/devkeys/test.x509.pem":     nil,
@@ -188,12 +216,8 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"myapex-arm.apex":                      nil,
 		"frameworks/base/api/current.txt":      nil,
 	})
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
 
-	return ctx
+	return ctx, config
 }
 
 func setUp() {
@@ -210,6 +234,7 @@ func tearDown() {
 
 // ensure that 'result' contains 'expected'
 func ensureContains(t *testing.T, result string, expected string) {
+	t.Helper()
 	if !strings.Contains(result, expected) {
 		t.Errorf("%q is not found in %q", expected, result)
 	}
@@ -217,18 +242,21 @@ func ensureContains(t *testing.T, result string, expected string) {
 
 // ensures that 'result' does not contain 'notExpected'
 func ensureNotContains(t *testing.T, result string, notExpected string) {
+	t.Helper()
 	if strings.Contains(result, notExpected) {
 		t.Errorf("%q is found in %q", notExpected, result)
 	}
 }
 
 func ensureListContains(t *testing.T, result []string, expected string) {
+	t.Helper()
 	if !android.InList(expected, result) {
 		t.Errorf("%q is not found in %v", expected, result)
 	}
 }
 
 func ensureListNotContains(t *testing.T, result []string, notExpected string) {
+	t.Helper()
 	if android.InList(notExpected, result) {
 		t.Errorf("%q is found in %v", notExpected, result)
 	}
@@ -789,6 +817,30 @@ func TestUseVendor(t *testing.T) {
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib2.so")
 }
 
+func TestUseVendorFailsIfNotVendorAvailable(t *testing.T) {
+	testApexError(t, `dependency "mylib" of "myapex" missing variant:\n.*image:vendor`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			use_vendor: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+}
+
 func TestStaticLinking(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
@@ -1319,6 +1371,122 @@ func TestApexWithTests(t *testing.T) {
 
 	// Ensure that test dep is copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest")
+}
+
+func TestApexUsesOtherApex(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			uses: ["commonapex"],
+		}
+
+		apex {
+			name: "commonapex",
+			key: "myapex.key",
+			native_shared_libs: ["libcommon"],
+			provide_cpp_shared_libs: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["libcommon"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libcommon",
+			srcs: ["mylib_common.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	module1 := ctx.ModuleForTests("myapex", "android_common_myapex")
+	apexRule1 := module1.Rule("apexRule")
+	copyCmds1 := apexRule1.Args["copy_commands"]
+
+	module2 := ctx.ModuleForTests("commonapex", "android_common_commonapex")
+	apexRule2 := module2.Rule("apexRule")
+	copyCmds2 := apexRule2.Args["copy_commands"]
+
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libcommon"), "android_arm64_armv8-a_core_shared_commonapex")
+	ensureContains(t, copyCmds1, "image.apex/lib64/mylib.so")
+	ensureContains(t, copyCmds2, "image.apex/lib64/libcommon.so")
+	ensureNotContains(t, copyCmds1, "image.apex/lib64/libcommon.so")
+}
+
+func TestApexUsesFailsIfNotProvided(t *testing.T) {
+	testApexError(t, `uses: "commonapex" does not provide native_shared_libs`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			uses: ["commonapex"],
+		}
+
+		apex {
+			name: "commonapex",
+			key: "myapex.key",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+	testApexError(t, `uses: "commonapex" is not a provider`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			uses: ["commonapex"],
+		}
+
+		cc_library {
+			name: "commonapex",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+}
+
+func TestApexUsesFailsIfUseVenderMismatch(t *testing.T) {
+	testApexError(t, `use_vendor: "commonapex" has different value of use_vendor`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			use_vendor: true,
+			uses: ["commonapex"],
+		}
+
+		apex {
+			name: "commonapex",
+			key: "myapex.key",
+			provide_cpp_shared_libs: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
 }
 
 func TestMain(m *testing.M) {
