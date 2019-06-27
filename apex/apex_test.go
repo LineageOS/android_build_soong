@@ -27,8 +27,11 @@ import (
 	"android/soong/java"
 )
 
+var buildDir string
+
 func testApex(t *testing.T, bp string) *android.TestContext {
-	config, buildDir := setup(t)
+	var config android.Config
+	config, buildDir = setup(t)
 	defer teardown(buildDir)
 
 	ctx := android.NewTestArchContext()
@@ -310,6 +313,8 @@ func TestBasicApex(t *testing.T) {
 
 	optFlags := apexRule.Args["opt_flags"]
 	ensureContains(t, optFlags, "--pubkey vendor/foo/devkeys/testkey.avbpubkey")
+	// Ensure that the NOTICE output is being packaged as an asset.
+	ensureContains(t, optFlags, "--assets_dir "+buildDir+"/.intermediates/myapex/android_common_myapex/NOTICE")
 
 	copyCmds := apexRule.Args["copy_commands"]
 
@@ -347,10 +352,10 @@ func TestBasicApex(t *testing.T) {
 		t.Errorf("Could not find all expected symlinks! foo: %t, foo_link_64: %t. Command was %s", found_foo, found_foo_link_64, copyCmds)
 	}
 
-	apexMergeNoticeRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexMergeNoticeRule")
-	noticeInputs := strings.Split(apexMergeNoticeRule.Args["inputs"], " ")
-	if len(noticeInputs) != 3 {
-		t.Errorf("number of input notice files: expected = 3, actual = %d", len(noticeInputs))
+	mergeNoticesRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("mergeNoticesRule")
+	noticeInputs := mergeNoticesRule.Inputs.Strings()
+	if len(noticeInputs) != 2 {
+		t.Errorf("number of input notice files: expected = 2, actual = %q", len(noticeInputs))
 	}
 	ensureListContains(t, noticeInputs, "NOTICE")
 	ensureListContains(t, noticeInputs, "custom_notice")
