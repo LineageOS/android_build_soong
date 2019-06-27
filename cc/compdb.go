@@ -141,7 +141,7 @@ func getArguments(src android.Path, ctx android.SingletonContext, ccModule *Modu
 		isAsm = false
 		isCpp = false
 		clangPath = ccPath
-	case ".cpp", ".cc", ".mm":
+	case ".cpp", ".cc", ".cxx", ".mm":
 		isAsm = false
 		isCpp = true
 		clangPath = cxxPath
