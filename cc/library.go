@@ -810,7 +810,7 @@ func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.
 }
 
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
-	if len(objs.sAbiDumpFiles) > 0 && library.shouldCreateVndkSourceAbiDump(ctx) {
+	if library.shouldCreateVndkSourceAbiDump(ctx) {
 		vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
 		if ver := ctx.DeviceConfig().VndkVersion(); ver != "" && ver != "current" {
 			vndkVersion = ver
