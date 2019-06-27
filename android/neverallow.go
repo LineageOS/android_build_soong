@@ -31,61 +31,64 @@ import (
 // work regardless of these restrictions.
 //
 // A module is disallowed if all of the following are true:
-// - it is in one of the "in" paths
-// - it is not in one of the "notIn" paths
-// - it has all "with" properties matched
+// - it is in one of the "In" paths
+// - it is not in one of the "NotIn" paths
+// - it has all "With" properties matched
 // - - values are matched in their entirety
 // - - nil is interpreted as an empty string
 // - - nested properties are separated with a '.'
 // - - if the property is a list, any of the values in the list being matches
 //     counts as a match
-// - it has none of the "without" properties matched (same rules as above)
+// - it has none of the "Without" properties matched (same rules as above)
 
 func registerNeverallowMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("neverallow", neverallowMutator).Parallel()
 }
 
-var neverallows = createNeverAllows()
+var neverallows = []Rule{}
 
-func createNeverAllows() []*rule {
-	rules := []*rule{}
-	rules = append(rules, createTrebleRules()...)
-	rules = append(rules, createLibcoreRules()...)
-	rules = append(rules, createJavaDeviceForHostRules()...)
-	return rules
+func init() {
+	AddNeverAllowRules(createTrebleRules()...)
+	AddNeverAllowRules(createLibcoreRules()...)
+	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 }
 
-func createTrebleRules() []*rule {
-	return []*rule{
-		neverallow().
-			in("vendor", "device").
-			with("vndk.enabled", "true").
-			without("vendor", "true").
-			because("the VNDK can never contain a library that is device dependent."),
-		neverallow().
-			with("vndk.enabled", "true").
-			without("vendor", "true").
-			without("owner", "").
-			because("a VNDK module can never have an owner."),
+// Add a NeverAllow rule to the set of rules to apply.
+func AddNeverAllowRules(rules ...Rule) {
+	neverallows = append(neverallows, rules...)
+}
+
+func createTrebleRules() []Rule {
+	return []Rule{
+		NeverAllow().
+			In("vendor", "device").
+			With("vndk.enabled", "true").
+			Without("vendor", "true").
+			Because("the VNDK can never contain a library that is device dependent."),
+		NeverAllow().
+			With("vndk.enabled", "true").
+			Without("vendor", "true").
+			Without("owner", "").
+			Because("a VNDK module can never have an owner."),
 
 		// TODO(b/67974785): always enforce the manifest
-		neverallow().
-			without("name", "libhidltransport").
-			with("product_variables.enforce_vintf_manifest.cflags", "*").
-			because("manifest enforcement should be independent of ."),
+		NeverAllow().
+			Without("name", "libhidltransport").
+			With("product_variables.enforce_vintf_manifest.cflags", "*").
+			Because("manifest enforcement should be independent of ."),
 
 		// TODO(b/67975799): vendor code should always use /vendor/bin/sh
-		neverallow().
-			without("name", "libc_bionic_ndk").
-			with("product_variables.treble_linker_namespaces.cflags", "*").
-			because("nothing should care if linker namespaces are enabled or not"),
+		NeverAllow().
+			Without("name", "libc_bionic_ndk").
+			With("product_variables.treble_linker_namespaces.cflags", "*").
+			Because("nothing should care if linker namespaces are enabled or not"),
 
 		// Example:
-		// *neverallow().with("Srcs", "main.cpp"))
+		// *NeverAllow().with("Srcs", "main.cpp"))
 	}
 }
 
-func createLibcoreRules() []*rule {
+func createLibcoreRules() []Rule {
 	var coreLibraryProjects = []string{
 		"libcore",
 		"external/apache-harmony",
@@ -102,27 +105,27 @@ func createLibcoreRules() []*rule {
 
 	// Core library constraints. The sdk_version: "none" can only be used in core library projects.
 	// Access to core library targets is restricted using visibility rules.
-	rules := []*rule{
-		neverallow().
-			notIn(coreLibraryProjects...).
-			with("sdk_version", "none"),
+	rules := []Rule{
+		NeverAllow().
+			NotIn(coreLibraryProjects...).
+			With("sdk_version", "none"),
 	}
 
 	return rules
 }
 
-func createJavaDeviceForHostRules() []*rule {
+func createJavaDeviceForHostRules() []Rule {
 	javaDeviceForHostProjectsWhitelist := []string{
 		"external/guava",
 		"external/robolectric-shadows",
 		"framework/layoutlib",
 	}
 
-	return []*rule{
-		neverallow().
-			notIn(javaDeviceForHostProjectsWhitelist...).
-			moduleType("java_device_for_host", "java_host_for_device").
-			because("java_device_for_host can only be used in whitelisted projects"),
+	return []Rule{
+		NeverAllow().
+			NotIn(javaDeviceForHostProjectsWhitelist...).
+			ModuleType("java_device_for_host", "java_host_for_device").
+			Because("java_device_for_host can only be used in whitelisted projects"),
 	}
 }
 
@@ -135,7 +138,8 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 	dir := ctx.ModuleDir() + "/"
 	properties := m.GetProperties()
 
-	for _, n := range neverallows {
+	for _, r := range neverallows {
+		n := r.(*rule)
 		if !n.appliesToPath(dir) {
 			continue
 		}
@@ -157,6 +161,23 @@ type ruleProperty struct {
 	value  string   // e.x.: true
 }
 
+// A NeverAllow rule.
+type Rule interface {
+	In(path ...string) Rule
+
+	NotIn(path ...string) Rule
+
+	ModuleType(types ...string) Rule
+
+	NotModuleType(types ...string) Rule
+
+	With(properties, value string) Rule
+
+	Without(properties, value string) Rule
+
+	Because(reason string) Rule
+}
+
 type rule struct {
 	// User string for why this is a thing.
 	reason string
@@ -171,31 +192,32 @@ type rule struct {
 	unlessProps []ruleProperty
 }
 
-func neverallow() *rule {
+// Create a new NeverAllow rule.
+func NeverAllow() Rule {
 	return &rule{}
 }
 
-func (r *rule) in(path ...string) *rule {
+func (r *rule) In(path ...string) Rule {
 	r.paths = append(r.paths, cleanPaths(path)...)
 	return r
 }
 
-func (r *rule) notIn(path ...string) *rule {
+func (r *rule) NotIn(path ...string) Rule {
 	r.unlessPaths = append(r.unlessPaths, cleanPaths(path)...)
 	return r
 }
 
-func (r *rule) moduleType(types ...string) *rule {
+func (r *rule) ModuleType(types ...string) Rule {
 	r.moduleTypes = append(r.moduleTypes, types...)
 	return r
 }
 
-func (r *rule) notModuleType(types ...string) *rule {
+func (r *rule) NotModuleType(types ...string) Rule {
 	r.unlessModuleTypes = append(r.unlessModuleTypes, types...)
 	return r
 }
 
-func (r *rule) with(properties, value string) *rule {
+func (r *rule) With(properties, value string) Rule {
 	r.props = append(r.props, ruleProperty{
 		fields: fieldNamesForProperties(properties),
 		value:  value,
@@ -203,7 +225,7 @@ func (r *rule) with(properties, value string) *rule {
 	return r
 }
 
-func (r *rule) without(properties, value string) *rule {
+func (r *rule) Without(properties, value string) Rule {
 	r.unlessProps = append(r.unlessProps, ruleProperty{
 		fields: fieldNamesForProperties(properties),
 		value:  value,
@@ -211,7 +233,7 @@ func (r *rule) without(properties, value string) *rule {
 	return r
 }
 
-func (r *rule) because(reason string) *rule {
+func (r *rule) Because(reason string) Rule {
 	r.reason = reason
 	return r
 }
