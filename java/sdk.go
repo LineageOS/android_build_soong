@@ -153,6 +153,8 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 
 		if m == "core.current.stubs" {
 			ret.systemModules = "core-current-stubs-system-modules"
+			// core_current does not include framework classes.
+			ret.noFrameworksLibs = true
 		}
 		return ret
 	}
