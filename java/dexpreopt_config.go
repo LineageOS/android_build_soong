@@ -49,7 +49,8 @@ func dexpreoptGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
 		return ctx.Config().Once(dexpreoptTestGlobalConfigKey, func() interface{} {
 			// Nope, return a config with preopting disabled
 			return globalConfigAndRaw{dexpreopt.GlobalConfig{
-				DisablePreopt: true,
+				DisablePreopt:          true,
+				DisableGenerateProfile: true,
 			}, nil}
 		})
 	}).(globalConfigAndRaw)

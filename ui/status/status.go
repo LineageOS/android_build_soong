@@ -32,6 +32,10 @@ type Action struct {
 	// but they can be any string.
 	Outputs []string
 
+	// Inputs is the (optional) list of inputs. Usually these are files,
+	// but they can be any string.
+	Inputs []string
+
 	// Command is the actual command line executed to perform the action.
 	// It's optional, but one of either Description or Command should be
 	// set.

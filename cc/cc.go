@@ -778,6 +778,10 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump(config android.Confi
 		// APEX variants do not need ABI dumps.
 		return false
 	}
+	if ctx.isStubs() {
+		// Stubs do not need ABI dumps.
+		return false
+	}
 	if ctx.isNdk() {
 		return true
 	}
