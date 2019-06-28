@@ -369,6 +369,7 @@ var (
 	vndkExtDepTag         = dependencyTag{name: "vndk extends", library: true}
 	runtimeDepTag         = dependencyTag{name: "runtime lib"}
 	coverageDepTag        = dependencyTag{name: "coverage"}
+	testPerSrcDepTag      = dependencyTag{name: "test_per_src"}
 )
 
 // Module contains the properties and members used by all C/C++ module types, and implements
@@ -404,6 +405,9 @@ type Module struct {
 
 	outputFile android.OptionalPath
 
+	// Test output files, in the case of a test module using `test_per_src`.
+	testPerSrcOutputFiles []android.Path
+
 	cachedToolchain config.Toolchain
 
 	subAndroidMkOnce map[subAndroidMkProvider]bool
@@ -424,6 +428,10 @@ type Module struct {
 
 func (c *Module) OutputFile() android.OptionalPath {
 	return c.outputFile
+}
+
+func (c *Module) TestPerSrcOutputFiles() []android.Path {
+	return c.testPerSrcOutputFiles
 }
 
 func (c *Module) UnstrippedOutputFile() android.Path {
@@ -940,6 +948,29 @@ func orderStaticModuleDeps(module *Module, staticDeps []*Module, sharedDeps []*M
 }
 
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+	// Handle the case of a test module split by `test_per_src` mutator.
+	if test, ok := c.linker.(testPerSrc); ok {
+		// The `test_per_src` mutator adds an extra variant named "", depending on all the
+		// other `test_per_src` variants of the test module. Collect the output files of
+		// these dependencies and record them in the `testPerSrcOutputFiles` for later use
+		// (see e.g. `apexBundle.GenerateAndroidBuildActions`).
+		if test.isAllTestsVariation() {
+			var testPerSrcOutputFiles []android.Path
+			for _, dep := range actx.GetDirectDepsWithTag(testPerSrcDepTag) {
+				if ccDep, ok := dep.(*Module); ok {
+					depOutputFile := ccDep.OutputFile().Path()
+					testPerSrcOutputFiles =
+						append(testPerSrcOutputFiles, depOutputFile)
+				}
+			}
+			c.testPerSrcOutputFiles = testPerSrcOutputFiles
+			// Set outputFile to an empty path, as this module does not produce an
+			// output file per se.
+			c.outputFile = android.OptionalPath{}
+			return
+		}
+	}
+
 	c.makeLinkType = c.getMakeLinkType(actx)
 
 	ctx := &moduleContext{
