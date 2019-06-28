@@ -67,10 +67,16 @@ var (
 		"sse4":   []string{"-msse4"},
 		"sse4_1": []string{"-msse4.1"},
 		"sse4_2": []string{"-msse4.2"},
+
+		// Not all cases there is performance gain by enabling -mavx -mavx2
+		// flags so these flags are not enabled by default.
+		// if there is performance gain in individual library components,
+		// the compiler flags can be set in corresponding bp files.
+		// "avx":    []string{"-mavx"},
+		// "avx2":   []string{"-mavx2"},
+		// "avx512": []string{"-mavx512"}
+
 		"popcnt": []string{"-mpopcnt"},
-		"avx":    []string{"-mavx"},
-		"avx2":   []string{"-mavx2"},
-		"avx512": []string{"-mavx512"},
 		"aes_ni": []string{"-maes"},
 	}
 )
