@@ -202,6 +202,55 @@ type Module interface {
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
 	VariablesForTests() map[string]string
+
+	// Get the qualified module id for this module.
+	qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleName
+
+	// Get information about the properties that can contain visibility rules.
+	visibilityProperties() []visibilityProperty
+}
+
+// Qualified id for a module
+type qualifiedModuleName struct {
+	// The package (i.e. directory) in which the module is defined, without trailing /
+	pkg string
+
+	// The name of the module, empty string if package.
+	name string
+}
+
+func (q qualifiedModuleName) String() string {
+	if q.name == "" {
+		return "//" + q.pkg
+	}
+	return "//" + q.pkg + ":" + q.name
+}
+
+func (q qualifiedModuleName) isRootPackage() bool {
+	return q.pkg == "" && q.name == ""
+}
+
+// Get the id for the package containing this module.
+func (q qualifiedModuleName) getContainingPackageId() qualifiedModuleName {
+	pkg := q.pkg
+	if q.name == "" {
+		if pkg == "" {
+			panic(fmt.Errorf("Cannot get containing package id of root package"))
+		}
+
+		index := strings.LastIndex(pkg, "/")
+		if index == -1 {
+			pkg = ""
+		} else {
+			pkg = pkg[:index]
+		}
+	}
+	return newPackageId(pkg)
+}
+
+func newPackageId(pkg string) qualifiedModuleName {
+	// A qualified id for a package module has no name.
+	return qualifiedModuleName{pkg: pkg, name: ""}
 }
 
 type nameProperties struct {
@@ -236,6 +285,20 @@ type commonProperties struct {
 	//      //packages/apps/Settings:__subpackages__.
 	//  ["//visibility:legacy_public"]: The default visibility, behaves as //visibility:public
 	//      for now. It is an error if it is used in a module.
+	//
+	// If a module does not specify the `visibility` property then it uses the
+	// `default_visibility` property of the `package` module in the module's package.
+	//
+	// If a module does not specify the `visibility` property then it uses the
+	// `default_visibility` property of the `package` module in the module's package.
+	//
+	// If the `default_visibility` property is not set for the module's package then
+	// it will use the `default_visibility` of its closest ancestor package for which
+	// a `default_visibility` property is specified.
+	//
+	// If no `default_visibility` property can be found then the module uses the
+	// global default of `//visibility:legacy_public`.
+	//
 	// See https://android.googlesource.com/platform/build/soong/+/master/README.md#visibility for
 	// more details.
 	Visibility []string
@@ -569,6 +632,18 @@ func (m *ModuleBase) BaseModuleName() string {
 
 func (m *ModuleBase) base() *ModuleBase {
 	return m
+}
+
+func (m *ModuleBase) qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleName {
+	return qualifiedModuleName{pkg: ctx.ModuleDir(), name: ctx.ModuleName()}
+}
+
+func (m *ModuleBase) visibilityProperties() []visibilityProperty {
+	return []visibilityProperty{
+		newVisibilityProperty("visibility", func() []string {
+			return m.base().commonProperties.Visibility
+		}),
+	}
 }
 
 func (m *ModuleBase) SetTarget(target Target, multiTargets []Target, primary bool) {
