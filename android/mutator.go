@@ -75,6 +75,8 @@ type RegisterMutatorFunc func(RegisterMutatorsContext)
 var preArch = []RegisterMutatorFunc{
 	registerLoadHookMutator,
 	RegisterNamespaceMutator,
+	// Rename package module types.
+	registerPackageRenamer,
 	RegisterPrebuiltsPreArchMutators,
 	registerVisibilityRuleChecker,
 	RegisterDefaultsPreArchMutators,
