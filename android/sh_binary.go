@@ -29,6 +29,7 @@ func init() {
 	RegisterModuleType("sh_binary", ShBinaryFactory)
 	RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
 	RegisterModuleType("sh_test", ShTestFactory)
+	RegisterModuleType("sh_test_host", ShTestHostFactory)
 }
 
 type shBinaryProperties struct {
@@ -195,11 +196,22 @@ func ShBinaryHostFactory() Module {
 	return module
 }
 
+// sh_test defines a shell script based test module.
 func ShTestFactory() Module {
 	module := &ShTest{}
 	InitShBinaryModule(&module.ShBinary)
 	module.AddProperties(&module.testProperties)
 
 	InitAndroidArchModule(module, HostAndDeviceSupported, MultilibFirst)
+	return module
+}
+
+// sh_test_host defines a shell script based test module that runs on a host.
+func ShTestHostFactory() Module {
+	module := &ShTest{}
+	InitShBinaryModule(&module.ShBinary)
+	module.AddProperties(&module.testProperties)
+
+	InitAndroidArchModule(module, HostSupported, MultilibFirst)
 	return module
 }
