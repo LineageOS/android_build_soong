@@ -18,6 +18,7 @@ func testShBinary(t *testing.T, bp string) (*TestContext, Config) {
 
 	ctx := NewTestArchContext()
 	ctx.RegisterModuleType("sh_test", ModuleFactoryAdaptor(ShTestFactory))
+	ctx.RegisterModuleType("sh_test_host", ModuleFactoryAdaptor(ShTestHostFactory))
 	ctx.Register()
 	mockFiles := map[string][]byte{
 		"Android.bp":         []byte(bp),
@@ -54,5 +55,25 @@ func TestShTestTestData(t *testing.T) {
 	actual := entries.EntryMap["LOCAL_TEST_DATA"]
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Unexpected test data expected: %q, actual: %q", expected, actual)
+	}
+}
+
+func TestShTestHost(t *testing.T) {
+	ctx, _ := testShBinary(t, `
+		sh_test_host {
+			name: "foo",
+			src: "test.sh",
+			filename: "test.sh",
+			data: [
+				"testdata/data1",
+				"testdata/sub/data2",
+			],
+		}
+	`)
+
+	buildOS := BuildOs.String()
+	mod := ctx.ModuleForTests("foo", buildOS+"_x86_64").Module().(*ShTest)
+	if !mod.Host() {
+		t.Errorf("host bit is not set for a sh_test_host module.")
 	}
 }
