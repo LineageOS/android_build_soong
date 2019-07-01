@@ -510,7 +510,7 @@ type AARImport struct {
 }
 
 func (a *AARImport) sdkVersion() string {
-	return String(a.properties.Sdk_version)
+	return proptools.StringDefault(a.properties.Sdk_version, defaultSdkVersion(a))
 }
 
 func (a *AARImport) minSdkVersion() string {
