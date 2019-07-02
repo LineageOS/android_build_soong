@@ -858,8 +858,7 @@ func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName str
 		return android.OptionalPath{}
 	}
 
-	return android.OptionalPathForPath(
-		android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)))
+	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)).HtmlGzOutput
 }
 
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType apexPackaging) {
