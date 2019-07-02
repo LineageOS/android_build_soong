@@ -23,10 +23,10 @@ import (
 )
 
 func isSmartTerminal(w io.Writer) bool {
-	if term, ok := os.LookupEnv("TERM"); ok && term == "dumb" {
-		return false
-	}
 	if f, ok := w.(*os.File); ok {
+		if term, ok := os.LookupEnv("TERM"); ok && term == "dumb" {
+			return false
+		}
 		var termios syscall.Termios
 		_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, f.Fd(),
 			ioctlGetTermios, uintptr(unsafe.Pointer(&termios)),
