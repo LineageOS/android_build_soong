@@ -15,8 +15,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"reflect"
 	"testing"
 )
@@ -84,12 +82,6 @@ func TestPathDepsMutator(t *testing.T) {
 			deps: []string{"c", "a"},
 		},
 	}
-
-	buildDir, err := ioutil.TempDir("", "soong_path_properties_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
