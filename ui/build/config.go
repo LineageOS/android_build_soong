@@ -267,6 +267,10 @@ func getConfigArgs(action BuildAction, dir string, buildDependencies bool, ctx C
 	if err != nil {
 		ctx.Fatalf("Error retrieving top directory: %v", err)
 	}
+	dir, err = filepath.EvalSymlinks(dir)
+	if err != nil {
+		ctx.Fatalf("Unable to evaluate symlink of %s: %v", dir, err)
+	}
 	dir, err = filepath.Abs(dir)
 	if err != nil {
 		ctx.Fatalf("Unable to find absolute path %s: %v", dir, err)
