@@ -18,7 +18,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
 
 	"github.com/google/blueprint/bootstrap"
 
@@ -50,6 +55,42 @@ func newNameResolver(config android.Config) *android.NameResolver {
 }
 
 func main() {
+	if android.SoongDelveListen != "" {
+		if android.SoongDelvePath == "" {
+			fmt.Fprintln(os.Stderr, "SOONG_DELVE is set but failed to find dlv")
+			os.Exit(1)
+		}
+		pid := strconv.Itoa(os.Getpid())
+		cmd := []string{android.SoongDelvePath,
+			"attach", pid,
+			"--headless",
+			"-l", android.SoongDelveListen,
+			"--api-version=2",
+			"--accept-multiclient",
+			"--log",
+		}
+
+		fmt.Println("Starting", strings.Join(cmd, " "))
+		dlv := exec.Command(cmd[0], cmd[1:]...)
+		dlv.Stdout = os.Stdout
+		dlv.Stderr = os.Stderr
+		dlv.Stdin = nil
+
+		// Put dlv into its own process group so we can kill it and the child process it starts.
+		dlv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		err := dlv.Start()
+		if err != nil {
+			// Print the error starting dlv and continue.
+			fmt.Println(err)
+		} else {
+			// Kill the process group for dlv when soong_build exits.
+			defer syscall.Kill(-dlv.Process.Pid, syscall.SIGKILL)
+			// Wait to give dlv a chance to connect and pause the process.
+			time.Sleep(time.Second)
+		}
+	}
+
 	flag.Parse()
 
 	// The top-level Blueprints file is passed as the first argument.
@@ -72,7 +113,17 @@ func main() {
 
 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 
-	bootstrap.Main(ctx.Context, configuration, configuration.ConfigFileName, configuration.ProductVariablesFileName)
+	extraNinjaDeps := []string{configuration.ConfigFileName, configuration.ProductVariablesFileName}
+
+	// Read the SOONG_DELVE again through configuration so that there is a dependency on the environment variable
+	// and soong_build will rerun when it is set for the first time.
+	if listen := configuration.Getenv("SOONG_DELVE"); listen != "" {
+		// Add a non-existent file to the dependencies so that soong_build will rerun when the debugger is
+		// enabled even if it completed successfully.
+		extraNinjaDeps = append(extraNinjaDeps, filepath.Join(configuration.BuildDir(), "always_rerun_for_delve"))
+	}
+
+	bootstrap.Main(ctx.Context, configuration, extraNinjaDeps...)
 
 	if docFile != "" {
 		if err := writeDocs(ctx, docFile); err != nil {

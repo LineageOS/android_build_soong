@@ -81,6 +81,7 @@ var Configuration = map[string]PathConfig{
 	"bzip2":    Allowed,
 	"dd":       Allowed,
 	"diff":     Allowed,
+	"dlv":      Allowed,
 	"egrep":    Allowed,
 	"expr":     Allowed,
 	"find":     Allowed,

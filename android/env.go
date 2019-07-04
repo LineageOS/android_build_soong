@@ -16,6 +16,7 @@ package android
 
 import (
 	"os"
+	"os/exec"
 	"strings"
 
 	"android/soong/env"
@@ -29,8 +30,16 @@ import (
 // a manifest regeneration.
 
 var originalEnv map[string]string
+var SoongDelveListen string
+var SoongDelvePath string
 
 func init() {
+	// Delve support needs to read this environment variable very early, before NewConfig has created a way to
+	// access originalEnv with dependencies.  Store the value where soong_build can find it, it will manually
+	// ensure the dependencies are created.
+	SoongDelveListen = os.Getenv("SOONG_DELVE")
+	SoongDelvePath, _ = exec.LookPath("dlv")
+
 	originalEnv = make(map[string]string)
 	for _, env := range os.Environ() {
 		idx := strings.IndexRune(env, '=')
@@ -38,6 +47,8 @@ func init() {
 			originalEnv[env[:idx]] = env[idx+1:]
 		}
 	}
+	// Clear the environment to prevent use of os.Getenv(), which would not provide dependencies on environment
+	// variable values.  The environment is available through ctx.Config().Getenv, ctx.Config().IsEnvTrue, etc.
 	os.Clearenv()
 }
 
