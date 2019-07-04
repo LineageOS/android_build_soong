@@ -1,8 +1,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -58,15 +56,9 @@ var packageTests = []struct {
 }
 
 func TestPackage(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_package_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	for _, test := range packageTests {
 		t.Run(test.name, func(t *testing.T) {
-			_, errs := testPackage(buildDir, test.fs)
+			_, errs := testPackage(test.fs)
 
 			expectedErrors := test.expectedErrors
 			if expectedErrors == nil {
@@ -89,7 +81,7 @@ func TestPackage(t *testing.T) {
 	}
 }
 
-func testPackage(buildDir string, fs map[string][]byte) (*TestContext, []error) {
+func testPackage(fs map[string][]byte) (*TestContext, []error) {
 
 	// Create a new config per test as visibility information is stored in the config.
 	config := TestArchConfig(buildDir, nil)
