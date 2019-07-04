@@ -337,6 +337,19 @@ build/soong/scripts/setup_go_workspace_for_soong.sh
 This will bind mount the Soong source directories into the directory in the layout expected by
 the IDE.
 
+### Running Soong in a debugger
+
+To run the soong_build process in a debugger, install `dlv` and then start the build with
+`SOONG_DELVE=<listen addr>` in the environment.
+For examle:
+```bash
+SOONG_DELVE=:1234 m nothing
+```
+and then in another terminal:
+```
+dlv connect :1234
+```
+
 ## Contact
 
 Email android-building@googlegroups.com (external) for any questions, or see
