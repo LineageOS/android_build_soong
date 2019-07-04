@@ -15,8 +15,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"reflect"
 	"testing"
 
@@ -56,12 +54,6 @@ func addMissingDependenciesMutator(ctx TopDownMutatorContext) {
 }
 
 func TestMutatorAddMissingDependencies(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_mutator_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 

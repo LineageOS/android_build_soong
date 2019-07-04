@@ -117,6 +117,8 @@ type TopDownMutator func(TopDownMutatorContext)
 type TopDownMutatorContext interface {
 	BaseModuleContext
 
+	MutatorName() string
+
 	Rename(name string)
 
 	CreateModule(blueprint.ModuleFactory, ...interface{})
@@ -131,6 +133,8 @@ type BottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
 	BaseModuleContext
+
+	MutatorName() string
 
 	Rename(name string)
 
@@ -229,12 +233,20 @@ func (t *topDownMutatorContext) PrependProperties(props ...interface{}) {
 // non-overridden method has to be forwarded.  There are fewer non-overridden methods, so use the latter.  The following
 // methods forward to the identical blueprint versions for topDownMutatorContext and bottomUpMutatorContext.
 
+func (t *topDownMutatorContext) MutatorName() string {
+	return t.bp.MutatorName()
+}
+
 func (t *topDownMutatorContext) Rename(name string) {
 	t.bp.Rename(name)
 }
 
 func (t *topDownMutatorContext) CreateModule(factory blueprint.ModuleFactory, props ...interface{}) {
 	t.bp.CreateModule(factory, props...)
+}
+
+func (b *bottomUpMutatorContext) MutatorName() string {
+	return b.bp.MutatorName()
 }
 
 func (b *bottomUpMutatorContext) Rename(name string) {
