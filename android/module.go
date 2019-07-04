@@ -203,6 +203,9 @@ type Module interface {
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
 	VariablesForTests() map[string]string
 
+	// String returns a string that includes the module name and variants for printing during debugging.
+	String() string
+
 	// Get the qualified module id for this module.
 	qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleName
 
@@ -408,6 +411,11 @@ type commonProperties struct {
 	NamespaceExportedToMake bool `blueprint:"mutated"`
 
 	MissingDeps []string `blueprint:"mutated"`
+
+	// Name and variant strings stored by mutators to enable Module.String()
+	DebugName       string   `blueprint:"mutated"`
+	DebugMutators   []string `blueprint:"mutated"`
+	DebugVariations []string `blueprint:"mutated"`
 }
 
 type hostAndDeviceProperties struct {
@@ -623,6 +631,23 @@ func (m *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleB
 // example prebuilts will prepend prebuilt_ to the name.
 func (m *ModuleBase) Name() string {
 	return String(m.nameProperties.Name)
+}
+
+// String returns a string that includes the module name and variants for printing during debugging.
+func (m *ModuleBase) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(m.commonProperties.DebugName)
+	sb.WriteString("{")
+	for i := range m.commonProperties.DebugMutators {
+		if i != 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(m.commonProperties.DebugMutators[i])
+		sb.WriteString(":")
+		sb.WriteString(m.commonProperties.DebugVariations[i])
+	}
+	sb.WriteString("}")
+	return sb.String()
 }
 
 // BaseModuleName returns the name of the module as specified in the blueprints file.
