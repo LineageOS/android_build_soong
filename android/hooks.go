@@ -129,6 +129,8 @@ func registerLoadHookMutator(ctx RegisterMutatorsContext) {
 
 func LoadHookMutator(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(Module); ok {
+		m.base().commonProperties.DebugName = ctx.ModuleName()
+
 		// Cast through *topDownMutatorContext because AppendProperties is implemented
 		// on *topDownMutatorContext but not exposed through TopDownMutatorContext
 		var loadHookCtx LoadHookContext = ctx.(*topDownMutatorContext)
