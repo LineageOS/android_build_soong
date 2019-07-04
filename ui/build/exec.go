@@ -15,7 +15,10 @@
 package build
 
 import (
+	"bufio"
+	"io"
 	"os/exec"
+	"strings"
 )
 
 // Cmd is a wrapper of os/exec.Cmd that integrates with the build context for
@@ -136,6 +139,37 @@ func (c *Cmd) RunAndPrintOrFatal() {
 			st.Print(string(ret))
 		}
 	}
+	st.Finish()
+	c.reportError(err)
+}
+
+// RunAndStreamOrFatal will run the command, while running print
+// any output, then handle any errors with a call to ctx.Fatal
+func (c *Cmd) RunAndStreamOrFatal() {
+	out, err := c.StdoutPipe()
+	if err != nil {
+		c.ctx.Fatal(err)
+	}
+	c.Stderr = c.Stdout
+
+	st := c.ctx.Status.StartTool()
+
+	c.StartOrFatal()
+
+	buf := bufio.NewReaderSize(out, 2*1024*1024)
+	for {
+		// Attempt to read whole lines, but write partial lines that are too long to fit in the buffer or hit EOF
+		line, err := buf.ReadString('\n')
+		if line != "" {
+			st.Print(strings.TrimSuffix(line, "\n"))
+		} else if err == io.EOF {
+			break
+		} else if err != nil {
+			c.ctx.Fatal(err)
+		}
+	}
+
+	err = c.Wait()
 	st.Finish()
 	c.reportError(err)
 }
