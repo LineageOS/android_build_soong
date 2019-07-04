@@ -162,6 +162,10 @@ func (c *Cmd) wrapSandbox() {
 		c.ctx.Printf("AllowBuildBrokenUsesNetwork: %v", c.Sandbox.AllowBuildBrokenUsesNetwork)
 		c.ctx.Printf("BuildBrokenUsesNetwork: %v", c.config.BuildBrokenUsesNetwork())
 		sandboxArgs = append(sandboxArgs, "-N")
+	} else if dlv, _ := c.config.Environment().Get("SOONG_DELVE"); dlv != "" {
+		// The debugger is enabled and soong_build will pause until a remote delve process connects, allow
+		// network connections.
+		sandboxArgs = append(sandboxArgs, "-N")
 	}
 
 	// Stop nsjail from parsing arguments

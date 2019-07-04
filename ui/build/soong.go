@@ -120,7 +120,7 @@ func runSoong(ctx Context, config Config) {
 			"--frontend_file", fifo,
 			"-f", filepath.Join(config.SoongOutDir(), file))
 		cmd.Sandbox = soongSandbox
-		cmd.RunAndPrintOrFatal()
+		cmd.RunAndStreamOrFatal()
 	}
 
 	ninja("minibootstrap", ".minibootstrap/build.ninja")
