@@ -690,6 +690,9 @@ type buildActionTestCase struct {
 	// Build files that exists in the source tree.
 	buildFiles []string
 
+	// Create root symlink that points to topDir.
+	rootSymlink bool
+
 	// ********* Action *********
 	// Arguments passed in to soong_ui.
 	args []string
@@ -737,6 +740,22 @@ func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction,
 
 	createDirectories(t, topDir, tt.dirsInTrees)
 	createBuildFiles(t, topDir, tt.buildFiles)
+
+	if tt.rootSymlink {
+		// Create a secondary root source tree which points to the true root source tree.
+		symlinkTopDir, err := ioutil.TempDir("", "")
+		if err != nil {
+			t.Fatalf("failed to create symlink temp dir: %v", err)
+		}
+		defer os.RemoveAll(symlinkTopDir)
+
+		symlinkTopDir = filepath.Join(symlinkTopDir, "root")
+		err = os.Symlink(topDir, symlinkTopDir)
+		if err != nil {
+			t.Fatalf("failed to create symlink: %v", err)
+		}
+		topDir = symlinkTopDir
+	}
 
 	r := setTop(t, topDir)
 	defer r()
@@ -796,7 +815,17 @@ func TestGetConfigArgsBuildModules(t *testing.T) {
 		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
 		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp"},
 		args:            []string{},
-		curDir:          "1/2/3/4/5/6/7/8/9",
+		curDir:          "0/2",
+		tidyOnly:        "",
+		expectedArgs:    []string{},
+		expectedEnvVars: []envVar{},
+	}, {
+		description:     "normal execution in symlink root source tree, no args",
+		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
+		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp"},
+		rootSymlink:     true,
+		args:            []string{},
+		curDir:          "0/2",
 		tidyOnly:        "",
 		expectedArgs:    []string{},
 		expectedEnvVars: []envVar{},
@@ -932,6 +961,17 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			description:     "build action executed at root directory",
 			dirsInTrees:     []string{},
 			buildFiles:      []string{},
+			rootSymlink:     false,
+			args:            []string{},
+			curDir:          ".",
+			tidyOnly:        "",
+			expectedArgs:    []string{},
+			expectedEnvVars: []envVar{},
+		}, {
+			description:     "build action executed at root directory in symlink",
+			dirsInTrees:     []string{},
+			buildFiles:      []string{},
+			rootSymlink:     true,
 			args:            []string{},
 			curDir:          ".",
 			tidyOnly:        "",
@@ -1080,6 +1120,20 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 		description:  "normal execution from top dir directory",
 		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3", "0/2"},
 		buildFiles:   []string{"0/1/2/3.1/Android.bp", "0/1/2/3.2/Android.bp", "0/1/3/Android.bp", "0/2/Android.bp"},
+		rootSymlink:  false,
+		args:         []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3", "0/2"},
+		curDir:       ".",
+		tidyOnly:     "",
+		expectedArgs: []string{"MODULES-IN-0-1-2-3.1", "MODULES-IN-0-1-2-3.2", "MODULES-IN-0-1-3", "MODULES-IN-0-2"},
+		expectedEnvVars: []envVar{
+			envVar{
+				name:  "ONE_SHOT_MAKEFILE",
+				value: ""}},
+	}, {
+		description:  "normal execution from top dir directory in symlink",
+		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3", "0/2"},
+		buildFiles:   []string{"0/1/2/3.1/Android.bp", "0/1/2/3.2/Android.bp", "0/1/3/Android.bp", "0/2/Android.bp"},
+		rootSymlink:  true,
 		args:         []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3", "0/2"},
 		curDir:       ".",
 		tidyOnly:     "",

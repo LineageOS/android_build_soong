@@ -117,6 +117,8 @@ type TopDownMutator func(TopDownMutatorContext)
 type TopDownMutatorContext interface {
 	BaseModuleContext
 
+	MutatorName() string
+
 	Rename(name string)
 
 	CreateModule(blueprint.ModuleFactory, ...interface{})
@@ -131,6 +133,8 @@ type BottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
 	BaseModuleContext
+
+	MutatorName() string
 
 	Rename(name string)
 
@@ -229,16 +233,26 @@ func (t *topDownMutatorContext) PrependProperties(props ...interface{}) {
 // non-overridden method has to be forwarded.  There are fewer non-overridden methods, so use the latter.  The following
 // methods forward to the identical blueprint versions for topDownMutatorContext and bottomUpMutatorContext.
 
+func (t *topDownMutatorContext) MutatorName() string {
+	return t.bp.MutatorName()
+}
+
 func (t *topDownMutatorContext) Rename(name string) {
 	t.bp.Rename(name)
+	t.Module().base().commonProperties.DebugName = name
 }
 
 func (t *topDownMutatorContext) CreateModule(factory blueprint.ModuleFactory, props ...interface{}) {
 	t.bp.CreateModule(factory, props...)
 }
 
+func (b *bottomUpMutatorContext) MutatorName() string {
+	return b.bp.MutatorName()
+}
+
 func (b *bottomUpMutatorContext) Rename(name string) {
 	b.bp.Rename(name)
+	b.Module().base().commonProperties.DebugName = name
 }
 
 func (b *bottomUpMutatorContext) AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) {
@@ -250,11 +264,27 @@ func (b *bottomUpMutatorContext) AddReverseDependency(module blueprint.Module, t
 }
 
 func (b *bottomUpMutatorContext) CreateVariations(variations ...string) []blueprint.Module {
-	return b.bp.CreateVariations(variations...)
+	modules := b.bp.CreateVariations(variations...)
+
+	for i := range variations {
+		base := modules[i].(Module).base()
+		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, b.MutatorName())
+		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variations[i])
+	}
+
+	return modules
 }
 
 func (b *bottomUpMutatorContext) CreateLocalVariations(variations ...string) []blueprint.Module {
-	return b.bp.CreateLocalVariations(variations...)
+	modules := b.bp.CreateLocalVariations(variations...)
+
+	for i := range variations {
+		base := modules[i].(Module).base()
+		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, b.MutatorName())
+		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variations[i])
+	}
+
+	return modules
 }
 
 func (b *bottomUpMutatorContext) SetDependencyVariation(variation string) {

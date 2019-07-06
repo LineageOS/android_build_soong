@@ -15,8 +15,6 @@
 package android
 
 import (
-	"io/ioutil"
-	"os"
 	"reflect"
 	"testing"
 
@@ -26,6 +24,8 @@ import (
 type mutatorTestModule struct {
 	ModuleBase
 	props struct {
+		Deps_missing_deps    []string
+		Mutator_missing_deps []string
 	}
 
 	missingDeps []string
@@ -48,20 +48,14 @@ func (m *mutatorTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
 func (m *mutatorTestModule) DepsMutator(ctx BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), nil, "regular_missing_dep")
+	ctx.AddDependency(ctx.Module(), nil, m.props.Deps_missing_deps...)
 }
 
 func addMissingDependenciesMutator(ctx TopDownMutatorContext) {
-	ctx.AddMissingDependencies([]string{"added_missing_dep"})
+	ctx.AddMissingDependencies(ctx.Module().(*mutatorTestModule).props.Mutator_missing_deps)
 }
 
 func TestMutatorAddMissingDependencies(t *testing.T) {
-	buildDir, err := ioutil.TempDir("", "soong_mutator_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(buildDir)
-
 	config := TestConfig(buildDir, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 
@@ -76,6 +70,8 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 	bp := `
 		test {
 			name: "foo",
+			deps_missing_deps: ["regular_missing_dep"],
+			mutator_missing_deps: ["added_missing_dep"],
 		}
 	`
 
@@ -95,5 +91,109 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 
 	if g, w := foo.missingDeps, []string{"added_missing_dep", "regular_missing_dep"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("want foo missing deps %q, got %q", w, g)
+	}
+}
+
+func TestModuleString(t *testing.T) {
+	ctx := NewTestContext()
+
+	var moduleStrings []string
+
+	ctx.PreArchMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("pre_arch", func(ctx BottomUpMutatorContext) {
+			moduleStrings = append(moduleStrings, ctx.Module().String())
+			ctx.CreateVariations("a", "b")
+		})
+		ctx.TopDown("rename_top_down", func(ctx TopDownMutatorContext) {
+			moduleStrings = append(moduleStrings, ctx.Module().String())
+			ctx.Rename(ctx.Module().base().Name() + "_renamed1")
+		})
+	})
+
+	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("pre_deps", func(ctx BottomUpMutatorContext) {
+			moduleStrings = append(moduleStrings, ctx.Module().String())
+			ctx.CreateVariations("c", "d")
+		})
+	})
+
+	ctx.PostDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("post_deps", func(ctx BottomUpMutatorContext) {
+			moduleStrings = append(moduleStrings, ctx.Module().String())
+			ctx.CreateLocalVariations("e", "f")
+		})
+		ctx.BottomUp("rename_bottom_up", func(ctx BottomUpMutatorContext) {
+			moduleStrings = append(moduleStrings, ctx.Module().String())
+			ctx.Rename(ctx.Module().base().Name() + "_renamed2")
+		})
+		ctx.BottomUp("final", func(ctx BottomUpMutatorContext) {
+			moduleStrings = append(moduleStrings, ctx.Module().String())
+		})
+	})
+
+	ctx.RegisterModuleType("test", ModuleFactoryAdaptor(mutatorTestModuleFactory))
+
+	bp := `
+		test {
+			name: "foo",
+		}
+	`
+
+	mockFS := map[string][]byte{
+		"Android.bp": []byte(bp),
+	}
+
+	ctx.MockFileSystem(mockFS)
+
+	ctx.Register()
+
+	config := TestConfig(buildDir, nil)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	want := []string{
+		// Initial name.
+		"foo{}",
+
+		// After pre_arch (reversed because rename_top_down is TopDown so it visits in reverse order).
+		"foo{pre_arch:b}",
+		"foo{pre_arch:a}",
+
+		// After rename_top_down.
+		"foo_renamed1{pre_arch:a}",
+		"foo_renamed1{pre_arch:b}",
+
+		// After pre_deps.
+		"foo_renamed1{pre_arch:a,pre_deps:c}",
+		"foo_renamed1{pre_arch:a,pre_deps:d}",
+		"foo_renamed1{pre_arch:b,pre_deps:c}",
+		"foo_renamed1{pre_arch:b,pre_deps:d}",
+
+		// After post_deps.
+		"foo_renamed1{pre_arch:a,pre_deps:c,post_deps:e}",
+		"foo_renamed1{pre_arch:a,pre_deps:c,post_deps:f}",
+		"foo_renamed1{pre_arch:a,pre_deps:d,post_deps:e}",
+		"foo_renamed1{pre_arch:a,pre_deps:d,post_deps:f}",
+		"foo_renamed1{pre_arch:b,pre_deps:c,post_deps:e}",
+		"foo_renamed1{pre_arch:b,pre_deps:c,post_deps:f}",
+		"foo_renamed1{pre_arch:b,pre_deps:d,post_deps:e}",
+		"foo_renamed1{pre_arch:b,pre_deps:d,post_deps:f}",
+
+		// After rename_bottom_up.
+		"foo_renamed2{pre_arch:a,pre_deps:c,post_deps:e}",
+		"foo_renamed2{pre_arch:a,pre_deps:c,post_deps:f}",
+		"foo_renamed2{pre_arch:a,pre_deps:d,post_deps:e}",
+		"foo_renamed2{pre_arch:a,pre_deps:d,post_deps:f}",
+		"foo_renamed2{pre_arch:b,pre_deps:c,post_deps:e}",
+		"foo_renamed2{pre_arch:b,pre_deps:c,post_deps:f}",
+		"foo_renamed2{pre_arch:b,pre_deps:d,post_deps:e}",
+		"foo_renamed2{pre_arch:b,pre_deps:d,post_deps:f}",
+	}
+
+	if !reflect.DeepEqual(moduleStrings, want) {
+		t.Errorf("want module String() values:\n%q\ngot:\n%q", want, moduleStrings)
 	}
 }
