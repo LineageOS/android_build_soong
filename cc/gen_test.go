@@ -16,6 +16,7 @@ package cc
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -42,7 +43,8 @@ func TestGen(t *testing.T) {
 		ctx := testCc(t, `
 		filegroup {
 			name: "fg",
-			srcs: ["b.aidl"],
+			srcs: ["sub/c.aidl"],
+			path: "sub",
 		}
 
 		cc_library_shared {
@@ -59,6 +61,12 @@ func TestGen(t *testing.T) {
 		if !inList("-I"+filepath.Dir(aidl.Output.String()), libfoo.flags.GlobalFlags) {
 			t.Errorf("missing aidl includes in global flags")
 		}
+
+		aidlCommand := aidl.RuleParams.Command
+		if !strings.Contains(aidlCommand, "-Isub") {
+			t.Errorf("aidl command for c.aidl should contain \"-Isub\", but was %q", aidlCommand)
+		}
+
 	})
 
 }
