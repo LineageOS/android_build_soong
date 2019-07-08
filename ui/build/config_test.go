@@ -441,7 +441,7 @@ func TestConfigGetTargets(t *testing.T) {
 		buildFiles:  []string{},
 		dirs:        []string{"1/2/3:t1"},
 		curDir:      "0",
-		errStr:      "Build file not found for 0/1/2/3 directory",
+		errStr:      "Couldn't locate a build file from 0/1/2/3 directory",
 	}, {
 		description: "one target dir specified, one target specified, build file not in target dir",
 		dirsInTrees: []string{"0/1/2/3"},
