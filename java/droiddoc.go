@@ -500,6 +500,7 @@ func (j *Javadoc) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
+// javadoc converts .java source files to documentation using javadoc.
 func JavadocFactory() android.Module {
 	module := &Javadoc{}
 
@@ -509,6 +510,7 @@ func JavadocFactory() android.Module {
 	return module
 }
 
+// javadoc_host converts .java source files to documentation using javadoc.
 func JavadocHostFactory() android.Module {
 	module := &Javadoc{}
 
@@ -831,6 +833,7 @@ type Droiddoc struct {
 	apiFilePath android.Path
 }
 
+// droiddoc converts .java source files to documentation using doclava or dokka.
 func DroiddocFactory() android.Module {
 	module := &Droiddoc{}
 
@@ -841,6 +844,7 @@ func DroiddocFactory() android.Module {
 	return module
 }
 
+// droiddoc_host converts .java source files to documentation using doclava or dokka.
 func DroiddocHostFactory() android.Module {
 	module := &Droiddoc{}
 
@@ -1258,6 +1262,9 @@ type Droidstubs struct {
 	jdiffStubsSrcJar android.WritablePath
 }
 
+// droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
+// documented, filtering out hidden classes and methods.  The resulting .java files are intended to be passed to
+// a droiddoc module to generate documentation.
 func DroidstubsFactory() android.Module {
 	module := &Droidstubs{}
 
@@ -1268,6 +1275,10 @@ func DroidstubsFactory() android.Module {
 	return module
 }
 
+// droidstubs_host passes sources files through Metalava to generate stub .java files that only contain the API
+// to be documented, filtering out hidden classes and methods.  The resulting .java files are intended to be
+// passed to a droiddoc_host module to generate documentation.  Use a droidstubs_host instead of a droidstubs
+// module when symbols needed by the source files are provided by java_library_host modules.
 func DroidstubsHostFactory() android.Module {
 	module := &Droidstubs{}
 
@@ -1781,6 +1792,7 @@ type ExportedDroiddocDir struct {
 	dir  android.Path
 }
 
+// droiddoc_exported_dir exports a directory of html templates or nullability annotations for use by doclava.
 func ExportedDroiddocDirFactory() android.Module {
 	module := &ExportedDroiddocDir{}
 	module.AddProperties(&module.properties)
