@@ -57,6 +57,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(cc.LibraryHeaderFactory))
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(cc.BinaryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
+	ctx.RegisterModuleType("cc_test", android.ModuleFactoryAdaptor(cc.TestFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
 	ctx.RegisterModuleType("prebuilt_etc", android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory))
@@ -168,6 +169,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
 		"system/sepolicy/apex/otherapex-file_contexts":      nil,
 		"mylib.cpp":                            nil,
+		"mytest.cpp":                           nil,
 		"myprebuilt":                           nil,
 		"my_include":                           nil,
 		"vendor/foo/devkeys/test.x509.pem":     nil,
@@ -1283,6 +1285,40 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 	if p.installFilename != expected {
 		t.Errorf("installFilename invalid. expected: %q, actual: %q", expected, p.installFilename)
 	}
+}
+
+func TestApexWithTests(t *testing.T) {
+	ctx := testApex(t, `
+		apex_test {
+			name: "myapex",
+			key: "myapex.key",
+			tests: [
+				"mytest",
+			],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_test {
+			name: "mytest",
+			gtest: false,
+			srcs: ["mytest.cpp"],
+			relative_install_path: "test",
+			system_shared_libs: [],
+			static_executable: true,
+			stl: "none",
+		}
+	`)
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that test dep is copied into apex.
+	ensureContains(t, copyCmds, "image.apex/bin/test/mytest")
 }
 
 func TestMain(m *testing.M) {
