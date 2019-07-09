@@ -327,6 +327,18 @@ func (app *AndroidApp) AndroidMk() android.AndroidMkData {
 					install := "$(LOCAL_MODULE_PATH)/" + strings.TrimSuffix(app.installApkName, ".apk") + split.suffix + ".apk"
 					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED +=", split.path.String()+":"+install)
 				}
+				if app.noticeOutputs.Merged.Valid() {
+					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
+						app.installApkName, app.noticeOutputs.Merged.String(), app.installApkName+"_NOTICE")
+				}
+				if app.noticeOutputs.TxtOutput.Valid() {
+					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
+						app.installApkName, app.noticeOutputs.TxtOutput.String(), app.installApkName+"_NOTICE.txt")
+				}
+				if app.noticeOutputs.HtmlOutput.Valid() {
+					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
+						app.installApkName, app.noticeOutputs.HtmlOutput.String(), app.installApkName+"_NOTICE.html")
+				}
 			},
 		},
 	}

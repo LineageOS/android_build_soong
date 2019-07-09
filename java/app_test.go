@@ -1479,16 +1479,20 @@ func TestEmbedNotice(t *testing.T) {
 
 	// bar has NOTICE files to process, but embed_notices is not set.
 	bar := ctx.ModuleForTests("bar", "android_common")
-	mergeNotices = bar.MaybeRule("mergeNoticesRule")
-	if mergeNotices.Rule != nil {
-		t.Errorf("mergeNotices shouldn't have run for bar")
+	res = bar.Output("package-res.apk")
+	aapt2Flags = res.Args["flags"]
+	e = "-A " + buildDir + "/.intermediates/bar/android_common/NOTICE"
+	if strings.Contains(aapt2Flags, e) {
+		t.Errorf("bar shouldn't have the asset dir flag for NOTICE: %q", e)
 	}
 
 	// baz's embed_notice is true, but it doesn't have any NOTICE files.
 	baz := ctx.ModuleForTests("baz", "android_common")
-	mergeNotices = baz.MaybeRule("mergeNoticesRule")
-	if mergeNotices.Rule != nil {
-		t.Errorf("mergeNotices shouldn't have run for baz")
+	res = baz.Output("package-res.apk")
+	aapt2Flags = res.Args["flags"]
+	e = "-A " + buildDir + "/.intermediates/baz/android_common/NOTICE"
+	if strings.Contains(aapt2Flags, e) {
+		t.Errorf("baz shouldn't have the asset dir flag for NOTICE: %q", e)
 	}
 }
 
