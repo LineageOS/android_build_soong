@@ -639,7 +639,7 @@ func (c *configImpl) Arguments() []string {
 
 func (c *configImpl) OutDir() string {
 	if outDir, ok := c.environ.Get("OUT_DIR"); ok {
-		return filepath.Clean(outDir)
+		return outDir
 	}
 	return "out"
 }
