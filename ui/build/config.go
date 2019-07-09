@@ -308,12 +308,10 @@ func getConfigArgs(action BuildAction, dir string, buildDependencies bool, ctx C
 		if topDir == dir {
 			break
 		}
-		// Find the build file from the directory where the build action was triggered by traversing up
-		// the source tree. If a blank build filename is returned, simply use the directory where the build
-		// action was invoked.
+
 		buildFile := findBuildFile(ctx, relDir)
 		if buildFile == "" {
-			buildFile = filepath.Join(relDir, "Android.mk")
+			ctx.Fatalf("Build file not found for %s directory", relDir)
 		}
 		buildFiles = []string{buildFile}
 		targets = []string{convertToTarget(filepath.Dir(buildFile), targetNamePrefix)}
@@ -361,19 +359,43 @@ func hasBuildFile(ctx Context, dir string) bool {
 	return false
 }
 
-// findBuildFile finds a build file (makefile or blueprint file) by looking at dir first. If not
-// found, go up one level and repeat again until one is found and the path of that build file
-// relative to the root directory of the source tree is returned. The returned filename of build
-// file is "Android.mk". If one was not found, a blank string is returned.
+// findBuildFile finds a build file (makefile or blueprint file) by looking if there is a build file
+// in the current and any sub directory of dir. If a build file is not found, traverse the path
+// up by one directory and repeat again until either a build file is found or reached to the root
+// source tree. The returned filename of build file is "Android.mk". If one was not found, a blank
+// string is returned.
 func findBuildFile(ctx Context, dir string) string {
-	// If the string is empty, assume it is top directory of the source tree.
-	if dir == "" {
+	// If the string is empty or ".", assume it is top directory of the source tree.
+	if dir == "" || dir == "." {
 		return ""
 	}
 
-	for ; dir != "."; dir = filepath.Dir(dir) {
-		if hasBuildFile(ctx, dir) {
-			return filepath.Join(dir, "Android.mk")
+	found := false
+	for buildDir := dir; buildDir != "."; buildDir = filepath.Dir(buildDir) {
+		err := filepath.Walk(buildDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if found {
+				return filepath.SkipDir
+			}
+			if info.IsDir() {
+				return nil
+			}
+			for _, buildFile := range buildFiles {
+				if info.Name() == buildFile {
+					found = true
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			ctx.Fatalf("Error finding Android build file: %v", err)
+		}
+
+		if found {
+			return filepath.Join(buildDir, "Android.mk")
 		}
 	}
 
