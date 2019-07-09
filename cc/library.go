@@ -113,8 +113,6 @@ type LibraryProperties struct {
 }
 
 type LibraryMutatedProperties struct {
-	VariantName string `blueprint:"mutated"`
-
 	// Build a static variant
 	BuildStatic bool `blueprint:"mutated"`
 	// Build a shared variant
@@ -528,7 +526,7 @@ func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 		}
 	}
 
-	return name + library.MutatedProperties.VariantName
+	return name
 }
 
 var versioningMacroNamesListMutex sync.Mutex
@@ -633,7 +631,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	library.objects = deps.WholeStaticLibObjs.Copy()
 	library.objects = library.objects.Append(objs)
 
-	fileName := ctx.ModuleName() + library.MutatedProperties.VariantName + staticLibraryExtension
+	fileName := ctx.ModuleName() + staticLibraryExtension
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	builderFlags := flagsToBuilderFlags(flags)
 
@@ -651,8 +649,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 
 	TransformObjToStaticLib(ctx, library.objects.objFiles, builderFlags, outputFile, objs.tidyFiles)
 
-	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, library.objects,
-		ctx.ModuleName()+library.MutatedProperties.VariantName)
+	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, library.objects, ctx.ModuleName())
 
 	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
 
