@@ -284,7 +284,7 @@ var _ BuilderContext = SingletonContext(nil)
 
 func (r *RuleBuilder) depFileMergerCmd(ctx PathContext, depFiles WritablePaths) *RuleBuilderCommand {
 	return r.Command().
-		Tool(ctx.Config().HostToolPath(ctx, "dep_fixer")).
+		BuiltTool(ctx, "dep_fixer").
 		Inputs(depFiles.Paths())
 }
 
@@ -352,7 +352,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 		}
 
 		sboxCmd := &RuleBuilderCommand{}
-		sboxCmd.Tool(ctx.Config().HostToolPath(ctx, "sbox")).
+		sboxCmd.BuiltTool(ctx, "sbox").
 			Flag("-c").Text(commandString).
 			Flag("--sandbox-path").Text(shared.TempDirForOutDir(PathForOutput(ctx).String())).
 			Flag("--output-root").Text(r.sboxOutDir.String()).
@@ -476,6 +476,24 @@ func (c *RuleBuilderCommand) FlagWithList(flag string, list []string, sep string
 func (c *RuleBuilderCommand) Tool(path Path) *RuleBuilderCommand {
 	c.tools = append(c.tools, path)
 	return c.Text(path.String())
+}
+
+// BuiltTool adds the specified tool path that was built using a host Soong module to the command line.  The path will
+// be also added to the dependencies returned by RuleBuilder.Tools.
+//
+// It is equivalent to:
+//  cmd.Tool(ctx.Config().HostToolPath(ctx, tool))
+func (c *RuleBuilderCommand) BuiltTool(ctx PathContext, tool string) *RuleBuilderCommand {
+	return c.Tool(ctx.Config().HostToolPath(ctx, tool))
+}
+
+// PrebuiltBuildTool adds the specified tool path from prebuils/build-tools.  The path will be also added to the
+// dependencies returned by RuleBuilder.Tools.
+//
+// It is equivalent to:
+//  cmd.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
+func (c *RuleBuilderCommand) PrebuiltBuildTool(ctx PathContext, tool string) *RuleBuilderCommand {
+	return c.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
 }
 
 // Input adds the specified input path to the command line.  The path will also be added to the dependencies returned by
