@@ -267,7 +267,7 @@ func (r *RuleBuilder) Tools() Paths {
 func (r *RuleBuilder) Commands() []string {
 	var commands []string
 	for _, c := range r.commands {
-		commands = append(commands, string(c.buf))
+		commands = append(commands, c.buf.String())
 	}
 	return commands
 }
@@ -358,7 +358,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 			Flag("--output-root").Text(r.sboxOutDir.String()).
 			Flags(sboxOutputs)
 
-		commandString = string(sboxCmd.buf)
+		commandString = sboxCmd.buf.String()
 		tools = append(tools, sboxCmd.tools...)
 	}
 
@@ -388,7 +388,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 // RuleBuilderCommand, so they can be used chained or unchained.  All methods that add text implicitly add a single
 // space as a separator from the previous method.
 type RuleBuilderCommand struct {
-	buf      []byte
+	buf      strings.Builder
 	inputs   Paths
 	outputs  WritablePaths
 	depFiles WritablePaths
@@ -420,10 +420,10 @@ func (c *RuleBuilderCommand) outputStr(path Path) string {
 // Text adds the specified raw text to the command line.  The text should not contain input or output paths or the
 // rule will not have them listed in its dependencies or outputs.
 func (c *RuleBuilderCommand) Text(text string) *RuleBuilderCommand {
-	if len(c.buf) > 0 {
-		c.buf = append(c.buf, ' ')
+	if c.buf.Len() > 0 {
+		c.buf.WriteByte(' ')
 	}
-	c.buf = append(c.buf, text...)
+	c.buf.WriteString(text)
 	return c
 }
 
@@ -608,7 +608,7 @@ func (c *RuleBuilderCommand) FlagWithDepFile(flag string, path WritablePath) *Ru
 
 // String returns the command line.
 func (c *RuleBuilderCommand) String() string {
-	return string(c.buf)
+	return c.buf.String()
 }
 
 func ninjaNameEscape(s string) string {
