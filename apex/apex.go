@@ -108,6 +108,7 @@ var (
 	executableTag  = dependencyTag{name: "executable"}
 	javaLibTag     = dependencyTag{name: "javaLib"}
 	prebuiltTag    = dependencyTag{name: "prebuilt"}
+	testTag        = dependencyTag{name: "test"}
 	keyTag         = dependencyTag{name: "key"}
 	certificateTag = dependencyTag{name: "certificate"}
 )
@@ -192,6 +193,8 @@ type apexNativeDependencies struct {
 	Native_shared_libs []string
 	// List of native executables
 	Binaries []string
+	// List of native tests
+	Tests []string
 }
 type apexMultilibProperties struct {
 	// Native dependencies whose compile_multilib is "first"
@@ -232,7 +235,7 @@ type apexBundleProperties struct {
 	// List of native shared libs that are embedded inside this APEX bundle
 	Native_shared_libs []string
 
-	// List of native executables that are embedded inside this APEX bundle
+	// List of executables that are embedded inside this APEX bundle
 	Binaries []string
 
 	// List of java libraries that are embedded inside this APEX bundle
@@ -240,6 +243,9 @@ type apexBundleProperties struct {
 
 	// List of prebuilt files that are embedded inside this APEX bundle
 	Prebuilts []string
+
+	// List of tests that are embedded inside this APEX bundle
+	Tests []string
 
 	// Name of the apex_key module that provides the private key to sign APEX
 	Key *string
@@ -299,6 +305,7 @@ const (
 	pyBinary
 	goBinary
 	javaSharedLib
+	nativeTest
 )
 
 type apexPackaging int
@@ -361,6 +368,8 @@ func (class apexFileClass) NameInMake() string {
 		return "EXECUTABLES"
 	case javaSharedLib:
 		return "JAVA_LIBRARIES"
+	case nativeTest:
+		return "NATIVE_TESTS"
 	default:
 		panic(fmt.Errorf("unkonwn class %d", class))
 	}
@@ -406,7 +415,8 @@ type apexBundle struct {
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
-	native_shared_libs []string, binaries []string, arch string, imageVariation string) {
+	native_shared_libs []string, binaries []string, tests []string,
+	arch string, imageVariation string) {
 	// Use *FarVariation* to be able to depend on modules having
 	// conflicting variations with this module. This is required since
 	// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
@@ -422,6 +432,11 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 		{Mutator: "arch", Variation: arch},
 		{Mutator: "image", Variation: imageVariation},
 	}, executableTag, binaries...)
+
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: arch},
+		{Mutator: "image", Variation: imageVariation},
+	}, testTag, tests...)
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
@@ -459,10 +474,19 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			{Mutator: "link", Variation: "shared"},
 		}, sharedLibTag, a.properties.Native_shared_libs...)
 
+		// When multilib.* is omitted for tests, it implies
+		// multilib.both.
+		ctx.AddFarVariationDependencies([]blueprint.Variation{
+			{Mutator: "arch", Variation: target.String()},
+			{Mutator: "image", Variation: a.getImageVariation(config)},
+		}, testTag, a.properties.Tests...)
+
 		// Add native modules targetting both ABIs
 		addDependenciesForNativeModules(ctx,
 			a.properties.Multilib.Both.Native_shared_libs,
-			a.properties.Multilib.Both.Binaries, target.String(),
+			a.properties.Multilib.Both.Binaries,
+			a.properties.Multilib.Both.Tests,
+			target.String(),
 			a.getImageVariation(config))
 
 		isPrimaryAbi := i == 0
@@ -477,7 +501,9 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			// Add native modules targetting the first ABI
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.First.Native_shared_libs,
-				a.properties.Multilib.First.Binaries, target.String(),
+				a.properties.Multilib.First.Binaries,
+				a.properties.Multilib.First.Tests,
+				target.String(),
 				a.getImageVariation(config))
 
 			// When multilib.* is omitted for prebuilts, it implies multilib.first.
@@ -491,24 +517,32 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			// Add native modules targetting 32-bit ABI
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Lib32.Native_shared_libs,
-				a.properties.Multilib.Lib32.Binaries, target.String(),
+				a.properties.Multilib.Lib32.Binaries,
+				a.properties.Multilib.Lib32.Tests,
+				target.String(),
 				a.getImageVariation(config))
 
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Prefer32.Native_shared_libs,
-				a.properties.Multilib.Prefer32.Binaries, target.String(),
+				a.properties.Multilib.Prefer32.Binaries,
+				a.properties.Multilib.Prefer32.Tests,
+				target.String(),
 				a.getImageVariation(config))
 		case "lib64":
 			// Add native modules targetting 64-bit ABI
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Lib64.Native_shared_libs,
-				a.properties.Multilib.Lib64.Binaries, target.String(),
+				a.properties.Multilib.Lib64.Binaries,
+				a.properties.Multilib.Lib64.Tests,
+				target.String(),
 				a.getImageVariation(config))
 
 			if !has32BitTarget {
 				addDependenciesForNativeModules(ctx,
 					a.properties.Multilib.Prefer32.Native_shared_libs,
-					a.properties.Multilib.Prefer32.Binaries, target.String(),
+					a.properties.Multilib.Prefer32.Binaries,
+					a.properties.Multilib.Prefer32.Tests,
+					target.String(),
 					a.getImageVariation(config))
 			}
 
@@ -517,7 +551,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 					if sanitizer == "hwaddress" {
 						addDependenciesForNativeModules(ctx,
 							[]string{"libclang_rt.hwasan-aarch64-android"},
-							nil, target.String(), a.getImageVariation(config))
+							nil, nil, target.String(), a.getImageVariation(config))
 						break
 					}
 				}
@@ -686,6 +720,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	if len(a.properties.Tests) > 0 && !a.testApex {
+		ctx.PropertyErrorf("tests", "property not allowed in apex module type")
+		return
+	}
+
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
@@ -746,6 +785,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					return true
 				} else {
 					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
+				}
+			case testTag:
+				if cc, ok := child.(*cc.Module); ok {
+					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeTest, cc, nil})
+					return true
+				} else {
+					ctx.PropertyErrorf("tests", "%q is not a cc module", depName)
 				}
 			case keyTag:
 				if key, ok := child.(*apexKey); ok {
@@ -858,8 +905,7 @@ func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName str
 		return android.OptionalPath{}
 	}
 
-	return android.OptionalPathForPath(
-		android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)))
+	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)).HtmlGzOutput
 }
 
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType apexPackaging) {
@@ -916,7 +962,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		var executablePaths []string // this also includes dirs
 		for _, f := range a.filesInfo {
 			pathInApex := filepath.Join(f.installDir, f.builtFile.Base())
-			if f.installDir == "bin" {
+			if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
 				executablePaths = append(executablePaths, pathInApex)
 				for _, s := range f.symlinks {
 					executablePaths = append(executablePaths, filepath.Join("bin", s))
@@ -1253,11 +1299,11 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 }
 
 func testApexBundleFactory() android.Module {
-	return ApexBundleFactory( /*testApex*/ true)
+	return ApexBundleFactory(true /*testApex*/)
 }
 
 func apexBundleFactory() android.Module {
-	return ApexBundleFactory( /*testApex*/ false)
+	return ApexBundleFactory(false /*testApex*/)
 }
 
 func ApexBundleFactory(testApex bool) android.Module {
