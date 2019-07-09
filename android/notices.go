@@ -27,6 +27,13 @@ func init() {
 	pctx.HostBinToolVariable("minigzip", "minigzip")
 }
 
+type NoticeOutputs struct {
+	Merged       OptionalPath
+	TxtOutput    OptionalPath
+	HtmlOutput   OptionalPath
+	HtmlGzOutput OptionalPath
+}
+
 var (
 	mergeNoticesRule = pctx.AndroidStaticRule("mergeNoticesRule", blueprint.RuleParams{
 		Command:     `${merge_notices} --output $out $in`,
@@ -35,13 +42,13 @@ var (
 	})
 
 	generateNoticeRule = pctx.AndroidStaticRule("generateNoticeRule", blueprint.RuleParams{
-		Command: `rm -rf $tmpDir $$(dirname $out) && ` +
-			`mkdir -p $tmpDir $$(dirname $out) && ` +
-			`${generate_notice} --text-output $tmpDir/NOTICE.txt --html-output $tmpDir/NOTICE.html -t "$title" -s $inputDir && ` +
-			`${minigzip} -c $tmpDir/NOTICE.html > $out`,
+		Command: `rm -rf $$(dirname $txtOut) $$(dirname htmlOut) $$(dirname $out) && ` +
+			`mkdir -p $$(dirname $txtOut) $$(dirname htmlOut)  $$(dirname $out) && ` +
+			`${generate_notice} --text-output $txtOut --html-output $htmlOut -t "$title" -s $inputDir && ` +
+			`${minigzip} -c $htmlOut > $out`,
 		CommandDeps: []string{"${generate_notice}", "${minigzip}"},
 		Description: "produce notice file $out",
-	}, "tmpDir", "title", "inputDir")
+	}, "txtOut", "htmlOut", "title", "inputDir")
 )
 
 func MergeNotices(ctx ModuleContext, mergedNotice WritablePath, noticePaths []Path) {
@@ -54,7 +61,7 @@ func MergeNotices(ctx ModuleContext, mergedNotice WritablePath, noticePaths []Pa
 }
 
 func BuildNoticeOutput(ctx ModuleContext, installPath OutputPath, installFilename string,
-	noticePaths []Path) ModuleOutPath {
+	noticePaths []Path) NoticeOutputs {
 	// Merge all NOTICE files into one.
 	// TODO(jungjw): We should just produce a well-formatted NOTICE.html file in a single pass.
 	//
@@ -68,20 +75,28 @@ func BuildNoticeOutput(ctx ModuleContext, installPath OutputPath, installFilenam
 	MergeNotices(ctx, mergedNotice, noticePaths)
 
 	// Transform the merged NOTICE file into a gzipped HTML file.
-	noticeOutput := PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
-	tmpDir := PathForModuleOut(ctx, "NOTICE_tmp")
+	txtOuptut := PathForModuleOut(ctx, "NOTICE_txt", "NOTICE.txt")
+	htmlOutput := PathForModuleOut(ctx, "NOTICE_html", "NOTICE.html")
+	htmlGzOutput := PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 	title := "Notices for " + ctx.ModuleName()
 	ctx.Build(pctx, BuildParams{
-		Rule:        generateNoticeRule,
-		Description: "generate notice output",
-		Input:       mergedNotice,
-		Output:      noticeOutput,
+		Rule:            generateNoticeRule,
+		Description:     "generate notice output",
+		Input:           mergedNotice,
+		Output:          htmlGzOutput,
+		ImplicitOutputs: WritablePaths{txtOuptut, htmlOutput},
 		Args: map[string]string{
-			"tmpDir":   tmpDir.String(),
+			"txtOut":   txtOuptut.String(),
+			"htmlOut":  htmlOutput.String(),
 			"title":    title,
 			"inputDir": PathForModuleOut(ctx, "NOTICE_FILES/src").String(),
 		},
 	})
 
-	return noticeOutput
+	return NoticeOutputs{
+		Merged:       OptionalPathForPath(mergedNotice),
+		TxtOutput:    OptionalPathForPath(txtOuptut),
+		HtmlOutput:   OptionalPathForPath(htmlOutput),
+		HtmlGzOutput: OptionalPathForPath(htmlGzOutput),
+	}
 }
