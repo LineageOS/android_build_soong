@@ -141,6 +141,8 @@ type AndroidApp struct {
 	installApkName string
 
 	additionalAaptFlags []string
+
+	noticeOutputs android.NoticeOutputs
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -357,11 +359,7 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext
 	return jniJarFile
 }
 
-func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext, installDir android.OutputPath) android.OptionalPath {
-	if !Bool(a.appProperties.Embed_notices) && !ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
-		return android.OptionalPath{}
-	}
-
+func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext, installDir android.OutputPath) {
 	// Collect NOTICE files from all dependencies.
 	seenModules := make(map[android.Module]bool)
 	noticePathSet := make(map[android.Path]bool)
@@ -391,7 +389,7 @@ func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext, installDir an
 	}
 
 	if len(noticePathSet) == 0 {
-		return android.OptionalPath{}
+		return
 	}
 	var noticePaths []android.Path
 	for path := range noticePathSet {
@@ -400,9 +398,8 @@ func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext, installDir an
 	sort.Slice(noticePaths, func(i, j int) bool {
 		return noticePaths[i].String() < noticePaths[j].String()
 	})
-	noticeFile := android.BuildNoticeOutput(ctx, installDir, a.installApkName+".apk", noticePaths)
 
-	return android.OptionalPathForPath(noticeFile)
+	a.noticeOutputs = android.BuildNoticeOutput(ctx, installDir, a.installApkName+".apk", noticePaths)
 }
 
 // Reads and prepends a main cert from the default cert dir if it hasn't been set already, i.e. it
@@ -455,7 +452,10 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		installDir = android.PathForModuleInstall(ctx, "app", a.installApkName)
 	}
 
-	a.aapt.noticeFile = a.noticeBuildActions(ctx, installDir)
+	a.noticeBuildActions(ctx, installDir)
+	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
+		a.aapt.noticeFile = a.noticeOutputs.HtmlGzOutput
+	}
 
 	// Process all building blocks, from AAPT to certificates.
 	a.aaptBuildActions(ctx)
