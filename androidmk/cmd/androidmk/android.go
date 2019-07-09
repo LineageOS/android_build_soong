@@ -192,7 +192,7 @@ func init() {
 			"LOCAL_VENDOR_MODULE":              "vendor",
 			"LOCAL_ODM_MODULE":                 "device_specific",
 			"LOCAL_PRODUCT_MODULE":             "product_specific",
-			"LOCAL_PRODUCT_SERVICES_MODULE":    "product_services_specific",
+			"LOCAL_SYSTEM_EXT_MODULE":          "system_ext_specific",
 			"LOCAL_EXPORT_PACKAGE_RESOURCES":   "export_package_resources",
 			"LOCAL_PRIVILEGED_MODULE":          "privileged",
 			"LOCAL_AAPT_INCLUDE_ALL_RESOURCES": "aapt_include_all_resources",
@@ -602,8 +602,8 @@ func prebuiltModulePath(ctx variableAssignmentContext) error {
 		return fmt.Errorf("Cannot handle appending to LOCAL_MODULE_PATH")
 	}
 	// Analyze value in order to set the correct values for the 'device_specific',
-	// 'product_specific', 'product_services_specific' 'vendor'/'soc_specific',
-	// 'product_services_specific' attribute. Two cases are allowed:
+	// 'product_specific', 'system_ext_specific' 'vendor'/'soc_specific',
+	// 'system_ext_specific' attribute. Two cases are allowed:
 	//   $(VAR)/<literal-value>
 	//   $(PRODUCT_OUT)/$(TARGET_COPY_OUT_VENDOR)/<literal-value>
 	// The last case is equivalent to $(TARGET_OUT_VENDOR)/<literal-value>
