@@ -294,15 +294,15 @@ func TestPathForModuleInstall(t *testing.T) {
 			out: "target/product/test_device/product/bin/my_test",
 		},
 		{
-			name: "product_services binary",
+			name: "system_ext binary",
 			ctx: &moduleInstallPathContextImpl{
 				baseModuleContext: baseModuleContext{
 					target: deviceTarget,
-					kind:   productServicesSpecificModule,
+					kind:   systemExtSpecificModule,
 				},
 			},
 			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/product_services/bin/my_test",
+			out: "target/product/test_device/system_ext/bin/my_test",
 		},
 
 		{
@@ -354,11 +354,11 @@ func TestPathForModuleInstall(t *testing.T) {
 		},
 
 		{
-			name: "product_services native test binary",
+			name: "system_ext native test binary",
 			ctx: &moduleInstallPathContextImpl{
 				baseModuleContext: baseModuleContext{
 					target: deviceTarget,
-					kind:   productServicesSpecificModule,
+					kind:   systemExtSpecificModule,
 				},
 				inData: true,
 			},
@@ -415,16 +415,16 @@ func TestPathForModuleInstall(t *testing.T) {
 		},
 
 		{
-			name: "sanitized product_services binary",
+			name: "sanitized system_ext binary",
 			ctx: &moduleInstallPathContextImpl{
 				baseModuleContext: baseModuleContext{
 					target: deviceTarget,
-					kind:   productServicesSpecificModule,
+					kind:   systemExtSpecificModule,
 				},
 				inSanitizerDir: true,
 			},
 			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/product_services/bin/my_test",
+			out: "target/product/test_device/data/asan/system_ext/bin/my_test",
 		},
 
 		{
@@ -479,11 +479,11 @@ func TestPathForModuleInstall(t *testing.T) {
 			out: "target/product/test_device/data/asan/data/nativetest/my_test",
 		},
 		{
-			name: "sanitized product_services native test binary",
+			name: "sanitized system_ext native test binary",
 			ctx: &moduleInstallPathContextImpl{
 				baseModuleContext: baseModuleContext{
 					target: deviceTarget,
-					kind:   productServicesSpecificModule,
+					kind:   systemExtSpecificModule,
 				},
 				inData:         true,
 				inSanitizerDir: true,
