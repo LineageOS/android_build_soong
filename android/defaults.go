@@ -63,9 +63,28 @@ func InitDefaultableModule(module DefaultableModule) {
 
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
-	defaultProperties []interface{}
 }
 
+// The common pattern for defaults modules is to register separate instances of
+// the xxxProperties structs in the AddProperties calls, rather than reusing the
+// ones inherited from Module.
+//
+// The effect is that e.g. myDefaultsModuleInstance.base().xxxProperties won't
+// contain the values that have been set for the defaults module. Rather, to
+// retrieve the values it is necessary to iterate over properties(). E.g. to get
+// the commonProperties instance that have the real values:
+//
+//   d := myModule.(Defaults)
+//   for _, props := range d.properties() {
+//     if cp, ok := props.(*commonProperties); ok {
+//       ... access property values in cp ...
+//     }
+//   }
+//
+// The rationale is that the properties on a defaults module apply to the
+// defaultable modules using it, not to the defaults module itself. E.g. setting
+// the "enabled" property false makes inheriting modules disabled by default,
+// rather than disabling the defaults module itself.
 type Defaults interface {
 	Defaultable
 	isDefaults() bool
