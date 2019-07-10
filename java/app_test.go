@@ -1138,7 +1138,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 		{
 			name:                "AAPTPreferredConfig matches",
 			aaptPreferredConfig: proptools.StringPtr("xhdpi"),
-			aaptPrebuiltDPI:     []string{"xxhdpi", "lhdpi"},
+			aaptPrebuiltDPI:     []string{"xxhdpi", "ldpi"},
 			expected:            "prebuilts/apk/app_xhdpi.apk",
 		},
 		{
