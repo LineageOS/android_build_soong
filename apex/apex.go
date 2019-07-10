@@ -111,6 +111,7 @@ var (
 	testTag        = dependencyTag{name: "test"}
 	keyTag         = dependencyTag{name: "key"}
 	certificateTag = dependencyTag{name: "certificate"}
+	usesTag        = dependencyTag{name: "uses"}
 )
 
 func init() {
@@ -147,6 +148,7 @@ func init() {
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
 		ctx.BottomUp("apex", apexMutator).Parallel()
+		ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
 	})
 }
 
@@ -185,6 +187,11 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 		// apex variant.
 		apexBundleName := mctx.ModuleName()
 		mctx.CreateVariations(apexBundleName)
+	}
+}
+func apexUsesMutator(mctx android.BottomUpMutatorContext) {
+	if ab, ok := mctx.Module().(*apexBundle); ok {
+		mctx.AddFarVariationDependencies(nil, usesTag, ab.properties.Uses...)
 	}
 }
 
@@ -272,6 +279,12 @@ type apexBundleProperties struct {
 
 	// List of sanitizer names that this APEX is enabled for
 	SanitizerNames []string `blueprint:"mutated"`
+
+	// Indicates this APEX provides C++ shared libaries to other APEXes. Default: false.
+	Provide_cpp_shared_libs *bool
+
+	// List of providing APEXes' names so that this APEX can depend on provided shared libraries.
+	Uses []string
 }
 
 type apexTargetBundleProperties struct {
@@ -727,6 +740,30 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
+	// Check if "uses" requirements are met with dependent apexBundles
+	var providedNativeSharedLibs []string
+	useVendor := proptools.Bool(a.properties.Use_vendor)
+	ctx.VisitDirectDepsBlueprint(func(m blueprint.Module) {
+		if ctx.OtherModuleDependencyTag(m) != usesTag {
+			return
+		}
+		otherName := ctx.OtherModuleName(m)
+		other, ok := m.(*apexBundle)
+		if !ok {
+			ctx.PropertyErrorf("uses", "%q is not a provider", otherName)
+			return
+		}
+		if proptools.Bool(other.properties.Use_vendor) != useVendor {
+			ctx.PropertyErrorf("use_vendor", "%q has different value of use_vendor", otherName)
+			return
+		}
+		if !proptools.Bool(other.properties.Provide_cpp_shared_libs) {
+			ctx.PropertyErrorf("uses", "%q does not provide native_shared_libs", otherName)
+			return
+		}
+		providedNativeSharedLibs = append(providedNativeSharedLibs, other.properties.Native_shared_libs...)
+	})
+
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		if _, ok := parent.(*apexBundle); ok {
 			// direct dependencies
@@ -815,6 +852,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// indirect dependencies
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
 				if cc, ok := child.(*cc.Module); ok {
+					if android.InList(cc.Name(), providedNativeSharedLibs) {
+						// If we're using a shared library which is provided from other APEX,
+						// don't include it in this APEX
+						return false
+					}
 					if !a.Host() && (cc.IsStubs() || cc.HasStubsVariants()) {
 						// If the dependency is a stubs lib, don't include it in this APEX,
 						// but make sure that the lib is installed on the device.
