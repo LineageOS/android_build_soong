@@ -901,11 +901,11 @@ func (c *deviceConfig) ProductPath() string {
 	return "product"
 }
 
-func (c *deviceConfig) ProductServicesPath() string {
-	if c.config.productVariables.ProductServicesPath != nil {
-		return *c.config.productVariables.ProductServicesPath
+func (c *deviceConfig) SystemExtPath() string {
+	if c.config.productVariables.SystemExtPath != nil {
+		return *c.config.productVariables.SystemExtPath
 	}
-	return "product_services"
+	return "system_ext"
 }
 
 func (c *deviceConfig) BtConfigIncludeDir() string {
