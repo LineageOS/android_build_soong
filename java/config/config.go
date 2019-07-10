@@ -53,7 +53,7 @@ func init() {
 
 	pctx.StaticVariable("JavacHeapSize", "2048M")
 	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
-	pctx.StaticVariable("DexFlags", "-JXX:+TieredCompilation -JXX:TieredStopAtLevel=1")
+	pctx.StaticVariable("DexFlags", "-JXX:OnError='cat hs_err_pid%p.log' -JXX:CICompilerCount=6 -JXX:+UseDynamicNumberOfGCThreads")
 
 	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
 		`-Xmaxerrs 9999999`,
