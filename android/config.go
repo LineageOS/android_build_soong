@@ -240,10 +240,10 @@ func TestArchConfigNativeBridge(buildDir string, env map[string]string) Config {
 	config := testConfig.config
 
 	config.Targets[Android] = []Target{
-		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled},
-		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled},
-		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled},
-		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled},
+		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
+		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
+		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64"},
+		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm"},
 	}
 
 	return testConfig
@@ -255,10 +255,10 @@ func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
 
 	config.Targets = map[OsType][]Target{
 		Fuchsia: []Target{
-			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}, NativeBridgeDisabled},
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}, NativeBridgeDisabled, "", ""},
 		},
 		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled},
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
 		},
 	}
 
@@ -272,12 +272,12 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 
 	config.Targets = map[OsType][]Target{
 		Android: []Target{
-			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled},
-			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled},
+			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
+			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
 		},
 		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled},
-			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled},
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
+			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled, "", ""},
 		},
 	}
 

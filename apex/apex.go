@@ -656,8 +656,10 @@ func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fil
 		dirInApex = "lib64"
 	}
 	dirInApex = filepath.Join(dirInApex, cc.RelativeInstallPath())
-	if cc.Target().NativeBridge == android.NativeBridgeEnabled || !cc.Arch().Native {
+	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
+	} else if cc.Target().NativeBridge == android.NativeBridgeEnabled {
+		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
 	}
 	if handleSpecialLibs {
 		switch cc.Name() {
@@ -681,8 +683,10 @@ func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fil
 
 func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = filepath.Join("bin", cc.RelativeInstallPath())
-	if cc.Target().NativeBridge == android.NativeBridgeEnabled || !cc.Arch().Native {
+	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
+	} else if cc.Target().NativeBridge == android.NativeBridgeEnabled {
+		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
 	}
 	fileToCopy = cc.OutputFile().Path()
 	return
