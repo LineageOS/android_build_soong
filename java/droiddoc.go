@@ -732,19 +732,19 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	}
 
 	var err error
-	j.args, err = android.Expand(String(j.properties.Args), func(name string) (string, error) {
+	j.args, err = android.ExpandNinjaEscaped(String(j.properties.Args), func(name string) (string, bool, error) {
 		if strings.HasPrefix(name, "location ") {
 			label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
 			if paths, ok := argFilesMap[label]; ok {
-				return paths, nil
+				return paths, false, nil
 			} else {
-				return "", fmt.Errorf("unknown location label %q, expecting one of %q",
+				return "", false, fmt.Errorf("unknown location label %q, expecting one of %q",
 					label, strings.Join(argFileLabels, ", "))
 			}
 		} else if name == "genDir" {
-			return android.PathForModuleGen(ctx).String(), nil
+			return android.PathForModuleGen(ctx).String(), false, nil
 		}
-		return "", fmt.Errorf("unknown variable '$(%s)'", name)
+		return "", false, fmt.Errorf("unknown variable '$(%s)'", name)
 	})
 
 	if err != nil {
