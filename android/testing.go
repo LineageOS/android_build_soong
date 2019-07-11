@@ -382,3 +382,14 @@ func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blu
 	entries.fillInEntries(config, bpPath, mod)
 	return entries
 }
+
+func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) AndroidMkData {
+	var p AndroidMkDataProvider
+	var ok bool
+	if p, ok = mod.(AndroidMkDataProvider); !ok {
+		t.Errorf("module does not implmement AndroidMkDataProvider: " + mod.Name())
+	}
+	data := p.AndroidMk()
+	data.fillInData(config, bpPath, mod)
+	return data
+}
