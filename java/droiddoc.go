@@ -732,19 +732,19 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	}
 
 	var err error
-	j.args, err = android.ExpandNinjaEscaped(String(j.properties.Args), func(name string) (string, bool, error) {
+	j.args, err = android.Expand(String(j.properties.Args), func(name string) (string, error) {
 		if strings.HasPrefix(name, "location ") {
 			label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
 			if paths, ok := argFilesMap[label]; ok {
-				return paths, false, nil
+				return paths, nil
 			} else {
-				return "", false, fmt.Errorf("unknown location label %q, expecting one of %q",
+				return "", fmt.Errorf("unknown location label %q, expecting one of %q",
 					label, strings.Join(argFileLabels, ", "))
 			}
 		} else if name == "genDir" {
-			return android.PathForModuleGen(ctx).String(), false, nil
+			return android.PathForModuleGen(ctx).String(), nil
 		}
-		return "", false, fmt.Errorf("unknown variable '$(%s)'", name)
+		return "", fmt.Errorf("unknown variable '$(%s)'", name)
 	})
 
 	if err != nil {
@@ -800,7 +800,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
 			"srcJars":           strings.Join(j.srcJars.Strings(), " "),
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"bootclasspathArgs": bootClasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
@@ -921,8 +921,8 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 	// 1.9 language features.
 	args := " -source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
-		"-hdf page.build " + ctx.Config().BuildId() + "-" + proptools.NinjaEscape(ctx.Config().BuildNumberFromFile()) + " " +
-		`-hdf page.now "$$(` + date + ` @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" `
+		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
+		`-hdf page.now "$(` + date + ` @$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" `
 
 	if String(d.properties.Custom_template) == "" {
 		// TODO: This is almost always droiddoc-templates-sdk
@@ -1099,7 +1099,7 @@ func (d *Droiddoc) transformDoclava(ctx android.ModuleContext, implicits android
 			"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
@@ -1121,7 +1121,7 @@ func (d *Droiddoc) transformCheckApi(ctx android.ModuleContext, apiFile, removed
 		Args: map[string]string{
 			"msg":                   msg,
 			"classpath":             checkApiClasspath.FormJavaClassPath(""),
-			"opts":                  opts,
+			"opts":                  proptools.NinjaEscape(opts),
 			"apiFile":               apiFile.String(),
 			"apiFileToCheck":        d.apiFile.String(),
 			"removedApiFile":        removedApiFile.String(),
@@ -1144,7 +1144,7 @@ func (d *Droiddoc) transformDokka(ctx android.ModuleContext, implicits android.P
 			"stubsDir":      android.PathForModuleOut(ctx, "dokka-stubsDir").String(),
 			"srcJars":       strings.Join(d.Javadoc.srcJars.Strings(), " "),
 			"classpathArgs": classpathArgs,
-			"opts":          opts,
+			"opts":          proptools.NinjaEscape(opts),
 			"docZip":        d.Javadoc.docZip.String(),
 		},
 	})
@@ -1569,7 +1569,7 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 		},
 	})
 }
@@ -1592,7 +1592,7 @@ func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"msg":               msg,
 		},
 	})
@@ -1613,7 +1613,7 @@ func (d *Droidstubs) transformJdiff(ctx android.ModuleContext, implicits android
 			"srcJarDir":         android.PathForModuleOut(ctx, "jdiff-srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "jdiff-stubsDir").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
