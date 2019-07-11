@@ -178,3 +178,7 @@ func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
 
 	return source == nil || !source.Enabled()
 }
+
+func (p *Prebuilt) SourceExists() bool {
+	return p.properties.SourceExists
+}
