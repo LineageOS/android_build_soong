@@ -1,4 +1,5 @@
 BasedOnStyle: Google
+Standard: Cpp11
 AllowShortFunctionsOnASingleLine: Inline
 ColumnLimit: 100
 CommentPragmas: NOLINT:.*
