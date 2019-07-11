@@ -63,12 +63,6 @@ var (
 	javaSdkLibrariesLock sync.Mutex
 )
 
-// java_sdk_library is to make a Java library that implements optional platform APIs to apps.
-// It is actually a wrapper of several modules: 1) stubs library that clients are linked against
-// to, 2) droiddoc module that internally generates API stubs source files, 3) the real runtime
-// shared library that implements the APIs, and 4) XML file for adding the runtime lib to the
-// classpath at runtime if requested via <uses-library>.
-//
 // TODO: these are big features that are currently missing
 // 1) disallowing linking to the runtime shared lib
 // 2) HTML generation
@@ -746,6 +740,11 @@ func (module *SdkLibrary) InitSdkLibraryProperties() {
 	module.Library.Module.deviceProperties.IsSDKLibrary = true
 }
 
+// java_sdk_library is a special Java library that provides optional platform APIs to apps.
+// In practice, it can be viewed as a combination of several modules: 1) stubs library that clients
+// are linked against to, 2) droiddoc module that internally generates API stubs source files,
+// 3) the real runtime shared library that implements the APIs, and 4) XML file for adding
+// the runtime lib to the classpath at runtime if requested via <uses-library>.
 func SdkLibraryFactory() android.Module {
 	module := &SdkLibrary{}
 	module.InitSdkLibraryProperties()
@@ -787,6 +786,7 @@ type sdkLibraryImport struct {
 
 var _ SdkLibraryDependency = (*sdkLibraryImport)(nil)
 
+// java_sdk_library_import imports a prebuilt java_sdk_library.
 func sdkLibraryImportFactory() android.Module {
 	module := &sdkLibraryImport{}
 
