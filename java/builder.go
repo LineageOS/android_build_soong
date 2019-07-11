@@ -411,7 +411,7 @@ func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePat
 	})
 }
 
-type classpath []android.Path
+type classpath android.Paths
 
 func (x *classpath) FormJavaClassPath(optName string) string {
 	if optName != "" && !strings.HasSuffix(optName, "=") && !strings.HasSuffix(optName, " ") {
