@@ -445,7 +445,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
 		} else {
-			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
 			if ctx.bootstrap() {
 				flags.DynamicLinker = "/system/bin/bootstrap/linker_asan"
 			} else {
