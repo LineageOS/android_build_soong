@@ -156,9 +156,39 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+type ValueMatcher interface {
+	test(string) bool
+	String() string
+}
+
+type equalMatcher struct {
+	expected string
+}
+
+func (m *equalMatcher) test(value string) bool {
+	return m.expected == value
+}
+
+func (m *equalMatcher) String() string {
+	return "=" + m.expected
+}
+
+type anyMatcher struct {
+}
+
+func (m *anyMatcher) test(value string) bool {
+	return true
+}
+
+func (m *anyMatcher) String() string {
+	return "=*"
+}
+
+var anyMatcherInstance = &anyMatcher{}
+
 type ruleProperty struct {
-	fields []string // e.x.: Vndk.Enabled
-	value  string   // e.x.: true
+	fields  []string // e.x.: Vndk.Enabled
+	matcher ValueMatcher
 }
 
 // A NeverAllow rule.
@@ -219,18 +249,25 @@ func (r *rule) NotModuleType(types ...string) Rule {
 
 func (r *rule) With(properties, value string) Rule {
 	r.props = append(r.props, ruleProperty{
-		fields: fieldNamesForProperties(properties),
-		value:  value,
+		fields:  fieldNamesForProperties(properties),
+		matcher: selectMatcher(value),
 	})
 	return r
 }
 
 func (r *rule) Without(properties, value string) Rule {
 	r.unlessProps = append(r.unlessProps, ruleProperty{
-		fields: fieldNamesForProperties(properties),
-		value:  value,
+		fields:  fieldNamesForProperties(properties),
+		matcher: selectMatcher(value),
 	})
 	return r
+}
+
+func selectMatcher(expected string) ValueMatcher {
+	if expected == "*" {
+		return anyMatcherInstance
+	}
+	return &equalMatcher{expected: expected}
 }
 
 func (r *rule) Because(reason string) Rule {
@@ -253,10 +290,10 @@ func (r *rule) String() string {
 		s += " -type:" + v
 	}
 	for _, v := range r.props {
-		s += " " + strings.Join(v.fields, ".") + "=" + v.value
+		s += " " + strings.Join(v.fields, ".") + v.matcher.String()
 	}
 	for _, v := range r.unlessProps {
-		s += " -" + strings.Join(v.fields, ".") + "=" + v.value
+		s += " -" + strings.Join(v.fields, ".") + v.matcher.String()
 	}
 	if len(r.reason) != 0 {
 		s += " which is restricted because " + r.reason
@@ -338,8 +375,8 @@ func hasProperty(properties []interface{}, prop ruleProperty) bool {
 			continue
 		}
 
-		check := func(v string) bool {
-			return prop.value == "*" || prop.value == v
+		check := func(value string) bool {
+			return prop.matcher.test(value)
 		}
 
 		if matchValue(propertiesValue, check) {
