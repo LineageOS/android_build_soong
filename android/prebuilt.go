@@ -215,3 +215,7 @@ func (p *Prebuilt) getSingleSourceFieldValue() string {
 	}
 	return value.String()
 }
+
+func (p *Prebuilt) SourceExists() bool {
+	return p.properties.SourceExists
+}
