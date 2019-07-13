@@ -63,7 +63,7 @@ var (
 	}
 
 	x86_64ArchFeatureCflags = map[string][]string{
-		"ssse3":  []string{"-DUSE_SSSE3", "-mssse3"},
+		"ssse3":  []string{"-mssse3"},
 		"sse4":   []string{"-msse4"},
 		"sse4_1": []string{"-msse4.1"},
 		"sse4_2": []string{"-msse4.2"},
