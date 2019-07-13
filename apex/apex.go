@@ -1338,10 +1338,16 @@ func (p *Prebuilt) installable() bool {
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild() && p.prebuilt.SourceExists() {
-		// If the device is configured to use flattened APEX, don't set
-		// p.properties.Source so that the prebuilt module (which is
-		// a non-flattened APEX) is not used.
+	// If the device is configured to use flattened APEX, don't set
+	// p.properties.Source so that the prebuilt module (which is
+	// a non-flattened APEX) is not used.
+	forceDisable := ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
+
+	// b/137216042 don't use prebuilts when address sanitizer is on
+	forceDisable = forceDisable || android.InList("address", ctx.Config().SanitizeDevice()) ||
+		android.InList("hwaddress", ctx.Config().SanitizeDevice())
+
+	if forceDisable && p.prebuilt.SourceExists() {
 		p.properties.ForceDisable = true
 		return
 	}
