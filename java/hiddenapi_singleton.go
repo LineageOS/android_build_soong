@@ -61,7 +61,7 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 	stubFlagsRule(ctx)
 
 	// These rules depend on files located in frameworks/base, skip them if running in a tree that doesn't have them.
-	if ctx.Config().FrameworksBaseDirExists(ctx) && !ctx.Config().UnbundledBuild() {
+	if ctx.Config().FrameworksBaseDirExists(ctx) {
 		h.flags = flagsRule(ctx)
 		h.metadata = metadataRule(ctx)
 	} else {
