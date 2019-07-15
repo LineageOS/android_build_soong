@@ -777,11 +777,6 @@ func TestDroiddoc(t *testing.T) {
 		}
 		`)
 
-	stubsJar := filepath.Join(buildDir, ".intermediates", "bar-doc", "android_common", "bar-doc-stubs.srcjar")
-	barDoc := ctx.ModuleForTests("bar-doc", "android_common").Output("bar-doc-stubs.srcjar")
-	if stubsJar != barDoc.Output.String() {
-		t.Errorf("expected stubs Jar [%q], got %q", stubsJar, barDoc.Output.String())
-	}
 	inputs := ctx.ModuleForTests("bar-doc", "android_common").Rule("javadoc").Inputs
 	var javaSrcs []string
 	for _, i := range inputs {
