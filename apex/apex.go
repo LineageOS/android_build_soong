@@ -1333,7 +1333,7 @@ func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	// Force disable the prebuilts when we are doing unbundled build. We do unbundled build
 	// to build the prebuilts themselves.
-	forceDisable = forceDisable || !ctx.Config().UnbundledBuild()
+	forceDisable = forceDisable || ctx.Config().UnbundledBuild()
 
 	// b/137216042 don't use prebuilts when address sanitizer is on
 	forceDisable = forceDisable || android.InList("address", ctx.Config().SanitizeDevice()) ||
