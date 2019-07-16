@@ -921,7 +921,7 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 	// 1.9 language features.
 	args := " -source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
-		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
+		"-hdf page.build " + ctx.Config().BuildId() + "-" + proptools.NinjaEscape(ctx.Config().BuildNumberFromFile()) + " " +
 		`-hdf page.now "$$(` + date + ` @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" `
 
 	if String(d.properties.Custom_template) == "" {
