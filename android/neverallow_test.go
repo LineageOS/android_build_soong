@@ -23,6 +23,29 @@ var neverallowTests = []struct {
 	fs            map[string][]byte
 	expectedError string
 }{
+	// include_dir rule tests
+	{
+		name: "include_dir not allowed to reference art",
+		fs: map[string][]byte{
+			"other/Blueprints": []byte(`
+				cc_library {
+					name: "libother",
+					include_dirs: ["art/libdexfile/include"],
+				}`),
+		},
+		expectedError: "all usages of 'art' have been migrated",
+	},
+	{
+		name: "include_dir can reference another location",
+		fs: map[string][]byte{
+			"other/Blueprints": []byte(`
+				cc_library {
+					name: "libother",
+					include_dirs: ["another/include"],
+				}`),
+		},
+	},
+	// Treble rule tests
 	{
 		name: "no vndk.enabled under vendor directory",
 		fs: map[string][]byte{
@@ -217,6 +240,7 @@ func testNeverallow(t *testing.T, config Config, fs map[string][]byte) (*TestCon
 }
 
 type mockCcLibraryProperties struct {
+	Include_dirs     []string
 	Vendor_available *bool
 
 	Vndk struct {
