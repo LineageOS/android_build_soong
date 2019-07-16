@@ -636,8 +636,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			if sm.outputDir == nil && len(sm.outputDeps) == 0 {
 				panic("Missing directory for system module dependency")
 			}
-			deps.systemModules = sm.outputDir
-			deps.systemModulesDeps = sm.outputDeps
+			deps.systemModules = &systemModules{sm.outputDir, sm.outputDeps}
 		}
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
@@ -714,13 +713,10 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), sdkContext(j))
 	if len(deps.bootClasspath) > 0 {
-		var systemModules classpath
-		if deps.systemModules != nil {
-			systemModules = append(systemModules, deps.systemModules)
-		}
-		implicits = append(implicits, deps.systemModulesDeps...)
-		bootClasspathArgs = systemModules.FormJavaSystemModulesPath("--system ", ctx.Device())
+		var systemModulesDeps android.Paths
+		bootClasspathArgs, systemModulesDeps = deps.systemModules.FormJavaSystemModulesPath(ctx.Device())
 		bootClasspathArgs = bootClasspathArgs + " --patch-module java.base=."
+		implicits = append(implicits, systemModulesDeps...)
 	}
 	if len(deps.classpath.Strings()) > 0 {
 		classpathArgs = "-classpath " + strings.Join(deps.classpath.Strings(), ":")
