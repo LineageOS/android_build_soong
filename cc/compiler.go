@@ -485,7 +485,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			"-I"+android.PathForModuleGen(ctx, "aidl").String())
 	}
 
-	if compiler.hasSrcExt(".rs") || compiler.hasSrcExt(".fs") {
+	if compiler.hasSrcExt(".rscript") || compiler.hasSrcExt(".fs") {
 		flags = rsFlags(ctx, flags, &compiler.Properties)
 	}
 
