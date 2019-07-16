@@ -2040,7 +2040,7 @@ func ImportFactoryHost() android.Module {
 // dex_import module
 
 type DexImportProperties struct {
-	Jars []string
+	Jars []string `android:"path"`
 }
 
 type DexImport struct {
@@ -2066,10 +2066,6 @@ func (j *DexImport) PrebuiltSrcs() []string {
 
 func (j *DexImport) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
-}
-
-func (j *DexImport) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, j.properties.Jars)
 }
 
 func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
