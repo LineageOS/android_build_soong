@@ -42,8 +42,8 @@ var (
 	})
 
 	generateNoticeRule = pctx.AndroidStaticRule("generateNoticeRule", blueprint.RuleParams{
-		Command: `rm -rf $$(dirname $txtOut) $$(dirname htmlOut) $$(dirname $out) && ` +
-			`mkdir -p $$(dirname $txtOut) $$(dirname htmlOut)  $$(dirname $out) && ` +
+		Command: `rm -rf $$(dirname $txtOut) $$(dirname $htmlOut) $$(dirname $out) && ` +
+			`mkdir -p $$(dirname $txtOut) $$(dirname $htmlOut)  $$(dirname $out) && ` +
 			`${generate_notice} --text-output $txtOut --html-output $htmlOut -t "$title" -s $inputDir && ` +
 			`${minigzip} -c $htmlOut > $out`,
 		CommandDeps: []string{"${generate_notice}", "${minigzip}"},
