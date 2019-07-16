@@ -16,7 +16,6 @@ package tradefed
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -39,9 +38,9 @@ func getTestConfig(ctx android.ModuleContext, prop *string) android.Path {
 }
 
 var autogenTestConfig = pctx.StaticRule("autogenTestConfig", blueprint.RuleParams{
-	Command:     "sed 's&{MODULE}&${name}&g;s&{EXTRA_OPTIONS}&'${extraOptions}'&g' $template > $out",
+	Command:     "sed 's&{MODULE}&${name}&g;s&{EXTRA_CONFIGS}&'${extraConfigs}'&g' $template > $out",
 	CommandDeps: []string{"$template"},
-}, "name", "template", "extraOptions")
+}, "name", "template", "extraConfigs")
 
 func testConfigPath(ctx android.ModuleContext, prop *string, testSuites []string) (path android.Path, autogenPath android.WritablePath) {
 	if p := getTestConfig(ctx, prop); p != nil {
@@ -57,17 +56,38 @@ func testConfigPath(ctx android.ModuleContext, prop *string, testSuites []string
 	}
 }
 
-func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, template string, optionsMap map[string]string) {
-	// If no test option found, delete {EXTRA_OPTIONS} line.
-	var options []string
-	for optionName, value := range optionsMap {
-		if value != "" {
-			options = append(options, fmt.Sprintf(`<option name="%s" value="%s" />`, optionName, value))
-		}
+type Config interface {
+	Config() string
+}
+
+type Option struct {
+	Name  string
+	Value string
+}
+
+var _ Config = Option{}
+
+func (o Option) Config() string {
+	return fmt.Sprintf(`<option name="%s" value="%s" />`, o.Name, o.Value)
+}
+
+type Preparer struct {
+	Class string
+}
+
+var _ Config = Preparer{}
+
+func (p Preparer) Config() string {
+	return fmt.Sprintf(`<target_preparer class="%s" />`, p.Class)
+}
+
+func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, template string, configs []Config) {
+	var configStrings []string
+	for _, config := range configs {
+		configStrings = append(configStrings, config.Config())
 	}
-	sort.Strings(options)
-	extraOptions := strings.Join(options, "\n        ")
-	extraOptions = proptools.NinjaAndShellEscape(extraOptions)
+	extraConfigs := strings.Join(configStrings, "\n        ")
+	extraConfigs = proptools.NinjaAndShellEscape(extraConfigs)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        autogenTestConfig,
@@ -76,26 +96,23 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 		Args: map[string]string{
 			"name":         ctx.ModuleName(),
 			"template":     template,
-			"extraOptions": extraOptions,
+			"extraConfigs": extraConfigs,
 		},
 	})
 }
 
 func AutoGenNativeTestConfig(ctx android.ModuleContext, testConfigProp *string,
-	testConfigTemplateProp *string, testSuites []string,
-	optionsMap map[string]string) android.Path {
+	testConfigTemplateProp *string, testSuites []string, config []Config) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites)
 	if autogenPath != nil {
 		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
 		if templatePath.Valid() {
-			autogenTemplate(ctx, autogenPath, templatePath.String(), optionsMap)
+			autogenTemplate(ctx, autogenPath, templatePath.String(), config)
 		} else {
 			if ctx.Device() {
-				autogenTemplate(ctx, autogenPath, "${NativeTestConfigTemplate}",
-					optionsMap)
+				autogenTemplate(ctx, autogenPath, "${NativeTestConfigTemplate}", config)
 			} else {
-				autogenTemplate(ctx, autogenPath, "${NativeHostTestConfigTemplate}",
-					optionsMap)
+				autogenTemplate(ctx, autogenPath, "${NativeHostTestConfigTemplate}", config)
 			}
 		}
 		return autogenPath
@@ -104,14 +121,14 @@ func AutoGenNativeTestConfig(ctx android.ModuleContext, testConfigProp *string,
 }
 
 func AutoGenNativeBenchmarkTestConfig(ctx android.ModuleContext, testConfigProp *string,
-	testConfigTemplateProp *string, testSuites []string) android.Path {
+	testConfigTemplateProp *string, testSuites []string, configs []Config) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites)
 	if autogenPath != nil {
 		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
 		if templatePath.Valid() {
-			autogenTemplate(ctx, autogenPath, templatePath.String(), nil)
+			autogenTemplate(ctx, autogenPath, templatePath.String(), configs)
 		} else {
-			autogenTemplate(ctx, autogenPath, "${NativeBenchmarkTestConfigTemplate}", nil)
+			autogenTemplate(ctx, autogenPath, "${NativeBenchmarkTestConfigTemplate}", configs)
 		}
 		return autogenPath
 	}
