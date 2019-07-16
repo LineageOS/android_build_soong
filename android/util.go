@@ -115,6 +115,17 @@ func PrefixInList(s string, list []string) bool {
 	return false
 }
 
+// IndexListPred returns the index of the element which in the given `list` satisfying the predicate, or -1 if there is no such element.
+func IndexListPred(pred func(s string) bool, list []string) int {
+	for i, l := range list {
+		if pred(l) {
+			return i
+		}
+	}
+
+	return -1
+}
+
 func FilterList(list []string, filter []string) (remainder []string, filtered []string) {
 	for _, l := range list {
 		if InList(l, filter) {
