@@ -135,7 +135,7 @@ func ProtoRule(ctx ModuleContext, rule *RuleBuilder, protoFile Path, flags Proto
 	}
 
 	rule.Command().
-		Tool(ctx.Config().HostToolPath(ctx, "aprotoc")).
+		BuiltTool(ctx, "aprotoc").
 		FlagWithArg(flags.OutTypeFlag+"=", strings.Join(flags.OutParams, ",")+":"+outDir.String()).
 		FlagWithDepFile("--dependency_out=", depFile).
 		FlagWithArg("-I ", protoBase).
@@ -145,5 +145,5 @@ func ProtoRule(ctx ModuleContext, rule *RuleBuilder, protoFile Path, flags Proto
 		ImplicitOutputs(outputs)
 
 	rule.Command().
-		Tool(ctx.Config().HostToolPath(ctx, "dep_fixer")).Flag(depFile.String())
+		BuiltTool(ctx, "dep_fixer").Flag(depFile.String())
 }

@@ -34,7 +34,7 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.P
 	// Proto generated python files have an unknown package name in the path, so package the entire output directory
 	// into a srcszip.
 	zipCmd := rule.Command().
-		Tool(ctx.Config().HostToolPath(ctx, "soong_zip")).
+		BuiltTool(ctx, "soong_zip").
 		FlagWithOutput("-o ", srcsZipFile)
 	if pkgPath != "" {
 		zipCmd.FlagWithArg("-P ", pkgPath)

@@ -483,7 +483,7 @@ func (linker *baseLinker) injectVersionSymbol(ctx ModuleContext, in android.Path
 		Input:       in,
 		Output:      out,
 		Args: map[string]string{
-			"buildNumberFromFile": ctx.Config().BuildNumberFromFile(),
+			"buildNumberFromFile": proptools.NinjaEscape(ctx.Config().BuildNumberFromFile()),
 		},
 	})
 }

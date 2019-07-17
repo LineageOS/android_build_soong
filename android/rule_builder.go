@@ -263,11 +263,36 @@ func (r *RuleBuilder) Tools() Paths {
 	return toolsList
 }
 
-// Commands returns a slice containing a the built command line for each call to RuleBuilder.Command.
+// RspFileInputs returns the list of paths that were passed to the RuleBuilderCommand.FlagWithRspFileInputList method.
+func (r *RuleBuilder) RspFileInputs() Paths {
+	var rspFileInputs Paths
+	for _, c := range r.commands {
+		if c.rspFileInputs != nil {
+			if rspFileInputs != nil {
+				panic("Multiple commands in a rule may not have rsp file inputs")
+			}
+			rspFileInputs = c.rspFileInputs
+		}
+	}
+
+	return rspFileInputs
+}
+
+// Commands returns a slice containing the built command line for each call to RuleBuilder.Command.
 func (r *RuleBuilder) Commands() []string {
 	var commands []string
 	for _, c := range r.commands {
-		commands = append(commands, c.buf.String())
+		commands = append(commands, c.String())
+	}
+	return commands
+}
+
+// NinjaEscapedCommands returns a slice containin the built command line after ninja escaping for each call to
+// RuleBuilder.Command.
+func (r *RuleBuilder) NinjaEscapedCommands() []string {
+	var commands []string
+	for _, c := range r.commands {
+		commands = append(commands, c.NinjaEscapedString())
 	}
 	return commands
 }
@@ -284,7 +309,7 @@ var _ BuilderContext = SingletonContext(nil)
 
 func (r *RuleBuilder) depFileMergerCmd(ctx PathContext, depFiles WritablePaths) *RuleBuilderCommand {
 	return r.Command().
-		Tool(ctx.Config().HostToolPath(ctx, "dep_fixer")).
+		BuiltTool(ctx, "dep_fixer").
 		Inputs(depFiles.Paths())
 }
 
@@ -324,7 +349,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 	}
 
 	tools := r.Tools()
-	commands := r.Commands()
+	commands := r.NinjaEscapedCommands()
 	outputs := r.Outputs()
 
 	if len(commands) == 0 {
@@ -334,7 +359,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 		panic("No outputs specified from any Commands")
 	}
 
-	commandString := strings.Join(proptools.NinjaEscapeList(commands), " && ")
+	commandString := strings.Join(commands, " && ")
 
 	if r.sbox {
 		sboxOutputs := make([]string, len(outputs))
@@ -352,7 +377,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 		}
 
 		sboxCmd := &RuleBuilderCommand{}
-		sboxCmd.Tool(ctx.Config().HostToolPath(ctx, "sbox")).
+		sboxCmd.BuiltTool(ctx, "sbox").
 			Flag("-c").Text(commandString).
 			Flag("--sandbox-path").Text(shared.TempDirForOutDir(PathForOutput(ctx).String())).
 			Flag("--output-root").Text(r.sboxOutDir.String()).
@@ -363,17 +388,27 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 	}
 
 	// Ninja doesn't like multiple outputs when depfiles are enabled, move all but the first output to
-	// ImplicitOutputs.  RuleBuilder never uses "$out", so the distinction between Outputs and ImplicitOutputs
-	// doesn't matter.
+	// ImplicitOutputs.  RuleBuilder only uses "$out" for the rsp file location, so the distinction between Outputs and
+	// ImplicitOutputs doesn't matter.
 	output := outputs[0]
 	implicitOutputs := outputs[1:]
 
+	var rspFile, rspFileContent string
+	rspFileInputs := r.RspFileInputs()
+	if rspFileInputs != nil {
+		rspFile = "$out.rsp"
+		rspFileContent = "$in"
+	}
+
 	ctx.Build(pctx, BuildParams{
 		Rule: ctx.Rule(pctx, name, blueprint.RuleParams{
-			Command:     commandString,
-			CommandDeps: tools.Strings(),
-			Restat:      r.restat,
+			Command:        commandString,
+			CommandDeps:    tools.Strings(),
+			Restat:         r.restat,
+			Rspfile:        rspFile,
+			RspfileContent: rspFileContent,
 		}),
+		Inputs:          rspFileInputs,
 		Implicits:       r.Inputs(),
 		Output:          output,
 		ImplicitOutputs: implicitOutputs,
@@ -388,11 +423,15 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 // RuleBuilderCommand, so they can be used chained or unchained.  All methods that add text implicitly add a single
 // space as a separator from the previous method.
 type RuleBuilderCommand struct {
-	buf      strings.Builder
-	inputs   Paths
-	outputs  WritablePaths
-	depFiles WritablePaths
-	tools    Paths
+	buf           strings.Builder
+	inputs        Paths
+	outputs       WritablePaths
+	depFiles      WritablePaths
+	tools         Paths
+	rspFileInputs Paths
+
+	// spans [start,end) of the command that should not be ninja escaped
+	unescapedSpans [][2]int
 
 	sbox       bool
 	sboxOutDir WritablePath
@@ -476,6 +515,24 @@ func (c *RuleBuilderCommand) FlagWithList(flag string, list []string, sep string
 func (c *RuleBuilderCommand) Tool(path Path) *RuleBuilderCommand {
 	c.tools = append(c.tools, path)
 	return c.Text(path.String())
+}
+
+// BuiltTool adds the specified tool path that was built using a host Soong module to the command line.  The path will
+// be also added to the dependencies returned by RuleBuilder.Tools.
+//
+// It is equivalent to:
+//  cmd.Tool(ctx.Config().HostToolPath(ctx, tool))
+func (c *RuleBuilderCommand) BuiltTool(ctx PathContext, tool string) *RuleBuilderCommand {
+	return c.Tool(ctx.Config().HostToolPath(ctx, tool))
+}
+
+// PrebuiltBuildTool adds the specified tool path from prebuils/build-tools.  The path will be also added to the
+// dependencies returned by RuleBuilder.Tools.
+//
+// It is equivalent to:
+//  cmd.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
+func (c *RuleBuilderCommand) PrebuiltBuildTool(ctx PathContext, tool string) *RuleBuilderCommand {
+	return c.Tool(ctx.Config().PrebuiltBuildTool(ctx, tool))
 }
 
 // Input adds the specified input path to the command line.  The path will also be added to the dependencies returned by
@@ -606,9 +663,54 @@ func (c *RuleBuilderCommand) FlagWithDepFile(flag string, path WritablePath) *Ru
 	return c.Text(flag + c.outputStr(path))
 }
 
+// FlagWithRspFileInputList adds the specified flag and path to an rspfile to the command line, with no separator
+// between them.  The paths will be written to the rspfile.
+func (c *RuleBuilderCommand) FlagWithRspFileInputList(flag string, paths Paths) *RuleBuilderCommand {
+	if c.rspFileInputs != nil {
+		panic("FlagWithRspFileInputList cannot be called if rsp file inputs have already been provided")
+	}
+
+	// Use an empty slice if paths is nil, the non-nil slice is used as an indicator that the rsp file must be
+	// generated.
+	if paths == nil {
+		paths = Paths{}
+	}
+
+	c.rspFileInputs = paths
+
+	rspFile := "$out.rsp"
+	c.FlagWithArg(flag, rspFile)
+	c.unescapedSpans = append(c.unescapedSpans, [2]int{c.buf.Len() - len(rspFile), c.buf.Len()})
+	return c
+}
+
 // String returns the command line.
 func (c *RuleBuilderCommand) String() string {
 	return c.buf.String()
+}
+
+// String returns the command line.
+func (c *RuleBuilderCommand) NinjaEscapedString() string {
+	return ninjaEscapeExceptForSpans(c.String(), c.unescapedSpans)
+}
+
+func ninjaEscapeExceptForSpans(s string, spans [][2]int) string {
+	if len(spans) == 0 {
+		return proptools.NinjaEscape(s)
+	}
+
+	sb := strings.Builder{}
+	sb.Grow(len(s) * 11 / 10)
+
+	i := 0
+	for _, span := range spans {
+		sb.WriteString(proptools.NinjaEscape(s[i:span[0]]))
+		sb.WriteString(s[span[0]:span[1]])
+		i = span[1]
+	}
+	sb.WriteString(proptools.NinjaEscape(s[i:]))
+
+	return sb.String()
 }
 
 func ninjaNameEscape(s string) string {
