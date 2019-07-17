@@ -191,15 +191,7 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 		// Make cannot identify LOCAL_MODULE_TARGET_ARCH:= common.
 		if archStr != "common" {
 			if amod.Target().NativeBridge {
-				// TODO: Unhardcode these rules.
-				guestArchStr := archStr
-				hostArchStr := ""
-				if guestArchStr == "arm" {
-					hostArchStr = "x86"
-				} else if guestArchStr == "arm64" {
-					hostArchStr = "x86_64"
-				}
-
+				hostArchStr := amod.Target().NativeBridgeHostArchName
 				if hostArchStr != "" {
 					a.SetString("LOCAL_MODULE_TARGET_ARCH", hostArchStr)
 				}
@@ -391,6 +383,31 @@ func translateGoBinaryModule(ctx SingletonContext, w io.Writer, mod blueprint.Mo
 	return nil
 }
 
+func (data *AndroidMkData) fillInData(config Config, bpPath string, mod blueprint.Module) {
+	// Get the preamble content through AndroidMkEntries logic.
+	entries := AndroidMkEntries{
+		Class:           data.Class,
+		SubName:         data.SubName,
+		DistFile:        data.DistFile,
+		OutputFile:      data.OutputFile,
+		Disabled:        data.Disabled,
+		Include:         data.Include,
+		Required:        data.Required,
+		Host_required:   data.Host_required,
+		Target_required: data.Target_required,
+	}
+	entries.fillInEntries(config, bpPath, mod)
+
+	// preamble doesn't need the footer content.
+	entries.footer = bytes.Buffer{}
+	entries.write(&data.preamble)
+
+	// copy entries back to data since it is used in Custom
+	data.Required = entries.Required
+	data.Host_required = entries.Host_required
+	data.Target_required = entries.Target_required
+}
+
 func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Module,
 	provider AndroidMkDataProvider) error {
 
@@ -404,22 +421,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 		data.Include = "$(BUILD_PREBUILT)"
 	}
 
-	// Get the preamble content through AndroidMkEntries logic.
-	entries := AndroidMkEntries{
-		Class:           data.Class,
-		SubName:         data.SubName,
-		DistFile:        data.DistFile,
-		OutputFile:      data.OutputFile,
-		Disabled:        data.Disabled,
-		Include:         data.Include,
-		Required:        data.Required,
-		Host_required:   data.Host_required,
-		Target_required: data.Target_required,
-	}
-	entries.fillInEntries(ctx.Config(), ctx.BlueprintFile(mod), mod)
-	// preamble doesn't need the footer content.
-	entries.footer = bytes.Buffer{}
-	entries.write(&data.preamble)
+	data.fillInData(ctx.Config(), ctx.BlueprintFile(mod), mod)
 
 	prefix := ""
 	if amod.ArchSpecific() {

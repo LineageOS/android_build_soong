@@ -1322,11 +1322,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			return
 		}
 
-		if !ctx.Config().UnbundledBuild() {
-			// Hidden API CSV generation and dex encoding
-			dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
-				j.deviceProperties.UncompressDex)
-		}
+		// Hidden API CSV generation and dex encoding
+		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
+			j.deviceProperties.UncompressDex)
 
 		// merge dex jar with resources if necessary
 		if j.resourceJar != nil {
@@ -2042,7 +2040,7 @@ func ImportFactoryHost() android.Module {
 // dex_import module
 
 type DexImportProperties struct {
-	Jars []string
+	Jars []string `android:"path"`
 }
 
 type DexImport struct {
@@ -2068,10 +2066,6 @@ func (j *DexImport) PrebuiltSrcs() []string {
 
 func (j *DexImport) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
-}
-
-func (j *DexImport) DepsMutator(ctx android.BottomUpMutatorContext) {
-	android.ExtractSourcesDeps(ctx, j.properties.Jars)
 }
 
 func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {

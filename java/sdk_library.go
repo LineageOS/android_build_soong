@@ -149,16 +149,21 @@ var _ Dependency = (*SdkLibrary)(nil)
 var _ SdkLibraryDependency = (*SdkLibrary)(nil)
 
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	useBuiltStubs := !ctx.Config().UnbundledBuildUsePrebuiltSdks()
 	// Add dependencies to the stubs library
-	ctx.AddVariationDependencies(nil, publicApiStubsTag, module.stubsName(apiScopePublic))
+	if useBuiltStubs {
+		ctx.AddVariationDependencies(nil, publicApiStubsTag, module.stubsName(apiScopePublic))
+	}
 	ctx.AddVariationDependencies(nil, publicApiFileTag, module.docsName(apiScopePublic))
 
 	sdkDep := decodeSdkDep(ctx, sdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
-		ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
+		if useBuiltStubs {
+			ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
+			ctx.AddVariationDependencies(nil, testApiStubsTag, module.stubsName(apiScopeTest))
+		}
 		ctx.AddVariationDependencies(nil, systemApiFileTag, module.docsName(apiScopeSystem))
 		ctx.AddVariationDependencies(nil, testApiFileTag, module.docsName(apiScopeTest))
-		ctx.AddVariationDependencies(nil, testApiStubsTag, module.stubsName(apiScopeTest))
 	}
 
 	module.Library.deps(ctx)

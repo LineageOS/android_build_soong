@@ -656,8 +656,10 @@ func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fil
 		dirInApex = "lib64"
 	}
 	dirInApex = filepath.Join(dirInApex, cc.RelativeInstallPath())
-	if cc.Target().NativeBridge == android.NativeBridgeEnabled || !cc.Arch().Native {
+	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
+	} else if cc.Target().NativeBridge == android.NativeBridgeEnabled {
+		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
 	}
 	if handleSpecialLibs {
 		switch cc.Name() {
@@ -681,8 +683,10 @@ func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fil
 
 func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = filepath.Join("bin", cc.RelativeInstallPath())
-	if cc.Target().NativeBridge == android.NativeBridgeEnabled || !cc.Arch().Native {
+	if !cc.Arch().Native {
 		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
+	} else if cc.Target().NativeBridge == android.NativeBridgeEnabled {
+		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
 	}
 	fileToCopy = cc.OutputFile().Path()
 	return
@@ -1433,10 +1437,13 @@ func (p *Prebuilt) installable() bool {
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
-	// If the device is configured to use flattened APEX, don't set
-	// p.properties.Source so that the prebuilt module (which is
-	// a non-flattened APEX) is not used.
-	forceDisable := ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
+	// If the device is configured to use flattened APEX, force disable the prebuilt because
+	// the prebuilt is a non-flattened one.
+	forceDisable := ctx.Config().FlattenApex()
+
+	// Force disable the prebuilts when we are doing unbundled build. We do unbundled build
+	// to build the prebuilts themselves.
+	forceDisable = forceDisable || !ctx.Config().UnbundledBuild()
 
 	// b/137216042 don't use prebuilts when address sanitizer is on
 	forceDisable = forceDisable || android.InList("address", ctx.Config().SanitizeDevice()) ||

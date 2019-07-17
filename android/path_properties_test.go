@@ -28,12 +28,17 @@ type pathDepsMutatorTestModule struct {
 		Qux string
 	}
 
+	// A second property struct with a duplicate property name
+	props2 struct {
+		Foo string `android:"path"`
+	}
+
 	sourceDeps []string
 }
 
 func pathDepsMutatorTestModuleFactory() Module {
 	module := &pathDepsMutatorTestModule{}
-	module.AddProperties(&module.props)
+	module.AddProperties(&module.props, &module.props2)
 	InitAndroidArchModule(module, DeviceSupported, MultilibBoth)
 	return module
 }
@@ -44,6 +49,13 @@ func (p *pathDepsMutatorTestModule) GenerateAndroidBuildActions(ctx ModuleContex
 			p.sourceDeps = append(p.sourceDeps, ctx.OtherModuleName(dep))
 		}
 	})
+
+	if p.props.Foo != "" {
+		// Make sure there is only one dependency on a module listed in a property present in multiple property structs
+		if ctx.GetDirectDepWithTag(SrcIsModule(p.props.Foo), sourceOrOutputDepTag("")) == nil {
+			ctx.ModuleErrorf("GetDirectDepWithTag failed")
+		}
+	}
 }
 
 func TestPathDepsMutator(t *testing.T) {
