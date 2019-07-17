@@ -20,7 +20,7 @@ import (
 )
 
 func TestNoPlugin(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -44,7 +44,7 @@ func TestNoPlugin(t *testing.T) {
 }
 
 func TestPlugin(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -83,7 +83,7 @@ func TestPlugin(t *testing.T) {
 }
 
 func TestPluginGeneratesApi(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
