@@ -29,7 +29,7 @@ import (
 
 var buildDir string
 
-func testApex(t *testing.T, bp string) *android.TestContext {
+func testApex(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	var config android.Config
 	config, buildDir = setup(t)
 	defer teardown(buildDir)
@@ -188,7 +188,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
 
-	return ctx
+	return ctx, config
 }
 
 func setup(t *testing.T) (config android.Config, buildDir string) {
@@ -238,7 +238,7 @@ func ensureListNotContains(t *testing.T, result []string, notExpected string) {
 
 // Minimal test
 func TestBasicApex(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex_defaults {
 			name: "myapex-defaults",
 			manifest: ":myapex.manifest",
@@ -362,7 +362,7 @@ func TestBasicApex(t *testing.T) {
 }
 
 func TestBasicZipApex(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -410,7 +410,7 @@ func TestBasicZipApex(t *testing.T) {
 }
 
 func TestApexWithStubs(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -494,7 +494,7 @@ func TestApexWithStubs(t *testing.T) {
 }
 
 func TestApexWithExplicitStubsDependency(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -561,7 +561,7 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 }
 
 func TestApexWithSystemLibsStubs(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -682,7 +682,7 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 }
 
 func TestFilesInSubDir(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -742,7 +742,7 @@ func TestFilesInSubDir(t *testing.T) {
 }
 
 func TestUseVendor(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -792,7 +792,7 @@ func TestUseVendor(t *testing.T) {
 }
 
 func TestStaticLinking(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -832,7 +832,7 @@ func TestStaticLinking(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex_keytest",
 			key: "myapex.key",
@@ -886,7 +886,7 @@ func TestKeys(t *testing.T) {
 }
 
 func TestMacro(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -930,7 +930,7 @@ func TestMacro(t *testing.T) {
 }
 
 func TestHeaderLibsDependency(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -978,7 +978,7 @@ func TestHeaderLibsDependency(t *testing.T) {
 }
 
 func TestNonTestApex(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -1029,7 +1029,7 @@ func TestTestApex(t *testing.T) {
 	if android.InAnyApex("mylib_common_test") {
 		t.Fatal("mylib_common_test must not be used in any other tests since this checks that global state is not updated in an illegal way!")
 	}
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex_test {
 			name: "myapex",
 			key: "myapex.key",
@@ -1077,7 +1077,7 @@ func TestTestApex(t *testing.T) {
 }
 
 func TestApexWithTarget(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -1157,7 +1157,7 @@ func TestApexWithTarget(t *testing.T) {
 }
 
 func TestApexWithShBinary(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -1185,7 +1185,7 @@ func TestApexWithShBinary(t *testing.T) {
 }
 
 func TestApexInProductPartition(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -1217,7 +1217,7 @@ func TestApexInProductPartition(t *testing.T) {
 }
 
 func TestApexKeyFromOtherModule(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		apex_key {
 			name: "myapex.key",
 			public_key: ":my.avbpubkey",
@@ -1250,7 +1250,7 @@ func TestApexKeyFromOtherModule(t *testing.T) {
 }
 
 func TestPrebuilt(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		prebuilt_apex {
 			name: "myapex",
 			arch: {
@@ -1273,7 +1273,7 @@ func TestPrebuilt(t *testing.T) {
 }
 
 func TestPrebuiltFilenameOverride(t *testing.T) {
-	ctx := testApex(t, `
+	ctx, _ := testApex(t, `
 		prebuilt_apex {
 			name: "myapex",
 			src: "myapex-arm.apex",
