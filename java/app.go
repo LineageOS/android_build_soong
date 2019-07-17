@@ -816,7 +816,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 	rule := android.NewRuleBuilder()
 	rule.Command().
 		Textf(`if (zipinfo %s 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
-		Tool(ctx.Config().HostToolPath(ctx, "zip2zip")).
+		BuiltTool(ctx, "zip2zip").
 		FlagWithInput("-i ", inputPath).
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-0 ", "'lib/**/*.so'").
@@ -843,7 +843,7 @@ func (a *AndroidAppImport) uncompressDex(
 	rule := android.NewRuleBuilder()
 	rule.Command().
 		Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
-		Tool(ctx.Config().HostToolPath(ctx, "zip2zip")).
+		BuiltTool(ctx, "zip2zip").
 		FlagWithInput("-i ", inputPath).
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-0 ", "'classes*.dex'").
@@ -1067,7 +1067,7 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
 
 	rule := android.NewRuleBuilder()
-	cmd := rule.Command().Tool(ctx.Config().HostToolPath(ctx, "manifest_check")).
+	cmd := rule.Command().BuiltTool(ctx, "manifest_check").
 		Flag("--enforce-uses-libraries").
 		Input(manifest).
 		FlagWithOutput("-o ", outputFile)

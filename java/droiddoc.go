@@ -500,6 +500,7 @@ func (j *Javadoc) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
+// javadoc converts .java source files to documentation using javadoc.
 func JavadocFactory() android.Module {
 	module := &Javadoc{}
 
@@ -509,6 +510,7 @@ func JavadocFactory() android.Module {
 	return module
 }
 
+// javadoc_host converts .java source files to documentation using javadoc.
 func JavadocHostFactory() android.Module {
 	module := &Javadoc{}
 
@@ -798,7 +800,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
 			"srcJars":           strings.Join(j.srcJars.Strings(), " "),
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"bootclasspathArgs": bootClasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
@@ -831,6 +833,7 @@ type Droiddoc struct {
 	apiFilePath android.Path
 }
 
+// droiddoc converts .java source files to documentation using doclava or dokka.
 func DroiddocFactory() android.Module {
 	module := &Droiddoc{}
 
@@ -841,6 +844,7 @@ func DroiddocFactory() android.Module {
 	return module
 }
 
+// droiddoc_host converts .java source files to documentation using doclava or dokka.
 func DroiddocHostFactory() android.Module {
 	module := &Droiddoc{}
 
@@ -918,7 +922,7 @@ func (d *Droiddoc) collectDoclavaDocsFlags(ctx android.ModuleContext, implicits 
 	args := " -source 1.8 -J-Xmx1600m -J-XX:-OmitStackTraceInFastThrow -XDignore.symbol.file " +
 		"-doclet com.google.doclava.Doclava -docletpath " + jsilver.String() + ":" + doclava.String() + " " +
 		"-hdf page.build " + ctx.Config().BuildId() + "-" + ctx.Config().BuildNumberFromFile() + " " +
-		`-hdf page.now "$$(` + date + ` @$$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" `
+		`-hdf page.now "$(` + date + ` @$(cat ` + ctx.Config().Getenv("BUILD_DATETIME_FILE") + `) "+%d %b %Y %k:%M")" `
 
 	if String(d.properties.Custom_template) == "" {
 		// TODO: This is almost always droiddoc-templates-sdk
@@ -1095,7 +1099,7 @@ func (d *Droiddoc) transformDoclava(ctx android.ModuleContext, implicits android
 			"srcJarDir":         android.PathForModuleOut(ctx, "srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "stubsDir").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
@@ -1117,7 +1121,7 @@ func (d *Droiddoc) transformCheckApi(ctx android.ModuleContext, apiFile, removed
 		Args: map[string]string{
 			"msg":                   msg,
 			"classpath":             checkApiClasspath.FormJavaClassPath(""),
-			"opts":                  opts,
+			"opts":                  proptools.NinjaEscape(opts),
 			"apiFile":               apiFile.String(),
 			"apiFileToCheck":        d.apiFile.String(),
 			"removedApiFile":        removedApiFile.String(),
@@ -1140,7 +1144,7 @@ func (d *Droiddoc) transformDokka(ctx android.ModuleContext, implicits android.P
 			"stubsDir":      android.PathForModuleOut(ctx, "dokka-stubsDir").String(),
 			"srcJars":       strings.Join(d.Javadoc.srcJars.Strings(), " "),
 			"classpathArgs": classpathArgs,
-			"opts":          opts,
+			"opts":          proptools.NinjaEscape(opts),
 			"docZip":        d.Javadoc.docZip.String(),
 		},
 	})
@@ -1258,6 +1262,9 @@ type Droidstubs struct {
 	jdiffStubsSrcJar android.WritablePath
 }
 
+// droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
+// documented, filtering out hidden classes and methods.  The resulting .java files are intended to be passed to
+// a droiddoc module to generate documentation.
 func DroidstubsFactory() android.Module {
 	module := &Droidstubs{}
 
@@ -1268,6 +1275,10 @@ func DroidstubsFactory() android.Module {
 	return module
 }
 
+// droidstubs_host passes sources files through Metalava to generate stub .java files that only contain the API
+// to be documented, filtering out hidden classes and methods.  The resulting .java files are intended to be
+// passed to a droiddoc_host module to generate documentation.  Use a droidstubs_host instead of a droidstubs
+// module when symbols needed by the source files are provided by java_library_host modules.
 func DroidstubsHostFactory() android.Module {
 	module := &Droidstubs{}
 
@@ -1558,7 +1569,7 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 		},
 	})
 }
@@ -1581,7 +1592,7 @@ func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"msg":               msg,
 		},
 	})
@@ -1602,7 +1613,7 @@ func (d *Droidstubs) transformJdiff(ctx android.ModuleContext, implicits android
 			"srcJarDir":         android.PathForModuleOut(ctx, "jdiff-srcjars").String(),
 			"stubsDir":          android.PathForModuleOut(ctx, "jdiff-stubsDir").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
-			"opts":              opts,
+			"opts":              proptools.NinjaEscape(opts),
 			"bootclasspathArgs": bootclasspathArgs,
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
@@ -1781,6 +1792,7 @@ type ExportedDroiddocDir struct {
 	dir  android.Path
 }
 
+// droiddoc_exported_dir exports a directory of html templates or nullability annotations for use by doclava.
 func ExportedDroiddocDirFactory() android.Module {
 	module := &ExportedDroiddocDir{}
 	module.AddProperties(&module.properties)

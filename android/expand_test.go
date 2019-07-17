@@ -20,88 +20,111 @@ import (
 )
 
 var vars = map[string]string{
-	"var1": "abc",
-	"var2": "",
-	"var3": "def",
-	"💩":    "😃",
+	"var1":   "abc",
+	"var2":   "",
+	"var3":   "def",
+	"💩":      "😃",
+	"escape": "${in}",
 }
 
-func expander(s string) (string, error) {
+func expander(s string) (string, bool, error) {
 	if val, ok := vars[s]; ok {
-		return val, nil
+		return val, s == "escape", nil
 	} else {
-		return "", fmt.Errorf("unknown variable %q", s)
+		return "", false, fmt.Errorf("unknown variable %q", s)
 	}
 }
 
 var expandTestCases = []struct {
-	in  string
-	out string
-	err bool
+	in          string
+	out         string
+	out_escaped string
+	err         bool
 }{
 	{
-		in:  "$(var1)",
-		out: "abc",
+		in:          "$(var1)",
+		out:         "abc",
+		out_escaped: "abc",
 	},
 	{
-		in:  "$( var1 )",
-		out: "abc",
+		in:          "$( var1 )",
+		out:         "abc",
+		out_escaped: "abc",
 	},
 	{
-		in:  "def$(var1)",
-		out: "defabc",
+		in:          "def$(var1)",
+		out:         "defabc",
+		out_escaped: "defabc",
 	},
 	{
-		in:  "$(var1)def",
-		out: "abcdef",
+		in:          "$(var1)def",
+		out:         "abcdef",
+		out_escaped: "abcdef",
 	},
 	{
-		in:  "def$(var1)def",
-		out: "defabcdef",
+		in:          "def$(var1)def",
+		out:         "defabcdef",
+		out_escaped: "defabcdef",
 	},
 	{
-		in:  "$(var2)",
-		out: "",
+		in:          "$(var2)",
+		out:         "",
+		out_escaped: "",
 	},
 	{
-		in:  "def$(var2)",
-		out: "def",
+		in:          "def$(var2)",
+		out:         "def",
+		out_escaped: "def",
 	},
 	{
-		in:  "$(var2)def",
-		out: "def",
+		in:          "$(var2)def",
+		out:         "def",
+		out_escaped: "def",
 	},
 	{
-		in:  "def$(var2)def",
-		out: "defdef",
+		in:          "def$(var2)def",
+		out:         "defdef",
+		out_escaped: "defdef",
 	},
 	{
-		in:  "$(var1)$(var3)",
-		out: "abcdef",
+		in:          "$(var1)$(var3)",
+		out:         "abcdef",
+		out_escaped: "abcdef",
 	},
 	{
-		in:  "$(var1)g$(var3)",
-		out: "abcgdef",
+		in:          "$(var1)g$(var3)",
+		out:         "abcgdef",
+		out_escaped: "abcgdef",
 	},
 	{
-		in:  "$$",
-		out: "$$",
+		in:          "$$",
+		out:         "$",
+		out_escaped: "$$",
 	},
 	{
-		in:  "$$(var1)",
-		out: "$$(var1)",
+		in:          "$$(var1)",
+		out:         "$(var1)",
+		out_escaped: "$$(var1)",
 	},
 	{
-		in:  "$$$(var1)",
-		out: "$$abc",
+		in:          "$$$(var1)",
+		out:         "$abc",
+		out_escaped: "$$abc",
 	},
 	{
-		in:  "$(var1)$$",
-		out: "abc$$",
+		in:          "$(var1)$$",
+		out:         "abc$",
+		out_escaped: "abc$$",
 	},
 	{
-		in:  "$(💩)",
-		out: "😃",
+		in:          "$(💩)",
+		out:         "😃",
+		out_escaped: "😃",
+	},
+	{
+		in:          "$$a$(escape)$$b",
+		out:         "$a${in}$b",
+		out_escaped: "$$a${in}$$b",
 	},
 
 	// Errors
@@ -141,12 +164,28 @@ var expandTestCases = []struct {
 
 func TestExpand(t *testing.T) {
 	for _, test := range expandTestCases {
-		got, err := Expand(test.in, expander)
+		got, err := Expand(test.in, func(s string) (string, error) {
+			s, _, err := expander(s)
+			return s, err
+		})
 		if err != nil && !test.err {
 			t.Errorf("%q: unexpected error %s", test.in, err.Error())
 		} else if err == nil && test.err {
 			t.Errorf("%q: expected error, got %q", test.in, got)
 		} else if !test.err && got != test.out {
+			t.Errorf("%q: expected %q, got %q", test.in, test.out, got)
+		}
+	}
+}
+
+func TestExpandNinjaEscaped(t *testing.T) {
+	for _, test := range expandTestCases {
+		got, err := ExpandNinjaEscaped(test.in, expander)
+		if err != nil && !test.err {
+			t.Errorf("%q: unexpected error %s", test.in, err.Error())
+		} else if err == nil && test.err {
+			t.Errorf("%q: expected error, got %q", test.in, got)
+		} else if !test.err && got != test.out_escaped {
 			t.Errorf("%q: expected %q, got %q", test.in, test.out, got)
 		}
 	}
