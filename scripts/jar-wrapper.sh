@@ -48,11 +48,11 @@ if [ ! -r "${jardir}/${jarfile}" ]; then
     exit 1
 fi
 
-javaOpts=""
+declare -a javaOpts=()
 while expr "x$1" : 'x-J' >/dev/null; do
-    opt=`expr "$1" : '-J\(.*\)'`
-    javaOpts="${javaOpts} -${opt}"
+    opt=`expr "$1" : '-J-\{0,1\}\(.*\)'`
+    javaOpts+=("-${opt}")
     shift
 done
 
-exec java ${javaOpts} -jar ${jardir}/${jarfile} "$@"
+exec java "${javaOpts[@]}" -jar ${jardir}/${jarfile} "$@"
