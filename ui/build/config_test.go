@@ -545,8 +545,11 @@ func TestConfigFindBuildFile(t *testing.T) {
 		// Array of build files to create in dir.
 		buildFiles []string
 
+		// Directories that exist in the source tree.
+		dirsInTrees []string
+
 		// ********* Action *********
-		// Directory to create, also the base directory is where findBuildFile is invoked.
+		// The base directory is where findBuildFile is invoked.
 		dir string
 
 		// ********* Validation *********
@@ -555,38 +558,63 @@ func TestConfigFindBuildFile(t *testing.T) {
 	}{{
 		description:       "build file exists at leaf directory",
 		buildFiles:        []string{"1/2/3/Android.bp"},
+		dirsInTrees:       []string{"1/2/3"},
 		dir:               "1/2/3",
 		expectedBuildFile: "1/2/3/Android.mk",
 	}, {
 		description:       "build file exists in all directory paths",
 		buildFiles:        []string{"1/Android.mk", "1/2/Android.mk", "1/2/3/Android.mk"},
+		dirsInTrees:       []string{"1/2/3"},
 		dir:               "1/2/3",
 		expectedBuildFile: "1/2/3/Android.mk",
 	}, {
 		description:       "build file does not exist in all directory paths",
 		buildFiles:        []string{},
+		dirsInTrees:       []string{"1/2/3"},
 		dir:               "1/2/3",
 		expectedBuildFile: "",
 	}, {
 		description:       "build file exists only at top directory",
 		buildFiles:        []string{"Android.bp"},
+		dirsInTrees:       []string{"1/2/3"},
 		dir:               "1/2/3",
 		expectedBuildFile: "",
 	}, {
 		description:       "build file exist in a subdirectory",
 		buildFiles:        []string{"1/2/Android.bp"},
+		dirsInTrees:       []string{"1/2/3"},
 		dir:               "1/2/3",
 		expectedBuildFile: "1/2/Android.mk",
 	}, {
 		description:       "build file exists in a subdirectory",
 		buildFiles:        []string{"1/Android.mk"},
+		dirsInTrees:       []string{"1/2/3"},
 		dir:               "1/2/3",
 		expectedBuildFile: "1/Android.mk",
 	}, {
 		description:       "top directory",
 		buildFiles:        []string{"Android.bp"},
+		dirsInTrees:       []string{},
 		dir:               ".",
 		expectedBuildFile: "",
+	}, {
+		description:       "build file exists in subdirectory",
+		buildFiles:        []string{"1/2/3/Android.bp", "1/2/4/Android.bp"},
+		dirsInTrees:       []string{"1/2/3", "1/2/4"},
+		dir:               "1/2",
+		expectedBuildFile: "1/2/Android.mk",
+	}, {
+		description:       "build file exists in parent subdirectory",
+		buildFiles:        []string{"1/5/Android.bp"},
+		dirsInTrees:       []string{"1/2/3", "1/2/4", "1/5"},
+		dir:               "1/2",
+		expectedBuildFile: "1/Android.mk",
+	}, {
+		description:       "build file exists in deep parent's subdirectory.",
+		buildFiles:        []string{"1/5/6/Android.bp"},
+		dirsInTrees:       []string{"1/2/3", "1/2/4", "1/5/6", "1/5/7"},
+		dir:               "1/2",
+		expectedBuildFile: "1/Android.mk",
 	}}
 
 	for _, tt := range tests {
@@ -601,10 +629,7 @@ func TestConfigFindBuildFile(t *testing.T) {
 			}
 			defer os.RemoveAll(topDir)
 
-			if tt.dir != "" {
-				createDirectories(t, topDir, []string{tt.dir})
-			}
-
+			createDirectories(t, topDir, tt.dirsInTrees)
 			createBuildFiles(t, topDir, tt.buildFiles)
 
 			curDir, err := os.Getwd()
@@ -709,10 +734,22 @@ type buildActionTestCase struct {
 
 	// Expected environment variables to be set.
 	expectedEnvVars []envVar
+
+	// Expecting error from running test case.
+	expectedErrStr string
 }
 
 func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction, buildDependencies bool) {
 	ctx := testContext()
+
+	defer logger.Recover(func(err error) {
+		if tt.expectedErrStr == "" {
+			t.Fatalf("Got unexpected error: %v", err)
+		}
+		if tt.expectedErrStr != err.Error() {
+			t.Errorf("expected %s, got %s", tt.expectedErrStr, err.Error())
+		}
+	})
 
 	// Environment variables to set it to blank on every test case run.
 	resetEnvVars := []string{
@@ -779,6 +816,11 @@ func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction,
 		if val := os.Getenv(env.name); val != env.value {
 			t.Errorf("expecting %s, got %s for environment variable %s", env.value, val, env.name)
 		}
+	}
+
+	// If the execution reached here and there was an expected error code, the unit test case failed.
+	if tt.expectedErrStr != "" {
+		t.Errorf("expecting error %s", tt.expectedErrStr)
 	}
 }
 
@@ -875,6 +917,7 @@ func TestGetConfigArgsBuildModulesInDirecotoryNoDeps(t *testing.T) {
 			envVar{
 				name:  "ONE_SHOT_MAKEFILE",
 				value: "0/1/2/Android.mk"}},
+		expectedErrStr: "Build file not found for 0/1/2 directory",
 	}, {
 		description:  "build action executed at root directory",
 		dirsInTrees:  []string{},
@@ -978,7 +1021,7 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			expectedArgs:    []string{},
 			expectedEnvVars: []envVar{},
 		}, {
-			description:     "build file not found - no error is expected to return",
+			description:     "build file not found",
 			dirsInTrees:     []string{"0/1/2"},
 			buildFiles:      []string{},
 			args:            []string{},
@@ -986,6 +1029,7 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			tidyOnly:        "",
 			expectedArgs:    []string{"MODULES-IN-0-1-2"},
 			expectedEnvVars: []envVar{},
+			expectedErrStr:  "Build file not found for 0/1/2 directory",
 		}, {
 			description:     "GET-INSTALL-PATH specified,",
 			dirsInTrees:     []string{"0/1/2"},
