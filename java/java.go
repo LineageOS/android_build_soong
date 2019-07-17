@@ -290,6 +290,7 @@ type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
+	android.SdkBase
 
 	properties       CompilerProperties
 	protoProperties  android.ProtoProperties
@@ -1632,6 +1633,7 @@ func LibraryFactory() android.Module {
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	return module
 }
 
@@ -1912,6 +1914,7 @@ type Import struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	prebuilt android.Prebuilt
+	android.SdkBase
 
 	properties ImportProperties
 
@@ -2068,6 +2071,7 @@ func ImportFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	return module
 }
 

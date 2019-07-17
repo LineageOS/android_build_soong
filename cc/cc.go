@@ -407,6 +407,7 @@ type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
+	android.SdkBase
 
 	Properties       BaseProperties
 	VendorProperties VendorProperties
@@ -546,6 +547,7 @@ func (c *Module) Init() android.Module {
 	android.InitDefaultableModule(c)
 
 	android.InitApexModule(c)
+	android.InitSdkAwareModule(c)
 
 	return c
 }
