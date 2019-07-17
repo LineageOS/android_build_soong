@@ -238,7 +238,7 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			depFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp.d")
 			srcFiles[i] = cppFile
 			deps = append(deps, genAidl(ctx, aidlRule, srcFile, cppFile, depFile, buildFlags.aidlFlags)...)
-		case ".rs", ".fs":
+		case ".rscript", ".fs":
 			cppFile := rsGeneratedCppFile(ctx, srcFile)
 			rsFiles = append(rsFiles, srcFiles[i])
 			srcFiles[i] = cppFile
