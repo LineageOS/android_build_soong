@@ -296,7 +296,7 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 			rule.Command().
 				Text("rm -f").Output(aidl)
 			rule.Command().
-				Tool(ctx.Config().HostToolPath(ctx, "sdkparcelables")).
+				BuiltTool(ctx, "sdkparcelables").
 				Input(jar).
 				Output(aidl)
 
