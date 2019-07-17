@@ -581,28 +581,23 @@ func (dstubs *Droidstubs) AndroidMk() android.AndroidMkData {
 	}
 }
 
-func (app *AndroidAppImport) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
+func (a *AndroidAppImport) AndroidMkEntries() android.AndroidMkEntries {
+	return android.AndroidMkEntries{
 		Class:      "APPS",
-		OutputFile: android.OptionalPathForPath(app.outputFile),
+		OutputFile: android.OptionalPathForPath(a.outputFile),
 		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
-		Extra: []android.AndroidMkExtraFunc{
-			func(w io.Writer, outputFile android.Path) {
-				if Bool(app.properties.Privileged) {
-					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
-				}
-				if app.certificate != nil {
-					fmt.Fprintln(w, "LOCAL_CERTIFICATE :=", app.certificate.Pem.String())
-				} else {
-					fmt.Fprintln(w, "LOCAL_CERTIFICATE := PRESIGNED")
-				}
-				if len(app.properties.Overrides) > 0 {
-					fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES :=", strings.Join(app.properties.Overrides, " "))
-				}
-				if len(app.dexpreopter.builtInstalled) > 0 {
-					fmt.Fprintln(w, "LOCAL_SOONG_BUILT_INSTALLED :=", app.dexpreopter.builtInstalled)
-				}
-			},
+		AddCustomEntries: func(name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+			entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", Bool(a.properties.Privileged))
+			if a.certificate != nil {
+				entries.SetString("LOCAL_CERTIFICATE", a.certificate.Pem.String())
+			} else {
+				entries.SetString("LOCAL_CERTIFICATE", "PRESIGNED")
+			}
+			entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", a.properties.Overrides...)
+			if len(a.dexpreopter.builtInstalled) > 0 {
+				entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", a.dexpreopter.builtInstalled)
+			}
+			entries.AddStrings("LOCAL_INSTALLED_MODULE_STEM", a.installPath.Rel())
 		},
 	}
 }
