@@ -61,7 +61,7 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 	stubFlagsRule(ctx)
 
 	// These rules depend on files located in frameworks/base, skip them if running in a tree that doesn't have them.
-	if ctx.Config().FrameworksBaseDirExists(ctx) && !ctx.Config().UnbundledBuild() {
+	if ctx.Config().FrameworksBaseDirExists(ctx) {
 		h.flags = flagsRule(ctx)
 		h.metadata = metadataRule(ctx)
 	} else {
@@ -94,7 +94,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	// Add the android.test.base to the set of stubs only if the android.test.base module is on
 	// the boot jars list as the runtime will only enforce hiddenapi access against modules on
 	// that list.
-	if inList("android.test.base", ctx.Config().BootJars()) {
+	if inList("android.test.base", ctx.Config().BootJars()) && !ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		publicStubModules = append(publicStubModules, "android.test.base.stubs")
 	}
 
