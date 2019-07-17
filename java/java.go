@@ -2088,14 +2088,14 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		// use zip2zip to uncompress classes*.dex files
 		rule.Command().
-			Tool(ctx.Config().HostToolPath(ctx, "zip2zip")).
+			BuiltTool(ctx, "zip2zip").
 			FlagWithInput("-i ", inputJar).
 			FlagWithOutput("-o ", temporary).
 			FlagWithArg("-0 ", "'classes*.dex'")
 
 		// use zipalign to align uncompressed classes*.dex files
 		rule.Command().
-			Tool(ctx.Config().HostToolPath(ctx, "zipalign")).
+			BuiltTool(ctx, "zipalign").
 			Flag("-f").
 			Text("4").
 			Input(temporary).
