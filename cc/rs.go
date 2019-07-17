@@ -51,7 +51,7 @@ var (
 		"depFiles", "outDir", "rsFlags", "stampFile")
 )
 
-// Takes a path to a .rs or .fs file, and returns a path to a generated ScriptC_*.cpp file
+// Takes a path to a .rscript or .fs file, and returns a path to a generated ScriptC_*.cpp file
 // This has to match the logic in llvm-rs-cc in DetermineOutputFile.
 func rsGeneratedCppFile(ctx android.ModuleContext, rsFile android.Path) android.WritablePath {
 	fileName := strings.TrimSuffix(rsFile.Base(), rsFile.Ext())
