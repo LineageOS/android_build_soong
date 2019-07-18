@@ -142,7 +142,7 @@ func TestDexpreoptEnabled(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := testJava(t, test.bp)
+			ctx, _ := testJava(t, test.bp)
 
 			dexpreopt := ctx.ModuleForTests("foo", "android_common").MaybeDescription("dexpreopt")
 			enabled := dexpreopt.Rule != nil
