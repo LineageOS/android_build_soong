@@ -233,6 +233,14 @@ func (t *toolchainLinuxX8664) YasmFlags() string {
 	return "${config.LinuxX8664YasmFlags}"
 }
 
+func (toolchainLinuxX86) LibclangRuntimeLibraryArch() string {
+	return "i686"
+}
+
+func (toolchainLinuxX8664) LibclangRuntimeLibraryArch() string {
+	return "x86_64"
+}
+
 func (t *toolchainLinux) AvailableLibraries() []string {
 	return linuxAvailableLibraries
 }
