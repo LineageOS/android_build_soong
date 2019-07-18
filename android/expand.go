@@ -18,12 +18,30 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/google/blueprint/proptools"
 )
 
+// ExpandNinjaEscaped substitutes $() variables in a string
+// $(var) is passed to mapping(var), which should return the expanded value, a bool for whether the result should
+// be left unescaped when using in a ninja value (generally false, true if the expanded value is a ninja variable like
+// '${in}'), and an error.
+// $$ is converted to $, which is escaped back to $$.
+func ExpandNinjaEscaped(s string, mapping func(string) (string, bool, error)) (string, error) {
+	return expand(s, true, mapping)
+}
+
 // Expand substitutes $() variables in a string
-// $(var) is passed to Expander(var)
-// $$ is converted to $
+// $(var) is passed to mapping(var), which should return the expanded value and an error.
+// $$ is converted to $.
 func Expand(s string, mapping func(string) (string, error)) (string, error) {
+	return expand(s, false, func(s string) (string, bool, error) {
+		s, err := mapping(s)
+		return s, false, err
+	})
+}
+
+func expand(s string, ninjaEscape bool, mapping func(string) (string, bool, error)) (string, error) {
 	// based on os.Expand
 	buf := make([]byte, 0, 2*len(s))
 	i := 0
@@ -33,9 +51,12 @@ func Expand(s string, mapping func(string) (string, error)) (string, error) {
 				return "", fmt.Errorf("expected character after '$'")
 			}
 			buf = append(buf, s[i:j]...)
-			value, w, err := getMapping(s[j+1:], mapping)
+			value, ninjaVariable, w, err := getMapping(s[j+1:], mapping)
 			if err != nil {
 				return "", err
+			}
+			if !ninjaVariable && ninjaEscape {
+				value = proptools.NinjaEscape(value)
 			}
 			buf = append(buf, value...)
 			j += w
@@ -45,26 +66,26 @@ func Expand(s string, mapping func(string) (string, error)) (string, error) {
 	return string(buf) + s[i:], nil
 }
 
-func getMapping(s string, mapping func(string) (string, error)) (string, int, error) {
+func getMapping(s string, mapping func(string) (string, bool, error)) (string, bool, int, error) {
 	switch s[0] {
 	case '(':
 		// Scan to closing brace
 		for i := 1; i < len(s); i++ {
 			if s[i] == ')' {
-				ret, err := mapping(strings.TrimSpace(s[1:i]))
-				return ret, i + 1, err
+				ret, ninjaVariable, err := mapping(strings.TrimSpace(s[1:i]))
+				return ret, ninjaVariable, i + 1, err
 			}
 		}
-		return "", len(s), fmt.Errorf("missing )")
+		return "", false, len(s), fmt.Errorf("missing )")
 	case '$':
-		return "$$", 1, nil
+		return "$", false, 1, nil
 	default:
 		i := strings.IndexFunc(s, unicode.IsSpace)
 		if i == 0 {
-			return "", 0, fmt.Errorf("unexpected character '%c' after '$'", s[0])
+			return "", false, 0, fmt.Errorf("unexpected character '%c' after '$'", s[0])
 		} else if i == -1 {
 			i = len(s)
 		}
-		return "", 0, fmt.Errorf("expected '(' after '$', did you mean $(%s)?", s[:i])
+		return "", false, 0, fmt.Errorf("expected '(' after '$', did you mean $(%s)?", s[:i])
 	}
 }

@@ -229,7 +229,7 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 	if image.zip != nil {
 		rule := android.NewRuleBuilder()
 		rule.Command().
-			Tool(ctx.Config().HostToolPath(ctx, "soong_zip")).
+			BuiltTool(ctx, "soong_zip").
 			FlagWithOutput("-o ", image.zip).
 			FlagWithArg("-C ", image.dir.String()).
 			FlagWithInputList("-f ", allFiles, " -f ")
@@ -438,7 +438,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImage) {
 		rule := android.NewRuleBuilder()
 		rule.Command().
 			// TODO: for now, use the debug version for better error reporting
-			Tool(ctx.Config().HostToolPath(ctx, "oatdumpd")).
+			BuiltTool(ctx, "oatdumpd").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPaths.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocations, ":").
 			FlagWithArg("--image=", dexpreopt.PathToLocation(image.images[arch], arch)).Implicit(image.images[arch]).

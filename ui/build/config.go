@@ -61,6 +61,8 @@ type configImpl struct {
 
 const srcDirFileCheck = "build/soong/root.bp"
 
+var buildFiles = []string{"Android.mk", "Android.bp"}
+
 type BuildAction uint
 
 const (
@@ -305,12 +307,10 @@ func getConfigArgs(action BuildAction, dir string, buildDependencies bool, ctx C
 		if topDir == dir {
 			break
 		}
-		// Find the build file from the directory where the build action was triggered by traversing up
-		// the source tree. If a blank build filename is returned, simply use the directory where the build
-		// action was invoked.
+
 		buildFile := findBuildFile(ctx, relDir)
 		if buildFile == "" {
-			buildFile = filepath.Join(relDir, "Android.mk")
+			ctx.Fatalf("Build file not found for %s directory", relDir)
 		}
 		buildFiles = []string{buildFile}
 		targets = []string{convertToTarget(filepath.Dir(buildFile), targetNamePrefix)}
@@ -344,26 +344,57 @@ func convertToTarget(dir string, targetNamePrefix string) string {
 	return targetNamePrefix + strings.ReplaceAll(dir, "/", "-")
 }
 
-// findBuildFile finds a build file (makefile or blueprint file) by looking at dir first. If not
-// found, go up one level and repeat again until one is found and the path of that build file
-// relative to the root directory of the source tree is returned. The returned filename of build
-// file is "Android.mk". If one was not found, a blank string is returned.
+// hasBuildFile returns true if dir contains an Android build file.
+func hasBuildFile(ctx Context, dir string) bool {
+	for _, buildFile := range buildFiles {
+		_, err := os.Stat(filepath.Join(dir, buildFile))
+		if err == nil {
+			return true
+		}
+		if !os.IsNotExist(err) {
+			ctx.Fatalf("Error retrieving the build file stats: %v", err)
+		}
+	}
+	return false
+}
+
+// findBuildFile finds a build file (makefile or blueprint file) by looking if there is a build file
+// in the current and any sub directory of dir. If a build file is not found, traverse the path
+// up by one directory and repeat again until either a build file is found or reached to the root
+// source tree. The returned filename of build file is "Android.mk". If one was not found, a blank
+// string is returned.
 func findBuildFile(ctx Context, dir string) string {
-	// If the string is empty, assume it is top directory of the source tree.
-	if dir == "" {
+	// If the string is empty or ".", assume it is top directory of the source tree.
+	if dir == "" || dir == "." {
 		return ""
 	}
 
-	for ; dir != "."; dir = filepath.Dir(dir) {
-		for _, buildFile := range []string{"Android.bp", "Android.mk"} {
-			_, err := os.Stat(filepath.Join(dir, buildFile))
-			if err == nil {
-				// Returning the filename Android.mk as it might be used for ONE_SHOT_MAKEFILE variable.
-				return filepath.Join(dir, "Android.mk")
+	found := false
+	for buildDir := dir; buildDir != "."; buildDir = filepath.Dir(buildDir) {
+		err := filepath.Walk(buildDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
 			}
-			if !os.IsNotExist(err) {
-				ctx.Fatalf("Error retrieving the build file stats: %v", err)
+			if found {
+				return filepath.SkipDir
 			}
+			if info.IsDir() {
+				return nil
+			}
+			for _, buildFile := range buildFiles {
+				if info.Name() == buildFile {
+					found = true
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			ctx.Fatalf("Error finding Android build file: %v", err)
+		}
+
+		if found {
+			return filepath.Join(buildDir, "Android.mk")
 		}
 	}
 
@@ -428,24 +459,23 @@ func getTargetsFromDirs(ctx Context, relDir string, dirs []string, targetNamePre
 			}
 		}
 
-		buildFile := findBuildFile(ctx, dir)
-		if buildFile == "" {
-			ctx.Fatalf("Build file not found for %s directory", dir)
-		}
-		buildFileDir := filepath.Dir(buildFile)
-
-		// If there are specified targets, find the build file in the directory. If dir does not
-		// contain the build file, bail out as it is required for one shot build. If there are no
-		// target specified, build all the modules in dir (or the closest one in the dir path).
+		// If there are specified targets to build in dir, an android build file must exist for the one
+		// shot build. For the non-targets case, find the appropriate build file and build all the
+		// modules in dir (or the closest one in the dir path).
 		if len(newTargets) > 0 {
-			if buildFileDir != dir {
+			if !hasBuildFile(ctx, dir) {
 				ctx.Fatalf("Couldn't locate a build file from %s directory", dir)
 			}
+			buildFiles = append(buildFiles, filepath.Join(dir, "Android.mk"))
 		} else {
-			newTargets = []string{convertToTarget(buildFileDir, targetNamePrefix)}
+			buildFile := findBuildFile(ctx, dir)
+			if buildFile == "" {
+				ctx.Fatalf("Build file not found for %s directory", dir)
+			}
+			newTargets = []string{convertToTarget(filepath.Dir(buildFile), targetNamePrefix)}
+			buildFiles = append(buildFiles, buildFile)
 		}
 
-		buildFiles = append(buildFiles, buildFile)
 		targets = append(targets, newTargets...)
 	}
 
@@ -608,7 +638,7 @@ func (c *configImpl) Arguments() []string {
 
 func (c *configImpl) OutDir() string {
 	if outDir, ok := c.environ.Get("OUT_DIR"); ok {
-		return filepath.Clean(outDir)
+		return outDir
 	}
 	return "out"
 }

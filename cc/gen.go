@@ -99,7 +99,7 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 
 	cmd.Text("BISON_PKGDATADIR=prebuilts/build-tools/common/bison").
 		FlagWithInput("M4=", ctx.Config().PrebuiltBuildTool(ctx, "m4")).
-		Tool(ctx.Config().PrebuiltBuildTool(ctx, "bison")).
+		PrebuiltBuildTool(ctx, "bison").
 		Flag("-d").
 		Flags(flags).
 		FlagWithOutput("--defines=", headerFile).
@@ -121,7 +121,7 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	headerBp := outDir.Join(ctx, aidlPackage, "Bp"+shortName+".h")
 
 	cmd := rule.Command()
-	cmd.Tool(ctx.Config().HostToolPath(ctx, "aidl-cpp")).
+	cmd.BuiltTool(ctx, "aidl-cpp").
 		FlagWithDepFile("-d", depFile).
 		Flag("--ninja").
 		Flag(aidlFlags).
@@ -238,7 +238,7 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			depFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp.d")
 			srcFiles[i] = cppFile
 			deps = append(deps, genAidl(ctx, aidlRule, srcFile, cppFile, depFile, buildFlags.aidlFlags)...)
-		case ".rs", ".fs":
+		case ".rscript", ".fs":
 			cppFile := rsGeneratedCppFile(ctx, srcFile)
 			rsFiles = append(rsFiles, srcFiles[i])
 			srcFiles[i] = cppFile
