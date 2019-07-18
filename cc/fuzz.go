@@ -102,5 +102,19 @@ func NewFuzz(hod android.HostOrDeviceSupported) *Module {
 	module.compiler = fuzz
 	module.linker = fuzz
 	module.installer = fuzz
+
+	// The fuzzer runtime is not present for darwin host modules, disable cc_fuzz modules when targeting darwin.
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		disableDarwin := struct {
+			Target struct {
+				Darwin struct {
+					Enabled *bool
+				}
+			}
+		}{}
+		disableDarwin.Target.Darwin.Enabled = BoolPtr(false)
+		ctx.AppendProperties(&disableDarwin)
+	})
+
 	return module
 }
