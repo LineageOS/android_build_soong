@@ -727,7 +727,7 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 	if runtime.GOOS == "darwin" {
 		date = `date -r`
 	} else {
-		date = `date -d`
+		date = `date -d @`
 	}
 
 	// Droiddoc always gets "-source 1.8" because it doesn't support 1.9 sources.  For modules with 1.9
@@ -740,7 +740,7 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		FlagWithArg("-doclet ", "com.google.doclava.Doclava").
 		FlagWithInputList("-docletpath ", docletPath.Paths(), ":").
 		FlagWithArg("-hdf page.build ", ctx.Config().BuildId()+"-"+ctx.Config().BuildNumberFromFile()).
-		FlagWithArg("-hdf page.now ", `"$(`+date+` @$(cat `+ctx.Config().Getenv("BUILD_DATETIME_FILE")+`) "+%d %b %Y %k:%M")" `)
+		FlagWithArg("-hdf page.now ", `"$(`+date+`$(cat `+ctx.Config().Getenv("BUILD_DATETIME_FILE")+`) "+%d %b %Y %k:%M")" `)
 
 	if String(d.properties.Custom_template) == "" {
 		// TODO: This is almost always droiddoc-templates-sdk
