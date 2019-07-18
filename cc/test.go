@@ -210,6 +210,11 @@ func (test *testDecorator) linkerDeps(ctx BaseModuleContext, deps Deps) Deps {
 			deps.StaticLibs = append(deps.StaticLibs, "libgtest_main_ndk_c++", "libgtest_ndk_c++")
 		} else if BoolDefault(test.Properties.Isolated, false) {
 			deps.StaticLibs = append(deps.StaticLibs, "libgtest_isolated_main")
+			// The isolated library requires liblog, but adding it
+			// as a static library means unit tests cannot override
+			// liblog functions. Instead make it a shared library
+			// dependency.
+			deps.SharedLibs = append(deps.SharedLibs, "liblog")
 		} else {
 			deps.StaticLibs = append(deps.StaticLibs, "libgtest_main", "libgtest")
 		}
