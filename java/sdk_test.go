@@ -282,7 +282,7 @@ func TestClasspath(t *testing.T) {
 				if testcase.pdk {
 					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
 				}
-				ctx := testContext(config, bp, nil)
+				ctx := testContext(bp, nil)
 				run(t, ctx, config)
 
 				checkClasspath(t, ctx)
@@ -309,7 +309,7 @@ func TestClasspath(t *testing.T) {
 				if testcase.pdk {
 					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
 				}
-				ctx := testContext(config, bp, nil)
+				ctx := testContext(bp, nil)
 				run(t, ctx, config)
 
 				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
@@ -335,7 +335,7 @@ func TestClasspath(t *testing.T) {
 				if testcase.pdk {
 					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
 				}
-				ctx := testContext(config, bp, nil)
+				ctx := testContext(bp, nil)
 				run(t, ctx, config)
 
 				checkClasspath(t, ctx)
