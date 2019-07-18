@@ -365,10 +365,13 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 		action:            build.BUILD_MODULES_IN_A_DIRECTORY,
 		buildDependencies: false,
 	}, {
+		// buildDependencies is set to true as mmm is being deprecated. This is redirecting to mmma build
+		// command behaviour. Once it has soaked for a while, the build command is deleted from here once
+		// it has been removed from the envsetup.sh.
 		name:              "modules-in-dirs-no-deps",
 		description:       "Build action: builds all of the modules in the supplied directories without their dependencies.",
 		action:            build.BUILD_MODULES_IN_DIRECTORIES,
-		buildDependencies: false,
+		buildDependencies: true,
 	}, {
 		name:              "modules-in-a-dir",
 		description:       "Build action: builds all of the modules in the current directory and their dependencies.",
