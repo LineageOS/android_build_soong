@@ -15,18 +15,20 @@
 package java
 
 import (
-	"android/soong/android"
 	"bytes"
 	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 type testAndroidMk struct {
 	*testing.T
 	body []byte
 }
+
 type testAndroidMkModule struct {
 	*testing.T
 	props map[string]string
@@ -115,30 +117,26 @@ func getAndroidMk(t *testing.T, ctx *android.TestContext, config android.Config,
 }
 
 func TestRequired(t *testing.T) {
-	config := testConfig(nil)
-	ctx := testContext(config, `
+	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
 			required: ["libfoo"],
 		}
-	`, nil)
-	run(t, ctx, config)
+	`)
 
 	mk := getAndroidMk(t, ctx, config, "foo")
 	mk.moduleFor("foo").hasRequired("libfoo")
 }
 
 func TestHostdex(t *testing.T) {
-	config := testConfig(nil)
-	ctx := testContext(config, `
+	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
 			hostdex: true,
 		}
-	`, nil)
-	run(t, ctx, config)
+	`)
 
 	mk := getAndroidMk(t, ctx, config, "foo")
 	mk.moduleFor("foo")
@@ -146,16 +144,14 @@ func TestHostdex(t *testing.T) {
 }
 
 func TestHostdexRequired(t *testing.T) {
-	config := testConfig(nil)
-	ctx := testContext(config, `
+	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
 			hostdex: true,
 			required: ["libfoo"],
 		}
-	`, nil)
-	run(t, ctx, config)
+	`)
 
 	mk := getAndroidMk(t, ctx, config, "foo")
 	mk.moduleFor("foo").hasRequired("libfoo")
@@ -163,8 +159,7 @@ func TestHostdexRequired(t *testing.T) {
 }
 
 func TestHostdexSpecificRequired(t *testing.T) {
-	config := testConfig(nil)
-	ctx := testContext(config, `
+	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -175,8 +170,7 @@ func TestHostdexSpecificRequired(t *testing.T) {
 				},
 			},
 		}
-	`, nil)
-	run(t, ctx, config)
+	`)
 
 	mk := getAndroidMk(t, ctx, config, "foo")
 	mk.moduleFor("foo").hasNoRequired("libfoo")

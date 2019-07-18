@@ -43,7 +43,7 @@ var (
 	}
 )
 
-func testAppContext(config android.Config, bp string, fs map[string][]byte) *android.TestContext {
+func testAppContext(bp string, fs map[string][]byte) *android.TestContext {
 	appFS := map[string][]byte{}
 	for k, v := range fs {
 		appFS[k] = v
@@ -53,13 +53,13 @@ func testAppContext(config android.Config, bp string, fs map[string][]byte) *and
 		appFS[file] = nil
 	}
 
-	return testContext(config, bp, appFS)
+	return testContext(bp, appFS)
 }
 
 func testApp(t *testing.T, bp string) *android.TestContext {
 	config := testConfig(nil)
 
-	ctx := testAppContext(config, bp, nil)
+	ctx := testAppContext(bp, nil)
 
 	run(t, ctx, config)
 
@@ -176,7 +176,7 @@ func TestResourceDirs(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			config := testConfig(nil)
-			ctx := testContext(config, fmt.Sprintf(bp, testCase.prop), fs)
+			ctx := testContext(fmt.Sprintf(bp, testCase.prop), fs)
 			run(t, ctx, config)
 
 			module := ctx.ModuleForTests("foo", "android_common")
@@ -388,7 +388,7 @@ func TestAndroidResources(t *testing.T) {
 				config.TestProductVariables.EnforceRROExcludedOverlays = testCase.enforceRROExcludedOverlays
 			}
 
-			ctx := testAppContext(config, bp, fs)
+			ctx := testAppContext(bp, fs)
 			run(t, ctx, config)
 
 			resourceListToFiles := func(module android.TestingModule, list []string) (files []string) {
@@ -515,7 +515,7 @@ func TestAppSdkVersion(t *testing.T) {
 				config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
 				config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
 
-				ctx := testAppContext(config, bp, nil)
+				ctx := testAppContext(bp, nil)
 
 				run(t, ctx, config)
 
@@ -547,7 +547,7 @@ func TestAppSdkVersion(t *testing.T) {
 }
 
 func TestJNIABI(t *testing.T) {
-	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
 			system_shared_libs: [],
@@ -620,7 +620,7 @@ func TestJNIABI(t *testing.T) {
 }
 
 func TestJNIPackaging(t *testing.T) {
-	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
 			system_shared_libs: [],
@@ -774,7 +774,7 @@ func TestCertificates(t *testing.T) {
 			if test.certificateOverride != "" {
 				config.TestProductVariables.CertificateOverrides = []string{test.certificateOverride}
 			}
-			ctx := testAppContext(config, test.bp, nil)
+			ctx := testAppContext(test.bp, nil)
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -832,7 +832,7 @@ func TestPackageNameOverride(t *testing.T) {
 			if test.packageNameOverride != "" {
 				config.TestProductVariables.PackageNameOverrides = []string{test.packageNameOverride}
 			}
-			ctx := testAppContext(config, test.bp, nil)
+			ctx := testAppContext(test.bp, nil)
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -865,7 +865,7 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 		`
 	config := testConfig(nil)
 	config.TestProductVariables.ManifestPackageNameOverrides = []string{"foo:org.dandroid.bp"}
-	ctx := testAppContext(config, bp, nil)
+	ctx := testAppContext(bp, nil)
 
 	run(t, ctx, config)
 
@@ -879,7 +879,7 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 }
 
 func TestOverrideAndroidApp(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
@@ -980,7 +980,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 }
 
 func TestOverrideAndroidAppDependency(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
@@ -1021,7 +1021,7 @@ func TestOverrideAndroidAppDependency(t *testing.T) {
 }
 
 func TestAndroidAppImport(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
 			apk: "prebuilts/apk/app.apk",
@@ -1050,7 +1050,7 @@ func TestAndroidAppImport(t *testing.T) {
 }
 
 func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
 			apk: "prebuilts/apk/app.apk",
@@ -1071,7 +1071,7 @@ func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
 }
 
 func TestAndroidAppImport_Presigned(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
 			apk: "prebuilts/apk/app.apk",
@@ -1166,7 +1166,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 		config := testConfig(nil)
 		config.TestProductVariables.AAPTPreferredConfig = test.aaptPreferredConfig
 		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
-		ctx := testAppContext(config, bp, nil)
+		ctx := testAppContext(bp, nil)
 
 		run(t, ctx, config)
 
@@ -1183,7 +1183,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 }
 
 func TestStl(t *testing.T) {
-	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
 		}
@@ -1286,7 +1286,7 @@ func TestUsesLibraries(t *testing.T) {
 	config := testConfig(nil)
 	config.TestProductVariables.MissingUsesLibraries = []string{"baz"}
 
-	ctx := testAppContext(config, bp, nil)
+	ctx := testAppContext(bp, nil)
 
 	run(t, ctx, config)
 
@@ -1398,7 +1398,7 @@ func TestCodelessApp(t *testing.T) {
 }
 
 func TestEmbedNotice(t *testing.T) {
-	ctx := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
@@ -1549,7 +1549,7 @@ func TestUncompressDex(t *testing.T) {
 			config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 		}
 
-		ctx := testAppContext(config, bp, nil)
+		ctx := testAppContext(bp, nil)
 
 		run(t, ctx, config)
 

@@ -51,7 +51,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 	dexpreoptConfig.RuntimeApexJars = []string{"foo", "bar", "baz"}
 	setDexpreoptTestGlobalConfig(config, dexpreoptConfig)
 
-	ctx := testContext(config, bp, nil)
+	ctx := testContext(bp, nil)
 
 	ctx.RegisterSingletonType("dex_bootjars", android.SingletonFactoryAdaptor(dexpreoptBootJarsFactory))
 
