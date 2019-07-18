@@ -50,9 +50,7 @@ func TestDeviceForHost(t *testing.T) {
 		}
 	`
 
-	config := testConfig(nil)
-	ctx := testContext(config, bp, nil)
-	run(t, ctx, config)
+	ctx, config := testJava(t, bp)
 
 	deviceModule := ctx.ModuleForTests("device_module", "android_common")
 	deviceTurbineCombined := deviceModule.Output("turbine-combined/device_module.jar")
@@ -133,9 +131,7 @@ func TestHostForDevice(t *testing.T) {
 		}
 	`
 
-	config := testConfig(nil)
-	ctx := testContext(config, bp, nil)
-	run(t, ctx, config)
+	ctx, config := testJava(t, bp)
 
 	hostModule := ctx.ModuleForTests("host_module", config.BuildOsCommonVariant)
 	hostJavac := hostModule.Output("javac/host_module.jar")
