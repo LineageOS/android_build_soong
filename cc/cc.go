@@ -179,6 +179,9 @@ type Flags struct {
 }
 
 type ObjectLinkerProperties struct {
+	// list of modules that should only provide headers for this module.
+	Header_libs []string `android:"arch_variant,variant_prepend"`
+
 	// names of other cc_object modules to link into this module using partial linking
 	Objs []string `android:"arch_variant"`
 
@@ -2083,6 +2086,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&VendorProperties{},
 		&BaseCompilerProperties{},
 		&BaseLinkerProperties{},
+		&ObjectLinkerProperties{},
 		&LibraryProperties{},
 		&FlagExporterProperties{},
 		&BinaryLinkerProperties{},
