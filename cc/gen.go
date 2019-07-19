@@ -120,6 +120,11 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	headerBn := outDir.Join(ctx, aidlPackage, "Bn"+shortName+".h")
 	headerBp := outDir.Join(ctx, aidlPackage, "Bp"+shortName+".h")
 
+	baseDir := strings.TrimSuffix(aidlFile.String(), aidlFile.Rel())
+	if baseDir != "" {
+		aidlFlags += " -I" + baseDir
+	}
+
 	cmd := rule.Command()
 	cmd.BuiltTool(ctx, "aidl-cpp").
 		FlagWithDepFile("-d", depFile).
