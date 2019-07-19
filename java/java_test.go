@@ -192,6 +192,7 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 		"bar-doc/a.java":                 nil,
 		"bar-doc/b.java":                 nil,
 		"bar-doc/IFoo.aidl":              nil,
+		"bar-doc/IBar.aidl":              nil,
 		"bar-doc/known_oj_tags.txt":      nil,
 		"external/doclava/templates-sdk": nil,
 
@@ -754,11 +755,17 @@ func TestDroiddoc(t *testing.T) {
 		    name: "droiddoc-templates-sdk",
 		    path: ".",
 		}
+		filegroup {
+		    name: "bar-doc-aidl-srcs",
+		    srcs: ["bar-doc/IBar.aidl"],
+		    path: "bar-doc",
+		}
 		droiddoc {
 		    name: "bar-doc",
 		    srcs: [
 		        "bar-doc/*.java",
 		        "bar-doc/IFoo.aidl",
+		        ":bar-doc-aidl-srcs",
 		    ],
 		    exclude_srcs: [
 		        "bar-doc/b.java"
@@ -786,8 +793,14 @@ func TestDroiddoc(t *testing.T) {
 	for _, i := range inputs {
 		javaSrcs = append(javaSrcs, i.Base())
 	}
-	if len(javaSrcs) != 2 || javaSrcs[0] != "a.java" || javaSrcs[1] != "IFoo.java" {
-		t.Errorf("inputs of bar-doc must be []string{\"a.java\", \"IFoo.java\", but was %#v.", javaSrcs)
+	if len(javaSrcs) != 3 || javaSrcs[0] != "a.java" || javaSrcs[1] != "IFoo.java" || javaSrcs[2] != "IBar.java" {
+		t.Errorf("inputs of bar-doc must be []string{\"a.java\", \"IFoo.java\", \"IBar.java\", but was %#v.", javaSrcs)
+	}
+
+	aidlRule := ctx.ModuleForTests("bar-doc", "android_common").Output(inputs[2].String())
+	aidlFlags := aidlRule.Args["aidlFlags"]
+	if !strings.Contains(aidlFlags, "-Ibar-doc") {
+		t.Errorf("aidl flags for IBar.aidl should contain \"-Ibar-doc\", but was %q", aidlFlags)
 	}
 }
 
