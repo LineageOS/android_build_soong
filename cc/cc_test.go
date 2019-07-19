@@ -2277,6 +2277,9 @@ func TestFuzzTarget(t *testing.T) {
 	ctx.ModuleForTests("fuzz_smoke_test", variant).Rule("cc")
 }
 
+func TestAidl(t *testing.T) {
+}
+
 func assertString(t *testing.T, got, expected string) {
 	t.Helper()
 	if got != expected {
