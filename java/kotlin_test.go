@@ -22,7 +22,7 @@ import (
 )
 
 func TestKotlin(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java", "b.kt"],
@@ -84,7 +84,7 @@ func TestKotlin(t *testing.T) {
 }
 
 func TestKapt(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java", "b.kt"],

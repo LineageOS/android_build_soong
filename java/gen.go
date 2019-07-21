@@ -15,6 +15,8 @@
 package java
 
 import (
+	"strings"
+
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -63,6 +65,10 @@ var (
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, aidlFlags string, deps android.Paths) android.Path {
 	javaFile := android.GenPathWithExt(ctx, "aidl", aidlFile, "java")
 	depFile := javaFile.String() + ".d"
+	baseDir := strings.TrimSuffix(aidlFile.String(), aidlFile.Rel())
+	if baseDir != "" {
+		aidlFlags += " -I" + baseDir
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aidl,

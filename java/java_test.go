@@ -57,8 +57,7 @@ func testConfig(env map[string]string) android.Config {
 	return TestConfig(buildDir, env)
 }
 
-func testContext(config android.Config, bp string,
-	fs map[string][]byte) *android.TestContext {
+func testContext(bp string, fs map[string][]byte) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
@@ -193,6 +192,7 @@ func testContext(config android.Config, bp string,
 		"bar-doc/a.java":                 nil,
 		"bar-doc/b.java":                 nil,
 		"bar-doc/IFoo.aidl":              nil,
+		"bar-doc/IBar.aidl":              nil,
 		"bar-doc/known_oj_tags.txt":      nil,
 		"external/doclava/templates-sdk": nil,
 
@@ -222,13 +222,13 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	android.FailIfErrored(t, errs)
 }
 
-func testJava(t *testing.T, bp string) *android.TestContext {
+func testJava(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
 	config := testConfig(nil)
-	ctx := testContext(config, bp, nil)
+	ctx := testContext(bp, nil)
 	run(t, ctx, config)
 
-	return ctx
+	return ctx, config
 }
 
 func moduleToPath(name string) string {
@@ -243,7 +243,7 @@ func moduleToPath(name string) string {
 }
 
 func TestSimple(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -287,7 +287,7 @@ func TestSimple(t *testing.T) {
 }
 
 func TestSdkVersion(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -313,7 +313,7 @@ func TestSdkVersion(t *testing.T) {
 }
 
 func TestArchSpecific(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -332,7 +332,7 @@ func TestArchSpecific(t *testing.T) {
 }
 
 func TestBinary(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library_host {
 			name: "foo",
 			srcs: ["a.java"],
@@ -361,7 +361,7 @@ func TestBinary(t *testing.T) {
 }
 
 func TestPrebuilts(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -412,7 +412,7 @@ func TestPrebuilts(t *testing.T) {
 }
 
 func TestDefaults(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_defaults {
 			name: "defaults",
 			srcs: ["a.java"],
@@ -558,7 +558,7 @@ func TestResources(t *testing.T) {
 
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := testJava(t, `
+			ctx, _ := testJava(t, `
 				java_library {
 					name: "foo",
 					srcs: [
@@ -587,7 +587,7 @@ func TestResources(t *testing.T) {
 }
 
 func TestIncludeSrcs(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: [
@@ -650,7 +650,7 @@ func TestIncludeSrcs(t *testing.T) {
 }
 
 func TestGeneratedSources(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: [
@@ -683,7 +683,7 @@ func TestGeneratedSources(t *testing.T) {
 }
 
 func TestTurbine(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -732,7 +732,7 @@ func TestTurbine(t *testing.T) {
 }
 
 func TestSharding(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "bar",
 			srcs: ["a.java","b.java","c.java"],
@@ -750,16 +750,22 @@ func TestSharding(t *testing.T) {
 }
 
 func TestDroiddoc(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		droiddoc_template {
 		    name: "droiddoc-templates-sdk",
 		    path: ".",
+		}
+		filegroup {
+		    name: "bar-doc-aidl-srcs",
+		    srcs: ["bar-doc/IBar.aidl"],
+		    path: "bar-doc",
 		}
 		droiddoc {
 		    name: "bar-doc",
 		    srcs: [
 		        "bar-doc/*.java",
 		        "bar-doc/IFoo.aidl",
+		        ":bar-doc-aidl-srcs",
 		    ],
 		    exclude_srcs: [
 		        "bar-doc/b.java"
@@ -787,13 +793,19 @@ func TestDroiddoc(t *testing.T) {
 	for _, i := range inputs {
 		javaSrcs = append(javaSrcs, i.Base())
 	}
-	if len(javaSrcs) != 2 || javaSrcs[0] != "a.java" || javaSrcs[1] != "IFoo.java" {
-		t.Errorf("inputs of bar-doc must be []string{\"a.java\", \"IFoo.java\", but was %#v.", javaSrcs)
+	if len(javaSrcs) != 3 || javaSrcs[0] != "a.java" || javaSrcs[1] != "IFoo.java" || javaSrcs[2] != "IBar.java" {
+		t.Errorf("inputs of bar-doc must be []string{\"a.java\", \"IFoo.java\", \"IBar.java\", but was %#v.", javaSrcs)
+	}
+
+	aidlRule := ctx.ModuleForTests("bar-doc", "android_common").Output(inputs[2].String())
+	aidlFlags := aidlRule.Args["aidlFlags"]
+	if !strings.Contains(aidlFlags, "-Ibar-doc") {
+		t.Errorf("aidl flags for IBar.aidl should contain \"-Ibar-doc\", but was %q", aidlFlags)
 	}
 }
 
 func TestJarGenrules(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -847,7 +859,7 @@ func TestJarGenrules(t *testing.T) {
 }
 
 func TestExcludeFileGroupInSrcs(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java", ":foo-srcs"],
@@ -874,7 +886,7 @@ func TestExcludeFileGroupInSrcs(t *testing.T) {
 
 func TestJavaLibrary(t *testing.T) {
 	config := testConfig(nil)
-	ctx := testContext(config, "", map[string][]byte{
+	ctx := testContext("", map[string][]byte{
 		"libcore/Android.bp": []byte(`
 				java_library {
 						name: "core",
@@ -886,7 +898,7 @@ func TestJavaLibrary(t *testing.T) {
 }
 
 func TestJavaSdkLibrary(t *testing.T) {
-	ctx := testJava(t, `
+	ctx, _ := testJava(t, `
 		droiddoc_template {
 			name: "droiddoc-templates-sdk",
 			path: ".",
@@ -1057,7 +1069,7 @@ func TestPatchModule(t *testing.T) {
 
 	t.Run("Java language level 8", func(t *testing.T) {
 		// Test default javac -source 1.8 -target 1.8
-		ctx := testJava(t, bp)
+		ctx, _ := testJava(t, bp)
 
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		checkPatchModuleFlag(t, ctx, "bar", "")
@@ -1067,7 +1079,7 @@ func TestPatchModule(t *testing.T) {
 	t.Run("Java language level 9", func(t *testing.T) {
 		// Test again with javac -source 9 -target 9
 		config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "true"})
-		ctx := testContext(config, bp, nil)
+		ctx := testContext(bp, nil)
 		run(t, ctx, config)
 
 		checkPatchModuleFlag(t, ctx, "foo", "")

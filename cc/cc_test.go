@@ -2264,6 +2264,22 @@ func TestStaticDepsOrderWithStubs(t *testing.T) {
 	}
 }
 
+// Simple smoke test for the cc_fuzz target that ensures the rule compiles
+// correctly.
+func TestFuzzTarget(t *testing.T) {
+	ctx := testCc(t, `
+		cc_fuzz {
+			name: "fuzz_smoke_test",
+			srcs: ["foo.c"],
+		}`)
+
+	variant := "android_arm64_armv8-a_core"
+	ctx.ModuleForTests("fuzz_smoke_test", variant).Rule("cc")
+}
+
+func TestAidl(t *testing.T) {
+}
+
 func assertString(t *testing.T, got, expected string) {
 	t.Helper()
 	if got != expected {

@@ -63,6 +63,41 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 
 		toolchain_library {
+			name: "libclang_rt.fuzzer-arm-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.fuzzer-aarch64-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.fuzzer-i686-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.fuzzer-x86_64-android",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
+			name: "libclang_rt.fuzzer-x86_64",
+			vendor_available: true,
+			recovery_available: true,
+			src: "",
+		}
+
+		toolchain_library {
 			name: "libgcc",
 			vendor_available: true,
 			recovery_available: true,
@@ -196,6 +231,7 @@ func CreateTestContext(bp string, fs map[string][]byte,
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(BinaryFactory))
 	ctx.RegisterModuleType("cc_binary_host", android.ModuleFactoryAdaptor(binaryHostFactory))
+	ctx.RegisterModuleType("cc_fuzz", android.ModuleFactoryAdaptor(FuzzFactory))
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(LibrarySharedFactory))
 	ctx.RegisterModuleType("cc_library_static", android.ModuleFactoryAdaptor(LibraryStaticFactory))
@@ -229,6 +265,7 @@ func CreateTestContext(bp string, fs map[string][]byte,
 		"bar.c":       nil,
 		"a.proto":     nil,
 		"b.aidl":      nil,
+		"sub/c.aidl":  nil,
 		"my_include":  nil,
 		"foo.map.txt": nil,
 		"liba.so":     nil,
