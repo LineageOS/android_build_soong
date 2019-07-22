@@ -48,6 +48,7 @@ func registerNeverallowMutator(ctx RegisterMutatorsContext) {
 var neverallows = []Rule{}
 
 func init() {
+	AddNeverAllowRules(createIncludeDirsRules()...)
 	AddNeverAllowRules(createTrebleRules()...)
 	AddNeverAllowRules(createLibcoreRules()...)
 	AddNeverAllowRules(createMediaRules()...)
@@ -57,6 +58,42 @@ func init() {
 // Add a NeverAllow rule to the set of rules to apply.
 func AddNeverAllowRules(rules ...Rule) {
 	neverallows = append(neverallows, rules...)
+}
+
+func createIncludeDirsRules() []Rule {
+	// The list of paths that cannot be referenced using include_dirs
+	paths := []string{
+		"art",
+		"libcore",
+		"libnativehelper",
+		"external/apache-harmony",
+		"external/apache-xml",
+		"external/boringssl",
+		"external/bouncycastle",
+		"external/conscrypt",
+		"external/icu",
+		"external/okhttp",
+		"external/vixl",
+		"external/wycheproof",
+		"system/core/libnativebridge",
+		"system/core/libnativehelper",
+	}
+
+	// Create a composite matcher that will match if the value starts with any of the restricted
+	// paths. A / is appended to the prefix to ensure that restricting path X does not affect paths
+	// XY.
+	rules := make([]Rule, 0, len(paths))
+	for _, path := range paths {
+		rule :=
+			NeverAllow().
+				WithMatcher("include_dirs", StartsWith(path+"/")).
+				Because("include_dirs is deprecated, all usages of '" + path + "' have been migrated" +
+					" to use alternate mechanisms and so can no longer be used.")
+
+		rules = append(rules, rule)
+	}
+
+	return rules
 }
 
 func createTrebleRules() []Rule {
@@ -195,6 +232,18 @@ func (m *anyMatcher) String() string {
 
 var anyMatcherInstance = &anyMatcher{}
 
+type startsWithMatcher struct {
+	prefix string
+}
+
+func (m *startsWithMatcher) test(value string) bool {
+	return strings.HasPrefix(value, m.prefix)
+}
+
+func (m *startsWithMatcher) String() string {
+	return ".starts-with(" + m.prefix + ")"
+}
+
 type ruleProperty struct {
 	fields  []string // e.x.: Vndk.Enabled
 	matcher ValueMatcher
@@ -212,7 +261,11 @@ type Rule interface {
 
 	With(properties, value string) Rule
 
+	WithMatcher(properties string, matcher ValueMatcher) Rule
+
 	Without(properties, value string) Rule
+
+	WithoutMatcher(properties string, matcher ValueMatcher) Rule
 
 	Because(reason string) Rule
 }
@@ -257,17 +310,25 @@ func (r *rule) NotModuleType(types ...string) Rule {
 }
 
 func (r *rule) With(properties, value string) Rule {
+	return r.WithMatcher(properties, selectMatcher(value))
+}
+
+func (r *rule) WithMatcher(properties string, matcher ValueMatcher) Rule {
 	r.props = append(r.props, ruleProperty{
 		fields:  fieldNamesForProperties(properties),
-		matcher: selectMatcher(value),
+		matcher: matcher,
 	})
 	return r
 }
 
 func (r *rule) Without(properties, value string) Rule {
+	return r.WithoutMatcher(properties, selectMatcher(value))
+}
+
+func (r *rule) WithoutMatcher(properties string, matcher ValueMatcher) Rule {
 	r.unlessProps = append(r.unlessProps, ruleProperty{
 		fields:  fieldNamesForProperties(properties),
-		matcher: selectMatcher(value),
+		matcher: matcher,
 	})
 	return r
 }
@@ -324,6 +385,10 @@ func (r *rule) appliesToProperties(properties []interface{}) bool {
 	includeProps := hasAllProperties(properties, r.props)
 	excludeProps := hasAnyProperty(properties, r.unlessProps)
 	return includeProps && !excludeProps
+}
+
+func StartsWith(prefix string) ValueMatcher {
+	return &startsWithMatcher{prefix}
 }
 
 // assorted utils
