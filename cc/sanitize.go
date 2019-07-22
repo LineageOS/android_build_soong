@@ -33,7 +33,6 @@ var (
 
 	asanCflags  = []string{"-fno-omit-frame-pointer"}
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
-	asanLibs    = []string{"libasan"}
 
 	// TODO(pcc): Stop passing -hwasan-allow-ifunc here once it has been made
 	// the default.
@@ -392,7 +391,6 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 
 	if ctx.Device() {
 		if Bool(sanitize.Properties.Sanitize.Address) {
-			deps.StaticLibs = append(deps.StaticLibs, asanLibs...)
 			// Compiling asan and having libc_scudo in the same
 			// executable will cause the executable to crash.
 			// Remove libc_scudo since it is only used to override
