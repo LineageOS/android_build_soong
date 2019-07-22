@@ -249,9 +249,9 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	}
 
 	clangPrefix := secondPrefix + "CLANG_" + typePrefix
-	clangExtras := "-target " + toolchain.ClangTriple()
-	clangExtras += " -B" + config.ToolPath(toolchain)
+	clangExtras := "-B" + config.ToolPath(toolchain)
 
+	ctx.Strict(clangPrefix+"TRIPLE", toolchain.ClangTriple())
 	ctx.Strict(clangPrefix+"GLOBAL_CFLAGS", strings.Join([]string{
 		toolchain.ClangCflags(),
 		"${config.CommonClangGlobalCflags}",
