@@ -124,6 +124,25 @@ func (n HostModuleNames) Set(v string) error {
 
 var hostModuleNames = HostModuleNames{}
 
+type HostAndDeviceModuleNames map[string]bool
+
+func (n HostAndDeviceModuleNames) IsHostAndDeviceModule(groupId string, artifactId string) bool {
+	_, found := n[groupId+":"+artifactId]
+
+	return found
+}
+
+func (n HostAndDeviceModuleNames) String() string {
+	return ""
+}
+
+func (n HostAndDeviceModuleNames) Set(v string) error {
+	n[v] = true
+	return nil
+}
+
+var hostAndDeviceModuleNames = HostAndDeviceModuleNames{}
+
 var sdkVersion string
 var useVersion string
 var staticDeps bool
@@ -190,10 +209,14 @@ func (p Pom) IsDeviceModule() bool {
 	return !p.IsHostModule()
 }
 
+func (p Pom) IsHostAndDeviceModule() bool {
+	return hostAndDeviceModuleNames.IsHostAndDeviceModule(p.GroupId, p.ArtifactId)
+}
+
 func (p Pom) ModuleType() string {
 	if p.IsAar() {
 		return "android_library"
-	} else if p.IsHostModule() {
+	} else if p.IsHostModule() && !p.IsHostAndDeviceModule() {
 		return "java_library_host"
 	} else {
 		return "java_library_static"
@@ -203,7 +226,7 @@ func (p Pom) ModuleType() string {
 func (p Pom) ImportModuleType() string {
 	if p.IsAar() {
 		return "android_library_import"
-	} else if p.IsHostModule() {
+	} else if p.IsHostModule() && !p.IsHostAndDeviceModule() {
 		return "java_import_host"
 	} else {
 		return "java_import"
@@ -340,6 +363,9 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     {{- if .Jetifier}}
     jetifier: true,
     {{- end}}
+    {{- if .IsHostAndDeviceModule}}
+    host_supported: true,
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [
@@ -372,6 +398,9 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     {{- if .Jetifier}}
     jetifier: true,
     {{- end}}
+    {{- if .IsHostAndDeviceModule}}
+    host_supported: true,
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [
@@ -399,6 +428,9 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     name: "{{.BpName}}",
     {{- if .IsDeviceModule}}
     sdk_version: "{{.SdkVersion}}",
+    {{- if .IsHostAndDeviceModule}}
+    host_supported: true,
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     manifest: "manifests/{{.BpName}}/AndroidManifest.xml",
@@ -564,6 +596,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
 	flag.Var(&extraLibs, "extra-libs", "Extra runtime dependencies needed when depending on a module")
 	flag.Var(&rewriteNames, "rewrite", "Regex(es) to rewrite artifact names")
 	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
+	flag.Var(&hostAndDeviceModuleNames, "host-and-device", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is both a host and device module.")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to sdk_version")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
