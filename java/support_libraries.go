@@ -52,8 +52,6 @@ func supportLibrariesMakeVarsProvider(ctx android.MakeVarsContext) {
 			supportAars = append(supportAars, name)
 		case *Library, *Import:
 			supportJars = append(supportJars, name)
-		default:
-			ctx.ModuleErrorf(module, "unknown module type %t", module)
 		}
 	})
 
