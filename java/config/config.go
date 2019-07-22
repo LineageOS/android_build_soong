@@ -48,6 +48,11 @@ var (
 	}
 )
 
+const (
+	JavaVmFlags  = `-XX:OnError="cat hs_err_pid%p.log" -XX:CICompilerCount=6 -XX:+UseDynamicNumberOfGCThreads`
+	JavacVmFlags = `-J-XX:OnError="cat hs_err_pid%p.log" -J-XX:CICompilerCount=6 -J-XX:+UseDynamicNumberOfGCThreads`
+)
+
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
 
@@ -70,8 +75,9 @@ func init() {
 		// b/65004097: prevent using java.lang.invoke.StringConcatFactory when using -target 1.9
 		`-XDstringConcat=inline`,
 	}, " "))
-	pctx.StaticVariable("JavaVmFlags", "-XX:OnError=\"cat hs_err_pid%p.log\" -XX:CICompilerCount=6 -XX:+UseDynamicNumberOfGCThreads")
-	pctx.StaticVariable("JavacVmFlags", "-J-XX:OnError=\"cat hs_err_pid%p.log\" -J-XX:CICompilerCount=6 -J-XX:+UseDynamicNumberOfGCThreads")
+
+	pctx.StaticVariable("JavaVmFlags", JavaVmFlags)
+	pctx.StaticVariable("JavacVmFlags", JavacVmFlags)
 
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 
@@ -154,4 +160,42 @@ func init() {
 
 	pctx.HostBinToolVariable("Class2Greylist", "class2greylist")
 	pctx.HostBinToolVariable("HiddenAPI", "hiddenapi")
+}
+
+// JavaCmd returns a SourcePath object with the path to the java command.
+func JavaCmd(ctx android.PathContext) android.SourcePath {
+	return javaTool(ctx, "java")
+}
+
+// JavadocCmd returns a SourcePath object with the path to the java command.
+func JavadocCmd(ctx android.PathContext) android.SourcePath {
+	return javaTool(ctx, "javadoc")
+}
+
+func javaTool(ctx android.PathContext, tool string) android.SourcePath {
+	type javaToolKey string
+
+	key := android.NewCustomOnceKey(javaToolKey(tool))
+
+	return ctx.Config().OnceSourcePath(key, func() android.SourcePath {
+		return javaToolchain(ctx).Join(ctx, tool)
+	})
+
+}
+
+var javaToolchainKey = android.NewOnceKey("javaToolchain")
+
+func javaToolchain(ctx android.PathContext) android.SourcePath {
+	return ctx.Config().OnceSourcePath(javaToolchainKey, func() android.SourcePath {
+		return javaHome(ctx).Join(ctx, "bin")
+	})
+}
+
+var javaHomeKey = android.NewOnceKey("javaHome")
+
+func javaHome(ctx android.PathContext) android.SourcePath {
+	return ctx.Config().OnceSourcePath(javaHomeKey, func() android.SourcePath {
+		// This is set up and guaranteed by soong_ui
+		return android.PathForSource(ctx, ctx.Config().Getenv("ANDROID_JAVA_HOME"))
+	})
 }

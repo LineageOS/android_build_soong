@@ -148,16 +148,15 @@ func init() {
 }
 
 type javaBuilderFlags struct {
-	javacFlags        string
-	bootClasspath     classpath
-	classpath         classpath
-	processorPath     classpath
-	processor         string
-	systemModules     classpath
-	systemModulesDeps android.Paths
-	aidlFlags         string
-	aidlDeps          android.Paths
-	javaVersion       string
+	javacFlags    string
+	bootClasspath classpath
+	classpath     classpath
+	processorPath classpath
+	processor     string
+	systemModules *systemModules
+	aidlFlags     string
+	aidlDeps      android.Paths
+	javaVersion   string
 
 	errorProneExtraJavacFlags string
 	errorProneProcessorPath   classpath
@@ -249,8 +248,9 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 
 	var bootClasspath string
 	if flags.javaVersion == "1.9" {
-		deps = append(deps, flags.systemModulesDeps...)
-		bootClasspath = flags.systemModules.FormJavaSystemModulesPath("--system=", ctx.Device())
+		var systemModuleDeps android.Paths
+		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
+		deps = append(deps, systemModuleDeps...)
 	} else {
 		deps = append(deps, flags.bootClasspath...)
 		if len(flags.bootClasspath) == 0 && ctx.Device() {
@@ -411,7 +411,7 @@ func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePat
 	})
 }
 
-type classpath []android.Path
+type classpath android.Paths
 
 func (x *classpath) FormJavaClassPath(optName string) string {
 	if optName != "" && !strings.HasSuffix(optName, "=") && !strings.HasSuffix(optName, " ") {
@@ -419,21 +419,6 @@ func (x *classpath) FormJavaClassPath(optName string) string {
 	}
 	if len(*x) > 0 {
 		return optName + strings.Join(x.Strings(), ":")
-	} else {
-		return ""
-	}
-}
-
-// Returns a --system argument in the form javac expects with -source 1.9.  If forceEmpty is true,
-// returns --system=none if the list is empty to ensure javac does not fall back to the default
-// system modules.
-func (x *classpath) FormJavaSystemModulesPath(optName string, forceEmpty bool) string {
-	if len(*x) > 1 {
-		panic("more than one system module")
-	} else if len(*x) == 1 {
-		return optName + (*x)[0].String()
-	} else if forceEmpty {
-		return optName + "none"
 	} else {
 		return ""
 	}
@@ -465,4 +450,22 @@ func (x *classpath) Strings() []string {
 		ret[i] = path.String()
 	}
 	return ret
+}
+
+type systemModules struct {
+	dir  android.Path
+	deps android.Paths
+}
+
+// Returns a --system argument in the form javac expects with -source 1.9.  If forceEmpty is true,
+// returns --system=none if the list is empty to ensure javac does not fall back to the default
+// system modules.
+func (x *systemModules) FormJavaSystemModulesPath(forceEmpty bool) (string, android.Paths) {
+	if x != nil {
+		return "--system=" + x.dir.String(), x.deps
+	} else if forceEmpty {
+		return "--system=none", nil
+	} else {
+		return "", nil
+	}
 }

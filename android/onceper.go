@@ -95,6 +95,16 @@ func (once *OncePer) Once2StringSlice(key OnceKey, value func() ([]string, []str
 	return s[0], s[1]
 }
 
+// OncePath is the same as Once, but returns the value cast to a Path
+func (once *OncePer) OncePath(key OnceKey, value func() Path) Path {
+	return once.Once(key, func() interface{} { return value() }).(Path)
+}
+
+// OncePath is the same as Once, but returns the value cast to a SourcePath
+func (once *OncePer) OnceSourcePath(key OnceKey, value func() SourcePath) SourcePath {
+	return once.Once(key, func() interface{} { return value() }).(SourcePath)
+}
+
 // OnceKey is an opaque type to be used as the key in calls to Once.
 type OnceKey struct {
 	key interface{}
