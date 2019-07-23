@@ -1031,7 +1031,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 			if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
 				executablePaths = append(executablePaths, pathInApex)
 				for _, s := range f.symlinks {
-					executablePaths = append(executablePaths, filepath.Join("bin", s))
+					executablePaths = append(executablePaths, filepath.Join(f.installDir, s))
 				}
 			} else {
 				readOnlyPaths = append(readOnlyPaths, pathInApex)
