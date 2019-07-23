@@ -206,6 +206,7 @@ type productVariables struct {
 	HostStaticBinaries               *bool `json:",omitempty"`
 	Binder32bit                      *bool `json:",omitempty"`
 	UseGoma                          *bool `json:",omitempty"`
+	UseRBE                           *bool `json:",omitempty"`
 	Debuggable                       *bool `json:",omitempty"`
 	Eng                              *bool `json:",omitempty"`
 	Treble_linker_namespaces         *bool `json:",omitempty"`
