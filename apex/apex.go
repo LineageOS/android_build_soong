@@ -449,6 +449,7 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 	ctx.AddFarVariationDependencies([]blueprint.Variation{
 		{Mutator: "arch", Variation: arch},
 		{Mutator: "image", Variation: imageVariation},
+		{Mutator: "test_per_src", Variation: ""}, // "" is the all-tests variant
 	}, testTag, tests...)
 }
 
@@ -492,6 +493,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddFarVariationDependencies([]blueprint.Variation{
 			{Mutator: "arch", Variation: target.String()},
 			{Mutator: "image", Variation: a.getImageVariation(config)},
+			{Mutator: "test_per_src", Variation: ""}, // "" is the all-tests variant
 		}, testTag, a.properties.Tests...)
 
 		// Add native modules targetting both ABIs
@@ -692,6 +694,12 @@ func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirIn
 	return
 }
 
+func getCopyManifestForTestPerSrcExecutables(cc *cc.Module) (filesToCopy []android.Path, dirInApex string) {
+	dirInApex = filepath.Join("bin", cc.RelativeInstallPath())
+	filesToCopy = cc.TestPerSrcOutputFiles()
+	return
+}
+
 func getCopyManifestForPyBinary(py *python.Module) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = "bin"
 	fileToCopy = py.HostToolPath().Path()
@@ -827,8 +835,22 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case testTag:
 				if cc, ok := child.(*cc.Module); ok {
-					fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
-					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeTest, cc, nil})
+					if cc.TestPerSrcOutputFiles() != nil {
+						// Multiple-output test module (using `test_per_src`).
+						filesToCopy, dirInApex := getCopyManifestForTestPerSrcExecutables(cc)
+						for _, fileToCopy := range filesToCopy {
+							// Handle modules created as `test_per_src` variations of a single test module:
+							// replace the name of the original test module (`depName`, shared by all
+							// `test_per_src` variants of that module) with the name of the generated test
+							// binary.
+							moduleName := filepath.Base(fileToCopy.String())
+							filesInfo = append(filesInfo, apexFile{fileToCopy, moduleName, dirInApex, nativeTest, cc, nil})
+						}
+					} else {
+						// Single-output test module (not using `test_per_src`).
+						fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
+						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeTest, cc, nil})
+					}
 					return true
 				} else {
 					ctx.PropertyErrorf("tests", "%q is not a cc module", depName)

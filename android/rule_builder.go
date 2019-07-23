@@ -478,6 +478,16 @@ func (c *RuleBuilderCommand) Flag(flag string) *RuleBuilderCommand {
 	return c.Text(flag)
 }
 
+// OptionalFlag adds the specified raw text to the command line if it is not nil.  The text should not contain input or
+// output paths or the rule will not have them listed in its dependencies or outputs.
+func (c *RuleBuilderCommand) OptionalFlag(flag *string) *RuleBuilderCommand {
+	if flag != nil {
+		c.Text(*flag)
+	}
+
+	return c
+}
+
 // Flags adds the specified raw text to the command line.  The text should not contain input or output paths or the
 // rule will not have them listed in its dependencies or outputs.
 func (c *RuleBuilderCommand) Flags(flags []string) *RuleBuilderCommand {
