@@ -74,11 +74,8 @@ func GetConfig(name string) PathConfig {
 }
 
 var Configuration = map[string]PathConfig{
-	"bash": Allowed,
-	"bc":   Allowed,
-	// We need bzip2 here even though we provide a bzip2 binary because
-	// GNU tar seems to avoid calling ours.
-	"bzip2":    Allowed,
+	"bash":     Allowed,
+	"bc":       Allowed,
 	"dd":       Allowed,
 	"diff":     Allowed,
 	"dlv":      Allowed,
