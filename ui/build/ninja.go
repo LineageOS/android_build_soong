@@ -43,7 +43,7 @@ func runNinja(ctx Context, config Config) {
 	args = append(args, config.NinjaArgs()...)
 
 	var parallel int
-	if config.UseGoma() {
+	if config.UseGoma() || config.UseRBE() {
 		parallel = config.RemoteParallel()
 	} else {
 		parallel = config.Parallel()

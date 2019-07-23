@@ -161,6 +161,11 @@ func Build(ctx Context, config Config, what int) {
 		startGoma(ctx, config)
 	}
 
+	if config.StartRBE() {
+		// Ensure RBE proxy is started
+		startRBE(ctx, config)
+	}
+
 	if what&BuildProductConfig != 0 {
 		// Run make for product config
 		runMakeProductConfig(ctx, config)
