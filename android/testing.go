@@ -376,7 +376,7 @@ func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blu
 	var p AndroidMkEntriesProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkEntriesProvider); !ok {
-		t.Errorf("module does not implmement AndroidMkEntriesProvider: " + mod.Name())
+		t.Errorf("module does not implement AndroidMkEntriesProvider: " + mod.Name())
 	}
 	entries := p.AndroidMkEntries()
 	entries.fillInEntries(config, bpPath, mod)
@@ -387,7 +387,7 @@ func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod bluepr
 	var p AndroidMkDataProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkDataProvider); !ok {
-		t.Errorf("module does not implmement AndroidMkDataProvider: " + mod.Name())
+		t.Errorf("module does not implement AndroidMkDataProvider: " + mod.Name())
 	}
 	data := p.AndroidMk()
 	data.fillInData(config, bpPath, mod)
