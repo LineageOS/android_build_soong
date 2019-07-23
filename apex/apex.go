@@ -944,7 +944,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	if a.apexTypes.image() {
 		// Build rule for unflattened APEX is created even when ctx.Config().FlattenApex()
-		// is true. This is to support referencing APEX via ":<module_name" syntax
+		// is true. This is to support referencing APEX via ":<module_name>" syntax
 		// in other modules. It is in AndroidMk where the selection of flattened
 		// or unflattened APEX is made.
 		a.buildUnflattenedApex(ctx, imageApex)
