@@ -31,7 +31,7 @@ type VndkProperties struct {
 		// declared as a VNDK or VNDK-SP module. The vendor variant
 		// will be installed in /system instead of /vendor partition.
 		//
-		// `vendor_vailable` must be explicitly set to either true or
+		// `vendor_available` must be explicitly set to either true or
 		// false together with `vndk: {enabled: true}`.
 		Enabled *bool
 
