@@ -68,11 +68,20 @@ func InitDefaultableModule(module DefaultableModule) {
 	module.AddProperties(module.defaults())
 }
 
+// The Defaults_visibility property.
+type DefaultsVisibilityProperties struct {
+
+	// Controls the visibility of the defaults module itself.
+	Defaults_visibility []string
+}
+
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
 
 	// Container for defaults of the common properties
 	commonProperties commonProperties
+
+	defaultsVisibilityProperties DefaultsVisibilityProperties
 }
 
 // The common pattern for defaults modules is to register separate instances of
@@ -107,6 +116,9 @@ type Defaults interface {
 
 	// Return the defaults common properties.
 	common() *commonProperties
+
+	// Return the defaults visibility properties.
+	defaultsVisibility() *DefaultsVisibilityProperties
 }
 
 func (d *DefaultsModuleBase) isDefaults() bool {
@@ -126,6 +138,10 @@ func (d *DefaultsModuleBase) common() *commonProperties {
 	return &d.commonProperties
 }
 
+func (d *DefaultsModuleBase) defaultsVisibility() *DefaultsVisibilityProperties {
+	return &d.defaultsVisibilityProperties
+}
+
 func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
@@ -142,17 +158,19 @@ func InitDefaultsModule(module DefaultsModule) {
 
 	// Add properties that will not have defaults applied to them.
 	base := module.base()
-	module.AddProperties(&base.nameProperties)
+	defaultsVisibility := module.defaultsVisibility()
+	module.AddProperties(&base.nameProperties, defaultsVisibility)
 
-	// There is currently no way to control the visibility of a defaults module, i.e. there is no
-	// primary visibility property.
-	base.primaryVisibilityProperty = nil
+	// The defaults_visibility property controls the visibility of a defaults module.
+	base.primaryVisibilityProperty =
+		newVisibilityProperty("defaults_visibility", &defaultsVisibility.Defaults_visibility)
 
 	// Unlike non-defaults modules the visibility property is not stored in m.base().commonProperties.
 	// Instead it is stored in a separate instance of commonProperties created above so use that.
 	// The visibility property needs to be checked (but not parsed) by the visibility module during
 	// its checking phase and parsing phase.
 	base.visibilityPropertyInfo = []visibilityProperty{
+		base.primaryVisibilityProperty,
 		newVisibilityProperty("visibility", &commonProperties.Visibility),
 	}
 

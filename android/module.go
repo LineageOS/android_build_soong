@@ -305,6 +305,11 @@ type commonProperties struct {
 	// If no `default_visibility` property can be found then the module uses the
 	// global default of `//visibility:legacy_public`.
 	//
+	// The `visibility` property has no effect on a defaults module although it does
+	// apply to any non-defaults module that uses it. To set the visibility of a
+	// defaults module, use the `defaults_visibility` property on the defaults module;
+	// not to be confused with the `default_visibility` property on the package module.
+	//
 	// See https://android.googlesource.com/platform/build/soong/+/master/README.md#visibility for
 	// more details.
 	Visibility []string
