@@ -959,7 +959,11 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 				}
 				library.baseInstaller.subDir = "bootstrap"
 			}
+		} else if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && ctx.isLlndk(ctx.Config()) && !isBionic(ctx.baseModuleName()) {
+			// Skip installing LLNDK (non-bionic) libraries moved to APEX.
+			ctx.Module().SkipInstall()
 		}
+
 		library.baseInstaller.install(ctx, file)
 	}
 
