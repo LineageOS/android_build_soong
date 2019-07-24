@@ -70,6 +70,9 @@ func InitDefaultableModule(module DefaultableModule) {
 
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
+
+	// Container for defaults of the common properties
+	commonProperties commonProperties
 }
 
 // The common pattern for defaults modules is to register separate instances of
@@ -101,6 +104,9 @@ type Defaults interface {
 
 	// Get the structures containing the properties for which defaults can be provided.
 	properties() []interface{}
+
+	// Return the defaults common properties.
+	common() *commonProperties
 }
 
 func (d *DefaultsModuleBase) isDefaults() bool {
@@ -116,22 +122,41 @@ func (d *DefaultsModuleBase) properties() []interface{} {
 	return d.defaultableProperties
 }
 
+func (d *DefaultsModuleBase) common() *commonProperties {
+	return &d.commonProperties
+}
+
 func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
 func InitDefaultsModule(module DefaultsModule) {
+	commonProperties := module.common()
+
 	module.AddProperties(
 		&hostAndDeviceProperties{},
-		&commonProperties{},
+		commonProperties,
 		&variableProperties{})
 
 	InitArchModule(module)
 	InitDefaultableModule(module)
 
 	// Add properties that will not have defaults applied to them.
-	module.AddProperties(&module.base().nameProperties)
+	base := module.base()
+	module.AddProperties(&base.nameProperties)
 
-	module.base().module = module
+	// There is currently no way to control the visibility of a defaults module, i.e. there is no
+	// primary visibility property.
+	base.primaryVisibilityProperty = nil
+
+	// Unlike non-defaults modules the visibility property is not stored in m.base().commonProperties.
+	// Instead it is stored in a separate instance of commonProperties created above so use that.
+	// The visibility property needs to be checked (but not parsed) by the visibility module during
+	// its checking phase and parsing phase.
+	base.visibilityPropertyInfo = []visibilityProperty{
+		newVisibilityProperty("visibility", &commonProperties.Visibility),
+	}
+
+	base.module = module
 }
 
 var _ Defaults = (*DefaultsModuleBase)(nil)
