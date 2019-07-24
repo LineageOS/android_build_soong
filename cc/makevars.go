@@ -63,6 +63,13 @@ func makeStringOfWarningAllowedProjects() string {
 	}
 }
 
+type notOnHostContext struct {
+}
+
+func (c *notOnHostContext) Host() bool {
+	return false
+}
+
 func makeVarsProvider(ctx android.MakeVarsContext) {
 	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
 
@@ -102,13 +109,23 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	// Therefore, by removing the library here, we cause it to only be installed if libc
 	// depends on it.
 	installedLlndkLibraries := []string{}
+
+	// Make uses LLNDK_MOVED_TO_APEX_LIBRARIES to avoid installing libraries on /system if
+	// they been moved to an apex.
+	movedToApexLlndkLibraries := []string{}
 	for _, lib := range *llndkLibraries(ctx.Config()) {
 		if strings.HasPrefix(lib, "libclang_rt.hwasan-") {
 			continue
 		}
 		installedLlndkLibraries = append(installedLlndkLibraries, lib)
+
+		// Skip bionic libs, they are handled in different manner
+		if android.DirectlyInAnyApex(&notOnHostContext{}, lib) && !isBionic(lib) {
+			movedToApexLlndkLibraries = append(movedToApexLlndkLibraries, lib)
+		}
 	}
 	ctx.Strict("LLNDK_LIBRARIES", strings.Join(installedLlndkLibraries, " "))
+	ctx.Strict("LLNDK_MOVED_TO_APEX_LIBRARIES", strings.Join(movedToApexLlndkLibraries, " "))
 
 	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(*vndkPrivateLibraries(ctx.Config()), " "))
 	ctx.Strict("VNDK_USING_CORE_VARIANT_LIBRARIES", strings.Join(*vndkUsingCoreVariantLibraries(ctx.Config()), " "))
