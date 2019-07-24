@@ -216,6 +216,7 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 	}
 
 	profile := bootImageProfileRule(ctx, image, missingDeps)
+	bootFrameworkProfileRule(ctx, image, missingDeps)
 
 	var allFiles android.Paths
 
@@ -423,6 +424,52 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 }
 
 var bootImageProfileRuleKey = android.NewOnceKey("bootImageProfileRule")
+
+func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImage, missingDeps []string) android.WritablePath {
+	global := dexpreoptGlobalConfig(ctx)
+
+	if global.DisableGenerateProfile || ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
+		return nil
+	}
+	return ctx.Config().Once(bootFrameworkProfileRuleKey, func() interface{} {
+		tools := global.Tools
+
+		rule := android.NewRuleBuilder()
+		rule.MissingDeps(missingDeps)
+
+		// Some branches like master-art-host don't have frameworks/base, so manually
+		// handle the case that the default is missing.  Those branches won't attempt to build the profile rule,
+		// and if they do they'll get a missing deps error.
+		defaultProfile := "frameworks/base/config/boot-profile.txt"
+		path := android.ExistentPathForSource(ctx, defaultProfile)
+		var bootFrameworkProfile android.Path
+		if path.Valid() {
+			bootFrameworkProfile = path.Path()
+		} else {
+			missingDeps = append(missingDeps, defaultProfile)
+			bootFrameworkProfile = android.PathForOutput(ctx, "missing")
+		}
+
+		profile := image.dir.Join(ctx, "boot.bprof")
+
+		rule.Command().
+			Text(`ANDROID_LOG_TAGS="*:e"`).
+			Tool(tools.Profman).
+			Flag("--generate-boot-profile").
+			FlagWithInput("--create-profile-from=", bootFrameworkProfile).
+			FlagForEachInput("--apk=", image.dexPaths.Paths()).
+			FlagForEachArg("--dex-location=", image.dexLocations).
+			FlagWithOutput("--reference-profile-file=", profile)
+
+		rule.Install(profile, "/system/etc/boot-image.bprof")
+		rule.Build(pctx, ctx, "bootFrameworkProfile", "profile boot framework jars")
+		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
+
+		return profile
+	}).(android.WritablePath)
+}
+
+var bootFrameworkProfileRuleKey = android.NewOnceKey("bootFrameworkProfileRule")
 
 func dumpOatRules(ctx android.SingletonContext, image *bootImage) {
 	var archs []android.ArchType
