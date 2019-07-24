@@ -42,9 +42,16 @@ func (d *DefaultableModuleBase) setProperties(props []interface{}) {
 	d.defaultableProperties = props
 }
 
+// Interface that must be supported by any module to which defaults can be applied.
 type Defaultable interface {
+	// Get a pointer to the struct containing the Defaults property.
 	defaults() *defaultsProperties
+
+	// Set the property structures into which defaults will be added.
 	setProperties([]interface{})
+
+	// Apply defaults from the supplied Defaults to the property structures supplied to
+	// setProperties(...).
 	applyDefaults(TopDownMutatorContext, []Defaults)
 }
 
@@ -56,7 +63,7 @@ type DefaultableModule interface {
 var _ Defaultable = (*DefaultableModuleBase)(nil)
 
 func InitDefaultableModule(module DefaultableModule) {
-	module.(Defaultable).setProperties(module.(Module).GetProperties())
+	module.setProperties(module.(Module).GetProperties())
 
 	module.AddProperties(module.defaults())
 }
@@ -87,7 +94,12 @@ type DefaultsModuleBase struct {
 // rather than disabling the defaults module itself.
 type Defaults interface {
 	Defaultable
+
+	// Although this function is unused it is actually needed to ensure that only modules that embed
+	// DefaultsModuleBase will type-assert to the Defaults interface.
 	isDefaults() bool
+
+	// Get the structures containing the properties for which defaults can be provided.
 	properties() []interface{}
 }
 
@@ -111,6 +123,7 @@ func InitDefaultsModule(module DefaultableModule) {
 	InitArchModule(module)
 	InitDefaultableModule(module)
 
+	// Add properties that will not have defaults applied to them.
 	module.AddProperties(&module.base().nameProperties)
 
 	module.base().module = module
