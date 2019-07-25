@@ -143,6 +143,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	strippedDexJarFile := android.PathForModuleOut(ctx, "dexpreopt", dexJarFile.Base())
 
 	var profileClassListing android.OptionalPath
+	var profileBootListing android.OptionalPath
 	profileIsTextListing := false
 	if BoolDefault(d.dexpreoptProperties.Dex_preopt.Profile_guided, true) {
 		// If dex_preopt.profile_guided is not set, default it based on the existence of the
@@ -150,6 +151,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		if String(d.dexpreoptProperties.Dex_preopt.Profile) != "" {
 			profileClassListing = android.OptionalPathForPath(
 				android.PathForModuleSrc(ctx, String(d.dexpreoptProperties.Dex_preopt.Profile)))
+			profileBootListing = android.ExistentPathForSource(ctx,
+				ctx.ModuleDir(), String(d.dexpreoptProperties.Dex_preopt.Profile)+"-boot")
 			profileIsTextListing = true
 		} else {
 			profileClassListing = android.ExistentPathForSource(ctx,
@@ -169,6 +172,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 
 		ProfileClassListing:  profileClassListing,
 		ProfileIsTextListing: profileIsTextListing,
+		ProfileBootListing:   profileBootListing,
 
 		EnforceUsesLibraries:         d.enforceUsesLibs,
 		PresentOptionalUsesLibraries: d.optionalUsesLibs,

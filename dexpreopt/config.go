@@ -113,6 +113,7 @@ type ModuleConfig struct {
 
 	ProfileClassListing  android.OptionalPath
 	ProfileIsTextListing bool
+	ProfileBootListing   android.OptionalPath
 
 	EnforceUsesLibraries         bool
 	PresentOptionalUsesLibraries []string
