@@ -55,6 +55,11 @@ func (library *Library) AndroidMkHostDex(w io.Writer, name string, data android.
 }
 
 func (library *Library) AndroidMk() android.AndroidMkData {
+	if !library.IsForPlatform() {
+		return android.AndroidMkData{
+			Disabled: true,
+		}
+	}
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(library.outputFile),
@@ -141,6 +146,11 @@ func (j *TestHelperLibrary) AndroidMk() android.AndroidMkData {
 }
 
 func (prebuilt *Import) AndroidMk() android.AndroidMkData {
+	if !prebuilt.IsForPlatform() {
+		return android.AndroidMkData{
+			Disabled: true,
+		}
+	}
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.combinedClasspathFile),
@@ -157,6 +167,11 @@ func (prebuilt *Import) AndroidMk() android.AndroidMkData {
 }
 
 func (prebuilt *DexImport) AndroidMk() android.AndroidMkData {
+	if !prebuilt.IsForPlatform() {
+		return android.AndroidMkData{
+			Disabled: true,
+		}
+	}
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.maybeStrippedDexJarFile),
