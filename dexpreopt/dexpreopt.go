@@ -108,10 +108,14 @@ func GenerateDexpreoptRule(ctx android.PathContext,
 	rule = android.NewRuleBuilder()
 
 	generateProfile := module.ProfileClassListing.Valid() && !global.DisableGenerateProfile
+	generateBootProfile := module.ProfileBootListing.Valid() && !global.DisableGenerateProfile
 
 	var profile android.WritablePath
 	if generateProfile {
 		profile = profileCommand(ctx, global, module, rule)
+	}
+	if generateBootProfile {
+		bootProfileCommand(ctx, global, module, rule)
 	}
 
 	if !dexpreoptDisabled(global, module) {
@@ -178,6 +182,38 @@ func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleC
 	}
 
 	cmd.
+		FlagWithInput("--apk=", module.DexPath).
+		Flag("--dex-location="+module.DexLocation).
+		FlagWithOutput("--reference-profile-file=", profilePath)
+
+	if !module.ProfileIsTextListing {
+		cmd.Text(fmt.Sprintf(`|| echo "Profile out of date for %s"`, module.DexPath))
+	}
+	rule.Install(profilePath, profileInstalledPath)
+
+	return profilePath
+}
+
+func bootProfileCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig,
+	rule *android.RuleBuilder) android.WritablePath {
+
+	profilePath := module.BuildPath.InSameDir(ctx, "profile.bprof")
+	profileInstalledPath := module.DexLocation + ".bprof"
+
+	if !module.ProfileIsTextListing {
+		rule.Command().FlagWithOutput("touch ", profilePath)
+	}
+
+	cmd := rule.Command().
+		Text(`ANDROID_LOG_TAGS="*:e"`).
+		Tool(global.Tools.Profman)
+
+	// The profile is a test listing of methods.
+	// We need to generate the actual binary profile.
+	cmd.FlagWithInput("--create-profile-from=", module.ProfileBootListing.Path())
+
+	cmd.
+		Flag("--generate-boot-profile").
 		FlagWithInput("--apk=", module.DexPath).
 		Flag("--dex-location="+module.DexLocation).
 		FlagWithOutput("--reference-profile-file=", profilePath)
