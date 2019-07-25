@@ -91,6 +91,8 @@ func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Con
 	ctx.RegisterModuleType("sh_binary", android.ModuleFactoryAdaptor(android.ShBinaryFactory))
 	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(java.AndroidAppCertificateFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
+	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
+
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
 	})
@@ -205,6 +207,7 @@ func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Con
 		"mytest3.cpp":                          nil,
 		"myprebuilt":                           nil,
 		"my_include":                           nil,
+		"foo/bar/MyClass.java":                 nil,
 		"vendor/foo/devkeys/test.x509.pem":     nil,
 		"vendor/foo/devkeys/test.pk8":          nil,
 		"testkey.x509.pem":                     nil,
@@ -280,7 +283,8 @@ func TestBasicApex(t *testing.T) {
 				both: {
 					binaries: ["foo",],
 				}
-			}
+			},
+			java_libs: ["myjar"],
 		}
 
 		apex {
@@ -338,6 +342,23 @@ func TestBasicApex(t *testing.T) {
 			stl: "none",
 			notice: "custom_notice",
 		}
+
+		java_library {
+			name: "myjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			compile_dex: true,
+			static_libs: ["myotherjar"],
+		}
+
+		java_library {
+			name: "myotherjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			compile_dex: true,
+		}
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
@@ -354,17 +375,24 @@ func TestBasicApex(t *testing.T) {
 
 	// Ensure that apex variant is created for the direct dep
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common_myapex")
 
 	// Ensure that apex variant is created for the indirect dep
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+	ensureContains(t, copyCmds, "image.apex/javalib/myjar.jar")
+	// .. but not for java libs
+	ensureNotContains(t, copyCmds, "image.apex/javalib/myotherjar.jar")
 
-	// Ensure that the platform variant ends with _core_shared
+	// Ensure that the platform variant ends with _core_shared or _common
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common")
+	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common")
 
 	// Ensure that all symlinks are present.
 	found_foo_link_64 := false
