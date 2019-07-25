@@ -434,7 +434,26 @@ func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! Older versions are saved in verbose.log.#.gz files")
 		fmt.Fprintln(writer, "")
-		time.Sleep(5 * time.Second)
+		select {
+		case <-time.After(5 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+	}
+
+	if _, ok := config.Environment().Get("ONE_SHOT_MAKEFILE"); ok {
+		writer := ctx.Writer
+		fmt.Fprintln(writer, "! The variable `ONE_SHOT_MAKEFILE` is deprecated, and will be removed shortly.")
+		fmt.Fprintln(writer, "!")
+		fmt.Fprintln(writer, "! If you're using `mm`, you'll need to run `source build/envsetup.sh` to update.")
+		fmt.Fprintln(writer, "!")
+		fmt.Fprintln(writer, "! Otherwise, either specify a module name with m, or use mma / MODULES-IN-...")
+		fmt.Fprintln(writer, "")
+		select {
+		case <-time.After(30 * time.Second):
+		case <-ctx.Done():
+			return
+		}
 	}
 
 	toBuild := build.BuildAll
