@@ -230,7 +230,7 @@ func PathsForModuleSrc(ctx ModuleContext, paths []string) Paths {
 // references to OutputFileProducer modules using the ":name{.tag}" syntax.  Properties passed as the paths or excludes
 // argument must have been annotated with struct tag `android:"path"` so that dependencies on SourceFileProducer modules
 // will have already been handled by the path_properties mutator.  If ctx.Config().AllowMissingDependencies() is
-// truethen any missing SourceFileProducer or OutputFileProducer dependencies will cause the module to be marked as
+// true then any missing SourceFileProducer or OutputFileProducer dependencies will cause the module to be marked as
 // having missing dependencies.
 func PathsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) Paths {
 	ret, missingDeps := PathsAndMissingDepsForModuleSrcExcludes(ctx, paths, excludes)
