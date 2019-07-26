@@ -33,7 +33,7 @@ import (
 
 type StaticSharedLibraryProperties struct {
 	Srcs   []string `android:"path,arch_variant"`
-	Cflags []string `android:"path,arch_variant"`
+	Cflags []string `android:"arch_variant"`
 
 	Enabled            *bool    `android:"arch_variant"`
 	Whole_static_libs  []string `android:"arch_variant"`
