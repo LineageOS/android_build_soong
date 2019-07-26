@@ -658,6 +658,40 @@ var visibilityTests = []struct {
 				` visible to this module`,
 		},
 	},
+
+	// Defaults module's defaults_visibility tests
+	{
+		name: "defaults_visibility invalid",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "top_defaults",
+					defaults_visibility: ["//visibility:invalid"],
+				}`),
+		},
+		expectedErrors: []string{
+			`defaults_visibility: unrecognized visibility rule "//visibility:invalid"`,
+		},
+	},
+	{
+		name: "defaults_visibility overrides package default",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				package {
+					default_visibility: ["//visibility:private"],
+				}
+				mock_defaults {
+					name: "top_defaults",
+					defaults_visibility: ["//visibility:public"],
+				}`),
+			"outsider/Blueprints": []byte(`
+				mock_library {
+					name: "liboutsider",
+					defaults: ["top_defaults"],
+				}`),
+		},
+	},
+
 	// Package default_visibility tests
 	{
 		name: "package default_visibility property is checked",
