@@ -42,9 +42,16 @@ func (d *DefaultableModuleBase) setProperties(props []interface{}) {
 	d.defaultableProperties = props
 }
 
+// Interface that must be supported by any module to which defaults can be applied.
 type Defaultable interface {
+	// Get a pointer to the struct containing the Defaults property.
 	defaults() *defaultsProperties
+
+	// Set the property structures into which defaults will be added.
 	setProperties([]interface{})
+
+	// Apply defaults from the supplied Defaults to the property structures supplied to
+	// setProperties(...).
 	applyDefaults(TopDownMutatorContext, []Defaults)
 }
 
@@ -56,13 +63,25 @@ type DefaultableModule interface {
 var _ Defaultable = (*DefaultableModuleBase)(nil)
 
 func InitDefaultableModule(module DefaultableModule) {
-	module.(Defaultable).setProperties(module.(Module).GetProperties())
+	module.setProperties(module.(Module).GetProperties())
 
 	module.AddProperties(module.defaults())
 }
 
+// The Defaults_visibility property.
+type DefaultsVisibilityProperties struct {
+
+	// Controls the visibility of the defaults module itself.
+	Defaults_visibility []string
+}
+
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
+
+	// Container for defaults of the common properties
+	commonProperties commonProperties
+
+	defaultsVisibilityProperties DefaultsVisibilityProperties
 }
 
 // The common pattern for defaults modules is to register separate instances of
@@ -87,33 +106,75 @@ type DefaultsModuleBase struct {
 // rather than disabling the defaults module itself.
 type Defaults interface {
 	Defaultable
+
+	// Although this function is unused it is actually needed to ensure that only modules that embed
+	// DefaultsModuleBase will type-assert to the Defaults interface.
 	isDefaults() bool
+
+	// Get the structures containing the properties for which defaults can be provided.
 	properties() []interface{}
+
+	// Return the defaults common properties.
+	common() *commonProperties
+
+	// Return the defaults visibility properties.
+	defaultsVisibility() *DefaultsVisibilityProperties
 }
 
 func (d *DefaultsModuleBase) isDefaults() bool {
 	return true
 }
 
+type DefaultsModule interface {
+	Module
+	Defaults
+}
+
 func (d *DefaultsModuleBase) properties() []interface{} {
 	return d.defaultableProperties
+}
+
+func (d *DefaultsModuleBase) common() *commonProperties {
+	return &d.commonProperties
+}
+
+func (d *DefaultsModuleBase) defaultsVisibility() *DefaultsVisibilityProperties {
+	return &d.defaultsVisibilityProperties
 }
 
 func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
-func InitDefaultsModule(module DefaultableModule) {
+func InitDefaultsModule(module DefaultsModule) {
+	commonProperties := module.common()
+
 	module.AddProperties(
 		&hostAndDeviceProperties{},
-		&commonProperties{},
+		commonProperties,
 		&variableProperties{})
 
 	InitArchModule(module)
 	InitDefaultableModule(module)
 
-	module.AddProperties(&module.base().nameProperties)
+	// Add properties that will not have defaults applied to them.
+	base := module.base()
+	defaultsVisibility := module.defaultsVisibility()
+	module.AddProperties(&base.nameProperties, defaultsVisibility)
 
-	module.base().module = module
+	// The defaults_visibility property controls the visibility of a defaults module.
+	base.primaryVisibilityProperty =
+		newVisibilityProperty("defaults_visibility", &defaultsVisibility.Defaults_visibility)
+
+	// Unlike non-defaults modules the visibility property is not stored in m.base().commonProperties.
+	// Instead it is stored in a separate instance of commonProperties created above so use that.
+	// The visibility property needs to be checked (but not parsed) by the visibility module during
+	// its checking phase and parsing phase.
+	base.visibilityPropertyInfo = []visibilityProperty{
+		base.primaryVisibilityProperty,
+		newVisibilityProperty("visibility", &commonProperties.Visibility),
+	}
+
+	base.module = module
 }
 
 var _ Defaults = (*DefaultsModuleBase)(nil)
