@@ -71,10 +71,6 @@ func (p *prebuiltEtcXml) timestampFilePath(ctx android.ModuleContext) android.Wr
 	return android.PathForModuleOut(ctx, p.PrebuiltEtc.SourceFilePath(ctx).Base()+"-timestamp")
 }
 
-func (p *prebuiltEtcXml) DepsMutator(ctx android.BottomUpMutatorContext) {
-	p.PrebuiltEtc.DepsMutator(ctx)
-}
-
 func (p *prebuiltEtcXml) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.PrebuiltEtc.GenerateAndroidBuildActions(ctx)
 
@@ -125,9 +121,8 @@ func (p *prebuiltEtcXml) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 func PrebuiltEtcXmlFactory() android.Module {
 	module := &prebuiltEtcXml{}
 	module.AddProperties(&module.properties)
-
-	android.InitPrebuiltEtcModule(&module.PrebuiltEtc)
+	android.InitPrebuiltEtcModule(&module.PrebuiltEtc, "etc")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }

@@ -34,6 +34,7 @@ func testXml(t *testing.T, bp string) *android.TestContext {
 		"foo.dtd":    nil,
 		"bar.xml":    nil,
 		"bar.xsd":    nil,
+		"baz.xml":    nil,
 	}
 	ctx.MockFileSystem(mockFiles)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -59,6 +60,13 @@ func teardown(buildDir string) {
 	os.RemoveAll(buildDir)
 }
 
+func assertEqual(t *testing.T, name, expected, actual string) {
+	t.Helper()
+	if expected != actual {
+		t.Errorf(name+" expected %q != got %q", expected, actual)
+	}
+}
+
 // Minimal test
 func TestPrebuiltEtcXml(t *testing.T) {
 	ctx := testXml(t, `
@@ -72,15 +80,28 @@ func TestPrebuiltEtcXml(t *testing.T) {
 			src: "bar.xml",
 			schema: "bar.xsd",
 		}
+		prebuilt_etc_xml {
+			name: "baz.xml",
+			src: "baz.xml",
+		}
 	`)
 
-	xmllint := ctx.ModuleForTests("foo.xml", "android_common").Rule("xmllint")
-	input := xmllint.Input.String()
-	if input != "foo.xml" {
-		t.Errorf("input expected %q != got %q", "foo.xml", input)
+	for _, tc := range []struct {
+		rule, input, schemaType, schema string
+	}{
+		{rule: "xmllint-dtd", input: "foo.xml", schemaType: "dtd", schema: "foo.dtd"},
+		{rule: "xmllint-xsd", input: "bar.xml", schemaType: "xsd", schema: "bar.xsd"},
+		{rule: "xmllint-minimal", input: "baz.xml"},
+	} {
+		t.Run(tc.schemaType, func(t *testing.T) {
+			rule := ctx.ModuleForTests(tc.input, "android_arm64_armv8-a").Rule(tc.rule)
+			assertEqual(t, "input", tc.input, rule.Input.String())
+			if tc.schemaType != "" {
+				assertEqual(t, "schema", tc.schema, rule.Args[tc.schemaType])
+			}
+		})
 	}
-	schema := xmllint.Args["dtd"]
-	if schema != "foo.dtd" {
-		t.Errorf("dtd expected %q != got %q", "foo.dtdl", schema)
-	}
+
+	m := ctx.ModuleForTests("foo.xml", "android_arm64_armv8-a").Module().(*prebuiltEtcXml)
+	assertEqual(t, "installDir", "target/product/test_device/system/etc", m.InstallDirPath().RelPathString())
 }
