@@ -267,6 +267,7 @@ func (me *CompilerDeviceProperties) EffectiveOptimizeEnabled() bool {
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 
 	properties       CompilerProperties
 	protoProperties  android.ProtoProperties
@@ -1550,7 +1551,8 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.deviceProperties.UncompressDex = j.dexpreopter.uncompressedDex
 	j.compile(ctx, nil)
 
-	if (Bool(j.properties.Installable) || ctx.Host()) && !android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
+	exclusivelyForApex := android.InAnyApex(ctx.ModuleName()) && !j.IsForPlatform()
+	if (Bool(j.properties.Installable) || ctx.Host()) && !exclusivelyForApex {
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			ctx.ModuleName()+".jar", j.outputFile)
 	}
@@ -1581,6 +1583,7 @@ func LibraryFactory() android.Module {
 		&module.Module.protoProperties)
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
+	android.InitApexModule(module)
 	return module
 }
 
@@ -1603,6 +1606,7 @@ func LibraryHostFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	InitJavaModule(module, android.HostSupported)
+	android.InitApexModule(module)
 	return module
 }
 
@@ -1858,6 +1862,7 @@ type ImportProperties struct {
 type Import struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 	prebuilt android.Prebuilt
 
 	properties ImportProperties
@@ -2014,6 +2019,7 @@ func ImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	InitJavaModule(module, android.HostAndDeviceSupported)
+	android.InitApexModule(module)
 	return module
 }
 
@@ -2029,6 +2035,7 @@ func ImportFactoryHost() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	InitJavaModule(module, android.HostSupported)
+	android.InitApexModule(module)
 	return module
 }
 
@@ -2041,6 +2048,7 @@ type DexImportProperties struct {
 type DexImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 	prebuilt android.Prebuilt
 
 	properties DexImportProperties
@@ -2132,6 +2140,7 @@ func DexImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	InitJavaModule(module, android.DeviceSupported)
+	android.InitApexModule(module)
 	return module
 }
 
@@ -2141,6 +2150,7 @@ func DexImportFactory() android.Module {
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
+	android.ApexModuleBase
 }
 
 // java_defaults provides a set of properties that can be inherited by other java or android modules.
@@ -2199,7 +2209,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	)
 
 	android.InitDefaultsModule(module)
-
+	android.InitApexModule(module)
 	return module
 }
 
