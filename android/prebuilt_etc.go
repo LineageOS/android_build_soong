@@ -91,6 +91,10 @@ func (p *PrebuiltEtc) SourceFilePath(ctx ModuleContext) Path {
 	return PathForModuleSrc(ctx, String(p.properties.Src))
 }
 
+func (p *PrebuiltEtc) InstallDirPath() OutputPath {
+	return p.installDirPath
+}
+
 // This allows other derivative modules (e.g. prebuilt_etc_xml) to perform
 // additional steps (like validating the src) before the file is installed.
 func (p *PrebuiltEtc) SetAdditionalDependencies(paths Paths) {
@@ -165,15 +169,16 @@ func (p *PrebuiltEtc) AndroidMkEntries() AndroidMkEntries {
 	}
 }
 
-func InitPrebuiltEtcModule(p *PrebuiltEtc) {
+func InitPrebuiltEtcModule(p *PrebuiltEtc, dirBase string) {
+	p.installDirBase = dirBase
 	p.AddProperties(&p.properties)
 }
 
 // prebuilt_etc is for a prebuilt artifact that is installed in
 // <partition>/etc/<sub_dir> directory.
 func PrebuiltEtcFactory() Module {
-	module := &PrebuiltEtc{installDirBase: "etc"}
-	InitPrebuiltEtcModule(module)
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "etc")
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
 	return module
@@ -182,8 +187,8 @@ func PrebuiltEtcFactory() Module {
 // prebuilt_etc_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/etc/<sub_dir> directory.
 func PrebuiltEtcHostFactory() Module {
-	module := &PrebuiltEtc{installDirBase: "etc"}
-	InitPrebuiltEtcModule(module)
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "etc")
 	// This module is host-only
 	InitAndroidArchModule(module, HostSupported, MultilibCommon)
 	return module
@@ -192,8 +197,8 @@ func PrebuiltEtcHostFactory() Module {
 // prebuilt_usr_share is for a prebuilt artifact that is installed in
 // <partition>/usr/share/<sub_dir> directory.
 func PrebuiltUserShareFactory() Module {
-	module := &PrebuiltEtc{installDirBase: "usr/share"}
-	InitPrebuiltEtcModule(module)
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "usr/share")
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
 	return module
@@ -202,8 +207,8 @@ func PrebuiltUserShareFactory() Module {
 // prebuild_usr_share_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/usr/share/<sub_dir> directory.
 func PrebuiltUserShareHostFactory() Module {
-	module := &PrebuiltEtc{installDirBase: "usr/share"}
-	InitPrebuiltEtcModule(module)
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "usr/share")
 	// This module is host-only
 	InitAndroidArchModule(module, HostSupported, MultilibCommon)
 	return module
@@ -254,8 +259,8 @@ func prebuiltEtcMutator(mctx BottomUpMutatorContext) {
 
 // prebuilt_font installs a font in <partition>/fonts directory.
 func PrebuiltFontFactory() Module {
-	module := &PrebuiltEtc{installDirBase: "fonts"}
-	InitPrebuiltEtcModule(module)
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "fonts")
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
 	return module
@@ -265,8 +270,9 @@ func PrebuiltFontFactory() Module {
 // If soc_specific property is set to true, the firmware file is installed to the vendor <partition>/firmware
 // directory for vendor image.
 func PrebuiltFirmwareFactory() Module {
-	module := &PrebuiltEtc{installDirBase: "etc/firmware", socInstallDirBase: "firmware"}
-	InitPrebuiltEtcModule(module)
+	module := &PrebuiltEtc{}
+	module.socInstallDirBase = "firmware"
+	InitPrebuiltEtcModule(module, "etc/firmware")
 	// This module is device-only
 	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
 	return module
