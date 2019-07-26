@@ -175,6 +175,8 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 	dir := ctx.ModuleDir() + "/"
 	properties := m.GetProperties()
 
+	osClass := ctx.Module().Target().Os.Class
+
 	for _, r := range neverallows {
 		n := r.(*rule)
 		if !n.appliesToPath(dir) {
@@ -186,6 +188,10 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 		}
 
 		if !n.appliesToProperties(properties) {
+			continue
+		}
+
+		if !n.appliesToOsClass(osClass) {
 			continue
 		}
 
@@ -252,6 +258,8 @@ type Rule interface {
 
 	InDirectDeps(deps ...string) Rule
 
+	WithOsClass(osClasses ...OsClass) Rule
+
 	ModuleType(types ...string) Rule
 
 	NotModuleType(types ...string) Rule
@@ -275,6 +283,8 @@ type rule struct {
 	unlessPaths []string
 
 	directDeps map[string]bool
+
+	osClasses []OsClass
 
 	moduleTypes       []string
 	unlessModuleTypes []string
@@ -302,6 +312,11 @@ func (r *rule) InDirectDeps(deps ...string) Rule {
 	for _, d := range deps {
 		r.directDeps[d] = true
 	}
+	return r
+}
+
+func (r *rule) WithOsClass(osClasses ...OsClass) Rule {
+	r.osClasses = append(r.osClasses, osClasses...)
 	return r
 }
 
@@ -374,6 +389,9 @@ func (r *rule) String() string {
 	for k := range r.directDeps {
 		s += " deps:" + k
 	}
+	for _, v := range r.osClasses {
+		s += " os:" + v.String()
+	}
 	if len(r.reason) != 0 {
 		s += " which is restricted because " + r.reason
 	}
@@ -400,6 +418,20 @@ func (r *rule) appliesToDirectDeps(ctx BottomUpMutatorContext) bool {
 	})
 
 	return matches
+}
+
+func (r *rule) appliesToOsClass(osClass OsClass) bool {
+	if len(r.osClasses) == 0 {
+		return true
+	}
+
+	for _, c := range r.osClasses {
+		if c == osClass {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r *rule) appliesToModuleType(moduleType string) bool {
