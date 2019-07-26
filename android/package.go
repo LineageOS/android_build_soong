@@ -64,16 +64,6 @@ func (p *packageModule) qualifiedModuleId(ctx BaseModuleContext) qualifiedModule
 	return newPackageId(ctx.ModuleDir())
 }
 
-// Override to ensure that the default_visibility rules are checked by the visibility module during
-// its checking phase.
-func (p *packageModule) visibilityProperties() []visibilityProperty {
-	return []visibilityProperty{
-		newVisibilityProperty("default_visibility", func() []string {
-			return p.properties.Default_visibility
-		}),
-	}
-}
-
 func (p *packageModule) Name() string {
 	return p.properties.Name
 }
@@ -97,6 +87,13 @@ func PackageFactory() Module {
 	module.properties.Name = name
 
 	module.AddProperties(&module.properties)
+
+	// The default_visibility property needs to be checked and parsed by the visibility module during
+	// its checking and parsing phases.
+	module.primaryVisibilityProperty =
+		newVisibilityProperty("default_visibility", &module.properties.Default_visibility)
+	module.visibilityPropertyInfo = []visibilityProperty{module.primaryVisibilityProperty}
+
 	return module
 }
 
