@@ -298,6 +298,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 		FlagForEachArg("--dex-location=", image.dexLocations).
 		Flag("--generate-debug-info").
 		Flag("--generate-build-id").
+		Flag("--image-format=lz4hc").
 		FlagWithOutput("--oat-symbols=", symbolsFile).
 		Flag("--strip").
 		FlagWithOutput("--oat-file=", outputPath.ReplaceExtension(ctx, "oat")).
