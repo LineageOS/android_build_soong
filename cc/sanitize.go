@@ -120,6 +120,10 @@ func (t sanitizerType) name() string {
 	}
 }
 
+func (t sanitizerType) incompatibleWithCfi() bool {
+	return t == asan || t == hwasan
+}
+
 type SanitizeProperties struct {
 	// enable AddressSanitizer, ThreadSanitizer, or UndefinedBehaviorSanitizer
 	Sanitize struct {
@@ -543,16 +547,18 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	// Add a suffix for CFI-enabled static libraries to allow surfacing both to make without a
-	// name conflict.
-	if ret.Class == "STATIC_LIBRARIES" && Bool(sanitize.Properties.Sanitize.Cfi) {
-		ret.SubName += ".cfi"
-	}
-	if ret.Class == "STATIC_LIBRARIES" && Bool(sanitize.Properties.Sanitize.Hwaddress) {
-		ret.SubName += ".hwasan"
-	}
-	if ret.Class == "STATIC_LIBRARIES" && Bool(sanitize.Properties.Sanitize.Scs) {
-		ret.SubName += ".scs"
+	// Add a suffix for cfi/hwasan/scs-enabled static/header libraries to allow surfacing
+	// both the sanitized and non-sanitized variants to make without a name conflict.
+	if ret.Class == "STATIC_LIBRARIES" || ret.Class == "HEADER_LIBRARIES" {
+		if Bool(sanitize.Properties.Sanitize.Cfi) {
+			ret.SubName += ".cfi"
+		}
+		if Bool(sanitize.Properties.Sanitize.Hwaddress) {
+			ret.SubName += ".hwasan"
+		}
+		if Bool(sanitize.Properties.Sanitize.Scs) {
+			ret.SubName += ".scs"
+		}
 	}
 }
 
@@ -841,7 +847,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 					{Mutator: "image", Variation: c.imageVariation()},
 					{Mutator: "arch", Variation: mctx.Target().String()},
 				}, staticDepTag, runtimeLibrary)
-			} else if !c.static() {
+			} else if !c.static() && !c.header() {
 				// dynamic executable and shared libs get shared runtime libs
 				mctx.AddFarVariationDependencies([]blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
@@ -870,95 +876,68 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				modules := mctx.CreateVariations(t.variationName())
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
 			} else if c.sanitize.isSanitizerEnabled(t) || c.sanitize.Properties.SanitizeDep {
-				// Save original sanitizer status before we assign values to variant
-				// 0 as that overwrites the original.
 				isSanitizerEnabled := c.sanitize.isSanitizerEnabled(t)
+				if mctx.Device() && t.incompatibleWithCfi() {
+					// TODO: Make sure that cfi mutator runs "after" any of the sanitizers that
+					// are incompatible with cfi
+					c.sanitize.SetSanitizer(cfi, false)
+				}
+				if c.static() || c.header() || t == asan {
+					// Static and header libs are split into non-sanitized and sanitized variants.
+					// Shared libs are not split. However, for asan, we split even for shared
+					// libs because a library sanitized for asan can't be linked from a library
+					// that isn't sanitized for asan.
+					//
+					// Note for defaultVariation: since we don't split for shared libs but for static/header
+					// libs, it is possible for the sanitized variant of a static/header lib to depend
+					// on non-sanitized variant of a shared lib. Such unfulfilled variation causes an
+					// error when the module is split. defaultVariation is the name of the variation that
+					// will be used when such a dangling dependency occurs during the split of the current
+					// module. By setting it to the name of the sanitized variation, the dangling dependency
+					// is redirected to the sanitized variant of the dependent module.
+					defaultVariation := t.variationName()
+					mctx.SetDefaultDependencyVariation(&defaultVariation)
+					modules := mctx.CreateVariations("", t.variationName())
+					modules[0].(*Module).sanitize.SetSanitizer(t, false)
+					modules[1].(*Module).sanitize.SetSanitizer(t, true)
+					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
+					modules[1].(*Module).sanitize.Properties.SanitizeDep = false
 
-				modules := mctx.CreateVariations("", t.variationName())
-				modules[0].(*Module).sanitize.SetSanitizer(t, false)
-				modules[1].(*Module).sanitize.SetSanitizer(t, true)
-
-				modules[0].(*Module).sanitize.Properties.SanitizeDep = false
-				modules[1].(*Module).sanitize.Properties.SanitizeDep = false
-
-				// We don't need both variants active for anything but CFI-enabled
-				// target static libraries, so suppress the appropriate variant in
-				// all other cases.
-				if t == cfi {
+					// For cfi/scs/hwasan, we can export both sanitized and un-sanitized variants
+					// to Make, because the sanitized version has a different suffix in name.
+					// For other types of sanitizers, suppress the variation that is disabled.
+					if t != cfi && t != scs && t != hwasan {
+						if isSanitizerEnabled {
+							modules[0].(*Module).Properties.PreventInstall = true
+							modules[0].(*Module).Properties.HideFromMake = true
+						} else {
+							modules[1].(*Module).Properties.PreventInstall = true
+							modules[1].(*Module).Properties.HideFromMake = true
+						}
+					}
+					// Export the static lib name to make
 					if c.static() {
-						if !mctx.Device() {
-							if isSanitizerEnabled {
-								modules[0].(*Module).Properties.PreventInstall = true
-								modules[0].(*Module).Properties.HideFromMake = true
+						if t == cfi {
+							appendStringSync(c.Name(), cfiStaticLibs(mctx.Config()), &cfiStaticLibsMutex)
+						} else if t == hwasan {
+							if c.useVndk() {
+								appendStringSync(c.Name(), hwasanVendorStaticLibs(mctx.Config()),
+									&hwasanStaticLibsMutex)
 							} else {
-								modules[1].(*Module).Properties.PreventInstall = true
-								modules[1].(*Module).Properties.HideFromMake = true
+								appendStringSync(c.Name(), hwasanStaticLibs(mctx.Config()),
+									&hwasanStaticLibsMutex)
 							}
-						} else {
-							cfiStaticLibs := cfiStaticLibs(mctx.Config())
+						}
+					}
+				} else {
+					// Shared libs are not split. Only the sanitized variant is created.
+					modules := mctx.CreateVariations(t.variationName())
+					modules[0].(*Module).sanitize.SetSanitizer(t, true)
+					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
 
-							cfiStaticLibsMutex.Lock()
-							*cfiStaticLibs = append(*cfiStaticLibs, c.Name())
-							cfiStaticLibsMutex.Unlock()
-						}
-					} else {
-						modules[0].(*Module).Properties.PreventInstall = true
-						modules[0].(*Module).Properties.HideFromMake = true
-					}
-				} else if t == asan {
-					if mctx.Device() {
-						// CFI and ASAN are currently mutually exclusive so disable
-						// CFI if this is an ASAN variant.
-						modules[1].(*Module).sanitize.Properties.InSanitizerDir = true
-						modules[1].(*Module).sanitize.SetSanitizer(cfi, false)
-					}
-					if isSanitizerEnabled {
-						modules[0].(*Module).Properties.PreventInstall = true
-						modules[0].(*Module).Properties.HideFromMake = true
-					} else {
-						modules[1].(*Module).Properties.PreventInstall = true
-						modules[1].(*Module).Properties.HideFromMake = true
-					}
-				} else if t == scs {
-					// We don't currently link any static libraries built with make into
-					// libraries built with SCS, so we don't need logic for propagating
-					// SCSness of dependencies into make.
-					if !c.static() {
-						if isSanitizerEnabled {
-							modules[0].(*Module).Properties.PreventInstall = true
-							modules[0].(*Module).Properties.HideFromMake = true
-						} else {
-							modules[1].(*Module).Properties.PreventInstall = true
-							modules[1].(*Module).Properties.HideFromMake = true
-						}
-					}
-				} else if t == hwasan {
-					if mctx.Device() {
-						// CFI and HWASAN are currently mutually exclusive so disable
-						// CFI if this is an HWASAN variant.
-						modules[1].(*Module).sanitize.SetSanitizer(cfi, false)
-					}
-
-					if c.static() {
-						if c.useVndk() {
-							hwasanVendorStaticLibs := hwasanVendorStaticLibs(mctx.Config())
-							hwasanStaticLibsMutex.Lock()
-							*hwasanVendorStaticLibs = append(*hwasanVendorStaticLibs, c.Name())
-							hwasanStaticLibsMutex.Unlock()
-						} else {
-							hwasanStaticLibs := hwasanStaticLibs(mctx.Config())
-							hwasanStaticLibsMutex.Lock()
-							*hwasanStaticLibs = append(*hwasanStaticLibs, c.Name())
-							hwasanStaticLibsMutex.Unlock()
-						}
-					} else {
-						if isSanitizerEnabled {
-							modules[0].(*Module).Properties.PreventInstall = true
-							modules[0].(*Module).Properties.HideFromMake = true
-						} else {
-							modules[1].(*Module).Properties.PreventInstall = true
-							modules[1].(*Module).Properties.HideFromMake = true
-						}
+					// locate the asan libraries under /data/asan
+					if mctx.Device() && t == asan && isSanitizerEnabled {
+						modules[0].(*Module).sanitize.Properties.InSanitizerDir = true
 					}
 				}
 			}
@@ -992,6 +971,12 @@ func hwasanVendorStaticLibs(config android.Config) *[]string {
 	return config.Once(hwasanVendorStaticLibsKey, func() interface{} {
 		return &[]string{}
 	}).(*[]string)
+}
+
+func appendStringSync(item string, list *[]string, mutex *sync.Mutex) {
+	mutex.Lock()
+	*list = append(*list, item)
+	mutex.Unlock()
 }
 
 func enableMinimalRuntime(sanitize *sanitize) bool {

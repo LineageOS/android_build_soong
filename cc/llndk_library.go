@@ -221,7 +221,7 @@ func llndkHeadersFactory() android.Module {
 		&library.MutatedProperties,
 		&library.flagExporter.Properties)
 
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
+	module.Init()
 
 	return module
 }
