@@ -169,6 +169,10 @@ type CompilerProperties struct {
 		Output_params []string
 	}
 
+	Sysprop struct {
+		Platform *bool
+	} `blueprint:"mutated"`
+
 	Instrument bool `blueprint:"mutated"`
 
 	// List of files to include in the META-INF/services folder of the resulting jar.
@@ -999,7 +1003,6 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 }
 
 func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
-
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)
 
 	deps := j.collectDeps(ctx)
