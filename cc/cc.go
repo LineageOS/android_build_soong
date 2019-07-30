@@ -342,6 +342,7 @@ type dependencyTag struct {
 	blueprint.BaseDependencyTag
 	name    string
 	library bool
+	shared  bool
 
 	reexportFlags bool
 
@@ -353,10 +354,10 @@ type xref interface {
 }
 
 var (
-	sharedDepTag          = dependencyTag{name: "shared", library: true}
-	sharedExportDepTag    = dependencyTag{name: "shared", library: true, reexportFlags: true}
-	earlySharedDepTag     = dependencyTag{name: "early_shared", library: true}
-	lateSharedDepTag      = dependencyTag{name: "late shared", library: true}
+	sharedDepTag          = dependencyTag{name: "shared", library: true, shared: true}
+	sharedExportDepTag    = dependencyTag{name: "shared", library: true, shared: true, reexportFlags: true}
+	earlySharedDepTag     = dependencyTag{name: "early_shared", library: true, shared: true}
+	lateSharedDepTag      = dependencyTag{name: "late shared", library: true, shared: true}
 	staticDepTag          = dependencyTag{name: "static", library: true}
 	staticExportDepTag    = dependencyTag{name: "static", library: true, reexportFlags: true}
 	lateStaticDepTag      = dependencyTag{name: "late static", library: true}
@@ -380,6 +381,21 @@ var (
 	coverageDepTag        = dependencyTag{name: "coverage"}
 	testPerSrcDepTag      = dependencyTag{name: "test_per_src"}
 )
+
+func IsSharedDepTag(depTag blueprint.DependencyTag) bool {
+	ccDepTag, ok := depTag.(dependencyTag)
+	return ok && ccDepTag.shared
+}
+
+func IsRuntimeDepTag(depTag blueprint.DependencyTag) bool {
+	ccDepTag, ok := depTag.(dependencyTag)
+	return ok && ccDepTag == runtimeDepTag
+}
+
+func IsTestPerSrcDepTag(depTag blueprint.DependencyTag) bool {
+	ccDepTag, ok := depTag.(dependencyTag)
+	return ok && ccDepTag == testPerSrcDepTag
+}
 
 // Module contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
@@ -414,9 +430,6 @@ type Module struct {
 
 	outputFile android.OptionalPath
 
-	// Test output files, in the case of a test module using `test_per_src`.
-	testPerSrcOutputFiles []android.Path
-
 	cachedToolchain config.Toolchain
 
 	subAndroidMkOnce map[subAndroidMkProvider]bool
@@ -439,10 +452,6 @@ type Module struct {
 
 func (c *Module) OutputFile() android.OptionalPath {
 	return c.outputFile
-}
-
-func (c *Module) TestPerSrcOutputFiles() []android.Path {
-	return c.testPerSrcOutputFiles
 }
 
 func (c *Module) UnstrippedOutputFile() android.Path {
@@ -962,28 +971,20 @@ func orderStaticModuleDeps(module *Module, staticDeps []*Module, sharedDeps []*M
 	return results
 }
 
+func (c *Module) IsTestPerSrcAllTestsVariation() bool {
+	test, ok := c.linker.(testPerSrc)
+	return ok && test.isAllTestsVariation()
+}
+
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	// Handle the case of a test module split by `test_per_src` mutator.
-	if test, ok := c.linker.(testPerSrc); ok {
-		// The `test_per_src` mutator adds an extra variant named "", depending on all the
-		// other `test_per_src` variants of the test module. Collect the output files of
-		// these dependencies and record them in the `testPerSrcOutputFiles` for later use
-		// (see e.g. `apexBundle.GenerateAndroidBuildActions`).
-		if test.isAllTestsVariation() {
-			var testPerSrcOutputFiles []android.Path
-			for _, dep := range actx.GetDirectDepsWithTag(testPerSrcDepTag) {
-				if ccDep, ok := dep.(*Module); ok {
-					depOutputFile := ccDep.OutputFile().Path()
-					testPerSrcOutputFiles =
-						append(testPerSrcOutputFiles, depOutputFile)
-				}
-			}
-			c.testPerSrcOutputFiles = testPerSrcOutputFiles
-			// Set outputFile to an empty path, as this module does not produce an
-			// output file per se.
-			c.outputFile = android.OptionalPath{}
-			return
-		}
+	//
+	// The `test_per_src` mutator adds an extra variation named "", depending on all the other
+	// `test_per_src` variations of the test module. Set `outputFile` to an empty path for this
+	// module and return early, as this module does not produce an output file per se.
+	if c.IsTestPerSrcAllTestsVariation() {
+		c.outputFile = android.OptionalPath{}
+		return
 	}
 
 	c.makeLinkType = c.getMakeLinkType(actx)
@@ -2064,12 +2065,14 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 }
 
 // Overrides ApexModule.IsInstallabeToApex()
-// Only shared libraries are installable to APEX.
+// Only shared/runtime libraries and "test_per_src" tests are installable to APEX.
 func (c *Module) IsInstallableToApex() bool {
 	if shared, ok := c.linker.(interface {
 		shared() bool
 	}); ok {
 		return shared.shared()
+	} else if _, ok := c.linker.(testPerSrc); ok {
+		return true
 	}
 	return false
 }
