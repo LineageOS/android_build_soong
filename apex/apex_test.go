@@ -1393,7 +1393,7 @@ func TestPrebuiltOverrides(t *testing.T) {
 }
 
 func TestApexWithTests(t *testing.T) {
-	ctx, _ := testApex(t, `
+	ctx, config := testApex(t, `
 		apex_test {
 			name: "myapex",
 			key: "myapex.key",
@@ -1445,6 +1445,22 @@ func TestApexWithTests(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest1")
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest2")
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest3")
+
+	// Ensure the module is correctly translated.
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex.mytest\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex.mytest1\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex.mytest2\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex.mytest3\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex.apex_manifest.json\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex.apex_pubkey\n")
+	ensureContains(t, androidMk, "LOCAL_MODULE := myapex\n")
 }
 
 func TestApexUsesOtherApex(t *testing.T) {
