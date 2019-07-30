@@ -147,9 +147,6 @@ type BaseLinkerProperties struct {
 
 	// local file name to pass to the linker as --version_script
 	Version_script *string `android:"path,arch_variant"`
-
-	// Local file name to pass to the linker as --symbol-ordering-file
-	Symbol_ordering_file *string `android:"arch_variant"`
 }
 
 func NewBaseLinker(sanitize *sanitize) *baseLinker {
@@ -442,16 +439,6 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		}
 	}
 
-	if !linker.dynamicProperties.BuildStubs {
-		symbolOrderingFile := ctx.ExpandOptionalSource(
-			linker.Properties.Symbol_ordering_file, "Symbol_ordering_file")
-		if symbolOrderingFile.Valid() {
-			flags.LdFlags = append(flags.LdFlags,
-				"-Wl,--symbol-ordering-file,"+symbolOrderingFile.String())
-			flags.LdFlagsDeps = append(flags.LdFlagsDeps, symbolOrderingFile.Path())
-		}
-	}
-
 	return flags
 }
 
@@ -486,4 +473,30 @@ func (linker *baseLinker) injectVersionSymbol(ctx ModuleContext, in android.Path
 			"buildNumberFromFile": proptools.NinjaEscape(ctx.Config().BuildNumberFromFile()),
 		},
 	})
+}
+
+// Rule to generate .bss symbol ordering file.
+
+var (
+	_                      = pctx.SourcePathVariable("genSortedBssSymbolsPath", "build/soong/scripts/gen_sorted_bss_symbols.sh")
+	gen_sorted_bss_symbols = pctx.AndroidStaticRule("gen_sorted_bss_symbols",
+		blueprint.RuleParams{
+			Command:     "CROSS_COMPILE=$crossCompile $genSortedBssSymbolsPath ${in} ${out}",
+			CommandDeps: []string{"$genSortedBssSymbolsPath"},
+		},
+		"crossCompile")
+)
+
+func (linker *baseLinker) sortBssSymbolsBySize(ctx ModuleContext, in android.Path, symbolOrderingFile android.ModuleOutPath, flags builderFlags) string {
+	crossCompile := gccCmd(flags.toolchain, "")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        gen_sorted_bss_symbols,
+		Description: "generate bss symbol order " + symbolOrderingFile.Base(),
+		Output:      symbolOrderingFile,
+		Input:       in,
+		Args: map[string]string{
+			"crossCompile": crossCompile,
+		},
+	})
+	return "-Wl,--symbol-ordering-file," + symbolOrderingFile.String()
 }
