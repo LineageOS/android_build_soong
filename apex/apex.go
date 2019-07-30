@@ -694,12 +694,6 @@ func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirIn
 	return
 }
 
-func getCopyManifestForTestPerSrcExecutables(cc *cc.Module) (filesToCopy []android.Path, dirInApex string) {
-	dirInApex = filepath.Join("bin", cc.RelativeInstallPath())
-	filesToCopy = cc.TestPerSrcOutputFiles()
-	return
-}
-
 func getCopyManifestForPyBinary(py *python.Module) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = "bin"
 	fileToCopy = py.HostToolPath().Path()
@@ -780,10 +774,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
+		depTag := ctx.OtherModuleDependencyTag(child)
+		depName := ctx.OtherModuleName(child)
 		if _, ok := parent.(*apexBundle); ok {
 			// direct dependencies
-			depTag := ctx.OtherModuleDependencyTag(child)
-			depName := ctx.OtherModuleName(child)
 			switch depTag {
 			case sharedLibTag:
 				if cc, ok := child.(*cc.Module); ok {
@@ -834,22 +828,19 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
 				}
 			case testTag:
-				if cc, ok := child.(*cc.Module); ok {
-					if cc.TestPerSrcOutputFiles() != nil {
-						// Multiple-output test module (using `test_per_src`).
-						filesToCopy, dirInApex := getCopyManifestForTestPerSrcExecutables(cc)
-						for _, fileToCopy := range filesToCopy {
-							// Handle modules created as `test_per_src` variations of a single test module:
-							// replace the name of the original test module (`depName`, shared by all
-							// `test_per_src` variants of that module) with the name of the generated test
-							// binary.
-							moduleName := filepath.Base(fileToCopy.String())
-							filesInfo = append(filesInfo, apexFile{fileToCopy, moduleName, dirInApex, nativeTest, cc, nil})
-						}
+				if ccTest, ok := child.(*cc.Module); ok {
+					if ccTest.IsTestPerSrcAllTestsVariation() {
+						// Multiple-output test module (where `test_per_src: true`).
+						//
+						// `ccTest` is the "" ("all tests") variation of a `test_per_src` module.
+						// We do not add this variation to `filesInfo`, as it has no output;
+						// however, we do add the other variations of this module as indirect
+						// dependencies (see below).
+						return true
 					} else {
-						// Single-output test module (not using `test_per_src`).
-						fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
-						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeTest, cc, nil})
+						// Single-output test module (where `test_per_src: false`).
+						fileToCopy, dirInApex := getCopyManifestForExecutable(ccTest)
+						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeTest, ccTest, nil})
 					}
 					return true
 				} else {
@@ -875,30 +866,46 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		} else {
 			// indirect dependencies
 			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
-				if cc, ok := child.(*cc.Module); ok {
-					if android.InList(cc.Name(), providedNativeSharedLibs) {
-						// If we're using a shared library which is provided from other APEX,
-						// don't include it in this APEX
-						return false
-					}
-					if !a.Host() && (cc.IsStubs() || cc.HasStubsVariants()) {
-						// If the dependency is a stubs lib, don't include it in this APEX,
-						// but make sure that the lib is installed on the device.
-						// In case no APEX is having the lib, the lib is installed to the system
-						// partition.
-						//
-						// Always include if we are a host-apex however since those won't have any
-						// system libraries.
-						if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
-							a.externalDeps = append(a.externalDeps, cc.Name())
+				// We cannot use a switch statement on `depTag` here as the checked
+				// tags used below are private (e.g. `cc.sharedDepTag`).
+				if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) {
+					if cc, ok := child.(*cc.Module); ok {
+						if android.InList(cc.Name(), providedNativeSharedLibs) {
+							// If we're using a shared library which is provided from other APEX,
+							// don't include it in this APEX
+							return false
 						}
-						// Don't track further
-						return false
+						if !a.Host() && (cc.IsStubs() || cc.HasStubsVariants()) {
+							// If the dependency is a stubs lib, don't include it in this APEX,
+							// but make sure that the lib is installed on the device.
+							// In case no APEX is having the lib, the lib is installed to the system
+							// partition.
+							//
+							// Always include if we are a host-apex however since those won't have any
+							// system libraries.
+							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
+								a.externalDeps = append(a.externalDeps, cc.Name())
+							}
+							// Don't track further
+							return false
+						}
+						fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
+						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
+						return true
 					}
-					depName := ctx.OtherModuleName(child)
-					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
-					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
-					return true
+				} else if cc.IsTestPerSrcDepTag(depTag) {
+					if cc, ok := child.(*cc.Module); ok {
+						fileToCopy, dirInApex := getCopyManifestForExecutable(cc)
+						// Handle modules created as `test_per_src` variations of a single test module:
+						// use the name of the generated test binary (`fileToCopy`) instead of the name
+						// of the original test module (`depName`, shared by all `test_per_src`
+						// variations of that module).
+						moduleName := filepath.Base(fileToCopy.String())
+						filesInfo = append(filesInfo, apexFile{fileToCopy, moduleName, dirInApex, nativeTest, cc, nil})
+						return true
+					}
+				} else {
+					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
 			}
 		}
