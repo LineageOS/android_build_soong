@@ -756,6 +756,14 @@ func (c *config) RunErrorProne() bool {
 	return c.IsEnvTrue("RUN_ERROR_PRONE")
 }
 
+func (c *config) XrefCorpusName() string {
+	return c.Getenv("XREF_CORPUS")
+}
+
+func (c *config) EmitXrefRules() bool {
+	return c.XrefCorpusName() != ""
+}
+
 // Returns true if -source 1.9 -target 1.9 is being passed to javac
 func (c *config) TargetOpenJDK9() bool {
 	return c.targetOpenJDK9
