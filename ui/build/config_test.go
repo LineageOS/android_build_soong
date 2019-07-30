@@ -363,19 +363,15 @@ func TestConfigGetTargets(t *testing.T) {
 		// Expected targets from the function.
 		expectedTargets []string
 
-		// Expected build from the build system.
-		expectedBuildFiles []string
-
 		// Expecting error from running test case.
 		errStr string
 	}{{
-		description:        "one target dir specified",
-		dirsInTrees:        []string{"0/1/2/3"},
-		buildFiles:         []string{"0/1/2/3/Android.bp"},
-		dirs:               []string{"1/2/3"},
-		curDir:             "0",
-		expectedTargets:    []string{"MODULES-IN-0-1-2-3"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk"},
+		description:     "one target dir specified",
+		dirsInTrees:     []string{"0/1/2/3"},
+		buildFiles:      []string{"0/1/2/3/Android.bp"},
+		dirs:            []string{"1/2/3"},
+		curDir:          "0",
+		expectedTargets: []string{"MODULES-IN-0-1-2-3"},
 	}, {
 		description: "one target dir specified, build file does not exist",
 		dirsInTrees: []string{"0/1/2/3"},
@@ -391,21 +387,19 @@ func TestConfigGetTargets(t *testing.T) {
 		curDir:      "0",
 		errStr:      "1/2/3:t1:t2 not in proper directory:target1,target2,... format (\":\" was specified more than once)",
 	}, {
-		description:        "one target dir specified, no targets specified but has colon",
-		dirsInTrees:        []string{"0/1/2/3"},
-		buildFiles:         []string{"0/1/2/3/Android.bp"},
-		dirs:               []string{"1/2/3:"},
-		curDir:             "0",
-		expectedTargets:    []string{"MODULES-IN-0-1-2-3"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk"},
+		description:     "one target dir specified, no targets specified but has colon",
+		dirsInTrees:     []string{"0/1/2/3"},
+		buildFiles:      []string{"0/1/2/3/Android.bp"},
+		dirs:            []string{"1/2/3:"},
+		curDir:          "0",
+		expectedTargets: []string{"MODULES-IN-0-1-2-3"},
 	}, {
-		description:        "one target dir specified, two targets specified",
-		dirsInTrees:        []string{"0/1/2/3"},
-		buildFiles:         []string{"0/1/2/3/Android.bp"},
-		dirs:               []string{"1/2/3:t1,t2"},
-		curDir:             "0",
-		expectedTargets:    []string{"t1", "t2"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk"},
+		description:     "one target dir specified, two targets specified",
+		dirsInTrees:     []string{"0/1/2/3"},
+		buildFiles:      []string{"0/1/2/3/Android.bp"},
+		dirs:            []string{"1/2/3:t1,t2"},
+		curDir:          "0",
+		expectedTargets: []string{"t1", "t2"},
 	}, {
 		description: "one target dir specified, no targets and has a comma",
 		dirsInTrees: []string{"0/1/2/3"},
@@ -428,13 +422,12 @@ func TestConfigGetTargets(t *testing.T) {
 		curDir:      "0",
 		errStr:      "0/1/2/3 not in proper directory:target1,target2,... format",
 	}, {
-		description:        "one target dir specified, many targets specified",
-		dirsInTrees:        []string{"0/1/2/3"},
-		buildFiles:         []string{"0/1/2/3/Android.bp"},
-		dirs:               []string{"1/2/3:t1,t2,t3,t4,t5,t6,t7,t8,t9,t10"},
-		curDir:             "0",
-		expectedTargets:    []string{"t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk"},
+		description:     "one target dir specified, many targets specified",
+		dirsInTrees:     []string{"0/1/2/3"},
+		buildFiles:      []string{"0/1/2/3/Android.bp"},
+		dirs:            []string{"1/2/3:t1,t2,t3,t4,t5,t6,t7,t8,t9,t10"},
+		curDir:          "0",
+		expectedTargets: []string{"t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10"},
 	}, {
 		description: "one target dir specified, one target specified, build file does not exist",
 		dirsInTrees: []string{"0/1/2/3"},
@@ -450,29 +443,26 @@ func TestConfigGetTargets(t *testing.T) {
 		curDir:      "0",
 		errStr:      "Couldn't locate a build file from 0/1/2/3 directory",
 	}, {
-		description:        "one target dir specified, build file not in target dir",
-		dirsInTrees:        []string{"0/1/2/3"},
-		buildFiles:         []string{"0/1/2/Android.mk"},
-		dirs:               []string{"1/2/3"},
-		curDir:             "0",
-		expectedTargets:    []string{"MODULES-IN-0-1-2"},
-		expectedBuildFiles: []string{"0/1/2/Android.mk"},
+		description:     "one target dir specified, build file not in target dir",
+		dirsInTrees:     []string{"0/1/2/3"},
+		buildFiles:      []string{"0/1/2/Android.mk"},
+		dirs:            []string{"1/2/3"},
+		curDir:          "0",
+		expectedTargets: []string{"MODULES-IN-0-1-2"},
 	}, {
-		description:        "multiple targets dir specified, targets specified",
-		dirsInTrees:        []string{"0/1/2/3", "0/3/4"},
-		buildFiles:         []string{"0/1/2/3/Android.bp", "0/3/4/Android.mk"},
-		dirs:               []string{"1/2/3:t1,t2", "3/4:t3,t4,t5"},
-		curDir:             "0",
-		expectedTargets:    []string{"t1", "t2", "t3", "t4", "t5"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk", "0/3/4/Android.mk"},
+		description:     "multiple targets dir specified, targets specified",
+		dirsInTrees:     []string{"0/1/2/3", "0/3/4"},
+		buildFiles:      []string{"0/1/2/3/Android.bp", "0/3/4/Android.mk"},
+		dirs:            []string{"1/2/3:t1,t2", "3/4:t3,t4,t5"},
+		curDir:          "0",
+		expectedTargets: []string{"t1", "t2", "t3", "t4", "t5"},
 	}, {
-		description:        "multiple targets dir specified, one directory has targets specified",
-		dirsInTrees:        []string{"0/1/2/3", "0/3/4"},
-		buildFiles:         []string{"0/1/2/3/Android.bp", "0/3/4/Android.mk"},
-		dirs:               []string{"1/2/3:t1,t2", "3/4"},
-		curDir:             "0",
-		expectedTargets:    []string{"t1", "t2", "MODULES-IN-0-3-4"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk", "0/3/4/Android.mk"},
+		description:     "multiple targets dir specified, one directory has targets specified",
+		dirsInTrees:     []string{"0/1/2/3", "0/3/4"},
+		buildFiles:      []string{"0/1/2/3/Android.bp", "0/3/4/Android.mk"},
+		dirs:            []string{"1/2/3:t1,t2", "3/4"},
+		curDir:          "0",
+		expectedTargets: []string{"t1", "t2", "MODULES-IN-0-3-4"},
 	}, {
 		description: "two dirs specified, only one dir exist",
 		dirsInTrees: []string{"0/1/2/3"},
@@ -481,13 +471,12 @@ func TestConfigGetTargets(t *testing.T) {
 		curDir:      "0",
 		errStr:      "couldn't find directory 0/3/4",
 	}, {
-		description:        "multiple targets dirs specified at root source tree",
-		dirsInTrees:        []string{"0/1/2/3", "0/3/4"},
-		buildFiles:         []string{"0/1/2/3/Android.bp", "0/3/4/Android.mk"},
-		dirs:               []string{"0/1/2/3:t1,t2", "0/3/4"},
-		curDir:             ".",
-		expectedTargets:    []string{"t1", "t2", "MODULES-IN-0-3-4"},
-		expectedBuildFiles: []string{"0/1/2/3/Android.mk", "0/3/4/Android.mk"},
+		description:     "multiple targets dirs specified at root source tree",
+		dirsInTrees:     []string{"0/1/2/3", "0/3/4"},
+		buildFiles:      []string{"0/1/2/3/Android.bp", "0/3/4/Android.mk"},
+		dirs:            []string{"0/1/2/3:t1,t2", "0/3/4"},
+		curDir:          ".",
+		expectedTargets: []string{"t1", "t2", "MODULES-IN-0-3-4"},
 	}, {
 		description: "no directories specified",
 		dirsInTrees: []string{"0/1/2/3", "0/3/4"},
@@ -518,12 +507,9 @@ func TestConfigGetTargets(t *testing.T) {
 			r := setTop(t, topDir)
 			defer r()
 
-			targets, buildFiles := getTargetsFromDirs(ctx, tt.curDir, tt.dirs, "MODULES-IN-")
+			targets := getTargetsFromDirs(ctx, tt.curDir, tt.dirs, "MODULES-IN-")
 			if !reflect.DeepEqual(targets, tt.expectedTargets) {
 				t.Errorf("expected %v, got %v for targets", tt.expectedTargets, targets)
-			}
-			if !reflect.DeepEqual(buildFiles, tt.expectedBuildFiles) {
-				t.Errorf("expected %v, got %v for build files", tt.expectedBuildFiles, buildFiles)
 			}
 
 			// If the execution reached here and there was an expected error code, the unit test case failed.
@@ -732,14 +718,11 @@ type buildActionTestCase struct {
 	// Expected arguments to be in Config instance.
 	expectedArgs []string
 
-	// Expected environment variables to be set.
-	expectedEnvVars []envVar
-
 	// Expecting error from running test case.
 	expectedErrStr string
 }
 
-func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction, buildDependencies bool) {
+func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction) {
 	ctx := testContext()
 
 	defer logger.Recover(func(err error) {
@@ -753,7 +736,6 @@ func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction,
 
 	// Environment variables to set it to blank on every test case run.
 	resetEnvVars := []string{
-		"ONE_SHOT_MAKEFILE",
 		"WITH_TIDY_ONLY",
 	}
 
@@ -807,15 +789,9 @@ func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction,
 		t.Fatalf("failed to create %s file: %v", srcDirFileCheck, err)
 	}
 
-	args := getConfigArgs(action, tt.curDir, buildDependencies, ctx, tt.args)
+	args := getConfigArgs(action, tt.curDir, ctx, tt.args)
 	if !reflect.DeepEqual(tt.expectedArgs, args) {
 		t.Fatalf("expected %v, got %v for config arguments", tt.expectedArgs, args)
-	}
-
-	for _, env := range tt.expectedEnvVars {
-		if val := os.Getenv(env.name); val != env.value {
-			t.Errorf("expecting %s, got %s for environment variable %s", env.value, val, env.name)
-		}
 	}
 
 	// If the execution reached here and there was an expected error code, the unit test case failed.
@@ -826,299 +802,143 @@ func testGetConfigArgs(t *testing.T, tt buildActionTestCase, action BuildAction,
 
 func TestGetConfigArgsBuildModules(t *testing.T) {
 	tests := []buildActionTestCase{{
-		description:     "normal execution from the root source tree directory",
-		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
-		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp", "0/3/Android.mk"},
-		args:            []string{"-j", "fake_module", "fake_module2"},
-		curDir:          ".",
-		tidyOnly:        "",
-		expectedArgs:    []string{"-j", "fake_module", "fake_module2"},
-		expectedEnvVars: []envVar{},
+		description:  "normal execution from the root source tree directory",
+		dirsInTrees:  []string{"0/1/2", "0/2", "0/3"},
+		buildFiles:   []string{"0/1/2/Android.mk", "0/2/Android.bp", "0/3/Android.mk"},
+		args:         []string{"-j", "fake_module", "fake_module2"},
+		curDir:       ".",
+		tidyOnly:     "",
+		expectedArgs: []string{"-j", "fake_module", "fake_module2"},
 	}, {
-		description:     "normal execution in deep directory",
-		dirsInTrees:     []string{"0/1/2", "0/2", "0/3", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6"},
-		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6/Android.mk"},
-		args:            []string{"-j", "fake_module", "fake_module2", "-k"},
-		curDir:          "1/2/3/4/5/6/7/8/9",
-		tidyOnly:        "",
-		expectedArgs:    []string{"-j", "fake_module", "fake_module2", "-k"},
-		expectedEnvVars: []envVar{},
+		description:  "normal execution in deep directory",
+		dirsInTrees:  []string{"0/1/2", "0/2", "0/3", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6"},
+		buildFiles:   []string{"0/1/2/Android.mk", "0/2/Android.bp", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6/Android.mk"},
+		args:         []string{"-j", "fake_module", "fake_module2", "-k"},
+		curDir:       "1/2/3/4/5/6/7/8/9",
+		tidyOnly:     "",
+		expectedArgs: []string{"-j", "fake_module", "fake_module2", "-k"},
 	}, {
-		description:     "normal execution in deep directory, no targets",
-		dirsInTrees:     []string{"0/1/2", "0/2", "0/3", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6"},
-		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6/Android.mk"},
-		args:            []string{"-j", "-k"},
-		curDir:          "1/2/3/4/5/6/7/8/9",
-		tidyOnly:        "",
-		expectedArgs:    []string{"-j", "-k"},
-		expectedEnvVars: []envVar{},
+		description:  "normal execution in deep directory, no targets",
+		dirsInTrees:  []string{"0/1/2", "0/2", "0/3", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6"},
+		buildFiles:   []string{"0/1/2/Android.mk", "0/2/Android.bp", "1/2/3/4/5/6/7/8/9/1/2/3/4/5/6/Android.mk"},
+		args:         []string{"-j", "-k"},
+		curDir:       "1/2/3/4/5/6/7/8/9",
+		tidyOnly:     "",
+		expectedArgs: []string{"-j", "-k"},
 	}, {
-		description:     "normal execution in root source tree, no args",
-		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
-		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp"},
-		args:            []string{},
-		curDir:          "0/2",
-		tidyOnly:        "",
-		expectedArgs:    []string{},
-		expectedEnvVars: []envVar{},
+		description:  "normal execution in root source tree, no args",
+		dirsInTrees:  []string{"0/1/2", "0/2", "0/3"},
+		buildFiles:   []string{"0/1/2/Android.mk", "0/2/Android.bp"},
+		args:         []string{},
+		curDir:       "0/2",
+		tidyOnly:     "",
+		expectedArgs: []string{},
 	}, {
-		description:     "normal execution in symlink root source tree, no args",
-		dirsInTrees:     []string{"0/1/2", "0/2", "0/3"},
-		buildFiles:      []string{"0/1/2/Android.mk", "0/2/Android.bp"},
-		rootSymlink:     true,
-		args:            []string{},
-		curDir:          "0/2",
-		tidyOnly:        "",
-		expectedArgs:    []string{},
-		expectedEnvVars: []envVar{},
+		description:  "normal execution in symlink root source tree, no args",
+		dirsInTrees:  []string{"0/1/2", "0/2", "0/3"},
+		buildFiles:   []string{"0/1/2/Android.mk", "0/2/Android.bp"},
+		rootSymlink:  true,
+		args:         []string{},
+		curDir:       "0/2",
+		tidyOnly:     "",
+		expectedArgs: []string{},
 	}}
 	for _, tt := range tests {
 		t.Run("build action BUILD_MODULES with dependencies, "+tt.description, func(t *testing.T) {
-			testGetConfigArgs(t, tt, BUILD_MODULES, true)
-		})
-	}
-}
-
-// TODO: Remove this test case once mm shell build command has been deprecated.
-func TestGetConfigArgsBuildModulesInDirecotoryNoDeps(t *testing.T) {
-	tests := []buildActionTestCase{{
-		description:  "normal execution in a directory",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{"0/1/2/Android.mk"},
-		args:         []string{"-j", "-k", "showcommands", "fake-module"},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"-j", "-k", "showcommands", "fake-module", "MODULES-IN-0-1-2"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/2/Android.mk"}},
-	}, {
-		description:  "makefile in parent directory",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{"0/1/Android.mk"},
-		args:         []string{},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"MODULES-IN-0-1"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/Android.mk"}},
-	}, {
-		description:  "build file not found",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{},
-		args:         []string{},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"MODULES-IN-0-1-2"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/2/Android.mk"}},
-		expectedErrStr: "Build file not found for 0/1/2 directory",
-	}, {
-		description:  "build action executed at root directory",
-		dirsInTrees:  []string{},
-		buildFiles:   []string{},
-		args:         []string{},
-		curDir:       ".",
-		tidyOnly:     "",
-		expectedArgs: []string{},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: ""}},
-	}, {
-		description:  "GET-INSTALL-PATH specified,",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{"0/1/Android.mk"},
-		args:         []string{"GET-INSTALL-PATH"},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"GET-INSTALL-PATH-IN-0-1"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/Android.mk"}},
-	}, {
-		description:  "tidy only environment variable specified,",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{"0/1/Android.mk"},
-		args:         []string{"GET-INSTALL-PATH"},
-		curDir:       "0/1/2",
-		tidyOnly:     "true",
-		expectedArgs: []string{"tidy_only"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/Android.mk"}},
-	}}
-	for _, tt := range tests {
-		t.Run("build action BUILD_MODULES_IN_DIR without their dependencies, "+tt.description, func(t *testing.T) {
-			testGetConfigArgs(t, tt, BUILD_MODULES_IN_A_DIRECTORY, false)
+			testGetConfigArgs(t, tt, BUILD_MODULES)
 		})
 	}
 }
 
 func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 	tests := []buildActionTestCase{{
-		description:     "normal execution in a directory",
-		dirsInTrees:     []string{"0/1/2"},
-		buildFiles:      []string{"0/1/2/Android.mk"},
-		args:            []string{"fake-module"},
-		curDir:          "0/1/2",
-		tidyOnly:        "",
-		expectedArgs:    []string{"fake-module", "MODULES-IN-0-1-2"},
-		expectedEnvVars: []envVar{},
+		description:  "normal execution in a directory",
+		dirsInTrees:  []string{"0/1/2"},
+		buildFiles:   []string{"0/1/2/Android.mk"},
+		args:         []string{"fake-module"},
+		curDir:       "0/1/2",
+		tidyOnly:     "",
+		expectedArgs: []string{"fake-module", "MODULES-IN-0-1-2"},
 	}, {
-		description:     "build file in parent directory",
-		dirsInTrees:     []string{"0/1/2"},
-		buildFiles:      []string{"0/1/Android.mk"},
-		args:            []string{},
-		curDir:          "0/1/2",
-		tidyOnly:        "",
-		expectedArgs:    []string{"MODULES-IN-0-1"},
-		expectedEnvVars: []envVar{},
+		description:  "build file in parent directory",
+		dirsInTrees:  []string{"0/1/2"},
+		buildFiles:   []string{"0/1/Android.mk"},
+		args:         []string{},
+		curDir:       "0/1/2",
+		tidyOnly:     "",
+		expectedArgs: []string{"MODULES-IN-0-1"},
 	},
 		{
-			description:     "build file in parent directory, multiple module names passed in",
-			dirsInTrees:     []string{"0/1/2"},
-			buildFiles:      []string{"0/1/Android.mk"},
-			args:            []string{"fake-module1", "fake-module2", "fake-module3"},
-			curDir:          "0/1/2",
-			tidyOnly:        "",
-			expectedArgs:    []string{"fake-module1", "fake-module2", "fake-module3", "MODULES-IN-0-1"},
-			expectedEnvVars: []envVar{},
+			description:  "build file in parent directory, multiple module names passed in",
+			dirsInTrees:  []string{"0/1/2"},
+			buildFiles:   []string{"0/1/Android.mk"},
+			args:         []string{"fake-module1", "fake-module2", "fake-module3"},
+			curDir:       "0/1/2",
+			tidyOnly:     "",
+			expectedArgs: []string{"fake-module1", "fake-module2", "fake-module3", "MODULES-IN-0-1"},
 		}, {
-			description:     "build file in 2nd level parent directory",
-			dirsInTrees:     []string{"0/1/2"},
-			buildFiles:      []string{"0/Android.bp"},
-			args:            []string{},
-			curDir:          "0/1/2",
-			tidyOnly:        "",
-			expectedArgs:    []string{"MODULES-IN-0"},
-			expectedEnvVars: []envVar{},
+			description:  "build file in 2nd level parent directory",
+			dirsInTrees:  []string{"0/1/2"},
+			buildFiles:   []string{"0/Android.bp"},
+			args:         []string{},
+			curDir:       "0/1/2",
+			tidyOnly:     "",
+			expectedArgs: []string{"MODULES-IN-0"},
 		}, {
-			description:     "build action executed at root directory",
-			dirsInTrees:     []string{},
-			buildFiles:      []string{},
-			rootSymlink:     false,
-			args:            []string{},
-			curDir:          ".",
-			tidyOnly:        "",
-			expectedArgs:    []string{},
-			expectedEnvVars: []envVar{},
+			description:  "build action executed at root directory",
+			dirsInTrees:  []string{},
+			buildFiles:   []string{},
+			rootSymlink:  false,
+			args:         []string{},
+			curDir:       ".",
+			tidyOnly:     "",
+			expectedArgs: []string{},
 		}, {
-			description:     "build action executed at root directory in symlink",
-			dirsInTrees:     []string{},
-			buildFiles:      []string{},
-			rootSymlink:     true,
-			args:            []string{},
-			curDir:          ".",
-			tidyOnly:        "",
-			expectedArgs:    []string{},
-			expectedEnvVars: []envVar{},
+			description:  "build action executed at root directory in symlink",
+			dirsInTrees:  []string{},
+			buildFiles:   []string{},
+			rootSymlink:  true,
+			args:         []string{},
+			curDir:       ".",
+			tidyOnly:     "",
+			expectedArgs: []string{},
 		}, {
-			description:     "build file not found",
-			dirsInTrees:     []string{"0/1/2"},
-			buildFiles:      []string{},
-			args:            []string{},
-			curDir:          "0/1/2",
-			tidyOnly:        "",
-			expectedArgs:    []string{"MODULES-IN-0-1-2"},
-			expectedEnvVars: []envVar{},
-			expectedErrStr:  "Build file not found for 0/1/2 directory",
+			description:    "build file not found",
+			dirsInTrees:    []string{"0/1/2"},
+			buildFiles:     []string{},
+			args:           []string{},
+			curDir:         "0/1/2",
+			tidyOnly:       "",
+			expectedArgs:   []string{"MODULES-IN-0-1-2"},
+			expectedErrStr: "Build file not found for 0/1/2 directory",
 		}, {
-			description:     "GET-INSTALL-PATH specified,",
-			dirsInTrees:     []string{"0/1/2"},
-			buildFiles:      []string{"0/1/Android.mk"},
-			args:            []string{"GET-INSTALL-PATH", "-j", "-k", "GET-INSTALL-PATH"},
-			curDir:          "0/1/2",
-			tidyOnly:        "",
-			expectedArgs:    []string{"-j", "-k", "GET-INSTALL-PATH-IN-0-1"},
-			expectedEnvVars: []envVar{},
+			description:  "GET-INSTALL-PATH specified,",
+			dirsInTrees:  []string{"0/1/2"},
+			buildFiles:   []string{"0/1/Android.mk"},
+			args:         []string{"GET-INSTALL-PATH", "-j", "-k", "GET-INSTALL-PATH"},
+			curDir:       "0/1/2",
+			tidyOnly:     "",
+			expectedArgs: []string{"-j", "-k", "GET-INSTALL-PATH-IN-0-1"},
 		}, {
-			description:     "tidy only environment variable specified,",
-			dirsInTrees:     []string{"0/1/2"},
-			buildFiles:      []string{"0/1/Android.mk"},
-			args:            []string{"GET-INSTALL-PATH"},
-			curDir:          "0/1/2",
-			tidyOnly:        "true",
-			expectedArgs:    []string{"tidy_only"},
-			expectedEnvVars: []envVar{},
+			description:  "tidy only environment variable specified,",
+			dirsInTrees:  []string{"0/1/2"},
+			buildFiles:   []string{"0/1/Android.mk"},
+			args:         []string{"GET-INSTALL-PATH"},
+			curDir:       "0/1/2",
+			tidyOnly:     "true",
+			expectedArgs: []string{"tidy_only"},
 		}, {
-			description:     "normal execution in root directory with args",
-			dirsInTrees:     []string{},
-			buildFiles:      []string{},
-			args:            []string{"-j", "-k", "fake_module"},
-			curDir:          "",
-			tidyOnly:        "",
-			expectedArgs:    []string{"-j", "-k", "fake_module"},
-			expectedEnvVars: []envVar{},
+			description:  "normal execution in root directory with args",
+			dirsInTrees:  []string{},
+			buildFiles:   []string{},
+			args:         []string{"-j", "-k", "fake_module"},
+			curDir:       "",
+			tidyOnly:     "",
+			expectedArgs: []string{"-j", "-k", "fake_module"},
 		}}
 	for _, tt := range tests {
 		t.Run("build action BUILD_MODULES_IN_DIR, "+tt.description, func(t *testing.T) {
-			testGetConfigArgs(t, tt, BUILD_MODULES_IN_A_DIRECTORY, true)
-		})
-	}
-}
-
-// TODO: Remove this test case once mmm shell build command has been deprecated.
-func TestGetConfigArgsBuildModulesInDirectoriesNoDeps(t *testing.T) {
-	tests := []buildActionTestCase{{
-		description:  "normal execution in a directory",
-		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/2/3.3"},
-		buildFiles:   []string{"0/1/2/3.1/Android.bp", "0/1/2/3.2/Android.bp", "0/1/2/3.3/Android.bp"},
-		args:         []string{"3.1/:t1,t2", "3.2/:t3,t4", "3.3/:t5,t6"},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"t1", "t2", "t3", "t4", "t5", "t6"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/2/3.1/Android.mk 0/1/2/3.2/Android.mk 0/1/2/3.3/Android.mk"}},
-	}, {
-		description:  "GET-INSTALL-PATH specified",
-		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/2/3.3"},
-		buildFiles:   []string{"0/1/2/3.1/Android.bp", "0/1/2/3.2/Android.bp", "0/1/2/3.3/Android.bp"},
-		args:         []string{"GET-INSTALL-PATH", "3.1/", "3.2/", "3.3/:t6"},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"GET-INSTALL-PATH-IN-0-1-2-3.1", "GET-INSTALL-PATH-IN-0-1-2-3.2", "t6"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/2/3.1/Android.mk 0/1/2/3.2/Android.mk 0/1/2/3.3/Android.mk"}},
-	}, {
-		description:  "tidy only environment variable specified",
-		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/2/3.3"},
-		buildFiles:   []string{"0/1/2/3.1/Android.bp", "0/1/2/3.2/Android.bp", "0/1/2/3.3/Android.bp"},
-		args:         []string{"GET-INSTALL-PATH", "3.1/", "3.2/", "3.3/:t6"},
-		curDir:       "0/1/2",
-		tidyOnly:     "1",
-		expectedArgs: []string{"tidy_only"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/2/3.1/Android.mk 0/1/2/3.2/Android.mk 0/1/2/3.3/Android.mk"}},
-	}, {
-		description:  "normal execution from top dir directory",
-		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/2/3.3"},
-		buildFiles:   []string{"0/1/2/3.1/Android.bp", "0/1/2/3.2/Android.bp", "0/1/2/3.3/Android.bp"},
-		args:         []string{"0/1/2/3.1", "0/1/2/3.2/:t3,t4", "0/1/2/3.3/:t5,t6"},
-		curDir:       ".",
-		tidyOnly:     "",
-		expectedArgs: []string{"MODULES-IN-0-1-2-3.1", "t3", "t4", "t5", "t6"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: "0/1/2/3.1/Android.mk 0/1/2/3.2/Android.mk 0/1/2/3.3/Android.mk"}},
-	}}
-	for _, tt := range tests {
-		t.Run("build action BUILD_MODULES_IN_DIRS_NO_DEPS, "+tt.description, func(t *testing.T) {
-			testGetConfigArgs(t, tt, BUILD_MODULES_IN_DIRECTORIES, false)
+			testGetConfigArgs(t, tt, BUILD_MODULES_IN_A_DIRECTORY)
 		})
 	}
 }
@@ -1132,10 +952,6 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 		curDir:       "0/1/2",
 		tidyOnly:     "",
 		expectedArgs: []string{"MODULES-IN-0-1-2-3.1", "MODULES-IN-0-1-2-3.2", "MODULES-IN-0-1-2-3.3"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: ""}},
 	}, {
 		description:  "GET-INSTALL-PATH specified",
 		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3"},
@@ -1144,10 +960,6 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 		curDir:       "0/1",
 		tidyOnly:     "",
 		expectedArgs: []string{"GET-INSTALL-PATH-IN-0-1-2-3.1", "GET-INSTALL-PATH-IN-0-1-2-3.2", "GET-INSTALL-PATH-IN-0-1"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: ""}},
 	}, {
 		description:  "tidy only environment variable specified",
 		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/2/3.3"},
@@ -1156,10 +968,6 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 		curDir:       "0/1/2",
 		tidyOnly:     "1",
 		expectedArgs: []string{"tidy_only"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: ""}},
 	}, {
 		description:  "normal execution from top dir directory",
 		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3", "0/2"},
@@ -1169,10 +977,6 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 		curDir:       ".",
 		tidyOnly:     "",
 		expectedArgs: []string{"MODULES-IN-0-1-2-3.1", "MODULES-IN-0-1-2-3.2", "MODULES-IN-0-1-3", "MODULES-IN-0-2"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: ""}},
 	}, {
 		description:  "normal execution from top dir directory in symlink",
 		dirsInTrees:  []string{"0/1/2/3.1", "0/1/2/3.2", "0/1/3", "0/2"},
@@ -1182,14 +986,10 @@ func TestGetConfigArgsBuildModulesInDirectories(t *testing.T) {
 		curDir:       ".",
 		tidyOnly:     "",
 		expectedArgs: []string{"MODULES-IN-0-1-2-3.1", "MODULES-IN-0-1-2-3.2", "MODULES-IN-0-1-3", "MODULES-IN-0-2"},
-		expectedEnvVars: []envVar{
-			envVar{
-				name:  "ONE_SHOT_MAKEFILE",
-				value: ""}},
 	}}
 	for _, tt := range tests {
 		t.Run("build action BUILD_MODULES_IN_DIRS, "+tt.description, func(t *testing.T) {
-			testGetConfigArgs(t, tt, BUILD_MODULES_IN_DIRECTORIES, true)
+			testGetConfigArgs(t, tt, BUILD_MODULES_IN_DIRECTORIES)
 		})
 	}
 }
