@@ -50,6 +50,7 @@ func init() {
 	android.RegisterModuleType("dex_import", DexImportFactory)
 
 	android.RegisterSingletonType("logtags", LogtagsSingleton)
+	android.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
 
 // TODO:
@@ -343,6 +344,9 @@ type Module struct {
 
 	hiddenAPI
 	dexpreopter
+
+	// list of the xref extraction files
+	kytheFiles android.Paths
 }
 
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -383,12 +387,20 @@ type SrcDependency interface {
 	CompiledSrcJars() android.Paths
 }
 
+type xref interface {
+	XrefJavaFiles() android.Paths
+}
+
 func (j *Module) CompiledSrcs() android.Paths {
 	return j.compiledJavaSrcs
 }
 
 func (j *Module) CompiledSrcJars() android.Paths {
 	return j.compiledSrcJars
+}
+
+func (j *Module) XrefJavaFiles() android.Paths {
+	return j.kytheFiles
 }
 
 var _ SrcDependency = (*Module)(nil)
@@ -1138,6 +1150,12 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			classes := android.PathForModuleOut(ctx, "javac", jarName)
 			TransformJavaToClasses(ctx, classes, -1, uniqueSrcFiles, srcJars, flags, extraJarDeps)
 			jars = append(jars, classes)
+		}
+		if ctx.Config().EmitXrefRules() {
+			extractionFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".kzip")
+			emitXrefRule(ctx, extractionFile, uniqueSrcFiles, srcJars, flags, extraJarDeps, "xref")
+			j.kytheFiles = append(j.kytheFiles, extractionFile)
+
 		}
 		if ctx.Failed() {
 			return
@@ -2211,6 +2229,30 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	android.InitDefaultsModule(module)
 	android.InitApexModule(module)
 	return module
+}
+
+func kytheExtractJavaFactory() android.Singleton {
+	return &kytheExtractJavaSingleton{}
+}
+
+type kytheExtractJavaSingleton struct {
+}
+
+func (ks *kytheExtractJavaSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	var xrefTargets android.Paths
+	ctx.VisitAllModules(func(module android.Module) {
+		if javaModule, ok := module.(xref); ok {
+			xrefTargets = append(xrefTargets, javaModule.XrefJavaFiles()...)
+		}
+	})
+	// TODO(asmundak): perhaps emit a rule to output a warning if there were no xrefTargets
+	if len(xrefTargets) > 0 {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   blueprint.Phony,
+			Output: android.PathForPhony(ctx, "xref_java"),
+			Inputs: xrefTargets,
+		})
+	}
 }
 
 var Bool = proptools.Bool
