@@ -62,6 +62,37 @@ var (
 		"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
 		"outDir", "annoDir", "javaVersion")
 
+	_ = pctx.VariableFunc("kytheCorpus",
+		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
+	// Run it with -add-opens=java.base/java.nio=ALL-UNNAMED to avoid JDK9's warning about
+	// "Illegal reflective access by com.google.protobuf.Utf8$UnsafeProcessor ...
+	// to field java.nio.Buffer.address"
+	kytheExtract = pctx.AndroidStaticRule("kythe",
+		blueprint.RuleParams{
+			Command: `${config.ZipSyncCmd} -d $srcJarDir ` +
+				`-l $srcJarDir/list -f "*.java" $srcJars && ` +
+				`( [ ! -s $srcJarDir/list -a ! -s $out.rsp ] || ` +
+				`KYTHE_ROOT_DIRECTORY=. KYTHE_OUTPUT_FILE=$out ` +
+				`KYTHE_CORPUS=${kytheCorpus} ` +
+				`${config.SoongJavacWrapper} ${config.JavaCmd} ` +
+				`--add-opens=java.base/java.nio=ALL-UNNAMED ` +
+				`-jar ${config.JavaKytheExtractorJar} ` +
+				`${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
+				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
+				`-source $javaVersion -target $javaVersion ` +
+				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list)`,
+			CommandDeps: []string{
+				"${config.JavaCmd}",
+				"${config.JavaKytheExtractorJar}",
+				"${config.ZipSyncCmd}",
+			},
+			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Rspfile:          "$out.rsp",
+			RspfileContent:   "$in",
+		},
+		"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
+		"outDir", "annoDir", "javaVersion")
+
 	turbine = pctx.AndroidStaticRule("turbine",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
@@ -194,6 +225,61 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 
 	transformJavaToClasses(ctx, outputFile, -1, srcFiles, srcJars, flags, nil,
 		"errorprone", "errorprone")
+}
+
+// Emits the rule to generate Xref input file (.kzip file) for the given set of source files and source jars
+// to compile with given set of builder flags, etc.
+func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath,
+	srcFiles, srcJars android.Paths,
+	flags javaBuilderFlags, deps android.Paths,
+	intermediatesDir string) {
+
+	deps = append(deps, srcJars...)
+
+	var bootClasspath string
+	if flags.javaVersion == "1.9" {
+		var systemModuleDeps android.Paths
+		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
+		deps = append(deps, systemModuleDeps...)
+	} else {
+		deps = append(deps, flags.bootClasspath...)
+		if len(flags.bootClasspath) == 0 && ctx.Device() {
+			// explicitly specify -bootclasspath "" if the bootclasspath is empty to
+			// ensure java does not fall back to the default bootclasspath.
+			bootClasspath = `-bootclasspath ""`
+		} else {
+			bootClasspath = flags.bootClasspath.FormJavaClassPath("-bootclasspath")
+		}
+	}
+
+	deps = append(deps, flags.classpath...)
+	deps = append(deps, flags.processorPath...)
+
+	processor := "-proc:none"
+	if flags.processor != "" {
+		processor = "-processor " + flags.processor
+	}
+
+	ctx.Build(pctx,
+		android.BuildParams{
+			Rule:        kytheExtract,
+			Description: "Xref Java extractor",
+			Output:      xrefFile,
+			Inputs:      srcFiles,
+			Implicits:   deps,
+			Args: map[string]string{
+				"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
+				"bootClasspath": bootClasspath,
+				"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
+				"javacFlags":    flags.javacFlags,
+				"javaVersion":   flags.javaVersion,
+				"outDir":        android.PathForModuleOut(ctx, "javac", "classes.xref").String(),
+				"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
+				"processor":     processor,
+				"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, "srcjars.xref").String(),
+				"srcJars":       strings.Join(srcJars.Strings(), " "),
+			},
+		})
 }
 
 func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.WritablePath,
