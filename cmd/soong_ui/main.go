@@ -349,42 +349,36 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 	}
 
 	buildActionFlags := []struct {
-		name              string
-		description       string
-		action            build.BuildAction
-		buildDependencies bool
-		set               bool
+		name        string
+		description string
+		action      build.BuildAction
+		set         bool
 	}{{
-		name:              "all-modules",
-		description:       "Build action: build from the top of the source tree.",
-		action:            build.BUILD_MODULES,
-		buildDependencies: true,
+		name:        "all-modules",
+		description: "Build action: build from the top of the source tree.",
+		action:      build.BUILD_MODULES,
 	}, {
-		// buildDependencies is set to true as mm is being deprecated. This is redirecting to mma build
-		// command behaviour. Once it has soaked for a while, the build command is deleted from here once
-		// it has been removed from the envsetup.sh.
-		name:              "modules-in-a-dir-no-deps",
-		description:       "Build action: builds all of the modules in the current directory without their dependencies.",
-		action:            build.BUILD_MODULES_IN_A_DIRECTORY,
-		buildDependencies: true,
+		// This is redirecting to mma build command behaviour. Once it has soaked for a
+		// while, the build command is deleted from here once it has been removed from the
+		// envsetup.sh.
+		name:        "modules-in-a-dir-no-deps",
+		description: "Build action: builds all of the modules in the current directory without their dependencies.",
+		action:      build.BUILD_MODULES_IN_A_DIRECTORY,
 	}, {
-		// buildDependencies is set to true as mmm is being deprecated. This is redirecting to mmma build
-		// command behaviour. Once it has soaked for a while, the build command is deleted from here once
-		// it has been removed from the envsetup.sh.
-		name:              "modules-in-dirs-no-deps",
-		description:       "Build action: builds all of the modules in the supplied directories without their dependencies.",
-		action:            build.BUILD_MODULES_IN_DIRECTORIES,
-		buildDependencies: true,
+		// This is redirecting to mmma build command behaviour. Once it has soaked for a
+		// while, the build command is deleted from here once it has been removed from the
+		// envsetup.sh.
+		name:        "modules-in-dirs-no-deps",
+		description: "Build action: builds all of the modules in the supplied directories without their dependencies.",
+		action:      build.BUILD_MODULES_IN_DIRECTORIES,
 	}, {
-		name:              "modules-in-a-dir",
-		description:       "Build action: builds all of the modules in the current directory and their dependencies.",
-		action:            build.BUILD_MODULES_IN_A_DIRECTORY,
-		buildDependencies: true,
+		name:        "modules-in-a-dir",
+		description: "Build action: builds all of the modules in the current directory and their dependencies.",
+		action:      build.BUILD_MODULES_IN_A_DIRECTORY,
 	}, {
-		name:              "modules-in-dirs",
-		description:       "Build action: builds all of the modules in the supplied directories and their dependencies.",
-		action:            build.BUILD_MODULES_IN_DIRECTORIES,
-		buildDependencies: true,
+		name:        "modules-in-dirs",
+		description: "Build action: builds all of the modules in the supplied directories and their dependencies.",
+		action:      build.BUILD_MODULES_IN_DIRECTORIES,
 	}}
 	for i, flag := range buildActionFlags {
 		flags.BoolVar(&buildActionFlags[i].set, flag.name, false, flag.description)
@@ -404,12 +398,10 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 	// is specified.
 	buildActionCount := 0
 	var buildAction build.BuildAction
-	buildDependency := false
 	for _, flag := range buildActionFlags {
 		if flag.set {
 			buildActionCount++
 			buildAction = flag.action
-			buildDependency = flag.buildDependencies
 		}
 	}
 	if buildActionCount != 1 {
@@ -421,7 +413,7 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 
 	// Remove the build action flags from the args as they are not recognized by the config.
 	args = args[numBuildActionFlags:]
-	return build.NewBuildActionConfig(buildAction, *dir, buildDependency, ctx, args...)
+	return build.NewBuildActionConfig(buildAction, *dir, ctx, args...)
 }
 
 func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
@@ -443,17 +435,13 @@ func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
 
 	if _, ok := config.Environment().Get("ONE_SHOT_MAKEFILE"); ok {
 		writer := ctx.Writer
-		fmt.Fprintln(writer, "! The variable `ONE_SHOT_MAKEFILE` is deprecated, and will be removed shortly.")
+		fmt.Fprintln(writer, "! The variable `ONE_SHOT_MAKEFILE` is obsolete.")
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! If you're using `mm`, you'll need to run `source build/envsetup.sh` to update.")
 		fmt.Fprintln(writer, "!")
 		fmt.Fprintln(writer, "! Otherwise, either specify a module name with m, or use mma / MODULES-IN-...")
 		fmt.Fprintln(writer, "")
-		select {
-		case <-time.After(30 * time.Second):
-		case <-ctx.Done():
-			return
-		}
+		ctx.Fatal("done")
 	}
 
 	toBuild := build.BuildAll

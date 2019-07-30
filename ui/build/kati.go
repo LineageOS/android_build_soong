@@ -42,9 +42,6 @@ func genKatiSuffix(ctx Context, config Config) {
 	if args := config.KatiArgs(); len(args) > 0 {
 		katiSuffix += "-" + spaceSlashReplacer.Replace(strings.Join(args, "_"))
 	}
-	if oneShot, ok := config.Environment().Get("ONE_SHOT_MAKEFILE"); ok {
-		katiSuffix += "-" + spaceSlashReplacer.Replace(oneShot)
-	}
 
 	// If the suffix is too long, replace it with a md5 hash and write a
 	// file that contains the original suffix.
