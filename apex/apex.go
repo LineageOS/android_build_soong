@@ -52,7 +52,7 @@ var (
 	// TODO(b/114327326): automate the generation of file_contexts
 	apexRule = pctx.StaticRule("apexRule", blueprint.RuleParams{
 		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
-			`(${copy_commands}) && ` +
+			`(. ${out}.copy_commands) && ` +
 			`APEXER_TOOL_PATH=${tool_path} ` +
 			`${apexer} --force --manifest ${manifest} ` +
 			`--file_contexts ${file_contexts} ` +
@@ -62,18 +62,22 @@ var (
 		CommandDeps: []string{"${apexer}", "${avbtool}", "${e2fsdroid}", "${merge_zips}",
 			"${mke2fs}", "${resize2fs}", "${sefcontext_compile}",
 			"${soong_zip}", "${zipalign}", "${aapt2}", "prebuilts/sdk/current/public/android.jar"},
-		Description: "APEX ${image_dir} => ${out}",
+		Rspfile:        "${out}.copy_commands",
+		RspfileContent: "${copy_commands}",
+		Description:    "APEX ${image_dir} => ${out}",
 	}, "tool_path", "image_dir", "copy_commands", "manifest", "file_contexts", "canned_fs_config", "key", "opt_flags")
 
 	zipApexRule = pctx.StaticRule("zipApexRule", blueprint.RuleParams{
 		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
-			`(${copy_commands}) && ` +
+			`(. ${out}.copy_commands) && ` +
 			`APEXER_TOOL_PATH=${tool_path} ` +
 			`${apexer} --force --manifest ${manifest} ` +
 			`--payload_type zip ` +
 			`${image_dir} ${out} `,
-		CommandDeps: []string{"${apexer}", "${merge_zips}", "${soong_zip}", "${zipalign}", "${aapt2}"},
-		Description: "ZipAPEX ${image_dir} => ${out}",
+		CommandDeps:    []string{"${apexer}", "${merge_zips}", "${soong_zip}", "${zipalign}", "${aapt2}"},
+		Rspfile:        "${out}.copy_commands",
+		RspfileContent: "${copy_commands}",
+		Description:    "ZipAPEX ${image_dir} => ${out}",
 	}, "tool_path", "image_dir", "copy_commands", "manifest")
 
 	apexProtoConvertRule = pctx.AndroidStaticRule("apexProtoConvertRule",
