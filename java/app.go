@@ -191,9 +191,12 @@ func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	}
 }
 
+func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.generateAndroidBuildActions(ctx)
+}
+
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
-	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
+	a.checkPlatformAPI(ctx)
 	a.generateAndroidBuildActions(ctx)
 }
 
@@ -422,6 +425,9 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	var apkDeps android.Paths
 
+	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
+	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
+
 	// Check if the install APK name needs to be overridden.
 	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(a.Name())
 
@@ -584,8 +590,6 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			a.additionalAaptFlags = append(a.additionalAaptFlags, "--rename-instrumentation-target-package "+manifestPackageName)
 		}
 	}
-	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
-	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
 	a.generateAndroidBuildActions(ctx)
 
 	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config, a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites)
