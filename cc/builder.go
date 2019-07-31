@@ -639,9 +639,6 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	excludedSymbolVersions, excludedSymbolTags []string) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
-	sabiLock.Lock()
-	lsdumpPaths = append(lsdumpPaths, outputFile.String())
-	sabiLock.Unlock()
 
 	implicits := android.Paths{soFile}
 	symbolFilterStr := "-so " + soFile.String()
