@@ -17,6 +17,7 @@ package cc
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -308,27 +309,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 			"-isystem "+getCurrentIncludePath(ctx).String(),
 			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, config.NDKTriple(tc)).String())
-
-		// TODO: Migrate to API suffixed triple?
-		// Traditionally this has come from android/api-level.h, but with the
-		// libc headers unified it must be set by the build system since we
-		// don't have per-API level copies of that header now.
-		version := ctx.sdkVersion()
-		if version == "current" {
-			version = "__ANDROID_API_FUTURE__"
-		}
-		flags.GlobalFlags = append(flags.GlobalFlags,
-			"-D__ANDROID_API__="+version)
 	}
 
 	if ctx.useVndk() {
-		// sdkVersion() returns VNDK version for vendor modules.
-		version := ctx.sdkVersion()
-		if version == "current" {
-			version = "__ANDROID_API_FUTURE__"
-		}
-		flags.GlobalFlags = append(flags.GlobalFlags,
-			"-D__ANDROID_API__="+version, "-D__ANDROID_VNDK__")
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_VNDK__")
 	}
 
 	if ctx.inRecovery() {
@@ -364,6 +348,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.LdFlags = config.ClangFilterUnknownCflags(flags.LdFlags)
 
 	target := "-target " + tc.ClangTriple()
+	if ctx.Os().Class == android.Device {
+		version := ctx.sdkVersion()
+		if version == "" || version == "current" {
+			target += strconv.Itoa(android.FutureApiLevel)
+		} else {
+			target += version
+		}
+	}
+
 	gccPrefix := "-B" + config.ToolPath(tc)
 
 	flags.CFlags = append(flags.CFlags, target, gccPrefix)
