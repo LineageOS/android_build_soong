@@ -354,7 +354,7 @@ func (a apexPackaging) suffix() string {
 	case both:
 		panic(fmt.Errorf("must be either zip or image"))
 	default:
-		panic(fmt.Errorf("unkonwn APEX type %d", a))
+		panic(fmt.Errorf("unknown APEX type %d", a))
 	}
 }
 
@@ -367,7 +367,7 @@ func (a apexPackaging) name() string {
 	case both:
 		panic(fmt.Errorf("must be either zip or image"))
 	default:
-		panic(fmt.Errorf("unkonwn APEX type %d", a))
+		panic(fmt.Errorf("unknown APEX type %d", a))
 	}
 }
 
@@ -384,7 +384,7 @@ func (class apexFileClass) NameInMake() string {
 	case nativeTest:
 		return "NATIVE_TESTS"
 	default:
-		panic(fmt.Errorf("unkonwn class %d", class))
+		panic(fmt.Errorf("unknown class %d", class))
 	}
 }
 
