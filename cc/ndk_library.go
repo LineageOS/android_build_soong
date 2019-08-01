@@ -54,6 +54,7 @@ var (
 		"mediandk",
 		"nativewindow",
 		"m",
+		"neuralnetworks",
 		"OpenMAXAL",
 		"OpenSLES",
 		"stdc++",
