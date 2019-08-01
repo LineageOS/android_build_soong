@@ -59,17 +59,6 @@ type variableProperties struct {
 			Cflags []string
 		}
 
-		// Product_is_iot is true for Android Things devices.
-		Product_is_iot struct {
-			Cflags       []string
-			Enabled      bool
-			Exclude_srcs []string
-			Init_rc      []string
-			Shared_libs  []string
-			Srcs         []string
-			Static_libs  []string
-		}
-
 		// treble_linker_namespaces is true when the system/vendor linker namespace separation is
 		// enabled.
 		Treble_linker_namespaces struct {
@@ -261,8 +250,6 @@ type productVariables struct {
 	BtConfigIncludeDir *string `json:",omitempty"`
 
 	Override_rs_driver *string `json:",omitempty"`
-
-	Product_is_iot *bool `json:",omitempty"`
 
 	Fuchsia *bool `json:",omitempty"`
 
