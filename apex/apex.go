@@ -354,7 +354,7 @@ func (a apexPackaging) suffix() string {
 	case both:
 		panic(fmt.Errorf("must be either zip or image"))
 	default:
-		panic(fmt.Errorf("unkonwn APEX type %d", a))
+		panic(fmt.Errorf("unknown APEX type %d", a))
 	}
 }
 
@@ -367,7 +367,7 @@ func (a apexPackaging) name() string {
 	case both:
 		panic(fmt.Errorf("must be either zip or image"))
 	default:
-		panic(fmt.Errorf("unkonwn APEX type %d", a))
+		panic(fmt.Errorf("unknown APEX type %d", a))
 	}
 }
 
@@ -384,7 +384,7 @@ func (class apexFileClass) NameInMake() string {
 	case nativeTest:
 		return "NATIVE_TESTS"
 	default:
-		panic(fmt.Errorf("unkonwn class %d", class))
+		panic(fmt.Errorf("unknown class %d", class))
 	}
 }
 
@@ -409,6 +409,8 @@ type apexBundle struct {
 	bundleModuleFile android.WritablePath
 	outputFiles      map[apexPackaging]android.WritablePath
 	installDir       android.OutputPath
+
+	prebuiltFileToDelete string
 
 	public_key_file  android.Path
 	private_key_file android.Path
@@ -861,6 +863,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					return false
 				} else {
 					ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", depName)
+				}
+			case android.PrebuiltDepTag:
+				// If the prebuilt is force disabled, remember to delete the prebuilt file
+				// that might have been installed in the previous builds
+				if prebuilt, ok := child.(*Prebuilt); ok && prebuilt.isForceDisabled() {
+					a.prebuiltFileToDelete = prebuilt.InstallFilename()
 				}
 			}
 		} else {
@@ -1362,6 +1370,10 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				if len(a.externalDeps) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.externalDeps, " "))
 				}
+				if a.prebuiltFileToDelete != "" {
+					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", "rm -rf "+
+						filepath.Join("$(OUT_DIR)", a.installDir.RelPathString(), a.prebuiltFileToDelete))
+				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
 				if apexType == imageApex {
@@ -1515,6 +1527,10 @@ func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 		src = String(p.properties.Src)
 	}
 	p.properties.Source = src
+}
+
+func (p *Prebuilt) isForceDisabled() bool {
+	return p.properties.ForceDisable
 }
 
 func (p *Prebuilt) OutputFiles(tag string) (android.Paths, error) {
