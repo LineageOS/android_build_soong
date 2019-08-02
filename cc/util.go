@@ -67,6 +67,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		rsFlags:         strings.Join(in.rsFlags, " "),
 		ldFlags:         strings.Join(in.LdFlags, " "),
 		libFlags:        strings.Join(in.libFlags, " "),
+		extraLibFlags:   strings.Join(in.extraLibFlags, " "),
 		tidyFlags:       strings.Join(in.TidyFlags, " "),
 		sAbiFlags:       strings.Join(in.SAbiFlags, " "),
 		yasmFlags:       strings.Join(in.YasmFlags, " "),

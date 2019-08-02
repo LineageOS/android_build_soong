@@ -153,6 +153,7 @@ type Flags struct {
 	rsFlags         []string // Flags that apply to renderscript source files
 	LdFlags         []string // Flags that apply to linker command lines
 	libFlags        []string // Flags to add libraries early to the link order
+	extraLibFlags   []string // Flags to add libraries late in the link order after LdFlags
 	TidyFlags       []string // Flags that apply to clang-tidy
 	SAbiFlags       []string // Flags that apply to header-abi-dumper
 	YasmFlags       []string // Flags that apply to yasm assembly source files
