@@ -1898,7 +1898,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			isVendorPublicLib := inList(libName, *vendorPublicLibraries)
 			bothVendorAndCoreVariantsExist := ccDep.hasVendorVariant() || isLLndk
 
-			if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.isVndk() && !ccDep.mustUseVendorVariant() {
+			if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.isVndk() && !ccDep.mustUseVendorVariant() && !c.inRecovery() {
 				// The vendor module is a no-vendor-variant VNDK library.  Depend on the
 				// core module instead.
 				return libName
