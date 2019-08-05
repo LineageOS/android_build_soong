@@ -860,23 +860,7 @@ func TestVisibility(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, errs := testVisibility(buildDir, test.fs)
 
-			expectedErrors := test.expectedErrors
-			if expectedErrors == nil {
-				FailIfErrored(t, errs)
-			} else {
-				for _, expectedError := range expectedErrors {
-					FailIfNoMatchingErrors(t, expectedError, errs)
-				}
-				if len(errs) > len(expectedErrors) {
-					t.Errorf("additional errors found, expected %d, found %d", len(expectedErrors), len(errs))
-					for i, expectedError := range expectedErrors {
-						t.Errorf("expectedErrors[%d] = %s", i, expectedError)
-					}
-					for i, err := range errs {
-						t.Errorf("errs[%d] = %s", i, err)
-					}
-				}
-			}
+			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
 		})
 	}
 }
