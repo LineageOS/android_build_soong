@@ -89,6 +89,15 @@ func reportPathErrorf(ctx PathContext, format string, args ...interface{}) {
 	}
 }
 
+func pathContextName(ctx PathContext, module blueprint.Module) string {
+	if x, ok := ctx.(interface{ ModuleName(blueprint.Module) string }); ok {
+		return x.ModuleName(module)
+	} else if x, ok := ctx.(interface{ OtherModuleName(blueprint.Module) string }); ok {
+		return x.OtherModuleName(module)
+	}
+	return "unknown"
+}
+
 type Path interface {
 	// Returns the path in string form
 	String() string
