@@ -199,6 +199,13 @@ func LastUniqueStrings(list []string) []string {
 	return list[totalSkip:]
 }
 
+// SortedUniqueStrings returns what the name says
+func SortedUniqueStrings(list []string) []string {
+	unique := FirstUniqueStrings(list)
+	sort.Strings(unique)
+	return unique
+}
+
 // checkCalledFromInit panics if a Go package's init function is not on the
 // call stack.
 func checkCalledFromInit() {
