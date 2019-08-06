@@ -46,6 +46,14 @@ var (
 		Description: "fs_config ${out}",
 	}, "ro_paths", "exec_paths")
 
+	injectApexDependency = pctx.StaticRule("injectApexDependency", blueprint.RuleParams{
+		Command: `rm -f $out && ${jsonmodify} $in ` +
+			`-a provideNativeLibs ${provideNativeLibs} ` +
+			`-a requireNativeLibs ${requireNativeLibs} -o $out`,
+		CommandDeps: []string{"${jsonmodify}"},
+		Description: "Inject dependency into ${out}",
+	}, "provideNativeLibs", "requireNativeLibs")
+
 	// TODO(b/113233103): make sure that file_contexts is sane, i.e., validate
 	// against the binary policy using sefcontext_compiler -p <policy>.
 
@@ -143,6 +151,7 @@ func init() {
 	pctx.HostBinToolVariable("soong_zip", "soong_zip")
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
+	pctx.HostBinToolVariable("jsonmodify", "jsonmodify")
 
 	android.RegisterModuleType("apex", apexBundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
@@ -431,6 +440,9 @@ type apexBundle struct {
 	flattened bool
 
 	testApex bool
+
+	// intermediate path for apex_manifest.json
+	manifestOut android.WritablePath
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -755,6 +767,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
+	// native lib dependencies
+	var provideNativeLibs []string
+	var requireNativeLibs []string
+
 	// Check if "uses" requirements are met with dependent apexBundles
 	var providedNativeSharedLibs []string
 	useVendor := proptools.Bool(a.properties.Use_vendor)
@@ -787,6 +803,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch depTag {
 			case sharedLibTag:
 				if cc, ok := child.(*cc.Module); ok {
+					if cc.HasStubsVariants() {
+						provideNativeLibs = append(provideNativeLibs, cc.OutputFile().Path().Base())
+					}
 					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
 					return true
@@ -898,6 +917,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
 								a.externalDeps = append(a.externalDeps, cc.Name())
 							}
+							requireNativeLibs = append(requireNativeLibs, cc.OutputFile().Path().Base())
 							// Don't track further
 							return false
 						}
@@ -958,6 +978,21 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
+	a.manifestOut = android.PathForModuleOut(ctx, "apex_manifest.json")
+	// put dependency({provide|require}NativeLibs) in apex_manifest.json
+	manifestSrc := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+	provideNativeLibs = android.SortedUniqueStrings(provideNativeLibs)
+	requireNativeLibs = android.SortedUniqueStrings(android.RemoveListFromList(requireNativeLibs, provideNativeLibs))
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   injectApexDependency,
+		Input:  manifestSrc,
+		Output: a.manifestOut,
+		Args: map[string]string{
+			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
+			"requireNativeLibs": strings.Join(requireNativeLibs, " "),
+		},
+	})
+
 	if a.apexTypes.zip() {
 		a.buildUnflattenedApex(ctx, zipApex)
 	}
@@ -1005,8 +1040,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		a.container_private_key_file = key
 	}
 
-	manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
-
 	var abis []string
 	for _, target := range ctx.MultiTargets() {
 		if len(target.Arch.Abi) > 0 {
@@ -1036,7 +1069,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		}
 	}
 	implicitInputs := append(android.Paths(nil), filesToCopy...)
-	implicitInputs = append(implicitInputs, manifest)
+	implicitInputs = append(implicitInputs, a.manifestOut)
 
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
@@ -1131,7 +1164,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
 				"image_dir":        android.PathForModuleOut(ctx, "image"+suffix).String(),
 				"copy_commands":    strings.Join(copyCommands, " && "),
-				"manifest":         manifest.String(),
+				"manifest":         a.manifestOut.String(),
 				"file_contexts":    fileContexts.String(),
 				"canned_fs_config": cannedFsConfig.String(),
 				"key":              a.private_key_file.String(),
@@ -1169,7 +1202,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 				"tool_path":     outHostBinDir + ":" + prebuiltSdkToolsBinDir,
 				"image_dir":     android.PathForModuleOut(ctx, "image"+suffix).String(),
 				"copy_commands": strings.Join(copyCommands, " && "),
-				"manifest":      manifest.String(),
+				"manifest":      a.manifestOut.String(),
 			},
 		})
 	}
@@ -1200,16 +1233,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json and apex_pubkey are also copied along
 		// with other ordinary files.
-		manifest := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
-
-		// rename to apex_manifest.json
-		copiedManifest := android.PathForModuleOut(ctx, "apex_manifest.json")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Input:  manifest,
-			Output: copiedManifest,
-		})
-		a.filesInfo = append(a.filesInfo, apexFile{copiedManifest, ctx.ModuleName() + ".apex_manifest.json", ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{a.manifestOut, ctx.ModuleName() + ".apex_manifest.json", ".", etc, nil, nil})
 
 		// rename to apex_pubkey
 		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
