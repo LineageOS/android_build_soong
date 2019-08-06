@@ -69,3 +69,19 @@ python_test_host {
     },
     test_suites: ["general-tests"],
 }
+
+python_binary_host {
+    name: "jsonmodify",
+    main: "jsonmodify.py",
+    srcs: [
+        "jsonmodify.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    }
+}
