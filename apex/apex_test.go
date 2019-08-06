@@ -270,6 +270,13 @@ func ensureListNotContains(t *testing.T, result []string, notExpected string) {
 	}
 }
 
+func ensureListEmpty(t *testing.T, result []string) {
+	t.Helper()
+	if len(result) > 0 {
+		t.Errorf("%q is expected to be empty", result)
+	}
+}
+
 // Minimal test
 func TestBasicApex(t *testing.T) {
 	ctx, _ := testApex(t, `
@@ -1058,6 +1065,109 @@ func TestHeaderLibsDependency(t *testing.T) {
 
 	// Ensure that the include path of the header lib is exported to 'otherlib'
 	ensureContains(t, cFlags, "-Imy_include")
+}
+
+func TestDependenciesInApexManifest(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex_nodep",
+			key: "myapex.key",
+			native_shared_libs: ["lib_nodep"],
+			compile_multilib: "both",
+			file_contexts: "myapex",
+		}
+
+		apex {
+			name: "myapex_dep",
+			key: "myapex.key",
+			native_shared_libs: ["lib_dep"],
+			compile_multilib: "both",
+			file_contexts: "myapex",
+		}
+
+		apex {
+			name: "myapex_provider",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo"],
+			compile_multilib: "both",
+			file_contexts: "myapex",
+		}
+
+		apex {
+			name: "myapex_selfcontained",
+			key: "myapex.key",
+			native_shared_libs: ["lib_dep", "libfoo"],
+			compile_multilib: "both",
+			file_contexts: "myapex",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "lib_nodep",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "lib_dep",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["libfoo"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libfoo",
+			srcs: ["mytest.cpp"],
+			stubs: {
+				versions: ["1"],
+			},
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	names := func(s string) (ns []string) {
+		for _, n := range strings.Split(s, " ") {
+			if len(n) > 0 {
+				ns = append(ns, n)
+			}
+		}
+		return
+	}
+
+	var injectRule android.TestingBuildParams
+	var provideNativeLibs, requireNativeLibs []string
+
+	injectRule = ctx.ModuleForTests("myapex_nodep", "android_common_myapex_nodep").Rule("injectApexDependency")
+	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	ensureListEmpty(t, provideNativeLibs)
+	ensureListEmpty(t, requireNativeLibs)
+
+	injectRule = ctx.ModuleForTests("myapex_dep", "android_common_myapex_dep").Rule("injectApexDependency")
+	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	ensureListEmpty(t, provideNativeLibs)
+	ensureListContains(t, requireNativeLibs, "libfoo.so")
+
+	injectRule = ctx.ModuleForTests("myapex_provider", "android_common_myapex_provider").Rule("injectApexDependency")
+	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	ensureListContains(t, provideNativeLibs, "libfoo.so")
+	ensureListEmpty(t, requireNativeLibs)
+
+	injectRule = ctx.ModuleForTests("myapex_selfcontained", "android_common_myapex_selfcontained").Rule("injectApexDependency")
+	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	ensureListContains(t, provideNativeLibs, "libfoo.so")
+	ensureListEmpty(t, requireNativeLibs)
 }
 
 func TestNonTestApex(t *testing.T) {
