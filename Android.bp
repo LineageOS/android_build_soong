@@ -282,6 +282,7 @@ bootstrap_go_package {
         "java/jdeps.go",
         "java/java_resources.go",
         "java/kotlin.go",
+        "java/platform_compat_config.go",
         "java/plugin.go",
         "java/prebuilt_apis.go",
         "java/proto.go",
