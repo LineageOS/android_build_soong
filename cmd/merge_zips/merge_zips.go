@@ -30,8 +30,566 @@ import (
 
 	"android/soong/jar"
 	"android/soong/third_party/zip"
+	soongZip "android/soong/zip"
 )
 
+// Input zip: we can open it, close it, and obtain an array of entries
+type InputZip interface {
+	Name() string
+	Open() error
+	Close() error
+	Entries() []*zip.File
+	IsOpen() bool
+}
+
+// An entry that can be written to the output zip
+type ZipEntryContents interface {
+	String() string
+	IsDir() bool
+	CRC32() uint32
+	Size() uint64
+	WriteToZip(dest string, zw *zip.Writer) error
+}
+
+// a ZipEntryFromZip is a ZipEntryContents that pulls its content from another zip
+// identified by the input zip and the index of the entry in its entries array
+type ZipEntryFromZip struct {
+	inputZip InputZip
+	index    int
+	name     string
+	isDir    bool
+	crc32    uint32
+	size     uint64
+}
+
+func NewZipEntryFromZip(inputZip InputZip, entryIndex int) *ZipEntryFromZip {
+	fi := inputZip.Entries()[entryIndex]
+	newEntry := ZipEntryFromZip{inputZip: inputZip,
+		index: entryIndex,
+		name:  fi.Name,
+		isDir: fi.FileInfo().IsDir(),
+		crc32: fi.CRC32,
+		size:  fi.UncompressedSize64,
+	}
+	return &newEntry
+}
+
+func (ze ZipEntryFromZip) String() string {
+	return fmt.Sprintf("%s!%s", ze.inputZip.Name(), ze.name)
+}
+
+func (ze ZipEntryFromZip) IsDir() bool {
+	return ze.isDir
+}
+
+func (ze ZipEntryFromZip) CRC32() uint32 {
+	return ze.crc32
+}
+
+func (ze ZipEntryFromZip) Size() uint64 {
+	return ze.size
+}
+
+func (ze ZipEntryFromZip) WriteToZip(dest string, zw *zip.Writer) error {
+	if err := ze.inputZip.Open(); err != nil {
+		return err
+	}
+	return zw.CopyFrom(ze.inputZip.Entries()[ze.index], dest)
+}
+
+// a ZipEntryFromBuffer is a ZipEntryContents that pulls its content from a []byte
+type ZipEntryFromBuffer struct {
+	fh      *zip.FileHeader
+	content []byte
+}
+
+func (be ZipEntryFromBuffer) String() string {
+	return "internal buffer"
+}
+
+func (be ZipEntryFromBuffer) IsDir() bool {
+	return be.fh.FileInfo().IsDir()
+}
+
+func (be ZipEntryFromBuffer) CRC32() uint32 {
+	return crc32.ChecksumIEEE(be.content)
+}
+
+func (be ZipEntryFromBuffer) Size() uint64 {
+	return uint64(len(be.content))
+}
+
+func (be ZipEntryFromBuffer) WriteToZip(dest string, zw *zip.Writer) error {
+	w, err := zw.CreateHeader(be.fh)
+	if err != nil {
+		return err
+	}
+
+	if !be.IsDir() {
+		_, err = w.Write(be.content)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Processing state.
+type OutputZip struct {
+	outputWriter     *zip.Writer
+	stripDirEntries  bool
+	emulateJar       bool
+	sortEntries      bool
+	ignoreDuplicates bool
+	excludeDirs      []string
+	excludeFiles     []string
+	sourceByDest     map[string]ZipEntryContents
+}
+
+func NewOutputZip(outputWriter *zip.Writer, sortEntries, emulateJar, stripDirEntries, ignoreDuplicates bool) *OutputZip {
+	return &OutputZip{
+		outputWriter:     outputWriter,
+		stripDirEntries:  stripDirEntries,
+		emulateJar:       emulateJar,
+		sortEntries:      sortEntries,
+		sourceByDest:     make(map[string]ZipEntryContents, 0),
+		ignoreDuplicates: ignoreDuplicates,
+	}
+}
+
+func (oz *OutputZip) setExcludeDirs(excludeDirs []string) {
+	oz.excludeDirs = make([]string, len(excludeDirs))
+	for i, dir := range excludeDirs {
+		oz.excludeDirs[i] = filepath.Clean(dir)
+	}
+}
+
+func (oz *OutputZip) setExcludeFiles(excludeFiles []string) {
+	oz.excludeFiles = excludeFiles
+}
+
+// Adds an entry with given name whose source is given ZipEntryContents. Returns old ZipEntryContents
+// if entry with given name already exists.
+func (oz *OutputZip) addZipEntry(name string, source ZipEntryContents) (ZipEntryContents, error) {
+	if existingSource, exists := oz.sourceByDest[name]; exists {
+		return existingSource, nil
+	}
+	oz.sourceByDest[name] = source
+	// Delay writing an entry if entries need to be rearranged.
+	if oz.emulateJar || oz.sortEntries {
+		return nil, nil
+	}
+	return nil, source.WriteToZip(name, oz.outputWriter)
+}
+
+// Adds an entry for the manifest (META-INF/MANIFEST.MF from the given file
+func (oz *OutputZip) addManifest(manifestPath string) error {
+	if !oz.stripDirEntries {
+		if _, err := oz.addZipEntry(jar.MetaDir, ZipEntryFromBuffer{jar.MetaDirFileHeader(), nil}); err != nil {
+			return err
+		}
+	}
+	contents, err := ioutil.ReadFile(manifestPath)
+	if err == nil {
+		fh, buf, err := jar.ManifestFileContents(contents)
+		if err == nil {
+			_, err = oz.addZipEntry(jar.ManifestFile, ZipEntryFromBuffer{fh, buf})
+		}
+	}
+	return err
+}
+
+// Adds an entry with given name and contents read from given file
+func (oz *OutputZip) addZipEntryFromFile(name string, path string) error {
+	buf, err := ioutil.ReadFile(path)
+	if err == nil {
+		fh := &zip.FileHeader{
+			Name:               name,
+			Method:             zip.Store,
+			UncompressedSize64: uint64(len(buf)),
+		}
+		fh.SetMode(0700)
+		fh.SetModTime(jar.DefaultTime)
+		_, err = oz.addZipEntry(name, ZipEntryFromBuffer{fh, buf})
+	}
+	return err
+}
+
+func (oz *OutputZip) addEmptyEntry(entry string) error {
+	var emptyBuf []byte
+	fh := &zip.FileHeader{
+		Name:               entry,
+		Method:             zip.Store,
+		UncompressedSize64: uint64(len(emptyBuf)),
+	}
+	fh.SetMode(0700)
+	fh.SetModTime(jar.DefaultTime)
+	_, err := oz.addZipEntry(entry, ZipEntryFromBuffer{fh, emptyBuf})
+	return err
+}
+
+// Returns true if given entry is to be excluded
+func (oz *OutputZip) isEntryExcluded(name string) bool {
+	for _, dir := range oz.excludeDirs {
+		dir = filepath.Clean(dir)
+		patterns := []string{
+			dir + "/",      // the directory itself
+			dir + "/**/*",  // files recursively in the directory
+			dir + "/**/*/", // directories recursively in the directory
+		}
+
+		for _, pattern := range patterns {
+			match, err := pathtools.Match(pattern, name)
+			if err != nil {
+				panic(fmt.Errorf("%s: %s", err.Error(), pattern))
+			}
+			if match {
+				if oz.emulateJar {
+					// When merging jar files, don't strip META-INF/MANIFEST.MF even if stripping META-INF is
+					// requested.
+					// TODO(ccross): which files does this affect?
+					if name != jar.MetaDir && name != jar.ManifestFile {
+						return true
+					}
+				}
+				return true
+			}
+		}
+	}
+
+	for _, pattern := range oz.excludeFiles {
+		match, err := pathtools.Match(pattern, name)
+		if err != nil {
+			panic(fmt.Errorf("%s: %s", err.Error(), pattern))
+		}
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
+// Creates a zip entry whose contents is an entry from the given input zip.
+func (oz *OutputZip) copyEntry(inputZip InputZip, index int) error {
+	entry := NewZipEntryFromZip(inputZip, index)
+	if oz.stripDirEntries && entry.IsDir() {
+		return nil
+	}
+	existingEntry, err := oz.addZipEntry(entry.name, entry)
+	if err != nil {
+		return err
+	}
+	if existingEntry == nil {
+		return nil
+	}
+
+	// File types should match
+	if existingEntry.IsDir() != entry.IsDir() {
+		return fmt.Errorf("Directory/file mismatch at %v from %v and %v\n",
+			entry.name, existingEntry, entry)
+	}
+
+	if oz.ignoreDuplicates ||
+		// Skip manifest and module info files that are not from the first input file
+		(oz.emulateJar && entry.name == jar.ManifestFile || entry.name == jar.ModuleInfoClass) ||
+		// Identical entries
+		(existingEntry.CRC32() == entry.CRC32() && existingEntry.Size() == entry.Size()) ||
+		// Directory entries
+		entry.IsDir() {
+		return nil
+	}
+
+	return fmt.Errorf("Duplicate path %v found in %v and %v\n", entry.name, existingEntry, inputZip.Name())
+}
+
+func (oz *OutputZip) entriesArray() []string {
+	entries := make([]string, len(oz.sourceByDest))
+	i := 0
+	for entry := range oz.sourceByDest {
+		entries[i] = entry
+		i++
+	}
+	return entries
+}
+
+func (oz *OutputZip) jarSorted() []string {
+	entries := oz.entriesArray()
+	sort.SliceStable(entries, func(i, j int) bool { return jar.EntryNamesLess(entries[i], entries[j]) })
+	return entries
+}
+
+func (oz *OutputZip) alphanumericSorted() []string {
+	entries := oz.entriesArray()
+	sort.Strings(entries)
+	return entries
+}
+
+func (oz *OutputZip) writeEntries(entries []string) error {
+	for _, entry := range entries {
+		source, _ := oz.sourceByDest[entry]
+		if err := source.WriteToZip(entry, oz.outputWriter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (oz *OutputZip) getUninitializedPythonPackages(inputZips []InputZip) ([]string, error) {
+	// the runfiles packages needs to be populated with "__init__.py".
+	// the runfiles dirs have been treated as packages.
+	allPackages := make(map[string]bool)
+	initedPackages := make(map[string]bool)
+	getPackage := func(path string) string {
+		ret := filepath.Dir(path)
+		// filepath.Dir("abc") -> "." and filepath.Dir("/abc") -> "/".
+		if ret == "." || ret == "/" {
+			return ""
+		}
+		return ret
+	}
+
+	// put existing __init__.py files to a set first. This set is used for preventing
+	// generated __init__.py files from overwriting existing ones.
+	for _, inputZip := range inputZips {
+		if err := inputZip.Open(); err != nil {
+			return nil, err
+		}
+		for _, file := range inputZip.Entries() {
+			pyPkg := getPackage(file.Name)
+			if filepath.Base(file.Name) == "__init__.py" {
+				if _, found := initedPackages[pyPkg]; found {
+					panic(fmt.Errorf("found __init__.py path duplicates during pars merging: %q", file.Name))
+				}
+				initedPackages[pyPkg] = true
+			}
+			for pyPkg != "" {
+				if _, found := allPackages[pyPkg]; found {
+					break
+				}
+				allPackages[pyPkg] = true
+				pyPkg = getPackage(pyPkg)
+			}
+		}
+	}
+	noInitPackages := make([]string, 0)
+	for pyPkg := range allPackages {
+		if _, found := initedPackages[pyPkg]; !found {
+			noInitPackages = append(noInitPackages, pyPkg)
+		}
+	}
+	return noInitPackages, nil
+}
+
+// An InputZip owned by the InputZipsManager. Opened ManagedInputZip's are chained in the open order.
+type ManagedInputZip struct {
+	owner        *InputZipsManager
+	realInputZip InputZip
+	older        *ManagedInputZip
+	newer        *ManagedInputZip
+}
+
+// Maintains the array of ManagedInputZips, keeping track of open input ones. When an InputZip is opened,
+// may close some other InputZip to limit the number of open ones.
+type InputZipsManager struct {
+	inputZips     []*ManagedInputZip
+	nOpenZips     int
+	maxOpenZips   int
+	openInputZips *ManagedInputZip
+}
+
+func (miz *ManagedInputZip) unlink() {
+	olderMiz := miz.older
+	newerMiz := miz.newer
+	if newerMiz.older != miz || olderMiz.newer != miz {
+		panic(fmt.Errorf("removing %p:%#v: broken list between %p:%#v and %p:%#v",
+			miz, miz, newerMiz, newerMiz, olderMiz, olderMiz))
+	}
+	olderMiz.newer = newerMiz
+	newerMiz.older = olderMiz
+	miz.newer = nil
+	miz.older = nil
+}
+
+func (miz *ManagedInputZip) link(olderMiz *ManagedInputZip) {
+	if olderMiz.newer != nil || olderMiz.older != nil {
+		panic(fmt.Errorf("inputZip is already open"))
+	}
+	oldOlderMiz := miz.older
+	if oldOlderMiz.newer != miz {
+		panic(fmt.Errorf("broken list between %p:%#v and %p:%#v", miz, oldOlderMiz))
+	}
+	miz.older = olderMiz
+	olderMiz.older = oldOlderMiz
+	oldOlderMiz.newer = olderMiz
+	olderMiz.newer = miz
+}
+
+func NewInputZipsManager(nInputZips, maxOpenZips int) *InputZipsManager {
+	if maxOpenZips < 3 {
+		panic(fmt.Errorf("open zips limit should be above 3"))
+	}
+	// In the dummy element .older points to the most recently opened InputZip, and .newer points to the oldest.
+	head := new(ManagedInputZip)
+	head.older = head
+	head.newer = head
+	return &InputZipsManager{
+		inputZips:     make([]*ManagedInputZip, 0, nInputZips),
+		maxOpenZips:   maxOpenZips,
+		openInputZips: head,
+	}
+}
+
+// InputZip factory
+func (izm *InputZipsManager) Manage(inz InputZip) InputZip {
+	iz := &ManagedInputZip{owner: izm, realInputZip: inz}
+	izm.inputZips = append(izm.inputZips, iz)
+	return iz
+}
+
+// Opens or reopens ManagedInputZip.
+func (izm *InputZipsManager) reopen(miz *ManagedInputZip) error {
+	if miz.realInputZip.IsOpen() {
+		if miz != izm.openInputZips {
+			miz.unlink()
+			izm.openInputZips.link(miz)
+		}
+		return nil
+	}
+	if izm.nOpenZips >= izm.maxOpenZips {
+		if err := izm.close(izm.openInputZips.older); err != nil {
+			return err
+		}
+	}
+	if err := miz.realInputZip.Open(); err != nil {
+		return err
+	}
+	izm.openInputZips.link(miz)
+	izm.nOpenZips++
+	return nil
+}
+
+func (izm *InputZipsManager) close(miz *ManagedInputZip) error {
+	if miz.IsOpen() {
+		err := miz.realInputZip.Close()
+		izm.nOpenZips--
+		miz.unlink()
+		return err
+	}
+	return nil
+}
+
+// Checks that openInputZips deque is valid
+func (izm *InputZipsManager) checkOpenZipsDeque() {
+	nReallyOpen := 0
+	el := izm.openInputZips
+	for {
+		elNext := el.older
+		if elNext.newer != el {
+			panic(fmt.Errorf("Element:\n  %p: %v\nNext:\n  %p %v", el, el, elNext, elNext))
+		}
+		if elNext == izm.openInputZips {
+			break
+		}
+		el = elNext
+		if !el.IsOpen() {
+			panic(fmt.Errorf("Found unopened element"))
+		}
+		nReallyOpen++
+		if nReallyOpen > izm.nOpenZips {
+			panic(fmt.Errorf("found %d open zips, should be %d", nReallyOpen, izm.nOpenZips))
+		}
+	}
+	if nReallyOpen > izm.nOpenZips {
+		panic(fmt.Errorf("found %d open zips, should be %d", nReallyOpen, izm.nOpenZips))
+	}
+}
+
+func (miz *ManagedInputZip) Name() string {
+	return miz.realInputZip.Name()
+}
+
+func (miz *ManagedInputZip) Open() error {
+	return miz.owner.reopen(miz)
+}
+
+func (miz *ManagedInputZip) Close() error {
+	return miz.owner.close(miz)
+}
+
+func (miz *ManagedInputZip) IsOpen() bool {
+	return miz.realInputZip.IsOpen()
+}
+
+func (miz *ManagedInputZip) Entries() []*zip.File {
+	if !miz.IsOpen() {
+		panic(fmt.Errorf("%s: is not open", miz.Name()))
+	}
+	return miz.realInputZip.Entries()
+}
+
+// Actual processing.
+func mergeZips(inputZips []InputZip, writer *zip.Writer, manifest, pyMain string,
+	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool,
+	excludeFiles, excludeDirs []string, zipsToNotStrip map[string]bool) error {
+
+	out := NewOutputZip(writer, sortEntries, emulateJar, stripDirEntries, ignoreDuplicates)
+	out.setExcludeFiles(excludeFiles)
+	out.setExcludeDirs(excludeDirs)
+	if manifest != "" {
+		if err := out.addManifest(manifest); err != nil {
+			return err
+		}
+	}
+	if pyMain != "" {
+		if err := out.addZipEntryFromFile("__main__.py", pyMain); err != nil {
+			return err
+		}
+	}
+
+	if emulatePar {
+		noInitPackages, err := out.getUninitializedPythonPackages(inputZips)
+		if err != nil {
+			return err
+		}
+		for _, uninitializedPyPackage := range noInitPackages {
+			if err = out.addEmptyEntry(filepath.Join(uninitializedPyPackage, "__init__.py")); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Finally, add entries from all the input zips.
+	for _, inputZip := range inputZips {
+		_, copyFully := zipsToNotStrip[inputZip.Name()]
+		if err := inputZip.Open(); err != nil {
+			return err
+		}
+
+		for i, entry := range inputZip.Entries() {
+			if copyFully || !out.isEntryExcluded(entry.Name) {
+				if err := out.copyEntry(inputZip, i); err != nil {
+					return err
+				}
+			}
+		}
+		// Unless we need to rearrange the entries, the input zip can now be closed.
+		if !(emulateJar || sortEntries) {
+			if err := inputZip.Close(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if emulateJar {
+		return out.writeEntries(out.jarSorted())
+	} else if sortEntries {
+		return out.writeEntries(out.alphanumericSorted())
+	}
+	return nil
+}
+
+// Process command line
 type fileList []string
 
 func (f *fileList) String() string {
@@ -50,9 +608,8 @@ func (s zipsToNotStripSet) String() string {
 	return `""`
 }
 
-func (s zipsToNotStripSet) Set(zip_path string) error {
-	s[zip_path] = true
-
+func (s zipsToNotStripSet) Set(path string) error {
+	s[path] = true
 	return nil
 }
 
@@ -60,8 +617,8 @@ var (
 	sortEntries      = flag.Bool("s", false, "sort entries (defaults to the order from the input zip files)")
 	emulateJar       = flag.Bool("j", false, "sort zip entries using jar ordering (META-INF first)")
 	emulatePar       = flag.Bool("p", false, "merge zip entries based on par format")
-	stripDirs        fileList
-	stripFiles       fileList
+	excludeDirs      fileList
+	excludeFiles     fileList
 	zipsToNotStrip   = make(zipsToNotStripSet)
 	stripDirEntries  = flag.Bool("D", false, "strip directory entries from the output zip file")
 	manifest         = flag.String("m", "", "manifest file to insert in jar")
@@ -71,14 +628,52 @@ var (
 )
 
 func init() {
-	flag.Var(&stripDirs, "stripDir", "directories to be excluded from the output zip, accepts wildcards")
-	flag.Var(&stripFiles, "stripFile", "files to be excluded from the output zip, accepts wildcards")
+	flag.Var(&excludeDirs, "stripDir", "directories to be excluded from the output zip, accepts wildcards")
+	flag.Var(&excludeFiles, "stripFile", "files to be excluded from the output zip, accepts wildcards")
 	flag.Var(&zipsToNotStrip, "zipToNotStrip", "the input zip file which is not applicable for stripping")
+}
+
+type FileInputZip struct {
+	name   string
+	reader *zip.ReadCloser
+}
+
+func (fiz *FileInputZip) Name() string {
+	return fiz.name
+}
+
+func (fiz *FileInputZip) Close() error {
+	if fiz.IsOpen() {
+		reader := fiz.reader
+		fiz.reader = nil
+		return reader.Close()
+	}
+	return nil
+}
+
+func (fiz *FileInputZip) Entries() []*zip.File {
+	if !fiz.IsOpen() {
+		panic(fmt.Errorf("%s: is not open", fiz.Name()))
+	}
+	return fiz.reader.File
+}
+
+func (fiz *FileInputZip) IsOpen() bool {
+	return fiz.reader != nil
+}
+
+func (fiz *FileInputZip) Open() error {
+	if fiz.IsOpen() {
+		return nil
+	}
+	var err error
+	fiz.reader, err = zip.OpenReader(fiz.Name())
+	return err
 }
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [--prefix script] [-pm __main__.py] output [inputs...]")
+		fmt.Fprintln(os.Stderr, "usage: merge_zips [-jpsD] [-m manifest] [--prefix script] [-pm __main__.py] OutputZip [inputs...]")
 		flag.PrintDefaults()
 	}
 
@@ -90,16 +685,28 @@ func main() {
 		os.Exit(1)
 	}
 	outputPath := args[0]
-	inputs := args[1:]
+	inputs := make([]string, 0)
+	for _, input := range args[1:] {
+		if input[0] == '@' {
+			bytes, err := ioutil.ReadFile(input[1:])
+			if err != nil {
+				log.Fatal(err)
+			}
+			inputs = append(inputs, soongZip.ReadRespFile(bytes)...)
+			continue
+		}
+		inputs = append(inputs, input)
+		continue
+	}
 
 	log.SetFlags(log.Lshortfile)
 
 	// make writer
-	output, err := os.Create(outputPath)
+	outputZip, err := os.Create(outputPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer output.Close()
+	defer outputZip.Close()
 
 	var offset int64
 	if *prefix != "" {
@@ -107,13 +714,13 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		offset, err = io.Copy(output, prefixFile)
+		offset, err = io.Copy(outputZip, prefixFile)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	writer := zip.NewWriter(output)
+	writer := zip.NewWriter(outputZip)
 	defer func() {
 		err := writer.Close()
 		if err != nil {
@@ -121,18 +728,6 @@ func main() {
 		}
 	}()
 	writer.SetOffset(offset)
-
-	// make readers
-	readers := []namedZipReader{}
-	for _, input := range inputs {
-		reader, err := zip.OpenReader(input)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer reader.Close()
-		namedReader := namedZipReader{path: input, reader: &reader.Reader}
-		readers = append(readers, namedReader)
-	}
 
 	if *manifest != "" && !*emulateJar {
 		log.Fatal(errors.New("must specify -j when specifying a manifest via -m"))
@@ -143,344 +738,15 @@ func main() {
 	}
 
 	// do merge
-	err = mergeZips(readers, writer, *manifest, *pyMain, *sortEntries, *emulateJar, *emulatePar,
-		*stripDirEntries, *ignoreDuplicates, []string(stripFiles), []string(stripDirs), map[string]bool(zipsToNotStrip))
+	inputZipsManager := NewInputZipsManager(len(inputs), 1000)
+	inputZips := make([]InputZip, len(inputs))
+	for i, input := range inputs {
+		inputZips[i] = inputZipsManager.Manage(&FileInputZip{name: input})
+	}
+	err = mergeZips(inputZips, writer, *manifest, *pyMain, *sortEntries, *emulateJar, *emulatePar,
+		*stripDirEntries, *ignoreDuplicates, []string(excludeFiles), []string(excludeDirs),
+		map[string]bool(zipsToNotStrip))
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-// a namedZipReader reads a .zip file and can say which file it's reading
-type namedZipReader struct {
-	path   string
-	reader *zip.Reader
-}
-
-// a zipEntryPath refers to a file contained in a zip
-type zipEntryPath struct {
-	zipName   string
-	entryName string
-}
-
-func (p zipEntryPath) String() string {
-	return p.zipName + "/" + p.entryName
-}
-
-// a zipEntry is a zipSource that pulls its content from another zip
-type zipEntry struct {
-	path    zipEntryPath
-	content *zip.File
-}
-
-func (ze zipEntry) String() string {
-	return ze.path.String()
-}
-
-func (ze zipEntry) IsDir() bool {
-	return ze.content.FileInfo().IsDir()
-}
-
-func (ze zipEntry) CRC32() uint32 {
-	return ze.content.FileHeader.CRC32
-}
-
-func (ze zipEntry) Size() uint64 {
-	return ze.content.FileHeader.UncompressedSize64
-}
-
-func (ze zipEntry) WriteToZip(dest string, zw *zip.Writer) error {
-	return zw.CopyFrom(ze.content, dest)
-}
-
-// a bufferEntry is a zipSource that pulls its content from a []byte
-type bufferEntry struct {
-	fh      *zip.FileHeader
-	content []byte
-}
-
-func (be bufferEntry) String() string {
-	return "internal buffer"
-}
-
-func (be bufferEntry) IsDir() bool {
-	return be.fh.FileInfo().IsDir()
-}
-
-func (be bufferEntry) CRC32() uint32 {
-	return crc32.ChecksumIEEE(be.content)
-}
-
-func (be bufferEntry) Size() uint64 {
-	return uint64(len(be.content))
-}
-
-func (be bufferEntry) WriteToZip(dest string, zw *zip.Writer) error {
-	w, err := zw.CreateHeader(be.fh)
-	if err != nil {
-		return err
-	}
-
-	if !be.IsDir() {
-		_, err = w.Write(be.content)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-type zipSource interface {
-	String() string
-	IsDir() bool
-	CRC32() uint32
-	Size() uint64
-	WriteToZip(dest string, zw *zip.Writer) error
-}
-
-// a fileMapping specifies to copy a zip entry from one place to another
-type fileMapping struct {
-	dest   string
-	source zipSource
-}
-
-func mergeZips(readers []namedZipReader, writer *zip.Writer, manifest, pyMain string,
-	sortEntries, emulateJar, emulatePar, stripDirEntries, ignoreDuplicates bool,
-	stripFiles, stripDirs []string, zipsToNotStrip map[string]bool) error {
-
-	sourceByDest := make(map[string]zipSource, 0)
-	orderedMappings := []fileMapping{}
-
-	// if dest already exists returns a non-null zipSource for the existing source
-	addMapping := func(dest string, source zipSource) zipSource {
-		mapKey := filepath.Clean(dest)
-		if existingSource, exists := sourceByDest[mapKey]; exists {
-			return existingSource
-		}
-
-		sourceByDest[mapKey] = source
-		orderedMappings = append(orderedMappings, fileMapping{source: source, dest: dest})
-		return nil
-	}
-
-	if manifest != "" {
-		if !stripDirEntries {
-			dirHeader := jar.MetaDirFileHeader()
-			dirSource := bufferEntry{dirHeader, nil}
-			addMapping(jar.MetaDir, dirSource)
-		}
-
-		contents, err := ioutil.ReadFile(manifest)
-		if err != nil {
-			return err
-		}
-
-		fh, buf, err := jar.ManifestFileContents(contents)
-		if err != nil {
-			return err
-		}
-
-		fileSource := bufferEntry{fh, buf}
-		addMapping(jar.ManifestFile, fileSource)
-	}
-
-	if pyMain != "" {
-		buf, err := ioutil.ReadFile(pyMain)
-		if err != nil {
-			return err
-		}
-		fh := &zip.FileHeader{
-			Name:               "__main__.py",
-			Method:             zip.Store,
-			UncompressedSize64: uint64(len(buf)),
-		}
-		fh.SetMode(0700)
-		fh.SetModTime(jar.DefaultTime)
-		fileSource := bufferEntry{fh, buf}
-		addMapping("__main__.py", fileSource)
-	}
-
-	if emulatePar {
-		// the runfiles packages needs to be populated with "__init__.py".
-		newPyPkgs := []string{}
-		// the runfiles dirs have been treated as packages.
-		existingPyPkgSet := make(map[string]bool)
-		// put existing __init__.py files to a set first. This set is used for preventing
-		// generated __init__.py files from overwriting existing ones.
-		for _, namedReader := range readers {
-			for _, file := range namedReader.reader.File {
-				if filepath.Base(file.Name) != "__init__.py" {
-					continue
-				}
-				pyPkg := pathBeforeLastSlash(file.Name)
-				if _, found := existingPyPkgSet[pyPkg]; found {
-					panic(fmt.Errorf("found __init__.py path duplicates during pars merging: %q.", file.Name))
-				} else {
-					existingPyPkgSet[pyPkg] = true
-				}
-			}
-		}
-		for _, namedReader := range readers {
-			for _, file := range namedReader.reader.File {
-				var parentPath string /* the path after trimming last "/" */
-				if filepath.Base(file.Name) == "__init__.py" {
-					// for existing __init__.py files, we should trim last "/" for twice.
-					// eg. a/b/c/__init__.py ---> a/b
-					parentPath = pathBeforeLastSlash(pathBeforeLastSlash(file.Name))
-				} else {
-					parentPath = pathBeforeLastSlash(file.Name)
-				}
-				populateNewPyPkgs(parentPath, existingPyPkgSet, &newPyPkgs)
-			}
-		}
-		for _, pkg := range newPyPkgs {
-			var emptyBuf []byte
-			fh := &zip.FileHeader{
-				Name:               filepath.Join(pkg, "__init__.py"),
-				Method:             zip.Store,
-				UncompressedSize64: uint64(len(emptyBuf)),
-			}
-			fh.SetMode(0700)
-			fh.SetModTime(jar.DefaultTime)
-			fileSource := bufferEntry{fh, emptyBuf}
-			addMapping(filepath.Join(pkg, "__init__.py"), fileSource)
-		}
-	}
-	for _, namedReader := range readers {
-		_, skipStripThisZip := zipsToNotStrip[namedReader.path]
-		for _, file := range namedReader.reader.File {
-			if !skipStripThisZip {
-				if skip, err := shouldStripEntry(emulateJar, stripFiles, stripDirs, file.Name); err != nil {
-					return err
-				} else if skip {
-					continue
-				}
-			}
-
-			if stripDirEntries && file.FileInfo().IsDir() {
-				continue
-			}
-
-			// check for other files or directories destined for the same path
-			dest := file.Name
-
-			// make a new entry to add
-			source := zipEntry{path: zipEntryPath{zipName: namedReader.path, entryName: file.Name}, content: file}
-
-			if existingSource := addMapping(dest, source); existingSource != nil {
-				// handle duplicates
-				if existingSource.IsDir() != source.IsDir() {
-					return fmt.Errorf("Directory/file mismatch at %v from %v and %v\n",
-						dest, existingSource, source)
-				}
-
-				if ignoreDuplicates {
-					continue
-				}
-
-				if emulateJar &&
-					file.Name == jar.ManifestFile || file.Name == jar.ModuleInfoClass {
-					// Skip manifest and module info files that are not from the first input file
-					continue
-				}
-
-				if source.IsDir() {
-					continue
-				}
-
-				if existingSource.CRC32() == source.CRC32() && existingSource.Size() == source.Size() {
-					continue
-				}
-
-				return fmt.Errorf("Duplicate path %v found in %v and %v\n",
-					dest, existingSource, source)
-			}
-		}
-	}
-
-	if emulateJar {
-		jarSort(orderedMappings)
-	} else if sortEntries {
-		alphanumericSort(orderedMappings)
-	}
-
-	for _, entry := range orderedMappings {
-		if err := entry.source.WriteToZip(entry.dest, writer); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Sets the given directory and all its ancestor directories as Python packages.
-func populateNewPyPkgs(pkgPath string, existingPyPkgSet map[string]bool, newPyPkgs *[]string) {
-	for pkgPath != "" {
-		if _, found := existingPyPkgSet[pkgPath]; !found {
-			existingPyPkgSet[pkgPath] = true
-			*newPyPkgs = append(*newPyPkgs, pkgPath)
-			// Gets its ancestor directory by trimming last slash.
-			pkgPath = pathBeforeLastSlash(pkgPath)
-		} else {
-			break
-		}
-	}
-}
-
-func pathBeforeLastSlash(path string) string {
-	ret := filepath.Dir(path)
-	// filepath.Dir("abc") -> "." and filepath.Dir("/abc") -> "/".
-	if ret == "." || ret == "/" {
-		return ""
-	}
-	return ret
-}
-
-func shouldStripEntry(emulateJar bool, stripFiles, stripDirs []string, name string) (bool, error) {
-	for _, dir := range stripDirs {
-		dir = filepath.Clean(dir)
-		patterns := []string{
-			dir + "/",      // the directory itself
-			dir + "/**/*",  // files recursively in the directory
-			dir + "/**/*/", // directories recursively in the directory
-		}
-
-		for _, pattern := range patterns {
-			match, err := pathtools.Match(pattern, name)
-			if err != nil {
-				return false, fmt.Errorf("%s: %s", err.Error(), pattern)
-			} else if match {
-				if emulateJar {
-					// When merging jar files, don't strip META-INF/MANIFEST.MF even if stripping META-INF is
-					// requested.
-					// TODO(ccross): which files does this affect?
-					if name != jar.MetaDir && name != jar.ManifestFile {
-						return true, nil
-					}
-				}
-				return true, nil
-			}
-		}
-	}
-
-	for _, pattern := range stripFiles {
-		if match, err := pathtools.Match(pattern, name); err != nil {
-			return false, fmt.Errorf("%s: %s", err.Error(), pattern)
-		} else if match {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func jarSort(files []fileMapping) {
-	sort.SliceStable(files, func(i, j int) bool {
-		return jar.EntryNamesLess(files[i].dest, files[j].dest)
-	})
-}
-
-func alphanumericSort(files []fileMapping) {
-	sort.SliceStable(files, func(i, j int) bool {
-		return files[i].dest < files[j].dest
-	})
 }
