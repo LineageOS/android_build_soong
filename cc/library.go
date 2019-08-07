@@ -432,11 +432,25 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 	return flags
 }
 
-func (library *libraryDecorator) shouldCreateVndkSourceAbiDump(ctx ModuleContext) bool {
+func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx ModuleContext) bool {
+	if !ctx.shouldCreateSourceAbiDump() {
+		return false
+	}
 	if library.Properties.Header_abi_checker.Enabled != nil {
 		return Bool(library.Properties.Header_abi_checker.Enabled)
 	}
-	return ctx.shouldCreateVndkSourceAbiDump(ctx.Config())
+	if ctx.isNdk() {
+		return true
+	}
+	if ctx.isLlndkPublic(ctx.Config()) {
+		return true
+	}
+	if ctx.useVndk() && ctx.isVndk() && !ctx.isVndkPrivate(ctx.Config()) {
+		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext, and not
+		// VNDK-private.
+		return true
+	}
+	return false
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
@@ -458,7 +472,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		}
 		return Objects{}
 	}
-	if library.shouldCreateVndkSourceAbiDump(ctx) || library.sabi.Properties.CreateSAbiDumps {
+	if library.shouldCreateSourceAbiDump(ctx) || library.sabi.Properties.CreateSAbiDumps {
 		exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 		var SourceAbiFlags []string
 		for _, dir := range exportIncludeDirs.Strings() {
@@ -822,7 +836,7 @@ func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.
 }
 
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
-	if library.shouldCreateVndkSourceAbiDump(ctx) {
+	if library.shouldCreateSourceAbiDump(ctx) {
 		vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
 		if ver := ctx.DeviceConfig().VndkVersion(); ver != "" && ver != "current" {
 			vndkVersion = ver
