@@ -198,8 +198,6 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	switch stl.Properties.SelectedStl {
 	case "libc++", "libc++_static":
-		flags.CFlags = append(flags.CFlags, "-D_USING_LIBCXX")
-
 		if ctx.Darwin() {
 			// libc++'s headers are annotated with availability macros that
 			// indicate which version of Mac OS was the first to ship with a
