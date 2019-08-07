@@ -309,6 +309,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 			"-isystem "+getCurrentIncludePath(ctx).String(),
 			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, config.NDKTriple(tc)).String())
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_NDK__")
 	}
 
 	if ctx.useVndk() {
