@@ -267,7 +267,7 @@ type ModuleContextIntf interface {
 	isVndkSp() bool
 	isVndkExt() bool
 	inRecovery() bool
-	shouldCreateVndkSourceAbiDump(config android.Config) bool
+	shouldCreateSourceAbiDump() bool
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
@@ -789,7 +789,7 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 }
 
 // Check whether ABI dumps should be created for this module.
-func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump(config android.Config) bool {
+func (ctx *moduleContextImpl) shouldCreateSourceAbiDump() bool {
 	if ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") {
 		return false
 	}
@@ -815,18 +815,7 @@ func (ctx *moduleContextImpl) shouldCreateVndkSourceAbiDump(config android.Confi
 		// Stubs do not need ABI dumps.
 		return false
 	}
-	if ctx.isNdk() {
-		return true
-	}
-	if ctx.isLlndkPublic(config) {
-		return true
-	}
-	if ctx.useVndk() && ctx.isVndk() && !ctx.isVndkPrivate(config) {
-		// Return true if this is VNDK-core, VNDK-SP, or VNDK-Ext and this is not
-		// VNDK-private.
-		return true
-	}
-	return false
+	return true
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
