@@ -16,13 +16,43 @@ package android
 
 import (
 	"testing"
+
+	"github.com/google/blueprint"
 )
+
+func init() {
+	// Add extra rules needed for testing.
+	AddNeverAllowRules(
+		NeverAllow().InDirectDeps("not_allowed_in_direct_deps"),
+	)
+}
 
 var neverallowTests = []struct {
 	name          string
 	fs            map[string][]byte
 	expectedError string
 }{
+	// Test General Functionality
+
+	// in direct deps tests
+	{
+		name: "not_allowed_in_direct_deps",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				cc_library {
+					name: "not_allowed_in_direct_deps",
+				}`),
+			"other/Blueprints": []byte(`
+				cc_library {
+					name: "libother",
+					static_libs: ["not_allowed_in_direct_deps"],
+				}`),
+		},
+		expectedError: `module "libother": violates neverallow deps:not_allowed_in_direct_deps`,
+	},
+
+	// Test specific rules
+
 	// include_dir rule tests
 	{
 		name: "include_dir not allowed to reference art",
@@ -238,6 +268,7 @@ func testNeverallow(t *testing.T, config Config, fs map[string][]byte) (*TestCon
 type mockCcLibraryProperties struct {
 	Include_dirs     []string
 	Vendor_available *bool
+	Static_libs      []string
 
 	Vndk struct {
 		Enabled                *bool
@@ -266,6 +297,19 @@ func newMockCcLibraryModule() Module {
 	m.AddProperties(&m.properties)
 	InitAndroidModule(m)
 	return m
+}
+
+type neverallowTestDependencyTag struct {
+	blueprint.BaseDependencyTag
+	name string
+}
+
+var staticDepTag = neverallowTestDependencyTag{name: "static"}
+
+func (c *mockCcLibraryModule) DepsMutator(ctx BottomUpMutatorContext) {
+	for _, lib := range c.properties.Static_libs {
+		ctx.AddDependency(ctx.Module(), staticDepTag, lib)
+	}
 }
 
 func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
