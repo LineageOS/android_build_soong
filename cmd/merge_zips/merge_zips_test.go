@@ -51,6 +51,39 @@ var (
 	moduleInfoFile = testZipEntry{jar.ModuleInfoClass, 0755, []byte("module-info")}
 )
 
+type testInputZip struct {
+	name    string
+	entries []testZipEntry
+	reader  *zip.Reader
+}
+
+func (tiz *testInputZip) Name() string {
+	return tiz.name
+}
+
+func (tiz *testInputZip) Open() error {
+	if tiz.reader == nil {
+		tiz.reader = testZipEntriesToZipReader(tiz.entries)
+	}
+	return nil
+}
+
+func (tiz *testInputZip) Close() error {
+	tiz.reader = nil
+	return nil
+}
+
+func (tiz *testInputZip) Entries() []*zip.File {
+	if tiz.reader == nil {
+		panic(fmt.Errorf("%s: should be open to get entries", tiz.Name()))
+	}
+	return tiz.reader.File
+}
+
+func (tiz *testInputZip) IsOpen() bool {
+	return tiz.reader != nil
+}
+
 func TestMergeZips(t *testing.T) {
 	testCases := []struct {
 		name             string
@@ -207,13 +240,9 @@ func TestMergeZips(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			var readers []namedZipReader
+			inputZips := make([]InputZip, len(test.in))
 			for i, in := range test.in {
-				r := testZipEntriesToZipReader(in)
-				readers = append(readers, namedZipReader{
-					path:   "in" + strconv.Itoa(i),
-					reader: r,
-				})
+				inputZips[i] = &testInputZip{name: "in" + strconv.Itoa(i), entries: in}
 			}
 
 			want := testZipEntriesToBuf(test.out)
@@ -221,7 +250,7 @@ func TestMergeZips(t *testing.T) {
 			out := &bytes.Buffer{}
 			writer := zip.NewWriter(out)
 
-			err := mergeZips(readers, writer, "", "",
+			err := mergeZips(inputZips, writer, "", "",
 				test.sort, test.jar, false, test.stripDirEntries, test.ignoreDuplicates,
 				test.stripFiles, test.stripDirs, test.zipsToNotStrip)
 
@@ -303,4 +332,61 @@ func dumpZip(buf []byte) string {
 	}
 
 	return ret
+}
+
+type DummyInpuZip struct {
+	isOpen bool
+}
+
+func (diz *DummyInpuZip) Name() string {
+	return "dummy"
+}
+
+func (diz *DummyInpuZip) Open() error {
+	diz.isOpen = true
+	return nil
+}
+
+func (diz *DummyInpuZip) Close() error {
+	diz.isOpen = false
+	return nil
+}
+
+func (DummyInpuZip) Entries() []*zip.File {
+	panic("implement me")
+}
+
+func (diz *DummyInpuZip) IsOpen() bool {
+	return diz.isOpen
+}
+
+func TestInputZipsManager(t *testing.T) {
+	const nInputZips = 20
+	const nMaxOpenZips = 10
+	izm := NewInputZipsManager(20, 10)
+	managedZips := make([]InputZip, nInputZips)
+	for i := 0; i < nInputZips; i++ {
+		managedZips[i] = izm.Manage(&DummyInpuZip{})
+	}
+
+	t.Run("InputZipsManager", func(t *testing.T) {
+		for i, iz := range managedZips {
+			if err := iz.Open(); err != nil {
+				t.Fatalf("Step %d: open failed: %s", i, err)
+				return
+			}
+			if izm.nOpenZips > nMaxOpenZips {
+				t.Errorf("Step %d: should be <=%d open zips", i, nMaxOpenZips)
+			}
+		}
+		if !managedZips[nInputZips-1].IsOpen() {
+			t.Error("The last input should stay open")
+		}
+		for _, iz := range managedZips {
+			iz.Close()
+		}
+		if izm.nOpenZips > 0 {
+			t.Error("Some input zips are still open")
+		}
+	})
 }
