@@ -372,6 +372,29 @@ func FailIfNoMatchingErrors(t *testing.T, pattern string, errs []error) {
 	}
 }
 
+func CheckErrorsAgainstExpectations(t *testing.T, errs []error, expectedErrorPatterns []string) {
+	t.Helper()
+
+	if expectedErrorPatterns == nil {
+		FailIfErrored(t, errs)
+	} else {
+		for _, expectedError := range expectedErrorPatterns {
+			FailIfNoMatchingErrors(t, expectedError, errs)
+		}
+		if len(errs) > len(expectedErrorPatterns) {
+			t.Errorf("additional errors found, expected %d, found %d",
+				len(expectedErrorPatterns), len(errs))
+			for i, expectedError := range expectedErrorPatterns {
+				t.Errorf("expectedErrors[%d] = %s", i, expectedError)
+			}
+			for i, err := range errs {
+				t.Errorf("errs[%d] = %s", i, err)
+			}
+		}
+	}
+
+}
+
 func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) AndroidMkEntries {
 	var p AndroidMkEntriesProvider
 	var ok bool
