@@ -169,6 +169,8 @@ func init() {
 			// Jacoco filters:
 			"LOCAL_JACK_COVERAGE_INCLUDE_FILTER": "jacoco.include_filter",
 			"LOCAL_JACK_COVERAGE_EXCLUDE_FILTER": "jacoco.exclude_filter",
+
+			"LOCAL_FULL_LIBS_MANIFEST_FILES": "additional_manifests",
 		})
 
 	addStandardProperties(bpparser.BoolType,
