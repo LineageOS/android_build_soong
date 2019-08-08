@@ -23,7 +23,6 @@ import (
 )
 
 func init() {
-	pctx.HostBinToolVariable("aidlCmd", "aidl")
 	pctx.HostBinToolVariable("syspropCmd", "sysprop_java")
 	pctx.SourcePathVariable("logtagsCmd", "build/make/tools/java-event-log-tags.py")
 	pctx.SourcePathVariable("mergeLogtagsCmd", "build/make/tools/merge-event-log-tags.py")
@@ -33,8 +32,8 @@ func init() {
 var (
 	aidl = pctx.AndroidStaticRule("aidl",
 		blueprint.RuleParams{
-			Command:     "$aidlCmd -d$depFile $aidlFlags $in $out",
-			CommandDeps: []string{"$aidlCmd"},
+			Command:     "${config.AidlCmd} -d$depFile $aidlFlags $in $out",
+			CommandDeps: []string{"${config.AidlCmd}"},
 		},
 		"depFile", "aidlFlags")
 
