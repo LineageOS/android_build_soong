@@ -46,6 +46,7 @@ type ModuleInstallPathContext interface {
 	InstallInData() bool
 	InstallInSanitizerDir() bool
 	InstallInRecovery() bool
+	InstallBypassMake() bool
 }
 
 var _ ModuleInstallPathContext = ModuleContext(nil)
@@ -818,6 +819,17 @@ func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
 	return OutputPath{basePath{path, ctx.Config(), ""}}
 }
 
+// pathForInstallInMakeDir is used by PathForModuleInstall when the module returns true
+// for InstallBypassMake to produce an OutputPath that installs to $OUT_DIR instead of
+// $OUT_DIR/soong.
+func pathForInstallInMakeDir(ctx PathContext, pathComponents ...string) OutputPath {
+	path, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+	return OutputPath{basePath{"../" + path, ctx.Config(), ""}}
+}
+
 // PathsForOutput returns Paths rooted from buildDir
 func PathsForOutput(ctx PathContext, paths []string) WritablePaths {
 	ret := make(WritablePaths, len(paths))
@@ -1123,6 +1135,9 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 		outPaths = append([]string{"debug"}, outPaths...)
 	}
 	outPaths = append(outPaths, pathComponents...)
+	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
+		return pathForInstallInMakeDir(ctx, outPaths...)
+	}
 	return PathForOutput(ctx, outPaths...)
 }
 
