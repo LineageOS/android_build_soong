@@ -758,6 +758,10 @@ func (library *libraryDecorator) nativeCoverage() bool {
 	return true
 }
 
+func (library *libraryDecorator) coverageOutputFilePath() android.OptionalPath {
+	return library.coverageOutputFile
+}
+
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
 	isLlndk := inList(ctx.baseModuleName(), llndkLibraries) || inList(ctx.baseModuleName(), ndkMigratedLibs)
 

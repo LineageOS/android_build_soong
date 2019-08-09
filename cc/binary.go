@@ -421,6 +421,10 @@ func (binary *binaryDecorator) nativeCoverage() bool {
 	return true
 }
 
+func (binary *binaryDecorator) coverageOutputFilePath() android.OptionalPath {
+	return binary.coverageOutputFile
+}
+
 // /system/bin/linker -> /apex/com.android.runtime/bin/linker
 func (binary *binaryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, file android.Path) {
 	dir := binary.baseInstaller.installDir(ctx)

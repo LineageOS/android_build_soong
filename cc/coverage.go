@@ -138,7 +138,6 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 	} else {
 		// Check if Native_coverage is set to false.  This property defaults to true.
 		needCoverageVariant = BoolDefault(cov.Properties.Native_coverage, true)
-
 		if sdk_version := ctx.sdkVersion(); ctx.useSdk() && sdk_version != "current" {
 			// Native coverage is not supported for SDK versions < 23
 			if fromApi, err := strconv.Atoi(sdk_version); err == nil && fromApi < 23 {
@@ -154,6 +153,14 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 
 	cov.Properties.NeedCoverageBuild = needCoverageBuild
 	cov.Properties.NeedCoverageVariant = needCoverageVariant
+}
+
+// Coverage is an interface for non-CC modules to implement to be mutated for coverage
+type Coverage interface {
+	android.Module
+	IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool
+	PreventInstall()
+	HideFromMake()
 }
 
 func coverageMutator(mctx android.BottomUpMutatorContext) {
@@ -175,5 +182,14 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 			m[1].(*Module).coverage.Properties.CoverageEnabled = needCoverageBuild
 			m[1].(*Module).coverage.Properties.IsCoverageVariant = true
 		}
+	} else if cov, ok := mctx.Module().(Coverage); ok && cov.IsNativeCoverageNeeded(mctx) {
+		// APEX modules fall here
+
+		// Note: variant "" is also created because an APEX can be depended on by another
+		// module which are split into "" and "cov" variants. e.g. when cc_test refers
+		// to an APEX via 'data' property.
+		m := mctx.CreateVariations("", "cov")
+		m[0].(Coverage).PreventInstall()
+		m[0].(Coverage).HideFromMake()
 	}
 }

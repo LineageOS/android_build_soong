@@ -118,3 +118,7 @@ func (object *objectLinker) unstrippedOutputFilePath() android.Path {
 func (object *objectLinker) nativeCoverage() bool {
 	return true
 }
+
+func (object *objectLinker) coverageOutputFilePath() android.OptionalPath {
+	return android.OptionalPath{}
+}
