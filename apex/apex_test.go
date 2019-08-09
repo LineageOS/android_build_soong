@@ -30,6 +30,16 @@ import (
 
 var buildDir string
 
+// names returns name list from white space separated string
+func names(s string) (ns []string) {
+	for _, n := range strings.Split(s, " ") {
+		if len(n) > 0 {
+			ns = append(ns, n)
+		}
+	}
+	return
+}
+
 func testApexError(t *testing.T, pattern, bp string) {
 	ctx, config := testApexContext(t, bp)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -626,6 +636,73 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 }
 
+func TestApexWithRuntimeLibsDependency(t *testing.T) {
+	/*
+		myapex
+		  |
+		  v   (runtime_libs)
+		mylib ------+------> libfoo [provides stub]
+			    |
+			    `------> libbar
+	*/
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			runtime_libs: ["libfoo", "libbar"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libfoo",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["10", "20", "30"],
+			},
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+	`)
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that direct non-stubs dep is always included
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+
+	// Ensure that indirect stubs dep is not included
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libfoo.so")
+
+	// Ensure that runtime_libs dep in included
+	ensureContains(t, copyCmds, "image.apex/lib64/libbar.so")
+
+	injectRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("injectApexDependency")
+	ensureListEmpty(t, names(injectRule.Args["provideNativeLibs"]))
+	ensureListContains(t, names(injectRule.Args["requireNativeLibs"]), "libfoo.so")
+
+}
+
 func TestApexWithSystemLibsStubs(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
@@ -1132,15 +1209,6 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			stl: "none",
 		}
 	`)
-
-	names := func(s string) (ns []string) {
-		for _, n := range strings.Split(s, " ") {
-			if len(n) > 0 {
-				ns = append(ns, n)
-			}
-		}
-		return
-	}
 
 	var injectRule android.TestingBuildParams
 	var provideNativeLibs, requireNativeLibs []string
