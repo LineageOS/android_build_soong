@@ -355,6 +355,18 @@ and then in another terminal:
 dlv connect :1234
 ```
 
+If you see an error:
+```
+Could not attach to pid 593: this could be caused by a kernel
+security setting, try writing "0" to /proc/sys/kernel/yama/ptrace_scope
+```
+you can temporarily disable
+[Yama's ptrace protection](https://www.kernel.org/doc/Documentation/security/Yama.txt)
+using:
+```bash
+sudo sysctl -w kernel.yama.ptrace_scope=0
+```
+
 ## Contact
 
 Email android-building@googlegroups.com (external) for any questions, or see

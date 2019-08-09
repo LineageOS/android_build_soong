@@ -689,10 +689,6 @@ func (c *config) DevicePrimaryArchType() ArchType {
 	return c.Targets[Android][0].Arch.ArchType
 }
 
-func (c *config) SkipDeviceInstall() bool {
-	return c.EmbeddedInMake()
-}
-
 func (c *config) SkipMegaDeviceInstall(path string) bool {
 	return Bool(c.Mega_device) &&
 		strings.HasPrefix(path, filepath.Join(c.buildDir, "target", "product"))

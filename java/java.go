@@ -370,6 +370,8 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 		return append(android.Paths{j.outputFile}, j.extraOutputFiles...), nil
 	case ".jar":
 		return android.Paths{j.implementationAndResourcesJar}, nil
+	case ".proguard_map":
+		return android.Paths{j.proguardDictionary}, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
