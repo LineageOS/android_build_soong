@@ -498,7 +498,9 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				Input:       srcFile,
 				// We must depend on objFile, since clang-tidy doesn't
 				// support exporting dependencies.
-				Implicit: objFile,
+				Implicit:  objFile,
+				Implicits: cFlagsDeps,
+				OrderOnly: pathDeps,
 				Args: map[string]string{
 					"cFlags":    moduleToolingCflags,
 					"tidyFlags": flags.tidyFlags,
@@ -516,6 +518,8 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				Output:      sAbiDumpFile,
 				Input:       srcFile,
 				Implicit:    objFile,
+				Implicits:   cFlagsDeps,
+				OrderOnly:   pathDeps,
 				Args: map[string]string{
 					"cFlags":     moduleToolingCflags,
 					"exportDirs": flags.sAbiFlags,
