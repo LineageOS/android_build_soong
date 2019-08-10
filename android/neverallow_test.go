@@ -28,9 +28,9 @@ func init() {
 }
 
 var neverallowTests = []struct {
-	name          string
-	fs            map[string][]byte
-	expectedError string
+	name           string
+	fs             map[string][]byte
+	expectedErrors []string
 }{
 	// Test General Functionality
 
@@ -48,7 +48,9 @@ var neverallowTests = []struct {
 					static_libs: ["not_allowed_in_direct_deps"],
 				}`),
 		},
-		expectedError: `module "libother": violates neverallow deps:not_allowed_in_direct_deps`,
+		expectedErrors: []string{
+			`module "libother": violates neverallow deps:not_allowed_in_direct_deps`,
+		},
 	},
 
 	// Test specific rules
@@ -63,7 +65,9 @@ var neverallowTests = []struct {
 					include_dirs: ["art/libdexfile/include"],
 				}`),
 		},
-		expectedError: "all usages of 'art' have been migrated",
+		expectedErrors: []string{
+			"all usages of 'art' have been migrated",
+		},
 	},
 	{
 		name: "include_dir can reference another location",
@@ -88,7 +92,9 @@ var neverallowTests = []struct {
 					},
 				}`),
 		},
-		expectedError: "VNDK can never contain a library that is device dependent",
+		expectedErrors: []string{
+			"VNDK can never contain a library that is device dependent",
+		},
 	},
 	{
 		name: "no vndk.enabled under device directory",
@@ -102,7 +108,9 @@ var neverallowTests = []struct {
 					},
 				}`),
 		},
-		expectedError: "VNDK can never contain a library that is device dependent",
+		expectedErrors: []string{
+			"VNDK can never contain a library that is device dependent",
+		},
 	},
 	{
 		name: "vndk-ext under vendor or device directory",
@@ -124,7 +132,6 @@ var neverallowTests = []struct {
 					},
 				}`),
 		},
-		expectedError: "",
 	},
 
 	{
@@ -140,7 +147,9 @@ var neverallowTests = []struct {
 					},
 				}`),
 		},
-		expectedError: "manifest enforcement should be independent",
+		expectedErrors: []string{
+			"manifest enforcement should be independent",
+		},
 	},
 
 	{
@@ -156,7 +165,9 @@ var neverallowTests = []struct {
 					},
 				}`),
 		},
-		expectedError: "nothing should care if linker namespaces are enabled or not",
+		expectedErrors: []string{
+			"nothing should care if linker namespaces are enabled or not",
+		},
 	},
 	{
 		name: "libc_bionic_ndk treble_linker_namespaces.cflags",
@@ -171,7 +182,6 @@ var neverallowTests = []struct {
 					},
 				}`),
 		},
-		expectedError: "",
 	},
 	{
 		name: "dependency on updatable-media",
@@ -182,7 +192,9 @@ var neverallowTests = []struct {
 					libs: ["updatable-media"],
 				}`),
 		},
-		expectedError: "updatable-media includes private APIs. Use updatable_media_stubs instead.",
+		expectedErrors: []string{
+			"updatable-media includes private APIs. Use updatable_media_stubs instead.",
+		},
 	},
 	{
 		name: "java_device_for_host",
@@ -193,7 +205,9 @@ var neverallowTests = []struct {
 					libs: ["core-libart"],
 				}`),
 		},
-		expectedError: "java_device_for_host can only be used in whitelisted projects",
+		expectedErrors: []string{
+			"java_device_for_host can only be used in whitelisted projects",
+		},
 	},
 	// Libcore rule tests
 	{
@@ -215,7 +229,9 @@ var neverallowTests = []struct {
 					sdk_version: "none",
 				}`),
 		},
-		expectedError: "module \"outside_core_libraries\": violates neverallow",
+		expectedErrors: []string{
+			"module \"outside_core_libraries\": violates neverallow",
+		},
 	},
 	{
 		name: "sdk_version: \"current\"",
@@ -233,19 +249,15 @@ func TestNeverallow(t *testing.T) {
 	config := TestConfig(buildDir, nil)
 
 	for _, test := range neverallowTests {
-		t.Run(test.name, func(t *testing.T) {
-			_, errs := testNeverallow(t, config, test.fs)
 
-			if test.expectedError == "" {
-				FailIfErrored(t, errs)
-			} else {
-				FailIfNoMatchingErrors(t, test.expectedError, errs)
-			}
+		t.Run(test.name, func(t *testing.T) {
+			_, errs := testNeverallow(config, test.fs)
+			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
 		})
 	}
 }
 
-func testNeverallow(t *testing.T, config Config, fs map[string][]byte) (*TestContext, []error) {
+func testNeverallow(config Config, fs map[string][]byte) (*TestContext, []error) {
 	ctx := NewTestContext()
 	ctx.RegisterModuleType("cc_library", ModuleFactoryAdaptor(newMockCcLibraryModule))
 	ctx.RegisterModuleType("java_library", ModuleFactoryAdaptor(newMockJavaLibraryModule))

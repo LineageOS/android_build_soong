@@ -227,6 +227,10 @@ func (m moduleInstallPathContextImpl) InstallInRecovery() bool {
 	return m.inRecovery
 }
 
+func (m moduleInstallPathContextImpl) InstallBypassMake() bool {
+	return false
+}
+
 func TestPathForModuleInstall(t *testing.T) {
 	testConfig := TestConfig("", nil)
 
