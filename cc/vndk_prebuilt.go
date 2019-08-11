@@ -61,6 +61,13 @@ type vndkPrebuiltProperties struct {
 	// Prebuilt files for each arch.
 	Srcs []string `android:"arch_variant"`
 
+	// list of directories relative to the Blueprints file that will be added to the include
+	// path (using -isystem) for any module that links against this module.
+	Export_system_include_dirs []string `android:"arch_variant"`
+
+	// list of flags that will be used for any module that links against this module.
+	Export_flags []string `android:"arch_variant"`
+
 	// Check the prebuilt ELF files (e.g. DT_SONAME, DT_NEEDED, resolution of undefined symbols,
 	// etc).
 	Check_elf_files *bool
@@ -123,6 +130,9 @@ func (p *vndkPrebuiltLibraryDecorator) singleSourcePath(ctx ModuleContext) andro
 func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 	if len(p.properties.Srcs) > 0 && p.shared() {
+		p.libraryDecorator.exportIncludes(ctx)
+		p.libraryDecorator.reexportSystemDirs(p.properties.Export_system_include_dirs...)
+		p.libraryDecorator.reexportFlags(p.properties.Export_flags...)
 		// current VNDK prebuilts are only shared libs.
 		return p.singleSourcePath(ctx)
 	}
