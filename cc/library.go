@@ -508,6 +508,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 type libraryInterface interface {
 	getWholeStaticMissingDeps() []string
 	static() bool
+	shared() bool
 	objs() Objects
 	reuseObjs() (Objects, exportedFlagsProducer)
 	toc() android.OptionalPath
