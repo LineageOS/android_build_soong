@@ -42,6 +42,7 @@ var (
 		"android.car",
 		"android.car7",
 		"conscrypt",
+		"core-icu4j",
 		"core-oj",
 		"core-libart",
 	}
