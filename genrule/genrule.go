@@ -40,6 +40,7 @@ var (
 )
 
 func init() {
+	pctx.Import("android/soong/android")
 	pctx.HostBinToolVariable("sboxCmd", "sbox")
 }
 
@@ -425,7 +426,24 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 	for _, outputFile := range task.out {
 		g.outputFiles = append(g.outputFiles, outputFile)
 	}
-	g.outputDeps = append(g.outputDeps, task.out[0])
+
+	// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
+	// the genrules on AOSP. That will make things simpler to look at the graph in the common
+	// case. For larger sets of outputs, inject a phony target in between to limit ninja file
+	// growth.
+	if len(task.out) <= 6 {
+		g.outputDeps = g.outputFiles
+	} else {
+		phonyFile := android.PathForModuleGen(ctx, "genrule-phony")
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Phony,
+			Output: phonyFile,
+			Inputs: g.outputFiles,
+		})
+
+		g.outputDeps = android.Paths{phonyFile}
+	}
 }
 
 // Collect information for opening IDE project files in java/jdeps.go.
