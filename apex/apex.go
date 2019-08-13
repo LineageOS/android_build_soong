@@ -740,6 +740,18 @@ func getCopyManifestForJavaLibrary(java *java.Library) (fileToCopy android.Path,
 	return
 }
 
+func getCopyManifestForPrebuiltJavaLibrary(java *java.Import) (fileToCopy android.Path, dirInApex string) {
+	dirInApex = "javalib"
+	// The output is only one, but for some reason, ImplementationJars returns Paths, not Path
+	implJars := java.ImplementationJars()
+	if len(implJars) != 1 {
+		panic(fmt.Errorf("java.ImplementationJars() must return single Path, but got: %s",
+			strings.Join(implJars.Strings(), ", ")))
+	}
+	fileToCopy = implJars[0]
+	return
+}
+
 func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = filepath.Join("etc", prebuilt.SubDir())
 	fileToCopy = prebuilt.OutputFile()
@@ -833,16 +845,24 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("binaries", "%q is neither cc_binary, (embedded) py_binary, (host) blueprint_go_binary, (host) bootstrap_go_binary, nor sh_binary", depName)
 				}
 			case javaLibTag:
-				if java, ok := child.(*java.Library); ok {
-					fileToCopy, dirInApex := getCopyManifestForJavaLibrary(java)
+				if javaLib, ok := child.(*java.Library); ok {
+					fileToCopy, dirInApex := getCopyManifestForJavaLibrary(javaLib)
 					if fileToCopy == nil {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 					} else {
-						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, javaSharedLib, java, nil})
+						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, javaSharedLib, javaLib, nil})
+					}
+					return true
+				} else if javaLib, ok := child.(*java.Import); ok {
+					fileToCopy, dirInApex := getCopyManifestForPrebuiltJavaLibrary(javaLib)
+					if fileToCopy == nil {
+						ctx.PropertyErrorf("java_libs", "%q does not have a jar output", depName)
+					} else {
+						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, javaSharedLib, javaLib, nil})
 					}
 					return true
 				} else {
-					ctx.PropertyErrorf("java_libs", "%q is not a java_library module", depName)
+					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 				}
 			case prebuiltTag:
 				if prebuilt, ok := child.(*android.PrebuiltEtc); ok {
