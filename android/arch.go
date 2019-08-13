@@ -557,6 +557,10 @@ func newArch(name, multilib string) ArchType {
 	return archType
 }
 
+func ArchTypeList() []ArchType {
+	return append([]ArchType(nil), archTypeList...)
+}
+
 func (a ArchType) String() string {
 	return a.Name
 }
