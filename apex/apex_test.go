@@ -102,6 +102,7 @@ func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Con
 	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(java.AndroidAppCertificateFactory))
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
+	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(java.ImportFactory))
 
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
@@ -218,6 +219,7 @@ func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Con
 		"myprebuilt":                           nil,
 		"my_include":                           nil,
 		"foo/bar/MyClass.java":                 nil,
+		"prebuilt.jar":                         nil,
 		"vendor/foo/devkeys/test.x509.pem":     nil,
 		"vendor/foo/devkeys/test.pk8":          nil,
 		"testkey.x509.pem":                     nil,
@@ -301,7 +303,7 @@ func TestBasicApex(t *testing.T) {
 					binaries: ["foo",],
 				}
 			},
-			java_libs: ["myjar"],
+			java_libs: ["myjar", "myprebuiltjar"],
 		}
 
 		apex {
@@ -376,6 +378,12 @@ func TestBasicApex(t *testing.T) {
 			system_modules: "none",
 			compile_dex: true,
 		}
+
+		java_import {
+			name: "myprebuiltjar",
+			jars: ["prebuilt.jar"],
+			installable: true,
+		}
 	`)
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
@@ -393,6 +401,7 @@ func TestBasicApex(t *testing.T) {
 	// Ensure that apex variant is created for the direct dep
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("myprebuiltjar"), "android_common_myapex")
 
 	// Ensure that apex variant is created for the indirect dep
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared_myapex")
@@ -402,6 +411,7 @@ func TestBasicApex(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib2.so")
 	ensureContains(t, copyCmds, "image.apex/javalib/myjar.jar")
+	ensureContains(t, copyCmds, "image.apex/javalib/myprebuiltjar.jar")
 	// .. but not for java libs
 	ensureNotContains(t, copyCmds, "image.apex/javalib/myotherjar.jar")
 
@@ -410,6 +420,7 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common")
+	ensureListContains(t, ctx.ModuleVariantsForTests("myprebuiltjar"), "android_common")
 
 	// Ensure that all symlinks are present.
 	found_foo_link_64 := false
