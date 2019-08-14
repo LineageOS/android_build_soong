@@ -53,13 +53,13 @@ var (
 	sysprop = pctx.AndroidStaticRule("sysprop",
 		blueprint.RuleParams{
 			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
-				`$syspropCmd --java-output-dir $out.tmp $in && ` +
+				`$syspropCmd --scope $scope --java-output-dir $out.tmp $in && ` +
 				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
 			CommandDeps: []string{
 				"$syspropCmd",
 				"${config.SoongZipCmd}",
 			},
-		})
+		}, "scope")
 )
 
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, aidlFlags string, deps android.Paths) android.Path {
@@ -98,7 +98,7 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 	return javaFile
 }
 
-func genSysprop(ctx android.ModuleContext, syspropFile android.Path) android.Path {
+func genSysprop(ctx android.ModuleContext, syspropFile android.Path, scope string) android.Path {
 	srcJarFile := android.GenPathWithExt(ctx, "sysprop", syspropFile, "srcjar")
 
 	ctx.Build(pctx, android.BuildParams{
@@ -106,6 +106,9 @@ func genSysprop(ctx android.ModuleContext, syspropFile android.Path) android.Pat
 		Description: "sysprop_java " + syspropFile.Rel(),
 		Output:      srcJarFile,
 		Input:       syspropFile,
+		Args: map[string]string{
+			"scope": scope,
+		},
 	})
 
 	return srcJarFile
@@ -129,7 +132,27 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			srcJarFile := genProto(ctx, srcFile, flags.proto)
 			outSrcFiles = append(outSrcFiles, srcJarFile)
 		case ".sysprop":
-			srcJarFile := genSysprop(ctx, srcFile)
+			// internal scope contains all properties
+			// public scope only contains public properties
+			// use public if the owner is different from client
+			scope := "internal"
+			if j.properties.Sysprop.Platform != nil {
+				isProduct := ctx.ProductSpecific()
+				isVendor := ctx.SocSpecific()
+				isOwnerPlatform := Bool(j.properties.Sysprop.Platform)
+
+				if isProduct {
+					// product can't own any sysprop_library now, so product must use public scope
+					scope = "public"
+				} else if isVendor && !isOwnerPlatform {
+					// vendor and odm can't use system's internal property.
+					scope = "public"
+				}
+
+				// We don't care about clients under system.
+				// They can't use sysprop_library owned by other partitions.
+			}
+			srcJarFile := genSysprop(ctx, srcFile, scope)
 			outSrcFiles = append(outSrcFiles, srcJarFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)
