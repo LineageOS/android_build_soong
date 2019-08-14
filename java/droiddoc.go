@@ -111,6 +111,9 @@ type ApiToCheck struct {
 	// :module syntax).
 	Removed_api_file *string `android:"path"`
 
+	// If not blank, path to the baseline txt file for approved API check violations.
+	Baseline_file *string `android:"path"`
+
 	// Arguments to the apicheck tool.
 	Args *string
 }
@@ -1506,6 +1509,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
 		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Removed_api_file))
+		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Current.Baseline_file)
+		updatedBaselineOutput := android.PathForModuleOut(ctx, "current_baseline.txt")
 
 		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
 
@@ -1525,6 +1530,11 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		d.inclusionAnnotationsFlags(ctx, cmd)
 		d.mergeAnnoDirFlags(ctx, cmd)
+
+		if baselineFile.Valid() {
+			cmd.FlagWithInput("--baseline ", baselineFile.Path())
+			cmd.FlagWithOutput("--update-baseline ", updatedBaselineOutput)
+		}
 
 		zipSyncCleanupCmd(rule, srcJarDir)
 
@@ -1584,6 +1594,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Api_file))
 		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Removed_api_file))
+		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Last_released.Baseline_file)
+		updatedBaselineOutput := android.PathForModuleOut(ctx, "last_released_baseline.txt")
 
 		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "check_last_released_api.timestamp")
 
@@ -1605,6 +1617,11 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagWithInput("--check-compatibility:removed:released ", removedApiFile)
 
 		d.mergeAnnoDirFlags(ctx, cmd)
+
+		if baselineFile.Valid() {
+			cmd.FlagWithInput("--baseline ", baselineFile.Path())
+			cmd.FlagWithOutput("--update-baseline ", updatedBaselineOutput)
+		}
 
 		zipSyncCleanupCmd(rule, srcJarDir)
 
