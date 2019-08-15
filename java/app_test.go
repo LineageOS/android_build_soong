@@ -1242,6 +1242,53 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 	}
 }
 
+func TestAndroidAppImport_Filename(t *testing.T) {
+	ctx, config := testJava(t, `
+		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+		}
+
+		android_app_import {
+			name: "bar",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			filename: "bar_sample.apk"
+		}
+		`)
+
+	testCases := []struct {
+		name     string
+		expected string
+	}{
+		{
+			name:     "foo",
+			expected: "foo.apk",
+		},
+		{
+			name:     "bar",
+			expected: "bar_sample.apk",
+		},
+	}
+
+	for _, test := range testCases {
+		variant := ctx.ModuleForTests(test.name, "android_common")
+		if variant.MaybeOutput(test.expected).Rule == nil {
+			t.Errorf("can't find output named %q - all outputs: %v", test.expected, variant.AllOutputs())
+		}
+
+		a := variant.Module().(*AndroidAppImport)
+		expectedValues := []string{test.expected}
+		actualValues := android.AndroidMkEntriesForTest(
+			t, config, "", a).EntryMap["LOCAL_INSTALLED_MODULE_STEM"]
+		if !reflect.DeepEqual(actualValues, expectedValues) {
+			t.Errorf("Incorrect LOCAL_INSTALLED_MODULE_STEM value '%s', expected '%s'",
+				actualValues, expectedValues)
+		}
+	}
+}
+
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
