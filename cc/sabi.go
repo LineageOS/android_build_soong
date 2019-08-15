@@ -94,3 +94,9 @@ func sabiDepsMutator(mctx android.TopDownMutatorContext) {
 		})
 	}
 }
+
+func addLsdumpPath(lsdumpPath string) {
+	sabiLock.Lock()
+	lsdumpPaths = append(lsdumpPaths, lsdumpPath)
+	sabiLock.Unlock()
+}
