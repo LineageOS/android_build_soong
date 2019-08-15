@@ -330,6 +330,7 @@ type linker interface {
 	unstrippedOutputFilePath() android.Path
 
 	nativeCoverage() bool
+	coverageOutputFilePath() android.OptionalPath
 }
 
 type installer interface {
@@ -462,6 +463,13 @@ func (c *Module) UnstrippedOutputFile() android.Path {
 		return c.linker.unstrippedOutputFilePath()
 	}
 	return nil
+}
+
+func (c *Module) CoverageOutputFile() android.OptionalPath {
+	if c.linker != nil {
+		return c.linker.coverageOutputFilePath()
+	}
+	return android.OptionalPath{}
 }
 
 func (c *Module) RelativeInstallPath() string {
