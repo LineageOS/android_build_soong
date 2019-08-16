@@ -1289,6 +1289,69 @@ func TestAndroidAppImport_Filename(t *testing.T) {
 	}
 }
 
+func TestAndroidAppImport_ArchVariants(t *testing.T) {
+	// The test config's target arch is ARM64.
+	testCases := []struct {
+		name     string
+		bp       string
+		expected string
+	}{
+		{
+			name: "matching arch",
+			bp: `
+				android_app_import {
+					name: "foo",
+					apk: "prebuilts/apk/app.apk",
+					arch: {
+						arm64: {
+							apk: "prebuilts/apk/app_arm64.apk",
+						},
+					},
+					certificate: "PRESIGNED",
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected: "prebuilts/apk/app_arm64.apk",
+		},
+		{
+			name: "no matching arch",
+			bp: `
+				android_app_import {
+					name: "foo",
+					apk: "prebuilts/apk/app.apk",
+					arch: {
+						arm: {
+							apk: "prebuilts/apk/app_arm.apk",
+						},
+					},
+					certificate: "PRESIGNED",
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected: "prebuilts/apk/app.apk",
+		},
+	}
+
+	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
+	for _, test := range testCases {
+		ctx, _ := testJava(t, test.bp)
+
+		variant := ctx.ModuleForTests("foo", "android_common")
+		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
+		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
+		if len(matches) != 2 {
+			t.Errorf("failed to extract the src apk path from %q", jniRuleCommand)
+		}
+		if test.expected != matches[1] {
+			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, matches[1])
+		}
+	}
+}
+
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
