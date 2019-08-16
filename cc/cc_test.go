@@ -2203,7 +2203,7 @@ func TestStaticExecutable(t *testing.T) {
 	ctx := testCc(t, `
 		cc_binary {
 			name: "static_test",
-			srcs: ["foo.c"],
+			srcs: ["foo.c", "baz.o"],
 			static_executable: true,
 		}`)
 

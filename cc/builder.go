@@ -411,6 +411,9 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 				},
 			})
 			continue
+		case ".o":
+			objFiles[i] = srcFile
+			continue
 		}
 
 		var moduleCflags string
