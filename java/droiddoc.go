@@ -227,6 +227,9 @@ type ApiToCheck struct {
 	// :module syntax).
 	Removed_api_file *string `android:"path"`
 
+	// If not blank, path to the baseline txt file for approved API check violations.
+	Baseline_file *string `android:"path"`
+
 	// Arguments to the apicheck tool.
 	Args *string
 }
@@ -1562,16 +1565,25 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 }
 
 func (d *Droidstubs) transformCheckApi(ctx android.ModuleContext,
-	apiFile, removedApiFile android.Path, implicits android.Paths,
+	apiFile, removedApiFile android.Path, baselineFile android.OptionalPath, updatedBaselineOut android.WritablePath, implicits android.Paths,
 	javaVersion, bootclasspathArgs, classpathArgs, sourcepathArgs, opts, subdir, msg string,
 	output android.WritablePath) {
+
+	implicits = append(android.Paths{apiFile, removedApiFile, d.apiFile, d.removedApiFile}, implicits...)
+	var implicitOutputs android.WritablePaths
+
+	if baselineFile.Valid() {
+		implicits = append(implicits, baselineFile.Path())
+		implicitOutputs = append(implicitOutputs, updatedBaselineOut)
+	}
+
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        metalavaApiCheck,
-		Description: "Metalava Check API",
-		Output:      output,
-		Inputs:      d.Javadoc.srcFiles,
-		Implicits: append(android.Paths{apiFile, removedApiFile, d.apiFile, d.removedApiFile},
-			implicits...),
+		Rule:            metalavaApiCheck,
+		Description:     "Metalava Check API",
+		Output:          output,
+		Inputs:          d.Javadoc.srcFiles,
+		Implicits:       implicits,
+		ImplicitOutputs: implicitOutputs,
 		Args: map[string]string{
 			"srcJarDir":         android.PathForModuleOut(ctx, subdir, "srcjars").String(),
 			"srcJars":           strings.Join(d.Javadoc.srcJars.Strings(), " "),
@@ -1655,13 +1667,19 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"check_api.current.api_file")
 		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Current.Removed_api_file),
 			"check_api.current_removed_api_file")
+		baselineFile := ctx.ExpandOptionalSource(d.properties.Check_api.Current.Baseline_file,
+			"check_api.current.baseline_file")
 
 		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
 		opts := " " + d.Javadoc.args + " --check-compatibility:api:current " + apiFile.String() +
 			" --check-compatibility:removed:current " + removedApiFile.String() +
 			flags.metalavaInclusionAnnotationsFlags + flags.metalavaMergeAnnoDirFlags + " "
+		baselineOut := android.PathForModuleOut(ctx, "current_baseline.txt")
+		if baselineFile.Valid() {
+			opts = opts + "--baseline " + baselineFile.String() + " --update-baseline " + baselineOut.String() + " "
+		}
 
-		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
+		d.transformCheckApi(ctx, apiFile, removedApiFile, baselineFile, baselineOut, metalavaCheckApiImplicits,
 			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts, "current-apicheck",
 			fmt.Sprintf(`\n******************************\n`+
 				`You have tried to change the API from what has been previously approved.\n\n`+
@@ -1686,13 +1704,19 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"check_api.last_released.api_file")
 		removedApiFile := ctx.ExpandSource(String(d.properties.Check_api.Last_released.Removed_api_file),
 			"check_api.last_released.removed_api_file")
+		baselineFile := ctx.ExpandOptionalSource(d.properties.Check_api.Last_released.Baseline_file,
+			"check_api.last_released.baseline_file")
 
 		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "check_last_released_api.timestamp")
 		opts := " " + d.Javadoc.args + " --check-compatibility:api:released " + apiFile.String() +
 			flags.metalavaInclusionAnnotationsFlags + " --check-compatibility:removed:released " +
 			removedApiFile.String() + flags.metalavaMergeAnnoDirFlags + " "
+		baselineOut := android.PathForModuleOut(ctx, "last_released_baseline.txt")
+		if baselineFile.Valid() {
+			opts = opts + "--baseline " + baselineFile.String() + " --update-baseline " + baselineOut.String() + " "
+		}
 
-		d.transformCheckApi(ctx, apiFile, removedApiFile, metalavaCheckApiImplicits,
+		d.transformCheckApi(ctx, apiFile, removedApiFile, baselineFile, baselineOut, metalavaCheckApiImplicits,
 			javaVersion, flags.bootClasspathArgs, flags.classpathArgs, flags.sourcepathArgs, opts, "last-apicheck",
 			`\n******************************\n`+
 				`You have tried to change the API from what has been previously released in\n`+
