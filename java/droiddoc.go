@@ -64,10 +64,7 @@ type JavadocProperties struct {
 	// the java library (in classpath) for documentation that provides java srcs and srcjars.
 	Srcs_lib *string
 
-	// the base dirs under srcs_lib will be scanned for java srcs.
-	Srcs_lib_whitelist_dirs []string
-
-	// the sub dirs under srcs_lib_whitelist_dirs will be scanned for java srcs.
+	// List of packages to document from srcs_lib
 	Srcs_lib_whitelist_pkgs []string
 
 	// If set to false, don't allow this module(-docs.zip) to be exported. Defaults to true.
@@ -428,19 +425,6 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (j *Javadoc) genWhitelistPathPrefixes(whitelistPathPrefixes map[string]bool) {
-	for _, dir := range j.properties.Srcs_lib_whitelist_dirs {
-		for _, pkg := range j.properties.Srcs_lib_whitelist_pkgs {
-			// convert foo.bar.baz to foo/bar/baz
-			pkgAsPath := filepath.Join(strings.Split(pkg, ".")...)
-			prefix := filepath.Join(dir, pkgAsPath)
-			if _, found := whitelistPathPrefixes[prefix]; !found {
-				whitelistPathPrefixes[prefix] = true
-			}
-		}
-	}
-}
-
 func (j *Javadoc) collectAidlFlags(ctx android.ModuleContext, deps deps) droiddocBuilderFlags {
 	var flags droiddocBuilderFlags
 
@@ -479,10 +463,12 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 
 	outSrcFiles := make(android.Paths, 0, len(srcFiles))
 
+	aidlIncludeFlags := genAidlIncludeFlags(srcFiles)
+
 	for _, srcFile := range srcFiles {
 		switch srcFile.Ext() {
 		case ".aidl":
-			javaFile := genAidl(ctx, srcFile, flags.aidlFlags, flags.aidlDeps)
+			javaFile := genAidl(ctx, srcFile, flags.aidlFlags+aidlIncludeFlags, flags.aidlDeps)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".sysprop":
 			javaFile := genSysprop(ctx, srcFile)
@@ -533,14 +519,13 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			switch dep := module.(type) {
 			case Dependency:
 				srcs := dep.(SrcDependency).CompiledSrcs()
-				whitelistPathPrefixes := make(map[string]bool)
-				j.genWhitelistPathPrefixes(whitelistPathPrefixes)
 				for _, src := range srcs {
 					if _, ok := src.(android.WritablePath); ok { // generated sources
 						deps.srcs = append(deps.srcs, src)
 					} else { // select source path for documentation based on whitelist path prefixs.
-						for k := range whitelistPathPrefixes {
-							if strings.HasPrefix(src.Rel(), k) {
+						for _, pkg := range j.properties.Srcs_lib_whitelist_pkgs {
+							pkgAsPath := filepath.Join(strings.Split(pkg, ".")...)
+							if strings.HasPrefix(src.Rel(), pkgAsPath) {
 								deps.srcs = append(deps.srcs, src)
 								break
 							}
