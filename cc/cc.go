@@ -182,17 +182,6 @@ type Flags struct {
 	Yacc *YaccProperties
 }
 
-type ObjectLinkerProperties struct {
-	// list of modules that should only provide headers for this module.
-	Header_libs []string `android:"arch_variant,variant_prepend"`
-
-	// names of other cc_object modules to link into this module using partial linking
-	Objs []string `android:"arch_variant"`
-
-	// if set, add an extra objcopy --prefix-symbols= step
-	Prefix_symbols *string
-}
-
 // Properties used to compile all C or C++ modules
 type BaseProperties struct {
 	// Deprecated. true is the default, false is invalid.

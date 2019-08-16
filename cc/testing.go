@@ -262,6 +262,7 @@ func CreateTestContext(bp string, fs map[string][]byte,
 	mockFS := map[string][]byte{
 		"Android.bp":  []byte(bp),
 		"foo.c":       nil,
+		"foo.lds":     nil,
 		"bar.c":       nil,
 		"baz.o":       nil,
 		"a.proto":     nil,
