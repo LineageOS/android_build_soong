@@ -88,6 +88,16 @@ type LibraryProperties struct {
 	// set the name of the output
 	Stem *string `android:"arch_variant"`
 
+	// set suffix of the name of the output
+	Suffix *string `android:"arch_variant"`
+
+	Target struct {
+		Vendor struct {
+			// set suffix of the name of the output
+			Suffix *string `android:"arch_variant"`
+		}
+	}
+
 	// Names of modules to be overridden. Listed modules can only be other shared libraries
 	// (in Make or Soong).
 	// This does not completely prevent installation of the overridden libraries, but if both
@@ -549,7 +559,7 @@ type libraryInterface interface {
 	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
 }
 
-func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
+func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
 	name := library.libName
 	if name == "" {
 		name = String(library.Properties.Stem)
@@ -557,6 +567,16 @@ func (library *libraryDecorator) getLibName(ctx ModuleContext) string {
 			name = ctx.baseModuleName()
 		}
 	}
+
+	suffix := ""
+	if ctx.useVndk() {
+		suffix = String(library.Properties.Target.Vendor.Suffix)
+	}
+	if suffix == "" {
+		suffix = String(library.Properties.Suffix)
+	}
+
+	name += suffix
 
 	if ctx.isVndkExt() {
 		name = ctx.getVndkExtendsModuleName()
