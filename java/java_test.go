@@ -171,6 +171,8 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "current"],}`),
 
 		"prebuilts/apk/app.apk":        nil,
+		"prebuilts/apk/app_arm.apk":    nil,
+		"prebuilts/apk/app_arm64.apk":  nil,
 		"prebuilts/apk/app_xhdpi.apk":  nil,
 		"prebuilts/apk/app_xxhdpi.apk": nil,
 
