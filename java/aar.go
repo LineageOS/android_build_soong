@@ -249,7 +249,8 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	}
 
 	packageRes := android.PathForModuleOut(ctx, "package-res.apk")
-	srcJar := android.PathForModuleGen(ctx, "R.jar")
+	// the subdir "android" is required to be filtered by package names
+	srcJar := android.PathForModuleGen(ctx, "android", "R.srcjar")
 	proguardOptionsFile := android.PathForModuleGen(ctx, "proguard.options")
 	rTxt := android.PathForModuleOut(ctx, "R.txt")
 	// This file isn't used by Soong, but is generated for exporting
@@ -620,7 +621,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	aapt2CompileZip(ctx, flata, aar, "res", compileFlags)
 
 	a.exportPackage = android.PathForModuleOut(ctx, "package-res.apk")
-	srcJar := android.PathForModuleGen(ctx, "R.jar")
+	// the subdir "android" is required to be filtered by package names
+	srcJar := android.PathForModuleGen(ctx, "android", "R.srcjar")
 	proguardOptionsFile := android.PathForModuleGen(ctx, "proguard.options")
 	rTxt := android.PathForModuleOut(ctx, "R.txt")
 	a.extraAaptPackagesFile = android.PathForModuleOut(ctx, "extra_packages")
