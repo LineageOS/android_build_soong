@@ -205,8 +205,9 @@ type CompilerDeviceProperties struct {
 	// Defaults to sdk_version if not set.
 	Target_sdk_version *string
 
-	// It must be true only if sdk_version is empty.
-	// This field works in only android_app, otherwise nothing happens.
+	// Whether to compile against the platform APIs instead of an SDK.
+	// If true, then sdk_version must be empty. The value of this field
+	// is ignored when module's type isn't android_app.
 	Platform_apis *bool
 
 	Aidl struct {
