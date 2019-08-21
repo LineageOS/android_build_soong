@@ -31,7 +31,10 @@ var (
 	// understand also need to be added to ClangLibToolingUnknownCflags in
 	// cc/config/clang.go
 
-	asanCflags  = []string{"-fno-omit-frame-pointer"}
+	asanCflags = []string{
+		"-fno-omit-frame-pointer",
+		"-fno-experimental-new-pass-manager",
+	}
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 
 	// TODO(pcc): Stop passing -hwasan-allow-ifunc here once it has been made
