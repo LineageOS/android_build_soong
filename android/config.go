@@ -1077,7 +1077,7 @@ func (c *config) ExcludeDraftNdkApis() bool {
 }
 
 func (c *config) FlattenApex() bool {
-	return Bool(c.productVariables.FlattenApex)
+	return Bool(c.productVariables.Flatten_apex)
 }
 
 func (c *config) EnforceSystemCertificate() bool {

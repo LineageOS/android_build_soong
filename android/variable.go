@@ -277,7 +277,7 @@ type productVariables struct {
 	Ndk_abis               *bool `json:",omitempty"`
 	Exclude_draft_ndk_apis *bool `json:",omitempty"`
 
-	FlattenApex *bool `json:",omitempty"`
+	Flatten_apex *bool `json:",omitempty"`
 
 	DexpreoptGlobalConfig *string `json:",omitempty"`
 
