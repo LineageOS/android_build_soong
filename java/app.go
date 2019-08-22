@@ -703,13 +703,17 @@ type AndroidAppImportProperties struct {
 	// A prebuilt apk to import
 	Apk *string
 
-	// The name of a certificate in the default certificate directory, blank to use the default
-	// product certificate, or an android_app_certificate module name in the form ":module".
+	// The name of a certificate in the default certificate directory or an android_app_certificate
+	// module name in the form ":module". Should be empty if presigned or default_dev_cert is set.
 	Certificate *string
 
 	// Set this flag to true if the prebuilt apk is already signed. The certificate property must not
 	// be set for presigned modules.
 	Presigned *bool
+
+	// Sign with the default system dev certificate. Must be used judiciously. Most imported apps
+	// need to either specify a specific certificate or be presigned.
+	Default_dev_cert *bool
 
 	// Specifies that this app should be installed to the priv-app directory,
 	// where the system will grant it additional privileges not available to
@@ -799,11 +803,18 @@ func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if String(a.properties.Certificate) == "" && !Bool(a.properties.Presigned) {
-		ctx.PropertyErrorf("certificate", "No certificate specified for prebuilt")
+	numCertPropsSet := 0
+	if String(a.properties.Certificate) != "" {
+		numCertPropsSet++
 	}
-	if String(a.properties.Certificate) != "" && Bool(a.properties.Presigned) {
-		ctx.PropertyErrorf("certificate", "Certificate can't be specified for presigned modules")
+	if Bool(a.properties.Presigned) {
+		numCertPropsSet++
+	}
+	if Bool(a.properties.Default_dev_cert) {
+		numCertPropsSet++
+	}
+	if numCertPropsSet != 1 {
+		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
 	}
 
 	_, certificates := collectAppDeps(ctx)
@@ -829,7 +840,9 @@ func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext
 	// Sign or align the package
 	// TODO: Handle EXTERNAL
 	if !Bool(a.properties.Presigned) {
-		certificates = processMainCert(a.ModuleBase, *a.properties.Certificate, certificates, ctx)
+		// If the certificate property is empty at this point, default_dev_cert must be set to true.
+		// Which makes processMainCert's behavior for the empty cert string WAI.
+		certificates = processMainCert(a.ModuleBase, String(a.properties.Certificate), certificates, ctx)
 		if len(certificates) != 1 {
 			ctx.ModuleErrorf("Unexpected number of certificates were extracted: %q", certificates)
 		}
