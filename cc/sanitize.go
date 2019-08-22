@@ -37,11 +37,7 @@ var (
 	}
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 
-	// TODO(pcc): Stop passing -hwasan-allow-ifunc here once it has been made
-	// the default.
 	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
-		"-mllvm", "-hwasan-create-frame-descriptions=0",
-		"-mllvm", "-hwasan-allow-ifunc",
 		"-fsanitize-hwaddress-abi=platform",
 		"-fno-experimental-new-pass-manager"}
 
