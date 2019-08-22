@@ -714,6 +714,58 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 
 }
 
+func TestApexDependencyToLLNDK(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			use_vendor: true,
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			vendor_available: true,
+			shared_libs: ["libbar"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		llndk_library {
+			name: "libbar",
+			symbol_file: "",
+		}
+
+	`)
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that LLNDK dep is not included
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libbar.so")
+
+	injectRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("injectApexDependency")
+	ensureListEmpty(t, names(injectRule.Args["provideNativeLibs"]))
+
+	// Ensure that LLNDK dep is required
+	ensureListContains(t, names(injectRule.Args["requireNativeLibs"]), "libbar.so")
+
+}
+
 func TestApexWithSystemLibsStubs(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
