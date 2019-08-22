@@ -161,6 +161,15 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		} else {
 			deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl)
 		}
+		if ctx.Device() && !ctx.useSdk() {
+			// __cxa_demangle is not a part of libc++.so on the device since
+			// it's large and most processes don't need it. Statically link
+			// libc++demangle into every process so that users still have it if
+			// needed, but the linker won't include this unless it is actually
+			// called.
+			// http://b/138245375
+			deps.StaticLibs = append(deps.StaticLibs, "libc++demangle")
+		}
 		if ctx.toolchain().Bionic() {
 			if ctx.Arch().ArchType == android.Arm {
 				deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
