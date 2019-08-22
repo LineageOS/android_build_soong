@@ -167,6 +167,16 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			},
 		}
 		cc_library {
+			name: "libc++demangle",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+			host_supported: false,
+			vendor_available: true,
+			recovery_available: true,
+		}
+		cc_library {
 			name: "libunwind_llvm",
 			no_libcrt: true,
 			nocrt: true,
