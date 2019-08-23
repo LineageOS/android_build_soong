@@ -202,11 +202,11 @@ func vndkPrebuiltSharedLibrary() *Module {
 //            },
 //        },
 //    }
-func vndkPrebuiltSharedFactory() android.Module {
+func VndkPrebuiltSharedFactory() android.Module {
 	module := vndkPrebuiltSharedLibrary()
 	return module.Init()
 }
 
 func init() {
-	android.RegisterModuleType("vndk_prebuilt_shared", vndkPrebuiltSharedFactory)
+	android.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 }
