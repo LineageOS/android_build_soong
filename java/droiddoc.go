@@ -474,6 +474,7 @@ func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Op
 	return strings.Join(flags, " "), deps
 }
 
+// TODO: remove the duplication between this and the one in gen.go
 func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	flags droiddocBuilderFlags) android.Paths {
 
@@ -486,6 +487,9 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".sysprop":
 			javaFile := genSysprop(ctx, srcFile)
+			outSrcFiles = append(outSrcFiles, javaFile)
+		case ".logtags":
+			javaFile := genLogtags(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, javaFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)
