@@ -24,21 +24,24 @@ func TestLibraryReuse(t *testing.T) {
 		ctx := testCc(t, `
 		cc_library {
 			name: "libfoo",
-			srcs: ["foo.c"],
+			srcs: ["foo.c", "baz.o"],
 		}`)
 
 		libfooShared := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Rule("ld")
 		libfooStatic := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_static").Output("libfoo.a")
 
-		if len(libfooShared.Inputs) != 1 {
+		if len(libfooShared.Inputs) != 2 {
 			t.Fatalf("unexpected inputs to libfoo shared: %#v", libfooShared.Inputs.Strings())
 		}
 
-		if len(libfooStatic.Inputs) != 1 {
+		if len(libfooStatic.Inputs) != 2 {
 			t.Fatalf("unexpected inputs to libfoo static: %#v", libfooStatic.Inputs.Strings())
 		}
 
 		if libfooShared.Inputs[0] != libfooStatic.Inputs[0] {
+			t.Errorf("static object not reused for shared library")
+		}
+		if libfooShared.Inputs[1] != libfooStatic.Inputs[1] {
 			t.Errorf("static object not reused for shared library")
 		}
 	})
