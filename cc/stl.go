@@ -223,11 +223,11 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 
 		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
-			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
+			flags.extraLibFlags = append(flags.extraLibFlags, "-nodefaultlibs")
 			if ctx.staticBinary() {
-				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.Os()]...)
+				flags.extraLibFlags = append(flags.extraLibFlags, hostStaticGccLibs[ctx.Os()]...)
 			} else {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.Os()]...)
+				flags.extraLibFlags = append(flags.extraLibFlags, hostDynamicGccLibs[ctx.Os()]...)
 			}
 			if ctx.Windows() {
 				// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
@@ -262,11 +262,11 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 		// None or error.
 		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
-			flags.LdFlags = append(flags.LdFlags, "-nodefaultlibs")
+			flags.extraLibFlags = append(flags.extraLibFlags, "-nodefaultlibs")
 			if ctx.staticBinary() {
-				flags.LdFlags = append(flags.LdFlags, hostStaticGccLibs[ctx.Os()]...)
+				flags.extraLibFlags = append(flags.extraLibFlags, hostStaticGccLibs[ctx.Os()]...)
 			} else {
-				flags.LdFlags = append(flags.LdFlags, hostDynamicGccLibs[ctx.Os()]...)
+				flags.extraLibFlags = append(flags.extraLibFlags, hostDynamicGccLibs[ctx.Os()]...)
 			}
 		}
 	default:
