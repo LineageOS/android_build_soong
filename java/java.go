@@ -404,28 +404,13 @@ type SdkLibraryDependency interface {
 	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths
 }
 
-type SrcDependency interface {
-	CompiledSrcs() android.Paths
-	CompiledSrcJars() android.Paths
-}
-
 type xref interface {
 	XrefJavaFiles() android.Paths
-}
-
-func (j *Module) CompiledSrcs() android.Paths {
-	return j.compiledJavaSrcs
-}
-
-func (j *Module) CompiledSrcJars() android.Paths {
-	return j.compiledSrcJars
 }
 
 func (j *Module) XrefJavaFiles() android.Paths {
 	return j.kytheFiles
 }
-
-var _ SrcDependency = (*Module)(nil)
 
 func InitJavaModule(module android.DefaultableModule, hod android.HostOrDeviceSupported) {
 	android.InitAndroidArchModule(module, hod, android.MultilibCommon)
@@ -1033,8 +1018,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		srcJars = append(srcJars, aaptSrcJar)
 	}
 
-	// Collect source files from compiledJavaSrcs, compiledSrcJars and filter out Exclude_srcs
-	// that IDEInfo struct will use
+	// Collect source files and filter out Exclude_srcs that IDEInfo struct will use
 	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, srcFiles.Strings()...)
 
 	if j.properties.Jarjar_rules != nil {
