@@ -153,6 +153,7 @@ type Flags struct {
 	rsFlags         []string // Flags that apply to renderscript source files
 	LdFlags         []string // Flags that apply to linker command lines
 	libFlags        []string // Flags to add libraries early to the link order
+	extraLibFlags   []string // Flags to add libraries late in the link order after LdFlags
 	TidyFlags       []string // Flags that apply to clang-tidy
 	SAbiFlags       []string // Flags that apply to header-abi-dumper
 	YasmFlags       []string // Flags that apply to yasm assembly source files
@@ -180,17 +181,6 @@ type Flags struct {
 	protoOptionsFile bool // Whether to look for a .options file next to the .proto
 
 	Yacc *YaccProperties
-}
-
-type ObjectLinkerProperties struct {
-	// list of modules that should only provide headers for this module.
-	Header_libs []string `android:"arch_variant,variant_prepend"`
-
-	// names of other cc_object modules to link into this module using partial linking
-	Objs []string `android:"arch_variant"`
-
-	// if set, add an extra objcopy --prefix-symbols= step
-	Prefix_symbols *string
 }
 
 // Properties used to compile all C or C++ modules
