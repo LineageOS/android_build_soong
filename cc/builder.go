@@ -65,14 +65,14 @@ var (
 	ld = pctx.AndroidStaticRule("ld",
 		blueprint.RuleParams{
 			Command: "$ldCmd ${crtBegin} @${out}.rsp " +
-				"${libFlags} ${crtEnd} -o ${out} ${ldFlags}",
+				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${extraLibFlags}",
 			CommandDeps:    []string{"$ldCmd"},
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
 			// clang -Wl,--out-implib doesn't update its output file if it hasn't changed.
 			Restat: true,
 		},
-		"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags")
+		"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags")
 
 	partialLd = pctx.AndroidStaticRule("partialLd",
 		blueprint.RuleParams{
@@ -259,6 +259,7 @@ type builderFlags struct {
 	cppFlags        string
 	ldFlags         string
 	libFlags        string
+	extraLibFlags   string
 	tidyFlags       string
 	sAbiFlags       string
 	yasmFlags       string
@@ -410,6 +411,9 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 					"flags":      flags.toolchain.WindresFlags(),
 				},
 			})
+			continue
+		case ".o":
+			objFiles[i] = srcFile
 			continue
 		}
 
@@ -627,11 +631,12 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		Inputs:          objFiles,
 		Implicits:       deps,
 		Args: map[string]string{
-			"ldCmd":    ldCmd,
-			"crtBegin": crtBegin.String(),
-			"libFlags": strings.Join(libFlagsList, " "),
-			"ldFlags":  flags.ldFlags,
-			"crtEnd":   crtEnd.String(),
+			"ldCmd":         ldCmd,
+			"crtBegin":      crtBegin.String(),
+			"libFlags":      strings.Join(libFlagsList, " "),
+			"extraLibFlags": flags.extraLibFlags,
+			"ldFlags":       flags.ldFlags,
+			"crtEnd":        crtEnd.String(),
 		},
 	})
 }
