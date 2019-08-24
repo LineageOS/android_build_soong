@@ -103,11 +103,7 @@ type sdkLibraryProperties struct {
 	// the java library (in classpath) for documentation that provides java srcs and srcjars.
 	Srcs_lib *string
 
-	// the base dirs under srcs_lib will be scanned for java srcs.
-	Srcs_lib_whitelist_dirs []string
-
-	// the sub dirs under srcs_lib_whitelist_dirs will be scanned for java srcs.
-	// Defaults to "android.annotation".
+	// list of packages to document from srcs_lib. Defaults to "android.annotation".
 	Srcs_lib_whitelist_pkgs []string
 
 	// a list of top-level directories containing files to merge qualifier annotations
@@ -443,7 +439,6 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		Srcs                             []string
 		Installable                      *bool
 		Srcs_lib                         *string
-		Srcs_lib_whitelist_dirs          []string
 		Srcs_lib_whitelist_pkgs          []string
 		Sdk_version                      *string
 		Libs                             []string
@@ -535,7 +530,6 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		module.latestRemovedApiFilegroupName(apiScope))
 	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
 	props.Srcs_lib = module.sdkLibraryProperties.Srcs_lib
-	props.Srcs_lib_whitelist_dirs = module.sdkLibraryProperties.Srcs_lib_whitelist_dirs
 	props.Srcs_lib_whitelist_pkgs = module.sdkLibraryProperties.Srcs_lib_whitelist_pkgs
 
 	mctx.CreateModule(android.ModuleFactoryAdaptor(DroidstubsFactory), &props)
@@ -550,9 +544,9 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
      You may obtain a copy of the License at
-  
+
           http://www.apache.org/licenses/LICENSE-2.0
-  
+
      Unless required by applicable law or agreed to in writing, software
      distributed under the License is distributed on an "AS IS" BASIS,
      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
