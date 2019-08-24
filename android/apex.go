@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // ApexModule is the interface that a module type is expected to implement if
@@ -74,9 +75,15 @@ type ApexModule interface {
 	// Sets the name of the apex variant of this module. Called inside
 	// CreateApexVariations.
 	setApexName(apexName string)
+
+	// Return the no_apex property
+	NoApex() bool
 }
 
 type ApexProperties struct {
+	// Whether this module should not be part of any APEX. Default is false.
+	No_apex *bool
+
 	// Name of the apex variant that this module is mutated into
 	ApexName string `blueprint:"mutated"`
 }
@@ -123,6 +130,10 @@ func (m *ApexModuleBase) CanHaveApexVariants() bool {
 func (m *ApexModuleBase) IsInstallableToApex() bool {
 	// should be overriden if needed
 	return false
+}
+
+func (m *ApexModuleBase) NoApex() bool {
+	return proptools.Bool(m.ApexProperties.No_apex)
 }
 
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []blueprint.Module {
