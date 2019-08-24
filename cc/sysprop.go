@@ -21,6 +21,7 @@ import (
 )
 
 type syspropLibraryInterface interface {
+	BaseModuleName() string
 	CcModuleName() string
 }
 
@@ -42,6 +43,6 @@ func SyspropMutator(mctx android.BottomUpMutatorContext) {
 		syspropImplLibrariesLock.Lock()
 		defer syspropImplLibrariesLock.Unlock()
 
-		syspropImplLibraries[mctx.ModuleName()] = m.CcModuleName()
+		syspropImplLibraries[m.BaseModuleName()] = m.CcModuleName()
 	}
 }
