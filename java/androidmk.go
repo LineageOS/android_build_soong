@@ -122,6 +122,15 @@ func testSuiteComponent(w io.Writer, test_suites []string) {
 	}
 }
 
+func testSuiteComponentEntries(entries *android.AndroidMkEntries, test_suites []string) {
+	entries.SetString("LOCAL_MODULE_TAGS", "tests")
+	if len(test_suites) > 0 {
+		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", test_suites...)
+	} else {
+		entries.SetString("LOCAL_COMPATIBILITY_SUITE", "null-suite")
+	}
+}
+
 func (j *Test) AndroidMk() android.AndroidMkData {
 	data := j.Library.AndroidMk()
 	data.Extra = append(data.Extra, func(w io.Writer, outputFile android.Path) {
@@ -632,6 +641,15 @@ func (a *AndroidAppImport) AndroidMkEntries() android.AndroidMkEntries {
 	}
 }
 
+func (a *AndroidTestImport) AndroidMkEntries() android.AndroidMkEntries {
+	entries := a.AndroidAppImport.AndroidMkEntries()
+	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
+		testSuiteComponentEntries(entries, a.testProperties.Test_suites)
+		androidMkEntriesWriteTestData(a.data, entries)
+	})
+	return entries
+}
+
 func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
 	var testFiles []string
 	for _, d := range data {
@@ -642,4 +660,12 @@ func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUPPORT_FILES := "+strings.Join(testFiles, " "))
 		})
 	}
+}
+
+func androidMkEntriesWriteTestData(data android.Paths, entries *android.AndroidMkEntries) {
+	var testFiles []string
+	for _, d := range data {
+		testFiles = append(testFiles, d.String()+":"+d.Rel())
+	}
+	entries.AddStrings("LOCAL_COMPATIBILITY_SUPPORT_FILES", testFiles...)
 }

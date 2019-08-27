@@ -66,6 +66,7 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 	ctx.RegisterModuleType("android_library", android.ModuleFactoryAdaptor(AndroidLibraryFactory))
 	ctx.RegisterModuleType("android_test", android.ModuleFactoryAdaptor(AndroidTestFactory))
 	ctx.RegisterModuleType("android_test_helper_app", android.ModuleFactoryAdaptor(AndroidTestHelperAppFactory))
+	ctx.RegisterModuleType("android_test_import", android.ModuleFactoryAdaptor(AndroidTestImportFactory))
 	ctx.RegisterModuleType("java_binary", android.ModuleFactoryAdaptor(BinaryFactory))
 	ctx.RegisterModuleType("java_binary_host", android.ModuleFactoryAdaptor(BinaryHostFactory))
 	ctx.RegisterModuleType("java_device_for_host", android.ModuleFactoryAdaptor(DeviceForHostFactory))
@@ -200,6 +201,8 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 
 		"cert/new_cert.x509.pem": nil,
 		"cert/new_cert.pk8":      nil,
+
+		"testdata/data": nil,
 	}
 
 	for k, v := range fs {
