@@ -359,6 +359,8 @@ func (j *Javadoc) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
 		return android.Paths{j.stubsSrcJar}, nil
+	case ".docs.zip":
+		return android.Paths{j.docZip}, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
