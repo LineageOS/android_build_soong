@@ -464,7 +464,7 @@ func (library *libraryDecorator) classifySourceAbiDump(ctx ModuleContext) string
 			}
 		}
 	}
-	if enabled != nil && Bool(enabled) {
+	if Bool(enabled) || ctx.hasStubsVariants() {
 		return "PLATFORM"
 	}
 	return ""
@@ -894,7 +894,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
-			android.OptionalPathForModuleSrc(ctx, library.Properties.Header_abi_checker.Symbol_file),
+			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
 			library.Properties.Header_abi_checker.Exclude_symbol_versions,
 			library.Properties.Header_abi_checker.Exclude_symbol_tags)
 
@@ -1093,6 +1093,16 @@ func (library *libraryDecorator) HeaderOnly() {
 
 func (library *libraryDecorator) buildStubs() bool {
 	return library.MutatedProperties.BuildStubs
+}
+
+func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *string {
+	if library.Properties.Header_abi_checker.Symbol_file != nil {
+		return library.Properties.Header_abi_checker.Symbol_file
+	}
+	if ctx.hasStubsVariants() && library.Properties.Stubs.Symbol_file != nil {
+		return library.Properties.Stubs.Symbol_file
+	}
+	return nil
 }
 
 func (library *libraryDecorator) stubsVersion() string {
