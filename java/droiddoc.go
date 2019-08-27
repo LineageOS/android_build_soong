@@ -471,9 +471,6 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		case ".aidl":
 			javaFile := genAidl(ctx, srcFile, flags.aidlFlags+aidlIncludeFlags, flags.aidlDeps)
 			outSrcFiles = append(outSrcFiles, javaFile)
-		case ".sysprop":
-			javaFile := genSysprop(ctx, srcFile)
-			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".logtags":
 			javaFile := genLogtags(ctx, srcFile)
 			outSrcFiles = append(outSrcFiles, javaFile)

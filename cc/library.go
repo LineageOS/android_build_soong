@@ -952,9 +952,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			isVendor := ctx.useVndk()
 			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
 
-			usePublic := isProduct || (isOwnerPlatform == isVendor)
-
-			if usePublic {
+			if !ctx.inRecovery() && (isProduct || (isOwnerPlatform == isVendor)) {
 				dir = android.PathForModuleGen(ctx, "sysprop/public", "include").String()
 			}
 		}

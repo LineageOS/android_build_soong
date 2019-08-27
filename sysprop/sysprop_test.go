@@ -57,16 +57,11 @@ func testContext(config android.Config, bp string,
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(java.AndroidAppFactory))
-	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(java.ExportedDroiddocDirFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
 	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(java.SystemModulesFactory))
-	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(java.PrebuiltApisFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_apis", java.PrebuiltApisMutator).Parallel()
-	})
 
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(cc.LibraryHeaderFactory))
@@ -91,45 +86,20 @@ func testContext(config android.Config, bp string,
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 
 	mockFS := map[string][]byte{
-		"Android.bp":             []byte(bp),
-		"a.java":                 nil,
-		"b.java":                 nil,
-		"c.java":                 nil,
-		"d.cpp":                  nil,
-		"api/current.txt":        nil,
-		"api/removed.txt":        nil,
-		"api/system-current.txt": nil,
-		"api/system-removed.txt": nil,
-		"api/test-current.txt":   nil,
-		"api/test-removed.txt":   nil,
-		"framework/aidl/a.aidl":  nil,
-
-		"prebuilts/sdk/current/core/android.jar":                              nil,
-		"prebuilts/sdk/current/public/android.jar":                            nil,
-		"prebuilts/sdk/current/public/framework.aidl":                         nil,
-		"prebuilts/sdk/current/public/core.jar":                               nil,
-		"prebuilts/sdk/current/system/android.jar":                            nil,
-		"prebuilts/sdk/current/test/android.jar":                              nil,
-		"prebuilts/sdk/28/public/api/sysprop-platform.txt":                    nil,
-		"prebuilts/sdk/28/system/api/sysprop-platform.txt":                    nil,
-		"prebuilts/sdk/28/test/api/sysprop-platform.txt":                      nil,
-		"prebuilts/sdk/28/public/api/sysprop-platform-removed.txt":            nil,
-		"prebuilts/sdk/28/system/api/sysprop-platform-removed.txt":            nil,
-		"prebuilts/sdk/28/test/api/sysprop-platform-removed.txt":              nil,
-		"prebuilts/sdk/28/public/api/sysprop-platform-on-product.txt":         nil,
-		"prebuilts/sdk/28/system/api/sysprop-platform-on-product.txt":         nil,
-		"prebuilts/sdk/28/test/api/sysprop-platform-on-product.txt":           nil,
-		"prebuilts/sdk/28/public/api/sysprop-platform-on-product-removed.txt": nil,
-		"prebuilts/sdk/28/system/api/sysprop-platform-on-product-removed.txt": nil,
-		"prebuilts/sdk/28/test/api/sysprop-platform-on-product-removed.txt":   nil,
-		"prebuilts/sdk/28/public/api/sysprop-vendor.txt":                      nil,
-		"prebuilts/sdk/28/system/api/sysprop-vendor.txt":                      nil,
-		"prebuilts/sdk/28/test/api/sysprop-vendor.txt":                        nil,
-		"prebuilts/sdk/28/public/api/sysprop-vendor-removed.txt":              nil,
-		"prebuilts/sdk/28/system/api/sysprop-vendor-removed.txt":              nil,
-		"prebuilts/sdk/28/test/api/sysprop-vendor-removed.txt":                nil,
-		"prebuilts/sdk/tools/core-lambda-stubs.jar":                           nil,
-		"prebuilts/sdk/Android.bp":                                            []byte(`prebuilt_apis { name: "sdk", api_dirs: ["28", "current"],}`),
+		"Android.bp":                       []byte(bp),
+		"a.java":                           nil,
+		"b.java":                           nil,
+		"c.java":                           nil,
+		"d.cpp":                            nil,
+		"api/sysprop-platform-current.txt": nil,
+		"api/sysprop-platform-latest.txt":  nil,
+		"api/sysprop-platform-on-product-current.txt": nil,
+		"api/sysprop-platform-on-product-latest.txt":  nil,
+		"api/sysprop-vendor-current.txt":              nil,
+		"api/sysprop-vendor-latest.txt":               nil,
+		"api/sysprop-odm-current.txt":                 nil,
+		"api/sysprop-odm-latest.txt":                  nil,
+		"framework/aidl/a.aidl":                       nil,
 
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                        nil,
@@ -155,6 +125,7 @@ func testContext(config android.Config, bp string,
 
 		"android/sysprop/PlatformProperties.sysprop": nil,
 		"com/android/VendorProperties.sysprop":       nil,
+		"com/android2/OdmProperties.sysprop":         nil,
 	}
 
 	for k, v := range fs {
@@ -168,7 +139,7 @@ func testContext(config android.Config, bp string,
 
 func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	t.Helper()
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "prebuilts/sdk/Android.bp"})
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
@@ -219,6 +190,14 @@ func TestSyspropLibrary(t *testing.T) {
 			property_owner: "Vendor",
 			product_specific: true,
 			vendor_available: true,
+		}
+
+		sysprop_library {
+			name: "sysprop-odm",
+			srcs: ["com/android2/OdmProperties.sysprop"],
+			api_packages: ["com.android2"],
+			property_owner: "Odm",
+			device_specific: true,
 		}
 
 		java_library {
@@ -288,20 +267,40 @@ func TestSyspropLibrary(t *testing.T) {
 			name: "liblog",
 			symbol_file: "",
 		}
+
+		java_library {
+			name: "sysprop-library-stub-platform",
+			sdk_version: "core_current",
+		}
+
+		java_library {
+			name: "sysprop-library-stub-vendor",
+			soc_specific: true,
+			sdk_version: "core_current",
+		}
 		`)
+
+	// Check for generated cc_library
+	for _, variant := range []string{
+		"android_arm_armv7-a-neon_vendor_shared",
+		"android_arm_armv7-a-neon_vendor_static",
+		"android_arm64_armv8-a_vendor_shared",
+		"android_arm64_armv8-a_vendor_static",
+	} {
+		ctx.ModuleForTests("libsysprop-platform", variant)
+		ctx.ModuleForTests("libsysprop-vendor", variant)
+		ctx.ModuleForTests("libsysprop-odm", variant)
+	}
 
 	for _, variant := range []string{
 		"android_arm_armv7-a-neon_core_shared",
 		"android_arm_armv7-a-neon_core_static",
-		"android_arm_armv7-a-neon_vendor_shared",
-		"android_arm_armv7-a-neon_vendor_static",
 		"android_arm64_armv8-a_core_shared",
 		"android_arm64_armv8-a_core_static",
-		"android_arm64_armv8-a_vendor_shared",
-		"android_arm64_armv8-a_vendor_static",
 	} {
-		// Check for generated cc_library
 		ctx.ModuleForTests("libsysprop-platform", variant)
+
+		// core variant of vendor-owned sysprop_library is for product
 		ctx.ModuleForTests("libsysprop-vendor", variant)
 	}
 
