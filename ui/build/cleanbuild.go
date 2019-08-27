@@ -99,6 +99,7 @@ func installClean(ctx Context, config Config, what int) {
 		productOut("*.img"),
 		productOut("*.zip"),
 		productOut("android-info.txt"),
+		productOut("apex"),
 		productOut("kernel"),
 		productOut("data"),
 		productOut("skin"),
