@@ -24,6 +24,8 @@ import (
 	"android/soong/android"
 )
 
+const test_xml_indent = "    "
+
 func getTestConfigTemplate(ctx android.ModuleContext, prop *string) android.OptionalPath {
 	return ctx.ExpandOptionalSource(prop, "test_config_template")
 }
@@ -72,13 +74,25 @@ func (o Option) Config() string {
 }
 
 type Preparer struct {
-	Class string
+	Class   string
+	Options []Option
 }
 
 var _ Config = Preparer{}
 
 func (p Preparer) Config() string {
-	return fmt.Sprintf(`<target_preparer class="%s" />`, p.Class)
+	var optionStrings []string
+	for _, option := range p.Options {
+		optionStrings = append(optionStrings, option.Config())
+	}
+	var options string
+	if len(p.Options) == 0 {
+		options = ""
+	} else {
+		optionDelimiter := fmt.Sprintf("\\n%s%s", test_xml_indent, test_xml_indent)
+		options = optionDelimiter + strings.Join(optionStrings, optionDelimiter)
+	}
+	return fmt.Sprintf(`<target_preparer class="%s">%s\n%s</target_preparer>`, p.Class, options, test_xml_indent)
 }
 
 func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, template string, configs []Config) {
@@ -86,7 +100,7 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 	for _, config := range configs {
 		configStrings = append(configStrings, config.Config())
 	}
-	extraConfigs := strings.Join(configStrings, "\n        ")
+	extraConfigs := strings.Join(configStrings, fmt.Sprintf("\\n%s", test_xml_indent))
 	extraConfigs = proptools.NinjaAndShellEscape(extraConfigs)
 
 	ctx.Build(pctx, android.BuildParams{
