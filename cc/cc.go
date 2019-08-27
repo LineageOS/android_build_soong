@@ -391,6 +391,14 @@ func IsTestPerSrcDepTag(depTag blueprint.DependencyTag) bool {
 	return ok && ccDepTag == testPerSrcDepTag
 }
 
+func SharedDepTag() dependencyTag {
+	return sharedDepTag
+}
+
+func StaticDepTag() dependencyTag {
+	return staticDepTag
+}
+
 // Module contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
 // to construct the output file.  Behavior can be customized with a Customizer interface

@@ -326,6 +326,50 @@ bootstrap_go_package {
 }
 
 bootstrap_go_package {
+    name: "soong-rust-config",
+    pkgPath: "android/soong/rust/config",
+    deps: [
+        "soong-android",
+        "soong-cc-config",
+    ],
+    srcs: [
+        "rust/config/global.go",
+        "rust/config/toolchain.go",
+        "rust/config/x86_linux_host.go",
+        "rust/config/x86_64_device.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-rust",
+    pkgPath: "android/soong/rust",
+    deps: [
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-rust-config",
+    ],
+    srcs: [
+        "rust/androidmk.go",
+        "rust/compiler.go",
+        "rust/binary.go",
+        "rust/builder.go",
+        "rust/library.go",
+        "rust/prebuilt.go",
+        "rust/proc_macro.go",
+        "rust/rust.go",
+        "rust/testing.go",
+    ],
+    testSrcs: [
+        "rust/binary_test.go",
+        "rust/compiler_test.go",
+        "rust/library_test.go",
+        "rust/rust_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+bootstrap_go_package {
     name: "soong-python",
     pkgPath: "android/soong/python",
     deps: [
