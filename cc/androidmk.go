@@ -68,7 +68,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 		OutputFile: c.outputFile,
 		// TODO(jiyong): add the APEXes providing shared libs to the required modules
 		// Currently, adding c.Properties.ApexesProvidingSharedLibs is causing multiple
-		// runtime APEXes (com.android.runtime.debug|release) to be installed. And this
+		// ART APEXes (com.android.art.debug|release) to be installed. And this
 		// is breaking some older devices (like marlin) where system.img is small.
 		Required: c.Properties.AndroidMkRuntimeLibs,
 		Include:  "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",

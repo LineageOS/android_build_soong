@@ -126,6 +126,16 @@ var (
 	usesTag        = dependencyTag{name: "uses"}
 )
 
+var (
+	whitelistNoApex = map[string][]string{
+		"apex_test_build_features":       []string{"libbinder"},
+		"com.android.neuralnetworks":     []string{"libbinder"},
+		"com.android.media":              []string{"libbinder"},
+		"com.android.media.swcodec":      []string{"libbinder"},
+		"test_com.android.media.swcodec": []string{"libbinder"},
+	}
+)
+
 func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java")
@@ -932,7 +942,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 		} else {
 			// indirect dependencies
-			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() && am.IsInstallableToApex() {
+			if am, ok := child.(android.ApexModule); ok {
 				// We cannot use a switch statement on `depTag` here as the checked
 				// tags used below are private (e.g. `cc.sharedDepTag`).
 				if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) {
@@ -972,7 +982,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, apexFile{fileToCopy, moduleName, dirInApex, nativeTest, cc, nil})
 						return true
 					}
-				} else {
+				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
 			}
@@ -1004,6 +1014,16 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	sort.Slice(filesInfo, func(i, j int) bool {
 		return filesInfo[i].builtFile.String() < filesInfo[j].builtFile.String()
 	})
+
+	// check no_apex modules
+	whitelist := whitelistNoApex[ctx.ModuleName()]
+	for i := range filesInfo {
+		if am, ok := filesInfo[i].module.(android.ApexModule); ok {
+			if am.NoApex() && !android.InList(filesInfo[i].moduleName, whitelist) {
+				ctx.ModuleErrorf("tries to include no_apex module %s", filesInfo[i].moduleName)
+			}
+		}
+	}
 
 	// prepend the name of this APEX to the module names. These names will be the names of
 	// modules that will be defined if the APEX is flattened.

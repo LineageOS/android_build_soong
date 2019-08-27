@@ -17,6 +17,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/cc/config"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -118,6 +119,17 @@ func NewFuzz(hod android.HostOrDeviceSupported) *Module {
 		disableDarwinAndLinuxBionic.Target.Darwin.Enabled = BoolPtr(false)
 		disableDarwinAndLinuxBionic.Target.Linux_bionic.Enabled = BoolPtr(false)
 		ctx.AppendProperties(&disableDarwinAndLinuxBionic)
+	})
+
+	// Statically link the STL. This allows fuzz target deployment to not have to
+	// include the STL.
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		staticStlLinkage := struct {
+			Stl *string
+		}{}
+
+		staticStlLinkage.Stl = proptools.StringPtr("libc++_static")
+		ctx.AppendProperties(&staticStlLinkage)
 	})
 
 	return module

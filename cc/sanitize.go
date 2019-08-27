@@ -37,11 +37,7 @@ var (
 	}
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 
-	// TODO(pcc): Stop passing -hwasan-allow-ifunc here once it has been made
-	// the default.
 	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
-		"-mllvm", "-hwasan-create-frame-descriptions=0",
-		"-mllvm", "-hwasan-allow-ifunc",
 		"-fsanitize-hwaddress-abi=platform",
 		"-fno-experimental-new-pass-manager"}
 
@@ -451,6 +447,7 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
 			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
 		} else {
+			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
 			if ctx.bootstrap() {
 				flags.DynamicLinker = "/system/bin/bootstrap/linker_asan"
 			} else {

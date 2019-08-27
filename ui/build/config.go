@@ -180,6 +180,11 @@ func NewConfig(ctx Context, args ...string) Config {
 
 	ret.environ.Set("TMPDIR", absPath(ctx, ret.TempDir()))
 
+	// Always set ASAN_SYMBOLIZER_PATH so that ASAN-based tools can symbolize any crashes
+	symbolizerPath := filepath.Join("prebuilts/clang/host", ret.HostPrebuiltTag(),
+		"llvm-binutils-stable/llvm-symbolizer")
+	ret.environ.Set("ASAN_SYMBOLIZER_PATH", absPath(ctx, symbolizerPath))
+
 	// Precondition: the current directory is the top of the source tree
 	checkTopDir(ctx)
 

@@ -113,6 +113,9 @@ type LibraryProperties struct {
 
 	// Order symbols in .bss section by their sizes.  Only useful for shared libraries.
 	Sort_bss_symbols_by_size *bool
+
+	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
+	Inject_bssl_hash *bool `android:"arch_variant"`
 }
 
 type LibraryMutatedProperties struct {
@@ -766,8 +769,20 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.stripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, builderFlags)
 	}
-
 	library.unstrippedOutputFile = outputFile
+
+	// TODO(b/137267623): Remove this in favor of a cc_genrule when they support operating on shared libraries.
+	if Bool(library.Properties.Inject_bssl_hash) {
+		hashedOutputfile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unhashed", fileName)
+
+		rule := android.NewRuleBuilder()
+		rule.Command().
+			BuiltTool(ctx, "bssl_inject_hash").
+			FlagWithInput("-in-object ", outputFile).
+			FlagWithOutput("-o ", hashedOutputfile)
+		rule.Build(pctx, ctx, "injectCryptoHash", "inject crypto hash")
+	}
 
 	if Bool(library.baseLinker.Properties.Use_version_lib) {
 		if ctx.Host() {
