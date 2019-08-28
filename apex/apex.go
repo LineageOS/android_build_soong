@@ -983,6 +983,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
+				} else if am.NoApex() && !android.InList(depName, whitelistNoApex[ctx.ModuleName()]) {
+					ctx.ModuleErrorf("tries to include no_apex module %s", depName)
 				}
 			}
 		}
