@@ -118,63 +118,19 @@ var Configuration = map[string]PathConfig{
 	"ld.gold":    Forbidden,
 	"pkg-config": Forbidden,
 
-	// On Linux we'll use the toybox versions of these instead.
-	"basename": LinuxOnlyPrebuilt,
-	"cat":      LinuxOnlyPrebuilt,
-	"chmod":    LinuxOnlyPrebuilt,
-	"cmp":      LinuxOnlyPrebuilt,
-	"cp":       LinuxOnlyPrebuilt,
-	"comm":     LinuxOnlyPrebuilt,
-	"cut":      LinuxOnlyPrebuilt,
-	"date":     LinuxOnlyPrebuilt,
-	"dirname":  LinuxOnlyPrebuilt,
-	"du":       LinuxOnlyPrebuilt,
-	"echo":     LinuxOnlyPrebuilt,
-	"egrep":    LinuxOnlyPrebuilt,
-	"env":      LinuxOnlyPrebuilt,
-	"getconf":  LinuxOnlyPrebuilt,
-	"grep":     LinuxOnlyPrebuilt,
-	"head":     LinuxOnlyPrebuilt,
-	"hostname": LinuxOnlyPrebuilt,
-	"id":       LinuxOnlyPrebuilt,
-	"ln":       LinuxOnlyPrebuilt,
-	"ls":       LinuxOnlyPrebuilt,
-	"mkdir":    LinuxOnlyPrebuilt,
-	"mktemp":   LinuxOnlyPrebuilt,
-	"mv":       LinuxOnlyPrebuilt,
-	"od":       LinuxOnlyPrebuilt,
-	"paste":    LinuxOnlyPrebuilt,
-	"pgrep":    LinuxOnlyPrebuilt,
-	"pkill":    LinuxOnlyPrebuilt,
-	"ps":       LinuxOnlyPrebuilt,
-	"pwd":      LinuxOnlyPrebuilt,
-	"readlink": LinuxOnlyPrebuilt,
-	"rm":       LinuxOnlyPrebuilt,
-	"rmdir":    LinuxOnlyPrebuilt,
-	"sed":      LinuxOnlyPrebuilt,
-	"seq":      LinuxOnlyPrebuilt,
-	"setsid":   LinuxOnlyPrebuilt,
-	"sleep":    LinuxOnlyPrebuilt,
-	"sort":     LinuxOnlyPrebuilt,
-	"stat":     LinuxOnlyPrebuilt,
-	"tail":     LinuxOnlyPrebuilt,
-	"tar":      LinuxOnlyPrebuilt,
-	"tee":      LinuxOnlyPrebuilt,
-	"timeout":  LinuxOnlyPrebuilt,
-	"touch":    LinuxOnlyPrebuilt,
-	"true":     LinuxOnlyPrebuilt,
-	"uname":    LinuxOnlyPrebuilt,
-	"uniq":     LinuxOnlyPrebuilt,
-	"unix2dos": LinuxOnlyPrebuilt,
-	"wc":       LinuxOnlyPrebuilt,
-	"whoami":   LinuxOnlyPrebuilt,
-	"which":    LinuxOnlyPrebuilt,
-	"xargs":    LinuxOnlyPrebuilt,
-	"xxd":      LinuxOnlyPrebuilt,
+	// These are currently Linux-only toybox tools (but can be switched now).
+	"date": LinuxOnlyPrebuilt,
+	"stat": LinuxOnlyPrebuilt,
+
+	// These are toybox tools that only work on Linux.
+	"pgrep": LinuxOnlyPrebuilt,
+	"pkill": LinuxOnlyPrebuilt,
+	"ps":    LinuxOnlyPrebuilt,
 }
 
 func init() {
 	if runtime.GOOS == "darwin" {
+		// TODO: move Darwin off md5 and onto our md5sum prebuilt.
 		Configuration["md5"] = Allowed
 		Configuration["sw_vers"] = Allowed
 		Configuration["xcrun"] = Allowed
