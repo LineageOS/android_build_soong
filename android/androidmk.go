@@ -75,11 +75,13 @@ type AndroidMkEntries struct {
 	header bytes.Buffer
 	footer bytes.Buffer
 
-	AddCustomEntries func(name, prefix, moduleDir string, entries *AndroidMkEntries)
+	ExtraEntries []AndroidMkExtraEntriesFunc
 
 	EntryMap   map[string][]string
 	entryOrder []string
 }
+
+type AndroidMkExtraEntriesFunc func(entries *AndroidMkEntries)
 
 func (a *AndroidMkEntries) SetString(name, value string) {
 	if _, ok := a.EntryMap[name]; !ok {
@@ -228,9 +230,8 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 			prefix = "2ND_" + prefix
 		}
 	}
-	blueprintDir := filepath.Dir(bpPath)
-	if a.AddCustomEntries != nil {
-		a.AddCustomEntries(name, prefix, blueprintDir, a)
+	for _, extra := range a.ExtraEntries {
+		extra(a)
 	}
 
 	// Write to footer.
