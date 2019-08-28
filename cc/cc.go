@@ -174,7 +174,8 @@ type Flags struct {
 	CFlagsDeps  android.Paths // Files depended on by compiler flags
 	LdFlagsDeps android.Paths // Files depended on by linker flags
 
-	GroupStaticLibs bool
+	AssemblerWithCpp bool
+	GroupStaticLibs  bool
 
 	proto            android.ProtoFlags
 	protoC           bool // Whether to use C instead of C++
@@ -1053,6 +1054,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.sabi != nil {
 		flags = c.sabi.flags(ctx, flags)
 	}
+
+	flags.AssemblerWithCpp = inList("-xassembler-with-cpp", flags.AsFlags)
+
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
 	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))

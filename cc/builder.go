@@ -271,6 +271,8 @@ type builderFlags struct {
 	sAbiDump        bool
 	emitXrefs       bool
 
+	assemblerWithCpp bool
+
 	systemIncludeFlags string
 
 	groupStaticLibs bool
@@ -428,7 +430,9 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 
 		switch srcFile.Ext() {
 		case ".s":
-			rule = ccNoDeps
+			if !flags.assemblerWithCpp {
+				rule = ccNoDeps
+			}
 			fallthrough
 		case ".S":
 			ccCmd = "clang"
