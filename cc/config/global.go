@@ -46,6 +46,8 @@ var (
 		"-g",
 
 		"-fno-strict-aliasing",
+
+		"-Werror=date-time",
 	}
 
 	commonGlobalConlyflags = []string{}
@@ -67,7 +69,6 @@ var (
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
-		"-Werror=date-time",
 		"-Werror=format-security",
 	}
 
