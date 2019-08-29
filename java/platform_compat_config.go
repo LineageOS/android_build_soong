@@ -77,9 +77,11 @@ func (p *platformCompatConfig) AndroidMkEntries() android.AndroidMkEntries {
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(p.configFile),
 		Include:    "$(BUILD_PREBUILT)",
-		AddCustomEntries: func(name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-			entries.SetString("LOCAL_MODULE_PATH", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
-			entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
+			},
 		},
 	}
 }

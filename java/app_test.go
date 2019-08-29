@@ -1381,6 +1381,34 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 	}
 }
 
+func TestAndroidTestImport(t *testing.T) {
+	ctx, config := testJava(t, `
+		android_test_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			data: [
+				"testdata/data",
+			],
+		}
+		`)
+
+	test := ctx.ModuleForTests("foo", "android_common").Module().(*AndroidTestImport)
+
+	// Check android mks.
+	entries := android.AndroidMkEntriesForTest(t, config, "", test)
+	expected := []string{"tests"}
+	actual := entries.EntryMap["LOCAL_MODULE_TAGS"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected module tags - expected: %q, actual: %q", expected, actual)
+	}
+	expected = []string{"testdata/data:testdata/data"}
+	actual = entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected test data - expected: %q, actual: %q", expected, actual)
+	}
+}
+
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
