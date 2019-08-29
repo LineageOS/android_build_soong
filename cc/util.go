@@ -79,7 +79,8 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 
 		systemIncludeFlags: strings.Join(in.SystemIncludeFlags, " "),
 
-		groupStaticLibs: in.GroupStaticLibs,
+		assemblerWithCpp: in.AssemblerWithCpp,
+		groupStaticLibs:  in.GroupStaticLibs,
 
 		proto:            in.proto,
 		protoC:           in.protoC,

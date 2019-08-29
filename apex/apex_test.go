@@ -1851,6 +1851,36 @@ func TestApexUsesFailsIfUseNoApex(t *testing.T) {
 		}
 	`)
 
+	testApexError(t, `tries to include no_apex module mylib2`, `
+		apex {
+			name: "commonapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			static_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			no_apex: true,
+		}
+	`)
+
 	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",

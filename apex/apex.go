@@ -983,6 +983,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
+				} else if am.NoApex() && !android.InList(depName, whitelistNoApex[ctx.ModuleName()]) {
+					ctx.ModuleErrorf("tries to include no_apex module %s", depName)
 				}
 			}
 		}
@@ -1208,6 +1210,13 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 			// If there's a NOTICE file, embed it as an asset file in the APEX.
 			implicitInputs = append(implicitInputs, noticeFile.Path())
 			optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeFile.String()))
+		}
+
+		if !ctx.Config().UnbundledBuild() && a.installable() {
+			// Apexes which are supposed to be installed in builtin dirs(/system, etc)
+			// don't need hashtree for activation. Therefore, by removing hashtree from
+			// apex bundle (filesystem image in it, to be specific), we can save storage.
+			optFlags = append(optFlags, "--no_hashtree")
 		}
 
 		ctx.Build(pctx, android.BuildParams{
