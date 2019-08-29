@@ -476,6 +476,12 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		// TODO(b/133876586): Experimental PM breaks sanitizer coverage.
 		_, flags.CFlags = removeFromList("-fexperimental-new-pass-manager", flags.CFlags)
 		flags.CFlags = append(flags.CFlags, "-fno-experimental-new-pass-manager")
+
+		// Disable fortify for fuzzing builds. Generally, we'll be building with
+		// UBSan or ASan here and the fortify checks pollute the stack traces.
+		_, flags.CFlags = removeFromList("-D_FORTIFY_SOURCE=1", flags.CFlags)
+		_, flags.CFlags = removeFromList("-D_FORTIFY_SOURCE=2", flags.CFlags)
+		flags.CFlags = append(flags.CFlags, "-U_FORTIFY_SOURCE")
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Cfi) {
