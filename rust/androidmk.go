@@ -1,0 +1,155 @@
+// Copyright 2019 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package rust
+
+import (
+	"fmt"
+	"io"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"android/soong/android"
+)
+
+type AndroidMkContext interface {
+	Name() string
+	Target() android.Target
+	subAndroidMk(*android.AndroidMkData, interface{})
+}
+
+type subAndroidMkProvider interface {
+	AndroidMk(AndroidMkContext, *android.AndroidMkData)
+}
+
+func (mod *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
+	if mod.subAndroidMkOnce == nil {
+		mod.subAndroidMkOnce = make(map[subAndroidMkProvider]bool)
+	}
+	if androidmk, ok := obj.(subAndroidMkProvider); ok {
+		if !mod.subAndroidMkOnce[androidmk] {
+			mod.subAndroidMkOnce[androidmk] = true
+			androidmk.AndroidMk(mod, data)
+		}
+	}
+}
+
+func (mod *Module) AndroidMk() android.AndroidMkData {
+	ret := android.AndroidMkData{
+		OutputFile: mod.outputFile,
+		Include:    "$(BUILD_SYSTEM)/soong_rust_prebuilt.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				if len(mod.Properties.AndroidMkRlibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_RLIB_LIBRARIES := "+strings.Join(mod.Properties.AndroidMkRlibs, " "))
+				}
+				if len(mod.Properties.AndroidMkDylibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_DYLIB_LIBRARIES := "+strings.Join(mod.Properties.AndroidMkDylibs, " "))
+				}
+				if len(mod.Properties.AndroidMkProcMacroLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_PROC_MACRO_LIBRARIES := "+strings.Join(mod.Properties.AndroidMkProcMacroLibs, " "))
+				}
+				if len(mod.Properties.AndroidMkSharedLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(mod.Properties.AndroidMkSharedLibs, " "))
+				}
+				if len(mod.Properties.AndroidMkStaticLibs) > 0 {
+					fmt.Fprintln(w, "LOCAL_STATIC_LIBRARIES := "+strings.Join(mod.Properties.AndroidMkStaticLibs, " "))
+				}
+			},
+		},
+	}
+
+	mod.subAndroidMk(&ret, mod.compiler)
+
+	return ret
+}
+
+func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, binary.baseCompiler)
+
+	ret.Class = "EXECUTABLES"
+	ret.DistFile = binary.distFile
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", binary.unstrippedOutputFile.String())
+	})
+}
+
+func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, library.baseCompiler)
+
+	if library.rlib() {
+		ret.Class = "RLIB_LIBRARIES"
+	} else if library.dylib() {
+		ret.Class = "DYLIB_LIBRARIES"
+	}
+	ret.DistFile = library.distFile
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		if !library.rlib() {
+			fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
+		}
+	})
+}
+
+func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, procMacro.baseCompiler)
+
+	ret.Class = "PROC_MACRO_LIBRARIES"
+	ret.DistFile = procMacro.distFile
+
+}
+
+func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	// Soong installation is only supported for host modules. Have Make
+	// installation trigger Soong installation.
+	if ctx.Target().Os.Class == android.Host {
+		ret.OutputFile = android.OptionalPathForPath(compiler.path)
+	}
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		path := compiler.path.RelPathString()
+		dir, file := filepath.Split(path)
+		stem, suffix, _ := splitFileExt(file)
+		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+	})
+}
+
+//TODO: splitFileExt copied from cc/util.go; move this to android/util.go and refactor usages.
+
+// splitFileExt splits a file name into root, suffix and ext. root stands for the file name without
+// the file extension and the version number (e.g. "libexample"). suffix stands for the
+// concatenation of the file extension and the version number (e.g. ".so.1.0"). ext stands for the
+// file extension after the version numbers are trimmed (e.g. ".so").
+var shlibVersionPattern = regexp.MustCompile("(?:\\.\\d+(?:svn)?)+")
+
+func splitFileExt(name string) (string, string, string) {
+	// Extract and trim the shared lib version number if the file name ends with dot digits.
+	suffix := ""
+	matches := shlibVersionPattern.FindAllStringIndex(name, -1)
+	if len(matches) > 0 {
+		lastMatch := matches[len(matches)-1]
+		if lastMatch[1] == len(name) {
+			suffix = name[lastMatch[0]:lastMatch[1]]
+			name = name[0:lastMatch[0]]
+		}
+	}
+
+	// Extract the file name root and the file extension.
+	ext := filepath.Ext(name)
+	root := strings.TrimSuffix(name, ext)
+	suffix = ext + suffix
+
+	return root, suffix, ext
+}
