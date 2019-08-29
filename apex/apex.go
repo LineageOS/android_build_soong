@@ -435,6 +435,7 @@ type apexBundle struct {
 
 	bundleModuleFile android.WritablePath
 	outputFiles      map[apexPackaging]android.WritablePath
+	flattenedOutput  android.OutputPath
 	installDir       android.OutputPath
 
 	prebuiltFileToDelete string
@@ -639,6 +640,13 @@ func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 		} else {
 			return nil, nil
 		}
+	case ".flattened":
+		if a.flattened {
+			flattenedApexPath := a.flattenedOutput
+			return android.Paths{flattenedApexPath}, nil
+		} else {
+			return nil, nil
+		}
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
@@ -782,6 +790,15 @@ func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy an
 	dirInApex = filepath.Join("etc", prebuilt.SubDir())
 	fileToCopy = prebuilt.OutputFile()
 	return
+}
+
+// Context "decorator", overriding the InstallBypassMake method to always reply `true`.
+type flattenedApexContext struct {
+	android.ModuleContext
+}
+
+func (c *flattenedApexContext) InstallBypassMake() bool {
+	return true
 }
 
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1050,6 +1067,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"requireNativeLibs": strings.Join(requireNativeLibs, " "),
 		},
 	})
+
+	// Temporarily wrap the original `ctx` into a `flattenedApexContext` to have it
+	// reply true to `InstallBypassMake()` (thus making the call
+	// `android.PathForModuleInstall` below use `android.pathForInstallInMakeDir`
+	// instead of `android.PathForOutput`) to return the correct path to the flattened
+	// APEX (as its contents is installed by Make, not Soong).
+	factx := flattenedApexContext{ctx}
+	a.flattenedOutput = android.PathForModuleInstall(&factx, "apex", factx.ModuleName())
 
 	if a.apexTypes.zip() {
 		a.buildUnflattenedApex(ctx, zipApex)
@@ -1451,6 +1476,8 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
 				}
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
+				fmt.Fprintln(w, "$(LOCAL_INSTALLED_MODULE): .KATI_IMPLICIT_OUTPUTS :=", a.flattenedOutput.String())
+
 			} else {
 				// zip-apex is the less common type so have the name refer to the image-apex
 				// only and use {name}.zip if you want the zip-apex
