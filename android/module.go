@@ -1038,6 +1038,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if m.Enabled() {
+		// ensure all direct android.Module deps are enabled
+		ctx.VisitDirectDepsBlueprint(func(bm blueprint.Module) {
+			if _, ok := bm.(Module); ok {
+				ctx.validateAndroidModule(bm, ctx.baseModuleContext.strictVisitDeps)
+			}
+		})
+
 		notice := proptools.StringDefault(m.commonProperties.Notice, "NOTICE")
 		if module := SrcIsModule(notice); module != "" {
 			m.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")

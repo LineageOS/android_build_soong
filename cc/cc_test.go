@@ -2264,6 +2264,24 @@ func TestStaticDepsOrderWithStubs(t *testing.T) {
 	}
 }
 
+func TestErrorsIfAModuleDependsOnDisabled(t *testing.T) {
+	testCcError(t, `module "libA" .* depends on disabled module "libB"`, `
+		cc_library {
+			name: "libA",
+			srcs: ["foo.c"],
+			shared_libs: ["libB"],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "libB",
+			srcs: ["foo.c"],
+			enabled: false,
+			stl: "none",
+		}
+	`)
+}
+
 // Simple smoke test for the cc_fuzz target that ensures the rule compiles
 // correctly.
 func TestFuzzTarget(t *testing.T) {
