@@ -907,7 +907,7 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
 	if javaVersion != "" {
-		ret = javaVersion
+		ret = normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() && sdk <= 23 {
 		ret = "1.7"
 	} else if ctx.Device() && sdk <= 29 || !ctx.Config().TargetOpenJDK9() {
@@ -924,6 +924,25 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 	}
 
 	return ret
+}
+
+func normalizeJavaVersion(ctx android.ModuleContext, javaVersion string) string {
+	switch javaVersion {
+	case "1.6", "6":
+		return "1.6"
+	case "1.7", "7":
+		return "1.7"
+	case "1.8", "8":
+		return "1.8"
+	case "1.9", "9":
+		return "1.9"
+	case "10", "11":
+		ctx.PropertyErrorf("java_version", "Java language levels above 9 are not supported")
+		return "unsupported"
+	default:
+		ctx.PropertyErrorf("java_version", "Unrecognized Java language level")
+		return "unrecognized"
+	}
 }
 
 func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaBuilderFlags {
