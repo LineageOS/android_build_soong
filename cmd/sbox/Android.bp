@@ -14,6 +14,7 @@
 
 blueprint_go_binary {
     name: "sbox",
+    deps: ["soong-makedeps"],
     srcs: [
         "sbox.go",
     ],
