@@ -14,7 +14,9 @@
 
 package android
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestSrcIsModule(t *testing.T) {
 	type args struct {
@@ -138,4 +140,56 @@ func TestSrcIsModuleWithTag(t *testing.T) {
 			}
 		})
 	}
+}
+
+type depsModule struct {
+	ModuleBase
+	props struct {
+		Deps []string
+	}
+}
+
+func (m *depsModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+}
+
+func (m *depsModule) DepsMutator(ctx BottomUpMutatorContext) {
+	ctx.AddDependency(ctx.Module(), nil, m.props.Deps...)
+}
+
+func depsModuleFactory() Module {
+	m := &depsModule{}
+	m.AddProperties(&m.props)
+	InitAndroidModule(m)
+	return m
+}
+
+func TestErrorDependsOnDisabledModule(t *testing.T) {
+	ctx := NewTestContext()
+	ctx.RegisterModuleType("deps", ModuleFactoryAdaptor(depsModuleFactory))
+
+	bp := `
+		deps {
+			name: "foo",
+			deps: ["bar"],
+		}
+		deps {
+			name: "bar",
+			enabled: false,
+		}
+	`
+
+	mockFS := map[string][]byte{
+		"Android.bp": []byte(bp),
+	}
+
+	ctx.MockFileSystem(mockFS)
+
+	ctx.Register()
+
+	config := TestConfig(buildDir, nil)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfNoMatchingErrors(t, `module "foo": depends on disabled module "bar"`, errs)
 }
