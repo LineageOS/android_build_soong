@@ -133,8 +133,10 @@ func (s *ShBinary) AndroidMkEntries() AndroidMkEntries {
 		Class:      "EXECUTABLES",
 		OutputFile: OptionalPathForPath(s.outputFilePath),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
-		AddCustomEntries: func(name, prefix, moduleDir string, entries *AndroidMkEntries) {
-			s.customAndroidMkEntries(entries)
+		ExtraEntries: []AndroidMkExtraEntriesFunc{
+			func(entries *AndroidMkEntries) {
+				s.customAndroidMkEntries(entries)
+			},
 		},
 	}
 }
@@ -156,20 +158,22 @@ func (s *ShTest) AndroidMkEntries() AndroidMkEntries {
 		Class:      "NATIVE_TESTS",
 		OutputFile: OptionalPathForPath(s.outputFilePath),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
-		AddCustomEntries: func(name, prefix, moduleDir string, entries *AndroidMkEntries) {
-			s.customAndroidMkEntries(entries)
+		ExtraEntries: []AndroidMkExtraEntriesFunc{
+			func(entries *AndroidMkEntries) {
+				s.customAndroidMkEntries(entries)
 
-			entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
-			entries.SetString("LOCAL_TEST_CONFIG", String(s.testProperties.Test_config))
-			for _, d := range s.data {
-				rel := d.Rel()
-				path := d.String()
-				if !strings.HasSuffix(path, rel) {
-					panic(fmt.Errorf("path %q does not end with %q", path, rel))
+				entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
+				entries.SetString("LOCAL_TEST_CONFIG", String(s.testProperties.Test_config))
+				for _, d := range s.data {
+					rel := d.Rel()
+					path := d.String()
+					if !strings.HasSuffix(path, rel) {
+						panic(fmt.Errorf("path %q does not end with %q", path, rel))
+					}
+					path = strings.TrimSuffix(path, rel)
+					entries.AddStrings("LOCAL_TEST_DATA", path+":"+rel)
 				}
-				path = strings.TrimSuffix(path, rel)
-				entries.AddStrings("LOCAL_TEST_DATA", path+":"+rel)
-			}
+			},
 		},
 	}
 }
