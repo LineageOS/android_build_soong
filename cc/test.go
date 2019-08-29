@@ -68,6 +68,9 @@ type TestBinaryProperties struct {
 	// Add RootTargetPreparer to auto generated test config. This guarantees the test to run
 	// with root permission.
 	Require_root *bool
+
+	// Add RunCommandTargetPreparer to stop framework before the test and start it after the test.
+	Disable_framework *bool
 }
 
 func init() {
@@ -313,7 +316,13 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	test.data = android.PathsForModuleSrc(ctx, test.Properties.Data)
 	var configs []tradefed.Config
 	if Bool(test.Properties.Require_root) {
-		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RootTargetPreparer"})
+		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RootTargetPreparer", nil})
+	}
+	if Bool(test.Properties.Disable_framework) {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{"run-command", "stop"})
+		options = append(options, tradefed.Option{"teardown-command", "start"})
+		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RunCommandTargetPreparer", options})
 	}
 	if Bool(test.testDecorator.Properties.Isolated) {
 		configs = append(configs, tradefed.Option{"not-shardable", "true"})
@@ -448,7 +457,7 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Pat
 	benchmark.data = android.PathsForModuleSrc(ctx, benchmark.Properties.Data)
 	var configs []tradefed.Config
 	if Bool(benchmark.Properties.Require_root) {
-		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RootTargetPreparer"})
+		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RootTargetPreparer", nil})
 	}
 	benchmark.testConfig = tradefed.AutoGenNativeBenchmarkTestConfig(ctx, benchmark.Properties.Test_config,
 		benchmark.Properties.Test_config_template, benchmark.Properties.Test_suites, configs)
