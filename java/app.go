@@ -39,6 +39,7 @@ func init() {
 	android.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
 	android.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
 	android.RegisterModuleType("android_app_import", AndroidAppImportFactory)
+	android.RegisterModuleType("android_test_import", AndroidTestImportFactory)
 
 	initAndroidAppImportVariantGroupTypes()
 }
@@ -866,6 +867,10 @@ func (a *AndroidAppImport) uncompressDex(
 }
 
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.generateAndroidBuildActions(ctx)
+}
+
+func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext) {
 	numCertPropsSet := 0
 	if String(a.properties.Certificate) != "" {
 		numCertPropsSet++
@@ -1013,6 +1018,39 @@ func AndroidAppImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.dexpreoptProperties)
 	module.AddProperties(&module.usesLibrary.usesLibraryProperties)
+	module.populateAllVariantStructs()
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		module.processVariants(ctx)
+	})
+
+	InitJavaModule(module, android.DeviceSupported)
+	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
+
+	return module
+}
+
+type AndroidTestImport struct {
+	AndroidAppImport
+
+	testProperties testProperties
+
+	data android.Paths
+}
+
+func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.generateAndroidBuildActions(ctx)
+
+	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+}
+
+// android_test_import imports a prebuilt test apk with additional processing specified in the
+// module. DPI or arch variant configurations can be made as with android_app_import.
+func AndroidTestImportFactory() android.Module {
+	module := &AndroidTestImport{}
+	module.AddProperties(&module.properties)
+	module.AddProperties(&module.dexpreoptProperties)
+	module.AddProperties(&module.usesLibrary.usesLibraryProperties)
+	module.AddProperties(&module.testProperties)
 	module.populateAllVariantStructs()
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		module.processVariants(ctx)
