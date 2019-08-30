@@ -100,12 +100,6 @@ type sdkLibraryProperties struct {
 	//  $(location <label>): the path to the droiddoc_option_files with name <label>
 	Droiddoc_options []string
 
-	// the java library (in classpath) for documentation that provides java srcs and srcjars.
-	Srcs_lib *string
-
-	// list of packages to document from srcs_lib. Defaults to "android.annotation".
-	Srcs_lib_whitelist_pkgs []string
-
 	// a list of top-level directories containing files to merge qualifier annotations
 	// (i.e. those intended to be included in the stubs written) from.
 	Merge_annotations_dirs []string
@@ -438,8 +432,6 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		Name                             *string
 		Srcs                             []string
 		Installable                      *bool
-		Srcs_lib                         *string
-		Srcs_lib_whitelist_pkgs          []string
 		Sdk_version                      *string
 		Libs                             []string
 		Arg_files                        []string
@@ -529,8 +521,6 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 		module.latestRemovedApiFilegroupName(apiScope))
 	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
-	props.Srcs_lib = module.sdkLibraryProperties.Srcs_lib
-	props.Srcs_lib_whitelist_pkgs = module.sdkLibraryProperties.Srcs_lib_whitelist_pkgs
 
 	mctx.CreateModule(android.ModuleFactoryAdaptor(DroidstubsFactory), &props)
 }
