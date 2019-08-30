@@ -169,7 +169,6 @@ func init() {
 		"-Wno-tautological-constant-compare",
 		"-Wno-tautological-type-limit-compare",
 		"-Wno-tautological-unsigned-enum-zero-compare",
-		"-Wno-tautological-unsigned-zero-compare",
 
 		// http://b/72330874 Disable -Wenum-compare until the instances detected by this new
 		// warning are fixed.
