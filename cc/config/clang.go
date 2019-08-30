@@ -168,7 +168,6 @@ func init() {
 		"-Wno-tautological-constant-compare",
 		"-Wno-tautological-type-limit-compare",
 		"-Wno-tautological-unsigned-enum-zero-compare",
-		"-Wno-tautological-unsigned-zero-compare",
 
 		// Disable c++98-specific warning since Android is not concerned with C++98
 		// compatibility.
