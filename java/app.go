@@ -539,6 +539,15 @@ func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {
 	return String(a.overridableAppProperties.Certificate)
 }
 
+// For OutputFileProducer interface
+func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case ".aapt.srcjar":
+		return []android.Path{a.aaptSrcJar}, nil
+	}
+	return a.Library.OutputFiles(tag)
+}
+
 // android_app compiles sources and Android resources into an Android application package `.apk` file.
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
