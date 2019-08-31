@@ -23,8 +23,7 @@ func init() {
 }
 
 type platformCompatConfigProperties struct {
-	Src    *string `android:"path"`
-	Prefix *string
+	Src *string `android:"path"`
 }
 
 type platformCompatConfig struct {
@@ -38,13 +37,13 @@ type platformCompatConfig struct {
 func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	rule := android.NewRuleBuilder()
 
-	configFileName := String(p.properties.Prefix) + "_platform_compat_config.xml"
+	configFileName := p.Name() + ".xml"
 	p.configFile = android.PathForModuleOut(ctx, configFileName).OutputPath
 	path := android.PathForModuleSrc(ctx, String(p.properties.Src))
 
 	// Use the empty config if the compat config file idoesn't exist (can happen if @ChangeId
 	// annotation is not used).
-	emptyConfig := `<?xml version="1.0" encoding="UTF-8" standalone="no"?><config/>`
+	emptyConfig := `'<?xml version="1.0" encoding="UTF-8" standalone="no"?><config/>'`
 	configPath := `compat/compat_config.xml`
 
 	rule.Command().
@@ -61,13 +60,13 @@ func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleCon
 		Text(configPath).
 		Text(`>`).
 		Output(p.configFile).
-		Text(`; else echo '`).
+		Text(`; else echo `).
 		Text(emptyConfig).
-		Text(`' >`).
+		Text(`>`).
 		Output(p.configFile).
 		Text(`; fi`)
 
-	p.installDirPath = android.PathForModuleInstall(ctx, "etc", "sysconfig")
+	p.installDirPath = android.PathForModuleInstall(ctx, "etc", "compatconfig")
 	rule.Build(pctx, ctx, configFileName, "Extract compat/compat_config.xml and install it")
 
 }
@@ -77,9 +76,11 @@ func (p *platformCompatConfig) AndroidMkEntries() android.AndroidMkEntries {
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(p.configFile),
 		Include:    "$(BUILD_PREBUILT)",
-		AddCustomEntries: func(name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-			entries.SetString("LOCAL_MODULE_PATH", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
-			entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
+			},
 		},
 	}
 }

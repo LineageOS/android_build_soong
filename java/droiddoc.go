@@ -61,12 +61,6 @@ type JavadocProperties struct {
 	// list of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
-	// the java library (in classpath) for documentation that provides java srcs and srcjars.
-	Srcs_lib *string
-
-	// List of packages to document from srcs_lib
-	Srcs_lib_whitelist_pkgs []string
-
 	// If set to false, don't allow this module(-docs.zip) to be exported. Defaults to true.
 	Installable *bool
 
@@ -422,9 +416,6 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	}
 
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
-	if j.properties.Srcs_lib != nil {
-		ctx.AddVariationDependencies(nil, srcsLibTag, *j.properties.Srcs_lib)
-	}
 }
 
 func (j *Javadoc) collectAidlFlags(ctx android.ModuleContext, deps deps) droiddocBuilderFlags {
@@ -515,27 +506,6 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
-			default:
-				ctx.ModuleErrorf("depends on non-java module %q", otherName)
-			}
-		case srcsLibTag:
-			switch dep := module.(type) {
-			case Dependency:
-				srcs := dep.(SrcDependency).CompiledSrcs()
-				for _, src := range srcs {
-					if _, ok := src.(android.WritablePath); ok { // generated sources
-						deps.srcs = append(deps.srcs, src)
-					} else { // select source path for documentation based on whitelist path prefixs.
-						for _, pkg := range j.properties.Srcs_lib_whitelist_pkgs {
-							pkgAsPath := filepath.Join(strings.Split(pkg, ".")...)
-							if strings.HasPrefix(src.Rel(), pkgAsPath) {
-								deps.srcs = append(deps.srcs, src)
-								break
-							}
-						}
-					}
-				}
-				deps.srcJars = append(deps.srcJars, dep.(SrcDependency).CompiledSrcJars()...)
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
