@@ -294,8 +294,10 @@ func InitDroiddocModule(module android.DefaultableModule, hod android.HostOrDevi
 	android.InitDefaultableModule(module)
 }
 
-func apiCheckEnabled(apiToCheck ApiToCheck, apiVersionTag string) bool {
-	if String(apiToCheck.Api_file) != "" && String(apiToCheck.Removed_api_file) != "" {
+func apiCheckEnabled(ctx android.ModuleContext, apiToCheck ApiToCheck, apiVersionTag string) bool {
+	if ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") {
+		return false
+	} else if String(apiToCheck.Api_file) != "" && String(apiToCheck.Removed_api_file) != "" {
 		return true
 	} else if String(apiToCheck.Api_file) != "" {
 		panic("for " + apiVersionTag + " removed_api_file has to be non-empty!")
@@ -765,8 +767,8 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 }
 
 func (d *Droiddoc) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.WritablePath) {
-	if apiCheckEnabled(d.properties.Check_api.Current, "current") ||
-		apiCheckEnabled(d.properties.Check_api.Last_released, "last_released") ||
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
+		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Api_filename) != "" {
 
 		d.apiFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_api.txt")
@@ -774,8 +776,8 @@ func (d *Droiddoc) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilde
 		d.apiFilePath = d.apiFile
 	}
 
-	if apiCheckEnabled(d.properties.Check_api.Current, "current") ||
-		apiCheckEnabled(d.properties.Check_api.Last_released, "last_released") ||
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
+		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Removed_api_filename) != "" {
 		d.removedApiFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_removed.txt")
 		cmd.FlagWithOutput("-removedApi ", d.removedApiFile)
@@ -993,7 +995,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule.Build(pctx, ctx, "javadoc", desc)
 
-	if apiCheckEnabled(d.properties.Check_api.Current, "current") &&
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") &&
 		!ctx.Config().IsPdkBuild() {
 
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
@@ -1062,7 +1064,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		rule.Build(pctx, ctx, "doclavaCurrentApiUpdate", "update current API")
 	}
 
-	if apiCheckEnabled(d.properties.Check_api.Last_released, "last_released") &&
+	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") &&
 		!ctx.Config().IsPdkBuild() {
 
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Api_file))
@@ -1192,16 +1194,16 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.WritablePath) {
-	if apiCheckEnabled(d.properties.Check_api.Current, "current") ||
-		apiCheckEnabled(d.properties.Check_api.Last_released, "last_released") ||
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
+		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Api_filename) != "" {
 		d.apiFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_api.txt")
 		cmd.FlagWithOutput("--api ", d.apiFile)
 		d.apiFilePath = d.apiFile
 	}
 
-	if apiCheckEnabled(d.properties.Check_api.Current, "current") ||
-		apiCheckEnabled(d.properties.Check_api.Last_released, "last_released") ||
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
+		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Removed_api_filename) != "" {
 		d.removedApiFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_removed.txt")
 		cmd.FlagWithOutput("--removed-api ", d.removedApiFile)
@@ -1458,7 +1460,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Create rule for apicheck
 
-	if apiCheckEnabled(d.properties.Check_api.Current, "current") &&
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") &&
 		!ctx.Config().IsPdkBuild() {
 
 		if len(d.Javadoc.properties.Out) > 0 {
@@ -1543,7 +1545,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		rule.Build(pctx, ctx, "metalavaCurrentApiUpdate", "update current API")
 	}
 
-	if apiCheckEnabled(d.properties.Check_api.Last_released, "last_released") &&
+	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") &&
 		!ctx.Config().IsPdkBuild() {
 
 		if len(d.Javadoc.properties.Out) > 0 {
