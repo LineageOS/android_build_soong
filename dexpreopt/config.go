@@ -42,7 +42,7 @@ type GlobalConfig struct {
 
 	BootJars []string // modules for jars that form the boot class path
 
-	RuntimeApexJars               []string // modules for jars that are in the runtime apex
+	ArtApexJars                   []string // modules for jars that are in the ART APEX
 	ProductUpdatableBootModules   []string
 	ProductUpdatableBootLocations []string
 
@@ -292,7 +292,7 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		DisableGenerateProfile:             false,
 		ProfileDir:                         "",
 		BootJars:                           nil,
-		RuntimeApexJars:                    nil,
+		ArtApexJars:                        nil,
 		ProductUpdatableBootModules:        nil,
 		ProductUpdatableBootLocations:      nil,
 		SystemServerJars:                   nil,
