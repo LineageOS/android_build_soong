@@ -186,7 +186,7 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 
 	osClass := ctx.Module().Target().Os.Class
 
-	for _, r := range neverallows {
+	for _, r := range neverallowRules(ctx.Config()) {
 		n := r.(*rule)
 		if !n.appliesToPath(dir) {
 			continue
@@ -559,4 +559,20 @@ func matchValue(value reflect.Value, check func(string) bool) bool {
 	}
 
 	panic("Can't handle type: " + value.Kind().String())
+}
+
+var neverallowRulesKey = NewOnceKey("neverallowRules")
+
+func neverallowRules(config Config) []Rule {
+	return config.Once(neverallowRulesKey, func() interface{} {
+		// No test rules were set by setTestNeverallowRules, use the global rules
+		return neverallows
+	}).([]Rule)
+}
+
+// Overrides the default neverallow rules for the supplied config.
+//
+// For testing only.
+func setTestNeverallowRules(config Config, testRules []Rule) {
+	config.Once(neverallowRulesKey, func() interface{} { return testRules })
 }
