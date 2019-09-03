@@ -48,7 +48,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 
 	pathCtx := android.PathContextForTesting(config, nil)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
-	dexpreoptConfig.RuntimeApexJars = []string{"foo", "bar", "baz"}
+	dexpreoptConfig.ArtApexJars = []string{"foo", "bar", "baz"}
 	setDexpreoptTestGlobalConfig(config, dexpreoptConfig)
 
 	ctx := testContext(bp, nil)
