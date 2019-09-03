@@ -102,6 +102,24 @@ var (
 		CommandDeps: []string{"${zip2zip}"},
 		Description: "app bundle",
 	}, "abi")
+
+	emitApexContentRule = pctx.StaticRule("emitApexContentRule", blueprint.RuleParams{
+		Command:        `rm -f ${out} && touch ${out} && (. ${out}.emit_commands)`,
+		Rspfile:        "${out}.emit_commands",
+		RspfileContent: "${emit_commands}",
+		Description:    "Emit APEX image content",
+	}, "emit_commands")
+
+	diffApexContentRule = pctx.StaticRule("diffApexContentRule", blueprint.RuleParams{
+		Command: `diff --unchanged-group-format='' \` +
+			`--changed-group-format='%<' \` +
+			`${image_content_file} ${whitelisted_files_file} || (` +
+			`echo -e "New unexpected files were added to ${apex_module_name}." ` +
+			` "To fix the build run following command:" && ` +
+			`echo "system/apex/tools/update_whitelist.sh ${whitelisted_files_file} ${image_content_file}" && ` +
+			`exit 1)`,
+		Description: "Diff ${image_content_file} and ${whitelisted_files_file}",
+	}, "image_content_file", "whitelisted_files_file", "apex_module_name")
 )
 
 var imageApexSuffix = ".apex"
@@ -312,6 +330,9 @@ type apexBundleProperties struct {
 
 	// List of providing APEXes' names so that this APEX can depend on provided shared libraries.
 	Uses []string
+
+	// A txt file containing list of files that are whitelisted to be included in this APEX.
+	Whitelisted_files *string
 }
 
 type apexTargetBundleProperties struct {
@@ -1141,8 +1162,12 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 	}
 
 	copyCommands := []string{}
+	emitCommands := []string{}
+	imageContentFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-content.txt")
+	emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
 	for i, src := range filesToCopy {
 		dest := filepath.Join(a.filesInfo[i].installDir, src.Base())
+		emitCommands = append(emitCommands, "echo './"+dest+"' >> "+imageContentFile.String())
 		dest_path := filepath.Join(android.PathForModuleOut(ctx, "image"+suffix).String(), dest)
 		copyCommands = append(copyCommands, "mkdir -p "+filepath.Dir(dest_path))
 		copyCommands = append(copyCommands, "cp "+src.String()+" "+dest_path)
@@ -1153,6 +1178,35 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 	}
 	implicitInputs := append(android.Paths(nil), filesToCopy...)
 	implicitInputs = append(implicitInputs, a.manifestOut)
+
+	if a.properties.Whitelisted_files != nil {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        emitApexContentRule,
+			Implicits:   implicitInputs,
+			Output:      imageContentFile,
+			Description: "emit apex image content",
+			Args: map[string]string{
+				"emit_commands": strings.Join(emitCommands, " && "),
+			},
+		})
+		implicitInputs = append(implicitInputs, imageContentFile)
+		whitelistedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.Whitelisted_files))
+
+		phonyOutput := android.PathForPhony(ctx, ctx.ModuleName()+"-diff-phony-output")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        diffApexContentRule,
+			Implicits:   implicitInputs,
+			Output:      phonyOutput,
+			Description: "diff apex image content",
+			Args: map[string]string{
+				"whitelisted_files_file": whitelistedFilesFile.String(),
+				"image_content_file":     imageContentFile.String(),
+				"apex_module_name":       ctx.ModuleName(),
+			},
+		})
+
+		implicitInputs = append(implicitInputs, phonyOutput)
+	}
 
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
