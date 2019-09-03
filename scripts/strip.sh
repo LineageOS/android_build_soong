@@ -84,17 +84,17 @@ do_strip_keep_symbols() {
 }
 
 do_strip_keep_symbol_list() {
-    if [ -z "${use_gnu_strip}" ]; then
-        echo "do_strip_keep_symbol_list does not work with llvm-objcopy"
-        echo "http://b/131631155"
-        usage
-    fi
-
     echo "${symbols_to_keep}" | tr ',' '\n' > "${outfile}.symbolList"
-    KEEP_SYMBOLS="-w --strip-unneeded-symbol=* --keep-symbols="
-    KEEP_SYMBOLS+="${outfile}.symbolList"
 
-    "${CROSS_COMPILE}objcopy" "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
+    if [ -z "${use_gnu_strip}" ]; then
+        KEEP_SYMBOLS="--strip-unneeded-symbol=.* --keep-symbols="
+        KEEP_SYMBOLS+="${outfile}.symbolList"
+        "${CLANG_BIN}/llvm-objcopy" --regex "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
+    else
+        KEEP_SYMBOLS="--strip-unneeded-symbol=* --keep-symbols="
+        KEEP_SYMBOLS+="${outfile}.symbolList"
+        "${CROSS_COMPILE}objcopy" -w "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
+    fi
 }
 
 do_strip_keep_mini_debug_info() {
