@@ -602,7 +602,6 @@ toolchain_library {
                     "__gnu_unwind_execute",
                     "__gnu_unwind_frame",
                 ],
-                use_gnu_strip: true,
             },
         },
         arm64: {
@@ -650,7 +649,6 @@ toolchain_library {
             "__register_frame_info_table_bases",
             "__register_frame_table",
         ],
-        use_gnu_strip: true,
     },
 }
 
