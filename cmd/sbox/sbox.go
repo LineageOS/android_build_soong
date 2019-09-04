@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -25,6 +26,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"android/soong/makedeps"
 )
 
 var (
@@ -152,9 +155,6 @@ func run() error {
 			return err
 		}
 		allOutputs = append(allOutputs, sandboxedDepfile)
-		if !strings.Contains(rawCommand, "__SBOX_DEPFILE__") {
-			return fmt.Errorf("the --depfile-out argument only makes sense if the command contains the text __SBOX_DEPFILE__")
-		}
 		rawCommand = strings.Replace(rawCommand, "__SBOX_DEPFILE__", filepath.Join(tempDir, sandboxedDepfile), -1)
 
 	}
@@ -276,6 +276,26 @@ func run() error {
 		}
 
 		err = os.Rename(tempPath, destPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rewrite the depfile so that it doesn't include the (randomized) sandbox directory
+	if depfileOut != "" {
+		in, err := ioutil.ReadFile(depfileOut)
+		if err != nil {
+			return err
+		}
+
+		deps, err := makedeps.Parse(depfileOut, bytes.NewBuffer(in))
+		if err != nil {
+			return err
+		}
+
+		deps.Output = "outputfile"
+
+		err = ioutil.WriteFile(depfileOut, deps.Print(), 0666)
 		if err != nil {
 			return err
 		}
