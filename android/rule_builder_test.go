@@ -475,6 +475,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 	FailIfErrored(t, errs)
 
 	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraCmdDeps []string) {
+		t.Helper()
 		if params.RuleParams.Command != wantCommand {
 			t.Errorf("\nwant RuleParams.Command = %q\n                      got %q", wantCommand, params.RuleParams.Command)
 		}
@@ -518,13 +519,14 @@ func TestRuleBuilder_Build(t *testing.T) {
 	t.Run("sbox", func(t *testing.T) {
 		outDir := filepath.Join(buildDir, ".intermediates", "foo_sbox")
 		outFile := filepath.Join(outDir, "foo_sbox")
+		depFile := filepath.Join(outDir, "foo_sbox.d")
 		sbox := filepath.Join(buildDir, "host", config.PrebuiltOS(), "bin/sbox")
 		sandboxPath := shared.TempDirForOutDir(buildDir)
 
-		cmd := sbox + ` -c 'cp bar __SBOX_OUT_DIR__/foo_sbox' --sandbox-path ` + sandboxPath + " --output-root " + outDir + " __SBOX_OUT_DIR__/foo_sbox __SBOX_OUT_DIR__/foo_sbox.d"
+		cmd := sbox + ` -c 'cp bar __SBOX_OUT_DIR__/foo_sbox' --sandbox-path ` + sandboxPath + " --output-root " + outDir + " --depfile-out " + depFile + " __SBOX_OUT_DIR__/foo_sbox"
 
 		check(t, ctx.ModuleForTests("foo_sbox", "").Rule("rule"),
-			cmd, outFile, outFile+".d", false, []string{sbox})
+			cmd, outFile, depFile, false, []string{sbox})
 	})
 	t.Run("singleton", func(t *testing.T) {
 		outFile := filepath.Join(buildDir, "baz")
