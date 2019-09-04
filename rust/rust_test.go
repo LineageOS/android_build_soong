@@ -17,6 +17,7 @@ package rust
 import (
 	"io/ioutil"
 	"os"
+	"runtime"
 	"testing"
 
 	"android/soong/android"
@@ -50,6 +51,11 @@ func TestMain(m *testing.M) {
 }
 
 func testRust(t *testing.T, bp string) *android.TestContext {
+	// TODO (b/140435149)
+	if runtime.GOOS != "linux" {
+		t.Skip("Only the Linux toolchain is supported for Rust")
+	}
+
 	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
 
@@ -66,6 +72,11 @@ func testRust(t *testing.T, bp string) *android.TestContext {
 }
 
 func testRustError(t *testing.T, pattern string, bp string) {
+	// TODO (b/140435149)
+	if runtime.GOOS != "linux" {
+		t.Skip("Only the Linux toolchain is supported for Rust")
+	}
+
 	t.Helper()
 	config := android.TestArchConfig(buildDir, nil)
 
