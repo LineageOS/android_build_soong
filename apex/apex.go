@@ -1191,7 +1191,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 		implicitInputs = append(implicitInputs, imageContentFile)
 		whitelistedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.Whitelisted_files))
 
-		phonyOutput := android.PathForPhony(ctx, ctx.ModuleName()+"-diff-phony-output")
+		phonyOutput := android.PathForModuleOut(ctx, ctx.ModuleName()+"-diff-phony-output")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        diffApexContentRule,
 			Implicits:   implicitInputs,
