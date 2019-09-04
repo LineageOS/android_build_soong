@@ -277,6 +277,10 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 	var conditionalClassLoaderContextHost29 android.Paths
 	var conditionalClassLoaderContextTarget29 []string
 
+	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 30
+	var conditionalClassLoaderContextHost30 android.Paths
+	var conditionalClassLoaderContextTarget30 []string
+
 	var classLoaderContextHostString string
 
 	if module.EnforceUsesLibraries {
@@ -321,6 +325,15 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 			pathForLibrary(module, hidlBase))
 		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
 			filepath.Join("/system/framework", hidlBase+".jar"))
+
+		const telephonyCommon = "telephony-common";
+		// android telephony-common contains classes that were in the default class path util API 30.
+		// If the targetSdkTargetVersion int the manifest for APK is < 30 then implicitly add the class
+		// to the classpath for dexpreopt
+		conditionalClassLoaderContextHost30 = append(conditionalClassLoaderContextHost30,
+			pathForLibrary(module, telephonyCommon))
+		conditionalClassLoaderContextTarget30 = append(conditionalClassLoaderContextTarget30,
+			filepath.Join("/system/framework", telephonyCommon+".jar"))
 
 		classLoaderContextHostString = strings.Join(classLoaderContextHost.Strings(), ":")
 	} else {
@@ -368,6 +381,11 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 			Implicits(conditionalClassLoaderContextHost29)
 		rule.Command().Textf(`conditional_target_libs_29="%s"`,
 			strings.Join(conditionalClassLoaderContextTarget29, " "))
+		rule.Command().Textf(`conditional_host_libs_30="%s"`,
+			strings.Join(conditionalClassLoaderContextHost30.Strings(), " ")).
+			Implicits(conditionalClassLoaderContextHost30)
+		rule.Command().Textf(`conditional_target_libs_30="%s"`,
+			strings.Join(conditionalClassLoaderContextTarget30, " "))
 		rule.Command().Text("source").Tool(global.Tools.ConstructContext).Input(module.DexPath)
 	}
 
