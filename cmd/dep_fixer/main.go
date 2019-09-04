@@ -25,6 +25,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+
+	"android/soong/makedeps"
 )
 
 func main() {
@@ -39,7 +41,7 @@ func main() {
 		log.Fatal("Expected at least one input file as an argument")
 	}
 
-	var mergedDeps *Deps
+	var mergedDeps *makedeps.Deps
 	var firstInput []byte
 
 	for i, arg := range flag.Args() {
@@ -48,7 +50,7 @@ func main() {
 			log.Fatalf("Error opening %q: %v", arg, err)
 		}
 
-		deps, err := Parse(arg, bytes.NewBuffer(append([]byte(nil), input...)))
+		deps, err := makedeps.Parse(arg, bytes.NewBuffer(append([]byte(nil), input...)))
 		if err != nil {
 			log.Fatalf("Failed to parse: %v", err)
 		}
