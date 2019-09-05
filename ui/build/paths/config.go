@@ -120,7 +120,6 @@ var Configuration = map[string]PathConfig{
 
 	// These are currently Linux-only toybox tools (but can be switched now).
 	"date": LinuxOnlyPrebuilt,
-	"stat": LinuxOnlyPrebuilt,
 
 	// These are toybox tools that only work on Linux.
 	"pgrep": LinuxOnlyPrebuilt,
