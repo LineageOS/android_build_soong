@@ -229,10 +229,9 @@ func RunErrorProne(ctx android.ModuleContext, outputFile android.WritablePath,
 
 // Emits the rule to generate Xref input file (.kzip file) for the given set of source files and source jars
 // to compile with given set of builder flags, etc.
-func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath,
+func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx int,
 	srcFiles, srcJars android.Paths,
-	flags javaBuilderFlags, deps android.Paths,
-	intermediatesDir string) {
+	flags javaBuilderFlags, deps android.Paths) {
 
 	deps = append(deps, srcJars...)
 
@@ -258,6 +257,11 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath,
 	processor := "-proc:none"
 	if flags.processor != "" {
 		processor = "-processor " + flags.processor
+	}
+
+	intermediatesDir := "xref"
+	if idx >= 0 {
+		intermediatesDir += strconv.Itoa(idx)
 	}
 
 	ctx.Build(pctx,
