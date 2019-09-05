@@ -157,20 +157,6 @@ var neverallowTests = []struct {
 			"manifest enforcement should be independent",
 		},
 	},
-	{
-		name: "libhidltransport enforce_vintf_manifest.cflags",
-		fs: map[string][]byte{
-			"Blueprints": []byte(`
-				cc_library {
-					name: "libhidltransport",
-					product_variables: {
-						enforce_vintf_manifest: {
-							cflags: ["-DSHOULD_NOT_EXIST"],
-						},
-					},
-				}`),
-		},
-	},
 
 	{
 		name: "no treble_linker_namespaces.cflags",
@@ -201,6 +187,19 @@ var neverallowTests = []struct {
 						},
 					},
 				}`),
+		},
+	},
+	{
+		name: "dependency on updatable-media",
+		fs: map[string][]byte{
+			"Blueprints": []byte(`
+				java_library {
+					name: "needs_updatable_media",
+					libs: ["updatable-media"],
+				}`),
+		},
+		expectedErrors: []string{
+			"updatable-media includes private APIs. Use updatable_media_stubs instead.",
 		},
 	},
 	{

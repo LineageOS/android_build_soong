@@ -51,6 +51,7 @@ func init() {
 	AddNeverAllowRules(createIncludeDirsRules()...)
 	AddNeverAllowRules(createTrebleRules()...)
 	AddNeverAllowRules(createLibcoreRules()...)
+	AddNeverAllowRules(createMediaRules()...)
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 }
 
@@ -110,7 +111,7 @@ func createTrebleRules() []Rule {
 
 		// TODO(b/67974785): always enforce the manifest
 		NeverAllow().
-			Without("name", "libhidltransport").
+			Without("name", "libhidltransport-impl-internal").
 			With("product_variables.enforce_vintf_manifest.cflags", "*").
 			Because("manifest enforcement should be independent of ."),
 
@@ -149,6 +150,14 @@ func createLibcoreRules() []Rule {
 	}
 
 	return rules
+}
+
+func createMediaRules() []Rule {
+	return []Rule{
+		NeverAllow().
+			With("libs", "updatable-media").
+			Because("updatable-media includes private APIs. Use updatable_media_stubs instead."),
+	}
 }
 
 func createJavaDeviceForHostRules() []Rule {

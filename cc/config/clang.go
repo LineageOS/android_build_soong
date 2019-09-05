@@ -101,9 +101,8 @@ func init() {
 		// not emit the table by default on Android since NDK still uses GNU binutils.
 		"-faddrsig",
 
-		// Make implicit fallthrough an error in the future.
+		// -Wimplicit-fallthrough is not enabled by -Wall.
 		"-Wimplicit-fallthrough",
-		"-Wno-error=implicit-fallthrough",
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=int-conversion",
@@ -169,11 +168,6 @@ func init() {
 		"-Wno-tautological-constant-compare",
 		"-Wno-tautological-type-limit-compare",
 
-		// http://b/72330874 Disable -Wenum-compare until the instances detected by this new
-		// warning are fixed.
-		"-Wno-enum-compare",
-		"-Wno-enum-compare-switch",
-
 		// Disable c++98-specific warning since Android is not concerned with C++98
 		// compatibility.
 		"-Wno-c++98-compat-extra-semi",
@@ -182,9 +176,11 @@ func init() {
 		"-Wno-return-std-move-in-c++11",
 	}, " "))
 
-	// Extra cflags for projects under external/ directory
+	// Extra cflags for projects under external/ directory to disable warnings that are infeasible
+	// to fix in all the external projects and their upstream repos.
 	pctx.StaticVariable("ClangExtraExternalCflags", strings.Join([]string{
-		// TODO(yikong): Move -Wno flags here
+		"-Wno-enum-compare",
+		"-Wno-enum-compare-switch",
 
 		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
 		// this new warning are fixed.

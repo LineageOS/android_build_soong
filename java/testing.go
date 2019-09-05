@@ -38,6 +38,7 @@ func GatherRequiredDepsForTest() string {
 	extraModules := []string{
 		"core-lambda-stubs",
 		"ext",
+		"updatable_media_stubs",
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
