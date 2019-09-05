@@ -980,6 +980,31 @@ func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error
 	return ret, nil
 }
 
+// pathForSourceRelaxed creates a SourcePath from pathComponents, but does not check that it exists.
+// It differs from pathForSource in that the path is allowed to exist outside of the PathContext.
+func pathForSourceRelaxed(ctx PathContext, pathComponents ...string) (SourcePath, error) {
+	p := filepath.Join(pathComponents...)
+	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
+
+	abs, err := filepath.Abs(ret.String())
+	if err != nil {
+		return ret, err
+	}
+	buildroot, err := filepath.Abs(ctx.Config().buildDir)
+	if err != nil {
+		return ret, err
+	}
+	if strings.HasPrefix(abs, buildroot) {
+		return ret, fmt.Errorf("source path %s is in output", abs)
+	}
+
+	if pathtools.IsGlob(ret.String()) {
+		return ret, fmt.Errorf("path may not contain a glob: %s", ret.String())
+	}
+
+	return ret, nil
+}
+
 // existsWithDependencies returns true if the path exists, and adds appropriate dependencies to rerun if the
 // path does not exist.
 func existsWithDependencies(ctx PathContext, path SourcePath) (exists bool, err error) {
@@ -1030,6 +1055,31 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 		ReportPathErrorf(ctx, "%s: %s", path, err.Error())
 	} else if !exists && !ctx.Config().TestAllowNonExistentPaths {
 		ReportPathErrorf(ctx, "source path %q does not exist", path)
+	}
+	return path
+}
+
+// PathForSourceRelaxed joins the provided path components.  Unlike PathForSource,
+// the result is allowed to exist outside of the source dir.
+// On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
+func PathForSourceRelaxed(ctx PathContext, pathComponents ...string) SourcePath {
+	path, err := pathForSourceRelaxed(ctx, pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	if modCtx, ok := ctx.(ModuleContext); ok && ctx.Config().AllowMissingDependencies() {
+		exists, err := existsWithDependencies(ctx, path)
+		if err != nil {
+			reportPathError(ctx, err)
+		}
+		if !exists {
+			modCtx.AddMissingDependencies([]string{path.String()})
+		}
+	} else if exists, _, err := ctx.Config().fs.Exists(path.String()); err != nil {
+		ReportPathErrorf(ctx, "%s: %s", path, err.Error())
+	} else if !exists {
+		ReportPathErrorf(ctx, "source path %s does not exist", path)
 	}
 	return path
 }
