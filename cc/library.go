@@ -771,18 +771,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	}
 	library.unstrippedOutputFile = outputFile
 
-	// TODO(b/137267623): Remove this in favor of a cc_genrule when they support operating on shared libraries.
-	if Bool(library.Properties.Inject_bssl_hash) {
-		hashedOutputfile := outputFile
-		outputFile = android.PathForModuleOut(ctx, "unhashed", fileName)
-
-		rule := android.NewRuleBuilder()
-		rule.Command().
-			BuiltTool(ctx, "bssl_inject_hash").
-			FlagWithInput("-in-object ", outputFile).
-			FlagWithOutput("-o ", hashedOutputfile)
-		rule.Build(pctx, ctx, "injectCryptoHash", "inject crypto hash")
-	}
+	outputFile = maybeInjectBoringSSLHash(ctx, outputFile, library.Properties.Inject_bssl_hash, fileName)
 
 	if Bool(library.baseLinker.Properties.Use_version_lib) {
 		if ctx.Host() {
@@ -1295,4 +1284,39 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 			return
 		}
 	}
+}
+
+// maybeInjectBoringSSLHash adds a rule to run bssl_inject_hash on the output file if the module has the
+// inject_bssl_hash or if any static library dependencies have inject_bssl_hash set.  It returns the output path
+// that the linked output file should be written to.
+// TODO(b/137267623): Remove this in favor of a cc_genrule when they support operating on shared libraries.
+func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.ModuleOutPath,
+	inject *bool, fileName string) android.ModuleOutPath {
+	// TODO(b/137267623): Remove this in favor of a cc_genrule when they support operating on shared libraries.
+	injectBoringSSLHash := Bool(inject)
+	ctx.VisitDirectDeps(func(dep android.Module) {
+		tag := ctx.OtherModuleDependencyTag(dep)
+		if tag == staticDepTag || tag == staticExportDepTag || tag == wholeStaticDepTag || tag == lateStaticDepTag {
+			if cc, ok := dep.(*Module); ok {
+				if library, ok := cc.linker.(*libraryDecorator); ok {
+					if Bool(library.Properties.Inject_bssl_hash) {
+						injectBoringSSLHash = true
+					}
+				}
+			}
+		}
+	})
+	if injectBoringSSLHash {
+		hashedOutputfile := outputFile
+		outputFile = android.PathForModuleOut(ctx, "unhashed", fileName)
+
+		rule := android.NewRuleBuilder()
+		rule.Command().
+			BuiltTool(ctx, "bssl_inject_hash").
+			FlagWithInput("-in-object ", outputFile).
+			FlagWithOutput("-o ", hashedOutputfile)
+		rule.Build(pctx, ctx, "injectCryptoHash", "inject crypto hash")
+	}
+
+	return outputFile
 }
