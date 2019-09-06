@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -1151,26 +1152,19 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			if len(uniqueSrcFiles) > 0 {
 				shardSrcs = shardPaths(uniqueSrcFiles, shardSize)
 				for idx, shardSrc := range shardSrcs {
-					classes := android.PathForModuleOut(ctx, "javac", jarName+strconv.Itoa(idx))
-					TransformJavaToClasses(ctx, classes, idx, shardSrc, nil, flags, extraJarDeps)
+					classes := j.compileJavaClasses(ctx, jarName, idx, shardSrc,
+						nil, flags, extraJarDeps)
 					jars = append(jars, classes)
 				}
 			}
 			if len(srcJars) > 0 {
-				classes := android.PathForModuleOut(ctx, "javac", jarName+strconv.Itoa(len(shardSrcs)))
-				TransformJavaToClasses(ctx, classes, len(shardSrcs), nil, srcJars, flags, extraJarDeps)
+				classes := j.compileJavaClasses(ctx, jarName, len(shardSrcs),
+					nil, srcJars, flags, extraJarDeps)
 				jars = append(jars, classes)
 			}
 		} else {
-			classes := android.PathForModuleOut(ctx, "javac", jarName)
-			TransformJavaToClasses(ctx, classes, -1, uniqueSrcFiles, srcJars, flags, extraJarDeps)
+			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueSrcFiles, srcJars, flags, extraJarDeps)
 			jars = append(jars, classes)
-		}
-		if ctx.Config().EmitXrefRules() {
-			extractionFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".kzip")
-			emitXrefRule(ctx, extractionFile, uniqueSrcFiles, srcJars, flags, extraJarDeps, "xref")
-			j.kytheFiles = append(j.kytheFiles, extractionFile)
-
 		}
 		if ctx.Failed() {
 			return
@@ -1390,6 +1384,27 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
 	j.outputFile = outputFile.WithoutRel()
+}
+
+func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, idx int,
+	srcFiles, srcJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths) android.WritablePath {
+
+	kzipName := pathtools.ReplaceExtension(jarName, "kzip")
+	if idx >= 0 {
+		kzipName = strings.TrimSuffix(jarName, filepath.Ext(jarName)) + strconv.Itoa(idx) + ".kzip"
+		jarName += strconv.Itoa(idx)
+	}
+
+	classes := android.PathForModuleOut(ctx, "javac", jarName)
+	TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, flags, extraJarDeps)
+
+	if ctx.Config().EmitXrefRules() {
+		extractionFile := android.PathForModuleOut(ctx, kzipName)
+		emitXrefRule(ctx, extractionFile, idx, srcFiles, srcJars, flags, extraJarDeps)
+		j.kytheFiles = append(j.kytheFiles, extractionFile)
+	}
+
+	return classes
 }
 
 // Check for invalid kotlinc flags. Only use this for flags explicitly passed by the user,
