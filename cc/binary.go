@@ -50,6 +50,9 @@ type BinaryLinkerProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
+	Inject_bssl_hash *bool `android:"arch_variant"`
 }
 
 func init() {
@@ -341,6 +344,8 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		TransformBinaryPrefixSymbols(ctx, String(binary.Properties.Prefix_symbols), outputFile,
 			flagsToBuilderFlags(flags), afterPrefixSymbols)
 	}
+
+	outputFile = maybeInjectBoringSSLHash(ctx, outputFile, binary.Properties.Inject_bssl_hash, fileName)
 
 	if Bool(binary.baseLinker.Properties.Use_version_lib) {
 		if ctx.Host() {
