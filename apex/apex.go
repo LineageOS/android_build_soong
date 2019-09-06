@@ -143,6 +143,7 @@ var (
 	keyTag         = dependencyTag{name: "key"}
 	certificateTag = dependencyTag{name: "certificate"}
 	usesTag        = dependencyTag{name: "uses"}
+	androidAppTag  = dependencyTag{name: "androidApp"}
 )
 
 var (
@@ -334,6 +335,9 @@ type apexBundleProperties struct {
 
 	// A txt file containing list of files that are whitelisted to be included in this APEX.
 	Whitelisted_files *string
+
+	// List of APKs to package inside APEX
+	Apps []string
 }
 
 type apexTargetBundleProperties struct {
@@ -368,6 +372,7 @@ const (
 	goBinary
 	javaSharedLib
 	nativeTest
+	app
 )
 
 type apexPackaging int
@@ -432,6 +437,8 @@ func (class apexFileClass) NameInMake() string {
 		return "JAVA_LIBRARIES"
 	case nativeTest:
 		return "NATIVE_TESTS"
+	case app:
+		return "APPS"
 	default:
 		panic(fmt.Errorf("unknown class %d", class))
 	}
@@ -634,6 +641,10 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: "android_common"},
 	}, javaLibTag, a.properties.Java_libs...)
 
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "arch", Variation: "android_common"},
+	}, androidAppTag, a.properties.Apps...)
+
 	if String(a.properties.Key) == "" {
 		ctx.ModuleErrorf("key is missing")
 		return
@@ -814,6 +825,12 @@ func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy an
 	return
 }
 
+func getCopyManifestForAndroidApp(app *java.AndroidApp, pkgName string) (fileToCopy android.Path, dirInApex string) {
+	dirInApex = filepath.Join("app", pkgName)
+	fileToCopy = app.OutputFile()
+	return
+}
+
 // Context "decorator", overriding the InstallBypassMake method to always reply `true`.
 type flattenedApexContext struct {
 	android.ModuleContext
@@ -977,6 +994,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				// that might have been installed in the previous builds
 				if prebuilt, ok := child.(*Prebuilt); ok && prebuilt.isForceDisabled() {
 					a.prebuiltFileToDelete = prebuilt.InstallFilename()
+				}
+			case androidAppTag:
+				if ap, ok := child.(*java.AndroidApp); ok {
+					fileToCopy, dirInApex := getCopyManifestForAndroidApp(ap, ctx.DeviceConfig().OverridePackageNameFor(depName))
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, app, ap, nil})
+					return true
+				} else {
+					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
 			}
 		} else {

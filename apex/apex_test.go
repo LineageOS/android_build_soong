@@ -103,6 +103,7 @@ func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Con
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(java.ImportFactory))
+	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(java.AndroidAppFactory))
 
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
@@ -210,31 +211,33 @@ func testApexContext(t *testing.T, bp string) (*android.TestContext, android.Con
 		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
 		"system/sepolicy/apex/otherapex-file_contexts":      nil,
 		"system/sepolicy/apex/commonapex-file_contexts":     nil,
-		"mylib.cpp":                            nil,
-		"mylib_common.cpp":                     nil,
-		"mytest.cpp":                           nil,
-		"mytest1.cpp":                          nil,
-		"mytest2.cpp":                          nil,
-		"mytest3.cpp":                          nil,
-		"myprebuilt":                           nil,
-		"my_include":                           nil,
-		"foo/bar/MyClass.java":                 nil,
-		"prebuilt.jar":                         nil,
-		"vendor/foo/devkeys/test.x509.pem":     nil,
-		"vendor/foo/devkeys/test.pk8":          nil,
-		"testkey.x509.pem":                     nil,
-		"testkey.pk8":                          nil,
-		"testkey.override.x509.pem":            nil,
-		"testkey.override.pk8":                 nil,
-		"vendor/foo/devkeys/testkey.avbpubkey": nil,
-		"vendor/foo/devkeys/testkey.pem":       nil,
-		"NOTICE":                               nil,
-		"custom_notice":                        nil,
-		"testkey2.avbpubkey":                   nil,
-		"testkey2.pem":                         nil,
-		"myapex-arm64.apex":                    nil,
-		"myapex-arm.apex":                      nil,
-		"frameworks/base/api/current.txt":      nil,
+		"mylib.cpp":                                  nil,
+		"mylib_common.cpp":                           nil,
+		"mytest.cpp":                                 nil,
+		"mytest1.cpp":                                nil,
+		"mytest2.cpp":                                nil,
+		"mytest3.cpp":                                nil,
+		"myprebuilt":                                 nil,
+		"my_include":                                 nil,
+		"foo/bar/MyClass.java":                       nil,
+		"prebuilt.jar":                               nil,
+		"vendor/foo/devkeys/test.x509.pem":           nil,
+		"vendor/foo/devkeys/test.pk8":                nil,
+		"testkey.x509.pem":                           nil,
+		"testkey.pk8":                                nil,
+		"testkey.override.x509.pem":                  nil,
+		"testkey.override.pk8":                       nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":       nil,
+		"vendor/foo/devkeys/testkey.pem":             nil,
+		"NOTICE":                                     nil,
+		"custom_notice":                              nil,
+		"testkey2.avbpubkey":                         nil,
+		"testkey2.pem":                               nil,
+		"myapex-arm64.apex":                          nil,
+		"myapex-arm.apex":                            nil,
+		"frameworks/base/api/current.txt":            nil,
+		"build/make/core/proguard.flags":             nil,
+		"build/make/core/proguard_basic_keeps.flags": nil,
 	})
 
 	return ctx, config
@@ -1975,6 +1978,38 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			enabled: false,
 		}
 	`)
+}
+
+func TestApexWithApps(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: [
+				"AppFoo",
+			],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app {
+			name: "AppFoo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex")
+	apexRule := module.Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
+
 }
 
 func TestMain(m *testing.M) {
