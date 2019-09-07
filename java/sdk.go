@@ -19,7 +19,6 @@ import (
 	"android/soong/java/config"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -349,15 +348,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 
 		cmd.Text("cat").
 			Inputs(android.PathsForSource(ctx, in)).
-			Text("|")
-
-		if runtime.GOOS == "darwin" {
-			cmd.Text("md5")
-		} else {
-			cmd.Text("md5sum")
-		}
-
-		cmd.Text("| cut -d' ' -f1 >").
+			Text("| md5sum | cut -d' ' -f1 >").
 			Output(out)
 	} else {
 		// Unbundled build
