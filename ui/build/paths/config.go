@@ -120,7 +120,6 @@ var Configuration = map[string]PathConfig{
 
 	// These are currently Linux-only toybox tools (but can be switched now).
 	"date": LinuxOnlyPrebuilt,
-	"stat": LinuxOnlyPrebuilt,
 
 	// These are toybox tools that only work on Linux.
 	"pgrep": LinuxOnlyPrebuilt,
@@ -130,12 +129,10 @@ var Configuration = map[string]PathConfig{
 
 func init() {
 	if runtime.GOOS == "darwin" {
-		// TODO: move Darwin off md5 and onto our md5sum prebuilt.
-		Configuration["md5"] = Allowed
 		Configuration["sw_vers"] = Allowed
 		Configuration["xcrun"] = Allowed
 
-		// We don't have darwin prebuilts for some tools (like toybox),
+		// We don't have darwin prebuilts for some tools,
 		// so allow the host versions.
 		for name, config := range Configuration {
 			if config.LinuxOnlyPrebuilt {

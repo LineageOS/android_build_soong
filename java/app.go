@@ -139,6 +139,10 @@ func (a *AndroidApp) ExportedStaticPackages() android.Paths {
 	return nil
 }
 
+func (a *AndroidApp) OutputFile() android.Path {
+	return a.outputFile
+}
+
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
 
 type Certificate struct {
