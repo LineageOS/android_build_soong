@@ -195,6 +195,10 @@ func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
 	return source == nil || !source.Enabled()
 }
 
+func (p *Prebuilt) SourceExists() bool {
+	return p.properties.SourceExists
+}
+
 func (p *Prebuilt) checkSingleSourceProperties() {
 	if !p.srcProps.IsValid() || p.srcField.Name == "" {
 		panic(fmt.Errorf("invalid single source prebuilt %+v", p))
@@ -214,8 +218,4 @@ func (p *Prebuilt) getSingleSourceFieldValue() string {
 		panic(fmt.Errorf("prebuilt src field %q should be a string or a pointer to one", p.srcField.Name))
 	}
 	return value.String()
-}
-
-func (p *Prebuilt) SourceExists() bool {
-	return p.properties.SourceExists
 }
