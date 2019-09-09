@@ -140,7 +140,7 @@ do_add_gnu_debuglink() {
 
 do_remove_build_id() {
     if [ -z "${use_gnu_strip}" ]; then
-        "${CLANG_BIN}/llvm-strip" -remove-section=.note.gnu.build-id "${outfile}.tmp" -o "${outfile}.tmp.no-build-id"
+        "${CLANG_BIN}/llvm-strip" --remove-section=.note.gnu.build-id "${outfile}.tmp" -o "${outfile}.tmp.no-build-id"
     else
         "${CROSS_COMPILE}strip" --remove-section=.note.gnu.build-id "${outfile}.tmp" -o "${outfile}.tmp.no-build-id"
     fi
