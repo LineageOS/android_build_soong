@@ -171,9 +171,6 @@ func init() {
 		// Disable c++98-specific warning since Android is not concerned with C++98
 		// compatibility.
 		"-Wno-c++98-compat-extra-semi",
-
-		// Disable this warning because we don't care about behavior with older compilers.
-		"-Wno-return-std-move-in-c++11",
 	}, " "))
 
 	// Extra cflags for projects under external/ directory to disable warnings that are infeasible
