@@ -317,8 +317,11 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 	if !ok {
 		return
 	}
-
 	if !m.Enabled() {
+		return
+	}
+	if m.Target().NativeBridge == android.NativeBridgeEnabled {
+		// Skip native_bridge modules
 		return
 	}
 
