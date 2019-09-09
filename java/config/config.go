@@ -141,27 +141,66 @@ func init() {
 
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 
-	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {
-		pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
-			if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
-				return filepath.Join(prebuiltDir, runtime.GOOS, "bin", tool)
-			} else {
-				return pctx.HostBinToolPath(ctx, tool).String()
-			}
-		})
-	}
-
-	hostBinToolVariableWithPrebuilt("Aapt2Cmd", "prebuilts/sdk/tools", "aapt2")
-
 	pctx.HostBinToolVariable("ManifestCheckCmd", "manifest_check")
 	pctx.HostBinToolVariable("ManifestFixerCmd", "manifest_fixer")
 
 	pctx.HostBinToolVariable("ManifestMergerCmd", "manifest-merger")
 
-	pctx.HostBinToolVariable("ZipAlign", "zipalign")
-
 	pctx.HostBinToolVariable("Class2Greylist", "class2greylist")
 	pctx.HostBinToolVariable("HiddenAPI", "hiddenapi")
+
+	hostBinToolVariableWithSdkToolsPrebuilt("Aapt2Cmd", "aapt2")
+	hostBinToolVariableWithBuildToolsPrebuilt("AidlCmd", "aidl")
+	hostBinToolVariableWithBuildToolsPrebuilt("ZipAlign", "zipalign")
+
+	hostJavaToolVariableWithSdkToolsPrebuilt("SignapkCmd", "signapk")
+	// TODO(ccross): this should come from the signapk dependencies, but we don't have any way
+	// to express host JNI dependencies yet.
+	hostJNIToolVariableWithSdkToolsPrebuilt("SignapkJniLibrary", "libconscrypt_openjdk_jni")
+}
+
+func hostBinToolVariableWithSdkToolsPrebuilt(name, tool string) {
+	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
+		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
+			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "bin", tool)
+		} else {
+			return pctx.HostBinToolPath(ctx, tool).String()
+		}
+	})
+}
+
+func hostJavaToolVariableWithSdkToolsPrebuilt(name, tool string) {
+	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
+		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
+			return filepath.Join("prebuilts/sdk/tools/lib", tool+".jar")
+		} else {
+			return pctx.HostJavaToolPath(ctx, tool+".jar").String()
+		}
+	})
+}
+
+func hostJNIToolVariableWithSdkToolsPrebuilt(name, tool string) {
+	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
+		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
+			ext := ".so"
+			if runtime.GOOS == "darwin" {
+				ext = ".dylib"
+			}
+			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "lib64", tool+ext)
+		} else {
+			return pctx.HostJNIToolPath(ctx, tool).String()
+		}
+	})
+}
+
+func hostBinToolVariableWithBuildToolsPrebuilt(name, tool string) {
+	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
+		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
+			return filepath.Join("prebuilts/build-tools", ctx.Config().PrebuiltOS(), "bin", tool)
+		} else {
+			return pctx.HostBinToolPath(ctx, tool).String()
+		}
+	})
 }
 
 // JavaCmd returns a SourcePath object with the path to the java command.
