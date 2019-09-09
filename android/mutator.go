@@ -244,8 +244,8 @@ func (t *topDownMutatorContext) Rename(name string) {
 }
 
 func (t *topDownMutatorContext) CreateModule(factory blueprint.ModuleFactory, props ...interface{}) {
-	common := []interface{}{&t.Module().base().commonProperties}
-	t.bp.CreateModule(factory, append(common, props...)...)
+	inherited := []interface{}{&t.Module().base().commonProperties, &t.Module().base().variableProperties}
+	t.bp.CreateModule(factory, append(inherited, props...)...)
 }
 
 func (b *bottomUpMutatorContext) MutatorName() string {
