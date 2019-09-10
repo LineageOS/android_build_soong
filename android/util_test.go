@@ -404,3 +404,68 @@ func ExampleCopyOf_append() {
 	// b = ["foo" "bar"]
 	// c = ["foo" "baz"]
 }
+
+func TestSplitFileExt(t *testing.T) {
+	t.Run("soname with version", func(t *testing.T) {
+		root, suffix, ext := SplitFileExt("libtest.so.1.0.30")
+		expected := "libtest"
+		if root != expected {
+			t.Errorf("root should be %q but got %q", expected, root)
+		}
+		expected = ".so.1.0.30"
+		if suffix != expected {
+			t.Errorf("suffix should be %q but got %q", expected, suffix)
+		}
+		expected = ".so"
+		if ext != expected {
+			t.Errorf("ext should be %q but got %q", expected, ext)
+		}
+	})
+
+	t.Run("soname with svn version", func(t *testing.T) {
+		root, suffix, ext := SplitFileExt("libtest.so.1svn")
+		expected := "libtest"
+		if root != expected {
+			t.Errorf("root should be %q but got %q", expected, root)
+		}
+		expected = ".so.1svn"
+		if suffix != expected {
+			t.Errorf("suffix should be %q but got %q", expected, suffix)
+		}
+		expected = ".so"
+		if ext != expected {
+			t.Errorf("ext should be %q but got %q", expected, ext)
+		}
+	})
+
+	t.Run("version numbers in the middle should be ignored", func(t *testing.T) {
+		root, suffix, ext := SplitFileExt("libtest.1.0.30.so")
+		expected := "libtest.1.0.30"
+		if root != expected {
+			t.Errorf("root should be %q but got %q", expected, root)
+		}
+		expected = ".so"
+		if suffix != expected {
+			t.Errorf("suffix should be %q but got %q", expected, suffix)
+		}
+		expected = ".so"
+		if ext != expected {
+			t.Errorf("ext should be %q but got %q", expected, ext)
+		}
+	})
+
+	t.Run("no known file extension", func(t *testing.T) {
+		root, suffix, ext := SplitFileExt("test.exe")
+		expected := "test"
+		if root != expected {
+			t.Errorf("root should be %q but got %q", expected, root)
+		}
+		expected = ".exe"
+		if suffix != expected {
+			t.Errorf("suffix should be %q but got %q", expected, suffix)
+		}
+		if ext != expected {
+			t.Errorf("ext should be %q but got %q", expected, ext)
+		}
+	})
+}

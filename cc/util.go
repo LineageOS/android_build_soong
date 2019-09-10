@@ -104,32 +104,6 @@ func addSuffix(list []string, suffix string) []string {
 	return list
 }
 
-var shlibVersionPattern = regexp.MustCompile("(?:\\.\\d+(?:svn)?)+")
-
-// splitFileExt splits a file name into root, suffix and ext. root stands for the file name without
-// the file extension and the version number (e.g. "libexample"). suffix stands for the
-// concatenation of the file extension and the version number (e.g. ".so.1.0"). ext stands for the
-// file extension after the version numbers are trimmed (e.g. ".so").
-func splitFileExt(name string) (string, string, string) {
-	// Extract and trim the shared lib version number if the file name ends with dot digits.
-	suffix := ""
-	matches := shlibVersionPattern.FindAllStringIndex(name, -1)
-	if len(matches) > 0 {
-		lastMatch := matches[len(matches)-1]
-		if lastMatch[1] == len(name) {
-			suffix = name[lastMatch[0]:lastMatch[1]]
-			name = name[0:lastMatch[0]]
-		}
-	}
-
-	// Extract the file name root and the file extension.
-	ext := filepath.Ext(name)
-	root := strings.TrimSuffix(name, ext)
-	suffix = ext + suffix
-
-	return root, suffix, ext
-}
-
 // linkDirOnDevice/linkName -> target
 func makeSymlinkCmd(linkDirOnDevice string, linkName string, target string) string {
 	dir := filepath.Join("$(PRODUCT_OUT)", linkDirOnDevice)
