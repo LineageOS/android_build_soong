@@ -207,7 +207,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		library.androidMkWriteExportedFlags(w)
 		library.androidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
 
-		_, _, ext := splitFileExt(outputFile.Base())
+		_, _, ext := android.SplitFileExt(outputFile.Base())
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 
@@ -319,7 +319,7 @@ func (test *testLibrary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkD
 func (library *toolchainLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Class = "STATIC_LIBRARIES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		_, suffix, _ := splitFileExt(outputFile.Base())
+		_, suffix, _ := android.SplitFileExt(outputFile.Base())
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 	})
 }
@@ -334,7 +334,7 @@ func (installer *baseInstaller) AndroidMk(ctx AndroidMkContext, ret *android.And
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path := installer.path.RelPathString()
 		dir, file := filepath.Split(path)
-		stem, suffix, _ := splitFileExt(file)
+		stem, suffix, _ := android.SplitFileExt(file)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
@@ -347,7 +347,7 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		path, file := filepath.Split(c.installPath.String())
-		stem, suffix, _ := splitFileExt(file)
+		stem, suffix, _ := android.SplitFileExt(file)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
@@ -361,7 +361,7 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
-		_, _, ext := splitFileExt(outputFile.Base())
+		_, _, ext := android.SplitFileExt(outputFile.Base())
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
@@ -380,7 +380,7 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *andr
 
 		path := c.path.RelPathString()
 		dir, file := filepath.Split(path)
-		stem, suffix, ext := splitFileExt(file)
+		stem, suffix, ext := android.SplitFileExt(file)
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
@@ -398,7 +398,7 @@ func (c *vendorPublicLibraryStubDecorator) AndroidMk(ctx AndroidMkContext, ret *
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
-		_, _, ext := splitFileExt(outputFile.Base())
+		_, _, ext := android.SplitFileExt(outputFile.Base())
 
 		fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")

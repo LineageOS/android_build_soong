@@ -208,7 +208,6 @@ bootstrap_go_package {
         "cc/prebuilt_test.go",
         "cc/proto_test.go",
         "cc/test_data_test.go",
-        "cc/util_test.go",
     ],
     pluginFor: ["soong_build"],
 }
