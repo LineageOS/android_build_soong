@@ -677,7 +677,7 @@ func isBionic(name string) bool {
 	return false
 }
 
-func installToBootstrap(name string, config android.Config) bool {
+func InstallToBootstrap(name string, config android.Config) bool {
 	if name == "libclang_rt.hwasan-aarch64-android" {
 		return inList("hwaddress", config.SanitizeDevice())
 	}

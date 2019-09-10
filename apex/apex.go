@@ -753,38 +753,36 @@ func (a *apexBundle) SetFlattened(flattened bool) {
 	a.properties.Flattened = flattened
 }
 
-func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fileToCopy android.Path, dirInApex string) {
+func getCopyManifestForNativeLibrary(ccMod *cc.Module, config android.Config, handleSpecialLibs bool) (fileToCopy android.Path, dirInApex string) {
 	// Decide the APEX-local directory by the multilib of the library
 	// In the future, we may query this to the module.
-	switch cc.Arch().ArchType.Multilib {
+	switch ccMod.Arch().ArchType.Multilib {
 	case "lib32":
 		dirInApex = "lib"
 	case "lib64":
 		dirInApex = "lib64"
 	}
-	dirInApex = filepath.Join(dirInApex, cc.RelativeInstallPath())
-	if !cc.Arch().Native {
-		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
-	} else if cc.Target().NativeBridge == android.NativeBridgeEnabled {
-		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
+	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
+	if !ccMod.Arch().Native {
+		dirInApex = filepath.Join(dirInApex, ccMod.Arch().ArchType.String())
+	} else if ccMod.Target().NativeBridge == android.NativeBridgeEnabled {
+		dirInApex = filepath.Join(dirInApex, ccMod.Target().NativeBridgeRelativePath)
 	}
-	if handleSpecialLibs {
-		switch cc.Name() {
-		case "libc", "libm", "libdl":
-			// Special case for bionic libs. This is to prevent the bionic libs
-			// from being included in the search path /apex/com.android.apex/lib.
-			// This exclusion is required because bionic libs in the runtime APEX
-			// are available via the legacy paths /system/lib/libc.so, etc. By the
-			// init process, the bionic libs in the APEX are bind-mounted to the
-			// legacy paths and thus will be loaded into the default linker namespace.
-			// If the bionic libs are directly in /apex/com.android.apex/lib then
-			// the same libs will be again loaded to the runtime linker namespace,
-			// which will result double loading of bionic libs that isn't supported.
-			dirInApex = filepath.Join(dirInApex, "bionic")
-		}
+	if handleSpecialLibs && cc.InstallToBootstrap(ccMod.BaseModuleName(), config) {
+		// Special case for Bionic libs and other libs installed with them. This is
+		// to prevent those libs from being included in the search path
+		// /apex/com.android.runtime/${LIB}. This exclusion is required because
+		// those libs in the Runtime APEX are available via the legacy paths in
+		// /system/lib/. By the init process, the libs in the APEX are bind-mounted
+		// to the legacy paths and thus will be loaded into the default linker
+		// namespace (aka "platform" namespace). If the libs are directly in
+		// /apex/com.android.runtime/${LIB} then the same libs will be loaded again
+		// into the runtime linker namespace, which will result in double loading of
+		// them, which isn't supported.
+		dirInApex = filepath.Join(dirInApex, "bionic")
 	}
 
-	fileToCopy = cc.OutputFile().Path()
+	fileToCopy = ccMod.OutputFile().Path()
 	return
 }
 
@@ -920,7 +918,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					if cc.HasStubsVariants() {
 						provideNativeLibs = append(provideNativeLibs, cc.OutputFile().Path().Base())
 					}
-					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
+					fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, ctx.Config(), handleSpecialLibs)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
 					return true
 				} else {
@@ -1051,7 +1049,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							// Don't track further
 							return false
 						}
-						fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, handleSpecialLibs)
+						fileToCopy, dirInApex := getCopyManifestForNativeLibrary(cc, ctx.Config(), handleSpecialLibs)
 						filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, nativeSharedLib, cc, nil})
 						return true
 					}
