@@ -44,6 +44,7 @@ type ModuleInstallPathContext interface {
 	BaseModuleContext
 
 	InstallInData() bool
+	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
 	InstallInRecovery() bool
 	InstallBypassMake() bool
@@ -1155,6 +1156,8 @@ func modulePartition(ctx ModuleInstallPathContext) string {
 	var partition string
 	if ctx.InstallInData() {
 		partition = "data"
+	} else if ctx.InstallInTestcases() {
+		partition = "testcases"
 	} else if ctx.InstallInRecovery() {
 		// the layout of recovery partion is the same as that of system partition
 		partition = "recovery/root/system"
