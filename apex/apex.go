@@ -190,6 +190,7 @@ func init() {
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
 		ctx.BottomUp("apex", apexMutator).Parallel()
+		ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 		ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
 	})
 }
@@ -231,6 +232,17 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 		mctx.CreateVariations(apexBundleName)
 	}
 }
+
+func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
+	if _, ok := mctx.Module().(*apexBundle); ok {
+		if !mctx.Config().FlattenApex() || mctx.Config().UnbundledBuild() {
+			modules := mctx.CreateLocalVariations("", "flattened")
+			modules[0].(*apexBundle).SetFlattened(false)
+			modules[1].(*apexBundle).SetFlattened(true)
+		}
+	}
+}
+
 func apexUsesMutator(mctx android.BottomUpMutatorContext) {
 	if ab, ok := mctx.Module().(*apexBundle); ok {
 		mctx.AddFarVariationDependencies(nil, usesTag, ab.properties.Uses...)
@@ -337,6 +349,10 @@ type apexBundleProperties struct {
 
 	// List of APKs to package inside APEX
 	Apps []string
+
+	// To distinguish between flattened and non-flattened variants.
+	// if set true, then this variant is flattened variant.
+	Flattened bool `blueprint:"mutated"`
 }
 
 type apexTargetBundleProperties struct {
@@ -480,12 +496,13 @@ type apexBundle struct {
 	// list of module names that this APEX is depending on
 	externalDeps []string
 
-	flattened bool
-
 	testApex bool
 
 	// intermediate path for apex_manifest.json
 	manifestOut android.WritablePath
+
+	// A config value of (TARGET_FLATTEN_APEX && !TARGET_BUILD_APPS)
+	flattenedConfigValue bool
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -673,7 +690,7 @@ func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 			return nil, nil
 		}
 	case ".flattened":
-		if a.flattened {
+		if a.properties.Flattened {
 			flattenedApexPath := a.flattenedOutput
 			return android.Paths{flattenedApexPath}, nil
 		} else {
@@ -730,6 +747,10 @@ func (a *apexBundle) PreventInstall() {
 
 func (a *apexBundle) HideFromMake() {
 	a.properties.HideFromMake = true
+}
+
+func (a *apexBundle) SetFlattened(flattened bool) {
+	a.properties.Flattened = flattened
 }
 
 func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fileToCopy android.Path, dirInApex string) {
@@ -1055,7 +1076,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return false
 	})
 
-	a.flattened = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
+	a.flattenedConfigValue = ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
+	if a.flattenedConfigValue {
+		a.properties.Flattened = true
+	}
 	if a.private_key_file == nil {
 		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
 		return
@@ -1393,7 +1417,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
-	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) {
+	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) && !a.properties.Flattened {
 		ctx.InstallFile(a.installDir, ctx.ModuleName()+suffix, a.outputFiles[apexType])
 	}
 }
@@ -1453,20 +1477,32 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 		if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
 			continue
 		}
-		if !android.InList(fi.moduleName, moduleNames) {
-			moduleNames = append(moduleNames, fi.moduleName)
+		if a.properties.Flattened && !apexType.image() {
+			continue
 		}
+
+		var suffix string
+		if a.properties.Flattened && !a.flattenedConfigValue {
+			suffix = ".flattened"
+		}
+
+		if !android.InList(fi.moduleName, moduleNames) {
+			moduleNames = append(moduleNames, fi.moduleName+suffix)
+		}
+
 		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
+		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName+suffix)
 		// /apex/<name>/{lib|framework|...}
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex",
 			proptools.StringDefault(a.properties.Apex_name, name), fi.installDir)
-		if a.flattened && apexType.image() {
+		if a.properties.Flattened && apexType.image() {
 			// /system/apex/<name>/{lib|framework|...}
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
 				a.installDir.RelPathString(), name, fi.installDir))
-			fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
+			if a.flattenedConfigValue {
+				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
+			}
 			if len(fi.symlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
 			}
@@ -1546,7 +1582,11 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				moduleNames = a.androidMkForFiles(w, name, moduleDir, apexType)
 			}
 
-			if a.flattened && apexType.image() {
+			if a.properties.Flattened && !a.flattenedConfigValue {
+				name = name + ".flattened"
+			}
+
+			if a.properties.Flattened && apexType.image() {
 				// Only image APEXes can be flattened.
 				fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 				fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
@@ -1557,7 +1597,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 				fmt.Fprintln(w, "$(LOCAL_INSTALLED_MODULE): .KATI_IMPLICIT_OUTPUTS :=", a.flattenedOutput.String())
 
-			} else {
+			} else if !a.properties.Flattened {
 				// zip-apex is the less common type so have the name refer to the image-apex
 				// only and use {name}.zip if you want the zip-apex
 				if apexType == zipApex && a.apexTypes == both {
