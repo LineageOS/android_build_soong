@@ -97,7 +97,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 
 		if p.shared() {
 			p.unstrippedOutputFile = in
-			libName := ctx.baseModuleName() + flags.Toolchain.ShlibSuffix()
+			libName := p.libraryDecorator.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
 			if p.needsStrip(ctx) {
 				stripped := android.PathForModuleOut(ctx, "stripped", libName)
 				p.stripExecutableOrSharedLib(ctx, in, stripped, builderFlags)
