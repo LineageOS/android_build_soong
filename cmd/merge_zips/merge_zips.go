@@ -417,7 +417,7 @@ func (miz *ManagedInputZip) link(olderMiz *ManagedInputZip) {
 	}
 	oldOlderMiz := miz.older
 	if oldOlderMiz.newer != miz {
-		panic(fmt.Errorf("broken list between %p:%#v and %p:%#v", miz, oldOlderMiz))
+		panic(fmt.Errorf("broken list between %p:%#v and %p:%#v", miz, miz, oldOlderMiz, oldOlderMiz))
 	}
 	miz.older = olderMiz
 	olderMiz.older = oldOlderMiz
