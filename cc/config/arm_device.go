@@ -236,6 +236,7 @@ var (
 		"cortex-a72":     "${config.ArmClangCortexA53Cflags}",
 		"cortex-a73":     "${config.ArmClangCortexA53Cflags}",
 		"cortex-a75":     "${config.ArmClangCortexA55Cflags}",
+		"cortex-a76":     "${config.ArmClangCortexA55Cflags}",
 		"krait":          "${config.ArmClangKraitCflags}",
 		"kryo":           "${config.ArmClangKryoCflags}",
 		"kryo385":        "${config.ArmClangCortexA53Cflags}",
