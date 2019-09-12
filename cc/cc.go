@@ -666,6 +666,10 @@ func (c *Module) bootstrap() bool {
 }
 
 func (c *Module) nativeCoverage() bool {
+	// Bug: http://b/137883967 - native-bridge modules do not currently work with coverage
+	if c.Target().NativeBridge == android.NativeBridgeEnabled {
+		return false
+	}
 	return c.linker != nil && c.linker.nativeCoverage()
 }
 
