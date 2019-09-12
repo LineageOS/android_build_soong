@@ -1596,7 +1596,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 				fmt.Fprintln(w, "$(LOCAL_INSTALLED_MODULE): .KATI_IMPLICIT_OUTPUTS :=", a.flattenedOutput.String())
 
-			} else if !a.properties.Flattened {
+			} else {
 				// zip-apex is the less common type so have the name refer to the image-apex
 				// only and use {name}.zip if you want the zip-apex
 				if apexType == zipApex && a.apexTypes == both {
