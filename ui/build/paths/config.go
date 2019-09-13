@@ -118,9 +118,6 @@ var Configuration = map[string]PathConfig{
 	"ld.gold":    Forbidden,
 	"pkg-config": Forbidden,
 
-	// These are currently Linux-only toybox tools (but can be switched now).
-	"date": LinuxOnlyPrebuilt,
-
 	// These are toybox tools that only work on Linux.
 	"pgrep": LinuxOnlyPrebuilt,
 	"pkill": LinuxOnlyPrebuilt,
