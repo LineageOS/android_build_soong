@@ -168,6 +168,10 @@ type JavadocProperties struct {
 	// filegroup or genrule can be included within this property.
 	Exclude_srcs []string `android:"path,arch_variant"`
 
+	// list of package names that should actually be used. If this property is left unspecified,
+	// all the sources from the srcs property is used.
+	Filter_packages []string
+
 	// list of java libraries that will be in the classpath.
 	Libs []string `android:"arch_variant"`
 
@@ -697,6 +701,34 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
 	// may contain filegroup or genrule.
 	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+
+	filterByPackage := func(srcs []android.Path, filterPackages []string) []android.Path {
+		if filterPackages == nil {
+			return srcs
+		}
+		filtered := []android.Path{}
+		for _, src := range srcs {
+			if src.Ext() != ".java" {
+				// Don't filter-out non-Java (=generated sources) by package names. This is not ideal,
+				// but otherwise metalava emits stub sources having references to the generated AIDL classes
+				// in filtered-out pacages (e.g. com.android.internal.*).
+				// TODO(b/141149570) We need to fix this by introducing default private constructors or
+				// fixing metalava to not emit constructors having references to unknown classes.
+				filtered = append(filtered, src)
+				continue
+			}
+			packageName := strings.ReplaceAll(filepath.Dir(src.Rel()), "/", ".")
+			for _, pkg := range filterPackages {
+				if strings.HasPrefix(packageName, pkg) {
+					filtered = append(filtered, src)
+					break
+				}
+			}
+		}
+		return filtered
+	}
+	srcFiles = filterByPackage(srcFiles, j.properties.Filter_packages)
+
 	flags := j.collectAidlFlags(ctx, deps)
 	srcFiles = j.genSources(ctx, srcFiles, flags)
 
