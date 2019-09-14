@@ -666,6 +666,10 @@ func (c *Module) bootstrap() bool {
 }
 
 func (c *Module) nativeCoverage() bool {
+	// Bug: http://b/137883967 - native-bridge modules do not currently work with coverage
+	if c.Target().NativeBridge == android.NativeBridgeEnabled {
+		return false
+	}
 	return c.linker != nil && c.linker.nativeCoverage()
 }
 
@@ -677,7 +681,7 @@ func isBionic(name string) bool {
 	return false
 }
 
-func installToBootstrap(name string, config android.Config) bool {
+func InstallToBootstrap(name string, config android.Config) bool {
 	if name == "libclang_rt.hwasan-aarch64-android" {
 		return inList("hwaddress", config.SanitizeDevice())
 	}

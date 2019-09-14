@@ -334,17 +334,19 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
-		if dep.Target().Os != ctx.Os() {
-			ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
-			return
-		}
-		if dep.Target().Arch.ArchType != ctx.Arch().ArchType {
-			ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
-			return
-		}
 
 		if rustDep, ok := dep.(*Module); ok {
 			//Handle Rust Modules
+
+			if rustDep.Target().Os != ctx.Os() {
+				ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
+				return
+			}
+			if rustDep.Target().Arch.ArchType != ctx.Arch().ArchType {
+				ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
+				return
+			}
+
 			linkFile := rustDep.outputFile
 			if !linkFile.Valid() {
 				ctx.ModuleErrorf("Invalid output file when adding dep %q to %q", depName, ctx.ModuleName())
@@ -393,8 +395,17 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 		} else if ccDep, ok := dep.(*cc.Module); ok {
-
 			//Handle C dependencies
+
+			if ccDep.Target().Os != ctx.Os() {
+				ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
+				return
+			}
+			if ccDep.Target().Arch.ArchType != ctx.Arch().ArchType {
+				ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
+				return
+			}
+
 			linkFile := ccDep.OutputFile()
 			linkPath := linkPathFromFilePath(linkFile.Path())
 			libName := libNameFromFilePath(linkFile.Path())
