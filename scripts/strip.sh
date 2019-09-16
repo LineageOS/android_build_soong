@@ -82,8 +82,8 @@ do_strip_keep_mini_debug_info() {
         # and cannot process object files that are produced with the flag. Use
         # GNU objcopy instead for now. (b/141010852)
         "${CROSS_COMPILE}objcopy" --only-keep-debug "${infile}" "${outfile}.debug"
-        "${CROSS_COMPILE}nm" -D "${infile}" --format=posix --defined-only 2> /dev/null | awk '{ print $1 }' | sort >"${outfile}.dynsyms"
-        "${CROSS_COMPILE}nm" "${infile}" --format=posix --defined-only | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' | sort > "${outfile}.funcsyms"
+        "${CLANG_BIN}/llvm-nm" -D "${infile}" --format=posix --defined-only 2> /dev/null | awk '{ print $1 }' | sort >"${outfile}.dynsyms"
+        "${CLANG_BIN}/llvm-nm" "${infile}" --format=posix --defined-only | awk '{ if ($2 == "T" || $2 == "t" || $2 == "D") print $1 }' | sort > "${outfile}.funcsyms"
         comm -13 "${outfile}.dynsyms" "${outfile}.funcsyms" > "${outfile}.keep_symbols"
         echo >> "${outfile}.keep_symbols" # Ensure that the keep_symbols file is not empty.
         "${CROSS_COMPILE}objcopy" --rename-section .debug_frame=saved_debug_frame "${outfile}.debug" "${outfile}.mini_debuginfo"
@@ -196,10 +196,10 @@ mv "${outfile}.tmp" "${outfile}"
 cat <<EOF > "${depsfile}"
 ${outfile}: \
   ${infile} \
-  ${CROSS_COMPILE}nm \
   ${CROSS_COMPILE}objcopy \
-  ${CROSS_COMPILE}readelf \
-  ${CLANG_BIN}/llvm-strip \
-  ${CLANG_BIN}/llvm-objcopy
+  ${CLANG_BIN}/llvm-nm \
+  ${CLANG_BIN}/llvm-objcopy \
+  ${CLANG_BIN}/llvm-readelf \
+  ${CLANG_BIN}/llvm-strip
 
 EOF
