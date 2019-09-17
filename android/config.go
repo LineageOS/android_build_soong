@@ -93,6 +93,10 @@ type config struct {
 	BuildOsVariant       string
 	BuildOsCommonVariant string
 
+	// multilibConflicts for an ArchType is true if there is earlier configured device architecture with the same
+	// multilib value.
+	multilibConflicts map[ArchType]bool
+
 	deviceConfig *deviceConfig
 
 	srcDir   string // the path of the root source directory
@@ -240,10 +244,10 @@ func TestArchConfigNativeBridge(buildDir string, env map[string]string) Config {
 	config := testConfig.config
 
 	config.Targets[Android] = []Target{
-		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
-		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
-		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64"},
-		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm"},
+		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
+		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
+		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64"},
+		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm"},
 	}
 
 	return testConfig
@@ -255,7 +259,7 @@ func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
 
 	config.Targets = map[OsType][]Target{
 		Fuchsia: []Target{
-			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Native: true}, NativeBridgeDisabled, "", ""},
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: ""}, NativeBridgeDisabled, "", ""},
 		},
 		BuildOs: []Target{
 			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
@@ -272,8 +276,8 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 
 	config.Targets = map[OsType][]Target{
 		Android: []Target{
-			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
-			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
+			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
+			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
 		},
 		BuildOs: []Target{
 			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
@@ -305,8 +309,9 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 
 		env: originalEnv,
 
-		srcDir:   srcDir,
-		buildDir: buildDir,
+		srcDir:            srcDir,
+		buildDir:          buildDir,
+		multilibConflicts: make(map[ArchType]bool),
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -358,6 +363,14 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 			return Config{}, err
 		}
 		targets[Android] = androidTargets
+	}
+
+	multilib := make(map[string]bool)
+	for _, target := range targets[Android] {
+		if seen := multilib[target.Arch.ArchType.Multilib]; seen {
+			config.multilibConflicts[target.Arch.ArchType] = true
+		}
+		multilib[target.Arch.ArchType.Multilib] = true
 	}
 
 	config.Targets = targets
@@ -852,6 +865,10 @@ func (c *config) VndkSnapshotBuildArtifacts() bool {
 	return Bool(c.productVariables.VndkSnapshotBuildArtifacts)
 }
 
+func (c *config) HasMultilibConflict(arch ArchType) bool {
+	return c.multilibConflicts[arch]
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
@@ -1007,19 +1024,6 @@ func findOverrideValue(overrides []string, name string, errorMsg string) (newVal
 		}
 	}
 	return "", false
-}
-
-// SecondArchIsTranslated returns true if the primary device arch is X86 or X86_64 and the device also has an arch
-// that is Arm or Arm64.
-func (c *config) SecondArchIsTranslated() bool {
-	deviceTargets := c.Targets[Android]
-	if len(deviceTargets) < 2 {
-		return false
-	}
-
-	arch := deviceTargets[0].Arch
-
-	return (arch.ArchType == X86 || arch.ArchType == X86_64) && hasArmAndroidArch(deviceTargets)
 }
 
 func (c *config) IntegerOverflowDisabledForPath(path string) bool {
