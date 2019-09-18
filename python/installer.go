@@ -15,6 +15,8 @@
 package python
 
 import (
+	"path/filepath"
+
 	"android/soong/android"
 )
 
@@ -49,6 +51,9 @@ func (installer *pythonInstaller) installDir(ctx android.ModuleContext) android.
 	dir := installer.dir
 	if ctx.Arch().ArchType.Multilib == "lib64" && installer.dir64 != "" {
 		dir = installer.dir64
+	}
+	if !ctx.Host() && !ctx.Arch().Native {
+		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
 	return android.PathForModuleInstall(ctx, dir, installer.relative)
 }
