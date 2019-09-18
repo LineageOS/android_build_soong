@@ -317,6 +317,10 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	var configs []tradefed.Config
 	if Bool(test.Properties.Require_root) {
 		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RootTargetPreparer", nil})
+	} else {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{"force-root", "false"})
+		configs = append(configs, tradefed.Preparer{"com.android.tradefed.targetprep.RootTargetPreparer", options})
 	}
 	if Bool(test.Properties.Disable_framework) {
 		var options []tradefed.Option
