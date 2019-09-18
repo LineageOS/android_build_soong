@@ -76,7 +76,7 @@ func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, de
 }
 
 func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	vndk_ver := ctx.DeviceConfig().VndkVersion()
+	vndk_ver := ctx.Module().(*Module).Properties.VndkVersion
 	if vndk_ver == "current" {
 		platform_vndk_ver := ctx.DeviceConfig().PlatformVndkVersion()
 		if !inList(platform_vndk_ver, ctx.Config().PlatformVersionCombinedCodenames()) {
@@ -177,7 +177,6 @@ func NewLLndkStubLibrary() *Module {
 		libraryDecorator: library,
 	}
 	stub.Properties.Vendor_available = BoolPtr(true)
-	module.Properties.UseVndk = true
 	module.compiler = stub
 	module.linker = stub
 	module.installer = nil

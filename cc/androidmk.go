@@ -37,6 +37,7 @@ type AndroidMkContext interface {
 	Os() android.OsType
 	Host() bool
 	useVndk() bool
+	vndkVersion() string
 	static() bool
 	inRecovery() bool
 }
@@ -109,17 +110,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 	}
 	c.subAndroidMk(&ret, c.installer)
 
-	if c.Target().NativeBridge == android.NativeBridgeEnabled {
-		ret.SubName += nativeBridgeSuffix
-	}
-
-	if c.useVndk() && c.hasVendorVariant() {
-		// .vendor suffix is added only when we will have two variants: core and vendor.
-		// The suffix is not added for vendor-only module.
-		ret.SubName += vendorSuffix
-	} else if c.inRecovery() && !c.onlyInRecovery() {
-		ret.SubName += recoverySuffix
-	}
+	ret.SubName += c.Properties.SubName
 
 	return ret
 }
@@ -357,7 +348,6 @@ func (c *stubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 
 func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ret.Class = "SHARED_LIBRARIES"
-	ret.SubName = vendorSuffix
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
