@@ -282,10 +282,10 @@ func TestSyspropLibrary(t *testing.T) {
 
 	// Check for generated cc_library
 	for _, variant := range []string{
-		"android_arm_armv7-a-neon_vendor_shared",
-		"android_arm_armv7-a-neon_vendor_static",
-		"android_arm64_armv8-a_vendor_shared",
-		"android_arm64_armv8-a_vendor_static",
+		"android_arm_armv7-a-neon_vendor.VER_shared",
+		"android_arm_armv7-a-neon_vendor.VER_static",
+		"android_arm64_armv8-a_vendor.VER_shared",
+		"android_arm64_armv8-a_vendor.VER_static",
 	} {
 		ctx.ModuleForTests("libsysprop-platform", variant)
 		ctx.ModuleForTests("libsysprop-vendor", variant)
@@ -309,15 +309,15 @@ func TestSyspropLibrary(t *testing.T) {
 
 	// Check for exported includes
 	coreVariant := "android_arm64_armv8-a_core_static"
-	vendorVariant := "android_arm64_armv8-a_vendor_static"
+	vendorVariant := "android_arm64_armv8-a_vendor.VER_static"
 
 	platformInternalPath := "libsysprop-platform/android_arm64_armv8-a_core_static/gen/sysprop/include"
 	platformPublicCorePath := "libsysprop-platform/android_arm64_armv8-a_core_static/gen/sysprop/public/include"
-	platformPublicVendorPath := "libsysprop-platform/android_arm64_armv8-a_vendor_static/gen/sysprop/public/include"
+	platformPublicVendorPath := "libsysprop-platform/android_arm64_armv8-a_vendor.VER_static/gen/sysprop/public/include"
 
 	platformOnProductPath := "libsysprop-platform-on-product/android_arm64_armv8-a_core_static/gen/sysprop/public/include"
 
-	vendorInternalPath := "libsysprop-vendor/android_arm64_armv8-a_vendor_static/gen/sysprop/include"
+	vendorInternalPath := "libsysprop-vendor/android_arm64_armv8-a_vendor.VER_static/gen/sysprop/include"
 	vendorPublicPath := "libsysprop-vendor/android_arm64_armv8-a_core_static/gen/sysprop/public/include"
 
 	platformClient := ctx.ModuleForTests("cc-client-platform", coreVariant)
