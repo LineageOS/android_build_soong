@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"android/soong/android"
 	"android/soong/cc"
@@ -152,6 +153,7 @@ var (
 		"com.android.neuralnetworks":     []string{"libbinder"},
 		"com.android.media.swcodec":      []string{"libbinder"},
 		"test_com.android.media.swcodec": []string{"libbinder"},
+		"com.android.vndk":               []string{"libbinder"},
 	}
 )
 
@@ -184,15 +186,65 @@ func init() {
 
 	android.RegisterModuleType("apex", apexBundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
+	android.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
 	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 
+	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("apex_vndk_gather", apexVndkGatherMutator).Parallel()
+		ctx.BottomUp("apex_vndk_add_deps", apexVndkAddDepsMutator).Parallel()
+	})
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
 		ctx.BottomUp("apex", apexMutator).Parallel()
 		ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 		ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
 	})
+}
+
+var (
+	vndkApexListKey   = android.NewOnceKey("vndkApexList")
+	vndkApexListMutex sync.Mutex
+)
+
+func vndkApexList(config android.Config) map[string]*apexBundle {
+	return config.Once(vndkApexListKey, func() interface{} {
+		return map[string]*apexBundle{}
+	}).(map[string]*apexBundle)
+}
+
+// apexVndkGatherMutator gathers "apex_vndk" modules and puts them in a map with vndk_version as a key.
+func apexVndkGatherMutator(mctx android.TopDownMutatorContext) {
+	if ab, ok := mctx.Module().(*apexBundle); ok && ab.vndkApex {
+		if ab.IsNativeBridgeSupported() {
+			mctx.PropertyErrorf("native_bridge_supported", "%q doesn't support native bridge binary.", mctx.ModuleType())
+		}
+		vndkVersion := proptools.StringDefault(ab.vndkProperties.Vndk_version, mctx.DeviceConfig().PlatformVndkVersion())
+		vndkApexListMutex.Lock()
+		defer vndkApexListMutex.Unlock()
+		vndkApexList := vndkApexList(mctx.Config())
+		if other, ok := vndkApexList[vndkVersion]; ok {
+			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other.Name())
+		}
+		vndkApexList[vndkVersion] = ab
+	}
+}
+
+// apexVndkAddDepsMutator adds (reverse) dependencies from vndk libs to apex_vndk modules.
+// It filters only libs with matching targets.
+func apexVndkAddDepsMutator(mctx android.BottomUpMutatorContext) {
+	if cc, ok := mctx.Module().(*cc.Module); ok && cc.IsVndkOnSystem() {
+		vndkApexList := vndkApexList(mctx.Config())
+		if ab, ok := vndkApexList[cc.VndkVersion()]; ok {
+			targetArch := cc.Target().String()
+			for _, target := range ab.MultiTargets() {
+				if target.String() == targetArch {
+					mctx.AddReverseDependency(mctx.Module(), sharedLibTag, ab.Name())
+					break
+				}
+			}
+		}
+	}
 }
 
 // Mark the direct and transitive dependencies of apex bundles so that they
@@ -252,11 +304,14 @@ func apexUsesMutator(mctx android.BottomUpMutatorContext) {
 type apexNativeDependencies struct {
 	// List of native libraries
 	Native_shared_libs []string
+
 	// List of native executables
 	Binaries []string
+
 	// List of native tests
 	Tests []string
 }
+
 type apexMultilibProperties struct {
 	// Native dependencies whose compile_multilib is "first"
 	First apexNativeDependencies
@@ -361,19 +416,27 @@ type apexTargetBundleProperties struct {
 		Android struct {
 			Multilib apexMultilibProperties
 		}
+
 		// Multilib properties only for host.
 		Host struct {
 			Multilib apexMultilibProperties
 		}
+
 		// Multilib properties only for host linux_bionic.
 		Linux_bionic struct {
 			Multilib apexMultilibProperties
 		}
+
 		// Multilib properties only for host linux_glibc.
 		Linux_glibc struct {
 			Multilib apexMultilibProperties
 		}
 	}
+}
+
+type apexVndkProperties struct {
+	// Indicates VNDK version of which this VNDK APEX bundles VNDK libs. Default is Platform VNDK Version.
+	Vndk_version *string
 }
 
 type apexFileClass int
@@ -474,6 +537,7 @@ type apexBundle struct {
 
 	properties       apexBundleProperties
 	targetProperties apexTargetBundleProperties
+	vndkProperties   apexVndkProperties
 
 	apexTypes apexPackaging
 
@@ -497,6 +561,7 @@ type apexBundle struct {
 	externalDeps []string
 
 	testApex bool
+	vndkApex bool
 
 	// intermediate path for apex_manifest.json
 	manifestOut android.WritablePath
@@ -1085,11 +1150,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// remove duplicates in filesInfo
 	removeDup := func(filesInfo []apexFile) []apexFile {
-		encountered := make(map[android.Path]bool)
+		encountered := make(map[string]bool)
 		result := []apexFile{}
 		for _, f := range filesInfo {
-			if !encountered[f.builtFile] {
-				encountered[f.builtFile] = true
+			dest := filepath.Join(f.installDir, f.builtFile.Base())
+			if !encountered[dest] {
+				encountered[dest] = true
 				result = append(result, f)
 			}
 		}
@@ -1415,7 +1481,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex
-	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) && !a.properties.Flattened {
+	if a.installable() && (!ctx.Config().FlattenApex() || apexType.zip()) && (!a.properties.Flattened || a.flattenedConfigValue) {
 		ctx.InstallFile(a.installDir, ctx.ModuleName()+suffix, a.outputFiles[apexType])
 	}
 }
@@ -1595,7 +1661,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 				fmt.Fprintln(w, "$(LOCAL_INSTALLED_MODULE): .KATI_IMPLICIT_OUTPUTS :=", a.flattenedOutput.String())
 
-			} else {
+			} else if !a.properties.Flattened || a.flattenedConfigValue {
 				// zip-apex is the less common type so have the name refer to the image-apex
 				// only and use {name}.zip if you want the zip-apex
 				if apexType == zipApex && a.apexTypes == both {
@@ -1628,18 +1694,9 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 		}}
 }
 
-func testApexBundleFactory() android.Module {
-	return ApexBundleFactory(true /*testApex*/)
-}
-
-func apexBundleFactory() android.Module {
-	return ApexBundleFactory(false /*testApex*/)
-}
-
-func ApexBundleFactory(testApex bool) android.Module {
+func newApexBundle() *apexBundle {
 	module := &apexBundle{
 		outputFiles: map[apexPackaging]android.WritablePath{},
-		testApex:    testApex,
 	}
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.targetProperties)
@@ -1649,6 +1706,39 @@ func ApexBundleFactory(testApex bool) android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	return module
+}
+
+func ApexBundleFactory(testApex bool) android.Module {
+	bundle := newApexBundle()
+	bundle.testApex = testApex
+	return bundle
+}
+
+func testApexBundleFactory() android.Module {
+	bundle := newApexBundle()
+	bundle.testApex = true
+	return bundle
+}
+
+func apexBundleFactory() android.Module {
+	return newApexBundle()
+}
+
+// apex_vndk creates a special variant of apex modules which contains only VNDK libraries.
+// If `vndk_version` is specified, the VNDK libraries of the specified VNDK version are gathered automatically.
+// If not specified, then the "current" versions are gathered.
+func vndkApexBundleFactory() android.Module {
+	bundle := newApexBundle()
+	bundle.vndkApex = true
+	bundle.AddProperties(&bundle.vndkProperties)
+	android.AddLoadHook(bundle, func(ctx android.LoadHookContext) {
+		ctx.AppendProperties(&struct {
+			Compile_multilib *string
+		}{
+			proptools.StringPtr("both"),
+		})
+	})
+	return bundle
 }
 
 //
