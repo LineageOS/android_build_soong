@@ -87,7 +87,11 @@ var systemServerClasspathKey = android.NewOnceKey("systemServerClasspath")
 // supported through native bridge.
 func dexpreoptTargets(ctx android.PathContext) []android.Target {
 	var targets []android.Target
-	for _, target := range ctx.Config().Targets[android.Android] {
+	for i, target := range ctx.Config().Targets[android.Android] {
+		if ctx.Config().SecondArchIsTranslated() && i > 0 {
+			break
+		}
+
 		if target.NativeBridge == android.NativeBridgeDisabled {
 			targets = append(targets, target)
 		}
