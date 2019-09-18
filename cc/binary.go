@@ -453,7 +453,7 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 	// Bionic binaries (e.g. linker) is installed to the bootstrap subdirectory.
 	// The original path becomes a symlink to the corresponding file in the
 	// runtime APEX.
-	translatedArch := ctx.Target().NativeBridge == android.NativeBridgeEnabled || !ctx.Arch().Native
+	translatedArch := ctx.Target().NativeBridge == android.NativeBridgeEnabled
 	if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !translatedArch && ctx.apexName() == "" && !ctx.inRecovery() {
 		if ctx.Device() && isBionic(ctx.baseModuleName()) {
 			binary.installSymlinkToRuntimeApex(ctx, file)
