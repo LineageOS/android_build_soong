@@ -73,26 +73,34 @@ func (o Option) Config() string {
 	return fmt.Sprintf(`<option name="%s" value="%s" />`, o.Name, o.Value)
 }
 
-type Preparer struct {
+// It can be a template of object or target_preparer.
+type Object struct {
+	// Set it as a target_preparer if object type == "target_preparer".
+	Type    string
 	Class   string
 	Options []Option
 }
 
-var _ Config = Preparer{}
+var _ Config = Object{}
 
-func (p Preparer) Config() string {
+func (ob Object) Config() string {
 	var optionStrings []string
-	for _, option := range p.Options {
+	for _, option := range ob.Options {
 		optionStrings = append(optionStrings, option.Config())
 	}
 	var options string
-	if len(p.Options) == 0 {
+	if len(ob.Options) == 0 {
 		options = ""
 	} else {
 		optionDelimiter := fmt.Sprintf("\\n%s%s", test_xml_indent, test_xml_indent)
 		options = optionDelimiter + strings.Join(optionStrings, optionDelimiter)
 	}
-	return fmt.Sprintf(`<target_preparer class="%s">%s\n%s</target_preparer>`, p.Class, options, test_xml_indent)
+	if ob.Type == "target_preparer" {
+		return fmt.Sprintf(`<target_preparer class="%s">%s\n%s</target_preparer>`, ob.Class, options, test_xml_indent)
+	} else {
+		return fmt.Sprintf(`<object type="%s" class="%s">%s\n%s</object>`, ob.Type, ob.Class, options, test_xml_indent)
+	}
+
 }
 
 func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, template string, configs []Config) {
