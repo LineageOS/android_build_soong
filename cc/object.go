@@ -123,7 +123,7 @@ func (object *objectLinker) link(ctx ModuleContext,
 			output = input
 		}
 
-		TransformObjsToObj(ctx, objs.objFiles, builderFlags, output)
+		TransformObjsToObj(ctx, objs.objFiles, builderFlags, output, flags.LdFlagsDeps)
 	}
 
 	ctx.CheckbuildFile(outputFile)
