@@ -29,28 +29,11 @@ var pctx = android.NewPackageContext("android/soong/rust")
 
 func init() {
 	// Only allow rust modules to be defined for certain projects
-	rustModuleTypes := []string{
-		"rust_binary",
-		"rust_binary_host",
-		"rust_library",
-		"rust_library_dylib",
-		"rust_library_rlib",
-		"rust_library_host",
-		"rust_library_host_dylib",
-		"rust_library_host_rlib",
-		"rust_proc_macro",
-	}
-
-	rustAllowedPaths := []string{
-		"external/rust/crates",
-		"external/crosvm",
-		"external/adhd",
-	}
 
 	android.AddNeverAllowRules(
 		android.NeverAllow().
-			NotIn(rustAllowedPaths...).
-			ModuleType(rustModuleTypes...))
+			NotIn(config.RustAllowedPaths...).
+			ModuleType(config.RustModuleTypes...))
 
 	android.RegisterModuleType("rust_defaults", defaultsFactory)
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
