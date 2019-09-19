@@ -764,7 +764,7 @@ func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Pat
 
 // Generate a rule for compiling multiple .o files to a .o using ld partial linking
 func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
-	flags builderFlags, outputFile android.WritablePath) {
+	flags builderFlags, outputFile android.WritablePath, deps android.Paths) {
 
 	ldCmd := "${config.ClangBin}/clang++"
 
@@ -773,6 +773,7 @@ func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 		Description: "link " + outputFile.Base(),
 		Output:      outputFile,
 		Inputs:      objFiles,
+		Implicits:   deps,
 		Args: map[string]string{
 			"ldCmd":   ldCmd,
 			"ldFlags": flags.ldFlags,

@@ -491,7 +491,7 @@ var (
 	gen_sorted_bss_symbols = pctx.AndroidStaticRule("gen_sorted_bss_symbols",
 		blueprint.RuleParams{
 			Command:     "CROSS_COMPILE=$crossCompile $genSortedBssSymbolsPath ${in} ${out}",
-			CommandDeps: []string{"$genSortedBssSymbolsPath"},
+			CommandDeps: []string{"$genSortedBssSymbolsPath", "${crossCompile}nm"},
 		},
 		"crossCompile")
 )
