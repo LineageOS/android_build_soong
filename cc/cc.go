@@ -2204,6 +2204,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&BinaryLinkerProperties{},
 		&TestProperties{},
 		&TestBinaryProperties{},
+		&FuzzProperties{},
 		&StlProperties{},
 		&SanitizeProperties{},
 		&StripProperties{},
