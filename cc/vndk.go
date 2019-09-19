@@ -49,10 +49,6 @@ type VndkProperties struct {
 
 		// Extending another module
 		Extends *string
-
-		// for vndk_prebuilt_shared, this is set by "version" property.
-		// Otherwise, this is set as PLATFORM_VNDK_VERSION.
-		Version string `blueprint:"mutated"`
 	}
 }
 
@@ -129,7 +125,7 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, ta
 		// Other (static and LL-NDK) libraries are allowed to link.
 		return
 	}
-	if !to.Properties.UseVndk {
+	if !to.useVndk() {
 		ctx.ModuleErrorf("(%s) should not link to %q which is not a vendor-available library",
 			vndk.typeName(), to.Name())
 		return
@@ -325,14 +321,6 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if m.isVndk() {
-		if lib, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
-			m.vndkdep.Properties.Vndk.Version = lib.version()
-		} else {
-			m.vndkdep.Properties.Vndk.Version = mctx.DeviceConfig().PlatformVndkVersion()
-		}
-	}
-
 	if _, ok := m.linker.(*llndkStubDecorator); ok {
 		processLlndkLibrary(mctx, m)
 		return
@@ -341,8 +329,8 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 	lib, is_lib := m.linker.(*libraryDecorator)
 	prebuilt_lib, is_prebuilt_lib := m.linker.(*prebuiltLibraryLinker)
 
-	if (is_lib && lib.shared()) || (is_prebuilt_lib && prebuilt_lib.shared()) {
-		if m.vndkdep.isVndk() && !m.vndkdep.isVndkExt() {
+	if (is_lib && lib.buildShared()) || (is_prebuilt_lib && prebuilt_lib.buildShared()) {
+		if m.vndkdep != nil && m.vndkdep.isVndk() && !m.vndkdep.isVndkExt() {
 			processVndkLibrary(mctx, m)
 			return
 		}
