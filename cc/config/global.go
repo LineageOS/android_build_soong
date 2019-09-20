@@ -108,6 +108,7 @@ var (
 	noOverrideGlobalCflags = []string{
 		"-Werror=int-to-pointer-cast",
 		"-Werror=pointer-to-int-cast",
+		"-Werror=fortify-source",
 	}
 
 	IllegalFlags = []string{
