@@ -189,7 +189,7 @@ func (s *smartStatusOutput) Flush() {
 		fmt.Fprintf(s.writer, ansi.resetScrollingMargins())
 		_, height, _ := termSize(s.writer)
 		// Move the cursor to the top of the now-blank, previously non-scrolling region
-		fmt.Fprintf(s.writer, ansi.setCursor(height-s.tableHeight, 0))
+		fmt.Fprintf(s.writer, ansi.setCursor(height-s.tableHeight, 1))
 		// Turn the cursor back on
 		fmt.Fprintf(s.writer, ansi.showCursor())
 	}
@@ -334,9 +334,9 @@ func (s *smartStatusOutput) actionTable() {
 	scrollingHeight := s.termHeight - s.tableHeight
 
 	// Update the scrolling region in case the height of the terminal changed
-	fmt.Fprint(s.writer, ansi.setScrollingMargins(0, scrollingHeight))
+	fmt.Fprint(s.writer, ansi.setScrollingMargins(1, scrollingHeight))
 	// Move the cursor to the first line of the non-scrolling region
-	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight+1, 0))
+	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight+1, 1))
 
 	// Write as many status lines as fit in the table
 	var tableLine int
@@ -379,7 +379,7 @@ func (s *smartStatusOutput) actionTable() {
 	}
 
 	// Move the cursor back to the last line of the scrolling region
-	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight, 0))
+	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight, 1))
 }
 
 var ansi = ansiImpl{}
