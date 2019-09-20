@@ -339,8 +339,9 @@ type apexBundleProperties struct {
 	// If unspecified, a default one is automatically generated.
 	AndroidManifest *string `android:"path"`
 
-	// Canonical name of the APEX bundle in the manifest file.
-	// If unspecified, defaults to the value of name
+	// Canonical name of the APEX bundle. Used to determine the path to the activated APEX on
+	// device (/apex/<apex_name>).
+	// If unspecified, defaults to the value of name.
 	Apex_name *string
 
 	// Determines the file contexts file for setting security context to each file in this APEX bundle.
@@ -1558,7 +1559,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName+suffix)
-		// /apex/<name>/{lib|framework|...}
+		// /apex/<apex_name>/{lib|framework|...}
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex",
 			proptools.StringDefault(a.properties.Apex_name, name), fi.installDir)
 		if a.properties.Flattened && apexType.image() {
