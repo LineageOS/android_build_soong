@@ -437,7 +437,7 @@ func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask
 		phonyFile := android.PathForModuleGen(ctx, "genrule-phony")
 
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Phony,
+			Rule:   blueprint.Phony,
 			Output: phonyFile,
 			Inputs: g.outputFiles,
 		})
