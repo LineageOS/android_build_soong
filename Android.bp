@@ -333,6 +333,7 @@ bootstrap_go_package {
         "soong-cc-config",
     ],
     srcs: [
+        "rust/config/arm_device.go",
         "rust/config/arm64_device.go",
         "rust/config/global.go",
         "rust/config/toolchain.go",
