@@ -32,6 +32,8 @@ type Toolchain interface {
 
 	Is64Bit() bool
 	Supported() bool
+
+	Bionic() bool
 }
 
 type toolchainBase struct {
@@ -51,6 +53,10 @@ func (toolchainBase) ToolchainLinkFlags() string {
 
 func (toolchainBase) Is64Bit() bool {
 	panic("toolchainBase cannot determine datapath width.")
+}
+
+func (toolchainBase) Bionic() bool {
+	return true
 }
 
 type toolchain64Bit struct {
