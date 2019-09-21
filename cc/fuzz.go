@@ -23,6 +23,14 @@ import (
 	"android/soong/cc/config"
 )
 
+type FuzzProperties struct {
+	// Optional list of seed files to be installed to the fuzz target's output
+	// directory.
+	Corpus []string `android:"path"`
+	// Optional dictionary to be installed to the fuzz target's output directory.
+	Dictionary *string `android:"path"`
+}
+
 func init() {
 	android.RegisterModuleType("cc_fuzz", FuzzFactory)
 }
@@ -42,10 +50,15 @@ func NewFuzzInstaller() *baseInstaller {
 type fuzzBinary struct {
 	*binaryDecorator
 	*baseCompiler
+
+	Properties FuzzProperties
+	corpus     android.Paths
+	dictionary android.Path
 }
 
 func (fuzz *fuzzBinary) linkerProps() []interface{} {
 	props := fuzz.binaryDecorator.linkerProps()
+	props = append(props, &fuzz.Properties)
 	return props
 }
 
@@ -81,9 +94,21 @@ func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
-	fuzz.binaryDecorator.baseInstaller.dir = filepath.Join("fuzz", ctx.Target().Arch.ArchType.String())
-	fuzz.binaryDecorator.baseInstaller.dir64 = filepath.Join("fuzz", ctx.Target().Arch.ArchType.String())
+	fuzz.binaryDecorator.baseInstaller.dir = filepath.Join(
+		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzz.binaryDecorator.baseInstaller.dir64 = filepath.Join(
+		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
 	fuzz.binaryDecorator.baseInstaller.install(ctx, file)
+
+	fuzz.corpus = android.PathsForModuleSrc(ctx, fuzz.Properties.Corpus)
+	if fuzz.Properties.Dictionary != nil {
+		fuzz.dictionary = android.PathForModuleSrc(ctx, *fuzz.Properties.Dictionary)
+		if fuzz.dictionary.Ext() != ".dict" {
+			ctx.PropertyErrorf("dictionary",
+				"Fuzzer dictionary %q does not have '.dict' extension",
+				fuzz.dictionary.String())
+		}
+	}
 }
 
 func NewFuzz(hod android.HostOrDeviceSupported) *Module {
