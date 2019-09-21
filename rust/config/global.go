@@ -26,15 +26,9 @@ var (
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2018"
 	Stdlibs            = []string{
-		"libarena",
-		"libfmt_macros",
-		"libgraphviz",
-		"libserialize",
 		"libstd",
-		"libsyntax",
-		"libsyntax_ext",
-		"libsyntax_pos",
 		"libterm",
+		"libtest",
 	}
 )
 
