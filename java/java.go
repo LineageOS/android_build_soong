@@ -530,18 +530,6 @@ func hasSrcExt(srcs []string, ext string) bool {
 	return false
 }
 
-func shardPaths(paths android.Paths, shardSize int) []android.Paths {
-	ret := make([]android.Paths, 0, (len(paths)+shardSize-1)/shardSize)
-	for len(paths) > shardSize {
-		ret = append(ret, paths[0:shardSize])
-		paths = paths[shardSize:]
-	}
-	if len(paths) > 0 {
-		ret = append(ret, paths)
-	}
-	return ret
-}
-
 func (j *Module) hasSrcExt(ext string) bool {
 	return hasSrcExt(j.properties.Srcs, ext)
 }
@@ -1088,7 +1076,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars ...android.Path
 			shardSize := int(*(j.properties.Javac_shard_size))
 			var shardSrcs []android.Paths
 			if len(uniqueSrcFiles) > 0 {
-				shardSrcs = shardPaths(uniqueSrcFiles, shardSize)
+				shardSrcs = android.ShardPaths(uniqueSrcFiles, shardSize)
 				for idx, shardSrc := range shardSrcs {
 					classes := android.PathForModuleOut(ctx, "javac", jarName+strconv.Itoa(idx))
 					TransformJavaToClasses(ctx, classes, idx, shardSrc, nil, flags, extraJarDeps)

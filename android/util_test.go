@@ -404,3 +404,102 @@ func ExampleCopyOf_append() {
 	// b = ["foo" "bar"]
 	// c = ["foo" "baz"]
 }
+
+func Test_Shard(t *testing.T) {
+	type args struct {
+		strings   []string
+		shardSize int
+	}
+	tests := []struct {
+		name string
+		args args
+		want [][]string
+	}{
+		{
+			name: "empty",
+			args: args{
+				strings:   nil,
+				shardSize: 1,
+			},
+			want: [][]string(nil),
+		},
+		{
+			name: "single shard",
+			args: args{
+				strings:   []string{"a", "b"},
+				shardSize: 2,
+			},
+			want: [][]string{{"a", "b"}},
+		},
+		{
+			name: "single short shard",
+			args: args{
+				strings:   []string{"a", "b"},
+				shardSize: 3,
+			},
+			want: [][]string{{"a", "b"}},
+		},
+		{
+			name: "shard per input",
+			args: args{
+				strings:   []string{"a", "b", "c"},
+				shardSize: 1,
+			},
+			want: [][]string{{"a"}, {"b"}, {"c"}},
+		},
+		{
+			name: "balanced shards",
+			args: args{
+				strings:   []string{"a", "b", "c", "d"},
+				shardSize: 2,
+			},
+			want: [][]string{{"a", "b"}, {"c", "d"}},
+		},
+		{
+			name: "unbalanced shards",
+			args: args{
+				strings:   []string{"a", "b", "c"},
+				shardSize: 2,
+			},
+			want: [][]string{{"a", "b"}, {"c"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Run("strings", func(t *testing.T) {
+				if got := ShardStrings(tt.args.strings, tt.args.shardSize); !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("ShardStrings(%v, %v) = %v, want %v",
+						tt.args.strings, tt.args.shardSize, got, tt.want)
+				}
+			})
+
+			t.Run("paths", func(t *testing.T) {
+				stringsToPaths := func(strings []string) Paths {
+					if strings == nil {
+						return nil
+					}
+					paths := make(Paths, len(strings))
+					for i, s := range strings {
+						paths[i] = PathForTesting(s)
+					}
+					return paths
+				}
+
+				paths := stringsToPaths(tt.args.strings)
+
+				var want []Paths
+				if sWant := tt.want; sWant != nil {
+					want = make([]Paths, len(sWant))
+					for i, w := range sWant {
+						want[i] = stringsToPaths(w)
+					}
+				}
+
+				if got := ShardPaths(paths, tt.args.shardSize); !reflect.DeepEqual(got, want) {
+					t.Errorf("ShardPaths(%v, %v) = %v, want %v",
+						paths, tt.args.shardSize, got, want)
+				}
+			})
+		})
+	}
+}
