@@ -101,6 +101,9 @@ type SystemModules struct {
 
 	properties SystemModulesProperties
 
+	// The aggregated header jars from all jars specified in the libs property.
+	// Used when system module is added as a dependency to bootclasspath.
+	headerJars android.Paths
 	outputDir  android.Path
 	outputDeps android.Paths
 }
@@ -117,6 +120,8 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 		dep, _ := module.(Dependency)
 		jars = append(jars, dep.HeaderJars()...)
 	})
+
+	system.headerJars = jars
 
 	system.outputDir, system.outputDeps = TransformJarsToSystemModules(ctx, "java.base", jars)
 }

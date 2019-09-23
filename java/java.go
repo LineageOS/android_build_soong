@@ -536,7 +536,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			ctx.PropertyErrorf("sdk_version",
 				`system_modules is required to be set when sdk_version is "none", did you mean "core_platform"`)
 		} else if *j.deviceProperties.System_modules != "none" {
+			// Add the system modules to both the system modules and bootclasspath.
 			ctx.AddVariationDependencies(nil, systemModulesTag, *j.deviceProperties.System_modules)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, *j.deviceProperties.System_modules)
 		}
 		if ctx.ModuleName() == "android_stubs_current" ||
 			ctx.ModuleName() == "android_system_stubs_current" ||
@@ -849,6 +851,12 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 		default:
 			switch tag {
+			case bootClasspathTag:
+				// If a system modules dependency has been added to the bootclasspath
+				// then add its libs to the bootclasspath.
+				sm := module.(*SystemModules)
+				deps.bootClasspath = append(deps.bootClasspath, sm.headerJars...)
+
 			case systemModulesTag:
 				if deps.systemModules != nil {
 					panic("Found two system module dependencies")
