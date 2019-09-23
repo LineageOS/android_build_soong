@@ -115,10 +115,6 @@ func init() {
 		// TODO: can we remove this now?
 		"-Wno-reserved-id-macro",
 
-		// Disable overly aggressive warning for format strings.
-		// Bug: 20148343
-		"-Wno-format-pedantic",
-
 		// Workaround for ccache with clang.
 		// See http://petereisentraut.blogspot.com/2011/05/ccache-and-clang.html.
 		"-Wno-unused-command-line-argument",
