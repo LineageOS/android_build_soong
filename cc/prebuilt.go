@@ -152,6 +152,7 @@ func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 
 	// Prebuilt libraries can be included in APEXes
 	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 
 	return module, library
 }
@@ -176,6 +177,7 @@ func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 	module.AddProperties(&prebuilt.properties)
 
 	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
+	android.InitSdkAwareModule(module)
 	return module, library
 }
 

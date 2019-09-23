@@ -155,7 +155,7 @@ func (j *TestHelperLibrary) AndroidMk() android.AndroidMkData {
 }
 
 func (prebuilt *Import) AndroidMk() android.AndroidMkData {
-	if !prebuilt.IsForPlatform() {
+	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().IsCurrentVersion() {
 		return android.AndroidMkData{
 			Disabled: true,
 		}
