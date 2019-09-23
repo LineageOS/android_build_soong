@@ -122,7 +122,13 @@ func GatherRequiredDepsForTest() string {
 	for _, extra := range systemModules {
 		bp += fmt.Sprintf(`
 			java_system_modules {
-				name: "%s",
+				name: "%[1]s",
+				libs: ["%[1]s-lib"],
+			}
+			java_library {
+				name: "%[1]s-lib",
+				sdk_version: "none",
+				system_modules: "none",
 			}
 		`, extra)
 	}
