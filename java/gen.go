@@ -23,7 +23,6 @@ import (
 )
 
 func init() {
-	pctx.HostBinToolVariable("syspropCmd", "sysprop_java")
 	pctx.SourcePathVariable("logtagsCmd", "build/make/tools/java-event-log-tags.py")
 	pctx.SourcePathVariable("mergeLogtagsCmd", "build/make/tools/merge-event-log-tags.py")
 	pctx.SourcePathVariable("logtagsLib", "build/make/tools/event_log_tags.py")
@@ -48,17 +47,6 @@ var (
 			Command:     "$mergeLogtagsCmd -o $out $in",
 			CommandDeps: []string{"$mergeLogtagsCmd", "$logtagsLib"},
 		})
-
-	sysprop = pctx.AndroidStaticRule("sysprop",
-		blueprint.RuleParams{
-			Command: `rm -rf $out.tmp && mkdir -p $out.tmp && ` +
-				`$syspropCmd --scope $scope --java-output-dir $out.tmp $in && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $out.tmp -D $out.tmp && rm -rf $out.tmp`,
-			CommandDeps: []string{
-				"$syspropCmd",
-				"${config.SoongZipCmd}",
-			},
-		}, "scope")
 )
 
 func genAidl(ctx android.ModuleContext, aidlFile android.Path, aidlFlags string, deps android.Paths) android.Path {
@@ -93,22 +81,6 @@ func genLogtags(ctx android.ModuleContext, logtagsFile android.Path) android.Pat
 	return javaFile
 }
 
-func genSysprop(ctx android.ModuleContext, syspropFile android.Path, scope string) android.Path {
-	srcJarFile := android.GenPathWithExt(ctx, "sysprop", syspropFile, "srcjar")
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        sysprop,
-		Description: "sysprop_java " + syspropFile.Rel(),
-		Output:      srcJarFile,
-		Input:       syspropFile,
-		Args: map[string]string{
-			"scope": scope,
-		},
-	})
-
-	return srcJarFile
-}
-
 func genAidlIncludeFlags(srcFiles android.Paths) string {
 	var baseDirs []string
 	for _, srcFile := range srcFiles {
@@ -140,29 +112,6 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			outSrcFiles = append(outSrcFiles, javaFile)
 		case ".proto":
 			srcJarFile := genProto(ctx, srcFile, flags.proto)
-			outSrcFiles = append(outSrcFiles, srcJarFile)
-		case ".sysprop":
-			// internal scope contains all properties
-			// public scope only contains public properties
-			// use public if the owner is different from client
-			scope := "internal"
-			if j.properties.Sysprop.Platform != nil {
-				isProduct := ctx.ProductSpecific()
-				isVendor := ctx.SocSpecific()
-				isOwnerPlatform := Bool(j.properties.Sysprop.Platform)
-
-				if isProduct {
-					// product can't own any sysprop_library now, so product must use public scope
-					scope = "public"
-				} else if isVendor && !isOwnerPlatform {
-					// vendor and odm can't use system's internal property.
-					scope = "public"
-				}
-
-				// We don't care about clients under system.
-				// They can't use sysprop_library owned by other partitions.
-			}
-			srcJarFile := genSysprop(ctx, srcFile, scope)
 			outSrcFiles = append(outSrcFiles, srcJarFile)
 		default:
 			outSrcFiles = append(outSrcFiles, srcFile)
