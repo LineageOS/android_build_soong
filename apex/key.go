@@ -27,7 +27,7 @@ import (
 var String = proptools.String
 
 func init() {
-	android.RegisterModuleType("apex_key", apexKeyFactory)
+	android.RegisterModuleType("apex_key", ApexKeyFactory)
 	android.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 }
 
@@ -53,7 +53,7 @@ type apexKeyProperties struct {
 	Installable *bool
 }
 
-func apexKeyFactory() android.Module {
+func ApexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.HostAndDeviceDefault, android.MultilibCommon)
