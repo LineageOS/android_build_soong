@@ -184,10 +184,6 @@ type CompilerProperties struct {
 		Output_params []string
 	}
 
-	Sysprop struct {
-		Platform *bool
-	} `blueprint:"mutated"`
-
 	Instrument bool `blueprint:"mutated"`
 
 	// List of files to include in the META-INF/services folder of the resulting jar.
