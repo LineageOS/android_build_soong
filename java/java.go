@@ -350,8 +350,8 @@ type Module struct {
 	// list of SDK lib names that this java moudule is exporting
 	exportedSdkLibs []string
 
-	// list of source files, collected from compiledJavaSrcs and compiledSrcJars
-	// filter out Exclude_srcs, will be used by android.IDEInfo struct
+	// list of source files, collected from srcFiles with uniqie java and all kt files,
+	// will be used by android.IDEInfo struct
 	expandIDEInfoCompiledSrcs []string
 
 	// expanded Jarjar_rules
@@ -1039,9 +1039,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		srcJars = append(srcJars, aaptSrcJar)
 	}
 
-	// Collect source files and filter out Exclude_srcs that IDEInfo struct will use
-	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, srcFiles.Strings()...)
-
 	if j.properties.Jarjar_rules != nil {
 		j.expandJarjarRules = android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
 	}
@@ -1057,6 +1054,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			uniqueSrcFiles = append(uniqueSrcFiles, v)
 		}
 	}
+
+	// Collect .java files for AIDEGen
+	j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, uniqueSrcFiles.Strings()...)
 
 	var kotlinJars android.Paths
 
@@ -1081,6 +1081,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		var kotlinSrcFiles android.Paths
 		kotlinSrcFiles = append(kotlinSrcFiles, uniqueSrcFiles...)
 		kotlinSrcFiles = append(kotlinSrcFiles, srcFiles.FilterByExt(".kt")...)
+
+		// Collect .kt files for AIDEGen
+		j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, srcFiles.FilterByExt(".kt").Strings()...)
 
 		flags.classpath = append(flags.classpath, deps.kotlinStdlib...)
 		flags.classpath = append(flags.classpath, deps.kotlinAnnotations...)
