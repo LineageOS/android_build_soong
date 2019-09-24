@@ -61,6 +61,10 @@ func (toolchainLinuxX8664) Supported() bool {
 	return true
 }
 
+func (toolchainLinuxX8664) Bionic() bool {
+	return false
+}
+
 func (t *toolchainLinuxX8664) Name() string {
 	return "x86_64"
 }
@@ -83,6 +87,10 @@ func linuxX8664ToolchainFactory(arch android.Arch) Toolchain {
 
 func (toolchainLinuxX86) Supported() bool {
 	return true
+}
+
+func (toolchainLinuxX86) Bionic() bool {
+	return false
 }
 
 func (t *toolchainLinuxX86) Name() string {
