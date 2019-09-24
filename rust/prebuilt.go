@@ -63,3 +63,8 @@ func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags
 
 	return srcPath
 }
+
+func (prebuilt *prebuiltLibraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
+	deps = prebuilt.baseCompiler.compilerDeps(ctx, deps)
+	return deps
+}
