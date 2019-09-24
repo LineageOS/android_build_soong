@@ -321,15 +321,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		if rustDep, ok := dep.(*Module); ok {
 			//Handle Rust Modules
 
-			if rustDep.Target().Os != ctx.Os() {
-				ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
-				return
-			}
-			if rustDep.Target().Arch.ArchType != ctx.Arch().ArchType {
-				ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
-				return
-			}
-
 			linkFile := rustDep.outputFile
 			if !linkFile.Valid() {
 				ctx.ModuleErrorf("Invalid output file when adding dep %q to %q", depName, ctx.ModuleName())
@@ -361,9 +352,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if lib, ok := rustDep.compiler.(*libraryDecorator); ok {
 				depPaths.linkDirs = append(depPaths.linkDirs, lib.exportedDirs()...)
 				depPaths.depFlags = append(depPaths.depFlags, lib.exportedDepFlags()...)
-			} else if procMacro, ok := rustDep.compiler.(*libraryDecorator); ok {
-				depPaths.linkDirs = append(depPaths.linkDirs, procMacro.exportedDirs()...)
-				depPaths.depFlags = append(depPaths.depFlags, procMacro.exportedDepFlags()...)
 			}
 
 			// Append this dependencies output to this mod's linkDirs so they can be exported to dependencies
@@ -491,7 +479,9 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 	actx.AddVariationDependencies(append(ccDepVariations, blueprint.Variation{Mutator: "link", Variation: "shared"}), cc.SharedDepTag(), deps.SharedLibs...)
 	actx.AddVariationDependencies(append(ccDepVariations, blueprint.Variation{Mutator: "link", Variation: "static"}), cc.StaticDepTag(), deps.StaticLibs...)
-	actx.AddDependency(mod, procMacroDepTag, deps.ProcMacros...)
+
+	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
+	actx.AddFarVariationDependencies([]blueprint.Variation{{Mutator: "arch", Variation: ctx.Config().BuildOsVariant}}, procMacroDepTag, deps.ProcMacros...)
 }
 
 func (mod *Module) Name() string {
