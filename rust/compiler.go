@@ -113,7 +113,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(compiler.Properties.Features)...)
 	flags.RustFlags = append(flags.RustFlags, "--edition="+*compiler.Properties.Edition)
 	flags.LinkFlags = append(flags.LinkFlags, compiler.Properties.Ld_flags...)
-	flags.GlobalFlags = append(flags.GlobalFlags, ctx.toolchain().ToolchainRustFlags())
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, ctx.toolchain().ToolchainRustFlags())
+	flags.GlobalLinkFlags = append(flags.GlobalLinkFlags, ctx.toolchain().ToolchainLinkFlags())
 
 	if ctx.Host() && !ctx.Windows() {
 		rpath_prefix := `\$$ORIGIN/`
@@ -144,6 +145,18 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.ProcMacros = append(deps.ProcMacros, compiler.Properties.Proc_macros...)
 	deps.StaticLibs = append(deps.StaticLibs, compiler.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, compiler.Properties.Shared_libs...)
+
+	return deps
+}
+
+func (compiler *baseCompiler) bionicDeps(ctx DepsContext, deps Deps) Deps {
+	deps.SharedLibs = append(deps.SharedLibs, "liblog")
+	deps.SharedLibs = append(deps.SharedLibs, "libc")
+	deps.SharedLibs = append(deps.SharedLibs, "libm")
+	deps.SharedLibs = append(deps.SharedLibs, "libdl")
+
+	//TODO(b/141331117) libstd requires libgcc on Android
+	deps.StaticLibs = append(deps.StaticLibs, "libgcc")
 
 	return deps
 }

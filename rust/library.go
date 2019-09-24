@@ -191,6 +191,16 @@ func (library *libraryDecorator) compilerProps() []interface{} {
 		&library.MutatedProperties)
 }
 
+func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
+	deps = library.baseCompiler.compilerDeps(ctx, deps)
+
+	if ctx.toolchain().Bionic() && library.dylib() {
+		deps = library.baseCompiler.bionicDeps(ctx, deps)
+	}
+
+	return deps
+}
+
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
 	var outputFile android.WritablePath
 
