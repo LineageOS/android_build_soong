@@ -43,28 +43,19 @@ func init() {
 }
 
 func TransformSrcToBinary(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
-	targetTriple := ctx.(ModuleContext).toolchain().RustTriple()
-
-	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "bin", includeDirs, targetTriple)
+	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "bin", includeDirs)
 }
 
 func TransformSrctoRlib(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
-	targetTriple := ctx.(ModuleContext).toolchain().RustTriple()
-
-	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "rlib", includeDirs, targetTriple)
+	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "rlib", includeDirs)
 }
 
 func TransformSrctoDylib(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
-	targetTriple := ctx.(ModuleContext).toolchain().RustTriple()
-
-	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "dylib", includeDirs, targetTriple)
+	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "dylib", includeDirs)
 }
 
 func TransformSrctoProcMacro(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
-	// Proc macros are compiler plugins, and thus should target the host compiler
-	targetTriple := ""
-
-	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "proc-macro", includeDirs, targetTriple)
+	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, flags, outputFile, "proc-macro", includeDirs)
 }
 
 func rustLibsToPaths(libs RustLibraries) android.Paths {
@@ -76,12 +67,13 @@ func rustLibsToPaths(libs RustLibraries) android.Paths {
 }
 
 func transformSrctoCrate(ctx android.ModuleContext, main android.Path,
-	rlibs, dylibs, proc_macros RustLibraries, static_libs, shared_libs android.Paths, flags Flags, outputFile android.WritablePath, crate_type string, includeDirs []string, targetTriple string) {
+	rlibs, dylibs, proc_macros RustLibraries, static_libs, shared_libs android.Paths, flags Flags, outputFile android.WritablePath, crate_type string, includeDirs []string) {
 
 	var inputs android.Paths
 	var deps android.Paths
 	var libFlags, rustcFlags []string
 	crate_name := ctx.(ModuleContext).CrateName()
+	targetTriple := ctx.(ModuleContext).toolchain().RustTriple()
 
 	inputs = append(inputs, main)
 
