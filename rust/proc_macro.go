@@ -45,7 +45,7 @@ type procMacroInterface interface {
 var _ compiler = (*procMacroDecorator)(nil)
 
 func ProcMacroFactory() android.Module {
-	module, _ := NewProcMacro(android.HostAndDeviceSupported)
+	module, _ := NewProcMacro(android.HostSupportedNoCross)
 	return module.Init()
 }
 

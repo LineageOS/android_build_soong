@@ -150,7 +150,6 @@ func TestDepsTracking(t *testing.T) {
 		rust_proc_macro {
 			name: "libpm",
 			srcs: ["foo.rs"],
-			host_supported: true,
 		}
 		rust_binary_host {
 			name: "fizz-buzz",
