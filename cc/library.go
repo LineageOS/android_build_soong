@@ -31,24 +31,7 @@ import (
 	"android/soong/genrule"
 )
 
-type StaticSharedLibraryProperties struct {
-	Srcs   []string `android:"path,arch_variant"`
-	Cflags []string `android:"arch_variant"`
-
-	Enabled            *bool    `android:"arch_variant"`
-	Whole_static_libs  []string `android:"arch_variant"`
-	Static_libs        []string `android:"arch_variant"`
-	Shared_libs        []string `android:"arch_variant"`
-	System_shared_libs []string `android:"arch_variant"`
-
-	Export_shared_lib_headers []string `android:"arch_variant"`
-	Export_static_lib_headers []string `android:"arch_variant"`
-}
-
 type LibraryProperties struct {
-	Static StaticSharedLibraryProperties `android:"arch_variant"`
-	Shared StaticSharedLibraryProperties `android:"arch_variant"`
-
 	// local file name to pass to the linker as -unexported_symbols_list
 	Unexported_symbols_list *string `android:"path,arch_variant"`
 	// local file name to pass to the linker as -force_symbols_not_weak_list
@@ -126,6 +109,28 @@ type LibraryProperties struct {
 
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
 	Inject_bssl_hash *bool `android:"arch_variant"`
+}
+
+type StaticProperties struct {
+	Static StaticOrSharedProperties `android:"arch_variant"`
+}
+
+type SharedProperties struct {
+	Shared StaticOrSharedProperties `android:"arch_variant"`
+}
+
+type StaticOrSharedProperties struct {
+	Srcs   []string `android:"path,arch_variant"`
+	Cflags []string `android:"arch_variant"`
+
+	Enabled            *bool    `android:"arch_variant"`
+	Whole_static_libs  []string `android:"arch_variant"`
+	Static_libs        []string `android:"arch_variant"`
+	Shared_libs        []string `android:"arch_variant"`
+	System_shared_libs []string `android:"arch_variant"`
+
+	Export_shared_lib_headers []string `android:"arch_variant"`
+	Export_static_lib_headers []string `android:"arch_variant"`
 }
 
 type LibraryMutatedProperties struct {
@@ -295,6 +300,8 @@ var _ exportedFlagsProducer = (*flagExporter)(nil)
 // functionality: static vs. shared linkage, reusing object files for shared libraries
 type libraryDecorator struct {
 	Properties        LibraryProperties
+	StaticProperties  StaticProperties
+	SharedProperties  SharedProperties
 	MutatedProperties LibraryMutatedProperties
 
 	// For reusing static library objects for shared library
@@ -355,11 +362,20 @@ type libraryDecorator struct {
 func (library *libraryDecorator) linkerProps() []interface{} {
 	var props []interface{}
 	props = append(props, library.baseLinker.linkerProps()...)
-	return append(props,
+	props = append(props,
 		&library.Properties,
 		&library.MutatedProperties,
 		&library.flagExporter.Properties,
 		&library.stripper.StripProperties)
+
+	if library.MutatedProperties.BuildShared {
+		props = append(props, &library.SharedProperties)
+	}
+	if library.MutatedProperties.BuildStatic {
+		props = append(props, &library.StaticProperties)
+	}
+
+	return props
 }
 
 func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -373,9 +389,9 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	}
 
 	if library.static() {
-		flags.CFlags = append(flags.CFlags, library.Properties.Static.Cflags...)
+		flags.CFlags = append(flags.CFlags, library.StaticProperties.Static.Cflags...)
 	} else if library.shared() {
-		flags.CFlags = append(flags.CFlags, library.Properties.Shared.Cflags...)
+		flags.CFlags = append(flags.CFlags, library.SharedProperties.Shared.Cflags...)
 	}
 
 	if library.shared() {
@@ -498,10 +514,10 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		if len(library.baseCompiler.Properties.Srcs) > 0 {
 			ctx.PropertyErrorf("srcs", "cc_library_headers must not have any srcs")
 		}
-		if len(library.Properties.Static.Srcs) > 0 {
+		if len(library.StaticProperties.Static.Srcs) > 0 {
 			ctx.PropertyErrorf("static.srcs", "cc_library_headers must not have any srcs")
 		}
-		if len(library.Properties.Shared.Srcs) > 0 {
+		if len(library.SharedProperties.Shared.Srcs) > 0 {
 			ctx.PropertyErrorf("shared.srcs", "cc_library_headers must not have any srcs")
 		}
 		return Objects{}
@@ -516,8 +532,8 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 			SourceAbiFlags = append(SourceAbiFlags, "-I"+reexportedInclude)
 		}
 		flags.SAbiFlags = SourceAbiFlags
-		total_length := len(library.baseCompiler.Properties.Srcs) + len(deps.GeneratedSources) + len(library.Properties.Shared.Srcs) +
-			len(library.Properties.Static.Srcs)
+		total_length := len(library.baseCompiler.Properties.Srcs) + len(deps.GeneratedSources) +
+			len(library.SharedProperties.Shared.Srcs) + len(library.StaticProperties.Static.Srcs)
 		if total_length > 0 {
 			flags.SAbiDump = true
 		}
@@ -527,11 +543,11 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	buildFlags := flagsToBuilderFlags(flags)
 
 	if library.static() {
-		srcs := android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
+		srcs := android.PathsForModuleSrc(ctx, library.StaticProperties.Static.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceStaticLibrary,
 			srcs, library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	} else if library.shared() {
-		srcs := android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
+		srcs := android.PathsForModuleSrc(ctx, library.SharedProperties.Shared.Srcs)
 		objs = objs.Append(compileObjs(ctx, buildFlags, android.DeviceSharedLibrary,
 			srcs, library.baseCompiler.pathDeps, library.baseCompiler.cFlagsDeps))
 	}
@@ -625,12 +641,12 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if library.static() {
-		if library.Properties.Static.System_shared_libs != nil {
-			library.baseLinker.Properties.System_shared_libs = library.Properties.Static.System_shared_libs
+		if library.StaticProperties.Static.System_shared_libs != nil {
+			library.baseLinker.Properties.System_shared_libs = library.StaticProperties.Static.System_shared_libs
 		}
 	} else if library.shared() {
-		if library.Properties.Shared.System_shared_libs != nil {
-			library.baseLinker.Properties.System_shared_libs = library.Properties.Shared.System_shared_libs
+		if library.SharedProperties.Shared.System_shared_libs != nil {
+			library.baseLinker.Properties.System_shared_libs = library.SharedProperties.Shared.System_shared_libs
 		}
 	}
 
@@ -638,12 +654,12 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if library.static() {
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs,
-			library.Properties.Static.Whole_static_libs...)
-		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Static.Static_libs...)
-		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Static.Shared_libs...)
+			library.StaticProperties.Static.Whole_static_libs...)
+		deps.StaticLibs = append(deps.StaticLibs, library.StaticProperties.Static.Static_libs...)
+		deps.SharedLibs = append(deps.SharedLibs, library.StaticProperties.Static.Shared_libs...)
 
-		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.Properties.Static.Export_shared_lib_headers...)
-		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.Properties.Static.Export_static_lib_headers...)
+		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.StaticProperties.Static.Export_shared_lib_headers...)
+		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.StaticProperties.Static.Export_static_lib_headers...)
 	} else if library.shared() {
 		if ctx.toolchain().Bionic() && !Bool(library.baseLinker.Properties.Nocrt) {
 			if !ctx.useSdk() {
@@ -662,12 +678,12 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 				deps.CrtEnd = "ndk_crtend_so." + version
 			}
 		}
-		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.Properties.Shared.Whole_static_libs...)
-		deps.StaticLibs = append(deps.StaticLibs, library.Properties.Shared.Static_libs...)
-		deps.SharedLibs = append(deps.SharedLibs, library.Properties.Shared.Shared_libs...)
+		deps.WholeStaticLibs = append(deps.WholeStaticLibs, library.SharedProperties.Shared.Whole_static_libs...)
+		deps.StaticLibs = append(deps.StaticLibs, library.SharedProperties.Shared.Static_libs...)
+		deps.SharedLibs = append(deps.SharedLibs, library.SharedProperties.Shared.Shared_libs...)
 
-		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.Properties.Shared.Export_shared_lib_headers...)
-		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.Properties.Shared.Export_static_lib_headers...)
+		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.SharedProperties.Shared.Export_shared_lib_headers...)
+		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.SharedProperties.Shared.Export_static_lib_headers...)
 	}
 	if ctx.useVndk() {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
@@ -978,11 +994,13 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 }
 
 func (library *libraryDecorator) buildStatic() bool {
-	return library.MutatedProperties.BuildStatic && BoolDefault(library.Properties.Static.Enabled, true)
+	return library.MutatedProperties.BuildStatic &&
+		BoolDefault(library.StaticProperties.Static.Enabled, true)
 }
 
 func (library *libraryDecorator) buildShared() bool {
-	return library.MutatedProperties.BuildShared && BoolDefault(library.Properties.Shared.Enabled, true)
+	return library.MutatedProperties.BuildShared &&
+		BoolDefault(library.SharedProperties.Shared.Enabled, true)
 }
 
 func (library *libraryDecorator) getWholeStaticMissingDeps() []string {
@@ -1166,16 +1184,16 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 
 		// Check libraries in addition to cflags, since libraries may be exporting different
 		// include directories.
-		if len(staticCompiler.Properties.Static.Cflags) == 0 &&
-			len(sharedCompiler.Properties.Shared.Cflags) == 0 &&
-			len(staticCompiler.Properties.Static.Whole_static_libs) == 0 &&
-			len(sharedCompiler.Properties.Shared.Whole_static_libs) == 0 &&
-			len(staticCompiler.Properties.Static.Static_libs) == 0 &&
-			len(sharedCompiler.Properties.Shared.Static_libs) == 0 &&
-			len(staticCompiler.Properties.Static.Shared_libs) == 0 &&
-			len(sharedCompiler.Properties.Shared.Shared_libs) == 0 &&
-			staticCompiler.Properties.Static.System_shared_libs == nil &&
-			sharedCompiler.Properties.Shared.System_shared_libs == nil {
+		if len(staticCompiler.StaticProperties.Static.Cflags) == 0 &&
+			len(sharedCompiler.SharedProperties.Shared.Cflags) == 0 &&
+			len(staticCompiler.StaticProperties.Static.Whole_static_libs) == 0 &&
+			len(sharedCompiler.SharedProperties.Shared.Whole_static_libs) == 0 &&
+			len(staticCompiler.StaticProperties.Static.Static_libs) == 0 &&
+			len(sharedCompiler.SharedProperties.Shared.Static_libs) == 0 &&
+			len(staticCompiler.StaticProperties.Static.Shared_libs) == 0 &&
+			len(sharedCompiler.SharedProperties.Shared.Shared_libs) == 0 &&
+			staticCompiler.StaticProperties.Static.System_shared_libs == nil &&
+			sharedCompiler.SharedProperties.Shared.System_shared_libs == nil {
 
 			mctx.AddInterVariantDependency(reuseObjTag, shared, static)
 			sharedCompiler.baseCompiler.Properties.OriginalSrcs =
