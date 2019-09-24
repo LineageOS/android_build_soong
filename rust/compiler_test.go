@@ -64,7 +64,6 @@ func TestEnforceSingleSourceFile(t *testing.T) {
 		rust_proc_macro {
 			name: "foo-bar-proc-macro",
 			srcs: ["foo.rs", "src/bar.rs"],
-			host_supported: true,
 		}`)
 
 	// Test prebuilts
