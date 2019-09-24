@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 func GatherRequiredDepsForTest() string {
@@ -70,12 +71,101 @@ func GatherRequiredDepsForTest() string {
 				srcs: [""],
 				host_supported: true,
 		}
+
+		//////////////////////////////
+		// Device module requirements
+
+		toolchain_library {
+			name: "libgcc",
+			no_libcrt: true,
+			nocrt: true,
+			src: "",
+			system_shared_libs: [],
+		}
+		cc_library {
+			name: "libc",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+		}
+		cc_library {
+			name: "libm",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+		}
+		cc_library {
+			name: "libdl",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+		}
+		cc_object {
+			name: "crtbegin_dynamic",
+		}
+
+		cc_object {
+			name: "crtend_android",
+		}
+		cc_library {
+			name: "liblog",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+		}
+
+		//////////////////////////////
+		// cc module requirements
+
+		toolchain_library {
+			name: "libatomic",
+			src: "",
+		}
+		toolchain_library {
+			name: "libclang_rt.builtins-aarch64-android",
+			src: "",
+		}
+		toolchain_library {
+			name: "libgcc_stripped",
+			src: "",
+		}
+		cc_library {
+			name: "libc++_static",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+		}
+		cc_library {
+			name: "libc++demangle",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+			host_supported: false,
+		}
+		cc_library {
+			name: "libc++",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+		}
+		cc_library {
+			name: "libunwind_llvm",
+			no_libcrt: true,
+			nocrt: true,
+			system_shared_libs: [],
+			stl: "none",
+		}
 		`
 	return bp
 }
 
 func CreateTestContext(bp string) *android.TestContext {
 	ctx := android.NewTestArchContext()
+	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
+	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("rust_binary", android.ModuleFactoryAdaptor(RustBinaryFactory))
 	ctx.RegisterModuleType("rust_binary_host", android.ModuleFactoryAdaptor(RustBinaryHostFactory))
 	ctx.RegisterModuleType("rust_library", android.ModuleFactoryAdaptor(RustLibraryFactory))
@@ -86,9 +176,16 @@ func CreateTestContext(bp string) *android.TestContext {
 	ctx.RegisterModuleType("rust_library_dylib", android.ModuleFactoryAdaptor(RustLibraryDylibFactory))
 	ctx.RegisterModuleType("rust_proc_macro", android.ModuleFactoryAdaptor(ProcMacroFactory))
 	ctx.RegisterModuleType("rust_prebuilt_dylib", android.ModuleFactoryAdaptor(PrebuiltDylibFactory))
+	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
+
+		ctx.BottomUp("image", cc.ImageMutator).Parallel()
+		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
+		ctx.BottomUp("version", cc.VersionMutator).Parallel()
+		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
 	})
+
 	bp = bp + GatherRequiredDepsForTest()
 
 	mockFS := map[string][]byte{

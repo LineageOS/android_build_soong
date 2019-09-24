@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -174,4 +175,29 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("Proc_macro dependency not detected (dependency missing from AndroidMkProcMacroLibs)")
 	}
 
+}
+
+// Test to make sure proc_macros use host variants when building device modules.
+func TestProcMacroDeviceDeps(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_host_rlib {
+			name: "libbar",
+			srcs: ["foo.rs"],
+		}
+		rust_proc_macro {
+			name: "libpm",
+			rlibs: ["libbar"],
+			srcs: ["foo.rs"],
+		}
+		rust_binary {
+			name: "fizz-buzz",
+			proc_macros: ["libpm"],
+			srcs: ["foo.rs"],
+		}
+	`)
+	rustc := ctx.ModuleForTests("libpm", "linux_glibc_x86_64").Rule("rustc")
+
+	if !strings.Contains(rustc.Args["libFlags"], "libbar/linux_glibc_x86_64") {
+		t.Errorf("Proc_macro is not using host variant of dependent modules.")
+	}
 }
