@@ -124,7 +124,7 @@ func TestClasspath(t *testing.T) {
 			name:          "nostdlib system_modules",
 			properties:    `sdk_version: "none", system_modules: "core-platform-api-stubs-system-modules"`,
 			system:        "core-platform-api-stubs-system-modules",
-			bootclasspath: []string{`""`},
+			bootclasspath: []string{"core-platform-api-stubs-system-modules-lib"},
 			classpath:     []string{},
 		},
 		{
