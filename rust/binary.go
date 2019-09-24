@@ -71,6 +71,15 @@ func (binary *binaryDecorator) preferDynamic() bool {
 
 func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseCompiler.compilerFlags(ctx, flags)
+
+	if ctx.toolchain().Bionic() {
+		// no-undefined-version breaks dylib compilation since __rust_*alloc* functions aren't defined, but we can apply this to binaries.
+		flags.LinkFlags = append(flags.LinkFlags,
+			"-Wl,--gc-sections",
+			"-Wl,-z,nocopyreloc",
+			"-Wl,--no-undefined-version")
+	}
+
 	if binary.preferDynamic() {
 		flags.RustFlags = append(flags.RustFlags, "-C prefer-dynamic")
 	}
@@ -84,6 +93,12 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 		for _, stdlib := range config.Stdlibs {
 			deps.Dylibs = append(deps.Dylibs, stdlib+"_"+ctx.toolchain().RustTriple())
 		}
+	}
+
+	if ctx.toolchain().Bionic() {
+		deps = binary.baseCompiler.bionicDeps(ctx, deps)
+		deps.CrtBegin = "crtbegin_dynamic"
+		deps.CrtEnd = "crtend_android"
 	}
 
 	return deps
