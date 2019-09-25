@@ -104,7 +104,8 @@ func (p PackageContext) PoolFunc(name string,
 }
 
 // RuleFunc wraps blueprint.PackageContext.RuleFunc, converting the interface{} config
-// argument to a Context that supports Config().
+// argument to a Context that supports Config(), and provides a default Pool if none is
+// specified.
 func (p PackageContext) RuleFunc(name string,
 	f func(PackageRuleContext) blueprint.RuleParams, argNames ...string) blueprint.Rule {
 
@@ -113,6 +114,11 @@ func (p PackageContext) RuleFunc(name string,
 		params := f(ctx)
 		if len(ctx.errors) > 0 {
 			return params, ctx.errors[0]
+		}
+		if ctx.Config().UseGoma() && params.Pool == nil {
+			// When USE_GOMA=true is set and the rule is not supported by goma, restrict jobs to the
+			// local parallelism value
+			params.Pool = localPool
 		}
 		return params, nil
 	}, argNames...)
@@ -234,10 +240,16 @@ func (p PackageContext) PrefixedExistentPathsForSourcesVariable(
 	})
 }
 
-// AndroidStaticRule wraps blueprint.StaticRule and provides a default Pool if none is specified
+// AndroidStaticRule is an alias for StaticRule.
 func (p PackageContext) AndroidStaticRule(name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
-	return p.AndroidRuleFunc(name, func(PackageRuleContext) blueprint.RuleParams {
+	return p.StaticRule(name, params, argNames...)
+}
+
+// StaticRule wraps blueprint.StaticRule and provides a default Pool if none is specified.
+func (p PackageContext) StaticRule(name string, params blueprint.RuleParams,
+	argNames ...string) blueprint.Rule {
+	return p.RuleFunc(name, func(PackageRuleContext) blueprint.RuleParams {
 		return params
 	}, argNames...)
 }
@@ -245,18 +257,6 @@ func (p PackageContext) AndroidStaticRule(name string, params blueprint.RulePara
 // AndroidGomaStaticRule wraps blueprint.StaticRule but uses goma's parallelism if goma is enabled
 func (p PackageContext) AndroidGomaStaticRule(name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
-	return p.StaticRule(name, params, argNames...)
-}
-
-func (p PackageContext) AndroidRuleFunc(name string,
-	f func(PackageRuleContext) blueprint.RuleParams, argNames ...string) blueprint.Rule {
-	return p.RuleFunc(name, func(ctx PackageRuleContext) blueprint.RuleParams {
-		params := f(ctx)
-		if ctx.Config().UseGoma() && params.Pool == nil {
-			// When USE_GOMA=true is set and the rule is not supported by goma, restrict jobs to the
-			// local parallelism value
-			params.Pool = localPool
-		}
-		return params
-	}, argNames...)
+	// bypass android.PackageContext.StaticRule so that Pool does not get set to local_pool.
+	return p.PackageContext.StaticRule(name, params, argNames...)
 }
