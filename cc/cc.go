@@ -544,10 +544,8 @@ func (c *Module) Init() android.Module {
 		}
 	})
 	android.InitAndroidArchModule(c, c.hod, c.multilib)
-
-	android.InitDefaultableModule(c)
-
 	android.InitApexModule(c)
+	android.InitDefaultableModule(c)
 	android.InitSdkAwareModule(c)
 
 	return c
@@ -2221,8 +2219,8 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&android.ProtoProperties{},
 	)
 
-	android.InitDefaultsModule(module)
 	android.InitApexModule(module)
+	android.InitDefaultsModule(module)
 
 	return module
 }
