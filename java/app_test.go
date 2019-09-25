@@ -18,12 +18,16 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+/*
 	"regexp"
+*/
 	"sort"
 	"strings"
 	"testing"
 
+/*
 	"github.com/google/blueprint/proptools"
+*/
 
 	"android/soong/android"
 	"android/soong/cc"
@@ -1070,6 +1074,7 @@ func TestEmbedNotice(t *testing.T) {
 	}
 }
 
+/*
 func TestUncompressDex(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -1152,6 +1157,7 @@ func TestUncompressDex(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestAndroidAppImport(t *testing.T) {
 	ctx := testJava(t, `
@@ -1266,6 +1272,7 @@ func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
 	}
 }
 
+/*
 func TestAndroidAppImport_DpiVariants(t *testing.T) {
 	bp := `
 		android_app_import {
@@ -1343,6 +1350,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestAndroidAppImport_Filename(t *testing.T) {
 	config := testConfig(nil)
@@ -1392,6 +1400,7 @@ func TestAndroidAppImport_Filename(t *testing.T) {
 	}
 }
 
+/*
 func TestAndroidAppImport_ArchVariants(t *testing.T) {
 	// The test config's target arch is ARM64.
 	testCases := []struct {
@@ -1454,3 +1463,4 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 		}
 	}
 }
+*/
