@@ -270,7 +270,12 @@ func (r *NameResolver) FindNamespaceImports(namespace *Namespace) (err error) {
 	for _, name := range namespace.importedNamespaceNames {
 		imp, ok := r.namespaceAt(name)
 		if !ok {
-			return fmt.Errorf("namespace %v does not exist", name)
+			if (name != "all") {
+				return fmt.Errorf("namespace %v does not exist", name)
+			} else {
+				namespace.visibleNamespaces = make([]*Namespace, 0, 2+len(namespace.importedNamespaceNames))
+				return nil
+			}
 		}
 		namespace.visibleNamespaces = append(namespace.visibleNamespaces, imp)
 	}
