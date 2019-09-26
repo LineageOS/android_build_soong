@@ -422,7 +422,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		props.Product_specific = proptools.BoolPtr(true)
 	}
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(LibraryFactory), &props)
+	mctx.CreateModule(LibraryFactory, &props)
 }
 
 // Creates a droiddoc module that creates stubs source files from the given full source
@@ -522,7 +522,7 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 		module.latestRemovedApiFilegroupName(apiScope))
 	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(DroidstubsFactory), &props)
+	mctx.CreateModule(DroidstubsFactory, &props)
 }
 
 // Creates the xml file that publicizes the runtime library
@@ -560,7 +560,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	genruleProps.Name = proptools.StringPtr(module.xmlFileName() + "-gen")
 	genruleProps.Cmd = proptools.StringPtr("echo '" + xmlContent + "' > $(out)")
 	genruleProps.Out = []string{module.xmlFileName()}
-	mctx.CreateModule(android.ModuleFactoryAdaptor(genrule.GenRuleFactory), &genruleProps)
+	mctx.CreateModule(genrule.GenRuleFactory, &genruleProps)
 
 	// creates a prebuilt_etc module to actually place the xml file under
 	// <partition>/etc/permissions
@@ -582,7 +582,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	} else if module.ProductSpecific() {
 		etcProps.Product_specific = proptools.BoolPtr(true)
 	}
-	mctx.CreateModule(android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory), &etcProps)
+	mctx.CreateModule(android.PrebuiltEtcFactory, &etcProps)
 }
 
 func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
@@ -815,7 +815,7 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 		props.Product_specific = proptools.BoolPtr(true)
 	}
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(ImportFactory), &props, &module.properties)
+	mctx.CreateModule(ImportFactory, &props, &module.properties)
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
 	javaSdkLibrariesLock.Lock()
