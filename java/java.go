@@ -1685,6 +1685,11 @@ type testProperties struct {
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
 	Data []string `android:"path"`
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
 }
 
 type testHelperLibraryProperties struct {
@@ -1709,7 +1714,8 @@ type TestHelperLibrary struct {
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template, j.testProperties.Test_suites)
+	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template,
+		j.testProperties.Test_suites, j.testProperties.Auto_gen_config)
 	j.data = android.PathsForModuleSrc(ctx, j.testProperties.Data)
 
 	j.Library.GenerateAndroidBuildActions(ctx)
