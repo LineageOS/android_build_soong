@@ -47,13 +47,15 @@ var (
 		Description: "fs_config ${out}",
 	}, "ro_paths", "exec_paths")
 
-	injectApexDependency = pctx.StaticRule("injectApexDependency", blueprint.RuleParams{
+	apexManifestRule = pctx.StaticRule("apexManifestRule", blueprint.RuleParams{
 		Command: `rm -f $out && ${jsonmodify} $in ` +
 			`-a provideNativeLibs ${provideNativeLibs} ` +
-			`-a requireNativeLibs ${requireNativeLibs} -o $out`,
+			`-a requireNativeLibs ${requireNativeLibs} ` +
+			`${opt} ` +
+			`-o $out`,
 		CommandDeps: []string{"${jsonmodify}"},
-		Description: "Inject dependency into ${out}",
-	}, "provideNativeLibs", "requireNativeLibs")
+		Description: "prepare ${out}",
+	}, "provideNativeLibs", "requireNativeLibs", "opt")
 
 	// TODO(b/113233103): make sure that file_contexts is sane, i.e., validate
 	// against the binary policy using sefcontext_compiler -p <policy>.
@@ -1223,18 +1225,28 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
+	// prepare apex_manifest.json
 	a.manifestOut = android.PathForModuleOut(ctx, "apex_manifest.json")
-	// put dependency({provide|require}NativeLibs) in apex_manifest.json
 	manifestSrc := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+
+	// put dependency({provide|require}NativeLibs) in apex_manifest.json
 	provideNativeLibs = android.SortedUniqueStrings(provideNativeLibs)
 	requireNativeLibs = android.SortedUniqueStrings(android.RemoveListFromList(requireNativeLibs, provideNativeLibs))
+
+	// apex name can be overridden
+	optCommands := []string{}
+	if a.properties.Apex_name != nil {
+		optCommands = append(optCommands, "-v name "+*a.properties.Apex_name)
+	}
+
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   injectApexDependency,
+		Rule:   apexManifestRule,
 		Input:  manifestSrc,
 		Output: a.manifestOut,
 		Args: map[string]string{
 			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
 			"requireNativeLibs": strings.Join(requireNativeLibs, " "),
+			"opt":               strings.Join(optCommands, " "),
 		},
 	})
 
@@ -1446,6 +1458,12 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 			// don't need hashtree for activation. Therefore, by removing hashtree from
 			// apex bundle (filesystem image in it, to be specific), we can save storage.
 			optFlags = append(optFlags, "--no_hashtree")
+		}
+
+		if a.properties.Apex_name != nil {
+			// If apex_name is set, apexer can skip checking if key name matches with apex name.
+			// Note that apex_manifest is also mended.
+			optFlags = append(optFlags, "--do_not_check_keyname")
 		}
 
 		ctx.Build(pctx, android.BuildParams{
