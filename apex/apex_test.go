@@ -102,6 +102,9 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("apex_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("prebuilt_apex", android.ModuleFactoryAdaptor(PrebuiltFactory))
 
+	ctx.RegisterModuleType("cc_defaults", android.ModuleFactoryAdaptor(func() android.Module {
+		return cc.DefaultsFactory()
+	}))
 	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
 	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(cc.LibrarySharedFactory))
 	ctx.RegisterModuleType("cc_library_headers", android.ModuleFactoryAdaptor(cc.LibraryHeaderFactory))
@@ -2127,6 +2130,7 @@ func TestApexUsesFailsIfUseVenderMismatch(t *testing.T) {
 }
 
 func TestApexUsesFailsIfUseNoApex(t *testing.T) {
+	// 'no_apex' prevents a module to be included in an apex
 	testApexError(t, `tries to include no_apex module mylib2`, `
 		apex {
 			name: "commonapex",
@@ -2157,6 +2161,7 @@ func TestApexUsesFailsIfUseNoApex(t *testing.T) {
 		}
 	`)
 
+	// respect 'no_apex' even with static link
 	testApexError(t, `tries to include no_apex module mylib2`, `
 		apex {
 			name: "commonapex",
@@ -2187,6 +2192,86 @@ func TestApexUsesFailsIfUseNoApex(t *testing.T) {
 		}
 	`)
 
+	// 'no_apex' can be applied via defaults
+	testApexError(t, `tries to include no_apex module mylib2`, `
+		apex {
+			name: "commonapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			static_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_defaults {
+			name: "mylib2_defaults",
+			system_shared_libs: [],
+			stl: "none",
+			no_apex: true,
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			defaults: ["mylib2_defaults"],
+		}
+	`)
+}
+
+func TestNoApexWorksWithWhitelist(t *testing.T) {
+
+	testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_defaults {
+			name: "mylib2_defaults",
+			system_shared_libs: [],
+			stl: "none",
+			no_apex: true,
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			defaults: ["mylib2_defaults"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		whitelistNoApex = map[string][]string{
+			"myapex": []string{"mylib2"},
+		}
+	})
+}
+
+func TestNoApexCanBeDependedOnViaStubs(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
@@ -2219,6 +2304,7 @@ func TestApexUsesFailsIfUseNoApex(t *testing.T) {
 			},
 		}
 
+		// this won't be included in "myapex", so 'no_apex' is still valid in this case.
 		cc_library {
 			name: "mylib3",
 			srcs: ["mylib.cpp"],
@@ -2235,7 +2321,6 @@ func TestApexUsesFailsIfUseNoApex(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
 	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib3.so")
-
 }
 
 func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
