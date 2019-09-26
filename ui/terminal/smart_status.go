@@ -189,7 +189,7 @@ func (s *smartStatusOutput) Flush() {
 		fmt.Fprintf(s.writer, ansi.resetScrollingMargins())
 		_, height, _ := termSize(s.writer)
 		// Move the cursor to the top of the now-blank, previously non-scrolling region
-		fmt.Fprintf(s.writer, ansi.setCursor(height-s.tableHeight, 0))
+		fmt.Fprintf(s.writer, ansi.setCursor(height-s.tableHeight, 1))
 		// Turn the cursor back on
 		fmt.Fprintf(s.writer, ansi.showCursor())
 	}
@@ -334,52 +334,44 @@ func (s *smartStatusOutput) actionTable() {
 	scrollingHeight := s.termHeight - s.tableHeight
 
 	// Update the scrolling region in case the height of the terminal changed
-	fmt.Fprint(s.writer, ansi.setScrollingMargins(0, scrollingHeight))
-	// Move the cursor to the first line of the non-scrolling region
-	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight+1, 0))
+
+	fmt.Fprint(s.writer, ansi.setScrollingMargins(1, scrollingHeight))
 
 	// Write as many status lines as fit in the table
-	var tableLine int
-	var runningAction actionTableEntry
-	for tableLine, runningAction = range s.runningActions {
+	for tableLine := 0; tableLine < s.tableHeight; tableLine++ {
 		if tableLine >= s.tableHeight {
 			break
 		}
+		// Move the cursor to the correct line of the non-scrolling region
+		fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight+1+tableLine, 1))
 
-		seconds := int(time.Since(runningAction.startTime).Round(time.Second).Seconds())
+		if tableLine < len(s.runningActions) {
+			runningAction := s.runningActions[tableLine]
 
-		desc := runningAction.action.Description
-		if desc == "" {
-			desc = runningAction.action.Command
+			seconds := int(time.Since(runningAction.startTime).Round(time.Second).Seconds())
+
+			desc := runningAction.action.Description
+			if desc == "" {
+				desc = runningAction.action.Command
+			}
+
+			color := ""
+			if seconds >= 60 {
+				color = ansi.red() + ansi.bold()
+			} else if seconds >= 30 {
+				color = ansi.yellow() + ansi.bold()
+			}
+
+			durationStr := fmt.Sprintf("   %2d:%02d ", seconds/60, seconds%60)
+			desc = elide(desc, s.termWidth-len(durationStr))
+			durationStr = color + durationStr + ansi.regular()
+			fmt.Fprint(s.writer, durationStr, desc)
 		}
-
-		color := ""
-		if seconds >= 60 {
-			color = ansi.red() + ansi.bold()
-		} else if seconds >= 30 {
-			color = ansi.yellow() + ansi.bold()
-		}
-
-		durationStr := fmt.Sprintf("   %2d:%02d ", seconds/60, seconds%60)
-		desc = elide(desc, s.termWidth-len(durationStr))
-		durationStr = color + durationStr + ansi.regular()
-
-		fmt.Fprint(s.writer, durationStr, desc, ansi.clearToEndOfLine())
-		if tableLine < s.tableHeight-1 {
-			fmt.Fprint(s.writer, "\n")
-		}
-	}
-
-	// Clear any remaining lines in the table
-	for ; tableLine < s.tableHeight; tableLine++ {
 		fmt.Fprint(s.writer, ansi.clearToEndOfLine())
-		if tableLine < s.tableHeight-1 {
-			fmt.Fprint(s.writer, "\n")
-		}
 	}
 
 	// Move the cursor back to the last line of the scrolling region
-	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight, 0))
+	fmt.Fprint(s.writer, ansi.setCursor(scrollingHeight, 1))
 }
 
 var ansi = ansiImpl{}
