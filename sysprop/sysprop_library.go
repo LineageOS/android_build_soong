@@ -362,7 +362,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Recovery_available = m.properties.Recovery_available
 	ccProps.Vendor_available = m.properties.Vendor_available
 
-	ctx.CreateModule(android.ModuleFactoryAdaptor(cc.LibraryFactory), &ccProps)
+	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
 	// internal scope contains all properties
 	// public scope only contains public properties
@@ -390,7 +390,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		Name:  proptools.StringPtr(m.javaGenModuleName()),
 	}
 
-	ctx.CreateModule(android.ModuleFactoryAdaptor(syspropJavaGenFactory), &javaGenProps)
+	ctx.CreateModule(syspropJavaGenFactory, &javaGenProps)
 
 	javaProps := struct {
 		Name             *string
@@ -413,7 +413,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	javaProps.Sdk_version = proptools.StringPtr("core_current")
 	javaProps.Libs = []string{stub}
 
-	ctx.CreateModule(android.ModuleFactoryAdaptor(java.LibraryFactory), &javaProps)
+	ctx.CreateModule(java.LibraryFactory, &javaProps)
 }
 
 func syspropDepsMutator(ctx android.BottomUpMutatorContext) {
