@@ -26,10 +26,10 @@ import (
 //
 // statusFormat takes nearly all the same options as NINJA_STATUS.
 // %c is currently unsupported.
-func NewStatusOutput(w io.Writer, statusFormat string, quietBuild bool) status.StatusOutput {
+func NewStatusOutput(w io.Writer, statusFormat string, forceDumbOutput, quietBuild bool) status.StatusOutput {
 	formatter := newFormatter(statusFormat, quietBuild)
 
-	if isSmartTerminal(w) {
+	if !forceDumbOutput && isSmartTerminal(w) {
 		return NewSmartStatusOutput(w, formatter)
 	} else {
 		return NewDumbStatusOutput(w, formatter)
