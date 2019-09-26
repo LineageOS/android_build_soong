@@ -113,7 +113,14 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 
 	aidlPackage := strings.TrimSuffix(aidlFile.Rel(), aidlFile.Base())
 	baseName := strings.TrimSuffix(aidlFile.Base(), aidlFile.Ext())
-	shortName := strings.TrimPrefix(baseName, "I")
+	shortName := baseName
+	// TODO(b/111362593): aidl_to_cpp_common.cpp uses heuristics to figure out if
+	//   an interface name has a leading I. Those same heuristics have been
+	//   moved here.
+	if len(baseName) >= 2 && baseName[0] == 'I' &&
+		strings.ToUpper(baseName)[1] == baseName[1] {
+		shortName = strings.TrimPrefix(baseName, "I")
+	}
 
 	outDir := android.PathForModuleGen(ctx, "aidl")
 	headerI := outDir.Join(ctx, aidlPackage, baseName+".h")
