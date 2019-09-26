@@ -52,8 +52,9 @@ type ObjectLinkerProperties struct {
 // input to a cc_genrule module.
 func ObjectFactory() android.Module {
 	module := newBaseModule(android.HostAndDeviceSupported, android.MultilibBoth)
+	module.sanitize = &sanitize{}
 	module.linker = &objectLinker{
-		baseLinker: NewBaseLinker(nil),
+		baseLinker: NewBaseLinker(module.sanitize),
 	}
 	module.compiler = NewBaseCompiler()
 
