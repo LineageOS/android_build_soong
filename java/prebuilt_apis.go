@@ -82,7 +82,7 @@ func createImport(mctx android.TopDownMutatorContext, module string, scope strin
 	props.Sdk_version = proptools.StringPtr("current")
 	props.Installable = proptools.BoolPtr(false)
 
-	mctx.CreateModule(android.ModuleFactoryAdaptor(ImportFactory), &props)
+	mctx.CreateModule(ImportFactory, &props)
 }
 
 func createFilegroup(mctx android.TopDownMutatorContext, module string, scope string, apiver string, path string) {
@@ -93,7 +93,7 @@ func createFilegroup(mctx android.TopDownMutatorContext, module string, scope st
 	}{}
 	filegroupProps.Name = proptools.StringPtr(fgName)
 	filegroupProps.Srcs = []string{path}
-	mctx.CreateModule(android.ModuleFactoryAdaptor(android.FileGroupFactory), &filegroupProps)
+	mctx.CreateModule(android.FileGroupFactory, &filegroupProps)
 }
 
 func getPrebuiltFiles(mctx android.TopDownMutatorContext, name string) []string {
