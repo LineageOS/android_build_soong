@@ -674,7 +674,7 @@ func (sanitize *sanitize) isSanitizerEnabled(t sanitizerType) bool {
 
 func isSanitizableDependencyTag(tag blueprint.DependencyTag) bool {
 	t, ok := tag.(dependencyTag)
-	return ok && t.library || t == reuseObjTag
+	return ok && t.library || t == reuseObjTag || t == objDepTag
 }
 
 // Propagate sanitizer requirements down from binaries
