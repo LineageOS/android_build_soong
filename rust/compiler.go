@@ -25,7 +25,8 @@ import (
 func NewBaseCompiler(dir, dir64 string) *baseCompiler {
 	return &baseCompiler{
 		Properties: BaseCompilerProperties{
-			Edition: &config.DefaultEdition,
+			Edition:       &config.DefaultEdition,
+			Deny_warnings: config.DefaultDenyWarnings,
 		},
 		dir:   dir,
 		dir64: dir64,
@@ -33,6 +34,9 @@ func NewBaseCompiler(dir, dir64 string) *baseCompiler {
 }
 
 type BaseCompilerProperties struct {
+	// whether to pass "-D warnings" to rustc. Defaults to true.
+	Deny_warnings *bool
+
 	// flags to pass to rustc
 	Flags []string `android:"path,arch_variant"`
 
@@ -109,6 +113,9 @@ func (compiler *baseCompiler) featuresToFlags(features []string) []string {
 
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 
+	if Bool(compiler.Properties.Deny_warnings) {
+		flags.RustFlags = append(flags.RustFlags, "-D warnings")
+	}
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
 	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(compiler.Properties.Features)...)
 	flags.RustFlags = append(flags.RustFlags, "--edition="+*compiler.Properties.Edition)
