@@ -17,6 +17,8 @@ package config
 import (
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	_ "android/soong/cc/config"
 )
@@ -32,6 +34,8 @@ var (
 		"libterm",
 		"libtest",
 	}
+
+	DefaultDenyWarnings = proptools.BoolPtr(true)
 
 	deviceGlobalRustFlags = []string{}
 
