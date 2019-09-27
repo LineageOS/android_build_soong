@@ -16,6 +16,7 @@
 # contains only generated files.
 : ${OUT_DIR:=$PWD/out}
 [[ "$OUT_DIR" =~ ^/ ]] || { echo "$OUT_DIR is not an absolute path"; exit 1; }
+: ${BUILD_NUMBER:=$(uuidgen)}
 
 # The extraction might fail for some source files, so run with -k
 OUT_DIR=$OUT_DIR build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java
@@ -27,6 +28,6 @@ declare -r kzip_count=$(find $OUT_DIR -name '*.kzip' | wc -l)
 
 # Pack
 # TODO(asmundak): this should be done by soong.
-declare -r allkzip=all.kzip
+declare -r allkzip="$BUILD_NUMBER.kzip"
 "$OUT_DIR/soong/host/linux-x86/bin/merge_zips" "$DIST_DIR/$allkzip" @<(find $OUT_DIR -name '*.kzip')
-echo "${BUILD_NUMBER:-$(uuidgen)}" >"$DIST_DIR/revision.txt"
+
