@@ -177,32 +177,32 @@ func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFi
 	TransformResourcesToJar(ctx, outputFile, srcJarArgs, srcJarDeps)
 }
 
-func (r *robolectricTest) AndroidMk() android.AndroidMkData {
-	data := r.Library.AndroidMk()
+func (r *robolectricTest) AndroidMkEntries() android.AndroidMkEntries {
+	entries := r.Library.AndroidMkEntries()
 
-	data.Custom = func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-		android.WriteAndroidMkData(w, data)
+	entries.ExtraFooters = []android.AndroidMkExtraFootersFunc{
+		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+			if s := r.robolectricProperties.Test_options.Shards; s != nil && *s > 1 {
+				shards := shardTests(r.tests, int(*s))
+				for i, shard := range shards {
+					r.writeTestRunner(w, name, "Run"+name+strconv.Itoa(i), shard)
+				}
 
-		if s := r.robolectricProperties.Test_options.Shards; s != nil && *s > 1 {
-			shards := shardTests(r.tests, int(*s))
-			for i, shard := range shards {
-				r.writeTestRunner(w, name, "Run"+name+strconv.Itoa(i), shard)
+				// TODO: add rules to dist the outputs of the individual tests, or combine them together?
+				fmt.Fprintln(w, "")
+				fmt.Fprintln(w, ".PHONY:", "Run"+name)
+				fmt.Fprintln(w, "Run"+name, ": \\")
+				for i := range shards {
+					fmt.Fprintln(w, "   ", "Run"+name+strconv.Itoa(i), "\\")
+				}
+				fmt.Fprintln(w, "")
+			} else {
+				r.writeTestRunner(w, name, "Run"+name, r.tests)
 			}
-
-			// TODO: add rules to dist the outputs of the individual tests, or combine them together?
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, ".PHONY:", "Run"+name)
-			fmt.Fprintln(w, "Run"+name, ": \\")
-			for i := range shards {
-				fmt.Fprintln(w, "   ", "Run"+name+strconv.Itoa(i), "\\")
-			}
-			fmt.Fprintln(w, "")
-		} else {
-			r.writeTestRunner(w, name, "Run"+name, r.tests)
-		}
+		},
 	}
 
-	return data
+	return entries
 }
 
 func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, tests []string) {
