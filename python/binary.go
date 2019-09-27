@@ -47,6 +47,11 @@ type BinaryProperties struct {
 	// false it will act much like the normal `python` executable, but with the sources and
 	// libraries automatically included in the PYTHONPATH.
 	Autorun *bool `android:"arch_variant"`
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
 }
 
 type binaryDecorator struct {

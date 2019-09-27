@@ -80,6 +80,11 @@ type TestBinaryProperties struct {
 	// Add MinApiLevelModuleController to auto generated test config. If the device property of
 	// "ro.build.version.sdk" < Test_min_sdk_version, then skip this module.
 	Test_min_sdk_version *int64
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
 }
 
 func init() {
@@ -362,7 +367,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	}
 
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
-		test.Properties.Test_config_template, test.Properties.Test_suites, configs)
+		test.Properties.Test_config_template, test.Properties.Test_suites, configs, test.Properties.Auto_gen_config)
 
 	test.binaryDecorator.baseInstaller.dir = "nativetest"
 	test.binaryDecorator.baseInstaller.dir64 = "nativetest64"
@@ -453,6 +458,11 @@ type BenchmarkProperties struct {
 	// Add RootTargetPreparer to auto generated test config. This guarantees the test to run
 	// with root permission.
 	Require_root *bool
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
 }
 
 type benchmarkDecorator struct {
@@ -490,7 +500,7 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Pat
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
 	}
 	benchmark.testConfig = tradefed.AutoGenNativeBenchmarkTestConfig(ctx, benchmark.Properties.Test_config,
-		benchmark.Properties.Test_config_template, benchmark.Properties.Test_suites, configs)
+		benchmark.Properties.Test_config_template, benchmark.Properties.Test_suites, configs, benchmark.Properties.Auto_gen_config)
 
 	benchmark.binaryDecorator.baseInstaller.dir = filepath.Join("benchmarktest", ctx.ModuleName())
 	benchmark.binaryDecorator.baseInstaller.dir64 = filepath.Join("benchmarktest64", ctx.ModuleName())
