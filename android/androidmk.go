@@ -96,12 +96,30 @@ func (a *AndroidMkEntries) SetString(name, value string) {
 	a.EntryMap[name] = []string{value}
 }
 
+func (a *AndroidMkEntries) SetPath(name string, path Path) {
+	if _, ok := a.EntryMap[name]; !ok {
+		a.entryOrder = append(a.entryOrder, name)
+	}
+	a.EntryMap[name] = []string{path.String()}
+}
+
 func (a *AndroidMkEntries) SetBoolIfTrue(name string, flag bool) {
 	if flag {
 		if _, ok := a.EntryMap[name]; !ok {
 			a.entryOrder = append(a.entryOrder, name)
 		}
 		a.EntryMap[name] = []string{"true"}
+	}
+}
+
+func (a *AndroidMkEntries) SetBool(name string, flag bool) {
+	if _, ok := a.EntryMap[name]; !ok {
+		a.entryOrder = append(a.entryOrder, name)
+	}
+	if flag {
+		a.EntryMap[name] = []string{"true"}
+	} else {
+		a.EntryMap[name] = []string{"false"}
 	}
 }
 
