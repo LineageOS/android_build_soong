@@ -50,7 +50,8 @@ func (test *testDecorator) bootstrapperProps() []interface{} {
 
 func (test *testDecorator) install(ctx android.ModuleContext, file android.Path) {
 	test.testConfig = tradefed.AutoGenPythonBinaryHostTestConfig(ctx, test.testProperties.Test_config,
-		test.testProperties.Test_config_template, test.binaryDecorator.binaryProperties.Test_suites)
+		test.testProperties.Test_config_template, test.binaryDecorator.binaryProperties.Test_suites,
+		test.binaryDecorator.binaryProperties.Auto_gen_config)
 
 	test.binaryDecorator.pythonInstaller.dir = "nativetest"
 	test.binaryDecorator.pythonInstaller.dir64 = "nativetest64"
