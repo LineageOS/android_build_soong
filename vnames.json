@@ -1,0 +1,18 @@
+[
+  {
+    "pattern": "out/(.*)",
+    "vname": {
+      "corpus": "CORPUS",
+      "root": "out",
+      "path": "@1@"
+    }
+  },
+  {
+    "pattern": "(.*)",
+    "vname": {
+      "corpus": "CORPUS",
+      "path": "@1@"
+    }
+  }
+]
+
