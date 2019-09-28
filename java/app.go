@@ -121,6 +121,8 @@ type AndroidApp struct {
 
 	installDir android.OutputPath
 
+	onDeviceDir string
+
 	additionalAaptFlags []string
 }
 
@@ -410,6 +412,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		a.installDir = android.PathForModuleInstall(ctx, "app", a.installApkName)
 	}
+	a.onDeviceDir = android.InstallPathToOnDevicePath(ctx, a.installDir)
 
 	a.aapt.noticeFile = a.noticeBuildActions(ctx)
 
