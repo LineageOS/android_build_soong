@@ -80,12 +80,14 @@ type AndroidMkEntries struct {
 	footer bytes.Buffer
 
 	ExtraEntries []AndroidMkExtraEntriesFunc
+	ExtraFooters []AndroidMkExtraFootersFunc
 
 	EntryMap   map[string][]string
 	entryOrder []string
 }
 
 type AndroidMkExtraEntriesFunc func(entries *AndroidMkEntries)
+type AndroidMkExtraFootersFunc func(w io.Writer, name, prefix, moduleDir string, entries *AndroidMkEntries)
 
 func (a *AndroidMkEntries) SetString(name, value string) {
 	if _, ok := a.EntryMap[name]; !ok {
@@ -94,12 +96,30 @@ func (a *AndroidMkEntries) SetString(name, value string) {
 	a.EntryMap[name] = []string{value}
 }
 
+func (a *AndroidMkEntries) SetPath(name string, path Path) {
+	if _, ok := a.EntryMap[name]; !ok {
+		a.entryOrder = append(a.entryOrder, name)
+	}
+	a.EntryMap[name] = []string{path.String()}
+}
+
 func (a *AndroidMkEntries) SetBoolIfTrue(name string, flag bool) {
 	if flag {
 		if _, ok := a.EntryMap[name]; !ok {
 			a.entryOrder = append(a.entryOrder, name)
 		}
 		a.EntryMap[name] = []string{"true"}
+	}
+}
+
+func (a *AndroidMkEntries) SetBool(name string, flag bool) {
+	if _, ok := a.EntryMap[name]; !ok {
+		a.entryOrder = append(a.entryOrder, name)
+	}
+	if flag {
+		a.EntryMap[name] = []string{"true"}
+	} else {
+		a.EntryMap[name] = []string{"false"}
 	}
 }
 
@@ -254,14 +274,30 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 
 	// Write to footer.
 	fmt.Fprintln(&a.footer, "include "+a.Include)
+	blueprintDir := filepath.Dir(bpPath)
+	for _, footerFunc := range a.ExtraFooters {
+		footerFunc(&a.footer, name, prefix, blueprintDir, a)
+	}
 }
 
 func (a *AndroidMkEntries) write(w io.Writer) {
+	if a.Disabled {
+		return
+	}
+
+	if !a.OutputFile.Valid() {
+		return
+	}
+
 	w.Write(a.header.Bytes())
 	for _, name := range a.entryOrder {
 		fmt.Fprintln(w, name+" := "+strings.Join(a.EntryMap[name], " "))
 	}
 	w.Write(a.footer.Bytes())
+}
+
+func (a *AndroidMkEntries) FooterLinesForTests() []string {
+	return strings.Split(string(a.footer.Bytes()), "\n")
 }
 
 func AndroidMkSingleton() Singleton {

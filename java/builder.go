@@ -64,6 +64,7 @@ var (
 
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
+	_ = pctx.SourcePathVariable("kytheVnames", "build/soong/vnames.json")
 	// Run it with -add-opens=java.base/java.nio=ALL-UNNAMED to avoid JDK9's warning about
 	// "Illegal reflective access by com.google.protobuf.Utf8$UnsafeProcessor ...
 	// to field java.nio.Buffer.address"
@@ -74,6 +75,7 @@ var (
 				`( [ ! -s $srcJarDir/list -a ! -s $out.rsp ] || ` +
 				`KYTHE_ROOT_DIRECTORY=. KYTHE_OUTPUT_FILE=$out ` +
 				`KYTHE_CORPUS=${kytheCorpus} ` +
+				`KYTHE_VNAMES=${kytheVnames} ` +
 				`${config.SoongJavacWrapper} ${config.JavaCmd} ` +
 				`--add-opens=java.base/java.nio=ALL-UNNAMED ` +
 				`-jar ${config.JavaKytheExtractorJar} ` +
@@ -84,6 +86,7 @@ var (
 			CommandDeps: []string{
 				"${config.JavaCmd}",
 				"${config.JavaKytheExtractorJar}",
+				"${kytheVnames}",
 				"${config.ZipSyncCmd}",
 			},
 			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
