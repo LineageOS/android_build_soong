@@ -128,6 +128,8 @@ type AndroidApp struct {
 
 	installDir android.OutputPath
 
+	onDeviceDir string
+
 	additionalAaptFlags []string
 
 	noticeOutputs android.NoticeOutputs
@@ -449,6 +451,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		a.installDir = android.PathForModuleInstall(ctx, "app", a.installApkName)
 	}
+	a.onDeviceDir = android.InstallPathToOnDevicePath(ctx, a.installDir)
 
 	a.noticeBuildActions(ctx)
 	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
