@@ -149,15 +149,6 @@ var (
 	androidAppTag  = dependencyTag{name: "androidApp"}
 )
 
-var (
-	whitelistNoApex = map[string][]string{
-		"apex_test_build_features":       []string{"libbinder"},
-		"com.android.media.swcodec":      []string{"libbinder"},
-		"test_com.android.media.swcodec": []string{"libbinder"},
-		"com.android.vndk":               []string{"libbinder"},
-	}
-)
-
 func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java")
@@ -1170,10 +1161,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
-				} else if depTag == android.DefaultsDepTag {
-					return false
-				} else if am.NoApex() && !android.InList(depName, whitelistNoApex[ctx.ModuleName()]) {
-					ctx.ModuleErrorf("tries to include no_apex module %s", depName)
 				}
 			}
 		}
@@ -1204,16 +1191,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	sort.Slice(filesInfo, func(i, j int) bool {
 		return filesInfo[i].builtFile.String() < filesInfo[j].builtFile.String()
 	})
-
-	// check no_apex modules
-	whitelist := whitelistNoApex[ctx.ModuleName()]
-	for i := range filesInfo {
-		if am, ok := filesInfo[i].module.(android.ApexModule); ok {
-			if am.NoApex() && !android.InList(filesInfo[i].moduleName, whitelist) {
-				ctx.ModuleErrorf("tries to include no_apex module %s", filesInfo[i].moduleName)
-			}
-		}
-	}
 
 	// check apex_available requirements
 	for _, fi := range filesInfo {
