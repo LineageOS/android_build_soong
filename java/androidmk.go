@@ -329,7 +329,8 @@ func (app *AndroidApp) AndroidMkEntries() android.AndroidMkEntries {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", app.dexpreopter.builtInstalled)
 				}
 				for _, split := range app.aapt.splits {
-					install := "$(LOCAL_MODULE_PATH)/" + strings.TrimSuffix(app.installApkName, ".apk") + split.suffix + ".apk"
+					install := app.onDeviceDir + "/" +
+						strings.TrimSuffix(app.installApkName, ".apk") + "_" + split.suffix + ".apk"
 					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", split.path.String()+":"+install)
 				}
 			},
