@@ -1441,6 +1441,37 @@ func TestVndkApexErrorWithDuplicateVersion(t *testing.T) {
 	}))
 }
 
+func TestVndkApexNameRule(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex_vndk {
+			name: "myapex",
+			key: "myapex.key",
+			file_contexts: "myapex",
+		}
+		apex_vndk {
+			name: "myapex_v28",
+			key: "myapex.key",
+			file_contexts: "myapex",
+			vndk_version: "28",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}`)
+
+	assertApexName := func(expected, moduleName string) {
+		bundle := ctx.ModuleForTests(moduleName, "android_common_"+moduleName).Module().(*apexBundle)
+		actual := proptools.String(bundle.properties.Apex_name)
+		if !reflect.DeepEqual(actual, expected) {
+			t.Errorf("Got '%v', expected '%v'", actual, expected)
+		}
+	}
+
+	assertApexName("com.android.vndk.vVER", "myapex")
+	assertApexName("com.android.vndk.v28", "myapex_v28")
+}
+
 func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
