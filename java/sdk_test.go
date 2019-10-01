@@ -279,9 +279,9 @@ func TestClasspath(t *testing.T) {
 				}
 			}
 
+			// Test with legacy javac -source 1.8 -target 1.8
 			t.Run("Java language level 8", func(t *testing.T) {
-				// Test default javac -source 1.8 -target 1.8
-				config := testConfig(nil)
+				config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "false"})
 				if testcase.unbundled {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 				}
@@ -302,9 +302,9 @@ func TestClasspath(t *testing.T) {
 				}
 			})
 
-			// Test again with javac -source 9 -target 9
+			// Test with default javac -source 9 -target 9
 			t.Run("Java language level 9", func(t *testing.T) {
-				config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "true"})
+				config := testConfig(nil)
 				if testcase.unbundled {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 				}
@@ -327,7 +327,8 @@ func TestClasspath(t *testing.T) {
 
 			// Test again with PLATFORM_VERSION_CODENAME=REL
 			t.Run("REL", func(t *testing.T) {
-				config := testConfig(nil)
+				// TODO(b/115604102): This test should be rewritten with language level 9
+				config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "false"})
 				config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("REL")
 				config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(true)
 
