@@ -154,6 +154,7 @@ type ModuleContext interface {
 	CheckbuildFile(srcPath Path)
 
 	InstallInData() bool
+	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
 	InstallInRecovery() bool
 	InstallBypassMake() bool
@@ -192,6 +193,7 @@ type Module interface {
 	Enabled() bool
 	Target() Target
 	InstallInData() bool
+	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
 	InstallInRecovery() bool
 	InstallBypassMake() bool
@@ -829,6 +831,10 @@ func (m *ModuleBase) NoAddressSanitizer() bool {
 }
 
 func (m *ModuleBase) InstallInData() bool {
+	return false
+}
+
+func (m *ModuleBase) InstallInTestcases() bool {
 	return false
 }
 
@@ -1502,6 +1508,10 @@ func (m *ModuleBase) IsNativeBridgeSupported() bool {
 
 func (m *moduleContext) InstallInData() bool {
 	return m.module.InstallInData()
+}
+
+func (m *moduleContext) InstallInTestcases() bool {
+	return m.module.InstallInTestcases()
 }
 
 func (m *moduleContext) InstallInSanitizerDir() bool {
