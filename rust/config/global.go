@@ -37,6 +37,10 @@ var (
 
 	DefaultDenyWarnings = proptools.BoolPtr(true)
 
+	GlobalRustFlags = []string{
+		"--remap-path-prefix $$(pwd)=",
+	}
+
 	deviceGlobalRustFlags = []string{}
 
 	deviceGlobalLinkFlags = []string{
