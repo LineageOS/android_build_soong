@@ -771,9 +771,9 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 	// Ensure that runtime_libs dep in included
 	ensureContains(t, copyCmds, "image.apex/lib64/libbar.so")
 
-	injectRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("injectApexDependency")
-	ensureListEmpty(t, names(injectRule.Args["provideNativeLibs"]))
-	ensureListContains(t, names(injectRule.Args["requireNativeLibs"]), "libfoo.so")
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexManifestRule")
+	ensureListEmpty(t, names(apexManifestRule.Args["provideNativeLibs"]))
+	ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libfoo.so")
 
 }
 
@@ -821,11 +821,11 @@ func TestApexDependencyToLLNDK(t *testing.T) {
 	// Ensure that LLNDK dep is not included
 	ensureNotContains(t, copyCmds, "image.apex/lib64/libbar.so")
 
-	injectRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("injectApexDependency")
-	ensureListEmpty(t, names(injectRule.Args["provideNativeLibs"]))
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexManifestRule")
+	ensureListEmpty(t, names(apexManifestRule.Args["provideNativeLibs"]))
 
 	// Ensure that LLNDK dep is required
-	ensureListContains(t, names(injectRule.Args["requireNativeLibs"]), "libbar.so")
+	ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libbar.so")
 
 }
 
@@ -1582,32 +1582,54 @@ func TestDependenciesInApexManifest(t *testing.T) {
 		}
 	`)
 
-	var injectRule android.TestingBuildParams
+	var apexManifestRule android.TestingBuildParams
 	var provideNativeLibs, requireNativeLibs []string
 
-	injectRule = ctx.ModuleForTests("myapex_nodep", "android_common_myapex_nodep").Rule("injectApexDependency")
-	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
-	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	apexManifestRule = ctx.ModuleForTests("myapex_nodep", "android_common_myapex_nodep").Rule("apexManifestRule")
+	provideNativeLibs = names(apexManifestRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListEmpty(t, provideNativeLibs)
 	ensureListEmpty(t, requireNativeLibs)
 
-	injectRule = ctx.ModuleForTests("myapex_dep", "android_common_myapex_dep").Rule("injectApexDependency")
-	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
-	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	apexManifestRule = ctx.ModuleForTests("myapex_dep", "android_common_myapex_dep").Rule("apexManifestRule")
+	provideNativeLibs = names(apexManifestRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListEmpty(t, provideNativeLibs)
 	ensureListContains(t, requireNativeLibs, "libfoo.so")
 
-	injectRule = ctx.ModuleForTests("myapex_provider", "android_common_myapex_provider").Rule("injectApexDependency")
-	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
-	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	apexManifestRule = ctx.ModuleForTests("myapex_provider", "android_common_myapex_provider").Rule("apexManifestRule")
+	provideNativeLibs = names(apexManifestRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListContains(t, provideNativeLibs, "libfoo.so")
 	ensureListEmpty(t, requireNativeLibs)
 
-	injectRule = ctx.ModuleForTests("myapex_selfcontained", "android_common_myapex_selfcontained").Rule("injectApexDependency")
-	provideNativeLibs = names(injectRule.Args["provideNativeLibs"])
-	requireNativeLibs = names(injectRule.Args["requireNativeLibs"])
+	apexManifestRule = ctx.ModuleForTests("myapex_selfcontained", "android_common_myapex_selfcontained").Rule("apexManifestRule")
+	provideNativeLibs = names(apexManifestRule.Args["provideNativeLibs"])
+	requireNativeLibs = names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListContains(t, provideNativeLibs, "libfoo.so")
 	ensureListEmpty(t, requireNativeLibs)
+}
+
+func TestApexName(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apex_name: "com.android.myapex",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex")
+	apexManifestRule := module.Rule("apexManifestRule")
+	ensureContains(t, apexManifestRule.Args["opt"], "-v name com.android.myapex")
+	apexRule := module.Rule("apexRule")
+	ensureContains(t, apexRule.Args["opt_flags"], "--do_not_check_keyname")
 }
 
 func TestNonTestApex(t *testing.T) {
