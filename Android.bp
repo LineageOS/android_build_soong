@@ -172,6 +172,7 @@ bootstrap_go_package {
         "cc/vndk_prebuilt.go",
         "cc/xom.go",
 
+        "cc/cflag_artifacts.go",
         "cc/cmakelists.go",
         "cc/compdb.go",
         "cc/compiler.go",
