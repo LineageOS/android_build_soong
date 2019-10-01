@@ -304,7 +304,6 @@ bootstrap_go_package {
         "java/jdeps_test.go",
         "java/kotlin_test.go",
         "java/plugin_test.go",
-        "java/robolectric_test.go",
         "java/sdk_test.go",
     ],
     pluginFor: ["soong_build"],
