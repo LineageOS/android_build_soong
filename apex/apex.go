@@ -1215,6 +1215,16 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
+	// check apex_available requirements
+	for _, fi := range filesInfo {
+		if am, ok := fi.module.(android.ApexModule); ok {
+			if !am.AvailableFor(ctx.ModuleName()) {
+				ctx.ModuleErrorf("requires %q that is not available for the APEX", fi.module.Name())
+				return
+			}
+		}
+	}
+
 	// prepend the name of this APEX to the module names. These names will be the names of
 	// modules that will be defined if the APEX is flattened.
 	for i := range filesInfo {
