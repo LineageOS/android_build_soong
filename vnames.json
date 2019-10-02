@@ -2,7 +2,7 @@
   {
     "pattern": "out/(.*)",
     "vname": {
-      "corpus": "CORPUS",
+      "corpus": "android.googlesource.com/platform/superproject",
       "root": "out",
       "path": "@1@"
     }
@@ -10,7 +10,7 @@
   {
     "pattern": "(.*)",
     "vname": {
-      "corpus": "CORPUS",
+      "corpus": "android.googlesource.com/platform/superproject",
       "path": "@1@"
     }
   }
