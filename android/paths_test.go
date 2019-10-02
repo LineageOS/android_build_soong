@@ -204,6 +204,7 @@ type moduleInstallPathContextImpl struct {
 	inTestcases    bool
 	inSanitizerDir bool
 	inRecovery     bool
+	inRoot         bool
 }
 
 func (moduleInstallPathContextImpl) Fs() pathtools.FileSystem {
@@ -230,6 +231,10 @@ func (m moduleInstallPathContextImpl) InstallInSanitizerDir() bool {
 
 func (m moduleInstallPathContextImpl) InstallInRecovery() bool {
 	return m.inRecovery
+}
+
+func (m moduleInstallPathContextImpl) InstallInRoot() bool {
+	return m.inRoot
 }
 
 func (m moduleInstallPathContextImpl) InstallBypassMake() bool {
@@ -312,6 +317,40 @@ func TestPathForModuleInstall(t *testing.T) {
 			},
 			in:  []string{"bin", "my_test"},
 			out: "target/product/test_device/system_ext/bin/my_test",
+		},
+		{
+			name: "root binary",
+			ctx: &moduleInstallPathContextImpl{
+				baseModuleContext: baseModuleContext{
+					target: deviceTarget,
+				},
+				inRoot: true,
+			},
+			in:  []string{"my_test"},
+			out: "target/product/test_device/root/my_test",
+		},
+		{
+			name: "recovery binary",
+			ctx: &moduleInstallPathContextImpl{
+				baseModuleContext: baseModuleContext{
+					target: deviceTarget,
+				},
+				inRecovery: true,
+			},
+			in:  []string{"bin/my_test"},
+			out: "target/product/test_device/recovery/root/system/bin/my_test",
+		},
+		{
+			name: "recovery root binary",
+			ctx: &moduleInstallPathContextImpl{
+				baseModuleContext: baseModuleContext{
+					target: deviceTarget,
+				},
+				inRecovery: true,
+				inRoot:     true,
+			},
+			in:  []string{"my_test"},
+			out: "target/product/test_device/recovery/root/my_test",
 		},
 
 		{
