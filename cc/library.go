@@ -791,9 +791,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	// Optimize out relinking against shared libraries whose interface hasn't changed by
 	// depending on a table of contents file instead of the library itself.
-	tocPath := outputFile.RelPathString()
-	tocPath = pathtools.ReplaceExtension(tocPath, flags.Toolchain.ShlibSuffix()[1:]+".toc")
-	tocFile := android.PathForOutput(ctx, tocPath)
+	tocFile := outputFile.ReplaceExtension(ctx, flags.Toolchain.ShlibSuffix()[1:]+".toc")
 	library.tocFile = android.OptionalPathForPath(tocFile)
 	TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 

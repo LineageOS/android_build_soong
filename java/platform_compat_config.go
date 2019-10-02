@@ -30,7 +30,7 @@ type platformCompatConfig struct {
 	android.ModuleBase
 
 	properties     platformCompatConfigProperties
-	installDirPath android.OutputPath
+	installDirPath android.InstallPath
 	configFile     android.OutputPath
 }
 
