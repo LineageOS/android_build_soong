@@ -17,6 +17,8 @@ package android
 import (
 	"reflect"
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
 
 type Named struct {
@@ -219,7 +221,7 @@ func TestFilterArchStruct(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			out, filtered := filterArchStruct(reflect.TypeOf(test.in))
+			out, filtered := proptools.FilterPropertyStruct(reflect.TypeOf(test.in), filterArchStruct)
 			if filtered != test.filtered {
 				t.Errorf("expected filtered %v, got %v", test.filtered, filtered)
 			}
