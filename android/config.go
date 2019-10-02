@@ -800,7 +800,7 @@ func (c *config) ArtUseReadBarrier() bool {
 func (c *config) EnforceRROForModule(name string) bool {
 	enforceList := c.productVariables.EnforceRROTargets
 	if enforceList != nil {
-		if len(enforceList) == 1 && (enforceList)[0] == "*" {
+		if InList("*", enforceList) {
 			return true
 		}
 		return InList(name, enforceList)
