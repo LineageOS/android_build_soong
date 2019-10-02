@@ -30,7 +30,7 @@ type LoadHookContext interface {
 	BaseModuleContext
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
-	CreateModule(ModuleFactory, ...interface{})
+	CreateModule(ModuleFactory, ...interface{}) Module
 }
 
 // Arch hooks are run after the module has been split into architecture variants, and can be used
