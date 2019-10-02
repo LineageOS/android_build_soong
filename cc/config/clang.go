@@ -163,10 +163,6 @@ func init() {
 		// new warnings are fixed.
 		"-Wno-tautological-constant-compare",
 		"-Wno-tautological-type-limit-compare",
-
-		// Disable c++98-specific warning since Android is not concerned with C++98
-		// compatibility.
-		"-Wno-c++98-compat-extra-semi",
 	}, " "))
 
 	// Extra cflags for projects under external/ directory to disable warnings that are infeasible
