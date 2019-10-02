@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"android/soong/android"
-
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 var buildDir string
@@ -53,6 +53,7 @@ func TestMain(m *testing.M) {
 }
 
 func testCcWithConfig(t *testing.T, bp string, config android.Config) *android.TestContext {
+	t.Helper()
 	return testCcWithConfigForOs(t, bp, config, android.Android)
 }
 
@@ -2319,5 +2320,69 @@ func assertArrayString(t *testing.T, got, expected []string) {
 				i, expected[i], expected, got[i], got)
 			return
 		}
+	}
+}
+
+func TestDefaults(t *testing.T) {
+	ctx := testCc(t, `
+		cc_defaults {
+			name: "defaults",
+			srcs: ["foo.c"],
+			static: {
+				srcs: ["bar.c"],
+			},
+			shared: {
+				srcs: ["baz.c"],
+			},
+		}
+
+		cc_library_static {
+			name: "libstatic",
+			defaults: ["defaults"],
+		}
+
+		cc_library_shared {
+			name: "libshared",
+			defaults: ["defaults"],
+		}
+
+		cc_library {
+			name: "libboth",
+			defaults: ["defaults"],
+		}
+
+		cc_binary {
+			name: "binary",
+			defaults: ["defaults"],
+		}`)
+
+	pathsToBase := func(paths android.Paths) []string {
+		var ret []string
+		for _, p := range paths {
+			ret = append(ret, p.Base())
+		}
+		return ret
+	}
+
+	shared := ctx.ModuleForTests("libshared", "android_arm64_armv8-a_core_shared").Rule("ld")
+	if g, w := pathsToBase(shared.Inputs), []string{"foo.o", "baz.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("libshared ld rule wanted %q, got %q", w, g)
+	}
+	bothShared := ctx.ModuleForTests("libboth", "android_arm64_armv8-a_core_shared").Rule("ld")
+	if g, w := pathsToBase(bothShared.Inputs), []string{"foo.o", "baz.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("libboth ld rule wanted %q, got %q", w, g)
+	}
+	binary := ctx.ModuleForTests("binary", "android_arm64_armv8-a_core").Rule("ld")
+	if g, w := pathsToBase(binary.Inputs), []string{"foo.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("binary ld rule wanted %q, got %q", w, g)
+	}
+
+	static := ctx.ModuleForTests("libstatic", "android_arm64_armv8-a_core_static").Rule("ar")
+	if g, w := pathsToBase(static.Inputs), []string{"foo.o", "bar.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("libstatic ar rule wanted %q, got %q", w, g)
+	}
+	bothStatic := ctx.ModuleForTests("libboth", "android_arm64_armv8-a_core_static").Rule("ar")
+	if g, w := pathsToBase(bothStatic.Inputs), []string{"foo.o", "bar.o"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("libboth ar rule wanted %q, got %q", w, g)
 	}
 }
