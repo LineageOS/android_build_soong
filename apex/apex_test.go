@@ -2422,6 +2422,158 @@ func TestApexWithApps(t *testing.T) {
 
 }
 
+func TestApexAvailable(t *testing.T) {
+	// libfoo is not available to myapex, but only to otherapex
+	testApexError(t, "requires \"libfoo\" that is not available for the APEX", `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	apex {
+		name: "otherapex",
+		key: "otherapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "otherapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["otherapex"],
+	}`)
+
+	// libbar is an indirect dep
+	testApexError(t, "requires \"libbar\" that is not available for the APEX", `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	apex {
+		name: "otherapex",
+		key: "otherapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "otherapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		shared_libs: ["libbar"],
+		system_shared_libs: [],
+		apex_available: ["myapex", "otherapex"],
+	}
+
+	cc_library {
+		name: "libbar",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["otherapex"],
+	}`)
+
+	testApexError(t, "\"otherapex\" is not a valid module name", `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["otherapex"],
+	}`)
+
+	ctx, _ := testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo", "libbar"],
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbar",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["//apex_available:anyapex"],
+	}`)
+
+	// check that libfoo and libbar are created only for myapex, but not for the platform
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_core_shared")
+
+	ctx, _ = testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["//apex_available:platform"],
+	}`)
+
+	// check that libfoo is created only for the platform
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
+}
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()
