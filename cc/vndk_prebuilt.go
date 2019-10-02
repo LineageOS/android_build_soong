@@ -129,6 +129,18 @@ func (p *vndkPrebuiltLibraryDecorator) singleSourcePath(ctx ModuleContext) andro
 
 func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
+
+	arches := ctx.DeviceConfig().Arches()
+	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
+		ctx.Module().SkipInstall()
+		return nil
+	}
+
+	if ctx.DeviceConfig().BinderBitness() != p.binderBit() {
+		ctx.Module().SkipInstall()
+		return nil
+	}
+
 	if len(p.properties.Srcs) > 0 && p.shared() {
 		p.libraryDecorator.exportIncludes(ctx)
 		p.libraryDecorator.reexportSystemDirs(p.properties.Export_system_include_dirs...)
@@ -136,6 +148,8 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		// current VNDK prebuilts are only shared libs.
 		return p.singleSourcePath(ctx)
 	}
+
+	ctx.Module().SkipInstall()
 	return nil
 }
 
