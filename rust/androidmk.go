@@ -116,11 +116,10 @@ func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 		ret.OutputFile = android.OptionalPathForPath(compiler.path)
 	}
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		path := compiler.path.RelPathString()
-		dir, file := filepath.Split(path)
+		path, file := filepath.Split(compiler.path.ToMakePath().String())
 		stem, suffix, _ := android.SplitFileExt(file)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
-		fmt.Fprintln(w, "LOCAL_MODULE_PATH := $(OUT_DIR)/"+filepath.Clean(dir))
+		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 	})
 }
