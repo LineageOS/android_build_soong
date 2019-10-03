@@ -15,15 +15,40 @@
 package xml
 
 import (
-	"android/soong/android"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"android/soong/android"
 )
 
+var buildDir string
+
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_xml_test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func tearDown() {
+	os.RemoveAll(buildDir)
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
+}
+
 func testXml(t *testing.T, bp string) *android.TestContext {
-	config, buildDir := setup(t)
-	defer teardown(buildDir)
+	config := android.TestArchConfig(buildDir, nil)
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("prebuilt_etc", android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory))
 	ctx.RegisterModuleType("prebuilt_etc_xml", android.ModuleFactoryAdaptor(PrebuiltEtcXmlFactory))
@@ -43,21 +68,6 @@ func testXml(t *testing.T, bp string) *android.TestContext {
 	android.FailIfErrored(t, errs)
 
 	return ctx
-}
-
-func setup(t *testing.T) (config android.Config, buildDir string) {
-	buildDir, err := ioutil.TempDir("", "soong_xml_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	config = android.TestArchConfig(buildDir, nil)
-
-	return
-}
-
-func teardown(buildDir string) {
-	os.RemoveAll(buildDir)
 }
 
 func assertEqual(t *testing.T, name, expected, actual string) {
@@ -103,5 +113,5 @@ func TestPrebuiltEtcXml(t *testing.T) {
 	}
 
 	m := ctx.ModuleForTests("foo.xml", "android_arm64_armv8-a").Module().(*prebuiltEtcXml)
-	assertEqual(t, "installDir", "target/product/test_device/system/etc", m.InstallDirPath().RelPathString())
+	assertEqual(t, "installDir", buildDir+"/target/product/test_device/system/etc", m.InstallDirPath().String())
 }

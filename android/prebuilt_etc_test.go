@@ -182,9 +182,9 @@ func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
 	`)
 
 	p := ctx.ModuleForTests("foo.conf", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
-	expected := "target/product/test_device/system/usr/share/bar"
-	if p.installDirPath.RelPathString() != expected {
-		t.Errorf("expected %q, got %q", expected, p.installDirPath.RelPathString())
+	expected := buildDir + "/target/product/test_device/system/usr/share/bar"
+	if p.installDirPath.String() != expected {
+		t.Errorf("expected %q, got %q", expected, p.installDirPath.String())
 	}
 }
 
@@ -199,9 +199,9 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 
 	buildOS := BuildOs.String()
 	p := ctx.ModuleForTests("foo.conf", buildOS+"_common").Module().(*PrebuiltEtc)
-	expected := filepath.Join("host", config.PrebuiltOS(), "usr", "share", "bar")
-	if p.installDirPath.RelPathString() != expected {
-		t.Errorf("expected %q, got %q", expected, p.installDirPath.RelPathString())
+	expected := filepath.Join(buildDir, "host", config.PrebuiltOS(), "usr", "share", "bar")
+	if p.installDirPath.String() != expected {
+		t.Errorf("expected %q, got %q", expected, p.installDirPath.String())
 	}
 }
 
@@ -214,14 +214,14 @@ func TestPrebuiltFontInstallDirPath(t *testing.T) {
 	`)
 
 	p := ctx.ModuleForTests("foo.conf", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
-	expected := "target/product/test_device/system/fonts"
-	if p.installDirPath.RelPathString() != expected {
-		t.Errorf("expected %q, got %q", expected, p.installDirPath.RelPathString())
+	expected := buildDir + "/target/product/test_device/system/fonts"
+	if p.installDirPath.String() != expected {
+		t.Errorf("expected %q, got %q", expected, p.installDirPath.String())
 	}
 }
 
 func TestPrebuiltFirmwareDirPath(t *testing.T) {
-	targetPath := "target/product/test_device"
+	targetPath := buildDir + "/target/product/test_device"
 	tests := []struct {
 		description  string
 		config       string
@@ -249,7 +249,7 @@ func TestPrebuiltFirmwareDirPath(t *testing.T) {
 		t.Run(tt.description, func(t *testing.T) {
 			ctx, _ := testPrebuiltEtc(t, tt.config)
 			p := ctx.ModuleForTests("foo.conf", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
-			if p.installDirPath.RelPathString() != tt.expectedPath {
+			if p.installDirPath.String() != tt.expectedPath {
 				t.Errorf("expected %q, got %q", tt.expectedPath, p.installDirPath)
 			}
 		})
