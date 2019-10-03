@@ -147,16 +147,17 @@ type ModuleContext interface {
 	ExpandSource(srcFile, prop string) Path
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 
-	InstallExecutable(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
-	InstallFile(installPath OutputPath, name string, srcPath Path, deps ...Path) OutputPath
-	InstallSymlink(installPath OutputPath, name string, srcPath OutputPath) OutputPath
-	InstallAbsoluteSymlink(installPath OutputPath, name string, absPath string) OutputPath
+	InstallExecutable(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
+	InstallFile(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
+	InstallSymlink(installPath InstallPath, name string, srcPath InstallPath) InstallPath
+	InstallAbsoluteSymlink(installPath InstallPath, name string, absPath string) InstallPath
 	CheckbuildFile(srcPath Path)
 
 	InstallInData() bool
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
 	InstallInRecovery() bool
+	InstallInRoot() bool
 	InstallBypassMake() bool
 
 	RequiredModuleNames() []string
@@ -196,6 +197,7 @@ type Module interface {
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
 	InstallInRecovery() bool
+	InstallInRoot() bool
 	InstallBypassMake() bool
 	SkipInstall()
 	ExportedToMake() bool
@@ -844,6 +846,10 @@ func (m *ModuleBase) InstallInSanitizerDir() bool {
 
 func (m *ModuleBase) InstallInRecovery() bool {
 	return Bool(m.commonProperties.Recovery)
+}
+
+func (m *ModuleBase) InstallInRoot() bool {
+	return false
 }
 
 func (m *ModuleBase) InstallBypassMake() bool {
@@ -1522,11 +1528,15 @@ func (m *moduleContext) InstallInRecovery() bool {
 	return m.module.InstallInRecovery()
 }
 
+func (m *moduleContext) InstallInRoot() bool {
+	return m.module.InstallInRoot()
+}
+
 func (m *moduleContext) InstallBypassMake() bool {
 	return m.module.InstallBypassMake()
 }
 
-func (m *moduleContext) skipInstall(fullInstallPath OutputPath) bool {
+func (m *moduleContext) skipInstall(fullInstallPath InstallPath) bool {
 	if m.module.base().commonProperties.SkipInstall {
 		return true
 	}
@@ -1551,18 +1561,18 @@ func (m *moduleContext) skipInstall(fullInstallPath OutputPath) bool {
 	return false
 }
 
-func (m *moduleContext) InstallFile(installPath OutputPath, name string, srcPath Path,
-	deps ...Path) OutputPath {
+func (m *moduleContext) InstallFile(installPath InstallPath, name string, srcPath Path,
+	deps ...Path) InstallPath {
 	return m.installFile(installPath, name, srcPath, Cp, deps)
 }
 
-func (m *moduleContext) InstallExecutable(installPath OutputPath, name string, srcPath Path,
-	deps ...Path) OutputPath {
+func (m *moduleContext) InstallExecutable(installPath InstallPath, name string, srcPath Path,
+	deps ...Path) InstallPath {
 	return m.installFile(installPath, name, srcPath, CpExecutable, deps)
 }
 
-func (m *moduleContext) installFile(installPath OutputPath, name string, srcPath Path,
-	rule blueprint.Rule, deps []Path) OutputPath {
+func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path,
+	rule blueprint.Rule, deps []Path) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, fullInstallPath, false)
@@ -1597,7 +1607,7 @@ func (m *moduleContext) installFile(installPath OutputPath, name string, srcPath
 	return fullInstallPath
 }
 
-func (m *moduleContext) InstallSymlink(installPath OutputPath, name string, srcPath OutputPath) OutputPath {
+func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, srcPath InstallPath) InstallPath {
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, fullInstallPath, true)
 
@@ -1626,7 +1636,7 @@ func (m *moduleContext) InstallSymlink(installPath OutputPath, name string, srcP
 
 // installPath/name -> absPath where absPath might be a path that is available only at runtime
 // (e.g. /apex/...)
-func (m *moduleContext) InstallAbsoluteSymlink(installPath OutputPath, name string, absPath string) OutputPath {
+func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name string, absPath string) InstallPath {
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, fullInstallPath, true)
 
