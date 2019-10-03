@@ -33,7 +33,7 @@ type pythonInstaller struct {
 	dir64    string
 	relative string
 
-	path android.OutputPath
+	path android.InstallPath
 
 	androidMkSharedLibs []string
 }
@@ -47,7 +47,7 @@ func NewPythonInstaller(dir, dir64 string) *pythonInstaller {
 
 var _ installer = (*pythonInstaller)(nil)
 
-func (installer *pythonInstaller) installDir(ctx android.ModuleContext) android.OutputPath {
+func (installer *pythonInstaller) installDir(ctx android.ModuleContext) android.InstallPath {
 	dir := installer.dir
 	if ctx.Arch().ArchType.Multilib == "lib64" && installer.dir64 != "" {
 		dir = installer.dir64
