@@ -52,7 +52,7 @@ type baseInstaller struct {
 	relative string
 	location installLocation
 
-	path android.OutputPath
+	path android.InstallPath
 }
 
 var _ installer = (*baseInstaller)(nil)
@@ -61,7 +61,7 @@ func (installer *baseInstaller) installerProps() []interface{} {
 	return []interface{}{&installer.Properties}
 }
 
-func (installer *baseInstaller) installDir(ctx ModuleContext) android.OutputPath {
+func (installer *baseInstaller) installDir(ctx ModuleContext) android.InstallPath {
 	dir := installer.dir
 	if ctx.toolchain().Is64Bit() && installer.dir64 != "" {
 		dir = installer.dir64

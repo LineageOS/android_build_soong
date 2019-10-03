@@ -561,8 +561,8 @@ type apexBundle struct {
 
 	bundleModuleFile android.WritablePath
 	outputFiles      map[apexPackaging]android.WritablePath
-	flattenedOutput  android.OutputPath
-	installDir       android.OutputPath
+	flattenedOutput  android.InstallPath
+	installDir       android.InstallPath
 
 	prebuiltFileToDelete string
 
@@ -1840,7 +1840,7 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex       android.Path
-	installDir      android.OutputPath
+	installDir      android.InstallPath
 	installFilename string
 	outputApex      android.WritablePath
 }

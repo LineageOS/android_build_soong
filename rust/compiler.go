@@ -94,7 +94,7 @@ type baseCompiler struct {
 	dir64    string
 	subDir   string
 	relative string
-	path     android.OutputPath
+	path     android.InstallPath
 }
 
 var _ compiler = (*baseCompiler)(nil)
@@ -173,7 +173,7 @@ func (compiler *baseCompiler) crateName() string {
 	return compiler.Properties.Crate_name
 }
 
-func (compiler *baseCompiler) installDir(ctx ModuleContext) android.OutputPath {
+func (compiler *baseCompiler) installDir(ctx ModuleContext) android.InstallPath {
 	dir := compiler.dir
 	if ctx.toolchain().Is64Bit() && compiler.dir64 != "" {
 		dir = compiler.dir64

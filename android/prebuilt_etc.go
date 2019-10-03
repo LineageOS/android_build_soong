@@ -65,7 +65,7 @@ type PrebuiltEtc struct {
 	installDirBase string
 	// The base install location when soc_specific property is set to true, e.g. "firmware" for prebuilt_firmware.
 	socInstallDirBase      string
-	installDirPath         OutputPath
+	installDirPath         InstallPath
 	additionalDependencies *Paths
 }
 
@@ -91,7 +91,7 @@ func (p *PrebuiltEtc) SourceFilePath(ctx ModuleContext) Path {
 	return PathForModuleSrc(ctx, String(p.properties.Src))
 }
 
-func (p *PrebuiltEtc) InstallDirPath() OutputPath {
+func (p *PrebuiltEtc) InstallDirPath() InstallPath {
 	return p.installDirPath
 }
 
