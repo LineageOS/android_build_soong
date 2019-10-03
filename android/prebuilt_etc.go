@@ -158,7 +158,7 @@ func (p *PrebuiltEtc) AndroidMkEntries() AndroidMkEntries {
 		ExtraEntries: []AndroidMkExtraEntriesFunc{
 			func(entries *AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_TAGS", "optional")
-				entries.SetString("LOCAL_MODULE_PATH", "$(OUT_DIR)/"+p.installDirPath.RelPathString())
+				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.outputFilePath.Base())
 				entries.SetString("LOCAL_UNINSTALLABLE_MODULE", strconv.FormatBool(!p.Installable()))
 				if p.additionalDependencies != nil {
