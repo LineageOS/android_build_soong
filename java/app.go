@@ -126,7 +126,7 @@ type AndroidApp struct {
 	// the install APK name is normally the same as the module name, but can be overridden with PRODUCT_PACKAGE_NAME_OVERRIDES.
 	installApkName string
 
-	installDir android.OutputPath
+	installDir android.InstallPath
 
 	onDeviceDir string
 
@@ -773,7 +773,7 @@ type AndroidAppImport struct {
 
 	usesLibrary usesLibrary
 
-	installPath android.OutputPath
+	installPath android.InstallPath
 }
 
 type AndroidAppImportProperties struct {
