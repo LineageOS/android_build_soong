@@ -121,7 +121,7 @@ type TopDownMutatorContext interface {
 
 	Rename(name string)
 
-	CreateModule(ModuleFactory, ...interface{})
+	CreateModule(ModuleFactory, ...interface{}) Module
 }
 
 type topDownMutatorContext struct {
@@ -243,9 +243,10 @@ func (t *topDownMutatorContext) Rename(name string) {
 	t.Module().base().commonProperties.DebugName = name
 }
 
-func (t *topDownMutatorContext) CreateModule(factory ModuleFactory, props ...interface{}) {
+func (t *topDownMutatorContext) CreateModule(factory ModuleFactory, props ...interface{}) Module {
 	inherited := []interface{}{&t.Module().base().commonProperties, &t.Module().base().variableProperties}
-	t.bp.CreateModule(ModuleFactoryAdaptor(factory), append(inherited, props...)...)
+	module := t.bp.CreateModule(ModuleFactoryAdaptor(factory), append(inherited, props...)...).(Module)
+	return module
 }
 
 func (b *bottomUpMutatorContext) MutatorName() string {
