@@ -117,7 +117,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 		{
 			patterns: []string{"app/%"},
 			moduleTests: []moduleTest{
-				{module: systemModule, expectedPartition: "system_other"},
+				{module: systemModule, expectedPartition: "system_other/system"},
 				{module: systemProductModule, expectedPartition: "system/product"},
 				{module: productModule, expectedPartition: "product"},
 			},
@@ -126,8 +126,8 @@ func TestDexPreoptSystemOther(t *testing.T) {
 		{
 			patterns: []string{"app/%", "product/app/%"},
 			moduleTests: []moduleTest{
-				{module: systemModule, expectedPartition: "system_other"},
-				{module: systemProductModule, expectedPartition: "system_other/product"},
+				{module: systemModule, expectedPartition: "system_other/system"},
+				{module: systemProductModule, expectedPartition: "system_other/system/product"},
 				{module: productModule, expectedPartition: "product"},
 			},
 		},
