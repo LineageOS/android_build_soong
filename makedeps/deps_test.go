@@ -147,6 +147,20 @@ b: e`,
 				},
 			},
 		},
+		{
+			// TODO(b/141372861): remove this
+			// AIDL produces a dep file with no output file for a parcelable (b/
+			name: "AIDL parcelable",
+			input: ` : \
+  frameworks/base/tests/net/integration/src/com/android/server/net/integrationtests/HttpResponse.aidl
+`,
+			output: Deps{
+				Output: "",
+				Inputs: []string{
+					"frameworks/base/tests/net/integration/src/com/android/server/net/integrationtests/HttpResponse.aidl",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
