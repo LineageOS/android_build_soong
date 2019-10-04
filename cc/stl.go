@@ -221,13 +221,13 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 
 		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
-			flags.extraLibFlags = append(flags.extraLibFlags, "-nodefaultlibs")
-			if ctx.staticBinary() {
-				flags.extraLibFlags = append(flags.extraLibFlags, hostStaticGccLibs[ctx.Os()]...)
-			} else {
-				flags.extraLibFlags = append(flags.extraLibFlags, hostDynamicGccLibs[ctx.Os()]...)
-			}
+			flags.extraLibFlags = append(flags.extraLibFlags, "-nostdlib++")
 			if ctx.Windows() {
+				if stl.Properties.SelectedStl == "libc++_static" {
+					// These are transitively needed by libc++_static.
+					flags.extraLibFlags = append(flags.extraLibFlags,
+						"-lmsvcrt", "-lucrt")
+				}
 				// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
 				// exception model for 32-bit.
 				if ctx.Arch().ArchType == android.X86 {
@@ -260,35 +260,11 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 		// None or error.
 		if !ctx.toolchain().Bionic() {
 			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
-			flags.extraLibFlags = append(flags.extraLibFlags, "-nodefaultlibs")
-			if ctx.staticBinary() {
-				flags.extraLibFlags = append(flags.extraLibFlags, hostStaticGccLibs[ctx.Os()]...)
-			} else {
-				flags.extraLibFlags = append(flags.extraLibFlags, hostDynamicGccLibs[ctx.Os()]...)
-			}
+			flags.extraLibFlags = append(flags.extraLibFlags, "-nostdlib++")
 		}
 	default:
 		panic(fmt.Errorf("Unknown stl: %q", stl.Properties.SelectedStl))
 	}
 
 	return flags
-}
-
-var hostDynamicGccLibs, hostStaticGccLibs map[android.OsType][]string
-
-func init() {
-	hostDynamicGccLibs = map[android.OsType][]string{
-		android.Fuchsia: []string{"-lc", "-lunwind"},
-		android.Linux:   []string{"-lgcc_s", "-lgcc", "-lc", "-lgcc_s", "-lgcc"},
-		android.Darwin:  []string{"-lc", "-lSystem"},
-		android.Windows: []string{"-Wl,--start-group", "-lmingw32", "-lgcc", "-lgcc_eh",
-			"-lmoldname", "-lmingwex", "-lmsvcrt", "-lucrt", "-lpthread",
-			"-ladvapi32", "-lshell32", "-luser32", "-lkernel32", "-lpsapi",
-			"-Wl,--end-group"},
-	}
-	hostStaticGccLibs = map[android.OsType][]string{
-		android.Linux:   []string{"-Wl,--start-group", "-lgcc", "-lgcc_eh", "-lc", "-Wl,--end-group"},
-		android.Darwin:  []string{"NO_STATIC_HOST_BINARIES_ON_DARWIN"},
-		android.Windows: []string{"NO_STATIC_HOST_BINARIES_ON_WINDOWS"},
-	}
 }
