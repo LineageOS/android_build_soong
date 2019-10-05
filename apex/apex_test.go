@@ -1382,6 +1382,7 @@ func TestVndkApexVersion(t *testing.T) {
 			vndk: {
 				enabled: true,
 			},
+			target_arch: "arm64",
 			srcs: ["libvndk27.so"],
 		}
 	`, withFiles(map[string][]byte{
@@ -1864,8 +1865,8 @@ func TestApexInProductPartition(t *testing.T) {
 	`)
 
 	apex := ctx.ModuleForTests("myapex", "android_common_myapex").Module().(*apexBundle)
-	expected := "target/product/test_device/product/apex"
-	actual := apex.installDir.RelPathString()
+	expected := buildDir + "/target/product/test_device/product/apex"
+	actual := apex.installDir.String()
 	if actual != expected {
 		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 	}

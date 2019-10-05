@@ -16,17 +16,30 @@ package dexpreopt
 
 import (
 	"android/soong/android"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 )
 
-func testModuleConfig(ctx android.PathContext) ModuleConfig {
+func testSystemModuleConfig(ctx android.PathContext, name string) ModuleConfig {
+	return testModuleConfig(ctx, name, "system")
+}
+
+func testSystemProductModuleConfig(ctx android.PathContext, name string) ModuleConfig {
+	return testModuleConfig(ctx, name, "system/product")
+}
+
+func testProductModuleConfig(ctx android.PathContext, name string) ModuleConfig {
+	return testModuleConfig(ctx, name, "product")
+}
+
+func testModuleConfig(ctx android.PathContext, name, partition string) ModuleConfig {
 	return ModuleConfig{
-		Name:                            "test",
-		DexLocation:                     "/system/app/test/test.apk",
-		BuildPath:                       android.PathForOutput(ctx, "test/test.apk"),
-		DexPath:                         android.PathForOutput(ctx, "test/dex/test.jar"),
+		Name:                            name,
+		DexLocation:                     fmt.Sprintf("/%s/app/test/%s.apk", partition, name),
+		BuildPath:                       android.PathForOutput(ctx, fmt.Sprintf("%s/%s.apk", name, name)),
+		DexPath:                         android.PathForOutput(ctx, fmt.Sprintf("%s/dex/%s.jar", name, name)),
 		UncompressedDex:                 false,
 		HasApkLibraries:                 false,
 		PreoptFlags:                     nil,
@@ -46,14 +59,14 @@ func testModuleConfig(ctx android.PathContext) ModuleConfig {
 		ForceCreateAppImage:             false,
 		PresignedPrebuilt:               false,
 		NoStripping:                     false,
-		StripInputPath:                  android.PathForOutput(ctx, "unstripped/test.apk"),
-		StripOutputPath:                 android.PathForOutput(ctx, "stripped/test.apk"),
+		StripInputPath:                  android.PathForOutput(ctx, fmt.Sprintf("unstripped/%s.apk", name)),
+		StripOutputPath:                 android.PathForOutput(ctx, fmt.Sprintf("stripped/%s.apk", name)),
 	}
 }
 
 func TestDexPreopt(t *testing.T) {
 	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
+	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 	rule, err := GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
@@ -73,7 +86,7 @@ func TestDexPreopt(t *testing.T) {
 func TestDexPreoptStrip(t *testing.T) {
 	// Test that we panic if we strip in a configuration where stripping is not allowed.
 	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
+	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 	global.NeverAllowStripping = true
 	module.NoStripping = false
@@ -86,29 +99,65 @@ func TestDexPreoptStrip(t *testing.T) {
 
 func TestDexPreoptSystemOther(t *testing.T) {
 	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
+	global := GlobalConfigForTests(ctx)
+	systemModule := testSystemModuleConfig(ctx, "Stest")
+	systemProductModule := testSystemProductModuleConfig(ctx, "SPtest")
+	productModule := testProductModuleConfig(ctx, "Ptest")
 
 	global.HasSystemOther = true
-	global.PatternsOnSystemOther = []string{"app/%"}
 
-	rule, err := GenerateDexpreoptRule(ctx, global, module)
-	if err != nil {
-		t.Fatal(err)
+	type moduleTest struct {
+		module            ModuleConfig
+		expectedPartition string
+	}
+	tests := []struct {
+		patterns    []string
+		moduleTests []moduleTest
+	}{
+		{
+			patterns: []string{"app/%"},
+			moduleTests: []moduleTest{
+				{module: systemModule, expectedPartition: "system_other/system"},
+				{module: systemProductModule, expectedPartition: "system/product"},
+				{module: productModule, expectedPartition: "product"},
+			},
+		},
+		// product/app/% only applies to product apps inside the system partition
+		{
+			patterns: []string{"app/%", "product/app/%"},
+			moduleTests: []moduleTest{
+				{module: systemModule, expectedPartition: "system_other/system"},
+				{module: systemProductModule, expectedPartition: "system_other/system/product"},
+				{module: productModule, expectedPartition: "product"},
+			},
+		},
 	}
 
-	wantInstalls := android.RuleBuilderInstalls{
-		{android.PathForOutput(ctx, "test/oat/arm/package.odex"), "/system_other/app/test/oat/arm/test.odex"},
-		{android.PathForOutput(ctx, "test/oat/arm/package.vdex"), "/system_other/app/test/oat/arm/test.vdex"},
+	for _, test := range tests {
+		global.PatternsOnSystemOther = test.patterns
+		for _, mt := range test.moduleTests {
+			rule, err := GenerateDexpreoptRule(ctx, global, mt.module)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			name := mt.module.Name
+			wantInstalls := android.RuleBuilderInstalls{
+				{android.PathForOutput(ctx, name+"/oat/arm/package.odex"), fmt.Sprintf("/%s/app/test/oat/arm/%s.odex", mt.expectedPartition, name)},
+				{android.PathForOutput(ctx, name+"/oat/arm/package.vdex"), fmt.Sprintf("/%s/app/test/oat/arm/%s.vdex", mt.expectedPartition, name)},
+			}
+
+			if rule.Installs().String() != wantInstalls.String() {
+				t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
+			}
+		}
 	}
 
-	if rule.Installs().String() != wantInstalls.String() {
-		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
-	}
 }
 
 func TestDexPreoptProfile(t *testing.T) {
 	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-	global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
+	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 	module.ProfileClassListing = android.OptionalPathForPath(android.PathForTesting("profile"))
 
@@ -156,7 +205,7 @@ func TestStripDex(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-			global, module := GlobalConfigForTests(ctx), testModuleConfig(ctx)
+			global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 			test.setup(&global, &module)
 

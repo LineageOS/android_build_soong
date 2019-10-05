@@ -561,8 +561,8 @@ type apexBundle struct {
 
 	bundleModuleFile android.WritablePath
 	outputFiles      map[apexPackaging]android.WritablePath
-	flattenedOutput  android.OutputPath
-	installDir       android.OutputPath
+	flattenedOutput  android.InstallPath
+	installDir       android.InstallPath
 
 	prebuiltFileToDelete string
 
@@ -1625,8 +1625,8 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 			proptools.StringDefault(a.properties.Apex_name, name), fi.installDir)
 		if a.properties.Flattened && apexType.image() {
 			// /system/apex/<name>/{lib|framework|...}
-			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)",
-				a.installDir.RelPathString(), name, fi.installDir))
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join(a.installDir.ToMakePath().String(),
+				name, fi.installDir))
 			if !a.isFlattenedVariant() {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
@@ -1735,7 +1735,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFiles[apexType].String())
-				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.ToMakePath().String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
 				if len(moduleNames) > 0 {
@@ -1746,7 +1746,7 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				}
 				if a.prebuiltFileToDelete != "" {
 					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", "rm -rf "+
-						filepath.Join("$(OUT_DIR)", a.installDir.RelPathString(), a.prebuiltFileToDelete))
+						filepath.Join(a.installDir.ToMakePath().String(), a.prebuiltFileToDelete))
 				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
@@ -1840,7 +1840,7 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex       android.Path
-	installDir      android.OutputPath
+	installDir      android.InstallPath
 	installFilename string
 	outputApex      android.WritablePath
 }
@@ -1987,7 +1987,7 @@ func (p *Prebuilt) AndroidMkEntries() android.AndroidMkEntries {
 		Include:    "$(BUILD_PREBUILT)",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", filepath.Join("$(OUT_DIR)", p.installDir.RelPathString()))
+				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
 				entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", p.properties.Overrides...)
