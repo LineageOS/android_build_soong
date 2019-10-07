@@ -20,16 +20,22 @@ import (
 
 	"android/soong/android"
 	"android/soong/rust/config"
+	"github.com/google/blueprint/proptools"
 )
+
+func getEdition(compiler *baseCompiler) string {
+	return proptools.StringDefault(compiler.Properties.Edition, config.DefaultEdition)
+}
+
+func getDenyWarnings(compiler *baseCompiler) bool {
+	return BoolDefault(compiler.Properties.Deny_warnings, config.DefaultDenyWarnings)
+}
 
 func NewBaseCompiler(dir, dir64 string) *baseCompiler {
 	return &baseCompiler{
-		Properties: BaseCompilerProperties{
-			Edition:       &config.DefaultEdition,
-			Deny_warnings: config.DefaultDenyWarnings,
-		},
-		dir:   dir,
-		dir64: dir64,
+		Properties: BaseCompilerProperties{},
+		dir:        dir,
+		dir64:      dir64,
 	}
 }
 
@@ -113,12 +119,12 @@ func (compiler *baseCompiler) featuresToFlags(features []string) []string {
 
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 
-	if Bool(compiler.Properties.Deny_warnings) {
+	if getDenyWarnings(compiler) {
 		flags.RustFlags = append(flags.RustFlags, "-D warnings")
 	}
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
 	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(compiler.Properties.Features)...)
-	flags.RustFlags = append(flags.RustFlags, "--edition="+*compiler.Properties.Edition)
+	flags.RustFlags = append(flags.RustFlags, "--edition="+getEdition(compiler))
 	flags.LinkFlags = append(flags.LinkFlags, compiler.Properties.Ld_flags...)
 	flags.GlobalRustFlags = append(flags.GlobalRustFlags, config.GlobalRustFlags...)
 	flags.GlobalRustFlags = append(flags.GlobalRustFlags, ctx.toolchain().ToolchainRustFlags())
