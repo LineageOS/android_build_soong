@@ -514,8 +514,19 @@ func InitAndroidModule(m Module) {
 
 	m.AddProperties(
 		&base.nameProperties,
-		&base.commonProperties,
-		&base.variableProperties)
+		&base.commonProperties)
+
+	// Allow tests to override the default product variables
+	if base.variableProperties == nil {
+		base.variableProperties = zeroProductVariables
+	}
+
+	// Filter the product variables properties to the ones that exist on this module
+	base.variableProperties = createVariableProperties(m.GetProperties(), base.variableProperties)
+	if base.variableProperties != nil {
+		m.AddProperties(base.variableProperties)
+	}
+
 	base.generalProperties = m.GetProperties()
 	base.customizableProperties = m.GetProperties()
 
@@ -597,7 +608,7 @@ type ModuleBase struct {
 
 	nameProperties          nameProperties
 	commonProperties        commonProperties
-	variableProperties      variableProperties
+	variableProperties      interface{}
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
 	archProperties          [][]interface{}
