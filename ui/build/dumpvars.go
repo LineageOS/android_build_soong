@@ -42,6 +42,7 @@ func DumpMakeVars(ctx Context, config Config, goals, vars []string) (map[string]
 	soongUiVars := map[string]func() string{
 		"OUT_DIR":  func() string { return config.OutDir() },
 		"DIST_DIR": func() string { return config.DistDir() },
+		"TMPDIR":   func() string { return absPath(ctx, config.TempDir()) },
 	}
 
 	makeVars := make([]string, 0, len(vars))
