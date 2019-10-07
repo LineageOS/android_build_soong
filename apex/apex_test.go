@@ -2407,6 +2407,36 @@ func TestApexAvailable(t *testing.T) {
 	// check that libfoo is created only for the platform
 	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
 	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
+
+	ctx, _ = testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	cc_library {
+		name: "libfoo",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+		static: {
+			apex_available: ["//apex_available:platform"],
+		},
+	}`)
+
+	// shared variant of libfoo is only available to myapex
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
+	// but the static variant is available to both myapex and the platform
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_static_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_static")
 }
 
 func TestMain(m *testing.M) {
