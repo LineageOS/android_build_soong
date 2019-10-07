@@ -15,36 +15,61 @@
 package java
 
 import (
+	"path/filepath"
+	"strconv"
+
 	"android/soong/android"
 )
 
-func genProto(ctx android.ModuleContext, protoFile android.Path, flags android.ProtoFlags) android.Path {
-	srcJarFile := android.GenPathWithExt(ctx, "proto", protoFile, "srcjar")
+func genProto(ctx android.ModuleContext, protoFiles android.Paths, flags android.ProtoFlags) android.Paths {
+	// Shard proto files into groups of 100 to avoid having to recompile all of them if one changes and to avoid
+	// hitting command line length limits.
+	shards := android.ShardPaths(protoFiles, 100)
 
-	outDir := srcJarFile.ReplaceExtension(ctx, "tmp")
-	depFile := srcJarFile.ReplaceExtension(ctx, "srcjar.d")
+	srcJarFiles := make(android.Paths, 0, len(shards))
 
-	rule := android.NewRuleBuilder()
+	for i, shard := range shards {
+		srcJarFile := android.PathForModuleGen(ctx, "proto", "proto"+strconv.Itoa(i)+".srcjar")
+		srcJarFiles = append(srcJarFiles, srcJarFile)
 
-	rule.Command().Text("rm -rf").Flag(outDir.String())
-	rule.Command().Text("mkdir -p").Flag(outDir.String())
+		outDir := srcJarFile.ReplaceExtension(ctx, "tmp")
 
-	android.ProtoRule(ctx, rule, protoFile, flags, flags.Deps, outDir, depFile, nil)
+		rule := android.NewRuleBuilder()
 
-	// Proto generated java files have an unknown package name in the path, so package the entire output directory
-	// into a srcjar.
-	rule.Command().
-		BuiltTool(ctx, "soong_zip").
-		Flag("-jar").
-		FlagWithOutput("-o ", srcJarFile).
-		FlagWithArg("-C ", outDir.String()).
-		FlagWithArg("-D ", outDir.String())
+		rule.Command().Text("rm -rf").Flag(outDir.String())
+		rule.Command().Text("mkdir -p").Flag(outDir.String())
 
-	rule.Command().Text("rm -rf").Flag(outDir.String())
+		for _, protoFile := range shard {
+			depFile := srcJarFile.InSameDir(ctx, protoFile.String()+".d")
+			rule.Command().Text("mkdir -p").Flag(filepath.Dir(depFile.String()))
+			android.ProtoRule(ctx, rule, protoFile, flags, flags.Deps, outDir, depFile, nil)
+		}
 
-	rule.Build(pctx, ctx, "protoc_"+protoFile.Rel(), "protoc "+protoFile.Rel())
+		// Proto generated java files have an unknown package name in the path, so package the entire output directory
+		// into a srcjar.
+		rule.Command().
+			BuiltTool(ctx, "soong_zip").
+			Flag("-jar").
+			Flag("-write_if_changed").
+			FlagWithOutput("-o ", srcJarFile).
+			FlagWithArg("-C ", outDir.String()).
+			FlagWithArg("-D ", outDir.String())
 
-	return srcJarFile
+		rule.Command().Text("rm -rf").Flag(outDir.String())
+
+		rule.Restat()
+
+		ruleName := "protoc"
+		ruleDesc := "protoc"
+		if len(shards) > 1 {
+			ruleName += "_" + strconv.Itoa(i)
+			ruleDesc += " " + strconv.Itoa(i)
+		}
+
+		rule.Build(pctx, ctx, ruleName, ruleDesc)
+	}
+
+	return srcJarFiles
 }
 
 func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
