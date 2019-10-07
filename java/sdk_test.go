@@ -250,7 +250,10 @@ func TestClasspath(t *testing.T) {
 			}
 
 			checkClasspath := func(t *testing.T, ctx *android.TestContext) {
-				javac := ctx.ModuleForTests("foo", variant).Rule("javac")
+				foo := ctx.ModuleForTests("foo", variant)
+				javac := foo.Rule("javac")
+
+				aidl := foo.MaybeRule("aidl")
 
 				got := javac.Args["bootClasspath"]
 				if got != bc {
@@ -263,6 +266,9 @@ func TestClasspath(t *testing.T) {
 				}
 
 				var deps []string
+				if aidl.Rule != nil {
+					deps = append(deps, aidl.Output.String())
+				}
 				if len(bootclasspath) > 0 && bootclasspath[0] != `""` {
 					deps = append(deps, bootclasspath...)
 				}
@@ -290,12 +296,8 @@ func TestClasspath(t *testing.T) {
 				if testcase.host != android.Host {
 					aidl := ctx.ModuleForTests("foo", variant).Rule("aidl")
 
-					aidlFlags := aidl.Args["aidlFlags"]
-					// Trim trailing "-I." to avoid having to specify it in every test
-					aidlFlags = strings.TrimSpace(strings.TrimSuffix(aidlFlags, "-I."))
-
-					if g, w := aidlFlags, testcase.aidl; g != w {
-						t.Errorf("want aidl flags %q, got %q", w, g)
+					if g, w := aidl.RuleParams.Command, testcase.aidl+" -I."; !strings.Contains(g, w) {
+						t.Errorf("want aidl command to contain %q, got %q", w, g)
 					}
 				}
 			})
