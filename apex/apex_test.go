@@ -199,6 +199,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 
 	// from android package
 	android.RegisterPackageBuildComponents(ctx)
+	ctx.PreArchMutators(android.RegisterBootJarMutators)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 
 	ctx.RegisterModuleType("apex", BundleFactory)
@@ -4704,6 +4705,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDe
 	ctx.RegisterModuleType("apex", BundleFactory)
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	ctx.PreArchMutators(android.RegisterBootJarMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	java.RegisterJavaBuildComponents(ctx)
@@ -4914,6 +4916,7 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("apex", BundleFactory)
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
+	ctx.PreArchMutators(android.RegisterBootJarMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	java.RegisterJavaBuildComponents(ctx)
