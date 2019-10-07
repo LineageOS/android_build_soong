@@ -126,10 +126,6 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 			archs = archs[:1]
 		}
 	}
-	if ctx.Config().SecondArchIsTranslated() {
-		// Only preopt primary arch for translated arch since there is only an image there.
-		archs = archs[:1]
-	}
 
 	var images android.Paths
 	var imagesDeps []android.Paths

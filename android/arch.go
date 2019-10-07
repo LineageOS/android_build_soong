@@ -527,7 +527,6 @@ type Arch struct {
 	CpuVariant   string
 	Abi          []string
 	ArchFeatures []string
-	Native       bool
 }
 
 func (a Arch) String() string {
@@ -1361,11 +1360,6 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 			addTarget(Android, *variables.DeviceSecondaryArch,
 				variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
 				variables.DeviceSecondaryAbi, NativeBridgeDisabled, nil, nil)
-
-			deviceArches := targets[Android]
-			if deviceArches[0].Arch.ArchType.Multilib == deviceArches[1].Arch.ArchType.Multilib {
-				deviceArches[1].Arch.Native = false
-			}
 		}
 
 		if variables.NativeBridgeArch != nil && *variables.NativeBridgeArch != "" {
@@ -1513,7 +1507,7 @@ func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
 		if err != nil {
 			return nil, err
 		}
-		arch.Native = false
+
 		ret = append(ret, Target{
 			Os:   Android,
 			Arch: arch,
@@ -1542,7 +1536,6 @@ func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []s
 		ArchVariant: stringPtr(archVariant),
 		CpuVariant:  stringPtr(cpuVariant),
 		Abi:         abi,
-		Native:      true,
 	}
 
 	if a.ArchVariant == a.ArchType.Name || a.ArchVariant == "generic" {

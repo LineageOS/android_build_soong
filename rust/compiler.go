@@ -184,7 +184,7 @@ func (compiler *baseCompiler) installDir(ctx ModuleContext) android.InstallPath 
 	if ctx.toolchain().Is64Bit() && compiler.dir64 != "" {
 		dir = compiler.dir64
 	}
-	if (!ctx.Host() && !ctx.Arch().Native) || ctx.Target().NativeBridge == android.NativeBridgeEnabled {
+	if !ctx.Host() || ctx.Target().NativeBridge == android.NativeBridgeEnabled {
 		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
 	return android.PathForModuleInstall(ctx, dir, compiler.subDir,
