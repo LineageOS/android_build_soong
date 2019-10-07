@@ -310,6 +310,10 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	// This logic is tested in the apex package to avoid import cycle apex <-> java.
 	bootDexJars := make(android.Paths, len(image.modules))
 	ctx.VisitAllModules(func(module android.Module) {
+		if m, ok := module.(interface{ BootJarProvider() bool }); !ok ||
+			!m.BootJarProvider() {
+			return
+		}
 		if i, j := getBootImageJar(ctx, image, module); i != -1 {
 			bootDexJars[i] = j
 		}

@@ -15,6 +15,7 @@ bootstrap_go_package {
         "apex.go",
         "api_levels.go",
         "arch.go",
+        "bootjar.go",
         "config.go",
         "csuite_config.go",
         "defaults.go",
