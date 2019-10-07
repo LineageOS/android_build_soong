@@ -15,6 +15,8 @@
 package android
 
 import (
+	"reflect"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -244,8 +246,23 @@ func (t *topDownMutatorContext) Rename(name string) {
 }
 
 func (t *topDownMutatorContext) CreateModule(factory ModuleFactory, props ...interface{}) Module {
-	inherited := []interface{}{&t.Module().base().commonProperties, &t.Module().base().variableProperties}
+	inherited := []interface{}{&t.Module().base().commonProperties}
 	module := t.bp.CreateModule(ModuleFactoryAdaptor(factory), append(inherited, props...)...).(Module)
+
+	if t.Module().base().variableProperties != nil && module.base().variableProperties != nil {
+		src := t.Module().base().variableProperties
+		dst := []interface{}{
+			module.base().variableProperties,
+			// Put an empty copy of the src properties into dst so that properties in src that are not in dst
+			// don't cause a "failed to find property to extend" error.
+			proptools.CloneEmptyProperties(reflect.ValueOf(src).Elem()).Interface(),
+		}
+		err := proptools.AppendMatchingProperties(dst, src, nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return module
 }
 
