@@ -77,7 +77,14 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 		// to the hidden API for the bootclassloader. If information is gathered for modules
 		// not on the list then that will cause failures in the CtsHiddenApiBlacklist...
 		// tests.
-		if inList(bootJarName, ctx.Config().BootJars()) {
+		isBootJarProvider := false
+		ctx.VisitAllModuleVariants(func(module android.Module) {
+			if m, ok := module.(interface{ BootJarProvider() bool }); ok &&
+				m.BootJarProvider() {
+				isBootJarProvider = true
+			}
+		})
+		if isBootJarProvider && inList(bootJarName, ctx.Config().BootJars()) {
 			// Derive the greylist from classes jar.
 			flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
 			metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
