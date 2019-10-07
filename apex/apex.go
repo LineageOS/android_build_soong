@@ -222,12 +222,14 @@ func apexVndkGatherMutator(mctx android.TopDownMutatorContext) {
 		if ab.IsNativeBridgeSupported() {
 			mctx.PropertyErrorf("native_bridge_supported", "%q doesn't support native bridge binary.", mctx.ModuleType())
 		}
-		vndkVersion := proptools.StringDefault(ab.vndkProperties.Vndk_version, mctx.DeviceConfig().PlatformVndkVersion())
+
+		vndkVersion := proptools.String(ab.vndkProperties.Vndk_version)
+
 		vndkApexListMutex.Lock()
 		defer vndkApexListMutex.Unlock()
 		vndkApexList := vndkApexList(mctx.Config())
 		if other, ok := vndkApexList[vndkVersion]; ok {
-			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other.Name())
+			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other.BaseModuleName())
 		}
 		vndkApexList[vndkVersion] = ab
 	}
@@ -1801,6 +1803,15 @@ func vndkApexBundleFactory() android.Module {
 		}{
 			proptools.StringPtr("both"),
 		})
+
+		vndkVersion := proptools.StringDefault(bundle.vndkProperties.Vndk_version, "current")
+		if vndkVersion == "current" {
+			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
+			bundle.vndkProperties.Vndk_version = proptools.StringPtr(vndkVersion)
+		}
+
+		// Ensure VNDK APEX mount point is formatted as com.android.vndk.v###
+		bundle.properties.Apex_name = proptools.StringPtr("com.android.vndk.v" + vndkVersion)
 	})
 	return bundle
 }
