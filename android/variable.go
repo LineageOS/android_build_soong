@@ -122,7 +122,7 @@ type variableProperties struct {
 	} `android:"arch_variant"`
 }
 
-var zeroProductVariables variableProperties
+var zeroProductVariables interface{} = variableProperties{}
 
 type productVariables struct {
 	// Suffix to add to generated Makefiles
@@ -366,8 +366,13 @@ func variableMutator(mctx BottomUpMutatorContext) {
 
 	// TODO: depend on config variable, create variants, propagate variants up tree
 	a := module.base()
-	variableValues := reflect.ValueOf(&a.variableProperties.Product_variables).Elem()
-	zeroValues := reflect.ValueOf(zeroProductVariables.Product_variables)
+
+	if a.variableProperties == nil {
+		return
+	}
+
+	variableValues := reflect.ValueOf(a.variableProperties).Elem().FieldByName("Product_variables")
+	zeroValues := reflect.ValueOf(zeroProductVariables).FieldByName("Product_variables")
 
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
@@ -495,4 +500,107 @@ func printfIntoProperty(propertyValue reflect.Value, variableValue interface{}) 
 	propertyValue.Set(reflect.ValueOf(fmt.Sprintf(s, variableValue)))
 
 	return nil
+}
+
+var variablePropTypeMap OncePer
+
+// sliceToTypeArray takes a slice of property structs and returns a reflection created array containing the
+// reflect.Types of each property struct.  The result can be used as a key in a map.
+func sliceToTypeArray(s []interface{}) interface{} {
+	// Create an array using reflection whose length is the length of the input slice
+	ret := reflect.New(reflect.ArrayOf(len(s), reflect.TypeOf(reflect.TypeOf(0)))).Elem()
+	for i, e := range s {
+		ret.Index(i).Set(reflect.ValueOf(reflect.TypeOf(e)))
+	}
+	return ret.Interface()
+}
+
+// createVariableProperties takes the list of property structs for a module and returns a property struct that
+// contains the product variable properties that exist in the property structs, or nil if there are none.  It
+// caches the result.
+func createVariableProperties(moduleTypeProps []interface{}, productVariables interface{}) interface{} {
+	// Convert the moduleTypeProps to an array of reflect.Types that can be used as a key in the OncePer.
+	key := sliceToTypeArray(moduleTypeProps)
+
+	// Use the variablePropTypeMap OncePer to cache the result for each set of property struct types.
+	typ, _ := variablePropTypeMap.Once(NewCustomOnceKey(key), func() interface{} {
+		// Compute the filtered property struct type.
+		return createVariablePropertiesType(moduleTypeProps, productVariables)
+	}).(reflect.Type)
+
+	if typ == nil {
+		return nil
+	}
+
+	// Create a new pointer to a filtered property struct.
+	return reflect.New(typ).Interface()
+}
+
+// createVariablePropertiesType creates a new type that contains only the product variable properties that exist in
+// a list of property structs.
+func createVariablePropertiesType(moduleTypeProps []interface{}, productVariables interface{}) reflect.Type {
+	typ, _ := proptools.FilterPropertyStruct(reflect.TypeOf(productVariables),
+		func(field reflect.StructField, prefix string) (bool, reflect.StructField) {
+			// Filter function, returns true if the field should be in the resulting struct
+			if prefix == "" {
+				// Keep the top level Product_variables field
+				return true, field
+			}
+			_, rest := splitPrefix(prefix)
+			if rest == "" {
+				// Keep the 2nd level field (i.e. Product_variables.Eng)
+				return true, field
+			}
+
+			// Strip off the first 2 levels of the prefix
+			_, prefix = splitPrefix(rest)
+
+			for _, p := range moduleTypeProps {
+				if fieldExistsByNameRecursive(reflect.TypeOf(p).Elem(), prefix, field.Name) {
+					// Keep any fields that exist in one of the property structs
+					return true, field
+				}
+			}
+
+			return false, field
+		})
+	return typ
+}
+
+func splitPrefix(prefix string) (first, rest string) {
+	index := strings.IndexByte(prefix, '.')
+	if index == -1 {
+		return prefix, ""
+	}
+	return prefix[:index], prefix[index+1:]
+}
+
+func fieldExistsByNameRecursive(t reflect.Type, prefix, name string) bool {
+	if t.Kind() != reflect.Struct {
+		panic(fmt.Errorf("fieldExistsByNameRecursive can only be called on a reflect.Struct"))
+	}
+
+	if prefix != "" {
+		split := strings.SplitN(prefix, ".", 2)
+		firstPrefix := split[0]
+		rest := ""
+		if len(split) > 1 {
+			rest = split[1]
+		}
+		f, exists := t.FieldByName(firstPrefix)
+		if !exists {
+			return false
+		}
+		ft := f.Type
+		if ft.Kind() == reflect.Ptr {
+			ft = ft.Elem()
+		}
+		if ft.Kind() != reflect.Struct {
+			panic(fmt.Errorf("field %q in %q is not a struct", firstPrefix, t))
+		}
+		return fieldExistsByNameRecursive(ft, rest, name)
+	} else {
+		_, exists := t.FieldByName(name)
+		return exists
+	}
 }
