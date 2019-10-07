@@ -151,6 +151,10 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 	bootDexJars := make(android.Paths, len(image.modules))
 
 	ctx.VisitAllModules(func(module android.Module) {
+		if m, ok := module.(interface{ BootJarProvider() bool }); !ok ||
+			!m.BootJarProvider() {
+			return
+		}
 		// Collect dex jar paths for the modules listed above.
 		if j, ok := module.(interface{ DexJar() android.Path }); ok {
 			name := ctx.ModuleName(module)

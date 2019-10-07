@@ -304,6 +304,9 @@ type commonProperties struct {
 	SkipInstall bool `blueprint:"mutated"`
 
 	NamespaceExportedToMake bool `blueprint:"mutated"`
+
+	// Whether this module provides a boot jar
+	BootJarProvider bool `blueprint:"mutated"`
 }
 
 type hostAndDeviceProperties struct {
@@ -519,6 +522,10 @@ func (a *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleB
 // example prebuilts will prepend prebuilt_ to the name.
 func (a *ModuleBase) Name() string {
 	return String(a.nameProperties.Name)
+}
+
+func (a *ModuleBase) BootJarProvider() bool {
+	return a.commonProperties.BootJarProvider
 }
 
 // BaseModuleName returns the name of the module as specified in the blueprints file.
