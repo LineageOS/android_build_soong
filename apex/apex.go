@@ -1191,11 +1191,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	// check apex_available requirements
-	for _, fi := range filesInfo {
-		if am, ok := fi.module.(android.ApexModule); ok {
-			if !am.AvailableFor(ctx.ModuleName()) {
-				ctx.ModuleErrorf("requires %q that is not available for the APEX", fi.module.Name())
-				return
+	if !ctx.Host() {
+		for _, fi := range filesInfo {
+			if am, ok := fi.module.(android.ApexModule); ok {
+				if !am.AvailableFor(ctx.ModuleName()) {
+					ctx.ModuleErrorf("requires %q that is not available for the APEX", fi.module.Name())
+					return
+				}
 			}
 		}
 	}
