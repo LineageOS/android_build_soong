@@ -222,12 +222,14 @@ func apexVndkGatherMutator(mctx android.TopDownMutatorContext) {
 		if ab.IsNativeBridgeSupported() {
 			mctx.PropertyErrorf("native_bridge_supported", "%q doesn't support native bridge binary.", mctx.ModuleType())
 		}
-		vndkVersion := proptools.StringDefault(ab.vndkProperties.Vndk_version, mctx.DeviceConfig().PlatformVndkVersion())
+
+		vndkVersion := proptools.String(ab.vndkProperties.Vndk_version)
+
 		vndkApexListMutex.Lock()
 		defer vndkApexListMutex.Unlock()
 		vndkApexList := vndkApexList(mctx.Config())
 		if other, ok := vndkApexList[vndkVersion]; ok {
-			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other.Name())
+			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other.BaseModuleName())
 		}
 		vndkApexList[vndkVersion] = ab
 	}
@@ -867,9 +869,7 @@ func getCopyManifestForNativeLibrary(ccMod *cc.Module, config android.Config, ha
 		dirInApex = "lib64"
 	}
 	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
-	if !ccMod.Arch().Native {
-		dirInApex = filepath.Join(dirInApex, ccMod.Arch().ArchType.String())
-	} else if ccMod.Target().NativeBridge == android.NativeBridgeEnabled {
+	if ccMod.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, ccMod.Target().NativeBridgeRelativePath)
 	}
 	if handleSpecialLibs && cc.InstallToBootstrap(ccMod.BaseModuleName(), config) {
@@ -892,9 +892,7 @@ func getCopyManifestForNativeLibrary(ccMod *cc.Module, config android.Config, ha
 
 func getCopyManifestForExecutable(cc *cc.Module) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = filepath.Join("bin", cc.RelativeInstallPath())
-	if !cc.Arch().Native {
-		dirInApex = filepath.Join(dirInApex, cc.Arch().ArchType.String())
-	} else if cc.Target().NativeBridge == android.NativeBridgeEnabled {
+	if cc.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
 	}
 	fileToCopy = cc.OutputFile().Path()
@@ -1035,7 +1033,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					return true
 				} else if sh, ok := child.(*android.ShBinary); ok {
 					fileToCopy, dirInApex := getCopyManifestForShBinary(sh)
-					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, shBinary, sh, nil})
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, shBinary, sh, sh.Symlinks()})
 				} else if py, ok := child.(*python.Module); ok && py.HostToolPath().Valid() {
 					fileToCopy, dirInApex := getCopyManifestForPyBinary(py)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, pyBinary, py, nil})
@@ -1801,6 +1799,15 @@ func vndkApexBundleFactory() android.Module {
 		}{
 			proptools.StringPtr("both"),
 		})
+
+		vndkVersion := proptools.StringDefault(bundle.vndkProperties.Vndk_version, "current")
+		if vndkVersion == "current" {
+			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
+			bundle.vndkProperties.Vndk_version = proptools.StringPtr(vndkVersion)
+		}
+
+		// Ensure VNDK APEX mount point is formatted as com.android.vndk.v###
+		bundle.properties.Apex_name = proptools.StringPtr("com.android.vndk.v" + vndkVersion)
 	})
 	return bundle
 }

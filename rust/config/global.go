@@ -17,8 +17,6 @@ package config
 import (
 	"strings"
 
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 	_ "android/soong/cc/config"
 )
@@ -35,7 +33,7 @@ var (
 		"libtest",
 	}
 
-	DefaultDenyWarnings = proptools.BoolPtr(true)
+	DefaultDenyWarnings = true
 
 	GlobalRustFlags = []string{
 		"--remap-path-prefix $$(pwd)=",

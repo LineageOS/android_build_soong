@@ -1442,6 +1442,37 @@ func TestVndkApexErrorWithDuplicateVersion(t *testing.T) {
 	}))
 }
 
+func TestVndkApexNameRule(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex_vndk {
+			name: "myapex",
+			key: "myapex.key",
+			file_contexts: "myapex",
+		}
+		apex_vndk {
+			name: "myapex_v28",
+			key: "myapex.key",
+			file_contexts: "myapex",
+			vndk_version: "28",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}`)
+
+	assertApexName := func(expected, moduleName string) {
+		bundle := ctx.ModuleForTests(moduleName, "android_common_"+moduleName).Module().(*apexBundle)
+		actual := proptools.String(bundle.properties.Apex_name)
+		if !reflect.DeepEqual(actual, expected) {
+			t.Errorf("Got '%v', expected '%v'", actual, expected)
+		}
+	}
+
+	assertApexName("com.android.vndk.vVER", "myapex")
+	assertApexName("com.android.vndk.v28", "myapex_v28")
+}
+
 func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
@@ -1470,10 +1501,10 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 		}
 	`, withTargets(map[android.OsType][]android.Target{
 		android.Android: []android.Target{
-			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
-			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
-			{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Native: true, Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "arm64", NativeBridgeRelativePath: "x86_64"},
-			{Os: android.Android, Arch: android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Native: true, Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "arm", NativeBridgeRelativePath: "x86"},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "arm64", NativeBridgeRelativePath: "x86_64"},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "arm", NativeBridgeRelativePath: "x86"},
 		},
 	}))
 
