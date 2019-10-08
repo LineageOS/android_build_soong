@@ -155,7 +155,7 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 		if n == availableToPlatform || n == availableToAnyApex {
 			continue
 		}
-		if !mctx.OtherModuleExists(n) {
+		if !mctx.OtherModuleExists(n) && !mctx.Config().AllowMissingDependencies() {
 			mctx.PropertyErrorf("apex_available", "%q is not a valid module name", n)
 		}
 	}
