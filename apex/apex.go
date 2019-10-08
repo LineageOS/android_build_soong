@@ -345,7 +345,7 @@ func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
 		case "both":
 			variants = append(variants, imageApexType, zipApexType, flattenedApexType)
 		default:
-			mctx.PropertyErrorf("type", "%q is not one of \"image\" or \"zip\".", *ab.properties.Payload_type)
+			mctx.PropertyErrorf("type", "%q is not one of \"image\", \"zip\", or \"both\".", *ab.properties.Payload_type)
 			return
 		}
 
@@ -359,6 +359,9 @@ func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
 				modules[i].(*apexBundle).properties.ApexType = zipApex
 			case flattenedApexType:
 				modules[i].(*apexBundle).properties.ApexType = flattenedApex
+				if !mctx.Config().FlattenApex() {
+					modules[i].(*apexBundle).MakeAsSystemExt()
+				}
 			}
 		}
 	}
