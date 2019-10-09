@@ -40,7 +40,9 @@ var (
 			`${config.JavacCmd} --system=none --patch-module=java.base=${classpath} ${workDir}/module-info.java && ` +
 			`${config.SoongZipCmd} -jar -o ${workDir}/classes.jar -C ${workDir} -f ${workDir}/module-info.class && ` +
 			`${config.MergeZipsCmd} -j ${workDir}/module.jar ${workDir}/classes.jar $in && ` +
-			`${config.JmodCmd} create --module-version 9 --target-platform android ` +
+			// Note: The version of the java.base module created must match the version
+			// of the jlink tool which consumes it.
+			`${config.JmodCmd} create --module-version ${config.JlinkVersion} --target-platform android ` +
 			`  --class-path ${workDir}/module.jar ${workDir}/jmod/java.base.jmod && ` +
 			`${config.JlinkCmd} --module-path ${workDir}/jmod --add-modules java.base --output ${outDir} ` +
 			// Note: The system-modules jlink plugin is disabled because (a) it is not
