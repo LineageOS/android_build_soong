@@ -86,6 +86,14 @@ func init() {
 		// This is set up and guaranteed by soong_ui
 		return ctx.Config().Getenv("ANDROID_JAVA_HOME")
 	})
+	pctx.VariableFunc("JlinkVersion", func(ctx android.PackageVarContext) string {
+		switch ctx.Config().Getenv("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN") {
+		case "true":
+			return "11"
+		default:
+			return "9"
+		}
+	})
 
 	pctx.SourcePathVariable("JavaToolchain", "${JavaHome}/bin")
 	pctx.SourcePathVariableWithEnvOverride("JavacCmd",
