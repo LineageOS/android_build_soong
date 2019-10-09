@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 // ApexModule is the interface that a module type is expected to implement if
@@ -76,18 +75,11 @@ type ApexModule interface {
 	// CreateApexVariations.
 	setApexName(apexName string)
 
-	// Return the no_apex property
-	NoApex() bool
-
 	// Tests if this module is available for the specified APEX or ":platform"
 	AvailableFor(what string) bool
 }
 
 type ApexProperties struct {
-	// Whether this module should not be part of any APEX. Default is false.
-	// TODO(b/128708192): remove this as this is equal to apex_available: [":platform"]
-	No_apex *bool
-
 	// Availability of this module in APEXes. Only the listed APEXes can include this module.
 	// "//apex_available:anyapex" is a pseudo APEX name that matches to any APEX.
 	// "//apex_available:platform" refers to non-APEX partitions like "system.img".
@@ -143,10 +135,6 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 	return false
 }
 
-func (m *ApexModuleBase) NoApex() bool {
-	return proptools.Bool(m.ApexProperties.No_apex)
-}
-
 const (
 	availableToPlatform = "//apex_available:platform"
 	availableToAnyApex  = "//apex_available:anyapex"
@@ -167,7 +155,7 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 		if n == availableToPlatform || n == availableToAnyApex {
 			continue
 		}
-		if !mctx.OtherModuleExists(n) {
+		if !mctx.OtherModuleExists(n) && !mctx.Config().AllowMissingDependencies() {
 			mctx.PropertyErrorf("apex_available", "%q is not a valid module name", n)
 		}
 	}
