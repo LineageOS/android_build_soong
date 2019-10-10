@@ -122,6 +122,9 @@ var Configuration = map[string]PathConfig{
 	"pgrep": LinuxOnlyPrebuilt,
 	"pkill": LinuxOnlyPrebuilt,
 	"ps":    LinuxOnlyPrebuilt,
+
+	// The toybox xargs is currently breaking the mac build.
+	"xargs": LinuxOnlyPrebuilt,
 }
 
 func init() {
