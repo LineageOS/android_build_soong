@@ -187,6 +187,12 @@ func init() {
 		ctx.BottomUp("apex_vndk_add_deps", apexVndkAddDepsMutator).Parallel()
 	})
 	android.PostDepsMutators(RegisterPostDepsMutators)
+
+	android.RegisterMakeVarsProvider(pctx, func(ctx android.MakeVarsContext) {
+		apexFileContextsInfos := apexFileContextsInfos(ctx.Config())
+		sort.Strings(*apexFileContextsInfos)
+		ctx.Strict("APEX_FILE_CONTEXTS_INFOS", strings.Join(*apexFileContextsInfos, " "))
+	})
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
@@ -273,12 +279,38 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
 		am.CreateApexVariations(mctx)
-	} else if _, ok := mctx.Module().(*apexBundle); ok {
+	} else if a, ok := mctx.Module().(*apexBundle); ok {
 		// apex bundle itself is mutated so that it and its modules have same
 		// apex variant.
 		apexBundleName := mctx.ModuleName()
 		mctx.CreateVariations(apexBundleName)
+
+		// collects APEX list
+		if mctx.Device() && a.installable() {
+			addApexFileContextsInfos(mctx, a)
+		}
 	}
+}
+
+var (
+	apexFileContextsInfosKey   = android.NewOnceKey("apexFileContextsInfosKey")
+	apexFileContextsInfosMutex sync.Mutex
+)
+
+func apexFileContextsInfos(config android.Config) *[]string {
+	return config.Once(apexFileContextsInfosKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
+
+func addApexFileContextsInfos(ctx android.BaseModuleContext, a *apexBundle) {
+	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
+	fileContextsName := proptools.StringDefault(a.properties.File_contexts, ctx.ModuleName())
+
+	apexFileContextsInfosMutex.Lock()
+	defer apexFileContextsInfosMutex.Unlock()
+	apexFileContextsInfos := apexFileContextsInfos(ctx.Config())
+	*apexFileContextsInfos = append(*apexFileContextsInfos, apexName+":"+fileContextsName)
 }
 
 func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
@@ -1242,7 +1274,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// instead of `android.PathForOutput`) to return the correct path to the flattened
 	// APEX (as its contents is installed by Make, not Soong).
 	factx := flattenedApexContext{ctx}
-	a.flattenedOutput = android.PathForModuleInstall(&factx, "apex", factx.ModuleName())
+	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
+	a.flattenedOutput = android.PathForModuleInstall(&factx, "apex", apexName)
 
 	if a.apexTypes.zip() {
 		a.buildUnflattenedApex(ctx, zipApex)
@@ -1542,8 +1575,9 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, ctx.ModuleName() + ".apex_pubkey", ".", etc, nil, nil})
 
 		if ctx.Config().FlattenApex() {
+			apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
 			for _, fi := range a.filesInfo {
-				dir := filepath.Join("apex", ctx.ModuleName(), fi.installDir)
+				dir := filepath.Join("apex", apexName, fi.installDir)
 				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
 				for _, sym := range fi.symlinks {
 					ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
@@ -1574,7 +1608,7 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 		}}
 }
 
-func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apexType apexPackaging) []string {
+func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string, apexType apexPackaging) []string {
 	moduleNames := []string{}
 
 	for _, fi := range a.filesInfo {
@@ -1598,12 +1632,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName+suffix)
 		// /apex/<apex_name>/{lib|framework|...}
-		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex",
-			proptools.StringDefault(a.properties.Apex_name, name), fi.installDir)
+		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
 		if a.properties.Flattened && apexType.image() {
 			// /system/apex/<name>/{lib|framework|...}
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join(a.installDir.ToMakePath().String(),
-				name, fi.installDir))
+				apexName, fi.installDir))
 			if !a.isFlattenedVariant() {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
@@ -1683,7 +1716,8 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
 			if a.installable() {
-				moduleNames = a.androidMkForFiles(w, name, moduleDir, apexType)
+				apexName := proptools.StringDefault(a.properties.Apex_name, name)
+				moduleNames = a.androidMkForFiles(w, apexName, moduleDir, apexType)
 			}
 
 			if a.isFlattenedVariant() {
