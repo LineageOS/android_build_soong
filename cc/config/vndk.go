@@ -65,6 +65,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.neuralnetworks@1.0",
 	"android.hardware.neuralnetworks@1.1",
 	"android.hardware.neuralnetworks@1.2",
+	"android.hardware.neuralnetworks@1.3",
 	"android.hardware.nfc@1.0",
 	"android.hardware.nfc@1.1",
 	"android.hardware.nfc@1.2",
