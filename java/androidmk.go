@@ -534,6 +534,9 @@ func (dstubs *Droidstubs) AndroidMkEntries() android.AndroidMkEntries {
 				if dstubs.jdiffDocZip != nil {
 					entries.SetPath("LOCAL_DROIDDOC_JDIFF_DOC_ZIP", dstubs.jdiffDocZip)
 				}
+				if dstubs.metadataZip != nil {
+					entries.SetPath("LOCAL_DROIDDOC_METADATA_ZIP", dstubs.metadataZip)
+				}
 				apiFilePrefix := "INTERNAL_PLATFORM_"
 				if String(dstubs.properties.Api_tag_name) != "" {
 					apiFilePrefix += String(dstubs.properties.Api_tag_name) + "_"
