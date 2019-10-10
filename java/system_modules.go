@@ -36,13 +36,15 @@ func init() {
 var (
 	jarsTosystemModules = pctx.AndroidStaticRule("jarsTosystemModules", blueprint.RuleParams{
 		Command: `rm -rf ${outDir} ${workDir} && mkdir -p ${workDir}/jmod && ` +
-			`${moduleInfoJavaPath} ${moduleName} $in > ${workDir}/module-info.java && ` +
+			`${moduleInfoJavaPath} java.base $in > ${workDir}/module-info.java && ` +
 			`${config.JavacCmd} --system=none --patch-module=java.base=${classpath} ${workDir}/module-info.java && ` +
 			`${config.SoongZipCmd} -jar -o ${workDir}/classes.jar -C ${workDir} -f ${workDir}/module-info.class && ` +
 			`${config.MergeZipsCmd} -j ${workDir}/module.jar ${workDir}/classes.jar $in && ` +
-			`${config.JmodCmd} create --module-version 9 --target-platform android ` +
-			`  --class-path ${workDir}/module.jar ${workDir}/jmod/${moduleName}.jmod && ` +
-			`${config.JlinkCmd} --module-path ${workDir}/jmod --add-modules ${moduleName} --output ${outDir} ` +
+			// Note: The version of the java.base module created must match the version
+			// of the jlink tool which consumes it.
+			`${config.JmodCmd} create --module-version ${config.JlinkVersion} --target-platform android ` +
+			`  --class-path ${workDir}/module.jar ${workDir}/jmod/java.base.jmod && ` +
+			`${config.JlinkCmd} --module-path ${workDir}/jmod --add-modules java.base --output ${outDir} ` +
 			// Note: The system-modules jlink plugin is disabled because (a) it is not
 			// useful on Android, and (b) it causes errors with later versions of jlink
 			// when the jdk.internal.module is absent from java.base (as it is here).
@@ -58,10 +60,10 @@ var (
 			"${config.JrtFsJar}",
 		},
 	},
-		"moduleName", "classpath", "outDir", "workDir")
+		"classpath", "outDir", "workDir")
 )
 
-func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, jars android.Paths) (android.Path, android.Paths) {
+func TransformJarsToSystemModules(ctx android.ModuleContext, jars android.Paths) (android.Path, android.Paths) {
 	outDir := android.PathForModuleOut(ctx, "system")
 	workDir := android.PathForModuleOut(ctx, "modules")
 	outputFile := android.PathForModuleOut(ctx, "system/lib/modules")
@@ -77,10 +79,9 @@ func TransformJarsToSystemModules(ctx android.ModuleContext, moduleName string, 
 		Outputs:     outputs,
 		Inputs:      jars,
 		Args: map[string]string{
-			"moduleName": moduleName,
-			"classpath":  strings.Join(jars.Strings(), ":"),
-			"workDir":    workDir.String(),
-			"outDir":     outDir.String(),
+			"classpath": strings.Join(jars.Strings(), ":"),
+			"workDir":   workDir.String(),
+			"outDir":    outDir.String(),
 		},
 	})
 
@@ -123,7 +124,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 
 	system.headerJars = jars
 
-	system.outputDir, system.outputDeps = TransformJarsToSystemModules(ctx, "java.base", jars)
+	system.outputDir, system.outputDeps = TransformJarsToSystemModules(ctx, jars)
 }
 
 func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {

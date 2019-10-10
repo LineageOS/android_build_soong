@@ -214,9 +214,13 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Configure Java-related variables, including adding it to $PATH
 	java8Home := filepath.Join("prebuilts/jdk/jdk8", ret.HostPrebuiltTag())
 	java9Home := filepath.Join("prebuilts/jdk/jdk9", ret.HostPrebuiltTag())
+	java11Home := filepath.Join("prebuilts/jdk/jdk11", ret.HostPrebuiltTag())
 	javaHome := func() string {
 		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
 			return override
+		}
+		if toolchain11, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN"); ok && toolchain11 == "true" {
+			return java11Home
 		}
 		return java9Home
 	}()
@@ -228,11 +232,13 @@ func NewConfig(ctx Context, args ...string) Config {
 	if path, ok := ret.environ.Get("PATH"); ok && path != "" {
 		newPath = append(newPath, path)
 	}
+
 	ret.environ.Unset("OVERRIDE_ANDROID_JAVA_HOME")
 	ret.environ.Set("JAVA_HOME", absJavaHome)
 	ret.environ.Set("ANDROID_JAVA_HOME", javaHome)
 	ret.environ.Set("ANDROID_JAVA8_HOME", java8Home)
 	ret.environ.Set("ANDROID_JAVA9_HOME", java9Home)
+	ret.environ.Set("ANDROID_JAVA11_HOME", java11Home)
 	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
 
 	outDir := ret.OutDir()
