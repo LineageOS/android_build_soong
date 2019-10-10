@@ -211,7 +211,7 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		// The corpora.
 		for _, corpusEntry := range fuzzModule.corpus {
 			archDirs[archDir] = append(archDirs[archDir],
-				fileToZip{corpusEntry, ccModule.Name() + "/corpus/" + corpusEntry.Base()})
+				fileToZip{corpusEntry, ccModule.Name() + "/corpus"})
 		}
 
 		// The dictionary.
