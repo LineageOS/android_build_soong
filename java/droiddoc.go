@@ -238,6 +238,16 @@ type DroidstubsProperties struct {
 		// do not perform API check against Last_released, in the case that both two specified API
 		// files by Last_released are modules which don't exist.
 		Ignore_missing_latest_api *bool `blueprint:"mutated"`
+
+		Api_lint struct {
+			Enabled *bool
+
+			// If set, performs api_lint on any new APIs not found in the given signature file
+			New_since *string `android:"path"`
+
+			// If not blank, path to the baseline txt file for approved API lint violations.
+			Baseline_file *string `android:"path"`
+		}
 	}
 
 	// user can specify the version of previous released API file in order to do compatibility check.
@@ -1154,6 +1164,7 @@ type Droidstubs struct {
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
 	checkLastReleasedApiTimestamp android.WritablePath
+	apiLintTimestamp              android.WritablePath
 
 	checkNullabilityWarningsTimestamp android.WritablePath
 
@@ -1489,6 +1500,55 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	rule.Build(pctx, ctx, "metalava", "metalava")
 
 	// Create rule for apicheck
+
+	if BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) && !ctx.Config().IsPdkBuild() {
+		rule := android.NewRuleBuilder()
+		rule.Command().Text("( true")
+
+		srcJarDir := android.PathForModuleOut(ctx, "api_lint", "srcjars")
+		srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
+
+		cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
+			deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths)
+
+		newSince := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.New_since)
+		if newSince.Valid() {
+			cmd.FlagWithInput("--api-lint ", newSince.Path())
+		} else {
+			cmd.Flag("--api-lint")
+		}
+
+		d.inclusionAnnotationsFlags(ctx, cmd)
+		d.mergeAnnoDirFlags(ctx, cmd)
+
+		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.Baseline_file)
+		updatedBaselineOutput := android.PathForModuleOut(ctx, "api_lint_baseline.txt")
+		d.apiLintTimestamp = android.PathForModuleOut(ctx, "api_lint.timestamp")
+
+		if baselineFile.Valid() {
+			cmd.FlagWithInput("--baseline ", baselineFile.Path())
+			cmd.FlagWithOutput("--update-baseline ", updatedBaselineOutput)
+		}
+
+		zipSyncCleanupCmd(rule, srcJarDir)
+
+		msg := fmt.Sprintf(`\n******************************\n`+
+			`Your API changes are triggering API Lint warnings or errors.\n\n`+
+			`To make these errors go away, you have two choices:\n`+
+			`   1. You can suppress the errors with @SuppressLint(\"<id>\").\n\n`+
+			`   2. You can update the baseline by executing the following command:\n`+
+			`         cp \"$PWD/%s\" \"$PWD/%s\"\n\n`+
+			`******************************\n`, updatedBaselineOutput, baselineFile.Path())
+		rule.Command().
+			Text("touch").Output(d.apiLintTimestamp).
+			Text(") || (").
+			Text("echo").Flag("-e").Flag(`"` + msg + `"`).
+			Text("; exit 38").
+			Text(")")
+
+		rule.Build(pctx, ctx, "metalavaApiLint", "metalava API lint")
+
+	}
 
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") &&
 		!ctx.Config().IsPdkBuild() {
