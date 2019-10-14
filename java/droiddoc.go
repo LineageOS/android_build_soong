@@ -67,8 +67,14 @@ type JavadocProperties struct {
 	// If set to false, don't allow this module(-docs.zip) to be exported. Defaults to true.
 	Installable *bool
 
-	// if not blank, set to the version of the sdk to compile against
+	// if not blank, set to the version of the sdk to compile against.
+	// Defaults to compiling against the current platform.
 	Sdk_version *string `android:"arch_variant"`
+
+	// When targeting 1.9 and above, override the modules to use with --system,
+	// otherwise provides defaults libraries to add to the bootclasspath.
+	// Defaults to "none"
+	System_modules *string
 
 	Aidl struct {
 		// Top level directories to pass to aidl tool
@@ -401,6 +407,10 @@ func (j *Javadoc) sdkVersion() string {
 	return proptools.StringDefault(j.properties.Sdk_version, defaultSdkVersion(j))
 }
 
+func (j *Javadoc) systemModules() string {
+	return proptools.String(j.properties.System_modules)
+}
+
 func (j *Javadoc) minSdkVersion() string {
 	return j.sdkVersion()
 }
@@ -427,6 +437,10 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 				}
 				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 			}
+		} else if sdkDep.systemModules != "" {
+			// Add the system modules to both the system modules and bootclasspath.
+			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.systemModules)
 		}
 	}
 
@@ -514,6 +528,10 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		case bootClasspathTag:
 			if dep, ok := module.(Dependency); ok {
 				deps.bootClasspath = append(deps.bootClasspath, dep.ImplementationJars()...)
+			} else if sm, ok := module.(*SystemModules); ok {
+				// A system modules dependency has been added to the bootclasspath
+				// so add its libs to the bootclasspath.
+				deps.bootClasspath = append(deps.bootClasspath, sm.headerJars...)
 			} else {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
