@@ -581,7 +581,8 @@ func OdexOnSystemOtherByName(name string, dexLocation string, global GlobalConfi
 	}
 
 	for _, f := range global.PatternsOnSystemOther {
-		if makefileMatch(filepath.Join(SystemPartition, f), dexLocation) {
+		// See comment of SYSTEM_OTHER_ODEX_FILTER for details on the matching.
+		if makefileMatch("/"+f, dexLocation) || makefileMatch(filepath.Join(SystemPartition, f), dexLocation) {
 			return true
 		}
 	}
