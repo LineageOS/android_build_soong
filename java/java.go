@@ -270,7 +270,8 @@ type CompilerDeviceProperties struct {
 		Proguard_flags_files []string `android:"path"`
 	}
 
-	// When targeting 1.9, override the modules to use with --system
+	// When targeting 1.9 and above, override the modules to use with --system,
+	// otherwise provides defaults libraries to add to the bootclasspath.
 	System_modules *string
 
 	UncompressDex bool `blueprint:"mutated"`
@@ -457,7 +458,10 @@ type checkVendorModuleContext interface {
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
-	modules       []string
+	modules []string
+
+	// The default system modules to use. Will be an empty string if no system
+	// modules are to be used.
 	systemModules string
 
 	frameworkResModule string
@@ -496,6 +500,10 @@ func (j *Module) sdkVersion() string {
 	return proptools.StringDefault(j.deviceProperties.Sdk_version, defaultSdkVersion(j))
 }
 
+func (j *Module) systemModules() string {
+	return proptools.String(j.deviceProperties.System_modules)
+}
+
 func (j *Module) minSdkVersion() string {
 	if j.deviceProperties.Min_sdk_version != nil {
 		return *j.deviceProperties.Min_sdk_version
@@ -528,13 +536,10 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 					ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
 				}
 			}
-		} else if j.deviceProperties.System_modules == nil {
-			ctx.PropertyErrorf("sdk_version",
-				`system_modules is required to be set when sdk_version is "none", did you mean "core_platform"`)
-		} else if *j.deviceProperties.System_modules != "none" {
+		} else if sdkDep.systemModules != "" {
 			// Add the system modules to both the system modules and bootclasspath.
-			ctx.AddVariationDependencies(nil, systemModulesTag, *j.deviceProperties.System_modules)
-			ctx.AddVariationDependencies(nil, bootClasspathTag, *j.deviceProperties.System_modules)
+			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.systemModules)
 		}
 		if ctx.ModuleName() == "android_stubs_current" ||
 			ctx.ModuleName() == "android_system_stubs_current" ||

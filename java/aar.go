@@ -520,6 +520,10 @@ func (a *AARImport) sdkVersion() string {
 	return proptools.StringDefault(a.properties.Sdk_version, defaultSdkVersion(a))
 }
 
+func (a *AARImport) systemModules() string {
+	return ""
+}
+
 func (a *AARImport) minSdkVersion() string {
 	if a.properties.Min_sdk_version != nil {
 		return *a.properties.Min_sdk_version
