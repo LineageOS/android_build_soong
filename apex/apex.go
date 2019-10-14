@@ -558,7 +558,14 @@ func (class apexFileClass) NameInMake() string {
 	case nativeTest:
 		return "NATIVE_TESTS"
 	case app:
-		return "APPS"
+		// b/142537672 Why isn't this APP? We want to have full control over
+		// the paths and file names of the apk file under the flattend APEX.
+		// If this is set to APP, then the paths and file names are modified
+		// by the Make build system. For example, it is installed to
+		// /system/apex/<apexname>/app/<Appname>/<apexname>.<Appname>/ instead of
+		// /system/apex/<apexname>/app/<Appname> because the build system automatically
+		// appends module name (which is <apexname>.<Appname> to the path.
+		return "ETC"
 	default:
 		panic(fmt.Errorf("unknown class %d", class))
 	}
