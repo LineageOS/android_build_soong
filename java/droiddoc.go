@@ -1529,6 +1529,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
 			deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths)
 
+		cmd.Flag(d.Javadoc.args).Implicits(d.Javadoc.argFiles)
+
 		newSince := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.New_since)
 		if newSince.Valid() {
 			cmd.FlagWithInput("--api-lint ", newSince.Path())
