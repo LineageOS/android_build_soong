@@ -190,6 +190,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtbegin_so",
 			recovery_available: true,
 			vendor_available: true,
+			stl: "none",
 		}
 
 		cc_object {
@@ -208,6 +209,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtend_so",
 			recovery_available: true,
 			vendor_available: true,
+			stl: "none",
 		}
 
 		cc_object {

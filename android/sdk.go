@@ -44,6 +44,17 @@ func (s SdkRef) Unversioned() bool {
 	return s.Version == ""
 }
 
+// String returns string representation of this SdkRef for debugging purpose
+func (s SdkRef) String() string {
+	if s.Name == "" {
+		return "(No Sdk)"
+	}
+	if s.Unversioned() {
+		return s.Name
+	}
+	return s.Name + string(SdkVersionSeparator) + s.Version
+}
+
 // SdkVersionSeparator is a character used to separate an sdk name and its version
 const SdkVersionSeparator = '@'
 

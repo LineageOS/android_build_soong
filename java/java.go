@@ -1567,6 +1567,12 @@ func (j *Module) hasCode(ctx android.ModuleContext) bool {
 	return len(srcFiles) > 0 || len(ctx.GetDirectDepsWithTag(staticLibTag)) > 0
 }
 
+func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	depTag := ctx.OtherModuleDependencyTag(dep)
+	// dependencies other than the static linkage are all considered crossing APEX boundary
+	return depTag == staticLibTag
+}
+
 //
 // Java libraries (.jar file)
 //

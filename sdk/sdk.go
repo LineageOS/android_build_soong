@@ -122,6 +122,7 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	// should have been mutated for the apex before the SDK requirements are set.
 	ctx.TopDown("SdkDepsMutator", sdkDepsMutator).Parallel()
 	ctx.BottomUp("SdkDepsReplaceMutator", sdkDepsReplaceMutator).Parallel()
+	ctx.TopDown("SdkRequirementCheck", sdkRequirementsMutator).Parallel()
 }
 
 type dependencyTag struct {
@@ -227,5 +228,33 @@ func sdkDepsReplaceMutator(mctx android.BottomUpMutatorContext) {
 				mctx.ReplaceDependencies(memberName)
 			}
 		}
+	}
+}
+
+// Step 6: ensure that the dependencies from outside of the APEX are all from the required SDKs
+func sdkRequirementsMutator(mctx android.TopDownMutatorContext) {
+	if m, ok := mctx.Module().(interface {
+		DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool
+		RequiredSdks() android.SdkRefs
+	}); ok {
+		requiredSdks := m.RequiredSdks()
+		if len(requiredSdks) == 0 {
+			return
+		}
+		mctx.VisitDirectDeps(func(dep android.Module) {
+			if mctx.OtherModuleDependencyTag(dep) == android.DefaultsDepTag {
+				// dependency to defaults is always okay
+				return
+			}
+
+			// If the dep is from outside of the APEX, but is not in any of the
+			// required SDKs, we know that the dep is a violation.
+			if sa, ok := dep.(android.SdkAware); ok {
+				if !m.DepIsInSameApex(mctx, dep) && !requiredSdks.Contains(sa.ContainingSdk()) {
+					mctx.ModuleErrorf("depends on %q (in SDK %q) that isn't part of the required SDKs: %v",
+						sa.Name(), sa.ContainingSdk(), requiredSdks)
+				}
+			}
+		})
 	}
 }
