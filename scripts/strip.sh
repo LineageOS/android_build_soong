@@ -67,9 +67,9 @@ do_strip_keep_symbols() {
 do_strip_keep_symbol_list() {
     echo "${symbols_to_keep}" | tr ',' '\n' > "${outfile}.symbolList"
 
-    KEEP_SYMBOLS="--strip-unneeded-symbol=.* --keep-symbols="
+    KEEP_SYMBOLS="--strip-unneeded-symbol=* --keep-symbols="
     KEEP_SYMBOLS+="${outfile}.symbolList"
-    "${CLANG_BIN}/llvm-objcopy" --regex "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
+    "${CROSS_COMPILE}objcopy" -w "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
 }
 
 do_strip_keep_mini_debug_info() {
