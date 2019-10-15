@@ -321,7 +321,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	}
 
 	if ctx.apexName() != "" {
+		// TODO(b/142582178): remove the value for __ANDROID_APEX__
 		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_APEX__="+ctx.apexName())
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_APEX_"+makeDefineString(ctx.apexName())+"__")
 	}
 
 	instructionSet := String(compiler.Properties.Instruction_set)
@@ -527,6 +529,12 @@ func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 	}
 
 	return false
+}
+
+// makeDefineString transforms a name of an APEX module into a value to be used as value for C define
+// For example, com.android.foo => COM_ANDROID_FOO
+func makeDefineString(name string) string {
+	return strings.ReplaceAll(strings.ToUpper(name), ".", "_")
 }
 
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")
