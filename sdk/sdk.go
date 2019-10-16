@@ -101,11 +101,10 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 
 		targets := mctx.MultiTargets()
 		for _, target := range targets {
-			mctx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: target.String()},
+			mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
 				{Mutator: "image", Variation: "core"},
 				{Mutator: "link", Variation: "shared"},
-			}, sdkMemberDepTag, m.properties.Native_shared_libs...)
+			}...), sdkMemberDepTag, m.properties.Native_shared_libs...)
 		}
 	}
 }
