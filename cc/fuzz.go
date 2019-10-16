@@ -148,10 +148,14 @@ func NewFuzz(hod android.HostOrDeviceSupported) *Module {
 	// include the STL.
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		staticStlLinkage := struct {
-			Stl *string
+			Target struct {
+				Linux_glibc struct {
+					Stl *string
+				}
+			}
 		}{}
 
-		staticStlLinkage.Stl = proptools.StringPtr("libc++_static")
+		staticStlLinkage.Target.Linux_glibc.Stl = proptools.StringPtr("libc++_static")
 		ctx.AppendProperties(&staticStlLinkage)
 	})
 
