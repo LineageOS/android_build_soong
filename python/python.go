@@ -306,22 +306,17 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			if p.bootstrapper.autorun() {
 				launcherModule = "py2-launcher-autorun"
 			}
-			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: ctx.Target().String()},
-			}, launcherTag, launcherModule)
+			ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherTag, launcherModule)
 
 			// Add py2-launcher shared lib dependencies. Ideally, these should be
 			// derived from the `shared_libs` property of "py2-launcher". However, we
 			// cannot read the property at this stage and it will be too late to add
 			// dependencies later.
-			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: ctx.Target().String()},
-			}, launcherSharedLibTag, "libsqlite")
+			ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag, "libsqlite")
 
 			if ctx.Target().Os.Bionic() {
-				ctx.AddFarVariationDependencies([]blueprint.Variation{
-					{Mutator: "arch", Variation: ctx.Target().String()},
-				}, launcherSharedLibTag, "libc", "libdl", "libm")
+				ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag,
+					"libc", "libdl", "libm")
 			}
 		}
 

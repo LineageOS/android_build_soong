@@ -199,19 +199,19 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	switch amod.Os().Class {
 	case Host:
 		// Make cannot identify LOCAL_MODULE_HOST_ARCH:= common.
-		if archStr != "common" {
+		if amod.Arch().ArchType != Common {
 			a.SetString("LOCAL_MODULE_HOST_ARCH", archStr)
 		}
 		host = true
 	case HostCross:
 		// Make cannot identify LOCAL_MODULE_HOST_CROSS_ARCH:= common.
-		if archStr != "common" {
+		if amod.Arch().ArchType != Common {
 			a.SetString("LOCAL_MODULE_HOST_CROSS_ARCH", archStr)
 		}
 		host = true
 	case Device:
 		// Make cannot identify LOCAL_MODULE_TARGET_ARCH:= common.
-		if archStr != "common" {
+		if amod.Arch().ArchType != Common {
 			if amod.Target().NativeBridge {
 				hostArchStr := amod.Target().NativeBridgeHostArchName
 				if hostArchStr != "" {

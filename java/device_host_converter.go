@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/blueprint"
-
 	"android/soong/android"
 )
 
@@ -83,13 +81,13 @@ func HostForDeviceFactory() android.Module {
 var deviceHostConverterDepTag = dependencyTag{name: "device_host_converter"}
 
 func (d *DeviceForHost) DepsMutator(ctx android.BottomUpMutatorContext) {
-	variation := []blueprint.Variation{{Mutator: "arch", Variation: "android_common"}}
-	ctx.AddFarVariationDependencies(variation, deviceHostConverterDepTag, d.properties.Libs...)
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		deviceHostConverterDepTag, d.properties.Libs...)
 }
 
 func (d *HostForDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
-	variation := []blueprint.Variation{{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant}}
-	ctx.AddFarVariationDependencies(variation, deviceHostConverterDepTag, d.properties.Libs...)
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(),
+		deviceHostConverterDepTag, d.properties.Libs...)
 }
 
 func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleContext) {

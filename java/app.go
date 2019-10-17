@@ -167,10 +167,8 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	embedJni := a.shouldEmbedJnis(ctx)
 	for _, jniTarget := range ctx.MultiTargets() {
-		variation := []blueprint.Variation{
-			{Mutator: "arch", Variation: jniTarget.String()},
-			{Mutator: "link", Variation: "shared"},
-		}
+		variation := append(jniTarget.Variations(),
+			blueprint.Variation{Mutator: "link", Variation: "shared"})
 		tag := &jniDependencyTag{
 			target: jniTarget,
 		}
