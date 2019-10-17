@@ -1095,8 +1095,10 @@ func TestPatchModule(t *testing.T) {
 	`
 
 	t.Run("Java language level 8", func(t *testing.T) {
-		// Test default javac -source 1.8 -target 1.8
-		ctx, _ := testJava(t, bp)
+		// Test with legacy javac -source 1.8 -target 1.8
+		config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "false"})
+		ctx := testContext(bp, nil)
+		run(t, ctx, config)
 
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		checkPatchModuleFlag(t, ctx, "bar", "")
@@ -1104,10 +1106,8 @@ func TestPatchModule(t *testing.T) {
 	})
 
 	t.Run("Java language level 9", func(t *testing.T) {
-		// Test again with javac -source 9 -target 9
-		config := testConfig(map[string]string{"EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9": "true"})
-		ctx := testContext(bp, nil)
-		run(t, ctx, config)
+		// Test with default javac -source 9 -target 9
+		ctx, _ := testJava(t, bp)
 
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		expected := "java.base=.:" + buildDir
