@@ -39,25 +39,17 @@ type SdkRef struct {
 	Version string
 }
 
-const (
-	// currentVersion refers to the in-development version of an SDK
-	currentVersion = "current"
-)
-
-// IsCurrentVersion determines if the SdkRef is referencing to an in-development version of an SDK
-func (s SdkRef) IsCurrentVersion() bool {
-	return s.Version == currentVersion
+// Unversioned determines if the SdkRef is referencing to the unversioned SDK module
+func (s SdkRef) Unversioned() bool {
+	return s.Version == ""
 }
 
-// IsCurrentVersionOf determines if the SdkRef is referencing to an in-development version of the
-// specified SDK
-func (s SdkRef) IsCurrentVersionOf(name string) bool {
-	return s.Name == name && s.IsCurrentVersion()
-}
+// SdkVersionSeparator is a character used to separate an sdk name and its version
+const SdkVersionSeparator = '@'
 
-// ParseSdkRef parses a `name#version` style string into a corresponding SdkRef struct
+// ParseSdkRef parses a `name@version` style string into a corresponding SdkRef struct
 func ParseSdkRef(ctx BaseModuleContext, str string, property string) SdkRef {
-	tokens := strings.Split(str, "#")
+	tokens := strings.Split(str, string(SdkVersionSeparator))
 	if len(tokens) < 1 || len(tokens) > 2 {
 		ctx.PropertyErrorf(property, "%q does not follow name#version syntax", str)
 		return SdkRef{Name: "invalid sdk name", Version: "invalid sdk version"}
@@ -65,7 +57,7 @@ func ParseSdkRef(ctx BaseModuleContext, str string, property string) SdkRef {
 
 	name := tokens[0]
 
-	version := currentVersion // If version is omitted, defaults to "current"
+	var version string
 	if len(tokens) == 2 {
 		version = tokens[1]
 	}
@@ -75,6 +67,7 @@ func ParseSdkRef(ctx BaseModuleContext, str string, property string) SdkRef {
 
 type SdkRefs []SdkRef
 
+// Contains tells if the given SdkRef is in this list of SdkRef's
 func (refs SdkRefs) Contains(s SdkRef) bool {
 	for _, r := range refs {
 		if r == s {
@@ -105,7 +98,7 @@ func (s *SdkBase) sdkBase() *SdkBase {
 	return s
 }
 
-// MakeMemberof sets this module to be a member of a specific SDK
+// MakeMemberOf sets this module to be a member of a specific SDK
 func (s *SdkBase) MakeMemberOf(sdk SdkRef) {
 	s.properties.ContainingSdk = &sdk
 }
@@ -120,10 +113,10 @@ func (s *SdkBase) ContainingSdk() SdkRef {
 	if s.properties.ContainingSdk != nil {
 		return *s.properties.ContainingSdk
 	}
-	return SdkRef{Name: "", Version: currentVersion}
+	return SdkRef{Name: "", Version: ""}
 }
 
-// Membername returns the name of the module that this SDK member is overriding
+// MemberName returns the name of the module that this SDK member is overriding
 func (s *SdkBase) MemberName() string {
 	return proptools.String(s.properties.Sdk_member_name)
 }
