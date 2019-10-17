@@ -148,10 +148,14 @@ func NewFuzz(hod android.HostOrDeviceSupported) *Module {
 	// include the STL.
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		staticStlLinkage := struct {
-			Stl *string
+			Target struct {
+				Linux_glibc struct {
+					Stl *string
+				}
+			}
 		}{}
 
-		staticStlLinkage.Stl = proptools.StringPtr("libc++_static")
+		staticStlLinkage.Target.Linux_glibc.Stl = proptools.StringPtr("libc++_static")
 		ctx.AppendProperties(&staticStlLinkage)
 	})
 
@@ -211,7 +215,7 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		// The corpora.
 		for _, corpusEntry := range fuzzModule.corpus {
 			archDirs[archDir] = append(archDirs[archDir],
-				fileToZip{corpusEntry, ccModule.Name() + "/corpus/" + corpusEntry.Base()})
+				fileToZip{corpusEntry, ccModule.Name() + "/corpus"})
 		}
 
 		// The dictionary.

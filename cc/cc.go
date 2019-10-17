@@ -2143,6 +2143,16 @@ func (c *Module) IsInstallableToApex() bool {
 	return false
 }
 
+func (c *Module) AvailableFor(what string) bool {
+	if linker, ok := c.linker.(interface {
+		availableFor(string) bool
+	}); ok {
+		return c.ApexModuleBase.AvailableFor(what) || linker.availableFor(what)
+	} else {
+		return c.ApexModuleBase.AvailableFor(what)
+	}
+}
+
 func (c *Module) installable() bool {
 	return c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid()
 }

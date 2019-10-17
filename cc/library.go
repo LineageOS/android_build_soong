@@ -131,6 +131,8 @@ type StaticOrSharedProperties struct {
 
 	Export_shared_lib_headers []string `android:"arch_variant"`
 	Export_static_lib_headers []string `android:"arch_variant"`
+
+	Apex_available []string `android:"arch_variant"`
 }
 
 type LibraryMutatedProperties struct {
@@ -573,6 +575,8 @@ type libraryInterface interface {
 
 	// Write LOCAL_ADDITIONAL_DEPENDENCIES for ABI diff
 	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
+
+	availableFor(string) bool
 }
 
 func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
@@ -1132,6 +1136,19 @@ func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *strin
 
 func (library *libraryDecorator) stubsVersion() string {
 	return library.MutatedProperties.StubsVersion
+}
+
+func (library *libraryDecorator) availableFor(what string) bool {
+	var list []string
+	if library.static() {
+		list = library.StaticProperties.Static.Apex_available
+	} else if library.shared() {
+		list = library.SharedProperties.Shared.Apex_available
+	}
+	if len(list) == 0 {
+		return false
+	}
+	return android.CheckAvailableForApex(what, list)
 }
 
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
