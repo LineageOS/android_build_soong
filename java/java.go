@@ -140,10 +140,10 @@ type CompilerProperties struct {
 	Use_tools_jar *bool
 
 	Openjdk9 struct {
-		// List of source files that should only be used when passing -source 1.9
+		// List of source files that should only be used when passing -source 1.9 or higher
 		Srcs []string `android:"path"`
 
-		// List of javac flags that should only be used when passing -source 1.9
+		// List of javac flags that should only be used when passing -source 1.9 or higher
 		Javacflags []string
 	}
 
@@ -433,6 +433,7 @@ type jniDependencyTag struct {
 var (
 	staticLibTag          = dependencyTag{name: "staticlib"}
 	libTag                = dependencyTag{name: "javalib"}
+	java9LibTag           = dependencyTag{name: "java9lib"}
 	pluginTag             = dependencyTag{name: "plugin"}
 	bootClasspathTag      = dependencyTag{name: "bootclasspath"}
 	systemModulesTag      = dependencyTag{name: "system modules"}
@@ -461,11 +462,15 @@ type checkVendorModuleContext interface {
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
-	modules []string
+	// The modules that will be added to the bootclasspath when targeting 1.8 or lower
+	bootclasspath []string
 
 	// The default system modules to use. Will be an empty string if no system
 	// modules are to be used.
 	systemModules string
+
+	// The modules that will be added ot the classpath when targeting 1.9 or higher
+	java9Classpath []string
 
 	frameworkResModule string
 
@@ -531,8 +536,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 			}
 		} else if sdkDep.useModule {
-			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+			ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
 			if j.deviceProperties.EffectiveOptimizeEnabled() && sdkDep.hasStandardLibs() {
 				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
 				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
@@ -630,6 +636,7 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 
 type deps struct {
 	classpath          classpath
+	java9Classpath     classpath
 	bootClasspath      classpath
 	processorPath      classpath
 	processorClasses   []string
@@ -739,7 +746,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
 		if sdkDep.invalidVersion {
-			ctx.AddMissingDependencies(sdkDep.modules)
+			ctx.AddMissingDependencies(sdkDep.bootclasspath)
+			ctx.AddMissingDependencies(sdkDep.java9Classpath)
 		} else if sdkDep.useFiles {
 			// sdkDep.jar is actually equivalent to turbine header.jar.
 			deps.classpath = append(deps.classpath, sdkDep.jars...)
@@ -787,6 +795,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				// sdk lib names from dependencies are re-exported
 				j.exportedSdkLibs = append(j.exportedSdkLibs, dep.ExportedSdkLibs()...)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
+			case java9LibTag:
+				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars()...)
 			case staticLibTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
@@ -883,12 +893,8 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		return JAVA_VERSION_7
 	} else if ctx.Device() && sdk <= 29 {
 		return JAVA_VERSION_8
-	} else if ctx.Device() &&
-		sdkContext.sdkVersion() != "" &&
-		sdkContext.sdkVersion() != "none" &&
-		sdkContext.sdkVersion() != "core_platform" &&
-		sdk == android.FutureApiLevel {
-		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
+	} else if ctx.Device() && ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		// TODO(b/142896162): once we have prebuilt system modules we can use 1.9 for unbundled builds
 		return JAVA_VERSION_8
 	} else {
 		return JAVA_VERSION_9
@@ -981,6 +987,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	// classpath
 	flags.bootClasspath = append(flags.bootClasspath, deps.bootClasspath...)
 	flags.classpath = append(flags.classpath, deps.classpath...)
+	flags.java9Classpath = append(flags.java9Classpath, deps.java9Classpath...)
 	flags.processorPath = append(flags.processorPath, deps.processorPath...)
 
 	flags.processor = strings.Join(deps.processorClasses, ",")

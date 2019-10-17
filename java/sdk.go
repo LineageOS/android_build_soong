@@ -122,7 +122,7 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
 				invalidVersion: true,
-				modules:        []string{fmt.Sprintf("sdk_%s_%s_android", api, v)},
+				bootclasspath:  []string{fmt.Sprintf("sdk_%s_%s_android", api, v)},
 			}
 		}
 
@@ -144,20 +144,14 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 	}
 
 	toModule := func(m, r string, aidl android.Path) sdkDep {
-		ret := sdkDep{
+		return sdkDep{
 			useModule:          true,
-			modules:            []string{m, config.DefaultLambdaStubsLibrary},
-			systemModules:      m + "_system_modules",
+			bootclasspath:      []string{m, config.DefaultLambdaStubsLibrary},
+			systemModules:      "core-current-stubs-system-modules",
+			java9Classpath:     []string{m},
 			frameworkResModule: r,
 			aidl:               android.OptionalPathForPath(aidl),
 		}
-
-		if m == "core.current.stubs" {
-			ret.systemModules = "core-current-stubs-system-modules"
-			// core_current does not include framework classes.
-			ret.noFrameworksLibs = true
-		}
-		return ret
 	}
 
 	// Ensures that the specificed system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor apks)
@@ -201,7 +195,7 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			useModule:      true,
 			noStandardLibs: true,
 			systemModules:  systemModules,
-			modules:        []string{systemModules},
+			bootclasspath:  []string{systemModules},
 		}
 	case "core_platform":
 		return sdkDep{

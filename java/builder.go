@@ -182,15 +182,16 @@ func init() {
 }
 
 type javaBuilderFlags struct {
-	javacFlags    string
-	bootClasspath classpath
-	classpath     classpath
-	processorPath classpath
-	processor     string
-	systemModules *systemModules
-	aidlFlags     string
-	aidlDeps      android.Paths
-	javaVersion   javaVersion
+	javacFlags     string
+	bootClasspath  classpath
+	classpath      classpath
+	java9Classpath classpath
+	processorPath  classpath
+	processor      string
+	systemModules  *systemModules
+	aidlFlags      string
+	aidlDeps       android.Paths
+	javaVersion    javaVersion
 
 	errorProneExtraJavacFlags string
 	errorProneProcessorPath   classpath
@@ -295,11 +296,14 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 	var deps android.Paths
 	deps = append(deps, srcJars...)
 
+	classpath := flags.classpath
+
 	var bootClasspath string
 	if flags.javaVersion.usesJavaModules() {
 		var systemModuleDeps android.Paths
 		bootClasspath, systemModuleDeps = flags.systemModules.FormTurbineSystemModulesPath(ctx.Device())
 		deps = append(deps, systemModuleDeps...)
+		classpath = append(flags.java9Classpath, classpath...)
 	} else {
 		deps = append(deps, flags.bootClasspath...)
 		if len(flags.bootClasspath) == 0 && ctx.Device() {
@@ -311,7 +315,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		}
 	}
 
-	deps = append(deps, flags.classpath...)
+	deps = append(deps, classpath...)
 	deps = append(deps, flags.processorPath...)
 
 	ctx.Build(pctx, android.BuildParams{
@@ -324,7 +328,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"classpath":     strings.Join(flags.classpath.FormTurbineClasspath("--classpath "), " "),
+			"classpath":     strings.Join(classpath.FormTurbineClasspath("--classpath "), " "),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 			"javaVersion":   flags.javaVersion.String(),
 		},
@@ -347,11 +351,14 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 
 	deps = append(deps, srcJars...)
 
+	classpath := flags.classpath
+
 	var bootClasspath string
 	if flags.javaVersion.usesJavaModules() {
 		var systemModuleDeps android.Paths
 		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
 		deps = append(deps, systemModuleDeps...)
+		classpath = append(flags.java9Classpath, classpath...)
 	} else {
 		deps = append(deps, flags.bootClasspath...)
 		if len(flags.bootClasspath) == 0 && ctx.Device() {
@@ -363,7 +370,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		}
 	}
 
-	deps = append(deps, flags.classpath...)
+	deps = append(deps, classpath...)
 	deps = append(deps, flags.processorPath...)
 
 	processor := "-proc:none"
@@ -389,7 +396,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
-			"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
+			"classpath":     classpath.FormJavaClassPath("-classpath"),
 			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
 			"processor":     processor,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),

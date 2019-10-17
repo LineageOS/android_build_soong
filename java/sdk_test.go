@@ -83,19 +83,21 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:          "current",
-			properties:    `sdk_version: "current",`,
-			bootclasspath: []string{"android_stubs_current", "core-lambda-stubs"},
-			forces8:       true,
-			aidl:          "-p" + buildDir + "/framework.aidl",
+			name:           "current",
+			properties:     `sdk_version: "current",`,
+			bootclasspath:  []string{"android_stubs_current", "core-lambda-stubs"},
+			system:         "core-current-stubs-system-modules",
+			java9classpath: []string{"android_stubs_current"},
+			aidl:           "-p" + buildDir + "/framework.aidl",
 		},
 		{
 
-			name:          "system_current",
-			properties:    `sdk_version: "system_current",`,
-			bootclasspath: []string{"android_system_stubs_current", "core-lambda-stubs"},
-			forces8:       true,
-			aidl:          "-p" + buildDir + "/framework.aidl",
+			name:           "system_current",
+			properties:     `sdk_version: "system_current",`,
+			bootclasspath:  []string{"android_system_stubs_current", "core-lambda-stubs"},
+			system:         "core-current-stubs-system-modules",
+			java9classpath: []string{"android_system_stubs_current"},
+			aidl:           "-p" + buildDir + "/framework.aidl",
 		},
 		{
 
@@ -108,18 +110,20 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:          "test_current",
-			properties:    `sdk_version: "test_current",`,
-			bootclasspath: []string{"android_test_stubs_current", "core-lambda-stubs"},
-			forces8:       true,
-			aidl:          "-p" + buildDir + "/framework.aidl",
+			name:           "test_current",
+			properties:     `sdk_version: "test_current",`,
+			bootclasspath:  []string{"android_test_stubs_current", "core-lambda-stubs"},
+			system:         "core-current-stubs-system-modules",
+			java9classpath: []string{"android_test_stubs_current"},
+			aidl:           "-p" + buildDir + "/framework.aidl",
 		},
 		{
 
-			name:          "core_current",
-			properties:    `sdk_version: "core_current",`,
-			bootclasspath: []string{"core.current.stubs", "core-lambda-stubs"},
-			forces8:       true,
+			name:           "core_current",
+			properties:     `sdk_version: "core_current",`,
+			bootclasspath:  []string{"core.current.stubs", "core-lambda-stubs"},
+			system:         "core-current-stubs-system-modules",
+			java9classpath: []string{"core.current.stubs"},
 		},
 		{
 
@@ -385,8 +389,23 @@ func TestClasspath(t *testing.T) {
 				checkClasspath(t, ctx, true /* isJava8 */)
 			})
 
-			// TODO(b/142896162): Add a with PLATFORM_VERSION_CODENAME=REL, javac -source 9 -target 9, when that all works.
+			// Test again with PLATFORM_VERSION_CODENAME=REL, javac -source 9 -target 9
+			t.Run("REL + Java language level 9", func(t *testing.T) {
+				config := testConfig(nil)
+				config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("REL")
+				config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(true)
+
+				if testcase.unbundled {
+					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+				}
+				if testcase.pdk {
+					config.TestProductVariables.Pdk = proptools.BoolPtr(true)
+				}
+				ctx := testContext(bp, nil)
+				run(t, ctx, config)
+
+				checkClasspath(t, ctx, false /* isJava8 */)
+			})
 		})
 	}
-
 }

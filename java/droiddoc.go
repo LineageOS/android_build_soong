@@ -429,8 +429,9 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 			}
 		} else if sdkDep.useModule {
-			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
+			ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
 		}
 	}
 
@@ -505,7 +506,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 
 	sdkDep := decodeSdkDep(ctx, sdkContext(j))
 	if sdkDep.invalidVersion {
-		ctx.AddMissingDependencies(sdkDep.modules)
+		ctx.AddMissingDependencies(sdkDep.bootclasspath)
+		ctx.AddMissingDependencies(sdkDep.java9Classpath)
 	} else if sdkDep.useFiles {
 		deps.bootClasspath = append(deps.bootClasspath, sdkDep.jars...)
 	}
@@ -535,6 +537,13 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			case android.SourceFileProducer:
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
+			default:
+				ctx.ModuleErrorf("depends on non-java module %q", otherName)
+			}
+		case java9LibTag:
+			switch dep := module.(type) {
+			case Dependency:
+				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars()...)
 			default:
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
