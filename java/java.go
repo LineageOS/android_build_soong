@@ -884,7 +884,7 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		ret = normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() && sdk <= 23 {
 		ret = "1.7"
-	} else if ctx.Device() && sdk <= 29 || !ctx.Config().TargetOpenJDK9() {
+	} else if ctx.Device() && sdk <= 29 {
 		ret = "1.8"
 	} else if ctx.Device() &&
 		sdkContext.sdkVersion() != "" &&
