@@ -1389,10 +1389,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			depTag = headerExportDepTag
 		}
 		if buildStubs {
-			actx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: ctx.Target().String()},
-				{Mutator: "image", Variation: c.imageVariation()},
-			}, depTag, lib)
+			actx.AddFarVariationDependencies(append(ctx.Target().Variations(),
+				blueprint.Variation{Mutator: "image", Variation: c.imageVariation()}),
+				depTag, lib)
 		} else {
 			actx.AddVariationDependencies(nil, depTag, lib)
 		}
