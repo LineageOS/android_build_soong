@@ -145,7 +145,7 @@ func (j *TestHelperLibrary) AndroidMkEntries() android.AndroidMkEntries {
 }
 
 func (prebuilt *Import) AndroidMkEntries() android.AndroidMkEntries {
-	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().IsCurrentVersion() {
+	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().Unversioned() {
 		return android.AndroidMkEntries{
 			Disabled: true,
 		}

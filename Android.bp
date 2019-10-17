@@ -491,6 +491,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "sdk/sdk.go",
+        "sdk/update.go",
     ],
     testSrcs: [
         "sdk/sdk_test.go",
