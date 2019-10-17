@@ -52,9 +52,8 @@ func ProtoDeps(ctx BottomUpMutatorContext, p *ProtoProperties) {
 	}
 
 	if plugin := String(p.Proto.Plugin); plugin != "" {
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: ctx.Config().BuildOsVariant},
-		}, ProtoPluginDepTag, "protoc-gen-"+plugin)
+		ctx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(),
+			ProtoPluginDepTag, "protoc-gen-"+plugin)
 	}
 }
 
