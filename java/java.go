@@ -551,9 +551,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
 
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
-	}, pluginTag, j.properties.Plugins...)
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
 
 	android.ProtoDeps(ctx, &j.protoProperties)
 	if j.hasSrcExt(".proto") {

@@ -22,8 +22,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
+
+const COMMON_VARIANT = "common"
 
 var (
 	archTypeList []ArchType
@@ -36,7 +39,7 @@ var (
 	X86_64 = newArch("x86_64", "lib64")
 
 	Common = ArchType{
-		Name: "common",
+		Name: COMMON_VARIANT,
 	}
 )
 
@@ -702,11 +705,23 @@ type Target struct {
 }
 
 func (target Target) String() string {
-	variant := ""
+	return target.ArchVariation()
+}
+
+func (target Target) ArchVariation() string {
+	var variation string
 	if target.NativeBridge {
-		variant = "native_bridge_"
+		variation = "native_bridge_"
 	}
-	return target.Os.String() + "_" + variant + target.Arch.String()
+	variation += target.Arch.String()
+
+	return target.Os.String() + "_" + variation
+}
+
+func (target Target) Variations() []blueprint.Variation {
+	return []blueprint.Variation{
+		{Mutator: "arch", Variation: target.ArchVariation()},
+	}
 }
 
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
