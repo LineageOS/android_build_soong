@@ -69,6 +69,7 @@ func testSdkContext(t *testing.T, bp string) (*android.TestContext, android.Conf
 
 	// from this package
 	ctx.RegisterModuleType("sdk", android.ModuleFactoryAdaptor(ModuleFactory))
+	ctx.RegisterModuleType("sdk_snapshot", android.ModuleFactoryAdaptor(SnapshotModuleFactory))
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
@@ -155,12 +156,17 @@ func pathsToStrings(paths android.Paths) []string {
 func TestBasicSdkWithJava(t *testing.T) {
 	ctx, _ := testSdk(t, `
 		sdk {
-			name: "mysdk#1",
+			name: "mysdk",
+			java_libs: ["sdkmember"],
+		}
+
+		sdk_snapshot {
+			name: "mysdk@1",
 			java_libs: ["sdkmember_mysdk_1"],
 		}
 
-		sdk {
-			name: "mysdk#2",
+		sdk_snapshot {
+			name: "mysdk@2",
 			java_libs: ["sdkmember_mysdk_2"],
 		}
 
@@ -195,7 +201,7 @@ func TestBasicSdkWithJava(t *testing.T) {
 		apex {
 			name: "myapex",
 			java_libs: ["myjavalib"],
-			uses_sdks: ["mysdk#1"],
+			uses_sdks: ["mysdk@1"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -203,7 +209,7 @@ func TestBasicSdkWithJava(t *testing.T) {
 		apex {
 			name: "myapex2",
 			java_libs: ["myjavalib"],
-			uses_sdks: ["mysdk#2"],
+			uses_sdks: ["mysdk@2"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -223,12 +229,17 @@ func TestBasicSdkWithJava(t *testing.T) {
 func TestBasicSdkWithCc(t *testing.T) {
 	ctx, _ := testSdk(t, `
 		sdk {
-			name: "mysdk#1",
+			name: "mysdk",
+			native_shared_libs: ["sdkmember"],
+		}
+
+		sdk_snapshot {
+			name: "mysdk@1",
 			native_shared_libs: ["sdkmember_mysdk_1"],
 		}
 
-		sdk {
-			name: "mysdk#2",
+		sdk_snapshot {
+			name: "mysdk@2",
 			native_shared_libs: ["sdkmember_mysdk_2"],
 		}
 
@@ -267,7 +278,7 @@ func TestBasicSdkWithCc(t *testing.T) {
 		apex {
 			name: "myapex",
 			native_shared_libs: ["mycpplib"],
-			uses_sdks: ["mysdk#1"],
+			uses_sdks: ["mysdk@1"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -275,7 +286,7 @@ func TestBasicSdkWithCc(t *testing.T) {
 		apex {
 			name: "myapex2",
 			native_shared_libs: ["mycpplib"],
-			uses_sdks: ["mysdk#2"],
+			uses_sdks: ["mysdk@2"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
