@@ -1933,7 +1933,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		if ptr != nil {
 			if !linkFile.Valid() {
-				ctx.ModuleErrorf("module %q missing output file", depName)
+				if !ctx.Config().AllowMissingDependencies() {
+					ctx.ModuleErrorf("module %q missing output file", depName)
+				} else {
+					ctx.AddMissingDependencies([]string{depName})
+				}
 				return
 			}
 			*ptr = append(*ptr, linkFile.Path())
