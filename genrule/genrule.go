@@ -172,9 +172,7 @@ func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			if m := android.SrcIsModule(tool); m != "" {
 				tool = m
 			}
-			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: ctx.Config().BuildOsVariant},
-			}, tag, tool)
+			ctx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), tag, tool)
 		}
 	}
 }
