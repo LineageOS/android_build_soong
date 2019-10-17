@@ -417,6 +417,7 @@ type commonProperties struct {
 	} `android:"arch_variant"`
 
 	// Set by TargetMutator
+	CompileOS           OsType   `blueprint:"mutated"`
 	CompileTarget       Target   `blueprint:"mutated"`
 	CompileMultiTargets []Target `blueprint:"mutated"`
 	CompilePrimary      bool     `blueprint:"mutated"`
@@ -717,12 +718,6 @@ func (m *ModuleBase) visibility() []string {
 	} else {
 		return nil
 	}
-}
-
-func (m *ModuleBase) SetTarget(target Target, multiTargets []Target, primary bool) {
-	m.commonProperties.CompileTarget = target
-	m.commonProperties.CompileMultiTargets = multiTargets
-	m.commonProperties.CompilePrimary = primary
 }
 
 func (m *ModuleBase) Target() Target {
