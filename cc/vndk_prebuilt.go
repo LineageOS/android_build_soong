@@ -130,7 +130,13 @@ func (p *vndkPrebuiltLibraryDecorator) singleSourcePath(ctx ModuleContext) andro
 func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	if !p.matchesWithDevice(ctx.DeviceConfig()) {
+	arches := ctx.DeviceConfig().Arches()
+	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
+		ctx.Module().SkipInstall()
+		return nil
+	}
+
+	if ctx.DeviceConfig().BinderBitness() != p.binderBit() {
 		ctx.Module().SkipInstall()
 		return nil
 	}
@@ -145,20 +151,6 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 
 	ctx.Module().SkipInstall()
 	return nil
-}
-
-func (p *vndkPrebuiltLibraryDecorator) matchesWithDevice(config android.DeviceConfig) bool {
-	arches := config.Arches()
-	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
-		return false
-	}
-	if config.BinderBitness() != p.binderBit() {
-		return false
-	}
-	if len(p.properties.Srcs) == 0 {
-		return false
-	}
-	return true
 }
 
 func (p *vndkPrebuiltLibraryDecorator) nativeCoverage() bool {
