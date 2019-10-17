@@ -488,6 +488,15 @@ func (c *Module) RelativeInstallPath() string {
 	return ""
 }
 
+// IsVndkOnSystem returns true if a module is supposed to be a vndk library provided by system to vendor
+func (c *Module) IsVndkOnSystem() bool {
+	if linker, ok := c.linker.(libraryInterface); ok {
+		return linker.shared() && c.isVndk() && c.useVndk() && !c.isVndkExt()
+	}
+
+	return false
+}
+
 func (c *Module) VndkVersion() string {
 	return c.vndkVersion()
 }
