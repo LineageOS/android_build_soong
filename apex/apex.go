@@ -975,7 +975,11 @@ func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy an
 }
 
 func getCopyManifestForAndroidApp(app *java.AndroidApp, pkgName string) (fileToCopy android.Path, dirInApex string) {
-	dirInApex = filepath.Join("app", pkgName)
+	appDir := "app"
+	if app.Privileged() {
+		appDir = "priv-app"
+	}
+	dirInApex = filepath.Join(appDir, pkgName)
 	fileToCopy = app.OutputFile()
 	return
 }

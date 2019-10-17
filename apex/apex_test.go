@@ -2404,6 +2404,7 @@ func TestApexWithApps(t *testing.T) {
 			key: "myapex.key",
 			apps: [
 				"AppFoo",
+				"AppFooPriv",
 			],
 		}
 
@@ -2419,6 +2420,14 @@ func TestApexWithApps(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 		}
+
+		android_app {
+			name: "AppFooPriv",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			privileged: true,
+		}
 	`)
 
 	module := ctx.ModuleForTests("myapex", "android_common_myapex")
@@ -2426,6 +2435,7 @@ func TestApexWithApps(t *testing.T) {
 	copyCmds := apexRule.Args["copy_commands"]
 
 	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
+	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
 
 }
 
