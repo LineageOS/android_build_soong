@@ -174,18 +174,23 @@ func CreateTestContext(bp string) *android.TestContext {
 	ctx.RegisterModuleType("rust_library_host_dylib", android.ModuleFactoryAdaptor(RustLibraryDylibHostFactory))
 	ctx.RegisterModuleType("rust_library_rlib", android.ModuleFactoryAdaptor(RustLibraryRlibFactory))
 	ctx.RegisterModuleType("rust_library_dylib", android.ModuleFactoryAdaptor(RustLibraryDylibFactory))
+	ctx.RegisterModuleType("rust_library_shared", android.ModuleFactoryAdaptor(RustLibrarySharedFactory))
+	ctx.RegisterModuleType("rust_library_static", android.ModuleFactoryAdaptor(RustLibraryStaticFactory))
+	ctx.RegisterModuleType("rust_library_host_shared", android.ModuleFactoryAdaptor(RustLibrarySharedHostFactory))
+	ctx.RegisterModuleType("rust_library_host_static", android.ModuleFactoryAdaptor(RustLibraryStaticHostFactory))
 	ctx.RegisterModuleType("rust_proc_macro", android.ModuleFactoryAdaptor(ProcMacroFactory))
 	ctx.RegisterModuleType("rust_prebuilt_dylib", android.ModuleFactoryAdaptor(PrebuiltDylibFactory))
 	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
-
+		// cc mutators
 		ctx.BottomUp("image", cc.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
 		ctx.BottomUp("version", cc.VersionMutator).Parallel()
 		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-	})
 
+		// rust mutators
+		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
+	})
 	bp = bp + GatherRequiredDepsForTest()
 
 	mockFS := map[string][]byte{

@@ -207,7 +207,7 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 		// Discard vendor-NDK-linked modules, they're duplicates of fuzz targets
 		// we're going to package anyway.
-		if ccModule.useVndk() || !ccModule.Enabled() {
+		if ccModule.UseVndk() || !ccModule.Enabled() {
 			return
 		}
 

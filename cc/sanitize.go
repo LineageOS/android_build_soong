@@ -873,7 +873,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		}
 
 		if mctx.Device() && runtimeLibrary != "" {
-			if inList(runtimeLibrary, *llndkLibraries(mctx.Config())) && !c.static() && c.useVndk() {
+			if inList(runtimeLibrary, *llndkLibraries(mctx.Config())) && !c.static() && c.UseVndk() {
 				runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
 			}
 
@@ -963,7 +963,7 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 						if t == cfi {
 							appendStringSync(c.Name(), cfiStaticLibs(mctx.Config()), &cfiStaticLibsMutex)
 						} else if t == hwasan {
-							if c.useVndk() {
+							if c.UseVndk() {
 								appendStringSync(c.Name(), hwasanVendorStaticLibs(mctx.Config()),
 									&hwasanStaticLibsMutex)
 							} else {

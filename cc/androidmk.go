@@ -36,10 +36,10 @@ type AndroidMkContext interface {
 	Arch() android.Arch
 	Os() android.OsType
 	Host() bool
-	useVndk() bool
+	UseVndk() bool
 	vndkVersion() string
 	static() bool
-	inRecovery() bool
+	InRecovery() bool
 }
 
 type subAndroidMkProvider interface {
@@ -89,9 +89,9 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_WHOLE_STATIC_LIBRARIES := "+strings.Join(c.Properties.AndroidMkWholeStaticLibs, " "))
 				}
 				fmt.Fprintln(w, "LOCAL_SOONG_LINK_TYPE :=", c.makeLinkType)
-				if c.useVndk() {
+				if c.UseVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
-					if c.isVndk() && !c.static() {
+					if c.IsVndk() && !c.static() {
 						fmt.Fprintln(w, "LOCAL_SOONG_VNDK_VERSION := "+c.vndkVersion())
 					}
 				}
@@ -224,7 +224,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		})
 	}
 	if len(library.Properties.Stubs.Versions) > 0 &&
-		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.inRecovery() && !ctx.useVndk() &&
+		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.InRecovery() && !ctx.UseVndk() &&
 		!ctx.static() {
 		if !library.buildStubs() {
 			ret.SubName = ".bootstrap"
