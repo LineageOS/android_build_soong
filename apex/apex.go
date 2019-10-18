@@ -786,6 +786,11 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+func (a *apexBundle) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	// direct deps of an APEX bundle are all part of the APEX bundle
+	return true
+}
+
 func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
 	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
 	if overridden {
