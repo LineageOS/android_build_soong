@@ -228,7 +228,7 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 
 	// Uncompress dex in APKs of privileged apps (even for unbundled builds, they may
 	// be preinstalled as prebuilts).
-	if ctx.Config().UncompressPrivAppDex() && Bool(a.appProperties.Privileged) {
+	if ctx.Config().UncompressPrivAppDex() && a.Privileged() {
 		return true
 	}
 
@@ -316,7 +316,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		installDir = "framework"
-	} else if Bool(a.appProperties.Privileged) {
+	} else if a.Privileged() {
 		installDir = filepath.Join("priv-app", a.installApkName)
 	} else {
 		installDir = filepath.Join("app", a.installApkName)
@@ -442,7 +442,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
 		a.installDir = android.PathForModuleInstall(ctx, "framework")
-	} else if Bool(a.appProperties.Privileged) {
+	} else if a.Privileged() {
 		a.installDir = android.PathForModuleInstall(ctx, "priv-app", a.installApkName)
 	} else if ctx.InstallInTestcases() {
 		a.installDir = android.PathForModuleInstall(ctx, a.installApkName)
@@ -553,6 +553,10 @@ func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 		return []android.Path{a.aaptSrcJar}, nil
 	}
 	return a.Library.OutputFiles(tag)
+}
+
+func (a *AndroidApp) Privileged() bool {
+	return Bool(a.appProperties.Privileged)
 }
 
 // android_app compiles sources and Android resources into an Android application package `.apk` file.
@@ -872,7 +876,7 @@ func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
 	}
 
 	// Uncompress dex in APKs of privileged apps
-	if ctx.Config().UncompressPrivAppDex() && Bool(a.properties.Privileged) {
+	if ctx.Config().UncompressPrivAppDex() && a.Privileged() {
 		return true
 	}
 
@@ -1001,6 +1005,10 @@ func (a *AndroidAppImport) populateAllVariantStructs() {
 
 	a.archVariants = reflect.New(archVariantGroupType).Interface()
 	a.AddProperties(a.archVariants)
+}
+
+func (a *AndroidAppImport) Privileged() bool {
+	return Bool(a.properties.Privileged)
 }
 
 func createVariantGroupType(variants []string, variantGroupName string) reflect.Type {
