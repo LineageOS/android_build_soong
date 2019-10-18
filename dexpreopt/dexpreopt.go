@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // The dexpreopt package converts a global dexpreopt config and a module dexpreopt config into rules to perform
-// dexpreopting and to strip the dex files from the APK or JAR.
+// dexpreopting.
 //
 // It is used in two places; in the dexpeopt_gen binary for modules defined in Make, and directly linked into Soong.
 //
@@ -22,8 +22,7 @@
 // changed.  One script takes an APK or JAR as an input and produces a zip file containing any outputs of preopting,
 // in the location they should be on the device.  The Make build rules will unzip the zip file into $(PRODUCT_OUT) when
 // installing the APK, which will install the preopt outputs into $(PRODUCT_OUT)/system or $(PRODUCT_OUT)/system_other
-// as necessary.  The zip file may be empty if preopting was disabled for any reason.  The second script takes an APK or
-// JAR as an input and strips the dex files in it as necessary.
+// as necessary.  The zip file may be empty if preopting was disabled for any reason.
 //
 // The intermediate shell scripts allow changes to this package or to the global config to regenerate the shell scripts
 // but only require re-executing preopting if the script has changed.
@@ -47,45 +46,6 @@ import (
 
 const SystemPartition = "/system/"
 const SystemOtherPartition = "/system_other/"
-
-// GenerateStripRule generates a set of commands that will take an APK or JAR as an input and strip the dex files if
-// they are no longer necessary after preopting.
-func GenerateStripRule(global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
-				panic(r)
-			} else if e, ok := r.(error); ok {
-				err = e
-				rule = nil
-			} else {
-				panic(r)
-			}
-		}
-	}()
-
-	tools := global.Tools
-
-	rule = android.NewRuleBuilder()
-
-	strip := shouldStripDex(module, global)
-
-	if strip {
-		if global.NeverAllowStripping {
-			panic(fmt.Errorf("Stripping requested on %q, though the product does not allow it", module.DexLocation))
-		}
-		// Only strips if the dex files are not already uncompressed
-		rule.Command().
-			Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, module.StripInputPath).
-			Tool(tools.Zip2zip).FlagWithInput("-i ", module.StripInputPath).FlagWithOutput("-o ", module.StripOutputPath).
-			FlagWithArg("-x ", `"classes*.dex"`).
-			Textf(`; else cp -f %s %s; fi`, module.StripInputPath, module.StripOutputPath)
-	} else {
-		rule.Command().Text("cp -f").Input(module.StripInputPath).Output(module.StripOutputPath)
-	}
-
-	return rule, nil
-}
 
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
@@ -120,7 +80,6 @@ func GenerateDexpreoptRule(ctx android.PathContext,
 
 	if !dexpreoptDisabled(global, module) {
 		// Don't preopt individual boot jars, they will be preopted together.
-		// This check is outside dexpreoptDisabled because they still need to be stripped.
 		if !contains(global.BootJars, module.Name) {
 			appImage := (generateProfile || module.ForceCreateAppImage || global.DefaultAppImages) &&
 				!module.NoCreateAppImage
@@ -513,51 +472,6 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 
 	rule.Install(odexPath, odexInstallPath)
 	rule.Install(vdexPath, vdexInstallPath)
-}
-
-// Return if the dex file in the APK should be stripped.  If an APK is found to contain uncompressed dex files at
-// dex2oat time it will not be stripped even if strip=true.
-func shouldStripDex(module ModuleConfig, global GlobalConfig) bool {
-	strip := !global.DefaultNoStripping
-
-	if dexpreoptDisabled(global, module) {
-		strip = false
-	}
-
-	if module.NoStripping {
-		strip = false
-	}
-
-	// Don't strip modules that are not on the system partition in case the oat/vdex version in system ROM
-	// doesn't match the one in other partitions. It needs to be able to fall back to the APK for that case.
-	if !strings.HasPrefix(module.DexLocation, SystemPartition) {
-		strip = false
-	}
-
-	// system_other isn't there for an OTA, so don't strip if module is on system, and odex is on system_other.
-	if odexOnSystemOther(module, global) {
-		strip = false
-	}
-
-	if module.HasApkLibraries {
-		strip = false
-	}
-
-	// Don't strip with dex files we explicitly uncompress (dexopt will not store the dex code).
-	if module.UncompressedDex {
-		strip = false
-	}
-
-	if shouldGenerateDM(module, global) {
-		strip = false
-	}
-
-	if module.PresignedPrebuilt {
-		// Only strip out files if we can re-sign the package.
-		strip = false
-	}
-
-	return strip
 }
 
 func shouldGenerateDM(module ModuleConfig, global GlobalConfig) bool {
