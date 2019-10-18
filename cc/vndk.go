@@ -98,7 +98,7 @@ func (vndk *vndkdep) typeName() string {
 	return "native:vendor:vndkspext"
 }
 
-func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, tag dependencyTag) {
+func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, tag DependencyTag) {
 	if to.linker == nil {
 		return
 	}
