@@ -104,7 +104,7 @@ func (object *objectLinker) link(ctx ModuleContext,
 	var outputFile android.Path
 	builderFlags := flagsToBuilderFlags(flags)
 
-	if len(objs.objFiles) == 1 {
+	if len(objs.objFiles) == 1 && String(object.Properties.Linker_script) == "" {
 		outputFile = objs.objFiles[0]
 
 		if String(object.Properties.Prefix_symbols) != "" {
