@@ -77,6 +77,10 @@ type ApexModule interface {
 
 	// Tests if this module is available for the specified APEX or ":platform"
 	AvailableFor(what string) bool
+
+	// DepIsInSameApex tests if the other module 'dep' is installed to the same
+	// APEX as this module
+	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 }
 
 type ApexProperties struct {
@@ -152,6 +156,13 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 
 func (m *ApexModuleBase) AvailableFor(what string) bool {
 	return CheckAvailableForApex(what, m.ApexProperties.Apex_available)
+}
+
+func (m *ApexModuleBase) DepIsInSameApex(ctx BaseModuleContext, dep Module) bool {
+	// By default, if there is a dependency from A to B, we try to include both in the same APEX,
+	// unless B is explicitly from outside of the APEX (i.e. a stubs lib). Thus, returning true.
+	// This is overridden by some module types like apex.ApexBundle, cc.Module, java.Module, etc.
+	return true
 }
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
