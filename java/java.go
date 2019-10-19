@@ -1465,6 +1465,8 @@ func (j *Module) CompilerDeps() []string {
 
 type Library struct {
 	Module
+
+	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
 
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
@@ -1494,8 +1496,12 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.compile(ctx)
 
 	if (Bool(j.properties.Installable) || ctx.Host()) && !android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
+		var extraInstallDeps android.Paths
+		if j.InstallMixin != nil {
+			extraInstallDeps = j.InstallMixin(ctx, j.outputFile)
+		}
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			ctx.ModuleName()+".jar", j.outputFile)
+			ctx.ModuleName()+".jar", j.outputFile, extraInstallDeps...)
 	}
 }
 
