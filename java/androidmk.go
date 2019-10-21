@@ -145,7 +145,7 @@ func (j *TestHelperLibrary) AndroidMkEntries() android.AndroidMkEntries {
 }
 
 func (prebuilt *Import) AndroidMkEntries() android.AndroidMkEntries {
-	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().IsCurrentVersion() {
+	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().Unversioned() {
 		return android.AndroidMkEntries{
 			Disabled: true,
 		}
@@ -317,7 +317,7 @@ func (app *AndroidApp) AndroidMkEntries() android.AndroidMkEntries {
 
 				entries.SetPath("LOCAL_FULL_MANIFEST_FILE", app.manifestPath)
 
-				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", Bool(app.appProperties.Privileged))
+				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", app.Privileged())
 
 				entries.SetPath("LOCAL_CERTIFICATE", app.certificate.Pem)
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", app.getOverriddenPackages()...)
@@ -630,7 +630,7 @@ func (a *AndroidAppImport) AndroidMkEntries() android.AndroidMkEntries {
 		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
-				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", Bool(a.properties.Privileged))
+				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", a.Privileged())
 				if a.certificate != nil {
 					entries.SetPath("LOCAL_CERTIFICATE", a.certificate.Pem)
 				} else {

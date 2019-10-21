@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All rights reserved.
+// Copyright 2019 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,25 +20,25 @@ import (
 )
 
 func init() {
-	RegisterModuleType("vts_config", VtsConfigFactory)
+	RegisterModuleType("csuite_config", CSuiteConfigFactory)
 }
 
-type vtsConfigProperties struct {
+type csuiteConfigProperties struct {
 	// Override the default (AndroidTest.xml) test manifest file name.
 	Test_config *string
 }
 
-type VtsConfig struct {
+type CSuiteConfig struct {
 	ModuleBase
-	properties     vtsConfigProperties
+	properties     csuiteConfigProperties
 	OutputFilePath OutputPath
 }
 
-func (me *VtsConfig) GenerateAndroidBuildActions(ctx ModuleContext) {
+func (me *CSuiteConfig) GenerateAndroidBuildActions(ctx ModuleContext) {
 	me.OutputFilePath = PathForModuleOut(ctx, me.BaseModuleName()).OutputPath
 }
 
-func (me *VtsConfig) AndroidMk() AndroidMkData {
+func (me *CSuiteConfig) AndroidMk() AndroidMkData {
 	androidMkData := AndroidMkData{
 		Class:      "FAKE",
 		Include:    "$(BUILD_SYSTEM)/suite_host_config.mk",
@@ -50,21 +50,21 @@ func (me *VtsConfig) AndroidMk() AndroidMkData {
 				fmt.Fprintf(w, "LOCAL_TEST_CONFIG := %s\n",
 					*me.properties.Test_config)
 			}
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := vts")
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := csuite")
 		},
 	}
 	return androidMkData
 }
 
-func InitVtsConfigModule(me *VtsConfig) {
+func InitCSuiteConfigModule(me *CSuiteConfig) {
 	me.AddProperties(&me.properties)
 }
 
-// vts_config generates a Vendor Test Suite (VTS) configuration file from the
+// csuite_config generates an App Compatibility Test Suite (C-Suite) configuration file from the
 // <test_config> xml file and stores it in a subdirectory of $(HOST_OUT).
-func VtsConfigFactory() Module {
-	module := &VtsConfig{}
-	InitVtsConfigModule(module)
-	InitAndroidArchModule(module /*TODO: or HostAndDeviceSupported? */, HostSupported, MultilibFirst)
+func CSuiteConfigFactory() Module {
+	module := &CSuiteConfig{}
+	InitCSuiteConfigModule(module)
+	InitAndroidArchModule(module, HostSupported, MultilibFirst)
 	return module
 }

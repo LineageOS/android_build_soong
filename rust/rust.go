@@ -496,7 +496,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
-	actx.AddFarVariationDependencies([]blueprint.Variation{{Mutator: "arch", Variation: ctx.Config().BuildOsVariant}}, procMacroDepTag, deps.ProcMacros...)
+	actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), procMacroDepTag, deps.ProcMacros...)
 }
 
 func (mod *Module) Name() string {

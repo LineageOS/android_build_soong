@@ -45,6 +45,7 @@ bootstrap_go_package {
         "android/api_levels.go",
         "android/arch.go",
         "android/config.go",
+        "android/csuite_config.go",
         "android/defaults.go",
         "android/defs.go",
         "android/expand.go",
@@ -85,6 +86,7 @@ bootstrap_go_package {
         "android/androidmk_test.go",
         "android/arch_test.go",
         "android/config_test.go",
+        "android/csuite_config_test.go",
         "android/expand_test.go",
         "android/module_test.go",
         "android/mutator_test.go",
@@ -294,6 +296,7 @@ bootstrap_go_package {
         "java/support_libraries.go",
         "java/system_modules.go",
         "java/testing.go",
+        "java/tradefed.go",
     ],
     testSrcs: [
         "java/androidmk_test.go",
@@ -491,6 +494,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "sdk/sdk.go",
+        "sdk/update.go",
     ],
     testSrcs: [
         "sdk/sdk_test.go",

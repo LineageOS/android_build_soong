@@ -89,9 +89,10 @@ type config struct {
 	ConfigFileName           string
 	ProductVariablesFileName string
 
-	Targets              map[OsType][]Target
-	BuildOsVariant       string
-	BuildOsCommonVariant string
+	Targets             map[OsType][]Target
+	BuildOSTarget       Target // the Target for tools run on the build machine
+	BuildOSCommonTarget Target // the Target for common (java) tools run on the build machine
+	AndroidCommonTarget Target // the Target for common modules for the Android device
 
 	// multilibConflicts for an ArchType is true if there is earlier configured device architecture with the same
 	// multilib value.
@@ -289,8 +290,9 @@ func TestArchConfig(buildDir string, env map[string]string) Config {
 		config.Targets[BuildOs] = config.Targets[BuildOs][:1]
 	}
 
-	config.BuildOsVariant = config.Targets[BuildOs][0].String()
-	config.BuildOsCommonVariant = getCommonTargets(config.Targets[BuildOs])[0].String()
+	config.BuildOSTarget = config.Targets[BuildOs][0]
+	config.BuildOSCommonTarget = getCommonTargets(config.Targets[BuildOs])[0]
+	config.AndroidCommonTarget = getCommonTargets(config.Targets[Android])[0]
 	config.TestProductVariables.DeviceArch = proptools.StringPtr("arm64")
 	config.TestProductVariables.DeviceArchVariant = proptools.StringPtr("armv8-a")
 	config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm")
@@ -374,8 +376,11 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	}
 
 	config.Targets = targets
-	config.BuildOsVariant = targets[BuildOs][0].String()
-	config.BuildOsCommonVariant = getCommonTargets(targets[BuildOs])[0].String()
+	config.BuildOSTarget = config.Targets[BuildOs][0]
+	config.BuildOSCommonTarget = getCommonTargets(config.Targets[BuildOs])[0]
+	if len(config.Targets[Android]) > 0 {
+		config.AndroidCommonTarget = getCommonTargets(config.Targets[Android])[0]
+	}
 
 	if err := config.fromEnv(); err != nil {
 		return Config{}, err

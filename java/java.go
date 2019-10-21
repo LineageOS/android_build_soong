@@ -551,9 +551,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
 
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: ctx.Config().BuildOsCommonVariant},
-	}, pluginTag, j.properties.Plugins...)
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
 
 	android.ProtoDeps(ctx, &j.protoProperties)
 	if j.hasSrcExt(".proto") {
@@ -1567,12 +1565,20 @@ func (j *Module) hasCode(ctx android.ModuleContext) bool {
 	return len(srcFiles) > 0 || len(ctx.GetDirectDepsWithTag(staticLibTag)) > 0
 }
 
+func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	depTag := ctx.OtherModuleDependencyTag(dep)
+	// dependencies other than the static linkage are all considered crossing APEX boundary
+	return depTag == staticLibTag
+}
+
 //
 // Java libraries (.jar file)
 //
 
 type Library struct {
 	Module
+
+	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
 
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
@@ -1603,8 +1609,12 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	exclusivelyForApex := android.InAnyApex(ctx.ModuleName()) && !j.IsForPlatform()
 	if (Bool(j.properties.Installable) || ctx.Host()) && !exclusivelyForApex {
+		var extraInstallDeps android.Paths
+		if j.InstallMixin != nil {
+			extraInstallDeps = j.InstallMixin(ctx, j.outputFile)
+		}
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			ctx.ModuleName()+".jar", j.outputFile)
+			ctx.ModuleName()+".jar", j.outputFile, extraInstallDeps...)
 	}
 }
 

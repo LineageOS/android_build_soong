@@ -884,18 +884,16 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
 			if c.staticBinary() {
 				// static executable gets static runtime libs
-				mctx.AddFarVariationDependencies([]blueprint.Variation{
+				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "static"},
 					{Mutator: "image", Variation: c.imageVariation()},
-					{Mutator: "arch", Variation: mctx.Target().String()},
-				}, staticDepTag, runtimeLibrary)
+				}...), staticDepTag, runtimeLibrary)
 			} else if !c.static() && !c.header() {
 				// dynamic executable and shared libs get shared runtime libs
-				mctx.AddFarVariationDependencies([]blueprint.Variation{
+				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
 					{Mutator: "image", Variation: c.imageVariation()},
-					{Mutator: "arch", Variation: mctx.Target().String()},
-				}, earlySharedDepTag, runtimeLibrary)
+				}...), earlySharedDepTag, runtimeLibrary)
 			}
 			// static lib does not have dependency to the runtime library. The
 			// dependency will be added to the executables or shared libs using

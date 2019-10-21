@@ -22,8 +22,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
+
+const COMMON_VARIANT = "common"
 
 var (
 	archTypeList []ArchType
@@ -36,7 +39,7 @@ var (
 	X86_64 = newArch("x86_64", "lib64")
 
 	Common = ArchType{
-		Name: "common",
+		Name: COMMON_VARIANT,
 	}
 )
 
@@ -702,11 +705,82 @@ type Target struct {
 }
 
 func (target Target) String() string {
-	variant := ""
+	return target.OsVariation() + "_" + target.ArchVariation()
+}
+
+func (target Target) OsVariation() string {
+	return target.Os.String()
+}
+
+func (target Target) ArchVariation() string {
+	var variation string
 	if target.NativeBridge {
-		variant = "native_bridge_"
+		variation = "native_bridge_"
 	}
-	return target.Os.String() + "_" + variant + target.Arch.String()
+	variation += target.Arch.String()
+
+	return variation
+}
+
+func (target Target) Variations() []blueprint.Variation {
+	return []blueprint.Variation{
+		{Mutator: "os", Variation: target.OsVariation()},
+		{Mutator: "arch", Variation: target.ArchVariation()},
+	}
+}
+
+func osMutator(mctx BottomUpMutatorContext) {
+	var module Module
+	var ok bool
+	if module, ok = mctx.Module().(Module); !ok {
+		return
+	}
+
+	base := module.base()
+
+	if !base.ArchSpecific() {
+		return
+	}
+
+	osClasses := base.OsClassSupported()
+
+	var moduleOSList []OsType
+
+	for _, os := range osTypeList {
+		supportedClass := false
+		for _, osClass := range osClasses {
+			if os.Class == osClass {
+				supportedClass = true
+			}
+		}
+		if !supportedClass {
+			continue
+		}
+
+		if len(mctx.Config().Targets[os]) == 0 {
+			continue
+		}
+
+		moduleOSList = append(moduleOSList, os)
+	}
+
+	if len(moduleOSList) == 0 {
+		base.commonProperties.Enabled = boolPtr(false)
+		return
+	}
+
+	osNames := make([]string, len(moduleOSList))
+
+	for i, os := range moduleOSList {
+		osNames[i] = os.String()
+	}
+
+	modules := mctx.CreateVariations(osNames...)
+	for i, m := range modules {
+		m.(Module).base().commonProperties.CompileOS = moduleOSList[i]
+		m.(Module).base().setOSProperties(mctx)
+	}
+
 }
 
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
@@ -746,84 +820,63 @@ func archMutator(mctx BottomUpMutatorContext) {
 		return
 	}
 
-	var moduleTargets []Target
-	moduleMultiTargets := make(map[int][]Target)
-	primaryModules := make(map[int]bool)
-	osClasses := base.OsClassSupported()
+	os := base.commonProperties.CompileOS
+	osTargets := mctx.Config().Targets[os]
 
-	for _, os := range osTypeList {
-		supportedClass := false
-		for _, osClass := range osClasses {
-			if os.Class == osClass {
-				supportedClass = true
+	// Filter NativeBridge targets unless they are explicitly supported
+	if os == Android && !Bool(base.commonProperties.Native_bridge_supported) {
+		var targets []Target
+		for _, t := range osTargets {
+			if !t.NativeBridge {
+				targets = append(targets, t)
 			}
 		}
-		if !supportedClass {
-			continue
-		}
 
-		osTargets := mctx.Config().Targets[os]
-		if len(osTargets) == 0 {
-			continue
-		}
+		osTargets = targets
+	}
 
-		// Filter NativeBridge targets unless they are explicitly supported
-		if os == Android && !Bool(base.commonProperties.Native_bridge_supported) {
-			var targets []Target
-			for _, t := range osTargets {
-				if !t.NativeBridge {
-					targets = append(targets, t)
-				}
-			}
+	// only the primary arch in the recovery partition
+	if os == Android && module.InstallInRecovery() {
+		osTargets = []Target{osTargets[0]}
+	}
 
-			osTargets = targets
-		}
+	prefer32 := false
+	if base.prefer32 != nil {
+		prefer32 = base.prefer32(mctx, base, os.Class)
+	}
 
-		// only the primary arch in the recovery partition
-		if os == Android && module.InstallInRecovery() {
-			osTargets = []Target{osTargets[0]}
-		}
+	multilib, extraMultilib := decodeMultilib(base, os.Class)
+	targets, err := decodeMultilibTargets(multilib, osTargets, prefer32)
+	if err != nil {
+		mctx.ModuleErrorf("%s", err.Error())
+	}
 
-		prefer32 := false
-		if base.prefer32 != nil {
-			prefer32 = base.prefer32(mctx, base, os.Class)
-		}
-
-		multilib, extraMultilib := decodeMultilib(base, os.Class)
-		targets, err := decodeMultilibTargets(multilib, osTargets, prefer32)
+	var multiTargets []Target
+	if extraMultilib != "" {
+		multiTargets, err = decodeMultilibTargets(extraMultilib, osTargets, prefer32)
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
-
-		var multiTargets []Target
-		if extraMultilib != "" {
-			multiTargets, err = decodeMultilibTargets(extraMultilib, osTargets, prefer32)
-			if err != nil {
-				mctx.ModuleErrorf("%s", err.Error())
-			}
-		}
-
-		if len(targets) > 0 {
-			primaryModules[len(moduleTargets)] = true
-			moduleMultiTargets[len(moduleTargets)] = multiTargets
-			moduleTargets = append(moduleTargets, targets...)
-		}
 	}
 
-	if len(moduleTargets) == 0 {
+	if len(targets) == 0 {
 		base.commonProperties.Enabled = boolPtr(false)
 		return
 	}
 
-	targetNames := make([]string, len(moduleTargets))
+	targetNames := make([]string, len(targets))
 
-	for i, target := range moduleTargets {
-		targetNames[i] = target.String()
+	for i, target := range targets {
+		targetNames[i] = target.ArchVariation()
 	}
 
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
-		m.(Module).base().SetTarget(moduleTargets[i], moduleMultiTargets[i], primaryModules[i])
+		m.(Module).base().commonProperties.CompileTarget = targets[i]
+		m.(Module).base().commonProperties.CompileMultiTargets = multiTargets
+		if i == 0 {
+			m.(Module).base().commonProperties.CompilePrimary = true
+		}
 		m.(Module).base().setArchProperties(mctx)
 	}
 }
@@ -1050,6 +1103,100 @@ func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 	return ret
 }
 
+// Rewrite the module's properties structs to contain os-specific values.
+func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
+	os := m.commonProperties.CompileOS
+
+	for i := range m.generalProperties {
+		genProps := m.generalProperties[i]
+		if m.archProperties[i] == nil {
+			continue
+		}
+		for _, archProperties := range m.archProperties[i] {
+			archPropValues := reflect.ValueOf(archProperties).Elem()
+
+			targetProp := archPropValues.FieldByName("Target")
+
+			// Handle host-specific properties in the form:
+			// target: {
+			//     host: {
+			//         key: value,
+			//     },
+			// },
+			if os.Class == Host || os.Class == HostCross {
+				field := "Host"
+				prefix := "target.host"
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
+
+			// Handle target OS generalities of the form:
+			// target: {
+			//     bionic: {
+			//         key: value,
+			//     },
+			// }
+			if os.Linux() {
+				field := "Linux"
+				prefix := "target.linux"
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
+
+			if os.Bionic() {
+				field := "Bionic"
+				prefix := "target.bionic"
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
+
+			// Handle target OS properties in the form:
+			// target: {
+			//     linux_glibc: {
+			//         key: value,
+			//     },
+			//     not_windows: {
+			//         key: value,
+			//     },
+			//     android {
+			//         key: value,
+			//     },
+			// },
+			field := os.Field
+			prefix := "target." + os.Name
+			m.appendProperties(ctx, genProps, targetProp, field, prefix)
+
+			if (os.Class == Host || os.Class == HostCross) && os != Windows {
+				field := "Not_windows"
+				prefix := "target.not_windows"
+				m.appendProperties(ctx, genProps, targetProp, field, prefix)
+			}
+
+			// Handle 64-bit device properties in the form:
+			// target {
+			//     android64 {
+			//         key: value,
+			//     },
+			//     android32 {
+			//         key: value,
+			//     },
+			// },
+			// WARNING: this is probably not what you want to use in your blueprints file, it selects
+			// options for all targets on a device that supports 64-bit binaries, not just the targets
+			// that are being compiled for 64-bit.  Its expected use case is binaries like linker and
+			// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
+			if os.Class == Device {
+				if ctx.Config().Android64() {
+					field := "Android64"
+					prefix := "target.android64"
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
+				} else {
+					field := "Android32"
+					prefix := "target.android32"
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
+				}
+			}
+		}
+	}
+}
+
 // Rewrite the module's properties structs to contain arch-specific values.
 func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	arch := m.Arch()
@@ -1066,9 +1213,6 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			archProp := archPropValues.FieldByName("Arch")
 			multilibProp := archPropValues.FieldByName("Multilib")
 			targetProp := archPropValues.FieldByName("Target")
-
-			var field string
-			var prefix string
 
 			// Handle arch-specific properties in the form:
 			// arch: {
@@ -1134,66 +1278,30 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 				m.appendProperties(ctx, genProps, multilibProp, field, prefix)
 			}
 
-			// Handle host-specific properties in the form:
+			// Handle combined OS-feature and arch specific properties in the form:
 			// target: {
-			//     host: {
-			//         key: value,
-			//     },
-			// },
-			if os.Class == Host || os.Class == HostCross {
-				field = "Host"
-				prefix = "target.host"
-				m.appendProperties(ctx, genProps, targetProp, field, prefix)
-			}
-
-			// Handle target OS generalities of the form:
-			// target: {
-			//     bionic: {
-			//         key: value,
-			//     },
 			//     bionic_x86: {
 			//         key: value,
 			//     },
 			// }
-			if os.Linux() {
-				field = "Linux"
-				prefix = "target.linux"
+			if os.Linux() && arch.ArchType != Common {
+				field := "Linux_" + arch.ArchType.Name
+				prefix := "target.linux_" + arch.ArchType.Name
 				m.appendProperties(ctx, genProps, targetProp, field, prefix)
-
-				if arch.ArchType != Common {
-					field = "Linux_" + arch.ArchType.Name
-					prefix = "target.linux_" + arch.ArchType.Name
-					m.appendProperties(ctx, genProps, targetProp, field, prefix)
-				}
 			}
 
-			if os.Bionic() {
-				field = "Bionic"
-				prefix = "target.bionic"
+			if os.Bionic() && arch.ArchType != Common {
+				field := "Bionic_" + t.Name
+				prefix := "target.bionic_" + t.Name
 				m.appendProperties(ctx, genProps, targetProp, field, prefix)
-
-				if arch.ArchType != Common {
-					field = "Bionic_" + t.Name
-					prefix = "target.bionic_" + t.Name
-					m.appendProperties(ctx, genProps, targetProp, field, prefix)
-				}
 			}
 
-			// Handle target OS properties in the form:
+			// Handle combined OS and arch specific properties in the form:
 			// target: {
-			//     linux_glibc: {
-			//         key: value,
-			//     },
-			//     not_windows: {
-			//         key: value,
-			//     },
 			//     linux_glibc_x86: {
 			//         key: value,
 			//     },
 			//     linux_glibc_arm: {
-			//         key: value,
-			//     },
-			//     android {
 			//         key: value,
 			//     },
 			//     android_arm {
@@ -1203,46 +1311,23 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 			//         key: value,
 			//     },
 			// },
-			field = os.Field
-			prefix = "target." + os.Name
-			m.appendProperties(ctx, genProps, targetProp, field, prefix)
-
 			if arch.ArchType != Common {
-				field = os.Field + "_" + t.Name
-				prefix = "target." + os.Name + "_" + t.Name
+				field := os.Field + "_" + t.Name
+				prefix := "target." + os.Name + "_" + t.Name
 				m.appendProperties(ctx, genProps, targetProp, field, prefix)
 			}
 
-			if (os.Class == Host || os.Class == HostCross) && os != Windows {
-				field := "Not_windows"
-				prefix := "target.not_windows"
-				m.appendProperties(ctx, genProps, targetProp, field, prefix)
-			}
-
-			// Handle 64-bit device properties in the form:
+			// Handle arm on x86 properties in the form:
 			// target {
-			//     android64 {
+			//     arm_on_x86 {
 			//         key: value,
 			//     },
-			//     android32 {
+			//     arm_on_x86_64 {
 			//         key: value,
 			//     },
 			// },
-			// WARNING: this is probably not what you want to use in your blueprints file, it selects
-			// options for all targets on a device that supports 64-bit binaries, not just the targets
-			// that are being compiled for 64-bit.  Its expected use case is binaries like linker and
-			// debuggerd that need to know when they are a 32-bit process running on a 64-bit device
+			// TODO(ccross): is this still necessary with native bridge?
 			if os.Class == Device {
-				if ctx.Config().Android64() {
-					field := "Android64"
-					prefix := "target.android64"
-					m.appendProperties(ctx, genProps, targetProp, field, prefix)
-				} else {
-					field := "Android32"
-					prefix := "target.android32"
-					m.appendProperties(ctx, genProps, targetProp, field, prefix)
-				}
-
 				if (arch.ArchType == X86 && (hasArmAbi(arch) ||
 					hasArmAndroidArch(ctx.Config().Targets[Android]))) ||
 					(arch.ArchType == Arm &&

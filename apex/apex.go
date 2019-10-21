@@ -619,28 +619,25 @@ type apexBundle struct {
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 	native_shared_libs []string, binaries []string, tests []string,
-	arch string, imageVariation string) {
+	target android.Target, imageVariation string) {
 	// Use *FarVariation* to be able to depend on modules having
 	// conflicting variations with this module. This is required since
 	// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
 	// for native shared libs.
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: arch},
+	ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
 		{Mutator: "image", Variation: imageVariation},
 		{Mutator: "link", Variation: "shared"},
 		{Mutator: "version", Variation: ""}, // "" is the non-stub variant
-	}, sharedLibTag, native_shared_libs...)
+	}...), sharedLibTag, native_shared_libs...)
 
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: arch},
-		{Mutator: "image", Variation: imageVariation},
-	}, executableTag, binaries...)
+	ctx.AddFarVariationDependencies(append(target.Variations(),
+		blueprint.Variation{Mutator: "image", Variation: imageVariation}),
+		executableTag, binaries...)
 
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: arch},
+	ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
 		{Mutator: "image", Variation: imageVariation},
 		{Mutator: "test_per_src", Variation: ""}, // "" is the all-tests variant
-	}, testTag, tests...)
+	}...), testTag, tests...)
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
@@ -672,49 +669,45 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for i, target := range targets {
 		// When multilib.* is omitted for native_shared_libs, it implies
 		// multilib.both.
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: target.String()},
+		ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
 			{Mutator: "image", Variation: a.getImageVariation(config)},
 			{Mutator: "link", Variation: "shared"},
-		}, sharedLibTag, a.properties.Native_shared_libs...)
+		}...), sharedLibTag, a.properties.Native_shared_libs...)
 
 		// When multilib.* is omitted for tests, it implies
 		// multilib.both.
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "arch", Variation: target.String()},
+		ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
 			{Mutator: "image", Variation: a.getImageVariation(config)},
 			{Mutator: "test_per_src", Variation: ""}, // "" is the all-tests variant
-		}, testTag, a.properties.Tests...)
+		}...), testTag, a.properties.Tests...)
 
 		// Add native modules targetting both ABIs
 		addDependenciesForNativeModules(ctx,
 			a.properties.Multilib.Both.Native_shared_libs,
 			a.properties.Multilib.Both.Binaries,
 			a.properties.Multilib.Both.Tests,
-			target.String(),
+			target,
 			a.getImageVariation(config))
 
 		isPrimaryAbi := i == 0
 		if isPrimaryAbi {
 			// When multilib.* is omitted for binaries, it implies
 			// multilib.first.
-			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: target.String()},
-				{Mutator: "image", Variation: a.getImageVariation(config)},
-			}, executableTag, a.properties.Binaries...)
+			ctx.AddFarVariationDependencies(append(target.Variations(),
+				blueprint.Variation{Mutator: "image", Variation: a.getImageVariation(config)}),
+				executableTag, a.properties.Binaries...)
 
 			// Add native modules targetting the first ABI
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.First.Native_shared_libs,
 				a.properties.Multilib.First.Binaries,
 				a.properties.Multilib.First.Tests,
-				target.String(),
+				target,
 				a.getImageVariation(config))
 
 			// When multilib.* is omitted for prebuilts, it implies multilib.first.
-			ctx.AddFarVariationDependencies([]blueprint.Variation{
-				{Mutator: "arch", Variation: target.String()},
-			}, prebuiltTag, a.properties.Prebuilts...)
+			ctx.AddFarVariationDependencies(target.Variations(),
+				prebuiltTag, a.properties.Prebuilts...)
 		}
 
 		switch target.Arch.ArchType.Multilib {
@@ -724,14 +717,14 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 				a.properties.Multilib.Lib32.Native_shared_libs,
 				a.properties.Multilib.Lib32.Binaries,
 				a.properties.Multilib.Lib32.Tests,
-				target.String(),
+				target,
 				a.getImageVariation(config))
 
 			addDependenciesForNativeModules(ctx,
 				a.properties.Multilib.Prefer32.Native_shared_libs,
 				a.properties.Multilib.Prefer32.Binaries,
 				a.properties.Multilib.Prefer32.Tests,
-				target.String(),
+				target,
 				a.getImageVariation(config))
 		case "lib64":
 			// Add native modules targetting 64-bit ABI
@@ -739,7 +732,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 				a.properties.Multilib.Lib64.Native_shared_libs,
 				a.properties.Multilib.Lib64.Binaries,
 				a.properties.Multilib.Lib64.Tests,
-				target.String(),
+				target,
 				a.getImageVariation(config))
 
 			if !has32BitTarget {
@@ -747,7 +740,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 					a.properties.Multilib.Prefer32.Native_shared_libs,
 					a.properties.Multilib.Prefer32.Binaries,
 					a.properties.Multilib.Prefer32.Tests,
-					target.String(),
+					target,
 					a.getImageVariation(config))
 			}
 
@@ -756,7 +749,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 					if sanitizer == "hwaddress" {
 						addDependenciesForNativeModules(ctx,
 							[]string{"libclang_rt.hwasan-aarch64-android"},
-							nil, nil, target.String(), a.getImageVariation(config))
+							nil, nil, target, a.getImageVariation(config))
 						break
 					}
 				}
@@ -765,13 +758,11 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	}
 
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: "android_common"},
-	}, javaLibTag, a.properties.Java_libs...)
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		javaLibTag, a.properties.Java_libs...)
 
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "arch", Variation: "android_common"},
-	}, androidAppTag, a.properties.Apps...)
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		androidAppTag, a.properties.Apps...)
 
 	if String(a.properties.Key) == "" {
 		ctx.ModuleErrorf("key is missing")
@@ -793,6 +784,11 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 		a.BuildWithSdks(sdkRefs)
 	}
+}
+
+func (a *apexBundle) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	// direct deps of an APEX bundle are all part of the APEX bundle
+	return true
 }
 
 func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
@@ -976,7 +972,11 @@ func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy an
 }
 
 func getCopyManifestForAndroidApp(app *java.AndroidApp, pkgName string) (fileToCopy android.Path, dirInApex string) {
-	dirInApex = filepath.Join("app", pkgName)
+	appDir := "app"
+	if app.Privileged() {
+		appDir = "priv-app"
+	}
+	dirInApex = filepath.Join(appDir, pkgName)
 	fileToCopy = app.OutputFile()
 	return
 }
@@ -1664,17 +1664,17 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string, 
 			host := false
 			switch fi.module.Target().Os.Class {
 			case android.Host:
-				if archStr != "common" {
+				if fi.module.Target().Arch.ArchType != android.Common {
 					fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
 				}
 				host = true
 			case android.HostCross:
-				if archStr != "common" {
+				if fi.module.Target().Arch.ArchType != android.Common {
 					fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
 				}
 				host = true
 			case android.Device:
-				if archStr != "common" {
+				if fi.module.Target().Arch.ArchType != android.Common {
 					fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 				}
 			}

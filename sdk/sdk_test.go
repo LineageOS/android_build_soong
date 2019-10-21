@@ -69,6 +69,7 @@ func testSdkContext(t *testing.T, bp string) (*android.TestContext, android.Conf
 
 	// from this package
 	ctx.RegisterModuleType("sdk", android.ModuleFactoryAdaptor(ModuleFactory))
+	ctx.RegisterModuleType("sdk_snapshot", android.ModuleFactoryAdaptor(SnapshotModuleFactory))
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
@@ -114,6 +115,23 @@ func testSdk(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	return ctx, config
 }
 
+func testSdkError(t *testing.T, pattern, bp string) {
+	t.Helper()
+	ctx, config := testSdkContext(t, bp)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return
+	}
+	_, errs = ctx.PrepareBuildActions(config)
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return
+	}
+
+	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+}
+
 // ensure that 'result' contains 'expected'
 func ensureContains(t *testing.T, result string, expected string) {
 	t.Helper()
@@ -155,12 +173,17 @@ func pathsToStrings(paths android.Paths) []string {
 func TestBasicSdkWithJava(t *testing.T) {
 	ctx, _ := testSdk(t, `
 		sdk {
-			name: "mysdk#1",
+			name: "mysdk",
+			java_libs: ["sdkmember"],
+		}
+
+		sdk_snapshot {
+			name: "mysdk@1",
 			java_libs: ["sdkmember_mysdk_1"],
 		}
 
-		sdk {
-			name: "mysdk#2",
+		sdk_snapshot {
+			name: "mysdk@2",
 			java_libs: ["sdkmember_mysdk_2"],
 		}
 
@@ -195,7 +218,7 @@ func TestBasicSdkWithJava(t *testing.T) {
 		apex {
 			name: "myapex",
 			java_libs: ["myjavalib"],
-			uses_sdks: ["mysdk#1"],
+			uses_sdks: ["mysdk@1"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -203,7 +226,7 @@ func TestBasicSdkWithJava(t *testing.T) {
 		apex {
 			name: "myapex2",
 			java_libs: ["myjavalib"],
-			uses_sdks: ["mysdk#2"],
+			uses_sdks: ["mysdk@2"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -223,12 +246,17 @@ func TestBasicSdkWithJava(t *testing.T) {
 func TestBasicSdkWithCc(t *testing.T) {
 	ctx, _ := testSdk(t, `
 		sdk {
-			name: "mysdk#1",
+			name: "mysdk",
+			native_shared_libs: ["sdkmember"],
+		}
+
+		sdk_snapshot {
+			name: "mysdk@1",
 			native_shared_libs: ["sdkmember_mysdk_1"],
 		}
 
-		sdk {
-			name: "mysdk#2",
+		sdk_snapshot {
+			name: "mysdk@2",
 			native_shared_libs: ["sdkmember_mysdk_2"],
 		}
 
@@ -267,7 +295,7 @@ func TestBasicSdkWithCc(t *testing.T) {
 		apex {
 			name: "myapex",
 			native_shared_libs: ["mycpplib"],
-			uses_sdks: ["mysdk#1"],
+			uses_sdks: ["mysdk@1"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -275,7 +303,7 @@ func TestBasicSdkWithCc(t *testing.T) {
 		apex {
 			name: "myapex2",
 			native_shared_libs: ["mycpplib"],
-			uses_sdks: ["mysdk#2"],
+			uses_sdks: ["mysdk@2"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
@@ -290,6 +318,63 @@ func TestBasicSdkWithCc(t *testing.T) {
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(cpplibForMyApex.Rule("ld").Implicits), sdkMemberV1.String())
 	ensureListContains(t, pathsToStrings(cpplibForMyApex2.Rule("ld").Implicits), sdkMemberV2.String())
+}
+
+func TestDepNotInRequiredSdks(t *testing.T) {
+	testSdkError(t, `module "myjavalib".*depends on "otherlib".*that isn't part of the required SDKs:.*`, `
+		sdk {
+			name: "mysdk",
+			java_libs: ["sdkmember"],
+		}
+
+		sdk_snapshot {
+			name: "mysdk@1",
+			java_libs: ["sdkmember_mysdk_1"],
+		}
+
+		java_import {
+			name: "sdkmember",
+			prefer: false,
+			host_supported: true,
+		}
+
+		java_import {
+			name: "sdkmember_mysdk_1",
+			sdk_member_name: "sdkmember",
+			host_supported: true,
+		}
+
+		java_library {
+			name: "myjavalib",
+			srcs: ["Test.java"],
+			libs: [
+				"sdkmember",
+				"otherlib",
+			],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+			host_supported: true,
+		}
+
+		// this lib is no in mysdk
+		java_library {
+			name: "otherlib",
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+			host_supported: true,
+		}
+
+		apex {
+			name: "myapex",
+			java_libs: ["myjavalib"],
+			uses_sdks: ["mysdk@1"],
+			key: "myapex.key",
+			certificate: ":myapex.cert",
+		}
+	`)
 }
 
 var buildDir string
