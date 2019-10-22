@@ -164,15 +164,11 @@ func (mod *Module) Init() android.Module {
 	android.AddLoadHook(mod, func(ctx android.LoadHookContext) {
 		disableTargets := struct {
 			Target struct {
-				Darwin struct {
-					Enabled *bool
-				}
 				Linux_bionic struct {
 					Enabled *bool
 				}
 			}
 		}{}
-		disableTargets.Target.Darwin.Enabled = proptools.BoolPtr(false)
 		disableTargets.Target.Linux_bionic.Enabled = proptools.BoolPtr(false)
 
 		ctx.AppendProperties(&disableTargets)
