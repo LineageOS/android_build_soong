@@ -689,6 +689,27 @@ func (c *Module) nativeCoverage() bool {
 	return c.linker != nil && c.linker.nativeCoverage()
 }
 
+func (c *Module) ExportedIncludeDirs() android.Paths {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedDirs()
+	}
+	return []android.Path{}
+}
+
+func (c *Module) ExportedSystemIncludeDirs() android.Paths {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedSystemDirs()
+	}
+	return []android.Path{}
+}
+
+func (c *Module) ExportedFlags() []string {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedFlags()
+	}
+	return []string{}
+}
+
 func isBionic(name string) bool {
 	switch name {
 	case "libc", "libm", "libdl", "linker":
@@ -1290,7 +1311,7 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 }
 
 // Split name#version into name and version
-func stubsLibNameAndVersion(name string) (string, string) {
+func StubsLibNameAndVersion(name string) (string, string) {
 	if sharp := strings.LastIndex(name, "#"); sharp != -1 && sharp != len(name)-1 {
 		version := name[sharp+1:]
 		libname := name[:sharp]
@@ -1337,7 +1358,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			nonvariantLibs = []string{}
 			for _, entry := range list {
 				// strip #version suffix out
-				name, _ := stubsLibNameAndVersion(entry)
+				name, _ := StubsLibNameAndVersion(entry)
 				if ctx.useSdk() && inList(name, ndkPrebuiltSharedLibraries) {
 					if !inList(name, ndkMigratedLibs) {
 						nonvariantLibs = append(nonvariantLibs, name+".ndk."+version)
@@ -1443,7 +1464,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		// If the version is not specified, add dependency to the latest stubs library.
 		// The stubs library will be used when the depending module is built for APEX and
 		// the dependent module is not in the same APEX.
-		latestVersion := latestStubsVersionFor(actx.Config(), name)
+		latestVersion := LatestStubsVersionFor(actx.Config(), name)
 		if version == "" && latestVersion != "" && versionVariantAvail {
 			actx.AddVariationDependencies([]blueprint.Variation{
 				{Mutator: "link", Variation: "shared"},
@@ -1466,7 +1487,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			lib = impl
 		}
 
-		name, version := stubsLibNameAndVersion(lib)
+		name, version := StubsLibNameAndVersion(lib)
 		sharedLibNames = append(sharedLibNames, name)
 
 		addSharedLibDependencies(depTag, name, version)
@@ -2142,7 +2163,9 @@ func (c *Module) IsInstallableToApex() bool {
 	if shared, ok := c.linker.(interface {
 		shared() bool
 	}); ok {
-		return shared.shared()
+		// Stub libs and prebuilt libs in a versioned SDK are not
+		// installable to APEX even though they are shared libs.
+		return shared.shared() && !c.IsStubs() && c.ContainingSdk().Unversioned()
 	} else if _, ok := c.linker.(testPerSrc); ok {
 		return true
 	}
