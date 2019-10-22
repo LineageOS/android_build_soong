@@ -463,8 +463,8 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 				RelativeInstallPath string   `json:",omitempty"`
 			}{}
 			prop.ExportedFlags = l.exportedFlags()
-			prop.ExportedDirs = l.exportedDirs()
-			prop.ExportedSystemDirs = l.exportedSystemDirs()
+			prop.ExportedDirs = l.exportedDirs().Strings()
+			prop.ExportedSystemDirs = l.exportedSystemDirs().Strings()
 			prop.RelativeInstallPath = m.RelativeInstallPath()
 
 			propOut := libOut + ".json"
@@ -523,7 +523,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		generatedHeaders = append(generatedHeaders, l.exportedDeps()...)
 		for _, dir := range append(l.exportedDirs(), l.exportedSystemDirs()...) {
-			includeDirs[dir] = true
+			includeDirs[dir.String()] = true
 		}
 	})
 

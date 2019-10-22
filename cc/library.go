@@ -229,8 +229,8 @@ func LibraryHeaderFactory() android.Module {
 type flagExporter struct {
 	Properties FlagExporterProperties
 
-	dirs       []string
-	systemDirs []string
+	dirs       android.Paths
+	systemDirs android.Paths
 	flags      []string
 	deps       android.Paths
 }
@@ -244,18 +244,18 @@ func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
 }
 
 func (f *flagExporter) exportIncludes(ctx ModuleContext) {
-	f.dirs = append(f.dirs, f.exportedIncludes(ctx).Strings()...)
+	f.dirs = append(f.dirs, f.exportedIncludes(ctx)...)
 }
 
 func (f *flagExporter) exportIncludesAsSystem(ctx ModuleContext) {
-	f.systemDirs = append(f.systemDirs, f.exportedIncludes(ctx).Strings()...)
+	f.systemDirs = append(f.systemDirs, f.exportedIncludes(ctx)...)
 }
 
-func (f *flagExporter) reexportDirs(dirs ...string) {
+func (f *flagExporter) reexportDirs(dirs ...android.Path) {
 	f.dirs = append(f.dirs, dirs...)
 }
 
-func (f *flagExporter) reexportSystemDirs(dirs ...string) {
+func (f *flagExporter) reexportSystemDirs(dirs ...android.Path) {
 	f.systemDirs = append(f.systemDirs, dirs...)
 }
 
@@ -273,11 +273,11 @@ func (f *flagExporter) reexportDeps(deps ...android.Path) {
 	f.deps = append(f.deps, deps...)
 }
 
-func (f *flagExporter) exportedDirs() []string {
+func (f *flagExporter) exportedDirs() android.Paths {
 	return f.dirs
 }
 
-func (f *flagExporter) exportedSystemDirs() []string {
+func (f *flagExporter) exportedSystemDirs() android.Paths {
 	return f.systemDirs
 }
 
@@ -290,8 +290,8 @@ func (f *flagExporter) exportedDeps() android.Paths {
 }
 
 type exportedFlagsProducer interface {
-	exportedDirs() []string
-	exportedSystemDirs() []string
+	exportedDirs() android.Paths
+	exportedSystemDirs() android.Paths
 	exportedFlags() []string
 	exportedDeps() android.Paths
 }
@@ -954,7 +954,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 	if Bool(library.Properties.Aidl.Export_aidl_headers) {
 		if library.baseCompiler.hasSrcExt(".aidl") {
-			dir := android.PathForModuleGen(ctx, "aidl").String()
+			dir := android.PathForModuleGen(ctx, "aidl")
 			library.reexportDirs(dir)
 			library.reexportDeps(library.baseCompiler.pathDeps...) // TODO: restrict to aidl deps
 		}
@@ -962,25 +962,25 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 	if Bool(library.Properties.Proto.Export_proto_headers) {
 		if library.baseCompiler.hasSrcExt(".proto") {
-			includes := []string{}
+			var includes android.Paths
 			if flags.proto.CanonicalPathFromRoot {
-				includes = append(includes, flags.proto.SubDir.String())
+				includes = append(includes, flags.proto.SubDir)
 			}
-			includes = append(includes, flags.proto.Dir.String())
+			includes = append(includes, flags.proto.Dir)
 			library.reexportDirs(includes...)
 			library.reexportDeps(library.baseCompiler.pathDeps...) // TODO: restrict to proto deps
 		}
 	}
 
 	if library.baseCompiler.hasSrcExt(".sysprop") {
-		dir := android.PathForModuleGen(ctx, "sysprop", "include").String()
+		dir := android.PathForModuleGen(ctx, "sysprop", "include")
 		if library.Properties.Sysprop.Platform != nil {
 			isProduct := ctx.ProductSpecific() && !ctx.useVndk()
 			isVendor := ctx.useVndk()
 			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
 
 			if !ctx.inRecovery() && (isProduct || (isOwnerPlatform == isVendor)) {
-				dir = android.PathForModuleGen(ctx, "sysprop/public", "include").String()
+				dir = android.PathForModuleGen(ctx, "sysprop/public", "include")
 			}
 		}
 
