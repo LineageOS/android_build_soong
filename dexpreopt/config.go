@@ -24,8 +24,6 @@ import (
 
 // GlobalConfig stores the configuration for dex preopting set by the product
 type GlobalConfig struct {
-	DefaultNoStripping bool // don't strip dex files by default
-
 	DisablePreopt        bool     // disable preopt for all modules
 	DisablePreoptModules []string // modules with preopt disabled by product-specific config
 
@@ -55,8 +53,7 @@ type GlobalConfig struct {
 	DefaultCompilerFilter      string // default compiler filter to pass to dex2oat, overridden by --compiler-filter= in module-specific dex2oat flags
 	SystemServerCompilerFilter string // default compiler filter to pass to dex2oat for system server jars
 
-	GenerateDMFiles     bool // generate Dex Metadata files
-	NeverAllowStripping bool // whether stripping should not be done - used as build time check to make sure dex files are always available
+	GenerateDMFiles bool // generate Dex Metadata files
 
 	NoDebugInfo                 bool // don't generate debug info by default
 	DontResolveStartupStrings   bool // don't resolve string literals loaded during application startup.
@@ -133,10 +130,6 @@ type ModuleConfig struct {
 	ForceCreateAppImage bool
 
 	PresignedPrebuilt bool
-
-	NoStripping     bool
-	StripInputPath  android.Path
-	StripOutputPath android.WritablePath
 }
 
 func constructPath(ctx android.PathContext, path string) android.Path {
@@ -233,8 +226,6 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 		LibraryPaths                map[string]string
 		DexPreoptImages             []string
 		PreoptBootClassPathDexFiles []string
-		StripInputPath              string
-		StripOutputPath             string
 	}
 
 	config := ModuleJSONConfig{}
@@ -252,8 +243,6 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 	config.ModuleConfig.LibraryPaths = constructPathMap(ctx, config.LibraryPaths)
 	config.ModuleConfig.DexPreoptImages = constructPaths(ctx, config.DexPreoptImages)
 	config.ModuleConfig.PreoptBootClassPathDexFiles = constructPaths(ctx, config.PreoptBootClassPathDexFiles)
-	config.ModuleConfig.StripInputPath = constructPath(ctx, config.StripInputPath)
-	config.ModuleConfig.StripOutputPath = constructWritablePath(ctx, config.StripOutputPath)
 
 	// This needs to exist, but dependencies are already handled in Make, so we don't need to pass them through JSON.
 	config.ModuleConfig.DexPreoptImagesDeps = make([]android.Paths, len(config.ModuleConfig.DexPreoptImages))
@@ -283,7 +272,6 @@ func loadConfig(ctx android.PathContext, path string, config interface{}) ([]byt
 
 func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 	return GlobalConfig{
-		DefaultNoStripping:                 false,
 		DisablePreopt:                      false,
 		DisablePreoptModules:               nil,
 		OnlyPreoptBootImageAndSystemServer: false,
@@ -302,7 +290,6 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		DefaultCompilerFilter:              "",
 		SystemServerCompilerFilter:         "",
 		GenerateDMFiles:                    false,
-		NeverAllowStripping:                false,
 		NoDebugInfo:                        false,
 		DontResolveStartupStrings:          false,
 		AlwaysSystemServerDebugInfo:        false,
