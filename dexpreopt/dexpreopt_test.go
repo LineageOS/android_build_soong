@@ -17,8 +17,6 @@ package dexpreopt
 import (
 	"android/soong/android"
 	"fmt"
-	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -58,9 +56,6 @@ func testModuleConfig(ctx android.PathContext, name, partition string) ModuleCon
 		NoCreateAppImage:                false,
 		ForceCreateAppImage:             false,
 		PresignedPrebuilt:               false,
-		NoStripping:                     false,
-		StripInputPath:                  android.PathForOutput(ctx, fmt.Sprintf("unstripped/%s.apk", name)),
-		StripOutputPath:                 android.PathForOutput(ctx, fmt.Sprintf("stripped/%s.apk", name)),
 	}
 }
 
@@ -80,20 +75,6 @@ func TestDexPreopt(t *testing.T) {
 
 	if rule.Installs().String() != wantInstalls.String() {
 		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
-	}
-}
-
-func TestDexPreoptStrip(t *testing.T) {
-	// Test that we panic if we strip in a configuration where stripping is not allowed.
-	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
-
-	global.NeverAllowStripping = true
-	module.NoStripping = false
-
-	_, err := GenerateStripRule(global, module)
-	if err == nil {
-		t.Errorf("Expected an error when calling GenerateStripRule on a stripped module")
 	}
 }
 
@@ -174,58 +155,5 @@ func TestDexPreoptProfile(t *testing.T) {
 
 	if rule.Installs().String() != wantInstalls.String() {
 		t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
-	}
-}
-
-func TestStripDex(t *testing.T) {
-	tests := []struct {
-		name  string
-		setup func(global *GlobalConfig, module *ModuleConfig)
-		strip bool
-	}{
-		{
-			name:  "default strip",
-			setup: func(global *GlobalConfig, module *ModuleConfig) {},
-			strip: true,
-		},
-		{
-			name:  "global no stripping",
-			setup: func(global *GlobalConfig, module *ModuleConfig) { global.DefaultNoStripping = true },
-			strip: false,
-		},
-		{
-			name:  "module no stripping",
-			setup: func(global *GlobalConfig, module *ModuleConfig) { module.NoStripping = true },
-			strip: false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-
-			ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
-			global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
-
-			test.setup(&global, &module)
-
-			rule, err := GenerateStripRule(global, module)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if test.strip {
-				want := `zip2zip -i out/unstripped/test.apk -o out/stripped/test.apk -x "classes*.dex"`
-				if len(rule.Commands()) < 1 || !strings.Contains(rule.Commands()[0], want) {
-					t.Errorf("\nwant commands[0] to have:\n   %v\ngot:\n   %v", want, rule.Commands()[0])
-				}
-			} else {
-				wantCommands := []string{
-					"cp -f out/unstripped/test.apk out/stripped/test.apk",
-				}
-				if !reflect.DeepEqual(rule.Commands(), wantCommands) {
-					t.Errorf("\nwant commands:\n   %v\ngot:\n   %v", wantCommands, rule.Commands())
-				}
-			}
-		})
 	}
 }

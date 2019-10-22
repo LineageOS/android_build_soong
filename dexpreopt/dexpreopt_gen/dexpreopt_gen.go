@@ -31,7 +31,6 @@ import (
 
 var (
 	dexpreoptScriptPath = flag.String("dexpreopt_script", "", "path to output dexpreopt script")
-	stripScriptPath     = flag.String("strip_script", "", "path to output strip script")
 	globalConfigPath    = flag.String("global", "", "path to global configuration file")
 	moduleConfigPath    = flag.String("module", "", "path to module configuration file")
 	outDir              = flag.String("out_dir", "", "path to output directory")
@@ -64,10 +63,6 @@ func main() {
 		usage("path to output dexpreopt script is required")
 	}
 
-	if *stripScriptPath == "" {
-		usage("path to output strip script is required")
-	}
-
 	if *globalConfigPath == "" {
 		usage("path to global configuration file is required")
 	}
@@ -90,10 +85,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	// This shouldn't be using *PathForTesting, but it's outside of soong_build so its OK for now.
-	moduleConfig.StripInputPath = android.PathForTesting("$1")
-	moduleConfig.StripOutputPath = android.WritablePathForTesting("$2")
-
 	moduleConfig.DexPath = android.PathForTesting("$1")
 
 	defer func() {
@@ -110,11 +101,11 @@ func main() {
 		}
 	}()
 
-	writeScripts(ctx, globalConfig, moduleConfig, *dexpreoptScriptPath, *stripScriptPath)
+	writeScripts(ctx, globalConfig, moduleConfig, *dexpreoptScriptPath)
 }
 
 func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
-	dexpreoptScriptPath, stripScriptPath string) {
+	dexpreoptScriptPath string) {
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
 		panic(err)
@@ -134,11 +125,6 @@ func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module
 		FlagWithArg("-o ", "$2").
 		FlagWithArg("-C ", installDir.String()).
 		FlagWithArg("-D ", installDir.String())
-
-	stripRule, err := dexpreopt.GenerateStripRule(global, module)
-	if err != nil {
-		panic(err)
-	}
 
 	write := func(rule *android.RuleBuilder, file string) {
 		script := &bytes.Buffer{}
@@ -180,15 +166,8 @@ func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module
 	if module.DexPath.String() != "$1" {
 		panic(fmt.Errorf("module.DexPath must be '$1', was %q", module.DexPath))
 	}
-	if module.StripInputPath.String() != "$1" {
-		panic(fmt.Errorf("module.StripInputPath must be '$1', was %q", module.StripInputPath))
-	}
-	if module.StripOutputPath.String() != "$2" {
-		panic(fmt.Errorf("module.StripOutputPath must be '$2', was %q", module.StripOutputPath))
-	}
 
 	write(dexpreoptRule, dexpreoptScriptPath)
-	write(stripRule, stripScriptPath)
 }
 
 const scriptHeader = `#!/bin/bash
