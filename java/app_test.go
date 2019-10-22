@@ -1149,13 +1149,7 @@ func TestAndroidAppImport_Presigned(t *testing.T) {
 		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
 		t.Errorf("can't find dexpreopt outputs")
 	}
-	// Make sure stripping wasn't done.
-	stripRule := variant.Output("dexpreopt/foo.apk")
-	if !strings.HasPrefix(stripRule.RuleParams.Command, "cp -f") {
-		t.Errorf("unexpected, non-skipping strip command: %q", stripRule.RuleParams.Command)
-	}
-
-	// Make sure signing was skipped and aligning was done instead.
+	// Make sure signing was skipped and aligning was done.
 	if variant.MaybeOutput("signed/foo.apk").Rule != nil {
 		t.Errorf("signing rule shouldn't be included.")
 	}
