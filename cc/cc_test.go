@@ -768,6 +768,19 @@ func TestVndkExt(t *testing.T) {
 			},
 			nocrt: true,
 		}
+		cc_library {
+			name: "libvndk2",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			target: {
+				vendor: {
+					suffix: "-suffix",
+				},
+			},
+			nocrt: true,
+		}
 
 		cc_library {
 			name: "libvndk_ext",
@@ -778,9 +791,22 @@ func TestVndkExt(t *testing.T) {
 			},
 			nocrt: true,
 		}
+
+		cc_library {
+			name: "libvndk2_ext",
+			vendor: true,
+			vndk: {
+				enabled: true,
+				extends: "libvndk2",
+			},
+			nocrt: true,
+		}
 	`)
 
 	checkVndkModule(t, ctx, "libvndk_ext", "vndk", false, "libvndk")
+
+	mod := ctx.ModuleForTests("libvndk2_ext", vendorVariant).Module().(*Module)
+	assertString(t, mod.outputFile.Path().Base(), "libvndk2-suffix.so")
 }
 
 func TestVndkExtWithoutBoardVndkVersion(t *testing.T) {
