@@ -599,7 +599,11 @@ func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
 	name += suffix
 
 	if ctx.isVndkExt() {
-		name = ctx.getVndkExtendsModuleName()
+		// vndk-ext lib should have the same name with original lib
+		ctx.VisitDirectDepsWithTag(vndkExtDepTag, func(module android.Module) {
+			originalName := module.(*Module).outputFile.Path()
+			name = strings.TrimSuffix(originalName.Base(), originalName.Ext())
+		})
 	}
 
 	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
