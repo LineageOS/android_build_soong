@@ -13,49 +13,37 @@
 // limitations under the License.
 
 //
-// androidmk Android.mk to Blueprints translator
+// Sample project for creating an extended androidmk
 //
 
 blueprint_go_binary {
-    name: "androidmk",
+    name: "partner_androidmk",
     srcs: [
-        "cmd/androidmk.go",
+        "partner_androidmk/androidmk.go",
+    ],
+    testSrcs: [
+        "partner_androidmk/androidmk_test.go",
     ],
     deps: [
         "androidmk-lib",
+        "partner_bpfix_extensions",
     ],
 }
 
-bootstrap_go_package {
-    name: "androidmk-lib",
-    pkgPath: "android/soong/androidmk/androidmk",
+blueprint_go_binary {
+    name: "partner_bpfix",
     srcs: [
-        "androidmk/android.go",
-        "androidmk/androidmk.go",
-        "androidmk/values.go",
-    ],
-    testSrcs: [
-        "androidmk/androidmk_test.go",
+        "partner_bpfix/bpfix.go",
     ],
     deps: [
-        "androidmk-parser",
-        "blueprint-parser",
-        "bpfix-lib",
-        "soong-android",
+        "bpfix-cmd",
+        "partner_bpfix_extensions",
     ],
 }
 
 bootstrap_go_package {
-    name: "androidmk-parser",
-    pkgPath: "android/soong/androidmk/parser",
-    srcs: [
-        "parser/ast.go",
-        "parser/make_strings.go",
-        "parser/parser.go",
-        "parser/scope.go",
-    ],
-    testSrcs: [
-        "parser/make_strings_test.go",
-        "parser/parser_test.go",
-    ],
+    name: "partner_bpfix_extensions",
+    pkgPath: "partner/android/bpfix/extensions",
+    srcs: ["fixes/headers.go"],
+    deps: ["bpfix-lib"],
 }
