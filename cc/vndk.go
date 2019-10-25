@@ -307,6 +307,31 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	}
 }
 
+func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
+	if !m.Enabled() {
+		return false
+	}
+
+	if m.Target().NativeBridge == android.NativeBridgeEnabled {
+		return false
+	}
+
+	// prebuilt vndk modules should match with device
+	// TODO(b/142675459): Use enabled: to select target device in vndk_prebuilt_shared
+	// When b/142675459 is landed, remove following check
+	if p, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok && !p.matchesWithDevice(mctx.DeviceConfig()) {
+		return false
+	}
+
+	if lib, ok := m.linker.(libraryInterface); ok {
+		useCoreVariant := m.vndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
+			mctx.DeviceConfig().VndkUseCoreVariant() &&
+			!inList(m.BaseModuleName(), config.VndkMustUseVendorVariantList)
+		return lib.shared() && m.useVndk() && m.isVndk() && !m.isVndkExt() && !useCoreVariant
+	}
+	return false
+}
+
 // gather list of vndk-core, vndk-sp, and ll-ndk libs
 func VndkMutator(mctx android.BottomUpMutatorContext) {
 	m, ok := mctx.Module().(*Module)
