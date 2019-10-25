@@ -352,3 +352,14 @@ func ShardStrings(s []string, shardSize int) [][]string {
 	}
 	return ret
 }
+
+func CheckDuplicate(values []string) (duplicate string, found bool) {
+	seen := make(map[string]string)
+	for _, v := range values {
+		if duplicate, found = seen[v]; found {
+			return
+		}
+		seen[v] = v
+	}
+	return
+}
