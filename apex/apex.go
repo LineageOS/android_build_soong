@@ -126,11 +126,15 @@ var (
 	}, "image_content_file", "whitelisted_files_file", "apex_module_name")
 )
 
-var imageApexSuffix = ".apex"
-var zipApexSuffix = ".zipapex"
+const (
+	imageApexSuffix = ".apex"
+	zipApexSuffix   = ".zipapex"
 
-var imageApexType = "image"
-var zipApexType = "zip"
+	imageApexType = "image"
+	zipApexType   = "zip"
+
+	vndkApexNamePrefix = "com.android.vndk.v"
+)
 
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
@@ -182,10 +186,7 @@ func init() {
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
 	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 
-	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("apex_vndk_gather", apexVndkGatherMutator).Parallel()
-		ctx.BottomUp("apex_vndk_add_deps", apexVndkAddDepsMutator).Parallel()
-	})
+	android.PreDepsMutators(RegisterPreDepsMutators)
 	android.PostDepsMutators(RegisterPostDepsMutators)
 
 	android.RegisterMakeVarsProvider(pctx, func(ctx android.MakeVarsContext) {
@@ -193,6 +194,11 @@ func init() {
 		sort.Strings(*apexFileContextsInfos)
 		ctx.Strict("APEX_FILE_CONTEXTS_INFOS", strings.Join(*apexFileContextsInfos, " "))
 	})
+}
+
+func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
+	ctx.TopDown("apex_vndk", apexVndkMutator).Parallel()
+	ctx.BottomUp("apex_vndk_deps", apexVndkDepsMutator).Parallel()
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
@@ -207,44 +213,39 @@ var (
 	vndkApexListMutex sync.Mutex
 )
 
-func vndkApexList(config android.Config) map[string]*apexBundle {
+func vndkApexList(config android.Config) map[string]string {
 	return config.Once(vndkApexListKey, func() interface{} {
-		return map[string]*apexBundle{}
-	}).(map[string]*apexBundle)
+		return map[string]string{}
+	}).(map[string]string)
 }
 
-// apexVndkGatherMutator gathers "apex_vndk" modules and puts them in a map with vndk_version as a key.
-func apexVndkGatherMutator(mctx android.TopDownMutatorContext) {
+func apexVndkMutator(mctx android.TopDownMutatorContext) {
 	if ab, ok := mctx.Module().(*apexBundle); ok && ab.vndkApex {
 		if ab.IsNativeBridgeSupported() {
 			mctx.PropertyErrorf("native_bridge_supported", "%q doesn't support native bridge binary.", mctx.ModuleType())
 		}
 
-		vndkVersion := proptools.String(ab.vndkProperties.Vndk_version)
+		vndkVersion := ab.vndkVersion(mctx.DeviceConfig())
+		// Ensure VNDK APEX mount point is formatted as com.android.vndk.v###
+		ab.properties.Apex_name = proptools.StringPtr(vndkApexNamePrefix + vndkVersion)
 
+		// vndk_version should be unique
 		vndkApexListMutex.Lock()
 		defer vndkApexListMutex.Unlock()
 		vndkApexList := vndkApexList(mctx.Config())
 		if other, ok := vndkApexList[vndkVersion]; ok {
-			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other.BaseModuleName())
+			mctx.PropertyErrorf("vndk_version", "%v is already defined in %q", vndkVersion, other)
 		}
-		vndkApexList[vndkVersion] = ab
+		vndkApexList[vndkVersion] = mctx.ModuleName()
 	}
 }
 
-// apexVndkAddDepsMutator adds (reverse) dependencies from vndk libs to apex_vndk modules.
-// It filters only libs with matching targets.
-func apexVndkAddDepsMutator(mctx android.BottomUpMutatorContext) {
-	if cc, ok := mctx.Module().(*cc.Module); ok && cc.IsVndkOnSystem() {
+func apexVndkDepsMutator(mctx android.BottomUpMutatorContext) {
+	if m, ok := mctx.Module().(*cc.Module); ok && cc.IsForVndkApex(mctx, m) {
+		vndkVersion := m.VndkVersion()
 		vndkApexList := vndkApexList(mctx.Config())
-		if ab, ok := vndkApexList[cc.VndkVersion()]; ok {
-			targetArch := cc.Target().String()
-			for _, target := range ab.MultiTargets() {
-				if target.String() == targetArch {
-					mctx.AddReverseDependency(mctx.Module(), sharedLibTag, ab.Name())
-					break
-				}
-			}
+		if vndkApex, ok := vndkApexList[vndkVersion]; ok {
+			mctx.AddReverseDependency(mctx.Module(), sharedLibTag, vndkApex)
 		}
 	}
 }
@@ -615,6 +616,12 @@ type apexBundle struct {
 
 	// intermediate path for apex_manifest.json
 	manifestOut android.WritablePath
+
+	// list of commands to create symlinks for backward compatibility
+	// these commands will be attached as LOCAL_POST_INSTALL_CMD to
+	// apex package itself(for unflattened build) or apex_manifest.json(for flattened build)
+	// so that compat symlinks are always installed regardless of TARGET_FLATTEN_APEX setting.
+	compatSymlinks []string
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -654,7 +661,6 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
-
 	targets := ctx.MultiTargets()
 	config := ctx.DeviceConfig()
 
@@ -824,6 +830,9 @@ func (a *apexBundle) installable() bool {
 }
 
 func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
+	if a.vndkApex {
+		return "vendor." + a.vndkVersion(config)
+	}
 	if config.VndkVersion() != "" && proptools.Bool(a.properties.Use_vendor) {
 		return "vendor." + config.PlatformVndkVersion()
 	} else {
@@ -1244,7 +1253,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// prepend the name of this APEX to the module names. These names will be the names of
 	// modules that will be defined if the APEX is flattened.
 	for i := range filesInfo {
-		filesInfo[i].moduleName = ctx.ModuleName() + "." + filesInfo[i].moduleName
+		filesInfo[i].moduleName = filesInfo[i].moduleName + "." + ctx.ModuleName()
 	}
 
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
@@ -1295,6 +1304,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.buildUnflattenedApex(ctx, imageApex)
 		a.buildFlattenedApex(ctx)
 	}
+
+	a.compatSymlinks = makeCompatSymlinks(apexName, ctx)
 }
 
 func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName string) android.OptionalPath {
@@ -1570,7 +1581,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json and apex_pubkey are also copied along
 		// with other ordinary files.
-		a.filesInfo = append(a.filesInfo, apexFile{a.manifestOut, ctx.ModuleName() + ".apex_manifest.json", ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{a.manifestOut, "apex_manifest.json." + ctx.ModuleName(), ".", etc, nil, nil})
 
 		// rename to apex_pubkey
 		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
@@ -1579,7 +1590,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 			Input:  a.public_key_file,
 			Output: copiedPubkey,
 		})
-		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, ctx.ModuleName() + ".apex_pubkey", ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, "apex_pubkey." + ctx.ModuleName(), ".", etc, nil, nil})
 
 		if ctx.Config().FlattenApex() {
 			apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
@@ -1712,6 +1723,10 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string, 
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
+			// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
+			if !a.isFlattenedVariant() && fi.builtFile.Base() == "apex_manifest.json" && len(a.compatSymlinks) > 0 {
+				fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(a.compatSymlinks, " && "))
+			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
 	}
@@ -1762,9 +1777,15 @@ func (a *apexBundle) androidMkForType(apexType apexPackaging) android.AndroidMkD
 				if len(a.externalDeps) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.externalDeps, " "))
 				}
+				var postInstallCommands []string
 				if a.prebuiltFileToDelete != "" {
-					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", "rm -rf "+
+					postInstallCommands = append(postInstallCommands, "rm -rf "+
 						filepath.Join(a.installDir.ToMakePath().String(), a.prebuiltFileToDelete))
+				}
+				// For unflattened apexes, compat symlinks are attached to apex package itself as LOCAL_POST_INSTALL_CMD
+				postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
+				if len(postInstallCommands) > 0 {
+					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(postInstallCommands, " && "))
 				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
@@ -1819,17 +1840,16 @@ func vndkApexBundleFactory() android.Module {
 		}{
 			proptools.StringPtr("both"),
 		})
-
-		vndkVersion := proptools.StringDefault(bundle.vndkProperties.Vndk_version, "current")
-		if vndkVersion == "current" {
-			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
-			bundle.vndkProperties.Vndk_version = proptools.StringPtr(vndkVersion)
-		}
-
-		// Ensure VNDK APEX mount point is formatted as com.android.vndk.v###
-		bundle.properties.Apex_name = proptools.StringPtr("com.android.vndk.v" + vndkVersion)
 	})
 	return bundle
+}
+
+func (a *apexBundle) vndkVersion(config android.DeviceConfig) string {
+	vndkVersion := proptools.StringDefault(a.vndkProperties.Vndk_version, "current")
+	if vndkVersion == "current" {
+		vndkVersion = config.PlatformVndkVersion()
+	}
+	return vndkVersion
 }
 
 //
@@ -1997,6 +2017,8 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if p.installable() {
 		ctx.InstallFile(p.installDir, p.installFilename, p.inputApex)
 	}
+
+	// TODO(b/143192278): Add compat symlinks for prebuilt_apex
 }
 
 func (p *Prebuilt) Prebuilt() *android.Prebuilt {
@@ -2030,4 +2052,31 @@ func PrebuiltFactory() android.Module {
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Source")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
+}
+
+func makeCompatSymlinks(apexName string, ctx android.ModuleContext) (symlinks []string) {
+	// small helper to add symlink commands
+	addSymlink := func(target, dir, linkName string) {
+		outDir := filepath.Join("$(PRODUCT_OUT)", dir)
+		link := filepath.Join(outDir, linkName)
+		symlinks = append(symlinks, "mkdir -p "+outDir+" && rm -rf "+link+" && ln -sf "+target+" "+link)
+	}
+
+	// TODO(b/142911355): [VNDK APEX] Fix hard-coded references to /system/lib/vndk
+	// When all hard-coded references are fixed, remove symbolic links
+	// Note that  we should keep following symlinks for older VNDKs (<=29)
+	// Since prebuilt vndk libs still depend on system/lib/vndk path
+	if strings.HasPrefix(apexName, vndkApexNamePrefix) {
+		// the name of vndk apex is formatted "com.android.vndk.v" + version
+		vndkVersion := strings.TrimPrefix(apexName, vndkApexNamePrefix)
+		if ctx.Config().Android64() {
+			addSymlink("/apex/"+apexName+"/lib64", "/system/lib64", "vndk-sp-"+vndkVersion)
+			addSymlink("/apex/"+apexName+"/lib64", "/system/lib64", "vndk-"+vndkVersion)
+		}
+		if !ctx.Config().Android64() || ctx.DeviceConfig().DeviceSecondaryArch() != "" {
+			addSymlink("/apex/"+apexName+"/lib", "/system/lib", "vndk-sp-"+vndkVersion)
+			addSymlink("/apex/"+apexName+"/lib", "/system/lib", "vndk-"+vndkVersion)
+		}
+	}
+	return
 }
