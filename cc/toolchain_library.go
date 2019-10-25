@@ -29,6 +29,9 @@ func init() {
 type toolchainLibraryProperties struct {
 	// the prebuilt toolchain library, as a path from the top of the source tree
 	Src *string `android:"arch_variant"`
+
+	// Repack the archive with only the selected objects.
+	Repack_objects_to_keep []string `android:"arch_variant"`
 }
 
 type toolchainLibraryDecorator struct {
@@ -87,6 +90,14 @@ func (library *toolchainLibraryDecorator) link(ctx ModuleContext,
 		outputFile := android.PathForModuleOut(ctx, fileName)
 		buildFlags := flagsToBuilderFlags(flags)
 		library.stripper.stripStaticLib(ctx, srcPath, outputFile, buildFlags)
+		return outputFile
+	}
+
+	if library.Properties.Repack_objects_to_keep != nil {
+		fileName := ctx.ModuleName() + staticLibraryExtension
+		outputFile := android.PathForModuleOut(ctx, fileName)
+		TransformArchiveRepack(ctx, srcPath, outputFile, library.Properties.Repack_objects_to_keep)
+
 		return outputFile
 	}
 
