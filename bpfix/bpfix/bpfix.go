@@ -45,66 +45,76 @@ func Reformat(input string) (string, error) {
 // A FixRequest specifies the details of which fixes to apply to an individual file
 // A FixRequest doesn't specify whether to do a dry run or where to write the results; that's in cmd/bpfix.go
 type FixRequest struct {
-	steps []fixStep
+	steps []FixStep
+}
+type FixStepsExtension struct {
+	Name  string
+	Steps []FixStep
 }
 
-type fixStep struct {
-	name string
-	fix  func(f *Fixer) error
+type FixStep struct {
+	Name string
+	Fix  func(f *Fixer) error
 }
 
-var fixSteps = []fixStep{
+var fixStepsExtensions = []*FixStepsExtension(nil)
+
+func RegisterFixStepExtension(extension *FixStepsExtension) {
+	fixStepsExtensions = append(fixStepsExtensions, extension)
+}
+
+var fixSteps = []FixStep{
 	{
-		name: "simplifyKnownRedundantVariables",
-		fix:  runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther),
+		Name: "simplifyKnownRedundantVariables",
+		Fix:  runPatchListMod(simplifyKnownPropertiesDuplicatingEachOther),
 	},
 	{
-		name: "rewriteIncorrectAndroidmkPrebuilts",
-		fix:  rewriteIncorrectAndroidmkPrebuilts,
+		Name: "rewriteIncorrectAndroidmkPrebuilts",
+		Fix:  rewriteIncorrectAndroidmkPrebuilts,
 	},
 	{
-		name: "rewriteCtsModuleTypes",
-		fix:  rewriteCtsModuleTypes,
+		Name: "rewriteCtsModuleTypes",
+		Fix:  rewriteCtsModuleTypes,
 	},
 	{
-		name: "rewriteIncorrectAndroidmkAndroidLibraries",
-		fix:  rewriteIncorrectAndroidmkAndroidLibraries,
+		Name: "rewriteIncorrectAndroidmkAndroidLibraries",
+		Fix:  rewriteIncorrectAndroidmkAndroidLibraries,
 	},
 	{
-		name: "rewriteTestModuleTypes",
-		fix:  rewriteTestModuleTypes,
+		Name: "rewriteTestModuleTypes",
+		Fix:  rewriteTestModuleTypes,
 	},
 	{
-		name: "rewriteAndroidmkJavaLibs",
-		fix:  rewriteAndroidmkJavaLibs,
+		Name: "rewriteAndroidmkJavaLibs",
+		Fix:  rewriteAndroidmkJavaLibs,
 	},
 	{
-		name: "rewriteJavaStaticLibs",
-		fix:  rewriteJavaStaticLibs,
+		Name: "rewriteJavaStaticLibs",
+		Fix:  rewriteJavaStaticLibs,
 	},
 	{
-		name: "rewritePrebuiltEtc",
-		fix:  rewriteAndroidmkPrebuiltEtc,
+		Name: "rewritePrebuiltEtc",
+		Fix:  rewriteAndroidmkPrebuiltEtc,
 	},
 	{
-		name: "mergeMatchingModuleProperties",
-		fix:  runPatchListMod(mergeMatchingModuleProperties),
+		Name: "mergeMatchingModuleProperties",
+		Fix:  runPatchListMod(mergeMatchingModuleProperties),
 	},
 	{
-		name: "reorderCommonProperties",
-		fix:  runPatchListMod(reorderCommonProperties),
+		Name: "reorderCommonProperties",
+		Fix:  runPatchListMod(reorderCommonProperties),
 	},
 	{
-		name: "removeTags",
-		fix:  runPatchListMod(removeTags),
+		Name: "removeTags",
+		Fix:  runPatchListMod(removeTags),
 	},
 	{
-		name: "rewriteAndroidTest",
-		fix:  rewriteAndroidTest,
+		Name: "rewriteAndroidTest",
+		Fix:  rewriteAndroidTest,
 	},
 	{
-		name: "rewriteAndroidAppImport",
-		fix:  rewriteAndroidAppImport,
+		Name: "rewriteAndroidAppImport",
+		Fix:  rewriteAndroidAppImport,
 	},
 }
 
@@ -113,13 +123,36 @@ func NewFixRequest() FixRequest {
 }
 
 func (r FixRequest) AddAll() (result FixRequest) {
-	result.steps = append([]fixStep(nil), r.steps...)
+	result.steps = append([]FixStep(nil), r.steps...)
 	result.steps = append(result.steps, fixSteps...)
+	for _, extension := range fixStepsExtensions {
+		result.steps = append(result.steps, extension.Steps...)
+	}
+	return result
+}
+
+func (r FixRequest) AddBase() (result FixRequest) {
+	result.steps = append([]FixStep(nil), r.steps...)
+	result.steps = append(result.steps, fixSteps...)
+	return result
+}
+
+func (r FixRequest) AddMatchingExtensions(pattern string) (result FixRequest) {
+	result.steps = append([]FixStep(nil), r.steps...)
+	for _, extension := range fixStepsExtensions {
+		if match, _ := filepath.Match(pattern, extension.Name); match {
+			result.steps = append(result.steps, extension.Steps...)
+		}
+	}
 	return result
 }
 
 type Fixer struct {
 	tree *parser.File
+}
+
+func (f Fixer) Tree() *parser.File {
+	return f.tree
 }
 
 func NewFixer(tree *parser.File) *Fixer {
@@ -198,7 +231,7 @@ func parse(name string, r io.Reader) (*parser.File, error) {
 
 func (f *Fixer) fixTreeOnce(config FixRequest) error {
 	for _, fix := range config.steps {
-		err := fix.fix(f)
+		err := fix.Fix(f)
 		if err != nil {
 			return err
 		}

@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package androidmk
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"strings"
 	"text/scanner"
 
@@ -29,13 +26,6 @@ import (
 
 	bpparser "github.com/google/blueprint/parser"
 )
-
-var usage = func() {
-	fmt.Fprintf(os.Stderr, "usage: androidmk [flags] <inputFile>\n"+
-		"\nandroidmk parses <inputFile> as an Android.mk file and attempts to output an analogous Android.bp file (to standard out)\n")
-	flag.PrintDefaults()
-	os.Exit(1)
-}
 
 // TODO: non-expanded variables with expressions
 
@@ -118,31 +108,7 @@ type conditional struct {
 	eq   bool
 }
 
-func main() {
-	flag.Usage = usage
-	flag.Parse()
-	if len(flag.Args()) != 1 {
-		usage()
-	}
-	filePathToRead := flag.Arg(0)
-	b, err := ioutil.ReadFile(filePathToRead)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	output, errs := convertFile(os.Args[1], bytes.NewBuffer(b))
-	if len(errs) > 0 {
-		for _, err := range errs {
-			fmt.Fprintln(os.Stderr, "ERROR: ", err)
-		}
-		os.Exit(1)
-	}
-
-	fmt.Print(output)
-}
-
-func convertFile(filename string, buffer *bytes.Buffer) (string, []error) {
+func ConvertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 	p := mkparser.NewParser(filename, buffer)
 
 	nodes, errs := p.Parse()

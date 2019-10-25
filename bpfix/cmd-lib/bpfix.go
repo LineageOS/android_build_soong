@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file provides a command-line interface to bpfix
+// This file provides a bpfix command-line library
 
 // TODO(jeffrygaston) should this file be consolidated with bpfmt.go?
 
-package main
+package cmd
 
 import (
 	"bytes"
@@ -128,7 +128,7 @@ func walkDir(path string, fixRequest bpfix.FixRequest) {
 	filepath.Walk(path, makeFileVisitor(fixRequest))
 }
 
-func main() {
+func Run() {
 	flag.Parse()
 
 	fixRequest := bpfix.NewFixRequest().AddAll()
