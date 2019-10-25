@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package androidmk
 
 import (
 	"bytes"
@@ -1350,7 +1350,7 @@ func TestEndToEnd(t *testing.T) {
 			t.Error(err)
 		}
 
-		got, errs := convertFile(fmt.Sprintf("<testcase %d>", i), bytes.NewBufferString(test.in))
+		got, errs := ConvertFile(fmt.Sprintf("<testcase %d>", i), bytes.NewBufferString(test.in))
 		if len(errs) > 0 {
 			t.Errorf("Unexpected errors: %q", errs)
 			continue
