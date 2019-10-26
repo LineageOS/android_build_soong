@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "886645cc_15987a30",
+        "filename": "java/app.go",
+        "patchSetId": 4
+      },
+      "lineNbr": 751,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2019-10-26T20:47:51Z",
+      "side": 1,
+      "message": "Is it just me, or is this actually unresolved?",
+      "range": {
+        "startLine": 751,
+        "startChar": 95,
+        "endLine": 751,
+        "endChar": 106
+      },
+      "revId": "7d5ac0d1fe82479e7b1b9944693605428c04f0be",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
