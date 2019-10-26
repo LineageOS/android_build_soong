@@ -990,6 +990,16 @@ func getCopyManifestForAndroidApp(app *java.AndroidApp, pkgName string) (fileToC
 	return
 }
 
+func getCopyManifestForAndroidAppImport(app *java.AndroidAppImport, pkgName string) (fileToCopy android.Path, dirInApex string) {
+	appDir := "app"
+	if app.Privileged() {
+		appDir = "priv-app"
+	}
+	dirInApex = filepath.Join(appDir, pkgName)
+	fileToCopy = app.OutputFile()
+	return
+}
+
 // Context "decorator", overriding the InstallBypassMake method to always reply `true`.
 type flattenedApexContext struct {
 	android.ModuleContext
@@ -1159,6 +1169,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					fileToCopy, dirInApex := getCopyManifestForAndroidApp(ap, ctx.DeviceConfig().OverridePackageNameFor(depName))
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, app, ap, nil})
 					return true
+				} else if ap, ok := child.(*java.AndroidAppImport); ok {
+					fileToCopy, dirInApex := getCopyManifestForAndroidAppImport(ap, ctx.DeviceConfig().OverridePackageNameFor(depName))
+					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, app, ap, nil})
 				} else {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
