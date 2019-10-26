@@ -215,6 +215,10 @@ type BaseProperties struct {
 	// Allows this module to use non-APEX version of libraries. Useful
 	// for building binaries that are started before APEXes are activated.
 	Bootstrap *bool
+
+	// Even if DeviceConfig().VndkUseCoreVariant() is set, this module must use vendor variant.
+	// see soong/cc/config/vndk.go
+	MustUseVendorVariant bool `blueprint:"mutated"`
 }
 
 type VendorProperties struct {
@@ -488,15 +492,6 @@ func (c *Module) RelativeInstallPath() string {
 	return ""
 }
 
-// IsVndkOnSystem returns true if a module is supposed to be a vndk library provided by system to vendor
-func (c *Module) IsVndkOnSystem() bool {
-	if linker, ok := c.linker.(libraryInterface); ok {
-		return linker.shared() && c.isVndk() && c.useVndk() && !c.isVndkExt()
-	}
-
-	return false
-}
-
 func (c *Module) VndkVersion() string {
 	return c.vndkVersion()
 }
@@ -586,7 +581,7 @@ func (c *Module) isNdk() bool {
 
 func (c *Module) isLlndk(config android.Config) bool {
 	// Returns true for both LLNDK (public) and LLNDK-private libs.
-	return inList(c.Name(), *llndkLibraries(config))
+	return inList(c.BaseModuleName(), *llndkLibraries(config))
 }
 
 func (c *Module) isLlndkPublic(config android.Config) bool {
@@ -596,7 +591,7 @@ func (c *Module) isLlndkPublic(config android.Config) bool {
 
 func (c *Module) isVndkPrivate(config android.Config) bool {
 	// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
-	return inList(c.Name(), *vndkPrivateLibraries(config))
+	return inList(c.BaseModuleName(), *vndkPrivateLibraries(config))
 }
 
 func (c *Module) isVndk() bool {
@@ -639,7 +634,7 @@ func (c *Module) isVndkExt() bool {
 }
 
 func (c *Module) mustUseVendorVariant() bool {
-	return c.isVndkSp() || inList(c.Name(), config.VndkMustUseVendorVariantList)
+	return c.isVndkSp() || c.Properties.MustUseVendorVariant
 }
 
 func (c *Module) getVndkExtendsModuleName() string {
@@ -2113,7 +2108,6 @@ func (c *Module) header() bool {
 }
 
 func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
-	name := actx.ModuleName()
 	if c.useVndk() {
 		if lib, ok := c.linker.(*llndkStubDecorator); ok {
 			if Bool(lib.Properties.Vendor_available) {
@@ -2135,7 +2129,7 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 		// TODO(b/114741097): use the correct ndk stl once build errors have been fixed
 		//family, link := getNdkStlFamilyAndLinkType(c)
 		//return fmt.Sprintf("native:ndk:%s:%s", family, link)
-	} else if inList(name, *vndkUsingCoreVariantLibraries(actx.Config())) {
+	} else if actx.DeviceConfig().VndkUseCoreVariant() && !c.mustUseVendorVariant() {
 		return "native:platform_vndk"
 	} else {
 		return "native:platform"

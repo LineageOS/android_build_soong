@@ -12,43 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//
-// androidmk Android.mk to Blueprints translator
-//
+// This file provides a command-line interface to bpfix
 
-blueprint_go_binary {
-    name: "bpfix",
-    srcs: [
-        "cmd/main.go",
-    ],
-    deps: [
-        "bpfix-cmd",
-    ],
+package main
+
+import (
+	"android/soong/bpfix/bpfix/cmd"
+
+	_ "partner/android/bpfix/extensions"
+)
+
+func main() {
+	cmd.Run()
 }
-
-bootstrap_go_package {
-    name: "bpfix-cmd",
-    pkgPath: "android/soong/bpfix/bpfix/cmd",
-    srcs: [
-        "cmd-lib/bpfix.go",
-    ],
-    deps: [
-        "bpfix-lib",
-    ],
-}
-
-bootstrap_go_package {
-    name: "bpfix-lib",
-    pkgPath: "android/soong/bpfix/bpfix",
-    srcs: [
-        "bpfix/bpfix.go",
-    ],
-    testSrcs: [
-      "bpfix/bpfix_test.go",
-    ],
-    deps: [
-        "blueprint-parser",
-    ],
-}
-
-

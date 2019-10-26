@@ -2,7 +2,7 @@ package config
 
 var (
 	RustAllowedPaths = []string{
-		"external/rust/crates",
+		"external/rust",
 		"external/crosvm",
 		"external/adhd",
 	}
