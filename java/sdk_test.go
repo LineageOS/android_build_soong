@@ -74,12 +74,12 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:           "sdk v25",
-			properties:     `sdk_version: "25",`,
+			name:           "sdk v29",
+			properties:     `sdk_version: "29",`,
 			bootclasspath:  []string{`""`},
 			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/25/public/framework.aidl",
+			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 		{
 
@@ -99,12 +99,12 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:           "system_25",
-			properties:     `sdk_version: "system_25",`,
+			name:           "system_29",
+			properties:     `sdk_version: "system_29",`,
 			bootclasspath:  []string{`""`},
 			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/25/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/25/public/framework.aidl",
+			java8classpath: []string{"prebuilts/sdk/29/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 		{
 
@@ -162,13 +162,13 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:           "unbundled sdk v25",
+			name:           "unbundled sdk v29",
 			unbundled:      true,
-			properties:     `sdk_version: "25",`,
+			properties:     `sdk_version: "29",`,
 			bootclasspath:  []string{`""`},
 			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/25/public/framework.aidl",
+			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 		{
 
@@ -186,8 +186,8 @@ func TestClasspath(t *testing.T) {
 			pdk:            true,
 			bootclasspath:  []string{`""`},
 			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/25/public/framework.aidl",
+			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 		{
 			name:           "pdk current",
@@ -195,17 +195,17 @@ func TestClasspath(t *testing.T) {
 			properties:     `sdk_version: "current",`,
 			bootclasspath:  []string{`""`},
 			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/25/public/framework.aidl",
+			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 		{
-			name:           "pdk 25",
+			name:           "pdk 29",
 			pdk:            true,
-			properties:     `sdk_version: "25",`,
+			properties:     `sdk_version: "29",`,
 			bootclasspath:  []string{`""`},
 			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/25/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/25/public/framework.aidl",
+			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
 	}
 
