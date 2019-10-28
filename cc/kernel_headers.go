@@ -25,7 +25,7 @@ type kernelHeadersDecorator struct {
 func (stub *kernelHeadersDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path {
 	if ctx.Device() {
 		f := &stub.libraryDecorator.flagExporter
-		f.reexportSystemDirs(ctx.DeviceConfig().DeviceKernelHeaderDirs()...)
+		f.reexportSystemDirs(android.PathsForSource(ctx, ctx.DeviceConfig().DeviceKernelHeaderDirs())...)
 	}
 	return stub.libraryDecorator.linkStatic(ctx, flags, deps, objs)
 }
