@@ -848,12 +848,14 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 		// Determine the runtime library required
 		runtimeLibrary := ""
+		var extraStaticDeps []string
 		toolchain := c.toolchain(mctx)
 		if Bool(c.sanitize.Properties.Sanitize.Address) {
 			runtimeLibrary = config.AddressSanitizerRuntimeLibrary(toolchain)
 		} else if Bool(c.sanitize.Properties.Sanitize.Hwaddress) {
 			if c.staticBinary() {
 				runtimeLibrary = config.HWAddressSanitizerStaticLibrary(toolchain)
+				extraStaticDeps = []string{"libdl"}
 			} else {
 				runtimeLibrary = config.HWAddressSanitizerRuntimeLibrary(toolchain)
 			}
@@ -887,7 +889,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "static"},
 					{Mutator: "image", Variation: c.imageVariation()},
-				}...), staticDepTag, runtimeLibrary)
+				}...), staticDepTag, append([]string{runtimeLibrary}, extraStaticDeps...)...)
 			} else if !c.static() && !c.header() {
 				// dynamic executable and shared libs get shared runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
