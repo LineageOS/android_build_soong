@@ -108,10 +108,10 @@ func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.Pro
 		case "nano":
 			flags.proto.OutTypeFlag = "--javanano_out"
 			typeToPlugin = "javanano"
-		case "lite":
+		case "lite", "":
 			flags.proto.OutTypeFlag = "--java_out"
 			flags.proto.OutParams = append(flags.proto.OutParams, "lite")
-		case "full", "":
+		case "full":
 			flags.proto.OutTypeFlag = "--java_out"
 		default:
 			ctx.PropertyErrorf("proto.type", "unknown proto type %q",
