@@ -2309,7 +2309,7 @@ func TestStaticExecutable(t *testing.T) {
 	variant := "android_arm64_armv8-a_core"
 	binModuleRule := ctx.ModuleForTests("static_test", variant).Rule("ld")
 	libFlags := binModuleRule.Args["libFlags"]
-	systemStaticLibs := []string{"libc.a", "libm.a", "libdl.a"}
+	systemStaticLibs := []string{"libc.a", "libm.a"}
 	for _, lib := range systemStaticLibs {
 		if !strings.Contains(libFlags, lib) {
 			t.Errorf("Static lib %q was not found in %q", lib, libFlags)
