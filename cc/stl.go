@@ -175,7 +175,7 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 				deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
 			}
 			if ctx.staticBinary() {
-				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc", "libdl")
+				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc")
 			}
 		}
 	case "":
