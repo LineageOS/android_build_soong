@@ -113,8 +113,6 @@ type config struct {
 	captureBuild      bool // true for tests, saves build parameters for each module
 	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
 
-	targetOpenJDK9 bool // Target 1.9
-
 	stopBefore bootstrap.StopBefore
 
 	OncePer
@@ -392,13 +390,9 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 func (c *config) fromEnv() error {
 	switch c.Getenv("EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9") {
 	case "", "true":
-		// Use -source 9 -target 9. This is the default.
-		c.targetOpenJDK9 = true
-	case "false":
-		// Use -source 8 -target 8. This is the legacy behaviour.
-		c.targetOpenJDK9 = false
+		// Do nothing
 	default:
-		return fmt.Errorf(`Invalid value for EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9, should be "", "true", or "false"`)
+		return fmt.Errorf("The environment variable EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9 is no longer supported. Java language level 9 is now the global default.")
 	}
 
 	return nil
@@ -777,11 +771,6 @@ func (c *config) XrefCorpusName() string {
 
 func (c *config) EmitXrefRules() bool {
 	return c.XrefCorpusName() != ""
-}
-
-// Returns true if -source 1.9 -target 1.9 is being passed to javac
-func (c *config) TargetOpenJDK9() bool {
-	return c.targetOpenJDK9
 }
 
 func (c *config) ClangTidy() bool {
