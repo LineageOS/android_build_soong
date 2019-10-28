@@ -865,8 +865,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	return deps
 }
 
-func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sdkContext) string {
-	var ret string
+func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sdkContext) javaVersion {
 	v := sdkContext.sdkVersion()
 	// For PDK builds, use the latest SDK version instead of "current"
 	if ctx.Config().IsPdkBuild() &&
@@ -884,41 +883,69 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sd
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
 	if javaVersion != "" {
-		ret = normalizeJavaVersion(ctx, javaVersion)
+		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() && sdk <= 23 {
-		ret = "1.7"
+		return JAVA_VERSION_7
 	} else if ctx.Device() && sdk <= 29 {
-		ret = "1.8"
+		return JAVA_VERSION_8
 	} else if ctx.Device() &&
 		sdkContext.sdkVersion() != "" &&
 		sdkContext.sdkVersion() != "none" &&
 		sdkContext.sdkVersion() != "core_platform" &&
 		sdk == android.FutureApiLevel {
 		// TODO(ccross): once we generate stubs we should be able to use 1.9 for sdk_version: "current"
-		ret = "1.8"
+		return JAVA_VERSION_8
 	} else {
-		ret = "1.9"
+		return JAVA_VERSION_9
 	}
-
-	return ret
 }
 
-func normalizeJavaVersion(ctx android.ModuleContext, javaVersion string) string {
+type javaVersion int
+
+const (
+	JAVA_VERSION_UNSUPPORTED = 0
+	JAVA_VERSION_6           = 6
+	JAVA_VERSION_7           = 7
+	JAVA_VERSION_8           = 8
+	JAVA_VERSION_9           = 9
+)
+
+func (v javaVersion) String() string {
+	switch v {
+	case JAVA_VERSION_6:
+		return "1.6"
+	case JAVA_VERSION_7:
+		return "1.7"
+	case JAVA_VERSION_8:
+		return "1.8"
+	case JAVA_VERSION_9:
+		return "1.9"
+	default:
+		return "unsupported"
+	}
+}
+
+// Returns true if javac targeting this version uses system modules instead of a bootclasspath.
+func (v javaVersion) usesJavaModules() bool {
+	return v >= 9
+}
+
+func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) javaVersion {
 	switch javaVersion {
 	case "1.6", "6":
-		return "1.6"
+		return JAVA_VERSION_6
 	case "1.7", "7":
-		return "1.7"
+		return JAVA_VERSION_7
 	case "1.8", "8":
-		return "1.8"
+		return JAVA_VERSION_8
 	case "1.9", "9":
-		return "1.9"
+		return JAVA_VERSION_9
 	case "10", "11":
 		ctx.PropertyErrorf("java_version", "Java language levels above 9 are not supported")
-		return "unsupported"
+		return JAVA_VERSION_UNSUPPORTED
 	default:
 		ctx.PropertyErrorf("java_version", "Unrecognized Java language level")
-		return "unrecognized"
+		return JAVA_VERSION_UNSUPPORTED
 	}
 }
 
@@ -931,7 +958,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 	// javac flags.
 	javacFlags := j.properties.Javacflags
-	if flags.javaVersion == "1.9" {
+	if flags.javaVersion.usesJavaModules() {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
 	}
 	if ctx.Config().MinimizeJavaDebugInfo() {
@@ -963,9 +990,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 
 	flags.processor = strings.Join(deps.processorClasses, ",")
 
-	if len(flags.bootClasspath) == 0 && ctx.Host() && flags.javaVersion != "1.9" &&
-		decodeSdkDep(ctx, sdkContext(j)).hasStandardLibs() &&
-		inList(flags.javaVersion, []string{"1.6", "1.7", "1.8"}) {
+	if len(flags.bootClasspath) == 0 && ctx.Host() && !flags.javaVersion.usesJavaModules() &&
+		decodeSdkDep(ctx, sdkContext(j)).hasStandardLibs() {
 		// Give host-side tools a version of OpenJDK's standard libraries
 		// close to what they're targeting. As of Dec 2017, AOSP is only
 		// bundling OpenJDK 8 and 9, so nothing < 8 is available.
@@ -989,7 +1015,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		}
 	}
 
-	if j.properties.Patch_module != nil && flags.javaVersion == "1.9" {
+	if j.properties.Patch_module != nil && flags.javaVersion.usesJavaModules() {
 		// Manually specify build directory in case it is not under the repo root.
 		// (javac doesn't seem to expand into symbolc links when searching for patch-module targets, so
 		// just adding a symlink under the root doesn't help.)
@@ -1022,7 +1048,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	deps := j.collectDeps(ctx)
 	flags := j.collectBuilderFlags(ctx, deps)
 
-	if flags.javaVersion == "1.9" {
+	if flags.javaVersion.usesJavaModules() {
 		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
 	}
 	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)

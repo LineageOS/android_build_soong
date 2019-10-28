@@ -190,7 +190,7 @@ type javaBuilderFlags struct {
 	systemModules *systemModules
 	aidlFlags     string
 	aidlDeps      android.Paths
-	javaVersion   string
+	javaVersion   javaVersion
 
 	errorProneExtraJavacFlags string
 	errorProneProcessorPath   classpath
@@ -239,7 +239,7 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 	deps = append(deps, srcJars...)
 
 	var bootClasspath string
-	if flags.javaVersion == "1.9" {
+	if flags.javaVersion.usesJavaModules() {
 		var systemModuleDeps android.Paths
 		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
 		deps = append(deps, systemModuleDeps...)
@@ -279,7 +279,7 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 				"bootClasspath": bootClasspath,
 				"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
 				"javacFlags":    flags.javacFlags,
-				"javaVersion":   flags.javaVersion,
+				"javaVersion":   flags.javaVersion.String(),
 				"outDir":        android.PathForModuleOut(ctx, "javac", "classes.xref").String(),
 				"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
 				"processor":     processor,
@@ -318,7 +318,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
 			"classpath":     strings.Join(flags.classpath.FormTurbineClasspath("--classpath "), " "),
 			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
-			"javaVersion":   flags.javaVersion,
+			"javaVersion":   flags.javaVersion.String(),
 		},
 	})
 }
@@ -340,7 +340,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	deps = append(deps, srcJars...)
 
 	var bootClasspath string
-	if flags.javaVersion == "1.9" {
+	if flags.javaVersion.usesJavaModules() {
 		var systemModuleDeps android.Paths
 		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
 		deps = append(deps, systemModuleDeps...)
@@ -388,7 +388,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
 			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
 			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
-			"javaVersion":   flags.javaVersion,
+			"javaVersion":   flags.javaVersion.String(),
 		},
 	})
 }
