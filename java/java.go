@@ -274,6 +274,9 @@ type CompilerDeviceProperties struct {
 	// otherwise provides defaults libraries to add to the bootclasspath.
 	System_modules *string
 
+	// set the name of the output
+	Stem *string
+
 	UncompressDex bool `blueprint:"mutated"`
 	IsSDKLibrary  bool `blueprint:"mutated"`
 }
@@ -1600,7 +1603,8 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", ctx.ModuleName()+".jar")
+	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework",
+		proptools.StringDefault(j.deviceProperties.Stem, ctx.ModuleName())+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 	j.dexpreopter.isInstallable = Bool(j.properties.Installable)
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
@@ -1924,6 +1928,9 @@ type ImportProperties struct {
 
 	// if set to true, run Jetifier against .jar file. Defaults to false.
 	Jetifier *bool
+
+	// set the name of the output
+	Stem *string
 }
 
 type Import struct {
@@ -1966,7 +1973,7 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	jars := android.PathsForModuleSrc(ctx, j.properties.Jars)
 
-	jarName := ctx.ModuleName() + ".jar"
+	jarName := proptools.StringDefault(j.properties.Stem, ctx.ModuleName()) + ".jar"
 	outputFile := android.PathForModuleOut(ctx, "combined", jarName)
 	TransformJarsToJar(ctx, outputFile, "for prebuilts", jars, android.OptionalPath{},
 		false, j.properties.Exclude_files, j.properties.Exclude_dirs)
@@ -2000,7 +2007,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.exportedSdkLibs = android.FirstUniqueStrings(j.exportedSdkLibs)
 	if Bool(j.properties.Installable) {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			ctx.ModuleName()+".jar", outputFile)
+			jarName, outputFile)
 	}
 }
 
@@ -2112,6 +2119,9 @@ func ImportFactoryHost() android.Module {
 
 type DexImportProperties struct {
 	Jars []string `android:"path"`
+
+	// set the name of the output
+	Stem *string
 }
 
 type DexImport struct {
@@ -2145,7 +2155,8 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
 	}
 
-	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", ctx.ModuleName()+".jar")
+	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework",
+		proptools.StringDefault(j.properties.Stem, ctx.ModuleName())+".jar")
 	j.dexpreopter.isInstallable = true
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
 
