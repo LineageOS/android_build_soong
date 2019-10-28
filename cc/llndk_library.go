@@ -146,9 +146,9 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 		}
 
 		if Bool(stub.Properties.Export_headers_as_system) {
-			stub.reexportSystemDirs(genHeaderOutDir.String())
+			stub.reexportSystemDirs(genHeaderOutDir)
 		} else {
-			stub.reexportDirs(genHeaderOutDir.String())
+			stub.reexportDirs(genHeaderOutDir)
 		}
 
 		stub.reexportDeps(timestampFiles...)

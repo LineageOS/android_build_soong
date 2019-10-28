@@ -137,7 +137,8 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 
 	if len(p.properties.Srcs) > 0 && p.shared() {
 		p.libraryDecorator.exportIncludes(ctx)
-		p.libraryDecorator.reexportSystemDirs(p.properties.Export_system_include_dirs...)
+		p.libraryDecorator.reexportSystemDirs(
+			android.PathsForModuleSrc(ctx, p.properties.Export_system_include_dirs)...)
 		p.libraryDecorator.reexportFlags(p.properties.Export_flags...)
 		// current VNDK prebuilts are only shared libs.
 		return p.singleSourcePath(ctx)
