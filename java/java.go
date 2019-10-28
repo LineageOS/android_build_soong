@@ -524,26 +524,21 @@ func (j *Module) targetSdkVersion() string {
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
-		if sdkDep.hasStandardLibs() {
-			if sdkDep.useDefaultLibs {
-				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-				if sdkDep.hasFrameworkLibs() {
-					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
-				}
-			} else if sdkDep.useModule {
-				ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
-				if j.deviceProperties.EffectiveOptimizeEnabled() {
-					ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
-					ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
-				}
+		if sdkDep.useDefaultLibs {
+			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
+			ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
+			if sdkDep.hasFrameworkLibs() {
+				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 			}
-		} else if sdkDep.systemModules != "" {
-			// Add the system modules to both the system modules and bootclasspath.
+		} else if sdkDep.useModule {
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.systemModules)
+			if j.deviceProperties.EffectiveOptimizeEnabled() && sdkDep.hasStandardLibs() {
+				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
+				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
+			}
 		}
+
 		if ctx.ModuleName() == "android_stubs_current" ||
 			ctx.ModuleName() == "android_system_stubs_current" ||
 			ctx.ModuleName() == "android_test_stubs_current" {

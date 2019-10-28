@@ -192,13 +192,16 @@ func decodeSdkDep(ctx android.BaseModuleContext, sdkContext sdkContext) sdkDep {
 			ctx.PropertyErrorf("sdk_version",
 				`system_modules is required to be set to a non-empty value when sdk_version is "none", did you mean sdk_version: "core_platform"?`)
 		} else if systemModules == "none" {
-			// Normalize no system modules to an empty string.
-			systemModules = ""
+			return sdkDep{
+				noStandardLibs: true,
+			}
 		}
 
 		return sdkDep{
+			useModule:      true,
 			noStandardLibs: true,
 			systemModules:  systemModules,
+			modules:        []string{systemModules},
 		}
 	case "core_platform":
 		return sdkDep{

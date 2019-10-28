@@ -422,21 +422,15 @@ func (j *Javadoc) targetSdkVersion() string {
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
-		if sdkDep.hasStandardLibs() {
-			if sdkDep.useDefaultLibs {
-				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-				if sdkDep.hasFrameworkLibs() {
-					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
-				}
-			} else if sdkDep.useModule {
-				ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
+		if sdkDep.useDefaultLibs {
+			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
+			ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
+			if sdkDep.hasFrameworkLibs() {
+				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 			}
-		} else if sdkDep.systemModules != "" {
-			// Add the system modules to both the system modules and bootclasspath.
+		} else if sdkDep.useModule {
+			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.systemModules)
 		}
 	}
 
