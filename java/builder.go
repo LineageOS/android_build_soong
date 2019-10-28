@@ -294,17 +294,25 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 
 	var deps android.Paths
 	deps = append(deps, srcJars...)
-	deps = append(deps, flags.bootClasspath...)
-	deps = append(deps, flags.classpath...)
 
 	var bootClasspath string
-	if len(flags.bootClasspath) == 0 && ctx.Device() {
-		// explicitly specify -bootclasspath "" if the bootclasspath is empty to
-		// ensure java does not fall back to the default bootclasspath.
-		bootClasspath = `--bootclasspath ""`
+	if flags.javaVersion.usesJavaModules() {
+		var systemModuleDeps android.Paths
+		bootClasspath, systemModuleDeps = flags.systemModules.FormTurbineSystemModulesPath(ctx.Device())
+		deps = append(deps, systemModuleDeps...)
 	} else {
-		bootClasspath = strings.Join(flags.bootClasspath.FormTurbineClasspath("--bootclasspath "), " ")
+		deps = append(deps, flags.bootClasspath...)
+		if len(flags.bootClasspath) == 0 && ctx.Device() {
+			// explicitly specify -bootclasspath "" if the bootclasspath is empty to
+			// ensure turbine does not fall back to the default bootclasspath.
+			bootClasspath = `--bootclasspath ""`
+		} else {
+			bootClasspath = strings.Join(flags.bootClasspath.FormTurbineClasspath("--bootclasspath "), " ")
+		}
 	}
+
+	deps = append(deps, flags.classpath...)
+	deps = append(deps, flags.processorPath...)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        turbine,
@@ -550,14 +558,27 @@ type systemModules struct {
 	deps android.Paths
 }
 
-// Returns a --system argument in the form javac expects with -source 1.9.  If forceEmpty is true,
-// returns --system=none if the list is empty to ensure javac does not fall back to the default
-// system modules.
+// Returns a --system argument in the form javac expects with -source 1.9 and the list of files to
+// depend on.  If forceEmpty is true, returns --system=none if the list is empty to ensure javac
+// does not fall back to the default system modules.
 func (x *systemModules) FormJavaSystemModulesPath(forceEmpty bool) (string, android.Paths) {
 	if x != nil {
 		return "--system=" + x.dir.String(), x.deps
 	} else if forceEmpty {
 		return "--system=none", nil
+	} else {
+		return "", nil
+	}
+}
+
+// Returns a --system argument in the form turbine expects with -source 1.9 and the list of files to
+// depend on.  If forceEmpty is true, returns --bootclasspath "" if the list is empty to ensure turbine
+// does not fall back to the default bootclasspath.
+func (x *systemModules) FormTurbineSystemModulesPath(forceEmpty bool) (string, android.Paths) {
+	if x != nil {
+		return "--system " + x.dir.String(), x.deps
+	} else if forceEmpty {
+		return `--bootclasspath ""`, nil
 	} else {
 		return "", nil
 	}
