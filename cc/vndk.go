@@ -301,7 +301,7 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	if inList(name, vndkMustUseVendorVariantList(mctx.Config())) {
 		m.Properties.MustUseVendorVariant = true
 	}
-	if mctx.DeviceConfig().VndkUseCoreVariant() && !m.mustUseVendorVariant() {
+	if mctx.DeviceConfig().VndkUseCoreVariant() && !inList(name, vndkMustUseVendorVariantList(mctx.Config())) {
 		vndkUsingCoreVariantLibraries := vndkUsingCoreVariantLibraries(mctx.Config())
 		if !inList(name, *vndkUsingCoreVariantLibraries) {
 			*vndkUsingCoreVariantLibraries = append(*vndkUsingCoreVariantLibraries, name)
