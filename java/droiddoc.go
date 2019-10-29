@@ -404,7 +404,7 @@ func JavadocHostFactory() android.Module {
 var _ android.OutputFileProducer = (*Javadoc)(nil)
 
 func (j *Javadoc) sdkVersion() string {
-	return proptools.StringDefault(j.properties.Sdk_version, defaultSdkVersion(j))
+	return String(j.properties.Sdk_version)
 }
 
 func (j *Javadoc) systemModules() string {
