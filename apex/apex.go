@@ -1374,6 +1374,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext, apexType ap
 			copyCommands = append(copyCommands, "ln -s "+filepath.Base(dest)+" "+symlinkDest)
 		}
 	}
+	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
+
 	implicitInputs := append(android.Paths(nil), filesToCopy...)
 	implicitInputs = append(implicitInputs, a.manifestOut)
 
