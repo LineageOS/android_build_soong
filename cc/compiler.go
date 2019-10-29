@@ -320,8 +320,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	}
 
 	if ctx.apexName() != "" {
-		// TODO(b/142582178): remove the value for __ANDROID_APEX__
-		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_APEX__="+ctx.apexName())
+		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_APEX__")
 		flags.GlobalFlags = append(flags.GlobalFlags, "-D__ANDROID_APEX_"+makeDefineString(ctx.apexName())+"__")
 	}
 
