@@ -213,7 +213,7 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	t.Helper()
 
 	mod := ctx.ModuleForTests(name, vendorVariant).Module().(*Module)
-	if !mod.hasVendorVariant() {
+	if !mod.HasVendorVariant() {
 		t.Errorf("%q must have vendor variant", name)
 	}
 
@@ -230,8 +230,8 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	if mod.vndkdep == nil {
 		t.Fatalf("%q must have `vndkdep`", name)
 	}
-	if !mod.isVndk() {
-		t.Errorf("%q isVndk() must equal to true", name)
+	if !mod.IsVndk() {
+		t.Errorf("%q IsVndk() must equal to true", name)
 	}
 	if mod.isVndkSp() != isVndkSp {
 		t.Errorf("%q isVndkSp() must equal to %t", name, isVndkSp)

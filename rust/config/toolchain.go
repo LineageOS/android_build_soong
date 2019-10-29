@@ -95,7 +95,7 @@ func (toolchainBase) RlibSuffix() string {
 	return ".rlib"
 }
 func (toolchainBase) DylibSuffix() string {
-	return ".so"
+	return ".dylib.so"
 }
 
 func (toolchainBase) ProcMacroSuffix() string {

@@ -53,6 +53,14 @@ func TransformSrctoDylib(ctx android.ModuleContext, mainSrc android.Path, deps P
 	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, deps.CrtBegin, deps.CrtEnd, flags, outputFile, "dylib", includeDirs)
 }
 
+func TransformSrctoStatic(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
+	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, deps.CrtBegin, deps.CrtEnd, flags, outputFile, "staticlib", includeDirs)
+}
+
+func TransformSrctoShared(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
+	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, deps.CrtBegin, deps.CrtEnd, flags, outputFile, "cdylib", includeDirs)
+}
+
 func TransformSrctoProcMacro(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags, outputFile android.WritablePath, includeDirs []string) {
 	transformSrctoCrate(ctx, mainSrc, deps.RLibs, deps.DyLibs, deps.ProcMacros, deps.StaticLibs, deps.SharedLibs, deps.CrtBegin, deps.CrtEnd, flags, outputFile, "proc-macro", includeDirs)
 }
