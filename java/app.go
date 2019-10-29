@@ -985,6 +985,10 @@ func (a *AndroidAppImport) Name() string {
 	return a.prebuilt.Name(a.ModuleBase.Name())
 }
 
+func (a *AndroidAppImport) OutputFile() android.Path {
+	return a.outputFile
+}
+
 var dpiVariantGroupType reflect.Type
 var archVariantGroupType reflect.Type
 
