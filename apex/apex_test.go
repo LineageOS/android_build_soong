@@ -124,7 +124,9 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
 	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(java.ImportFactory))
+	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(java.SystemModulesFactory))
 	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(java.AndroidAppFactory))
+	ctx.RegisterModuleType("android_app_import", android.ModuleFactoryAdaptor(java.AndroidAppImportFactory))
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
@@ -254,13 +256,17 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 			native_bridge_supported: true,
 		}
 	`
+	bp = bp + java.GatherRequiredDepsForTest()
 
 	fs := map[string][]byte{
-		"Android.bp":                                        []byte(bp),
-		"build/make/target/product/security":                nil,
-		"apex_manifest.json":                                nil,
-		"AndroidManifest.xml":                               nil,
-		"system/sepolicy/apex/myapex-file_contexts":         nil,
+		"Android.bp":                                []byte(bp),
+		"a.java":                                    nil,
+		"PrebuiltAppFoo.apk":                        nil,
+		"PrebuiltAppFooPriv.apk":                    nil,
+		"build/make/target/product/security":        nil,
+		"apex_manifest.json":                        nil,
+		"AndroidManifest.xml":                       nil,
+		"system/sepolicy/apex/myapex-file_contexts": nil,
 		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
 		"system/sepolicy/apex/otherapex-file_contexts":      nil,
 		"system/sepolicy/apex/commonapex-file_contexts":     nil,
@@ -289,6 +295,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"myapex-arm64.apex":                          nil,
 		"myapex-arm.apex":                            nil,
 		"frameworks/base/api/current.txt":            nil,
+		"framework/aidl/a.aidl":                      nil,
 		"build/make/core/proguard.flags":             nil,
 		"build/make/core/proguard_basic_keeps.flags": nil,
 	}
@@ -2436,7 +2443,51 @@ func TestApexWithApps(t *testing.T) {
 
 	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
+}
 
+func TestApexWithAppImports(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: [
+				"AppFooPrebuilt",
+				"AppFooPrivPrebuilt",
+			],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app_import {
+			name: "AppFooPrebuilt",
+			apk: "PrebuiltAppFoo.apk",
+			presigned: true,
+			dex_preopt: {
+				enabled: false,
+			},
+		}
+
+		android_app_import {
+			name: "AppFooPrivPrebuilt",
+			apk: "PrebuiltAppFooPriv.apk",
+			privileged: true,
+			presigned: true,
+			dex_preopt: {
+				enabled: false,
+			},
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex")
+	apexRule := module.Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	ensureContains(t, copyCmds, "image.apex/app/AppFooPrebuilt/AppFooPrebuilt.apk")
+	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt/AppFooPrivPrebuilt.apk")
 }
 
 func TestApexAvailable(t *testing.T) {
