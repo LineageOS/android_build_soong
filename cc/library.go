@@ -1227,45 +1227,59 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 }
 
 func LinkageMutator(mctx android.BottomUpMutatorContext) {
+	cc_prebuilt := false
 	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
-		switch library := m.linker.(type) {
-		case prebuiltLibraryInterface:
-			// Always create both the static and shared variants for prebuilt libraries, and then disable the one
-			// that is not being used.  This allows them to share the name of a cc_library module, which requires that
-			// all the variants of the cc_library also exist on the prebuilt.
-			modules := mctx.CreateLocalVariations("static", "shared")
-			static := modules[0].(*Module)
-			shared := modules[1].(*Module)
+		_, cc_prebuilt = m.linker.(prebuiltLibraryInterface)
+	}
+	if cc_prebuilt {
+		library := mctx.Module().(*Module).linker.(prebuiltLibraryInterface)
 
-			static.linker.(prebuiltLibraryInterface).setStatic()
-			shared.linker.(prebuiltLibraryInterface).setShared()
+		// Always create both the static and shared variants for prebuilt libraries, and then disable the one
+		// that is not being used.  This allows them to share the name of a cc_library module, which requires that
+		// all the variants of the cc_library also exist on the prebuilt.
+		modules := mctx.CreateLocalVariations("static", "shared")
+		static := modules[0].(*Module)
+		shared := modules[1].(*Module)
 
-			if !library.buildStatic() {
-				static.linker.(prebuiltLibraryInterface).disablePrebuilt()
-			}
-			if !library.buildShared() {
-				shared.linker.(prebuiltLibraryInterface).disablePrebuilt()
-			}
+		static.linker.(prebuiltLibraryInterface).setStatic()
+		shared.linker.(prebuiltLibraryInterface).setShared()
 
-		case libraryInterface:
-			if library.buildStatic() && library.buildShared() {
-				modules := mctx.CreateLocalVariations("static", "shared")
-				static := modules[0].(*Module)
-				shared := modules[1].(*Module)
-
-				static.linker.(libraryInterface).setStatic()
-				shared.linker.(libraryInterface).setShared()
-
-				reuseStaticLibrary(mctx, static, shared)
-
-			} else if library.buildStatic() {
-				modules := mctx.CreateLocalVariations("static")
-				modules[0].(*Module).linker.(libraryInterface).setStatic()
-			} else if library.buildShared() {
-				modules := mctx.CreateLocalVariations("shared")
-				modules[0].(*Module).linker.(libraryInterface).setShared()
-			}
+		if !library.buildStatic() {
+			static.linker.(prebuiltLibraryInterface).disablePrebuilt()
 		}
+		if !library.buildShared() {
+			shared.linker.(prebuiltLibraryInterface).disablePrebuilt()
+		}
+	} else if library, ok := mctx.Module().(LinkableInterface); ok && library.CcLibraryInterface() {
+		if library.BuildStaticVariant() && library.BuildSharedVariant() {
+			variations := []string{"static", "shared"}
+
+			// Non-cc.Modules need an empty variant for their mutators.
+			if _, ok := mctx.Module().(*Module); !ok {
+				variations = append(variations, "")
+			}
+
+			modules := mctx.CreateLocalVariations(variations...)
+			static := modules[0].(LinkableInterface)
+			shared := modules[1].(LinkableInterface)
+
+			static.SetStatic()
+			shared.SetShared()
+
+			if _, ok := library.(*Module); ok {
+				reuseStaticLibrary(mctx, static.(*Module), shared.(*Module))
+			}
+		} else if library.BuildStaticVariant() {
+			modules := mctx.CreateLocalVariations("static")
+			modules[0].(LinkableInterface).SetStatic()
+		} else if library.BuildSharedVariant() {
+			modules := mctx.CreateLocalVariations("shared")
+			modules[0].(LinkableInterface).SetShared()
+		} else if _, ok := mctx.Module().(*Module); !ok {
+			// Non-cc.Modules need an empty variant for their mutators.
+			mctx.CreateLocalVariations("")
+		}
+
 	}
 }
 
@@ -1292,11 +1306,10 @@ func latestStubsVersionFor(config android.Config, name string) string {
 // Version mutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok && !m.inRecovery() && m.linker != nil {
-		if library, ok := m.linker.(*libraryDecorator); ok && library.buildShared() &&
-			len(library.Properties.Stubs.Versions) > 0 {
+	if library, ok := mctx.Module().(LinkableInterface); ok && !library.InRecovery() {
+		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
 			versions := []string{}
-			for _, v := range library.Properties.Stubs.Versions {
+			for _, v := range library.StubsVersions() {
 				if _, err := strconv.Atoi(v); err != nil {
 					mctx.PropertyErrorf("versions", "%q is not a number", v)
 				}
@@ -1320,14 +1333,9 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 
 			modules := mctx.CreateVariations(versions...)
 			for i, m := range modules {
-				l := m.(*Module).linker.(*libraryDecorator)
 				if versions[i] != "" {
-					l.MutatedProperties.BuildStubs = true
-					l.MutatedProperties.StubsVersion = versions[i]
-					m.(*Module).Properties.HideFromMake = true
-					m.(*Module).sanitize = nil
-					m.(*Module).stl = nil
-					m.(*Module).Properties.PreventInstall = true
+					m.(LinkableInterface).SetBuildStubs()
+					m.(LinkableInterface).SetStubsVersions(versions[i])
 				}
 			}
 		} else {
@@ -1353,7 +1361,7 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	injectBoringSSLHash := Bool(inject)
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		tag := ctx.OtherModuleDependencyTag(dep)
-		if tag == staticDepTag || tag == staticExportDepTag || tag == wholeStaticDepTag || tag == lateStaticDepTag {
+		if tag == StaticDepTag || tag == staticExportDepTag || tag == wholeStaticDepTag || tag == lateStaticDepTag {
 			if cc, ok := dep.(*Module); ok {
 				if library, ok := cc.linker.(*libraryDecorator); ok {
 					if Bool(library.Properties.Inject_bssl_hash) {

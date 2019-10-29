@@ -92,7 +92,12 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		ret.Class = "RLIB_LIBRARIES"
 	} else if library.dylib() {
 		ret.Class = "DYLIB_LIBRARIES"
+	} else if library.static() {
+		ret.Class = "STATIC_LIBRARIES"
+	} else if library.shared() {
+		ret.Class = "SHARED_LIBRARIES"
 	}
+
 	ret.DistFile = library.distFile
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if !library.rlib() {
