@@ -93,11 +93,6 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 					if c.isVndk() && !c.static() {
 						fmt.Fprintln(w, "LOCAL_SOONG_VNDK_VERSION := "+c.vndkVersion())
-						// VNDK libraries available to vendor are not installed because
-						// they are packaged in VNDK APEX and installed by APEX packages (apex/apex.go)
-						if !c.isVndkExt() {
-							fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
-						}
 					}
 				}
 			},
@@ -153,10 +148,10 @@ func makeOverrideModuleNames(ctx AndroidMkContext, overrides []string) []string 
 func (library *libraryDecorator) androidMkWriteExportedFlags(w io.Writer) {
 	exportedFlags := library.exportedFlags()
 	for _, dir := range library.exportedDirs() {
-		exportedFlags = append(exportedFlags, "-I"+dir)
+		exportedFlags = append(exportedFlags, "-I"+dir.String())
 	}
 	for _, dir := range library.exportedSystemDirs() {
-		exportedFlags = append(exportedFlags, "-isystem "+dir)
+		exportedFlags = append(exportedFlags, "-isystem "+dir.String())
 	}
 	if len(exportedFlags) > 0 {
 		fmt.Fprintln(w, "LOCAL_EXPORT_CFLAGS :=", strings.Join(exportedFlags, " "))
@@ -320,6 +315,11 @@ func (fuzz *fuzzBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 	if fuzz.dictionary != nil {
 		fuzzFiles = append(fuzzFiles,
 			filepath.Dir(fuzz.dictionary.String())+":"+fuzz.dictionary.Base())
+	}
+
+	if fuzz.config != nil {
+		fuzzFiles = append(fuzzFiles,
+			filepath.Dir(fuzz.config.String())+":config.json")
 	}
 
 	if len(fuzzFiles) > 0 {

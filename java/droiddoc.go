@@ -425,16 +425,12 @@ func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 		if sdkDep.hasStandardLibs() {
 			if sdkDep.useDefaultLibs {
 				ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-				if ctx.Config().TargetOpenJDK9() {
-					ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-				}
+				ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
 				if sdkDep.hasFrameworkLibs() {
 					ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
 				}
 			} else if sdkDep.useModule {
-				if ctx.Config().TargetOpenJDK9() {
-					ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-				}
+				ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 				ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.modules...)
 			}
 		} else if sdkDep.systemModules != "" {
