@@ -141,8 +141,8 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 	}
 
 	encodedJavacFlags := kaptEncodeFlags([][2]string{
-		{"-source", flags.javaVersion},
-		{"-target", flags.javaVersion},
+		{"-source", flags.javaVersion.String()},
+		{"-target", flags.javaVersion.String()},
 	})
 
 	kotlinName := filepath.Join(ctx.ModuleDir(), ctx.ModuleSubDir(), ctx.ModuleName())

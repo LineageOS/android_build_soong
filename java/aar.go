@@ -538,6 +538,10 @@ func (a *AARImport) targetSdkVersion() string {
 	return a.sdkVersion()
 }
 
+func (a *AARImport) javaVersion() string {
+	return ""
+}
+
 var _ AndroidLibraryDependency = (*AARImport)(nil)
 
 func (a *AARImport) ExportPackage() android.Path {
