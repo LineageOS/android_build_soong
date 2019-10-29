@@ -98,7 +98,7 @@ func (vndk *vndkdep) typeName() string {
 	return "native:vendor:vndkspext"
 }
 
-func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, tag dependencyTag) {
+func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, tag DependencyTag) {
 	if to.linker == nil {
 		return
 	}
@@ -125,7 +125,7 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, ta
 		// Other (static and LL-NDK) libraries are allowed to link.
 		return
 	}
-	if !to.useVndk() {
+	if !to.UseVndk() {
 		ctx.ModuleErrorf("(%s) should not link to %q which is not a vendor-available library",
 			vndk.typeName(), to.Name())
 		return
@@ -352,7 +352,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 		useCoreVariant := m.vndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
 			mctx.DeviceConfig().VndkUseCoreVariant() &&
 			!inList(m.BaseModuleName(), config.VndkMustUseVendorVariantList)
-		return lib.shared() && m.useVndk() && m.isVndk() && !m.isVndkExt() && !useCoreVariant
+		return lib.shared() && m.UseVndk() && m.IsVndk() && !m.isVndkExt() && !useCoreVariant
 	}
 	return false
 }
@@ -536,7 +536,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		if m.Target().NativeBridge == android.NativeBridgeEnabled {
 			return nil, "", false
 		}
-		if !m.useVndk() || !m.IsForPlatform() || !m.installable() {
+		if !m.UseVndk() || !m.IsForPlatform() || !m.installable() {
 			return nil, "", false
 		}
 		l, ok := m.linker.(vndkSnapshotLibraryInterface)
@@ -699,7 +699,7 @@ func (c *vndkSnapshotSingleton) buildVndkLibrariesTxtFiles(ctx android.Singleton
 			if c.isVndkPrivate(config) {
 				vndkprivate = append(vndkprivate, filename)
 			}
-		} else if c.vndkVersion() == vndkVersion && c.isVndk() && !c.isVndkExt() {
+		} else if c.vndkVersion() == vndkVersion && c.IsVndk() && !c.isVndkExt() {
 			if c.isVndkSp() {
 				vndksp = append(vndksp, filename)
 			} else {
@@ -708,7 +708,7 @@ func (c *vndkSnapshotSingleton) buildVndkLibrariesTxtFiles(ctx android.Singleton
 			if c.isVndkPrivate(config) {
 				vndkprivate = append(vndkprivate, filename)
 			}
-			if ctx.DeviceConfig().VndkUseCoreVariant() && !c.mustUseVendorVariant() {
+			if ctx.DeviceConfig().VndkUseCoreVariant() && !c.MustUseVendorVariant() {
 				vndkcorevariant = append(vndkcorevariant, filename)
 			}
 		}

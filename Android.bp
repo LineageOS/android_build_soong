@@ -157,6 +157,7 @@ bootstrap_go_package {
         "cc/check.go",
         "cc/coverage.go",
         "cc/gen.go",
+        "cc/linkable.go",
         "cc/lto.go",
         "cc/makevars.go",
         "cc/pgo.go",

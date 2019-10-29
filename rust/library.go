@@ -25,8 +25,10 @@ func init() {
 	android.RegisterModuleType("rust_library_host", RustLibraryHostFactory)
 	android.RegisterModuleType("rust_library_host_dylib", RustLibraryDylibHostFactory)
 	android.RegisterModuleType("rust_library_host_rlib", RustLibraryRlibHostFactory)
-
-	//TODO: Add support for generating standard shared/static libraries.
+	android.RegisterModuleType("rust_library_shared", RustLibrarySharedFactory)
+	android.RegisterModuleType("rust_library_static", RustLibraryStaticFactory)
+	android.RegisterModuleType("rust_library_host_shared", RustLibrarySharedHostFactory)
+	android.RegisterModuleType("rust_library_host_static", RustLibraryStaticHostFactory)
 }
 
 type VariantLibraryProperties struct {
@@ -34,25 +36,36 @@ type VariantLibraryProperties struct {
 }
 
 type LibraryCompilerProperties struct {
-	Rlib  VariantLibraryProperties `android:"arch_variant"`
-	Dylib VariantLibraryProperties `android:"arch_variant"`
+	Rlib   VariantLibraryProperties `android:"arch_variant"`
+	Dylib  VariantLibraryProperties `android:"arch_variant"`
+	Shared VariantLibraryProperties `android:"arch_variant"`
+	Static VariantLibraryProperties `android:"arch_variant"`
 
 	// path to the source file that is the main entry point of the program (e.g. src/lib.rs)
 	Srcs []string `android:"path,arch_variant"`
+
+	// path to include directories to pass to cc_* modules, only relevant for static/shared variants.
+	Include_dirs []string `android:"path,arch_variant"`
 }
 
 type LibraryMutatedProperties struct {
-	VariantName string `blueprint:"mutated"`
-
 	// Build a dylib variant
 	BuildDylib bool `blueprint:"mutated"`
 	// Build an rlib variant
 	BuildRlib bool `blueprint:"mutated"`
+	// Build a shared library variant
+	BuildShared bool `blueprint:"mutated"`
+	// Build a static library variant
+	BuildStatic bool `blueprint:"mutated"`
 
 	// This variant is a dylib
 	VariantIsDylib bool `blueprint:"mutated"`
 	// This variant is an rlib
 	VariantIsRlib bool `blueprint:"mutated"`
+	// This variant is a shared library
+	VariantIsShared bool `blueprint:"mutated"`
+	// This variant is a static library
+	VariantIsStatic bool `blueprint:"mutated"`
 }
 
 type libraryDecorator struct {
@@ -67,14 +80,26 @@ type libraryDecorator struct {
 type libraryInterface interface {
 	rlib() bool
 	dylib() bool
+	static() bool
+	shared() bool
 
 	// Returns true if the build options for the module have selected a particular build type
 	buildRlib() bool
 	buildDylib() bool
+	buildShared() bool
+	buildStatic() bool
 
 	// Sets a particular variant type
 	setRlib()
 	setDylib()
+	setShared()
+	setStatic()
+
+	// Build a specific library variant
+	BuildOnlyRlib()
+	BuildOnlyDylib()
+	BuildOnlyStatic()
+	BuildOnlyShared()
 }
 
 func (library *libraryDecorator) exportedDirs() []string {
@@ -101,6 +126,14 @@ func (library *libraryDecorator) dylib() bool {
 	return library.MutatedProperties.VariantIsDylib
 }
 
+func (library *libraryDecorator) shared() bool {
+	return library.MutatedProperties.VariantIsShared
+}
+
+func (library *libraryDecorator) static() bool {
+	return library.MutatedProperties.VariantIsStatic
+}
+
 func (library *libraryDecorator) buildRlib() bool {
 	return library.MutatedProperties.BuildRlib && BoolDefault(library.Properties.Rlib.Enabled, true)
 }
@@ -109,17 +142,44 @@ func (library *libraryDecorator) buildDylib() bool {
 	return library.MutatedProperties.BuildDylib && BoolDefault(library.Properties.Dylib.Enabled, true)
 }
 
+func (library *libraryDecorator) buildShared() bool {
+	return library.MutatedProperties.BuildShared && BoolDefault(library.Properties.Shared.Enabled, true)
+}
+
+func (library *libraryDecorator) buildStatic() bool {
+	return library.MutatedProperties.BuildStatic && BoolDefault(library.Properties.Static.Enabled, true)
+}
+
 func (library *libraryDecorator) setRlib() {
 	library.MutatedProperties.VariantIsRlib = true
 	library.MutatedProperties.VariantIsDylib = false
+	library.MutatedProperties.VariantIsStatic = false
+	library.MutatedProperties.VariantIsShared = false
 }
 
 func (library *libraryDecorator) setDylib() {
 	library.MutatedProperties.VariantIsRlib = false
 	library.MutatedProperties.VariantIsDylib = true
+	library.MutatedProperties.VariantIsStatic = false
+	library.MutatedProperties.VariantIsShared = false
+}
+
+func (library *libraryDecorator) setShared() {
+	library.MutatedProperties.VariantIsStatic = false
+	library.MutatedProperties.VariantIsShared = true
+	library.MutatedProperties.VariantIsRlib = false
+	library.MutatedProperties.VariantIsDylib = false
+}
+
+func (library *libraryDecorator) setStatic() {
+	library.MutatedProperties.VariantIsStatic = true
+	library.MutatedProperties.VariantIsShared = false
+	library.MutatedProperties.VariantIsRlib = false
+	library.MutatedProperties.VariantIsDylib = false
 }
 
 var _ compiler = (*libraryDecorator)(nil)
+var _ libraryInterface = (*libraryDecorator)(nil)
 
 // rust_library produces all variants.
 func RustLibraryFactory() android.Module {
@@ -138,6 +198,20 @@ func RustLibraryDylibFactory() android.Module {
 func RustLibraryRlibFactory() android.Module {
 	module, library := NewRustLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyRlib()
+	return module.Init()
+}
+
+// rust_library_shared produces a shared library.
+func RustLibrarySharedFactory() android.Module {
+	module, library := NewRustLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyShared()
+	return module.Init()
+}
+
+// rust_library_static produces a static library.
+func RustLibraryStaticFactory() android.Module {
+	module, library := NewRustLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyStatic()
 	return module.Init()
 }
 
@@ -161,11 +235,43 @@ func RustLibraryRlibHostFactory() android.Module {
 	return module.Init()
 }
 
+// rust_library_static_host produces a static library.
+func RustLibraryStaticHostFactory() android.Module {
+	module, library := NewRustLibrary(android.HostSupported)
+	library.BuildOnlyStatic()
+	return module.Init()
+}
+
+// rust_library_shared_host produces an shared library.
+func RustLibrarySharedHostFactory() android.Module {
+	module, library := NewRustLibrary(android.HostSupported)
+	library.BuildOnlyShared()
+	return module.Init()
+}
+
 func (library *libraryDecorator) BuildOnlyDylib() {
 	library.MutatedProperties.BuildRlib = false
+	library.MutatedProperties.BuildShared = false
+	library.MutatedProperties.BuildStatic = false
+
 }
 
 func (library *libraryDecorator) BuildOnlyRlib() {
+	library.MutatedProperties.BuildDylib = false
+	library.MutatedProperties.BuildShared = false
+	library.MutatedProperties.BuildStatic = false
+}
+
+func (library *libraryDecorator) BuildOnlyStatic() {
+	library.MutatedProperties.BuildShared = false
+	library.MutatedProperties.BuildRlib = false
+	library.MutatedProperties.BuildDylib = false
+
+}
+
+func (library *libraryDecorator) BuildOnlyShared() {
+	library.MutatedProperties.BuildStatic = false
+	library.MutatedProperties.BuildRlib = false
 	library.MutatedProperties.BuildDylib = false
 }
 
@@ -174,8 +280,10 @@ func NewRustLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorat
 
 	library := &libraryDecorator{
 		MutatedProperties: LibraryMutatedProperties{
-			BuildDylib: true,
-			BuildRlib:  true,
+			BuildDylib:  true,
+			BuildRlib:   true,
+			BuildShared: true,
+			BuildStatic: true,
 		},
 		baseCompiler: NewBaseCompiler("lib", "lib64"),
 	}
@@ -194,7 +302,7 @@ func (library *libraryDecorator) compilerProps() []interface{} {
 func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = library.baseCompiler.compilerDeps(ctx, deps)
 
-	if ctx.toolchain().Bionic() && library.dylib() {
+	if ctx.toolchain().Bionic() && (library.dylib() || library.shared()) {
 		deps = library.baseCompiler.bionicDeps(ctx, deps)
 	}
 
@@ -208,6 +316,13 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 
+	if library.dylib() || library.shared() {
+		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
+		// https://github.com/rust-lang/rust/issues/19680
+		// https://github.com/rust-lang/rust/issues/34909
+		flags.RustFlags = append(flags.RustFlags, "-C prefer-dynamic")
+	}
+
 	if library.rlib() {
 		fileName := library.getStem(ctx) + ctx.toolchain().RlibSuffix()
 		outputFile = android.PathForModuleOut(ctx, fileName)
@@ -217,16 +332,23 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		fileName := library.getStem(ctx) + ctx.toolchain().DylibSuffix()
 		outputFile = android.PathForModuleOut(ctx, fileName)
 
-		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
-		// https://github.com/rust-lang/rust/issues/19680
-		// https://github.com/rust-lang/rust/issues/34909
-		flags.RustFlags = append(flags.RustFlags, "-C prefer-dynamic")
-
 		TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
+	} else if library.static() {
+		fileName := library.getStem(ctx) + ctx.toolchain().StaticLibSuffix()
+		outputFile = android.PathForModuleOut(ctx, fileName)
+
+		TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
+	} else if library.shared() {
+		fileName := library.getStem(ctx) + ctx.toolchain().SharedLibSuffix()
+		outputFile = android.PathForModuleOut(ctx, fileName)
+
+		TransformSrctoShared(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 	}
 
-	library.reexportDirs(deps.linkDirs...)
-	library.reexportDepFlags(deps.depFlags...)
+	if library.rlib() || library.dylib() {
+		library.reexportDirs(deps.linkDirs...)
+		library.reexportDepFlags(deps.depFlags...)
+	}
 	library.unstrippedOutputFile = outputFile
 
 	return outputFile
@@ -236,19 +358,25 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.compiler != nil {
 		switch library := m.compiler.(type) {
 		case libraryInterface:
-			if library.buildRlib() && library.buildDylib() {
-				modules := mctx.CreateLocalVariations("rlib", "dylib")
-				rlib := modules[0].(*Module)
-				dylib := modules[1].(*Module)
 
-				rlib.compiler.(libraryInterface).setRlib()
-				dylib.compiler.(libraryInterface).setDylib()
-			} else if library.buildRlib() {
-				modules := mctx.CreateLocalVariations("rlib")
-				modules[0].(*Module).compiler.(libraryInterface).setRlib()
-			} else if library.buildDylib() {
-				modules := mctx.CreateLocalVariations("dylib")
-				modules[0].(*Module).compiler.(libraryInterface).setDylib()
+			// We only build the rust library variants here. This assumes that
+			// LinkageMutator runs first and there's an empty variant
+			// if rust variants are required.
+			if !library.static() && !library.shared() {
+				if library.buildRlib() && library.buildDylib() {
+					modules := mctx.CreateLocalVariations("rlib", "dylib")
+					rlib := modules[0].(*Module)
+					dylib := modules[1].(*Module)
+
+					rlib.compiler.(libraryInterface).setRlib()
+					dylib.compiler.(libraryInterface).setDylib()
+				} else if library.buildRlib() {
+					modules := mctx.CreateLocalVariations("rlib")
+					modules[0].(*Module).compiler.(libraryInterface).setRlib()
+				} else if library.buildDylib() {
+					modules := mctx.CreateLocalVariations("dylib")
+					modules[0].(*Module).compiler.(libraryInterface).setDylib()
+				}
 			}
 		}
 	}
