@@ -101,9 +101,6 @@ func init() {
 		// not emit the table by default on Android since NDK still uses GNU binutils.
 		"-faddrsig",
 
-		// -Wimplicit-fallthrough is not enabled by -Wall.
-		"-Wimplicit-fallthrough",
-
 		// Help catch common 32/64-bit errors.
 		"-Werror=int-conversion",
 
@@ -138,6 +135,9 @@ func init() {
 	}, " "))
 
 	pctx.StaticVariable("ClangExtraCppflags", strings.Join([]string{
+		// -Wimplicit-fallthrough is not enabled by -Wall.
+		"-Wimplicit-fallthrough",
+
 		// Enable clang's thread-safety annotations in libcxx.
 		// Turn off -Wthread-safety-negative, to avoid breaking projects that use -Weverything.
 		"-D_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS",
