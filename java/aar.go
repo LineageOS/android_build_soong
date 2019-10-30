@@ -72,6 +72,9 @@ type aaptProperties struct {
 
 	// paths to additional manifest files to merge with main manifest.
 	Additional_manifests []string `android:"path"`
+
+	// do not include AndroidManifest from dependent libraries
+	Dont_merge_manifests *bool
 }
 
 type aapt struct {
@@ -225,7 +228,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	a.transitiveManifestPaths = append(android.Paths{manifestPath}, additionalManifests...)
 	a.transitiveManifestPaths = append(a.transitiveManifestPaths, transitiveStaticLibManifests...)
 
-	if len(a.transitiveManifestPaths) > 1 {
+	if len(a.transitiveManifestPaths) > 1 && !Bool(a.aaptProperties.Dont_merge_manifests) {
 		a.mergedManifestFile = manifestMerger(ctx, a.transitiveManifestPaths[0], a.transitiveManifestPaths[1:], a.isLibrary)
 		if !a.isLibrary {
 			// Only use the merged manifest for applications.  For libraries, the transitive closure of manifests
@@ -533,6 +536,10 @@ func (a *AARImport) minSdkVersion() string {
 
 func (a *AARImport) targetSdkVersion() string {
 	return a.sdkVersion()
+}
+
+func (a *AARImport) javaVersion() string {
+	return ""
 }
 
 var _ AndroidLibraryDependency = (*AARImport)(nil)

@@ -101,12 +101,20 @@ func testRustError(t *testing.T, pattern string, bp string) {
 
 // Test that we can extract the lib name from a lib path.
 func TestLibNameFromFilePath(t *testing.T) {
-	barPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/libbar.so")
-	libName := libNameFromFilePath(barPath)
-	expectedResult := "bar"
+	libBarPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/libbar.so")
+	libLibPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/liblib.dylib.so")
 
-	if libName != expectedResult {
-		t.Errorf("libNameFromFilePath returned the wrong name; expected '%#v', got '%#v'", expectedResult, libName)
+	libBarName := libNameFromFilePath(libBarPath)
+	libLibName := libNameFromFilePath(libLibPath)
+
+	expectedResult := "bar"
+	if libBarName != expectedResult {
+		t.Errorf("libNameFromFilePath returned the wrong name; expected '%#v', got '%#v'", expectedResult, libBarName)
+	}
+
+	expectedResult = "lib.dylib"
+	if libLibName != expectedResult {
+		t.Errorf("libNameFromFilePath returned the wrong name; expected '%#v', got '%#v'", expectedResult, libLibPath)
 	}
 }
 
@@ -140,12 +148,20 @@ func TestDefaultCrateName(t *testing.T) {
 // Test to make sure dependencies are being picked up correctly.
 func TestDepsTracking(t *testing.T) {
 	ctx := testRust(t, `
+		rust_library_host_static {
+			name: "libstatic",
+			srcs: ["foo.rs"],
+		}
+		rust_library_host_shared {
+			name: "libshared",
+			srcs: ["foo.rs"],
+		}
 		rust_library_host_dylib {
-			name: "libfoo",
+			name: "libdylib",
 			srcs: ["foo.rs"],
 		}
 		rust_library_host_rlib {
-			name: "libbar",
+			name: "librlib",
 			srcs: ["foo.rs"],
 		}
 		rust_proc_macro {
@@ -154,20 +170,22 @@ func TestDepsTracking(t *testing.T) {
 		}
 		rust_binary_host {
 			name: "fizz-buzz",
-			dylibs: ["libfoo"],
-			rlibs: ["libbar"],
+			dylibs: ["libdylib"],
+			rlibs: ["librlib"],
 			proc_macros: ["libpm"],
+			static_libs: ["libstatic"],
+			shared_libs: ["libshared"],
 			srcs: ["foo.rs"],
 		}
 	`)
 	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
-	if !android.InList("libfoo", module.Properties.AndroidMkDylibs) {
+	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {
 		t.Errorf("Dylib dependency not detected (dependency missing from AndroidMkDylibs)")
 	}
 
-	if !android.InList("libbar", module.Properties.AndroidMkRlibs) {
+	if !android.InList("librlib", module.Properties.AndroidMkRlibs) {
 		t.Errorf("Rlib dependency not detected (dependency missing from AndroidMkRlibs)")
 	}
 
@@ -175,6 +193,13 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("Proc_macro dependency not detected (dependency missing from AndroidMkProcMacroLibs)")
 	}
 
+	if !android.InList("libshared", module.Properties.AndroidMkSharedLibs) {
+		t.Errorf("Shared library dependency not detected (dependency missing from AndroidMkSharedLibs)")
+	}
+
+	if !android.InList("libstatic", module.Properties.AndroidMkStaticLibs) {
+		t.Errorf("Static library dependency not detected (dependency missing from AndroidMkStaticLibs)")
+	}
 }
 
 // Test to make sure proc_macros use host variants when building device modules.
