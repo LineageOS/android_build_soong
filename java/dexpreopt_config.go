@@ -96,17 +96,15 @@ func dexpreoptTargets(ctx android.PathContext) []android.Target {
 	return targets
 }
 
-// Construct a variant of the global config for dexpreopted bootclasspath jars. The variants differ
-// in the list of input jars (libcore, framework, or both), in the naming scheme for the dexpreopt
-// files (ART recognizes "apex" names as special), and whether to include a zip archive.
 func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name string,
-	needZip bool, artApexJarsOnly bool) bootImageConfig {
-
+	needZip bool) bootImageConfig {
 	return ctx.Config().Once(key, func() interface{} {
 		global := dexpreoptGlobalConfig(ctx)
 
 		artModules := global.ArtApexJars
-		imageModules := artModules
+		nonFrameworkModules := concat(artModules, global.ProductUpdatableBootModules)
+		frameworkModules := android.RemoveListFromList(global.BootJars, nonFrameworkModules)
+		imageModules := concat(artModules, frameworkModules)
 
 		var bootLocations []string
 
@@ -115,18 +113,10 @@ func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name strin
 				filepath.Join("/apex/com.android.art/javalib", m+".jar"))
 		}
 
-		if !artApexJarsOnly {
-			nonFrameworkModules := concat(artModules, global.ProductUpdatableBootModules)
-			frameworkModules := android.RemoveListFromList(global.BootJars, nonFrameworkModules)
-			imageModules = concat(imageModules, frameworkModules)
-
-			for _, m := range frameworkModules {
-				bootLocations = append(bootLocations,
-					filepath.Join("/system/framework", m+".jar"))
-			}
+		for _, m := range frameworkModules {
+			bootLocations = append(bootLocations,
+				filepath.Join("/system/framework", m+".jar"))
 		}
-
-		dirStem := "dex_" + name + "jars"
 
 		// The path to bootclasspath dex files needs to be known at module GenerateAndroidBuildAction time, before
 		// the bootclasspath modules have been compiled.  Set up known paths for them, the singleton rules will copy
@@ -135,11 +125,11 @@ func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name strin
 		var bootDexPaths android.WritablePaths
 		for _, m := range imageModules {
 			bootDexPaths = append(bootDexPaths,
-				android.PathForOutput(ctx, ctx.Config().DeviceName(), dirStem+"_input", m+".jar"))
+				android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_"+name+"jars_input", m+".jar"))
 		}
 
-		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), dirStem)
-		symbolsDir := android.PathForOutput(ctx, ctx.Config().DeviceName(), dirStem+"_unstripped")
+		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_"+name+"jars")
+		symbolsDir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_"+name+"jars_unstripped")
 
 		var zip android.WritablePath
 		if needZip {
@@ -176,30 +166,15 @@ func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name strin
 	}).(bootImageConfig)
 }
 
-// Default config is the one that goes in the system image. It includes both libcore and framework.
 var defaultBootImageConfigKey = android.NewOnceKey("defaultBootImageConfig")
-
-func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return getBootImageConfig(ctx, defaultBootImageConfigKey, "boot", true, false)
-}
-
-// Apex config is used for the JIT-zygote experiment. It includes both libcore and framework, but AOT-compiles only libcore.
 var apexBootImageConfigKey = android.NewOnceKey("apexBootImageConfig")
 
+func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
+	return getBootImageConfig(ctx, defaultBootImageConfigKey, "boot", true)
+}
+
 func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return getBootImageConfig(ctx, apexBootImageConfigKey, "apex", false, false)
-}
-
-// ART config is the one used for the ART apex. It includes only libcore.
-var artBootImageConfigKey = android.NewOnceKey("artBootImageConfig")
-
-func artBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return getBootImageConfig(ctx, artBootImageConfigKey, "boot-art", false, true)
-}
-
-// Accessor function for the apex package.
-func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.Paths {
-	return artBootImageConfig(ctx).imagesDeps
+	return getBootImageConfig(ctx, apexBootImageConfigKey, "apex", false)
 }
 
 func defaultBootclasspath(ctx android.PathContext) []string {
