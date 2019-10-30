@@ -366,6 +366,7 @@ bootstrap_go_package {
         "rust/prebuilt.go",
         "rust/proc_macro.go",
         "rust/rust.go",
+        "rust/test.go",
         "rust/testing.go",
     ],
     testSrcs: [
@@ -373,6 +374,7 @@ bootstrap_go_package {
         "rust/compiler_test.go",
         "rust/library_test.go",
         "rust/rust_test.go",
+        "rust/test_test.go",
     ],
     pluginFor: ["soong_build"],
 }

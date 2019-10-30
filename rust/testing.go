@@ -168,6 +168,8 @@ func CreateTestContext(bp string) *android.TestContext {
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
 	ctx.RegisterModuleType("rust_binary", android.ModuleFactoryAdaptor(RustBinaryFactory))
 	ctx.RegisterModuleType("rust_binary_host", android.ModuleFactoryAdaptor(RustBinaryHostFactory))
+	ctx.RegisterModuleType("rust_test", android.ModuleFactoryAdaptor(RustTestFactory))
+	ctx.RegisterModuleType("rust_test_host", android.ModuleFactoryAdaptor(RustTestHostFactory))
 	ctx.RegisterModuleType("rust_library", android.ModuleFactoryAdaptor(RustLibraryFactory))
 	ctx.RegisterModuleType("rust_library_host", android.ModuleFactoryAdaptor(RustLibraryHostFactory))
 	ctx.RegisterModuleType("rust_library_host_rlib", android.ModuleFactoryAdaptor(RustLibraryRlibHostFactory))
@@ -190,6 +192,7 @@ func CreateTestContext(bp string) *android.TestContext {
 
 		// rust mutators
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
+		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
 	})
 	bp = bp + GatherRequiredDepsForTest()
 
