@@ -72,6 +72,8 @@ func (mod *Module) AndroidMk() android.AndroidMkData {
 
 	mod.subAndroidMk(&ret, mod.compiler)
 
+	ret.SubName += mod.Properties.SubName
+
 	return ret
 }
 
@@ -83,6 +85,11 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", binary.unstrippedOutputFile.String())
 	})
+}
+
+func (test *testBinaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	test.binaryDecorator.AndroidMk(ctx, ret)
+	ret.SubName = "_" + String(test.baseCompiler.Properties.Stem)
 }
 
 func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {

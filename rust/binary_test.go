@@ -36,11 +36,20 @@ func TestPreferDynamicBinary(t *testing.T) {
 	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Output("fizz-buzz")
 	fizzBuzzDynamic := ctx.ModuleForTests("fizz-buzz-dynamic", "linux_glibc_x86_64").Output("fizz-buzz-dynamic")
 
-	if !strings.Contains(fizzBuzzDynamic.Args["rustcFlags"], "prefer-dynamic") {
-		t.Errorf("missing prefer-dynamic flag, rustcFlags: %#v", fizzBuzzDynamic.Args["rustcFlags"])
+	// Do not compile binary modules with the --test flag.
+	flags := fizzBuzzDynamic.Args["rustcFlags"]
+	if strings.Contains(flags, "--test") {
+		t.Errorf("extra --test flag, rustcFlags: %#v", flags)
+	}
+	if !strings.Contains(flags, "prefer-dynamic") {
+		t.Errorf("missing prefer-dynamic flag, rustcFlags: %#v", flags)
 	}
 
-	if strings.Contains(fizzBuzz.Args["rustcFlags"], "prefer-dynamic") {
-		t.Errorf("unexpected prefer-dynamic flag, rustcFlags: %#v", fizzBuzz.Args["rustcFlags"])
+	flags = fizzBuzz.Args["rustcFlags"]
+	if strings.Contains(flags, "--test") {
+		t.Errorf("extra --test flag, rustcFlags: %#v", flags)
+	}
+	if strings.Contains(flags, "prefer-dynamic") {
+		t.Errorf("unexpected prefer-dynamic flag, rustcFlags: %#v", flags)
 	}
 }

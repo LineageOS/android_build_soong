@@ -39,6 +39,7 @@ func init() {
 	android.RegisterModuleType("rust_defaults", defaultsFactory)
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
+		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
 }
@@ -58,6 +59,7 @@ type BaseProperties struct {
 	AndroidMkProcMacroLibs []string
 	AndroidMkSharedLibs    []string
 	AndroidMkStaticLibs    []string
+	SubName                string `blueprint:"mutated"`
 }
 
 type Module struct {
@@ -495,9 +497,10 @@ type dependencyTag struct {
 }
 
 var (
-	rlibDepTag      = dependencyTag{name: "rlibTag", library: true}
-	dylibDepTag     = dependencyTag{name: "dylib", library: true}
-	procMacroDepTag = dependencyTag{name: "procMacro", proc_macro: true}
+	rlibDepTag       = dependencyTag{name: "rlibTag", library: true}
+	dylibDepTag      = dependencyTag{name: "dylib", library: true}
+	procMacroDepTag  = dependencyTag{name: "procMacro", proc_macro: true}
+	testPerSrcDepTag = dependencyTag{name: "rust_unit_tests"}
 )
 
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
