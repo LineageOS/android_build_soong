@@ -17,8 +17,8 @@ package cc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 
@@ -208,34 +208,44 @@ var (
 	headerExts = []string{".h", ".hh", ".hpp", ".hxx", ".h++", ".inl", ".inc", ".ipp", ".h.generic"}
 )
 
-func vndkCoreLibraries(config android.Config) *[]string {
+func vndkCoreLibraries(config android.Config) map[string]string {
 	return config.Once(vndkCoreLibrariesKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
+		return make(map[string]string)
+	}).(map[string]string)
 }
 
-func vndkSpLibraries(config android.Config) *[]string {
+func vndkSpLibraries(config android.Config) map[string]string {
 	return config.Once(vndkSpLibrariesKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
+		return make(map[string]string)
+	}).(map[string]string)
 }
 
-func llndkLibraries(config android.Config) *[]string {
+func isLlndkLibrary(baseModuleName string, config android.Config) bool {
+	_, ok := llndkLibraries(config)[baseModuleName]
+	return ok
+}
+
+func llndkLibraries(config android.Config) map[string]string {
 	return config.Once(llndkLibrariesKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
+		return make(map[string]string)
+	}).(map[string]string)
 }
 
-func vndkPrivateLibraries(config android.Config) *[]string {
+func isVndkPrivateLibrary(baseModuleName string, config android.Config) bool {
+	_, ok := vndkPrivateLibraries(config)[baseModuleName]
+	return ok
+}
+
+func vndkPrivateLibraries(config android.Config) map[string]string {
 	return config.Once(vndkPrivateLibrariesKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
+		return make(map[string]string)
+	}).(map[string]string)
 }
 
-func vndkUsingCoreVariantLibraries(config android.Config) *[]string {
+func vndkUsingCoreVariantLibraries(config android.Config) map[string]string {
 	return config.Once(vndkUsingCoreVariantLibrariesKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
+		return make(map[string]string)
+	}).(map[string]string)
 }
 
 func modulePaths(config android.Config) map[string]string {
@@ -272,63 +282,44 @@ func setVndkMustUseVendorVariantListForTest(config android.Config, mustUseVendor
 
 func processLlndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	lib := m.linker.(*llndkStubDecorator)
-	name := strings.TrimSuffix(m.Name(), llndkLibrarySuffix)
+	name := m.BaseModuleName()
+	filename := m.BaseModuleName() + ".so"
 
 	vndkLibrariesLock.Lock()
 	defer vndkLibrariesLock.Unlock()
 
-	llndkLibraries := llndkLibraries(mctx.Config())
-	if !inList(name, *llndkLibraries) {
-		*llndkLibraries = append(*llndkLibraries, name)
-		sort.Strings(*llndkLibraries)
-	}
+	llndkLibraries(mctx.Config())[name] = filename
 	if !Bool(lib.Properties.Vendor_available) {
-		vndkPrivateLibraries := vndkPrivateLibraries(mctx.Config())
-		if !inList(name, *vndkPrivateLibraries) {
-			*vndkPrivateLibraries = append(*vndkPrivateLibraries, name)
-			sort.Strings(*vndkPrivateLibraries)
-		}
+		vndkPrivateLibraries(mctx.Config())[name] = filename
 	}
 }
 
 func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
-	name := strings.TrimPrefix(m.Name(), "prebuilt_")
+	name := m.BaseModuleName()
+	filename, err := getVndkFileName(m)
+	if err != nil {
+		panic(err)
+	}
 
 	vndkLibrariesLock.Lock()
 	defer vndkLibrariesLock.Unlock()
 
-	modulePaths := modulePaths(mctx.Config())
+	modulePaths(mctx.Config())[name] = mctx.ModuleDir()
+
 	if inList(name, vndkMustUseVendorVariantList(mctx.Config())) {
 		m.Properties.MustUseVendorVariant = true
 	}
-	if mctx.DeviceConfig().VndkUseCoreVariant() && !inList(name, vndkMustUseVendorVariantList(mctx.Config())) {
-		vndkUsingCoreVariantLibraries := vndkUsingCoreVariantLibraries(mctx.Config())
-		if !inList(name, *vndkUsingCoreVariantLibraries) {
-			*vndkUsingCoreVariantLibraries = append(*vndkUsingCoreVariantLibraries, name)
-			sort.Strings(*vndkUsingCoreVariantLibraries)
-		}
+	if mctx.DeviceConfig().VndkUseCoreVariant() && !m.Properties.MustUseVendorVariant {
+		vndkUsingCoreVariantLibraries(mctx.Config())[name] = filename
 	}
+
 	if m.vndkdep.isVndkSp() {
-		vndkSpLibraries := vndkSpLibraries(mctx.Config())
-		if !inList(name, *vndkSpLibraries) {
-			*vndkSpLibraries = append(*vndkSpLibraries, name)
-			sort.Strings(*vndkSpLibraries)
-			modulePaths[name] = mctx.ModuleDir()
-		}
+		vndkSpLibraries(mctx.Config())[name] = filename
 	} else {
-		vndkCoreLibraries := vndkCoreLibraries(mctx.Config())
-		if !inList(name, *vndkCoreLibraries) {
-			*vndkCoreLibraries = append(*vndkCoreLibraries, name)
-			sort.Strings(*vndkCoreLibraries)
-			modulePaths[name] = mctx.ModuleDir()
-		}
+		vndkCoreLibraries(mctx.Config())[name] = filename
 	}
 	if !Bool(m.VendorProperties.Vendor_available) {
-		vndkPrivateLibraries := vndkPrivateLibraries(mctx.Config())
-		if !inList(name, *vndkPrivateLibraries) {
-			*vndkPrivateLibraries = append(*vndkPrivateLibraries, name)
-			sort.Strings(*vndkPrivateLibraries)
-		}
+		vndkPrivateLibraries(mctx.Config())[name] = filename
 	}
 }
 
@@ -402,9 +393,20 @@ func VndkSnapshotSingleton() android.Singleton {
 	return &vndkSnapshotSingleton{}
 }
 
-type vndkSnapshotSingleton struct{}
+type vndkSnapshotSingleton struct {
+	installedLlndkLibraries      []string
+	llnkdLibrariesFile           android.Path
+	vndkSpLibrariesFile          android.Path
+	vndkCoreLibrariesFile        android.Path
+	vndkPrivateLibrariesFile     android.Path
+	vndkCoreVariantLibrariesFile android.Path
+	vndkLibrariesFile            android.Path
+}
 
 func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	// build these files even if PlatformVndkVersion or BoardVndkVersion is not set
+	c.buildVndkLibrariesTxtFiles(ctx)
+
 	// BOARD_VNDK_VERSION must be set to 'current' in order to generate a VNDK snapshot.
 	if ctx.DeviceConfig().VndkVersion() != "current" {
 		return
@@ -417,8 +419,6 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 	if ctx.DeviceConfig().BoardVndkRuntimeDisable() {
 		return
 	}
-
-	c.buildVndkLibrariesTxtFiles(ctx)
 
 	outputs := vndkSnapshotOutputs(ctx.Config())
 
@@ -488,9 +488,9 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		}
 	}
 
-	vndkCoreLibraries := vndkCoreLibraries(ctx.Config())
-	vndkSpLibraries := vndkSpLibraries(ctx.Config())
-	vndkPrivateLibraries := vndkPrivateLibraries(ctx.Config())
+	vndkCoreLibraries := android.SortedStringKeys(vndkCoreLibraries(ctx.Config()))
+	vndkSpLibraries := android.SortedStringKeys(vndkSpLibraries(ctx.Config()))
+	vndkPrivateLibraries := android.SortedStringKeys(vndkPrivateLibraries(ctx.Config()))
 
 	var generatedHeaders android.Paths
 	includeDirs := make(map[string]bool)
@@ -547,9 +547,9 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 			return nil, "", false
 		}
 		name := ctx.ModuleName(m)
-		if inList(name, *vndkCoreLibraries) {
+		if inList(name, vndkCoreLibraries) {
 			return l, filepath.Join("shared", "vndk-core"), true
-		} else if inList(name, *vndkSpLibraries) {
+		} else if inList(name, vndkSpLibraries) {
 			return l, filepath.Join("shared", "vndk-sp"), true
 		} else {
 			return nil, "", false
@@ -635,9 +635,9 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		}
 	}
 
-	installSnapshotFileFromContent(android.JoinWithSuffix(*vndkCoreLibraries, ".so", "\\n"),
+	installSnapshotFileFromContent(android.JoinWithSuffix(vndkCoreLibraries, ".so", "\\n"),
 		filepath.Join(configsDir, "vndkcore.libraries.txt"))
-	installSnapshotFileFromContent(android.JoinWithSuffix(*vndkPrivateLibraries, ".so", "\\n"),
+	installSnapshotFileFromContent(android.JoinWithSuffix(vndkPrivateLibraries, ".so", "\\n"),
 		filepath.Join(configsDir, "vndkprivate.libraries.txt"))
 
 	var modulePathTxtBuilder strings.Builder
@@ -660,75 +660,60 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		filepath.Join(configsDir, "module_paths.txt"))
 }
 
-func installListFile(ctx android.SingletonContext, list []string, pathComponents ...string) android.OutputPath {
-	out := android.PathForOutput(ctx, pathComponents...)
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      out,
-		Description: "Writing " + out.String(),
-		Args: map[string]string{
-			"content": strings.Join(list, "\\n"),
-		},
-	})
-	return out
+func getVndkFileName(m *Module) (string, error) {
+	if library, ok := m.linker.(*libraryDecorator); ok {
+		return library.getLibNameHelper(m.BaseModuleName(), true) + ".so", nil
+	}
+	if prebuilt, ok := m.linker.(*prebuiltLibraryLinker); ok {
+		return prebuilt.libraryDecorator.getLibNameHelper(m.BaseModuleName(), true) + ".so", nil
+	}
+	return "", fmt.Errorf("VNDK library should have libraryDecorator or prebuiltLibraryLinker as linker: %T", m.linker)
 }
 
 func (c *vndkSnapshotSingleton) buildVndkLibrariesTxtFiles(ctx android.SingletonContext) {
-	var (
-		llndk, vndkcore, vndksp, vndkprivate, vndkcorevariant, merged []string
-	)
-	vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
-	config := ctx.Config()
-	ctx.VisitAllModules(func(m android.Module) {
-		if !m.Enabled() {
-			return
+	// Make uses LLNDK_LIBRARIES to determine which libraries to install.
+	// HWASAN is only part of the LL-NDK in builds in which libc depends on HWASAN.
+	// Therefore, by removing the library here, we cause it to only be installed if libc
+	// depends on it.
+	installedLlndkLibraries := make(map[string]string)
+	for lib, filename := range llndkLibraries(ctx.Config()) {
+		if strings.HasPrefix(lib, "libclang_rt.hwasan-") {
+			continue
 		}
-		c, ok := m.(*Module)
-		if !ok || c.Os().Class != android.Device {
-			return
-		}
-		lib, ok := c.linker.(interface{ shared() bool })
-		if !ok || !lib.shared() {
-			return
-		}
+		installedLlndkLibraries[lib] = filename
+	}
 
-		if !c.OutputFile().Valid() {
-			return
-		}
+	installListFile := func(list []string, fileName string) android.Path {
+		out := android.PathForOutput(ctx, "vndk", fileName)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        android.WriteFile,
+			Output:      out,
+			Description: "Writing " + out.String(),
+			Args: map[string]string{
+				"content": strings.Join(list, "\\n"),
+			},
+		})
+		return out
+	}
 
-		filename := c.OutputFile().Path().Base()
-		if c.isLlndk(config) {
-			llndk = append(llndk, filename)
-			if c.isVndkPrivate(config) {
-				vndkprivate = append(vndkprivate, filename)
-			}
-		} else if c.vndkVersion() == vndkVersion && c.IsVndk() && !c.isVndkExt() {
-			if c.isVndkSp() {
-				vndksp = append(vndksp, filename)
-			} else {
-				vndkcore = append(vndkcore, filename)
-			}
-			if c.isVndkPrivate(config) {
-				vndkprivate = append(vndkprivate, filename)
-			}
-			if ctx.DeviceConfig().VndkUseCoreVariant() && !c.MustUseVendorVariant() {
-				vndkcorevariant = append(vndkcorevariant, filename)
-			}
-		}
-	})
-	llndk = android.SortedUniqueStrings(llndk)
-	vndkcore = android.SortedUniqueStrings(vndkcore)
-	vndksp = android.SortedUniqueStrings(vndksp)
-	vndkprivate = android.SortedUniqueStrings(vndkprivate)
-	vndkcorevariant = android.SortedUniqueStrings(vndkcorevariant)
+	c.installedLlndkLibraries = android.SortedStringKeys(installedLlndkLibraries)
 
-	installListFile(ctx, llndk, "vndk", "llndk.libraries.txt")
-	installListFile(ctx, vndkcore, "vndk", "vndkcore.libraries.txt")
-	installListFile(ctx, vndksp, "vndk", "vndksp.libraries.txt")
-	installListFile(ctx, vndkprivate, "vndk", "vndkprivate.libraries.txt")
-	installListFile(ctx, vndkcorevariant, "vndk", "vndkcorevariant.libraries.txt")
+	llndk := android.SortedStringMapValues(installedLlndkLibraries)
+	vndkcore := android.SortedStringMapValues(vndkCoreLibraries(ctx.Config()))
+	vndksp := android.SortedStringMapValues(vndkSpLibraries(ctx.Config()))
+	vndkprivate := android.SortedStringMapValues(vndkPrivateLibraries(ctx.Config()))
+	vndkcorevariant := android.SortedStringMapValues(vndkUsingCoreVariantLibraries(ctx.Config()))
+
+	c.llnkdLibrariesFile = installListFile(llndk, "llndk.libraries.txt")
+	c.vndkCoreLibrariesFile = installListFile(vndkcore, "vndkcore.libraries.txt")
+	c.vndkSpLibrariesFile = installListFile(vndksp, "vndksp.libraries.txt")
+	c.vndkPrivateLibrariesFile = installListFile(vndkprivate, "vndkprivate.libraries.txt")
+	c.vndkCoreVariantLibrariesFile = installListFile(vndkcorevariant, "vndkcorevariant.libraries.txt")
 
 	// merged & tagged & filtered-out(libclang_rt)
+	// Since each target have different set of libclang_rt.* files,
+	// keep the common set of files in vndk.libraries.txt
+	var merged []string
 	filterOutLibClangRt := func(libList []string) (filtered []string) {
 		for _, lib := range libList {
 			if !strings.HasPrefix(lib, "libclang_rt.") {
@@ -741,6 +726,31 @@ func (c *vndkSnapshotSingleton) buildVndkLibrariesTxtFiles(ctx android.Singleton
 	merged = append(merged, addPrefix(vndksp, "VNDK-SP: ")...)
 	merged = append(merged, addPrefix(filterOutLibClangRt(vndkcore), "VNDK-core: ")...)
 	merged = append(merged, addPrefix(vndkprivate, "VNDK-private: ")...)
+	c.vndkLibrariesFile = installListFile(merged, "vndk.libraries.txt")
+}
 
-	installListFile(ctx, merged, "vndk", "vndk.libraries.txt")
+func (c *vndkSnapshotSingleton) MakeVars(ctx android.MakeVarsContext) {
+	// Make uses LLNDK_MOVED_TO_APEX_LIBRARIES to avoid installing libraries on /system if
+	// they been moved to an apex.
+	movedToApexLlndkLibraries := []string{}
+	for _, lib := range c.installedLlndkLibraries {
+		// Skip bionic libs, they are handled in different manner
+		if android.DirectlyInAnyApex(&notOnHostContext{}, lib) && !isBionic(lib) {
+			movedToApexLlndkLibraries = append(movedToApexLlndkLibraries, lib)
+		}
+	}
+	ctx.Strict("LLNDK_MOVED_TO_APEX_LIBRARIES", strings.Join(movedToApexLlndkLibraries, " "))
+	ctx.Strict("LLNDK_LIBRARIES", strings.Join(c.installedLlndkLibraries, " "))
+	ctx.Strict("VNDK_CORE_LIBRARIES", strings.Join(android.SortedStringKeys(vndkCoreLibraries(ctx.Config())), " "))
+	ctx.Strict("VNDK_SAMEPROCESS_LIBRARIES", strings.Join(android.SortedStringKeys(vndkSpLibraries(ctx.Config())), " "))
+	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(android.SortedStringKeys(vndkPrivateLibraries(ctx.Config())), " "))
+	ctx.Strict("VNDK_USING_CORE_VARIANT_LIBRARIES", strings.Join(android.SortedStringKeys(vndkUsingCoreVariantLibraries(ctx.Config())), " "))
+
+	ctx.Strict("LLNDK_LIBRARIES_FILE", c.llnkdLibrariesFile.String())
+	ctx.Strict("VNDKCORE_LIBRARIES_FILE", c.vndkCoreLibrariesFile.String())
+	ctx.Strict("VNDKSP_LIBRARIES_FILE", c.vndkSpLibrariesFile.String())
+	ctx.Strict("VNDKPRIVATE_LIBRARIES_FILE", c.vndkPrivateLibrariesFile.String())
+	ctx.Strict("VNDKCOREVARIANT_LIBRARIES_FILE", c.vndkCoreVariantLibrariesFile.String())
+
+	ctx.Strict("VNDK_LIBRARIES_FILE", c.vndkLibrariesFile.String())
 }

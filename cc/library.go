@@ -579,24 +579,28 @@ type libraryInterface interface {
 	availableFor(string) bool
 }
 
-func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
+func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk bool) string {
 	name := library.libName
 	if name == "" {
 		name = String(library.Properties.Stem)
 		if name == "" {
-			name = ctx.baseModuleName()
+			name = baseModuleName
 		}
 	}
 
 	suffix := ""
-	if ctx.useVndk() {
+	if useVndk {
 		suffix = String(library.Properties.Target.Vendor.Suffix)
 	}
 	if suffix == "" {
 		suffix = String(library.Properties.Suffix)
 	}
 
-	name += suffix
+	return name + suffix
+}
+
+func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
+	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.useVndk())
 
 	if ctx.isVndkExt() {
 		// vndk-ext lib should have the same name with original lib
