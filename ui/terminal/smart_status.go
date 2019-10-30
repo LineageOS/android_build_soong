@@ -170,6 +170,13 @@ func (s *smartStatusOutput) FinishAction(result status.ActionResult, counts stat
 }
 
 func (s *smartStatusOutput) Flush() {
+	if s.tableMode {
+		// Stop the action table tick outside of the lock to avoid lock ordering issues between s.done and
+		// s.lock, the goroutine in startActionTableTick can get blocked on the lock and be unable to read
+		// from the channel.
+		s.stopActionTableTick()
+	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -180,8 +187,6 @@ func (s *smartStatusOutput) Flush() {
 	s.runningActions = nil
 
 	if s.tableMode {
-		s.stopActionTableTick()
-
 		// Update the table after clearing runningActions to clear it
 		s.actionTable()
 
