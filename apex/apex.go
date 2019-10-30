@@ -1176,7 +1176,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
 			}
-		} else {
+		} else if !a.vndkApex {
 			// indirect dependencies
 			if am, ok := child.(android.ApexModule); ok {
 				// We cannot use a switch statement on `depTag` here as the checked

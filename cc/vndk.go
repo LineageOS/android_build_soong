@@ -337,6 +337,10 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 		return false
 	}
 
+	if !mctx.Device() {
+		return false
+	}
+
 	if m.Target().NativeBridge == android.NativeBridgeEnabled {
 		return false
 	}
@@ -350,8 +354,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 
 	if lib, ok := m.linker.(libraryInterface); ok {
 		useCoreVariant := m.vndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
-			mctx.DeviceConfig().VndkUseCoreVariant() &&
-			!inList(m.BaseModuleName(), config.VndkMustUseVendorVariantList)
+			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
 		return lib.shared() && m.UseVndk() && m.IsVndk() && !m.isVndkExt() && !useCoreVariant
 	}
 	return false
