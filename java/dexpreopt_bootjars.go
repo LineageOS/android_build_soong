@@ -165,6 +165,8 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 
 	// Always create the default boot image first, to get a unique profile rule for all images.
 	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
+	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
+	buildBootImage(ctx, artBootImageConfig(ctx))
 	if global.GenerateApexImage {
 		d.otherImages = append(d.otherImages, buildBootImage(ctx, apexBootImageConfig(ctx)))
 	}
