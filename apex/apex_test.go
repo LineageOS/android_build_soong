@@ -1212,24 +1212,21 @@ func TestMacro(t *testing.T) {
 		}
 	`)
 
-	// non-APEX variant does not have __ANDROID__APEX__ defined
+	// non-APEX variant does not have __ANDROID_APEX(_NAME)__ defined
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
-	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
-	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
-	// APEX variant has __ANDROID_APEX__=<apexname> defined
+	// APEX variant has __ANDROID_APEX(_NAME)__ defined
 	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
-	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
-	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
-	// APEX variant has __ANDROID_APEX__=<apexname> defined
+	// APEX variant has __ANDROID_APEX(_NAME)__ defined
 	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_otherapex").Rule("cc").Args["cFlags"]
-	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__=myapex")
-	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__=otherapex")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 }

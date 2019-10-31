@@ -259,7 +259,7 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 		// The executable.
 		archDirs[archDir] = append(archDirs[archDir],
-			fileToZip{ccModule.outputFile.Path(), ccModule.Name()})
+			fileToZip{ccModule.UnstrippedOutputFile(), ccModule.Name()})
 
 		// The corpora.
 		for _, corpusEntry := range fuzzModule.corpus {
