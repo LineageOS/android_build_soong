@@ -194,16 +194,15 @@ func vndkIsVndkDepAllowed(from *vndkdep, to *vndkdep) error {
 }
 
 var (
-	vndkCoreLibrariesKey                = android.NewOnceKey("vndkCoreLibrarires")
-	vndkSpLibrariesKey                  = android.NewOnceKey("vndkSpLibrarires")
-	llndkLibrariesKey                   = android.NewOnceKey("llndkLibrarires")
-	vndkPrivateLibrariesKey             = android.NewOnceKey("vndkPrivateLibrarires")
-	vndkUsingCoreVariantLibrariesKey    = android.NewOnceKey("vndkUsingCoreVariantLibrarires")
-	modulePathsKey                      = android.NewOnceKey("modulePaths")
-	vndkSnapshotOutputsKey              = android.NewOnceKey("vndkSnapshotOutputs")
-	vndkMustUseVendorVariantListKey     = android.NewOnceKey("vndkMustUseVendorVariantListKey")
-	testVndkMustUseVendorVariantListKey = android.NewOnceKey("testVndkMustUseVendorVariantListKey")
-	vndkLibrariesLock                   sync.Mutex
+	vndkCoreLibrariesKey             = android.NewOnceKey("vndkCoreLibrarires")
+	vndkSpLibrariesKey               = android.NewOnceKey("vndkSpLibrarires")
+	llndkLibrariesKey                = android.NewOnceKey("llndkLibrarires")
+	vndkPrivateLibrariesKey          = android.NewOnceKey("vndkPrivateLibrarires")
+	vndkUsingCoreVariantLibrariesKey = android.NewOnceKey("vndkUsingCoreVariantLibrarires")
+	modulePathsKey                   = android.NewOnceKey("modulePaths")
+	vndkSnapshotOutputsKey           = android.NewOnceKey("vndkSnapshotOutputs")
+	vndkMustUseVendorVariantListKey  = android.NewOnceKey("vndkMustUseVendorVariantListKey")
+	vndkLibrariesLock                sync.Mutex
 
 	headerExts = []string{".h", ".hh", ".hpp", ".hxx", ".h++", ".inl", ".inc", ".ipp", ".h.generic"}
 )
@@ -252,12 +251,6 @@ func vndkSnapshotOutputs(config android.Config) *android.RuleBuilderInstalls {
 
 func vndkMustUseVendorVariantList(cfg android.Config) []string {
 	return cfg.Once(vndkMustUseVendorVariantListKey, func() interface{} {
-		override := cfg.Once(testVndkMustUseVendorVariantListKey, func() interface{} {
-			return []string(nil)
-		}).([]string)
-		if override != nil {
-			return override
-		}
 		return config.VndkMustUseVendorVariantList
 	}).([]string)
 }
@@ -265,7 +258,7 @@ func vndkMustUseVendorVariantList(cfg android.Config) []string {
 // test may call this to override global configuration(config.VndkMustUseVendorVariantList)
 // when it is called, it must be before the first call to vndkMustUseVendorVariantList()
 func setVndkMustUseVendorVariantListForTest(config android.Config, mustUseVendorVariantList []string) {
-	config.Once(testVndkMustUseVendorVariantListKey, func() interface{} {
+	config.Once(vndkMustUseVendorVariantListKey, func() interface{} {
 		return mustUseVendorVariantList
 	})
 }
