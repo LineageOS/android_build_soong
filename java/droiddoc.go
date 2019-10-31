@@ -1474,6 +1474,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 
 	cmd.BuiltTool(ctx, "metalava").
 		Flag(config.JavacVmFlags).
+		Flag("-J-Xmx6114m").
 		FlagWithArg("-encoding ", "UTF-8").
 		FlagWithArg("-source ", javaVersion.String()).
 		FlagWithRspFileInputList("@", srcs).
