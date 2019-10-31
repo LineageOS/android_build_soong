@@ -93,6 +93,12 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path,
 		rustcFlags = append(rustcFlags, "--target="+targetTriple)
 		linkFlags = append(linkFlags, "-target "+targetTriple)
 	}
+	// TODO once we have static libraries in the host prebuilt .bp, this
+	// should be unconditionally added.
+	if !ctx.Host() {
+		// If we're on a device build, do not use an implicit sysroot
+		rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
+	}
 	// Collect linker flags
 	linkFlags = append(linkFlags, flags.GlobalLinkFlags...)
 	linkFlags = append(linkFlags, flags.LinkFlags...)

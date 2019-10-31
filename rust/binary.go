@@ -16,7 +16,6 @@ package rust
 
 import (
 	"android/soong/android"
-	"android/soong/rust/config"
 )
 
 func init() {
@@ -88,12 +87,6 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 
 func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseCompiler.compilerDeps(ctx, deps)
-
-	if binary.preferDynamic() || len(deps.Dylibs) > 0 {
-		for _, stdlib := range config.Stdlibs {
-			deps.Dylibs = append(deps.Dylibs, stdlib+"_"+ctx.toolchain().RustTriple())
-		}
-	}
 
 	if ctx.toolchain().Bionic() {
 		deps = binary.baseCompiler.bionicDeps(ctx, deps)
