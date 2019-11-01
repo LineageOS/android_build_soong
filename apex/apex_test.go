@@ -818,8 +818,9 @@ func TestApexDependencyToLLNDK(t *testing.T) {
 			name: "libbar",
 			symbol_file: "",
 		}
-
-	`)
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorWhitelistForTest(config, []string{"myapex"})
+	})
 
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
@@ -1047,7 +1048,9 @@ func TestUseVendor(t *testing.T) {
 			vendor_available: true,
 			stl: "none",
 		}
-	`)
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorWhitelistForTest(config, []string{"myapex"})
+	})
 
 	inputsList := []string{}
 	for _, i := range ctx.ModuleForTests("myapex", "android_common_myapex").Module().BuildParamsForTests() {
@@ -1064,6 +1067,38 @@ func TestUseVendor(t *testing.T) {
 	// ensure that the apex does not include core variants
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib.so")
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib2.so")
+}
+
+func TestUseVendorRestriction(t *testing.T) {
+	testApexError(t, `module "myapex" .*: use_vendor: not allowed`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			use_vendor: true,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorWhitelistForTest(config, []string{""})
+	})
+	// no error with whitelist
+	testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			use_vendor: true,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorWhitelistForTest(config, []string{"myapex"})
+	})
 }
 
 func TestUseVendorFailsIfNotVendorAvailable(t *testing.T) {
@@ -2353,7 +2388,9 @@ func TestApexUsesFailsIfUseVenderMismatch(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`)
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorWhitelistForTest(config, []string{"myapex"})
+	})
 }
 
 func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
