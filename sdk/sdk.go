@@ -24,6 +24,7 @@ import (
 	// This package doesn't depend on the apex package, but import it to make its mutators to be
 	// registered before mutators in this package. See RegisterPostDepsMutators for more details.
 	_ "android/soong/apex"
+	"android/soong/cc"
 )
 
 func init() {
@@ -148,10 +149,17 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 
 		targets := mctx.MultiTargets()
 		for _, target := range targets {
-			mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-				{Mutator: "image", Variation: "core"},
-				{Mutator: "link", Variation: "shared"},
-			}...), sdkMemberDepTag, m.properties.Native_shared_libs...)
+			for _, lib := range m.properties.Native_shared_libs {
+				name, version := cc.StubsLibNameAndVersion(lib)
+				if version == "" {
+					version = cc.LatestStubsVersionFor(mctx.Config(), name)
+				}
+				mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
+					{Mutator: "image", Variation: "core"},
+					{Mutator: "link", Variation: "shared"},
+					{Mutator: "version", Variation: version},
+				}...), sdkMemberDepTag, name)
+			}
 		}
 	}
 }
