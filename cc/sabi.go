@@ -78,7 +78,7 @@ func (sabimod *sabi) flags(ctx ModuleContext, flags Flags) Flags {
 
 func sabiDepsMutator(mctx android.TopDownMutatorContext) {
 	if c, ok := mctx.Module().(*Module); ok &&
-		((c.IsVndk() && c.UseVndk()) || inList(c.Name(), *llndkLibraries(mctx.Config())) ||
+		((c.IsVndk() && c.UseVndk()) || c.isLlndk(mctx.Config()) ||
 			(c.sabi != nil && c.sabi.Properties.CreateSAbiDumps)) {
 		mctx.VisitDirectDeps(func(m android.Module) {
 			tag := mctx.OtherModuleDependencyTag(m)
