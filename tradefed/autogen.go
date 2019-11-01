@@ -105,6 +105,10 @@ func (ob Object) Config() string {
 }
 
 func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, template string, configs []Config) {
+	autogenTemplateWithName(ctx, ctx.ModuleName(), output, template, configs)
+}
+
+func autogenTemplateWithName(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config) {
 	var configStrings []string
 	for _, config := range configs {
 		configStrings = append(configStrings, config.Config())
@@ -117,7 +121,7 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 		Description: "test config",
 		Output:      output,
 		Args: map[string]string{
-			"name":         ctx.ModuleName(),
+			"name":         name,
 			"template":     template,
 			"extraConfigs": extraConfigs,
 		},
@@ -188,6 +192,21 @@ func AutoGenPythonBinaryHostTestConfig(ctx android.ModuleContext, testConfigProp
 		} else {
 			autogenTemplate(ctx, autogenPath, "${PythonBinaryHostTestConfigTemplate}", nil)
 		}
+		return autogenPath
+	}
+	return path
+}
+
+func AutoGenRustHostTestConfig(ctx android.ModuleContext, name string, testConfigProp *string,
+	testConfigTemplateProp *string, testSuites []string, autoGenConfig *bool) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig)
+	if autogenPath != nil {
+		templatePathString := "${RustHostTestConfigTemplate}"
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			templatePathString = templatePath.String()
+		}
+		autogenTemplateWithName(ctx, name, autogenPath, templatePathString, nil)
 		return autogenPath
 	}
 	return path
