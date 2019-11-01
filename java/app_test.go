@@ -399,18 +399,21 @@ func TestAndroidResources(t *testing.T) {
 
 			android_library {
 				name: "lib",
+				sdk_version: "current",
 				resource_dirs: ["lib/res"],
 				static_libs: ["lib2"],
 			}
 
 			android_library {
 				name: "lib2",
+				sdk_version: "current",
 				resource_dirs: ["lib2/res"],
 			}
 
 			// This library has the same resources as lib (should not lead to dupe RROs)
 			android_library {
 				name: "lib3",
+				sdk_version: "current",
 				resource_dirs: ["lib/res"]
 			}
 		`
