@@ -333,6 +333,34 @@ func apexUsesMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+var (
+	useVendorWhitelistKey = android.NewOnceKey("useVendorWhitelist")
+)
+
+// useVendorWhitelist returns the list of APEXes which are allowed to use_vendor.
+// When use_vendor is used, native modules are built with __ANDROID_VNDK__ and __ANDROID_APEX__,
+// which may cause compatibility issues. (e.g. libbinder)
+// Even though libbinder restricts its availability via 'apex_available' property and relies on
+// yet another macro __ANDROID_APEX_<NAME>__, we restrict usage of "use_vendor:" from other APEX modules
+// to avoid similar problems.
+func useVendorWhitelist(config android.Config) []string {
+	return config.Once(useVendorWhitelistKey, func() interface{} {
+		return []string{
+			// swcodec uses "vendor" variants for smaller size
+			"com.android.media.swcodec",
+			"test_com.android.media.swcodec",
+		}
+	}).([]string)
+}
+
+// setUseVendorWhitelistForTest overrides useVendorWhitelist and must be
+// called before the first call to useVendorWhitelist()
+func setUseVendorWhitelistForTest(config android.Config, whitelist []string) {
+	config.Once(useVendorWhitelistKey, func() interface{} {
+		return whitelist
+	})
+}
+
 type apexNativeDependencies struct {
 	// List of native libraries
 	Native_shared_libs []string
@@ -661,6 +689,10 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if proptools.Bool(a.properties.Use_vendor) && !android.InList(a.Name(), useVendorWhitelist(ctx.Config())) {
+		ctx.PropertyErrorf("use_vendor", "not allowed to set use_vendor: true")
+	}
+
 	targets := ctx.MultiTargets()
 	config := ctx.DeviceConfig()
 
