@@ -293,6 +293,7 @@ func TestVndk(t *testing.T) {
 				enabled: true,
 			},
 			nocrt: true,
+			stem: "libvndk-private",
 		}
 
 		cc_library {
@@ -303,6 +304,7 @@ func TestVndk(t *testing.T) {
 				support_system_process: true,
 			},
 			nocrt: true,
+			suffix: "-x",
 		}
 
 		cc_library {
@@ -313,6 +315,11 @@ func TestVndk(t *testing.T) {
 				support_system_process: true,
 			},
 			nocrt: true,
+			target: {
+				vendor: {
+					suffix: "-x",
+				},
+			},
 		}
 	`, config)
 
@@ -345,9 +352,9 @@ func TestVndk(t *testing.T) {
 	checkVndkSnapshot(t, ctx, "libvndk_sp", vndkSpLib2ndPath, variant2nd)
 
 	checkVndkOutput(t, ctx, "vndk/llndk.libraries.txt", []string{"libc.so", "libdl.so", "libft2.so", "libm.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{"libvndk.so", "libvndk_private.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkprivate.libraries.txt", []string{"libft2.so", "libvndk_private.so", "libvndk_sp_private.so"})
-	checkVndkOutput(t, ctx, "vndk/vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp.so", "libvndk_sp_private.so"})
+	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so"})
+	checkVndkOutput(t, ctx, "vndk/vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so"})
+	checkVndkOutput(t, ctx, "vndk/vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so"})
 	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", nil)
 	// merged & tagged & filtered-out(libclang_rt)
 	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
@@ -356,14 +363,27 @@ func TestVndk(t *testing.T) {
 		"LLNDK: libft2.so",
 		"LLNDK: libm.so",
 		"VNDK-SP: libc++.so",
-		"VNDK-SP: libvndk_sp.so",
-		"VNDK-SP: libvndk_sp_private.so",
+		"VNDK-SP: libvndk_sp-x.so",
+		"VNDK-SP: libvndk_sp_private-x.so",
+		"VNDK-core: libvndk-private.so",
 		"VNDK-core: libvndk.so",
-		"VNDK-core: libvndk_private.so",
 		"VNDK-private: libft2.so",
-		"VNDK-private: libvndk_private.so",
-		"VNDK-private: libvndk_sp_private.so",
+		"VNDK-private: libvndk-private.so",
+		"VNDK-private: libvndk_sp_private-x.so",
 	})
+	checkVndkOutput(t, ctx, "vndk/llndk.libraries.txt", []string{
+		"libc.so", "libdl.so", "libft2.so", "libm.so",
+	})
+	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{
+		"libvndk-private.so", "libvndk.so",
+	})
+	checkVndkOutput(t, ctx, "vndk/vndksp.libraries.txt", []string{
+		"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so",
+	})
+	checkVndkOutput(t, ctx, "vndk/vndkprivate.libraries.txt", []string{
+		"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so",
+	})
+	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", []string{})
 }
 
 func TestVndkUsingCoreVariant(t *testing.T) {
@@ -405,7 +425,36 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 	`, config)
 
 	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{"libvndk.so", "libvndk2.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", []string{"libvndk2.so"})
+	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", []string{
+		"libc++.so", "libvndk2.so", "libvndk_sp.so",
+	})
+}
+
+func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
+	config := android.TestArchConfig(buildDir, nil)
+	config.TestProductVariables.DeviceVndkVersion = nil
+	config.TestProductVariables.Platform_vndk_version = nil
+
+	ctx := testCcWithConfig(t, `
+		cc_library {
+			name: "libvndk",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+	`, config)
+
+	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
+		"LLNDK: libc.so",
+		"LLNDK: libdl.so",
+		"LLNDK: libft2.so",
+		"LLNDK: libm.so",
+		"VNDK-SP: libc++.so",
+		"VNDK-core: libvndk.so",
+		"VNDK-private: libft2.so",
+	})
 }
 
 func TestVndkDepError(t *testing.T) {
@@ -1431,13 +1480,13 @@ func TestMakeLinkType(t *testing.T) {
 		symbol_file: "",
 	}`, config)
 
-	assertArrayString(t, *vndkCoreLibraries(config),
+	assertMapKeys(t, vndkCoreLibraries(config),
 		[]string{"libvndk", "libvndkprivate"})
-	assertArrayString(t, *vndkSpLibraries(config),
+	assertMapKeys(t, vndkSpLibraries(config),
 		[]string{"libc++", "libvndksp"})
-	assertArrayString(t, *llndkLibraries(config),
+	assertMapKeys(t, llndkLibraries(config),
 		[]string{"libc", "libdl", "libft2", "libllndk", "libllndkprivate", "libm"})
-	assertArrayString(t, *vndkPrivateLibraries(config),
+	assertMapKeys(t, vndkPrivateLibraries(config),
 		[]string{"libft2", "libllndkprivate", "libvndkprivate"})
 
 	vendorVariant27 := "android_arm64_armv8-a_vendor.27_shared"
@@ -2417,6 +2466,11 @@ func assertArrayString(t *testing.T, got, expected []string) {
 			return
 		}
 	}
+}
+
+func assertMapKeys(t *testing.T, m map[string]string, expected []string) {
+	t.Helper()
+	assertArrayString(t, android.SortedStringKeys(m), expected)
 }
 
 func TestDefaults(t *testing.T) {

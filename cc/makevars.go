@@ -101,35 +101,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
 
-	ctx.Strict("VNDK_CORE_LIBRARIES", strings.Join(*vndkCoreLibraries(ctx.Config()), " "))
-	ctx.Strict("VNDK_SAMEPROCESS_LIBRARIES", strings.Join(*vndkSpLibraries(ctx.Config()), " "))
-
-	// Make uses LLNDK_LIBRARIES to determine which libraries to install.
-	// HWASAN is only part of the LL-NDK in builds in which libc depends on HWASAN.
-	// Therefore, by removing the library here, we cause it to only be installed if libc
-	// depends on it.
-	installedLlndkLibraries := []string{}
-
-	// Make uses LLNDK_MOVED_TO_APEX_LIBRARIES to avoid installing libraries on /system if
-	// they been moved to an apex.
-	movedToApexLlndkLibraries := []string{}
-	for _, lib := range *llndkLibraries(ctx.Config()) {
-		if strings.HasPrefix(lib, "libclang_rt.hwasan-") {
-			continue
-		}
-		installedLlndkLibraries = append(installedLlndkLibraries, lib)
-
-		// Skip bionic libs, they are handled in different manner
-		if android.DirectlyInAnyApex(&notOnHostContext{}, lib) && !isBionic(lib) {
-			movedToApexLlndkLibraries = append(movedToApexLlndkLibraries, lib)
-		}
-	}
-	ctx.Strict("LLNDK_LIBRARIES", strings.Join(installedLlndkLibraries, " "))
-	ctx.Strict("LLNDK_MOVED_TO_APEX_LIBRARIES", strings.Join(movedToApexLlndkLibraries, " "))
-
-	ctx.Strict("VNDK_PRIVATE_LIBRARIES", strings.Join(*vndkPrivateLibraries(ctx.Config()), " "))
-	ctx.Strict("VNDK_USING_CORE_VARIANT_LIBRARIES", strings.Join(*vndkUsingCoreVariantLibraries(ctx.Config()), " "))
-
 	// Filter vendor_public_library that are exported to make
 	exportedVendorPublicLibraries := []string{}
 	ctx.VisitAllModules(func(module android.Module) {
