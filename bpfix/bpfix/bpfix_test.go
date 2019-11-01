@@ -833,3 +833,57 @@ func TestRewriteAndroidAppImport(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveEmptyLibDependencies(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "remove sole shared lib",
+			in: `
+				cc_library {
+					name: "foo",
+					shared_libs: ["libhwbinder"],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+
+				}
+			`,
+		},
+		{
+			name: "remove a shared lib",
+			in: `
+				cc_library {
+					name: "foo",
+					shared_libs: [
+						"libhwbinder",
+						"libfoo",
+						"libhidltransport",
+					],
+				}
+			`,
+			out: `
+				cc_library {
+					name: "foo",
+					shared_libs: [
+
+						"libfoo",
+
+					],
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return removeEmptyLibDependencies(fixer)
+			})
+		})
+	}
+}
