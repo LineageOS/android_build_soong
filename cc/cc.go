@@ -745,17 +745,18 @@ func (c *Module) isNdk() bool {
 
 func (c *Module) isLlndk(config android.Config) bool {
 	// Returns true for both LLNDK (public) and LLNDK-private libs.
-	return inList(c.BaseModuleName(), *llndkLibraries(config))
+	return isLlndkLibrary(c.BaseModuleName(), config)
 }
 
 func (c *Module) isLlndkPublic(config android.Config) bool {
 	// Returns true only for LLNDK (public) libs.
-	return c.isLlndk(config) && !c.isVndkPrivate(config)
+	name := c.BaseModuleName()
+	return isLlndkLibrary(name, config) && !isVndkPrivateLibrary(name, config)
 }
 
 func (c *Module) isVndkPrivate(config android.Config) bool {
 	// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
-	return inList(c.BaseModuleName(), *vndkPrivateLibraries(config))
+	return isVndkPrivateLibrary(c.BaseModuleName(), config)
 }
 
 func (c *Module) IsVndk() bool {
@@ -851,6 +852,27 @@ func (c *Module) nativeCoverage() bool {
 		return false
 	}
 	return c.linker != nil && c.linker.nativeCoverage()
+}
+
+func (c *Module) ExportedIncludeDirs() android.Paths {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedDirs()
+	}
+	return []android.Path{}
+}
+
+func (c *Module) ExportedSystemIncludeDirs() android.Paths {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedSystemDirs()
+	}
+	return []android.Path{}
+}
+
+func (c *Module) ExportedFlags() []string {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedFlags()
+	}
+	return []string{}
 }
 
 func isBionic(name string) bool {
@@ -1456,7 +1478,7 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 }
 
 // Split name#version into name and version
-func stubsLibNameAndVersion(name string) (string, string) {
+func StubsLibNameAndVersion(name string) (string, string) {
 	if sharp := strings.LastIndex(name, "#"); sharp != -1 && sharp != len(name)-1 {
 		version := name[sharp+1:]
 		libname := name[:sharp]
@@ -1496,21 +1518,20 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		// The caller can then know to add the variantLibs dependencies differently from the
 		// nonvariantLibs
 
-		llndkLibraries := llndkLibraries(actx.Config())
 		vendorPublicLibraries := vendorPublicLibraries(actx.Config())
 		rewriteNdkLibs := func(list []string) (nonvariantLibs []string, variantLibs []string) {
 			variantLibs = []string{}
 			nonvariantLibs = []string{}
 			for _, entry := range list {
 				// strip #version suffix out
-				name, _ := stubsLibNameAndVersion(entry)
+				name, _ := StubsLibNameAndVersion(entry)
 				if ctx.useSdk() && inList(name, ndkPrebuiltSharedLibraries) {
 					if !inList(name, ndkMigratedLibs) {
 						nonvariantLibs = append(nonvariantLibs, name+".ndk."+version)
 					} else {
 						variantLibs = append(variantLibs, name+ndkLibrarySuffix)
 					}
-				} else if ctx.useVndk() && inList(name, *llndkLibraries) {
+				} else if ctx.useVndk() && isLlndkLibrary(name, ctx.Config()) {
 					nonvariantLibs = append(nonvariantLibs, name+llndkLibrarySuffix)
 				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, *vendorPublicLibraries) {
 					vendorPublicLib := name + vendorPublicLibrarySuffix
@@ -1609,7 +1630,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		// If the version is not specified, add dependency to the latest stubs library.
 		// The stubs library will be used when the depending module is built for APEX and
 		// the dependent module is not in the same APEX.
-		latestVersion := latestStubsVersionFor(actx.Config(), name)
+		latestVersion := LatestStubsVersionFor(actx.Config(), name)
 		if version == "" && latestVersion != "" && versionVariantAvail {
 			actx.AddVariationDependencies([]blueprint.Variation{
 				{Mutator: "link", Variation: "shared"},
@@ -1632,7 +1653,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			lib = impl
 		}
 
-		name, version := stubsLibNameAndVersion(lib)
+		name, version := StubsLibNameAndVersion(lib)
 		sharedLibNames = append(sharedLibNames, name)
 
 		addSharedLibDependencies(depTag, name, version)
@@ -1820,7 +1841,6 @@ func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to Linkabl
 // it is subject to be double loaded. Such lib should be explicitly marked as double_loadable: true
 // or as vndk-sp (vndk: { enabled: true, support_system_process: true}).
 func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
-	llndkLibraries := llndkLibraries(ctx.Config())
 	check := func(child, parent android.Module) bool {
 		to, ok := child.(*Module)
 		if !ok {
@@ -1837,7 +1857,7 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return true
 		}
 
-		if to.isVndkSp() || inList(child.Name(), *llndkLibraries) || Bool(to.VendorProperties.Double_loadable) {
+		if to.isVndkSp() || to.isLlndk(ctx.Config()) || Bool(to.VendorProperties.Double_loadable) {
 			return false
 		}
 
@@ -1852,7 +1872,7 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 	}
 	if module, ok := ctx.Module().(*Module); ok {
 		if lib, ok := module.linker.(*libraryDecorator); ok && lib.shared() {
-			if inList(ctx.ModuleName(), *llndkLibraries) || Bool(module.VendorProperties.Double_loadable) {
+			if module.isLlndk(ctx.Config()) || Bool(module.VendorProperties.Double_loadable) {
 				ctx.WalkDeps(check)
 			}
 		}
@@ -1866,7 +1886,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	directStaticDeps := []LinkableInterface{}
 	directSharedDeps := []LinkableInterface{}
 
-	llndkLibraries := llndkLibraries(ctx.Config())
 	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
 
 	reexportExporter := func(exporter exportedFlagsProducer) {
@@ -2138,7 +2157,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
 			libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
 			libName = strings.TrimPrefix(libName, "prebuilt_")
-			isLLndk := inList(libName, *llndkLibraries)
+			isLLndk := isLlndkLibrary(libName, ctx.Config())
 			isVendorPublicLib := inList(libName, *vendorPublicLibraries)
 			bothVendorAndCoreVariantsExist := ccDep.HasVendorVariant() || isLLndk
 
@@ -2329,7 +2348,9 @@ func (c *Module) IsInstallableToApex() bool {
 	if shared, ok := c.linker.(interface {
 		shared() bool
 	}); ok {
-		return shared.shared()
+		// Stub libs and prebuilt libs in a versioned SDK are not
+		// installable to APEX even though they are shared libs.
+		return shared.shared() && !c.IsStubs() && c.ContainingSdk().Unversioned()
 	} else if _, ok := c.linker.(testPerSrc); ok {
 		return true
 	}

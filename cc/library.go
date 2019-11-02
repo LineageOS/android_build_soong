@@ -158,6 +158,10 @@ type FlagExporterProperties struct {
 	// listed in local_include_dirs.
 	Export_include_dirs []string `android:"arch_variant"`
 
+	// list of directories that will be added to the system include path
+	// using -isystem for this module and any module that links against this module.
+	Export_system_include_dirs []string `android:"arch_variant"`
+
 	Target struct {
 		Vendor struct {
 			// list of exported include directories, like
@@ -245,10 +249,13 @@ func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
 
 func (f *flagExporter) exportIncludes(ctx ModuleContext) {
 	f.dirs = append(f.dirs, f.exportedIncludes(ctx)...)
+	f.systemDirs = append(f.systemDirs, android.PathsForModuleSrc(ctx, f.Properties.Export_system_include_dirs)...)
 }
 
 func (f *flagExporter) exportIncludesAsSystem(ctx ModuleContext) {
+	// all dirs are force exported as system
 	f.systemDirs = append(f.systemDirs, f.exportedIncludes(ctx)...)
+	f.systemDirs = append(f.systemDirs, android.PathsForModuleSrc(ctx, f.Properties.Export_system_include_dirs)...)
 }
 
 func (f *flagExporter) reexportDirs(dirs ...android.Path) {
@@ -579,24 +586,28 @@ type libraryInterface interface {
 	availableFor(string) bool
 }
 
-func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
+func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk bool) string {
 	name := library.libName
 	if name == "" {
 		name = String(library.Properties.Stem)
 		if name == "" {
-			name = ctx.baseModuleName()
+			name = baseModuleName
 		}
 	}
 
 	suffix := ""
-	if ctx.useVndk() {
+	if useVndk {
 		suffix = String(library.Properties.Target.Vendor.Suffix)
 	}
 	if suffix == "" {
 		suffix = String(library.Properties.Suffix)
 	}
 
-	name += suffix
+	return name + suffix
+}
+
+func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
+	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.useVndk())
 
 	if ctx.isVndkExt() {
 		// vndk-ext lib should have the same name with original lib
@@ -1294,7 +1305,7 @@ func stubsVersionsFor(config android.Config) map[string][]string {
 
 var stubsVersionsLock sync.Mutex
 
-func latestStubsVersionFor(config android.Config, name string) string {
+func LatestStubsVersionFor(config android.Config, name string) string {
 	versions, ok := stubsVersionsFor(config)[name]
 	if ok && len(versions) > 0 {
 		// the versions are alreay sorted in ascending order
