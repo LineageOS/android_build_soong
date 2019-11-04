@@ -52,6 +52,7 @@ func (library *Library) AndroidMkHostDex(w io.Writer, name string, entries *andr
 		if r := library.deviceProperties.Target.Hostdex.Required; len(r) > 0 {
 			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(r, " "))
 		}
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", library.Stem()+"-hostdex")
 		fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
 	}
 }
@@ -102,6 +103,7 @@ func (library *Library) AndroidMkEntries() android.AndroidMkEntries {
 				if library.proguardDictionary != nil {
 					entries.SetPath("LOCAL_SOONG_PROGUARD_DICT", library.proguardDictionary)
 				}
+				entries.SetString("LOCAL_MODULE_STEM", library.Stem())
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
@@ -160,6 +162,7 @@ func (prebuilt *Import) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.combinedClasspathFile)
 				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedClasspathFile)
 				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion())
+				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 			},
 		},
 	}
@@ -187,6 +190,7 @@ func (prebuilt *DexImport) AndroidMkEntries() android.AndroidMkEntries {
 				if len(prebuilt.dexpreopter.builtInstalled) > 0 {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", prebuilt.dexpreopter.builtInstalled)
 				}
+				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 			},
 		},
 	}
