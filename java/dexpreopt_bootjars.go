@@ -123,6 +123,10 @@ func dexpreoptBootJarsFactory() android.Singleton {
 }
 
 func skipDexpreoptBootJars(ctx android.PathContext) bool {
+	if dexpreoptGlobalConfig(ctx).DisablePreopt {
+		return true
+	}
+
 	if ctx.Config().UnbundledBuild() {
 		return true
 	}
