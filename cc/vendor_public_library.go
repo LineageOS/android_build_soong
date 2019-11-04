@@ -124,7 +124,7 @@ func (stub *vendorPublicLibraryStubDecorator) link(ctx ModuleContext, flags Flag
 	objs Objects) android.Path {
 	if !Bool(stub.Properties.Unversioned) {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
-		flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlag)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
 	}
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)

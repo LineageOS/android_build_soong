@@ -114,13 +114,13 @@ func protoDeps(ctx DepsContext, deps Deps, p *android.ProtoProperties, static bo
 }
 
 func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flags {
-	flags.CFlags = append(flags.CFlags, "-DGOOGLE_PROTOBUF_NO_RTTI")
+	flags.Local.CFlags = append(flags.Local.CFlags, "-DGOOGLE_PROTOBUF_NO_RTTI")
 
 	flags.proto = android.GetProtoFlags(ctx, p)
 	if flags.proto.CanonicalPathFromRoot {
-		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+flags.proto.SubDir.String())
+		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-I"+flags.proto.SubDir.String())
 	}
-	flags.GlobalFlags = append(flags.GlobalFlags, "-I"+flags.proto.Dir.String())
+	flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-I"+flags.proto.Dir.String())
 
 	if String(p.Proto.Plugin) == "" {
 		var plugin string

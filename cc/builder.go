@@ -261,8 +261,7 @@ func init() {
 }
 
 type builderFlags struct {
-	globalFlags     string
-	arFlags         string
+	commonFlags     string
 	asFlags         string
 	cFlags          string
 	toolingCFlags   string // A separate set of cFlags for clang LibTooling tools
@@ -350,7 +349,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 	}
 
 	commonFlags := strings.Join([]string{
-		flags.globalFlags,
+		flags.commonFlags,
 		flags.systemIncludeFlags,
 	}, " ")
 
@@ -566,9 +565,6 @@ func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
 	arFlags := "crsPD"
 	if !ctx.Darwin() {
 		arFlags += " -format=gnu"
-	}
-	if flags.arFlags != "" {
-		arFlags += " " + flags.arFlags
 	}
 
 	ctx.Build(pctx, android.BuildParams{

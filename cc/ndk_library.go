@@ -257,7 +257,7 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 }
 
 func addStubLibraryCompilerFlags(flags Flags) Flags {
-	flags.CFlags = append(flags.CFlags,
+	flags.Global.CFlags = append(flags.Global.CFlags,
 		// We're knowingly doing some otherwise unsightly things with builtin
 		// functions here. We're just generating stub libraries, so ignore it.
 		"-Wno-incompatible-library-redeclaration",
@@ -337,7 +337,7 @@ func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 
 	if useVersionScript {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
-		flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlag)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
 	}
 

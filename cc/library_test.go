@@ -181,7 +181,7 @@ func TestLibraryReuse(t *testing.T) {
 		}
 
 		libfoo := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Module().(*Module)
-		if !inList("-DGOOGLE_PROTOBUF_NO_RTTI", libfoo.flags.CFlags) {
+		if !inList("-DGOOGLE_PROTOBUF_NO_RTTI", libfoo.flags.Local.CFlags) {
 			t.Errorf("missing protobuf cflags")
 		}
 	})
