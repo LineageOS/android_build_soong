@@ -1325,13 +1325,8 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		validatingNullability :=
 			strings.Contains(d.Javadoc.args, "--validate-nullability-from-merged-stubs") ||
 				String(d.properties.Validate_nullability_from_list) != ""
+
 		migratingNullability := String(d.properties.Previous_api) != ""
-
-		if !(migratingNullability || validatingNullability) {
-			ctx.PropertyErrorf("previous_api",
-				"has to be non-empty if annotations was enabled (unless validating nullability)")
-		}
-
 		if migratingNullability {
 			previousApi := android.PathForModuleSrc(ctx, String(d.properties.Previous_api))
 			cmd.FlagWithInput("--migrate-nullness ", previousApi)
