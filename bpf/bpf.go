@@ -33,7 +33,7 @@ func init() {
 var (
 	pctx = android.NewPackageContext("android/soong/bpf")
 
-	cc = pctx.AndroidGomaStaticRule("cc",
+	cc = pctx.AndroidRemoteStaticRule("cc", android.SUPPORTS_GOMA,
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
