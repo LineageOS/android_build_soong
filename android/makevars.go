@@ -80,6 +80,12 @@ type MakeVarsContext interface {
 	// Eval().
 	StrictRaw(name, value string)
 	CheckRaw(name, value string)
+
+	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
+	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
+	// builder whenever a file matching the pattern as added or removed, without rerunning if a
+	// file that does not match the pattern is added to a searched directory.
+	GlobWithDeps(pattern string, excludes []string) ([]string, error)
 }
 
 var _ PathContext = MakeVarsContext(nil)
