@@ -15,6 +15,9 @@
 package rust
 
 import (
+	"regexp"
+	"strings"
+
 	"android/soong/android"
 )
 
@@ -352,6 +355,33 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	library.unstrippedOutputFile = outputFile
 
 	return outputFile
+}
+
+func (library *libraryDecorator) getStem(ctx ModuleContext) string {
+	stem := library.baseCompiler.getStemWithoutSuffix(ctx)
+	validateLibraryStem(ctx, stem, library.crateName())
+
+	return stem + String(library.baseCompiler.Properties.Suffix)
+}
+
+var validCrateName = regexp.MustCompile("[^a-zA-Z0-9_]+")
+
+func validateLibraryStem(ctx BaseModuleContext, filename string, crate_name string) {
+	if crate_name == "" {
+		ctx.PropertyErrorf("crate_name", "crate_name must be defined.")
+	}
+
+	// crate_names are used for the library output file, and rustc expects these
+	// to be alphanumeric with underscores allowed.
+	if validCrateName.MatchString(crate_name) {
+		ctx.PropertyErrorf("crate_name",
+			"library crate_names must be alphanumeric with underscores allowed")
+	}
+
+	// Libraries are expected to begin with "lib" followed by the crate_name
+	if !strings.HasPrefix(filename, "lib"+crate_name) {
+		ctx.ModuleErrorf("Invalid name or stem property; library filenames must start with lib<crate_name>")
+	}
 }
 
 func LibraryMutator(mctx android.BottomUpMutatorContext) {

@@ -88,7 +88,9 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path,
 	rustcFlags = append(rustcFlags, flags.GlobalRustFlags...)
 	rustcFlags = append(rustcFlags, flags.RustFlags...)
 	rustcFlags = append(rustcFlags, "--crate-type="+crate_type)
-	rustcFlags = append(rustcFlags, "--crate-name="+crate_name)
+	if crate_name != "" {
+		rustcFlags = append(rustcFlags, "--crate-name="+crate_name)
+	}
 	if targetTriple != "" {
 		rustcFlags = append(rustcFlags, "--target="+targetTriple)
 		linkFlags = append(linkFlags, "-target "+targetTriple)

@@ -129,44 +129,33 @@ func TestLinkPathFromFilePath(t *testing.T) {
 	}
 }
 
-// Test default crate names from module names are generated correctly.
-func TestDefaultCrateName(t *testing.T) {
-	ctx := testRust(t, `
-		rust_library_host_dylib {
-			name: "fizz-buzz",
-			srcs: ["foo.rs"],
-		}`)
-	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64_dylib").Module().(*Module)
-	crateName := module.CrateName()
-	expectedResult := "fizz_buzz"
-
-	if crateName != expectedResult {
-		t.Errorf("CrateName() returned the wrong default crate name; expected '%#v', got '%#v'", expectedResult, crateName)
-	}
-}
-
 // Test to make sure dependencies are being picked up correctly.
 func TestDepsTracking(t *testing.T) {
 	ctx := testRust(t, `
 		rust_library_host_static {
 			name: "libstatic",
 			srcs: ["foo.rs"],
+			crate_name: "static",
 		}
 		rust_library_host_shared {
 			name: "libshared",
 			srcs: ["foo.rs"],
+			crate_name: "shared",
 		}
 		rust_library_host_dylib {
 			name: "libdylib",
 			srcs: ["foo.rs"],
+			crate_name: "dylib",
 		}
 		rust_library_host_rlib {
 			name: "librlib",
 			srcs: ["foo.rs"],
+			crate_name: "rlib",
 		}
 		rust_proc_macro {
 			name: "libpm",
 			srcs: ["foo.rs"],
+			crate_name: "pm",
 		}
 		rust_binary_host {
 			name: "fizz-buzz",
@@ -208,11 +197,13 @@ func TestProcMacroDeviceDeps(t *testing.T) {
 		rust_library_host_rlib {
 			name: "libbar",
 			srcs: ["foo.rs"],
+			crate_name: "bar",
 		}
 		rust_proc_macro {
 			name: "libpm",
 			rlibs: ["libbar"],
 			srcs: ["foo.rs"],
+			crate_name: "pm",
 		}
 		rust_binary {
 			name: "fizz-buzz",
