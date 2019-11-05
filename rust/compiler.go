@@ -18,9 +18,10 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/rust/config"
-	"github.com/google/blueprint/proptools"
 )
 
 func getEdition(compiler *baseCompiler) string {
@@ -64,7 +65,7 @@ type BaseCompilerProperties struct {
 	// list of C static library dependencies
 	Static_libs []string `android:"arch_variant"`
 
-	// crate name (defaults to module name); if library, this must be the expected extern crate name
+	// crate name, required for libraries. This must be the expected extern crate name used in source
 	Crate_name string `android:"arch_variant"`
 
 	// list of features to enable for this crate
@@ -207,6 +208,7 @@ func (compiler *baseCompiler) getStemWithoutSuffix(ctx BaseModuleContext) string
 
 	return stem
 }
+
 func (compiler *baseCompiler) relativeInstallPath() string {
 	return String(compiler.Properties.Relative_install_path)
 }
