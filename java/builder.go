@@ -238,12 +238,14 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 	flags javaBuilderFlags, deps android.Paths) {
 
 	deps = append(deps, srcJars...)
+	classpath := flags.classpath
 
 	var bootClasspath string
 	if flags.javaVersion.usesJavaModules() {
 		var systemModuleDeps android.Paths
 		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
 		deps = append(deps, systemModuleDeps...)
+		classpath = append(flags.java9Classpath, classpath...)
 	} else {
 		deps = append(deps, flags.bootClasspath...)
 		if len(flags.bootClasspath) == 0 && ctx.Device() {
@@ -255,7 +257,7 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 		}
 	}
 
-	deps = append(deps, flags.classpath...)
+	deps = append(deps, classpath...)
 	deps = append(deps, flags.processorPath...)
 
 	processor := "-proc:none"
@@ -278,7 +280,7 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 			Args: map[string]string{
 				"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, "anno").String(),
 				"bootClasspath": bootClasspath,
-				"classpath":     flags.classpath.FormJavaClassPath("-classpath"),
+				"classpath":     classpath.FormJavaClassPath("-classpath"),
 				"javacFlags":    flags.javacFlags,
 				"javaVersion":   flags.javaVersion.String(),
 				"outDir":        android.PathForModuleOut(ctx, "javac", "classes.xref").String(),
