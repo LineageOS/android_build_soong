@@ -46,7 +46,8 @@ var mockFs = pathtools.MockFs(map[string][]byte{
 	"dangling -> missing": nil,
 	"a/a/d -> b":          nil,
 	"c":                   fileC,
-	"l":                   []byte("a/a/a\na/a/b\nc\n"),
+	"l_nl":                []byte("a/a/a\na/a/b\nc\n"),
+	"l_sp":                []byte("a/a/a a/a/b c"),
 	"l2":                  []byte("missing\n"),
 	"manifest.txt":        fileCustomManifest,
 })
@@ -224,7 +225,19 @@ func TestZip(t *testing.T) {
 		{
 			name: "list",
 			args: fileArgsBuilder().
-				List("l"),
+				List("l_nl"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+				fh("c", fileC, zip.Deflate),
+			},
+		},
+		{
+			name: "list",
+			args: fileArgsBuilder().
+				List("l_sp"),
 			compressionLevel: 9,
 
 			files: []zip.FileHeader{
