@@ -225,11 +225,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 func (mod *Module) CrateName() string {
-	if mod.compiler != nil && mod.compiler.crateName() != "" {
-		return mod.compiler.crateName()
-	}
-	// Default crate names replace '-' in the name to '_'
-	return strings.Replace(mod.BaseModuleName(), "-", "_", -1)
+	return mod.compiler.crateName()
 }
 
 func (mod *Module) CcLibrary() bool {

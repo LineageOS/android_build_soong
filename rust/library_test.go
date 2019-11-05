@@ -77,3 +77,40 @@ func TestDylibPreferDynamic(t *testing.T) {
 		t.Errorf("missing prefer-dynamic flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
 	}
 }
+
+func TestValidateLibraryStem(t *testing.T) {
+	testRustError(t, "crate_name must be defined.", `
+			rust_library_host {
+				name: "libfoo",
+				srcs: ["foo.rs"],
+			}`)
+
+	testRustError(t, "library crate_names must be alphanumeric with underscores allowed", `
+			rust_library_host {
+				name: "libfoo-bar",
+				srcs: ["foo.rs"],
+				crate_name: "foo-bar"
+			}`)
+
+	testRustError(t, "Invalid name or stem property; library filenames must start with lib<crate_name>", `
+			rust_library_host {
+				name: "foobar",
+				srcs: ["foo.rs"],
+				crate_name: "foo_bar"
+			}`)
+	testRustError(t, "Invalid name or stem property; library filenames must start with lib<crate_name>", `
+			rust_library_host {
+				name: "foobar",
+				stem: "libfoo",
+				srcs: ["foo.rs"],
+				crate_name: "foo_bar"
+			}`)
+	testRustError(t, "Invalid name or stem property; library filenames must start with lib<crate_name>", `
+			rust_library_host {
+				name: "foobar",
+				stem: "foo_bar",
+				srcs: ["foo.rs"],
+				crate_name: "foo_bar"
+			}`)
+
+}
