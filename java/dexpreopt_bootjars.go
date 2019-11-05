@@ -73,7 +73,7 @@ func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.Ou
 	for i, m := range image.modules {
 		name := image.name
 		if i != 0 {
-			name += "-" + m
+			name += "-" + stemOf(m)
 		}
 
 		for _, ext := range exts {
@@ -123,6 +123,10 @@ func dexpreoptBootJarsFactory() android.Singleton {
 }
 
 func skipDexpreoptBootJars(ctx android.PathContext) bool {
+	if dexpreoptGlobalConfig(ctx).DisablePreopt {
+		return true
+	}
+
 	if ctx.Config().UnbundledBuild() {
 		return true
 	}

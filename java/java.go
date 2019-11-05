@@ -1602,6 +1602,10 @@ func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 	return depTag == staticLibTag
 }
 
+func (j *Module) Stem() string {
+	return proptools.StringDefault(j.deviceProperties.Stem, j.Name())
+}
+
 //
 // Java libraries (.jar file)
 //
@@ -1631,8 +1635,7 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework",
-		proptools.StringDefault(j.deviceProperties.Stem, ctx.ModuleName())+".jar")
+	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 	j.dexpreopter.isInstallable = Bool(j.properties.Installable)
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
@@ -1994,6 +1997,10 @@ func (j *Import) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
 }
 
+func (j *Import) Stem() string {
+	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
+}
+
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 }
@@ -2001,7 +2008,7 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	jars := android.PathsForModuleSrc(ctx, j.properties.Jars)
 
-	jarName := proptools.StringDefault(j.properties.Stem, ctx.ModuleName()) + ".jar"
+	jarName := j.Stem() + ".jar"
 	outputFile := android.PathForModuleOut(ctx, "combined", jarName)
 	TransformJarsToJar(ctx, outputFile, "for prebuilts", jars, android.OptionalPath{},
 		false, j.properties.Exclude_files, j.properties.Exclude_dirs)
@@ -2178,13 +2185,16 @@ func (j *DexImport) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
 }
 
+func (j *DexImport) Stem() string {
+	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
+}
+
 func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(j.properties.Jars) != 1 {
 		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
 	}
 
-	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework",
-		proptools.StringDefault(j.properties.Stem, ctx.ModuleName())+".jar")
+	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isInstallable = true
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
 

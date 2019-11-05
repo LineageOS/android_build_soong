@@ -96,6 +96,16 @@ func dexpreoptTargets(ctx android.PathContext) []android.Target {
 	return targets
 }
 
+func stemOf(moduleName string) string {
+	// b/139391334: the stem of framework-minus-apex is framework
+	// This is hard coded here until we find a good way to query the stem
+	// of a module before any other mutators are run
+	if moduleName == "framework-minus-apex" {
+		return "framework"
+	}
+	return moduleName
+}
+
 func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name string,
 	needZip bool) bootImageConfig {
 	return ctx.Config().Once(key, func() interface{} {
@@ -110,18 +120,18 @@ func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name strin
 
 		for _, m := range artModules {
 			bootLocations = append(bootLocations,
-				filepath.Join("/apex/com.android.art/javalib", m+".jar"))
+				filepath.Join("/apex/com.android.art/javalib", stemOf(m)+".jar"))
 		}
 
 		for _, m := range frameworkModules {
 			bootLocations = append(bootLocations,
-				filepath.Join("/system/framework", m+".jar"))
+				filepath.Join("/system/framework", stemOf(m)+".jar"))
 		}
 
 		// The path to bootclasspath dex files needs to be known at module GenerateAndroidBuildAction time, before
 		// the bootclasspath modules have been compiled.  Set up known paths for them, the singleton rules will copy
 		// them there.
-		// TODO: use module dependencies instead
+		// TODO(b/143682396): use module dependencies instead
 		var bootDexPaths android.WritablePaths
 		for _, m := range imageModules {
 			bootDexPaths = append(bootDexPaths,

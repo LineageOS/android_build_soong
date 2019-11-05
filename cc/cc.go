@@ -2653,7 +2653,11 @@ func ImageMutator(mctx android.BottomUpMutatorContext) {
 		// or a /system directory that is available to vendor.
 		coreVariantNeeded = true
 		vendorVariants = append(vendorVariants, platformVndkVersion)
-		if m.IsVndk() {
+		// VNDK modules must not create BOARD_VNDK_VERSION variant because its
+		// code is PLATFORM_VNDK_VERSION.
+		// On the other hand, vendor_available modules which are not VNDK should
+		// also build BOARD_VNDK_VERSION because it's installed in /vendor.
+		if !m.IsVndk() {
 			vendorVariants = append(vendorVariants, deviceVndkVersion)
 		}
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
