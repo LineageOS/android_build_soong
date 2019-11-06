@@ -306,12 +306,35 @@ func categorizeParameter(parameter string) parameterType {
 	return flag
 }
 
+// Flattens a list of strings potentially containing space characters into a list of string containing no
+// spaces.
+func normalizeParameters(params []string) []string {
+	var flatParams []string
+	for _, s := range params {
+		s = strings.Trim(s, " ")
+		if len(s) == 0 {
+			continue
+		}
+		flatParams = append(flatParams, strings.Split(s, " ")...)
+	}
+	return flatParams
+}
+
 func parseCompilerParameters(params []string, ctx android.SingletonContext, f *os.File) compilerParameters {
 	var compilerParameters = makeCompilerParameters()
 
 	for i, str := range params {
 		f.WriteString(fmt.Sprintf("# Raw param [%d] = '%s'\n", i, str))
 	}
+
+	// Soong does not guarantee that each flag will be in an individual string. e.g: The
+	// input received could be:
+	// params = {"-isystem", "path/to/system"}
+	// or it could be
+	// params = {"-isystem path/to/system"}
+	// To normalize the input, we split all strings with the "space" character and consolidate
+	// all tokens into a flattened parameters list
+	params = normalizeParameters(params)
 
 	for i := 0; i < len(params); i++ {
 		param := params[i]
