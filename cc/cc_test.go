@@ -264,11 +264,24 @@ func checkVndkSnapshot(t *testing.T, ctx *android.TestContext, name, subDir, var
 	}
 }
 
+func checkWriteFileOutput(t *testing.T, params android.TestingBuildParams, expected []string) {
+	t.Helper()
+	assertString(t, params.Rule.String(), android.WriteFile.String())
+	actual := strings.FieldsFunc(strings.ReplaceAll(params.Args["content"], "\\n", "\n"), func(r rune) bool { return r == '\n' })
+	assertArrayString(t, actual, expected)
+}
+
 func checkVndkOutput(t *testing.T, ctx *android.TestContext, output string, expected []string) {
 	t.Helper()
 	vndkSnapshot := ctx.SingletonForTests("vndk-snapshot")
-	actual := strings.FieldsFunc(strings.ReplaceAll(vndkSnapshot.Output(output).Args["content"], "\\n", "\n"), func(r rune) bool { return r == '\n' })
-	assertArrayString(t, actual, expected)
+	checkWriteFileOutput(t, vndkSnapshot.Output(output), expected)
+}
+
+func checkVndkLibrariesOutput(t *testing.T, ctx *android.TestContext, module string, expected []string) {
+	t.Helper()
+	vndkLibraries := ctx.ModuleForTests(module, "")
+	output := insertVndkVersion(module, "VER")
+	checkWriteFileOutput(t, vndkLibraries.Output(output), expected)
 }
 
 func TestVndk(t *testing.T) {
@@ -321,6 +334,21 @@ func TestVndk(t *testing.T) {
 				},
 			},
 		}
+		vndk_libraries_txt {
+			name: "llndk.libraries.txt",
+		}
+		vndk_libraries_txt {
+			name: "vndkcore.libraries.txt",
+		}
+		vndk_libraries_txt {
+			name: "vndksp.libraries.txt",
+		}
+		vndk_libraries_txt {
+			name: "vndkprivate.libraries.txt",
+		}
+		vndk_libraries_txt {
+			name: "vndkcorevariant.libraries.txt",
+		}
 	`, config)
 
 	checkVndkModule(t, ctx, "libvndk", "vndk-VER", false, "")
@@ -355,7 +383,6 @@ func TestVndk(t *testing.T) {
 	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so"})
 	checkVndkOutput(t, ctx, "vndk/vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so"})
 	checkVndkOutput(t, ctx, "vndk/vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", nil)
 	// merged & tagged & filtered-out(libclang_rt)
 	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
 		"LLNDK: libc.so",
@@ -371,19 +398,25 @@ func TestVndk(t *testing.T) {
 		"VNDK-private: libvndk-private.so",
 		"VNDK-private: libvndk_sp_private-x.so",
 	})
-	checkVndkOutput(t, ctx, "vndk/llndk.libraries.txt", []string{
-		"libc.so", "libdl.so", "libft2.so", "libm.so",
-	})
-	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{
-		"libvndk-private.so", "libvndk.so",
-	})
-	checkVndkOutput(t, ctx, "vndk/vndksp.libraries.txt", []string{
-		"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so",
-	})
-	checkVndkOutput(t, ctx, "vndk/vndkprivate.libraries.txt", []string{
-		"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so",
-	})
-	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", []string{})
+	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt", []string{"libc.so", "libdl.so", "libft2.so", "libm.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndkcorevariant.libraries.txt", nil)
+}
+
+func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
+	config := android.TestArchConfig(buildDir, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	ctx := testCcWithConfig(t, `
+		vndk_libraries_txt {
+			name: "llndk.libraries.txt",
+		}`, config)
+
+	module := ctx.ModuleForTests("llndk.libraries.txt", "")
+	entries := android.AndroidMkEntriesForTest(t, config, "", module.Module())
+	assertArrayString(t, entries.EntryMap["LOCAL_MODULE_STEM"], []string{"llndk.libraries.VER.txt"})
 }
 
 func TestVndkUsingCoreVariant(t *testing.T) {
@@ -422,20 +455,17 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 			},
 			nocrt: true,
 		}
+
+		vndk_libraries_txt {
+			name: "vndkcorevariant.libraries.txt",
+		}
 	`, config)
 
-	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{"libvndk.so", "libvndk2.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkcorevariant.libraries.txt", []string{
-		"libc++.so", "libvndk2.so", "libvndk_sp.so",
-	})
+	checkVndkLibrariesOutput(t, ctx, "vndkcorevariant.libraries.txt", []string{"libc++.so", "libvndk2.so", "libvndk_sp.so"})
 }
 
 func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
-	config := android.TestArchConfig(buildDir, nil)
-	config.TestProductVariables.DeviceVndkVersion = nil
-	config.TestProductVariables.Platform_vndk_version = nil
-
-	ctx := testCcWithConfig(t, `
+	ctx := testCcNoVndk(t, `
 		cc_library {
 			name: "libvndk",
 			vendor_available: true,
@@ -444,7 +474,7 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 			},
 			nocrt: true,
 		}
-	`, config)
+	`)
 
 	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
 		"LLNDK: libc.so",
