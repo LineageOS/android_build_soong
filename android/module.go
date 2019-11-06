@@ -1195,9 +1195,9 @@ func (m *moduleContext) Variable(pctx PackageContext, name, value string) {
 func (m *moduleContext) Rule(pctx PackageContext, name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
 
-	if m.config.UseGoma() && params.Pool == nil {
-		// When USE_GOMA=true is set and the rule is not supported by goma, restrict jobs to the
-		// local parallelism value
+	if (m.config.UseGoma() || m.config.UseRBE()) && params.Pool == nil {
+		// When USE_GOMA=true or USE_RBE=true are set and the rule is not supported by goma/RBE, restrict
+		// jobs to the local parallelism value
 		params.Pool = localPool
 	}
 
