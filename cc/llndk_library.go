@@ -86,7 +86,7 @@ func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps Pat
 		// For non-enforcing devices, use "current"
 		vndk_ver = "current"
 	}
-	objs, versionScript := compileStubLibrary(ctx, flags, String(stub.Properties.Symbol_file), vndk_ver, "--vndk")
+	objs, versionScript := compileStubLibrary(ctx, flags, String(stub.Properties.Symbol_file), vndk_ver, "--llndk")
 	stub.versionScriptPath = versionScript
 	return objs
 }
