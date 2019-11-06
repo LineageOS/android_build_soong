@@ -251,12 +251,12 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 func checkVndkSnapshot(t *testing.T, ctx *android.TestContext, name, subDir, variant string) {
 	vndkSnapshot := ctx.SingletonForTests("vndk-snapshot")
 
-	snapshotPath := filepath.Join(subDir, name+".so")
 	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
 	if !mod.outputFile.Valid() {
 		t.Errorf("%q must have output\n", name)
 		return
 	}
+	snapshotPath := filepath.Join(subDir, mod.outputFile.Path().Base())
 
 	out := vndkSnapshot.Output(snapshotPath)
 	if out.Input != mod.outputFile.Path() {

@@ -145,7 +145,7 @@ func (b *FileArgsBuilder) List(name string) *FileArgsBuilder {
 	}
 
 	arg := b.state
-	arg.SourceFiles = strings.Split(string(list), "\n")
+	arg.SourceFiles = strings.Fields(string(list))
 	b.fileArgs = append(b.fileArgs, arg)
 	return b
 }
