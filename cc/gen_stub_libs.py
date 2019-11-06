@@ -108,7 +108,7 @@ def version_is_private(version):
     return version.endswith('_PRIVATE') or version.endswith('_PLATFORM')
 
 
-def should_omit_version(version, arch, api, vndk, apex):
+def should_omit_version(version, arch, api, llndk, apex):
     """Returns True if the version section should be ommitted.
 
     We want to omit any sections that do not have any symbols we'll have in the
@@ -120,9 +120,9 @@ def should_omit_version(version, arch, api, vndk, apex):
     if 'platform-only' in version.tags:
         return True
 
-    no_vndk_no_apex = 'vndk' not in version.tags and 'apex' not in version.tags
-    keep = no_vndk_no_apex or \
-           ('vndk' in version.tags and vndk) or \
+    no_llndk_no_apex = 'llndk' not in version.tags and 'apex' not in version.tags
+    keep = no_llndk_no_apex or \
+           ('llndk' in version.tags and llndk) or \
            ('apex' in version.tags and apex)
     if not keep:
         return True
@@ -133,11 +133,11 @@ def should_omit_version(version, arch, api, vndk, apex):
     return False
 
 
-def should_omit_symbol(symbol, arch, api, vndk, apex):
+def should_omit_symbol(symbol, arch, api, llndk, apex):
     """Returns True if the symbol should be omitted."""
-    no_vndk_no_apex = 'vndk' not in symbol.tags and 'apex' not in symbol.tags
-    keep = no_vndk_no_apex or \
-           ('vndk' in symbol.tags and vndk) or \
+    no_llndk_no_apex = 'llndk' not in symbol.tags and 'apex' not in symbol.tags
+    keep = no_llndk_no_apex or \
+           ('llndk' in symbol.tags and llndk) or \
            ('apex' in symbol.tags and apex)
     if not keep:
         return True
@@ -250,12 +250,12 @@ class Symbol(object):
 
 class SymbolFileParser(object):
     """Parses NDK symbol files."""
-    def __init__(self, input_file, api_map, arch, api, vndk, apex):
+    def __init__(self, input_file, api_map, arch, api, llndk, apex):
         self.input_file = input_file
         self.api_map = api_map
         self.arch = arch
         self.api = api
-        self.vndk = vndk
+        self.llndk = llndk
         self.apex = apex
         self.current_line = None
 
@@ -284,11 +284,11 @@ class SymbolFileParser(object):
         symbol_names = set()
         multiply_defined_symbols = set()
         for version in versions:
-            if should_omit_version(version, self.arch, self.api, self.vndk, self.apex):
+            if should_omit_version(version, self.arch, self.api, self.llndk, self.apex):
                 continue
 
             for symbol in version.symbols:
-                if should_omit_symbol(symbol, self.arch, self.api, self.vndk, self.apex):
+                if should_omit_symbol(symbol, self.arch, self.api, self.llndk, self.apex):
                     continue
 
                 if symbol.name in symbol_names:
@@ -372,12 +372,12 @@ class SymbolFileParser(object):
 
 class Generator(object):
     """Output generator that writes stub source files and version scripts."""
-    def __init__(self, src_file, version_script, arch, api, vndk, apex):
+    def __init__(self, src_file, version_script, arch, api, llndk, apex):
         self.src_file = src_file
         self.version_script = version_script
         self.arch = arch
         self.api = api
-        self.vndk = vndk
+        self.llndk = llndk
         self.apex = apex
 
     def write(self, versions):
@@ -387,14 +387,14 @@ class Generator(object):
 
     def write_version(self, version):
         """Writes a single version block's data to the output files."""
-        if should_omit_version(version, self.arch, self.api, self.vndk, self.apex):
+        if should_omit_version(version, self.arch, self.api, self.llndk, self.apex):
             return
 
         section_versioned = symbol_versioned_in_api(version.tags, self.api)
         version_empty = True
         pruned_symbols = []
         for symbol in version.symbols:
-            if should_omit_symbol(symbol, self.arch, self.api, self.vndk, self.apex):
+            if should_omit_symbol(symbol, self.arch, self.api, self.llndk, self.apex):
                 continue
 
             if symbol_versioned_in_api(symbol.tags, self.api):
@@ -456,7 +456,7 @@ def parse_args():
         '--arch', choices=ALL_ARCHITECTURES, required=True,
         help='Architecture being targeted.')
     parser.add_argument(
-        '--vndk', action='store_true', help='Use the VNDK variant.')
+        '--llndk', action='store_true', help='Use the LLNDK variant.')
     parser.add_argument(
         '--apex', action='store_true', help='Use the APEX variant.')
 
@@ -493,14 +493,14 @@ def main():
     with open(args.symbol_file) as symbol_file:
         try:
             versions = SymbolFileParser(symbol_file, api_map, args.arch, api,
-                                        args.vndk, args.apex).parse()
+                                        args.llndk, args.apex).parse()
         except MultiplyDefinedSymbolError as ex:
             sys.exit('{}: error: {}'.format(args.symbol_file, ex))
 
     with open(args.stub_src, 'w') as src_file:
         with open(args.version_script, 'w') as version_file:
             generator = Generator(src_file, version_file, args.arch, api,
-                                  args.vndk, args.apex)
+                                  args.llndk, args.apex)
             generator.write(versions)
 
 
