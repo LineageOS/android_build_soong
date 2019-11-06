@@ -54,6 +54,12 @@ type prebuiltEtcProperties struct {
 	Installable *bool
 }
 
+type PrebuiltEtcModule interface {
+	Module
+	SubDir() string
+	OutputFile() OutputPath
+}
+
 type PrebuiltEtc struct {
 	ModuleBase
 

@@ -249,6 +249,9 @@ func apexVndkDepsMutator(mctx android.BottomUpMutatorContext) {
 		if vndkApex, ok := vndkApexList[vndkVersion]; ok {
 			mctx.AddReverseDependency(mctx.Module(), sharedLibTag, vndkApex)
 		}
+	} else if a, ok := mctx.Module().(*apexBundle); ok && a.vndkApex {
+		vndkVersion := proptools.StringDefault(a.vndkProperties.Vndk_version, "current")
+		mctx.AddDependency(mctx.Module(), prebuiltTag, cc.VndkLibrariesTxtModules(vndkVersion)...)
 	}
 }
 
@@ -975,7 +978,7 @@ func getCopyManifestForPrebuiltJavaLibrary(java *java.Import) (fileToCopy androi
 	return
 }
 
-func getCopyManifestForPrebuiltEtc(prebuilt *android.PrebuiltEtc) (fileToCopy android.Path, dirInApex string) {
+func getCopyManifestForPrebuiltEtc(prebuilt android.PrebuiltEtcModule) (fileToCopy android.Path, dirInApex string) {
 	dirInApex = filepath.Join("etc", prebuilt.SubDir())
 	fileToCopy = prebuilt.OutputFile()
 	return
@@ -1131,7 +1134,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 				}
 			case prebuiltTag:
-				if prebuilt, ok := child.(*android.PrebuiltEtc); ok {
+				if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
 					fileToCopy, dirInApex := getCopyManifestForPrebuiltEtc(prebuilt)
 					filesInfo = append(filesInfo, apexFile{fileToCopy, depName, dirInApex, etc, prebuilt, nil})
 					return true

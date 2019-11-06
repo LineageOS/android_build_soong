@@ -248,19 +248,24 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	}
 }
 
-func checkVndkSnapshot(t *testing.T, ctx *android.TestContext, name, subDir, variant string) {
+func checkVndkSnapshot(t *testing.T, ctx *android.TestContext, moduleName, snapshotFilename, subDir, variant string) {
 	vndkSnapshot := ctx.SingletonForTests("vndk-snapshot")
 
-	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
-	if !mod.outputFile.Valid() {
-		t.Errorf("%q must have output\n", name)
+	mod, ok := ctx.ModuleForTests(moduleName, variant).Module().(android.OutputFileProducer)
+	if !ok {
+		t.Errorf("%q must have output\n", moduleName)
 		return
 	}
-	snapshotPath := filepath.Join(subDir, mod.outputFile.Path().Base())
+	outputFiles, err := mod.OutputFiles("")
+	if err != nil || len(outputFiles) != 1 {
+		t.Errorf("%q must have single output\n", moduleName)
+		return
+	}
+	snapshotPath := filepath.Join(subDir, snapshotFilename)
 
 	out := vndkSnapshot.Output(snapshotPath)
-	if out.Input != mod.outputFile.Path() {
-		t.Errorf("The input of VNDK snapshot must be %q, but %q", out.Input.String(), mod.outputFile.String())
+	if out.Input.String() != outputFiles[0].String() {
+		t.Errorf("The input of VNDK snapshot must be %q, but %q", out.Input.String(), outputFiles[0])
 	}
 }
 
@@ -374,16 +379,17 @@ func TestVndk(t *testing.T) {
 	variant := "android_arm64_armv8-a_vendor.VER_shared"
 	variant2nd := "android_arm_armv7-a-neon_vendor.VER_shared"
 
-	checkVndkSnapshot(t, ctx, "libvndk", vndkCoreLibPath, variant)
-	checkVndkSnapshot(t, ctx, "libvndk", vndkCoreLib2ndPath, variant2nd)
-	checkVndkSnapshot(t, ctx, "libvndk_sp", vndkSpLibPath, variant)
-	checkVndkSnapshot(t, ctx, "libvndk_sp", vndkSpLib2ndPath, variant2nd)
+	checkVndkSnapshot(t, ctx, "libvndk", "libvndk.so", vndkCoreLibPath, variant)
+	checkVndkSnapshot(t, ctx, "libvndk", "libvndk.so", vndkCoreLib2ndPath, variant2nd)
+	checkVndkSnapshot(t, ctx, "libvndk_sp", "libvndk_sp-x.so", vndkSpLibPath, variant)
+	checkVndkSnapshot(t, ctx, "libvndk_sp", "libvndk_sp-x.so", vndkSpLib2ndPath, variant2nd)
 
-	checkVndkOutput(t, ctx, "vndk/llndk.libraries.txt", []string{"libc.so", "libdl.so", "libft2.so", "libm.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so"})
-	checkVndkOutput(t, ctx, "vndk/vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so"})
-	checkVndkOutput(t, ctx, "vndk/vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so"})
-	// merged & tagged & filtered-out(libclang_rt)
+	snapshotConfigsPath := filepath.Join(snapshotVariantPath, "configs")
+	checkVndkSnapshot(t, ctx, "llndk.libraries.txt", "llndk.libraries.txt", snapshotConfigsPath, "")
+	checkVndkSnapshot(t, ctx, "vndkcore.libraries.txt", "vndkcore.libraries.txt", snapshotConfigsPath, "")
+	checkVndkSnapshot(t, ctx, "vndksp.libraries.txt", "vndksp.libraries.txt", snapshotConfigsPath, "")
+	checkVndkSnapshot(t, ctx, "vndkprivate.libraries.txt", "vndkprivate.libraries.txt", snapshotConfigsPath, "")
+
 	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
 		"LLNDK: libc.so",
 		"LLNDK: libdl.so",
