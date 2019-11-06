@@ -862,7 +862,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 		symbolOrderingFile := android.PathForModuleOut(ctx, "unsorted", fileName+".symbol_order")
 		symbolOrderingFlag := library.baseLinker.sortBssSymbolsBySize(ctx, unsortedOutputFile, symbolOrderingFile, builderFlags)
-		builderFlags.ldFlags += " " + symbolOrderingFlag
+		builderFlags.localLdFlags += " " + symbolOrderingFlag
 		linkerDeps = append(linkerDeps, symbolOrderingFile)
 	}
 
