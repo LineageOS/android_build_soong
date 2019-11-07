@@ -87,6 +87,9 @@ func init() {
 		return ctx.Config().Getenv("ANDROID_JAVA_HOME")
 	})
 	pctx.VariableFunc("JlinkVersion", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("OVERRIDE_JLINK_VERSION_NUMBER"); override != "" {
+			return override
+		}
 		switch ctx.Config().Getenv("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN") {
 		case "false":
 			return "9"
