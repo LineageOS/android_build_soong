@@ -26,7 +26,7 @@ import (
 	"github.com/google/blueprint"
 )
 
-var kotlinc = pctx.AndroidGomaStaticRule("kotlinc",
+var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.SUPPORTS_GOMA,
 	blueprint.RuleParams{
 		Command: `rm -rf "$classesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
 			`mkdir -p "$classesDir" "$srcJarDir" "$emptyDir" && ` +
@@ -88,7 +88,7 @@ func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
 	})
 }
 
-var kapt = pctx.AndroidGomaStaticRule("kapt",
+var kapt = pctx.AndroidRemoteStaticRule("kapt", android.SUPPORTS_GOMA,
 	blueprint.RuleParams{
 		Command: `rm -rf "$srcJarDir" "$kotlinBuildFile" "$kaptDir" && mkdir -p "$srcJarDir" "$kaptDir" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +

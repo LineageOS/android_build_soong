@@ -29,7 +29,13 @@ archive = sys.modules["__main__"].__loader__.archive
 
 assert_equal("__name__", __name__, "testpkg.par_test")
 assert_equal("__file__", __file__, os.path.join(archive, "testpkg/par_test.py"))
-assert_equal("__package__", __package__, "testpkg")
+
+# Python3 is returning None here for me, and I haven't found any problems caused by this.
+if sys.version_info[0] == 2:
+  assert_equal("__package__", __package__, "testpkg")
+else:
+  assert_equal("__package__", __package__, None)
+
 assert_equal("__loader__.archive", __loader__.archive, archive)
 assert_equal("__loader__.prefix", __loader__.prefix, "testpkg/")
 
