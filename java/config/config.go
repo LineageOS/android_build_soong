@@ -88,10 +88,10 @@ func init() {
 	})
 	pctx.VariableFunc("JlinkVersion", func(ctx android.PackageVarContext) string {
 		switch ctx.Config().Getenv("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN") {
-		case "true":
-			return "11"
-		default:
+		case "false":
 			return "9"
+		default:
+			return "11"
 		}
 	})
 
