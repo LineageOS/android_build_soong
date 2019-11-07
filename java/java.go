@@ -967,6 +967,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 		// disk and memory usage.
 		javacFlags = append(javacFlags, "-g:source,lines")
 	}
+	javacFlags = append(javacFlags, "-Xlint:-dep-ann")
 
 	if ctx.Config().RunErrorProne() {
 		if config.ErrorProneClasspath == nil {
