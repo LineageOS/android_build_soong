@@ -23,8 +23,8 @@ if [ -z $ANDROID_HOST_OUT ]; then
   exit 1
 fi
 
-if [ ! -f $ANDROID_HOST_OUT/nativetest64/par_test/par_test ]; then
-  echo "Run 'm par_test' first"
+if [[ ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test/par_test ) || ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 ) ]]; then
+  echo "Run 'm par_test par_test3' first"
   exit 1
 fi
 
@@ -35,5 +35,9 @@ set -x
 PYTHONHOME= PYTHONPATH= $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test/par_test
+
+PYTHONHOME= PYTHONPATH= $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
+PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
+PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
 
 echo "Passed!"
