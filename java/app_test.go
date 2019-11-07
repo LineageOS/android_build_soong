@@ -876,7 +876,7 @@ func TestPackageNameOverride(t *testing.T) {
 			packageNameOverride: "foo:bar",
 			expected: []string{
 				// The package apk should be still be the original name for test dependencies.
-				buildDir + "/.intermediates/foo/android_common/foo.apk",
+				buildDir + "/.intermediates/foo/android_common/bar.apk",
 				buildDir + "/target/product/test_device/system/app/bar/bar.apk",
 			},
 		},
@@ -1016,7 +1016,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		}
 
 		// Check the certificate paths
-		signapk := variant.Output("foo.apk")
+		signapk := variant.Output(expected.moduleName + ".apk")
 		signFlag := signapk.Args["certificates"]
 		if expected.signFlag != signFlag {
 			t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected.signFlag, signFlag)
