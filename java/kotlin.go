@@ -133,7 +133,7 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 	deps = append(deps, srcJars...)
 	deps = append(deps, flags.processorPath...)
 
-	kaptProcessorPath := flags.processorPath.FormTurbineClasspath("-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=")
+	kaptProcessorPath := flags.processorPath.FormRepeatedClassPath("-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=")
 
 	kaptProcessor := ""
 	if flags.processor != "" {
