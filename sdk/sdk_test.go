@@ -377,6 +377,35 @@ func TestDepNotInRequiredSdks(t *testing.T) {
 	`)
 }
 
+func TestSdkIsCompileMultilibBoth(t *testing.T) {
+	ctx, _ := testSdk(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["sdkmember"],
+		}
+
+		cc_library_shared {
+			name: "sdkmember",
+			srcs: ["Test.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	armOutput := ctx.ModuleForTests("sdkmember", "android_arm_armv7-a-neon_core_shared").Module().(*cc.Module).OutputFile()
+	arm64Output := ctx.ModuleForTests("sdkmember", "android_arm64_armv8-a_core_shared").Module().(*cc.Module).OutputFile()
+
+	var inputs []string
+	buildParams := ctx.ModuleForTests("mysdk", "android_common").Module().BuildParamsForTests()
+	for _, bp := range buildParams {
+		inputs = append(inputs, bp.Implicits.Strings()...)
+	}
+
+	// ensure that both 32/64 outputs are inputs of the sdk snapshot
+	ensureListContains(t, inputs, armOutput.String())
+	ensureListContains(t, inputs, arm64Output.String())
+}
+
 var buildDir string
 
 func setUp() {

@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	// This package doesn't depend on the apex package, but import it to make its mutators to be
@@ -60,6 +61,13 @@ func ModuleFactory() android.Module {
 	s.AddProperties(&s.properties)
 	android.InitAndroidMultiTargetsArchModule(s, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(s)
+	android.AddLoadHook(s, func(ctx android.LoadHookContext) {
+		type props struct {
+			Compile_multilib *string
+		}
+		p := &props{Compile_multilib: proptools.StringPtr("both")}
+		ctx.AppendProperties(p)
+	})
 	return s
 }
 
