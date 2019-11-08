@@ -426,8 +426,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	minimalRuntimePath := "${config.ClangAsanLibDir}/" + minimalRuntimeLib
 
 	if ctx.Device() && sanitize.Properties.MinimalRuntimeDep {
-		flags.LdFlags = append(flags.LdFlags, minimalRuntimePath)
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+		flags.Local.LdFlags = append(flags.Local.LdFlags,
+			minimalRuntimePath,
+			"-Wl,--exclude-libs,"+minimalRuntimeLib)
 	}
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
 		return flags
@@ -439,15 +440,15 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// TODO: put in flags?
 			flags.RequiredInstructionSet = "arm"
 		}
-		flags.CFlags = append(flags.CFlags, asanCflags...)
-		flags.LdFlags = append(flags.LdFlags, asanLdflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, asanCflags...)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, asanLdflags...)
 
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--no-as-needed")
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-as-needed")
 		} else {
-			flags.CFlags = append(flags.CFlags, "-mllvm", "-asan-globals=0")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", "-asan-globals=0")
 			if ctx.bootstrap() {
 				flags.DynamicLinker = "/system/bin/bootstrap/linker_asan"
 			} else {
@@ -460,33 +461,30 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
-		flags.CFlags = append(flags.CFlags, hwasanCflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, hwasanCflags...)
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Fuzzer) {
-		flags.CFlags = append(flags.CFlags, "-fsanitize=fuzzer-no-link")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize=fuzzer-no-link")
 
 		// TODO(b/131771163): LTO and Fuzzer support is mutually incompatible.
-		_, flags.LdFlags = removeFromList("-flto", flags.LdFlags)
-		_, flags.CFlags = removeFromList("-flto", flags.CFlags)
-		flags.LdFlags = append(flags.LdFlags, "-fno-lto")
-		flags.CFlags = append(flags.CFlags, "-fno-lto")
+		_, flags.Local.LdFlags = removeFromList("-flto", flags.Local.LdFlags)
+		_, flags.Local.CFlags = removeFromList("-flto", flags.Local.CFlags)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-lto")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-lto")
 
 		// TODO(b/142430592): Upstream linker scripts for sanitizer runtime libraries
 		// discard the sancov_lowest_stack symbol, because it's emulated TLS (and thus
 		// doesn't match the linker script due to the "__emutls_v." prefix).
-		flags.LdFlags = append(flags.LdFlags, "-fno-sanitize-coverage=stack-depth")
-		flags.CFlags = append(flags.CFlags, "-fno-sanitize-coverage=stack-depth")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-sanitize-coverage=stack-depth")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-coverage=stack-depth")
 
 		// TODO(b/133876586): Experimental PM breaks sanitizer coverage.
-		_, flags.CFlags = removeFromList("-fexperimental-new-pass-manager", flags.CFlags)
-		flags.CFlags = append(flags.CFlags, "-fno-experimental-new-pass-manager")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-experimental-new-pass-manager")
 
 		// Disable fortify for fuzzing builds. Generally, we'll be building with
 		// UBSan or ASan here and the fortify checks pollute the stack traces.
-		_, flags.CFlags = removeFromList("-D_FORTIFY_SOURCE=1", flags.CFlags)
-		_, flags.CFlags = removeFromList("-D_FORTIFY_SOURCE=2", flags.CFlags)
-		flags.CFlags = append(flags.CFlags, "-U_FORTIFY_SOURCE")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-U_FORTIFY_SOURCE")
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Cfi) {
@@ -496,75 +494,75 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.RequiredInstructionSet = "thumb"
 		}
 
-		flags.CFlags = append(flags.CFlags, cfiCflags...)
-		flags.AsFlags = append(flags.AsFlags, cfiAsflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, cfiCflags...)
+		flags.Local.AsFlags = append(flags.Local.AsFlags, cfiAsflags...)
 		// Only append the default visibility flag if -fvisibility has not already been set
 		// to hidden.
-		if !inList("-fvisibility=hidden", flags.CFlags) {
-			flags.CFlags = append(flags.CFlags, "-fvisibility=default")
+		if !inList("-fvisibility=hidden", flags.Local.CFlags) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fvisibility=default")
 		}
-		flags.LdFlags = append(flags.LdFlags, cfiLdflags...)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, cfiLdflags...)
 
 		if ctx.staticBinary() {
-			_, flags.CFlags = removeFromList("-fsanitize-cfi-cross-dso", flags.CFlags)
-			_, flags.LdFlags = removeFromList("-fsanitize-cfi-cross-dso", flags.LdFlags)
+			_, flags.Local.CFlags = removeFromList("-fsanitize-cfi-cross-dso", flags.Local.CFlags)
+			_, flags.Local.LdFlags = removeFromList("-fsanitize-cfi-cross-dso", flags.Local.LdFlags)
 		}
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Integer_overflow) {
-		flags.CFlags = append(flags.CFlags, intOverflowCflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, intOverflowCflags...)
 	}
 
 	if len(sanitize.Properties.Sanitizers) > 0 {
 		sanitizeArg := "-fsanitize=" + strings.Join(sanitize.Properties.Sanitizers, ",")
 
-		flags.CFlags = append(flags.CFlags, sanitizeArg)
-		flags.AsFlags = append(flags.AsFlags, sanitizeArg)
+		flags.Local.CFlags = append(flags.Local.CFlags, sanitizeArg)
+		flags.Local.AsFlags = append(flags.Local.AsFlags, sanitizeArg)
 		if ctx.Host() {
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
-			_, flags.LdFlags = removeFromList("-Wl,--no-undefined", flags.LdFlags)
-			flags.LdFlags = append(flags.LdFlags, sanitizeArg)
+			_, flags.Global.LdFlags = removeFromList("-Wl,--no-undefined", flags.Global.LdFlags)
+			flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
 		} else {
 			if enableMinimalRuntime(sanitize) {
-				flags.CFlags = append(flags.CFlags, strings.Join(minimalRuntimeFlags, " "))
+				flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
 				flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
 			}
 		}
 
 		if Bool(sanitize.Properties.Sanitize.Fuzzer) {
 			// When fuzzing, we wish to crash with diagnostics on any bug.
-			flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap=all", "-fno-sanitize-recover=all")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-trap=all", "-fno-sanitize-recover=all")
 		} else if ctx.Host() {
-			flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover=all")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-recover=all")
 		} else {
-			flags.CFlags = append(flags.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-trap=all", "-ftrap-function=abort")
 		}
 		// http://b/119329758, Android core does not boot up with this sanitizer yet.
-		if toDisableImplicitIntegerChange(flags.CFlags) {
-			flags.CFlags = append(flags.CFlags, "-fno-sanitize=implicit-integer-sign-change")
+		if toDisableImplicitIntegerChange(flags.Local.CFlags) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=implicit-integer-sign-change")
 		}
 	}
 
 	if len(sanitize.Properties.DiagSanitizers) > 0 {
-		flags.CFlags = append(flags.CFlags, "-fno-sanitize-trap="+strings.Join(sanitize.Properties.DiagSanitizers, ","))
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-trap="+strings.Join(sanitize.Properties.DiagSanitizers, ","))
 	}
 	// FIXME: enable RTTI if diag + (cfi or vptr)
 
 	if sanitize.Properties.Sanitize.Recover != nil {
-		flags.CFlags = append(flags.CFlags, "-fsanitize-recover="+
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-recover="+
 			strings.Join(sanitize.Properties.Sanitize.Recover, ","))
 	}
 
 	if sanitize.Properties.Sanitize.Diag.No_recover != nil {
-		flags.CFlags = append(flags.CFlags, "-fno-sanitize-recover="+
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-recover="+
 			strings.Join(sanitize.Properties.Sanitize.Diag.No_recover, ","))
 	}
 
 	blacklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
 	if blacklist.Valid() {
-		flags.CFlags = append(flags.CFlags, "-fsanitize-blacklist="+blacklist.String())
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-blacklist="+blacklist.String())
 		flags.CFlagsDeps = append(flags.CFlagsDeps, blacklist.Path())
 	}
 
