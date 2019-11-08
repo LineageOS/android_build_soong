@@ -892,7 +892,7 @@ func (c *Module) ExportedDeps() android.Paths {
 
 func isBionic(name string) bool {
 	switch name {
-	case "libc", "libm", "libdl", "libdl_android", "linker":
+	case "libc", "libm", "libdl", "linker":
 		return true
 	}
 	return false
