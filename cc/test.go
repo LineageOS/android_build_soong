@@ -220,20 +220,20 @@ func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		return flags
 	}
 
-	flags.CFlags = append(flags.CFlags, "-DGTEST_HAS_STD_STRING")
+	flags.Local.CFlags = append(flags.Local.CFlags, "-DGTEST_HAS_STD_STRING")
 	if ctx.Host() {
-		flags.CFlags = append(flags.CFlags, "-O0", "-g")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-O0", "-g")
 
 		switch ctx.Os() {
 		case android.Windows:
-			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_WINDOWS")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-DGTEST_OS_WINDOWS")
 		case android.Linux:
-			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-DGTEST_OS_LINUX")
 		case android.Darwin:
-			flags.CFlags = append(flags.CFlags, "-DGTEST_OS_MAC")
+			flags.Local.CFlags = append(flags.Local.CFlags, "-DGTEST_OS_MAC")
 		}
 	} else {
-		flags.CFlags = append(flags.CFlags, "-DGTEST_OS_LINUX_ANDROID")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-DGTEST_OS_LINUX_ANDROID")
 	}
 
 	return flags

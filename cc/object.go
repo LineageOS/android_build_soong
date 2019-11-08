@@ -87,10 +87,10 @@ func (object *objectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (object *objectLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.LdFlags = append(flags.LdFlags, ctx.toolchain().ToolchainClangLdflags())
+	flags.Global.LdFlags = append(flags.Global.LdFlags, ctx.toolchain().ToolchainClangLdflags())
 
 	if lds := android.OptionalPathForModuleSrc(ctx, object.Properties.Linker_script); lds.Valid() {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,-T,"+lds.String())
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-T,"+lds.String())
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, lds.Path())
 	}
 	return flags

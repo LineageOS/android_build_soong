@@ -394,13 +394,13 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
 	if !ctx.Windows() {
-		flags.CFlags = append(flags.CFlags, "-fPIC")
+		flags.Global.CFlags = append(flags.Global.CFlags, "-fPIC")
 	}
 
 	if library.static() {
-		flags.CFlags = append(flags.CFlags, library.StaticProperties.Static.Cflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, library.StaticProperties.Static.Cflags...)
 	} else if library.shared() {
-		flags.CFlags = append(flags.CFlags, library.SharedProperties.Shared.Cflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, library.SharedProperties.Shared.Cflags...)
 	}
 
 	if library.shared() {
@@ -431,7 +431,7 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 			}
 		}
 
-		flags.LdFlags = append(f, flags.LdFlags...)
+		flags.Global.LdFlags = append(flags.Global.LdFlags, f...)
 	}
 
 	return flags
@@ -441,8 +441,8 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
 		f := includeDirsToFlags(exportIncludeDirs)
-		flags.GlobalFlags = append(flags.GlobalFlags, f)
-		flags.YasmFlags = append(flags.YasmFlags, f)
+		flags.Local.CommonFlags = append(flags.Local.CommonFlags, f)
+		flags.Local.YasmFlags = append(flags.Local.YasmFlags, f)
 	}
 
 	flags = library.baseCompiler.compilerFlags(ctx, flags, deps)
@@ -462,8 +462,8 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 			}
 			return ret
 		}
-		flags.GlobalFlags = removeInclude(flags.GlobalFlags)
-		flags.CFlags = removeInclude(flags.CFlags)
+		flags.Local.CommonFlags = removeInclude(flags.Local.CommonFlags)
+		flags.Local.CFlags = removeInclude(flags.Local.CFlags)
 
 		flags = addStubLibraryCompilerFlags(flags)
 	}
@@ -776,21 +776,21 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	} else {
 		if unexportedSymbols.Valid() {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-unexported_symbols_list,"+unexportedSymbols.String())
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-unexported_symbols_list,"+unexportedSymbols.String())
 			linkerDeps = append(linkerDeps, unexportedSymbols.Path())
 		}
 		if forceNotWeakSymbols.Valid() {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-force_symbols_not_weak_list,"+forceNotWeakSymbols.String())
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-force_symbols_not_weak_list,"+forceNotWeakSymbols.String())
 			linkerDeps = append(linkerDeps, forceNotWeakSymbols.Path())
 		}
 		if forceWeakSymbols.Valid() {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-force_symbols_weak_list,"+forceWeakSymbols.String())
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-force_symbols_weak_list,"+forceWeakSymbols.String())
 			linkerDeps = append(linkerDeps, forceWeakSymbols.Path())
 		}
 	}
 	if library.buildStubs() {
 		linkerScriptFlags := "-Wl,--version-script," + library.versionScriptPath.String()
-		flags.LdFlags = append(flags.LdFlags, linkerScriptFlags)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlags)
 		linkerDeps = append(linkerDeps, library.versionScriptPath)
 	}
 
@@ -802,7 +802,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	if ctx.Windows() {
 		importLibraryPath := android.PathForModuleOut(ctx, pathtools.ReplaceExtension(fileName, "lib"))
 
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--out-implib="+importLibraryPath.String())
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--out-implib="+importLibraryPath.String())
 		implicitOutputs = append(implicitOutputs, importLibraryPath)
 	}
 
@@ -862,7 +862,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 		symbolOrderingFile := android.PathForModuleOut(ctx, "unsorted", fileName+".symbol_order")
 		symbolOrderingFlag := library.baseLinker.sortBssSymbolsBySize(ctx, unsortedOutputFile, symbolOrderingFile, builderFlags)
-		builderFlags.ldFlags += " " + symbolOrderingFlag
+		builderFlags.localLdFlags += " " + symbolOrderingFlag
 		linkerDeps = append(linkerDeps, symbolOrderingFile)
 	}
 

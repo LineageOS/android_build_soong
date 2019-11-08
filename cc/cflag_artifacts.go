@@ -147,8 +147,8 @@ func (s *cflagArtifactsText) GenerateBuildActions(ctx android.SingletonContext) 
 	ctx.VisitAllModules(func(module android.Module) {
 		if ccModule, ok := module.(*Module); ok {
 			if allowedDir(ctx.ModuleDir(ccModule)) {
-				cflags := ccModule.flags.CFlags
-				cppflags := ccModule.flags.CppFlags
+				cflags := ccModule.flags.Local.CFlags
+				cppflags := ccModule.flags.Local.CppFlags
 				module := fmt.Sprintf("%s:%s (%s)",
 					ctx.BlueprintFile(ccModule),
 					ctx.ModuleName(ccModule),

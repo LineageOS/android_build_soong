@@ -227,7 +227,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 
 	if ctx.Host() && !ctx.Windows() && !binary.static() {
 		if !ctx.Config().IsEnvTrue("DISABLE_HOST_PIE") {
-			flags.LdFlags = append(flags.LdFlags, "-pie")
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-pie")
 		}
 	}
 
@@ -235,7 +235,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 	// all code is position independent, and then those warnings get promoted to
 	// errors.
 	if !ctx.Windows() {
-		flags.CFlags = append(flags.CFlags, "-fPIE")
+		flags.Global.CFlags = append(flags.Global.CFlags, "-fPIE")
 	}
 
 	if ctx.toolchain().Bionic() {
@@ -244,11 +244,11 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 			// However, bionic/linker uses -shared to overwrite.
 			// Linker for x86 targets does not allow coexistance of -static and -shared,
 			// so we add -static only if -shared is not used.
-			if !inList("-shared", flags.LdFlags) {
-				flags.LdFlags = append(flags.LdFlags, "-static")
+			if !inList("-shared", flags.Local.LdFlags) {
+				flags.Global.LdFlags = append(flags.Global.LdFlags, "-static")
 			}
 
-			flags.LdFlags = append(flags.LdFlags,
+			flags.Global.LdFlags = append(flags.Global.LdFlags,
 				"-nostdlib",
 				"-Bstatic",
 				"-Wl,--gc-sections",
@@ -278,14 +278,14 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				if ctx.Os() == android.LinuxBionic {
 					// Use the dlwrap entry point, but keep _start around so
 					// that it can be used by host_bionic_inject
-					flags.LdFlags = append(flags.LdFlags,
+					flags.Global.LdFlags = append(flags.Global.LdFlags,
 						"-Wl,--entry=__dlwrap__start",
 						"-Wl,--undefined=_start",
 					)
 				}
 			}
 
-			flags.LdFlags = append(flags.LdFlags,
+			flags.Global.LdFlags = append(flags.Global.LdFlags,
 				"-pie",
 				"-nostdlib",
 				"-Bdynamic",
@@ -295,10 +295,10 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 		}
 	} else {
 		if binary.static() {
-			flags.LdFlags = append(flags.LdFlags, "-static")
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-static")
 		}
 		if ctx.Darwin() {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-headerpad_max_install_names")
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,-headerpad_max_install_names")
 		}
 	}
 
@@ -315,14 +315,14 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	var linkerDeps android.Paths
 
 	if deps.LinkerFlagsFile.Valid() {
-		flags.LdFlags = append(flags.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
 		linkerDeps = append(linkerDeps, deps.LinkerFlagsFile.Path())
 	}
 
 	if flags.DynamicLinker != "" {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,-dynamic-linker,"+flags.DynamicLinker)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-dynamic-linker,"+flags.DynamicLinker)
 	} else if ctx.toolchain().Bionic() && !binary.static() {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-dynamic-linker")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--no-dynamic-linker")
 	}
 
 	builderFlags := flagsToBuilderFlags(flags)

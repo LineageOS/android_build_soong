@@ -331,65 +331,66 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	}
 
 	if linker.useClangLld(ctx) {
-		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
+		flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
 		if !BoolDefault(linker.Properties.Pack_relocations, true) {
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=none")
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=none")
 		} else if ctx.Device() {
 			// The SHT_RELR relocations is only supported by API level >= 28.
 			// Do not turn this on if older version NDK is used.
 			if !ctx.useSdk() || CheckSdkVersionAtLeast(ctx, 28) {
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--pack-dyn-relocs=android+relr")
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--use-android-relr-tags")
+				flags.Global.LdFlags = append(flags.Global.LdFlags,
+					"-Wl,--pack-dyn-relocs=android+relr",
+					"-Wl,--use-android-relr-tags")
 			}
 		}
 	} else {
-		flags.LdFlags = append(flags.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
+		flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
 	}
 	if Bool(linker.Properties.Allow_undefined_symbols) {
 		if ctx.Darwin() {
 			// darwin defaults to treating undefined symbols as errors
-			flags.LdFlags = append(flags.LdFlags, "-Wl,-undefined,dynamic_lookup")
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,-undefined,dynamic_lookup")
 		}
 	} else if !ctx.Darwin() && !ctx.Windows() {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--no-undefined")
+		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--no-undefined")
 	}
 
 	if linker.useClangLld(ctx) {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLldflags())
+		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ClangLldflags())
 	} else {
-		flags.LdFlags = append(flags.LdFlags, toolchain.ClangLdflags())
+		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ClangLdflags())
 	}
 
 	if !ctx.toolchain().Bionic() && !ctx.Fuchsia() {
 		CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
 
-		flags.LdFlags = append(flags.LdFlags, linker.Properties.Host_ldlibs...)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, linker.Properties.Host_ldlibs...)
 
 		if !ctx.Windows() {
 			// Add -ldl, -lpthread, -lm and -lrt to host builds to match the default behavior of device
 			// builds
-			flags.LdFlags = append(flags.LdFlags,
+			flags.Global.LdFlags = append(flags.Global.LdFlags,
 				"-ldl",
 				"-lpthread",
 				"-lm",
 			)
 			if !ctx.Darwin() {
-				flags.LdFlags = append(flags.LdFlags, "-lrt")
+				flags.Global.LdFlags = append(flags.Global.LdFlags, "-lrt")
 			}
 		}
 	}
 
 	if ctx.Fuchsia() {
-		flags.LdFlags = append(flags.LdFlags, "-lfdio", "-lzircon")
+		flags.Global.LdFlags = append(flags.Global.LdFlags, "-lfdio", "-lzircon")
 	}
 
 	if ctx.toolchain().LibclangRuntimeLibraryArch() != "" {
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs="+config.BuiltinsRuntimeLibrary(ctx.toolchain())+".a")
+		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--exclude-libs="+config.BuiltinsRuntimeLibrary(ctx.toolchain())+".a")
 	}
 
 	CheckBadLinkerFlags(ctx, "ldflags", linker.Properties.Ldflags)
 
-	flags.LdFlags = append(flags.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
+	flags.Local.LdFlags = append(flags.Local.LdFlags, proptools.NinjaAndShellEscapeList(linker.Properties.Ldflags)...)
 
 	if ctx.Host() && !ctx.Windows() {
 		rpath_prefix := `\$$ORIGIN/`
@@ -399,7 +400,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 		if !ctx.static() {
 			for _, rpath := range linker.dynamicProperties.RunPaths {
-				flags.LdFlags = append(flags.LdFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
+				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
 			}
 		}
 	}
@@ -409,10 +410,10 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		// to older devices requires the old style hash. Fortunately, we can build with both and
 		// it'll work anywhere.
 		// This is not currently supported on MIPS architectures.
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--hash-style=both")
+		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--hash-style=both")
 	}
 
-	flags.LdFlags = append(flags.LdFlags, toolchain.ToolchainClangLdflags())
+	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainClangLdflags())
 
 	if Bool(linker.Properties.Group_static_libs) {
 		flags.GroupStaticLibs = true
@@ -434,13 +435,13 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			if ctx.Darwin() {
 				ctx.PropertyErrorf("version_script", "Not supported on Darwin")
 			} else {
-				flags.LdFlags = append(flags.LdFlags,
+				flags.Local.LdFlags = append(flags.Local.LdFlags,
 					"-Wl,--version-script,"+versionScript.String())
 				flags.LdFlagsDeps = append(flags.LdFlagsDeps, versionScript.Path())
 
 				if linker.sanitize.isSanitizerEnabled(cfi) {
 					cfiExportsMap := android.PathForSource(ctx, cfiExportsMapPath)
-					flags.LdFlags = append(flags.LdFlags,
+					flags.Local.LdFlags = append(flags.Local.LdFlags,
 						"-Wl,--version-script,"+cfiExportsMap.String())
 					flags.LdFlagsDeps = append(flags.LdFlagsDeps, cfiExportsMap)
 				}
