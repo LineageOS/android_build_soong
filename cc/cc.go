@@ -858,21 +858,28 @@ func (c *Module) ExportedIncludeDirs() android.Paths {
 	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
 		return flagsProducer.exportedDirs()
 	}
-	return []android.Path{}
+	return nil
 }
 
 func (c *Module) ExportedSystemIncludeDirs() android.Paths {
 	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
 		return flagsProducer.exportedSystemDirs()
 	}
-	return []android.Path{}
+	return nil
 }
 
 func (c *Module) ExportedFlags() []string {
 	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
 		return flagsProducer.exportedFlags()
 	}
-	return []string{}
+	return nil
+}
+
+func (c *Module) ExportedDeps() android.Paths {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedDeps()
+	}
+	return nil
 }
 
 func isBionic(name string) bool {

@@ -16,9 +16,7 @@ package sdk
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -38,9 +36,9 @@ type generatedFile struct {
 	indentLevel int
 }
 
-func newGeneratedFile(ctx android.ModuleContext, name string) *generatedFile {
+func newGeneratedFile(ctx android.ModuleContext, path ...string) *generatedFile {
 	return &generatedFile{
-		path:        android.PathForModuleOut(ctx, name).OutputPath,
+		path:        android.PathForModuleOut(ctx, path...).OutputPath,
 		indentLevel: 0,
 	}
 }
@@ -89,6 +87,7 @@ type archSpecificNativeLibInfo struct {
 	exportedIncludeDirs       android.Paths
 	exportedSystemIncludeDirs android.Paths
 	exportedFlags             []string
+	exportedDeps              android.Paths
 	outputFile                android.Path
 }
 
@@ -132,6 +131,7 @@ func (s *sdk) nativeMemberInfos(ctx android.ModuleContext) []*nativeLibInfo {
 			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
 			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
 			exportedFlags:             ccModule.ExportedFlags(),
+			exportedDeps:              ccModule.ExportedDeps(),
 			outputFile:                ccModule.OutputFile().Path(),
 		})
 	})
@@ -169,11 +169,11 @@ func (s *sdk) nativeMemberInfos(ctx android.ModuleContext) []*nativeLibInfo {
 //         aidl/
 //            frameworks/base/core/..../IFoo.aidl   : an exported AIDL file
 //         java/
-//            java/<module_name>/stub.jar    : a stub jar for a java library 'module_name'
+//            <module_name>.jar    : the stub jar for a java library 'module_name'
 //         include/
 //            bionic/libc/include/stdlib.h   : an exported header file
 //         include_gen/
-//            com/android/.../IFoo.h : a generated header file
+//            <module_name>/com/android/.../IFoo.h : a generated header file
 //         <arch>/include/   : arch-specific exported headers
 //         <arch>/include_gen/   : arch-specific generated headers
 //         <arch>/lib/
@@ -182,7 +182,7 @@ func (s *sdk) nativeMemberInfos(ctx android.ModuleContext) []*nativeLibInfo {
 const (
 	aidlIncludeDir            = "aidl"
 	javaStubDir               = "java"
-	javaStubFile              = "stub.jar"
+	javaStubFileSuffix        = ".jar"
 	nativeIncludeDir          = "include"
 	nativeGeneratedIncludeDir = "include_gen"
 	nativeStubDir             = "lib"
@@ -191,7 +191,7 @@ const (
 
 // path to the stub file of a java library. Relative to <sdk_root>/<api_dir>
 func javaStubFilePathFor(javaLib *java.Library) string {
-	return filepath.Join(javaStubDir, javaLib.Name(), javaStubFile)
+	return filepath.Join(javaStubDir, javaLib.Name()+javaStubFileSuffix)
 }
 
 // path to the stub file of a native shared library. Relative to <sdk_root>/<api_dir>
@@ -204,7 +204,6 @@ func nativeStubFilePathFor(lib archSpecificNativeLibInfo) string {
 func nativeIncludeDirPathsFor(ctx android.ModuleContext, lib archSpecificNativeLibInfo,
 	systemInclude bool, archSpecific bool) []string {
 	var result []string
-	buildDir := ctx.Config().BuildDir()
 	var includeDirs []android.Path
 	if !systemInclude {
 		includeDirs = lib.exportedIncludeDirs
@@ -213,8 +212,8 @@ func nativeIncludeDirPathsFor(ctx android.ModuleContext, lib archSpecificNativeL
 	}
 	for _, dir := range includeDirs {
 		var path string
-		if gen := strings.HasPrefix(dir.String(), buildDir); gen {
-			path = filepath.Join(nativeGeneratedIncludeDir, dir.Rel())
+		if _, gen := dir.(android.WritablePath); gen {
+			path = filepath.Join(nativeGeneratedIncludeDir, lib.name)
 		} else {
 			path = filepath.Join(nativeIncludeDir, dir.String())
 		}
@@ -226,21 +225,19 @@ func nativeIncludeDirPathsFor(ctx android.ModuleContext, lib archSpecificNativeL
 	return result
 }
 
-// A name that uniquely identifies an prebuilt SDK member for a version of SDK snapshot
+// A name that uniquely identifies a prebuilt SDK member for a version of SDK snapshot
 // This isn't visible to users, so could be changed in future.
 func versionedSdkMemberName(ctx android.ModuleContext, memberName string, version string) string {
 	return ctx.ModuleName() + "_" + memberName + string(android.SdkVersionSeparator) + version
 }
 
-// arm64, arm, x86, x86_64, etc.
-func archTypeOf(module android.Module) string {
-	return module.Target().Arch.ArchType.String()
-}
-
 // buildAndroidBp creates the blueprint file that defines prebuilt modules for each of
 // the SDK members, and the entire sdk_snapshot module for the specified version
+// TODO(jiyong): create a meta info file (e.g. json, protobuf, etc.) instead, and convert it to
+// Android.bp in the (presumably old) branch where the snapshots will be used. This will give us
+// some flexibility to introduce backwards incompatible changes in soong.
 func (s *sdk) buildAndroidBp(ctx android.ModuleContext, version string) android.OutputPath {
-	bp := newGeneratedFile(ctx, "blueprint-"+version+".bp")
+	bp := newGeneratedFile(ctx, "snapshot", "Android.bp")
 	bp.printfln("// This is auto-generated. DO NOT EDIT.")
 	bp.printfln("")
 
@@ -352,52 +349,42 @@ func (s *sdk) buildAndroidBp(ctx android.ModuleContext, version string) android.
 	return bp.path
 }
 
-func (s *sdk) buildScript(ctx android.ModuleContext, version string) android.OutputPath {
-	sh := newGeneratedFile(ctx, "update_prebuilt-"+version+".sh")
-	buildDir := ctx.Config().BuildDir()
-
-	snapshotPath := func(paths ...string) string {
-		return filepath.Join(ctx.ModuleDir(), version, filepath.Join(paths...))
+// buildSnapshot is the main function in this source file. It creates rules to copy
+// the contents (header files, stub libraries, etc) into the zip file.
+func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
+	snapshotPath := func(paths ...string) android.OutputPath {
+		return android.PathForModuleOut(ctx, "snapshot").Join(ctx, paths...)
 	}
 
-	// TODO(jiyong) instead of creating script, create a zip file having the Android.bp, the headers,
-	// and the stubs and put it to the dist directory. The dist'ed zip file then would be downloaded,
-	// unzipped and then uploaded to gerrit again.
-	sh.printfln("#!/bin/bash")
-	sh.printfln("echo Updating snapshot of %s in %s", ctx.ModuleName(), snapshotPath())
-	sh.printfln("pushd $ANDROID_BUILD_TOP > /dev/null")
-	sh.printfln("mkdir -p %s", snapshotPath(aidlIncludeDir))
-	sh.printfln("mkdir -p %s", snapshotPath(javaStubDir))
-	sh.printfln("mkdir -p %s", snapshotPath(nativeIncludeDir))
-	sh.printfln("mkdir -p %s", snapshotPath(nativeGeneratedIncludeDir))
-	for _, target := range ctx.MultiTargets() {
-		arch := target.Arch.ArchType.String()
-		sh.printfln("mkdir -p %s", snapshotPath(arch, nativeStubDir))
-		sh.printfln("mkdir -p %s", snapshotPath(arch, nativeIncludeDir))
-		sh.printfln("mkdir -p %s", snapshotPath(arch, nativeGeneratedIncludeDir))
+	var filesToZip android.Paths
+	// copy src to dest and add the dest to the zip
+	copy := func(src android.Path, dest android.OutputPath) {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  src,
+			Output: dest,
+		})
+		filesToZip = append(filesToZip, dest)
 	}
 
-	var implicits android.Paths
+	// copy exported AIDL files and stub jar files
 	for _, m := range s.javaLibs(ctx) {
 		headerJars := m.HeaderJars()
 		if len(headerJars) != 1 {
 			panic(fmt.Errorf("there must be only one header jar from %q", m.Name()))
 		}
-		implicits = append(implicits, headerJars...)
+		copy(headerJars[0], snapshotPath(javaStubFilePathFor(m)))
 
-		exportedAidlIncludeDirs := m.AidlIncludeDirs()
-		for _, dir := range exportedAidlIncludeDirs {
-			// Using tar to copy with the directory structure
+		for _, dir := range m.AidlIncludeDirs() {
 			// TODO(jiyong): copy parcelable declarations only
-			sh.printfln("find %s -name \"*.aidl\" | tar cf - -T - | (cd %s; tar xf -)",
-				dir.String(), snapshotPath(aidlIncludeDir))
+			aidlFiles, _ := ctx.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
+			for _, file := range aidlFiles {
+				copy(android.PathForSource(ctx, file), snapshotPath(aidlIncludeDir, file))
+			}
 		}
-
-		copyTarget := snapshotPath(javaStubFilePathFor(m))
-		sh.printfln("mkdir -p %s && cp %s %s",
-			filepath.Dir(copyTarget), headerJars[0].String(), copyTarget)
 	}
 
+	// copy exported header files and stub *.so files
 	nativeLibInfos := s.nativeMemberInfos(ctx)
 	for _, info := range nativeLibInfos {
 
@@ -409,26 +396,32 @@ func (s *sdk) buildScript(ctx android.ModuleContext, version string) android.Out
 				return
 			}
 			for _, dir := range includeDirs {
-				gen := strings.HasPrefix(dir.String(), buildDir)
-				targetDir := nativeIncludeDir
-				if gen {
-					targetDir = nativeGeneratedIncludeDir
+				if _, gen := dir.(android.WritablePath); gen {
+					// generated headers are copied via exportedDeps. See below.
+					continue
 				}
+				targetDir := nativeIncludeDir
 				if info.hasArchSpecificFlags {
 					targetDir = filepath.Join(lib.archType, targetDir)
 				}
-				targetDir = snapshotPath(targetDir)
 
-				sourceDirRoot := "."
-				sourceDirRel := dir.String()
-				if gen {
-					// ex) out/soong/.intermediate/foo/bar/gen/aidl
-					sourceDirRoot = strings.TrimSuffix(dir.String(), dir.Rel())
-					sourceDirRel = dir.Rel()
-				}
 				// TODO(jiyong) copy headers having other suffixes
-				sh.printfln("(cd %s; find %s -name \"*.h\" | tar cf - -T - ) | (cd %s; tar xf -)",
-					sourceDirRoot, sourceDirRel, targetDir)
+				headers, _ := ctx.GlobWithDeps(dir.String()+"/**/*.h", nil)
+				for _, file := range headers {
+					src := android.PathForSource(ctx, file)
+					dest := snapshotPath(targetDir, file)
+					copy(src, dest)
+				}
+			}
+
+			genHeaders := lib.exportedDeps
+			for _, file := range genHeaders {
+				targetDir := nativeGeneratedIncludeDir
+				if info.hasArchSpecificFlags {
+					targetDir = filepath.Join(lib.archType, targetDir)
+				}
+				dest := snapshotPath(targetDir, lib.name, file.Rel())
+				copy(file, dest)
 			}
 		}
 
@@ -438,10 +431,7 @@ func (s *sdk) buildScript(ctx android.ModuleContext, version string) android.Out
 
 		// for each architecture
 		for _, av := range info.archVariants {
-			stub := av.outputFile
-			implicits = append(implicits, stub)
-			copiedStub := snapshotPath(nativeStubFilePathFor(av))
-			sh.printfln("cp %s %s", stub.String(), copiedStub)
+			copy(av.outputFile, snapshotPath(nativeStubFilePathFor(av)))
 
 			if info.hasArchSpecificFlags {
 				printExportedDirCopyCommandsForNativeLibs(av)
@@ -449,69 +439,19 @@ func (s *sdk) buildScript(ctx android.ModuleContext, version string) android.Out
 		}
 	}
 
-	bp := s.buildAndroidBp(ctx, version)
-	implicits = append(implicits, bp)
-	sh.printfln("cp %s %s", bp.String(), snapshotPath("Android.bp"))
+	// generate Android.bp
+	bp := s.buildAndroidBp(ctx, "current")
+	filesToZip = append(filesToZip, bp)
 
-	sh.printfln("popd > /dev/null")
-	sh.printfln("rm -- \"$0\"") // self deleting so that stale script is not used
-	sh.printfln("echo Done")
+	// zip them all
+	zipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
+	rb := android.NewRuleBuilder()
+	rb.Command().
+		BuiltTool(ctx, "soong_zip").
+		FlagWithArg("-C ", snapshotPath().String()).
+		FlagWithRspFileInputList("-l ", filesToZip).
+		FlagWithOutput("-o ", zipFile)
+	rb.Build(pctx, ctx, "snapshot", "Building snapshot for "+ctx.ModuleName())
 
-	sh.build(pctx, ctx, implicits)
-	return sh.path
-}
-
-func (s *sdk) buildSnapshotGenerationScripts(ctx android.ModuleContext) {
-	if s.snapshot() {
-		// we don't need a script for sdk_snapshot.. as they are frozen
-		return
-	}
-
-	// script to update the 'current' snapshot
-	s.updateScript = s.buildScript(ctx, "current")
-
-	versions := s.frozenVersions(ctx)
-	newVersion := "1"
-	if len(versions) >= 1 {
-		lastVersion := versions[len(versions)-1]
-		lastVersionNum, err := strconv.Atoi(lastVersion)
-		if err != nil {
-			panic(err)
-			return
-		}
-		newVersion = strconv.Itoa(lastVersionNum + 1)
-	}
-	// script to create a new frozen version of snapshot
-	s.freezeScript = s.buildScript(ctx, newVersion)
-}
-
-func (s *sdk) androidMkEntriesForScript() android.AndroidMkEntries {
-	if s.snapshot() {
-		// we don't need a script for sdk_snapshot.. as they are frozen
-		return android.AndroidMkEntries{}
-	}
-
-	entries := android.AndroidMkEntries{
-		Class: "FAKE",
-		// TODO(jiyong): remove this? but androidmk.go expects OutputFile to be specified anyway
-		OutputFile: android.OptionalPathForPath(s.updateScript),
-		Include:    "$(BUILD_SYSTEM)/base_rules.mk",
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(entries *android.AndroidMkEntries) {
-				entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES",
-					s.updateScript.String(), s.freezeScript.String())
-			},
-		},
-		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-				fmt.Fprintln(w, "$(LOCAL_BUILT_MODULE): $(LOCAL_ADDITIONAL_DEPENDENCIES)")
-				fmt.Fprintln(w, "	touch $@")
-				fmt.Fprintln(w, "	echo ##################################################")
-				fmt.Fprintln(w, "	echo To update current SDK: execute", filepath.Join("\\$$ANDROID_BUILD_TOP", s.updateScript.String()))
-				fmt.Fprintln(w, "	echo To freeze current SDK: execute", filepath.Join("\\$$ANDROID_BUILD_TOP", s.freezeScript.String()))
-				fmt.Fprintln(w, "	echo ##################################################")
-			},
-		},
-	}
-	return entries
+	return zipFile
 }
