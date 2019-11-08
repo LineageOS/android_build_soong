@@ -1196,7 +1196,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if am, ok := child.(android.ApexModule); ok {
 				// We cannot use a switch statement on `depTag` here as the checked
 				// tags used below are private (e.g. `cc.sharedDepTag`).
-				if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) {
+				if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) || java.IsJniDepTag(depTag) {
 					if cc, ok := child.(*cc.Module); ok {
 						if android.InList(cc.Name(), providedNativeSharedLibs) {
 							// If we're using a shared library which is provided from other APEX,
