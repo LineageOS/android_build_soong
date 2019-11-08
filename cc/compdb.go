@@ -152,12 +152,16 @@ func getArguments(src android.Path, ctx android.SingletonContext, ccModule *Modu
 		clangPath = ccPath
 	}
 	args = append(args, clangPath)
-	args = append(args, expandAllVars(ctx, ccModule.flags.GlobalFlags)...)
-	args = append(args, expandAllVars(ctx, ccModule.flags.CFlags)...)
+	args = append(args, expandAllVars(ctx, ccModule.flags.Global.CommonFlags)...)
+	args = append(args, expandAllVars(ctx, ccModule.flags.Local.CommonFlags)...)
+	args = append(args, expandAllVars(ctx, ccModule.flags.Global.CFlags)...)
+	args = append(args, expandAllVars(ctx, ccModule.flags.Local.CFlags)...)
 	if isCpp {
-		args = append(args, expandAllVars(ctx, ccModule.flags.CppFlags)...)
+		args = append(args, expandAllVars(ctx, ccModule.flags.Global.CppFlags)...)
+		args = append(args, expandAllVars(ctx, ccModule.flags.Local.CppFlags)...)
 	} else if !isAsm {
-		args = append(args, expandAllVars(ctx, ccModule.flags.ConlyFlags)...)
+		args = append(args, expandAllVars(ctx, ccModule.flags.Global.ConlyFlags)...)
+		args = append(args, expandAllVars(ctx, ccModule.flags.Local.ConlyFlags)...)
 	}
 	args = append(args, expandAllVars(ctx, ccModule.flags.SystemIncludeFlags)...)
 	args = append(args, src.String())

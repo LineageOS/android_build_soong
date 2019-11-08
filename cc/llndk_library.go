@@ -133,7 +133,7 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 
 	if !Bool(stub.Properties.Unversioned) {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
-		flags.LdFlags = append(flags.LdFlags, linkerScriptFlag)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlag)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
 	}
 

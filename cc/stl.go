@@ -215,12 +215,12 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			// these availability attributes are meaningless for us but cause
 			// build breaks when we try to use code that would not be available
 			// in the system's dylib.
-			flags.CppFlags = append(flags.CppFlags,
+			flags.Local.CppFlags = append(flags.Local.CppFlags,
 				"-D_LIBCPP_DISABLE_AVAILABILITY")
 		}
 
 		if !ctx.toolchain().Bionic() {
-			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
+			flags.Local.CppFlags = append(flags.Local.CppFlags, "-nostdinc++")
 			flags.extraLibFlags = append(flags.extraLibFlags, "-nostdlib++")
 			if ctx.Windows() {
 				if stl.Properties.SelectedStl == "libc++_static" {
@@ -231,9 +231,9 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 				// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
 				// exception model for 32-bit.
 				if ctx.Arch().ArchType == android.X86 {
-					flags.CppFlags = append(flags.CppFlags, "-fsjlj-exceptions")
+					flags.Local.CppFlags = append(flags.Local.CppFlags, "-fsjlj-exceptions")
 				}
-				flags.CppFlags = append(flags.CppFlags,
+				flags.Local.CppFlags = append(flags.Local.CppFlags,
 					// Disable visiblity annotations since we're using static
 					// libc++.
 					"-D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS",
@@ -243,23 +243,23 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			}
 		} else {
 			if ctx.Arch().ArchType == android.Arm {
-				flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,libunwind_llvm.a")
 			}
 		}
 	case "libstdc++":
 		// Nothing
 	case "ndk_system":
 		ndkSrcRoot := android.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
-		flags.CFlags = append(flags.CFlags, "-isystem "+ndkSrcRoot.String())
+		flags.Local.CFlags = append(flags.Local.CFlags, "-isystem "+ndkSrcRoot.String())
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		if ctx.Arch().ArchType == android.Arm {
 			// Make sure the _Unwind_XXX symbols are not re-exported.
-			flags.LdFlags = append(flags.LdFlags, "-Wl,--exclude-libs,libunwind.a")
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,libunwind.a")
 		}
 	case "":
 		// None or error.
 		if !ctx.toolchain().Bionic() {
-			flags.CppFlags = append(flags.CppFlags, "-nostdinc++")
+			flags.Local.CppFlags = append(flags.Local.CppFlags, "-nostdinc++")
 			flags.extraLibFlags = append(flags.extraLibFlags, "-nostdlib++")
 		}
 	default:
