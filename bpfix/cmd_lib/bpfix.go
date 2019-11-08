@@ -16,7 +16,7 @@
 
 // TODO(jeffrygaston) should this file be consolidated with bpfmt.go?
 
-package cmd
+package cmd_lib
 
 import (
 	"bytes"
