@@ -34,7 +34,7 @@ func TestGen(t *testing.T) {
 		aidl := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Rule("aidl")
 		libfoo := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Module().(*Module)
 
-		if !inList("-I"+filepath.Dir(aidl.Output.String()), libfoo.flags.GlobalFlags) {
+		if !inList("-I"+filepath.Dir(aidl.Output.String()), libfoo.flags.Local.CommonFlags) {
 			t.Errorf("missing aidl includes in global flags")
 		}
 	})
@@ -58,7 +58,7 @@ func TestGen(t *testing.T) {
 		aidl := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Rule("aidl")
 		libfoo := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Module().(*Module)
 
-		if !inList("-I"+filepath.Dir(aidl.Output.String()), libfoo.flags.GlobalFlags) {
+		if !inList("-I"+filepath.Dir(aidl.Output.String()), libfoo.flags.Local.CommonFlags) {
 			t.Errorf("missing aidl includes in global flags")
 		}
 
