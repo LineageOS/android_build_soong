@@ -332,10 +332,9 @@ func (app *AndroidApp) AndroidMkEntries() android.AndroidMkEntries {
 				if len(app.dexpreopter.builtInstalled) > 0 {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", app.dexpreopter.builtInstalled)
 				}
-				for _, split := range app.aapt.splits {
-					install := app.onDeviceDir + "/" +
-						strings.TrimSuffix(app.installApkName, ".apk") + "_" + split.suffix + ".apk"
-					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", split.path.String()+":"+install)
+				for _, extra := range app.extraOutputFiles {
+					install := app.onDeviceDir + "/" + extra.Base()
+					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", extra.String()+":"+install)
 				}
 			},
 		},
