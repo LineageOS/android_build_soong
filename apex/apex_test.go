@@ -2513,6 +2513,7 @@ func TestApexWithApps(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
+			jni_libs: ["libjni"],
 		}
 
 		android_app {
@@ -2522,6 +2523,13 @@ func TestApexWithApps(t *testing.T) {
 			system_modules: "none",
 			privileged: true,
 		}
+
+		cc_library_shared {
+			name: "libjni",
+			srcs: ["mylib.cpp"],
+			stl: "none",
+			system_shared_libs: [],
+		}
 	`)
 
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
@@ -2530,6 +2538,7 @@ func TestApexWithApps(t *testing.T) {
 
 	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
+	ensureContains(t, copyCmds, "image.apex/lib64/libjni.so")
 }
 
 func TestApexWithAppImports(t *testing.T) {
