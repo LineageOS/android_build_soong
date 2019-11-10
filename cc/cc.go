@@ -140,26 +140,34 @@ type PathDeps struct {
 	DynamicLinker android.OptionalPath
 }
 
-type Flags struct {
-	GlobalFlags     []string // Flags that apply to C, C++, and assembly source files
-	ArFlags         []string // Flags that apply to ar
+// LocalOrGlobalFlags contains flags that need to have values set globally by the build system or locally by the module
+// tracked separately, in order to maintain the required ordering (most of the global flags need to go first on the
+// command line so they can be overridden by the local module flags).
+type LocalOrGlobalFlags struct {
+	CommonFlags     []string // Flags that apply to C, C++, and assembly source files
 	AsFlags         []string // Flags that apply to assembly source files
+	YasmFlags       []string // Flags that apply to yasm assembly source files
 	CFlags          []string // Flags that apply to C and C++ source files
 	ToolingCFlags   []string // Flags that apply to C and C++ source files parsed by clang LibTooling tools
 	ConlyFlags      []string // Flags that apply to C source files
 	CppFlags        []string // Flags that apply to C++ source files
 	ToolingCppFlags []string // Flags that apply to C++ source files parsed by clang LibTooling tools
-	aidlFlags       []string // Flags that apply to aidl source files
-	rsFlags         []string // Flags that apply to renderscript source files
 	LdFlags         []string // Flags that apply to linker command lines
-	libFlags        []string // Flags to add libraries early to the link order
-	extraLibFlags   []string // Flags to add libraries late in the link order after LdFlags
-	TidyFlags       []string // Flags that apply to clang-tidy
-	SAbiFlags       []string // Flags that apply to header-abi-dumper
-	YasmFlags       []string // Flags that apply to yasm assembly source files
+}
+
+type Flags struct {
+	Local  LocalOrGlobalFlags
+	Global LocalOrGlobalFlags
+
+	aidlFlags     []string // Flags that apply to aidl source files
+	rsFlags       []string // Flags that apply to renderscript source files
+	libFlags      []string // Flags to add libraries early to the link order
+	extraLibFlags []string // Flags to add libraries late in the link order after LdFlags
+	TidyFlags     []string // Flags that apply to clang-tidy
+	SAbiFlags     []string // Flags that apply to header-abi-dumper
 
 	// Global include flags that apply to C, C++, and assembly source files
-	// These must be after any module include flags, which will be in GlobalFlags.
+	// These must be after any module include flags, which will be in CommonFlags.
 	SystemIncludeFlags []string
 
 	Toolchain config.Toolchain
@@ -858,21 +866,28 @@ func (c *Module) ExportedIncludeDirs() android.Paths {
 	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
 		return flagsProducer.exportedDirs()
 	}
-	return []android.Path{}
+	return nil
 }
 
 func (c *Module) ExportedSystemIncludeDirs() android.Paths {
 	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
 		return flagsProducer.exportedSystemDirs()
 	}
-	return []android.Path{}
+	return nil
 }
 
 func (c *Module) ExportedFlags() []string {
 	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
 		return flagsProducer.exportedFlags()
 	}
-	return []string{}
+	return nil
+}
+
+func (c *Module) ExportedDeps() android.Paths {
+	if flagsProducer, ok := c.linker.(exportedFlagsProducer); ok {
+		return flagsProducer.exportedDeps()
+	}
+	return nil
 }
 
 func isBionic(name string) bool {
@@ -1277,17 +1292,17 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		return
 	}
 
-	flags.CFlags, _ = filterList(flags.CFlags, config.IllegalFlags)
-	flags.CppFlags, _ = filterList(flags.CppFlags, config.IllegalFlags)
-	flags.ConlyFlags, _ = filterList(flags.ConlyFlags, config.IllegalFlags)
+	flags.Local.CFlags, _ = filterList(flags.Local.CFlags, config.IllegalFlags)
+	flags.Local.CppFlags, _ = filterList(flags.Local.CppFlags, config.IllegalFlags)
+	flags.Local.ConlyFlags, _ = filterList(flags.Local.ConlyFlags, config.IllegalFlags)
 
-	flags.GlobalFlags = append(flags.GlobalFlags, deps.Flags...)
+	flags.Local.CommonFlags = append(flags.Local.CommonFlags, deps.Flags...)
 
 	for _, dir := range deps.IncludeDirs {
-		flags.GlobalFlags = append(flags.GlobalFlags, "-I"+dir.String())
+		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-I"+dir.String())
 	}
 	for _, dir := range deps.SystemIncludeDirs {
-		flags.GlobalFlags = append(flags.GlobalFlags, "-isystem "+dir.String())
+		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-isystem "+dir.String())
 	}
 
 	c.flags = flags
@@ -1296,16 +1311,16 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		flags = c.sabi.flags(ctx, flags)
 	}
 
-	flags.AssemblerWithCpp = inList("-xassembler-with-cpp", flags.AsFlags)
+	flags.AssemblerWithCpp = inList("-xassembler-with-cpp", flags.Local.AsFlags)
 
 	// Optimization to reduce size of build.ninja
 	// Replace the long list of flags for each file with a module-local variable
-	ctx.Variable(pctx, "cflags", strings.Join(flags.CFlags, " "))
-	ctx.Variable(pctx, "cppflags", strings.Join(flags.CppFlags, " "))
-	ctx.Variable(pctx, "asflags", strings.Join(flags.AsFlags, " "))
-	flags.CFlags = []string{"$cflags"}
-	flags.CppFlags = []string{"$cppflags"}
-	flags.AsFlags = []string{"$asflags"}
+	ctx.Variable(pctx, "cflags", strings.Join(flags.Local.CFlags, " "))
+	ctx.Variable(pctx, "cppflags", strings.Join(flags.Local.CppFlags, " "))
+	ctx.Variable(pctx, "asflags", strings.Join(flags.Local.AsFlags, " "))
+	flags.Local.CFlags = []string{"$cflags"}
+	flags.Local.CppFlags = []string{"$cppflags"}
+	flags.Local.AsFlags = []string{"$asflags"}
 
 	var objs Objects
 	if c.compiler != nil {

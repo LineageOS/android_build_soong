@@ -85,8 +85,8 @@ func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
 func (j *Module) d8Flags(ctx android.ModuleContext, flags javaBuilderFlags) ([]string, android.Paths) {
 	d8Flags := j.dexCommonFlags(ctx)
 
-	d8Flags = append(d8Flags, flags.bootClasspath.FormTurbineClasspath("--lib ")...)
-	d8Flags = append(d8Flags, flags.classpath.FormTurbineClasspath("--lib ")...)
+	d8Flags = append(d8Flags, flags.bootClasspath.FormRepeatedClassPath("--lib ")...)
+	d8Flags = append(d8Flags, flags.classpath.FormRepeatedClassPath("--lib ")...)
 
 	var d8Deps android.Paths
 	d8Deps = append(d8Deps, flags.bootClasspath...)

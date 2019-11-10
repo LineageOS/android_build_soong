@@ -69,12 +69,12 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 
 	if cov.Properties.CoverageEnabled {
 		flags.Coverage = true
-		flags.GlobalFlags = append(flags.GlobalFlags, "--coverage", "-O0")
+		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "--coverage", "-O0")
 		cov.linkCoverage = true
 
 		// Override -Wframe-larger-than and non-default optimization
 		// flags that the module may use.
-		flags.CFlags = append(flags.CFlags, "-Wno-frame-larger-than=", "-O0")
+		flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=", "-O0")
 	}
 
 	// Even if we don't have coverage enabled, if any of our object files were compiled
@@ -112,12 +112,12 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 	}
 
 	if cov.linkCoverage {
-		flags.LdFlags = append(flags.LdFlags, "--coverage")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "--coverage")
 
 		coverage := ctx.GetDirectDepWithTag(getProfileLibraryName(ctx), coverageDepTag).(*Module)
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
 
-		flags.LdFlags = append(flags.LdFlags, "-Wl,--wrap,getenv")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
 	}
 
 	return flags, deps

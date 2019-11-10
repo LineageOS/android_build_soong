@@ -89,18 +89,18 @@ func (pgo *pgo) props() []interface{} {
 }
 
 func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.CFlags = append(flags.CFlags, props.Pgo.Cflags...)
+	flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
 
 	if props.isInstrumentation() {
-		flags.CFlags = append(flags.CFlags, profileInstrumentFlag)
+		flags.Local.CFlags = append(flags.Local.CFlags, profileInstrumentFlag)
 		// The profile runtime is added below in deps().  Add the below
 		// flag, which is the only other link-time action performed by
 		// the Clang driver during link.
-		flags.LdFlags = append(flags.LdFlags, "-u__llvm_profile_runtime")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-u__llvm_profile_runtime")
 	}
 	if props.isSampling() {
-		flags.CFlags = append(flags.CFlags, profileSamplingFlag)
-		flags.LdFlags = append(flags.LdFlags, profileSamplingFlag)
+		flags.Local.CFlags = append(flags.Local.CFlags, profileSamplingFlag)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, profileSamplingFlag)
 	}
 	return flags
 }
@@ -170,8 +170,8 @@ func (props *PgoProperties) addProfileUseFlags(ctx ModuleContext, flags Flags) F
 		profileFilePath := profileFile.Path()
 		profileUseFlags := props.profileUseFlags(ctx, profileFilePath.String())
 
-		flags.CFlags = append(flags.CFlags, profileUseFlags...)
-		flags.LdFlags = append(flags.LdFlags, profileUseFlags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, profileUseFlags...)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, profileUseFlags...)
 
 		// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
 		// if profileFile gets updated
