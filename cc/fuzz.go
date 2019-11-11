@@ -232,6 +232,8 @@ func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 			sharedLibraryInstallLocation(
 				lib, ctx.Host(), ctx.Arch().ArchType.String()))
 	}
+
+	sort.Strings(fuzz.installedSharedDeps)
 }
 
 func NewFuzz(hod android.HostOrDeviceSupported) *Module {
