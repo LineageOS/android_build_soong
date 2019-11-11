@@ -430,6 +430,11 @@ type jniDependencyTag struct {
 	target android.Target
 }
 
+func IsJniDepTag(depTag blueprint.DependencyTag) bool {
+	_, ok := depTag.(*jniDependencyTag)
+	return ok
+}
+
 var (
 	staticLibTag          = dependencyTag{name: "staticlib"}
 	libTag                = dependencyTag{name: "javalib"}
