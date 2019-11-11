@@ -23,12 +23,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
 	"android/soong/genrule"
-
-	"github.com/google/blueprint/proptools"
 )
 
 var buildDir string
