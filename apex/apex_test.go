@@ -520,6 +520,26 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice")
 }
 
+func TestApexManifest(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	module.Output("apex_manifest.pb")
+	module.Output("apex_manifest.json")
+	module.Output("apex_manifest_full.json")
+}
+
 func TestBasicZipApex(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
