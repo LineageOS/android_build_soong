@@ -41,7 +41,6 @@ var (
 	// TODO(b/113082813) make this configurable using config.fs syntax
 	generateFsConfig = pctx.StaticRule("generateFsConfig", blueprint.RuleParams{
 		Command: `echo '/ 1000 1000 0755' > ${out} && ` +
-			`echo '/apex_manifest.json 1000 1000 0644' >> ${out} && ` +
 			`echo ${ro_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0644"}' >> ${out} && ` +
 			`echo ${exec_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 0 2000 0755"}' >> ${out}`,
 		Description: "fs_config ${out}",
@@ -57,6 +56,18 @@ var (
 		Description: "prepare ${out}",
 	}, "provideNativeLibs", "requireNativeLibs", "opt")
 
+	stripApexManifestRule = pctx.StaticRule("stripApexManifestRule", blueprint.RuleParams{
+		Command:     `rm -f $out && ${conv_apex_manifest} strip $in -o $out`,
+		CommandDeps: []string{"${conv_apex_manifest}"},
+		Description: "strip ${in}=>${out}",
+	})
+
+	pbApexManifestRule = pctx.StaticRule("pbApexManifestRule", blueprint.RuleParams{
+		Command:     `rm -f $out && ${conv_apex_manifest} proto $in -o $out`,
+		CommandDeps: []string{"${conv_apex_manifest}"},
+		Description: "convert ${in}=>${out}",
+	})
+
 	// TODO(b/113233103): make sure that file_contexts is sane, i.e., validate
 	// against the binary policy using sefcontext_compiler -p <policy>.
 
@@ -66,6 +77,7 @@ var (
 			`(. ${out}.copy_commands) && ` +
 			`APEXER_TOOL_PATH=${tool_path} ` +
 			`${apexer} --force --manifest ${manifest} ` +
+			`--manifest_json ${manifest_json} --manifest_json_full ${manifest_json_full} ` +
 			`--file_contexts ${file_contexts} ` +
 			`--canned_fs_config ${canned_fs_config} ` +
 			`--payload_type image ` +
@@ -76,20 +88,22 @@ var (
 		Rspfile:        "${out}.copy_commands",
 		RspfileContent: "${copy_commands}",
 		Description:    "APEX ${image_dir} => ${out}",
-	}, "tool_path", "image_dir", "copy_commands", "manifest", "file_contexts", "canned_fs_config", "key", "opt_flags")
+	}, "tool_path", "image_dir", "copy_commands", "file_contexts", "canned_fs_config", "key", "opt_flags",
+		"manifest", "manifest_json", "manifest_json_full",
+	)
 
 	zipApexRule = pctx.StaticRule("zipApexRule", blueprint.RuleParams{
 		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
 			`(. ${out}.copy_commands) && ` +
 			`APEXER_TOOL_PATH=${tool_path} ` +
-			`${apexer} --force --manifest ${manifest} ` +
+			`${apexer} --force --manifest ${manifest} --manifest_json_full ${manifest_json_full} ` +
 			`--payload_type zip ` +
 			`${image_dir} ${out} `,
 		CommandDeps:    []string{"${apexer}", "${merge_zips}", "${soong_zip}", "${zipalign}", "${aapt2}"},
 		Rspfile:        "${out}.copy_commands",
 		RspfileContent: "${copy_commands}",
 		Description:    "ZipAPEX ${image_dir} => ${out}",
-	}, "tool_path", "image_dir", "copy_commands", "manifest")
+	}, "tool_path", "image_dir", "copy_commands", "manifest", "manifest_json_full")
 
 	apexProtoConvertRule = pctx.AndroidStaticRule("apexProtoConvertRule",
 		blueprint.RuleParams{
@@ -181,6 +195,7 @@ func init() {
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 	pctx.HostBinToolVariable("jsonmodify", "jsonmodify")
+	pctx.HostBinToolVariable("conv_apex_manifest", "conv_apex_manifest")
 
 	android.RegisterModuleType("apex", BundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
@@ -640,7 +655,9 @@ type apexBundle struct {
 	primaryApexType bool
 
 	// intermediate path for apex_manifest.json
-	manifestOut android.WritablePath
+	manifestJsonOut     android.WritablePath
+	manifestJsonFullOut android.WritablePath
+	manifestPbOut       android.WritablePath
 
 	// list of commands to create symlinks for backward compatibility
 	// these commands will be attached as LOCAL_POST_INSTALL_CMD to
@@ -1291,8 +1308,23 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.filesInfo = filesInfo
 
 	// prepare apex_manifest.json
-	a.manifestOut = android.PathForModuleOut(ctx, "apex_manifest.json")
+	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
+
+	a.setCertificateAndPrivateKey(ctx)
+	if a.properties.ApexType == flattenedApex {
+		a.buildFlattenedApex(ctx)
+	} else {
+		a.buildUnflattenedApex(ctx)
+	}
+
+	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
+	a.compatSymlinks = makeCompatSymlinks(apexName, ctx)
+}
+
+func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs, requireNativeLibs []string) {
 	manifestSrc := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+
+	a.manifestJsonFullOut = android.PathForModuleOut(ctx, "apex_manifest_full.json")
 
 	// put dependency({provide|require}NativeLibs) in apex_manifest.json
 	provideNativeLibs = android.SortedUniqueStrings(provideNativeLibs)
@@ -1307,7 +1339,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   apexManifestRule,
 		Input:  manifestSrc,
-		Output: a.manifestOut,
+		Output: a.manifestJsonFullOut,
 		Args: map[string]string{
 			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
 			"requireNativeLibs": strings.Join(requireNativeLibs, " "),
@@ -1315,15 +1347,22 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		},
 	})
 
-	a.setCertificateAndPrivateKey(ctx)
-	if a.properties.ApexType == flattenedApex {
-		a.buildFlattenedApex(ctx)
-	} else {
-		a.buildUnflattenedApex(ctx)
-	}
+	// b/143654022 Q apexd can't understand newly added keys in apex_manifest.json
+	// prepare stripp-downed version so that APEX modules built from R+ can be installed to Q
+	a.manifestJsonOut = android.PathForModuleOut(ctx, "apex_manifest.json")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   stripApexManifestRule,
+		Input:  a.manifestJsonFullOut,
+		Output: a.manifestJsonOut,
+	})
 
-	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
-	a.compatSymlinks = makeCompatSymlinks(apexName, ctx)
+	// from R+, protobuf binary format (.pb) is the standard format for apex_manifest
+	a.manifestPbOut = android.PathForModuleOut(ctx, "apex_manifest.pb")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   pbApexManifestRule,
+		Input:  a.manifestJsonFullOut,
+		Output: a.manifestPbOut,
+	})
 }
 
 func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName string) android.OptionalPath {
@@ -1385,7 +1424,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
 
 	implicitInputs := append(android.Paths(nil), filesToCopy...)
-	implicitInputs = append(implicitInputs, a.manifestOut)
+	implicitInputs = append(implicitInputs, a.manifestPbOut, a.manifestJsonFullOut, a.manifestJsonOut)
 
 	if a.properties.Whitelisted_files != nil {
 		ctx.Build(pctx, android.BuildParams{
@@ -1421,7 +1460,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	if apexType == imageApex {
 		// files and dirs that will be created in APEX
-		var readOnlyPaths []string
+		var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
 		var executablePaths []string // this also includes dirs
 		for _, f := range a.filesInfo {
 			pathInApex := filepath.Join(f.installDir, f.builtFile.Base())
@@ -1519,14 +1558,16 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Output:      unsignedOutputFile,
 			Description: "apex (" + apexType.name() + ")",
 			Args: map[string]string{
-				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":        android.PathForModuleOut(ctx, "image"+suffix).String(),
-				"copy_commands":    strings.Join(copyCommands, " && "),
-				"manifest":         a.manifestOut.String(),
-				"file_contexts":    fileContexts.String(),
-				"canned_fs_config": cannedFsConfig.String(),
-				"key":              a.private_key_file.String(),
-				"opt_flags":        strings.Join(optFlags, " "),
+				"tool_path":          outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":          android.PathForModuleOut(ctx, "image"+suffix).String(),
+				"copy_commands":      strings.Join(copyCommands, " && "),
+				"manifest_json_full": a.manifestJsonFullOut.String(),
+				"manifest_json":      a.manifestJsonOut.String(),
+				"manifest":           a.manifestPbOut.String(),
+				"file_contexts":      fileContexts.String(),
+				"canned_fs_config":   cannedFsConfig.String(),
+				"key":                a.private_key_file.String(),
+				"opt_flags":          strings.Join(optFlags, " "),
 			},
 		})
 
@@ -1557,10 +1598,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Output:      unsignedOutputFile,
 			Description: "apex (" + apexType.name() + ")",
 			Args: map[string]string{
-				"tool_path":     outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":     android.PathForModuleOut(ctx, "image"+suffix).String(),
-				"copy_commands": strings.Join(copyCommands, " && "),
-				"manifest":      a.manifestOut.String(),
+				"tool_path":          outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":          android.PathForModuleOut(ctx, "image"+suffix).String(),
+				"copy_commands":      strings.Join(copyCommands, " && "),
+				"manifest":           a.manifestPbOut.String(),
+				"manifest_json_full": a.manifestJsonFullOut.String(),
 			},
 		})
 	}
@@ -1618,7 +1660,8 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json and apex_pubkey are also copied along
 		// with other ordinary files.
-		a.filesInfo = append(a.filesInfo, apexFile{a.manifestOut, "apex_manifest.json." + ctx.ModuleName() + a.suffix, ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{a.manifestJsonOut, "apex_manifest.json." + ctx.ModuleName() + a.suffix, ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{a.manifestPbOut, "apex_manifest.pb." + ctx.ModuleName() + a.suffix, ".", etc, nil, nil})
 
 		// rename to apex_pubkey
 		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
@@ -1755,7 +1798,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
 			// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
-			if a.primaryApexType && fi.builtFile.Base() == "apex_manifest.json" && len(a.compatSymlinks) > 0 {
+			if a.primaryApexType && fi.builtFile == a.manifestPbOut && len(a.compatSymlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(a.compatSymlinks, " && "))
 			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
