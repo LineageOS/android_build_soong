@@ -75,13 +75,29 @@ javadoc: option --boot-class-path not allowed with target 1.9
 `,
 		out: "\n",
 	},
+	{
+		in: `
+warning: [options] bootstrap class path not set in conjunction with -source 1.9\n
+1 warning
+`,
+		out: "\n",
+	},
+	{
+		in: `
+warning: foo
+warning: [options] bootstrap class path not set in conjunction with -source 1.9\n
+2 warnings
+`,
+		out: "\n\x1b[1m\x1b[35mwarning:\x1b[0m\x1b[1m foo\x1b[0m\n1 warning\n",
+	},
 }
 
 func TestJavacColorize(t *testing.T) {
 	for i, test := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			buf := new(bytes.Buffer)
-			err := process(bytes.NewReader([]byte(test.in)), buf)
+			proc := processor{}
+			err := proc.process(bytes.NewReader([]byte(test.in)), buf)
 			if err != nil {
 				t.Errorf("error: %q", err)
 			}
