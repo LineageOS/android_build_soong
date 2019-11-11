@@ -520,7 +520,7 @@ type AARImport struct {
 }
 
 func (a *AARImport) sdkVersion() string {
-	return proptools.StringDefault(a.properties.Sdk_version, defaultSdkVersion(a))
+	return String(a.properties.Sdk_version)
 }
 
 func (a *AARImport) systemModules() string {
