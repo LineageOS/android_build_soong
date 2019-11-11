@@ -54,6 +54,18 @@ func init() {
 	android.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
 
+func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
+	if j.SocSpecific() || j.DeviceSpecific() ||
+		(j.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
+		if sc, ok := ctx.Module().(sdkContext); ok {
+			if sc.sdkVersion() == "" {
+				ctx.PropertyErrorf("sdk_version",
+					"sdk_version must have a value when the module is located at vendor or product(only if PRODUCT_ENFORCE_PRODUCT_PARTITION_INTERFACE is set).")
+			}
+		}
+	}
+}
+
 func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
 	if sc, ok := ctx.Module().(sdkContext); ok {
 		usePlatformAPI := proptools.Bool(j.deviceProperties.Platform_apis)
@@ -452,18 +464,6 @@ var (
 	usesLibTag            = dependencyTag{name: "uses-library"}
 )
 
-func defaultSdkVersion(ctx checkVendorModuleContext) string {
-	if ctx.SocSpecific() || ctx.DeviceSpecific() {
-		return "system_current"
-	}
-	return ""
-}
-
-type checkVendorModuleContext interface {
-	SocSpecific() bool
-	DeviceSpecific() bool
-}
-
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
@@ -510,7 +510,7 @@ func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {
 }
 
 func (j *Module) sdkVersion() string {
-	return proptools.StringDefault(j.deviceProperties.Sdk_version, defaultSdkVersion(j))
+	return String(j.deviceProperties.Sdk_version)
 }
 
 func (j *Module) systemModules() string {
@@ -1641,6 +1641,7 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.checkSdkVersion(ctx)
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 	j.dexpreopter.isInstallable = Bool(j.properties.Installable)
@@ -1984,7 +1985,7 @@ type Import struct {
 }
 
 func (j *Import) sdkVersion() string {
-	return proptools.StringDefault(j.properties.Sdk_version, defaultSdkVersion(j))
+	return String(j.properties.Sdk_version)
 }
 
 func (j *Import) minSdkVersion() string {

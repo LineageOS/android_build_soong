@@ -205,6 +205,7 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkPlatformAPI(ctx)
+	a.checkSdkVersion(ctx)
 	a.generateAndroidBuildActions(ctx)
 }
 
