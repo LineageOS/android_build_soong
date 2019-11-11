@@ -51,6 +51,7 @@ func init() {
 
 type bootImageConfig struct {
 	name         string
+	stem         string
 	modules      []string
 	dexLocations []string
 	dexPaths     android.WritablePaths
@@ -71,7 +72,7 @@ func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.Ou
 	// In addition, each .art file has an associated .oat and .vdex file, and an
 	// unstripped .oat file
 	for i, m := range image.modules {
-		name := image.name
+		name := image.stem
 		if i != 0 {
 			name += "-" + stemOf(m)
 		}
@@ -139,11 +140,25 @@ func skipDexpreoptBootJars(ctx android.PathContext) bool {
 	return false
 }
 
+func skipDexpreoptArtBootJars(ctx android.BuilderContext) bool {
+	// with EMMA_INSTRUMENT_FRAMEWORK=true ART boot class path libraries have dependencies on framework,
+	// therefore dexpreopt ART libraries cannot be dexpreopted in isolation => no ART boot image
+	return ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK")
+}
+
 type dexpreoptBootJars struct {
 	defaultBootImage *bootImage
 	otherImages      []*bootImage
 
 	dexpreoptConfigForMake android.WritablePath
+}
+
+// Accessor function for the apex package. Returns nil if dexpreopt is disabled.
+func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.Paths {
+	if skipDexpreoptBootJars(ctx) || skipDexpreoptArtBootJars(ctx) {
+		return nil
+	}
+	return artBootImageConfig(ctx).imagesDeps
 }
 
 // dexpreoptBoot singleton rules
@@ -169,7 +184,12 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 
 	// Always create the default boot image first, to get a unique profile rule for all images.
 	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
+	if !skipDexpreoptArtBootJars(ctx) {
+		// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
+		buildBootImage(ctx, artBootImageConfig(ctx))
+	}
 	if global.GenerateApexImage {
+		// Create boot images for the JIT-zygote experiment.
 		d.otherImages = append(d.otherImages, buildBootImage(ctx, apexBootImageConfig(ctx)))
 	}
 
@@ -178,8 +198,6 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 
 // buildBootImage takes a bootImageConfig, creates rules to build it, and returns a *bootImage.
 func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootImage {
-	global := dexpreoptGlobalConfig(ctx)
-
 	image := newBootImage(ctx, config)
 
 	bootDexJars := make(android.Paths, len(image.modules))
@@ -223,12 +241,9 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 	bootFrameworkProfileRule(ctx, image, missingDeps)
 
 	var allFiles android.Paths
-
-	if !global.DisablePreopt {
-		for _, target := range image.targets {
-			files := buildBootImageRuleForArch(ctx, image, target.Arch.ArchType, profile, missingDeps)
-			allFiles = append(allFiles, files.Paths()...)
-		}
+	for _, target := range image.targets {
+		files := buildBootImageRuleForArch(ctx, image, target.Arch.ArchType, profile, missingDeps)
+		allFiles = append(allFiles, files.Paths()...)
 	}
 
 	if image.zip != nil {
@@ -251,7 +266,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 	global := dexpreoptGlobalConfig(ctx)
 
 	symbolsDir := image.symbolsDir.Join(ctx, "system/framework", arch.String())
-	symbolsFile := symbolsDir.Join(ctx, image.name+".oat")
+	symbolsFile := symbolsDir.Join(ctx, image.stem+".oat")
 	outputDir := image.dir.Join(ctx, "system/framework", arch.String())
 	outputPath := image.images[arch]
 	oatLocation := pathtools.ReplaceExtension(dexpreopt.PathToLocation(outputPath, arch), "oat")
@@ -381,8 +396,9 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 	if global.DisableGenerateProfile || ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
 		return nil
 	}
-	return ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
+	profile := ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
 		tools := global.Tools
+		defaultProfile := "frameworks/base/config/boot-image-profile.txt"
 
 		rule := android.NewRuleBuilder()
 		rule.MissingDeps(missingDeps)
@@ -394,18 +410,13 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 			bootImageProfile = combinedBootImageProfile
 		} else if len(global.BootImageProfiles) == 1 {
 			bootImageProfile = global.BootImageProfiles[0]
+		} else if path := android.ExistentPathForSource(ctx, defaultProfile); path.Valid() {
+			bootImageProfile = path.Path()
 		} else {
-			// If not set, use the default.  Some branches like master-art-host don't have frameworks/base, so manually
-			// handle the case that the default is missing.  Those branches won't attempt to build the profile rule,
-			// and if they do they'll get a missing deps error.
-			defaultProfile := "frameworks/base/config/boot-image-profile.txt"
-			path := android.ExistentPathForSource(ctx, defaultProfile)
-			if path.Valid() {
-				bootImageProfile = path.Path()
-			} else {
-				missingDeps = append(missingDeps, defaultProfile)
-				bootImageProfile = android.PathForOutput(ctx, "missing")
-			}
+			// No profile (not even a default one, which is the case on some branches
+			// like master-art-host that don't have frameworks/base).
+			// Return nil and continue without profile.
+			return nil
 		}
 
 		profile := image.dir.Join(ctx, "boot.prof")
@@ -425,7 +436,11 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 		image.profileInstalls = rule.Installs()
 
 		return profile
-	}).(android.WritablePath)
+	})
+	if profile == nil {
+		return nil // wrap nil into a typed pointer with value nil
+	}
+	return profile.(android.WritablePath)
 }
 
 var bootImageProfileRuleKey = android.NewOnceKey("bootImageProfileRule")
