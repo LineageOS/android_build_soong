@@ -62,7 +62,6 @@ func TestDexpreoptBootJars(t *testing.T) {
 	bootArt := dexpreoptBootJars.Output("boot.art")
 
 	expectedInputs := []string{
-		"dex_bootjars/boot.prof",
 		"dex_bootjars_input/foo.jar",
 		"dex_bootjars_input/bar.jar",
 		"dex_bootjars_input/baz.jar",
