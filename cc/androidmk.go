@@ -327,14 +327,15 @@ func (fuzz *fuzzBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 			filepath.Dir(fuzz.config.String())+":config.json")
 	}
 
-	if len(fuzzFiles) > 0 {
-		ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(fuzzFiles, " "))
-		})
-	}
-
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		fmt.Fprintln(w, "LOCAL_IS_FUZZ_TARGET := true")
+		if len(fuzzFiles) > 0 {
+			fmt.Fprintln(w, "LOCAL_TEST_DATA := "+strings.Join(fuzzFiles, " "))
+		}
+		if fuzz.installedSharedDeps != nil {
+			fmt.Fprintln(w, "LOCAL_FUZZ_INSTALLED_SHARED_DEPS :="+
+				strings.Join(fuzz.installedSharedDeps, " "))
+		}
 	})
 }
 
