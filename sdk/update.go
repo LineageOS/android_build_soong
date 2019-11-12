@@ -80,6 +80,16 @@ func (s *sdk) javaLibs(ctx android.ModuleContext) []android.SdkAware {
 	return result
 }
 
+func (s *sdk) stubsSources(ctx android.ModuleContext) []android.SdkAware {
+	result := []android.SdkAware{}
+	ctx.VisitDirectDeps(func(m android.Module) {
+		if j, ok := m.(*java.Droidstubs); ok {
+			result = append(result, j)
+		}
+	})
+	return result
+}
+
 // archSpecificNativeLibInfo represents an arch-specific variant of a native lib
 type archSpecificNativeLibInfo struct {
 	name                      string
@@ -236,13 +246,19 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 		ctx:           ctx,
 		version:       "current",
 		snapshotDir:   snapshotDir.OutputPath,
-		androidBpFile: bp,
 		filesToZip:    []android.Path{bp.path},
+		androidBpFile: bp,
 	}
 
 	// copy exported AIDL files and stub jar files
 	javaLibs := s.javaLibs(ctx)
 	for _, m := range javaLibs {
+		m.BuildSnapshot(ctx, builder)
+	}
+
+	// copy stubs sources
+	stubsSources := s.stubsSources(ctx)
+	for _, m := range stubsSources {
 		m.BuildSnapshot(ctx, builder)
 	}
 
@@ -266,6 +282,15 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 		bp.Dedent()
 		bp.Printfln("],") // java_libs
 	}
+	if len(stubsSources) > 0 {
+		bp.Printfln("stubs_sources: [")
+		bp.Indent()
+		for _, m := range stubsSources {
+			bp.Printfln("%q,", builder.VersionedSdkMemberName(m.Name()))
+		}
+		bp.Dedent()
+		bp.Printfln("],") // stubs_sources
+	}
 	if len(nativeLibInfos) > 0 {
 		bp.Printfln("native_shared_libs: [")
 		bp.Indent()
@@ -284,16 +309,45 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	filesToZip := builder.filesToZip
 
 	// zip them all
-	zipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
+	outputZipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
+	outputRuleName := "snapshot"
+	outputDesc := "Building snapshot for " + ctx.ModuleName()
+
+	// If there are no zips to merge then generate the output zip directly.
+	// Otherwise, generate an intermediate zip file into which other zips can be
+	// merged.
+	var zipFile android.OutputPath
+	var ruleName string
+	var desc string
+	if len(builder.zipsToMerge) == 0 {
+		zipFile = outputZipFile
+		ruleName = outputRuleName
+		desc = outputDesc
+	} else {
+		zipFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.unmerged.zip").OutputPath
+		ruleName = "intermediate snapshot"
+		desc = "Building intermediate snapshot for " + ctx.ModuleName()
+	}
+
 	rb := android.NewRuleBuilder()
 	rb.Command().
 		BuiltTool(ctx, "soong_zip").
 		FlagWithArg("-C ", builder.snapshotDir.String()).
 		FlagWithRspFileInputList("-l ", filesToZip).
 		FlagWithOutput("-o ", zipFile)
-	rb.Build(pctx, ctx, "snapshot", "Building snapshot for "+ctx.ModuleName())
+	rb.Build(pctx, ctx, ruleName, desc)
 
-	return zipFile
+	if len(builder.zipsToMerge) != 0 {
+		rb := android.NewRuleBuilder()
+		rb.Command().
+			BuiltTool(ctx, "merge_zips").
+			Output(outputZipFile).
+			Input(zipFile).
+			Inputs(builder.zipsToMerge)
+		rb.Build(pctx, ctx, outputRuleName, outputDesc)
+	}
+
+	return outputZipFile
 }
 
 func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
@@ -404,8 +458,9 @@ type snapshotBuilder struct {
 	ctx           android.ModuleContext
 	version       string
 	snapshotDir   android.OutputPath
-	filesToZip    android.Paths
 	androidBpFile *generatedFile
+	filesToZip    android.Paths
+	zipsToMerge   android.Paths
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
@@ -416,6 +471,25 @@ func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
 		Output: path,
 	})
 	s.filesToZip = append(s.filesToZip, path)
+}
+
+func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) {
+	ctx := s.ctx
+
+	// Repackage the zip file so that the entries are in the destDir directory.
+	// This will allow the zip file to be merged into the snapshot.
+	tmpZipPath := android.PathForModuleOut(ctx, "tmp", destDir+".zip").OutputPath
+	rb := android.NewRuleBuilder()
+	rb.Command().
+		BuiltTool(ctx, "zip2zip").
+		FlagWithInput("-i ", zipPath).
+		FlagWithOutput("-o ", tmpZipPath).
+		Flag("**/*:" + destDir)
+	rb.Build(pctx, ctx, "repackaging "+destDir,
+		"Repackaging zip file "+destDir+" for snapshot "+ctx.ModuleName())
+
+	// Add the repackaged zip file to the files to merge.
+	s.zipsToMerge = append(s.zipsToMerge, tmpZipPath)
 }
 
 func (s *snapshotBuilder) AndroidBpFile() android.GeneratedSnapshotFile {
