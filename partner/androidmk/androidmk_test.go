@@ -23,7 +23,7 @@ import (
 	"android/soong/androidmk/androidmk"
 	"android/soong/bpfix/bpfix"
 
-	_ "partner/android/bpfix/extensions"
+	_ "android/soong/partner/bpfix/extensions"
 )
 
 var testCases = []struct {

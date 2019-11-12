@@ -23,7 +23,7 @@ import (
 
 	"android/soong/androidmk/androidmk"
 
-	_ "partner/android/bpfix/extensions"
+	_ "android/soong/partner/bpfix/extensions"
 )
 
 var usage = func() {

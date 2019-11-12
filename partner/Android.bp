@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All rights reserved.
+// Copyright 2019 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,31 +19,31 @@
 blueprint_go_binary {
     name: "partner_androidmk",
     srcs: [
-        "partner_androidmk/androidmk.go",
+        "androidmk/androidmk.go",
     ],
     testSrcs: [
-        "partner_androidmk/androidmk_test.go",
+        "androidmk/androidmk_test.go",
     ],
     deps: [
         "androidmk-lib",
-        "partner_bpfix_extensions",
+        "partner-bpfix-extensions",
     ],
 }
 
 blueprint_go_binary {
     name: "partner_bpfix",
     srcs: [
-        "partner_bpfix/bpfix.go",
+        "bpfix/bpfix.go",
     ],
     deps: [
         "bpfix-cmd",
-        "partner_bpfix_extensions",
+        "partner-bpfix-extensions",
     ],
 }
 
 bootstrap_go_package {
-    name: "partner_bpfix_extensions",
-    pkgPath: "partner/android/bpfix/extensions",
-    srcs: ["fixes/headers.go"],
+    name: "partner-bpfix-extensions",
+    pkgPath: "android/soong/partner/bpfix/extensions",
+    srcs: ["bpfix/extensions/headers.go"],
     deps: ["bpfix-lib"],
 }
