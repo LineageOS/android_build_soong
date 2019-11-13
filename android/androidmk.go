@@ -230,9 +230,6 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 		}
 		a.SetBoolIfTrue("LOCAL_ODM_MODULE", Bool(amod.commonProperties.Device_specific))
 		a.SetBoolIfTrue("LOCAL_PRODUCT_MODULE", Bool(amod.commonProperties.Product_specific))
-		// TODO(b/135957588) product_services_specific is matched to LOCAL_PRODUCT_MODULE
-		// as a workaround. Remove this after clearing all Android.bp
-		a.SetBoolIfTrue("LOCAL_PRODUCT_MODULE", Bool(amod.commonProperties.Product_services_specific))
 		a.SetBoolIfTrue("LOCAL_SYSTEM_EXT_MODULE", Bool(amod.commonProperties.System_ext_specific))
 		if amod.commonProperties.Owner != nil {
 			a.SetString("LOCAL_MODULE_OWNER", *amod.commonProperties.Owner)
