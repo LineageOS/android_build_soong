@@ -1362,7 +1362,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	})
 
 	// b/143654022 Q apexd can't understand newly added keys in apex_manifest.json
-	// prepare stripp-downed version so that APEX modules built from R+ can be installed to Q
+	// prepare stripped-down version so that APEX modules built from R+ can be installed to Q
 	a.manifestJsonOut = android.PathForModuleOut(ctx, "apex_manifest.json")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   stripApexManifestRule,
