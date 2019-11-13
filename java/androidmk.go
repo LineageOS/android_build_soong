@@ -262,11 +262,6 @@ func (binary *Binary) AndroidMkEntries() android.AndroidMkEntries {
 }
 
 func (app *AndroidApp) AndroidMkEntries() android.AndroidMkEntries {
-	if !app.IsForPlatform() {
-		return android.AndroidMkEntries{
-			Disabled: true,
-		}
-	}
 	return android.AndroidMkEntries{
 		Class:      "APPS",
 		OutputFile: android.OptionalPathForPath(app.outputFile),
