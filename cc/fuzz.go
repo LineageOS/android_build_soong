@@ -232,6 +232,8 @@ func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 			sharedLibraryInstallLocation(
 				lib, ctx.Host(), ctx.Arch().ArchType.String()))
 	}
+
+	sort.Strings(fuzz.installedSharedDeps)
 }
 
 func NewFuzz(hod android.HostOrDeviceSupported) *Module {
@@ -336,6 +338,9 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		collectAllSharedDependencies(module, sharedLibraries, ctx)
 
 		for _, library := range sharedLibraries {
+			archDirs[archDir] = append(archDirs[archDir],
+				fileToZip{library, ccModule.Name() + "/lib"})
+
 			if _, exists := archSharedLibraryDeps[archAndLibraryKey{archDir, library}]; exists {
 				continue
 			}
@@ -376,12 +381,6 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 				fileToZip{fuzzModule.config, ccModule.Name()})
 		}
 	})
-
-	// Add the shared library deps for packaging.
-	for key, _ := range archSharedLibraryDeps {
-		archDirs[key.ArchDir] = append(archDirs[key.ArchDir],
-			fileToZip{key.Library, "lib"})
-	}
 
 	for archDir, filesToZip := range archDirs {
 		arch := archDir.Base()

@@ -16,10 +16,8 @@
 
 package main
 
-import (
-	"android/soong/bpfix/bpfix/cmd"
-)
+import "android/soong/bpfix/cmd_lib"
 
 func main() {
-	cmd.Run()
+	cmd_lib.Run()
 }

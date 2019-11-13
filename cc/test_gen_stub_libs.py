@@ -179,17 +179,17 @@ class OmitVersionTest(unittest.TestCase):
                 gsl.Version('foo', None, ['platform-only'], []), 'arm', 9,
                 False, False))
 
-    def test_omit_vndk(self):
+    def test_omit_llndk(self):
         self.assertTrue(
             gsl.should_omit_version(
-                gsl.Version('foo', None, ['vndk'], []), 'arm', 9, False, False))
+                gsl.Version('foo', None, ['llndk'], []), 'arm', 9, False, False))
 
         self.assertFalse(
             gsl.should_omit_version(
                 gsl.Version('foo', None, [], []), 'arm', 9, True, False))
         self.assertFalse(
             gsl.should_omit_version(
-                gsl.Version('foo', None, ['vndk'], []), 'arm', 9, True, False))
+                gsl.Version('foo', None, ['llndk'], []), 'arm', 9, True, False))
 
     def test_omit_apex(self):
         self.assertTrue(
@@ -231,16 +231,16 @@ class OmitVersionTest(unittest.TestCase):
 
 
 class OmitSymbolTest(unittest.TestCase):
-    def test_omit_vndk(self):
+    def test_omit_llndk(self):
         self.assertTrue(
             gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['vndk']), 'arm', 9, False, False))
+                gsl.Symbol('foo', ['llndk']), 'arm', 9, False, False))
 
         self.assertFalse(
             gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, True, False))
         self.assertFalse(
             gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['vndk']), 'arm', 9, True, False))
+                gsl.Symbol('foo', ['llndk']), 'arm', 9, True, False))
 
     def test_omit_apex(self):
         self.assertTrue(
@@ -441,12 +441,12 @@ class SymbolFileParseTest(unittest.TestCase):
 
         self.assertEqual(expected, versions)
 
-    def test_parse_vndk_apex_symbol(self):
+    def test_parse_llndk_apex_symbol(self):
         input_file = io.StringIO(textwrap.dedent("""\
             VERSION_1 {
                 foo;
-                bar; # vndk
-                baz; # vndk apex
+                bar; # llndk
+                baz; # llndk apex
                 qux; # apex
             };
         """))
@@ -459,8 +459,8 @@ class SymbolFileParseTest(unittest.TestCase):
 
         expected_symbols = [
             gsl.Symbol('foo', []),
-            gsl.Symbol('bar', ['vndk']),
-            gsl.Symbol('baz', ['vndk', 'apex']),
+            gsl.Symbol('bar', ['llndk']),
+            gsl.Symbol('baz', ['llndk', 'apex']),
             gsl.Symbol('qux', ['apex']),
         ]
         self.assertEqual(expected_symbols, version.symbols)
@@ -517,7 +517,7 @@ class GeneratorTest(unittest.TestCase):
         self.assertEqual('', version_file.getvalue())
 
         version = gsl.Version('VERSION_1', None, [], [
-            gsl.Symbol('foo', ['vndk']),
+            gsl.Symbol('foo', ['llndk']),
         ])
         generator.write_version(version)
         self.assertEqual('', src_file.getvalue())
@@ -607,7 +607,7 @@ class IntegrationTest(unittest.TestCase):
 
             VERSION_4 { # versioned=9
                 wibble;
-                wizzes; # vndk
+                wizzes; # llndk
                 waggle; # apex
             } VERSION_2;
 
@@ -749,10 +749,10 @@ class IntegrationTest(unittest.TestCase):
 
             VERSION_4 { # versioned=9
                 wibble;
-                wizzes; # vndk
+                wizzes; # llndk
                 waggle; # apex
-                bubble; # apex vndk
-                duddle; # vndk apex
+                bubble; # apex llndk
+                duddle; # llndk apex
             } VERSION_2;
 
             VERSION_5 { # versioned=14
