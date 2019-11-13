@@ -1217,7 +1217,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if am, ok := child.(android.ApexModule); ok {
 				// We cannot use a switch statement on `depTag` here as the checked
 				// tags used below are private (e.g. `cc.sharedDepTag`).
-				if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) {
+				if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) || java.IsJniDepTag(depTag) {
 					if cc, ok := child.(*cc.Module); ok {
 						if android.InList(cc.Name(), providedNativeSharedLibs) {
 							// If we're using a shared library which is provided from other APEX,
@@ -1254,8 +1254,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, apexFile{fileToCopy, moduleName, dirInApex, nativeTest, cc, nil})
 						return true
 					}
-				} else if java.IsJniDepTag(depTag) {
-					// Do nothing for JNI dep. JNI libraries are always embedded in APK-in-APEX.
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
