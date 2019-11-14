@@ -103,8 +103,11 @@ func (fuzz *fuzzBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = fuzz.binaryDecorator.linkerFlags(ctx, flags)
-	// RunPaths on devices isn't instantiated by the base linker.
+	// RunPaths on devices isn't instantiated by the base linker. `../lib` for
+	// installed fuzz targets (both host and device), and `./lib` for fuzz
+	// target packages.
 	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../lib`)
+	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
 	return flags
 }
 
