@@ -199,6 +199,25 @@ func TestProcMacroDeviceDeps(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "bar",
 		}
+		// Make a dummy libstd to let resolution go through
+		rust_library_dylib {
+			name: "libstd",
+			crate_name: "std",
+			srcs: ["foo.rs"],
+			no_stdlibs: true,
+		}
+		rust_library_dylib {
+			name: "libterm",
+			crate_name: "term",
+			srcs: ["foo.rs"],
+			no_stdlibs: true,
+		}
+		rust_library_dylib {
+			name: "libtest",
+			crate_name: "test",
+			srcs: ["foo.rs"],
+			no_stdlibs: true,
+		}
 		rust_proc_macro {
 			name: "libpm",
 			rlibs: ["libbar"],
@@ -215,5 +234,20 @@ func TestProcMacroDeviceDeps(t *testing.T) {
 
 	if !strings.Contains(rustc.Args["libFlags"], "libbar/linux_glibc_x86_64") {
 		t.Errorf("Proc_macro is not using host variant of dependent modules.")
+	}
+}
+
+// Test that no_stdlibs suppresses dependencies on rust standard libraries
+func TestNoStdlibs(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "fizz-buzz",
+			srcs: ["foo.rs"],
+                        no_stdlibs: true,
+		}`)
+	module := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a_core").Module().(*Module)
+
+	if android.InList("libstd", module.Properties.AndroidMkDylibs) {
+		t.Errorf("no_stdlibs did not suppress dependency on libstd")
 	}
 }

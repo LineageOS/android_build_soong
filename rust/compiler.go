@@ -32,6 +32,10 @@ func getDenyWarnings(compiler *baseCompiler) bool {
 	return BoolDefault(compiler.Properties.Deny_warnings, config.DefaultDenyWarnings)
 }
 
+func (compiler *baseCompiler) setNoStdlibs() {
+	compiler.Properties.No_stdlibs = proptools.BoolPtr(true)
+}
+
 func NewBaseCompiler(dir, dir64 string) *baseCompiler {
 	return &baseCompiler{
 		Properties: BaseCompilerProperties{},
@@ -82,6 +86,9 @@ type BaseCompilerProperties struct {
 
 	// install to a subdirectory of the default install path for the module
 	Relative_install_path *string `android:"arch_variant"`
+
+	// whether to suppress inclusion of standard crates - defaults to false
+	No_stdlibs *bool
 }
 
 type baseCompiler struct {
@@ -161,6 +168,23 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.StaticLibs = append(deps.StaticLibs, compiler.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, compiler.Properties.Shared_libs...)
 
+	if !Bool(compiler.Properties.No_stdlibs) {
+		for _, stdlib := range config.Stdlibs {
+			// If we're building for host, use the compiler's stdlibs
+			if ctx.Host() {
+				stdlib = stdlib + "_" + ctx.toolchain().RustTriple()
+			}
+
+			// This check is technically insufficient - on the host, where
+			// static linking is the default, if one of our static
+			// dependencies uses a dynamic library, we need to dynamically
+			// link the stdlib as well.
+			if (len(deps.Dylibs) > 0) || (!ctx.Host()) {
+				// Dynamically linked stdlib
+				deps.Dylibs = append(deps.Dylibs, stdlib)
+			}
+		}
+	}
 	return deps
 }
 
