@@ -41,8 +41,8 @@ var (
 func init() {
 	registerToolchainFactory(android.Android, android.X86_64, x86_64ToolchainFactory)
 
-	pctx.StaticVariable("x86_64ToolchainRustFlags", strings.Join(x86_64RustFlags, " "))
-	pctx.StaticVariable("x86_64ToolchainLinkFlags", strings.Join(x86_64LinkFlags, " "))
+	pctx.StaticVariable("X86_64ToolchainRustFlags", strings.Join(x86_64RustFlags, " "))
+	pctx.StaticVariable("X86_64ToolchainLinkFlags", strings.Join(x86_64LinkFlags, " "))
 
 	for variant, rustFlags := range x86_64ArchVariantRustFlags {
 		pctx.StaticVariable("X86_64"+variant+"VariantRustFlags",
@@ -57,11 +57,11 @@ type toolchainX86_64 struct {
 }
 
 func (t *toolchainX86_64) RustTriple() string {
-	return "x86_64-unknown-linux-gnu"
+	return "x86_64-linux-android"
 }
 
 func (t *toolchainX86_64) ToolchainLinkFlags() string {
-	return "${config.x86_64ToolchainLinkFlags}"
+	return "${config.DeviceGlobalLinkFlags} ${config.X86_64ToolchainLinkFlags}"
 }
 
 func (t *toolchainX86_64) ToolchainRustFlags() string {
@@ -69,14 +69,20 @@ func (t *toolchainX86_64) ToolchainRustFlags() string {
 }
 
 func (t *toolchainX86_64) RustFlags() string {
-	return "${config.x86_64ToolchainRustFlags}"
+	return "${config.X86_64ToolchainRustFlags}"
+}
+
+func (t *toolchainX86_64) Supported() bool {
+	return true
 }
 
 func x86_64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainRustFlags := []string{
-		"${config.x86_64ToolchainRustFlags}",
+		"${config.X86_64ToolchainRustFlags}",
 		"${config.X86_64" + arch.ArchVariant + "VariantRustFlags}",
 	}
+
+	toolchainRustFlags = append(toolchainRustFlags, deviceGlobalRustFlags...)
 
 	for _, feature := range arch.ArchFeatures {
 		toolchainRustFlags = append(toolchainRustFlags, x86_64ArchFeatureRustFlags[feature]...)

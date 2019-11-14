@@ -42,6 +42,7 @@ func PrebuiltDylibFactory() android.Module {
 func NewPrebuiltDylib(hod android.HostOrDeviceSupported) (*Module, *prebuiltLibraryDecorator) {
 	module, library := NewRustLibrary(hod)
 	library.BuildOnlyDylib()
+	library.setNoStdlibs()
 	library.setDylib()
 	prebuilt := &prebuiltLibraryDecorator{
 		libraryDecorator: library,
