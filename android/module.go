@@ -365,11 +365,6 @@ type commonProperties struct {
 	// /system/product if product partition does not exist).
 	Product_specific *bool
 
-	// TODO(b/135957588) Product_services_specific will be removed once we clear all Android.bp
-	// files that have 'product_services_specific: true'. This will be converted to
-	// Product_speicific as a workaround.
-	Product_services_specific *bool
-
 	// whether this module extends system. When set to true, it is installed into /system_ext
 	// (or /system/system_ext if system_ext partition does not exist).
 	System_ext_specific *bool

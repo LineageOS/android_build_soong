@@ -1684,9 +1684,9 @@ func LibraryFactory() android.Module {
 		&module.Module.dexpreoptProperties,
 		&module.Module.protoProperties)
 
-	InitJavaModule(module, android.HostAndDeviceSupported)
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
+	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
 
@@ -1708,8 +1708,8 @@ func LibraryHostFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
-	InitJavaModule(module, android.HostSupported)
 	android.InitApexModule(module)
+	InitJavaModule(module, android.HostSupported)
 	return module
 }
 
@@ -2135,9 +2135,9 @@ func ImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
-	InitJavaModule(module, android.HostAndDeviceSupported)
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
+	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
 
@@ -2152,8 +2152,8 @@ func ImportFactoryHost() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
-	InitJavaModule(module, android.HostSupported)
 	android.InitApexModule(module)
+	InitJavaModule(module, android.HostSupported)
 	return module
 }
 
@@ -2264,8 +2264,8 @@ func DexImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
-	InitJavaModule(module, android.DeviceSupported)
 	android.InitApexModule(module)
+	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
 
@@ -2331,10 +2331,10 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&AARImportProperties{},
 		&sdkLibraryProperties{},
 		&DexImportProperties{},
+		&android.ApexProperties{},
 	)
 
 	android.InitDefaultsModule(module)
-	android.InitApexModule(module)
 	return module
 }
 
