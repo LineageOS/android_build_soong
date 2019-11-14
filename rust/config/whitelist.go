@@ -5,6 +5,7 @@ var (
 		"external/rust",
 		"external/crosvm",
 		"external/adhd",
+		"prebuilts/rust",
 	}
 
 	RustModuleTypes = []string{
