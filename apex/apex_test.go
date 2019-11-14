@@ -115,6 +115,9 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("cc_prebuilt_library_static", android.ModuleFactoryAdaptor(cc.PrebuiltStaticLibraryFactory))
 	ctx.RegisterModuleType("cc_binary", android.ModuleFactoryAdaptor(cc.BinaryFactory))
 	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
+	ctx.RegisterModuleType("cc_defaults", android.ModuleFactoryAdaptor(func() android.Module {
+		return cc.DefaultsFactory()
+	}))
 	ctx.RegisterModuleType("cc_test", android.ModuleFactoryAdaptor(cc.TestFactory))
 	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
 	ctx.RegisterModuleType("vndk_prebuilt_shared", android.ModuleFactoryAdaptor(cc.VndkPrebuiltSharedFactory))
@@ -2584,6 +2587,40 @@ func TestApexWithAppImports(t *testing.T) {
 
 	ensureContains(t, copyCmds, "image.apex/app/AppFooPrebuilt/AppFooPrebuilt.apk")
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt/AppFooPrivPrebuilt.apk")
+}
+
+func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
+	// libfoo's apex_available comes from cc_defaults
+	testApexError(t, `"myapex" .*: requires "libfoo" that is not available for the APEX`, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	apex {
+		name: "otherapex",
+		key: "myapex.key",
+		native_shared_libs: ["libfoo"],
+	}
+
+	cc_defaults {
+		name: "libfoo-defaults",
+		apex_available: ["otherapex"],
+	}
+
+	cc_library {
+		name: "libfoo",
+		defaults: ["libfoo-defaults"],
+		stl: "none",
+		system_shared_libs: [],
+	}`)
 }
 
 func TestApexAvailable(t *testing.T) {
