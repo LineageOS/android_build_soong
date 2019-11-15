@@ -103,8 +103,11 @@ func (fuzz *fuzzBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = fuzz.binaryDecorator.linkerFlags(ctx, flags)
-	// RunPaths on devices isn't instantiated by the base linker.
+	// RunPaths on devices isn't instantiated by the base linker. `../lib` for
+	// installed fuzz targets (both host and device), and `./lib` for fuzz
+	// target packages.
 	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../lib`)
+	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
 	return flags
 }
 
@@ -123,19 +126,23 @@ func collectAllSharedDependencies(
 	// Enumerate the first level of dependencies, as we discard all non-library
 	// modules in the BFS loop below.
 	ctx.VisitDirectDeps(module, func(dep android.Module) {
-		fringe = append(fringe, dep)
+		if isValidSharedDependency(dep, sharedDeps) {
+			fringe = append(fringe, dep)
+		}
 	})
 
 	for i := 0; i < len(fringe); i++ {
 		module := fringe[i]
-		if !isValidSharedDependency(module, sharedDeps) {
+		if _, exists := sharedDeps[module.Name()]; exists {
 			continue
 		}
 
 		ccModule := module.(*Module)
 		sharedDeps[ccModule.Name()] = ccModule.UnstrippedOutputFile()
 		ctx.VisitDirectDeps(module, func(dep android.Module) {
-			fringe = append(fringe, dep)
+			if isValidSharedDependency(dep, sharedDeps) {
+				fringe = append(fringe, dep)
+			}
 		})
 	}
 }
@@ -155,8 +162,19 @@ func isValidSharedDependency(
 	if linkable, ok := dependency.(LinkableInterface); !ok || // Discard non-linkables.
 		!linkable.CcLibraryInterface() || !linkable.Shared() || // Discard static libs.
 		linkable.UseVndk() || // Discard vendor linked libraries.
-		!linkable.CcLibrary() || linkable.BuildStubs() { // Discard stubs libs (only CCLibrary variants).
+		// Discard stubs libs (only CCLibrary variants). Prebuilt libraries should not
+		// be excluded on the basis of they're not CCLibrary()'s.
+		(linkable.CcLibrary() && linkable.BuildStubs()) {
 		return false
+	}
+
+	// We discarded module stubs libraries above, but the LLNDK prebuilts stubs
+	// libraries must be handled differently - by looking for the stubDecorator.
+	// Discard LLNDK prebuilts stubs as well.
+	if ccLibrary, isCcLibrary := dependency.(*Module); isCcLibrary {
+		if _, isLLndkStubLibrary := ccLibrary.linker.(*stubDecorator); isLLndkStubLibrary {
+			return false
+		}
 	}
 
 	// If this library has already been traversed, we don't need to do any more work.
