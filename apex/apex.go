@@ -2120,7 +2120,7 @@ func (p *Prebuilt) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_PATH", p.installDir.ToMakePath().String())
 				entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
-				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", p.properties.Overrides...)
+				entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.properties.Overrides...)
 			},
 		},
 	}
