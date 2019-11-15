@@ -509,7 +509,7 @@ func (c *Module) SdkVersion() string {
 	return String(c.Properties.Sdk_version)
 }
 
-func (c *Module) IncludeDirs(ctx android.BaseModuleContext) android.Paths {
+func (c *Module) IncludeDirs() android.Paths {
 	if c.linker != nil {
 		if library, ok := c.linker.(exportedFlagsProducer); ok {
 			return library.exportedDirs()
@@ -2040,10 +2040,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 
+			depPaths.IncludeDirs = append(depPaths.IncludeDirs, ccDep.IncludeDirs()...)
+
 			// Exporting flags only makes sense for cc.Modules
 			if _, ok := ccDep.(*Module); ok {
 				if i, ok := ccDep.(*Module).linker.(exportedFlagsProducer); ok {
-					depPaths.IncludeDirs = append(depPaths.IncludeDirs, i.exportedDirs()...)
 					depPaths.SystemIncludeDirs = append(depPaths.SystemIncludeDirs, i.exportedSystemDirs()...)
 					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders, i.exportedDeps()...)
 					depPaths.Flags = append(depPaths.Flags, i.exportedFlags()...)
