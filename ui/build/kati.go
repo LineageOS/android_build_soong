@@ -89,6 +89,10 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 		args = append(args, "--empty_ninja_file")
 	}
 
+	if config.UseRemoteBuild() {
+		args = append(args, "--default_pool=local_pool")
+	}
+
 	cmd := Command(ctx, config, "ckati", executable, args...)
 	cmd.Sandbox = katiSandbox
 	pipe, err := cmd.StdoutPipe()
