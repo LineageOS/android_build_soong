@@ -78,6 +78,7 @@ type libraryDecorator struct {
 	MutatedProperties    LibraryMutatedProperties
 	distFile             android.OptionalPath
 	unstrippedOutputFile android.Path
+	includeDirs          android.Paths
 }
 
 type libraryInterface interface {
@@ -310,6 +311,13 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 
 	return deps
+}
+func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = library.baseCompiler.compilerFlags(ctx, flags)
+	if library.shared() || library.static() {
+		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
+	}
+	return flags
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
