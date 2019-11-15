@@ -1664,6 +1664,57 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
+const (
+	aidlIncludeDir     = "aidl"
+	javaStubDir        = "java"
+	javaStubFileSuffix = ".jar"
+)
+
+// path to the stub file of a java library. Relative to <sdk_root>/<api_dir>
+func (j *Library) javaStubFilePathFor() string {
+	return filepath.Join(javaStubDir, j.Name()+javaStubFileSuffix)
+}
+
+func (j *Library) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder) {
+	headerJars := j.HeaderJars()
+	if len(headerJars) != 1 {
+		panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
+	}
+	snapshotRelativeJavaLibPath := j.javaStubFilePathFor()
+	builder.CopyToSnapshot(headerJars[0], snapshotRelativeJavaLibPath)
+
+	for _, dir := range j.AidlIncludeDirs() {
+		// TODO(jiyong): copy parcelable declarations only
+		aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
+		for _, file := range aidlFiles {
+			builder.CopyToSnapshot(android.PathForSource(sdkModuleContext, file), filepath.Join(aidlIncludeDir, file))
+		}
+	}
+
+	name := j.Name()
+	bp := builder.AndroidBpFile()
+	bp.Printfln("java_import {")
+	bp.Indent()
+	bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
+	bp.Printfln("sdk_member_name: %q,", name)
+	bp.Printfln("jars: [%q],", snapshotRelativeJavaLibPath)
+	bp.Dedent()
+	bp.Printfln("}")
+	bp.Printfln("")
+
+	// This module is for the case when the source tree for the unversioned module
+	// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
+	// so that this module does not eclipse the unversioned module if it exists.
+	bp.Printfln("java_import {")
+	bp.Indent()
+	bp.Printfln("name: %q,", name)
+	bp.Printfln("jars: [%q],", snapshotRelativeJavaLibPath)
+	bp.Printfln("prefer: false,")
+	bp.Dedent()
+	bp.Printfln("}")
+	bp.Printfln("")
+}
+
 // java_library builds and links sources into a `.jar` file for the device, and possibly for the host as well.
 //
 // By default, a java_library has a single variant that produces a `.jar` file containing `.class` files that were
