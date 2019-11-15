@@ -19,19 +19,41 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/tradefed"
 )
+
+type TestProperties struct {
+	// the name of the test configuration (for example "AndroidTest.xml") that should be
+	// installed with the module.
+	Test_config *string `android:"arch_variant"`
+
+	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
+	// should be installed with the module.
+	Test_config_template *string `android:"arch_variant"`
+
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
+}
 
 // A test module is a binary module with extra --test compiler flag
 // and different default installation directory.
 // In golang, inheriance is written as a component.
-type testBinaryDecorator struct {
+type testDecorator struct {
 	*binaryDecorator
+	Properties TestProperties
+	testConfig android.Path
 }
 
-func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testBinaryDecorator) {
+func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
 	module := newModule(hod, android.MultilibFirst)
 
-	test := &testBinaryDecorator{
+	test := &testDecorator{
 		binaryDecorator: &binaryDecorator{
 			// TODO(chh): set up dir64?
 			baseCompiler: NewBaseCompiler("testcases", ""),
@@ -43,7 +65,27 @@ func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testBinaryDecorat
 	return module, test
 }
 
-func (test *testBinaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+func (test *testDecorator) compilerProps() []interface{} {
+	return append(test.binaryDecorator.compilerProps(), &test.Properties)
+}
+
+func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
+	name := ctx.ModuleName() // default executable name
+	if stem := String(test.baseCompiler.Properties.Stem); stem != "" {
+		name = stem
+	}
+	if path := test.baseCompiler.relativeInstallPath(); path != "" {
+		name = path + "/" + name
+	}
+	test.testConfig = tradefed.AutoGenRustHostTestConfig(ctx, name,
+		test.Properties.Test_config,
+		test.Properties.Test_config_template,
+		test.Properties.Test_suites,
+		test.Properties.Auto_gen_config)
+	test.binaryDecorator.install(ctx, file)
+}
+
+func (test *testDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = test.binaryDecorator.compilerFlags(ctx, flags)
 	flags.RustFlags = append(flags.RustFlags, "--test")
 	return flags
@@ -65,21 +107,21 @@ func RustTestHostFactory() android.Module {
 	return module.Init()
 }
 
-func (test *testBinaryDecorator) testPerSrc() bool {
+func (test *testDecorator) testPerSrc() bool {
 	return true
 }
 
-func (test *testBinaryDecorator) srcs() []string {
-	return test.Properties.Srcs
+func (test *testDecorator) srcs() []string {
+	return test.binaryDecorator.Properties.Srcs
 }
 
-func (test *testBinaryDecorator) setSrc(name, src string) {
-	test.Properties.Srcs = []string{src}
+func (test *testDecorator) setSrc(name, src string) {
+	test.binaryDecorator.Properties.Srcs = []string{src}
 	test.baseCompiler.Properties.Stem = StringPtr(name)
 }
 
-func (test *testBinaryDecorator) unsetSrc() {
-	test.Properties.Srcs = nil
+func (test *testDecorator) unsetSrc() {
+	test.binaryDecorator.Properties.Srcs = nil
 	test.baseCompiler.Properties.Stem = StringPtr("")
 }
 
@@ -90,7 +132,7 @@ type testPerSrc interface {
 	unsetSrc()
 }
 
-var _ testPerSrc = (*testBinaryDecorator)(nil)
+var _ testPerSrc = (*testDecorator)(nil)
 
 func TestPerSrcMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
@@ -101,9 +143,20 @@ func TestPerSrcMutator(mctx android.BottomUpMutatorContext) {
 					mctx.PropertyErrorf("srcs", "found a duplicate entry %q", duplicate)
 					return
 				}
+				// Rust compiler always compiles one source file at a time and
+				// uses the crate name as output file name.
+				// Cargo uses the test source file name as default crate name,
+				// but that can be redefined.
+				// So when there are multiple source files, the source file names will
+				// be the output file names, but when there is only one test file,
+				// use the crate name.
 				testNames := make([]string, numTests)
 				for i, src := range test.srcs() {
 					testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
+				}
+				crateName := m.compiler.crateName()
+				if numTests == 1 && crateName != "" {
+					testNames[0] = crateName
 				}
 				// TODO(chh): Add an "all tests" variation like cc/test.go?
 				tests := mctx.CreateLocalVariations(testNames...)

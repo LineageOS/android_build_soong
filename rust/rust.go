@@ -218,6 +218,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&LibraryCompilerProperties{},
 		&ProcMacroCompilerProperties{},
 		&PrebuiltProperties{},
+		&TestProperties{},
 	)
 
 	android.InitDefaultsModule(module)

@@ -25,6 +25,7 @@ func TestRustTest(t *testing.T) {
 		rust_test_host {
 			name: "my_test",
 			srcs: ["foo.rs", "src/bar.rs"],
+			crate_name: "new_test", // not used for multiple source files
 			relative_install_path: "rust/my-test",
 		}`)
 
@@ -39,5 +40,24 @@ func TestRustTest(t *testing.T) {
 		if !strings.Contains(testingBuildParams.Output.String(), outPath) {
 			t.Errorf("wrong output: %v  expect: %v", testingBuildParams.Output, outPath)
 		}
+	}
+}
+
+// crate_name is output file name, when there is only one source file.
+func TestRustTestSingleFile(t *testing.T) {
+	ctx := testRust(t, `
+		rust_test_host {
+			name: "my-test",
+			srcs: ["foo.rs"],
+			crate_name: "new_test",
+			relative_install_path: "my-pkg",
+		}`)
+
+	name := "new_test"
+	testingModule := ctx.ModuleForTests("my-test", "linux_glibc_x86_64_"+name)
+	outPath := "/my-test/linux_glibc_x86_64_" + name + "/" + name
+	testingBuildParams := testingModule.Output(name)
+	if !strings.Contains(testingBuildParams.Output.String(), outPath) {
+		t.Errorf("wrong output: %v  expect: %v", testingBuildParams.Output, outPath)
 	}
 }
