@@ -215,6 +215,8 @@ type Module interface {
 	InstallBypassMake() bool
 	SkipInstall()
 	ExportedToMake() bool
+	InitRc() Paths
+	VintfFragments() Paths
 	NoticeFile() OptionalPath
 
 	AddProperties(props ...interface{})
@@ -662,6 +664,9 @@ type ModuleBase struct {
 	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 	variables   map[string]string
 
+	initRcPaths         Paths
+	vintfFragmentsPaths Paths
+
 	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
 }
 
@@ -932,6 +937,14 @@ func (m *ModuleBase) TargetRequiredModuleNames() []string {
 	return m.base().commonProperties.Target_required
 }
 
+func (m *ModuleBase) InitRc() Paths {
+	return append(Paths{}, m.initRcPaths...)
+}
+
+func (m *ModuleBase) VintfFragments() Paths {
+	return append(Paths{}, m.vintfFragmentsPaths...)
+}
+
 func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	allInstalledFiles := Paths{}
 	allCheckbuildFiles := Paths{}
@@ -1148,6 +1161,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		m.installFiles = append(m.installFiles, ctx.installFiles...)
 		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
+		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
+		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
 	} else if ctx.Config().AllowMissingDependencies() {
 		// If the module is not enabled it will not create any build rules, nothing will call
 		// ctx.GetMissingDependencies(), and blueprint will consider the missing dependencies to be unhandled
