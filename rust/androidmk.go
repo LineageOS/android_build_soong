@@ -89,6 +89,7 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 
 func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	test.binaryDecorator.AndroidMk(ctx, ret)
+	ret.Class = "NATIVE_TESTS"
 	stem := String(test.baseCompiler.Properties.Stem)
 	if stem != "" && !strings.HasSuffix(ctx.Name(), "_"+stem) {
 		// Avoid repeated suffix in the module name.
