@@ -2254,9 +2254,9 @@ func TestPrebuiltOverrides(t *testing.T) {
 	p := ctx.ModuleForTests("myapex.prebuilt", "android_common").Module().(*Prebuilt)
 
 	expected := []string{"myapex"}
-	actual := android.AndroidMkEntriesForTest(t, config, "", p).EntryMap["LOCAL_OVERRIDES_PACKAGES"]
+	actual := android.AndroidMkEntriesForTest(t, config, "", p).EntryMap["LOCAL_OVERRIDES_MODULES"]
 	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("Incorrect LOCAL_OVERRIDES_PACKAGES value '%s', expected '%s'", actual, expected)
+		t.Errorf("Incorrect LOCAL_OVERRIDES_MODULES value '%s', expected '%s'", actual, expected)
 	}
 }
 
@@ -2541,7 +2541,17 @@ func TestApexWithApps(t *testing.T) {
 
 	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
-	ensureContains(t, copyCmds, "image.apex/lib64/libjni.so")
+
+	// JNI libraries are embedded inside APK
+	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_myapex").Rule("zip")
+	libjniOutput := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_core_shared_myapex").Module().(*cc.Module).OutputFile()
+	ensureListContains(t, appZipRule.Implicits.Strings(), libjniOutput.String())
+	// ... uncompressed
+	if args := appZipRule.Args["jarArgs"]; !strings.Contains(args, "-L 0") {
+		t.Errorf("jni lib is not uncompressed for AppFoo")
+	}
+	// ... and not directly inside the APEX
+	ensureNotContains(t, copyCmds, "image.apex/lib64/libjni.so")
 }
 
 func TestApexWithAppImports(t *testing.T) {

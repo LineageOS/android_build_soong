@@ -767,6 +767,10 @@ func (c *configImpl) StartRBE() bool {
 	return true
 }
 
+func (c *configImpl) UseRemoteBuild() bool {
+	return c.UseGoma() || c.UseRBE()
+}
+
 // RemoteParallel controls how many remote jobs (i.e., commands which contain
 // gomacc) are run in parallel.  Note the parallelism of all other jobs is
 // still limited by Parallel()

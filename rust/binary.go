@@ -16,7 +16,6 @@ package rust
 
 import (
 	"android/soong/android"
-	"android/soong/rust/config"
 )
 
 func init() {
@@ -28,7 +27,8 @@ type BinaryCompilerProperties struct {
 	// path to the main source file that contains the program entry point (e.g. src/main.rs)
 	Srcs []string `android:"path,arch_variant"`
 
-	// passes -C prefer-dynamic to rustc, which tells it to dynamically link the stdlib (assuming it has no dylib dependencies already)
+	// passes -C prefer-dynamic to rustc, which tells it to dynamically link the stdlib
+	// (assuming it has no dylib dependencies already)
 	Prefer_dynamic *bool
 }
 
@@ -73,7 +73,8 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 	flags = binary.baseCompiler.compilerFlags(ctx, flags)
 
 	if ctx.toolchain().Bionic() {
-		// no-undefined-version breaks dylib compilation since __rust_*alloc* functions aren't defined, but we can apply this to binaries.
+		// no-undefined-version breaks dylib compilation since __rust_*alloc* functions aren't defined,
+		// but we can apply this to binaries.
 		flags.LinkFlags = append(flags.LinkFlags,
 			"-Wl,--gc-sections",
 			"-Wl,-z,nocopyreloc",
@@ -88,12 +89,6 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 
 func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseCompiler.compilerDeps(ctx, deps)
-
-	if binary.preferDynamic() || len(deps.Dylibs) > 0 {
-		for _, stdlib := range config.Stdlibs {
-			deps.Dylibs = append(deps.Dylibs, stdlib+"_"+ctx.toolchain().RustTriple())
-		}
-	}
 
 	if ctx.toolchain().Bionic() {
 		deps = binary.baseCompiler.bionicDeps(ctx, deps)

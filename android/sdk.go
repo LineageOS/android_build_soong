@@ -31,6 +31,9 @@ type SdkAware interface {
 	MemberName() string
 	BuildWithSdks(sdks SdkRefs)
 	RequiredSdks() SdkRefs
+
+	// Build a snapshot of the module.
+	BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder)
 }
 
 // SdkRef refers to a version of an SDK
@@ -103,6 +106,7 @@ type sdkProperties struct {
 // interface. InitSdkAwareModule should be called to initialize this struct.
 type SdkBase struct {
 	properties sdkProperties
+	module     SdkAware
 }
 
 func (s *SdkBase) sdkBase() *SdkBase {
@@ -142,9 +146,34 @@ func (s *SdkBase) RequiredSdks() SdkRefs {
 	return s.properties.RequiredSdks
 }
 
+func (s *SdkBase) BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder) {
+	sdkModuleContext.ModuleErrorf("module type " + sdkModuleContext.OtherModuleType(s.module) + " cannot be used in an sdk")
+}
+
 // InitSdkAwareModule initializes the SdkBase struct. This must be called by all modules including
 // SdkBase.
 func InitSdkAwareModule(m SdkAware) {
 	base := m.sdkBase()
+	base.module = m
 	m.AddProperties(&base.properties)
+}
+
+// Provide support for generating the build rules which will build the snapshot.
+type SnapshotBuilder interface {
+	// Copy src to the dest (which is a snapshot relative path) and add the dest
+	// to the zip
+	CopyToSnapshot(src Path, dest string)
+
+	// Get the AndroidBpFile for the snapshot.
+	AndroidBpFile() GeneratedSnapshotFile
+
+	// Get a versioned name appropriate for the SDK snapshot version being taken.
+	VersionedSdkMemberName(unversionedName string) interface{}
+}
+
+// Provides support for generating a file, e.g. the Android.bp file.
+type GeneratedSnapshotFile interface {
+	Printfln(format string, args ...interface{})
+	Indent()
+	Dedent()
 }

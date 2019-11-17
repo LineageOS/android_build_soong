@@ -43,17 +43,17 @@ func newGeneratedFile(ctx android.ModuleContext, path ...string) *generatedFile 
 	}
 }
 
-func (gf *generatedFile) indent() {
+func (gf *generatedFile) Indent() {
 	gf.indentLevel++
 }
 
-func (gf *generatedFile) dedent() {
+func (gf *generatedFile) Dedent() {
 	gf.indentLevel--
 }
 
-func (gf *generatedFile) printfln(format string, args ...interface{}) {
+func (gf *generatedFile) Printfln(format string, args ...interface{}) {
 	// ninja consumes newline characters in rspfile_content. Prevent it by
-	// escaping the backslash in the newline character. The extra backshash
+	// escaping the backslash in the newline character. The extra backslash
 	// is removed when the rspfile is written to the actual script file
 	fmt.Fprintf(&(gf.content), strings.Repeat("    ", gf.indentLevel)+format+"\\n", args...)
 }
@@ -70,8 +70,8 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 	rb.Build(pctx, ctx, gf.path.Base(), "Build "+gf.path.Base())
 }
 
-func (s *sdk) javaLibs(ctx android.ModuleContext) []*java.Library {
-	result := []*java.Library{}
+func (s *sdk) javaLibs(ctx android.ModuleContext) []android.SdkAware {
+	result := []android.SdkAware{}
 	ctx.VisitDirectDeps(func(m android.Module) {
 		if j, ok := m.(*java.Library); ok {
 			result = append(result, j)
@@ -180,19 +180,11 @@ func (s *sdk) nativeMemberInfos(ctx android.ModuleContext) []*nativeLibInfo {
 //            libFoo.so   : a stub library
 
 const (
-	aidlIncludeDir            = "aidl"
-	javaStubDir               = "java"
-	javaStubFileSuffix        = ".jar"
 	nativeIncludeDir          = "include"
 	nativeGeneratedIncludeDir = "include_gen"
 	nativeStubDir             = "lib"
 	nativeStubFileSuffix      = ".so"
 )
-
-// path to the stub file of a java library. Relative to <sdk_root>/<api_dir>
-func javaStubFilePathFor(javaLib *java.Library) string {
-	return filepath.Join(javaStubDir, javaLib.Name()+javaStubFileSuffix)
-}
 
 // path to the stub file of a native shared library. Relative to <sdk_root>/<api_dir>
 func nativeStubFilePathFor(lib archSpecificNativeLibInfo) string {
@@ -231,227 +223,205 @@ func versionedSdkMemberName(ctx android.ModuleContext, memberName string, versio
 	return ctx.ModuleName() + "_" + memberName + string(android.SdkVersionSeparator) + version
 }
 
-// buildAndroidBp creates the blueprint file that defines prebuilt modules for each of
-// the SDK members, and the entire sdk_snapshot module for the specified version
-// TODO(jiyong): create a meta info file (e.g. json, protobuf, etc.) instead, and convert it to
-// Android.bp in the (presumably old) branch where the snapshots will be used. This will give us
-// some flexibility to introduce backwards incompatible changes in soong.
-func (s *sdk) buildAndroidBp(ctx android.ModuleContext, version string) android.OutputPath {
-	bp := newGeneratedFile(ctx, "snapshot", "Android.bp")
-	bp.printfln("// This is auto-generated. DO NOT EDIT.")
-	bp.printfln("")
-
-	javaLibModules := s.javaLibs(ctx)
-	for _, m := range javaLibModules {
-		name := m.Name()
-		bp.printfln("java_import {")
-		bp.indent()
-		bp.printfln("name: %q,", versionedSdkMemberName(ctx, name, version))
-		bp.printfln("sdk_member_name: %q,", name)
-		bp.printfln("jars: [%q],", javaStubFilePathFor(m))
-		bp.dedent()
-		bp.printfln("}")
-		bp.printfln("")
-
-		// This module is for the case when the source tree for the unversioned module
-		// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
-		// so that this module does not eclipse the unversioned module if it exists.
-		bp.printfln("java_import {")
-		bp.indent()
-		bp.printfln("name: %q,", name)
-		bp.printfln("jars: [%q],", javaStubFilePathFor(m))
-		bp.printfln("prefer: false,")
-		bp.dedent()
-		bp.printfln("}")
-		bp.printfln("")
-	}
-
-	nativeLibInfos := s.nativeMemberInfos(ctx)
-	for _, info := range nativeLibInfos {
-		bp.printfln("cc_prebuilt_library_shared {")
-		bp.indent()
-		bp.printfln("name: %q,", versionedSdkMemberName(ctx, info.name, version))
-		bp.printfln("sdk_member_name: %q,", info.name)
-
-		// a function for emitting include dirs
-		printExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, systemInclude bool) {
-			includeDirs := nativeIncludeDirPathsFor(ctx, lib, systemInclude, info.hasArchSpecificFlags)
-			if len(includeDirs) == 0 {
-				return
-			}
-			if !systemInclude {
-				bp.printfln("export_include_dirs: [")
-			} else {
-				bp.printfln("export_system_include_dirs: [")
-			}
-			bp.indent()
-			for _, dir := range includeDirs {
-				bp.printfln("%q,", dir)
-			}
-			bp.dedent()
-			bp.printfln("],")
-		}
-
-		if !info.hasArchSpecificFlags {
-			printExportedDirsForNativeLibs(info.archVariants[0], false /*systemInclude*/)
-			printExportedDirsForNativeLibs(info.archVariants[0], true /*systemInclude*/)
-		}
-
-		bp.printfln("arch: {")
-		bp.indent()
-		for _, av := range info.archVariants {
-			bp.printfln("%s: {", av.archType)
-			bp.indent()
-			bp.printfln("srcs: [%q],", nativeStubFilePathFor(av))
-			if info.hasArchSpecificFlags {
-				// export_* properties are added inside the arch: {<arch>: {...}} block
-				printExportedDirsForNativeLibs(av, false /*systemInclude*/)
-				printExportedDirsForNativeLibs(av, true /*systemInclude*/)
-			}
-			bp.dedent()
-			bp.printfln("},") // <arch>
-		}
-		bp.dedent()
-		bp.printfln("},") // arch
-		bp.printfln("stl: \"none\",")
-		bp.printfln("system_shared_libs: [],")
-		bp.dedent()
-		bp.printfln("}") // cc_prebuilt_library_shared
-		bp.printfln("")
-	}
-
-	bp.printfln("sdk_snapshot {")
-	bp.indent()
-	bp.printfln("name: %q,", ctx.ModuleName()+string(android.SdkVersionSeparator)+version)
-	if len(javaLibModules) > 0 {
-		bp.printfln("java_libs: [")
-		bp.indent()
-		for _, m := range javaLibModules {
-			bp.printfln("%q,", versionedSdkMemberName(ctx, m.Name(), version))
-		}
-		bp.dedent()
-		bp.printfln("],") // java_libs
-	}
-	if len(nativeLibInfos) > 0 {
-		bp.printfln("native_shared_libs: [")
-		bp.indent()
-		for _, info := range nativeLibInfos {
-			bp.printfln("%q,", versionedSdkMemberName(ctx, info.name, version))
-		}
-		bp.dedent()
-		bp.printfln("],") // native_shared_libs
-	}
-	bp.dedent()
-	bp.printfln("}") // sdk_snapshot
-	bp.printfln("")
-
-	bp.build(pctx, ctx, nil)
-	return bp.path
-}
-
 // buildSnapshot is the main function in this source file. It creates rules to copy
 // the contents (header files, stub libraries, etc) into the zip file.
 func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
-	snapshotPath := func(paths ...string) android.OutputPath {
-		return android.PathForModuleOut(ctx, "snapshot").Join(ctx, paths...)
-	}
+	snapshotDir := android.PathForModuleOut(ctx, "snapshot")
 
-	var filesToZip android.Paths
-	// copy src to dest and add the dest to the zip
-	copy := func(src android.Path, dest android.OutputPath) {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Input:  src,
-			Output: dest,
-		})
-		filesToZip = append(filesToZip, dest)
+	bp := newGeneratedFile(ctx, "snapshot", "Android.bp")
+	bp.Printfln("// This is auto-generated. DO NOT EDIT.")
+	bp.Printfln("")
+
+	builder := &snapshotBuilder{
+		ctx:           ctx,
+		version:       "current",
+		snapshotDir:   snapshotDir.OutputPath,
+		androidBpFile: bp,
+		filesToZip:    []android.Path{bp.path},
 	}
 
 	// copy exported AIDL files and stub jar files
-	for _, m := range s.javaLibs(ctx) {
-		headerJars := m.HeaderJars()
-		if len(headerJars) != 1 {
-			panic(fmt.Errorf("there must be only one header jar from %q", m.Name()))
-		}
-		copy(headerJars[0], snapshotPath(javaStubFilePathFor(m)))
-
-		for _, dir := range m.AidlIncludeDirs() {
-			// TODO(jiyong): copy parcelable declarations only
-			aidlFiles, _ := ctx.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
-			for _, file := range aidlFiles {
-				copy(android.PathForSource(ctx, file), snapshotPath(aidlIncludeDir, file))
-			}
-		}
+	javaLibs := s.javaLibs(ctx)
+	for _, m := range javaLibs {
+		m.BuildSnapshot(ctx, builder)
 	}
 
 	// copy exported header files and stub *.so files
 	nativeLibInfos := s.nativeMemberInfos(ctx)
 	for _, info := range nativeLibInfos {
-
-		// a function for emitting include dirs
-		printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
-			includeDirs := lib.exportedIncludeDirs
-			includeDirs = append(includeDirs, lib.exportedSystemIncludeDirs...)
-			if len(includeDirs) == 0 {
-				return
-			}
-			for _, dir := range includeDirs {
-				if _, gen := dir.(android.WritablePath); gen {
-					// generated headers are copied via exportedDeps. See below.
-					continue
-				}
-				targetDir := nativeIncludeDir
-				if info.hasArchSpecificFlags {
-					targetDir = filepath.Join(lib.archType, targetDir)
-				}
-
-				// TODO(jiyong) copy headers having other suffixes
-				headers, _ := ctx.GlobWithDeps(dir.String()+"/**/*.h", nil)
-				for _, file := range headers {
-					src := android.PathForSource(ctx, file)
-					dest := snapshotPath(targetDir, file)
-					copy(src, dest)
-				}
-			}
-
-			genHeaders := lib.exportedDeps
-			for _, file := range genHeaders {
-				targetDir := nativeGeneratedIncludeDir
-				if info.hasArchSpecificFlags {
-					targetDir = filepath.Join(lib.archType, targetDir)
-				}
-				dest := snapshotPath(targetDir, lib.name, file.Rel())
-				copy(file, dest)
-			}
-		}
-
-		if !info.hasArchSpecificFlags {
-			printExportedDirCopyCommandsForNativeLibs(info.archVariants[0])
-		}
-
-		// for each architecture
-		for _, av := range info.archVariants {
-			copy(av.outputFile, snapshotPath(nativeStubFilePathFor(av)))
-
-			if info.hasArchSpecificFlags {
-				printExportedDirCopyCommandsForNativeLibs(av)
-			}
-		}
+		buildSharedNativeLibSnapshot(ctx, info, builder)
 	}
 
 	// generate Android.bp
-	bp := s.buildAndroidBp(ctx, "current")
-	filesToZip = append(filesToZip, bp)
+
+	bp.Printfln("sdk_snapshot {")
+	bp.Indent()
+	bp.Printfln("name: %q,", ctx.ModuleName()+string(android.SdkVersionSeparator)+builder.version)
+	if len(javaLibs) > 0 {
+		bp.Printfln("java_libs: [")
+		bp.Indent()
+		for _, m := range javaLibs {
+			bp.Printfln("%q,", builder.VersionedSdkMemberName(m.Name()))
+		}
+		bp.Dedent()
+		bp.Printfln("],") // java_libs
+	}
+	if len(nativeLibInfos) > 0 {
+		bp.Printfln("native_shared_libs: [")
+		bp.Indent()
+		for _, info := range nativeLibInfos {
+			bp.Printfln("%q,", builder.VersionedSdkMemberName(info.name))
+		}
+		bp.Dedent()
+		bp.Printfln("],") // native_shared_libs
+	}
+	bp.Dedent()
+	bp.Printfln("}") // sdk_snapshot
+	bp.Printfln("")
+
+	bp.build(pctx, ctx, nil)
+
+	filesToZip := builder.filesToZip
 
 	// zip them all
 	zipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
 	rb := android.NewRuleBuilder()
 	rb.Command().
 		BuiltTool(ctx, "soong_zip").
-		FlagWithArg("-C ", snapshotPath().String()).
+		FlagWithArg("-C ", builder.snapshotDir.String()).
 		FlagWithRspFileInputList("-l ", filesToZip).
 		FlagWithOutput("-o ", zipFile)
 	rb.Build(pctx, ctx, "snapshot", "Building snapshot for "+ctx.ModuleName())
 
 	return zipFile
+}
+
+func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
+	// a function for emitting include dirs
+	printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
+		includeDirs := lib.exportedIncludeDirs
+		includeDirs = append(includeDirs, lib.exportedSystemIncludeDirs...)
+		if len(includeDirs) == 0 {
+			return
+		}
+		for _, dir := range includeDirs {
+			if _, gen := dir.(android.WritablePath); gen {
+				// generated headers are copied via exportedDeps. See below.
+				continue
+			}
+			targetDir := nativeIncludeDir
+			if info.hasArchSpecificFlags {
+				targetDir = filepath.Join(lib.archType, targetDir)
+			}
+
+			// TODO(jiyong) copy headers having other suffixes
+			headers, _ := ctx.GlobWithDeps(dir.String()+"/**/*.h", nil)
+			for _, file := range headers {
+				src := android.PathForSource(ctx, file)
+				dest := filepath.Join(targetDir, file)
+				builder.CopyToSnapshot(src, dest)
+			}
+		}
+
+		genHeaders := lib.exportedDeps
+		for _, file := range genHeaders {
+			targetDir := nativeGeneratedIncludeDir
+			if info.hasArchSpecificFlags {
+				targetDir = filepath.Join(lib.archType, targetDir)
+			}
+			dest := filepath.Join(targetDir, lib.name, file.Rel())
+			builder.CopyToSnapshot(file, dest)
+		}
+	}
+
+	if !info.hasArchSpecificFlags {
+		printExportedDirCopyCommandsForNativeLibs(info.archVariants[0])
+	}
+
+	// for each architecture
+	for _, av := range info.archVariants {
+		builder.CopyToSnapshot(av.outputFile, nativeStubFilePathFor(av))
+
+		if info.hasArchSpecificFlags {
+			printExportedDirCopyCommandsForNativeLibs(av)
+		}
+	}
+
+	bp := builder.AndroidBpFile()
+	bp.Printfln("cc_prebuilt_library_shared {")
+	bp.Indent()
+	bp.Printfln("name: %q,", builder.VersionedSdkMemberName(info.name))
+	bp.Printfln("sdk_member_name: %q,", info.name)
+
+	// a function for emitting include dirs
+	printExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, systemInclude bool) {
+		includeDirs := nativeIncludeDirPathsFor(ctx, lib, systemInclude, info.hasArchSpecificFlags)
+		if len(includeDirs) == 0 {
+			return
+		}
+		if !systemInclude {
+			bp.Printfln("export_include_dirs: [")
+		} else {
+			bp.Printfln("export_system_include_dirs: [")
+		}
+		bp.Indent()
+		for _, dir := range includeDirs {
+			bp.Printfln("%q,", dir)
+		}
+		bp.Dedent()
+		bp.Printfln("],")
+	}
+
+	if !info.hasArchSpecificFlags {
+		printExportedDirsForNativeLibs(info.archVariants[0], false /*systemInclude*/)
+		printExportedDirsForNativeLibs(info.archVariants[0], true /*systemInclude*/)
+	}
+
+	bp.Printfln("arch: {")
+	bp.Indent()
+	for _, av := range info.archVariants {
+		bp.Printfln("%s: {", av.archType)
+		bp.Indent()
+		bp.Printfln("srcs: [%q],", nativeStubFilePathFor(av))
+		if info.hasArchSpecificFlags {
+			// export_* properties are added inside the arch: {<arch>: {...}} block
+			printExportedDirsForNativeLibs(av, false /*systemInclude*/)
+			printExportedDirsForNativeLibs(av, true /*systemInclude*/)
+		}
+		bp.Dedent()
+		bp.Printfln("},") // <arch>
+	}
+	bp.Dedent()
+	bp.Printfln("},") // arch
+	bp.Printfln("stl: \"none\",")
+	bp.Printfln("system_shared_libs: [],")
+	bp.Dedent()
+	bp.Printfln("}") // cc_prebuilt_library_shared
+	bp.Printfln("")
+}
+
+type snapshotBuilder struct {
+	ctx           android.ModuleContext
+	version       string
+	snapshotDir   android.OutputPath
+	filesToZip    android.Paths
+	androidBpFile *generatedFile
+}
+
+func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
+	path := s.snapshotDir.Join(s.ctx, dest)
+	s.ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  src,
+		Output: path,
+	})
+	s.filesToZip = append(s.filesToZip, path)
+}
+
+func (s *snapshotBuilder) AndroidBpFile() android.GeneratedSnapshotFile {
+	return s.androidBpFile
+}
+
+func (s *snapshotBuilder) VersionedSdkMemberName(unversionedName string) interface{} {
+	return versionedSdkMemberName(s.ctx, unversionedName, s.version)
 }

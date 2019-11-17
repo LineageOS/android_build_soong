@@ -103,8 +103,11 @@ func (fuzz *fuzzBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = fuzz.binaryDecorator.linkerFlags(ctx, flags)
-	// RunPaths on devices isn't instantiated by the base linker.
+	// RunPaths on devices isn't instantiated by the base linker. `../lib` for
+	// installed fuzz targets (both host and device), and `./lib` for fuzz
+	// target packages.
 	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../lib`)
+	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
 	return flags
 }
 
@@ -123,19 +126,23 @@ func collectAllSharedDependencies(
 	// Enumerate the first level of dependencies, as we discard all non-library
 	// modules in the BFS loop below.
 	ctx.VisitDirectDeps(module, func(dep android.Module) {
-		fringe = append(fringe, dep)
+		if isValidSharedDependency(dep, sharedDeps) {
+			fringe = append(fringe, dep)
+		}
 	})
 
 	for i := 0; i < len(fringe); i++ {
 		module := fringe[i]
-		if !isValidSharedDependency(module, sharedDeps) {
+		if _, exists := sharedDeps[module.Name()]; exists {
 			continue
 		}
 
 		ccModule := module.(*Module)
 		sharedDeps[ccModule.Name()] = ccModule.UnstrippedOutputFile()
 		ctx.VisitDirectDeps(module, func(dep android.Module) {
-			fringe = append(fringe, dep)
+			if isValidSharedDependency(dep, sharedDeps) {
+				fringe = append(fringe, dep)
+			}
 		})
 	}
 }
@@ -155,8 +162,19 @@ func isValidSharedDependency(
 	if linkable, ok := dependency.(LinkableInterface); !ok || // Discard non-linkables.
 		!linkable.CcLibraryInterface() || !linkable.Shared() || // Discard static libs.
 		linkable.UseVndk() || // Discard vendor linked libraries.
-		!linkable.CcLibrary() || linkable.BuildStubs() { // Discard stubs libs (only CCLibrary variants).
+		// Discard stubs libs (only CCLibrary variants). Prebuilt libraries should not
+		// be excluded on the basis of they're not CCLibrary()'s.
+		(linkable.CcLibrary() && linkable.BuildStubs()) {
 		return false
+	}
+
+	// We discarded module stubs libraries above, but the LLNDK prebuilts stubs
+	// libraries must be handled differently - by looking for the stubDecorator.
+	// Discard LLNDK prebuilts stubs as well.
+	if ccLibrary, isCcLibrary := dependency.(*Module); isCcLibrary {
+		if _, isLLndkStubLibrary := ccLibrary.linker.(*stubDecorator); isLLndkStubLibrary {
+			return false
+		}
 	}
 
 	// If this library has already been traversed, we don't need to do any more work.
@@ -317,9 +335,10 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			return
 		}
 
-		// Discard vendor-NDK-linked modules, they're duplicates of fuzz targets
-		// we're going to package anyway.
-		if ccModule.UseVndk() || !ccModule.Enabled() {
+		// Discard vendor-NDK-linked + recovery modules, they're duplicates of
+		// fuzz targets we're going to package anyway.
+		if !ccModule.Enabled() || ccModule.Properties.PreventInstall ||
+			ccModule.UseVndk() || ccModule.InRecovery() {
 			return
 		}
 
@@ -337,9 +356,23 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		sharedLibraries := make(map[string]android.Path)
 		collectAllSharedDependencies(module, sharedLibraries, ctx)
 
+		var files []fileToZip
+		builder := android.NewRuleBuilder()
+
+		// Package the corpora into a zipfile.
+		if fuzzModule.corpus != nil {
+			corpusZip := archDir.Join(ctx, module.Name()+"_seed_corpus.zip")
+			command := builder.Command().BuiltTool(ctx, "soong_zip").
+				Flag("-j").
+				FlagWithOutput("-o ", corpusZip)
+			command.FlagWithRspFileInputList("-l ", fuzzModule.corpus)
+			files = append(files, fileToZip{corpusZip, ""})
+		}
+
+		// Find and mark all the transiently-dependent shared libraries for
+		// packaging.
 		for _, library := range sharedLibraries {
-			archDirs[archDir] = append(archDirs[archDir],
-				fileToZip{library, ccModule.Name() + "/lib"})
+			files = append(files, fileToZip{library, "lib"})
 
 			if _, exists := archSharedLibraryDeps[archAndLibraryKey{archDir, library}]; exists {
 				continue
@@ -360,26 +393,35 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 		// The executable.
-		archDirs[archDir] = append(archDirs[archDir],
-			fileToZip{ccModule.UnstrippedOutputFile(), ccModule.Name()})
-
-		// The corpora.
-		for _, corpusEntry := range fuzzModule.corpus {
-			archDirs[archDir] = append(archDirs[archDir],
-				fileToZip{corpusEntry, ccModule.Name() + "/corpus"})
-		}
+		files = append(files, fileToZip{ccModule.UnstrippedOutputFile(), ""})
 
 		// The dictionary.
 		if fuzzModule.dictionary != nil {
-			archDirs[archDir] = append(archDirs[archDir],
-				fileToZip{fuzzModule.dictionary, ccModule.Name()})
+			files = append(files, fileToZip{fuzzModule.dictionary, ""})
 		}
 
 		// Additional fuzz config.
 		if fuzzModule.config != nil {
-			archDirs[archDir] = append(archDirs[archDir],
-				fileToZip{fuzzModule.config, ccModule.Name()})
+			files = append(files, fileToZip{fuzzModule.config, ""})
 		}
+
+		fuzzZip := archDir.Join(ctx, module.Name()+".zip")
+		command := builder.Command().BuiltTool(ctx, "soong_zip").
+			Flag("-j").
+			FlagWithOutput("-o ", fuzzZip)
+		for _, file := range files {
+			if file.DestinationPathPrefix != "" {
+				command.FlagWithArg("-P ", file.DestinationPathPrefix)
+			} else {
+				command.Flag("-P ''")
+			}
+			command.FlagWithInput("-f ", file.SourceFilePath)
+		}
+
+		builder.Build(pctx, ctx, "create-"+fuzzZip.String(),
+			"Package "+module.Name()+" for "+archString+"-"+hostOrTargetString)
+
+		archDirs[archDir] = append(archDirs[archDir], fileToZip{fuzzZip, ""})
 	})
 
 	for archDir, filesToZip := range archDirs {
@@ -391,11 +433,16 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 
 		command := builder.Command().BuiltTool(ctx, "soong_zip").
 			Flag("-j").
-			FlagWithOutput("-o ", outputFile)
+			FlagWithOutput("-o ", outputFile).
+			Flag("-L 0") // No need to try and re-compress the zipfiles.
 
 		for _, fileToZip := range filesToZip {
-			command.FlagWithArg("-P ", fileToZip.DestinationPathPrefix).
-				FlagWithInput("-f ", fileToZip.SourceFilePath)
+			if fileToZip.DestinationPathPrefix != "" {
+				command.FlagWithArg("-P ", fileToZip.DestinationPathPrefix)
+			} else {
+				command.Flag("-P ''")
+			}
+			command.FlagWithInput("-f ", fileToZip.SourceFilePath)
 		}
 
 		builder.Build(pctx, ctx, "create-fuzz-package-"+arch+"-"+hostOrTarget,

@@ -13,7 +13,7 @@ type LinkableInterface interface {
 
 	OutputFile() android.OptionalPath
 
-	IncludeDirs(ctx android.BaseModuleContext) android.Paths
+	IncludeDirs() android.Paths
 	SetDepsInLinkOrder([]android.Path)
 	GetDepsInLinkOrder() []android.Path
 

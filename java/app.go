@@ -78,8 +78,9 @@ type appProperties struct {
 
 	// Store native libraries uncompressed in the APK and set the android:extractNativeLibs="false" manifest
 	// flag so that they are used from inside the APK at runtime.  Defaults to true for android_test modules unless
-	// sdk_version or min_sdk_version is set to a version that doesn't support it (<23), defaults to false for other
-	// module types where the native libraries are generally preinstalled outside the APK.
+	// sdk_version or min_sdk_version is set to a version that doesn't support it (<23), defaults to true for
+	// android_app modules that are embedded to APEXes, defaults to false for other module types where the native
+	// libraries are generally preinstalled outside the APK.
 	Use_embedded_native_libs *bool
 
 	// Store dex files uncompressed in the APK and set the android:useEmbeddedDex="true" manifest attribute so that
@@ -217,7 +218,8 @@ func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
 		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.minSdkVersion(), err)
 	}
 
-	return minSdkVersion >= 23 && Bool(a.appProperties.Use_embedded_native_libs)
+	return (minSdkVersion >= 23 && Bool(a.appProperties.Use_embedded_native_libs)) ||
+		!a.IsForPlatform()
 }
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
@@ -241,7 +243,7 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 	return ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs) ||
-		a.appProperties.AlwaysPackageNativeLibs
+		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
@@ -496,9 +498,11 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.bundleFile = bundleFile
 
 	// Install the app package.
-	ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile)
-	for _, extra := range a.extraOutputFiles {
-		ctx.InstallFile(a.installDir, extra.Base(), extra)
+	if (Bool(a.Module.properties.Installable) || ctx.Host()) && a.IsForPlatform() {
+		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile)
+		for _, extra := range a.extraOutputFiles {
+			ctx.InstallFile(a.installDir, extra.Base(), extra)
+		}
 	}
 }
 
@@ -585,6 +589,7 @@ func AndroidAppFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.appProperties.Overrides)
+	android.InitApexModule(module)
 
 	return module
 }

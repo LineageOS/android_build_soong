@@ -218,6 +218,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&LibraryCompilerProperties{},
 		&ProcMacroCompilerProperties{},
 		&PrebuiltProperties{},
+		&TestProperties{},
 	)
 
 	android.InitDefaultsModule(module)
@@ -246,10 +247,10 @@ func (mod *Module) CcLibraryInterface() bool {
 	return false
 }
 
-func (mod *Module) IncludeDirs(ctx android.BaseModuleContext) android.Paths {
+func (mod *Module) IncludeDirs() android.Paths {
 	if mod.compiler != nil {
 		if library, ok := mod.compiler.(*libraryDecorator); ok {
-			return android.PathsForSource(ctx, library.Properties.Include_dirs)
+			return library.includeDirs
 		}
 	}
 	panic(fmt.Errorf("IncludeDirs called on non-library module: %q", mod.BaseModuleName()))

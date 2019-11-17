@@ -87,9 +87,24 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 	})
 }
 
-func (test *testBinaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	test.binaryDecorator.AndroidMk(ctx, ret)
-	ret.SubName = "_" + String(test.baseCompiler.Properties.Stem)
+	ret.Class = "NATIVE_TESTS"
+	stem := String(test.baseCompiler.Properties.Stem)
+	if stem != "" && !strings.HasSuffix(ctx.Name(), "_"+stem) {
+		// Avoid repeated suffix in the module name.
+		ret.SubName = "_" + stem
+	}
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		if len(test.Properties.Test_suites) > 0 {
+			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
+				strings.Join(test.Properties.Test_suites, " "))
+		}
+		if test.testConfig != nil {
+			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", test.testConfig.String())
+		}
+	})
+	// TODO(chh): add test data with androidMkWriteTestData(test.data, ctx, ret)
 }
 
 func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
