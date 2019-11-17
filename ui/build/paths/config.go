@@ -80,6 +80,7 @@ var Configuration = map[string]PathConfig{
 	"date":     Allowed,
 	"dd":       Allowed,
 	"diff":     Allowed,
+	"cpio":     Allowed,
 	"egrep":    Allowed,
 	"expr":     Allowed,
 	"find":     Allowed,
