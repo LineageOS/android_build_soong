@@ -303,12 +303,19 @@ written to a [ninja](http://ninja-build.org) build file.
 
 ### How do I write conditionals?
 
-Soong deliberately does not support conditionals in Android.bp files.
-Instead, complexity in build rules that would require conditionals are handled
-in Go, where high level language features can be used and implicit dependencies
-introduced by conditionals can be tracked.  Most conditionals are converted
-to a map property, where one of the values in the map will be selected and
-appended to the top level properties.
+Soong deliberately does not support conditionals in Android.bp files.  We
+suggest removing most conditionals from the build.  See
+[Best Practices](docs/best_practices.md#removing-conditionals) for some
+examples on how to remove conditionals.
+
+In cases where build time conditionals are unavoidable, complexity in build
+rules that would require conditionals are handled in Go through Soong plugins.
+This allows Go language features to be used for better readability and
+testability, and implicit dependencies introduced by conditionals can be
+tracked.  Most conditionals supported natively by Soong are converted to a map
+property.  When building the module one of the properties in the map will be
+selected, and its values appended to the property with the same name at the
+top level of the module.
 
 For example, to support architecture specific files:
 ```
@@ -326,9 +333,9 @@ cc_library {
 }
 ```
 
-See [art/build/art.go](https://android.googlesource.com/platform/art/+/master/build/art.go)
-or [external/llvm/soong/llvm.go](https://android.googlesource.com/platform/external/llvm/+/master/soong/llvm.go)
-for examples of more complex conditionals on product variables or environment variables.
+When building the module for arm the `generic.cpp` and `arm.cpp` sources will
+be built.  When building for x86 the `generic.cpp` and 'x86.cpp' sources will
+be built.
 
 ## Developing for Soong
 
@@ -346,7 +353,7 @@ the IDE.
 
 To run the soong_build process in a debugger, install `dlv` and then start the build with
 `SOONG_DELVE=<listen addr>` in the environment.
-For examle:
+For example:
 ```bash
 SOONG_DELVE=:1234 m nothing
 ```
