@@ -72,7 +72,11 @@ func (installer *baseInstaller) installDir(ctx ModuleContext) android.InstallPat
 		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
 	if installer.location == InstallInData && ctx.useVndk() {
-		dir = filepath.Join(dir, "vendor")
+		if ctx.inProduct() {
+			dir = filepath.Join(dir, "product")
+		} else {
+			dir = filepath.Join(dir, "vendor")
+		}
 	}
 	return android.PathForModuleInstall(ctx, dir, installer.subDir,
 		installer.relativeInstallPath(), installer.relative)

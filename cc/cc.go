@@ -215,8 +215,9 @@ type BaseProperties struct {
 	PreventInstall            bool     `blueprint:"mutated"`
 	ApexesProvidingSharedLibs []string `blueprint:"mutated"`
 
-	VndkVersion string `blueprint:"mutated"`
-	SubName     string `blueprint:"mutated"`
+	ImageVariationPrefix string `blueprint:"mutated"`
+	VndkVersion          string `blueprint:"mutated"`
+	SubName              string `blueprint:"mutated"`
 
 	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
 	// file
@@ -228,7 +229,7 @@ type BaseProperties struct {
 	// Set by imageMutator
 	CoreVariantNeeded     bool     `blueprint:"mutated"`
 	RecoveryVariantNeeded bool     `blueprint:"mutated"`
-	VendorVariants        []string `blueprint:"mutated"`
+	ExtraVariants         []string `blueprint:"mutated"`
 
 	// Allows this module to use non-APEX version of libraries. Useful
 	// for building binaries that are started before APEXes are activated.
@@ -242,20 +243,24 @@ type BaseProperties struct {
 type VendorProperties struct {
 	// whether this module should be allowed to be directly depended by other
 	// modules with `vendor: true`, `proprietary: true`, or `vendor_available:true`.
-	// If set to true, two variants will be built separately, one like
-	// normal, and the other limited to the set of libraries and headers
-	// that are exposed to /vendor modules.
+	// In addition, this module should be allowed to be directly depended by
+	// product modules with `product_specific: true`.
+	// If set to true, three variants will be built separately, one like
+	// normal, another limited to the set of libraries and headers
+	// that are exposed to /vendor modules, and the other to /product modules.
 	//
-	// The vendor variant may be used with a different (newer) /system,
+	// The vendor and product variants may be used with a different (newer) /system,
 	// so it shouldn't have any unversioned runtime dependencies, or
 	// make assumptions about the system that may not be true in the
 	// future.
 	//
-	// If set to false, this module becomes inaccessible from /vendor modules.
+	// If set to false, this module becomes inaccessible from /vendor or /product
+	// modules.
 	//
 	// Default value is true when vndk: {enabled: true} or vendor: true.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
+	// If PRODUCT_PRODUCT_VNDK_VERSION isn't set, product variant will not be used.
 	Vendor_available *bool
 
 	// whether this module is capable of being loaded with other instance
@@ -283,6 +288,8 @@ type ModuleContextIntf interface {
 	isVndk() bool
 	isVndkSp() bool
 	isVndkExt() bool
+	inProduct() bool
+	inVendor() bool
 	inRecovery() bool
 	shouldCreateSourceAbiDump() bool
 	selectedStl() string
@@ -680,7 +687,7 @@ func (c *Module) RelativeInstallPath() string {
 }
 
 func (c *Module) VndkVersion() string {
-	return c.vndkVersion()
+	return c.Properties.VndkVersion
 }
 
 func (c *Module) Init() android.Module {
@@ -752,6 +759,12 @@ func (c *Module) isDependencyRoot() bool {
 	return false
 }
 
+// Returns true if the module is using VNDK libraries instead of the libraries in /system/lib or /system/lib64.
+// "product" and "vendor" variant modules return true for this function.
+// When BOARD_VNDK_VERSION is set, vendor variants of "vendor_available: true", "vendor: true",
+// "soc_specific: true" and more vendor installed modules are included here.
+// When PRODUCT_PRODUCT_VNDK_VERSION is set, product variants of "vendor_available: true" or
+// "product_specific: true" modules are included here.
 func (c *Module) UseVndk() bool {
 	return c.Properties.VndkVersion != ""
 }
@@ -785,10 +798,6 @@ func (c *Module) IsVndk() bool {
 		return vndkdep.isVndk()
 	}
 	return false
-}
-
-func (c *Module) vndkVersion() string {
-	return c.Properties.VndkVersion
 }
 
 func (c *Module) isPgoCompile() bool {
@@ -830,10 +839,30 @@ func (c *Module) getVndkExtendsModuleName() string {
 	return ""
 }
 
-// Returns true only when this module is configured to have core and vendor
+// Returns true only when this module is configured to have core, product and vendor
 // variants.
 func (c *Module) HasVendorVariant() bool {
 	return c.IsVndk() || Bool(c.VendorProperties.Vendor_available)
+}
+
+const (
+	// VendorVariationPrefix is the variant prefix used for /vendor code that compiles
+	// against the VNDK.
+	VendorVariationPrefix = "vendor."
+
+	// ProductVariationPrefix is the variant prefix used for /product code that compiles
+	// against the VNDK.
+	ProductVariationPrefix = "product."
+)
+
+// Returns true if the module is "product" variant. Usually these modules are installed in /product
+func (c *Module) inProduct() bool {
+	return c.Properties.ImageVariationPrefix == ProductVariationPrefix
+}
+
+// Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
+func (c *Module) inVendor() bool {
+	return c.Properties.ImageVariationPrefix == VendorVariationPrefix
 }
 
 func (c *Module) InRecovery() bool {
@@ -944,9 +973,14 @@ type moduleContext struct {
 	moduleContextImpl
 }
 
+func (ctx *moduleContext) ProductSpecific() bool {
+	return ctx.ModuleContext.ProductSpecific() ||
+		(ctx.mod.HasVendorVariant() && ctx.mod.inProduct() && !ctx.mod.IsVndk())
+}
+
 func (ctx *moduleContext) SocSpecific() bool {
 	return ctx.ModuleContext.SocSpecific() ||
-		(ctx.mod.HasVendorVariant() && ctx.mod.UseVndk() && !ctx.mod.IsVndk())
+		(ctx.mod.HasVendorVariant() && ctx.mod.inVendor() && !ctx.mod.IsVndk())
 }
 
 type moduleContextImpl struct {
@@ -980,15 +1014,11 @@ func (ctx *moduleContextImpl) useSdk() bool {
 func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
 		if ctx.useVndk() {
-			vndk_ver := ctx.ctx.DeviceConfig().VndkVersion()
-			if vndk_ver == "current" {
-				platform_vndk_ver := ctx.ctx.DeviceConfig().PlatformVndkVersion()
-				if inList(platform_vndk_ver, ctx.ctx.Config().PlatformVersionCombinedCodenames()) {
-					return "current"
-				}
-				return platform_vndk_ver
+			vndkVer := ctx.mod.VndkVersion()
+			if inList(vndkVer, ctx.ctx.Config().PlatformVersionCombinedCodenames()) {
+				return "current"
 			}
-			return vndk_ver
+			return vndkVer
 		}
 		return String(ctx.mod.Properties.Sdk_version)
 	}
@@ -1037,6 +1067,14 @@ func (ctx *moduleContextImpl) isVndkExt() bool {
 
 func (ctx *moduleContextImpl) mustUseVendorVariant() bool {
 	return ctx.mod.MustUseVendorVariant()
+}
+
+func (ctx *moduleContextImpl) inProduct() bool {
+	return ctx.mod.inProduct()
+}
+
+func (ctx *moduleContextImpl) inVendor() bool {
+	return ctx.mod.inVendor()
 }
 
 func (ctx *moduleContextImpl) inRecovery() bool {
@@ -1222,6 +1260,29 @@ func (c *Module) IsTestPerSrcAllTestsVariation() bool {
 	return ok && test.isAllTestsVariation()
 }
 
+func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string {
+	// Returns the name suffix for product and vendor variants. If the VNDK version is not
+	// "current", it will append the VNDK version to the name suffix.
+	var vndkVersion string
+	var nameSuffix string
+	if c.inProduct() {
+		vndkVersion = ctx.DeviceConfig().ProductVndkVersion()
+		nameSuffix = productSuffix
+	} else {
+		vndkVersion = ctx.DeviceConfig().VndkVersion()
+		nameSuffix = vendorSuffix
+	}
+	if vndkVersion == "current" {
+		vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
+	}
+	if c.Properties.VndkVersion != vndkVersion {
+		// add version suffix only if the module is using different vndk version than the
+		// version in product or vendor partition.
+		nameSuffix += "." + c.Properties.VndkVersion
+	}
+	return nameSuffix
+}
+
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	// Handle the case of a test module split by `test_per_src` mutator.
 	//
@@ -1241,21 +1302,17 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		c.Properties.SubName += nativeBridgeSuffix
 	}
 
-	if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
+	_, llndk := c.linker.(*llndkStubDecorator)
+	_, llndkHeader := c.linker.(*llndkHeadersDecorator)
+	if llndk || llndkHeader || (c.UseVndk() && c.HasVendorVariant()) {
+		// .vendor.{version} suffix is added for vendor variant or .product.{version} suffix is
+		// added for product variant only when we have vendor and product variants with core
+		// variant. The suffix is not added for vendor-only or product-only module.
+		c.Properties.SubName += c.getNameSuffixWithVndkVersion(actx)
+	} else if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// .vendor suffix is added for backward compatibility with VNDK snapshot whose names with
 		// such suffixes are already hard-coded in prebuilts/vndk/.../Android.bp.
 		c.Properties.SubName += vendorSuffix
-	} else if _, ok := c.linker.(*llndkStubDecorator); ok || (c.UseVndk() && c.HasVendorVariant()) {
-		// .vendor.{version} suffix is added only when we will have two variants: core and vendor.
-		// The suffix is not added for vendor-only module.
-		c.Properties.SubName += vendorSuffix
-		vendorVersion := actx.DeviceConfig().VndkVersion()
-		if vendorVersion == "current" {
-			vendorVersion = actx.DeviceConfig().PlatformVndkVersion()
-		}
-		if c.Properties.VndkVersion != vendorVersion {
-			c.Properties.SubName += "." + c.Properties.VndkVersion
-		}
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
 		c.Properties.SubName += recoverySuffix
 	}
@@ -2203,15 +2260,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			} else if c.UseVndk() && bothVendorAndCoreVariantsExist {
 				// The vendor module in Make will have been renamed to not conflict with the core
 				// module, so update the dependency name here accordingly.
-				ret := libName + vendorSuffix
-				vendorVersion := ctx.DeviceConfig().VndkVersion()
-				if vendorVersion == "current" {
-					vendorVersion = ctx.DeviceConfig().PlatformVndkVersion()
-				}
-				if c.Properties.VndkVersion != vendorVersion {
-					ret += "." + c.Properties.VndkVersion
-				}
-				return ret
+				return libName + c.getNameSuffixWithVndkVersion(ctx)
 			} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
 				return libName + vendorPublicLibrarySuffix
 			} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
@@ -2364,6 +2413,9 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 			}
 			return "native:vndk_private"
 		}
+		if c.inProduct() {
+			return "native:product"
+		}
 		return "native:vendor"
 	} else if c.InRecovery() {
 		return "native:recovery"
@@ -2489,12 +2541,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	return module
 }
 
-const (
-	// VendorVariationPrefix is the variant prefix used for /vendor code that compiles
-	// against the VNDK.
-	VendorVariationPrefix = "vendor."
-)
-
 func squashVendorSrcs(m *Module) {
 	if lib, ok := m.compiler.(*libraryDecorator); ok {
 		lib.baseCompiler.Properties.Srcs = append(lib.baseCompiler.Properties.Srcs,
@@ -2566,54 +2612,83 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	var recoveryVariantNeeded bool = false
 
 	var vendorVariants []string
+	var productVariants []string
 
 	platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
-	deviceVndkVersion := mctx.DeviceConfig().VndkVersion()
-	if deviceVndkVersion == "current" {
-		deviceVndkVersion = platformVndkVersion
+	boardVndkVersion := mctx.DeviceConfig().VndkVersion()
+	productVndkVersion := mctx.DeviceConfig().ProductVndkVersion()
+	if boardVndkVersion == "current" {
+		boardVndkVersion = platformVndkVersion
+	}
+	if productVndkVersion == "current" {
+		productVndkVersion = platformVndkVersion
 	}
 
-	if mctx.DeviceConfig().VndkVersion() == "" {
+	if boardVndkVersion == "" {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
 		coreVariantNeeded = true
 	} else if _, ok := m.linker.(*llndkStubDecorator); ok {
-		// LL-NDK stubs only exist in the vendor variant, since the
-		// real libraries will be used in the core variant.
+		// LL-NDK stubs only exist in the vendor and product variants,
+		// since the real libraries will be used in the core variant.
 		vendorVariants = append(vendorVariants,
 			platformVndkVersion,
-			deviceVndkVersion,
+			boardVndkVersion,
+		)
+		productVariants = append(productVariants,
+			platformVndkVersion,
+			productVndkVersion,
 		)
 	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		// ... and LL-NDK headers as well
 		vendorVariants = append(vendorVariants,
 			platformVndkVersion,
-			deviceVndkVersion,
+			boardVndkVersion,
+		)
+		productVariants = append(productVariants,
+			platformVndkVersion,
+			productVndkVersion,
 		)
 	} else if lib, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
 		vendorVariants = append(vendorVariants, lib.version())
 	} else if m.HasVendorVariant() && !vendorSpecific {
-		// This will be available in both /system and /vendor
-		// or a /system directory that is available to vendor.
+		// This will be available in /system, /vendor and /product
+		// or a /system directory that is available to vendor and product.
 		coreVariantNeeded = true
 		vendorVariants = append(vendorVariants, platformVndkVersion)
+		productVariants = append(productVariants, platformVndkVersion)
 		// VNDK modules must not create BOARD_VNDK_VERSION variant because its
 		// code is PLATFORM_VNDK_VERSION.
 		// On the other hand, vendor_available modules which are not VNDK should
 		// also build BOARD_VNDK_VERSION because it's installed in /vendor.
+		// vendor_available modules are also available to /product.
 		if !m.IsVndk() {
-			vendorVariants = append(vendorVariants, deviceVndkVersion)
+			vendorVariants = append(vendorVariants, boardVndkVersion)
+			productVariants = append(productVariants, productVndkVersion)
 		}
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
-		vendorVariants = append(vendorVariants, deviceVndkVersion)
+		vendorVariants = append(vendorVariants, boardVndkVersion)
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK
 		// will be restricted using the existing link type checks.
 		coreVariantNeeded = true
+	}
+
+	if boardVndkVersion != "" && productVndkVersion != "" {
+		if coreVariantNeeded && productSpecific && String(m.Properties.Sdk_version) == "" {
+			// The module has "product_specific: true" that does not create core variant.
+			coreVariantNeeded = false
+			productVariants = append(productVariants, productVndkVersion)
+		}
+	} else {
+		// Unless PRODUCT_PRODUCT_VNDK_VERSION is set, product partition has no
+		// restriction to use system libs.
+		// No product variants defined in this case.
+		productVariants = []string{}
 	}
 
 	if Bool(m.Properties.Recovery_available) {
@@ -2626,7 +2701,11 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	}
 
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {
-		m.Properties.VendorVariants = append(m.Properties.VendorVariants, VendorVariationPrefix+variant)
+		m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, VendorVariationPrefix+variant)
+	}
+
+	for _, variant := range android.FirstUniqueStrings(productVariants) {
+		m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, ProductVariationPrefix+variant)
 	}
 
 	m.Properties.RecoveryVariantNeeded = recoveryVariantNeeded
@@ -2642,7 +2721,7 @@ func (c *Module) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 }
 
 func (c *Module) ExtraImageVariations(ctx android.BaseModuleContext) []string {
-	return c.Properties.VendorVariants
+	return c.Properties.ExtraVariants
 }
 
 func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
@@ -2651,7 +2730,12 @@ func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string
 		m.MakeAsPlatform()
 		squashRecoverySrcs(m)
 	} else if strings.HasPrefix(variant, VendorVariationPrefix) {
+		m.Properties.ImageVariationPrefix = VendorVariationPrefix
 		m.Properties.VndkVersion = strings.TrimPrefix(variant, VendorVariationPrefix)
+		squashVendorSrcs(m)
+	} else if strings.HasPrefix(variant, ProductVariationPrefix) {
+		m.Properties.ImageVariationPrefix = ProductVariationPrefix
+		m.Properties.VndkVersion = strings.TrimPrefix(variant, ProductVariationPrefix)
 		squashVendorSrcs(m)
 	}
 }
