@@ -146,3 +146,145 @@ they're used dynamically via `dlopen`. If they're only used via
 `LOCAL_SHARED_LIBRARIES` / `shared_libs`, then those dependencies will trigger
 them to be installed when necessary. Adding unnecessary libraries into
 `PRODUCT_PACKAGES` will force them to always be installed, wasting space.
+
+## Removing conditionals
+
+Over-use of conditionals in the build files results in an untestable number
+of build combinations, leading to more build breakages.  It also makes the
+code less testable, as it must be built with each combination of flags to
+be tested.
+
+### Conditionally compiled module
+
+Conditionally compiling a module can generally be replaced with conditional
+installation:
+
+```
+ifeq (some condition)
+# body of the Android.mk file
+LOCAL_MODULE:= bt_logger
+include $(BUILD_EXECUTABLE)
+endif
+```
+
+Becomes:
+
+```
+cc_binary {
+    name: "bt_logger",
+    // body of the module
+}
+```
+
+And in a product Makefile somewhere (something included with
+`$(call inherit-product, ...)`:
+
+```
+ifeq (some condition) # Or no condition
+PRODUCT_PACKAGES += bt_logger
+endif
+```
+
+If the condition was on a type of board or product, it can often be dropped
+completely by putting the `PRODUCT_PACKAGES` entry in a product makefile that
+is included only by the correct products or boards.
+
+### Conditionally compiled module with multiple implementations
+
+If there are multiple implementations of the same module with one selected
+for compilation via a conditional, the implementations can sometimes be renamed
+to unique values.
+
+For example, the name of the gralloc HAL module can be overridden by the
+`ro.hardware.gralloc` system property:
+
+```
+# In hardware/acme/soc_a/gralloc/Android.mk:
+ifeq ($(TARGET_BOARD_PLATFORM),soc_a)
+LOCAL_MODULE := gralloc.acme
+...
+include $(BUILD_SHARED_LIBRARY)
+endif
+
+# In hardware/acme/soc_b/gralloc/Android.mk:
+ifeq ($(TARGET_BOARD_PLATFORM),soc_b)
+LOCAL_MODULE := gralloc.acme
+...
+include $(BUILD_SHARED_LIBRARY)
+endif
+```
+
+Becomes:
+```
+# In hardware/acme/soc_a/gralloc/Android.bp:
+cc_library {
+    name: "gralloc.soc_a",
+    ...
+}
+
+# In hardware/acme/soc_b/gralloc/Android.bp:
+cc_library {
+    name: "gralloc.soc_b",
+    ...
+}
+```
+
+Then to select the correct gralloc implementation, a product makefile inherited
+by products that use soc_a should contain:
+
+```
+PRODUCT_PACKAGES += gralloc.soc_a
+PRODUCT_PROPERTY_OVERRIDES += ro.hardware.gralloc=soc_a
+```
+
+In cases where the names cannot be made unique a `soong_namespace` should be
+used to partition a set of modules so that they are built only when the
+namespace is listed in `PRODUCT_SOONG_NAMESPACES`.  See the
+[Name resolution](../README.md#name-resolution) section of the Soong README.md
+for more on namespaces.
+
+### Module with name based on variable
+
+HAL modules sometimes use variables like `$(TARGET_BOARD_PLATFORM)` in their
+module name.  These can be renamed to a fixed name.
+
+For example, the name of the gralloc HAL module can be overridden by the
+`ro.hardware.gralloc` system property:
+
+```
+LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
+...
+include $(BUILD_SHARED_LIBRARY)
+```
+
+Becomes:
+```
+cc_library {
+    name: "gralloc.acme",
+    ...
+}
+```
+
+Then to select the correct gralloc implementation, a product makefile should
+contain:
+
+```
+PRODUCT_PACKAGES += gralloc.acme
+PRODUCT_PROPERTY_OVERRIDES += ro.hardware.gralloc=acme
+```
+
+### Conditionally used source files, libraries or flags
+
+The preferred solution is to convert the conditional to runtime, either by
+autodetecting the correct value or loading the value from a system property
+or a configuration file.
+
+As a last resort, if the conditional cannot be removed, a Soong plugin can
+be written in Go that can implement additional features for specific module
+types.  Soong plugins are inherently tightly coupled to the build system
+and will require ongoing maintenance as the build system is changed; so
+plugins should be used only when absolutely required.
+
+See [art/build/art.go](https://android.googlesource.com/platform/art/+/master/build/art.go)
+or [external/llvm/soong/llvm.go](https://android.googlesource.com/platform/external/llvm/+/master/soong/llvm.go)
+for examples of more complex conditionals on product variables or environment variables.
