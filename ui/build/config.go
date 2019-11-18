@@ -144,6 +144,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		"DIST_DIR",
 
 		// Variables that have caused problems in the past
+		"BASH_ENV",
 		"CDPATH",
 		"DISPLAY",
 		"GREP_OPTIONS",
