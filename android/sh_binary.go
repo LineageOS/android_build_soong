@@ -196,6 +196,9 @@ func InitShBinaryModule(s *ShBinary) {
 // executable binary to <partition>/bin.
 func ShBinaryFactory() Module {
 	module := &ShBinary{}
+	module.Prefer32(func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool {
+		return class == Device && ctx.Config().DevicePrefer32BitExecutables()
+	})
 	InitShBinaryModule(module)
 	InitAndroidArchModule(module, HostAndDeviceSupported, MultilibFirst)
 	return module
