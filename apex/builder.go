@@ -340,19 +340,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			},
 		})
 
-		fcName := proptools.StringDefault(a.properties.File_contexts, ctx.ModuleName())
-		fileContextsPath := "system/sepolicy/apex/" + fcName + "-file_contexts"
-		fileContextsOptionalPath := android.ExistentPathForSource(ctx, fileContextsPath)
-		if !fileContextsOptionalPath.Valid() {
-			ctx.ModuleErrorf("Cannot find file_contexts file: %q", fileContextsPath)
-			return
-		}
-		fileContexts := fileContextsOptionalPath.Path()
-
 		optFlags := []string{}
 
 		// Additional implicit inputs.
-		implicitInputs = append(implicitInputs, cannedFsConfig, fileContexts, a.private_key_file, a.public_key_file)
+		implicitInputs = append(implicitInputs, cannedFsConfig, a.fileContexts, a.private_key_file, a.public_key_file)
 		optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
 
 		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
@@ -409,7 +400,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"manifest_json_full": a.manifestJsonFullOut.String(),
 				"manifest_json":      a.manifestJsonOut.String(),
 				"manifest":           a.manifestPbOut.String(),
-				"file_contexts":      fileContexts.String(),
+				"file_contexts":      a.fileContexts.String(),
 				"canned_fs_config":   cannedFsConfig.String(),
 				"key":                a.private_key_file.String(),
 				"opt_flags":          strings.Join(optFlags, " "),
@@ -485,6 +476,11 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
 	a.outputFile = android.PathForModuleInstall(&factx, "apex", apexName)
 
+	if a.installable() {
+		installPath := android.PathForModuleInstall(ctx, "apex", apexName)
+		devicePath := android.InstallPathToOnDevicePath(ctx, installPath)
+		addFlattenedFileContextsInfos(ctx, apexName+":"+devicePath+":"+a.fileContexts.String())
+	}
 	a.buildFilesInfo(ctx)
 }
 

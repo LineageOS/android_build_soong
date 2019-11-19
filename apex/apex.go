@@ -16,6 +16,7 @@ package apex
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -118,16 +119,11 @@ func apexDepsMutator(mctx android.BottomUpMutatorContext) {
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
 		am.CreateApexVariations(mctx)
-	} else if a, ok := mctx.Module().(*apexBundle); ok {
+	} else if _, ok := mctx.Module().(*apexBundle); ok {
 		// apex bundle itself is mutated so that it and its modules have same
 		// apex variant.
 		apexBundleName := mctx.ModuleName()
 		mctx.CreateVariations(apexBundleName)
-
-		// collects APEX list
-		if mctx.Device() && a.installable() {
-			addApexFileContextsInfos(mctx, a)
-		}
 	} else if o, ok := mctx.Module().(*OverrideApex); ok {
 		apexBundleName := o.GetOverriddenModuleName()
 		if apexBundleName == "" {
@@ -150,14 +146,11 @@ func apexFileContextsInfos(config android.Config) *[]string {
 	}).(*[]string)
 }
 
-func addApexFileContextsInfos(ctx android.BaseModuleContext, a *apexBundle) {
-	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
-	fileContextsName := proptools.StringDefault(a.properties.File_contexts, ctx.ModuleName())
-
+func addFlattenedFileContextsInfos(ctx android.BaseModuleContext, fileContextsInfo string) {
 	apexFileContextsInfosMutex.Lock()
 	defer apexFileContextsInfosMutex.Unlock()
 	apexFileContextsInfos := apexFileContextsInfos(ctx.Config())
-	*apexFileContextsInfos = append(*apexFileContextsInfos, apexName+":"+fileContextsName)
+	*apexFileContextsInfos = append(*apexFileContextsInfos, fileContextsInfo)
 }
 
 func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
@@ -272,10 +265,9 @@ type apexBundleProperties struct {
 	Apex_name *string
 
 	// Determines the file contexts file for setting security context to each file in this APEX bundle.
-	// Specifically, when this is set to <value>, /system/sepolicy/apex/<value>_file_contexts file is
-	// used.
-	// Default: <name_of_this_module>
-	File_contexts *string
+	// For platform APEXes, this should points to a file under /system/sepolicy
+	// Default: /system/sepolicy/apex/<module_name>_file_contexts.
+	File_contexts *string `android:"path"`
 
 	// List of native shared libs that are embedded inside this APEX bundle
 	Native_shared_libs []string
@@ -480,6 +472,8 @@ type apexBundle struct {
 
 	container_certificate_file android.Path
 	container_private_key_file android.Path
+
+	fileContexts android.Path
 
 	// list of files to be included in this apex
 	filesInfo []apexFile
@@ -1161,6 +1155,23 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
+
+	if a.properties.ApexType != zipApex {
+		if a.properties.File_contexts == nil {
+			a.fileContexts = android.PathForSource(ctx, "system/sepolicy/apex", ctx.ModuleName()+"-file_contexts")
+		} else {
+			a.fileContexts = android.PathForModuleSrc(ctx, *a.properties.File_contexts)
+			if a.Platform() {
+				if matched, err := path.Match("system/sepolicy/**/*", a.fileContexts.String()); err != nil || !matched {
+					ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but %q", a.fileContexts)
+				}
+			}
+		}
+		if !android.ExistentPathForSource(ctx, a.fileContexts.String()).Valid() {
+			ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", a.fileContexts)
+			return
+		}
+	}
 
 	// prepare apex_manifest.json
 	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
