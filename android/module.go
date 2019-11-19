@@ -1515,9 +1515,11 @@ func (m *ModuleBase) EnableNativeBridgeSupportByDefault() {
 }
 
 func (m *ModuleBase) MakeAsSystemExt() {
-	if !Bool(m.commonProperties.Vendor) && !Bool(m.commonProperties.Product_specific) {
-		m.commonProperties.System_ext_specific = boolPtr(true)
-	}
+	m.commonProperties.Vendor = boolPtr(false)
+	m.commonProperties.Proprietary = boolPtr(false)
+	m.commonProperties.Soc_specific = boolPtr(false)
+	m.commonProperties.Product_specific = boolPtr(false)
+	m.commonProperties.System_ext_specific = boolPtr(true)
 }
 
 // IsNativeBridgeSupported returns true if "native_bridge_supported" is explicitly set as "true"

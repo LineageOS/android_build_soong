@@ -2144,38 +2144,47 @@ func TestApexWithShBinary(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/bin/script/myscript.sh")
 }
 
-func TestApexInProductPartition(t *testing.T) {
-	ctx, _ := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			native_shared_libs: ["mylib"],
-			product_specific: true,
-			file_contexts: "myapex_file_contexts",
-		}
+func TestApexInVariousPartition(t *testing.T) {
+	testcases := []struct {
+		propName, parition, flattenedPartition string
+	}{
+		{"", "system", "system_ext"},
+		{"product_specific: true", "product", "product"},
+		{"soc_specific: true", "vendor", "vendor"},
+		{"proprietary: true", "vendor", "vendor"},
+		{"vendor: true", "vendor", "vendor"},
+		{"system_ext_specific: true", "system_ext", "system_ext"},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.propName+":"+tc.parition, func(t *testing.T) {
+			ctx, _ := testApex(t, `
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					`+tc.propName+`
+				}
 
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-			product_specific: true,
-		}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+			`)
 
-		cc_library {
-			name: "mylib",
-			srcs: ["mylib.cpp"],
-			system_shared_libs: [],
-			stl: "none",
-		}
-	`, withFiles(map[string][]byte{
-		"myapex_file_contexts": nil,
-	}))
+			apex := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+			expected := buildDir + "/target/product/test_device/" + tc.parition + "/apex"
+			actual := apex.installDir.String()
+			if actual != expected {
+				t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
+			}
 
-	apex := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	expected := buildDir + "/target/product/test_device/product/apex"
-	actual := apex.installDir.String()
-	if actual != expected {
-		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
+			flattened := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
+			expected = buildDir + "/target/product/test_device/" + tc.flattenedPartition + "/apex"
+			actual = flattened.installDir.String()
+			if actual != expected {
+				t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
+			}
+		})
 	}
 }
 
