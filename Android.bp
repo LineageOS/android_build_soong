@@ -458,8 +458,12 @@ bootstrap_go_package {
         "soong-python",
     ],
     srcs: [
+        "apex/androidmk.go",
         "apex/apex.go",
+        "apex/builder.go",
         "apex/key.go",
+        "apex/prebuilt.go",
+        "apex/vndk.go",
     ],
     testSrcs: [
         "apex/apex_test.go",
