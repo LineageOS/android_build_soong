@@ -547,10 +547,10 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		case bootClasspathTag:
 			if dep, ok := module.(Dependency); ok {
 				deps.bootClasspath = append(deps.bootClasspath, dep.ImplementationJars()...)
-			} else if sm, ok := module.(*SystemModules); ok {
+			} else if sm, ok := module.(SystemModulesProvider); ok {
 				// A system modules dependency has been added to the bootclasspath
 				// so add its libs to the bootclasspath.
-				deps.bootClasspath = append(deps.bootClasspath, sm.headerJars...)
+				deps.bootClasspath = append(deps.bootClasspath, sm.HeaderJars()...)
 			} else {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
@@ -578,11 +578,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			if deps.systemModules != nil {
 				panic("Found two system module dependencies")
 			}
-			sm := module.(*SystemModules)
-			if sm.outputDir == nil && len(sm.outputDeps) == 0 {
-				panic("Missing directory for system module dependency")
-			}
-			deps.systemModules = &systemModules{sm.outputDir, sm.outputDeps}
+			sm := module.(SystemModulesProvider)
+			outputDir, outputDeps := sm.OutputDirAndDeps()
+			deps.systemModules = &systemModules{outputDir, outputDeps}
 		}
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
