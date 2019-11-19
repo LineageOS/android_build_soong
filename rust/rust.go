@@ -77,6 +77,25 @@ type Module struct {
 	outputFile       android.OptionalPath
 }
 
+var _ android.ImageInterface = (*Module)(nil)
+
+func (mod *Module) ImageMutatorBegin(ctx android.BaseModuleContext) {}
+
+func (mod *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
+	return true
+}
+
+func (mod *Module) RecoveryVariantNeeded(android.BaseModuleContext) bool {
+	return mod.InRecovery()
+}
+
+func (mod *Module) ExtraImageVariations(android.BaseModuleContext) []string {
+	return nil
+}
+
+func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
+}
+
 func (mod *Module) BuildStubs() bool {
 	return false
 }
@@ -674,7 +693,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		blueprint.Variation{Mutator: "version", Variation: ""})
 	if !mod.Host() {
 		commonDepVariations = append(commonDepVariations,
-			blueprint.Variation{Mutator: "image", Variation: "core"})
+			blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
 	}
 
 	actx.AddVariationDependencies(

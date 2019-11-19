@@ -176,7 +176,7 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 					version = cc.LatestStubsVersionFor(mctx.Config(), name)
 				}
 				mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-					{Mutator: "image", Variation: "core"},
+					{Mutator: "image", Variation: android.CoreVariation},
 					{Mutator: "link", Variation: "shared"},
 					{Mutator: "version", Variation: version},
 				}...), sdkMemberDepTag, name)

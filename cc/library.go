@@ -1355,9 +1355,11 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 	if genrule, ok := mctx.Module().(*genrule.Module); ok {
-		if props, ok := genrule.Extra.(*GenruleExtraProperties); ok && !props.InRecovery {
-			mctx.CreateVariations("")
-			return
+		if _, ok := genrule.Extra.(*GenruleExtraProperties); ok {
+			if !genrule.InRecovery() {
+				mctx.CreateVariations("")
+				return
+			}
 		}
 	}
 }

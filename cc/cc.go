@@ -37,7 +37,7 @@ func init() {
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
-		ctx.BottomUp("image", ImageMutator).Parallel()
+		ctx.BottomUp("image", android.ImageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
@@ -218,7 +218,10 @@ type BaseProperties struct {
 	// Make this module available when building for recovery
 	Recovery_available *bool
 
-	InRecovery bool `blueprint:"mutated"`
+	// Set by ImageMutator
+	CoreVariantNeeded     bool     `blueprint:"mutated"`
+	RecoveryVariantNeeded bool     `blueprint:"mutated"`
+	VendorVariants        []string `blueprint:"mutated"`
 
 	// Allows this module to use non-APEX version of libraries. Useful
 	// for building binaries that are started before APEXes are activated.
@@ -822,7 +825,7 @@ func (c *Module) HasVendorVariant() bool {
 }
 
 func (c *Module) InRecovery() bool {
-	return c.Properties.InRecovery || c.ModuleBase.InstallInRecovery()
+	return c.ModuleBase.InRecovery() || c.ModuleBase.InstallInRecovery()
 }
 
 func (c *Module) OnlyInRecovery() bool {
@@ -1584,8 +1587,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			depTag = headerExportDepTag
 		}
 		if buildStubs {
-			actx.AddFarVariationDependencies(append(ctx.Target().Variations(),
-				blueprint.Variation{Mutator: "image", Variation: c.imageVariation()}),
+			actx.AddFarVariationDependencies(append(ctx.Target().Variations(), c.ImageVariation()),
 				depTag, lib)
 		} else {
 			actx.AddVariationDependencies(nil, depTag, lib)
@@ -1723,14 +1725,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	if vndkdep := c.vndkdep; vndkdep != nil {
 		if vndkdep.isVndkExt() {
-			var baseModuleMode string
-			if actx.DeviceConfig().VndkVersion() == "" {
-				baseModuleMode = coreMode
-			} else {
-				baseModuleMode = c.imageVariation()
-			}
 			actx.AddVariationDependencies([]blueprint.Variation{
-				{Mutator: "image", Variation: baseModuleMode},
+				c.ImageVariation(),
 				{Mutator: "link", Variation: "shared"},
 			}, vndkExtDepTag, vndkdep.getVndkExtendsModuleName())
 		}
@@ -2385,15 +2381,6 @@ func (c *Module) installable() bool {
 	return c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid()
 }
 
-func (c *Module) imageVariation() string {
-	if c.UseVndk() {
-		return vendorMode + "." + c.Properties.VndkVersion
-	} else if c.InRecovery() {
-		return recoveryMode
-	}
-	return coreMode
-}
-
 func (c *Module) IDEInfo(dpInfo *android.IdeInfo) {
 	outputFiles, err := c.OutputFiles("")
 	if err != nil {
@@ -2477,15 +2464,9 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 const (
-	// coreMode is the variant used for framework-private libraries, or
-	// SDK libraries. (which framework-private libraries can use)
-	coreMode = "core"
-
-	// vendorMode is the variant prefix used for /vendor code that compiles
+	// VendorVariationPrefix is the variant prefix used for /vendor code that compiles
 	// against the VNDK.
-	vendorMode = "vendor"
-
-	recoveryMode = "recovery"
+	VendorVariationPrefix = "vendor."
 )
 
 func squashVendorSrcs(m *Module) {
@@ -2508,74 +2489,9 @@ func squashRecoverySrcs(m *Module) {
 	}
 }
 
-func ImageMutator(mctx android.BottomUpMutatorContext) {
-	if mctx.Os() != android.Android {
-		return
-	}
+var _ android.ImageInterface = (*Module)(nil)
 
-	if g, ok := mctx.Module().(*genrule.Module); ok {
-		if props, ok := g.Extra.(*GenruleExtraProperties); ok {
-			var coreVariantNeeded bool = false
-			var vendorVariantNeeded bool = false
-			var recoveryVariantNeeded bool = false
-			if mctx.DeviceConfig().VndkVersion() == "" {
-				coreVariantNeeded = true
-			} else if Bool(props.Vendor_available) {
-				coreVariantNeeded = true
-				vendorVariantNeeded = true
-			} else if mctx.SocSpecific() || mctx.DeviceSpecific() {
-				vendorVariantNeeded = true
-			} else {
-				coreVariantNeeded = true
-			}
-			if Bool(props.Recovery_available) {
-				recoveryVariantNeeded = true
-			}
-
-			if recoveryVariantNeeded {
-				primaryArch := mctx.Config().DevicePrimaryArchType()
-				moduleArch := g.Target().Arch.ArchType
-				if moduleArch != primaryArch {
-					recoveryVariantNeeded = false
-				}
-			}
-
-			var variants []string
-			if coreVariantNeeded {
-				variants = append(variants, coreMode)
-			}
-			if vendorVariantNeeded {
-				variants = append(variants, vendorMode+"."+mctx.DeviceConfig().PlatformVndkVersion())
-				if vndkVersion := mctx.DeviceConfig().VndkVersion(); vndkVersion != "current" {
-					variants = append(variants, vendorMode+"."+vndkVersion)
-				}
-			}
-			if recoveryVariantNeeded {
-				variants = append(variants, recoveryMode)
-			}
-			mod := mctx.CreateVariations(variants...)
-			for i, v := range variants {
-				if v == recoveryMode {
-					m := mod[i].(*genrule.Module)
-					m.Extra.(*GenruleExtraProperties).InRecovery = true
-				}
-			}
-		}
-	}
-
-	//TODO When LinkableInterface supports VNDK, this should be mctx.Module().(LinkableInterface)
-	m, ok := mctx.Module().(*Module)
-	if !ok {
-		if linkable, ok := mctx.Module().(LinkableInterface); ok {
-			variations := []string{coreMode}
-			if linkable.InRecovery() {
-				variations = append(variations, recoveryMode)
-			}
-			mctx.CreateVariations(variations...)
-		}
-		return
-	}
-
+func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	// Sanity check
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
 	productSpecific := mctx.ProductSpecific()
@@ -2583,7 +2499,6 @@ func ImageMutator(mctx android.BottomUpMutatorContext) {
 	if m.VendorProperties.Vendor_available != nil && vendorSpecific {
 		mctx.PropertyErrorf("vendor_available",
 			"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
-		return
 	}
 
 	if vndkdep := m.vndkdep; vndkdep != nil {
@@ -2591,38 +2506,32 @@ func ImageMutator(mctx android.BottomUpMutatorContext) {
 			if productSpecific {
 				mctx.PropertyErrorf("product_specific",
 					"product_specific must not be true when `vndk: {enabled: true}`")
-				return
 			}
 			if vendorSpecific {
 				if !vndkdep.isVndkExt() {
 					mctx.PropertyErrorf("vndk",
 						"must set `extends: \"...\"` to vndk extension")
-					return
 				}
 			} else {
 				if vndkdep.isVndkExt() {
 					mctx.PropertyErrorf("vndk",
 						"must set `vendor: true` to set `extends: %q`",
 						m.getVndkExtendsModuleName())
-					return
 				}
 				if m.VendorProperties.Vendor_available == nil {
 					mctx.PropertyErrorf("vndk",
 						"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
-					return
 				}
 			}
 		} else {
 			if vndkdep.isVndkSp() {
 				mctx.PropertyErrorf("vndk",
 					"must set `enabled: true` to set `support_system_process: true`")
-				return
 			}
 			if vndkdep.isVndkExt() {
 				mctx.PropertyErrorf("vndk",
 					"must set `enabled: true` to set `extends: %q`",
 					m.getVndkExtendsModuleName())
-				return
 			}
 		}
 	}
@@ -2701,28 +2610,34 @@ func ImageMutator(mctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	var variants []string
-	if coreVariantNeeded {
-		variants = append(variants, coreMode)
-	}
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {
-		variants = append(variants, vendorMode+"."+variant)
+		m.Properties.VendorVariants = append(m.Properties.VendorVariants, VendorVariationPrefix+variant)
 	}
-	if recoveryVariantNeeded {
-		variants = append(variants, recoveryMode)
-	}
-	mod := mctx.CreateVariations(variants...)
-	for i, v := range variants {
-		if strings.HasPrefix(v, vendorMode+".") {
-			m := mod[i].(*Module)
-			m.Properties.VndkVersion = strings.TrimPrefix(v, vendorMode+".")
-			squashVendorSrcs(m)
-		} else if v == recoveryMode {
-			m := mod[i].(*Module)
-			m.Properties.InRecovery = true
-			m.MakeAsPlatform()
-			squashRecoverySrcs(m)
-		}
+
+	m.Properties.RecoveryVariantNeeded = recoveryVariantNeeded
+	m.Properties.CoreVariantNeeded = coreVariantNeeded
+}
+
+func (c *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
+	return c.Properties.CoreVariantNeeded
+}
+
+func (c *Module) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
+	return c.Properties.RecoveryVariantNeeded
+}
+
+func (c *Module) ExtraImageVariations(ctx android.BaseModuleContext) []string {
+	return c.Properties.VendorVariants
+}
+
+func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
+	m := module.(*Module)
+	if variant == android.RecoveryVariation {
+		m.MakeAsPlatform()
+		squashRecoverySrcs(m)
+	} else if strings.HasPrefix(variant, VendorVariationPrefix) {
+		m.Properties.VndkVersion = strings.TrimPrefix(variant, VendorVariationPrefix)
+		squashVendorSrcs(m)
 	}
 }
 
