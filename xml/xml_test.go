@@ -104,7 +104,7 @@ func TestPrebuiltEtcXml(t *testing.T) {
 		{rule: "xmllint-minimal", input: "baz.xml"},
 	} {
 		t.Run(tc.schemaType, func(t *testing.T) {
-			rule := ctx.ModuleForTests(tc.input, "android_arm64_armv8-a").Rule(tc.rule)
+			rule := ctx.ModuleForTests(tc.input, "android_arm64_armv8-a_core").Rule(tc.rule)
 			assertEqual(t, "input", tc.input, rule.Input.String())
 			if tc.schemaType != "" {
 				assertEqual(t, "schema", tc.schema, rule.Args[tc.schemaType])
@@ -112,6 +112,6 @@ func TestPrebuiltEtcXml(t *testing.T) {
 		})
 	}
 
-	m := ctx.ModuleForTests("foo.xml", "android_arm64_armv8-a").Module().(*prebuiltEtcXml)
+	m := ctx.ModuleForTests("foo.xml", "android_arm64_armv8-a_core").Module().(*prebuiltEtcXml)
 	assertEqual(t, "installDir", buildDir+"/target/product/test_device/system/etc", m.InstallDirPath().String())
 }

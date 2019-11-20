@@ -140,7 +140,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
 	})
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", android.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
 		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
