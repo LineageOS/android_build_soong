@@ -241,6 +241,8 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist.txt")).
 		FlagWithInput("--greylist-ignore-conflicts ",
 			greylistIgnoreConflicts).
+		FlagWithInput("--greylist-max-q ",
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-q.txt")).
 		FlagWithInput("--greylist-max-p ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-p.txt")).
 		FlagWithInput("--greylist-max-o-ignore-conflicts ",
