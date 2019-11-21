@@ -59,12 +59,7 @@ func (g *GenruleExtraProperties) CoreVariantNeeded(ctx android.BaseModuleContext
 }
 
 func (g *GenruleExtraProperties) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
-	if Bool(g.Recovery_available) {
-		primaryArch := ctx.Config().DevicePrimaryArchType()
-		moduleArch := ctx.Target().Arch.ArchType
-		return moduleArch == primaryArch
-	}
-	return false
+	return Bool(g.Recovery_available)
 }
 
 func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleContext) []string {
