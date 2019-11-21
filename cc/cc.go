@@ -562,6 +562,10 @@ func (c *Module) CcLibraryInterface() bool {
 	return false
 }
 
+func (c *Module) NonCcVariants() bool {
+	return false
+}
+
 func (c *Module) SetBuildStubs() {
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
