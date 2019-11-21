@@ -822,7 +822,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 
 	os := base.commonProperties.CompileOS
 	osTargets := mctx.Config().Targets[os]
-
+	image := base.commonProperties.ImageVariation
 	// Filter NativeBridge targets unless they are explicitly supported
 	if os == Android && !Bool(base.commonProperties.Native_bridge_supported) {
 		var targets []Target
@@ -857,6 +857,12 @@ func archMutator(mctx BottomUpMutatorContext) {
 		if err != nil {
 			mctx.ModuleErrorf("%s", err.Error())
 		}
+	}
+
+	if image == RecoveryVariation {
+		primaryArch := mctx.Config().DevicePrimaryArchType()
+		targets = filterToArch(targets, primaryArch)
+		multiTargets = filterToArch(multiTargets, primaryArch)
 	}
 
 	if len(targets) == 0 {
@@ -905,6 +911,16 @@ func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib st
 		}
 		return base.commonProperties.Default_multilib, multilib
 	}
+}
+
+func filterToArch(targets []Target, arch ArchType) []Target {
+	for i := 0; i < len(targets); i++ {
+		if targets[i].Arch.ArchType != arch {
+			targets = append(targets[:i], targets[i+1:]...)
+			i--
+		}
+	}
+	return targets
 }
 
 // createArchType takes a reflect.Type that is either a struct or a pointer to a struct, and returns a list of

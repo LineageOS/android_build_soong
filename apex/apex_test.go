@@ -1097,8 +1097,8 @@ func TestUseVendor(t *testing.T) {
 	inputsString := strings.Join(inputsList, " ")
 
 	// ensure that the apex includes vendor variants of the direct and indirect deps
-	ensureContains(t, inputsString, "android_arm64_armv8-a_vendor.VER_shared_myapex/mylib.so")
-	ensureContains(t, inputsString, "android_arm64_armv8-a_vendor.VER_shared_myapex/mylib2.so")
+	ensureContains(t, inputsString, "android_vendor.VER_arm64_armv8-a_shared_myapex/mylib.so")
+	ensureContains(t, inputsString, "android_vendor.VER_arm64_armv8-a_shared_myapex/mylib2.so")
 
 	// ensure that the apex does not include core variants
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_shared_myapex/mylib.so")
