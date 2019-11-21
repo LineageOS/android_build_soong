@@ -1159,7 +1159,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 	}{
 		{
 			variantName:       "android_common",
-			apkPath:           "/target/product/test_device/testcases/foo_test/foo_test.apk",
+			apkPath:           "/target/product/test_device/testcases/foo_test/arm64/foo_test.apk",
 			overrides:         nil,
 			targetVariant:     "android_common",
 			packageFlag:       "",
@@ -1167,7 +1167,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 		},
 		{
 			variantName:       "android_common_bar_test",
-			apkPath:           "/target/product/test_device/testcases/bar_test/bar_test.apk",
+			apkPath:           "/target/product/test_device/testcases/bar_test/arm64/bar_test.apk",
 			overrides:         []string{"foo_test"},
 			targetVariant:     "android_common_bar",
 			packageFlag:       "com.android.bar.test",

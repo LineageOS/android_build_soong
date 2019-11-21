@@ -448,7 +448,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	} else if a.Privileged() {
 		a.installDir = android.PathForModuleInstall(ctx, "priv-app", a.installApkName)
 	} else if ctx.InstallInTestcases() {
-		a.installDir = android.PathForModuleInstall(ctx, a.installApkName)
+		a.installDir = android.PathForModuleInstall(ctx, a.installApkName, ctx.DeviceConfig().DeviceArch())
 	} else {
 		a.installDir = android.PathForModuleInstall(ctx, "app", a.installApkName)
 	}
@@ -695,6 +695,10 @@ type AndroidTestHelperApp struct {
 	AndroidApp
 
 	appTestHelperAppProperties appTestHelperAppProperties
+}
+
+func (a *AndroidTestHelperApp) InstallInTestcases() bool {
+	return true
 }
 
 // android_test_helper_app compiles sources and Android resources into an Android application package `.apk` file that
