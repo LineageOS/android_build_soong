@@ -245,7 +245,7 @@ func TestNoStdlibs(t *testing.T) {
 			srcs: ["foo.rs"],
                         no_stdlibs: true,
 		}`)
-	module := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a_core").Module().(*Module)
+	module := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Module().(*Module)
 
 	if android.InList("libstd", module.Properties.AndroidMkDylibs) {
 		t.Errorf("no_stdlibs did not suppress dependency on libstd")

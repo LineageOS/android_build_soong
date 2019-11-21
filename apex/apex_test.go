@@ -483,12 +483,12 @@ func TestBasicApex(t *testing.T) {
 	ensureContains(t, apexRule.Output.String(), "myapex.apex.unsigned")
 
 	// Ensure that apex variant is created for the direct dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared_myapex")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common_myapex")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myprebuiltjar"), "android_common_myapex")
 
 	// Ensure that apex variant is created for the indirect dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_myapex")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
@@ -499,9 +499,9 @@ func TestBasicApex(t *testing.T) {
 	// .. but not for java libs
 	ensureNotContains(t, copyCmds, "image.apex/javalib/myotherjar.jar")
 
-	// Ensure that the platform variant ends with _core_shared or _common
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
+	// Ensure that the platform variant ends with _shared or _common
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myprebuiltjar"), "android_common")
@@ -590,10 +590,10 @@ func TestBasicZipApex(t *testing.T) {
 	ensureContains(t, zipApexRule.Output.String(), "myapex.zipapex.unsigned")
 
 	// Ensure that APEX variant is created for the direct dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared_myapex")
 
 	// Ensure that APEX variant is created for the indirect dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.zipapex/lib64/mylib.so")
@@ -664,24 +664,24 @@ func TestApexWithStubs(t *testing.T) {
 	// Ensure that direct stubs dep is included
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib3.so")
 
-	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_shared_myapex").Rule("ld").Args["libFlags"]
+	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
 
 	// Ensure that mylib is linking with the latest version of stubs for mylib2
-	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_core_shared_3_myapex/mylib2.so")
+	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_3_myapex/mylib2.so")
 	// ... and not linking to the non-stub (impl) variant of mylib2
-	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_core_shared_myapex/mylib2.so")
+	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_myapex/mylib2.so")
 
 	// Ensure that mylib is linking with the non-stub (impl) of mylib3 (because mylib3 is in the same apex)
-	ensureContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_core_shared_myapex/mylib3.so")
+	ensureContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_myapex/mylib3.so")
 	// .. and not linking to the stubs variant of mylib3
-	ensureNotContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_core_shared_12_myapex/mylib3.so")
+	ensureNotContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_12_myapex/mylib3.so")
 
 	// Ensure that stubs libs are built without -include flags
-	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
+	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylib2Cflags, "-include ")
 
 	// Ensure that genstub is invoked with --apex
-	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_core_static_3_myapex").Rule("genStubSrc").Args["flags"])
+	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3_myapex").Rule("genStubSrc").Args["flags"])
 }
 
 func TestApexWithExplicitStubsDependency(t *testing.T) {
@@ -738,14 +738,14 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	// Ensure that dependency of stubs is not included
 	ensureNotContains(t, copyCmds, "image.apex/lib64/libbar.so")
 
-	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_shared_myapex").Rule("ld").Args["libFlags"]
+	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
 
 	// Ensure that mylib is linking with version 10 of libfoo
-	ensureContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_core_shared_10_myapex/libfoo.so")
+	ensureContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_shared_10_myapex/libfoo.so")
 	// ... and not linking to the non-stub (impl) variant of libfoo
-	ensureNotContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_core_shared_myapex/libfoo.so")
+	ensureNotContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_shared_myapex/libfoo.so")
 
-	libFooStubsLdFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_core_shared_10_myapex").Rule("ld").Args["libFlags"]
+	libFooStubsLdFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_10_myapex").Rule("ld").Args["libFlags"]
 
 	// Ensure that libfoo stubs is not linking to libbar (since it is a stubs)
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
@@ -951,45 +951,45 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 	// Ensure that libc is not included (since it has stubs and not listed in native_shared_libs)
 	ensureNotContains(t, copyCmds, "image.apex/lib64/bionic/libc.so")
 
-	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_shared_myapex").Rule("ld").Args["libFlags"]
-	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
-	mylibSharedCFlags := ctx.ModuleForTests("mylib_shared", "android_arm64_armv8-a_core_shared_myapex").Rule("cc").Args["cFlags"]
+	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
+	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	mylibSharedCFlags := ctx.ModuleForTests("mylib_shared", "android_arm64_armv8-a_shared_myapex").Rule("cc").Args["cFlags"]
 
 	// For dependency to libc
 	// Ensure that mylib is linking with the latest version of stubs
-	ensureContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_core_shared_29_myapex/libc.so")
+	ensureContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_shared_29_myapex/libc.so")
 	// ... and not linking to the non-stub (impl) variant
-	ensureNotContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_core_shared_myapex/libc.so")
+	ensureNotContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_shared_myapex/libc.so")
 	// ... Cflags from stub is correctly exported to mylib
 	ensureContains(t, mylibCFlags, "__LIBC_API__=29")
 	ensureContains(t, mylibSharedCFlags, "__LIBC_API__=29")
 
 	// For dependency to libm
 	// Ensure that mylib is linking with the non-stub (impl) variant
-	ensureContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_core_shared_myapex/libm.so")
+	ensureContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_shared_myapex/libm.so")
 	// ... and not linking to the stub variant
-	ensureNotContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_core_shared_29_myapex/libm.so")
+	ensureNotContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_shared_29_myapex/libm.so")
 	// ... and is not compiling with the stub
 	ensureNotContains(t, mylibCFlags, "__LIBM_API__=29")
 	ensureNotContains(t, mylibSharedCFlags, "__LIBM_API__=29")
 
 	// For dependency to libdl
 	// Ensure that mylib is linking with the specified version of stubs
-	ensureContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_core_shared_27_myapex/libdl.so")
+	ensureContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_27_myapex/libdl.so")
 	// ... and not linking to the other versions of stubs
-	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_core_shared_28_myapex/libdl.so")
-	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_core_shared_29_myapex/libdl.so")
+	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_28_myapex/libdl.so")
+	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_29_myapex/libdl.so")
 	// ... and not linking to the non-stub (impl) variant
-	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_core_shared_myapex/libdl.so")
+	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_myapex/libdl.so")
 	// ... Cflags from stub is correctly exported to mylib
 	ensureContains(t, mylibCFlags, "__LIBDL_API__=27")
 	ensureContains(t, mylibSharedCFlags, "__LIBDL_API__=27")
 
 	// Ensure that libBootstrap is depending on the platform variant of bionic libs
-	libFlags := ctx.ModuleForTests("libBootstrap", "android_arm64_armv8-a_core_shared").Rule("ld").Args["libFlags"]
-	ensureContains(t, libFlags, "libc/android_arm64_armv8-a_core_shared/libc.so")
-	ensureContains(t, libFlags, "libm/android_arm64_armv8-a_core_shared/libm.so")
-	ensureContains(t, libFlags, "libdl/android_arm64_armv8-a_core_shared/libdl.so")
+	libFlags := ctx.ModuleForTests("libBootstrap", "android_arm64_armv8-a_shared").Rule("ld").Args["libFlags"]
+	ensureContains(t, libFlags, "libc/android_arm64_armv8-a_shared/libc.so")
+	ensureContains(t, libFlags, "libm/android_arm64_armv8-a_shared/libm.so")
+	ensureContains(t, libFlags, "libdl/android_arm64_armv8-a_shared/libdl.so")
 }
 
 func TestFilesInSubDir(t *testing.T) {
@@ -1100,8 +1100,8 @@ func TestUseVendor(t *testing.T) {
 	ensureContains(t, inputsString, "android_arm64_armv8-a_vendor.VER_shared_myapex/mylib2.so")
 
 	// ensure that the apex does not include core variants
-	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib.so")
-	ensureNotContains(t, inputsString, "android_arm64_armv8-a_core_shared_myapex/mylib2.so")
+	ensureNotContains(t, inputsString, "android_arm64_armv8-a_shared_myapex/mylib.so")
+	ensureNotContains(t, inputsString, "android_arm64_armv8-a_shared_myapex/mylib2.so")
 }
 
 func TestUseVendorRestriction(t *testing.T) {
@@ -1194,10 +1194,10 @@ func TestStaticLinking(t *testing.T) {
 		}
 	`)
 
-	ldFlags := ctx.ModuleForTests("not_in_apex", "android_arm64_armv8-a_core").Rule("ld").Args["libFlags"]
+	ldFlags := ctx.ModuleForTests("not_in_apex", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
 
 	// Ensure that not_in_apex is linking with the static variant of mylib
-	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_core_static/mylib.a")
+	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_static/mylib.a")
 }
 
 func TestKeys(t *testing.T) {
@@ -1284,19 +1284,19 @@ func TestMacro(t *testing.T) {
 	`)
 
 	// non-APEX variant does not have __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
+	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
 	// APEX variant has __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_myapex").Rule("cc").Args["cFlags"]
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
 	// APEX variant has __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_core_static_otherapex").Rule("cc").Args["cFlags"]
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
@@ -1344,7 +1344,7 @@ func TestHeaderLibsDependency(t *testing.T) {
 		}
 	`)
 
-	cFlags := ctx.ModuleForTests("otherlib", "android_arm64_armv8-a_core_static").Rule("cc").Args["cFlags"]
+	cFlags := ctx.ModuleForTests("otherlib", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 
 	// Ensure that the include path of the header lib is exported to 'otherlib'
 	ensureContains(t, cFlags, "-Imy_include")
@@ -1970,13 +1970,13 @@ func TestNonTestApex(t *testing.T) {
 	ensureContains(t, apexRule.Output.String(), "myapex.apex.unsigned")
 
 	// Ensure that apex variant is created for the direct dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_shared_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib_common.so")
 
-	// Ensure that the platform variant ends with _core_shared
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_core_shared")
+	// Ensure that the platform variant ends with _shared
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_shared")
 
 	if !android.InAnyApex("mylib_common") {
 		t.Log("Found mylib_common not in any apex!")
@@ -2021,13 +2021,13 @@ func TestTestApex(t *testing.T) {
 	ensureContains(t, apexRule.Output.String(), "myapex.apex.unsigned")
 
 	// Ensure that apex variant is created for the direct dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common_test"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common_test"), "android_arm64_armv8-a_shared_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib_common_test.so")
 
-	// Ensure that the platform variant ends with _core_shared
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common_test"), "android_arm64_armv8-a_core_shared")
+	// Ensure that the platform variant ends with _shared
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common_test"), "android_arm64_armv8-a_shared")
 
 	if android.InAnyApex("mylib_common_test") {
 		t.Log("Found mylib_common_test in some apex!")
@@ -2100,19 +2100,19 @@ func TestApexWithTarget(t *testing.T) {
 	ensureContains(t, apexRule.Output.String(), "myapex.apex.unsigned")
 
 	// Ensure that apex variant is created for the direct dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_myapex")
 
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib_common.so")
 	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
 
-	// Ensure that the platform variant ends with _core_shared
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared")
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_core_shared")
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_core_shared")
+	// Ensure that the platform variant ends with _shared
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared")
 }
 
 func TestApexWithShBinary(t *testing.T) {
@@ -2503,8 +2503,8 @@ func TestApexUsesOtherApex(t *testing.T) {
 	apexRule2 := module2.Rule("apexRule")
 	copyCmds2 := apexRule2.Args["copy_commands"]
 
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libcommon"), "android_arm64_armv8-a_core_shared_commonapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libcommon"), "android_arm64_armv8-a_shared_commonapex")
 	ensureContains(t, copyCmds1, "image.apex/lib64/mylib.so")
 	ensureContains(t, copyCmds2, "image.apex/lib64/libcommon.so")
 	ensureNotContains(t, copyCmds1, "image.apex/lib64/libcommon.so")
@@ -2670,7 +2670,7 @@ func TestApexWithApps(t *testing.T) {
 
 	// JNI libraries are embedded inside APK
 	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_myapex").Rule("zip")
-	libjniOutput := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_core_shared_myapex").Module().(*cc.Module).OutputFile()
+	libjniOutput := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module).OutputFile()
 	ensureListContains(t, appZipRule.Implicits.Strings(), libjniOutput.String())
 	// ... uncompressed
 	if args := appZipRule.Args["jarArgs"]; !strings.Contains(args, "-L 0") {
@@ -2882,10 +2882,10 @@ func TestApexAvailable(t *testing.T) {
 	}`)
 
 	// check that libfoo and libbar are created only for myapex, but not for the platform
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared")
 
 	ctx, _ = testApex(t, `
 	apex {
@@ -2907,8 +2907,8 @@ func TestApexAvailable(t *testing.T) {
 	}`)
 
 	// check that libfoo is created only for the platform
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
 
 	ctx, _ = testApex(t, `
 	apex {
@@ -2934,11 +2934,11 @@ func TestApexAvailable(t *testing.T) {
 	}`)
 
 	// shared variant of libfoo is only available to myapex
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_shared")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
 	// but the static variant is available to both myapex and the platform
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_static_myapex")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_core_static")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static_myapex")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static")
 }
 
 func TestOverrideApex(t *testing.T) {
