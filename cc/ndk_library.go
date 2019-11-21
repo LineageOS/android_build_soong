@@ -269,6 +269,10 @@ func addStubLibraryCompilerFlags(flags Flags) Flags {
 		// (avoids the need to link an unwinder into a fake library).
 		"-fno-unwind-tables",
 	)
+	// All symbols in the stubs library should be visible.
+	if inList("-fvisibility=hidden", flags.Local.CFlags) {
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fvisibility=default")
+	}
 	return flags
 }
 
