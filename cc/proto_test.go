@@ -29,7 +29,7 @@ func TestProto(t *testing.T) {
 			srcs: ["a.proto"],
 		}`)
 
-		proto := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Output("proto/a.pb.cc")
+		proto := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_shared").Output("proto/a.pb.cc")
 
 		if cmd := proto.RuleParams.Command; !strings.Contains(cmd, "--cpp_out=") {
 			t.Errorf("expected '--cpp_out' in %q", cmd)
@@ -53,7 +53,7 @@ func TestProto(t *testing.T) {
 
 		buildOS := android.BuildOs.String()
 
-		proto := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_core_shared").Output("proto/a.pb.cc")
+		proto := ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_shared").Output("proto/a.pb.cc")
 		foobar := ctx.ModuleForTests("protoc-gen-foobar", buildOS+"_x86_64")
 
 		cmd := proto.RuleParams.Command
