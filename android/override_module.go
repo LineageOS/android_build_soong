@@ -70,6 +70,10 @@ func (o *OverrideModuleBase) getOverrideModuleProperties() *OverrideModuleProper
 	return &o.moduleProperties
 }
 
+func (o *OverrideModuleBase) GetOverriddenModuleName() string {
+	return proptools.String(o.moduleProperties.Base)
+}
+
 func InitOverrideModule(m OverrideModule) {
 	m.setOverridingProperties(m.GetProperties())
 
@@ -147,7 +151,7 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 	for _, p := range b.overridableProperties {
 		for _, op := range o.getOverridingProperties() {
 			if proptools.TypeEqual(p, op) {
-				err := proptools.AppendProperties(p, op, nil)
+				err := proptools.ExtendProperties(p, op, nil, proptools.OrderReplace)
 				if err != nil {
 					if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
 						ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
