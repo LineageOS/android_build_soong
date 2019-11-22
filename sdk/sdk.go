@@ -16,6 +16,7 @@ package sdk
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/google/blueprint"
@@ -121,6 +122,13 @@ func (s *sdk) AndroidMkEntries() android.AndroidMkEntries {
 		OutputFile: s.snapshotFile,
 		DistFile:   s.snapshotFile,
 		Include:    "$(BUILD_PHONY_PACKAGE)",
+		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+				// Allow the sdk to be built by simply passing its name on the command line.
+				fmt.Fprintln(w, ".PHONY:", s.Name())
+				fmt.Fprintln(w, s.Name()+":", s.snapshotFile.String())
+			},
+		},
 	}
 }
 
