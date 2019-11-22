@@ -22,7 +22,7 @@ func testCSuiteConfig(test *testing.T, bpFileContents string) *TestContext {
 	config := TestArchConfig(buildDir, nil)
 
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("csuite_config", ModuleFactoryAdaptor(CSuiteConfigFactory))
+	ctx.RegisterModuleType("csuite_config", CSuiteConfigFactory)
 	ctx.Register()
 	mockFiles := map[string][]byte{
 		"Android.bp": []byte(bpFileContents),

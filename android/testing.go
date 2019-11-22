@@ -71,7 +71,15 @@ func (ctx *TestContext) PostDepsMutators(f RegisterMutatorFunc) {
 func (ctx *TestContext) Register() {
 	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps)
 
-	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
+	ctx.RegisterSingletonType("env", EnvSingleton)
+}
+
+func (ctx *TestContext) RegisterModuleType(name string, factory ModuleFactory) {
+	ctx.Context.RegisterModuleType(name, ModuleFactoryAdaptor(factory))
+}
+
+func (ctx *TestContext) RegisterSingletonType(name string, factory SingletonFactory) {
+	ctx.Context.RegisterSingletonType(name, SingletonFactoryAdaptor(factory))
 }
 
 func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {

@@ -165,7 +165,7 @@ func depsModuleFactory() Module {
 
 func TestErrorDependsOnDisabledModule(t *testing.T) {
 	ctx := NewTestContext()
-	ctx.RegisterModuleType("deps", ModuleFactoryAdaptor(depsModuleFactory))
+	ctx.RegisterModuleType("deps", depsModuleFactory)
 
 	bp := `
 		deps {

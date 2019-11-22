@@ -53,7 +53,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 
 	ctx := testContext(bp, nil)
 
-	ctx.RegisterSingletonType("dex_bootjars", android.SingletonFactoryAdaptor(dexpreoptBootJarsFactory))
+	ctx.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
 
 	run(t, ctx, config)
 
