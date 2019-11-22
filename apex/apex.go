@@ -1162,7 +1162,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// prepend the name of this APEX to the module names. These names will be the names of
 	// modules that will be defined if the APEX is flattened.
 	for i := range filesInfo {
-		filesInfo[i].moduleName = filesInfo[i].moduleName + "." + ctx.ModuleName() + a.suffix
+		filesInfo[i].moduleName = filesInfo[i].moduleName + "." + a.Name() + a.suffix
 	}
 
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
@@ -1195,7 +1195,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.buildUnflattenedApex(ctx)
 	}
 
-	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
+	apexName := proptools.StringDefault(a.properties.Apex_name, a.Name())
 	a.compatSymlinks = makeCompatSymlinks(apexName, ctx)
 }
 

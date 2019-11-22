@@ -244,7 +244,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	apexType := a.properties.ApexType
 	suffix := apexType.suffix()
-	unsignedOutputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+suffix+".unsigned")
+	unsignedOutputFile := android.PathForModuleOut(ctx, a.Name()+suffix+".unsigned")
 
 	filesToCopy := []android.Path{}
 	for _, f := range a.filesInfo {
@@ -253,7 +253,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	copyCommands := []string{}
 	emitCommands := []string{}
-	imageContentFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-content.txt")
+	imageContentFile := android.PathForModuleOut(ctx, a.Name()+"-content.txt")
 	emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
 	for i, src := range filesToCopy {
 		dest := filepath.Join(a.filesInfo[i].installDir, src.Base())
@@ -284,7 +284,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		implicitInputs = append(implicitInputs, imageContentFile)
 		whitelistedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.Whitelisted_files))
 
-		phonyOutput := android.PathForModuleOut(ctx, ctx.ModuleName()+"-diff-phony-output")
+		phonyOutput := android.PathForModuleOut(ctx, a.Name()+"-diff-phony-output")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        diffApexContentRule,
 			Implicits:   implicitInputs,
@@ -293,7 +293,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Args: map[string]string{
 				"whitelisted_files_file": whitelistedFilesFile.String(),
 				"image_content_file":     imageContentFile.String(),
-				"apex_module_name":       ctx.ModuleName(),
+				"apex_module_name":       a.Name(),
 			},
 		})
 
@@ -346,7 +346,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		implicitInputs = append(implicitInputs, cannedFsConfig, a.fileContexts, a.private_key_file, a.public_key_file)
 		optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
 
-		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
+		manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(a.Name())
 		if overridden {
 			optFlags = append(optFlags, "--override_apk_package_name "+manifestPackageName)
 		}
@@ -368,7 +368,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		}
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
 
-		noticeFile := a.buildNoticeFile(ctx, ctx.ModuleName()+suffix)
+		noticeFile := a.buildNoticeFile(ctx, a.Name()+suffix)
 		if noticeFile.Valid() {
 			// If there's a NOTICE file, embed it as an asset file in the APEX.
 			implicitInputs = append(implicitInputs, noticeFile.Path())
@@ -407,8 +407,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			},
 		})
 
-		apexProtoFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".pb"+suffix)
-		bundleModuleFile := android.PathForModuleOut(ctx, ctx.ModuleName()+suffix+"-base.zip")
+		apexProtoFile := android.PathForModuleOut(ctx, a.Name()+".pb"+suffix)
+		bundleModuleFile := android.PathForModuleOut(ctx, a.Name()+suffix+"-base.zip")
 		a.bundleModuleFile = bundleModuleFile
 
 		ctx.Build(pctx, android.BuildParams{
@@ -443,7 +443,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		})
 	}
 
-	a.outputFile = android.PathForModuleOut(ctx, ctx.ModuleName()+suffix)
+	a.outputFile = android.PathForModuleOut(ctx, a.Name()+suffix)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        java.Signapk,
 		Description: "signapk",
@@ -461,7 +461,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	// Install to $OUT/soong/{target,host}/.../apex
 	if a.installable() {
-		ctx.InstallFile(a.installDir, ctx.ModuleName()+suffix, a.outputFile)
+		ctx.InstallFile(a.installDir, a.Name()+suffix, a.outputFile)
 	}
 	a.buildFilesInfo(ctx)
 }
@@ -501,8 +501,8 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that apex_manifest.json and apex_pubkey are also copied along
 		// with other ordinary files.
-		a.filesInfo = append(a.filesInfo, apexFile{a.manifestJsonOut, "apex_manifest.json." + ctx.ModuleName() + a.suffix, ".", etc, nil, nil})
-		a.filesInfo = append(a.filesInfo, apexFile{a.manifestPbOut, "apex_manifest.pb." + ctx.ModuleName() + a.suffix, ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{a.manifestJsonOut, "apex_manifest.json." + a.Name() + a.suffix, ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{a.manifestPbOut, "apex_manifest.pb." + a.Name() + a.suffix, ".", etc, nil, nil})
 
 		// rename to apex_pubkey
 		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
@@ -511,10 +511,10 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 			Input:  a.public_key_file,
 			Output: copiedPubkey,
 		})
-		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, "apex_pubkey." + ctx.ModuleName() + a.suffix, ".", etc, nil, nil})
+		a.filesInfo = append(a.filesInfo, apexFile{copiedPubkey, "apex_pubkey." + a.Name() + a.suffix, ".", etc, nil, nil})
 
 		if a.properties.ApexType == flattenedApex {
-			apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
+			apexName := proptools.StringDefault(a.properties.Apex_name, a.Name())
 			for _, fi := range a.filesInfo {
 				dir := filepath.Join("apex", apexName, fi.installDir)
 				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
