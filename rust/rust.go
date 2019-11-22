@@ -89,6 +89,19 @@ func (mod *Module) SelectedStl() string {
 	return ""
 }
 
+func (mod *Module) NonCcVariants() bool {
+	if mod.compiler != nil {
+		if library, ok := mod.compiler.(libraryInterface); ok {
+			if library.buildRlib() || library.buildDylib() {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	panic(fmt.Errorf("NonCcVariants called on non-library module: %q", mod.BaseModuleName()))
+}
+
 func (mod *Module) ApiLevel() string {
 	panic(fmt.Errorf("Called ApiLevel on Rust module %q; stubs libraries are not yet supported.", mod.BaseModuleName()))
 }
