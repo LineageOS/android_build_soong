@@ -1262,13 +1262,15 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 			shared.linker.(prebuiltLibraryInterface).disablePrebuilt()
 		}
 	} else if library, ok := mctx.Module().(LinkableInterface); ok && library.CcLibraryInterface() {
-		if library.BuildStaticVariant() && library.BuildSharedVariant() {
-			variations := []string{"static", "shared"}
 
-			// Non-cc.Modules need an empty variant for their mutators.
-			if _, ok := mctx.Module().(*Module); !ok {
-				variations = append(variations, "")
-			}
+		// Non-cc.Modules may need an empty variant for their mutators.
+		variations := []string{}
+		if library.NonCcVariants() {
+			variations = append(variations, "")
+		}
+
+		if library.BuildStaticVariant() && library.BuildSharedVariant() {
+			variations := append([]string{"static", "shared"}, variations...)
 
 			modules := mctx.CreateLocalVariations(variations...)
 			static := modules[0].(LinkableInterface)
@@ -1281,16 +1283,18 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 				reuseStaticLibrary(mctx, static.(*Module), shared.(*Module))
 			}
 		} else if library.BuildStaticVariant() {
-			modules := mctx.CreateLocalVariations("static")
+			variations := append([]string{"static"}, variations...)
+
+			modules := mctx.CreateLocalVariations(variations...)
 			modules[0].(LinkableInterface).SetStatic()
 		} else if library.BuildSharedVariant() {
-			modules := mctx.CreateLocalVariations("shared")
-			modules[0].(LinkableInterface).SetShared()
-		} else if _, ok := mctx.Module().(*Module); !ok {
-			// Non-cc.Modules need an empty variant for their mutators.
-			mctx.CreateLocalVariations("")
-		}
+			variations := append([]string{"shared"}, variations...)
 
+			modules := mctx.CreateLocalVariations(variations...)
+			modules[0].(LinkableInterface).SetShared()
+		} else if len(variations) > 0 {
+			mctx.CreateLocalVariations(variations...)
+		}
 	}
 }
 
