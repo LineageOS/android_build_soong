@@ -598,10 +598,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 				a.properties.Multilib.First.Tests,
 				target,
 				a.getImageVariation(config))
-
-			// When multilib.* is omitted for prebuilts, it implies multilib.first.
-			ctx.AddFarVariationDependencies(target.Variations(),
-				prebuiltTag, a.properties.Prebuilts...)
 		}
 
 		switch target.Arch.ArchType.Multilib {
@@ -651,6 +647,22 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 
 	}
+
+	// For prebuilt_etc, use the first variant (64 on 64/32bit device,
+	// 32 on 32bit device) regardless of the TARGET_PREFER_* setting.
+	// b/144532908
+	archForPrebuiltEtc := config.Arches()[0]
+	for _, arch := range config.Arches() {
+		// Prefer 64-bit arch if there is any
+		if arch.ArchType.Multilib == "lib64" {
+			archForPrebuiltEtc = arch
+			break
+		}
+	}
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "os", Variation: ctx.Os().String()},
+		{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
+	}, prebuiltTag, a.properties.Prebuilts...)
 
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		javaLibTag, a.properties.Java_libs...)
