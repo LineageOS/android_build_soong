@@ -62,6 +62,7 @@ type EarlyModuleContext interface {
 	ModuleName() string
 	ModuleDir() string
 	ModuleType() string
+	BlueprintsFile() string
 
 	ContainsProperty(name string) bool
 	Errorf(pos scanner.Position, fmt string, args ...interface{})
@@ -519,9 +520,13 @@ func (k moduleKind) String() string {
 	}
 }
 
+func initAndroidModuleBase(m Module) {
+	m.base().module = m
+}
+
 func InitAndroidModule(m Module) {
+	initAndroidModuleBase(m)
 	base := m.base()
-	base.module = m
 
 	m.AddProperties(
 		&base.nameProperties,

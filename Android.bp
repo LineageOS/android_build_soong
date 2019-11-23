@@ -36,6 +36,7 @@ bootstrap_go_package {
         "blueprint",
         "blueprint-bootstrap",
         "soong",
+        "soong-android-soongconfig",
         "soong-env",
         "soong-shared",
     ],
@@ -73,6 +74,7 @@ bootstrap_go_package {
         "android/sdk.go",
         "android/sh_binary.go",
         "android/singleton.go",
+        "android/soong_config_modules.go",
         "android/testing.go",
         "android/util.go",
         "android/variable.go",
@@ -101,10 +103,25 @@ bootstrap_go_package {
         "android/prebuilt_test.go",
         "android/prebuilt_etc_test.go",
         "android/rule_builder_test.go",
+        "android/soong_config_modules_test.go",
         "android/util_test.go",
         "android/variable_test.go",
         "android/visibility_test.go",
         "android/vts_config_test.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-android-soongconfig",
+    pkgPath: "android/soong/android/soongconfig",
+    deps: [
+        "blueprint",
+        "blueprint-parser",
+        "blueprint-proptools",
+    ],
+    srcs: [
+        "android/soongconfig/config.go",
+        "android/soongconfig/modules.go",
     ],
 }
 

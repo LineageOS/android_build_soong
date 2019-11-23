@@ -376,36 +376,14 @@ The androidmk converter will produce multiple conflicting modules, which must
 be resolved by hand to a single module with any differences inside
 `target: { android: { }, host: { } }` blocks.
 
-## Build logic
+### Conditionals
 
-The build logic is written in Go using the
-[blueprint](http://godoc.org/github.com/google/blueprint) framework.  Build
-logic receives module definitions parsed into Go structures using reflection
-and produces build rules.  The build rules are collected by blueprint and
-written to a [ninja](http://ninja-build.org) build file.
-
-## Other documentation
-
-* [Best Practices](docs/best_practices.md)
-* [Build Performance](docs/perf.md)
-* [Generating CLion Projects](docs/clion.md)
-* [Generating YouCompleteMe/VSCode compile\_commands.json file](docs/compdb.md)
-* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/master/README.md)
-
-## FAQ
-
-### How do I write conditionals?
-
-Soong deliberately does not support conditionals in Android.bp files.  We
+Soong deliberately does not support most conditionals in Android.bp files.  We
 suggest removing most conditionals from the build.  See
 [Best Practices](docs/best_practices.md#removing-conditionals) for some
 examples on how to remove conditionals.
 
-In cases where build time conditionals are unavoidable, complexity in build
-rules that would require conditionals are handled in Go through Soong plugins.
-This allows Go language features to be used for better readability and
-testability, and implicit dependencies introduced by conditionals can be
-tracked.  Most conditionals supported natively by Soong are converted to a map
+Most conditionals supported natively by Soong are converted to a map
 property.  When building the module one of the properties in the map will be
 selected, and its values appended to the property with the same name at the
 top level of the module.
@@ -429,6 +407,106 @@ cc_library {
 When building the module for arm the `generic.cpp` and `arm.cpp` sources will
 be built.  When building for x86 the `generic.cpp` and 'x86.cpp' sources will
 be built.
+
+#### Soong Config Variables
+
+When converting vendor modules that contain conditionals, simple conditionals
+can be supported through Soong config variables using `soong_config_*`
+modules that describe the module types, variables and possible values:
+
+```
+soong_config_module_type {
+    name: "acme_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "acme",
+    variables: ["board", "feature"],
+    properties: ["cflags", "srcs"],
+}
+
+soong_config_string_variable {
+    name: "board",
+    values: ["soc_a", "soc_b"],
+}
+
+soong_config_bool_variable {
+    name: "feature",
+}
+```
+
+This example describes a new `acme_cc_defaults` module type that extends the
+`cc_defaults` module type, with two additional conditionals based on variables
+`board` and `feature`, which can affect properties `cflags` and `srcs`.
+
+The values of the variables can be set from a product's `BoardConfig.mk` file:
+```
+SOONG_CONFIG_NAMESPACES += acme
+SOONG_CONFIG_acme += \
+    board \
+    feature \
+
+SOONG_CONFIG_acme_board := soc_a
+SOONG_CONFIG_acme_feature := true
+```
+
+The `acme_cc_defaults` module type can be used anywhere after the definition in
+the file where it is defined, or can be imported into another file with:
+```
+soong_config_module_type_import {
+    from: "device/acme/Android.bp",
+    module_types: ["acme_cc_defaults"],
+}
+```
+
+It can used like any other module type:
+```
+acme_cc_defaults {
+    name: "acme_defaults",
+    cflags: ["-DGENERIC"],
+    soong_config_variables: {
+        board: {
+            soc_a: {
+                cflags: ["-DSOC_A"],
+            },
+            soc_b: {
+                cflags: ["-DSOC_B"],
+            },
+        },
+        feature: {
+            cflags: ["-DFEATURE"],
+        },
+    },
+}
+
+cc_library {
+    name: "libacme_foo",
+    defaults: ["acme_defaults"],
+    srcs: ["*.cpp"],
+}
+```
+
+With the `BoardConfig.mk` snippet above, libacme_foo would build with
+cflags "-DGENERIC -DSOC_A -DFEATURE".
+
+`soong_config_module_type` modules will work best when used to wrap defaults
+modules (`cc_defaults`, `java_defaults`, etc.), which can then be referenced
+by all of the vendor's other modules using the normal namespace and visibility
+rules.
+
+## Build logic
+
+The build logic is written in Go using the
+[blueprint](http://godoc.org/github.com/google/blueprint) framework.  Build
+logic receives module definitions parsed into Go structures using reflection
+and produces build rules.  The build rules are collected by blueprint and
+written to a [ninja](http://ninja-build.org) build file.
+
+## Other documentation
+
+* [Best Practices](docs/best_practices.md)
+* [Build Performance](docs/perf.md)
+* [Generating CLion Projects](docs/clion.md)
+* [Generating YouCompleteMe/VSCode compile\_commands.json file](docs/compdb.md)
+* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/master/README.md)
 
 ## Developing for Soong
 
