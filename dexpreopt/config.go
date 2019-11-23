@@ -44,9 +44,10 @@ type GlobalConfig struct {
 	ProductUpdatableBootModules   []string
 	ProductUpdatableBootLocations []string
 
-	SystemServerJars []string // jars that form the system server
-	SystemServerApps []string // apps that are loaded into system server
-	SpeedApps        []string // apps that should be speed optimized
+	SystemServerJars          []string // jars that form the system server
+	SystemServerApps          []string // apps that are loaded into system server
+	UpdatableSystemServerJars []string // jars within apex that are loaded into system server
+	SpeedApps                 []string // apps that should be speed optimized
 
 	PreoptFlags []string // global dex2oat flags that should be used if no module-specific dex2oat flags are specified
 
@@ -285,6 +286,7 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		ProductUpdatableBootLocations:      nil,
 		SystemServerJars:                   nil,
 		SystemServerApps:                   nil,
+		UpdatableSystemServerJars:          nil,
 		SpeedApps:                          nil,
 		PreoptFlags:                        nil,
 		DefaultCompilerFilter:              "",
