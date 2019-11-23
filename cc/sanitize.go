@@ -39,7 +39,16 @@ var (
 
 	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
 		"-fsanitize-hwaddress-abi=platform",
-		"-fno-experimental-new-pass-manager"}
+		"-fno-experimental-new-pass-manager",
+		// The following improves debug location information
+		// availability at the cost of its accuracy. It increases
+		// the likelihood of a stack variable's frame offset
+		// to be recorded in the debug info, which is important
+		// for the quality of hwasan reports. The downside is a
+		// higher number of "optimized out" stack variables.
+		// b/112437883.
+		"-mllvm", "-instcombine-lower-dbg-declare=0",
+	}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
 		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
