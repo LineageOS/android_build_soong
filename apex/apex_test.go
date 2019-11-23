@@ -263,50 +263,57 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 			symbol_file: "",
 			native_bridge_supported: true,
 		}
+
+		filegroup {
+			name: "myapex-file_contexts",
+			srcs: [
+				"system/sepolicy/apex/myapex-file_contexts",
+			],
+		}
 	`
 	bp = bp + java.GatherRequiredDepsForTest()
 
 	fs := map[string][]byte{
-		"Android.bp":                                []byte(bp),
-		"a.java":                                    nil,
-		"PrebuiltAppFoo.apk":                        nil,
-		"PrebuiltAppFooPriv.apk":                    nil,
-		"build/make/target/product/security":        nil,
-		"apex_manifest.json":                        nil,
-		"AndroidManifest.xml":                       nil,
-		"system/sepolicy/apex/myapex-file_contexts": nil,
-		"system/sepolicy/apex/myapex_keytest-file_contexts": nil,
-		"system/sepolicy/apex/otherapex-file_contexts":      nil,
-		"system/sepolicy/apex/commonapex-file_contexts":     nil,
-		"mylib.cpp":                                  nil,
-		"mylib_common.cpp":                           nil,
-		"mytest.cpp":                                 nil,
-		"mytest1.cpp":                                nil,
-		"mytest2.cpp":                                nil,
-		"mytest3.cpp":                                nil,
-		"myprebuilt":                                 nil,
-		"my_include":                                 nil,
-		"foo/bar/MyClass.java":                       nil,
-		"prebuilt.jar":                               nil,
-		"vendor/foo/devkeys/test.x509.pem":           nil,
-		"vendor/foo/devkeys/test.pk8":                nil,
-		"testkey.x509.pem":                           nil,
-		"testkey.pk8":                                nil,
-		"testkey.override.x509.pem":                  nil,
-		"testkey.override.pk8":                       nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":       nil,
-		"vendor/foo/devkeys/testkey.pem":             nil,
-		"NOTICE":                                     nil,
-		"custom_notice":                              nil,
-		"testkey2.avbpubkey":                         nil,
-		"testkey2.pem":                               nil,
-		"myapex-arm64.apex":                          nil,
-		"myapex-arm.apex":                            nil,
-		"frameworks/base/api/current.txt":            nil,
-		"framework/aidl/a.aidl":                      nil,
-		"build/make/core/proguard.flags":             nil,
-		"build/make/core/proguard_basic_keeps.flags": nil,
-		"dummy.txt":                                  nil,
+		"Android.bp":                                          []byte(bp),
+		"a.java":                                              nil,
+		"PrebuiltAppFoo.apk":                                  nil,
+		"PrebuiltAppFooPriv.apk":                              nil,
+		"build/make/target/product/security":                  nil,
+		"apex_manifest.json":                                  nil,
+		"AndroidManifest.xml":                                 nil,
+		"system/sepolicy/apex/myapex-file_contexts":           nil,
+		"system/sepolicy/apex/otherapex-file_contexts":        nil,
+		"system/sepolicy/apex/commonapex-file_contexts":       nil,
+		"system/sepolicy/apex/com.android.vndk-file_contexts": nil,
+		"mylib.cpp":                                           nil,
+		"mylib_common.cpp":                                    nil,
+		"mytest.cpp":                                          nil,
+		"mytest1.cpp":                                         nil,
+		"mytest2.cpp":                                         nil,
+		"mytest3.cpp":                                         nil,
+		"myprebuilt":                                          nil,
+		"my_include":                                          nil,
+		"foo/bar/MyClass.java":                                nil,
+		"prebuilt.jar":                                        nil,
+		"vendor/foo/devkeys/test.x509.pem":                    nil,
+		"vendor/foo/devkeys/test.pk8":                         nil,
+		"testkey.x509.pem":                                    nil,
+		"testkey.pk8":                                         nil,
+		"testkey.override.x509.pem":                           nil,
+		"testkey.override.pk8":                                nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":                nil,
+		"vendor/foo/devkeys/testkey.pem":                      nil,
+		"NOTICE":                                              nil,
+		"custom_notice":                                       nil,
+		"testkey2.avbpubkey":                                  nil,
+		"testkey2.pem":                                        nil,
+		"myapex-arm64.apex":                                   nil,
+		"myapex-arm.apex":                                     nil,
+		"frameworks/base/api/current.txt":                     nil,
+		"framework/aidl/a.aidl":                               nil,
+		"build/make/core/proguard.flags":                      nil,
+		"build/make/core/proguard_basic_keeps.flags":          nil,
+		"dummy.txt":                                           nil,
 	}
 
 	for _, handler := range handlers {
@@ -1201,6 +1208,7 @@ func TestKeys(t *testing.T) {
 			key: "myapex.key",
 			certificate: ":myapex.certificate",
 			native_shared_libs: ["mylib"],
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		cc_library {
@@ -1411,7 +1419,6 @@ func TestVndkApexCurrent(t *testing.T) {
 		apex_vndk {
 			name: "myapex",
 			key: "myapex.key",
-			file_contexts: "myapex",
 		}
 
 		apex_key {
@@ -1462,7 +1469,6 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 		apex_vndk {
 			name: "myapex",
 			key: "myapex.key",
-			file_contexts: "myapex",
 		}
 
 		apex_key {
@@ -1541,7 +1547,7 @@ func TestVndkApexVersion(t *testing.T) {
 		apex_vndk {
 			name: "myapex_v27",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 			vndk_version: "27",
 		}
 
@@ -1606,13 +1612,13 @@ func TestVndkApexErrorWithDuplicateVersion(t *testing.T) {
 		apex_vndk {
 			name: "myapex_v27",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 			vndk_version: "27",
 		}
 		apex_vndk {
 			name: "myapex_v27_other",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 			vndk_version: "27",
 		}
 
@@ -1652,12 +1658,12 @@ func TestVndkApexNameRule(t *testing.T) {
 		apex_vndk {
 			name: "myapex",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 		}
 		apex_vndk {
 			name: "myapex_v28",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 			vndk_version: "28",
 		}
 		apex_key {
@@ -1683,7 +1689,7 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 		apex_vndk {
 			name: "myapex",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex_key {
@@ -1726,7 +1732,7 @@ func TestVndkApexDoesntSupportNativeBridgeSupported(t *testing.T) {
 		apex_vndk {
 			name: "myapex",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 			native_bridge_supported: true,
 		}
 
@@ -1756,7 +1762,7 @@ func TestVndkApexWithBinder32(t *testing.T) {
 		apex_vndk {
 			name: "myapex_v27",
 			key: "myapex.key",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 			vndk_version: "27",
 		}
 
@@ -1822,7 +1828,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			key: "myapex.key",
 			native_shared_libs: ["lib_nodep"],
 			compile_multilib: "both",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex {
@@ -1830,7 +1836,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			key: "myapex.key",
 			native_shared_libs: ["lib_dep"],
 			compile_multilib: "both",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex {
@@ -1838,7 +1844,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			key: "myapex.key",
 			native_shared_libs: ["libfoo"],
 			compile_multilib: "both",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex {
@@ -1846,7 +1852,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			key: "myapex.key",
 			native_shared_libs: ["lib_dep", "libfoo"],
 			compile_multilib: "both",
-			file_contexts: "myapex",
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex_key {
@@ -2145,6 +2151,7 @@ func TestApexInProductPartition(t *testing.T) {
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
 			product_specific: true,
+			file_contexts: "myapex_file_contexts",
 		}
 
 		apex_key {
@@ -2160,13 +2167,121 @@ func TestApexInProductPartition(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 		}
-	`)
+	`, withFiles(map[string][]byte{
+		"myapex_file_contexts": nil,
+	}))
 
 	apex := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
 	expected := buildDir + "/target/product/test_device/product/apex"
 	actual := apex.installDir.String()
 	if actual != expected {
 		t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
+	}
+}
+
+func TestFileContexts(t *testing.T) {
+	ctx, _ := testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+	`)
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule := module.Rule("apexRule")
+	actual := apexRule.Args["file_contexts"]
+	expected := "system/sepolicy/apex/myapex-file_contexts"
+	if actual != expected {
+		t.Errorf("wrong file_contexts. expected %q. actual %q", expected, actual)
+	}
+
+	testApexError(t, `"myapex" .*: file_contexts: should be under system/sepolicy`, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		file_contexts: "my_own_file_contexts",
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+	`, withFiles(map[string][]byte{
+		"my_own_file_contexts": nil,
+	}))
+
+	testApexError(t, `"myapex" .*: file_contexts: cannot find`, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		product_specific: true,
+		file_contexts: "product_specific_file_contexts",
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+	`)
+
+	ctx, _ = testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		product_specific: true,
+		file_contexts: "product_specific_file_contexts",
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+	`, withFiles(map[string][]byte{
+		"product_specific_file_contexts": nil,
+	}))
+	module = ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule = module.Rule("apexRule")
+	actual = apexRule.Args["file_contexts"]
+	expected = "product_specific_file_contexts"
+	if actual != expected {
+		t.Errorf("wrong file_contexts. expected %q. actual %q", expected, actual)
+	}
+
+	ctx, _ = testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		product_specific: true,
+		file_contexts: ":my-file-contexts",
+	}
+
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+
+	filegroup {
+		name: "my-file-contexts",
+		srcs: ["product_specific_file_contexts"],
+	}
+	`, withFiles(map[string][]byte{
+		"product_specific_file_contexts": nil,
+	}))
+	module = ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule = module.Rule("apexRule")
+	actual = apexRule.Args["file_contexts"]
+	expected = "product_specific_file_contexts"
+	if actual != expected {
+		t.Errorf("wrong file_contexts. expected %q. actual %q", expected, actual)
 	}
 }
 
