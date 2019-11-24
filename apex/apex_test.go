@@ -2934,7 +2934,7 @@ func TestApexAvailable(t *testing.T) {
 }
 
 func TestOverrideApex(t *testing.T) {
-	ctx, _ := testApex(t, `
+	ctx, config := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -2974,6 +2974,23 @@ func TestOverrideApex(t *testing.T) {
 
 	ensureNotContains(t, copyCmds, "image.apex/app/app/app.apk")
 	ensureContains(t, copyCmds, "image.apex/app/app/override_app.apk")
+
+	apexBundle := module.Module().(*apexBundle)
+	name := apexBundle.Name()
+	if name != "override_myapex" {
+		t.Errorf("name should be \"override_myapex\", but was %q", name)
+	}
+
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	var builder strings.Builder
+	data.Custom(&builder, name, "TARGET_", "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_MODULE := app.override_myapex")
+	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.override_myapex")
+	ensureContains(t, androidMk, "LOCAL_MODULE_STEM := override_myapex.apex")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := app.myapex")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE_STEM := myapex.apex")
 }
 
 func TestMain(m *testing.M) {
