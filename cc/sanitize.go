@@ -886,13 +886,13 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				// static executable gets static runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "static"},
-					{Mutator: "image", Variation: c.imageVariation()},
+					c.ImageVariation(),
 				}...), StaticDepTag, append([]string{runtimeLibrary}, extraStaticDeps...)...)
 			} else if !c.static() && !c.header() {
 				// dynamic executable and shared libs get shared runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
-					{Mutator: "image", Variation: c.imageVariation()},
+					c.ImageVariation(),
 				}...), earlySharedDepTag, runtimeLibrary)
 			}
 			// static lib does not have dependency to the runtime library. The
