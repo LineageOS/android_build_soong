@@ -17,8 +17,6 @@ package android
 import (
 	"sort"
 	"sync"
-
-	"github.com/google/blueprint"
 )
 
 // ApexModule is the interface that a module type is expected to implement if
@@ -69,7 +67,7 @@ type ApexModule interface {
 
 	// Mutate this module into one or more variants each of which is built
 	// for an APEX marked via BuildForApex().
-	CreateApexVariations(mctx BottomUpMutatorContext) []blueprint.Module
+	CreateApexVariations(mctx BottomUpMutatorContext) []Module
 
 	// Sets the name of the apex variant of this module. Called inside
 	// CreateApexVariations.
@@ -176,7 +174,7 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	}
 }
 
-func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []blueprint.Module {
+func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Module {
 	if len(m.apexVariations) > 0 {
 		m.checkApexAvailableProperty(mctx)
 		sort.Strings(m.apexVariations)

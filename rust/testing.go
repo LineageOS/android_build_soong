@@ -185,7 +185,7 @@ func CreateTestContext(bp string) *android.TestContext {
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		// cc mutators
-		ctx.BottomUp("image", cc.ImageMutator).Parallel()
+		ctx.BottomUp("image", android.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
 		ctx.BottomUp("version", cc.VersionMutator).Parallel()
 		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
