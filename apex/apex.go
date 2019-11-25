@@ -716,12 +716,12 @@ func (a *apexBundle) installable() bool {
 
 func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
 	if a.vndkApex {
-		return "vendor." + a.vndkVersion(config)
+		return cc.VendorVariationPrefix + a.vndkVersion(config)
 	}
 	if config.VndkVersion() != "" && proptools.Bool(a.properties.Use_vendor) {
-		return "vendor." + config.PlatformVndkVersion()
+		return cc.VendorVariationPrefix + config.PlatformVndkVersion()
 	} else {
-		return "core"
+		return android.CoreVariation
 	}
 }
 

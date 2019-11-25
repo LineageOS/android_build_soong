@@ -118,6 +118,7 @@ type Module struct {
 	// For other packages to make their own genrules with extra
 	// properties
 	Extra interface{}
+	android.ImageInterface
 
 	properties generatorProperties
 
@@ -532,7 +533,18 @@ func generatorFactory(taskGenerator taskFunc, props ...interface{}) *Module {
 	module.AddProperties(props...)
 	module.AddProperties(&module.properties)
 
+	module.ImageInterface = noopImageInterface{}
+
 	return module
+}
+
+type noopImageInterface struct{}
+
+func (x noopImageInterface) ImageMutatorBegin(android.BaseModuleContext)                 {}
+func (x noopImageInterface) CoreVariantNeeded(android.BaseModuleContext) bool            { return false }
+func (x noopImageInterface) RecoveryVariantNeeded(android.BaseModuleContext) bool        { return false }
+func (x noopImageInterface) ExtraImageVariations(ctx android.BaseModuleContext) []string { return nil }
+func (x noopImageInterface) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
 }
 
 // replace "out" with "__SBOX_OUT_DIR__/<the value of ${out}>"
