@@ -72,9 +72,9 @@ func TestPrebuilt(t *testing.T) {
 
 	ctx := CreateTestContext(bp, fs, android.Android)
 
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", android.ModuleFactoryAdaptor(PrebuiltSharedLibraryFactory))
-	ctx.RegisterModuleType("cc_prebuilt_library_static", android.ModuleFactoryAdaptor(PrebuiltStaticLibraryFactory))
-	ctx.RegisterModuleType("cc_prebuilt_binary", android.ModuleFactoryAdaptor(prebuiltBinaryFactory))
+	ctx.RegisterModuleType("cc_prebuilt_library_shared", PrebuiltSharedLibraryFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_static", PrebuiltStaticLibraryFactory)
+	ctx.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
 
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PostDepsMutators(android.RegisterPrebuiltsPostDepsMutators)

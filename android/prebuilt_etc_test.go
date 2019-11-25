@@ -23,12 +23,12 @@ import (
 func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
 	config := TestArchConfig(buildDir, nil)
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("prebuilt_etc", ModuleFactoryAdaptor(PrebuiltEtcFactory))
-	ctx.RegisterModuleType("prebuilt_etc_host", ModuleFactoryAdaptor(PrebuiltEtcHostFactory))
-	ctx.RegisterModuleType("prebuilt_usr_share", ModuleFactoryAdaptor(PrebuiltUserShareFactory))
-	ctx.RegisterModuleType("prebuilt_usr_share_host", ModuleFactoryAdaptor(PrebuiltUserShareHostFactory))
-	ctx.RegisterModuleType("prebuilt_font", ModuleFactoryAdaptor(PrebuiltFontFactory))
-	ctx.RegisterModuleType("prebuilt_firmware", ModuleFactoryAdaptor(PrebuiltFirmwareFactory))
+	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
+	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
+	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
+	ctx.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
+	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
+	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilt_etc", prebuiltEtcMutator).Parallel()
 	})

@@ -50,8 +50,8 @@ func TestMain(m *testing.M) {
 func testXml(t *testing.T, bp string) *android.TestContext {
 	config := android.TestArchConfig(buildDir, nil)
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("prebuilt_etc", android.ModuleFactoryAdaptor(android.PrebuiltEtcFactory))
-	ctx.RegisterModuleType("prebuilt_etc_xml", android.ModuleFactoryAdaptor(PrebuiltEtcXmlFactory))
+	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
+	ctx.RegisterModuleType("prebuilt_etc_xml", PrebuiltEtcXmlFactory)
 	ctx.Register()
 	mockFiles := map[string][]byte{
 		"Android.bp": []byte(bp),
