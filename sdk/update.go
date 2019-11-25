@@ -401,11 +401,26 @@ func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo
 		}
 	}
 
+	info.generatePrebuiltLibrary(ctx, builder, true)
+
+	// This module is for the case when the source tree for the unversioned module
+	// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
+	// so that this module does not eclipse the unversioned module if it exists.
+	info.generatePrebuiltLibrary(ctx, builder, false)
+}
+
+func (info *nativeLibInfo) generatePrebuiltLibrary(ctx android.ModuleContext, builder android.SnapshotBuilder, versioned bool) {
 	bp := builder.AndroidBpFile()
 	bp.Printfln("cc_prebuilt_library_shared {")
 	bp.Indent()
-	bp.Printfln("name: %q,", builder.VersionedSdkMemberName(info.name))
-	bp.Printfln("sdk_member_name: %q,", info.name)
+	name := info.name
+	if versioned {
+		bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
+		bp.Printfln("sdk_member_name: %q,", name)
+	} else {
+		bp.Printfln("name: %q,", name)
+		bp.Printfln("prefer: false,")
+	}
 
 	// a function for emitting include dirs
 	printExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, systemInclude bool) {
