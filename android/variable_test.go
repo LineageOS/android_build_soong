@@ -159,17 +159,17 @@ func testProductVariableModuleFactoryFactory(props interface{}) func() Module {
 func TestProductVariables(t *testing.T) {
 	ctx := NewTestContext()
 	// A module type that has a srcs property but not a cflags property.
-	ctx.RegisterModuleType("module1", ModuleFactoryAdaptor(testProductVariableModuleFactoryFactory(struct {
+	ctx.RegisterModuleType("module1", testProductVariableModuleFactoryFactory(struct {
 		Srcs []string
-	}{})))
+	}{}))
 	// A module type that has a cflags property but not a srcs property.
-	ctx.RegisterModuleType("module2", ModuleFactoryAdaptor(testProductVariableModuleFactoryFactory(struct {
+	ctx.RegisterModuleType("module2", testProductVariableModuleFactoryFactory(struct {
 		Cflags []string
-	}{})))
+	}{}))
 	// A module type that does not have any properties that match product_variables.
-	ctx.RegisterModuleType("module3", ModuleFactoryAdaptor(testProductVariableModuleFactoryFactory(struct {
+	ctx.RegisterModuleType("module3", testProductVariableModuleFactoryFactory(struct {
 		Foo []string
-	}{})))
+	}{}))
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("variable", variableMutator).Parallel()
 	})

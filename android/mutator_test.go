@@ -62,7 +62,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 	ctx := NewTestContext()
 	ctx.SetAllowMissingDependencies(true)
 
-	ctx.RegisterModuleType("test", ModuleFactoryAdaptor(mutatorTestModuleFactory))
+	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.TopDown("add_missing_dependencies", addMissingDependenciesMutator)
 	})
@@ -131,7 +131,7 @@ func TestModuleString(t *testing.T) {
 		})
 	})
 
-	ctx.RegisterModuleType("test", ModuleFactoryAdaptor(mutatorTestModuleFactory))
+	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 
 	bp := `
 		test {

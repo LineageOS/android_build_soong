@@ -64,8 +64,8 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 	ctx := NewTestContext()
 	ctx.SetAllowMissingDependencies(true)
 
-	ctx.RegisterModuleType("test", ModuleFactoryAdaptor(defaultsTestModuleFactory))
-	ctx.RegisterModuleType("defaults", ModuleFactoryAdaptor(defaultsTestDefaultsFactory))
+	ctx.RegisterModuleType("test", defaultsTestModuleFactory)
+	ctx.RegisterModuleType("defaults", defaultsTestDefaultsFactory)
 
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 

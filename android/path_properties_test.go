@@ -100,8 +100,8 @@ func TestPathDepsMutator(t *testing.T) {
 			config := TestArchConfig(buildDir, nil)
 			ctx := NewTestArchContext()
 
-			ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathDepsMutatorTestModuleFactory))
-			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
+			ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
+			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 
 			bp := test.bp + `
 				filegroup {

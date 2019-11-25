@@ -637,9 +637,9 @@ func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) 
 
 	ctx = NewTestContext()
 	ctx.MockFileSystem(bps)
-	ctx.RegisterModuleType("test_module", ModuleFactoryAdaptor(newTestModule))
-	ctx.RegisterModuleType("soong_namespace", ModuleFactoryAdaptor(NamespaceFactory))
-	ctx.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
+	ctx.RegisterModuleType("test_module", newTestModule)
+	ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
+	ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
 	ctx.PreArchMutators(RegisterNamespaceMutator)
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("rename", renameMutator)

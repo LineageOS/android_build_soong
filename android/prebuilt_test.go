@@ -132,9 +132,9 @@ func TestPrebuilts(t *testing.T) {
 			ctx := NewTestContext()
 			ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
 			ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
-			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
-			ctx.RegisterModuleType("prebuilt", ModuleFactoryAdaptor(newPrebuiltModule))
-			ctx.RegisterModuleType("source", ModuleFactoryAdaptor(newSourceModule))
+			ctx.RegisterModuleType("filegroup", FileGroupFactory)
+			ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
+			ctx.RegisterModuleType("source", newSourceModule)
 			ctx.Register()
 			ctx.MockFileSystem(map[string][]byte{
 				"prebuilt_file": nil,
