@@ -42,20 +42,20 @@ func testSdkContext(t *testing.T, bp string) (*android.TestContext, android.Conf
 	})
 
 	// from java package
-	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(java.AndroidAppCertificateFactory))
-	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(java.LibraryFactory))
-	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(java.ImportFactory))
-	ctx.RegisterModuleType("droidstubs", android.ModuleFactoryAdaptor(java.DroidstubsFactory))
-	ctx.RegisterModuleType("prebuilt_stubs_sources", android.ModuleFactoryAdaptor(java.PrebuiltStubsSourcesFactory))
+	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
+	ctx.RegisterModuleType("java_library", java.LibraryFactory)
+	ctx.RegisterModuleType("java_import", java.ImportFactory)
+	ctx.RegisterModuleType("droidstubs", java.DroidstubsFactory)
+	ctx.RegisterModuleType("prebuilt_stubs_sources", java.PrebuiltStubsSourcesFactory)
 
 	// from cc package
-	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
-	ctx.RegisterModuleType("cc_library_shared", android.ModuleFactoryAdaptor(cc.LibrarySharedFactory))
-	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", android.ModuleFactoryAdaptor(cc.PrebuiltSharedLibraryFactory))
-	ctx.RegisterModuleType("cc_prebuilt_library_static", android.ModuleFactoryAdaptor(cc.PrebuiltStaticLibraryFactory))
-	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
-	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
+	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_shared", cc.PrebuiltSharedLibraryFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
+	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
+	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("image", cc.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
@@ -66,13 +66,13 @@ func testSdkContext(t *testing.T, bp string) (*android.TestContext, android.Conf
 	})
 
 	// from apex package
-	ctx.RegisterModuleType("apex", android.ModuleFactoryAdaptor(apex.BundleFactory))
-	ctx.RegisterModuleType("apex_key", android.ModuleFactoryAdaptor(apex.ApexKeyFactory))
+	ctx.RegisterModuleType("apex", apex.BundleFactory)
+	ctx.RegisterModuleType("apex_key", apex.ApexKeyFactory)
 	ctx.PostDepsMutators(apex.RegisterPostDepsMutators)
 
 	// from this package
-	ctx.RegisterModuleType("sdk", android.ModuleFactoryAdaptor(ModuleFactory))
-	ctx.RegisterModuleType("sdk_snapshot", android.ModuleFactoryAdaptor(SnapshotModuleFactory))
+	ctx.RegisterModuleType("sdk", ModuleFactory)
+	ctx.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 

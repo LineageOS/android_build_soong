@@ -465,8 +465,8 @@ func TestRuleBuilder_Build(t *testing.T) {
 		"bar":        nil,
 		"cp":         nil,
 	})
-	ctx.RegisterModuleType("rule_builder_test", ModuleFactoryAdaptor(testRuleBuilderFactory))
-	ctx.RegisterSingletonType("rule_builder_test", SingletonFactoryAdaptor(testRuleBuilderSingletonFactory))
+	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
+	ctx.RegisterSingletonType("rule_builder_test", testRuleBuilderSingletonFactory)
 	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})

@@ -865,9 +865,9 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 			config := TestConfig(buildDir, nil)
 			ctx := NewTestContext()
 
-			ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathForModuleSrcTestModuleFactory))
-			ctx.RegisterModuleType("output_file_provider", ModuleFactoryAdaptor(pathForModuleSrcOutputFileProviderModuleFactory))
-			ctx.RegisterModuleType("filegroup", ModuleFactoryAdaptor(FileGroupFactory))
+			ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
+			ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
+			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 
 			fgBp := `
 				filegroup {
@@ -1079,7 +1079,7 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 	ctx := NewTestContext()
 	ctx.SetAllowMissingDependencies(true)
 
-	ctx.RegisterModuleType("test", ModuleFactoryAdaptor(pathForModuleSrcTestModuleFactory))
+	ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
 
 	bp := `
 		test {

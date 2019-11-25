@@ -25,7 +25,7 @@ func testGenruleContext(config android.Config, bp string,
 	fs map[string][]byte) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_genrule", android.ModuleFactoryAdaptor(genRuleFactory))
+	ctx.RegisterModuleType("cc_genrule", genRuleFactory)
 	ctx.Register()
 
 	mockFS := map[string][]byte{
