@@ -1979,25 +1979,27 @@ func (d *Droidstubs) BuildSnapshot(sdkModuleContext android.ModuleContext, build
 	snapshotRelativeDir := filepath.Join("java", d.Name()+"_stubs_sources")
 	builder.UnzipToSnapshot(stubsSrcJar, snapshotRelativeDir)
 
-	name := d.Name()
-	bp := builder.AndroidBpFile()
-	bp.Printfln("prebuilt_stubs_sources {")
-	bp.Indent()
-	bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
-	bp.Printfln("sdk_member_name: %q,", name)
-	bp.Printfln("srcs: [%q],", snapshotRelativeDir)
-	bp.Dedent()
-	bp.Printfln("}")
-	bp.Printfln("")
+	d.generatePrebuiltStubsSources(builder, snapshotRelativeDir, true)
 
 	// This module is for the case when the source tree for the unversioned module
 	// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
 	// so that this module does not eclipse the unversioned module if it exists.
+	d.generatePrebuiltStubsSources(builder, snapshotRelativeDir, false)
+}
+
+func (d *Droidstubs) generatePrebuiltStubsSources(builder android.SnapshotBuilder, snapshotRelativeDir string, versioned bool) {
+	bp := builder.AndroidBpFile()
+	name := d.Name()
 	bp.Printfln("prebuilt_stubs_sources {")
 	bp.Indent()
-	bp.Printfln("name: %q,", name)
+	if versioned {
+		bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
+		bp.Printfln("sdk_member_name: %q,", name)
+	} else {
+		bp.Printfln("name: %q,", name)
+		bp.Printfln("prefer: false,")
+	}
 	bp.Printfln("srcs: [%q],", snapshotRelativeDir)
-	bp.Printfln("prefer: false,")
 	bp.Dedent()
 	bp.Printfln("}")
 	bp.Printfln("")
