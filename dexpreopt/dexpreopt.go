@@ -102,13 +102,6 @@ func dexpreoptDisabled(global GlobalConfig, module ModuleConfig) bool {
 		return true
 	}
 
-	// Don't preopt system server jars that are updatable.
-	for _, p := range global.UpdatableSystemServerJars {
-		if _, jar := SplitApexJarPair(p); jar == module.Name {
-			return true
-		}
-	}
-
 	// If OnlyPreoptBootImageAndSystemServer=true and module is not in boot class path skip
 	// Also preopt system server jars since selinux prevents system server from loading anything from
 	// /data. If we don't do this they will need to be extracted which is not favorable for RAM usage
@@ -541,16 +534,6 @@ func makefileMatch(pattern, s string) bool {
 	default:
 		panic(fmt.Errorf("unsupported makefile pattern %q", pattern))
 	}
-}
-
-// Expected format for apexJarValue = <apex name>:<jar name>
-func SplitApexJarPair(apexJarValue string) (string, string) {
-	var apexJarPair []string = strings.SplitN(apexJarValue, ":", 2)
-	if apexJarPair == nil || len(apexJarPair) != 2 {
-		panic(fmt.Errorf("malformed apexJarValue: %q, expected format: <apex>:<jar>",
-			apexJarValue))
-	}
-	return apexJarPair[0], apexJarPair[1]
 }
 
 func contains(l []string, s string) bool {
