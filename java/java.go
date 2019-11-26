@@ -1691,25 +1691,27 @@ func (j *Library) BuildSnapshot(sdkModuleContext android.ModuleContext, builder 
 		}
 	}
 
-	name := j.Name()
-	bp := builder.AndroidBpFile()
-	bp.Printfln("java_import {")
-	bp.Indent()
-	bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
-	bp.Printfln("sdk_member_name: %q,", name)
-	bp.Printfln("jars: [%q],", snapshotRelativeJavaLibPath)
-	bp.Dedent()
-	bp.Printfln("}")
-	bp.Printfln("")
+	j.generateJavaImport(builder, snapshotRelativeJavaLibPath, true)
 
 	// This module is for the case when the source tree for the unversioned module
 	// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
 	// so that this module does not eclipse the unversioned module if it exists.
+	j.generateJavaImport(builder, snapshotRelativeJavaLibPath, false)
+}
+
+func (j *Library) generateJavaImport(builder android.SnapshotBuilder, snapshotRelativeJavaLibPath string, versioned bool) {
+	bp := builder.AndroidBpFile()
+	name := j.Name()
 	bp.Printfln("java_import {")
 	bp.Indent()
-	bp.Printfln("name: %q,", name)
+	if versioned {
+		bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
+		bp.Printfln("sdk_member_name: %q,", name)
+	} else {
+		bp.Printfln("name: %q,", name)
+		bp.Printfln("prefer: false,")
+	}
 	bp.Printfln("jars: [%q],", snapshotRelativeJavaLibPath)
-	bp.Printfln("prefer: false,")
 	bp.Dedent()
 	bp.Printfln("}")
 	bp.Printfln("")
