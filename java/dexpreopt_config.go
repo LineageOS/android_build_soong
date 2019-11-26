@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -65,6 +66,16 @@ func setDexpreoptTestGlobalConfig(config android.Config, globalConfig dexpreopt.
 var dexpreoptGlobalConfigKey = android.NewOnceKey("DexpreoptGlobalConfig")
 var dexpreoptTestGlobalConfigKey = android.NewOnceKey("TestDexpreoptGlobalConfig")
 
+// Expected format for apexJarValue = <apex name>:<jar name>
+func splitApexJarPair(apexJarValue string) (string, string)  {
+	var apexJarPair []string = strings.SplitN(apexJarValue, ":", 2)
+	if apexJarPair == nil || len(apexJarPair) != 2 {
+		panic(fmt.Errorf("malformed apexJarValue: %q, expected format: <apex>:<jar>",
+			apexJarValue))
+	}
+	return apexJarPair[0], apexJarPair[1]
+}
+
 // systemServerClasspath returns the on-device locations of the modules in the system server classpath.  It is computed
 // once the first time it is called for any ctx.Config(), and returns the same slice for all future calls with the same
 // ctx.Config().
@@ -78,9 +89,9 @@ func systemServerClasspath(ctx android.PathContext) []string {
 				filepath.Join("/system/framework", m+".jar"))
 		}
 		for _, m := range global.UpdatableSystemServerJars {
-			apex, jar := dexpreopt.SplitApexJarPair(m)
+			apex, jar := splitApexJarPair(m)
 			systemServerClasspathLocations = append(systemServerClasspathLocations,
-				filepath.Join("/apex", apex, "javalib", jar+".jar"))
+				filepath.Join("/apex", apex, "javalib", jar + ".jar"))
 		}
 		return systemServerClasspathLocations
 	})
