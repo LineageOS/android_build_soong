@@ -491,9 +491,98 @@ func TestSnapshot(t *testing.T) {
 		}
 	`)
 
+	sdk := ctx.ModuleForTests("mysdk", "android_common").Module().(*sdk)
+
+	checkSnapshotAndroidBpContents(t, sdk, `// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    jars: ["java/myjavalib.jar"],
+}
+
+prebuilt_stubs_sources {
+    name: "mysdk_myjavaapistubs@current",
+    sdk_member_name: "myjavaapistubs",
+    srcs: ["java/myjavaapistubs_stubs_sources"],
+}
+
+prebuilt_stubs_sources {
+    name: "myjavaapistubs",
+    srcs: ["java/myjavaapistubs_stubs_sources"],
+    prefer: false,
+}
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+            export_include_dirs: [
+                "arm64/include/include",
+                "arm64/include_gen/mynativelib",
+            ],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+            export_include_dirs: [
+                "arm/include/include",
+                "arm/include_gen/mynativelib",
+            ],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+cc_prebuilt_library_shared {
+    name: "mynativelib",
+    prefer: false,
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+            export_include_dirs: [
+                "arm64/include/include",
+                "arm64/include_gen/mynativelib",
+            ],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+            export_include_dirs: [
+                "arm/include/include",
+                "arm/include_gen/mynativelib",
+            ],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    java_libs: [
+        "mysdk_myjavalib@current",
+    ],
+    stubs_sources: [
+        "mysdk_myjavaapistubs@current",
+    ],
+    native_shared_libs: [
+        "mysdk_mynativelib@current",
+    ],
+}
+
+`)
+
 	var copySrcs []string
 	var copyDests []string
-	buildParams := ctx.ModuleForTests("mysdk", "android_common").Module().BuildParamsForTests()
+	buildParams := sdk.BuildParamsForTests()
 	var zipBp android.BuildParams
 	for _, bp := range buildParams {
 		ruleString := bp.Rule.String()
@@ -533,6 +622,14 @@ func TestSnapshot(t *testing.T) {
 	expected := filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.zip")
 	if actual != expected {
 		t.Errorf("Expected snapshot output to be %q but was %q", expected, actual)
+	}
+}
+
+func checkSnapshotAndroidBpContents(t *testing.T, s *sdk, expectedContents string) {
+	t.Helper()
+	androidBpContents := strings.NewReplacer("\\n", "\n").Replace(s.GetAndroidBpContentsForTests())
+	if androidBpContents != expectedContents {
+		t.Errorf("Android.bp contents do not match, expected %s, actual %s", expectedContents, androidBpContents)
 	}
 }
 
