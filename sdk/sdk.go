@@ -44,6 +44,9 @@ type sdk struct {
 	properties sdkProperties
 
 	snapshotFile android.OptionalPath
+
+	// The builder, preserved for testing.
+	builderForTests *snapshotBuilder
 }
 
 type sdkProperties struct {
