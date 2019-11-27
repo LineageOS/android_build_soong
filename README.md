@@ -36,13 +36,28 @@ all Android.bp files.
 For a list of valid module types and their properties see
 [$OUT_DIR/soong/docs/soong_build.html](https://ci.android.com/builds/latest/branches/aosp-build-tools/targets/linux/view/soong_build.html).
 
-### Globs
+### File lists
 
-Properties that take a list of files can also take glob patterns.  Glob
-patterns can contain the normal Unix wildcard `*`, for example "*.java". Glob
-patterns can also contain a single `**` wildcard as a path element, which will
-match zero or more path elements.  For example, `java/**/*.java` will match
-`java/Main.java` and `java/com/android/Main.java`.
+Properties that take a list of files can also take glob patterns and output path
+expansions.
+
+* Glob patterns can contain the normal Unix wildcard `*`, for example `"*.java"`.
+
+  Glob patterns can also contain a single `**` wildcard as a path element, which
+  will match zero or more path elements. For example, `java/**/*.java` will match
+  `java/Main.java` and `java/com/android/Main.java`.
+
+* Output path expansions take the format `:module` or `:module{.tag}`, where
+  `module` is the name of a module that produces output files, and it expands to
+  a list of those output files. With the optional `{.tag}` suffix, the module
+  may produce a different list of outputs according to `tag`.
+
+  For example, a `droiddoc` module with the name "my-docs" would return its
+  `.stubs.srcjar` output with `":my-docs"`, and its `.doc.zip` file with
+  `":my-docs{.doc.zip}"`.
+
+  This is commonly used to reference `filegroup` modules, whose output files
+  consist of their `srcs`.
 
 ### Variables
 
@@ -64,6 +79,7 @@ can be appended to with a += assignment, but only before they have been
 referenced.
 
 ### Comments
+
 Android.bp files can contain C-style multiline `/* */` and C++ style single-line
 `//` comments.
 
