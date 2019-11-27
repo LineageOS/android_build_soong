@@ -164,6 +164,9 @@ type SnapshotBuilder interface {
 	// to the zip
 	CopyToSnapshot(src Path, dest string)
 
+	// Unzip the supplied zip into the snapshot relative directory destDir.
+	UnzipToSnapshot(zipPath Path, destDir string)
+
 	// Get the AndroidBpFile for the snapshot.
 	AndroidBpFile() GeneratedSnapshotFile
 

@@ -431,6 +431,9 @@ type commonProperties struct {
 	DebugName       string   `blueprint:"mutated"`
 	DebugMutators   []string `blueprint:"mutated"`
 	DebugVariations []string `blueprint:"mutated"`
+
+	// set by ImageMutator
+	ImageVariation string `blueprint:"mutated"`
 }
 
 type hostAndDeviceProperties struct {
@@ -863,6 +866,21 @@ func (m *ModuleBase) Owner() string {
 
 func (m *ModuleBase) NoticeFile() OptionalPath {
 	return m.noticeFile
+}
+
+func (m *ModuleBase) setImageVariation(variant string) {
+	m.commonProperties.ImageVariation = variant
+}
+
+func (m *ModuleBase) ImageVariation() blueprint.Variation {
+	return blueprint.Variation{
+		Mutator:   "image",
+		Variation: m.base().commonProperties.ImageVariation,
+	}
+}
+
+func (m *ModuleBase) InRecovery() bool {
+	return m.base().commonProperties.ImageVariation == RecoveryVariation
 }
 
 func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {

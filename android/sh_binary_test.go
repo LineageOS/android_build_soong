@@ -9,8 +9,8 @@ func testShBinary(t *testing.T, bp string) (*TestContext, Config) {
 	config := TestArchConfig(buildDir, nil)
 
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("sh_test", ModuleFactoryAdaptor(ShTestFactory))
-	ctx.RegisterModuleType("sh_test_host", ModuleFactoryAdaptor(ShTestHostFactory))
+	ctx.RegisterModuleType("sh_test", ShTestFactory)
+	ctx.RegisterModuleType("sh_test_host", ShTestHostFactory)
 	ctx.Register()
 	mockFiles := map[string][]byte{
 		"Android.bp":         []byte(bp),

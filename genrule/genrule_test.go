@@ -55,11 +55,11 @@ func testContext(config android.Config, bp string,
 	fs map[string][]byte) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
-	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(GenRuleFactory))
-	ctx.RegisterModuleType("gensrcs", android.ModuleFactoryAdaptor(GenSrcsFactory))
-	ctx.RegisterModuleType("genrule_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
-	ctx.RegisterModuleType("tool", android.ModuleFactoryAdaptor(toolFactory))
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	ctx.RegisterModuleType("genrule", GenRuleFactory)
+	ctx.RegisterModuleType("gensrcs", GenSrcsFactory)
+	ctx.RegisterModuleType("genrule_defaults", defaultsFactory)
+	ctx.RegisterModuleType("tool", toolFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
 

@@ -694,6 +694,10 @@ func (a *AARImport) ExportedSdkLibs() []string {
 	return nil
 }
 
+func (d *AARImport) ExportedPlugins() (android.Paths, []string) {
+	return nil, nil
+}
+
 func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {
 	return nil, nil
 }

@@ -269,10 +269,10 @@ func TestNeverallow(t *testing.T) {
 
 func testNeverallow(config Config, fs map[string][]byte) (*TestContext, []error) {
 	ctx := NewTestContext()
-	ctx.RegisterModuleType("cc_library", ModuleFactoryAdaptor(newMockCcLibraryModule))
-	ctx.RegisterModuleType("java_library", ModuleFactoryAdaptor(newMockJavaLibraryModule))
-	ctx.RegisterModuleType("java_library_host", ModuleFactoryAdaptor(newMockJavaLibraryModule))
-	ctx.RegisterModuleType("java_device_for_host", ModuleFactoryAdaptor(newMockJavaLibraryModule))
+	ctx.RegisterModuleType("cc_library", newMockCcLibraryModule)
+	ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
+	ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
+	ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
 	ctx.PostDepsMutators(registerNeverallowMutator)
 	ctx.Register()
 

@@ -63,37 +63,38 @@ func testConfig(env map[string]string) android.Config {
 func testContext(bp string, fs map[string][]byte) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("android_app", android.ModuleFactoryAdaptor(AndroidAppFactory))
-	ctx.RegisterModuleType("android_app_certificate", android.ModuleFactoryAdaptor(AndroidAppCertificateFactory))
-	ctx.RegisterModuleType("android_app_import", android.ModuleFactoryAdaptor(AndroidAppImportFactory))
-	ctx.RegisterModuleType("android_library", android.ModuleFactoryAdaptor(AndroidLibraryFactory))
-	ctx.RegisterModuleType("android_test", android.ModuleFactoryAdaptor(AndroidTestFactory))
-	ctx.RegisterModuleType("android_test_helper_app", android.ModuleFactoryAdaptor(AndroidTestHelperAppFactory))
-	ctx.RegisterModuleType("android_test_import", android.ModuleFactoryAdaptor(AndroidTestImportFactory))
-	ctx.RegisterModuleType("java_binary", android.ModuleFactoryAdaptor(BinaryFactory))
-	ctx.RegisterModuleType("java_binary_host", android.ModuleFactoryAdaptor(BinaryHostFactory))
-	ctx.RegisterModuleType("java_device_for_host", android.ModuleFactoryAdaptor(DeviceForHostFactory))
-	ctx.RegisterModuleType("java_host_for_device", android.ModuleFactoryAdaptor(HostForDeviceFactory))
-	ctx.RegisterModuleType("java_library", android.ModuleFactoryAdaptor(LibraryFactory))
-	ctx.RegisterModuleType("java_library_host", android.ModuleFactoryAdaptor(LibraryHostFactory))
-	ctx.RegisterModuleType("java_test", android.ModuleFactoryAdaptor(TestFactory))
-	ctx.RegisterModuleType("java_import", android.ModuleFactoryAdaptor(ImportFactory))
-	ctx.RegisterModuleType("java_import_host", android.ModuleFactoryAdaptor(ImportFactoryHost))
-	ctx.RegisterModuleType("java_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
-	ctx.RegisterModuleType("java_system_modules", android.ModuleFactoryAdaptor(SystemModulesFactory))
-	ctx.RegisterModuleType("java_genrule", android.ModuleFactoryAdaptor(genRuleFactory))
-	ctx.RegisterModuleType("java_plugin", android.ModuleFactoryAdaptor(PluginFactory))
-	ctx.RegisterModuleType("dex_import", android.ModuleFactoryAdaptor(DexImportFactory))
-	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
-	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(genrule.GenRuleFactory))
-	ctx.RegisterModuleType("droiddoc", android.ModuleFactoryAdaptor(DroiddocFactory))
-	ctx.RegisterModuleType("droiddoc_host", android.ModuleFactoryAdaptor(DroiddocHostFactory))
-	ctx.RegisterModuleType("droiddoc_template", android.ModuleFactoryAdaptor(ExportedDroiddocDirFactory))
-	ctx.RegisterModuleType("java_sdk_library", android.ModuleFactoryAdaptor(SdkLibraryFactory))
-	ctx.RegisterModuleType("java_sdk_library_import", android.ModuleFactoryAdaptor(sdkLibraryImportFactory))
-	ctx.RegisterModuleType("override_android_app", android.ModuleFactoryAdaptor(OverrideAndroidAppModuleFactory))
-	ctx.RegisterModuleType("override_android_test", android.ModuleFactoryAdaptor(OverrideAndroidTestModuleFactory))
-	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(PrebuiltApisFactory))
+	ctx.RegisterModuleType("android_app", AndroidAppFactory)
+	ctx.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
+	ctx.RegisterModuleType("android_app_import", AndroidAppImportFactory)
+	ctx.RegisterModuleType("android_library", AndroidLibraryFactory)
+	ctx.RegisterModuleType("android_test", AndroidTestFactory)
+	ctx.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
+	ctx.RegisterModuleType("android_test_import", AndroidTestImportFactory)
+	ctx.RegisterModuleType("java_binary", BinaryFactory)
+	ctx.RegisterModuleType("java_binary_host", BinaryHostFactory)
+	ctx.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
+	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
+	ctx.RegisterModuleType("java_library", LibraryFactory)
+	ctx.RegisterModuleType("java_library_host", LibraryHostFactory)
+	ctx.RegisterModuleType("java_test", TestFactory)
+	ctx.RegisterModuleType("java_import", ImportFactory)
+	ctx.RegisterModuleType("java_import_host", ImportFactoryHost)
+	ctx.RegisterModuleType("java_defaults", defaultsFactory)
+	ctx.RegisterModuleType("java_system_modules", SystemModulesFactory)
+	ctx.RegisterModuleType("java_genrule", genRuleFactory)
+	ctx.RegisterModuleType("java_plugin", PluginFactory)
+	ctx.RegisterModuleType("dex_import", DexImportFactory)
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
+	ctx.RegisterModuleType("droiddoc", DroiddocFactory)
+	ctx.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
+	ctx.RegisterModuleType("droiddoc_template", ExportedDroiddocDirFactory)
+	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
+	ctx.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
+	ctx.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
+	ctx.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
+	ctx.RegisterModuleType("override_android_test", OverrideAndroidTestModuleFactory)
+	ctx.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -105,11 +106,11 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 	ctx.RegisterPreSingletonType("sdk_versions", android.SingletonFactoryAdaptor(sdkPreSingletonFactory))
 
 	// Register module types and mutators from cc needed for JNI testing
-	ctx.RegisterModuleType("cc_library", android.ModuleFactoryAdaptor(cc.LibraryFactory))
-	ctx.RegisterModuleType("cc_object", android.ModuleFactoryAdaptor(cc.ObjectFactory))
-	ctx.RegisterModuleType("toolchain_library", android.ModuleFactoryAdaptor(cc.ToolchainLibraryFactory))
-	ctx.RegisterModuleType("llndk_library", android.ModuleFactoryAdaptor(cc.LlndkLibraryFactory))
-	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", android.ModuleFactoryAdaptor(cc.NdkPrebuiltSharedStlFactory))
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
+	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
+	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
 		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
@@ -207,6 +208,9 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 		"cert/new_cert.pk8":      nil,
 
 		"testdata/data": nil,
+
+		"stubs-sources/foo/Foo.java": nil,
+		"stubs/sources/foo/Foo.java": nil,
 	}
 
 	for k, v := range fs {
@@ -328,6 +332,89 @@ func TestSimple(t *testing.T) {
 	}
 }
 
+func TestExportedPlugins(t *testing.T) {
+	type Result struct {
+		library    string
+		processors string
+	}
+	var tests = []struct {
+		name    string
+		extra   string
+		results []Result
+	}{
+		{
+			name:    "Exported plugin is not a direct plugin",
+			extra:   `java_library { name: "exports", srcs: ["a.java"], exported_plugins: ["plugin"] }`,
+			results: []Result{{library: "exports", processors: "-proc:none"}},
+		},
+		{
+			name: "Exports plugin to dependee",
+			extra: `
+				java_library{name: "exports", exported_plugins: ["plugin"]}
+				java_library{name: "foo", srcs: ["a.java"], libs: ["exports"]}
+				java_library{name: "bar", srcs: ["a.java"], static_libs: ["exports"]}
+			`,
+			results: []Result{
+				{library: "foo", processors: "-processor com.android.TestPlugin"},
+				{library: "bar", processors: "-processor com.android.TestPlugin"},
+			},
+		},
+		{
+			name: "Exports plugin to android_library",
+			extra: `
+				java_library{name: "exports", exported_plugins: ["plugin"]}
+				android_library{name: "foo", srcs: ["a.java"],  libs: ["exports"]}
+				android_library{name: "bar", srcs: ["a.java"], static_libs: ["exports"]}
+			`,
+			results: []Result{
+				{library: "foo", processors: "-processor com.android.TestPlugin"},
+				{library: "bar", processors: "-processor com.android.TestPlugin"},
+			},
+		},
+		{
+			name: "Exports plugin is not propagated via transitive deps",
+			extra: `
+				java_library{name: "exports", exported_plugins: ["plugin"]}
+				java_library{name: "foo", srcs: ["a.java"], libs: ["exports"]}
+				java_library{name: "bar", srcs: ["a.java"], static_libs: ["foo"]}
+			`,
+			results: []Result{
+				{library: "foo", processors: "-processor com.android.TestPlugin"},
+				{library: "bar", processors: "-proc:none"},
+			},
+		},
+		{
+			name: "Exports plugin appends to plugins",
+			extra: `
+                java_plugin{name: "plugin2", processor_class: "com.android.TestPlugin2"}
+				java_library{name: "exports", exported_plugins: ["plugin"]}
+				java_library{name: "foo", srcs: ["a.java"], libs: ["exports"], plugins: ["plugin2"]}
+			`,
+			results: []Result{
+				{library: "foo", processors: "-processor com.android.TestPlugin,com.android.TestPlugin2"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, _ := testJava(t, `
+				java_plugin {
+					name: "plugin",
+					processor_class: "com.android.TestPlugin",
+				}
+			`+test.extra)
+
+			for _, want := range test.results {
+				javac := ctx.ModuleForTests(want.library, "android_common").Rule("javac")
+				if javac.Args["processor"] != want.processors {
+					t.Errorf("For library %v, expected %v, found %v", want.library, want.processors, javac.Args["processor"])
+				}
+			}
+		})
+	}
+}
+
 func TestSdkVersionByPartition(t *testing.T) {
 	testJavaError(t, "sdk_version must have a value when the module is located at vendor or product", `
 		java_library {
@@ -415,7 +502,7 @@ func TestPrebuilts(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
-			srcs: ["a.java"],
+			srcs: ["a.java", ":stubs-source"],
 			libs: ["bar", "sdklib"],
 			static_libs: ["baz"],
 		}
@@ -439,6 +526,11 @@ func TestPrebuilts(t *testing.T) {
 			name: "sdklib",
 			jars: ["b.jar"],
 		}
+
+		prebuilt_stubs_sources {
+			name: "stubs-source",
+			srcs: ["stubs/sources/**/*.java"],
+		}
 		`)
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
@@ -446,6 +538,19 @@ func TestPrebuilts(t *testing.T) {
 	barJar := ctx.ModuleForTests("bar", "android_common").Rule("combineJar").Output
 	bazJar := ctx.ModuleForTests("baz", "android_common").Rule("combineJar").Output
 	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").Rule("combineJar").Output
+
+	inputs := []string{}
+	for _, p := range javac.BuildParams.Inputs {
+		inputs = append(inputs, p.String())
+	}
+
+	expected := []string{
+		"a.java",
+		"stubs/sources/foo/Foo.java",
+	}
+	if !reflect.DeepEqual(expected, inputs) {
+		t.Errorf("foo inputs incorrect: expected %q, found %q", expected, inputs)
+	}
 
 	if !strings.Contains(javac.Args["classpath"], barJar.String()) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barJar.String())

@@ -871,9 +871,9 @@ func testVisibility(buildDir string, fs map[string][]byte) (*TestContext, []erro
 	config := TestArchConfig(buildDir, nil)
 
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("package", ModuleFactoryAdaptor(PackageFactory))
-	ctx.RegisterModuleType("mock_library", ModuleFactoryAdaptor(newMockLibraryModule))
-	ctx.RegisterModuleType("mock_defaults", ModuleFactoryAdaptor(defaultsFactory))
+	ctx.RegisterModuleType("package", PackageFactory)
+	ctx.RegisterModuleType("mock_library", newMockLibraryModule)
+	ctx.RegisterModuleType("mock_defaults", defaultsFactory)
 	ctx.PreArchMutators(registerPackageRenamer)
 	ctx.PreArchMutators(registerVisibilityRuleChecker)
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)

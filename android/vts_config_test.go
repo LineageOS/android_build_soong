@@ -22,7 +22,7 @@ func testVtsConfig(test *testing.T, bpFileContents string) *TestContext {
 	config := TestArchConfig(buildDir, nil)
 
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("vts_config", ModuleFactoryAdaptor(VtsConfigFactory))
+	ctx.RegisterModuleType("vts_config", VtsConfigFactory)
 	ctx.Register()
 	mockFiles := map[string][]byte{
 		"Android.bp": []byte(bpFileContents),
