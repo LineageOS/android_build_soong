@@ -249,6 +249,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 		filesToZip:    []android.Path{bp.path},
 		androidBpFile: bp,
 	}
+	s.builderForTests = builder
 
 	// copy exported AIDL files and stub jar files
 	javaLibs := s.javaLibs(ctx)
@@ -348,6 +349,10 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 
 	return outputZipFile
+}
+
+func (s *sdk) GetAndroidBpContentsForTests() string {
+	return s.builderForTests.androidBpFile.content.String()
 }
 
 func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
