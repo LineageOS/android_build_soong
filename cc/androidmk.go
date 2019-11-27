@@ -317,6 +317,11 @@ func (fuzz *fuzzBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 			filepath.Dir(fuzz.corpusIntermediateDir.String())+":corpus/"+d.Base())
 	}
 
+	for _, d := range fuzz.data {
+		fuzzFiles = append(fuzzFiles,
+			filepath.Dir(fuzz.dataIntermediateDir.String())+":data/"+d.Rel())
+	}
+
 	if fuzz.dictionary != nil {
 		fuzzFiles = append(fuzzFiles,
 			filepath.Dir(fuzz.dictionary.String())+":"+fuzz.dictionary.Base())
