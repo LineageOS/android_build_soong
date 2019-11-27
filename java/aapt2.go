@@ -61,7 +61,7 @@ var aapt2CompileRule = pctx.AndroidStaticRule("aapt2Compile",
 	"outDir", "cFlags")
 
 func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Paths) android.WritablePaths {
-	shards := shardPaths(paths, AAPT2_SHARD_SIZE)
+	shards := android.ShardPaths(paths, AAPT2_SHARD_SIZE)
 
 	ret := make(android.WritablePaths, 0, len(paths))
 

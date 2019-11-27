@@ -57,6 +57,7 @@ func testContext(config android.Config, bp string,
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("filegroup", android.ModuleFactoryAdaptor(android.FileGroupFactory))
 	ctx.RegisterModuleType("genrule", android.ModuleFactoryAdaptor(GenRuleFactory))
+	ctx.RegisterModuleType("gensrcs", android.ModuleFactoryAdaptor(GenSrcsFactory))
 	ctx.RegisterModuleType("genrule_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("tool", android.ModuleFactoryAdaptor(toolFactory))
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -109,6 +110,9 @@ func testContext(config android.Config, bp string,
 		"tool_file2": nil,
 		"in1":        nil,
 		"in2":        nil,
+		"in1.txt":    nil,
+		"in2.txt":    nil,
+		"in3.txt":    nil,
 	}
 
 	for k, v := range fs {
@@ -491,8 +495,99 @@ func TestGenruleCmd(t *testing.T) {
 			}
 
 			gen := ctx.ModuleForTests("gen", "").Module().(*Module)
-			if g, w := gen.rawCommand, "'"+test.expect+"'"; w != g {
+			if g, w := gen.rawCommands[0], "'"+test.expect+"'"; w != g {
 				t.Errorf("want %q, got %q", w, g)
+			}
+		})
+	}
+}
+
+func TestGenSrcs(t *testing.T) {
+	testcases := []struct {
+		name string
+		prop string
+
+		allowMissingDependencies bool
+
+		err   string
+		cmds  []string
+		deps  []string
+		files []string
+	}{
+		{
+			name: "gensrcs",
+			prop: `
+				tools: ["tool"],
+				srcs: ["in1.txt", "in2.txt"],
+				cmd: "$(location) $(in) > $(out)",
+			`,
+			cmds: []string{
+				"'bash -c '\\''out/tool in1.txt > __SBOX_OUT_DIR__/in1.h'\\'' && bash -c '\\''out/tool in2.txt > __SBOX_OUT_DIR__/in2.h'\\'''",
+			},
+			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h"},
+			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
+		},
+		{
+			name: "shards",
+			prop: `
+				tools: ["tool"],
+				srcs: ["in1.txt", "in2.txt", "in3.txt"],
+				cmd: "$(location) $(in) > $(out)",
+				shard_size: 2,
+			`,
+			cmds: []string{
+				"'bash -c '\\''out/tool in1.txt > __SBOX_OUT_DIR__/in1.h'\\'' && bash -c '\\''out/tool in2.txt > __SBOX_OUT_DIR__/in2.h'\\'''",
+				"'bash -c '\\''out/tool in3.txt > __SBOX_OUT_DIR__/in3.h'\\'''",
+			},
+			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h"},
+			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			config := android.TestArchConfig(buildDir, nil)
+			bp := "gensrcs {\n"
+			bp += `name: "gen",` + "\n"
+			bp += `output_extension: "h",` + "\n"
+			bp += test.prop
+			bp += "}\n"
+
+			ctx := testContext(config, bp, nil)
+
+			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+			if errs == nil {
+				_, errs = ctx.PrepareBuildActions(config)
+			}
+			if errs == nil && test.err != "" {
+				t.Fatalf("want error %q, got no error", test.err)
+			} else if errs != nil && test.err == "" {
+				android.FailIfErrored(t, errs)
+			} else if test.err != "" {
+				if len(errs) != 1 {
+					t.Errorf("want 1 error, got %d errors:", len(errs))
+					for _, err := range errs {
+						t.Errorf("   %s", err.Error())
+					}
+					t.FailNow()
+				}
+				if !strings.Contains(errs[0].Error(), test.err) {
+					t.Fatalf("want %q, got %q", test.err, errs[0].Error())
+				}
+				return
+			}
+
+			gen := ctx.ModuleForTests("gen", "").Module().(*Module)
+			if g, w := gen.rawCommands, test.cmds; !reflect.DeepEqual(w, g) {
+				t.Errorf("want %q, got %q", w, g)
+			}
+
+			if g, w := gen.outputDeps.Strings(), test.deps; !reflect.DeepEqual(w, g) {
+				t.Errorf("want deps %q, got %q", w, g)
+			}
+
+			if g, w := gen.outputFiles.Strings(), test.files; !reflect.DeepEqual(w, g) {
+				t.Errorf("want files %q, got %q", w, g)
 			}
 		})
 	}
@@ -529,8 +624,8 @@ func TestGenruleDefaults(t *testing.T) {
 	gen := ctx.ModuleForTests("gen", "").Module().(*Module)
 
 	expectedCmd := "'cp ${in} __SBOX_OUT_FILES__'"
-	if gen.rawCommand != expectedCmd {
-		t.Errorf("Expected cmd: %q, actual: %q", expectedCmd, gen.rawCommand)
+	if gen.rawCommands[0] != expectedCmd {
+		t.Errorf("Expected cmd: %q, actual: %q", expectedCmd, gen.rawCommands[0])
 	}
 
 	expectedSrcs := []string{"in1"}
