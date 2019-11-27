@@ -544,15 +544,9 @@ cc_prebuilt_library_shared {
 
 sdk_snapshot {
     name: "mysdk@current",
-    java_libs: [
-        "mysdk_myjavalib@current",
-    ],
-    stubs_sources: [
-        "mysdk_myjavaapistubs@current",
-    ],
-    native_shared_libs: [
-        "mysdk_mynativelib@current",
-    ],
+    java_libs: ["mysdk_myjavalib@current"],
+    stubs_sources: ["mysdk_myjavaapistubs@current"],
+    native_shared_libs: ["mysdk_mynativelib@current"],
 }
 
 `)
