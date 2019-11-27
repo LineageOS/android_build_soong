@@ -515,8 +515,8 @@ prebuilt_stubs_sources {
 
 prebuilt_stubs_sources {
     name: "myjavaapistubs",
-    srcs: ["java/myjavaapistubs_stubs_sources"],
     prefer: false,
+    srcs: ["java/myjavaapistubs_stubs_sources"],
 }
 
 cc_prebuilt_library_shared {
