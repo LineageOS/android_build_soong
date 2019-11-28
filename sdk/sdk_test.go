@@ -158,7 +158,7 @@ func TestBasicSdkWithJava(t *testing.T) {
 	ctx, _ := testSdk(t, `
 		sdk {
 			name: "mysdk",
-			java_libs: ["sdkmember"],
+			java_libs: ["myjavalib"],
 		}
 
 		sdk_snapshot {
