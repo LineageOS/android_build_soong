@@ -178,7 +178,7 @@ func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
 				modules[i].(*apexBundle).properties.ApexType = zipApex
 			case flattenedApexType:
 				modules[i].(*apexBundle).properties.ApexType = flattenedApex
-				if !mctx.Config().FlattenApex() {
+				if !mctx.Config().FlattenApex() && ab.Platform() {
 					modules[i].(*apexBundle).MakeAsSystemExt()
 				}
 			}
