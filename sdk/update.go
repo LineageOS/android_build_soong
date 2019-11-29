@@ -276,7 +276,6 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 		outputPropertySet(contents, &bpModule.bpPropertySet)
 		contents.Printfln("}")
 	}
-	contents.Printfln("")
 }
 
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {

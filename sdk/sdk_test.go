@@ -15,10 +15,8 @@
 package sdk
 
 import (
-	"path/filepath"
 	"testing"
 
-	"android/soong/android"
 	"android/soong/cc"
 )
 
@@ -28,7 +26,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestBasicSdkWithJava(t *testing.T) {
-	ctx, _ := testSdk(t, `
+	result := testSdk(t, `
 		sdk {
 			name: "mysdk",
 			java_libs: ["myjavalib"],
@@ -89,11 +87,11 @@ func TestBasicSdkWithJava(t *testing.T) {
 		}
 	`)
 
-	sdkMemberV1 := ctx.ModuleForTests("sdkmember_mysdk_1", "android_common_myapex").Rule("combineJar").Output
-	sdkMemberV2 := ctx.ModuleForTests("sdkmember_mysdk_2", "android_common_myapex2").Rule("combineJar").Output
+	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_common_myapex").Rule("combineJar").Output
+	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_common_myapex2").Rule("combineJar").Output
 
-	javalibForMyApex := ctx.ModuleForTests("myjavalib", "android_common_myapex")
-	javalibForMyApex2 := ctx.ModuleForTests("myjavalib", "android_common_myapex2")
+	javalibForMyApex := result.ModuleForTests("myjavalib", "android_common_myapex")
+	javalibForMyApex2 := result.ModuleForTests("myjavalib", "android_common_myapex2")
 
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(javalibForMyApex.Rule("javac").Implicits), sdkMemberV1.String())
@@ -101,7 +99,7 @@ func TestBasicSdkWithJava(t *testing.T) {
 }
 
 func TestBasicSdkWithCc(t *testing.T) {
-	ctx, _ := testSdk(t, `
+	result := testSdk(t, `
 		sdk {
 			name: "mysdk",
 			native_shared_libs: ["sdkmember"],
@@ -166,11 +164,11 @@ func TestBasicSdkWithCc(t *testing.T) {
 		}
 	`)
 
-	sdkMemberV1 := ctx.ModuleForTests("sdkmember_mysdk_1", "android_arm64_armv8-a_core_shared_myapex").Rule("toc").Output
-	sdkMemberV2 := ctx.ModuleForTests("sdkmember_mysdk_2", "android_arm64_armv8-a_core_shared_myapex2").Rule("toc").Output
+	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_arm64_armv8-a_core_shared_myapex").Rule("toc").Output
+	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_arm64_armv8-a_core_shared_myapex2").Rule("toc").Output
 
-	cpplibForMyApex := ctx.ModuleForTests("mycpplib", "android_arm64_armv8-a_core_shared_myapex")
-	cpplibForMyApex2 := ctx.ModuleForTests("mycpplib", "android_arm64_armv8-a_core_shared_myapex2")
+	cpplibForMyApex := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_core_shared_myapex")
+	cpplibForMyApex2 := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_core_shared_myapex2")
 
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(cpplibForMyApex.Rule("ld").Implicits), sdkMemberV1.String())
@@ -268,7 +266,7 @@ func TestDepNotInRequiredSdks(t *testing.T) {
 }
 
 func TestSdkIsCompileMultilibBoth(t *testing.T) {
-	ctx, _ := testSdk(t, `
+	result := testSdk(t, `
 		sdk {
 			name: "mysdk",
 			native_shared_libs: ["sdkmember"],
@@ -282,11 +280,11 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 		}
 	`)
 
-	armOutput := ctx.ModuleForTests("sdkmember", "android_arm_armv7-a-neon_core_shared").Module().(*cc.Module).OutputFile()
-	arm64Output := ctx.ModuleForTests("sdkmember", "android_arm64_armv8-a_core_shared").Module().(*cc.Module).OutputFile()
+	armOutput := result.Module("sdkmember", "android_arm_armv7-a-neon_core_shared").(*cc.Module).OutputFile()
+	arm64Output := result.Module("sdkmember", "android_arm64_armv8-a_core_shared").(*cc.Module).OutputFile()
 
 	var inputs []string
-	buildParams := ctx.ModuleForTests("mysdk", "android_common").Module().BuildParamsForTests()
+	buildParams := result.Module("mysdk", "android_common").BuildParamsForTests()
 	for _, bp := range buildParams {
 		if bp.Input != nil {
 			inputs = append(inputs, bp.Input.String())
@@ -299,7 +297,7 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 }
 
 func TestSnapshot(t *testing.T) {
-	ctx, config := testSdk(t, `
+	result := testSdk(t, `
 		sdk {
 			name: "mysdk",
 			java_libs: ["myjavalib"],
@@ -341,9 +339,9 @@ func TestSnapshot(t *testing.T) {
 		}
 	`)
 
-	sdk := ctx.ModuleForTests("mysdk", "android_common").Module().(*sdk)
-
-	checkSnapshotAndroidBpContents(t, sdk, `// This is auto-generated. DO NOT EDIT.
+	result.CheckSnapshot("mysdk", "android_common",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
 
 java_import {
     name: "mysdk_myjavalib@current",
@@ -421,65 +419,30 @@ sdk_snapshot {
     stubs_sources: ["mysdk_myjavaapistubs@current"],
     native_shared_libs: ["mysdk_mynativelib@current"],
 }
-
-`)
-
-	var copySrcs []string
-	var copyDests []string
-	buildParams := sdk.BuildParamsForTests()
-	var mergeZipInputs []string
-	var intermediateZip string
-	var outputZip string
-	for _, bp := range buildParams {
-		ruleString := bp.Rule.String()
-		if ruleString == android.Cp.String() {
-			copySrcs = append(copySrcs, bp.Input.String())
-			copyDests = append(copyDests, bp.Output.Rel()) // rooted at the snapshot root
-		} else if ruleString == zipFiles.String() {
-			intermediateZip = bp.Output.String()
-		} else if ruleString == mergeZips.String() {
-			input := bp.Input.String()
-			if intermediateZip != input {
-				t.Errorf("Intermediate zip %s is not an input to merge_zips, %s is used instead", intermediateZip, input)
-			}
-			mergeZipInputs = bp.Inputs.Strings()
-			outputZip = bp.Output.String()
-		}
-	}
-
-	buildDir := config.BuildDir()
-	ensureListContains(t, copySrcs, "aidl/foo/bar/Test.aidl")
-	ensureListContains(t, copySrcs, "include/Test.h")
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/BnTest.h"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/BpTest.h"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/Test.h"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/myjavalib/android_common/turbine-combined/myjavalib.jar"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/android_arm64_armv8-a_core_shared/mynativelib.so"))
-
-	ensureListContains(t, copyDests, "aidl/aidl/foo/bar/Test.aidl")
-	ensureListContains(t, copyDests, "arm64/include/include/Test.h")
-	ensureListContains(t, copyDests, "arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h")
-	ensureListContains(t, copyDests, "arm64/include_gen/mynativelib/aidl/foo/bar/BpTest.h")
-	ensureListContains(t, copyDests, "arm64/include_gen/mynativelib/aidl/foo/bar/Test.h")
-	ensureListContains(t, copyDests, "java/myjavalib.jar")
-	ensureListContains(t, copyDests, "arm64/lib/mynativelib.so")
-
-	expectedOutputZip := filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.zip")
-	expectedRepackagedZip := filepath.Join(buildDir, ".intermediates/mysdk/android_common/tmp/java/myjavaapistubs_stubs_sources.zip")
-
-	// Ensure that the droidstubs .srcjar as repackaged into a temporary zip file
-	// and then merged together with the intermediate snapshot zip.
-	ensureListContains(t, mergeZipInputs, expectedRepackagedZip)
-	if outputZip != expectedOutputZip {
-		t.Errorf("Expected snapshot output to be %q but was %q", expectedOutputZip, outputZip)
-	}
+`),
+		checkAllCopyRules(`
+.intermediates/myjavalib/android_common/turbine-combined/myjavalib.jar -> java/myjavalib.jar
+aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
+.intermediates/mynativelib/android_arm64_armv8-a_core_shared/mynativelib.so -> arm64/lib/mynativelib.so
+include/Test.h -> arm64/include/include/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/mynativelib.so -> arm/lib/mynativelib.so
+include/Test.h -> arm/include/include/Test.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/gen/aidl/aidl/foo/bar/Test.h -> arm/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+`),
+		checkMergeZip(".intermediates/mysdk/android_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
+	)
 }
 
 func TestHostSnapshot(t *testing.T) {
 	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
 	SkipIfNotLinux(t)
 
-	ctx, config := testSdk(t, `
+	result := testSdk(t, `
 		sdk {
 			name: "mysdk",
 			device_supported: false,
@@ -528,9 +491,9 @@ func TestHostSnapshot(t *testing.T) {
 		}
 	`)
 
-	sdk := ctx.ModuleForTests("mysdk", "linux_glibc_common").Module().(*sdk)
-
-	checkSnapshotAndroidBpContents(t, sdk, `// This is auto-generated. DO NOT EDIT.
+	result.CheckSnapshot("mysdk", "linux_glibc_common",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
 
 java_import {
     name: "mysdk_myjavalib@current",
@@ -622,56 +585,21 @@ sdk_snapshot {
     stubs_sources: ["mysdk_myjavaapistubs@current"],
     native_shared_libs: ["mysdk_mynativelib@current"],
 }
-
-`)
-
-	var copySrcs []string
-	var copyDests []string
-	buildParams := sdk.BuildParamsForTests()
-	var mergeZipInputs []string
-	var intermediateZip string
-	var outputZip string
-	for _, bp := range buildParams {
-		ruleString := bp.Rule.String()
-		if ruleString == android.Cp.String() {
-			copySrcs = append(copySrcs, bp.Input.String())
-			copyDests = append(copyDests, bp.Output.Rel()) // rooted at the snapshot root
-		} else if ruleString == zipFiles.String() {
-			intermediateZip = bp.Output.String()
-		} else if ruleString == mergeZips.String() {
-			input := bp.Input.String()
-			if intermediateZip != input {
-				t.Errorf("Intermediate zip %s is not an input to merge_zips, %s is used instead", intermediateZip, input)
-			}
-			mergeZipInputs = bp.Inputs.Strings()
-			outputZip = bp.Output.String()
-		}
-	}
-
-	buildDir := config.BuildDir()
-	ensureListContains(t, copySrcs, "aidl/foo/bar/Test.aidl")
-	ensureListContains(t, copySrcs, "include/Test.h")
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BnTest.h"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BpTest.h"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/Test.h"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/myjavalib/linux_glibc_common/javac/myjavalib.jar"))
-	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/mynativelib.so"))
-
-	ensureListContains(t, copyDests, "aidl/aidl/foo/bar/Test.aidl")
-	ensureListContains(t, copyDests, "x86_64/include/include/Test.h")
-	ensureListContains(t, copyDests, "x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h")
-	ensureListContains(t, copyDests, "x86_64/include_gen/mynativelib/aidl/foo/bar/BpTest.h")
-	ensureListContains(t, copyDests, "x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h")
-	ensureListContains(t, copyDests, "java/myjavalib.jar")
-	ensureListContains(t, copyDests, "x86_64/lib/mynativelib.so")
-
-	expectedOutputZip := filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/mysdk-current.zip")
-	expectedRepackagedZip := filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip")
-
-	// Ensure that the droidstubs .srcjar as repackaged into a temporary zip file
-	// and then merged together with the intermediate snapshot zip.
-	ensureListContains(t, mergeZipInputs, expectedRepackagedZip)
-	if outputZip != expectedOutputZip {
-		t.Errorf("Expected snapshot output to be %q but was %q", expectedOutputZip, outputZip)
-	}
+`),
+		checkAllCopyRules(`
+.intermediates/myjavalib/linux_glibc_common/javac/myjavalib.jar -> java/myjavalib.jar
+aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
+.intermediates/mynativelib/linux_glibc_x86_64_shared/mynativelib.so -> x86_64/lib/mynativelib.so
+include/Test.h -> x86_64/include/include/Test.h
+.intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/Test.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BnTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BpTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+.intermediates/mynativelib/linux_glibc_x86_shared/mynativelib.so -> x86/lib/mynativelib.so
+include/Test.h -> x86/include/include/Test.h
+.intermediates/mynativelib/linux_glibc_x86_shared/gen/aidl/aidl/foo/bar/Test.h -> x86/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/linux_glibc_x86_shared/gen/aidl/aidl/foo/bar/BnTest.h -> x86/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/linux_glibc_x86_shared/gen/aidl/aidl/foo/bar/BpTest.h -> x86/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+`),
+		checkMergeZip(".intermediates/mysdk/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
+	)
 }
