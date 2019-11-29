@@ -92,7 +92,19 @@ type sdkMemberListProperty struct {
 	dependencyTag *sdkMemberDependencyTag
 }
 
+// Information about how to handle each member list property.
+//
+// It is organized first by package and then by name within the package.
+// Packages are in alphabetical order and properties are in alphabetical order
+// within each package.
 var sdkMemberListProperties = []*sdkMemberListProperty{
+	// Members from cc package.
+	{
+		name:       "native_shared_libs",
+		getter:     func(properties *sdkProperties) []string { return properties.Native_shared_libs },
+		memberType: cc.LibrarySdkMemberType,
+	},
+	// Members from java package.
 	{
 		name:       "java_libs",
 		getter:     func(properties *sdkProperties) []string { return properties.Java_libs },
@@ -102,11 +114,6 @@ var sdkMemberListProperties = []*sdkMemberListProperty{
 		name:       "stubs_sources",
 		getter:     func(properties *sdkProperties) []string { return properties.Stubs_sources },
 		memberType: java.DroidStubsSdkMemberType,
-	},
-	{
-		name:       "native_shared_libs",
-		getter:     func(properties *sdkProperties) []string { return properties.Native_shared_libs },
-		memberType: cc.LibrarySdkMemberType,
 	},
 }
 
