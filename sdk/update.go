@@ -274,29 +274,29 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	bp.Printfln("sdk_snapshot {")
 	bp.Indent()
 	bp.Printfln("name: %q,", ctx.ModuleName()+string(android.SdkVersionSeparator)+builder.version)
-	if len(javaLibs) > 0 {
+	if len(s.properties.Java_libs) > 0 {
 		bp.Printfln("java_libs: [")
 		bp.Indent()
-		for _, m := range javaLibs {
-			bp.Printfln("%q,", builder.VersionedSdkMemberName(m.Name()))
+		for _, m := range s.properties.Java_libs {
+			bp.Printfln("%q,", builder.VersionedSdkMemberName(m))
 		}
 		bp.Dedent()
 		bp.Printfln("],") // java_libs
 	}
-	if len(stubsSources) > 0 {
+	if len(s.properties.Stubs_sources) > 0 {
 		bp.Printfln("stubs_sources: [")
 		bp.Indent()
-		for _, m := range stubsSources {
-			bp.Printfln("%q,", builder.VersionedSdkMemberName(m.Name()))
+		for _, m := range s.properties.Stubs_sources {
+			bp.Printfln("%q,", builder.VersionedSdkMemberName(m))
 		}
 		bp.Dedent()
 		bp.Printfln("],") // stubs_sources
 	}
-	if len(nativeLibInfos) > 0 {
+	if len(s.properties.Native_shared_libs) > 0 {
 		bp.Printfln("native_shared_libs: [")
 		bp.Indent()
-		for _, info := range nativeLibInfos {
-			bp.Printfln("%q,", builder.VersionedSdkMemberName(info.name))
+		for _, m := range s.properties.Native_shared_libs {
+			bp.Printfln("%q,", builder.VersionedSdkMemberName(m))
 		}
 		bp.Dedent()
 		bp.Printfln("],") // native_shared_libs
