@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -28,6 +29,36 @@ import (
 )
 
 var pctx = android.NewPackageContext("android/soong/sdk")
+
+var (
+	repackageZip = pctx.AndroidStaticRule("SnapshotRepackageZip",
+		blueprint.RuleParams{
+			Command: `${config.Zip2ZipCmd} -i $in -o $out "**/*:$destdir"`,
+			CommandDeps: []string{
+				"${config.Zip2ZipCmd}",
+			},
+		},
+		"destdir")
+
+	zipFiles = pctx.AndroidStaticRule("SnapshotZipFiles",
+		blueprint.RuleParams{
+			Command: `${config.SoongZipCmd} -C $basedir -l $out.rsp -o $out`,
+			CommandDeps: []string{
+				"${config.SoongZipCmd}",
+			},
+			Rspfile:        "$out.rsp",
+			RspfileContent: "$in",
+		},
+		"basedir")
+
+	mergeZips = pctx.AndroidStaticRule("SnapshotMergeZips",
+		blueprint.RuleParams{
+			Command: `${config.MergeZipsCmd} $out $in`,
+			CommandDeps: []string{
+				"${config.MergeZipsCmd}",
+			},
+		})
+)
 
 type generatedContents struct {
 	content     strings.Builder
@@ -316,41 +347,39 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 
 	// zip them all
 	outputZipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
-	outputRuleName := "snapshot"
 	outputDesc := "Building snapshot for " + ctx.ModuleName()
 
 	// If there are no zips to merge then generate the output zip directly.
 	// Otherwise, generate an intermediate zip file into which other zips can be
 	// merged.
 	var zipFile android.OutputPath
-	var ruleName string
 	var desc string
 	if len(builder.zipsToMerge) == 0 {
 		zipFile = outputZipFile
-		ruleName = outputRuleName
 		desc = outputDesc
 	} else {
 		zipFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.unmerged.zip").OutputPath
-		ruleName = "intermediate snapshot"
 		desc = "Building intermediate snapshot for " + ctx.ModuleName()
 	}
 
-	rb := android.NewRuleBuilder()
-	rb.Command().
-		BuiltTool(ctx, "soong_zip").
-		FlagWithArg("-C ", builder.snapshotDir.String()).
-		FlagWithRspFileInputList("-l ", filesToZip).
-		FlagWithOutput("-o ", zipFile)
-	rb.Build(pctx, ctx, ruleName, desc)
+	ctx.Build(pctx, android.BuildParams{
+		Description: desc,
+		Rule:        zipFiles,
+		Inputs:      filesToZip,
+		Output:      zipFile,
+		Args: map[string]string{
+			"basedir": builder.snapshotDir.String(),
+		},
+	})
 
 	if len(builder.zipsToMerge) != 0 {
-		rb := android.NewRuleBuilder()
-		rb.Command().
-			BuiltTool(ctx, "merge_zips").
-			Output(outputZipFile).
-			Input(zipFile).
-			Inputs(builder.zipsToMerge)
-		rb.Build(pctx, ctx, outputRuleName, outputDesc)
+		ctx.Build(pctx, android.BuildParams{
+			Description: outputDesc,
+			Rule:        mergeZips,
+			Input:       zipFile,
+			Inputs:      builder.zipsToMerge,
+			Output:      outputZipFile,
+		})
 	}
 
 	return outputZipFile
@@ -534,14 +563,16 @@ func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) 
 	// Repackage the zip file so that the entries are in the destDir directory.
 	// This will allow the zip file to be merged into the snapshot.
 	tmpZipPath := android.PathForModuleOut(ctx, "tmp", destDir+".zip").OutputPath
-	rb := android.NewRuleBuilder()
-	rb.Command().
-		BuiltTool(ctx, "zip2zip").
-		FlagWithInput("-i ", zipPath).
-		FlagWithOutput("-o ", tmpZipPath).
-		Flag("**/*:" + destDir)
-	rb.Build(pctx, ctx, "repackaging "+destDir,
-		"Repackaging zip file "+destDir+" for snapshot "+ctx.ModuleName())
+
+	ctx.Build(pctx, android.BuildParams{
+		Description: "Repackaging zip file " + destDir + " for snapshot " + ctx.ModuleName(),
+		Rule:        repackageZip,
+		Input:       zipPath,
+		Output:      tmpZipPath,
+		Args: map[string]string{
+			"destdir": destDir,
+		},
+	})
 
 	// Add the repackaged zip file to the files to merge.
 	s.zipsToMerge = append(s.zipsToMerge, tmpZipPath)
