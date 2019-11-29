@@ -88,27 +88,6 @@ func (s *sdk) snapshot() bool {
 	return s.properties.Snapshot
 }
 
-func (s *sdk) frozenVersions(ctx android.BaseModuleContext) []string {
-	if s.snapshot() {
-		panic(fmt.Errorf("frozenVersions() called for sdk_snapshot %q", ctx.ModuleName()))
-	}
-	versions := []string{}
-	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
-		depTag := ctx.OtherModuleDependencyTag(child)
-		if depTag == sdkMemberDepTag {
-			return true
-		}
-		if versionedDepTag, ok := depTag.(sdkMemberVesionedDepTag); ok {
-			v := versionedDepTag.version
-			if v != "current" && !android.InList(v, versions) {
-				versions = append(versions, versionedDepTag.version)
-			}
-		}
-		return false
-	})
-	return android.SortedUniqueStrings(versions)
-}
-
 func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if !s.snapshot() {
 		// We don't need to create a snapshot out of sdk_snapshot.
