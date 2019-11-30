@@ -20,10 +20,22 @@ import (
 	"android/soong/cc"
 )
 
+func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
+	t.Helper()
+
+	fs := map[string][]byte{
+		"Test.cpp":               nil,
+		"include/Test.h":         nil,
+		"libfoo.so":              nil,
+		"aidl/foo/bar/Test.aidl": nil,
+	}
+	return testSdkWithFs(t, bp, fs)
+}
+
 // Contains tests for SDK members provided by the cc package.
 
 func TestSdkIsCompileMultilibBoth(t *testing.T) {
-	result := testSdk(t, `
+	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
 			native_shared_libs: ["sdkmember"],
@@ -54,7 +66,7 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 }
 
 func TestBasicSdkWithCc(t *testing.T) {
-	result := testSdk(t, `
+	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
 			native_shared_libs: ["sdkmember"],
@@ -131,7 +143,7 @@ func TestBasicSdkWithCc(t *testing.T) {
 }
 
 func TestSnapshotWithCcShared(t *testing.T) {
-	result := testSdk(t, `
+	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
 			native_shared_libs: ["mynativelib"],
@@ -226,7 +238,7 @@ func TestHostSnapshotWithCcShared(t *testing.T) {
 	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
 	SkipIfNotLinux(t)
 
-	result := testSdk(t, `
+	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
 			device_supported: false,
