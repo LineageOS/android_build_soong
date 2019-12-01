@@ -139,33 +139,10 @@ func testSdkError(t *testing.T, pattern, bp string) {
 	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
 }
 
-// ensure that 'result' contains 'expected'
-func ensureContains(t *testing.T, result string, expected string) {
-	t.Helper()
-	if !strings.Contains(result, expected) {
-		t.Errorf("%q is not found in %q", expected, result)
-	}
-}
-
-// ensures that 'result' does not contain 'notExpected'
-func ensureNotContains(t *testing.T, result string, notExpected string) {
-	t.Helper()
-	if strings.Contains(result, notExpected) {
-		t.Errorf("%q is found in %q", notExpected, result)
-	}
-}
-
 func ensureListContains(t *testing.T, result []string, expected string) {
 	t.Helper()
 	if !android.InList(expected, result) {
 		t.Errorf("%q is not found in %v", expected, result)
-	}
-}
-
-func ensureListNotContains(t *testing.T, result []string, notExpected string) {
-	t.Helper()
-	if android.InList(notExpected, result) {
-		t.Errorf("%q is found in %v", notExpected, result)
 	}
 }
 
