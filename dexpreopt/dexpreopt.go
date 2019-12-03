@@ -554,6 +554,12 @@ func SplitApexJarPair(apexJarValue string) (string, string) {
 	return apexJarPair[0], apexJarPair[1]
 }
 
+// Expected format for apexJarValue = <apex name>:<jar name>
+func GetJarLocationFromApexJarPair(apexJarValue string) (string) {
+	apex, jar := SplitApexJarPair(apexJarValue)
+	return filepath.Join("/apex", apex, "javalib", jar + ".jar")
+}
+
 func contains(l []string, s string) bool {
 	for _, e := range l {
 		if e == s {
