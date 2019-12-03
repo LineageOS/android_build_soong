@@ -508,6 +508,8 @@ bootstrap_go_package {
         "sdk/update.go",
     ],
     testSrcs: [
+        "sdk/cc_sdk_test.go",
+        "sdk/java_sdk_test.go",
         "sdk/sdk_test.go",
         "sdk/testing.go",
     ],
