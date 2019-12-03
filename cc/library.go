@@ -509,6 +509,19 @@ func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx ModuleContext) bo
 	if !ctx.shouldCreateSourceAbiDump() {
 		return false
 	}
+	if !ctx.isForPlatform() {
+		if !ctx.hasStubsVariants() {
+			// Skip ABI checks if this library is for APEX but isn't exported.
+			return false
+		}
+		if !Bool(library.Properties.Header_abi_checker.Enabled) {
+			// Skip ABI checks if this library is for APEX and did not explicitly enable
+			// ABI checks.
+			// TODO(b/145608479): ABI checks should be enabled by default. Remove this
+			// after evaluating the extra build time.
+			return false
+		}
+	}
 	return library.classifySourceAbiDump(ctx) != ""
 }
 
