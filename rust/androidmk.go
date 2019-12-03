@@ -90,11 +90,7 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	test.binaryDecorator.AndroidMk(ctx, ret)
 	ret.Class = "NATIVE_TESTS"
-	stem := String(test.baseCompiler.Properties.Stem)
-	if stem != "" && !strings.HasSuffix(ctx.Name(), "_"+stem) {
-		// Avoid repeated suffix in the module name.
-		ret.SubName = "_" + stem
-	}
+	ret.SubName = test.getMutatedModuleSubName(ctx.Name())
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if len(test.Properties.Test_suites) > 0 {
 			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
