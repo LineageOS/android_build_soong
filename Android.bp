@@ -503,6 +503,7 @@ bootstrap_go_package {
         "soong-java",
     ],
     srcs: [
+        "sdk/bp.go",
         "sdk/sdk.go",
         "sdk/update.go",
     ],

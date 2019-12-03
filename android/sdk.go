@@ -167,16 +167,39 @@ type SnapshotBuilder interface {
 	// Unzip the supplied zip into the snapshot relative directory destDir.
 	UnzipToSnapshot(zipPath Path, destDir string)
 
-	// Get the AndroidBpFile for the snapshot.
-	AndroidBpFile() GeneratedSnapshotFile
-
-	// Get a versioned name appropriate for the SDK snapshot version being taken.
-	VersionedSdkMemberName(unversionedName string) interface{}
+	// Add a new prebuilt module to the snapshot. The returned module
+	// must be populated with the module type specific properties. The following
+	// properties will be automatically populated.
+	//
+	// * name
+	// * sdk_member_name
+	// * prefer
+	//
+	// This will result in two Soong modules being generated in the Android. One
+	// that is versioned, coupled to the snapshot version and marked as
+	// prefer=true. And one that is not versioned, not marked as prefer=true and
+	// will only be used if the equivalently named non-prebuilt module is not
+	// present.
+	AddPrebuiltModule(name string, moduleType string) BpModule
 }
 
-// Provides support for generating a file, e.g. the Android.bp file.
-type GeneratedSnapshotFile interface {
-	Printfln(format string, args ...interface{})
-	Indent()
-	Dedent()
+// A set of properties for use in a .bp file.
+type BpPropertySet interface {
+	// Add a property, the value can be one of the following types:
+	// * string
+	// * array of the above
+	// * bool
+	// * BpPropertySet
+	//
+	// It is an error is multiples properties with the same name are added.
+	AddProperty(name string, value interface{})
+
+	// Add a property set with the specified name and return so that additional
+	// properties can be added.
+	AddPropertySet(name string) BpPropertySet
+}
+
+// A .bp module definition.
+type BpModule interface {
+	BpPropertySet
 }
