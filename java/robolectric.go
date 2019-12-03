@@ -158,8 +158,9 @@ func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFi
 	TransformResourcesToJar(ctx, outputFile, srcJarArgs, srcJarDeps)
 }
 
-func (r *robolectricTest) AndroidMkEntries() android.AndroidMkEntries {
-	entries := r.Library.AndroidMkEntries()
+func (r *robolectricTest) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := r.Library.AndroidMkEntries()
+	entries := &entriesList[0]
 
 	entries.ExtraFooters = []android.AndroidMkExtraFootersFunc{
 		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
@@ -185,7 +186,7 @@ func (r *robolectricTest) AndroidMkEntries() android.AndroidMkEntries {
 		},
 	}
 
-	return entries
+	return entriesList
 }
 
 func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, tests []string) {

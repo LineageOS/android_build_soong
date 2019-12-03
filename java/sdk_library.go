@@ -194,13 +194,13 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	})
 }
 
-func (module *SdkLibrary) AndroidMkEntries() android.AndroidMkEntries {
-	entries := module.Library.AndroidMkEntries()
+func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := module.Library.AndroidMkEntries()
+	entries := &entriesList[0]
 	entries.Required = append(entries.Required, module.xmlFileName())
 
 	entries.ExtraFooters = []android.AndroidMkExtraFootersFunc{
 		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-			module.Library.AndroidMkHostDex(w, name, entries)
 			if !Bool(module.sdkLibraryProperties.No_dist) {
 				// Create a phony module that installs the impl library, for the case when this lib is
 				// in PRODUCT_PACKAGES.
@@ -252,7 +252,7 @@ func (module *SdkLibrary) AndroidMkEntries() android.AndroidMkEntries {
 			}
 		},
 	}
-	return entries
+	return entriesList
 }
 
 // Module name of the stubs library

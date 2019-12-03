@@ -163,12 +163,12 @@ func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (s *sdk) AndroidMkEntries() android.AndroidMkEntries {
+func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 	if !s.snapshotFile.Valid() {
-		return android.AndroidMkEntries{}
+		return []android.AndroidMkEntries{}
 	}
 
-	return android.AndroidMkEntries{
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "FAKE",
 		OutputFile: s.snapshotFile,
 		DistFile:   s.snapshotFile,
@@ -180,7 +180,7 @@ func (s *sdk) AndroidMkEntries() android.AndroidMkEntries {
 				fmt.Fprintln(w, s.Name()+":", s.snapshotFile.String())
 			},
 		},
-	}
+	}}
 }
 
 // RegisterPreDepsMutators registers pre-deps mutators to support modules implementing SdkAware
