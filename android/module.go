@@ -778,6 +778,13 @@ func (m *ModuleBase) DeviceSupported() bool {
 				*m.hostAndDeviceProperties.Device_supported)
 }
 
+func (m *ModuleBase) HostSupported() bool {
+	return m.commonProperties.HostOrDeviceSupported == HostSupported ||
+		m.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
+			(m.hostAndDeviceProperties.Host_supported != nil &&
+				*m.hostAndDeviceProperties.Host_supported)
+}
+
 func (m *ModuleBase) Platform() bool {
 	return !m.DeviceSpecific() && !m.SocSpecific() && !m.ProductSpecific() && !m.SystemExtSpecific()
 }
