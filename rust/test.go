@@ -69,15 +69,28 @@ func (test *testDecorator) compilerProps() []interface{} {
 	return append(test.binaryDecorator.compilerProps(), &test.Properties)
 }
 
+func (test *testDecorator) getMutatedModuleSubName(moduleName string) string {
+	stem := String(test.baseCompiler.Properties.Stem)
+	if stem != "" && !strings.HasSuffix(moduleName, "_"+stem) {
+		// Avoid repeated suffix in the module name.
+		return "_" + stem
+	}
+	return ""
+}
+
 func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
 	name := ctx.ModuleName() // default executable name
-	if stem := String(test.baseCompiler.Properties.Stem); stem != "" {
-		name = stem
+	if ctx.Device() {        // on device, use mutated module name
+		name = name + test.getMutatedModuleSubName(name)
+	} else { // on host, use stem name in relative_install_path
+		if stem := String(test.baseCompiler.Properties.Stem); stem != "" {
+			name = stem
+		}
+		if path := test.baseCompiler.relativeInstallPath(); path != "" {
+			name = path + "/" + name
+		}
 	}
-	if path := test.baseCompiler.relativeInstallPath(); path != "" {
-		name = path + "/" + name
-	}
-	test.testConfig = tradefed.AutoGenRustHostTestConfig(ctx, name,
+	test.testConfig = tradefed.AutoGenRustTestConfig(ctx, name,
 		test.Properties.Test_config,
 		test.Properties.Test_config_template,
 		test.Properties.Test_suites,
