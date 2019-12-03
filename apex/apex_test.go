@@ -2994,10 +2994,11 @@ func TestOverrideApex(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, name, "TARGET_", "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_MODULE := app.override_myapex")
+	ensureContains(t, androidMk, "LOCAL_MODULE := override_app.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE_STEM := override_myapex.apex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := app.myapex")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := override_app.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE_STEM := myapex.apex")
 }
