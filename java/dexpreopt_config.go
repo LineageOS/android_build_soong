@@ -119,118 +119,147 @@ func getJarsFromApexJarPairs(apexJarPairs []string) []string {
 	return modules
 }
 
-// Construct a variant of the global config for dexpreopted bootclasspath jars. The variants differ
-// in the list of input jars (libcore, framework, or both), in the naming scheme for the dexpreopt
-// files (ART recognizes "apex" names as special), and whether to include a zip archive.
-//
-// 'name' is a string unique for each profile (used in directory names and ninja rule names)
-// 'stem' is the basename of the image: the resulting filenames are <stem>[-<jar>].{art,oat,vdex}.
-func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name string, stem string,
-	needZip bool, artApexJarsOnly bool) bootImageConfig {
+var (
+	bootImageConfigKey     = android.NewOnceKey("bootImageConfig")
+	artBootImageName       = "art"
+	frameworkBootImageName = "boot"
+	apexBootImageName      = "apex"
+)
 
-	return ctx.Config().Once(key, func() interface{} {
+// Construct the global boot image configs.
+func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
+	return ctx.Config().Once(bootImageConfigKey, func() interface{} {
+
 		global := dexpreoptGlobalConfig(ctx)
+		targets := dexpreoptTargets(ctx)
+		deviceDir := android.PathForOutput(ctx, ctx.Config().DeviceName())
 
 		artModules := global.ArtApexJars
-		imageModules := artModules
+		// In coverage builds ART boot class path jars are instrumented and have additional dependencies.
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			artModules = append(artModules, "jacocoagent")
+		}
+		frameworkModules := android.RemoveListFromList(global.BootJars,
+			concat(artModules, getJarsFromApexJarPairs(global.UpdatableBootJars)))
 
-		var bootLocations []string
+		artSubdir := "apex/com.android.art/javalib"
+		frameworkSubdir := "system/framework"
 
+		var artLocations, frameworkLocations []string
 		for _, m := range artModules {
-			bootLocations = append(bootLocations,
-				filepath.Join("/apex/com.android.art/javalib", stemOf(m)+".jar"))
+			artLocations = append(artLocations, filepath.Join("/"+artSubdir, stemOf(m)+".jar"))
+		}
+		for _, m := range frameworkModules {
+			frameworkLocations = append(frameworkLocations, filepath.Join("/"+frameworkSubdir, stemOf(m)+".jar"))
 		}
 
-		if !artApexJarsOnly {
-			nonFrameworkModules := concat(artModules, getJarsFromApexJarPairs(global.UpdatableBootJars))
-			frameworkModules := android.RemoveListFromList(global.BootJars, nonFrameworkModules)
-			imageModules = concat(imageModules, frameworkModules)
+		// ART config for the primary boot image in the ART apex.
+		// It includes the Core Libraries.
+		artCfg := bootImageConfig{
+			extension:        false,
+			name:             artBootImageName,
+			stem:             "boot",
+			installSubdir:    artSubdir,
+			modules:          artModules,
+			dexLocations:     artLocations,
+			dexLocationsDeps: artLocations,
+		}
 
-			for _, m := range frameworkModules {
-				bootLocations = append(bootLocations,
-					filepath.Join("/system/framework", stemOf(m)+".jar"))
+		// Framework config for the boot image extension.
+		// It includes framework libraries and depends on the ART config.
+		frameworkCfg := bootImageConfig{
+			extension:        true,
+			name:             frameworkBootImageName,
+			stem:             "boot",
+			installSubdir:    frameworkSubdir,
+			modules:          frameworkModules,
+			dexLocations:     frameworkLocations,
+			dexLocationsDeps: append(artLocations, frameworkLocations...),
+		}
+
+		// Apex config for the  boot image used in the JIT-zygote experiment.
+		// It includes both the Core libraries and framework.
+		apexCfg := bootImageConfig{
+			extension:        false,
+			name:             apexBootImageName,
+			stem:             "apex",
+			installSubdir:    frameworkSubdir,
+			modules:          concat(artModules, frameworkModules),
+			dexLocations:     concat(artLocations, frameworkLocations),
+			dexLocationsDeps: concat(artLocations, frameworkLocations),
+		}
+
+		configs := map[string]*bootImageConfig{
+			artBootImageName:       &artCfg,
+			frameworkBootImageName: &frameworkCfg,
+			apexBootImageName:      &apexCfg,
+		}
+
+		// common to all configs
+		for _, c := range configs {
+			c.targets = targets
+
+			c.dir = deviceDir.Join(ctx, "dex_"+c.name+"jars")
+			c.symbolsDir = deviceDir.Join(ctx, "dex_"+c.name+"jars_unstripped")
+
+			// expands to <stem>.art for primary image and <stem>-<1st module>.art for extension
+			imageName := c.firstModuleNameOrStem() + ".art"
+
+			c.imageLocations = []string{c.dir.Join(ctx, c.installSubdir, imageName).String()}
+
+			// The path to bootclasspath dex files needs to be known at module
+			// GenerateAndroidBuildAction time, before the bootclasspath modules have been compiled.
+			// Set up known paths for them, the singleton rules will copy them there.
+			// TODO(b/143682396): use module dependencies instead
+			inputDir := deviceDir.Join(ctx, "dex_"+c.name+"jars_input")
+			for _, m := range c.modules {
+				c.dexPaths = append(c.dexPaths, inputDir.Join(ctx, stemOf(m)+".jar"))
+			}
+			c.dexPathsDeps = c.dexPaths
+
+			c.images = make(map[android.ArchType]android.OutputPath)
+			c.imagesDeps = make(map[android.ArchType]android.OutputPaths)
+
+			for _, target := range targets {
+				arch := target.Arch.ArchType
+				imageDir := c.dir.Join(ctx, c.installSubdir, arch.String())
+				c.images[arch] = imageDir.Join(ctx, imageName)
+				c.imagesDeps[arch] = c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex")
 			}
 		}
 
-		// The path to bootclasspath dex files needs to be known at module GenerateAndroidBuildAction time, before
-		// the bootclasspath modules have been compiled.  Set up known paths for them, the singleton rules will copy
-		// them there.
-		// TODO(b/143682396): use module dependencies instead
-		var bootDexPaths android.WritablePaths
-		for _, m := range imageModules {
-			bootDexPaths = append(bootDexPaths,
-				android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_"+name+"jars_input", m+".jar"))
-		}
+		// specific to the framework config
+		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
+		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
+		frameworkCfg.zip = frameworkCfg.dir.Join(ctx, frameworkCfg.stem+".zip")
 
-		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_"+name+"jars")
-		symbolsDir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "dex_"+name+"jars_unstripped")
-
-		var zip android.WritablePath
-		if needZip {
-			zip = dir.Join(ctx, stem+".zip")
-		}
-
-		targets := dexpreoptTargets(ctx)
-
-		imageConfig := bootImageConfig{
-			name:         name,
-			stem:         stem,
-			modules:      imageModules,
-			dexLocations: bootLocations,
-			dexPaths:     bootDexPaths,
-			dir:          dir,
-			symbolsDir:   symbolsDir,
-			targets:      targets,
-			images:       make(map[android.ArchType]android.OutputPath),
-			imagesDeps:   make(map[android.ArchType]android.Paths),
-			zip:          zip,
-		}
-
-		for _, target := range targets {
-			imageDir := dir.Join(ctx, "system/framework", target.Arch.ArchType.String())
-			imageConfig.images[target.Arch.ArchType] = imageDir.Join(ctx, stem+".art")
-
-			imagesDeps := make([]android.Path, 0, len(imageConfig.modules)*3)
-			for _, dep := range imageConfig.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex") {
-				imagesDeps = append(imagesDeps, dep)
-			}
-			imageConfig.imagesDeps[target.Arch.ArchType] = imagesDeps
-		}
-
-		return imageConfig
-	}).(bootImageConfig)
+		return configs
+	}).(map[string]*bootImageConfig)
 }
-
-// Default config is the one that goes in the system image. It includes both libcore and framework.
-var defaultBootImageConfigKey = android.NewOnceKey("defaultBootImageConfig")
-
-func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return getBootImageConfig(ctx, defaultBootImageConfigKey, "boot", "boot", true, false)
-}
-
-// Apex config is used for the JIT-zygote experiment. It includes both libcore and framework, but AOT-compiles only libcore.
-var apexBootImageConfigKey = android.NewOnceKey("apexBootImageConfig")
-
-func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return getBootImageConfig(ctx, apexBootImageConfigKey, "apex", "apex", false, false)
-}
-
-// ART config is the one used for the ART apex. It includes only libcore.
-var artBootImageConfigKey = android.NewOnceKey("artBootImageConfig")
 
 func artBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return getBootImageConfig(ctx, artBootImageConfigKey, "art", "boot", false, true)
+	return *genBootImageConfigs(ctx)[artBootImageName]
+}
+
+func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
+	return *genBootImageConfigs(ctx)[frameworkBootImageName]
+}
+
+func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
+	return *genBootImageConfigs(ctx)[apexBootImageName]
 }
 
 func defaultBootclasspath(ctx android.PathContext) []string {
 	return ctx.Config().OnceStringSlice(defaultBootclasspathKey, func() []string {
 		global := dexpreoptGlobalConfig(ctx)
 		image := defaultBootImageConfig(ctx)
+
 		updatableBootclasspath := make([]string, len(global.UpdatableBootJars))
 		for i, p := range global.UpdatableBootJars {
 			updatableBootclasspath[i] = dexpreopt.GetJarLocationFromApexJarPair(p)
 		}
-		bootclasspath := append(copyOf(image.dexLocations), updatableBootclasspath...)
+
+		bootclasspath := append(copyOf(image.dexLocationsDeps), updatableBootclasspath...)
 		return bootclasspath
 	})
 }
@@ -245,7 +274,7 @@ func init() {
 
 func dexpreoptConfigMakevars(ctx android.MakeVarsContext) {
 	ctx.Strict("PRODUCT_BOOTCLASSPATH", strings.Join(defaultBootclasspath(ctx), ":"))
-	ctx.Strict("PRODUCT_DEX2OAT_BOOTCLASSPATH", strings.Join(defaultBootImageConfig(ctx).dexLocations, ":"))
+	ctx.Strict("PRODUCT_DEX2OAT_BOOTCLASSPATH", strings.Join(defaultBootImageConfig(ctx).dexLocationsDeps, ":"))
 	ctx.Strict("PRODUCT_SYSTEM_SERVER_CLASSPATH", strings.Join(systemServerClasspath(ctx), ":"))
 
 	ctx.Strict("DEXPREOPT_BOOT_JARS_MODULES", strings.Join(defaultBootImageConfig(ctx).modules, ":"))

@@ -247,6 +247,33 @@ func PathsForModuleSrcExcludes(ctx ModuleContext, paths, excludes []string) Path
 	return ret
 }
 
+// OutputPaths is a slice of OutputPath objects, with helpers to operate on the collection.
+type OutputPaths []OutputPath
+
+// Paths returns the OutputPaths as a Paths
+func (p OutputPaths) Paths() Paths {
+	if p == nil {
+		return nil
+	}
+	ret := make(Paths, len(p))
+	for i, path := range p {
+		ret[i] = path
+	}
+	return ret
+}
+
+// Strings returns the string forms of the writable paths.
+func (p OutputPaths) Strings() []string {
+	if p == nil {
+		return nil
+	}
+	ret := make([]string, len(p))
+	for i, path := range p {
+		ret[i] = path.String()
+	}
+	return ret
+}
+
 // PathsAndMissingDepsForModuleSrcExcludes returns Paths rooted from the module's local source directory, excluding
 // paths listed in the excludes arguments, and a list of missing dependencies.  It expands globs, references to
 // SourceFileProducer modules using the ":name" syntax, and references to OutputFileProducer modules using the

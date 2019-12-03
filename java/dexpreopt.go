@@ -124,7 +124,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	}
 
 	var images android.Paths
-	var imagesDeps []android.Paths
+	var imagesDeps []android.OutputPaths
 	for _, arch := range archs {
 		images = append(images, bootImage.images[arch])
 		imagesDeps = append(imagesDeps, bootImage.imagesDeps[arch])
@@ -169,15 +169,16 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		UsesLibraries:                d.usesLibs,
 		LibraryPaths:                 d.libraryPaths,
 
-		Archs:               archs,
-		DexPreoptImages:     images,
-		DexPreoptImagesDeps: imagesDeps,
+		Archs:                   archs,
+		DexPreoptImages:         images,
+		DexPreoptImagesDeps:     imagesDeps,
+		DexPreoptImageLocations: bootImage.imageLocations,
 
 		// We use the dex paths and dex locations of the default boot image, as it
 		// contains the full dexpreopt boot classpath. Other images may just contain a subset of
 		// the dexpreopt boot classpath.
-		PreoptBootClassPathDexFiles:     defaultBootImage.dexPaths.Paths(),
-		PreoptBootClassPathDexLocations: defaultBootImage.dexLocations,
+		PreoptBootClassPathDexFiles:     defaultBootImage.dexPathsDeps.Paths(),
+		PreoptBootClassPathDexLocations: defaultBootImage.dexLocationsDeps,
 
 		PreoptExtractedApk: false,
 
