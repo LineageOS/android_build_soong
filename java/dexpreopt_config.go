@@ -78,9 +78,8 @@ func systemServerClasspath(ctx android.PathContext) []string {
 				filepath.Join("/system/framework", m+".jar"))
 		}
 		for _, m := range global.UpdatableSystemServerJars {
-			apex, jar := dexpreopt.SplitApexJarPair(m)
 			systemServerClasspathLocations = append(systemServerClasspathLocations,
-				filepath.Join("/apex", apex, "javalib", jar+".jar"))
+				dexpreopt.GetJarLocationFromApexJarPair(m))
 		}
 		return systemServerClasspathLocations
 	})
@@ -111,6 +110,15 @@ func stemOf(moduleName string) string {
 	return moduleName
 }
 
+func getJarsFromApexJarPairs(apexJarPairs []string) []string {
+	modules := make([]string, len(apexJarPairs))
+	for i, p := range apexJarPairs {
+		_, jar := dexpreopt.SplitApexJarPair(p)
+		modules[i] = jar
+	}
+	return modules
+}
+
 // Construct a variant of the global config for dexpreopted bootclasspath jars. The variants differ
 // in the list of input jars (libcore, framework, or both), in the naming scheme for the dexpreopt
 // files (ART recognizes "apex" names as special), and whether to include a zip archive.
@@ -134,7 +142,7 @@ func getBootImageConfig(ctx android.PathContext, key android.OnceKey, name strin
 		}
 
 		if !artApexJarsOnly {
-			nonFrameworkModules := concat(artModules, global.ProductUpdatableBootModules)
+			nonFrameworkModules := concat(artModules, getJarsFromApexJarPairs(global.UpdatableBootJars))
 			frameworkModules := android.RemoveListFromList(global.BootJars, nonFrameworkModules)
 			imageModules = concat(imageModules, frameworkModules)
 
@@ -218,7 +226,11 @@ func defaultBootclasspath(ctx android.PathContext) []string {
 	return ctx.Config().OnceStringSlice(defaultBootclasspathKey, func() []string {
 		global := dexpreoptGlobalConfig(ctx)
 		image := defaultBootImageConfig(ctx)
-		bootclasspath := append(copyOf(image.dexLocations), global.ProductUpdatableBootLocations...)
+		updatableBootclasspath := make([]string, len(global.UpdatableBootJars))
+		for i, p := range global.UpdatableBootJars {
+			updatableBootclasspath[i] = dexpreopt.GetJarLocationFromApexJarPair(p)
+		}
+		bootclasspath := append(copyOf(image.dexLocations), updatableBootclasspath...)
 		return bootclasspath
 	})
 }
