@@ -197,11 +197,14 @@ func AutoGenPythonBinaryHostTestConfig(ctx android.ModuleContext, testConfigProp
 	return path
 }
 
-func AutoGenRustHostTestConfig(ctx android.ModuleContext, name string, testConfigProp *string,
+func AutoGenRustTestConfig(ctx android.ModuleContext, name string, testConfigProp *string,
 	testConfigTemplateProp *string, testSuites []string, autoGenConfig *bool) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig)
 	if autogenPath != nil {
 		templatePathString := "${RustHostTestConfigTemplate}"
+		if ctx.Device() {
+			templatePathString = "${RustDeviceTestConfigTemplate}"
+		}
 		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
 		if templatePath.Valid() {
 			templatePathString = templatePath.String()
