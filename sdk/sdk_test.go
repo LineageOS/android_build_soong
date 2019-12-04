@@ -597,6 +597,9 @@ sdk_snapshot {
 }
 
 func TestHostSnapshot(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
 	ctx, config := testSdk(t, `
 		sdk {
 			name: "mysdk",
@@ -819,4 +822,11 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(run())
+}
+
+func SkipIfNotLinux(t *testing.T) {
+	t.Helper()
+	if android.BuildOs != android.Linux {
+		t.Skipf("Skipping as sdk snapshot generation is only supported on %s not %s", android.Linux, android.BuildOs)
+	}
 }
