@@ -544,15 +544,9 @@ cc_prebuilt_library_shared {
 
 sdk_snapshot {
     name: "mysdk@current",
-    java_libs: [
-        "mysdk_myjavalib@current",
-    ],
-    stubs_sources: [
-        "mysdk_myjavaapistubs@current",
-    ],
-    native_shared_libs: [
-        "mysdk_mynativelib@current",
-    ],
+    java_libs: ["mysdk_myjavalib@current"],
+    stubs_sources: ["mysdk_myjavaapistubs@current"],
+    native_shared_libs: ["mysdk_mynativelib@current"],
 }
 
 `)
@@ -597,6 +591,198 @@ sdk_snapshot {
 		filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.unmerged.zip"))
 	actual := zipBp.Output.String()
 	expected := filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.zip")
+	if actual != expected {
+		t.Errorf("Expected snapshot output to be %q but was %q", expected, actual)
+	}
+}
+
+func TestHostSnapshot(t *testing.T) {
+	ctx, config := testSdk(t, `
+		sdk {
+			name: "mysdk",
+			device_supported: false,
+			host_supported: true,
+			java_libs: ["myjavalib"],
+			native_shared_libs: ["mynativelib"],
+			stubs_sources: ["myjavaapistubs"],
+		}
+
+		java_library {
+			name: "myjavalib",
+			device_supported: false,
+			host_supported: true,
+			srcs: ["Test.java"],
+			aidl: {
+				export_include_dirs: ["aidl"],
+			},
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+
+		cc_library_shared {
+			name: "mynativelib",
+			device_supported: false,
+			host_supported: true,
+			srcs: [
+				"Test.cpp",
+				"aidl/foo/bar/Test.aidl",
+			],
+			export_include_dirs: ["include"],
+			aidl: {
+				export_aidl_headers: true,
+			},
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		droidstubs {
+			name: "myjavaapistubs",
+			device_supported: false,
+			host_supported: true,
+			srcs: ["foo/bar/Foo.java"],
+			system_modules: "none",
+			sdk_version: "none",
+		}
+	`)
+
+	sdk := ctx.ModuleForTests("mysdk", "linux_glibc_common").Module().(*sdk)
+
+	checkSnapshotAndroidBpContents(t, sdk, `// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    device_supported: false,
+    host_supported: true,
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    jars: ["java/myjavalib.jar"],
+}
+
+prebuilt_stubs_sources {
+    name: "mysdk_myjavaapistubs@current",
+    sdk_member_name: "myjavaapistubs",
+    device_supported: false,
+    host_supported: true,
+    srcs: ["java/myjavaapistubs_stubs_sources"],
+}
+
+prebuilt_stubs_sources {
+    name: "myjavaapistubs",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    srcs: ["java/myjavaapistubs_stubs_sources"],
+}
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    device_supported: false,
+    host_supported: true,
+    arch: {
+        x86_64: {
+            srcs: ["x86_64/lib/mynativelib.so"],
+            export_include_dirs: [
+                "x86_64/include/include",
+                "x86_64/include_gen/mynativelib",
+            ],
+        },
+        x86: {
+            srcs: ["x86/lib/mynativelib.so"],
+            export_include_dirs: [
+                "x86/include/include",
+                "x86/include_gen/mynativelib",
+            ],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+cc_prebuilt_library_shared {
+    name: "mynativelib",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    arch: {
+        x86_64: {
+            srcs: ["x86_64/lib/mynativelib.so"],
+            export_include_dirs: [
+                "x86_64/include/include",
+                "x86_64/include_gen/mynativelib",
+            ],
+        },
+        x86: {
+            srcs: ["x86/lib/mynativelib.so"],
+            export_include_dirs: [
+                "x86/include/include",
+                "x86/include_gen/mynativelib",
+            ],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    device_supported: false,
+    host_supported: true,
+    java_libs: ["mysdk_myjavalib@current"],
+    stubs_sources: ["mysdk_myjavaapistubs@current"],
+    native_shared_libs: ["mysdk_mynativelib@current"],
+}
+
+`)
+
+	var copySrcs []string
+	var copyDests []string
+	buildParams := sdk.BuildParamsForTests()
+	var zipBp android.BuildParams
+	for _, bp := range buildParams {
+		ruleString := bp.Rule.String()
+		if ruleString == "android/soong/android.Cp" {
+			copySrcs = append(copySrcs, bp.Input.String())
+			copyDests = append(copyDests, bp.Output.Rel()) // rooted at the snapshot root
+		} else if ruleString == "<local rule>:m.mysdk_linux_glibc_common.snapshot" {
+			zipBp = bp
+		}
+	}
+
+	buildDir := config.BuildDir()
+	ensureListContains(t, copySrcs, "aidl/foo/bar/Test.aidl")
+	ensureListContains(t, copySrcs, "include/Test.h")
+	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BnTest.h"))
+	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BpTest.h"))
+	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/Test.h"))
+	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/myjavalib/linux_glibc_common/javac/myjavalib.jar"))
+	ensureListContains(t, copySrcs, filepath.Join(buildDir, ".intermediates/mynativelib/linux_glibc_x86_64_shared/mynativelib.so"))
+
+	ensureListContains(t, copyDests, "aidl/aidl/foo/bar/Test.aidl")
+	ensureListContains(t, copyDests, "x86_64/include/include/Test.h")
+	ensureListContains(t, copyDests, "x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h")
+	ensureListContains(t, copyDests, "x86_64/include_gen/mynativelib/aidl/foo/bar/BpTest.h")
+	ensureListContains(t, copyDests, "x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h")
+	ensureListContains(t, copyDests, "java/myjavalib.jar")
+	ensureListContains(t, copyDests, "x86_64/lib/mynativelib.so")
+
+	// Ensure that the droidstubs .srcjar as repackaged into a temporary zip file
+	// and then merged together with the intermediate snapshot zip.
+	snapshotCreationInputs := zipBp.Implicits.Strings()
+	ensureListContains(t, snapshotCreationInputs,
+		filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip"))
+	ensureListContains(t, snapshotCreationInputs,
+		filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/mysdk-current.unmerged.zip"))
+	actual := zipBp.Output.String()
+	expected := filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/mysdk-current.zip")
 	if actual != expected {
 		t.Errorf("Expected snapshot output to be %q but was %q", expected, actual)
 	}

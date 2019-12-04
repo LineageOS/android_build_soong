@@ -17,6 +17,7 @@ package sdk
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -28,34 +29,37 @@ import (
 
 var pctx = android.NewPackageContext("android/soong/sdk")
 
-// generatedFile abstracts operations for writing contents into a file and emit a build rule
-// for the file.
-type generatedFile struct {
-	path        android.OutputPath
+type generatedContents struct {
 	content     strings.Builder
 	indentLevel int
 }
 
+// generatedFile abstracts operations for writing contents into a file and emit a build rule
+// for the file.
+type generatedFile struct {
+	generatedContents
+	path android.OutputPath
+}
+
 func newGeneratedFile(ctx android.ModuleContext, path ...string) *generatedFile {
 	return &generatedFile{
-		path:        android.PathForModuleOut(ctx, path...).OutputPath,
-		indentLevel: 0,
+		path: android.PathForModuleOut(ctx, path...).OutputPath,
 	}
 }
 
-func (gf *generatedFile) Indent() {
-	gf.indentLevel++
+func (gc *generatedContents) Indent() {
+	gc.indentLevel++
 }
 
-func (gf *generatedFile) Dedent() {
-	gf.indentLevel--
+func (gc *generatedContents) Dedent() {
+	gc.indentLevel--
 }
 
-func (gf *generatedFile) Printfln(format string, args ...interface{}) {
+func (gc *generatedContents) Printfln(format string, args ...interface{}) {
 	// ninja consumes newline characters in rspfile_content. Prevent it by
 	// escaping the backslash in the newline character. The extra backslash
 	// is removed when the rspfile is written to the actual script file
-	fmt.Fprintf(&(gf.content), strings.Repeat("    ", gf.indentLevel)+format+"\\n", args...)
+	fmt.Fprintf(&(gc.content), strings.Repeat("    ", gc.indentLevel)+format+"\\n", args...)
 }
 
 func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderContext, implicits android.Paths) {
@@ -239,15 +243,19 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	snapshotDir := android.PathForModuleOut(ctx, "snapshot")
 
 	bp := newGeneratedFile(ctx, "snapshot", "Android.bp")
-	bp.Printfln("// This is auto-generated. DO NOT EDIT.")
-	bp.Printfln("")
+
+	bpFile := &bpFile{
+		modules: make(map[string]*bpModule),
+	}
 
 	builder := &snapshotBuilder{
-		ctx:           ctx,
-		version:       "current",
-		snapshotDir:   snapshotDir.OutputPath,
-		filesToZip:    []android.Path{bp.path},
-		androidBpFile: bp,
+		ctx:             ctx,
+		sdk:             s,
+		version:         "current",
+		snapshotDir:     snapshotDir.OutputPath,
+		filesToZip:      []android.Path{bp.path},
+		bpFile:          bpFile,
+		prebuiltModules: make(map[string]*bpModule),
 	}
 	s.builderForTests = builder
 
@@ -269,41 +277,38 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 		buildSharedNativeLibSnapshot(ctx, info, builder)
 	}
 
-	// generate Android.bp
+	for _, unversioned := range builder.prebuiltOrder {
+		// Copy the unversioned module so it can be modified to make it versioned.
+		versioned := unversioned.copy()
+		name := versioned.properties["name"].(string)
+		versioned.setProperty("name", builder.versionedSdkMemberName(name))
+		versioned.insertAfter("name", "sdk_member_name", name)
+		bpFile.AddModule(versioned)
 
-	bp.Printfln("sdk_snapshot {")
-	bp.Indent()
-	bp.Printfln("name: %q,", ctx.ModuleName()+string(android.SdkVersionSeparator)+builder.version)
+		// Set prefer: false - this is not strictly required as that is the default.
+		unversioned.insertAfter("name", "prefer", false)
+		bpFile.AddModule(unversioned)
+	}
+
+	// Create the snapshot module.
+	snapshotName := ctx.ModuleName() + string(android.SdkVersionSeparator) + builder.version
+	snapshotModule := bpFile.newModule("sdk_snapshot")
+	snapshotModule.AddProperty("name", snapshotName)
+	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
 	if len(s.properties.Java_libs) > 0 {
-		bp.Printfln("java_libs: [")
-		bp.Indent()
-		for _, m := range s.properties.Java_libs {
-			bp.Printfln("%q,", builder.VersionedSdkMemberName(m))
-		}
-		bp.Dedent()
-		bp.Printfln("],") // java_libs
+		snapshotModule.AddProperty("java_libs", builder.versionedSdkMemberNames(s.properties.Java_libs))
 	}
 	if len(s.properties.Stubs_sources) > 0 {
-		bp.Printfln("stubs_sources: [")
-		bp.Indent()
-		for _, m := range s.properties.Stubs_sources {
-			bp.Printfln("%q,", builder.VersionedSdkMemberName(m))
-		}
-		bp.Dedent()
-		bp.Printfln("],") // stubs_sources
+		snapshotModule.AddProperty("stubs_sources", builder.versionedSdkMemberNames(s.properties.Stubs_sources))
 	}
 	if len(s.properties.Native_shared_libs) > 0 {
-		bp.Printfln("native_shared_libs: [")
-		bp.Indent()
-		for _, m := range s.properties.Native_shared_libs {
-			bp.Printfln("%q,", builder.VersionedSdkMemberName(m))
-		}
-		bp.Dedent()
-		bp.Printfln("],") // native_shared_libs
+		snapshotModule.AddProperty("native_shared_libs", builder.versionedSdkMemberNames(s.properties.Native_shared_libs))
 	}
-	bp.Dedent()
-	bp.Printfln("}") // sdk_snapshot
-	bp.Printfln("")
+	bpFile.AddModule(snapshotModule)
+
+	// generate Android.bp
+	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
+	generateBpContents(&bp.generatedContents, bpFile)
 
 	bp.build(pctx, ctx, nil)
 
@@ -351,8 +356,61 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	return outputZipFile
 }
 
+func generateBpContents(contents *generatedContents, bpFile *bpFile) {
+	contents.Printfln("// This is auto-generated. DO NOT EDIT.")
+	for _, bpModule := range bpFile.order {
+		contents.Printfln("")
+		contents.Printfln("%s {", bpModule.moduleType)
+		outputPropertySet(contents, &bpModule.bpPropertySet)
+		contents.Printfln("}")
+	}
+	contents.Printfln("")
+}
+
+func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
+	contents.Indent()
+	for _, name := range set.order {
+		value := set.properties[name]
+
+		reflectedValue := reflect.ValueOf(value)
+		t := reflectedValue.Type()
+
+		kind := t.Kind()
+		switch kind {
+		case reflect.Slice:
+			length := reflectedValue.Len()
+			if length > 1 {
+				contents.Printfln("%s: [", name)
+				contents.Indent()
+				for i := 0; i < length; i = i + 1 {
+					contents.Printfln("%q,", reflectedValue.Index(i).Interface())
+				}
+				contents.Dedent()
+				contents.Printfln("],")
+			} else if length == 0 {
+				contents.Printfln("%s: [],", name)
+			} else {
+				contents.Printfln("%s: [%q],", name, reflectedValue.Index(0).Interface())
+			}
+		case reflect.Bool:
+			contents.Printfln("%s: %t,", name, reflectedValue.Bool())
+
+		case reflect.Ptr:
+			contents.Printfln("%s: {", name)
+			outputPropertySet(contents, reflectedValue.Interface().(*bpPropertySet))
+			contents.Printfln("},")
+
+		default:
+			contents.Printfln("%s: %q,", name, value)
+		}
+	}
+	contents.Dedent()
+}
+
 func (s *sdk) GetAndroidBpContentsForTests() string {
-	return s.builderForTests.androidBpFile.content.String()
+	contents := &generatedContents{}
+	generateBpContents(contents, s.builderForTests.bpFile)
+	return contents.content.String()
 }
 
 func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
@@ -406,81 +464,58 @@ func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo
 		}
 	}
 
-	info.generatePrebuiltLibrary(ctx, builder, true)
-
-	// This module is for the case when the source tree for the unversioned module
-	// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
-	// so that this module does not eclipse the unversioned module if it exists.
-	info.generatePrebuiltLibrary(ctx, builder, false)
+	info.generatePrebuiltLibrary(ctx, builder)
 }
 
-func (info *nativeLibInfo) generatePrebuiltLibrary(ctx android.ModuleContext, builder android.SnapshotBuilder, versioned bool) {
-	bp := builder.AndroidBpFile()
-	bp.Printfln("cc_prebuilt_library_shared {")
-	bp.Indent()
-	name := info.name
-	if versioned {
-		bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
-		bp.Printfln("sdk_member_name: %q,", name)
-	} else {
-		bp.Printfln("name: %q,", name)
-		bp.Printfln("prefer: false,")
-	}
+func (info *nativeLibInfo) generatePrebuiltLibrary(ctx android.ModuleContext, builder android.SnapshotBuilder) {
 
 	// a function for emitting include dirs
-	printExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, systemInclude bool) {
+	addExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, properties android.BpPropertySet, systemInclude bool) {
 		includeDirs := nativeIncludeDirPathsFor(ctx, lib, systemInclude, info.hasArchSpecificFlags)
 		if len(includeDirs) == 0 {
 			return
 		}
+		var propertyName string
 		if !systemInclude {
-			bp.Printfln("export_include_dirs: [")
+			propertyName = "export_include_dirs"
 		} else {
-			bp.Printfln("export_system_include_dirs: [")
+			propertyName = "export_system_include_dirs"
 		}
-		bp.Indent()
-		for _, dir := range includeDirs {
-			bp.Printfln("%q,", dir)
-		}
-		bp.Dedent()
-		bp.Printfln("],")
+		properties.AddProperty(propertyName, includeDirs)
 	}
+
+	pbm := builder.AddPrebuiltModule(info.name, "cc_prebuilt_library_shared")
 
 	if !info.hasArchSpecificFlags {
-		printExportedDirsForNativeLibs(info.archVariants[0], false /*systemInclude*/)
-		printExportedDirsForNativeLibs(info.archVariants[0], true /*systemInclude*/)
+		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
+		addExportedDirsForNativeLibs(info.archVariants[0], pbm, true /*systemInclude*/)
 	}
 
-	bp.Printfln("arch: {")
-	bp.Indent()
+	archProperties := pbm.AddPropertySet("arch")
 	for _, av := range info.archVariants {
-		bp.Printfln("%s: {", av.archType)
-		bp.Indent()
-		bp.Printfln("srcs: [%q],", nativeStubFilePathFor(av))
+		archTypeProperties := archProperties.AddPropertySet(av.archType)
+		archTypeProperties.AddProperty("srcs", []string{nativeStubFilePathFor(av)})
 		if info.hasArchSpecificFlags {
 			// export_* properties are added inside the arch: {<arch>: {...}} block
-			printExportedDirsForNativeLibs(av, false /*systemInclude*/)
-			printExportedDirsForNativeLibs(av, true /*systemInclude*/)
+			addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
+			addExportedDirsForNativeLibs(av, archTypeProperties, true /*systemInclude*/)
 		}
-		bp.Dedent()
-		bp.Printfln("},") // <arch>
 	}
-	bp.Dedent()
-	bp.Printfln("},") // arch
-	bp.Printfln("stl: \"none\",")
-	bp.Printfln("system_shared_libs: [],")
-	bp.Dedent()
-	bp.Printfln("}") // cc_prebuilt_library_shared
-	bp.Printfln("")
+	pbm.AddProperty("stl", "none")
+	pbm.AddProperty("system_shared_libs", []string{})
 }
 
 type snapshotBuilder struct {
-	ctx           android.ModuleContext
-	version       string
-	snapshotDir   android.OutputPath
-	androidBpFile *generatedFile
-	filesToZip    android.Paths
-	zipsToMerge   android.Paths
+	ctx         android.ModuleContext
+	sdk         *sdk
+	version     string
+	snapshotDir android.OutputPath
+	bpFile      *bpFile
+	filesToZip  android.Paths
+	zipsToMerge android.Paths
+
+	prebuiltModules map[string]*bpModule
+	prebuiltOrder   []*bpModule
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
@@ -512,10 +547,38 @@ func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) 
 	s.zipsToMerge = append(s.zipsToMerge, tmpZipPath)
 }
 
-func (s *snapshotBuilder) AndroidBpFile() android.GeneratedSnapshotFile {
-	return s.androidBpFile
+func (s *snapshotBuilder) AddPrebuiltModule(name string, moduleType string) android.BpModule {
+	if s.prebuiltModules[name] != nil {
+		panic(fmt.Sprintf("Duplicate module detected, module %s has already been added", name))
+	}
+
+	m := s.bpFile.newModule(moduleType)
+	m.AddProperty("name", name)
+	addHostDeviceSupportedProperties(&s.sdk.ModuleBase, m)
+
+	s.prebuiltModules[name] = m
+	s.prebuiltOrder = append(s.prebuiltOrder, m)
+	return m
 }
 
-func (s *snapshotBuilder) VersionedSdkMemberName(unversionedName string) interface{} {
+func addHostDeviceSupportedProperties(module *android.ModuleBase, bpModule *bpModule) {
+	if !module.DeviceSupported() {
+		bpModule.AddProperty("device_supported", false)
+	}
+	if module.HostSupported() {
+		bpModule.AddProperty("host_supported", true)
+	}
+}
+
+// Get a versioned name appropriate for the SDK snapshot version being taken.
+func (s *snapshotBuilder) versionedSdkMemberName(unversionedName string) string {
 	return versionedSdkMemberName(s.ctx, unversionedName, s.version)
+}
+
+func (s *snapshotBuilder) versionedSdkMemberNames(members []string) []string {
+	var references []string = nil
+	for _, m := range members {
+		references = append(references, s.versionedSdkMemberName(m))
+	}
+	return references
 }

@@ -689,7 +689,12 @@ const (
 	javaPlatform
 )
 
-func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
+type linkTypeContext interface {
+	android.Module
+	getLinkType(name string) (ret linkType, stubs bool)
+}
+
+func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 	ver := m.sdkVersion()
 	switch {
 	case name == "core.current.stubs" || name == "core.platform.api.stubs" ||
@@ -720,16 +725,16 @@ func getLinkType(m *Module, name string) (ret linkType, stubs bool) {
 	}
 }
 
-func checkLinkType(ctx android.ModuleContext, from *Module, to *Library, tag dependencyTag) {
+func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, tag dependencyTag) {
 	if ctx.Host() {
 		return
 	}
 
-	myLinkType, stubs := getLinkType(from, ctx.ModuleName())
+	myLinkType, stubs := from.getLinkType(ctx.ModuleName())
 	if stubs {
 		return
 	}
-	otherLinkType, _ := getLinkType(&to.Module, ctx.OtherModuleName(to))
+	otherLinkType, _ := to.getLinkType(ctx.OtherModuleName(to))
 	commonMessage := "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source."
 
 	switch myLinkType {
@@ -786,11 +791,14 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			// Handled by AndroidApp.collectAppDeps
 			return
 		}
-
-		if to, ok := module.(*Library); ok {
-			switch tag {
-			case bootClasspathTag, libTag, staticLibTag:
-				checkLinkType(ctx, j, to, tag.(dependencyTag))
+		switch module.(type) {
+		case *Library:
+		case *AndroidLibrary:
+			if to, ok := module.(linkTypeContext); ok {
+				switch tag {
+				case bootClasspathTag, libTag, staticLibTag:
+					checkLinkType(ctx, j, to, tag.(dependencyTag))
+				}
 			}
 		}
 		switch dep := module.(type) {
@@ -1729,30 +1737,8 @@ func (j *Library) BuildSnapshot(sdkModuleContext android.ModuleContext, builder 
 		}
 	}
 
-	j.generateJavaImport(builder, snapshotRelativeJavaLibPath, true)
-
-	// This module is for the case when the source tree for the unversioned module
-	// doesn't exist (i.e. building in an unbundled tree). "prefer:" is set to false
-	// so that this module does not eclipse the unversioned module if it exists.
-	j.generateJavaImport(builder, snapshotRelativeJavaLibPath, false)
-}
-
-func (j *Library) generateJavaImport(builder android.SnapshotBuilder, snapshotRelativeJavaLibPath string, versioned bool) {
-	bp := builder.AndroidBpFile()
-	name := j.Name()
-	bp.Printfln("java_import {")
-	bp.Indent()
-	if versioned {
-		bp.Printfln("name: %q,", builder.VersionedSdkMemberName(name))
-		bp.Printfln("sdk_member_name: %q,", name)
-	} else {
-		bp.Printfln("name: %q,", name)
-		bp.Printfln("prefer: false,")
-	}
-	bp.Printfln("jars: [%q],", snapshotRelativeJavaLibPath)
-	bp.Dedent()
-	bp.Printfln("}")
-	bp.Printfln("")
+	module := builder.AddPrebuiltModule(sdkModuleContext.OtherModuleName(j), "java_import")
+	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
 }
 
 // java_library builds and links sources into a `.jar` file for the device, and possibly for the host as well.

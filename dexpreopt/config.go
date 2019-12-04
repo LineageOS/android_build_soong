@@ -41,7 +41,7 @@ type GlobalConfig struct {
 	BootJars          []string // modules for jars that form the boot class path
 	UpdatableBootJars []string // jars within apex that form the boot class path
 
-	ArtApexJars       []string // modules for jars that are in the ART APEX
+	ArtApexJars []string // modules for jars that are in the ART APEX
 
 	SystemServerJars          []string // jars that form the system server
 	SystemServerApps          []string // apps that are loaded into system server
@@ -117,9 +117,10 @@ type ModuleConfig struct {
 	UsesLibraries                []string
 	LibraryPaths                 map[string]android.Path
 
-	Archs               []android.ArchType
-	DexPreoptImages     []android.Path
-	DexPreoptImagesDeps []android.Paths
+	Archs                   []android.ArchType
+	DexPreoptImages         []android.Path
+	DexPreoptImagesDeps     []android.OutputPaths
+	DexPreoptImageLocations []string
 
 	PreoptBootClassPathDexFiles     android.Paths // file paths of boot class path files
 	PreoptBootClassPathDexLocations []string      // virtual locations of boot class path files
@@ -225,6 +226,7 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 		ProfileClassListing         string
 		LibraryPaths                map[string]string
 		DexPreoptImages             []string
+		DexPreoptImageLocations     []string
 		PreoptBootClassPathDexFiles []string
 	}
 
@@ -242,10 +244,11 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 	config.ModuleConfig.ProfileClassListing = android.OptionalPathForPath(constructPath(ctx, config.ProfileClassListing))
 	config.ModuleConfig.LibraryPaths = constructPathMap(ctx, config.LibraryPaths)
 	config.ModuleConfig.DexPreoptImages = constructPaths(ctx, config.DexPreoptImages)
+	config.ModuleConfig.DexPreoptImageLocations = config.DexPreoptImageLocations
 	config.ModuleConfig.PreoptBootClassPathDexFiles = constructPaths(ctx, config.PreoptBootClassPathDexFiles)
 
 	// This needs to exist, but dependencies are already handled in Make, so we don't need to pass them through JSON.
-	config.ModuleConfig.DexPreoptImagesDeps = make([]android.Paths, len(config.ModuleConfig.DexPreoptImages))
+	config.ModuleConfig.DexPreoptImagesDeps = make([]android.OutputPaths, len(config.ModuleConfig.DexPreoptImages))
 
 	return config.ModuleConfig, nil
 }
