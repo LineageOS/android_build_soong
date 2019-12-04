@@ -293,6 +293,8 @@ func (module *SdkLibrary) implPath() string {
 		partition = "odm"
 	} else if module.ProductSpecific() {
 		partition = "product"
+	} else if module.SystemExtSpecific() {
+		partition = "system_ext"
 	}
 	return "/" + partition + "/framework/" + module.implName() + ".jar"
 }
@@ -363,17 +365,18 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope apiScope) strin
 // Creates a static java library that has API stubs
 func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiScope apiScope) {
 	props := struct {
-		Name              *string
-		Srcs              []string
-		Sdk_version       *string
-		Libs              []string
-		Soc_specific      *bool
-		Device_specific   *bool
-		Product_specific  *bool
-		Compile_dex       *bool
-		System_modules    *string
-		Java_version      *string
-		Product_variables struct {
+		Name                *string
+		Srcs                []string
+		Sdk_version         *string
+		Libs                []string
+		Soc_specific        *bool
+		Device_specific     *bool
+		Product_specific    *bool
+		System_ext_specific *bool
+		Compile_dex         *bool
+		System_modules      *string
+		Java_version        *string
+		Product_variables   struct {
 			Unbundled_build struct {
 				Enabled *bool
 			}
@@ -417,6 +420,8 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		props.Device_specific = proptools.BoolPtr(true)
 	} else if module.ProductSpecific() {
 		props.Product_specific = proptools.BoolPtr(true)
+	} else if module.SystemExtSpecific() {
+		props.System_ext_specific = proptools.BoolPtr(true)
 	}
 
 	mctx.CreateModule(LibraryFactory, &props)
@@ -561,12 +566,13 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	// creates a prebuilt_etc module to actually place the xml file under
 	// <partition>/etc/permissions
 	etcProps := struct {
-		Name             *string
-		Src              *string
-		Sub_dir          *string
-		Soc_specific     *bool
-		Device_specific  *bool
-		Product_specific *bool
+		Name                *string
+		Src                 *string
+		Sub_dir             *string
+		Soc_specific        *bool
+		Device_specific     *bool
+		Product_specific    *bool
+		System_ext_specific *bool
 	}{}
 	etcProps.Name = proptools.StringPtr(module.xmlFileName())
 	etcProps.Src = proptools.StringPtr(":" + module.xmlFileName() + "-gen")
@@ -577,6 +583,8 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 		etcProps.Device_specific = proptools.BoolPtr(true)
 	} else if module.ProductSpecific() {
 		etcProps.Product_specific = proptools.BoolPtr(true)
+	} else if module.SystemExtSpecific() {
+		etcProps.System_ext_specific = proptools.BoolPtr(true)
 	}
 	mctx.CreateModule(android.PrebuiltEtcFactory, &etcProps)
 }
@@ -795,10 +803,11 @@ func (module *sdkLibraryImport) Name() string {
 func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
 	// Creates a java import for the jar with ".stubs" suffix
 	props := struct {
-		Name             *string
-		Soc_specific     *bool
-		Device_specific  *bool
-		Product_specific *bool
+		Name                *string
+		Soc_specific        *bool
+		Device_specific     *bool
+		Product_specific    *bool
+		System_ext_specific *bool
 	}{}
 
 	props.Name = proptools.StringPtr(module.BaseModuleName() + sdkStubsLibrarySuffix)
@@ -809,6 +818,8 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 		props.Device_specific = proptools.BoolPtr(true)
 	} else if module.ProductSpecific() {
 		props.Product_specific = proptools.BoolPtr(true)
+	} else if module.SystemExtSpecific() {
+		props.System_ext_specific = proptools.BoolPtr(true)
 	}
 
 	mctx.CreateModule(ImportFactory, &props, &module.properties)
