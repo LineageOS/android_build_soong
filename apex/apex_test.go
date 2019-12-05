@@ -2458,6 +2458,29 @@ func TestApexWithTests(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_MODULE := myapex\n")
 }
 
+func TestInstallExtraFlattenedApexes(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.InstallExtraFlattenedApexes = proptools.BoolPtr(true)
+	})
+	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	ensureListContains(t, ab.externalDeps, "myapex.flattened")
+	mk := android.AndroidMkDataForTest(t, config, "", ab)
+	var builder strings.Builder
+	mk.Custom(&builder, ab.Name(), "TARGET_", "", mk)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += myapex.flattened")
+}
+
 func TestApexUsesOtherApex(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {

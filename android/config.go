@@ -1091,6 +1091,10 @@ func (c *config) EnforceProductPartitionInterface() bool {
 	return Bool(c.productVariables.EnforceProductPartitionInterface)
 }
 
+func (c *config) InstallExtraFlattenedApexes() bool {
+	return Bool(c.productVariables.InstallExtraFlattenedApexes)
+}
+
 func (c *config) ProductHiddenAPIStubs() []string {
 	return c.productVariables.ProductHiddenAPIStubs
 }

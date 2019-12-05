@@ -905,6 +905,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		} else {
 			a.suffix = ""
 			a.primaryApexType = true
+
+			if ctx.Config().InstallExtraFlattenedApexes() {
+				a.externalDeps = append(a.externalDeps, a.Name()+flattenedSuffix)
+			}
 		}
 	case zipApex:
 		if proptools.String(a.properties.Payload_type) == "zip" {
