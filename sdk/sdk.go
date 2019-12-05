@@ -61,7 +61,12 @@ type sdk struct {
 }
 
 type sdkProperties struct {
-	// The list of java libraries in this SDK
+	// The list of java header libraries in this SDK
+	//
+	// This should be used for java libraries that are provided separately at runtime,
+	// e.g. through an APEX.
+	Java_header_libs []string
+	// The list of java implementation libraries in this SDK
 	Java_libs []string
 	// The list of native libraries in this SDK
 	Native_shared_libs []string
@@ -77,7 +82,7 @@ type sdkMemberDependencyTag struct {
 }
 
 // Contains information about the sdk properties that list sdk members, e.g.
-// Java_libs.
+// Java_header_libs.
 type sdkMemberListProperty struct {
 	// the name of the property as used in a .bp file
 	name string
@@ -106,9 +111,14 @@ var sdkMemberListProperties = []*sdkMemberListProperty{
 	},
 	// Members from java package.
 	{
+		name:       "java_header_libs",
+		getter:     func(properties *sdkProperties) []string { return properties.Java_header_libs },
+		memberType: java.HeaderLibrarySdkMemberType,
+	},
+	{
 		name:       "java_libs",
 		getter:     func(properties *sdkProperties) []string { return properties.Java_libs },
-		memberType: java.LibrarySdkMemberType,
+		memberType: java.ImplLibrarySdkMemberType,
 	},
 	{
 		name:       "stubs_sources",
