@@ -180,12 +180,12 @@ func (e *errorProtoLog) FinishAction(result ActionResult, counts Counts) {
 func (e *errorProtoLog) Flush() {
 	data, err := proto.Marshal(&e.errorProto)
 	if err != nil {
-		e.log.Println("Failed to marshal build status proto: %v", err)
+		e.log.Printf("Failed to marshal build status proto: %v\n", err)
 		return
 	}
 	err = ioutil.WriteFile(e.filename, []byte(data), 0644)
 	if err != nil {
-		e.log.Println("Failed to write file %s: %v", e.errorProto, err)
+		e.log.Printf("Failed to write file %s: %v\n", e.filename, err)
 	}
 }
 

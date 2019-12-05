@@ -15,7 +15,6 @@
 package build
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -30,10 +29,11 @@ type Config struct{ *configImpl }
 
 type configImpl struct {
 	// From the environment
-	arguments []string
-	goma      bool
-	environ   *Environment
-	distDir   string
+	arguments     []string
+	goma          bool
+	environ       *Environment
+	distDir       string
+	buildDateTime string
 
 	// From the arguments
 	parallel   int
@@ -244,18 +244,14 @@ func NewConfig(ctx Context, args ...string) Config {
 
 	outDir := ret.OutDir()
 	buildDateTimeFile := filepath.Join(outDir, "build_date.txt")
-	var content string
 	if buildDateTime, ok := ret.environ.Get("BUILD_DATETIME"); ok && buildDateTime != "" {
-		content = buildDateTime
+		ret.buildDateTime = buildDateTime
 	} else {
-		content = strconv.FormatInt(time.Now().Unix(), 10)
+		ret.buildDateTime = strconv.FormatInt(time.Now().Unix(), 10)
 	}
+
 	if ctx.Metrics != nil {
-		ctx.Metrics.SetBuildDateTime(content)
-	}
-	err := ioutil.WriteFile(buildDateTimeFile, []byte(content), 0777)
-	if err != nil {
-		ctx.Fatalln("Failed to write BUILD_DATETIME to file:", err)
+		ctx.Metrics.SetBuildDateTime(ret.buildDateTime)
 	}
 	ret.environ.Set("BUILD_DATETIME_FILE", buildDateTimeFile)
 

@@ -33,6 +33,15 @@ func SetupOutDir(ctx Context, config Config) {
 	// can be parsed as ninja output.
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "ninja_build"))
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), ".out-dir"))
+
+	if buildDateTimeFile, ok := config.environ.Get("BUILD_DATETIME_FILE"); ok {
+		err := ioutil.WriteFile(buildDateTimeFile, []byte(config.buildDateTime), 0777)
+		if err != nil {
+			ctx.Fatalln("Failed to write BUILD_DATETIME to file:", err)
+		}
+	} else {
+		ctx.Fatalln("Missing BUILD_DATETIME_FILE")
+	}
 }
 
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
