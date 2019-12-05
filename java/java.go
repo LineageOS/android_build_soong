@@ -34,7 +34,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("java_defaults", defaultsFactory)
+	android.RegisterModuleType("java_defaults", DefaultsFactory)
 
 	android.RegisterModuleType("java_library", LibraryFactory)
 	android.RegisterModuleType("java_library_static", LibraryStaticFactory)
@@ -2452,10 +2452,9 @@ func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }
 
-func DefaultsFactory(props ...interface{}) android.Module {
+func DefaultsFactory() android.Module {
 	module := &Defaults{}
 
-	module.AddProperties(props...)
 	module.AddProperties(
 		&CompilerProperties{},
 		&CompilerDeviceProperties{},

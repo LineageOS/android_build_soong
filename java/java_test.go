@@ -79,7 +79,7 @@ func testContext(bp string, fs map[string][]byte) *android.TestContext {
 	ctx.RegisterModuleType("java_test", TestFactory)
 	ctx.RegisterModuleType("java_import", ImportFactory)
 	ctx.RegisterModuleType("java_import_host", ImportFactoryHost)
-	ctx.RegisterModuleType("java_defaults", defaultsFactory)
+	ctx.RegisterModuleType("java_defaults", DefaultsFactory)
 	ctx.RegisterModuleType("java_system_modules", SystemModulesFactory)
 	ctx.RegisterModuleType("java_genrule", genRuleFactory)
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
