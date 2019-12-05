@@ -164,7 +164,7 @@ func TestSnapshotWithCcShared(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "android_common",
+	result.CheckSnapshot("mysdk", "android_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -263,7 +263,7 @@ func TestHostSnapshotWithCcShared(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "linux_glibc_common",
+	result.CheckSnapshot("mysdk", "linux_glibc_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 

@@ -211,6 +211,13 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	snapshotName := ctx.ModuleName() + string(android.SdkVersionSeparator) + builder.version
 	snapshotModule := bpFile.newModule("sdk_snapshot")
 	snapshotModule.AddProperty("name", snapshotName)
+
+	// Make sure that the snapshot has the same visibility as the sdk.
+	visibility := android.EffectiveVisibilityRules(ctx, s)
+	if len(visibility) != 0 {
+		snapshotModule.AddProperty("visibility", visibility)
+	}
+
 	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
 	for _, memberListProperty := range sdkMemberListProperties {
 		names := memberListProperty.getter(&s.properties)
@@ -376,6 +383,14 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 
 	m := s.bpFile.newModule(moduleType)
 	m.AddProperty("name", name)
+
+	// Extract visibility information from a member variant. All variants have the same
+	// visibility so it doesn't matter which one is used.
+	visibility := android.EffectiveVisibilityRules(s.ctx, member.Variants()[0])
+	if len(visibility) != 0 {
+		m.AddProperty("visibility", visibility)
+	}
+
 	addHostDeviceSupportedProperties(&s.sdk.ModuleBase, m)
 
 	s.prebuiltModules[name] = m
