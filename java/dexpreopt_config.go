@@ -226,12 +226,13 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 				c.images[arch] = imageDir.Join(ctx, imageName)
 				c.imagesDeps[arch] = c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex")
 			}
+
+			c.zip = c.dir.Join(ctx, c.name+".zip")
 		}
 
 		// specific to the framework config
 		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
 		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
-		frameworkCfg.zip = frameworkCfg.dir.Join(ctx, frameworkCfg.stem+".zip")
 
 		return configs
 	}).(map[string]*bootImageConfig)
