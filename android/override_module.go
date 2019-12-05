@@ -82,19 +82,26 @@ func InitOverrideModule(m OverrideModule) {
 
 // Interface for overridable module types, e.g. android_app, apex
 type OverridableModule interface {
+	Module
+	moduleBase() *OverridableModuleBase
+
 	setOverridableProperties(prop []interface{})
 
 	addOverride(o OverrideModule)
 	getOverrides() []OverrideModule
 
 	override(ctx BaseModuleContext, o OverrideModule)
-	getOverriddenBy() string
+	GetOverriddenBy() string
 
 	setOverridesProperty(overridesProperties *[]string)
 
 	// Due to complications with incoming dependencies, overrides are processed after DepsMutator.
 	// So, overridable properties need to be handled in a separate, dedicated deps mutator.
 	OverridablePropertiesDepsMutator(ctx BottomUpMutatorContext)
+}
+
+type overridableModuleProperties struct {
+	OverriddenBy string `blueprint:"mutated"`
 }
 
 // Base module struct for overridable module types
@@ -114,12 +121,17 @@ type OverridableModuleBase struct {
 	// override information is propagated and aggregated correctly.
 	overridesProperty *[]string
 
-	overriddenBy string
+	properties overridableModuleProperties
 }
 
 func InitOverridableModule(m OverridableModule, overridesProperty *[]string) {
 	m.setOverridableProperties(m.(Module).GetProperties())
 	m.setOverridesProperty(overridesProperty)
+	m.AddProperties(&m.moduleBase().properties)
+}
+
+func (o *OverridableModuleBase) moduleBase() *OverridableModuleBase {
+	return o
 }
 
 func (b *OverridableModuleBase) setOverridableProperties(prop []interface{}) {
@@ -162,11 +174,15 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 			}
 		}
 	}
-	b.overriddenBy = o.Name()
+	b.properties.OverriddenBy = o.Name()
 }
 
-func (b *OverridableModuleBase) getOverriddenBy() string {
-	return b.overriddenBy
+// GetOverriddenBy returns the name of the override module that has overridden this module.
+// For example, if an override module foo has its 'base' property set to bar, then another local variant
+// of bar is created and its properties are overriden by foo. This method returns bar when called from
+// the new local variant. It returns "" when called from the original variant of bar.
+func (b *OverridableModuleBase) GetOverriddenBy() string {
+	return b.properties.OverriddenBy
 }
 
 func (b *OverridableModuleBase) OverridablePropertiesDepsMutator(ctx BottomUpMutatorContext) {
@@ -247,7 +263,7 @@ func overridableModuleDepsMutator(ctx BottomUpMutatorContext) {
 
 func replaceDepsOnOverridingModuleMutator(ctx BottomUpMutatorContext) {
 	if b, ok := ctx.Module().(OverridableModule); ok {
-		if o := b.getOverriddenBy(); o != "" {
+		if o := b.GetOverriddenBy(); o != "" {
 			// Redirect dependencies on the overriding module to this overridden module. Overriding
 			// modules are basically pseudo modules, and all build actions are associated to overridden
 			// modules. Therefore, dependencies on overriding modules need to be forwarded there as well.
