@@ -2459,7 +2459,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&PgoProperties{},
 		&XomProperties{},
 		&android.ProtoProperties{},
-		&android.ApexProperties{},
 	)
 
 	android.InitDefaultsModule(module)
