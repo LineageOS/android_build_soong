@@ -31,6 +31,8 @@ import (
 
 func init() {
 	pctx.Import("android/soong/android")
+	pctx.Import("android/soong/java/config")
+
 	android.RegisterModuleType("sdk", ModuleFactory)
 	android.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
 	android.PreDepsMutators(RegisterPreDepsMutators)

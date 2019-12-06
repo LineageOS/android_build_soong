@@ -27,7 +27,7 @@ import (
 	"android/soong/java"
 )
 
-func testSdkContext(t *testing.T, bp string) (*android.TestContext, android.Config) {
+func testSdkContext(bp string) (*android.TestContext, android.Config) {
 	config := android.TestArchConfig(buildDir, nil)
 	ctx := android.NewTestArchContext()
 
@@ -114,7 +114,7 @@ func testSdkContext(t *testing.T, bp string) (*android.TestContext, android.Conf
 }
 
 func testSdk(t *testing.T, bp string) (*android.TestContext, android.Config) {
-	ctx, config := testSdkContext(t, bp)
+	ctx, config := testSdkContext(bp)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -124,7 +124,7 @@ func testSdk(t *testing.T, bp string) (*android.TestContext, android.Config) {
 
 func testSdkError(t *testing.T, pattern, bp string) {
 	t.Helper()
-	ctx, config := testSdkContext(t, bp)
+	ctx, config := testSdkContext(bp)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	if len(errs) > 0 {
 		android.FailIfNoMatchingErrors(t, pattern, errs)
@@ -147,7 +147,7 @@ func ensureListContains(t *testing.T, result []string, expected string) {
 }
 
 func pathsToStrings(paths android.Paths) []string {
-	ret := []string{}
+	var ret []string
 	for _, p := range paths {
 		ret = append(ret, p.String())
 	}
@@ -554,14 +554,23 @@ sdk_snapshot {
 	var copySrcs []string
 	var copyDests []string
 	buildParams := sdk.BuildParamsForTests()
-	var zipBp android.BuildParams
+	var mergeZipInputs []string
+	var intermediateZip string
+	var outputZip string
 	for _, bp := range buildParams {
 		ruleString := bp.Rule.String()
-		if ruleString == "android/soong/android.Cp" {
+		if ruleString == android.Cp.String() {
 			copySrcs = append(copySrcs, bp.Input.String())
 			copyDests = append(copyDests, bp.Output.Rel()) // rooted at the snapshot root
-		} else if ruleString == "<local rule>:m.mysdk_android_common.snapshot" {
-			zipBp = bp
+		} else if ruleString == zipFiles.String() {
+			intermediateZip = bp.Output.String()
+		} else if ruleString == mergeZips.String() {
+			input := bp.Input.String()
+			if intermediateZip != input {
+				t.Errorf("Intermediate zip %s is not an input to merge_zips, %s is used instead", intermediateZip, input)
+			}
+			mergeZipInputs = bp.Inputs.Strings()
+			outputZip = bp.Output.String()
 		}
 	}
 
@@ -582,17 +591,14 @@ sdk_snapshot {
 	ensureListContains(t, copyDests, "java/myjavalib.jar")
 	ensureListContains(t, copyDests, "arm64/lib/mynativelib.so")
 
+	expectedOutputZip := filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.zip")
+	expectedRepackagedZip := filepath.Join(buildDir, ".intermediates/mysdk/android_common/tmp/java/myjavaapistubs_stubs_sources.zip")
+
 	// Ensure that the droidstubs .srcjar as repackaged into a temporary zip file
 	// and then merged together with the intermediate snapshot zip.
-	snapshotCreationInputs := zipBp.Implicits.Strings()
-	ensureListContains(t, snapshotCreationInputs,
-		filepath.Join(buildDir, ".intermediates/mysdk/android_common/tmp/java/myjavaapistubs_stubs_sources.zip"))
-	ensureListContains(t, snapshotCreationInputs,
-		filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.unmerged.zip"))
-	actual := zipBp.Output.String()
-	expected := filepath.Join(buildDir, ".intermediates/mysdk/android_common/mysdk-current.zip")
-	if actual != expected {
-		t.Errorf("Expected snapshot output to be %q but was %q", expected, actual)
+	ensureListContains(t, mergeZipInputs, expectedRepackagedZip)
+	if outputZip != expectedOutputZip {
+		t.Errorf("Expected snapshot output to be %q but was %q", expectedOutputZip, outputZip)
 	}
 }
 
@@ -749,14 +755,23 @@ sdk_snapshot {
 	var copySrcs []string
 	var copyDests []string
 	buildParams := sdk.BuildParamsForTests()
-	var zipBp android.BuildParams
+	var mergeZipInputs []string
+	var intermediateZip string
+	var outputZip string
 	for _, bp := range buildParams {
 		ruleString := bp.Rule.String()
-		if ruleString == "android/soong/android.Cp" {
+		if ruleString == android.Cp.String() {
 			copySrcs = append(copySrcs, bp.Input.String())
 			copyDests = append(copyDests, bp.Output.Rel()) // rooted at the snapshot root
-		} else if ruleString == "<local rule>:m.mysdk_linux_glibc_common.snapshot" {
-			zipBp = bp
+		} else if ruleString == zipFiles.String() {
+			intermediateZip = bp.Output.String()
+		} else if ruleString == mergeZips.String() {
+			input := bp.Input.String()
+			if intermediateZip != input {
+				t.Errorf("Intermediate zip %s is not an input to merge_zips, %s is used instead", intermediateZip, input)
+			}
+			mergeZipInputs = bp.Inputs.Strings()
+			outputZip = bp.Output.String()
 		}
 	}
 
@@ -777,17 +792,14 @@ sdk_snapshot {
 	ensureListContains(t, copyDests, "java/myjavalib.jar")
 	ensureListContains(t, copyDests, "x86_64/lib/mynativelib.so")
 
+	expectedOutputZip := filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/mysdk-current.zip")
+	expectedRepackagedZip := filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip")
+
 	// Ensure that the droidstubs .srcjar as repackaged into a temporary zip file
 	// and then merged together with the intermediate snapshot zip.
-	snapshotCreationInputs := zipBp.Implicits.Strings()
-	ensureListContains(t, snapshotCreationInputs,
-		filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip"))
-	ensureListContains(t, snapshotCreationInputs,
-		filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/mysdk-current.unmerged.zip"))
-	actual := zipBp.Output.String()
-	expected := filepath.Join(buildDir, ".intermediates/mysdk/linux_glibc_common/mysdk-current.zip")
-	if actual != expected {
-		t.Errorf("Expected snapshot output to be %q but was %q", expected, actual)
+	ensureListContains(t, mergeZipInputs, expectedRepackagedZip)
+	if outputZip != expectedOutputZip {
+		t.Errorf("Expected snapshot output to be %q but was %q", expectedOutputZip, outputZip)
 	}
 }
 
@@ -810,7 +822,7 @@ func setUp() {
 }
 
 func tearDown() {
-	os.RemoveAll(buildDir)
+	_ = os.RemoveAll(buildDir)
 }
 
 func TestMain(m *testing.M) {
