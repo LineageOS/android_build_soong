@@ -476,7 +476,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
 	a.outputFile = android.PathForModuleInstall(&factx, "apex", apexName)
 
-	if a.installable() {
+	if a.installable() && a.GetOverriddenBy() == "" {
 		installPath := android.PathForModuleInstall(ctx, "apex", apexName)
 		devicePath := android.InstallPathToOnDevicePath(ctx, installPath)
 		addFlattenedFileContextsInfos(ctx, apexName+":"+devicePath+":"+a.fileContexts.String())
