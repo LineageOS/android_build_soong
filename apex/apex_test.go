@@ -2977,6 +2977,15 @@ func TestOverrideApex(t *testing.T) {
 		}
 	`)
 
+	originalVariant := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(android.OverridableModule)
+	overriddenVariant := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image").Module().(android.OverridableModule)
+	if originalVariant.GetOverriddenBy() != "" {
+		t.Errorf("GetOverriddenBy should be empty, but was %q", originalVariant.GetOverriddenBy())
+	}
+	if overriddenVariant.GetOverriddenBy() != "override_myapex" {
+		t.Errorf("GetOverriddenBy should be \"override_myapex\", but was %q", overriddenVariant.GetOverriddenBy())
+	}
+
 	module := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image")
 	apexRule := module.Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
