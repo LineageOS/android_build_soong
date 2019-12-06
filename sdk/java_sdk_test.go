@@ -18,10 +18,20 @@ import (
 	"testing"
 )
 
+func testSdkWithJava(t *testing.T, bp string) *testSdkResult {
+	t.Helper()
+
+	fs := map[string][]byte{
+		"Test.java":              nil,
+		"aidl/foo/bar/Test.aidl": nil,
+	}
+	return testSdkWithFs(t, bp, fs)
+}
+
 // Contains tests for SDK members provided by the java package.
 
 func TestBasicSdkWithJavaLibrary(t *testing.T) {
-	result := testSdk(t, `
+	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
 			java_libs: ["myjavalib"],
@@ -94,7 +104,7 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 }
 
 func TestSnapshotWithJavaLibrary(t *testing.T) {
-	result := testSdk(t, `
+	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
 			java_libs: ["myjavalib"],
@@ -146,7 +156,7 @@ func TestHostSnapshotWithJavaLibrary(t *testing.T) {
 	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
 	SkipIfNotLinux(t)
 
-	result := testSdk(t, `
+	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
 			device_supported: false,
@@ -202,11 +212,21 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 	)
 }
 
+func testSdkWithDroidstubs(t *testing.T, bp string) *testSdkResult {
+	t.Helper()
+
+	fs := map[string][]byte{
+		"foo/bar/Foo.java":               nil,
+		"stubs-sources/foo/bar/Foo.java": nil,
+	}
+	return testSdkWithFs(t, bp, fs)
+}
+
 // Note: This test does not verify that a droidstubs can be referenced, either
 // directly or indirectly from an APEX as droidstubs can never be a part of an
 // apex.
 func TestBasicSdkWithDroidstubs(t *testing.T) {
-	testSdk(t, `
+	testSdkWithDroidstubs(t, `
 		sdk {
 				name: "mysdk",
 				stubs_sources: ["mystub"],
@@ -236,7 +256,7 @@ func TestBasicSdkWithDroidstubs(t *testing.T) {
 }
 
 func TestSnapshotWithDroidstubs(t *testing.T) {
-	result := testSdk(t, `
+	result := testSdkWithDroidstubs(t, `
 		sdk {
 			name: "mysdk",
 			stubs_sources: ["myjavaapistubs"],
@@ -281,7 +301,7 @@ func TestHostSnapshotWithDroidstubs(t *testing.T) {
 	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
 	SkipIfNotLinux(t)
 
-	result := testSdk(t, `
+	result := testSdkWithDroidstubs(t, `
 		sdk {
 			name: "mysdk",
 			device_supported: false,
