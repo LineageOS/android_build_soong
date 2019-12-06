@@ -175,6 +175,95 @@ func TestPlatformAPIs(t *testing.T) {
 	`)
 }
 
+func TestAndroidAppLinkType(t *testing.T) {
+	testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			libs: ["bar"],
+			static_libs: ["baz"],
+			platform_apis: true,
+		}
+
+		java_library {
+			name: "bar",
+			sdk_version: "current",
+			srcs: ["b.java"],
+		}
+
+		android_library {
+			name: "baz",
+			sdk_version: "system_current",
+			srcs: ["c.java"],
+		}
+	`)
+
+	testJavaError(t, "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source.", `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			libs: ["bar"],
+			sdk_version: "current",
+			static_libs: ["baz"],
+		}
+
+		java_library {
+			name: "bar",
+			sdk_version: "current",
+			srcs: ["b.java"],
+		}
+
+		android_library {
+			name: "baz",
+			sdk_version: "system_current",
+			srcs: ["c.java"],
+		}
+	`)
+
+	testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			libs: ["bar"],
+			sdk_version: "system_current",
+			static_libs: ["baz"],
+		}
+
+		java_library {
+			name: "bar",
+			sdk_version: "current",
+			srcs: ["b.java"],
+		}
+
+		android_library {
+			name: "baz",
+			sdk_version: "system_current",
+			srcs: ["c.java"],
+		}
+	`)
+
+	testJavaError(t, "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source.", `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			libs: ["bar"],
+			sdk_version: "system_current",
+			static_libs: ["baz"],
+		}
+
+		java_library {
+			name: "bar",
+			sdk_version: "current",
+			srcs: ["b.java"],
+		}
+
+		android_library {
+			name: "baz",
+			srcs: ["c.java"],
+		}
+	`)
+}
+
 func TestResourceDirs(t *testing.T) {
 	testCases := []struct {
 		name      string
