@@ -792,8 +792,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			return
 		}
 		switch module.(type) {
-		case *Library:
-		case *AndroidLibrary:
+		case *Library, *AndroidLibrary:
 			if to, ok := module.(linkTypeContext); ok {
 				switch tag {
 				case bootClasspathTag, libTag, staticLibTag:
