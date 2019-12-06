@@ -547,7 +547,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImage) {
 			BuiltTool(ctx, "oatdumpd").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
-			FlagWithArg("--image=", dexpreopt.PathToLocation(image.images[arch], arch)).Implicit(image.images[arch]).
+			FlagWithArg("--image=", strings.Join(image.imageLocations, ":")).Implicits(image.imagesDeps[arch].Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
 		rule.Build(pctx, ctx, "dump-oat-boot-"+arch.String(), "dump oat boot "+arch.String())
