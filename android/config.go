@@ -944,6 +944,10 @@ func (c *deviceConfig) NativeCoverageEnabled() bool {
 	return Bool(c.config.productVariables.NativeCoverage)
 }
 
+func (c *deviceConfig) ClangCoverageEnabled() bool {
+	return Bool(c.config.productVariables.ClangCoverage)
+}
+
 func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	coverage := false
 	if c.config.productVariables.CoveragePaths != nil {
