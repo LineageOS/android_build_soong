@@ -17,6 +17,7 @@ package android
 import (
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -31,9 +32,6 @@ type SdkAware interface {
 	MemberName() string
 	BuildWithSdks(sdks SdkRefs)
 	RequiredSdks() SdkRefs
-
-	// Build a snapshot of the module.
-	BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder)
 }
 
 // SdkRef refers to a version of an SDK
@@ -202,4 +200,57 @@ type BpPropertySet interface {
 // A .bp module definition.
 type BpModule interface {
 	BpPropertySet
+}
+
+// An individual member of the SDK, includes all of the variants that the SDK
+// requires.
+type SdkMember interface {
+	// The name of the member.
+	Name() string
+
+	// All the variants required by the SDK.
+	Variants() []SdkAware
+}
+
+// Interface that must be implemented for every type that can be a member of an
+// sdk.
+//
+// The basic implementation should look something like this, where ModuleType is
+// the name of the module type being supported.
+//
+//    var ModuleTypeSdkMemberType = newModuleTypeSdkMemberType()
+//
+//    func newModuleTypeSdkMemberType() android.SdkMemberType {
+//    	return &moduleTypeSdkMemberType{}
+//    }
+//
+//    type moduleTypeSdkMemberType struct {
+//    }
+//
+//    ...methods...
+//
+type SdkMemberType interface {
+	// Add dependencies from the SDK module to all the variants the member
+	// contributes to the SDK. The exact set of variants required is determined
+	// by the SDK and its properties. The dependencies must be added with the
+	// supplied tag.
+	//
+	// The BottomUpMutatorContext provided is for the SDK module.
+	AddDependencies(mctx BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string)
+
+	// Return true if the supplied module is an instance of this member type.
+	//
+	// This is used to check the type of each variant before added to the
+	// SdkMember. Returning false will cause an error to be logged expaining that
+	// the module is not allowed in whichever sdk property it was added.
+	IsInstance(module Module) bool
+
+	// Build the snapshot for the SDK member
+	//
+	// The ModuleContext provided is for the SDK module, so information for
+	// variants in the supplied member can be accessed using the Other... methods.
+	//
+	// The SdkMember is guaranteed to contain variants for which the
+	// IsInstance(Module) method returned true.
+	BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember)
 }
