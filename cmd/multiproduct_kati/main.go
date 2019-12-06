@@ -64,6 +64,9 @@ var buildVariant = flag.String("variant", "eng", "build variant to use")
 var skipProducts = flag.String("skip-products", "", "comma-separated list of products to skip (known failures, etc)")
 var includeProducts = flag.String("products", "", "comma-separated list of products to build")
 
+var shardCount = flag.Int("shard-count", 1, "split the products into multiple shards (to spread the build onto multiple machines, etc)")
+var shard = flag.Int("shard", 1, "1-indexed shard to execute")
+
 const errorLeadingLines = 20
 const errorTrailingLines = 20
 
@@ -278,6 +281,17 @@ func main() {
 		}
 	}
 
+	if *shard < 1 {
+		log.Fatalf("--shard value must be >= 1, not %d\n", *shard)
+	} else if *shardCount < 1 {
+		log.Fatalf("--shard-count value must be >= 1, not %d\n", *shardCount)
+	} else if *shard > *shardCount {
+		log.Fatalf("--shard (%d) must not be greater than --shard-count (%d)\n", *shard,
+			*shardCount)
+	} else if *shardCount > 1 {
+		finalProductsList = splitList(finalProductsList, *shardCount)[*shard-1]
+	}
+
 	log.Verbose("Got product list: ", finalProductsList)
 
 	s := buildCtx.Status.StartTool()
@@ -471,4 +485,19 @@ func (f *failureCount) Flush() {}
 func (f *failureCount) Write(p []byte) (int, error) {
 	// discard writes
 	return len(p), nil
+}
+
+func splitList(list []string, shardCount int) (ret [][]string) {
+	each := len(list) / shardCount
+	extra := len(list) % shardCount
+	for i := 0; i < shardCount; i++ {
+		count := each
+		if extra > 0 {
+			count += 1
+			extra -= 1
+		}
+		ret = append(ret, list[:count])
+		list = list[count:]
+	}
+	return
 }
