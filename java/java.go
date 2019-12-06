@@ -1721,7 +1721,31 @@ func (j *Library) javaStubFilePathFor() string {
 	return filepath.Join(javaStubDir, j.Name()+javaStubFileSuffix)
 }
 
-func (j *Library) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder) {
+var LibrarySdkMemberType = &librarySdkMemberType{}
+
+type librarySdkMemberType struct {
+}
+
+func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+}
+
+func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*Library)
+	return ok
+}
+
+func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+	variants := member.Variants()
+	if len(variants) != 1 {
+		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
+		for _, variant := range variants {
+			sdkModuleContext.ModuleErrorf("    %q", variant)
+		}
+	}
+	variant := variants[0]
+	j := variant.(*Library)
+
 	headerJars := j.HeaderJars()
 	if len(headerJars) != 1 {
 		panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
