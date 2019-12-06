@@ -16,7 +16,6 @@ package sdk
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -24,8 +23,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/cc"
-	"android/soong/java"
 )
 
 var pctx = android.NewPackageContext("android/soong/sdk")
@@ -105,105 +102,46 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 	rb.Build(pctx, ctx, gf.path.Base(), "Build "+gf.path.Base())
 }
 
-func (s *sdk) javaLibs(ctx android.ModuleContext) []android.SdkAware {
-	result := []android.SdkAware{}
+// Collect all the members.
+//
+// The members are first grouped by type and then grouped by name. The order of
+// the types is the order they are referenced in sdkMemberListProperties. The
+// names are in order in which the dependencies were added.
+func collectMembers(ctx android.ModuleContext) []*sdkMember {
+	byType := make(map[android.SdkMemberType][]*sdkMember)
+	byName := make(map[string]*sdkMember)
+
 	ctx.VisitDirectDeps(func(m android.Module) {
-		if j, ok := m.(*java.Library); ok {
-			result = append(result, j)
-		}
-	})
-	return result
-}
+		tag := ctx.OtherModuleDependencyTag(m)
+		if memberTag, ok := tag.(*sdkMemberDependencyTag); ok {
+			memberListProperty := memberTag.memberListProperty
+			memberType := memberListProperty.memberType
 
-func (s *sdk) stubsSources(ctx android.ModuleContext) []android.SdkAware {
-	result := []android.SdkAware{}
-	ctx.VisitDirectDeps(func(m android.Module) {
-		if j, ok := m.(*java.Droidstubs); ok {
-			result = append(result, j)
-		}
-	})
-	return result
-}
-
-// archSpecificNativeLibInfo represents an arch-specific variant of a native lib
-type archSpecificNativeLibInfo struct {
-	name                      string
-	archType                  string
-	exportedIncludeDirs       android.Paths
-	exportedSystemIncludeDirs android.Paths
-	exportedFlags             []string
-	exportedDeps              android.Paths
-	outputFile                android.Path
-}
-
-func (lib *archSpecificNativeLibInfo) signature() string {
-	return fmt.Sprintf("%v %v %v %v",
-		lib.name,
-		lib.exportedIncludeDirs.Strings(),
-		lib.exportedSystemIncludeDirs.Strings(),
-		lib.exportedFlags)
-}
-
-// nativeLibInfo represents a collection of arch-specific modules having the same name
-type nativeLibInfo struct {
-	name         string
-	archVariants []archSpecificNativeLibInfo
-	// hasArchSpecificFlags is set to true if modules for each architecture all have the same
-	// include dirs, flags, etc, in which case only those of the first arch is selected.
-	hasArchSpecificFlags bool
-}
-
-// nativeMemberInfos collects all cc.Modules that are member of an SDK.
-func (s *sdk) nativeMemberInfos(ctx android.ModuleContext) []*nativeLibInfo {
-	infoMap := make(map[string]*nativeLibInfo)
-
-	// Collect cc.Modules
-	ctx.VisitDirectDeps(func(m android.Module) {
-		ccModule, ok := m.(*cc.Module)
-		if !ok {
-			return
-		}
-		depName := ctx.OtherModuleName(m)
-
-		if _, ok := infoMap[depName]; !ok {
-			infoMap[depName] = &nativeLibInfo{name: depName}
-		}
-
-		info := infoMap[depName]
-		info.archVariants = append(info.archVariants, archSpecificNativeLibInfo{
-			name:                      ccModule.BaseModuleName(),
-			archType:                  ccModule.Target().Arch.ArchType.String(),
-			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
-			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
-			exportedFlags:             ccModule.ExportedFlags(),
-			exportedDeps:              ccModule.ExportedDeps(),
-			outputFile:                ccModule.OutputFile().Path(),
-		})
-	})
-
-	// Determine if include dirs and flags for each module are different across arch-specific
-	// modules or not. And set hasArchSpecificFlags accordingly
-	for _, info := range infoMap {
-		// by default, include paths and flags are assumed to be the same across arches
-		info.hasArchSpecificFlags = false
-		oldSignature := ""
-		for _, av := range info.archVariants {
-			newSignature := av.signature()
-			if oldSignature == "" {
-				oldSignature = newSignature
+			// Make sure that the resolved module is allowed in the member list property.
+			if !memberType.IsInstance(m) {
+				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(m), memberListProperty.name)
 			}
-			if oldSignature != newSignature {
-				info.hasArchSpecificFlags = true
-				break
+
+			name := ctx.OtherModuleName(m)
+
+			member := byName[name]
+			if member == nil {
+				member = &sdkMember{memberType: memberType, name: name}
+				byName[name] = member
+				byType[memberType] = append(byType[memberType], member)
 			}
+
+			member.variants = append(member.variants, m.(android.SdkAware))
 		}
+	})
+
+	var members []*sdkMember
+	for _, memberListProperty := range sdkMemberListProperties {
+		membersOfType := byType[memberListProperty.memberType]
+		members = append(members, membersOfType...)
 	}
 
-	var list []*nativeLibInfo
-	for _, v := range infoMap {
-		list = append(list, v)
-	}
-	return list
+	return members
 }
 
 // SDK directory structure
@@ -223,44 +161,6 @@ func (s *sdk) nativeMemberInfos(ctx android.ModuleContext) []*nativeLibInfo {
 //         <arch>/include_gen/   : arch-specific generated headers
 //         <arch>/lib/
 //            libFoo.so   : a stub library
-
-const (
-	nativeIncludeDir          = "include"
-	nativeGeneratedIncludeDir = "include_gen"
-	nativeStubDir             = "lib"
-	nativeStubFileSuffix      = ".so"
-)
-
-// path to the stub file of a native shared library. Relative to <sdk_root>/<api_dir>
-func nativeStubFilePathFor(lib archSpecificNativeLibInfo) string {
-	return filepath.Join(lib.archType,
-		nativeStubDir, lib.name+nativeStubFileSuffix)
-}
-
-// paths to the include dirs of a native shared library. Relative to <sdk_root>/<api_dir>
-func nativeIncludeDirPathsFor(ctx android.ModuleContext, lib archSpecificNativeLibInfo,
-	systemInclude bool, archSpecific bool) []string {
-	var result []string
-	var includeDirs []android.Path
-	if !systemInclude {
-		includeDirs = lib.exportedIncludeDirs
-	} else {
-		includeDirs = lib.exportedSystemIncludeDirs
-	}
-	for _, dir := range includeDirs {
-		var path string
-		if _, gen := dir.(android.WritablePath); gen {
-			path = filepath.Join(nativeGeneratedIncludeDir, lib.name)
-		} else {
-			path = filepath.Join(nativeIncludeDir, dir.String())
-		}
-		if archSpecific {
-			path = filepath.Join(lib.archType, path)
-		}
-		result = append(result, path)
-	}
-	return result
-}
 
 // A name that uniquely identifies a prebuilt SDK member for a version of SDK snapshot
 // This isn't visible to users, so could be changed in future.
@@ -290,22 +190,8 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 	s.builderForTests = builder
 
-	// copy exported AIDL files and stub jar files
-	javaLibs := s.javaLibs(ctx)
-	for _, m := range javaLibs {
-		m.BuildSnapshot(ctx, builder)
-	}
-
-	// copy stubs sources
-	stubsSources := s.stubsSources(ctx)
-	for _, m := range stubsSources {
-		m.BuildSnapshot(ctx, builder)
-	}
-
-	// copy exported header files and stub *.so files
-	nativeLibInfos := s.nativeMemberInfos(ctx)
-	for _, info := range nativeLibInfos {
-		buildSharedNativeLibSnapshot(ctx, info, builder)
+	for _, member := range collectMembers(ctx) {
+		member.memberType.BuildSnapshot(ctx, builder, member)
 	}
 
 	for _, unversioned := range builder.prebuiltOrder {
@@ -326,14 +212,11 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	snapshotModule := bpFile.newModule("sdk_snapshot")
 	snapshotModule.AddProperty("name", snapshotName)
 	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
-	if len(s.properties.Java_libs) > 0 {
-		snapshotModule.AddProperty("java_libs", builder.versionedSdkMemberNames(s.properties.Java_libs))
-	}
-	if len(s.properties.Stubs_sources) > 0 {
-		snapshotModule.AddProperty("stubs_sources", builder.versionedSdkMemberNames(s.properties.Stubs_sources))
-	}
-	if len(s.properties.Native_shared_libs) > 0 {
-		snapshotModule.AddProperty("native_shared_libs", builder.versionedSdkMemberNames(s.properties.Native_shared_libs))
+	for _, memberListProperty := range sdkMemberListProperties {
+		names := memberListProperty.getter(&s.properties)
+		if len(names) > 0 {
+			snapshotModule.AddProperty(memberListProperty.name, builder.versionedSdkMemberNames(names))
+		}
 	}
 	bpFile.AddModule(snapshotModule)
 
@@ -393,7 +276,6 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 		outputPropertySet(contents, &bpModule.bpPropertySet)
 		contents.Printfln("}")
 	}
-	contents.Printfln("")
 }
 
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
@@ -440,98 +322,6 @@ func (s *sdk) GetAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateBpContents(contents, s.builderForTests.bpFile)
 	return contents.content.String()
-}
-
-func buildSharedNativeLibSnapshot(ctx android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
-	// a function for emitting include dirs
-	printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
-		includeDirs := lib.exportedIncludeDirs
-		includeDirs = append(includeDirs, lib.exportedSystemIncludeDirs...)
-		if len(includeDirs) == 0 {
-			return
-		}
-		for _, dir := range includeDirs {
-			if _, gen := dir.(android.WritablePath); gen {
-				// generated headers are copied via exportedDeps. See below.
-				continue
-			}
-			targetDir := nativeIncludeDir
-			if info.hasArchSpecificFlags {
-				targetDir = filepath.Join(lib.archType, targetDir)
-			}
-
-			// TODO(jiyong) copy headers having other suffixes
-			headers, _ := ctx.GlobWithDeps(dir.String()+"/**/*.h", nil)
-			for _, file := range headers {
-				src := android.PathForSource(ctx, file)
-				dest := filepath.Join(targetDir, file)
-				builder.CopyToSnapshot(src, dest)
-			}
-		}
-
-		genHeaders := lib.exportedDeps
-		for _, file := range genHeaders {
-			targetDir := nativeGeneratedIncludeDir
-			if info.hasArchSpecificFlags {
-				targetDir = filepath.Join(lib.archType, targetDir)
-			}
-			dest := filepath.Join(targetDir, lib.name, file.Rel())
-			builder.CopyToSnapshot(file, dest)
-		}
-	}
-
-	if !info.hasArchSpecificFlags {
-		printExportedDirCopyCommandsForNativeLibs(info.archVariants[0])
-	}
-
-	// for each architecture
-	for _, av := range info.archVariants {
-		builder.CopyToSnapshot(av.outputFile, nativeStubFilePathFor(av))
-
-		if info.hasArchSpecificFlags {
-			printExportedDirCopyCommandsForNativeLibs(av)
-		}
-	}
-
-	info.generatePrebuiltLibrary(ctx, builder)
-}
-
-func (info *nativeLibInfo) generatePrebuiltLibrary(ctx android.ModuleContext, builder android.SnapshotBuilder) {
-
-	// a function for emitting include dirs
-	addExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, properties android.BpPropertySet, systemInclude bool) {
-		includeDirs := nativeIncludeDirPathsFor(ctx, lib, systemInclude, info.hasArchSpecificFlags)
-		if len(includeDirs) == 0 {
-			return
-		}
-		var propertyName string
-		if !systemInclude {
-			propertyName = "export_include_dirs"
-		} else {
-			propertyName = "export_system_include_dirs"
-		}
-		properties.AddProperty(propertyName, includeDirs)
-	}
-
-	pbm := builder.AddPrebuiltModule(info.name, "cc_prebuilt_library_shared")
-
-	if !info.hasArchSpecificFlags {
-		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
-		addExportedDirsForNativeLibs(info.archVariants[0], pbm, true /*systemInclude*/)
-	}
-
-	archProperties := pbm.AddPropertySet("arch")
-	for _, av := range info.archVariants {
-		archTypeProperties := archProperties.AddPropertySet(av.archType)
-		archTypeProperties.AddProperty("srcs", []string{nativeStubFilePathFor(av)})
-		if info.hasArchSpecificFlags {
-			// export_* properties are added inside the arch: {<arch>: {...}} block
-			addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
-			addExportedDirsForNativeLibs(av, archTypeProperties, true /*systemInclude*/)
-		}
-	}
-	pbm.AddProperty("stl", "none")
-	pbm.AddProperty("system_shared_libs", []string{})
 }
 
 type snapshotBuilder struct {
@@ -612,4 +402,20 @@ func (s *snapshotBuilder) versionedSdkMemberNames(members []string) []string {
 		references = append(references, s.versionedSdkMemberName(m))
 	}
 	return references
+}
+
+var _ android.SdkMember = (*sdkMember)(nil)
+
+type sdkMember struct {
+	memberType android.SdkMemberType
+	name       string
+	variants   []android.SdkAware
+}
+
+func (m *sdkMember) Name() string {
+	return m.name
+}
+
+func (m *sdkMember) Variants() []android.SdkAware {
+	return m.variants
 }
