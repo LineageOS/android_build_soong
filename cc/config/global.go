@@ -48,6 +48,8 @@ var (
 		"-fno-strict-aliasing",
 
 		"-Werror=date-time",
+		"-Werror=pragma-pack",
+		"-Werror=pragma-pack-suspicious-include",
 	}
 
 	commonGlobalConlyflags = []string{}
