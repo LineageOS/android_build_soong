@@ -36,8 +36,12 @@ PYTHONHOME= PYTHONPATH= $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test/par_test
 
+ARGTEST=true $ANDROID_HOST_OUT/nativetest64/par_test/par_test --arg1 arg2
+
 PYTHONHOME= PYTHONPATH= $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
 PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
 PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
+
+ARGTEST=true $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 --arg1 arg2
 
 echo "Passed!"
