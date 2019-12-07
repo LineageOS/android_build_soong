@@ -1177,7 +1177,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 	ctx.ModuleForTests("foo"+sdkDocsSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkSystemApiSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkDocsSuffix+sdkTestApiSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_arm64_armv8-a")
+	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_arm64_armv8-a_core")
 	ctx.ModuleForTests("foo.api.public.28", "")
 	ctx.ModuleForTests("foo.api.system.28", "")
 	ctx.ModuleForTests("foo.api.test.28", "")
