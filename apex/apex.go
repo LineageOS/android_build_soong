@@ -339,6 +339,10 @@ type apexBundleProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
+	// Should be only used in tests#.
+	Test_only_no_hashtree *bool
 }
 
 type apexTargetBundleProperties struct {
@@ -729,6 +733,10 @@ func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 
 func (a *apexBundle) installable() bool {
 	return !a.properties.PreventInstall && (a.properties.Installable == nil || proptools.Bool(a.properties.Installable))
+}
+
+func (a *apexBundle) testOnlyShouldSkipHashtreeGeneration() bool {
+	return proptools.Bool(a.properties.Test_only_no_hashtree)
 }
 
 func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
