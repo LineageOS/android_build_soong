@@ -74,13 +74,13 @@ func TestArchGenruleCmd(t *testing.T) {
 		t.Fatal(errs)
 	}
 
-	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon").Output("out_arm")
+	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon_core").Output("out_arm")
 	expected := []string{"foo"}
 	if !reflect.DeepEqual(expected, gen.Inputs.Strings()) {
 		t.Errorf(`want arm inputs %v, got %v`, expected, gen.Inputs.Strings())
 	}
 
-	gen = ctx.ModuleForTests("gen", "android_arm64_armv8-a").Output("out_arm64")
+	gen = ctx.ModuleForTests("gen", "android_arm64_armv8-a_core").Output("out_arm64")
 	expected = []string{"bar"}
 	if !reflect.DeepEqual(expected, gen.Inputs.Strings()) {
 		t.Errorf(`want arm64 inputs %v, got %v`, expected, gen.Inputs.Strings())
