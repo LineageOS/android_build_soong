@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
@@ -1402,4 +1403,231 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	}
 
 	return outputFile
+}
+
+var LibrarySdkMemberType = &librarySdkMemberType{}
+
+type librarySdkMemberType struct {
+}
+
+func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+	targets := mctx.MultiTargets()
+	for _, lib := range names {
+		for _, target := range targets {
+			name, version := StubsLibNameAndVersion(lib)
+			if version == "" {
+				version = LatestStubsVersionFor(mctx.Config(), name)
+			}
+			mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
+				{Mutator: "image", Variation: android.CoreVariation},
+				{Mutator: "link", Variation: "shared"},
+				{Mutator: "version", Variation: version},
+			}...), dependencyTag, name)
+		}
+	}
+}
+
+func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*Module)
+	return ok
+}
+
+// copy exported header files and stub *.so files
+func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+	info := organizeVariants(member)
+	buildSharedNativeLibSnapshot(sdkModuleContext, info, builder)
+}
+
+func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
+	// a function for emitting include dirs
+	printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
+		includeDirs := lib.exportedIncludeDirs
+		includeDirs = append(includeDirs, lib.exportedSystemIncludeDirs...)
+		if len(includeDirs) == 0 {
+			return
+		}
+		for _, dir := range includeDirs {
+			if _, gen := dir.(android.WritablePath); gen {
+				// generated headers are copied via exportedDeps. See below.
+				continue
+			}
+			targetDir := nativeIncludeDir
+			if info.hasArchSpecificFlags {
+				targetDir = filepath.Join(lib.archType, targetDir)
+			}
+
+			// TODO(jiyong) copy headers having other suffixes
+			headers, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.h", nil)
+			for _, file := range headers {
+				src := android.PathForSource(sdkModuleContext, file)
+				dest := filepath.Join(targetDir, file)
+				builder.CopyToSnapshot(src, dest)
+			}
+		}
+
+		genHeaders := lib.exportedDeps
+		for _, file := range genHeaders {
+			targetDir := nativeGeneratedIncludeDir
+			if info.hasArchSpecificFlags {
+				targetDir = filepath.Join(lib.archType, targetDir)
+			}
+			dest := filepath.Join(targetDir, lib.name, file.Rel())
+			builder.CopyToSnapshot(file, dest)
+		}
+	}
+
+	if !info.hasArchSpecificFlags {
+		printExportedDirCopyCommandsForNativeLibs(info.archVariants[0])
+	}
+
+	// for each architecture
+	for _, av := range info.archVariants {
+		builder.CopyToSnapshot(av.outputFile, nativeStubFilePathFor(av))
+
+		if info.hasArchSpecificFlags {
+			printExportedDirCopyCommandsForNativeLibs(av)
+		}
+	}
+
+	info.generatePrebuiltLibrary(sdkModuleContext, builder)
+}
+
+func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder) {
+
+	// a function for emitting include dirs
+	addExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, properties android.BpPropertySet, systemInclude bool) {
+		includeDirs := nativeIncludeDirPathsFor(lib, systemInclude, info.hasArchSpecificFlags)
+		if len(includeDirs) == 0 {
+			return
+		}
+		var propertyName string
+		if !systemInclude {
+			propertyName = "export_include_dirs"
+		} else {
+			propertyName = "export_system_include_dirs"
+		}
+		properties.AddProperty(propertyName, includeDirs)
+	}
+
+	pbm := builder.AddPrebuiltModule(info.name, "cc_prebuilt_library_shared")
+
+	if !info.hasArchSpecificFlags {
+		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
+		addExportedDirsForNativeLibs(info.archVariants[0], pbm, true /*systemInclude*/)
+	}
+
+	archProperties := pbm.AddPropertySet("arch")
+	for _, av := range info.archVariants {
+		archTypeProperties := archProperties.AddPropertySet(av.archType)
+		archTypeProperties.AddProperty("srcs", []string{nativeStubFilePathFor(av)})
+		if info.hasArchSpecificFlags {
+			// export_* properties are added inside the arch: {<arch>: {...}} block
+			addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
+			addExportedDirsForNativeLibs(av, archTypeProperties, true /*systemInclude*/)
+		}
+	}
+	pbm.AddProperty("stl", "none")
+	pbm.AddProperty("system_shared_libs", []string{})
+}
+
+const (
+	nativeIncludeDir          = "include"
+	nativeGeneratedIncludeDir = "include_gen"
+	nativeStubDir             = "lib"
+	nativeStubFileSuffix      = ".so"
+)
+
+// path to the stub file of a native shared library. Relative to <sdk_root>/<api_dir>
+func nativeStubFilePathFor(lib archSpecificNativeLibInfo) string {
+	return filepath.Join(lib.archType,
+		nativeStubDir, lib.name+nativeStubFileSuffix)
+}
+
+// paths to the include dirs of a native shared library. Relative to <sdk_root>/<api_dir>
+func nativeIncludeDirPathsFor(lib archSpecificNativeLibInfo, systemInclude bool, archSpecific bool) []string {
+	var result []string
+	var includeDirs []android.Path
+	if !systemInclude {
+		includeDirs = lib.exportedIncludeDirs
+	} else {
+		includeDirs = lib.exportedSystemIncludeDirs
+	}
+	for _, dir := range includeDirs {
+		var path string
+		if _, gen := dir.(android.WritablePath); gen {
+			path = filepath.Join(nativeGeneratedIncludeDir, lib.name)
+		} else {
+			path = filepath.Join(nativeIncludeDir, dir.String())
+		}
+		if archSpecific {
+			path = filepath.Join(lib.archType, path)
+		}
+		result = append(result, path)
+	}
+	return result
+}
+
+// archSpecificNativeLibInfo represents an arch-specific variant of a native lib
+type archSpecificNativeLibInfo struct {
+	name                      string
+	archType                  string
+	exportedIncludeDirs       android.Paths
+	exportedSystemIncludeDirs android.Paths
+	exportedFlags             []string
+	exportedDeps              android.Paths
+	outputFile                android.Path
+}
+
+func (lib *archSpecificNativeLibInfo) signature() string {
+	return fmt.Sprintf("%v %v %v %v",
+		lib.name,
+		lib.exportedIncludeDirs.Strings(),
+		lib.exportedSystemIncludeDirs.Strings(),
+		lib.exportedFlags)
+}
+
+// nativeLibInfo represents a collection of arch-specific modules having the same name
+type nativeLibInfo struct {
+	name         string
+	archVariants []archSpecificNativeLibInfo
+	// hasArchSpecificFlags is set to true if modules for each architecture all have the same
+	// include dirs, flags, etc, in which case only those of the first arch is selected.
+	hasArchSpecificFlags bool
+}
+
+// Organize the variants by architecture.
+func organizeVariants(member android.SdkMember) *nativeLibInfo {
+	info := &nativeLibInfo{name: member.Name()}
+
+	for _, variant := range member.Variants() {
+		ccModule := variant.(*Module)
+
+		info.archVariants = append(info.archVariants, archSpecificNativeLibInfo{
+			name:                      ccModule.BaseModuleName(),
+			archType:                  ccModule.Target().Arch.ArchType.String(),
+			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
+			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
+			exportedFlags:             ccModule.ExportedFlags(),
+			exportedDeps:              ccModule.ExportedDeps(),
+			outputFile:                ccModule.OutputFile().Path(),
+		})
+	}
+
+	// Determine if include dirs and flags for each variant are different across arch-specific
+	// variants or not. And set hasArchSpecificFlags accordingly
+	// by default, include paths and flags are assumed to be the same across arches
+	info.hasArchSpecificFlags = false
+	oldSignature := ""
+	for _, av := range info.archVariants {
+		newSignature := av.signature()
+		if oldSignature == "" {
+			oldSignature = newSignature
+		}
+		if oldSignature != newSignature {
+			info.hasArchSpecificFlags = true
+			break
+		}
+	}
+
+	return info
 }

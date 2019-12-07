@@ -140,7 +140,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
 	})
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", android.ImageMutator).Parallel()
 		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
 		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
@@ -2976,6 +2975,15 @@ func TestOverrideApex(t *testing.T) {
 			package_name: "bar",
 		}
 	`)
+
+	originalVariant := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(android.OverridableModule)
+	overriddenVariant := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image").Module().(android.OverridableModule)
+	if originalVariant.GetOverriddenBy() != "" {
+		t.Errorf("GetOverriddenBy should be empty, but was %q", originalVariant.GetOverriddenBy())
+	}
+	if overriddenVariant.GetOverriddenBy() != "override_myapex" {
+		t.Errorf("GetOverriddenBy should be \"override_myapex\", but was %q", overriddenVariant.GetOverriddenBy())
+	}
 
 	module := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image")
 	apexRule := module.Rule("apexRule")

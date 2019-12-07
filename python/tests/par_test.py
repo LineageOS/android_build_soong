@@ -44,6 +44,13 @@ assert_equal("sys.path[0]", sys.path[0], archive)
 assert_equal("sys.path[1]", sys.path[1], os.path.join(archive, "internal"))
 assert_equal("sys.path[2]", sys.path[2], os.path.join(archive, "internal", "stdlib"))
 
+if os.getenv('ARGTEST', False):
+    assert_equal("len(sys.argv)", len(sys.argv), 3)
+    assert_equal("sys.argv[1]", sys.argv[1], "--arg1")
+    assert_equal("sys.argv[2]", sys.argv[2], "arg2")
+else:
+    assert_equal("len(sys.argv)", len(sys.argv), 1)
+
 if failed:
     sys.exit(1)
 

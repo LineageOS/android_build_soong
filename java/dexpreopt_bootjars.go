@@ -217,7 +217,7 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	// Always create the default boot image first, to get a unique profile rule for all images.
 	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
 	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
-	buildBootImage(ctx, artBootImageConfig(ctx))
+	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
 	if global.GenerateApexImage {
 		// Create boot images for the JIT-zygote experiment.
 		d.otherImages = append(d.otherImages, buildBootImage(ctx, apexBootImageConfig(ctx)))
@@ -547,7 +547,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImage) {
 			BuiltTool(ctx, "oatdumpd").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
-			FlagWithArg("--image=", dexpreopt.PathToLocation(image.images[arch], arch)).Implicit(image.images[arch]).
+			FlagWithArg("--image=", strings.Join(image.imageLocations, ":")).Implicits(image.imagesDeps[arch].Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
 		rule.Build(pctx, ctx, "dump-oat-boot-"+arch.String(), "dump oat boot "+arch.String())
@@ -598,7 +598,6 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_FILES", strings.Join(image.dexPathsDeps.Strings(), " "))
 		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(image.dexLocationsDeps, " "))
 		ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS", strings.Join(image.imageLocations, ":"))
-		ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+image.name, image.zip.String())
 
 		var imageNames []string
 		for _, current := range append(d.otherImages, image) {
@@ -619,6 +618,8 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 				if current.zip != nil {
 				}
 			}
+
+			ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+current.name, current.zip.String())
 		}
 		ctx.Strict("DEXPREOPT_IMAGE_NAMES", strings.Join(imageNames, " "))
 	}

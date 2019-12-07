@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -1973,7 +1974,27 @@ func PrebuiltStubsSourcesFactory() android.Module {
 	return module
 }
 
-func (d *Droidstubs) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder) {
+var DroidStubsSdkMemberType = &droidStubsSdkMemberType{}
+
+type droidStubsSdkMemberType struct {
+}
+
+func (mt *droidStubsSdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+}
+
+func (mt *droidStubsSdkMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*Droidstubs)
+	return ok
+}
+
+func (mt *droidStubsSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+	variants := member.Variants()
+	if len(variants) != 1 {
+		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
+	}
+	variant := variants[0]
+	d, _ := variant.(*Droidstubs)
 	stubsSrcJar := d.stubsSrcJar
 
 	snapshotRelativeDir := filepath.Join("java", d.Name()+"_stubs_sources")

@@ -375,8 +375,8 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	if isProduct {
 		// product can't own any sysprop_library now, so product must use public scope
 		scope = "public"
-	} else if isVendor && !isOwnerPlatform {
-		// vendor and odm can't use system's internal property.
+	} else if isVendor && isOwnerPlatform {
+		// vendor and odm can only use the public properties from the platform
 		scope = "public"
 	}
 
