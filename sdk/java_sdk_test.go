@@ -34,17 +34,17 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
-			java_libs: ["myjavalib"],
+			java_header_libs: ["myjavalib"],
 		}
 
 		sdk_snapshot {
 			name: "mysdk@1",
-			java_libs: ["sdkmember_mysdk_1"],
+			java_header_libs: ["sdkmember_mysdk_1"],
 		}
 
 		sdk_snapshot {
 			name: "mysdk@2",
-			java_libs: ["sdkmember_mysdk_2"],
+			java_header_libs: ["sdkmember_mysdk_2"],
 		}
 
 		java_import {
@@ -103,7 +103,116 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 	ensureListContains(t, pathsToStrings(javalibForMyApex2.Rule("javac").Implicits), sdkMemberV2.String())
 }
 
-func TestSnapshotWithJavaLibrary(t *testing.T) {
+func TestSnapshotWithJavaHeaderLibrary(t *testing.T) {
+	result := testSdkWithJava(t, `
+		sdk {
+			name: "mysdk",
+			java_header_libs: ["myjavalib"],
+		}
+
+		java_library {
+			name: "myjavalib",
+			srcs: ["Test.java"],
+			aidl: {
+				export_include_dirs: ["aidl"],
+			},
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+			host_supported: true,
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "android_common",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    jars: ["java/myjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    java_header_libs: ["mysdk_myjavalib@current"],
+}
+
+`),
+		checkAllCopyRules(`
+.intermediates/myjavalib/android_common/turbine-combined/myjavalib.jar -> java/myjavalib.jar
+aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
+`),
+	)
+}
+
+func TestHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithJava(t, `
+		sdk {
+			name: "mysdk",
+			device_supported: false,
+			host_supported: true,
+			java_header_libs: ["myjavalib"],
+		}
+
+		java_library {
+			name: "myjavalib",
+			device_supported: false,
+			host_supported: true,
+			srcs: ["Test.java"],
+			aidl: {
+				export_include_dirs: ["aidl"],
+			},
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "linux_glibc_common",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    device_supported: false,
+    host_supported: true,
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    jars: ["java/myjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    device_supported: false,
+    host_supported: true,
+    java_header_libs: ["mysdk_myjavalib@current"],
+}
+`),
+		checkAllCopyRules(`
+.intermediates/myjavalib/linux_glibc_common/javac/myjavalib.jar -> java/myjavalib.jar
+aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
+`),
+	)
+}
+
+func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -146,13 +255,13 @@ sdk_snapshot {
 
 `),
 		checkAllCopyRules(`
-.intermediates/myjavalib/android_common/turbine-combined/myjavalib.jar -> java/myjavalib.jar
+.intermediates/myjavalib/android_common/javac/myjavalib.jar -> java/myjavalib.jar
 aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 `),
 	)
 }
 
-func TestHostSnapshotWithJavaLibrary(t *testing.T) {
+func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
 	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
 	SkipIfNotLinux(t)
 
