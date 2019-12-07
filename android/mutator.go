@@ -89,6 +89,7 @@ func registerArchMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("os", osMutator).Parallel()
 	ctx.BottomUp("arch", archMutator).Parallel()
 	ctx.TopDown("arch_hooks", archHookMutator).Parallel()
+	ctx.BottomUp("image", imageMutator).Parallel()
 }
 
 var preDeps = []RegisterMutatorFunc{
