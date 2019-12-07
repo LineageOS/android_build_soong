@@ -37,7 +37,6 @@ func init() {
 
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
-		ctx.BottomUp("image", android.ImageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
@@ -218,7 +217,7 @@ type BaseProperties struct {
 	// Make this module available when building for recovery
 	Recovery_available *bool
 
-	// Set by ImageMutator
+	// Set by imageMutator
 	CoreVariantNeeded     bool     `blueprint:"mutated"`
 	RecoveryVariantNeeded bool     `blueprint:"mutated"`
 	VendorVariants        []string `blueprint:"mutated"`

@@ -14,7 +14,7 @@
 
 package android
 
-// ImageInterface is implemented by modules that need to be split by the ImageMutator.
+// ImageInterface is implemented by modules that need to be split by the imageMutator.
 type ImageInterface interface {
 	// ImageMutatorBegin is called before any other method in the ImageInterface.
 	ImageMutatorBegin(ctx BaseModuleContext)
@@ -48,9 +48,9 @@ const (
 	RecoveryVariation string = "recovery"
 )
 
-// ImageMutator creates variants for modules that implement the ImageInterface that
+// imageMutator creates variants for modules that implement the ImageInterface that
 // allow them to build differently for each partition (recovery, core, vendor, etc.).
-func ImageMutator(ctx BottomUpMutatorContext) {
+func imageMutator(ctx BottomUpMutatorContext) {
 	if ctx.Os() != Android {
 		return
 	}

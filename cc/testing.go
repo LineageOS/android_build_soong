@@ -271,7 +271,6 @@ func CreateTestContext(bp string, fs map[string][]byte,
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", VndkLibrariesTxtFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("image", android.ImageMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("version", VersionMutator).Parallel()
