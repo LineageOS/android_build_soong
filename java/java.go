@@ -34,7 +34,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("java_defaults", defaultsFactory)
+	android.RegisterModuleType("java_defaults", DefaultsFactory)
 
 	android.RegisterModuleType("java_library", LibraryFactory)
 	android.RegisterModuleType("java_library_static", LibraryStaticFactory)
@@ -1710,17 +1710,15 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 const (
-	aidlIncludeDir     = "aidl"
-	javaStubDir        = "java"
-	javaStubFileSuffix = ".jar"
+	aidlIncludeDir = "aidl"
+	javaDir        = "java"
+	jarFileSuffix  = ".jar"
 )
 
-// path to the stub file of a java library. Relative to <sdk_root>/<api_dir>
-func (j *Library) javaStubFilePathFor() string {
-	return filepath.Join(javaStubDir, j.Name()+javaStubFileSuffix)
+// path to the jar file of a java library. Relative to <sdk_root>/<api_dir>
+func (j *Library) sdkSnapshotFilePathForJar() string {
+	return filepath.Join(javaDir, j.Name()+jarFileSuffix)
 }
-
-var LibrarySdkMemberType = &librarySdkMemberType{}
 
 type librarySdkMemberType struct {
 }
@@ -1734,7 +1732,12 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+func (mt *librarySdkMemberType) buildSnapshot(
+	sdkModuleContext android.ModuleContext,
+	builder android.SnapshotBuilder,
+	member android.SdkMember,
+	jarToExportGetter func(j *Library) android.Path) {
+
 	variants := member.Variants()
 	if len(variants) != 1 {
 		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
@@ -1745,12 +1748,9 @@ func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleCon
 	variant := variants[0]
 	j := variant.(*Library)
 
-	headerJars := j.HeaderJars()
-	if len(headerJars) != 1 {
-		panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
-	}
-	snapshotRelativeJavaLibPath := j.javaStubFilePathFor()
-	builder.CopyToSnapshot(headerJars[0], snapshotRelativeJavaLibPath)
+	exportedJar := jarToExportGetter(j)
+	snapshotRelativeJavaLibPath := j.sdkSnapshotFilePathForJar()
+	builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 	for _, dir := range j.AidlIncludeDirs() {
 		// TODO(jiyong): copy parcelable declarations only
@@ -1762,6 +1762,40 @@ func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleCon
 
 	module := builder.AddPrebuiltModule(sdkModuleContext.OtherModuleName(j), "java_import")
 	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+}
+
+var HeaderLibrarySdkMemberType = &headerLibrarySdkMemberType{}
+
+type headerLibrarySdkMemberType struct {
+	librarySdkMemberType
+}
+
+func (mt *headerLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+	mt.librarySdkMemberType.buildSnapshot(sdkModuleContext, builder, member, func(j *Library) android.Path {
+		headerJars := j.HeaderJars()
+		if len(headerJars) != 1 {
+			panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
+		}
+
+		return headerJars[0]
+	})
+}
+
+var ImplLibrarySdkMemberType = &implLibrarySdkMemberType{}
+
+type implLibrarySdkMemberType struct {
+	librarySdkMemberType
+}
+
+func (mt *implLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+	mt.librarySdkMemberType.buildSnapshot(sdkModuleContext, builder, member, func(j *Library) android.Path {
+		implementationJars := j.ImplementationJars()
+		if len(implementationJars) != 1 {
+			panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
+		}
+
+		return implementationJars[0]
+	})
 }
 
 // java_library builds and links sources into a `.jar` file for the device, and possibly for the host as well.
@@ -2417,10 +2451,9 @@ func defaultsFactory() android.Module {
 	return DefaultsFactory()
 }
 
-func DefaultsFactory(props ...interface{}) android.Module {
+func DefaultsFactory() android.Module {
 	module := &Defaults{}
 
-	module.AddProperties(props...)
 	module.AddProperties(
 		&CompilerProperties{},
 		&CompilerDeviceProperties{},

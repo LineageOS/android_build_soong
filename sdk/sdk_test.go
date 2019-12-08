@@ -27,12 +27,12 @@ func TestDepNotInRequiredSdks(t *testing.T) {
 	testSdkError(t, `module "myjavalib".*depends on "otherlib".*that isn't part of the required SDKs:.*`, `
 		sdk {
 			name: "mysdk",
-			java_libs: ["sdkmember"],
+			java_header_libs: ["sdkmember"],
 		}
 
 		sdk_snapshot {
 			name: "mysdk@1",
-			java_libs: ["sdkmember_mysdk_1"],
+			java_header_libs: ["sdkmember_mysdk_1"],
 		}
 
 		java_import {
