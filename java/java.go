@@ -1760,7 +1760,7 @@ func (mt *librarySdkMemberType) buildSnapshot(
 		}
 	}
 
-	module := builder.AddPrebuiltModule(sdkModuleContext.OtherModuleName(j), "java_import")
+	module := builder.AddPrebuiltModule(member, "java_import")
 	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
 }
 
