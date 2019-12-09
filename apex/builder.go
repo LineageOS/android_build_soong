@@ -43,7 +43,7 @@ func init() {
 			if !ctx.Config().FrameworksBaseDirExists(ctx) {
 				return filepath.Join(prebuiltDir, runtime.GOOS, "bin", tool)
 			} else {
-				return pctx.HostBinToolPath(ctx, tool).String()
+				return ctx.Config().HostToolPath(ctx, tool).String()
 			}
 		})
 	}
