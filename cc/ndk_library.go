@@ -228,7 +228,7 @@ func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorat
 	}
 }
 
-func ndkApiMutator(mctx android.BottomUpMutatorContext) {
+func NdkApiMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
 		if m.Enabled() {
 			if compiler, ok := m.compiler.(*stubDecorator); ok {
@@ -390,7 +390,7 @@ func newStubLibrary() *Module {
 
 // ndk_library creates a stub library that exposes dummy implementation
 // of functions and variables for use at build time only.
-func ndkLibraryFactory() android.Module {
+func NdkLibraryFactory() android.Module {
 	module := newStubLibrary()
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
 	module.ModuleBase.EnableNativeBridgeSupportByDefault()
