@@ -178,7 +178,7 @@ type SnapshotBuilder interface {
 	// prefer=true. And one that is not versioned, not marked as prefer=true and
 	// will only be used if the equivalently named non-prebuilt module is not
 	// present.
-	AddPrebuiltModule(name string, moduleType string) BpModule
+	AddPrebuiltModule(member SdkMember, moduleType string) BpModule
 }
 
 // A set of properties for use in a .bp file.

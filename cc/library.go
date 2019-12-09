@@ -1435,10 +1435,10 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 // copy exported header files and stub *.so files
 func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 	info := organizeVariants(member)
-	buildSharedNativeLibSnapshot(sdkModuleContext, info, builder)
+	buildSharedNativeLibSnapshot(sdkModuleContext, info, builder, member)
 }
 
-func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
+func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder, member android.SdkMember) {
 	// a function for emitting include dirs
 	printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
 		includeDirs := lib.exportedIncludeDirs
@@ -1489,10 +1489,10 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 		}
 	}
 
-	info.generatePrebuiltLibrary(sdkModuleContext, builder)
+	info.generatePrebuiltLibrary(sdkModuleContext, builder, member)
 }
 
-func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder) {
+func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 
 	// a function for emitting include dirs
 	addExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, properties android.BpPropertySet, systemInclude bool) {
@@ -1509,7 +1509,7 @@ func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.Modu
 		properties.AddProperty(propertyName, includeDirs)
 	}
 
-	pbm := builder.AddPrebuiltModule(info.name, "cc_prebuilt_library_shared")
+	pbm := builder.AddPrebuiltModule(member, "cc_prebuilt_library_shared")
 
 	if !info.hasArchSpecificFlags {
 		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
