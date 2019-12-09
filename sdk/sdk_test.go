@@ -79,3 +79,123 @@ func TestDepNotInRequiredSdks(t *testing.T) {
 		}
 	`)
 }
+
+// Ensure that prebuilt modules have the same effective visibility as the source
+// modules.
+func TestSnapshotVisibility(t *testing.T) {
+	packageBp := `
+		package {
+			default_visibility: ["//other/foo"],
+		}
+
+		sdk {
+			name: "mysdk",
+			visibility: [
+				"//other/foo",
+				// This short form will be replaced with //package:__subpackages__ in the
+				// generated sdk_snapshot.
+				":__subpackages__",
+			],
+			java_header_libs: [
+				"myjavalib",
+				"mypublicjavalib",
+				"mydefaultedjavalib",
+			],
+		}
+
+		java_library {
+			name: "myjavalib",
+			// Uses package default visibility
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+		}
+
+		java_library {
+			name: "mypublicjavalib",
+      visibility: ["//visibility:public"],
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+		}
+
+		java_defaults {
+			name: "myjavadefaults",
+			visibility: ["//other/bar"],
+		}
+
+		java_library {
+			name: "mydefaultedjavalib",
+			defaults: ["myjavadefaults"],
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+		}
+	`
+
+	result := testSdkWithFs(t, ``,
+		map[string][]byte{
+			"package/Test.java":  nil,
+			"package/Android.bp": []byte(packageBp),
+		})
+
+	result.CheckSnapshot("mysdk", "android_common", "package",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    visibility: ["//other/foo:__pkg__"],
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    visibility: ["//other/foo:__pkg__"],
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "mysdk_mypublicjavalib@current",
+    sdk_member_name: "mypublicjavalib",
+    visibility: ["//visibility:public"],
+    jars: ["java/mypublicjavalib.jar"],
+}
+
+java_import {
+    name: "mypublicjavalib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    jars: ["java/mypublicjavalib.jar"],
+}
+
+java_import {
+    name: "mysdk_mydefaultedjavalib@current",
+    sdk_member_name: "mydefaultedjavalib",
+    visibility: ["//other/bar:__pkg__"],
+    jars: ["java/mydefaultedjavalib.jar"],
+}
+
+java_import {
+    name: "mydefaultedjavalib",
+    prefer: false,
+    visibility: ["//other/bar:__pkg__"],
+    jars: ["java/mydefaultedjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    visibility: [
+        "//other/foo:__pkg__",
+        "//package:__subpackages__",
+    ],
+    java_header_libs: [
+        "mysdk_myjavalib@current",
+        "mysdk_mypublicjavalib@current",
+        "mysdk_mydefaultedjavalib@current",
+    ],
+}
+`))
+}
