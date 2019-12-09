@@ -704,7 +704,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		// We glob headers from include directories inside source tree. So we first gather
 		// all include directories inside our source tree. On the contrast, we manually
 		// collect generated headers from dependencies as they can't globbed.
-		generatedHeaders = append(generatedHeaders, l.exportedDeps()...)
+		generatedHeaders = append(generatedHeaders, l.exportedGeneratedHeaders()...)
 		for _, dir := range append(l.exportedDirs(), l.exportedSystemDirs()...) {
 			exportedIncludes[dir.String()] = true
 		}
