@@ -368,7 +368,8 @@ func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) 
 	s.zipsToMerge = append(s.zipsToMerge, tmpZipPath)
 }
 
-func (s *snapshotBuilder) AddPrebuiltModule(name string, moduleType string) android.BpModule {
+func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType string) android.BpModule {
+	name := member.Name()
 	if s.prebuiltModules[name] != nil {
 		panic(fmt.Sprintf("Duplicate module detected, module %s has already been added", name))
 	}
