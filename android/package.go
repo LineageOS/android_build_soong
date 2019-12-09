@@ -98,7 +98,7 @@ func PackageFactory() Module {
 }
 
 // Registers the function that renames the packages.
-func registerPackageRenamer(ctx RegisterMutatorsContext) {
+func RegisterPackageRenamer(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("packageRenamer", packageRenamer).Parallel()
 	ctx.BottomUp("packageErrorReporter", packageErrorReporter).Parallel()
 }

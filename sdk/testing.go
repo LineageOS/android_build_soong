@@ -33,7 +33,12 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx := android.NewTestArchContext()
 
 	// from android package
+	ctx.PreArchMutators(android.RegisterPackageRenamer)
+	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
+	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
+
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
 	})
@@ -41,9 +46,11 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
 		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
 	})
+	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package
 	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
+	ctx.RegisterModuleType("java_defaults", java.DefaultsFactory)
 	ctx.RegisterModuleType("java_library", java.LibraryFactory)
 	ctx.RegisterModuleType("java_import", java.ImportFactory)
 	ctx.RegisterModuleType("droidstubs", java.DroidstubsFactory)
@@ -115,7 +122,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 func testSdkWithFs(t *testing.T, bp string, fs map[string][]byte) *testSdkResult {
 	t.Helper()
 	ctx, config := testSdkContext(bp, fs)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	_, errs := ctx.ParseBlueprintsFiles(".")
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
@@ -268,7 +275,7 @@ func (r *testSdkResult) pathsRelativeToBuildDir(paths android.Paths) []string {
 // Takes a list of functions which check different facets of the snapshot build rules.
 // Allows each test to customize what is checked without duplicating lots of code
 // or proliferating check methods of different flavors.
-func (r *testSdkResult) CheckSnapshot(name string, variant string, checkers ...snapshotBuildInfoChecker) {
+func (r *testSdkResult) CheckSnapshot(name string, variant string, dir string, checkers ...snapshotBuildInfoChecker) {
 	r.t.Helper()
 
 	sdk := r.Module(name, variant).(*sdk)
@@ -282,8 +289,11 @@ func (r *testSdkResult) CheckSnapshot(name string, variant string, checkers ...s
 
 	// Make sure that the generated zip file is in the correct place.
 	actual := snapshotBuildInfo.outputZip
+	if dir != "" {
+		dir = filepath.Clean(dir) + "/"
+	}
 	r.AssertStringEquals("Snapshot zip file in wrong place",
-		fmt.Sprintf(".intermediates/%s/%s/%s-current.zip", name, variant, name), actual)
+		fmt.Sprintf(".intermediates/%s%s/%s/%s-current.zip", dir, name, variant, name), actual)
 
 	// Populate a mock filesystem with the files that would have been copied by
 	// the rules.
