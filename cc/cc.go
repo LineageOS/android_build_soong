@@ -42,7 +42,7 @@ func init() {
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
-		ctx.BottomUp("sysprop", SyspropMutator).Parallel()
+		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
 	})
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {

@@ -585,8 +585,36 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
-	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
+	syspropPublicStubs := syspropPublicStubs(ctx.Config())
+
+	// rewriteSyspropLibs validates if a java module can link against platform's sysprop_library,
+	// and redirects dependency to public stub depending on the link type.
+	rewriteSyspropLibs := func(libs []string, prop string) []string {
+		// make a copy
+		ret := android.CopyOf(libs)
+
+		for idx, lib := range libs {
+			stub, ok := syspropPublicStubs[lib]
+
+			if !ok {
+				continue
+			}
+
+			linkType, _ := j.getLinkType(ctx.ModuleName())
+			if linkType == javaSystem {
+				ret[idx] = stub
+			} else if linkType != javaPlatform {
+				ctx.PropertyErrorf("sdk_version",
+					"can't link against sysprop_library %q from a module using public or core API",
+					lib)
+			}
+		}
+
+		return ret
+	}
+
+	ctx.AddVariationDependencies(nil, libTag, rewriteSyspropLibs(j.properties.Libs, "libs")...)
+	ctx.AddVariationDependencies(nil, staticLibTag, rewriteSyspropLibs(j.properties.Static_libs, "static_libs")...)
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), exportedPluginTag, j.properties.Exported_plugins...)

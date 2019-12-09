@@ -298,6 +298,7 @@ bootstrap_go_package {
         "java/sdk.go",
         "java/sdk_library.go",
         "java/support_libraries.go",
+        "java/sysprop.go",
         "java/system_modules.go",
         "java/testing.go",
         "java/tradefed.go",
