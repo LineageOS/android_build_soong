@@ -117,12 +117,15 @@ func (c compositeRule) matches(m qualifiedModuleName) bool {
 }
 
 func (c compositeRule) String() string {
+	return "[" + strings.Join(c.Strings(), ", ") + "]"
+}
+
+func (c compositeRule) Strings() []string {
 	s := make([]string, 0, len(c))
 	for _, r := range c {
 		s = append(s, r.String())
 	}
-
-	return "[" + strings.Join(s, ", ") + "]"
+	return s
 }
 
 // A packageRule is a visibility rule that matches modules in a specific package (i.e. directory).
@@ -189,7 +192,7 @@ func moduleToVisibilityRuleMap(ctx BaseModuleContext) *sync.Map {
 
 // The rule checker needs to be registered before defaults expansion to correctly check that
 // //visibility:xxx isn't combined with other packages in the same list in any one module.
-func registerVisibilityRuleChecker(ctx RegisterMutatorsContext) {
+func RegisterVisibilityRuleChecker(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("visibilityRuleChecker", visibilityRuleChecker).Parallel()
 }
 
@@ -199,12 +202,12 @@ func registerVisibilityRuleChecker(ctx RegisterMutatorsContext) {
 // having to process multiple variants for each module. This goes after defaults expansion to gather
 // the complete visibility lists from flat lists and after the package info is gathered to ensure
 // that default_visibility is available.
-func registerVisibilityRuleGatherer(ctx RegisterMutatorsContext) {
+func RegisterVisibilityRuleGatherer(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("visibilityRuleGatherer", visibilityRuleGatherer).Parallel()
 }
 
 // This must be registered after the deps have been resolved.
-func registerVisibilityRuleEnforcer(ctx RegisterMutatorsContext) {
+func RegisterVisibilityRuleEnforcer(ctx RegisterMutatorsContext) {
 	ctx.TopDown("visibilityRuleEnforcer", visibilityRuleEnforcer).Parallel()
 }
 
@@ -384,8 +387,6 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 
 	qualified := createQualifiedModuleName(ctx)
 
-	moduleToVisibilityRule := moduleToVisibilityRuleMap(ctx)
-
 	// Visit all the dependencies making sure that this module has access to them all.
 	ctx.VisitDirectDeps(func(dep Module) {
 		depName := ctx.OtherModuleName(dep)
@@ -397,17 +398,23 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 			return
 		}
 
-		value, ok := moduleToVisibilityRule.Load(depQualified)
-		var rule compositeRule
-		if ok {
-			rule = value.(compositeRule)
-		} else {
-			rule = packageDefaultVisibility(ctx, depQualified)
-		}
+		rule := effectiveVisibilityRules(ctx, depQualified)
 		if rule != nil && !rule.matches(qualified) {
 			ctx.ModuleErrorf("depends on %s which is not visible to this module", depQualified)
 		}
 	})
+}
+
+func effectiveVisibilityRules(ctx BaseModuleContext, qualified qualifiedModuleName) compositeRule {
+	moduleToVisibilityRule := moduleToVisibilityRuleMap(ctx)
+	value, ok := moduleToVisibilityRule.Load(qualified)
+	var rule compositeRule
+	if ok {
+		rule = value.(compositeRule)
+	} else {
+		rule = packageDefaultVisibility(ctx, qualified)
+	}
+	return rule
 }
 
 func createQualifiedModuleName(ctx BaseModuleContext) qualifiedModuleName {
@@ -432,4 +439,20 @@ func packageDefaultVisibility(ctx BaseModuleContext, moduleId qualifiedModuleNam
 
 		packageQualifiedId = packageQualifiedId.getContainingPackageId()
 	}
+}
+
+// Get the effective visibility rules, i.e. the actual rules that affect the visibility of the
+// property irrespective of where they are defined.
+//
+// Includes visibility rules specified by package default_visibility and/or on defaults.
+// Short hand forms, e.g. //:__subpackages__ are replaced with their full form, e.g.
+// //package/containing/rule:__subpackages__.
+func EffectiveVisibilityRules(ctx BaseModuleContext, module Module) []string {
+	moduleName := ctx.OtherModuleName(module)
+	dir := ctx.OtherModuleDir(module)
+	qualified := qualifiedModuleName{dir, moduleName}
+
+	rule := effectiveVisibilityRules(ctx, qualified)
+
+	return rule.Strings()
 }
