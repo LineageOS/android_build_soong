@@ -30,7 +30,7 @@ var pctx = android.NewPackageContext("android/soong/sdk")
 var (
 	repackageZip = pctx.AndroidStaticRule("SnapshotRepackageZip",
 		blueprint.RuleParams{
-			Command: `${config.Zip2ZipCmd} -i $in -o $out "**/*:$destdir"`,
+			Command: `${config.Zip2ZipCmd} -i $in -o $out -x META-INF/**/* "**/*:$destdir"`,
 			CommandDeps: []string{
 				"${config.Zip2ZipCmd}",
 			},
