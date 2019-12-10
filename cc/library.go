@@ -238,6 +238,7 @@ type flagExporter struct {
 	systemDirs android.Paths
 	flags      []string
 	deps       android.Paths
+	headers    android.Paths
 }
 
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
@@ -281,6 +282,12 @@ func (f *flagExporter) reexportDeps(deps ...android.Path) {
 	f.deps = append(f.deps, deps...)
 }
 
+// addExportedGeneratedHeaders does nothing but collects generated header files.
+// This can be differ to exportedDeps which may contain phony files to minimize ninja.
+func (f *flagExporter) addExportedGeneratedHeaders(headers ...android.Path) {
+	f.headers = append(f.headers, headers...)
+}
+
 func (f *flagExporter) exportedDirs() android.Paths {
 	return f.dirs
 }
@@ -297,11 +304,16 @@ func (f *flagExporter) exportedDeps() android.Paths {
 	return f.deps
 }
 
+func (f *flagExporter) exportedGeneratedHeaders() android.Paths {
+	return f.headers
+}
+
 type exportedFlagsProducer interface {
 	exportedDirs() android.Paths
 	exportedSystemDirs() android.Paths
 	exportedFlags() []string
 	exportedDeps() android.Paths
+	exportedGeneratedHeaders() android.Paths
 }
 
 var _ exportedFlagsProducer = (*flagExporter)(nil)
@@ -967,12 +979,16 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	library.reexportSystemDirs(deps.ReexportedSystemDirs...)
 	library.reexportFlags(deps.ReexportedFlags...)
 	library.reexportDeps(deps.ReexportedDeps...)
+	library.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
 
 	if Bool(library.Properties.Aidl.Export_aidl_headers) {
 		if library.baseCompiler.hasSrcExt(".aidl") {
 			dir := android.PathForModuleGen(ctx, "aidl")
 			library.reexportDirs(dir)
-			library.reexportDeps(library.baseCompiler.pathDeps...) // TODO: restrict to aidl deps
+
+			// TODO: restrict to aidl deps
+			library.reexportDeps(library.baseCompiler.pathDeps...)
+			library.addExportedGeneratedHeaders(library.baseCompiler.pathDeps...)
 		}
 	}
 
@@ -984,7 +1000,10 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			}
 			includes = append(includes, flags.proto.Dir)
 			library.reexportDirs(includes...)
-			library.reexportDeps(library.baseCompiler.pathDeps...) // TODO: restrict to proto deps
+
+			// TODO: restrict to proto deps
+			library.reexportDeps(library.baseCompiler.pathDeps...)
+			library.addExportedGeneratedHeaders(library.baseCompiler.pathDeps...)
 		}
 	}
 
@@ -1002,6 +1021,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 
 		library.reexportDirs(dir)
 		library.reexportDeps(library.baseCompiler.pathDeps...)
+		library.addExportedGeneratedHeaders(library.baseCompiler.pathDeps...)
 	}
 
 	if library.buildStubs() {
@@ -1435,10 +1455,10 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 // copy exported header files and stub *.so files
 func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 	info := organizeVariants(member)
-	buildSharedNativeLibSnapshot(sdkModuleContext, info, builder)
+	buildSharedNativeLibSnapshot(sdkModuleContext, info, builder, member)
 }
 
-func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder) {
+func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder, member android.SdkMember) {
 	// a function for emitting include dirs
 	printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
 		includeDirs := lib.exportedIncludeDirs
@@ -1448,7 +1468,7 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 		}
 		for _, dir := range includeDirs {
 			if _, gen := dir.(android.WritablePath); gen {
-				// generated headers are copied via exportedDeps. See below.
+				// generated headers are copied via exportedGeneratedHeaders. See below.
 				continue
 			}
 			targetDir := nativeIncludeDir
@@ -1465,7 +1485,7 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 			}
 		}
 
-		genHeaders := lib.exportedDeps
+		genHeaders := lib.exportedGeneratedHeaders
 		for _, file := range genHeaders {
 			targetDir := nativeGeneratedIncludeDir
 			if info.hasArchSpecificFlags {
@@ -1489,10 +1509,10 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 		}
 	}
 
-	info.generatePrebuiltLibrary(sdkModuleContext, builder)
+	info.generatePrebuiltLibrary(sdkModuleContext, builder, member)
 }
 
-func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder) {
+func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 
 	// a function for emitting include dirs
 	addExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, properties android.BpPropertySet, systemInclude bool) {
@@ -1509,7 +1529,7 @@ func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.Modu
 		properties.AddProperty(propertyName, includeDirs)
 	}
 
-	pbm := builder.AddPrebuiltModule(info.name, "cc_prebuilt_library_shared")
+	pbm := builder.AddPrebuiltModule(member, "cc_prebuilt_library_shared")
 
 	if !info.hasArchSpecificFlags {
 		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
@@ -1574,7 +1594,7 @@ type archSpecificNativeLibInfo struct {
 	exportedIncludeDirs       android.Paths
 	exportedSystemIncludeDirs android.Paths
 	exportedFlags             []string
-	exportedDeps              android.Paths
+	exportedGeneratedHeaders  android.Paths
 	outputFile                android.Path
 }
 
@@ -1608,7 +1628,7 @@ func organizeVariants(member android.SdkMember) *nativeLibInfo {
 			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
 			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
 			exportedFlags:             ccModule.ExportedFlags(),
-			exportedDeps:              ccModule.ExportedDeps(),
+			exportedGeneratedHeaders:  ccModule.ExportedGeneratedHeaders(),
 			outputFile:                ccModule.OutputFile().Path(),
 		})
 	}

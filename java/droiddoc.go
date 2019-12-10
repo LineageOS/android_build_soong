@@ -2000,6 +2000,6 @@ func (mt *droidStubsSdkMemberType) BuildSnapshot(sdkModuleContext android.Module
 	snapshotRelativeDir := filepath.Join("java", d.Name()+"_stubs_sources")
 	builder.UnzipToSnapshot(stubsSrcJar, snapshotRelativeDir)
 
-	pbm := builder.AddPrebuiltModule(sdkModuleContext.OtherModuleName(d), "prebuilt_stubs_sources")
+	pbm := builder.AddPrebuiltModule(member, "prebuilt_stubs_sources")
 	pbm.AddProperty("srcs", []string{snapshotRelativeDir})
 }

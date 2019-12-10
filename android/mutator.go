@@ -78,11 +78,11 @@ var preArch = []RegisterMutatorFunc{
 	registerLoadHookMutator,
 	RegisterNamespaceMutator,
 	// Rename package module types.
-	registerPackageRenamer,
+	RegisterPackageRenamer,
 	RegisterPrebuiltsPreArchMutators,
-	registerVisibilityRuleChecker,
+	RegisterVisibilityRuleChecker,
 	RegisterDefaultsPreArchMutators,
-	registerVisibilityRuleGatherer,
+	RegisterVisibilityRuleGatherer,
 }
 
 func registerArchMutator(ctx RegisterMutatorsContext) {
@@ -99,7 +99,7 @@ var preDeps = []RegisterMutatorFunc{
 var postDeps = []RegisterMutatorFunc{
 	registerPathDepsMutator,
 	RegisterPrebuiltsPostDepsMutators,
-	registerVisibilityRuleEnforcer,
+	RegisterVisibilityRuleEnforcer,
 	registerNeverallowMutator,
 	RegisterOverridePostDepsMutators,
 }
