@@ -418,6 +418,18 @@ func (c *config) HostToolPath(ctx PathContext, tool string) Path {
 	return PathForOutput(ctx, "host", c.PrebuiltOS(), "bin", tool)
 }
 
+func (c *config) HostJNIToolPath(ctx PathContext, path string) Path {
+	ext := ".so"
+	if runtime.GOOS == "darwin" {
+		ext = ".dylib"
+	}
+	return PathForOutput(ctx, "host", c.PrebuiltOS(), "lib64", path+ext)
+}
+
+func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
+	return PathForOutput(ctx, "host", c.PrebuiltOS(), "framework", path)
+}
+
 // HostSystemTool looks for non-hermetic tools from the system we're running on.
 // Generally shouldn't be used, but useful to find the XCode SDK, etc.
 func (c *config) HostSystemTool(name string) string {

@@ -124,7 +124,7 @@ func init() {
 		if ctx.Config().UnbundledBuild() {
 			return "prebuilts/build-tools/common/framework/" + turbine
 		} else {
-			return pctx.HostJavaToolPath(ctx, turbine).String()
+			return ctx.Config().HostJavaToolPath(ctx, turbine).String()
 		}
 	})
 
@@ -170,7 +170,7 @@ func hostBinToolVariableWithSdkToolsPrebuilt(name, tool string) {
 		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
 			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "bin", tool)
 		} else {
-			return pctx.HostBinToolPath(ctx, tool).String()
+			return ctx.Config().HostToolPath(ctx, tool).String()
 		}
 	})
 }
@@ -180,7 +180,7 @@ func hostJavaToolVariableWithSdkToolsPrebuilt(name, tool string) {
 		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
 			return filepath.Join("prebuilts/sdk/tools/lib", tool+".jar")
 		} else {
-			return pctx.HostJavaToolPath(ctx, tool+".jar").String()
+			return ctx.Config().HostJavaToolPath(ctx, tool+".jar").String()
 		}
 	})
 }
@@ -194,7 +194,7 @@ func hostJNIToolVariableWithSdkToolsPrebuilt(name, tool string) {
 			}
 			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "lib64", tool+ext)
 		} else {
-			return pctx.HostJNIToolPath(ctx, tool).String()
+			return ctx.Config().HostJNIToolPath(ctx, tool).String()
 		}
 	})
 }
@@ -204,7 +204,7 @@ func hostBinToolVariableWithBuildToolsPrebuilt(name, tool string) {
 		if ctx.Config().UnbundledBuild() || ctx.Config().IsPdkBuild() {
 			return filepath.Join("prebuilts/build-tools", ctx.Config().PrebuiltOS(), "bin", tool)
 		} else {
-			return pctx.HostBinToolPath(ctx, tool).String()
+			return ctx.Config().HostToolPath(ctx, tool).String()
 		}
 	})
 }
