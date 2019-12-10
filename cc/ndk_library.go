@@ -261,7 +261,6 @@ func addStubLibraryCompilerFlags(flags Flags) Flags {
 		// We're knowingly doing some otherwise unsightly things with builtin
 		// functions here. We're just generating stub libraries, so ignore it.
 		"-Wno-incompatible-library-redeclaration",
-		"-Wno-incomplete-setjmp-declaration",
 		"-Wno-builtin-requires-header",
 		"-Wno-invalid-noreturn",
 		"-Wall",
