@@ -286,6 +286,7 @@ type ModuleContextIntf interface {
 	isPgoCompile() bool
 	isNDKStubLibrary() bool
 	useClangLld(actx ModuleContext) bool
+	isForPlatform() bool
 	apexName() string
 	hasStubsVariants() bool
 	isStubs() bool
@@ -1056,10 +1057,6 @@ func (ctx *moduleContextImpl) shouldCreateSourceAbiDump() bool {
 		// Host modules do not need ABI dumps.
 		return false
 	}
-	if !ctx.mod.IsForPlatform() {
-		// APEX variants do not need ABI dumps.
-		return false
-	}
 	if ctx.isStubs() {
 		// Stubs do not need ABI dumps.
 		return false
@@ -1084,6 +1081,10 @@ func (ctx *moduleContextImpl) baseModuleName() string {
 
 func (ctx *moduleContextImpl) getVndkExtendsModuleName() string {
 	return ctx.mod.getVndkExtendsModuleName()
+}
+
+func (ctx *moduleContextImpl) isForPlatform() bool {
+	return ctx.mod.IsForPlatform()
 }
 
 func (ctx *moduleContextImpl) apexName() string {
