@@ -190,7 +190,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	rule.MissingDeps(missingDeps)
 
 	rule.Command().
-		Tool(pctx.HostBinToolPath(ctx, "hiddenapi")).
+		Tool(ctx.Config().HostToolPath(ctx, "hiddenapi")).
 		Text("list").
 		FlagForEachInput("--boot-dex=", bootDexJars).
 		FlagWithInputList("--public-stub-classpath=", publicStubPaths, ":").

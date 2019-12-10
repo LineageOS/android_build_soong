@@ -16,7 +16,6 @@ package android
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -177,12 +176,8 @@ func (p PackageContext) SourcePathVariableWithEnvOverride(name, path, env string
 // package-scoped variable's initialization.
 func (p PackageContext) HostBinToolVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(ctx PackageVarContext) string {
-		return p.HostBinToolPath(ctx, path).String()
+		return ctx.Config().HostToolPath(ctx, path).String()
 	})
-}
-
-func (p PackageContext) HostBinToolPath(ctx PackageVarContext, path string) Path {
-	return PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin", path)
 }
 
 // HostJNIToolVariable returns a Variable whose value is the path to a host tool
@@ -191,16 +186,8 @@ func (p PackageContext) HostBinToolPath(ctx PackageVarContext, path string) Path
 // package-scoped variable's initialization.
 func (p PackageContext) HostJNIToolVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(ctx PackageVarContext) string {
-		return p.HostJNIToolPath(ctx, path).String()
+		return ctx.Config().HostJNIToolPath(ctx, path).String()
 	})
-}
-
-func (p PackageContext) HostJNIToolPath(ctx PackageVarContext, path string) Path {
-	ext := ".so"
-	if runtime.GOOS == "darwin" {
-		ext = ".dylib"
-	}
-	return PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "lib64", path+ext)
 }
 
 // HostJavaToolVariable returns a Variable whose value is the path to a host
@@ -209,12 +196,8 @@ func (p PackageContext) HostJNIToolPath(ctx PackageVarContext, path string) Path
 // part of a package-scoped variable's initialization.
 func (p PackageContext) HostJavaToolVariable(name, path string) blueprint.Variable {
 	return p.VariableFunc(name, func(ctx PackageVarContext) string {
-		return p.HostJavaToolPath(ctx, path).String()
+		return ctx.Config().HostJavaToolPath(ctx, path).String()
 	})
-}
-
-func (p PackageContext) HostJavaToolPath(ctx PackageVarContext, path string) Path {
-	return PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", path)
 }
 
 // IntermediatesPathVariable returns a Variable whose value is the intermediate
