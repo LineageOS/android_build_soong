@@ -185,7 +185,7 @@ func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
 		switch bp.Rule.String() {
 		case android.Cp.String():
 			// Get source relative to build directory.
-			src := r.pathRelativeToBuildDir(bp.Input)
+			src := android.NormalizePathForTesting(bp.Input)
 			// Get destination relative to the snapshot root
 			dest := bp.Output.Rel()
 			_, _ = fmt.Fprintf(copyRules, "%s -> %s\n", src, dest)
@@ -201,12 +201,12 @@ func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
 			// This could be an intermediate zip file and not the actual output zip.
 			// In that case this will be overridden when the rule to merge the zips
 			// is processed.
-			info.outputZip = r.pathRelativeToBuildDir(bp.Output)
+			info.outputZip = android.NormalizePathForTesting(bp.Output)
 
 		case mergeZips.String():
 			// Copy the current outputZip to the intermediateZip.
 			info.intermediateZip = info.outputZip
-			mergeInput := r.pathRelativeToBuildDir(bp.Input)
+			mergeInput := android.NormalizePathForTesting(bp.Input)
 			if info.intermediateZip != mergeInput {
 				r.t.Errorf("Expected intermediate zip %s to be an input to merge zips but found %s instead",
 					info.intermediateZip, mergeInput)
@@ -214,10 +214,10 @@ func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
 
 			// Override output zip (which was actually the intermediate zip file) with the actual
 			// output zip.
-			info.outputZip = r.pathRelativeToBuildDir(bp.Output)
+			info.outputZip = android.NormalizePathForTesting(bp.Output)
 
 			// Save the zips to be merged into the intermediate zip.
-			info.mergeZips = r.pathsRelativeToBuildDir(bp.Inputs)
+			info.mergeZips = android.NormalizePathsForTesting(bp.Inputs)
 		}
 	}
 
@@ -232,19 +232,6 @@ func (r *testSdkResult) Module(name string, variant string) android.Module {
 
 func (r *testSdkResult) ModuleForTests(name string, variant string) android.TestingModule {
 	return r.ctx.ModuleForTests(name, variant)
-}
-
-func (r *testSdkResult) pathRelativeToBuildDir(path android.Path) string {
-	buildDir := filepath.Clean(r.config.BuildDir()) + "/"
-	return strings.TrimPrefix(filepath.Clean(path.String()), buildDir)
-}
-
-func (r *testSdkResult) pathsRelativeToBuildDir(paths android.Paths) []string {
-	var result []string
-	for _, path := range paths {
-		result = append(result, r.pathRelativeToBuildDir(path))
-	}
-	return result
 }
 
 // Check the snapshot build rules.
