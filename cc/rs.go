@@ -29,7 +29,7 @@ func init() {
 			// Use RenderScript prebuilts for unbundled builds but not PDK builds
 			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "bin/llvm-rs-cc")
 		} else {
-			return pctx.HostBinToolPath(ctx, "llvm-rs-cc").String()
+			return ctx.Config().HostToolPath(ctx, "llvm-rs-cc").String()
 		}
 	})
 }
