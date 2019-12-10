@@ -240,8 +240,8 @@ PRODUCT_PROPERTY_OVERRIDES += ro.hardware.gralloc=soc_a
 In cases where the names cannot be made unique a `soong_namespace` should be
 used to partition a set of modules so that they are built only when the
 namespace is listed in `PRODUCT_SOONG_NAMESPACES`.  See the
-[Name resolution](../README.md#name-resolution) section of the Soong README.md
-for more on namespaces.
+[Referencing Modules](../README.md#referencing-modules) section of the Soong
+README.md for more on namespaces.
 
 ### Module with name based on variable
 
