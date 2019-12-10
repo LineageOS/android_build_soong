@@ -560,7 +560,7 @@ func ndkPathDeps(ctx ModuleContext) android.Paths {
 }
 
 func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	pathDeps := deps.GeneratedHeaders
+	pathDeps := deps.GeneratedDeps
 	pathDeps = append(pathDeps, ndkPathDeps(ctx)...)
 
 	buildFlags := flagsToBuilderFlags(flags)
