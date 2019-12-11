@@ -49,6 +49,9 @@ type FuzzProperties struct {
 	// Optional list of seed files to be installed to the fuzz target's output
 	// directory.
 	Corpus []string `android:"path"`
+	// Optional list of data files to be installed to the fuzz target's output
+	// directory. Directory structure relative to the module is preserved.
+	Data []string `android:"path"`
 	// Optional dictionary to be installed to the fuzz target's output directory.
 	Dictionary *string `android:"path"`
 	// Config for running the target on fuzzing infrastructure.
@@ -81,6 +84,8 @@ type fuzzBinary struct {
 	corpus                android.Paths
 	corpusIntermediateDir android.Path
 	config                android.Path
+	data                  android.Paths
+	dataIntermediateDir   android.Path
 	installedSharedDeps   []string
 }
 
@@ -209,6 +214,17 @@ func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 	}
 	builder.Build(pctx, ctx, "copy_corpus", "copy corpus")
 	fuzz.corpusIntermediateDir = intermediateDir
+
+	fuzz.data = android.PathsForModuleSrc(ctx, fuzz.Properties.Data)
+	builder = android.NewRuleBuilder()
+	intermediateDir = android.PathForModuleOut(ctx, "data")
+	for _, entry := range fuzz.data {
+		builder.Command().Text("cp").
+			Input(entry).
+			Output(intermediateDir.Join(ctx, entry.Rel()))
+	}
+	builder.Build(pctx, ctx, "copy_data", "copy data")
+	fuzz.dataIntermediateDir = intermediateDir
 
 	if fuzz.Properties.Dictionary != nil {
 		fuzz.dictionary = android.PathForModuleSrc(ctx, *fuzz.Properties.Dictionary)
@@ -375,6 +391,19 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 				FlagWithOutput("-o ", corpusZip)
 			command.FlagWithRspFileInputList("-l ", fuzzModule.corpus)
 			files = append(files, fileToZip{corpusZip, ""})
+		}
+
+		// Package the data into a zipfile.
+		if fuzzModule.data != nil {
+			dataZip := archDir.Join(ctx, module.Name()+"_data.zip")
+			command := builder.Command().BuiltTool(ctx, "soong_zip").
+				FlagWithOutput("-o ", dataZip)
+			for _, f := range fuzzModule.data {
+				intermediateDir := strings.TrimSuffix(f.String(), f.Rel())
+				command.FlagWithArg("-C ", intermediateDir)
+				command.FlagWithInput("-f ", f)
+			}
+			files = append(files, fileToZip{dataZip, ""})
 		}
 
 		// Find and mark all the transiently-dependent shared libraries for
