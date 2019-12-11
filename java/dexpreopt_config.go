@@ -135,10 +135,6 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		deviceDir := android.PathForOutput(ctx, ctx.Config().DeviceName())
 
 		artModules := global.ArtApexJars
-		// In coverage builds ART boot class path jars are instrumented and have additional dependencies.
-		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
-			artModules = append(artModules, "jacocoagent")
-		}
 		frameworkModules := android.RemoveListFromList(global.BootJars,
 			concat(artModules, getJarsFromApexJarPairs(global.UpdatableBootJars)))
 
@@ -166,15 +162,15 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		}
 
 		// Framework config for the boot image extension.
-		// It includes framework libraries and depends on the ART config.
+		// It includes both the Core libraries and framework.
 		frameworkCfg := bootImageConfig{
-			extension:        true,
+			extension:        false,
 			name:             frameworkBootImageName,
 			stem:             "boot",
 			installSubdir:    frameworkSubdir,
-			modules:          frameworkModules,
-			dexLocations:     frameworkLocations,
-			dexLocationsDeps: append(artLocations, frameworkLocations...),
+			modules:          concat(artModules, frameworkModules),
+			dexLocations:     concat(artLocations, frameworkLocations),
+			dexLocationsDeps: concat(artLocations, frameworkLocations),
 		}
 
 		// Apex config for the  boot image used in the JIT-zygote experiment.
@@ -229,10 +225,6 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 
 			c.zip = c.dir.Join(ctx, c.name+".zip")
 		}
-
-		// specific to the framework config
-		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
-		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
 
 		return configs
 	}).(map[string]*bootImageConfig)
