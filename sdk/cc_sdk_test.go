@@ -142,6 +142,45 @@ func TestBasicSdkWithCc(t *testing.T) {
 	ensureListContains(t, pathsToStrings(cpplibForMyApex2.Rule("ld").Implicits), sdkMemberV2.String())
 }
 
+func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["mynativelib1", "mynativelib2"],
+		}
+
+		cc_library_shared {
+			name: "mynativelib1",
+			srcs: [
+				"Test.cpp",
+			],
+			export_include_dirs: ["include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library_shared {
+			name: "mynativelib2",
+			srcs: [
+				"Test.cpp",
+			],
+			export_include_dirs: ["include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "android_common", "",
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+.intermediates/mynativelib1/android_arm64_armv8-a_core_shared/mynativelib1.so -> arm64/lib/mynativelib1.so
+.intermediates/mynativelib1/android_arm_armv7-a-neon_core_shared/mynativelib1.so -> arm/lib/mynativelib1.so
+.intermediates/mynativelib2/android_arm64_armv8-a_core_shared/mynativelib2.so -> arm64/lib/mynativelib2.so
+.intermediates/mynativelib2/android_arm_armv7-a-neon_core_shared/mynativelib2.so -> arm/lib/mynativelib2.so
+`),
+	)
+}
+
 func TestSnapshotWithCcShared(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {
