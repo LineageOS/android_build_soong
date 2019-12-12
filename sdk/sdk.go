@@ -61,15 +61,22 @@ type sdk struct {
 }
 
 type sdkProperties struct {
+	// For module types from the cc package
+
+	// The list of native libraries in this SDK
+	Native_shared_libs []string
+
+	// For module types from the java package
+
 	// The list of java header libraries in this SDK
 	//
 	// This should be used for java libraries that are provided separately at runtime,
 	// e.g. through an APEX.
 	Java_header_libs []string
+
 	// The list of java implementation libraries in this SDK
 	Java_libs []string
-	// The list of native libraries in this SDK
-	Native_shared_libs []string
+
 	// The list of stub sources in this SDK
 	Stubs_sources []string
 
