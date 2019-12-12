@@ -181,8 +181,8 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(b/143192278): Add compat symlinks for prebuilt_apex
 }
 
-func (p *Prebuilt) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (p *Prebuilt) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(p.inputApex),
 		Include:    "$(BUILD_PREBUILT)",
@@ -194,5 +194,5 @@ func (p *Prebuilt) AndroidMkEntries() android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.properties.Overrides...)
 			},
 		},
-	}
+	}}
 }

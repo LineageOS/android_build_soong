@@ -142,7 +142,7 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 	}
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a_core").Module().(*PrebuiltEtc)
-	entries := AndroidMkEntriesForTest(t, config, "", mod)
+	entries := AndroidMkEntriesForTest(t, config, "", mod)[0]
 	for k, expectedValue := range expected {
 		if value, ok := entries.EntryMap[k]; ok {
 			if !reflect.DeepEqual(value, expectedValue) {

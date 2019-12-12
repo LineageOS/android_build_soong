@@ -460,8 +460,8 @@ func (txt *vndkLibrariesTxt) GenerateAndroidBuildActions(ctx android.ModuleConte
 	ctx.InstallFile(installPath, filename, txt.outputFile)
 }
 
-func (txt *vndkLibrariesTxt) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (txt *vndkLibrariesTxt) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(txt.outputFile),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
@@ -469,7 +469,7 @@ func (txt *vndkLibrariesTxt) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_STEM", txt.outputFile.Base())
 			},
 		},
-	}
+	}}
 }
 
 func (txt *vndkLibrariesTxt) OutputFile() android.OutputPath {

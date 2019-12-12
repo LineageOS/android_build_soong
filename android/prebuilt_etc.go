@@ -165,12 +165,12 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 	})
 }
 
-func (p *PrebuiltEtc) AndroidMkEntries() AndroidMkEntries {
+func (p *PrebuiltEtc) AndroidMkEntries() []AndroidMkEntries {
 	nameSuffix := ""
 	if p.inRecovery() && !p.onlyInRecovery() {
 		nameSuffix = ".recovery"
 	}
-	return AndroidMkEntries{
+	return []AndroidMkEntries{AndroidMkEntries{
 		Class:      "ETC",
 		SubName:    nameSuffix,
 		OutputFile: OptionalPathForPath(p.outputFilePath),
@@ -187,7 +187,7 @@ func (p *PrebuiltEtc) AndroidMkEntries() AndroidMkEntries {
 				}
 			},
 		},
-	}
+	}}
 }
 
 func InitPrebuiltEtcModule(p *PrebuiltEtc, dirBase string) {
