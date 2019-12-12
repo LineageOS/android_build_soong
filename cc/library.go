@@ -1438,9 +1438,21 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	return outputFile
 }
 
-var LibrarySdkMemberType = &librarySdkMemberType{}
+var SharedLibrarySdkMemberType = &librarySdkMemberType{
+	prebuiltModuleType: "cc_prebuilt_library_shared",
+	linkTypes:          []string{"shared"},
+}
+
+var StaticLibrarySdkMemberType = &librarySdkMemberType{
+	prebuiltModuleType: "cc_prebuilt_library_static",
+	linkTypes:          []string{"static"},
+}
 
 type librarySdkMemberType struct {
+	prebuiltModuleType string
+
+	// The set of link types supported, set of "static", "shared".
+	linkTypes []string
 }
 
 func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
@@ -1451,11 +1463,13 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 			if version == "" {
 				version = LatestStubsVersionFor(mctx.Config(), name)
 			}
-			mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-				{Mutator: "image", Variation: android.CoreVariation},
-				{Mutator: "link", Variation: "shared"},
-				{Mutator: "version", Variation: version},
-			}...), dependencyTag, name)
+			for _, linkType := range mt.linkTypes {
+				mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
+					{Mutator: "image", Variation: android.CoreVariation},
+					{Mutator: "link", Variation: linkType},
+					{Mutator: "version", Variation: version},
+				}...), dependencyTag, name)
+			}
 		}
 	}
 }
@@ -1467,8 +1481,48 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 
 // copy exported header files and stub *.so files
 func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	info := organizeVariants(member)
+	info := mt.organizeVariants(member)
 	buildSharedNativeLibSnapshot(sdkModuleContext, info, builder, member)
+}
+
+// Organize the variants by architecture.
+func (mt *librarySdkMemberType) organizeVariants(member android.SdkMember) *nativeLibInfo {
+	info := &nativeLibInfo{
+		name:       member.Name(),
+		memberType: mt,
+	}
+
+	for _, variant := range member.Variants() {
+		ccModule := variant.(*Module)
+
+		info.archVariants = append(info.archVariants, archSpecificNativeLibInfo{
+			name:                      ccModule.BaseModuleName(),
+			archType:                  ccModule.Target().Arch.ArchType.String(),
+			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
+			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
+			exportedFlags:             ccModule.ExportedFlags(),
+			exportedGeneratedHeaders:  ccModule.ExportedGeneratedHeaders(),
+			outputFile:                ccModule.OutputFile().Path(),
+		})
+	}
+
+	// Determine if include dirs and flags for each variant are different across arch-specific
+	// variants or not. And set hasArchSpecificFlags accordingly
+	// by default, include paths and flags are assumed to be the same across arches
+	info.hasArchSpecificFlags = false
+	oldSignature := ""
+	for _, av := range info.archVariants {
+		newSignature := av.signature()
+		if oldSignature == "" {
+			oldSignature = newSignature
+		}
+		if oldSignature != newSignature {
+			info.hasArchSpecificFlags = true
+			break
+		}
+	}
+
+	return info
 }
 
 func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder, member android.SdkMember) {
@@ -1515,7 +1569,7 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 
 	// for each architecture
 	for _, av := range info.archVariants {
-		builder.CopyToSnapshot(av.outputFile, nativeStubFilePathFor(av))
+		builder.CopyToSnapshot(av.outputFile, nativeLibraryPathFor(av))
 
 		if info.hasArchSpecificFlags {
 			printExportedDirCopyCommandsForNativeLibs(av)
@@ -1542,7 +1596,7 @@ func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.Modu
 		properties.AddProperty(propertyName, includeDirs)
 	}
 
-	pbm := builder.AddPrebuiltModule(member, "cc_prebuilt_library_shared")
+	pbm := builder.AddPrebuiltModule(member, info.memberType.prebuiltModuleType)
 
 	if !info.hasArchSpecificFlags {
 		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
@@ -1552,7 +1606,7 @@ func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.Modu
 	archProperties := pbm.AddPropertySet("arch")
 	for _, av := range info.archVariants {
 		archTypeProperties := archProperties.AddPropertySet(av.archType)
-		archTypeProperties.AddProperty("srcs", []string{nativeStubFilePathFor(av)})
+		archTypeProperties.AddProperty("srcs", []string{nativeLibraryPathFor(av)})
 		if info.hasArchSpecificFlags {
 			// export_* properties are added inside the arch: {<arch>: {...}} block
 			addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
@@ -1567,13 +1621,12 @@ const (
 	nativeIncludeDir          = "include"
 	nativeGeneratedIncludeDir = "include_gen"
 	nativeStubDir             = "lib"
-	nativeStubFileSuffix      = ".so"
 )
 
-// path to the stub file of a native shared library. Relative to <sdk_root>/<api_dir>
-func nativeStubFilePathFor(lib archSpecificNativeLibInfo) string {
+// path to the native library. Relative to <sdk_root>/<api_dir>
+func nativeLibraryPathFor(lib archSpecificNativeLibInfo) string {
 	return filepath.Join(lib.archType,
-		nativeStubDir, lib.name+nativeStubFileSuffix)
+		nativeStubDir, lib.outputFile.Base())
 }
 
 // paths to the include dirs of a native shared library. Relative to <sdk_root>/<api_dir>
@@ -1622,45 +1675,9 @@ func (lib *archSpecificNativeLibInfo) signature() string {
 // nativeLibInfo represents a collection of arch-specific modules having the same name
 type nativeLibInfo struct {
 	name         string
+	memberType   *librarySdkMemberType
 	archVariants []archSpecificNativeLibInfo
 	// hasArchSpecificFlags is set to true if modules for each architecture all have the same
 	// include dirs, flags, etc, in which case only those of the first arch is selected.
 	hasArchSpecificFlags bool
-}
-
-// Organize the variants by architecture.
-func organizeVariants(member android.SdkMember) *nativeLibInfo {
-	info := &nativeLibInfo{name: member.Name()}
-
-	for _, variant := range member.Variants() {
-		ccModule := variant.(*Module)
-
-		info.archVariants = append(info.archVariants, archSpecificNativeLibInfo{
-			name:                      ccModule.BaseModuleName(),
-			archType:                  ccModule.Target().Arch.ArchType.String(),
-			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
-			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
-			exportedFlags:             ccModule.ExportedFlags(),
-			exportedGeneratedHeaders:  ccModule.ExportedGeneratedHeaders(),
-			outputFile:                ccModule.OutputFile().Path(),
-		})
-	}
-
-	// Determine if include dirs and flags for each variant are different across arch-specific
-	// variants or not. And set hasArchSpecificFlags accordingly
-	// by default, include paths and flags are assumed to be the same across arches
-	info.hasArchSpecificFlags = false
-	oldSignature := ""
-	for _, av := range info.archVariants {
-		newSignature := av.signature()
-		if oldSignature == "" {
-			oldSignature = newSignature
-		}
-		if oldSignature != newSignature {
-			info.hasArchSpecificFlags = true
-			break
-		}
-	}
-
-	return info
 }

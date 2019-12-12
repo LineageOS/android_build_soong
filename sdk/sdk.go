@@ -63,8 +63,11 @@ type sdk struct {
 type sdkProperties struct {
 	// For module types from the cc package
 
-	// The list of native libraries in this SDK
+	// The list of shared native libraries in this SDK
 	Native_shared_libs []string
+
+	// The list of static native libraries in this SDK
+	Native_static_libs []string
 
 	// For module types from the java package
 
@@ -114,7 +117,12 @@ var sdkMemberListProperties = []*sdkMemberListProperty{
 	{
 		name:       "native_shared_libs",
 		getter:     func(properties *sdkProperties) []string { return properties.Native_shared_libs },
-		memberType: cc.LibrarySdkMemberType,
+		memberType: cc.SharedLibrarySdkMemberType,
+	},
+	{
+		name:       "native_static_libs",
+		getter:     func(properties *sdkProperties) []string { return properties.Native_static_libs },
+		memberType: cc.StaticLibrarySdkMemberType,
 	},
 	// Members from java package.
 	{
