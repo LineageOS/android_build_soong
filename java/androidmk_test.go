@@ -31,7 +31,7 @@ func TestRequired(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 
 	expected := []string{"libfoo"}
 	actual := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
@@ -50,7 +50,7 @@ func TestHostdex(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 
 	expected := []string{"foo"}
 	actual := entries.EntryMap["LOCAL_MODULE"]
@@ -75,7 +75,7 @@ func TestHostdexRequired(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 
 	expected := []string{"libfoo"}
 	actual := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
@@ -104,7 +104,7 @@ func TestHostdexSpecificRequired(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 
 	if r, ok := entries.EntryMap["LOCAL_REQUIRED_MODULES"]; ok {
 		t.Errorf("Unexpected required modules: %q", r)
