@@ -135,8 +135,8 @@ func (s *ShBinary) GenerateAndroidBuildActions(ctx ModuleContext) {
 	})
 }
 
-func (s *ShBinary) AndroidMkEntries() AndroidMkEntries {
-	return AndroidMkEntries{
+func (s *ShBinary) AndroidMkEntries() []AndroidMkEntries {
+	return []AndroidMkEntries{AndroidMkEntries{
 		Class:      "EXECUTABLES",
 		OutputFile: OptionalPathForPath(s.outputFilePath),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
@@ -145,7 +145,7 @@ func (s *ShBinary) AndroidMkEntries() AndroidMkEntries {
 				s.customAndroidMkEntries(entries)
 			},
 		},
-	}
+	}}
 }
 
 func (s *ShBinary) customAndroidMkEntries(entries *AndroidMkEntries) {
@@ -163,8 +163,8 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx ModuleContext) {
 	s.data = PathsForModuleSrc(ctx, s.testProperties.Data)
 }
 
-func (s *ShTest) AndroidMkEntries() AndroidMkEntries {
-	return AndroidMkEntries{
+func (s *ShTest) AndroidMkEntries() []AndroidMkEntries {
+	return []AndroidMkEntries{AndroidMkEntries{
 		Class:      "NATIVE_TESTS",
 		OutputFile: OptionalPathForPath(s.outputFilePath),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
@@ -185,7 +185,7 @@ func (s *ShTest) AndroidMkEntries() AndroidMkEntries {
 				}
 			},
 		},
-	}
+	}}
 }
 
 func InitShBinaryModule(s *ShBinary) {
