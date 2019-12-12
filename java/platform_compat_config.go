@@ -71,8 +71,8 @@ func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleCon
 
 }
 
-func (p *platformCompatConfig) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(p.configFile),
 		Include:    "$(BUILD_PREBUILT)",
@@ -82,7 +82,7 @@ func (p *platformCompatConfig) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
 			},
 		},
-	}
+	}}
 }
 
 func platformCompatConfigFactory() android.Module {

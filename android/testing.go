@@ -403,15 +403,18 @@ func CheckErrorsAgainstExpectations(t *testing.T, errs []error, expectedErrorPat
 
 }
 
-func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) AndroidMkEntries {
+func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) []AndroidMkEntries {
 	var p AndroidMkEntriesProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkEntriesProvider); !ok {
 		t.Errorf("module does not implement AndroidMkEntriesProvider: " + mod.Name())
 	}
-	entries := p.AndroidMkEntries()
-	entries.fillInEntries(config, bpPath, mod)
-	return entries
+
+	entriesList := p.AndroidMkEntries()
+	for i, _ := range entriesList {
+		entriesList[i].fillInEntries(config, bpPath, mod)
+	}
+	return entriesList
 }
 
 func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) AndroidMkData {
