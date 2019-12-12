@@ -184,6 +184,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 		sdk:             s,
 		version:         "current",
 		snapshotDir:     snapshotDir.OutputPath,
+		copies:          make(map[string]string),
 		filesToZip:      []android.Path{bp.path},
 		bpFile:          bpFile,
 		prebuiltModules: make(map[string]*bpModule),
@@ -337,6 +338,11 @@ type snapshotBuilder struct {
 	version     string
 	snapshotDir android.OutputPath
 	bpFile      *bpFile
+
+	// Map from destination to source of each copy - used to eliminate duplicates and
+	// detect conflicts.
+	copies map[string]string
+
 	filesToZip  android.Paths
 	zipsToMerge android.Paths
 
@@ -345,13 +351,22 @@ type snapshotBuilder struct {
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
-	path := s.snapshotDir.Join(s.ctx, dest)
-	s.ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
-		Input:  src,
-		Output: path,
-	})
-	s.filesToZip = append(s.filesToZip, path)
+	if existing, ok := s.copies[dest]; ok {
+		if existing != src.String() {
+			s.ctx.ModuleErrorf("conflicting copy, %s copied from both %s and %s", dest, existing, src)
+			return
+		}
+	} else {
+		path := s.snapshotDir.Join(s.ctx, dest)
+		s.ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  src,
+			Output: path,
+		})
+		s.filesToZip = append(s.filesToZip, path)
+
+		s.copies[dest] = src.String()
+	}
 }
 
 func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) {
