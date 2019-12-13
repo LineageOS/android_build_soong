@@ -42,7 +42,7 @@ func TestShTestTestData(t *testing.T) {
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
-	entries := AndroidMkEntriesForTest(t, config, "", mod)
+	entries := AndroidMkEntriesForTest(t, config, "", mod)[0]
 	expected := []string{":testdata/data1", ":testdata/sub/data2"}
 	actual := entries.EntryMap["LOCAL_TEST_DATA"]
 	if !reflect.DeepEqual(expected, actual) {

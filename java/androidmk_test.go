@@ -31,7 +31,7 @@ func TestRequired(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 
 	expected := []string{"libfoo"}
 	actual := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
@@ -50,17 +50,23 @@ func TestHostdex(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entriesList := android.AndroidMkEntriesForTest(t, config, "", mod)
+	if len(entriesList) != 2 {
+		t.Errorf("two entries are expected, but got %d", len(entriesList))
+	}
 
+	mainEntries := &entriesList[0]
 	expected := []string{"foo"}
-	actual := entries.EntryMap["LOCAL_MODULE"]
+	actual := mainEntries.EntryMap["LOCAL_MODULE"]
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Unexpected module name - expected: %q, actual: %q", expected, actual)
 	}
 
-	footerLines := entries.FooterLinesForTests()
-	if !android.InList("LOCAL_MODULE := foo-hostdex", footerLines) {
-		t.Errorf("foo-hostdex is not found in the footers: %q", footerLines)
+	subEntries := &entriesList[1]
+	expected = []string{"foo-hostdex"}
+	actual = subEntries.EntryMap["LOCAL_MODULE"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected module name - expected: %q, actual: %q", expected, actual)
 	}
 }
 
@@ -75,17 +81,23 @@ func TestHostdexRequired(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entriesList := android.AndroidMkEntriesForTest(t, config, "", mod)
+	if len(entriesList) != 2 {
+		t.Errorf("two entries are expected, but got %d", len(entriesList))
+	}
 
+	mainEntries := &entriesList[0]
 	expected := []string{"libfoo"}
-	actual := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
+	actual := mainEntries.EntryMap["LOCAL_REQUIRED_MODULES"]
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Unexpected required modules - expected: %q, actual: %q", expected, actual)
 	}
 
-	footerLines := entries.FooterLinesForTests()
-	if !android.InList("LOCAL_REQUIRED_MODULES := libfoo", footerLines) {
-		t.Errorf("Wrong or missing required line for foo-hostdex in the footers: %q", footerLines)
+	subEntries := &entriesList[1]
+	expected = []string{"libfoo"}
+	actual = subEntries.EntryMap["LOCAL_REQUIRED_MODULES"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected required modules - expected: %q, actual: %q", expected, actual)
 	}
 }
 
@@ -104,14 +116,20 @@ func TestHostdexSpecificRequired(t *testing.T) {
 	`)
 
 	mod := ctx.ModuleForTests("foo", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)
+	entriesList := android.AndroidMkEntriesForTest(t, config, "", mod)
+	if len(entriesList) != 2 {
+		t.Errorf("two entries are expected, but got %d", len(entriesList))
+	}
 
-	if r, ok := entries.EntryMap["LOCAL_REQUIRED_MODULES"]; ok {
+	mainEntries := &entriesList[0]
+	if r, ok := mainEntries.EntryMap["LOCAL_REQUIRED_MODULES"]; ok {
 		t.Errorf("Unexpected required modules: %q", r)
 	}
 
-	footerLines := entries.FooterLinesForTests()
-	if !android.InList("LOCAL_REQUIRED_MODULES += libfoo", footerLines) {
-		t.Errorf("Wrong or missing required line for foo-hostdex in the footers: %q", footerLines)
+	subEntries := &entriesList[1]
+	expected := []string{"libfoo"}
+	actual := subEntries.EntryMap["LOCAL_REQUIRED_MODULES"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected required modules - expected: %q, actual: %q", expected, actual)
 	}
 }

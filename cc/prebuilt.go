@@ -130,16 +130,8 @@ func (p *prebuiltLibraryLinker) disablePrebuilt() {
 	p.properties.Srcs = nil
 }
 
-// cc_prebuilt_library_shared installs a precompiled shared library that are
-// listed in the srcs property in the device's directory.
-func PrebuiltSharedLibraryFactory() android.Module {
-	module, _ := NewPrebuiltSharedLibrary(android.HostAndDeviceSupported)
-	return module.Init()
-}
-
-func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
+func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module, library := NewLibrary(hod)
-	library.BuildOnlyShared()
 	module.compiler = nil
 
 	prebuilt := &prebuiltLibraryLinker{
@@ -151,9 +143,24 @@ func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 
 	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
 
-	// Prebuilt libraries can be included in APEXes
-	android.InitApexModule(module)
+	// Prebuilt libraries can be used in SDKs.
 	android.InitSdkAwareModule(module)
+	return module, library
+}
+
+// cc_prebuilt_library_shared installs a precompiled shared library that are
+// listed in the srcs property in the device's directory.
+func PrebuiltSharedLibraryFactory() android.Module {
+	module, _ := NewPrebuiltSharedLibrary(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func NewPrebuiltSharedLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
+	module, library := NewPrebuiltLibrary(hod)
+	library.BuildOnlyShared()
+
+	// Prebuilt shared libraries can be included in APEXes
+	android.InitApexModule(module)
 
 	return module, library
 }
@@ -166,19 +173,8 @@ func PrebuiltStaticLibraryFactory() android.Module {
 }
 
 func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
-	module, library := NewLibrary(hod)
+	module, library := NewPrebuiltLibrary(hod)
 	library.BuildOnlyStatic()
-	module.compiler = nil
-
-	prebuilt := &prebuiltLibraryLinker{
-		libraryDecorator: library,
-	}
-	module.linker = prebuilt
-
-	module.AddProperties(&prebuilt.properties)
-
-	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
-	android.InitSdkAwareModule(module)
 	return module, library
 }
 

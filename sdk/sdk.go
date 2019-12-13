@@ -61,15 +61,25 @@ type sdk struct {
 }
 
 type sdkProperties struct {
+	// For module types from the cc package
+
+	// The list of shared native libraries in this SDK
+	Native_shared_libs []string
+
+	// The list of static native libraries in this SDK
+	Native_static_libs []string
+
+	// For module types from the java package
+
 	// The list of java header libraries in this SDK
 	//
 	// This should be used for java libraries that are provided separately at runtime,
 	// e.g. through an APEX.
 	Java_header_libs []string
+
 	// The list of java implementation libraries in this SDK
 	Java_libs []string
-	// The list of native libraries in this SDK
-	Native_shared_libs []string
+
 	// The list of stub sources in this SDK
 	Stubs_sources []string
 
@@ -107,7 +117,12 @@ var sdkMemberListProperties = []*sdkMemberListProperty{
 	{
 		name:       "native_shared_libs",
 		getter:     func(properties *sdkProperties) []string { return properties.Native_shared_libs },
-		memberType: cc.LibrarySdkMemberType,
+		memberType: cc.SharedLibrarySdkMemberType,
+	},
+	{
+		name:       "native_static_libs",
+		getter:     func(properties *sdkProperties) []string { return properties.Native_static_libs },
+		memberType: cc.StaticLibrarySdkMemberType,
 	},
 	// Members from java package.
 	{
@@ -163,12 +178,12 @@ func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (s *sdk) AndroidMkEntries() android.AndroidMkEntries {
+func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 	if !s.snapshotFile.Valid() {
-		return android.AndroidMkEntries{}
+		return []android.AndroidMkEntries{}
 	}
 
-	return android.AndroidMkEntries{
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "FAKE",
 		OutputFile: s.snapshotFile,
 		DistFile:   s.snapshotFile,
@@ -180,7 +195,7 @@ func (s *sdk) AndroidMkEntries() android.AndroidMkEntries {
 				fmt.Fprintln(w, s.Name()+":", s.snapshotFile.String())
 			},
 		},
-	}
+	}}
 }
 
 // RegisterPreDepsMutators registers pre-deps mutators to support modules implementing SdkAware

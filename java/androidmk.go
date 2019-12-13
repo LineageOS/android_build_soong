@@ -17,101 +17,103 @@ package java
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"android/soong/android"
 )
 
-// TODO(jungjw): We'll probably want AndroidMkEntriesProvider.AndroidMkEntries to return multiple
-// entries so that this can be more error-proof.
-func (library *Library) AndroidMkHostDex(w io.Writer, name string, entries *android.AndroidMkEntries) {
-	if Bool(library.deviceProperties.Hostdex) && !library.Host() {
-		fmt.Fprintln(w, "include $(CLEAR_VARS)")
-		fmt.Fprintln(w, "LOCAL_MODULE := "+name+"-hostdex")
-		fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
-		fmt.Fprintln(w, "LOCAL_MODULE_CLASS := JAVA_LIBRARIES")
-		if library.dexJarFile != nil {
-			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.dexJarFile.String())
-		} else {
-			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", library.implementationAndResourcesJar.String())
-		}
-		if library.dexJarFile != nil {
-			fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", library.dexJarFile.String())
-		}
-		fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", library.headerJarFile.String())
-		fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", library.implementationAndResourcesJar.String())
-		if len(entries.Required) > 0 {
-			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(entries.Required, " "))
-		}
-		if len(entries.Host_required) > 0 {
-			fmt.Fprintln(w, "LOCAL_HOST_REQUIRED_MODULES :=", strings.Join(entries.Host_required, " "))
-		}
-		if len(entries.Target_required) > 0 {
-			fmt.Fprintln(w, "LOCAL_TARGET_REQUIRED_MODULES :=", strings.Join(entries.Target_required, " "))
-		}
-		if r := library.deviceProperties.Target.Hostdex.Required; len(r) > 0 {
-			fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(r, " "))
-		}
-		fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", library.Stem()+"-hostdex")
-		fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+func (library *Library) AndroidMkEntriesHostDex() android.AndroidMkEntries {
+	hostDexNeeded := Bool(library.deviceProperties.Hostdex) && !library.Host()
+	if !library.IsForPlatform() {
+		// If the platform variant is available, don't emit hostdex modules from the APEX variants
+		hostDexNeeded = false
 	}
+
+	if hostDexNeeded {
+		var output android.Path
+		if library.dexJarFile != nil {
+			output = library.dexJarFile
+		} else {
+			output = library.implementationAndResourcesJar
+		}
+		return android.AndroidMkEntries{
+			Class:      "JAVA_LIBRARIES",
+			SubName:    "-hostdex",
+			OutputFile: android.OptionalPathForPath(output),
+			Required:   library.deviceProperties.Target.Hostdex.Required,
+			Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(entries *android.AndroidMkEntries) {
+					entries.SetBool("LOCAL_IS_HOST_MODULE", true)
+					entries.SetPath("LOCAL_PREBUILT_MODULE_FILE", output)
+					if library.dexJarFile != nil {
+						entries.SetPath("LOCAL_SOONG_DEX_JAR", library.dexJarFile)
+					}
+					entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
+					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
+					entries.SetString("LOCAL_MODULE_STEM", library.Stem()+"-hostdex")
+				},
+			},
+		}
+	}
+	return android.AndroidMkEntries{Disabled: true}
 }
 
-func (library *Library) AndroidMkEntries() android.AndroidMkEntries {
-	if !library.IsForPlatform() {
-		return android.AndroidMkEntries{
-			Disabled: true,
+func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
+	var entriesList []android.AndroidMkEntries
+
+	mainEntries := android.AndroidMkEntries{Disabled: true}
+	// For a java library built for an APEX, we don't need Make module
+	if library.IsForPlatform() {
+		mainEntries = android.AndroidMkEntries{
+			Class:      "JAVA_LIBRARIES",
+			OutputFile: android.OptionalPathForPath(library.outputFile),
+			Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(entries *android.AndroidMkEntries) {
+					if len(library.logtagsSrcs) > 0 {
+						var logtags []string
+						for _, l := range library.logtagsSrcs {
+							logtags = append(logtags, l.Rel())
+						}
+						entries.AddStrings("LOCAL_LOGTAGS_FILES", logtags...)
+					}
+
+					if library.installFile == nil {
+						entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
+					}
+					if library.dexJarFile != nil {
+						entries.SetPath("LOCAL_SOONG_DEX_JAR", library.dexJarFile)
+					}
+					if len(library.dexpreopter.builtInstalled) > 0 {
+						entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", library.dexpreopter.builtInstalled)
+					}
+					entries.SetString("LOCAL_SDK_VERSION", library.sdkVersion())
+					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
+					entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
+
+					if library.jacocoReportClassesFile != nil {
+						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoReportClassesFile)
+					}
+
+					entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", library.exportedSdkLibs...)
+
+					if len(library.additionalCheckedModules) != 0 {
+						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", library.additionalCheckedModules.Strings()...)
+					}
+
+					if library.proguardDictionary != nil {
+						entries.SetPath("LOCAL_SOONG_PROGUARD_DICT", library.proguardDictionary)
+					}
+					entries.SetString("LOCAL_MODULE_STEM", library.Stem())
+				},
+			},
 		}
 	}
-	return android.AndroidMkEntries{
-		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(library.outputFile),
-		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(entries *android.AndroidMkEntries) {
-				if len(library.logtagsSrcs) > 0 {
-					var logtags []string
-					for _, l := range library.logtagsSrcs {
-						logtags = append(logtags, l.Rel())
-					}
-					entries.AddStrings("LOCAL_LOGTAGS_FILES", logtags...)
-				}
 
-				if library.installFile == nil {
-					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
-				}
-				if library.dexJarFile != nil {
-					entries.SetPath("LOCAL_SOONG_DEX_JAR", library.dexJarFile)
-				}
-				if len(library.dexpreopter.builtInstalled) > 0 {
-					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", library.dexpreopter.builtInstalled)
-				}
-				entries.SetString("LOCAL_SDK_VERSION", library.sdkVersion())
-				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
-				entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
+	hostDexEntries := library.AndroidMkEntriesHostDex()
 
-				if library.jacocoReportClassesFile != nil {
-					entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoReportClassesFile)
-				}
-
-				entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", library.exportedSdkLibs...)
-
-				if len(library.additionalCheckedModules) != 0 {
-					entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", library.additionalCheckedModules.Strings()...)
-				}
-
-				if library.proguardDictionary != nil {
-					entries.SetPath("LOCAL_SOONG_PROGUARD_DICT", library.proguardDictionary)
-				}
-				entries.SetString("LOCAL_MODULE_STEM", library.Stem())
-			},
-		},
-		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-				library.AndroidMkHostDex(w, name, entries)
-			},
-		},
-	}
+	entriesList = append(entriesList, mainEntries, hostDexEntries)
+	return entriesList
 }
 
 // Called for modules that are a component of a test suite.
@@ -124,8 +126,9 @@ func testSuiteComponent(entries *android.AndroidMkEntries, test_suites []string)
 	}
 }
 
-func (j *Test) AndroidMkEntries() android.AndroidMkEntries {
-	entries := j.Library.AndroidMkEntries()
+func (j *Test) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := j.Library.AndroidMkEntries()
+	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		testSuiteComponent(entries, j.testProperties.Test_suites)
 		if j.testConfig != nil {
@@ -134,25 +137,26 @@ func (j *Test) AndroidMkEntries() android.AndroidMkEntries {
 		androidMkWriteTestData(j.data, entries)
 	})
 
-	return entries
+	return entriesList
 }
 
-func (j *TestHelperLibrary) AndroidMkEntries() android.AndroidMkEntries {
-	entries := j.Library.AndroidMkEntries()
+func (j *TestHelperLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := j.Library.AndroidMkEntries()
+	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		testSuiteComponent(entries, j.testHelperLibraryProperties.Test_suites)
 	})
 
-	return entries
+	return entriesList
 }
 
-func (prebuilt *Import) AndroidMkEntries() android.AndroidMkEntries {
+func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().Unversioned() {
-		return android.AndroidMkEntries{
+		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
-		}
+		}}
 	}
-	return android.AndroidMkEntries{
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.combinedClasspathFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
@@ -165,16 +169,16 @@ func (prebuilt *Import) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 			},
 		},
-	}
+	}}
 }
 
-func (prebuilt *DexImport) AndroidMkEntries() android.AndroidMkEntries {
+func (prebuilt *DexImport) AndroidMkEntries() []android.AndroidMkEntries {
 	if !prebuilt.IsForPlatform() {
-		return android.AndroidMkEntries{
+		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
-		}
+		}}
 	}
-	return android.AndroidMkEntries{
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.maybeStrippedDexJarFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
@@ -193,11 +197,11 @@ func (prebuilt *DexImport) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 			},
 		},
-	}
+	}}
 }
 
-func (prebuilt *AARImport) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.classpathFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
@@ -213,13 +217,13 @@ func (prebuilt *AARImport) AndroidMkEntries() android.AndroidMkEntries {
 				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion())
 			},
 		},
-	}
+	}}
 }
 
-func (binary *Binary) AndroidMkEntries() android.AndroidMkEntries {
+func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 
 	if !binary.isWrapperVariant {
-		return android.AndroidMkEntries{
+		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
 			OutputFile: android.OptionalPathForPath(binary.outputFile),
 			Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
@@ -240,9 +244,9 @@ func (binary *Binary) AndroidMkEntries() android.AndroidMkEntries {
 					fmt.Fprintln(w, "jar_installed_module := $(LOCAL_INSTALLED_MODULE)")
 				},
 			},
-		}
+		}}
 	} else {
-		return android.AndroidMkEntries{
+		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Class:      "EXECUTABLES",
 			OutputFile: android.OptionalPathForPath(binary.wrapperFile),
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
@@ -257,17 +261,17 @@ func (binary *Binary) AndroidMkEntries() android.AndroidMkEntries {
 					fmt.Fprintln(w, "jar_installed_module :=")
 				},
 			},
-		}
+		}}
 	}
 }
 
-func (app *AndroidApp) AndroidMkEntries() android.AndroidMkEntries {
+func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 	if !app.IsForPlatform() {
-		return android.AndroidMkEntries{
+		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
-		}
+		}}
 	}
-	return android.AndroidMkEntries{
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "APPS",
 		OutputFile: android.OptionalPathForPath(app.outputFile),
 		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
@@ -359,7 +363,7 @@ func (app *AndroidApp) AndroidMkEntries() android.AndroidMkEntries {
 				}
 			},
 		},
-	}
+	}}
 }
 
 func (a *AndroidApp) getOverriddenPackages() []string {
@@ -373,8 +377,9 @@ func (a *AndroidApp) getOverriddenPackages() []string {
 	return overridden
 }
 
-func (a *AndroidTest) AndroidMkEntries() android.AndroidMkEntries {
-	entries := a.AndroidApp.AndroidMkEntries()
+func (a *AndroidTest) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := a.AndroidApp.AndroidMkEntries()
+	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		testSuiteComponent(entries, a.testProperties.Test_suites)
 		if a.testConfig != nil {
@@ -383,20 +388,22 @@ func (a *AndroidTest) AndroidMkEntries() android.AndroidMkEntries {
 		androidMkWriteTestData(a.data, entries)
 	})
 
-	return entries
+	return entriesList
 }
 
-func (a *AndroidTestHelperApp) AndroidMkEntries() android.AndroidMkEntries {
-	entries := a.AndroidApp.AndroidMkEntries()
+func (a *AndroidTestHelperApp) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := a.AndroidApp.AndroidMkEntries()
+	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		testSuiteComponent(entries, a.appTestHelperAppProperties.Test_suites)
 	})
 
-	return entries
+	return entriesList
 }
 
-func (a *AndroidLibrary) AndroidMkEntries() android.AndroidMkEntries {
-	entries := a.Library.AndroidMkEntries()
+func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := a.Library.AndroidMkEntries()
+	entries := &entriesList[0]
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		if a.aarFile != nil {
@@ -417,11 +424,11 @@ func (a *AndroidLibrary) AndroidMkEntries() android.AndroidMkEntries {
 		entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
 	})
 
-	return entries
+	return entriesList
 }
 
-func (jd *Javadoc) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (jd *Javadoc) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(jd.stubsSrcJar),
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
@@ -435,11 +442,11 @@ func (jd *Javadoc) AndroidMkEntries() android.AndroidMkEntries {
 				}
 			},
 		},
-	}
+	}}
 }
 
-func (ddoc *Droiddoc) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (ddoc *Droiddoc) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(ddoc.stubsSrcJar),
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
@@ -520,11 +527,11 @@ func (ddoc *Droiddoc) AndroidMkEntries() android.AndroidMkEntries {
 				}
 			},
 		},
-	}
+	}}
 }
 
-func (dstubs *Droidstubs) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(dstubs.stubsSrcJar),
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
@@ -636,11 +643,11 @@ func (dstubs *Droidstubs) AndroidMkEntries() android.AndroidMkEntries {
 				}
 			},
 		},
-	}
+	}}
 }
 
-func (a *AndroidAppImport) AndroidMkEntries() android.AndroidMkEntries {
-	return android.AndroidMkEntries{
+func (a *AndroidAppImport) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "APPS",
 		OutputFile: android.OptionalPathForPath(a.outputFile),
 		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
@@ -659,16 +666,17 @@ func (a *AndroidAppImport) AndroidMkEntries() android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_INSTALLED_MODULE_STEM", a.installPath.Rel())
 			},
 		},
-	}
+	}}
 }
 
-func (a *AndroidTestImport) AndroidMkEntries() android.AndroidMkEntries {
-	entries := a.AndroidAppImport.AndroidMkEntries()
+func (a *AndroidTestImport) AndroidMkEntries() []android.AndroidMkEntries {
+	entriesList := a.AndroidAppImport.AndroidMkEntries()
+	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		testSuiteComponent(entries, a.testProperties.Test_suites)
 		androidMkWriteTestData(a.data, entries)
 	})
-	return entries
+	return entriesList
 }
 
 func androidMkWriteTestData(data android.Paths, entries *android.AndroidMkEntries) {
