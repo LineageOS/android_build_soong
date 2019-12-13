@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1487,49 +1488,100 @@ func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleCon
 
 // Organize the variants by architecture.
 func (mt *librarySdkMemberType) organizeVariants(member android.SdkMember) *nativeLibInfo {
+	memberName := member.Name()
 	info := &nativeLibInfo{
-		name:       member.Name(),
+		name:       memberName,
 		memberType: mt,
 	}
 
 	for _, variant := range member.Variants() {
 		ccModule := variant.(*Module)
 
-		info.archVariants = append(info.archVariants, archSpecificNativeLibInfo{
-			name:                      ccModule.BaseModuleName(),
+		info.archVariantProperties = append(info.archVariantProperties, nativeLibInfoProperties{
+			name:                      memberName,
 			archType:                  ccModule.Target().Arch.ArchType.String(),
-			exportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
-			exportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
-			exportedFlags:             ccModule.ExportedFlags(),
+			ExportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
+			ExportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
+			ExportedFlags:             ccModule.ExportedFlags(),
 			exportedGeneratedHeaders:  ccModule.ExportedGeneratedHeaders(),
 			outputFile:                ccModule.OutputFile().Path(),
 		})
 	}
 
-	// Determine if include dirs and flags for each variant are different across arch-specific
-	// variants or not. And set hasArchSpecificFlags accordingly
-	// by default, include paths and flags are assumed to be the same across arches
-	info.hasArchSpecificFlags = false
-	oldSignature := ""
-	for _, av := range info.archVariants {
-		newSignature := av.signature()
-		if oldSignature == "" {
-			oldSignature = newSignature
-		}
-		if oldSignature != newSignature {
-			info.hasArchSpecificFlags = true
-			break
-		}
-	}
+	// Initialize the unexported properties that will not be set during the
+	// extraction process.
+	info.commonProperties.name = memberName
+
+	// Extract common properties from the arch specific properties.
+	extractCommonProperties(&info.commonProperties, info.archVariantProperties)
 
 	return info
 }
 
+// Extract common properties from a slice of property structures of the same type.
+//
+// All the property structures must be of the same type.
+// commonProperties - must be a pointer to the structure into which common properties will be added.
+// inputPropertiesSlice - must be a slice of input properties structures.
+//
+// Iterates over each exported field (capitalized name) and checks to see whether they
+// have the same value (using DeepEquals) across all the input properties. If it does not then no
+// change is made. Otherwise, the common value is stored in the field in the commonProperties
+// and the field in each of the input properties structure is set to its default value.
+func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
+	commonStructValue := reflect.ValueOf(commonProperties).Elem()
+	propertiesStructType := commonStructValue.Type()
+
+	// Create an empty structure from which default values for the field can be copied.
+	emptyStructValue := reflect.New(propertiesStructType).Elem()
+
+	for f := 0; f < propertiesStructType.NumField(); f++ {
+		// Check to see if all the structures have the same value for the field. The commonValue
+		// is nil on entry to the loop and if it is nil on exit then there is no common value,
+		// otherwise it points to the common value.
+		var commonValue *reflect.Value
+		sliceValue := reflect.ValueOf(inputPropertiesSlice)
+
+		for i := 0; i < sliceValue.Len(); i++ {
+			structValue := sliceValue.Index(i)
+			fieldValue := structValue.Field(f)
+			if !fieldValue.CanInterface() {
+				// The field is not exported so ignore it.
+				continue
+			}
+
+			if commonValue == nil {
+				// Use the first value as the commonProperties value.
+				commonValue = &fieldValue
+			} else {
+				// If the value does not match the current common value then there is
+				// no value in common so break out.
+				if !reflect.DeepEqual(fieldValue.Interface(), commonValue.Interface()) {
+					commonValue = nil
+					break
+				}
+			}
+		}
+
+		// If the fields all have a common value then store it in the common struct field
+		// and set the input struct's field to the empty value.
+		if commonValue != nil {
+			emptyValue := emptyStructValue.Field(f)
+			commonStructValue.Field(f).Set(*commonValue)
+			for i := 0; i < sliceValue.Len(); i++ {
+				structValue := sliceValue.Index(i)
+				fieldValue := structValue.Field(f)
+				fieldValue.Set(emptyValue)
+			}
+		}
+	}
+}
+
 func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder, member android.SdkMember) {
 	// a function for emitting include dirs
-	printExportedDirCopyCommandsForNativeLibs := func(lib archSpecificNativeLibInfo) {
-		includeDirs := lib.exportedIncludeDirs
-		includeDirs = append(includeDirs, lib.exportedSystemIncludeDirs...)
+	addExportedDirCopyCommandsForNativeLibs := func(lib nativeLibInfoProperties) {
+		includeDirs := lib.ExportedIncludeDirs
+		includeDirs = append(includeDirs, lib.ExportedSystemIncludeDirs...)
 		if len(includeDirs) == 0 {
 			return
 		}
@@ -1538,10 +1590,8 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 				// generated headers are copied via exportedGeneratedHeaders. See below.
 				continue
 			}
-			targetDir := nativeIncludeDir
-			if info.hasArchSpecificFlags {
-				targetDir = filepath.Join(lib.archType, targetDir)
-			}
+			// lib.ArchType is "" for common properties.
+			targetDir := filepath.Join(lib.archType, nativeIncludeDir)
 
 			// TODO(jiyong) copy headers having other suffixes
 			headers, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.h", nil)
@@ -1554,26 +1604,21 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 
 		genHeaders := lib.exportedGeneratedHeaders
 		for _, file := range genHeaders {
-			targetDir := nativeGeneratedIncludeDir
-			if info.hasArchSpecificFlags {
-				targetDir = filepath.Join(lib.archType, targetDir)
-			}
+			// lib.ArchType is "" for common properties.
+			targetDir := filepath.Join(lib.archType, nativeGeneratedIncludeDir)
+
 			dest := filepath.Join(targetDir, lib.name, file.Rel())
 			builder.CopyToSnapshot(file, dest)
 		}
 	}
 
-	if !info.hasArchSpecificFlags {
-		printExportedDirCopyCommandsForNativeLibs(info.archVariants[0])
-	}
+	addExportedDirCopyCommandsForNativeLibs(info.commonProperties)
 
 	// for each architecture
-	for _, av := range info.archVariants {
+	for _, av := range info.archVariantProperties {
 		builder.CopyToSnapshot(av.outputFile, nativeLibraryPathFor(av))
 
-		if info.hasArchSpecificFlags {
-			printExportedDirCopyCommandsForNativeLibs(av)
-		}
+		addExportedDirCopyCommandsForNativeLibs(av)
 	}
 
 	info.generatePrebuiltLibrary(sdkModuleContext, builder, member)
@@ -1582,8 +1627,8 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 
 	// a function for emitting include dirs
-	addExportedDirsForNativeLibs := func(lib archSpecificNativeLibInfo, properties android.BpPropertySet, systemInclude bool) {
-		includeDirs := nativeIncludeDirPathsFor(lib, systemInclude, info.hasArchSpecificFlags)
+	addExportedDirsForNativeLibs := func(lib nativeLibInfoProperties, properties android.BpPropertySet, systemInclude bool) {
+		includeDirs := nativeIncludeDirPathsFor(lib, systemInclude)
 		if len(includeDirs) == 0 {
 			return
 		}
@@ -1598,20 +1643,17 @@ func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.Modu
 
 	pbm := builder.AddPrebuiltModule(member, info.memberType.prebuiltModuleType)
 
-	if !info.hasArchSpecificFlags {
-		addExportedDirsForNativeLibs(info.archVariants[0], pbm, false /*systemInclude*/)
-		addExportedDirsForNativeLibs(info.archVariants[0], pbm, true /*systemInclude*/)
-	}
+	addExportedDirsForNativeLibs(info.commonProperties, pbm, false /*systemInclude*/)
+	addExportedDirsForNativeLibs(info.commonProperties, pbm, true /*systemInclude*/)
 
 	archProperties := pbm.AddPropertySet("arch")
-	for _, av := range info.archVariants {
+	for _, av := range info.archVariantProperties {
 		archTypeProperties := archProperties.AddPropertySet(av.archType)
 		archTypeProperties.AddProperty("srcs", []string{nativeLibraryPathFor(av)})
-		if info.hasArchSpecificFlags {
-			// export_* properties are added inside the arch: {<arch>: {...}} block
-			addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
-			addExportedDirsForNativeLibs(av, archTypeProperties, true /*systemInclude*/)
-		}
+
+		// export_* properties are added inside the arch: {<arch>: {...}} block
+		addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
+		addExportedDirsForNativeLibs(av, archTypeProperties, true /*systemInclude*/)
 	}
 	pbm.AddProperty("stl", "none")
 	pbm.AddProperty("system_shared_libs", []string{})
@@ -1624,19 +1666,19 @@ const (
 )
 
 // path to the native library. Relative to <sdk_root>/<api_dir>
-func nativeLibraryPathFor(lib archSpecificNativeLibInfo) string {
+func nativeLibraryPathFor(lib nativeLibInfoProperties) string {
 	return filepath.Join(lib.archType,
 		nativeStubDir, lib.outputFile.Base())
 }
 
 // paths to the include dirs of a native shared library. Relative to <sdk_root>/<api_dir>
-func nativeIncludeDirPathsFor(lib archSpecificNativeLibInfo, systemInclude bool, archSpecific bool) []string {
+func nativeIncludeDirPathsFor(lib nativeLibInfoProperties, systemInclude bool) []string {
 	var result []string
 	var includeDirs []android.Path
 	if !systemInclude {
-		includeDirs = lib.exportedIncludeDirs
+		includeDirs = lib.ExportedIncludeDirs
 	} else {
-		includeDirs = lib.exportedSystemIncludeDirs
+		includeDirs = lib.ExportedSystemIncludeDirs
 	}
 	for _, dir := range includeDirs {
 		var path string
@@ -1645,39 +1687,41 @@ func nativeIncludeDirPathsFor(lib archSpecificNativeLibInfo, systemInclude bool,
 		} else {
 			path = filepath.Join(nativeIncludeDir, dir.String())
 		}
-		if archSpecific {
-			path = filepath.Join(lib.archType, path)
-		}
+
+		// lib.ArchType is "" for common properties.
+		path = filepath.Join(lib.archType, path)
 		result = append(result, path)
 	}
 	return result
 }
 
-// archSpecificNativeLibInfo represents an arch-specific variant of a native lib
-type archSpecificNativeLibInfo struct {
-	name                      string
-	archType                  string
-	exportedIncludeDirs       android.Paths
-	exportedSystemIncludeDirs android.Paths
-	exportedFlags             []string
-	exportedGeneratedHeaders  android.Paths
-	outputFile                android.Path
-}
+// nativeLibInfoProperties represents properties of a native lib
+//
+// The exported (capitalized) fields will be examined and may be changed during common value extraction.
+// The unexported fields will be left untouched.
+type nativeLibInfoProperties struct {
+	// The name of the library, is not exported as this must not be changed during optimization.
+	name string
 
-func (lib *archSpecificNativeLibInfo) signature() string {
-	return fmt.Sprintf("%v %v %v %v",
-		lib.name,
-		lib.exportedIncludeDirs.Strings(),
-		lib.exportedSystemIncludeDirs.Strings(),
-		lib.exportedFlags)
+	// archType is not exported as if set (to a non default value) it is always arch specific.
+	// This is "" for common properties.
+	archType string
+
+	ExportedIncludeDirs       android.Paths
+	ExportedSystemIncludeDirs android.Paths
+	ExportedFlags             []string
+
+	// exportedGeneratedHeaders is not exported as if set it is always arch specific.
+	exportedGeneratedHeaders android.Paths
+
+	// outputFile is not exported as it is always arch specific.
+	outputFile android.Path
 }
 
 // nativeLibInfo represents a collection of arch-specific modules having the same name
 type nativeLibInfo struct {
-	name         string
-	memberType   *librarySdkMemberType
-	archVariants []archSpecificNativeLibInfo
-	// hasArchSpecificFlags is set to true if modules for each architecture all have the same
-	// include dirs, flags, etc, in which case only those of the first arch is selected.
-	hasArchSpecificFlags bool
+	name                  string
+	memberType            *librarySdkMemberType
+	archVariantProperties []nativeLibInfoProperties
+	commonProperties      nativeLibInfoProperties
 }
