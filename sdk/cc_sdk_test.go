@@ -24,10 +24,11 @@ func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
 	t.Helper()
 
 	fs := map[string][]byte{
-		"Test.cpp":               nil,
-		"include/Test.h":         nil,
-		"libfoo.so":              nil,
-		"aidl/foo/bar/Test.aidl": nil,
+		"Test.cpp":                  nil,
+		"include/Test.h":            nil,
+		"arm64/include/Arm64Test.h": nil,
+		"libfoo.so":                 nil,
+		"aidl/foo/bar/Test.aidl":    nil,
 	}
 	return testSdkWithFs(t, bp, fs)
 }
@@ -178,6 +179,83 @@ include/Test.h -> include/include/Test.h
 .intermediates/mynativelib2/android_arm64_armv8-a_core_shared/mynativelib2.so -> arm64/lib/mynativelib2.so
 .intermediates/mynativelib2/android_arm_armv7-a-neon_core_shared/mynativelib2.so -> arm/lib/mynativelib2.so
 `),
+	)
+}
+
+// Verify that when the shared library has some common and some arch specific properties that the generated
+// snapshot is optimized properly.
+func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["mynativelib"],
+		}
+
+		cc_library_shared {
+			name: "mynativelib",
+			srcs: [
+				"Test.cpp",
+				"aidl/foo/bar/Test.aidl",
+			],
+			export_include_dirs: ["include"],
+			arch: {
+				arm64: {
+					export_system_include_dirs: ["arm64/include"],
+				},
+			},
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "android_common", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+            export_system_include_dirs: ["arm64/include/arm64/include"],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+cc_prebuilt_library_shared {
+    name: "mynativelib",
+    prefer: false,
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+            export_system_include_dirs: ["arm64/include/arm64/include"],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_shared_libs: ["mysdk_mynativelib@current"],
+}
+`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_core_shared/mynativelib.so -> arm64/lib/mynativelib.so
+arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/mynativelib.so -> arm/lib/mynativelib.so`),
 	)
 }
 
