@@ -141,6 +141,8 @@ var (
 		Command: `${zip2zip} -i $in -o $out ` +
 			`apex_payload.img:apex/${abi}.img ` +
 			`apex_manifest.json:root/apex_manifest.json ` +
+			`apex_pubkey:root/apex_pubkey ` +
+			`apex_manifest.pb:root/apex_manifest.pb ` +
 			`AndroidManifest.xml:manifest/AndroidManifest.xml ` +
 			`assets/NOTICE.html.gz:assets/NOTICE.html.gz`,
 		CommandDeps: []string{"${zip2zip}"},
