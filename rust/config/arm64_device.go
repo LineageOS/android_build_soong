@@ -27,7 +27,8 @@ var (
 		"-Wl,--icf=safe",
 		"-Wl,-z,max-page-size=4096",
 
-		"-Wl,-execute-only",
+		"-Wl,--execute-only",
+		"-Wl,-z,separate-code",
 	}
 
 	Arm64ArchVariantRustFlags = map[string][]string{
