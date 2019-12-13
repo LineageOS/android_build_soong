@@ -347,6 +347,7 @@ bootstrap_go_package {
         "rust/config/whitelist.go",
         "rust/config/x86_darwin_host.go",
         "rust/config/x86_linux_host.go",
+        "rust/config/x86_device.go",
         "rust/config/x86_64_device.go",
     ],
 }
