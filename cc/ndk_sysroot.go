@@ -58,7 +58,7 @@ import (
 
 func init() {
 	android.RegisterModuleType("ndk_headers", ndkHeadersFactory)
-	android.RegisterModuleType("ndk_library", ndkLibraryFactory)
+	android.RegisterModuleType("ndk_library", NdkLibraryFactory)
 	android.RegisterModuleType("versioned_ndk_headers", versionedNdkHeadersFactory)
 	android.RegisterModuleType("preprocessed_ndk_headers", preprocessedNdkHeadersFactory)
 	android.RegisterSingletonType("ndk", NdkSingleton)

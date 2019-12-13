@@ -23,8 +23,8 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("ndk_prebuilt_object", ndkPrebuiltObjectFactory)
-	android.RegisterModuleType("ndk_prebuilt_static_stl", ndkPrebuiltStaticStlFactory)
+	android.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
+	android.RegisterModuleType("ndk_prebuilt_static_stl", NdkPrebuiltStaticStlFactory)
 	android.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 }
 
@@ -68,7 +68,7 @@ func (*ndkPrebuiltObjectLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 // operations. Soong's module name format is ndk_<NAME>.o.<sdk_version> where
 // the object is located under
 // ./prebuilts/ndk/current/platforms/android-<sdk_version>/arch-$(HOST_ARCH)/usr/lib/<NAME>.o.
-func ndkPrebuiltObjectFactory() android.Module {
+func NdkPrebuiltObjectFactory() android.Module {
 	module := newBaseModule(android.DeviceSupported, android.MultilibBoth)
 	module.ModuleBase.EnableNativeBridgeSupportByDefault()
 	module.linker = &ndkPrebuiltObjectLinker{
@@ -126,7 +126,7 @@ func NdkPrebuiltSharedStlFactory() android.Module {
 // library (stl) library for linking operation. The soong's module name format
 // is ndk_<NAME>.a where the library is located under
 // ./prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/$(HOST_ARCH)/<NAME>.a.
-func ndkPrebuiltStaticStlFactory() android.Module {
+func NdkPrebuiltStaticStlFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.BuildOnlyStatic()
 	module.compiler = nil

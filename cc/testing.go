@@ -265,6 +265,7 @@ func CreateTestContext(bp string, fs map[string][]byte,
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("llndk_headers", llndkHeadersFactory)
+	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
 	ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
