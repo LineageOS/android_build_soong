@@ -38,7 +38,7 @@ func init() {
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("ndk_api", ndkApiMutator).Parallel()
+		ctx.BottomUp("ndk_api", NdkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
