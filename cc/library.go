@@ -1497,14 +1497,20 @@ func (mt *librarySdkMemberType) organizeVariants(member android.SdkMember) *nati
 	for _, variant := range member.Variants() {
 		ccModule := variant.(*Module)
 
+		// Separate out the generated include dirs (which are arch specific) from the
+		// include dirs (which may not be).
+		exportedIncludeDirs, exportedGeneratedIncludeDirs := android.FilterPathListPredicate(
+			ccModule.ExportedIncludeDirs(), isGeneratedHeaderDirectory)
+
 		info.archVariantProperties = append(info.archVariantProperties, nativeLibInfoProperties{
-			name:                      memberName,
-			archType:                  ccModule.Target().Arch.ArchType.String(),
-			ExportedIncludeDirs:       ccModule.ExportedIncludeDirs(),
-			ExportedSystemIncludeDirs: ccModule.ExportedSystemIncludeDirs(),
-			ExportedFlags:             ccModule.ExportedFlags(),
-			exportedGeneratedHeaders:  ccModule.ExportedGeneratedHeaders(),
-			outputFile:                ccModule.OutputFile().Path(),
+			name:                         memberName,
+			archType:                     ccModule.Target().Arch.ArchType.String(),
+			ExportedIncludeDirs:          exportedIncludeDirs,
+			ExportedGeneratedIncludeDirs: exportedGeneratedIncludeDirs,
+			ExportedSystemIncludeDirs:    ccModule.ExportedSystemIncludeDirs(),
+			ExportedFlags:                ccModule.ExportedFlags(),
+			exportedGeneratedHeaders:     ccModule.ExportedGeneratedHeaders(),
+			outputFile:                   ccModule.OutputFile().Path(),
 		})
 	}
 
@@ -1516,6 +1522,11 @@ func (mt *librarySdkMemberType) organizeVariants(member android.SdkMember) *nati
 	extractCommonProperties(&info.commonProperties, info.archVariantProperties)
 
 	return info
+}
+
+func isGeneratedHeaderDirectory(p android.Path) bool {
+	_, gen := p.(android.WritablePath)
+	return gen
 }
 
 // Extract common properties from a slice of property structures of the same type.
@@ -1580,16 +1591,11 @@ func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice 
 func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder, member android.SdkMember) {
 	// a function for emitting include dirs
 	addExportedDirCopyCommandsForNativeLibs := func(lib nativeLibInfoProperties) {
+		// Do not include ExportedGeneratedIncludeDirs in the list of directories whose
+		// contents are copied as they are copied from exportedGeneratedHeaders below.
 		includeDirs := lib.ExportedIncludeDirs
 		includeDirs = append(includeDirs, lib.ExportedSystemIncludeDirs...)
-		if len(includeDirs) == 0 {
-			return
-		}
 		for _, dir := range includeDirs {
-			if _, gen := dir.(android.WritablePath); gen {
-				// generated headers are copied via exportedGeneratedHeaders. See below.
-				continue
-			}
 			// lib.ArchType is "" for common properties.
 			targetDir := filepath.Join(lib.archType, nativeIncludeDir)
 
@@ -1676,13 +1682,14 @@ func nativeIncludeDirPathsFor(lib nativeLibInfoProperties, systemInclude bool) [
 	var result []string
 	var includeDirs []android.Path
 	if !systemInclude {
-		includeDirs = lib.ExportedIncludeDirs
+		// Include the generated include dirs in the exported include dirs.
+		includeDirs = append(lib.ExportedIncludeDirs, lib.ExportedGeneratedIncludeDirs...)
 	} else {
 		includeDirs = lib.ExportedSystemIncludeDirs
 	}
 	for _, dir := range includeDirs {
 		var path string
-		if _, gen := dir.(android.WritablePath); gen {
+		if isGeneratedHeaderDirectory(dir) {
 			path = filepath.Join(nativeGeneratedIncludeDir, lib.name)
 		} else {
 			path = filepath.Join(nativeIncludeDir, dir.String())
@@ -1707,9 +1714,10 @@ type nativeLibInfoProperties struct {
 	// This is "" for common properties.
 	archType string
 
-	ExportedIncludeDirs       android.Paths
-	ExportedSystemIncludeDirs android.Paths
-	ExportedFlags             []string
+	ExportedIncludeDirs          android.Paths
+	ExportedGeneratedIncludeDirs android.Paths
+	ExportedSystemIncludeDirs    android.Paths
+	ExportedFlags                []string
 
 	// exportedGeneratedHeaders is not exported as if set it is always arch specific.
 	exportedGeneratedHeaders android.Paths

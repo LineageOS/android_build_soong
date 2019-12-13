@@ -512,8 +512,12 @@ func inPathList(p Path, list []Path) bool {
 }
 
 func FilterPathList(list []Path, filter []Path) (remainder []Path, filtered []Path) {
+	return FilterPathListPredicate(list, func(p Path) bool { return inPathList(p, filter) })
+}
+
+func FilterPathListPredicate(list []Path, predicate func(Path) bool) (remainder []Path, filtered []Path) {
 	for _, l := range list {
-		if inPathList(l, filter) {
+		if predicate(l) {
 			filtered = append(filtered, l)
 		} else {
 			remainder = append(remainder, l)
