@@ -186,6 +186,7 @@ bootstrap_go_package {
         "cc/binary.go",
         "cc/fuzz.go",
         "cc/library.go",
+        "cc/library_sdk_member.go",
         "cc/object.go",
         "cc/test.go",
         "cc/toolchain_library.go",
