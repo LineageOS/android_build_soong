@@ -24,17 +24,28 @@ import (
 
 // This file contains support for using cc library modules within an sdk.
 
-var SharedLibrarySdkMemberType = &librarySdkMemberType{
-	prebuiltModuleType: "cc_prebuilt_library_shared",
-	linkTypes:          []string{"shared"},
-}
+func init() {
+	// Register sdk member types.
+	android.RegisterSdkMemberType(&librarySdkMemberType{
+		SdkMemberTypeBase: android.SdkMemberTypeBase{
+			PropertyName: "native_shared_libs",
+		},
+		prebuiltModuleType: "cc_prebuilt_library_shared",
+		linkTypes:          []string{"shared"},
+	})
 
-var StaticLibrarySdkMemberType = &librarySdkMemberType{
-	prebuiltModuleType: "cc_prebuilt_library_static",
-	linkTypes:          []string{"static"},
+	android.RegisterSdkMemberType(&librarySdkMemberType{
+		SdkMemberTypeBase: android.SdkMemberTypeBase{
+			PropertyName: "native_static_libs",
+		},
+		prebuiltModuleType: "cc_prebuilt_library_static",
+		linkTypes:          []string{"static"},
+	})
 }
 
 type librarySdkMemberType struct {
+	android.SdkMemberTypeBase
+
 	prebuiltModuleType string
 
 	// The set of link types supported, set of "static", "shared".
