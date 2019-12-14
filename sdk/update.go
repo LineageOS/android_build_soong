@@ -105,21 +105,20 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 // Collect all the members.
 //
 // The members are first grouped by type and then grouped by name. The order of
-// the types is the order they are referenced in sdkMemberListProperties. The
+// the types is the order they are referenced in android.SdkMemberTypes. The
 // names are in order in which the dependencies were added.
-func collectMembers(ctx android.ModuleContext) []*sdkMember {
+func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
 	ctx.VisitDirectDeps(func(m android.Module) {
 		tag := ctx.OtherModuleDependencyTag(m)
 		if memberTag, ok := tag.(*sdkMemberDependencyTag); ok {
-			memberListProperty := memberTag.memberListProperty
-			memberType := memberListProperty.memberType
+			memberType := memberTag.memberType
 
 			// Make sure that the resolved module is allowed in the member list property.
 			if !memberType.IsInstance(m) {
-				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(m), memberListProperty.name)
+				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(m), memberType.SdkPropertyName())
 			}
 
 			name := ctx.OtherModuleName(m)
@@ -136,7 +135,7 @@ func collectMembers(ctx android.ModuleContext) []*sdkMember {
 	})
 
 	var members []*sdkMember
-	for _, memberListProperty := range sdkMemberListProperties {
+	for _, memberListProperty := range s.dynamicSdkMemberTypes.memberListProperties {
 		membersOfType := byType[memberListProperty.memberType]
 		members = append(members, membersOfType...)
 	}
@@ -191,7 +190,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 	s.builderForTests = builder
 
-	for _, member := range collectMembers(ctx) {
+	for _, member := range s.collectMembers(ctx) {
 		member.memberType.BuildSnapshot(ctx, builder, member)
 	}
 
@@ -220,10 +219,10 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 
 	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
-	for _, memberListProperty := range sdkMemberListProperties {
-		names := memberListProperty.getter(&s.properties)
+	for _, memberListProperty := range s.dynamicSdkMemberTypes.memberListProperties {
+		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 		if len(names) > 0 {
-			snapshotModule.AddProperty(memberListProperty.name, builder.versionedSdkMemberNames(names))
+			snapshotModule.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names))
 		}
 	}
 	bpFile.AddModule(snapshotModule)
