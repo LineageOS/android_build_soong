@@ -226,6 +226,7 @@ type compiler interface {
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
 
+	inData() bool
 	install(ctx ModuleContext, path android.Path)
 	relativeInstallPath() string
 }
@@ -679,6 +680,13 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	depPaths.depFlags = android.FirstUniqueStrings(depPaths.depFlags)
 
 	return depPaths
+}
+
+func (mod *Module) InstallInData() bool {
+	if mod.compiler == nil {
+		return false
+	}
+	return mod.compiler.inData()
 }
 
 func linkPathFromFilePath(filepath android.Path) string {
