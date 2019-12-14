@@ -53,7 +53,7 @@ func NewProcMacro(hod android.HostOrDeviceSupported) (*Module, *procMacroDecorat
 	module := newModule(hod, android.MultilibFirst)
 
 	procMacro := &procMacroDecorator{
-		baseCompiler: NewBaseCompiler("lib", "lib64"),
+		baseCompiler: NewBaseCompiler("lib", "lib64", InstallInSystem),
 	}
 
 	module.compiler = procMacro
