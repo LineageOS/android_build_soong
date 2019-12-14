@@ -40,6 +40,13 @@ func init() {
 	android.RegisterModuleType("droidstubs_host", DroidstubsHostFactory)
 
 	android.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
+
+	// Register sdk member type.
+	android.RegisterSdkMemberType(&droidStubsSdkMemberType{
+		SdkMemberTypeBase: android.SdkMemberTypeBase{
+			PropertyName: "stubs_sources",
+		},
+	})
 }
 
 var (
@@ -1974,9 +1981,8 @@ func PrebuiltStubsSourcesFactory() android.Module {
 	return module
 }
 
-var DroidStubsSdkMemberType = &droidStubsSdkMemberType{}
-
 type droidStubsSdkMemberType struct {
+	android.SdkMemberTypeBase
 }
 
 func (mt *droidStubsSdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
