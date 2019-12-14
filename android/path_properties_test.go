@@ -97,12 +97,6 @@ func TestPathDepsMutator(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config := TestArchConfig(buildDir, nil)
-			ctx := NewTestArchContext()
-
-			ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
-			ctx.RegisterModuleType("filegroup", FileGroupFactory)
-
 			bp := test.bp + `
 				filegroup {
 					name: "a",
@@ -121,13 +115,13 @@ func TestPathDepsMutator(t *testing.T) {
 				}
 			`
 
-			mockFS := map[string][]byte{
-				"Android.bp": []byte(bp),
-			}
+			config := TestArchConfig(buildDir, nil, bp, nil)
+			ctx := NewTestArchContext()
 
-			ctx.MockFileSystem(mockFS)
+			ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
+			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 
-			ctx.Register()
+			ctx.Register(config)
 			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 			FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)

@@ -71,7 +71,7 @@ func main() {
 		usage("path to module configuration file is required")
 	}
 
-	ctx := &pathContext{android.TestConfig(*outDir, nil)}
+	ctx := &pathContext{android.TestConfig(*outDir, nil, "", nil)}
 
 	globalConfig, _, err := dexpreopt.LoadGlobalConfig(ctx, *globalConfigPath)
 	if err != nil {

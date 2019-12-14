@@ -27,19 +27,18 @@ import (
 )
 
 func pathContext() PathContext {
-	return PathContextForTesting(TestConfig("out", nil),
-		map[string][]byte{
-			"ld":      nil,
-			"a.o":     nil,
-			"b.o":     nil,
-			"cp":      nil,
-			"a":       nil,
-			"b":       nil,
-			"ls":      nil,
-			"turbine": nil,
-			"java":    nil,
-			"javac":   nil,
-		})
+	return PathContextForTesting(TestConfig("out", nil, "", map[string][]byte{
+		"ld":      nil,
+		"a.o":     nil,
+		"b.o":     nil,
+		"cp":      nil,
+		"a":       nil,
+		"b":       nil,
+		"ls":      nil,
+		"turbine": nil,
+		"java":    nil,
+		"javac":   nil,
+	}))
 }
 
 func ExampleRuleBuilder() {
@@ -276,7 +275,7 @@ func TestRuleBuilder(t *testing.T) {
 		"input3":    nil,
 	}
 
-	ctx := PathContextForTesting(TestConfig("out", nil), fs)
+	ctx := PathContextForTesting(TestConfig("out", nil, "", fs))
 
 	addCommands := func(rule *RuleBuilder) {
 		cmd := rule.Command().
@@ -445,6 +444,11 @@ func testRuleBuilder_Build(ctx BuilderContext, in Path, out, outDep, outDir Writ
 }
 
 func TestRuleBuilder_Build(t *testing.T) {
+	fs := map[string][]byte{
+		"bar": nil,
+		"cp":  nil,
+	}
+
 	bp := `
 		rule_builder_test {
 			name: "foo",
@@ -458,16 +462,11 @@ func TestRuleBuilder_Build(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil)
+	config := TestConfig(buildDir, nil, bp, fs)
 	ctx := NewTestContext()
-	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp": []byte(bp),
-		"bar":        nil,
-		"cp":         nil,
-	})
 	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
 	ctx.RegisterSingletonType("rule_builder_test", testRuleBuilderSingletonFactory)
-	ctx.Register()
+	ctx.Register(config)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

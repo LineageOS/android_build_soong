@@ -162,7 +162,7 @@ func GatherRequiredDepsForTest() string {
 	return bp
 }
 
-func CreateTestContext(bp string) *android.TestContext {
+func CreateTestContext() *android.TestContext {
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
@@ -193,17 +193,6 @@ func CreateTestContext(bp string) *android.TestContext {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
 		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
 	})
-	bp = bp + GatherRequiredDepsForTest()
-
-	mockFS := map[string][]byte{
-		"Android.bp": []byte(bp),
-		"foo.rs":     nil,
-		"src/bar.rs": nil,
-		"liby.so":    nil,
-		"libz.so":    nil,
-	}
-
-	ctx.MockFileSystem(mockFS)
 
 	return ctx
 }

@@ -29,7 +29,36 @@ import (
 )
 
 func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, android.Config) {
-	config := android.TestArchConfig(buildDir, nil)
+	bp = bp + `
+		apex_key {
+			name: "myapex.key",
+			public_key: "myapex.avbpubkey",
+			private_key: "myapex.pem",
+		}
+
+		android_app_certificate {
+			name: "myapex.cert",
+			certificate: "myapex",
+		}
+	` + cc.GatherRequiredDepsForTest(android.Android)
+
+	mockFS := map[string][]byte{
+		"build/make/target/product/security":         nil,
+		"apex_manifest.json":                         nil,
+		"system/sepolicy/apex/myapex-file_contexts":  nil,
+		"system/sepolicy/apex/myapex2-file_contexts": nil,
+		"myapex.avbpubkey":                           nil,
+		"myapex.pem":                                 nil,
+		"myapex.x509.pem":                            nil,
+		"myapex.pk8":                                 nil,
+	}
+
+	for k, v := range fs {
+		mockFS[k] = v
+	}
+
+	config := android.TestArchConfig(buildDir, nil, bp, mockFS)
+
 	ctx := android.NewTestArchContext()
 
 	// from android package
@@ -84,38 +113,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
-	ctx.Register()
-
-	bp = bp + `
-		apex_key {
-			name: "myapex.key",
-			public_key: "myapex.avbpubkey",
-			private_key: "myapex.pem",
-		}
-
-		android_app_certificate {
-			name: "myapex.cert",
-			certificate: "myapex",
-		}
-	` + cc.GatherRequiredDepsForTest(android.Android)
-
-	mockFS := map[string][]byte{
-		"Android.bp":                                 []byte(bp),
-		"build/make/target/product/security":         nil,
-		"apex_manifest.json":                         nil,
-		"system/sepolicy/apex/myapex-file_contexts":  nil,
-		"system/sepolicy/apex/myapex2-file_contexts": nil,
-		"myapex.avbpubkey":                           nil,
-		"myapex.pem":                                 nil,
-		"myapex.x509.pem":                            nil,
-		"myapex.pk8":                                 nil,
-	}
-
-	for k, v := range fs {
-		mockFS[k] = v
-	}
-
-	ctx.MockFileSystem(mockFS)
+	ctx.Register(config)
 
 	return ctx, config
 }
