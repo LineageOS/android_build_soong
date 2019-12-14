@@ -55,8 +55,7 @@ func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
 
 	test := &testDecorator{
 		binaryDecorator: &binaryDecorator{
-			// TODO(chh): set up dir64?
-			baseCompiler: NewBaseCompiler("testcases", ""),
+			baseCompiler: NewBaseCompiler("nativetest", "nativetest64", InstallInData),
 		},
 	}
 
@@ -79,22 +78,26 @@ func (test *testDecorator) getMutatedModuleSubName(moduleName string) string {
 }
 
 func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
-	name := ctx.ModuleName() // default executable name
-	if ctx.Device() {        // on device, use mutated module name
-		name = name + test.getMutatedModuleSubName(name)
-	} else { // on host, use stem name in relative_install_path
-		if stem := String(test.baseCompiler.Properties.Stem); stem != "" {
-			name = stem
+	name := ctx.ModuleName()
+	path := test.baseCompiler.relativeInstallPath()
+	// on device, use mutated module name
+	name = name + test.getMutatedModuleSubName(name)
+	if !ctx.Device() { // on host, use mutated module name + arch type + stem name
+		stem := String(test.baseCompiler.Properties.Stem)
+		if stem == "" {
+			stem = name
 		}
-		if path := test.baseCompiler.relativeInstallPath(); path != "" {
-			name = path + "/" + name
-		}
+		name = filepath.Join(name, ctx.Arch().ArchType.String(), stem)
 	}
 	test.testConfig = tradefed.AutoGenRustTestConfig(ctx, name,
 		test.Properties.Test_config,
 		test.Properties.Test_config_template,
 		test.Properties.Test_suites,
 		test.Properties.Auto_gen_config)
+	// default relative install path is module name
+	if path == "" {
+		test.baseCompiler.relative = ctx.ModuleName()
+	}
 	test.binaryDecorator.install(ctx, file)
 }
 

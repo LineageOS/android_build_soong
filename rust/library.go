@@ -290,7 +290,7 @@ func NewRustLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorat
 			BuildShared: true,
 			BuildStatic: true,
 		},
-		baseCompiler: NewBaseCompiler("lib", "lib64"),
+		baseCompiler: NewBaseCompiler("lib", "lib64", InstallInSystem),
 	}
 
 	module.compiler = library
