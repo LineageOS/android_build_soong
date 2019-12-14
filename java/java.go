@@ -52,6 +52,23 @@ func init() {
 
 	android.RegisterSingletonType("logtags", LogtagsSingleton)
 	android.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
+
+	// Register sdk member types.
+	android.RegisterSdkMemberType(&headerLibrarySdkMemberType{
+		librarySdkMemberType{
+			android.SdkMemberTypeBase{
+				PropertyName: "java_header_libs",
+			},
+		},
+	})
+
+	android.RegisterSdkMemberType(&implLibrarySdkMemberType{
+		librarySdkMemberType{
+			android.SdkMemberTypeBase{
+				PropertyName: "java_libs",
+			},
+		},
+	})
 }
 
 func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
@@ -1721,6 +1738,7 @@ func (j *Library) sdkSnapshotFilePathForJar() string {
 }
 
 type librarySdkMemberType struct {
+	android.SdkMemberTypeBase
 }
 
 func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
@@ -1764,8 +1782,6 @@ func (mt *librarySdkMemberType) buildSnapshot(
 	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
 }
 
-var HeaderLibrarySdkMemberType = &headerLibrarySdkMemberType{}
-
 type headerLibrarySdkMemberType struct {
 	librarySdkMemberType
 }
@@ -1780,8 +1796,6 @@ func (mt *headerLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.Mod
 		return headerJars[0]
 	})
 }
-
-var ImplLibrarySdkMemberType = &implLibrarySdkMemberType{}
 
 type implLibrarySdkMemberType struct {
 	librarySdkMemberType
