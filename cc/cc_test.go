@@ -112,7 +112,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 }
 
 const (
-	coreVariant     = "android_arm64_armv8-a_core_shared"
+	coreVariant     = "android_arm64_armv8-a_shared"
 	vendorVariant   = "android_arm64_armv8-a_vendor.VER_shared"
 	recoveryVariant = "android_arm64_armv8-a_recovery_shared"
 )
@@ -1906,7 +1906,7 @@ func TestStaticLibDepReordering(t *testing.T) {
 
 	`)
 
-	variant := "android_arm64_armv8-a_core_static"
+	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
 	actual := moduleA.depsInLinkOrder
 	expected := getOutputPaths(ctx, variant, []string{"c", "b", "d"})
@@ -1940,7 +1940,7 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 
 	`)
 
-	variant := "android_arm64_armv8-a_core_static"
+	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
 	actual := moduleA.depsInLinkOrder
 	expected := getOutputPaths(ctx, variant, []string{"c", "b"})
@@ -2052,7 +2052,7 @@ func TestRuntimeLibs(t *testing.T) {
 	ctx := testCc(t, runtimeLibAndroidBp)
 
 	// runtime_libs for core variants use the module names without suffixes.
-	variant := "android_arm64_armv8-a_core_shared"
+	variant := "android_arm64_armv8-a_shared"
 
 	module := ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
@@ -2074,7 +2074,7 @@ func TestRuntimeLibs(t *testing.T) {
 func TestExcludeRuntimeLibs(t *testing.T) {
 	ctx := testCc(t, runtimeLibAndroidBp)
 
-	variant := "android_arm64_armv8-a_core_shared"
+	variant := "android_arm64_armv8-a_shared"
 	module := ctx.ModuleForTests("libvendor_available3", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
 
@@ -2088,7 +2088,7 @@ func TestRuntimeLibsNoVndk(t *testing.T) {
 
 	// If DeviceVndkVersion is not defined, then runtime_libs are copied as-is.
 
-	variant := "android_arm64_armv8-a_core_shared"
+	variant := "android_arm64_armv8-a_shared"
 
 	module := ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
@@ -2123,12 +2123,12 @@ func TestStaticLibDepExport(t *testing.T) {
 	ctx := testCc(t, staticLibAndroidBp)
 
 	// Check the shared version of lib2.
-	variant := "android_arm64_armv8-a_core_shared"
+	variant := "android_arm64_armv8-a_shared"
 	module := ctx.ModuleForTests("lib2", variant).Module().(*Module)
 	checkStaticLibs(t, []string{"lib1", "libc++demangle", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc_stripped"}, module)
 
 	// Check the static version of lib2.
-	variant = "android_arm64_armv8-a_core_static"
+	variant = "android_arm64_armv8-a_static"
 	module = ctx.ModuleForTests("lib2", variant).Module().(*Module)
 	// libc++_static is linked additionally.
 	checkStaticLibs(t, []string{"lib1", "libc++_static", "libc++demangle", "libclang_rt.builtins-aarch64-android", "libatomic", "libgcc_stripped"}, module)
@@ -2256,28 +2256,29 @@ func TestVendorPublicLibraries(t *testing.T) {
 	}
 	`)
 
-	variant := "android_arm64_armv8-a_core_shared"
+	coreVariant := "android_arm64_armv8-a_shared"
+	vendorVariant := "android_arm64_armv8-a_vendor.VER_shared"
 
 	// test if header search paths are correctly added
 	// _static variant is used since _shared reuses *.o from the static variant
-	cc := ctx.ModuleForTests("libsystem", strings.Replace(variant, "_shared", "_static", 1)).Rule("cc")
+	cc := ctx.ModuleForTests("libsystem", strings.Replace(coreVariant, "_shared", "_static", 1)).Rule("cc")
 	cflags := cc.Args["cFlags"]
 	if !strings.Contains(cflags, "-Imy_include") {
 		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
 	}
 
 	// test if libsystem is linked to the stub
-	ld := ctx.ModuleForTests("libsystem", variant).Rule("ld")
+	ld := ctx.ModuleForTests("libsystem", coreVariant).Rule("ld")
 	libflags := ld.Args["libFlags"]
-	stubPaths := getOutputPaths(ctx, variant, []string{"libvendorpublic" + vendorPublicLibrarySuffix})
+	stubPaths := getOutputPaths(ctx, coreVariant, []string{"libvendorpublic" + vendorPublicLibrarySuffix})
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libsystem must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
 
 	// test if libvendor is linked to the real shared lib
-	ld = ctx.ModuleForTests("libvendor", strings.Replace(variant, "_core", "_vendor.VER", 1)).Rule("ld")
+	ld = ctx.ModuleForTests("libvendor", vendorVariant).Rule("ld")
 	libflags = ld.Args["libFlags"]
-	stubPaths = getOutputPaths(ctx, strings.Replace(variant, "_core", "_vendor.VER", 1), []string{"libvendorpublic"})
+	stubPaths = getOutputPaths(ctx, vendorVariant, []string{"libvendorpublic"})
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libvendor must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
@@ -2338,14 +2339,14 @@ func TestVersionedStubs(t *testing.T) {
 
 	variants := ctx.ModuleVariantsForTests("libFoo")
 	expectedVariants := []string{
-		"android_arm64_armv8-a_core_shared",
-		"android_arm64_armv8-a_core_shared_1",
-		"android_arm64_armv8-a_core_shared_2",
-		"android_arm64_armv8-a_core_shared_3",
-		"android_arm_armv7-a-neon_core_shared",
-		"android_arm_armv7-a-neon_core_shared_1",
-		"android_arm_armv7-a-neon_core_shared_2",
-		"android_arm_armv7-a-neon_core_shared_3",
+		"android_arm64_armv8-a_shared",
+		"android_arm64_armv8-a_shared_1",
+		"android_arm64_armv8-a_shared_2",
+		"android_arm64_armv8-a_shared_3",
+		"android_arm_armv7-a-neon_shared",
+		"android_arm_armv7-a-neon_shared_1",
+		"android_arm_armv7-a-neon_shared_2",
+		"android_arm_armv7-a-neon_shared_3",
 	}
 	variantsMismatch := false
 	if len(variants) != len(expectedVariants) {
@@ -2368,14 +2369,14 @@ func TestVersionedStubs(t *testing.T) {
 		}
 	}
 
-	libBarLinkRule := ctx.ModuleForTests("libBar", "android_arm64_armv8-a_core_shared").Rule("ld")
+	libBarLinkRule := ctx.ModuleForTests("libBar", "android_arm64_armv8-a_shared").Rule("ld")
 	libFlags := libBarLinkRule.Args["libFlags"]
-	libFoo1StubPath := "libFoo/android_arm64_armv8-a_core_shared_1/libFoo.so"
+	libFoo1StubPath := "libFoo/android_arm64_armv8-a_shared_1/libFoo.so"
 	if !strings.Contains(libFlags, libFoo1StubPath) {
 		t.Errorf("%q is not found in %q", libFoo1StubPath, libFlags)
 	}
 
-	libBarCompileRule := ctx.ModuleForTests("libBar", "android_arm64_armv8-a_core_shared").Rule("cc")
+	libBarCompileRule := ctx.ModuleForTests("libBar", "android_arm64_armv8-a_shared").Rule("cc")
 	cFlags := libBarCompileRule.Args["cFlags"]
 	libFoo1VersioningMacro := "-D__LIBFOO_API__=1"
 	if !strings.Contains(cFlags, libFoo1VersioningMacro) {
@@ -2391,7 +2392,7 @@ func TestStaticExecutable(t *testing.T) {
 			static_executable: true,
 		}`)
 
-	variant := "android_arm64_armv8-a_core"
+	variant := "android_arm64_armv8-a"
 	binModuleRule := ctx.ModuleForTests("static_test", variant).Rule("ld")
 	libFlags := binModuleRule.Args["libFlags"]
 	systemStaticLibs := []string{"libc.a", "libm.a"}
@@ -2434,9 +2435,9 @@ func TestStaticDepsOrderWithStubs(t *testing.T) {
 			},
 		}`)
 
-	mybin := ctx.ModuleForTests("mybin", "android_arm64_armv8-a_core").Module().(*Module)
+	mybin := ctx.ModuleForTests("mybin", "android_arm64_armv8-a").Module().(*Module)
 	actual := mybin.depsInLinkOrder
-	expected := getOutputPaths(ctx, "android_arm64_armv8-a_core_static", []string{"libB", "libC"})
+	expected := getOutputPaths(ctx, "android_arm64_armv8-a_static", []string{"libB", "libC"})
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("staticDeps orderings were not propagated correctly"+
@@ -2475,7 +2476,7 @@ func TestFuzzTarget(t *testing.T) {
 			srcs: ["foo.c"],
 		}`)
 
-	variant := "android_arm64_armv8-a_core"
+	variant := "android_arm64_armv8-a"
 	ctx.ModuleForTests("fuzz_smoke_test", variant).Rule("cc")
 }
 
@@ -2550,24 +2551,24 @@ func TestDefaults(t *testing.T) {
 		return ret
 	}
 
-	shared := ctx.ModuleForTests("libshared", "android_arm64_armv8-a_core_shared").Rule("ld")
+	shared := ctx.ModuleForTests("libshared", "android_arm64_armv8-a_shared").Rule("ld")
 	if g, w := pathsToBase(shared.Inputs), []string{"foo.o", "baz.o"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("libshared ld rule wanted %q, got %q", w, g)
 	}
-	bothShared := ctx.ModuleForTests("libboth", "android_arm64_armv8-a_core_shared").Rule("ld")
+	bothShared := ctx.ModuleForTests("libboth", "android_arm64_armv8-a_shared").Rule("ld")
 	if g, w := pathsToBase(bothShared.Inputs), []string{"foo.o", "baz.o"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("libboth ld rule wanted %q, got %q", w, g)
 	}
-	binary := ctx.ModuleForTests("binary", "android_arm64_armv8-a_core").Rule("ld")
+	binary := ctx.ModuleForTests("binary", "android_arm64_armv8-a").Rule("ld")
 	if g, w := pathsToBase(binary.Inputs), []string{"foo.o"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("binary ld rule wanted %q, got %q", w, g)
 	}
 
-	static := ctx.ModuleForTests("libstatic", "android_arm64_armv8-a_core_static").Rule("ar")
+	static := ctx.ModuleForTests("libstatic", "android_arm64_armv8-a_static").Rule("ar")
 	if g, w := pathsToBase(static.Inputs), []string{"foo.o", "bar.o"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("libstatic ar rule wanted %q, got %q", w, g)
 	}
-	bothStatic := ctx.ModuleForTests("libboth", "android_arm64_armv8-a_core_static").Rule("ar")
+	bothStatic := ctx.ModuleForTests("libboth", "android_arm64_armv8-a_static").Rule("ar")
 	if g, w := pathsToBase(bothStatic.Inputs), []string{"foo.o", "bar.o"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("libboth ar rule wanted %q, got %q", w, g)
 	}

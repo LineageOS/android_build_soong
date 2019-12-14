@@ -42,7 +42,7 @@ const (
 	// CoreVariation is the variant used for framework-private libraries, or
 	// SDK libraries. (which framework-private libraries can use), which
 	// will be installed to the system image.
-	CoreVariation string = "core"
+	CoreVariation string = ""
 
 	// RecoveryVariation means a module to be installed to recovery image.
 	RecoveryVariation string = "recovery"
