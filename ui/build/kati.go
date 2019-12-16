@@ -151,6 +151,45 @@ func runKatiBuild(ctx Context, config Config) {
 		"KATI_PACKAGE_MK_DIR="+config.KatiPackageMkDir())
 
 	runKati(ctx, config, katiBuildSuffix, args, func(env *Environment) {})
+
+	cleanCopyHeaders(ctx, config)
+}
+
+func cleanCopyHeaders(ctx Context, config Config) {
+	ctx.BeginTrace("clean", "clean copy headers")
+	defer ctx.EndTrace()
+
+	data, err := ioutil.ReadFile(filepath.Join(config.ProductOut(), ".copied_headers_list"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		ctx.Fatalf("Failed to read copied headers list: %v", err)
+	}
+
+	headers := strings.Fields(string(data))
+	if len(headers) < 1 {
+		ctx.Fatal("Failed to parse copied headers list: %q", string(data))
+	}
+	headerDir := headers[0]
+	headers = headers[1:]
+
+	filepath.Walk(headerDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if !inList(path, headers) {
+				ctx.Printf("Removing obsolete header %q", path)
+				if err := os.Remove(path); err != nil {
+					ctx.Fatalf("Failed to remove obsolete header %q: %v", path, err)
+				}
+			}
+			return nil
+		})
 }
 
 func runKatiPackage(ctx Context, config Config) {
