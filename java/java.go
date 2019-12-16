@@ -466,7 +466,6 @@ type dependencyTag struct {
 
 type jniDependencyTag struct {
 	blueprint.BaseDependencyTag
-	target android.Target
 }
 
 func IsJniDepTag(depTag blueprint.DependencyTag) bool {
