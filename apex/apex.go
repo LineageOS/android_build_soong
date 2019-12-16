@@ -483,8 +483,10 @@ type apexBundle struct {
 
 	properties            apexBundleProperties
 	targetProperties      apexTargetBundleProperties
-	vndkProperties        apexVndkProperties
 	overridableProperties overridableProperties
+
+	// specific to apex_vndk modules
+	vndkProperties apexVndkProperties
 
 	bundleModuleFile android.WritablePath
 	outputFile       android.WritablePath
@@ -1273,6 +1275,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(
 		&apexBundleProperties{},
 		&apexTargetBundleProperties{},
+		&overridableProperties{},
 	)
 
 	android.InitDefaultsModule(module)

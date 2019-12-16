@@ -532,6 +532,62 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice")
 }
 
+func TestDefaults(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex_defaults {
+			name: "myapex-defaults",
+			key: "myapex.key",
+			prebuilts: ["myetc"],
+			native_shared_libs: ["mylib"],
+			java_libs: ["myjar"],
+			apps: ["AppFoo"],
+		}
+
+		prebuilt_etc {
+			name: "myetc",
+			src: "myprebuilt",
+		}
+
+		apex {
+			name: "myapex",
+			defaults: ["myapex-defaults"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		java_library {
+			name: "myjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			compile_dex: true,
+		}
+
+		android_app {
+			name: "AppFoo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`)
+	ensureExactContents(t, ctx, "myapex", []string{
+		"etc/myetc",
+		"javalib/myjar.jar",
+		"lib64/mylib.so",
+		"app/AppFoo/AppFoo.apk",
+	})
+}
+
 func TestApexManifest(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
