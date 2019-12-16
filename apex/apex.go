@@ -472,7 +472,7 @@ func newApexFile(builtFile android.Path, moduleName string, installDir string, c
 }
 
 func (af *apexFile) Ok() bool {
-	return af.builtFile != nil || af.builtFile.String() == ""
+	return af.builtFile != nil && af.builtFile.String() != ""
 }
 
 type apexBundle struct {
