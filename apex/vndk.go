@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	vndkApexNamePrefix = "com.android.vndk.v"
+	vndkApexName       = "com.android.vndk"
+	vndkApexNamePrefix = vndkApexName + ".v"
 )
 
 // apex_vndk creates a special variant of apex modules which contains only VNDK libraries.
