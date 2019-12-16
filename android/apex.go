@@ -179,7 +179,7 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		m.checkApexAvailableProperty(mctx)
 		sort.Strings(m.apexVariations)
 		variations := []string{}
-		availableForPlatform := mctx.Module().(ApexModule).AvailableFor(availableToPlatform)
+		availableForPlatform := mctx.Module().(ApexModule).AvailableFor(availableToPlatform) || mctx.Host()
 		if availableForPlatform {
 			variations = append(variations, "") // Original variation for platform
 		}
