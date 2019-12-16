@@ -85,3 +85,39 @@ python_binary_host {
         },
     }
 }
+
+python_binary_host {
+    name: "test_config_fixer",
+    main: "test_config_fixer.py",
+    srcs: [
+        "test_config_fixer.py",
+        "manifest.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+}
+
+python_test_host {
+    name: "test_config_fixer_test",
+    main: "test_config_fixer_test.py",
+    srcs: [
+        "test_config_fixer_test.py",
+        "test_config_fixer.py",
+        "manifest.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    test_suites: ["general-tests"],
+}
