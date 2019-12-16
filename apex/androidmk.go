@@ -63,7 +63,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		}
 
 		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
-		fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+		if fi.moduleDir != "" {
+			fmt.Fprintln(w, "LOCAL_PATH :=", fi.moduleDir)
+		} else {
+			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
+		}
 		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
 		// /apex/<apex_name>/{lib|framework|...}
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
