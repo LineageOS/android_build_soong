@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""A tool for inserting values from the build system into a manifest."""
+"""A tool for inserting values from the build system into a manifest or a test config."""
 
 from __future__ import print_function
 from xml.dom import minidom
@@ -63,6 +63,15 @@ def ensure_manifest_android_ns(doc):
   elif ns.value != android_ns:
     raise RuntimeError('manifest tag has incorrect android namespace ' +
                        ns.value)
+
+
+def parse_test_config(doc):
+  """ Get the configuration element. """
+
+  test_config = doc.documentElement
+  if test_config.tagName != 'configuration':
+    raise RuntimeError('expected configuration tag at root')
+  return test_config
 
 
 def as_int(s):
