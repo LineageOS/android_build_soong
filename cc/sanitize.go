@@ -494,6 +494,15 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		// Disable fortify for fuzzing builds. Generally, we'll be building with
 		// UBSan or ASan here and the fortify checks pollute the stack traces.
 		flags.Local.CFlags = append(flags.Local.CFlags, "-U_FORTIFY_SOURCE")
+
+		// Build fuzzer-sanitized libraries with an $ORIGIN DT_RUNPATH. Android's
+		// linker uses DT_RUNPATH, not DT_RPATH. When we deploy cc_fuzz targets and
+		// their libraries to /data/fuzz/<arch>/lib, any transient shared library gets
+		// the DT_RUNPATH from the shared library above it, and not the executable,
+		// meaning that the lookup falls back to the system. Adding the $ORIGIN to the
+		// DT_RUNPATH here means that transient shared libraries can be found
+		// colocated with their parents.
+		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN`)
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Cfi) {
