@@ -50,8 +50,8 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 		}
 	`)
 
-	armOutput := result.Module("sdkmember", "android_arm_armv7-a-neon_core_shared").(*cc.Module).OutputFile()
-	arm64Output := result.Module("sdkmember", "android_arm64_armv8-a_core_shared").(*cc.Module).OutputFile()
+	armOutput := result.Module("sdkmember", "android_arm_armv7-a-neon_shared").(*cc.Module).OutputFile()
+	arm64Output := result.Module("sdkmember", "android_arm64_armv8-a_shared").(*cc.Module).OutputFile()
 
 	var inputs []string
 	buildParams := result.Module("mysdk", "android_common").BuildParamsForTests()
@@ -132,11 +132,11 @@ func TestBasicSdkWithCc(t *testing.T) {
 		}
 	`)
 
-	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_arm64_armv8-a_core_shared_myapex").Rule("toc").Output
-	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_arm64_armv8-a_core_shared_myapex2").Rule("toc").Output
+	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_arm64_armv8-a_shared_myapex").Rule("toc").Output
+	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_arm64_armv8-a_shared_myapex2").Rule("toc").Output
 
-	cpplibForMyApex := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_core_shared_myapex")
-	cpplibForMyApex2 := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_core_shared_myapex2")
+	cpplibForMyApex := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_myapex")
+	cpplibForMyApex2 := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_myapex2")
 
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(cpplibForMyApex.Rule("ld").Implicits), sdkMemberV1.String())
@@ -174,10 +174,10 @@ func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
 	result.CheckSnapshot("mysdk", "android_common", "",
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
-.intermediates/mynativelib1/android_arm64_armv8-a_core_shared/mynativelib1.so -> arm64/lib/mynativelib1.so
-.intermediates/mynativelib1/android_arm_armv7-a-neon_core_shared/mynativelib1.so -> arm/lib/mynativelib1.so
-.intermediates/mynativelib2/android_arm64_armv8-a_core_shared/mynativelib2.so -> arm64/lib/mynativelib2.so
-.intermediates/mynativelib2/android_arm_armv7-a-neon_core_shared/mynativelib2.so -> arm/lib/mynativelib2.so
+.intermediates/mynativelib1/android_arm64_armv8-a_shared/mynativelib1.so -> arm64/lib/mynativelib1.so
+.intermediates/mynativelib1/android_arm_armv7-a-neon_shared/mynativelib1.so -> arm/lib/mynativelib1.so
+.intermediates/mynativelib2/android_arm64_armv8-a_shared/mynativelib2.so -> arm64/lib/mynativelib2.so
+.intermediates/mynativelib2/android_arm_armv7-a-neon_shared/mynativelib2.so -> arm/lib/mynativelib2.so
 `),
 	)
 }
@@ -253,9 +253,9 @@ sdk_snapshot {
 `),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_shared/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/mynativelib.so -> arm/lib/mynativelib.so`),
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
 	)
 }
 
@@ -328,14 +328,14 @@ sdk_snapshot {
 `),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_shared/mynativelib.so -> arm64/lib/mynativelib.so
-.intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/mynativelib.so -> arm/lib/mynativelib.so
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/gen/aidl/aidl/foo/bar/Test.h -> arm/include_gen/mynativelib/aidl/foo/bar/Test.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BnTest.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/mynativelib/android_arm64_armv8-a_shared/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/android_arm64_armv8-a_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/gen/aidl/aidl/foo/bar/Test.h -> arm/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BpTest.h
 `),
 	)
 }
@@ -503,14 +503,14 @@ sdk_snapshot {
 `),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_static/mynativelib.a -> arm64/lib/mynativelib.a
-.intermediates/mynativelib/android_arm64_armv8-a_core_static/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_static/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
-.intermediates/mynativelib/android_arm64_armv8-a_core_static/gen/aidl/aidl/foo/bar/BpTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_static/mynativelib.a -> arm/lib/mynativelib.a
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_static/gen/aidl/aidl/foo/bar/Test.h -> arm/include_gen/mynativelib/aidl/foo/bar/Test.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_static/gen/aidl/aidl/foo/bar/BnTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BnTest.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_core_static/gen/aidl/aidl/foo/bar/BpTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+.intermediates/mynativelib/android_arm64_armv8-a_static/mynativelib.a -> arm64/lib/mynativelib.a
+.intermediates/mynativelib/android_arm64_armv8-a_static/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_static/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/android_arm64_armv8-a_static/gen/aidl/aidl/foo/bar/BpTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_static/mynativelib.a -> arm/lib/mynativelib.a
+.intermediates/mynativelib/android_arm_armv7-a-neon_static/gen/aidl/aidl/foo/bar/Test.h -> arm/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_static/gen/aidl/aidl/foo/bar/BnTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_static/gen/aidl/aidl/foo/bar/BpTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BpTest.h
 `),
 	)
 }
