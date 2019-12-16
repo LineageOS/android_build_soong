@@ -477,7 +477,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleNa
 }
 
 func (af *apexFile) Ok() bool {
-	return af.builtFile != nil || af.builtFile.String() == ""
+	return af.builtFile != nil && af.builtFile.String() != ""
 }
 
 type apexBundle struct {
