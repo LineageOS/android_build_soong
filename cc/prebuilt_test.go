@@ -87,15 +87,15 @@ func TestPrebuilt(t *testing.T) {
 	android.FailIfErrored(t, errs)
 
 	// Verify that all the modules exist and that their dependencies were connected correctly
-	liba := ctx.ModuleForTests("liba", "android_arm64_armv8-a_core_shared").Module()
-	libb := ctx.ModuleForTests("libb", "android_arm64_armv8-a_core_static").Module()
-	libd := ctx.ModuleForTests("libd", "android_arm64_armv8-a_core_shared").Module()
-	libe := ctx.ModuleForTests("libe", "android_arm64_armv8-a_core_static").Module()
+	liba := ctx.ModuleForTests("liba", "android_arm64_armv8-a_shared").Module()
+	libb := ctx.ModuleForTests("libb", "android_arm64_armv8-a_static").Module()
+	libd := ctx.ModuleForTests("libd", "android_arm64_armv8-a_shared").Module()
+	libe := ctx.ModuleForTests("libe", "android_arm64_armv8-a_static").Module()
 
-	prebuiltLiba := ctx.ModuleForTests("prebuilt_liba", "android_arm64_armv8-a_core_shared").Module()
-	prebuiltLibb := ctx.ModuleForTests("prebuilt_libb", "android_arm64_armv8-a_core_static").Module()
-	prebuiltLibd := ctx.ModuleForTests("prebuilt_libd", "android_arm64_armv8-a_core_shared").Module()
-	prebuiltLibe := ctx.ModuleForTests("prebuilt_libe", "android_arm64_armv8-a_core_static").Module()
+	prebuiltLiba := ctx.ModuleForTests("prebuilt_liba", "android_arm64_armv8-a_shared").Module()
+	prebuiltLibb := ctx.ModuleForTests("prebuilt_libb", "android_arm64_armv8-a_static").Module()
+	prebuiltLibd := ctx.ModuleForTests("prebuilt_libd", "android_arm64_armv8-a_shared").Module()
+	prebuiltLibe := ctx.ModuleForTests("prebuilt_libe", "android_arm64_armv8-a_static").Module()
 
 	hasDep := func(m android.Module, wantDep android.Module) bool {
 		t.Helper()
