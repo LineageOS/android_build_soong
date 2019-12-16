@@ -632,6 +632,17 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config,
 		a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites, a.testProperties.Auto_gen_config)
+	if a.overridableAppProperties.Package_name != nil {
+		fixedConfig := android.PathForModuleOut(ctx, "test_config_fixer", "AndroidTest.xml")
+		rule := android.NewRuleBuilder()
+		rule.Command().BuiltTool(ctx, "test_config_fixer").
+			FlagWithArg("--manifest ", a.manifestPath.String()).
+			FlagWithArg("--package-name ", *a.overridableAppProperties.Package_name).
+			Input(a.testConfig).
+			Output(fixedConfig)
+		rule.Build(pctx, ctx, "fix_test_config", "fix test config")
+		a.testConfig = fixedConfig
+	}
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
 }
 
