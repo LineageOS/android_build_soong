@@ -133,6 +133,7 @@ func getDynamicSdkMemberTypes(registry *android.SdkMemberTypesRegistry) *dynamic
 // * a dependency tag that identifies the member type of a resolved dependency.
 //
 func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynamicSdkMemberTypes {
+
 	var listProperties []*sdkMemberListProperty
 	var fields []reflect.StructField
 
@@ -186,13 +187,20 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 // sdk defines an SDK which is a logical group of modules (e.g. native libs, headers, java libs, etc.)
 // which Mainline modules like APEX can choose to build with.
 func SdkModuleFactory() android.Module {
-	return newSdkModule()
+	return newSdkModule(false)
 }
 
-func newSdkModule() *sdk {
+func newSdkModule(moduleExports bool) *sdk {
 	s := &sdk{}
+	s.properties.Module_exports = moduleExports
 	// Get the dynamic sdk member type data for the currently registered sdk member types.
-	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(android.SdkMemberTypes)
+	var registry *android.SdkMemberTypesRegistry
+	if moduleExports {
+		registry = android.ModuleExportsMemberTypes
+	} else {
+		registry = android.SdkMemberTypes
+	}
+	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(registry)
 	// Create an instance of the dynamically created struct that contains all the
 	// properties for the member type specific list properties.
 	s.dynamicMemberTypeListProperties = s.dynamicSdkMemberTypes.createMemberListProperties()
@@ -211,7 +219,7 @@ func newSdkModule() *sdk {
 
 // sdk_snapshot is a versioned snapshot of an SDK. This is an auto-generated module.
 func SnapshotModuleFactory() android.Module {
-	s := newSdkModule()
+	s := newSdkModule(false)
 	s.properties.Snapshot = true
 	return s
 }
