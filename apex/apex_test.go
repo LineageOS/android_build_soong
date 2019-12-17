@@ -1263,6 +1263,134 @@ func TestKeys(t *testing.T) {
 	}
 }
 
+func TestCertificate(t *testing.T) {
+	t.Run("if unspecified, it defaults to DefaultAppCertificate", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}`)
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("signapk")
+		expected := "vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("override when unspecified", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex_keytest",
+				key: "myapex.key",
+				file_contexts: ":myapex-file_contexts",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate.override",
+				certificate: "testkey.override",
+			}`)
+		rule := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest_image").Rule("signapk")
+		expected := "testkey.override.x509.pem testkey.override.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("if specified as :module, it respects the prop", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				certificate: ":myapex.certificate",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate",
+				certificate: "testkey",
+			}`)
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("signapk")
+		expected := "testkey.x509.pem testkey.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("override when specifiec as <:module>", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex_keytest",
+				key: "myapex.key",
+				file_contexts: ":myapex-file_contexts",
+				certificate: ":myapex.certificate",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate.override",
+				certificate: "testkey.override",
+			}`)
+		rule := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest_image").Rule("signapk")
+		expected := "testkey.override.x509.pem testkey.override.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("if specified as name, finds it from DefaultDevKeyDir", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				certificate: "testkey",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}`)
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("signapk")
+		expected := "vendor/foo/devkeys/testkey.x509.pem vendor/foo/devkeys/testkey.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("override when specified as <name>", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex_keytest",
+				key: "myapex.key",
+				file_contexts: ":myapex-file_contexts",
+				certificate: "testkey",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate.override",
+				certificate: "testkey.override",
+			}`)
+		rule := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest_image").Rule("signapk")
+		expected := "testkey.override.x509.pem testkey.override.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+}
+
 func TestMacro(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
