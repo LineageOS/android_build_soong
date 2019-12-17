@@ -559,6 +559,16 @@ func (j *Module) targetSdkVersion() string {
 	return j.sdkVersion()
 }
 
+func (j *Module) AvailableFor(what string) bool {
+	if what == android.AvailableToPlatform && Bool(j.deviceProperties.Hostdex) {
+		// Exception: for hostdex: true libraries, the platform variant is created
+		// even if it's not marked as available to platform. In that case, the platform
+		// variant is used only for the hostdex and not installed to the device.
+		return true
+	}
+	return j.ApexModuleBase.AvailableFor(what)
+}
+
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
