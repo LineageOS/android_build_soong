@@ -92,6 +92,7 @@ func withBinder32bit(fs map[string][]byte, config android.Config) {
 }
 
 func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
+	android.ClearApexDependency()
 	config := android.TestArchConfig(buildDir, nil)
 	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
 	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
@@ -683,6 +684,12 @@ func TestApexWithStubs(t *testing.T) {
 
 	// Ensure that genstub is invoked with --apex
 	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3_myapex").Rule("genStubSrc").Args["flags"])
+
+	ensureExactContents(t, ctx, "myapex", []string{
+		"lib64/mylib.so",
+		"lib64/mylib3.so",
+		"lib64/mylib4.so",
+	})
 }
 
 func TestApexWithExplicitStubsDependency(t *testing.T) {
