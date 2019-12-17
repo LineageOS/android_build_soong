@@ -302,9 +302,6 @@ type commonProperties struct {
 	// If a module does not specify the `visibility` property then it uses the
 	// `default_visibility` property of the `package` module in the module's package.
 	//
-	// If a module does not specify the `visibility` property then it uses the
-	// `default_visibility` property of the `package` module in the module's package.
-	//
 	// If the `default_visibility` property is not set for the module's package then
 	// it will use the `default_visibility` of its closest ancestor package for which
 	// a `default_visibility` property is specified.

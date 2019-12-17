@@ -68,7 +68,10 @@ func (xom *xom) flags(ctx ModuleContext, flags Flags) Flags {
 	if !disableXom || (xom.Properties.Xom != nil && *xom.Properties.Xom) {
 		// XOM is only supported on AArch64 when using lld.
 		if ctx.Arch().ArchType == android.Arm64 && ctx.useClangLld(ctx) {
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-execute-only")
+			flags.Local.LdFlags = append(flags.Local.LdFlags,
+				"-Wl,--execute-only",
+				"-Wl,-z,separate-code",
+			)
 		}
 	}
 
