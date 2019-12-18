@@ -44,11 +44,11 @@ var neverallowTests = []struct {
 			NeverAllow().InDirectDeps("not_allowed_in_direct_deps"),
 		},
 		fs: map[string][]byte{
-			"top/Blueprints": []byte(`
+			"top/Android.bp": []byte(`
 				cc_library {
 					name: "not_allowed_in_direct_deps",
 				}`),
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				cc_library {
 					name: "libother",
 					static_libs: ["not_allowed_in_direct_deps"],
@@ -65,7 +65,7 @@ var neverallowTests = []struct {
 	{
 		name: "include_dir not allowed to reference art",
 		fs: map[string][]byte{
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				cc_library {
 					name: "libother",
 					include_dirs: ["art/libdexfile/include"],
@@ -78,7 +78,7 @@ var neverallowTests = []struct {
 	{
 		name: "include_dir can reference another location",
 		fs: map[string][]byte{
-			"other/Blueprints": []byte(`
+			"other/Android.bp": []byte(`
 				cc_library {
 					name: "libother",
 					include_dirs: ["another/include"],
@@ -89,7 +89,7 @@ var neverallowTests = []struct {
 	{
 		name: "no vndk.enabled under vendor directory",
 		fs: map[string][]byte{
-			"vendor/Blueprints": []byte(`
+			"vendor/Android.bp": []byte(`
 				cc_library {
 					name: "libvndk",
 					vendor_available: true,
@@ -105,7 +105,7 @@ var neverallowTests = []struct {
 	{
 		name: "no vndk.enabled under device directory",
 		fs: map[string][]byte{
-			"device/Blueprints": []byte(`
+			"device/Android.bp": []byte(`
 				cc_library {
 					name: "libvndk",
 					vendor_available: true,
@@ -121,7 +121,7 @@ var neverallowTests = []struct {
 	{
 		name: "vndk-ext under vendor or device directory",
 		fs: map[string][]byte{
-			"device/Blueprints": []byte(`
+			"device/Android.bp": []byte(`
 				cc_library {
 					name: "libvndk1_ext",
 					vendor: true,
@@ -129,7 +129,7 @@ var neverallowTests = []struct {
 						enabled: true,
 					},
 				}`),
-			"vendor/Blueprints": []byte(`
+			"vendor/Android.bp": []byte(`
 				cc_library {
 					name: "libvndk2_ext",
 					vendor: true,
@@ -143,7 +143,7 @@ var neverallowTests = []struct {
 	{
 		name: "no enforce_vintf_manifest.cflags",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				cc_library {
 					name: "libexample",
 					product_variables: {
@@ -161,7 +161,7 @@ var neverallowTests = []struct {
 	{
 		name: "no treble_linker_namespaces.cflags",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				cc_library {
 					name: "libexample",
 					product_variables: {
@@ -178,7 +178,7 @@ var neverallowTests = []struct {
 	{
 		name: "libc_bionic_ndk treble_linker_namespaces.cflags",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				cc_library {
 					name: "libc_bionic_ndk",
 					product_variables: {
@@ -192,7 +192,7 @@ var neverallowTests = []struct {
 	{
 		name: "dependency on updatable-media",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				java_library {
 					name: "needs_updatable_media",
 					libs: ["updatable-media"],
@@ -205,7 +205,7 @@ var neverallowTests = []struct {
 	{
 		name: "java_device_for_host",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				java_device_for_host {
 					name: "device_for_host",
 					libs: ["core-libart"],
@@ -219,7 +219,7 @@ var neverallowTests = []struct {
 	{
 		name: "sdk_version: \"none\" inside core libraries",
 		fs: map[string][]byte{
-			"libcore/Blueprints": []byte(`
+			"libcore/Android.bp": []byte(`
 				java_library {
 					name: "inside_core_libraries",
 					sdk_version: "none",
@@ -229,7 +229,7 @@ var neverallowTests = []struct {
 	{
 		name: "sdk_version: \"none\" outside core libraries",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				java_library {
 					name: "outside_core_libraries",
 					sdk_version: "none",
@@ -242,7 +242,7 @@ var neverallowTests = []struct {
 	{
 		name: "sdk_version: \"current\"",
 		fs: map[string][]byte{
-			"Blueprints": []byte(`
+			"Android.bp": []byte(`
 				java_library {
 					name: "outside_core_libraries",
 					sdk_version: "current",
@@ -254,31 +254,29 @@ var neverallowTests = []struct {
 func TestNeverallow(t *testing.T) {
 	for _, test := range neverallowTests {
 		// Create a test per config to allow for test specific config, e.g. test rules.
-		config := TestConfig(buildDir, nil)
+		config := TestConfig(buildDir, nil, "", test.fs)
 
 		t.Run(test.name, func(t *testing.T) {
 			// If the test has its own rules then use them instead of the default ones.
 			if test.rules != nil {
 				setTestNeverallowRules(config, test.rules)
 			}
-			_, errs := testNeverallow(config, test.fs)
+			_, errs := testNeverallow(config)
 			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
 		})
 	}
 }
 
-func testNeverallow(config Config, fs map[string][]byte) (*TestContext, []error) {
+func testNeverallow(config Config) (*TestContext, []error) {
 	ctx := NewTestContext()
 	ctx.RegisterModuleType("cc_library", newMockCcLibraryModule)
 	ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
 	ctx.PostDepsMutators(registerNeverallowMutator)
-	ctx.Register()
+	ctx.Register(config)
 
-	ctx.MockFileSystem(fs)
-
-	_, errs := ctx.ParseBlueprintsFiles("Blueprints")
+	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	if len(errs) > 0 {
 		return ctx, errs
 	}

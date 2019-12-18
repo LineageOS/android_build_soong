@@ -52,8 +52,7 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func testContext(config android.Config, bp string,
-	fs map[string][]byte) *android.TestContext {
+func testContext(config android.Config) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
@@ -82,13 +81,23 @@ func testContext(config android.Config, bp string,
 
 	ctx.RegisterModuleType("sysprop_library", syspropLibraryFactory)
 
-	ctx.Register()
+	ctx.Register(config)
 
-	bp += java.GatherRequiredDepsForTest()
+	return ctx
+}
+
+func run(t *testing.T, ctx *android.TestContext, config android.Config) {
+	t.Helper()
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+}
+
+func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 
 	mockFS := map[string][]byte{
-		"Android.bp":                       []byte(bp),
 		"a.java":                           nil,
 		"b.java":                           nil,
 		"c.java":                           nil,
@@ -134,21 +143,7 @@ func testContext(config android.Config, bp string,
 		mockFS[k] = v
 	}
 
-	ctx.MockFileSystem(mockFS)
-
-	return ctx
-}
-
-func run(t *testing.T, ctx *android.TestContext, config android.Config) {
-	t.Helper()
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-}
-
-func testConfig(env map[string]string) android.Config {
-	config := java.TestConfig(buildDir, env)
+	config := java.TestConfig(buildDir, env, bp, mockFS)
 
 	config.TestProductVariables.DeviceSystemSdkVersions = []string{"28"}
 	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
@@ -160,8 +155,8 @@ func testConfig(env map[string]string) android.Config {
 
 func test(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
-	config := testConfig(nil)
-	ctx := testContext(config, bp, nil)
+	config := testConfig(nil, bp, nil)
+	ctx := testContext(config)
 	run(t, ctx, config)
 
 	return ctx
