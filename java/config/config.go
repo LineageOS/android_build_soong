@@ -46,6 +46,7 @@ var (
 		"core-oj",
 		"core-libart",
 		"updatable-media",
+		"ike",
 	}
 )
 
