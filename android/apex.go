@@ -228,6 +228,14 @@ func UpdateApexDependency(apexName string, moduleName string, directDep bool) {
 	apexNames[apexName] = apexNames[apexName] || directDep
 }
 
+// TODO(b/146393795): remove this when b/146393795 is fixed
+func ClearApexDependency() {
+	m := apexNamesMap()
+	for k := range m {
+		delete(m, k)
+	}
+}
+
 // Tests whether a module named moduleName is directly depended on by an APEX
 // named apexName.
 func DirectlyInApex(apexName string, moduleName string) bool {

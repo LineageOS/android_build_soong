@@ -495,15 +495,17 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) setCertificateAndPrivateKey(ctx android.ModuleContext) {
-	cert := String(a.properties.Certificate)
-	if cert != "" && android.SrcIsModule(cert) == "" {
-		defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
-		a.container_certificate_file = defaultDir.Join(ctx, cert+".x509.pem")
-		a.container_private_key_file = defaultDir.Join(ctx, cert+".pk8")
-	} else if cert == "" {
-		pem, key := ctx.Config().DefaultAppCertificate(ctx)
-		a.container_certificate_file = pem
-		a.container_private_key_file = key
+	if a.container_certificate_file == nil {
+		cert := String(a.properties.Certificate)
+		if cert == "" {
+			pem, key := ctx.Config().DefaultAppCertificate(ctx)
+			a.container_certificate_file = pem
+			a.container_private_key_file = key
+		} else {
+			defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
+			a.container_certificate_file = defaultDir.Join(ctx, cert+".x509.pem")
+			a.container_private_key_file = defaultDir.Join(ctx, cert+".pk8")
+		}
 	}
 }
 
