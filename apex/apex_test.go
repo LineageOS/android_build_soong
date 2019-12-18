@@ -306,6 +306,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
+	ctx.RegisterModuleType("java_sdk_library", java.SdkLibraryFactory)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
@@ -3250,6 +3251,44 @@ func TestLegacyAndroid10Support(t *testing.T) {
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
 	args := module.Rule("apexRule").Args
 	ensureContains(t, args["opt_flags"], "--manifest_json "+module.Output("apex_manifest.json").Output.String())
+}
+
+func TestJavaSDKLibrary(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["foo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+		}
+	`, withFiles(map[string][]byte{
+		"api/current.txt":        nil,
+		"api/removed.txt":        nil,
+		"api/system-current.txt": nil,
+		"api/system-removed.txt": nil,
+		"api/test-current.txt":   nil,
+		"api/test-removed.txt":   nil,
+	}))
+
+	// java_sdk_library installs both impl jar and permission XML
+	ensureExactContents(t, ctx, "myapex", []string{
+		"javalib/foo.jar",
+		"etc/permissions/foo.xml",
+	})
+	// Permission XML should point to the activated path of impl jar of java_sdk_library
+	genXMLCommand := ctx.ModuleForTests("foo", "android_common_myapex").Output("foo.xml").RuleParams.Command
+	ensureContains(t, genXMLCommand, `<library name="foo" file="/apex/myapex/javalib/foo.jar"`)
 }
 
 func TestRejectNonInstallableJavaLibrary(t *testing.T) {

@@ -872,10 +872,16 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *android.ShBinary) ap
 	return af
 }
 
-func apexFileForJavaLibrary(ctx android.BaseModuleContext, java *java.Library) apexFile {
+// TODO(b/146586360): replace javaLibrary(in apex/apex.go) with java.Dependency
+type javaLibrary interface {
+	android.Module
+	java.Dependency
+}
+
+func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaLibrary) apexFile {
 	dirInApex := "javalib"
-	fileToCopy := java.DexJarFile()
-	return newApexFile(ctx, fileToCopy, java.Name(), dirInApex, javaSharedLib, java)
+	fileToCopy := lib.DexJar()
+	return newApexFile(ctx, fileToCopy, lib.Name(), dirInApex, javaSharedLib, lib)
 }
 
 func apexFileForPrebuiltJavaLibrary(ctx android.BaseModuleContext, java *java.Import) apexFile {
@@ -1022,6 +1028,21 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}
+				} else if sdkLib, ok := child.(*java.SdkLibrary); ok {
+					af := apexFileForJavaLibrary(ctx, sdkLib)
+					if !af.Ok() {
+						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
+						return false
+					}
+					filesInfo = append(filesInfo, af)
+
+					pf := sdkLib.PermissionFile()
+					if pf == nil {
+						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
+						return false
+					}
+					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
+					return true // track transitive dependencies
 				} else if javaLib, ok := child.(*java.Import); ok {
 					af := apexFileForPrebuiltJavaLibrary(ctx, javaLib)
 					if !af.Ok() {
