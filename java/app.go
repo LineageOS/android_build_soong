@@ -167,18 +167,11 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		a.aapt.deps(ctx, sdkDep)
 	}
 
+	tag := &jniDependencyTag{}
 	for _, jniTarget := range ctx.MultiTargets() {
 		variation := append(jniTarget.Variations(),
 			blueprint.Variation{Mutator: "link", Variation: "shared"})
-		tag := &jniDependencyTag{
-			target: jniTarget,
-		}
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
-		if String(a.appProperties.Stl) == "c++_shared" {
-			if a.shouldEmbedJnis(ctx) {
-				ctx.AddFarVariationDependencies(variation, tag, "ndk_libc++_shared")
-			}
-		}
 	}
 
 	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
@@ -471,7 +464,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile := a.dexBuildActions(ctx)
 
-	jniLibs, certificateDeps := collectAppDeps(ctx)
+	jniLibs, certificateDeps := collectAppDeps(ctx, a.shouldEmbedJnis(ctx))
 	jniJarFile := a.jniBuildActions(jniLibs, ctx)
 
 	if ctx.Failed() {
@@ -507,22 +500,33 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func collectAppDeps(ctx android.ModuleContext) ([]jniLib, []Certificate) {
+func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps bool) ([]jniLib, []Certificate) {
 	var jniLibs []jniLib
 	var certificates []Certificate
+	seenModulePaths := make(map[string]bool)
 
-	ctx.VisitDirectDeps(func(module android.Module) {
+	ctx.WalkDeps(func(module android.Module, parent android.Module) bool {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		if jniTag, ok := tag.(*jniDependencyTag); ok {
+		if IsJniDepTag(tag) || tag == cc.SharedDepTag {
 			if dep, ok := module.(*cc.Module); ok {
+				if dep.IsNdk() || dep.IsStubs() {
+					return false
+				}
+
 				lib := dep.OutputFile()
+				path := lib.Path()
+				if seenModulePaths[path.String()] {
+					return false
+				}
+				seenModulePaths[path.String()] = true
+
 				if lib.Valid() {
 					jniLibs = append(jniLibs, jniLib{
 						name:   ctx.OtherModuleName(module),
-						path:   lib.Path(),
-						target: jniTag.target,
+						path:   path,
+						target: module.Target(),
 					})
 				} else {
 					ctx.ModuleErrorf("dependency %q missing output file", otherName)
@@ -530,13 +534,19 @@ func collectAppDeps(ctx android.ModuleContext) ([]jniLib, []Certificate) {
 			} else {
 				ctx.ModuleErrorf("jni_libs dependency %q must be a cc library", otherName)
 			}
-		} else if tag == certificateTag {
+
+			return shouldCollectRecursiveNativeDeps
+		}
+
+		if tag == certificateTag {
 			if dep, ok := module.(*AndroidAppCertificate); ok {
 				certificates = append(certificates, dep.Certificate)
 			} else {
 				ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", otherName)
 			}
 		}
+
+		return false
 	})
 
 	return jniLibs, certificates
@@ -968,7 +978,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
 	}
 
-	_, certificates := collectAppDeps(ctx)
+	_, certificates := collectAppDeps(ctx, false)
 
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
