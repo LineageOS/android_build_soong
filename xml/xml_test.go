@@ -48,20 +48,18 @@ func TestMain(m *testing.M) {
 }
 
 func testXml(t *testing.T, bp string) *android.TestContext {
-	config := android.TestArchConfig(buildDir, nil)
+	fs := map[string][]byte{
+		"foo.xml": nil,
+		"foo.dtd": nil,
+		"bar.xml": nil,
+		"bar.xsd": nil,
+		"baz.xml": nil,
+	}
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_xml", PrebuiltEtcXmlFactory)
-	ctx.Register()
-	mockFiles := map[string][]byte{
-		"Android.bp": []byte(bp),
-		"foo.xml":    nil,
-		"foo.dtd":    nil,
-		"bar.xml":    nil,
-		"bar.xsd":    nil,
-		"baz.xml":    nil,
-	}
-	ctx.MockFileSystem(mockFiles)
+	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)

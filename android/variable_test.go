@@ -198,17 +198,10 @@ func TestProductVariables(t *testing.T) {
 			name: "baz",
 		}
 	`
-
-	mockFS := map[string][]byte{
-		"Android.bp": []byte(bp),
-	}
-
-	ctx.MockFileSystem(mockFS)
-
-	ctx.Register()
-
-	config := TestConfig(buildDir, nil)
+	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Eng = proptools.BoolPtr(true)
+
+	ctx.Register(config)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

@@ -6,19 +6,18 @@ import (
 )
 
 func testShBinary(t *testing.T, bp string) (*TestContext, Config) {
-	config := TestArchConfig(buildDir, nil)
-
-	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("sh_test", ShTestFactory)
-	ctx.RegisterModuleType("sh_test_host", ShTestHostFactory)
-	ctx.Register()
-	mockFiles := map[string][]byte{
-		"Android.bp":         []byte(bp),
+	fs := map[string][]byte{
 		"test.sh":            nil,
 		"testdata/data1":     nil,
 		"testdata/sub/data2": nil,
 	}
-	ctx.MockFileSystem(mockFiles)
+
+	config := TestArchConfig(buildDir, nil, bp, fs)
+
+	ctx := NewTestArchContext()
+	ctx.RegisterModuleType("sh_test", ShTestFactory)
+	ctx.RegisterModuleType("sh_test_host", ShTestHostFactory)
+	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)

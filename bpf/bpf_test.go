@@ -48,21 +48,24 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func testContext(bp string) *android.TestContext {
+func testConfig(buildDir string, env map[string]string, bp string) android.Config {
 	mockFS := map[string][]byte{
 		"bpf.c":       nil,
 		"BpfTest.cpp": nil,
 	}
 
-	ctx := cc.CreateTestContext(bp, mockFS, android.Android)
+	return cc.TestConfig(buildDir, android.Android, env, bp, mockFS)
+}
+
+func testContext(config android.Config) *android.TestContext {
+	ctx := cc.CreateTestContext()
 	ctx.RegisterModuleType("bpf", bpfFactory)
-	ctx.Register()
+	ctx.Register(config)
 
 	return ctx
 }
 
 func TestBpfDataDependency(t *testing.T) {
-	config := android.TestArchConfig(buildDir, nil)
 	bp := `
 		bpf {
 			name: "bpf.o",
@@ -77,7 +80,9 @@ func TestBpfDataDependency(t *testing.T) {
 		}
 	`
 
-	ctx := testContext(bp)
+	config := testConfig(buildDir, nil, bp)
+	ctx := testContext(config)
+
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	if errs == nil {
 		_, errs = ctx.PrepareBuildActions(config)

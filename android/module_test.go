@@ -178,15 +178,9 @@ func TestErrorDependsOnDisabledModule(t *testing.T) {
 		}
 	`
 
-	mockFS := map[string][]byte{
-		"Android.bp": []byte(bp),
-	}
+	config := TestConfig(buildDir, nil, bp, nil)
 
-	ctx.MockFileSystem(mockFS)
-
-	ctx.Register()
-
-	config := TestConfig(buildDir, nil)
+	ctx.Register(config)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

@@ -44,14 +44,14 @@ func TestDexpreoptBootJars(t *testing.T) {
 		}
 	`
 
-	config := testConfig(nil)
+	config := testConfig(nil, bp, nil)
 
-	pathCtx := android.PathContextForTesting(config, nil)
+	pathCtx := android.PathContextForTesting(config)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
 	dexpreoptConfig.ArtApexJars = []string{"foo", "bar", "baz"}
 	setDexpreoptTestGlobalConfig(config, dexpreoptConfig)
 
-	ctx := testContext(bp, nil)
+	ctx := testContext()
 
 	ctx.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
 

@@ -56,7 +56,15 @@ func addMissingDependenciesMutator(ctx TopDownMutatorContext) {
 }
 
 func TestMutatorAddMissingDependencies(t *testing.T) {
-	config := TestConfig(buildDir, nil)
+	bp := `
+		test {
+			name: "foo",
+			deps_missing_deps: ["regular_missing_dep"],
+			mutator_missing_deps: ["added_missing_dep"],
+		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 
 	ctx := NewTestContext()
@@ -67,21 +75,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 		ctx.TopDown("add_missing_dependencies", addMissingDependenciesMutator)
 	})
 
-	bp := `
-		test {
-			name: "foo",
-			deps_missing_deps: ["regular_missing_dep"],
-			mutator_missing_deps: ["added_missing_dep"],
-		}
-	`
-
-	mockFS := map[string][]byte{
-		"Android.bp": []byte(bp),
-	}
-
-	ctx.MockFileSystem(mockFS)
-
-	ctx.Register()
+	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -139,15 +133,9 @@ func TestModuleString(t *testing.T) {
 		}
 	`
 
-	mockFS := map[string][]byte{
-		"Android.bp": []byte(bp),
-	}
+	config := TestConfig(buildDir, nil, bp, nil)
 
-	ctx.MockFileSystem(mockFS)
-
-	ctx.Register()
-
-	config := TestConfig(buildDir, nil)
+	ctx.Register(config)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
