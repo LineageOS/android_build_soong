@@ -169,5 +169,6 @@ var VndkMustUseVendorVariantList = []string{
 	"libxml2",
 	"libyuv",
 	"libziparchive",
+	"vintf-rebootescrow-ndk_platform",
 	"vintf-vibrator-ndk_platform",
 }
