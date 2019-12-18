@@ -759,7 +759,7 @@ func (c *Module) isNdk() bool {
 	return inList(c.Name(), ndkMigratedLibs)
 }
 
-func (c *Module) IsLlndk(config android.Config) bool {
+func (c *Module) isLlndk(config android.Config) bool {
 	// Returns true for both LLNDK (public) and LLNDK-private libs.
 	return isLlndkLibrary(c.BaseModuleName(), config)
 }
@@ -999,7 +999,7 @@ func (ctx *moduleContextImpl) isNdk() bool {
 }
 
 func (ctx *moduleContextImpl) isLlndk(config android.Config) bool {
-	return ctx.mod.IsLlndk(config)
+	return ctx.mod.isLlndk(config)
 }
 
 func (ctx *moduleContextImpl) isLlndkPublic(config android.Config) bool {
@@ -1880,7 +1880,7 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return true
 		}
 
-		if to.isVndkSp() || to.IsLlndk(ctx.Config()) || Bool(to.VendorProperties.Double_loadable) {
+		if to.isVndkSp() || to.isLlndk(ctx.Config()) || Bool(to.VendorProperties.Double_loadable) {
 			return false
 		}
 
@@ -1895,7 +1895,7 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 	}
 	if module, ok := ctx.Module().(*Module); ok {
 		if lib, ok := module.linker.(*libraryDecorator); ok && lib.shared() {
-			if module.IsLlndk(ctx.Config()) || Bool(module.VendorProperties.Double_loadable) {
+			if module.isLlndk(ctx.Config()) || Bool(module.VendorProperties.Double_loadable) {
 				ctx.WalkDeps(check)
 			}
 		}
