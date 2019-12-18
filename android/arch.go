@@ -824,7 +824,10 @@ func archMutator(mctx BottomUpMutatorContext) {
 	osTargets := mctx.Config().Targets[os]
 	image := base.commonProperties.ImageVariation
 	// Filter NativeBridge targets unless they are explicitly supported
-	if os == Android && !Bool(base.commonProperties.Native_bridge_supported) {
+	// Skip creating native bridge variants for vendor modules
+	if os == Android &&
+		!(Bool(base.commonProperties.Native_bridge_supported) && image == CoreVariation) {
+
 		var targets []Target
 		for _, t := range osTargets {
 			if !t.NativeBridge {
