@@ -1631,45 +1631,7 @@ func TestAndroidTestImport(t *testing.T) {
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
-			name: "ndk_libunwind",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library {
-			name: "libc.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library {
-			name: "libm.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library {
-			name: "libdl.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_object {
-			name: "ndk_crtbegin_so.27",
-		}
-
-		cc_object {
-			name: "ndk_crtend_so.27",
-		}
-
-		cc_library {
 			name: "libjni",
-			sdk_version: "current",
-			stl: "c++_shared",
 		}
 
 		android_test {
