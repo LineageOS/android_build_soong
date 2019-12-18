@@ -113,8 +113,8 @@ func testCcError(t *testing.T, pattern string, bp string) {
 
 const (
 	coreVariant     = "android_arm64_armv8-a_shared"
-	vendorVariant   = "android_arm64_armv8-a_vendor.VER_shared"
-	recoveryVariant = "android_arm64_armv8-a_recovery_shared"
+	vendorVariant   = "android_vendor.VER_arm64_armv8-a_shared"
+	recoveryVariant = "android_recovery_arm64_armv8-a_shared"
 )
 
 func TestFuchsiaDeps(t *testing.T) {
@@ -376,8 +376,8 @@ func TestVndk(t *testing.T) {
 	vndkCoreLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "vndk-core")
 	vndkSpLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "vndk-sp")
 
-	variant := "android_arm64_armv8-a_vendor.VER_shared"
-	variant2nd := "android_arm_armv7-a-neon_vendor.VER_shared"
+	variant := "android_vendor.VER_arm64_armv8-a_shared"
+	variant2nd := "android_vendor.VER_arm_armv7-a-neon_shared"
 
 	checkVndkSnapshot(t, ctx, "libvndk", "libvndk.so", vndkCoreLibPath, variant)
 	checkVndkSnapshot(t, ctx, "libvndk", "libvndk.so", vndkCoreLib2ndPath, variant2nd)
@@ -1525,7 +1525,7 @@ func TestMakeLinkType(t *testing.T) {
 	assertMapKeys(t, vndkPrivateLibraries(config),
 		[]string{"libft2", "libllndkprivate", "libvndkprivate"})
 
-	vendorVariant27 := "android_arm64_armv8-a_vendor.27_shared"
+	vendorVariant27 := "android_vendor.27_arm64_armv8-a_shared"
 
 	tests := []struct {
 		variant  string
@@ -1976,7 +1976,7 @@ func TestLlndkHeaders(t *testing.T) {
 	`)
 
 	// _static variant is used since _shared reuses *.o from the static variant
-	cc := ctx.ModuleForTests("libvendor", "android_arm_armv7-a-neon_vendor.VER_static").Rule("cc")
+	cc := ctx.ModuleForTests("libvendor", "android_vendor.VER_arm_armv7-a-neon_static").Rule("cc")
 	cflags := cc.Args["cFlags"]
 	if !strings.Contains(cflags, "-Imy_include") {
 		t.Errorf("cflags for libvendor must contain -Imy_include, but was %#v.", cflags)
@@ -2062,7 +2062,7 @@ func TestRuntimeLibs(t *testing.T) {
 
 	// runtime_libs for vendor variants have '.vendor' suffixes if the modules have both core
 	// and vendor variants.
-	variant = "android_arm64_armv8-a_vendor.VER_shared"
+	variant = "android_vendor.VER_arm64_armv8-a_shared"
 
 	module = ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"libvendor_available1.vendor"}, module)
@@ -2078,7 +2078,7 @@ func TestExcludeRuntimeLibs(t *testing.T) {
 	module := ctx.ModuleForTests("libvendor_available3", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"libvendor_available1"}, module)
 
-	variant = "android_arm64_armv8-a_vendor.VER_shared"
+	variant = "android_vendor.VER_arm64_armv8-a_shared"
 	module = ctx.ModuleForTests("libvendor_available3", variant).Module().(*Module)
 	checkRuntimeLibs(t, nil, module)
 }
@@ -2257,7 +2257,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 	`)
 
 	coreVariant := "android_arm64_armv8-a_shared"
-	vendorVariant := "android_arm64_armv8-a_vendor.VER_shared"
+	vendorVariant := "android_vendor.VER_arm64_armv8-a_shared"
 
 	// test if header search paths are correctly added
 	// _static variant is used since _shared reuses *.o from the static variant
@@ -2304,7 +2304,7 @@ func TestRecovery(t *testing.T) {
 	`)
 
 	variants := ctx.ModuleVariantsForTests("librecovery")
-	const arm64 = "android_arm64_armv8-a_recovery_shared"
+	const arm64 = "android_recovery_arm64_armv8-a_shared"
 	if len(variants) != 1 || !android.InList(arm64, variants) {
 		t.Errorf("variants of librecovery must be \"%s\" only, but was %#v", arm64, variants)
 	}

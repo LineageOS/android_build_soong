@@ -1005,6 +1005,7 @@ func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 func (m *ModuleBase) baseModuleContextFactory(ctx blueprint.BaseModuleContext) baseModuleContext {
 	return baseModuleContext{
 		BaseModuleContext: ctx,
+		os:                m.commonProperties.CompileOS,
 		target:            m.commonProperties.CompileTarget,
 		targetPrimary:     m.commonProperties.CompilePrimary,
 		multiTargets:      m.commonProperties.CompileMultiTargets,
@@ -1117,6 +1118,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 type baseModuleContext struct {
 	blueprint.BaseModuleContext
+	os            OsType
 	target        Target
 	multiTargets  []Target
 	targetPrimary bool
@@ -1460,27 +1462,27 @@ func (b *baseModuleContext) Arch() Arch {
 }
 
 func (b *baseModuleContext) Os() OsType {
-	return b.target.Os
+	return b.os
 }
 
 func (b *baseModuleContext) Host() bool {
-	return b.target.Os.Class == Host || b.target.Os.Class == HostCross
+	return b.os.Class == Host || b.os.Class == HostCross
 }
 
 func (b *baseModuleContext) Device() bool {
-	return b.target.Os.Class == Device
+	return b.os.Class == Device
 }
 
 func (b *baseModuleContext) Darwin() bool {
-	return b.target.Os == Darwin
+	return b.os == Darwin
 }
 
 func (b *baseModuleContext) Fuchsia() bool {
-	return b.target.Os == Fuchsia
+	return b.os == Fuchsia
 }
 
 func (b *baseModuleContext) Windows() bool {
-	return b.target.Os == Windows
+	return b.os == Windows
 }
 
 func (b *baseModuleContext) Debug() bool {
