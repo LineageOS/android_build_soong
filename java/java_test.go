@@ -1347,7 +1347,7 @@ func TestPatchModule(t *testing.T) {
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		expected := "java.base=.:" + buildDir
 		checkPatchModuleFlag(t, ctx, "bar", expected)
-		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework"), moduleToPath("updatable_media_stubs")}, ":")
+		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework")}, ":")
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
 }
