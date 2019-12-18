@@ -1353,19 +1353,17 @@ func WritablePathsForTesting(strs ...string) WritablePaths {
 
 type testPathContext struct {
 	config Config
-	fs     pathtools.FileSystem
 }
 
-func (x *testPathContext) Fs() pathtools.FileSystem   { return x.fs }
+func (x *testPathContext) Fs() pathtools.FileSystem   { return x.config.fs }
 func (x *testPathContext) Config() Config             { return x.config }
 func (x *testPathContext) AddNinjaFileDeps(...string) {}
 
 // PathContextForTesting returns a PathContext that can be used in tests, for example to create an OutputPath with
 // PathForOutput.
-func PathContextForTesting(config Config, fs map[string][]byte) PathContext {
+func PathContextForTesting(config Config) PathContext {
 	return &testPathContext{
 		config: config,
-		fs:     pathtools.MockFs(fs),
 	}
 }
 

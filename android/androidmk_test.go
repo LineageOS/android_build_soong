@@ -43,14 +43,6 @@ func customModuleFactory() Module {
 }
 
 func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testing.T) {
-	config := TestConfig(buildDir, nil)
-	config.inMake = true // Enable androidmk Singleton
-
-	ctx := NewTestContext()
-	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
-	ctx.RegisterModuleType("custom", customModuleFactory)
-	ctx.Register()
-
 	bp := `
 	custom {
 		name: "foo",
@@ -60,9 +52,13 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 	}
 	`
 
-	ctx.MockFileSystem(map[string][]byte{
-		"Android.bp": []byte(bp),
-	})
+	config := TestConfig(buildDir, nil, bp, nil)
+	config.inMake = true // Enable androidmk Singleton
+
+	ctx := NewTestContext()
+	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
+	ctx.RegisterModuleType("custom", customModuleFactory)
+	ctx.Register(config)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

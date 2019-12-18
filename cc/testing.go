@@ -249,9 +249,41 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 	return ret
 }
 
-func CreateTestContext(bp string, fs map[string][]byte,
-	os android.OsType) *android.TestContext {
+func TestConfig(buildDir string, os android.OsType, env map[string]string,
+	bp string, fs map[string][]byte) android.Config {
 
+	// add some modules that are required by the compiler and/or linker
+	bp = bp + GatherRequiredDepsForTest(os)
+
+	mockFS := map[string][]byte{
+		"foo.c":       nil,
+		"foo.lds":     nil,
+		"bar.c":       nil,
+		"baz.c":       nil,
+		"baz.o":       nil,
+		"a.proto":     nil,
+		"b.aidl":      nil,
+		"sub/c.aidl":  nil,
+		"my_include":  nil,
+		"foo.map.txt": nil,
+		"liba.so":     nil,
+	}
+
+	for k, v := range fs {
+		mockFS[k] = v
+	}
+
+	var config android.Config
+	if os == android.Fuchsia {
+		config = android.TestArchConfigFuchsia(buildDir, env, bp, mockFS)
+	} else {
+		config = android.TestArchConfig(buildDir, env, bp, mockFS)
+	}
+
+	return config
+}
+
+func CreateTestContext() *android.TestContext {
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("cc_defaults", defaultsFactory)
 	ctx.RegisterModuleType("cc_binary", BinaryFactory)
@@ -282,30 +314,6 @@ func CreateTestContext(bp string, fs map[string][]byte,
 	})
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
-
-	// add some modules that are required by the compiler and/or linker
-	bp = bp + GatherRequiredDepsForTest(os)
-
-	mockFS := map[string][]byte{
-		"Android.bp":  []byte(bp),
-		"foo.c":       nil,
-		"foo.lds":     nil,
-		"bar.c":       nil,
-		"baz.c":       nil,
-		"baz.o":       nil,
-		"a.proto":     nil,
-		"b.aidl":      nil,
-		"sub/c.aidl":  nil,
-		"my_include":  nil,
-		"foo.map.txt": nil,
-		"liba.so":     nil,
-	}
-
-	for k, v := range fs {
-		mockFS[k] = v
-	}
-
-	ctx.MockFileSystem(mockFS)
 
 	return ctx
 }

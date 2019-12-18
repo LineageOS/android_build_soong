@@ -28,6 +28,8 @@ import (
 	"android/soong/android"
 )
 
+var buildDir string
+
 type pyModule struct {
 	name          string
 	actualVersion string
@@ -50,7 +52,7 @@ var (
 	noSrcFileErr      = moduleVariantErrTemplate + "doesn't have any source files!"
 	badSrcFileExtErr  = moduleVariantErrTemplate + "srcs: found non (.py|.proto) file: %q!"
 	badDataFileExtErr = moduleVariantErrTemplate + "data: found (.py|.proto) file: %q!"
-	bpFile            = "Blueprints"
+	bpFile            = "Android.bp"
 
 	data = []struct {
 		desc      string
@@ -71,7 +73,7 @@ var (
 			},
 			errors: []string{
 				fmt.Sprintf(noSrcFileErr,
-					"dir/Blueprints:1:1", "lib1", "PY3"),
+					"dir/Android.bp:1:1", "lib1", "PY3"),
 			},
 		},
 		{
@@ -90,7 +92,7 @@ var (
 			},
 			errors: []string{
 				fmt.Sprintf(badSrcFileExtErr,
-					"dir/Blueprints:3:11", "lib1", "PY3", "dir/file1.exe"),
+					"dir/Android.bp:3:11", "lib1", "PY3", "dir/file1.exe"),
 			},
 		},
 		{
@@ -113,7 +115,7 @@ var (
 			},
 			errors: []string{
 				fmt.Sprintf(badDataFileExtErr,
-					"dir/Blueprints:6:11", "lib1", "PY3", "dir/file2.py"),
+					"dir/Android.bp:6:11", "lib1", "PY3", "dir/file2.py"),
 			},
 		},
 		{
@@ -149,9 +151,9 @@ var (
 			},
 			errors: []string{
 				fmt.Sprintf(pkgPathErrTemplate,
-					"dir/Blueprints:11:15", "lib2", "PY3", "a/c/../../../"),
+					"dir/Android.bp:11:15", "lib2", "PY3", "a/c/../../../"),
 				fmt.Sprintf(pkgPathErrTemplate,
-					"dir/Blueprints:19:15", "lib3", "PY3", "/a/c/../../"),
+					"dir/Android.bp:19:15", "lib3", "PY3", "/a/c/../../"),
 			},
 		},
 		{
@@ -174,11 +176,11 @@ var (
 				"dir/-e/f/file1.py": nil,
 			},
 			errors: []string{
-				fmt.Sprintf(badIdentifierErrTemplate, "dir/Blueprints:4:11",
+				fmt.Sprintf(badIdentifierErrTemplate, "dir/Android.bp:4:11",
 					"lib1", "PY3", "a/b/c/-e/f/file1.py", "-e"),
-				fmt.Sprintf(badIdentifierErrTemplate, "dir/Blueprints:4:11",
+				fmt.Sprintf(badIdentifierErrTemplate, "dir/Android.bp:4:11",
 					"lib1", "PY3", "a/b/c/.file1.py", ".file1"),
-				fmt.Sprintf(badIdentifierErrTemplate, "dir/Blueprints:4:11",
+				fmt.Sprintf(badIdentifierErrTemplate, "dir/Android.bp:4:11",
 					"lib1", "PY3", "a/b/c/123/file1.py", "123"),
 			},
 		},
@@ -211,7 +213,7 @@ var (
 				"dir/file1.py":   nil,
 			},
 			errors: []string{
-				fmt.Sprintf(dupRunfileErrTemplate, "dir/Blueprints:9:6",
+				fmt.Sprintf(dupRunfileErrTemplate, "dir/Android.bp:9:6",
 					"lib2", "PY3", "a/b/c/file1.py", "lib2", "dir/file1.py",
 					"lib1", "dir/c/file1.py"),
 			},
@@ -324,10 +326,9 @@ var (
 )
 
 func TestPythonModule(t *testing.T) {
-	config, buildDir := setupBuildEnv(t)
-	defer tearDownBuildEnv(buildDir)
 	for _, d := range data {
 		t.Run(d.desc, func(t *testing.T) {
+			config := android.TestConfig(buildDir, nil, "", d.mockFiles)
 			ctx := android.NewTestContext()
 			ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 				ctx.BottomUp("version_split", versionSplitMutator()).Parallel()
@@ -336,8 +337,7 @@ func TestPythonModule(t *testing.T) {
 			ctx.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
 			ctx.RegisterModuleType("python_defaults", defaultsFactory)
 			ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-			ctx.Register()
-			ctx.MockFileSystem(d.mockFiles)
+			ctx.Register(config)
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
 			android.FailIfErrored(t, testErrs)
 			_, actErrs := ctx.PrepareBuildActions(config)
@@ -425,17 +425,25 @@ func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, varian
 	return
 }
 
-func setupBuildEnv(t *testing.T) (config android.Config, buildDir string) {
-	buildDir, err := ioutil.TempDir("", buildNamePrefix)
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_python_test")
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-
-	config = android.TestConfig(buildDir, nil)
-
-	return
 }
 
-func tearDownBuildEnv(buildDir string) {
+func tearDown() {
 	os.RemoveAll(buildDir)
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
 }

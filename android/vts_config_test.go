@@ -19,15 +19,11 @@ import (
 )
 
 func testVtsConfig(test *testing.T, bpFileContents string) *TestContext {
-	config := TestArchConfig(buildDir, nil)
+	config := TestArchConfig(buildDir, nil, bpFileContents, nil)
 
 	ctx := NewTestArchContext()
 	ctx.RegisterModuleType("vts_config", VtsConfigFactory)
-	ctx.Register()
-	mockFiles := map[string][]byte{
-		"Android.bp": []byte(bpFileContents),
-	}
-	ctx.MockFileSystem(mockFiles)
+	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(test, errs)
 	_, errs = ctx.PrepareBuildActions(config)
