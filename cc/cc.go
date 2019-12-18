@@ -755,7 +755,7 @@ func (c *Module) isCoverageVariant() bool {
 	return c.coverage.Properties.IsCoverageVariant
 }
 
-func (c *Module) isNdk() bool {
+func (c *Module) IsNdk() bool {
 	return inList(c.Name(), ndkMigratedLibs)
 }
 
@@ -995,7 +995,7 @@ func (ctx *moduleContextImpl) useVndk() bool {
 }
 
 func (ctx *moduleContextImpl) isNdk() bool {
-	return ctx.mod.isNdk()
+	return ctx.mod.IsNdk()
 }
 
 func (ctx *moduleContextImpl) isLlndk(config android.Config) bool {
