@@ -488,8 +488,10 @@ type apexBundle struct {
 
 	properties            apexBundleProperties
 	targetProperties      apexTargetBundleProperties
-	vndkProperties        apexVndkProperties
 	overridableProperties overridableProperties
+
+	// specific to apex_vndk modules
+	vndkProperties apexVndkProperties
 
 	bundleModuleFile android.WritablePath
 	outputFile       android.WritablePath
@@ -722,7 +724,13 @@ func (a *apexBundle) DepIsInSameApex(ctx android.BaseModuleContext, dep android.
 }
 
 func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
-	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(ctx.ModuleName())
+	moduleName := ctx.ModuleName()
+	// VNDK APEXes share the same certificate. To avoid adding a new VNDK version to the OVERRIDE_* list,
+	// we check with the pseudo module name to see if its certificate is overridden.
+	if a.vndkApex {
+		moduleName = vndkApexName
+	}
+	certificate, overridden := ctx.DeviceConfig().OverrideCertificateFor(moduleName)
 	if overridden {
 		return ":" + certificate
 	}
@@ -1278,6 +1286,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(
 		&apexBundleProperties{},
 		&apexTargetBundleProperties{},
+		&overridableProperties{},
 	)
 
 	android.InitDefaultsModule(module)

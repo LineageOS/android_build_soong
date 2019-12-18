@@ -24,7 +24,7 @@ import (
 func (library *Library) AndroidMkEntriesHostDex() android.AndroidMkEntries {
 	hostDexNeeded := Bool(library.deviceProperties.Hostdex) && !library.Host()
 	if !library.IsForPlatform() {
-		// If the platform variant is available, don't emit hostdex modules from the APEX variants
+		// Don't emit hostdex modules from the APEX variants
 		hostDexNeeded = false
 	}
 
@@ -62,8 +62,14 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	var entriesList []android.AndroidMkEntries
 
 	mainEntries := android.AndroidMkEntries{Disabled: true}
+
 	// For a java library built for an APEX, we don't need Make module
-	if library.IsForPlatform() {
+	hideFromMake := !library.IsForPlatform()
+	// If not available for platform, don't emit to make.
+	if !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
+		hideFromMake = true
+	}
+	if !hideFromMake {
 		mainEntries = android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
 			OutputFile: android.OptionalPathForPath(library.outputFile),

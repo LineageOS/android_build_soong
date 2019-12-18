@@ -2623,14 +2623,6 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		coreVariantNeeded = false
 	}
 
-	if recoveryVariantNeeded {
-		primaryArch := mctx.Config().DevicePrimaryArchType()
-		moduleArch := m.Target().Arch.ArchType
-		if moduleArch != primaryArch {
-			recoveryVariantNeeded = false
-		}
-	}
-
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {
 		m.Properties.VendorVariants = append(m.Properties.VendorVariants, VendorVariationPrefix+variant)
 	}

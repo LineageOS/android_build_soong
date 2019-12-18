@@ -138,7 +138,7 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 }
 
 const (
-	availableToPlatform = "//apex_available:platform"
+	AvailableToPlatform = "//apex_available:platform"
 	availableToAnyApex  = "//apex_available:anyapex"
 )
 
@@ -149,7 +149,7 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 		return true
 	}
 	return InList(what, apex_available) ||
-		(what != availableToPlatform && InList(availableToAnyApex, apex_available))
+		(what != AvailableToPlatform && InList(availableToAnyApex, apex_available))
 }
 
 func (m *ApexModuleBase) AvailableFor(what string) bool {
@@ -165,7 +165,7 @@ func (m *ApexModuleBase) DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	for _, n := range m.ApexProperties.Apex_available {
-		if n == availableToPlatform || n == availableToAnyApex {
+		if n == AvailableToPlatform || n == availableToAnyApex {
 			continue
 		}
 		if !mctx.OtherModuleExists(n) && !mctx.Config().AllowMissingDependencies() {
@@ -179,7 +179,7 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		m.checkApexAvailableProperty(mctx)
 		sort.Strings(m.apexVariations)
 		variations := []string{}
-		availableForPlatform := mctx.Module().(ApexModule).AvailableFor(availableToPlatform) || mctx.Host()
+		availableForPlatform := mctx.Module().(ApexModule).AvailableFor(AvailableToPlatform) || mctx.Host()
 		if availableForPlatform {
 			variations = append(variations, "") // Original variation for platform
 		}

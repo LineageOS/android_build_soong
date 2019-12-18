@@ -636,7 +636,7 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		fixedConfig := android.PathForModuleOut(ctx, "test_config_fixer", "AndroidTest.xml")
 		rule := android.NewRuleBuilder()
 		rule.Command().BuiltTool(ctx, "test_config_fixer").
-			FlagWithArg("--manifest ", a.manifestPath.String()).
+			FlagWithInput("--manifest ", a.manifestPath).
 			FlagWithArg("--package-name ", *a.overridableAppProperties.Package_name).
 			Input(a.testConfig).
 			Output(fixedConfig)
