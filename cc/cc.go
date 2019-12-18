@@ -2572,9 +2572,6 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
 		coreVariantNeeded = true
-	} else if m.Target().NativeBridge == android.NativeBridgeEnabled {
-		// Skip creating vendor variants for natvie bridge modules
-		coreVariantNeeded = true
 	} else if _, ok := m.linker.(*llndkStubDecorator); ok {
 		// LL-NDK stubs only exist in the vendor variant, since the
 		// real libraries will be used in the core variant.
