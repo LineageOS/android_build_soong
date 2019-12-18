@@ -200,14 +200,14 @@ func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.Writabl
 	}
 
 	if uncompressJNI {
-		jarArgs = append(jarArgs, "-L 0")
+		jarArgs = append(jarArgs, "-L", "0")
 	}
 
 	for _, j := range jniLibs {
 		deps = append(deps, j.path)
 		jarArgs = append(jarArgs,
-			"-P "+targetToJniDir(j.target),
-			"-f "+j.path.String())
+			"-P", targetToJniDir(j.target),
+			"-f", j.path.String())
 	}
 
 	ctx.Build(pctx, android.BuildParams{
