@@ -20,8 +20,12 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("java_genrule", genRuleFactory)
-	android.RegisterModuleType("java_genrule_host", genRuleFactoryHost)
+	RegisterGenRuleBuildComponents(android.InitRegistrationContext)
+}
+
+func RegisterGenRuleBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("java_genrule", genRuleFactory)
+	ctx.RegisterModuleType("java_genrule_host", genRuleFactoryHost)
 }
 
 // java_genrule is a genrule that can depend on other java_* objects.
