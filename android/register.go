@@ -122,6 +122,7 @@ func ModuleTypeFactories() map[string]ModuleFactory {
 type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
+	PreArchMutators(f RegisterMutatorFunc)
 }
 
 // Used to register build components from an init() method, e.g.
@@ -153,4 +154,8 @@ func (ctx initRegistrationContext) RegisterModuleType(name string, factory Modul
 
 func (ctx initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
 	RegisterSingletonType(name, factory)
+}
+
+func (ctx initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
+	PreArchMutators(f)
 }
