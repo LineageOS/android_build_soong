@@ -21,7 +21,14 @@ import (
 )
 
 func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
-	config := TestArchConfig(buildDir, nil)
+	fs := map[string][]byte{
+		"foo.conf": nil,
+		"bar.conf": nil,
+		"baz.conf": nil,
+	}
+
+	config := TestArchConfig(buildDir, nil, bp, fs)
+
 	ctx := NewTestArchContext()
 	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
@@ -29,14 +36,7 @@ func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
 	ctx.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
 	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
-	ctx.Register()
-	mockFiles := map[string][]byte{
-		"Android.bp": []byte(bp),
-		"foo.conf":   nil,
-		"bar.conf":   nil,
-		"baz.conf":   nil,
-	}
-	ctx.MockFileSystem(mockFiles)
+	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)

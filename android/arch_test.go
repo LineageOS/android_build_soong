@@ -289,10 +289,6 @@ func TestArchMutator(t *testing.T) {
 		}
 	`
 
-	mockFS := map[string][]byte{
-		"Android.bp": []byte(bp),
-	}
-
 	testCases := []struct {
 		name        string
 		config      func(Config)
@@ -337,11 +333,11 @@ func TestArchMutator(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			config := TestArchConfig(buildDir, nil, bp, nil)
+
 			ctx := NewTestArchContext()
 			ctx.RegisterModuleType("module", archTestModuleFactory)
-			ctx.MockFileSystem(mockFS)
-			ctx.Register()
-			config := TestArchConfig(buildDir, nil)
+			ctx.Register(config)
 			if tt.config != nil {
 				tt.config(config)
 			}

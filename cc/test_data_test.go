@@ -115,20 +115,17 @@ func TestDataTests(t *testing.T) {
 	}
 	defer os.RemoveAll(buildDir)
 
-	config := android.TestConfig(buildDir, nil)
-
 	for _, test := range testDataTests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := android.NewTestContext()
-			ctx.MockFileSystem(map[string][]byte{
-				"Blueprints":     []byte(`subdirs = ["dir"]`),
-				"dir/Blueprints": []byte(test.modules),
+			config := android.TestConfig(buildDir, nil, "", map[string][]byte{
+				"dir/Android.bp": []byte(test.modules),
 				"dir/baz":        nil,
 				"dir/bar/baz":    nil,
 			})
+			ctx := android.NewTestContext()
 			ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 			ctx.RegisterModuleType("test", newTest)
-			ctx.Register()
+			ctx.Register(config)
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
 			android.FailIfErrored(t, errs)

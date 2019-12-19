@@ -92,69 +92,7 @@ func withBinder32bit(fs map[string][]byte, config android.Config) {
 }
 
 func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
-	config := android.TestArchConfig(buildDir, nil)
-	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
-	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
-	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
-	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
-	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-	config.TestProductVariables.Platform_vndk_version = proptools.StringPtr("VER")
-
-	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("apex", BundleFactory)
-	ctx.RegisterModuleType("apex_test", testApexBundleFactory)
-	ctx.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
-	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.RegisterModuleType("apex_defaults", defaultsFactory)
-	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
-	ctx.RegisterModuleType("override_apex", overrideApexFactory)
-
-	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
-	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
-	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", cc.PrebuiltSharedLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
-	ctx.RegisterModuleType("cc_binary", cc.BinaryFactory)
-	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
-	ctx.RegisterModuleType("cc_defaults", func() android.Module {
-		return cc.DefaultsFactory()
-	})
-	ctx.RegisterModuleType("cc_test", cc.TestFactory)
-	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
-	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
-	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
-	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
-	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
-	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
-	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("java_library", java.LibraryFactory)
-	ctx.RegisterModuleType("java_import", java.ImportFactory)
-	ctx.RegisterModuleType("java_system_modules", java.SystemModulesFactory)
-	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
-	ctx.RegisterModuleType("android_app_import", java.AndroidAppImportFactory)
-	ctx.RegisterModuleType("override_android_app", java.OverrideAndroidAppModuleFactory)
-
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
-	})
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
-		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
-		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
-		ctx.BottomUp("version", cc.VersionMutator).Parallel()
-		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-	})
-	ctx.PreDepsMutators(RegisterPreDepsMutators)
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-	ctx.PostDepsMutators(RegisterPostDepsMutators)
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
-		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
-	})
-
-	ctx.Register()
+	android.ClearApexDependency()
 
 	bp = bp + `
 		toolchain_library {
@@ -270,10 +208,10 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 			],
 		}
 	`
+
 	bp = bp + java.GatherRequiredDepsForTest()
 
 	fs := map[string][]byte{
-		"Android.bp":                                          []byte(bp),
 		"a.java":                                              nil,
 		"PrebuiltAppFoo.apk":                                  nil,
 		"PrebuiltAppFooPriv.apk":                              nil,
@@ -284,42 +222,116 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"system/sepolicy/apex/otherapex-file_contexts":        nil,
 		"system/sepolicy/apex/commonapex-file_contexts":       nil,
 		"system/sepolicy/apex/com.android.vndk-file_contexts": nil,
-		"mylib.cpp":                                           nil,
-		"mylib_common.cpp":                                    nil,
-		"mytest.cpp":                                          nil,
-		"mytest1.cpp":                                         nil,
-		"mytest2.cpp":                                         nil,
-		"mytest3.cpp":                                         nil,
-		"myprebuilt":                                          nil,
-		"my_include":                                          nil,
-		"foo/bar/MyClass.java":                                nil,
-		"prebuilt.jar":                                        nil,
-		"vendor/foo/devkeys/test.x509.pem":                    nil,
-		"vendor/foo/devkeys/test.pk8":                         nil,
-		"testkey.x509.pem":                                    nil,
-		"testkey.pk8":                                         nil,
-		"testkey.override.x509.pem":                           nil,
-		"testkey.override.pk8":                                nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":                nil,
-		"vendor/foo/devkeys/testkey.pem":                      nil,
-		"NOTICE":                                              nil,
-		"custom_notice":                                       nil,
-		"testkey2.avbpubkey":                                  nil,
-		"testkey2.pem":                                        nil,
-		"myapex-arm64.apex":                                   nil,
-		"myapex-arm.apex":                                     nil,
-		"frameworks/base/api/current.txt":                     nil,
-		"framework/aidl/a.aidl":                               nil,
-		"build/make/core/proguard.flags":                      nil,
-		"build/make/core/proguard_basic_keeps.flags":          nil,
-		"dummy.txt":                                           nil,
+		"mylib.cpp":                                  nil,
+		"mylib_common.cpp":                           nil,
+		"mytest.cpp":                                 nil,
+		"mytest1.cpp":                                nil,
+		"mytest2.cpp":                                nil,
+		"mytest3.cpp":                                nil,
+		"myprebuilt":                                 nil,
+		"my_include":                                 nil,
+		"foo/bar/MyClass.java":                       nil,
+		"prebuilt.jar":                               nil,
+		"vendor/foo/devkeys/test.x509.pem":           nil,
+		"vendor/foo/devkeys/test.pk8":                nil,
+		"testkey.x509.pem":                           nil,
+		"testkey.pk8":                                nil,
+		"testkey.override.x509.pem":                  nil,
+		"testkey.override.pk8":                       nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":       nil,
+		"vendor/foo/devkeys/testkey.pem":             nil,
+		"NOTICE":                                     nil,
+		"custom_notice":                              nil,
+		"testkey2.avbpubkey":                         nil,
+		"testkey2.pem":                               nil,
+		"myapex-arm64.apex":                          nil,
+		"myapex-arm.apex":                            nil,
+		"frameworks/base/api/current.txt":            nil,
+		"framework/aidl/a.aidl":                      nil,
+		"build/make/core/proguard.flags":             nil,
+		"build/make/core/proguard_basic_keeps.flags": nil,
+		"dummy.txt":                                  nil,
 	}
 
 	for _, handler := range handlers {
-		handler(fs, config)
+		// The fs now needs to be populated before creating the config, call handlers twice
+		// for now, once to get any fs changes, and later after the config was created to
+		// set product variables or targets.
+		tempConfig := android.TestArchConfig(buildDir, nil, bp, fs)
+		handler(fs, tempConfig)
 	}
 
-	ctx.MockFileSystem(fs)
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
+	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
+	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
+	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
+	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
+	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
+	config.TestProductVariables.Platform_vndk_version = proptools.StringPtr("VER")
+
+	for _, handler := range handlers {
+		// The fs now needs to be populated before creating the config, call handlers twice
+		// for now, earlier to get any fs changes, and now after the config was created to
+		// set product variables or targets.
+		tempFS := map[string][]byte{}
+		handler(tempFS, config)
+	}
+
+	ctx := android.NewTestArchContext()
+	ctx.RegisterModuleType("apex", BundleFactory)
+	ctx.RegisterModuleType("apex_test", testApexBundleFactory)
+	ctx.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
+	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
+	ctx.RegisterModuleType("apex_defaults", defaultsFactory)
+	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
+	ctx.RegisterModuleType("override_apex", overrideApexFactory)
+
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
+	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_shared", cc.PrebuiltSharedLibraryFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
+	ctx.RegisterModuleType("cc_binary", cc.BinaryFactory)
+	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
+	ctx.RegisterModuleType("cc_defaults", func() android.Module {
+		return cc.DefaultsFactory()
+	})
+	ctx.RegisterModuleType("cc_test", cc.TestFactory)
+	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
+	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
+	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
+	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
+	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
+	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
+	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	ctx.RegisterModuleType("java_library", java.LibraryFactory)
+	ctx.RegisterModuleType("java_import", java.ImportFactory)
+	ctx.RegisterModuleType("java_system_modules", java.SystemModulesFactory)
+	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
+	ctx.RegisterModuleType("android_app_import", java.AndroidAppImportFactory)
+	ctx.RegisterModuleType("override_android_app", java.OverrideAndroidAppModuleFactory)
+
+	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
+	})
+	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
+		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
+		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
+		ctx.BottomUp("version", cc.VersionMutator).Parallel()
+		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
+	})
+	ctx.PreDepsMutators(RegisterPreDepsMutators)
+	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
+	ctx.PostDepsMutators(RegisterPostDepsMutators)
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
+		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
+	})
+
+	ctx.Register(config)
 
 	return ctx, config
 }
@@ -739,6 +751,12 @@ func TestApexWithStubs(t *testing.T) {
 
 	// Ensure that genstub is invoked with --apex
 	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3_myapex").Rule("genStubSrc").Args["flags"])
+
+	ensureExactContents(t, ctx, "myapex", []string{
+		"lib64/mylib.so",
+		"lib64/mylib3.so",
+		"lib64/mylib4.so",
+	})
 }
 
 func TestApexWithExplicitStubsDependency(t *testing.T) {
@@ -1310,6 +1328,134 @@ func TestKeys(t *testing.T) {
 		t.Errorf("cert and private key %q are not %q", certs,
 			"testkey.override.509.pem testkey.override.pk8")
 	}
+}
+
+func TestCertificate(t *testing.T) {
+	t.Run("if unspecified, it defaults to DefaultAppCertificate", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}`)
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("signapk")
+		expected := "vendor/foo/devkeys/test.x509.pem vendor/foo/devkeys/test.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("override when unspecified", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex_keytest",
+				key: "myapex.key",
+				file_contexts: ":myapex-file_contexts",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate.override",
+				certificate: "testkey.override",
+			}`)
+		rule := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest_image").Rule("signapk")
+		expected := "testkey.override.x509.pem testkey.override.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("if specified as :module, it respects the prop", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				certificate: ":myapex.certificate",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate",
+				certificate: "testkey",
+			}`)
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("signapk")
+		expected := "testkey.x509.pem testkey.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("override when specifiec as <:module>", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex_keytest",
+				key: "myapex.key",
+				file_contexts: ":myapex-file_contexts",
+				certificate: ":myapex.certificate",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate.override",
+				certificate: "testkey.override",
+			}`)
+		rule := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest_image").Rule("signapk")
+		expected := "testkey.override.x509.pem testkey.override.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("if specified as name, finds it from DefaultDevKeyDir", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				certificate: "testkey",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}`)
+		rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("signapk")
+		expected := "vendor/foo/devkeys/testkey.x509.pem vendor/foo/devkeys/testkey.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
+	t.Run("override when specified as <name>", func(t *testing.T) {
+		ctx, _ := testApex(t, `
+			apex {
+				name: "myapex_keytest",
+				key: "myapex.key",
+				file_contexts: ":myapex-file_contexts",
+				certificate: "testkey",
+			}
+			apex_key {
+				name: "myapex.key",
+				public_key: "testkey.avbpubkey",
+				private_key: "testkey.pem",
+			}
+			android_app_certificate {
+				name: "myapex.certificate.override",
+				certificate: "testkey.override",
+			}`)
+		rule := ctx.ModuleForTests("myapex_keytest", "android_common_myapex_keytest_image").Rule("signapk")
+		expected := "testkey.override.x509.pem testkey.override.pk8"
+		if actual := rule.Args["certificates"]; actual != expected {
+			t.Errorf("certificates should be %q, not %q", expected, actual)
+		}
+	})
 }
 
 func TestMacro(t *testing.T) {

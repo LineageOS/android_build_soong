@@ -43,7 +43,7 @@ var (
 	}
 )
 
-func testAppContext(bp string, fs map[string][]byte) *android.TestContext {
+func testAppConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
 	appFS := map[string][]byte{}
 	for k, v := range fs {
 		appFS[k] = v
@@ -53,13 +53,13 @@ func testAppContext(bp string, fs map[string][]byte) *android.TestContext {
 		appFS[file] = nil
 	}
 
-	return testContext(bp, appFS)
+	return testConfig(env, bp, appFS)
 }
 
 func testApp(t *testing.T, bp string) *android.TestContext {
-	config := testConfig(nil)
+	config := testAppConfig(nil, bp, nil)
 
-	ctx := testAppContext(bp, nil)
+	ctx := testContext()
 
 	run(t, ctx, config)
 
@@ -301,8 +301,8 @@ func TestResourceDirs(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			config := testConfig(nil)
-			ctx := testContext(fmt.Sprintf(bp, testCase.prop), fs)
+			config := testConfig(nil, fmt.Sprintf(bp, testCase.prop), fs)
+			ctx := testContext()
 			run(t, ctx, config)
 
 			module := ctx.ModuleForTests("foo", "android_common")
@@ -509,7 +509,7 @@ func TestAndroidResources(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			config := testConfig(nil)
+			config := testAppConfig(nil, bp, fs)
 			config.TestProductVariables.DeviceResourceOverlays = deviceResourceOverlays
 			config.TestProductVariables.ProductResourceOverlays = productResourceOverlays
 			if testCase.enforceRROTargets != nil {
@@ -519,7 +519,7 @@ func TestAndroidResources(t *testing.T) {
 				config.TestProductVariables.EnforceRROExcludedOverlays = testCase.enforceRROExcludedOverlays
 			}
 
-			ctx := testAppContext(bp, fs)
+			ctx := testContext()
 			run(t, ctx, config)
 
 			resourceListToFiles := func(module android.TestingModule, list []string) (files []string) {
@@ -649,12 +649,12 @@ func TestAppSdkVersion(t *testing.T) {
 					%s
 				}`, moduleType, test.sdkVersion, platformApiProp)
 
-				config := testConfig(nil)
+				config := testAppConfig(nil, bp, nil)
 				config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
 				config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
 				config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
 
-				ctx := testAppContext(bp, nil)
+				ctx := testContext()
 
 				run(t, ctx, config)
 
@@ -777,9 +777,6 @@ func TestAppSdkVersionByPartition(t *testing.T) {
 	`)
 
 	for _, enforce := range []bool{true, false} {
-
-		config := testConfig(nil)
-		config.TestProductVariables.EnforceProductPartitionInterface = proptools.BoolPtr(enforce)
 		bp := `
 			android_app {
 				name: "foo",
@@ -788,10 +785,13 @@ func TestAppSdkVersionByPartition(t *testing.T) {
 				platform_apis: true,
 			}
 		`
+
+		config := testAppConfig(nil, bp, nil)
+		config.TestProductVariables.EnforceProductPartitionInterface = proptools.BoolPtr(enforce)
 		if enforce {
-			testJavaErrorWithConfig(t, "sdk_version must have a value when the module is located at vendor or product", bp, config)
+			testJavaErrorWithConfig(t, "sdk_version must have a value when the module is located at vendor or product", config)
 		} else {
-			testJavaWithConfig(t, bp, config)
+			testJavaWithConfig(t, config)
 		}
 	}
 }
@@ -954,11 +954,11 @@ func TestCertificates(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			config := testConfig(nil)
+			config := testAppConfig(nil, test.bp, nil)
 			if test.certificateOverride != "" {
 				config.TestProductVariables.CertificateOverrides = []string{test.certificateOverride}
 			}
-			ctx := testAppContext(test.bp, nil)
+			ctx := testContext()
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -1014,11 +1014,11 @@ func TestPackageNameOverride(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			config := testConfig(nil)
+			config := testAppConfig(nil, test.bp, nil)
 			if test.packageNameOverride != "" {
 				config.TestProductVariables.PackageNameOverrides = []string{test.packageNameOverride}
 			}
-			ctx := testAppContext(test.bp, nil)
+			ctx := testContext()
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -1051,9 +1051,9 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 			sdk_version: "current",
 		}
 		`
-	config := testConfig(nil)
+	config := testAppConfig(nil, bp, nil)
 	config.TestProductVariables.ManifestPackageNameOverrides = []string{"foo:org.dandroid.bp"}
-	ctx := testAppContext(bp, nil)
+	ctx := testContext()
 
 	run(t, ctx, config)
 
@@ -1471,10 +1471,10 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 
 	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
 	for _, test := range testCases {
-		config := testConfig(nil)
+		config := testAppConfig(nil, bp, nil)
 		config.TestProductVariables.AAPTPreferredConfig = test.aaptPreferredConfig
 		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
-		ctx := testAppContext(bp, nil)
+		ctx := testContext()
 
 		run(t, ctx, config)
 
@@ -1631,7 +1631,45 @@ func TestAndroidTestImport(t *testing.T) {
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
+			name: "ndk_libunwind",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libc.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libm.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libdl.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_object {
+			name: "ndk_crtbegin_so.27",
+		}
+
+		cc_object {
+			name: "ndk_crtend_so.27",
+		}
+
+		cc_library {
 			name: "libjni",
+			sdk_version: "current",
+			stl: "c++_shared",
 		}
 
 		android_test {
@@ -1732,10 +1770,10 @@ func TestUsesLibraries(t *testing.T) {
 		}
 	`
 
-	config := testConfig(nil)
+	config := testAppConfig(nil, bp, nil)
 	config.TestProductVariables.MissingUsesLibraries = []string{"baz"}
 
-	ctx := testAppContext(bp, nil)
+	ctx := testContext()
 
 	run(t, ctx, config)
 
@@ -2006,12 +2044,12 @@ func TestUncompressDex(t *testing.T) {
 	test := func(t *testing.T, bp string, want bool, unbundled bool) {
 		t.Helper()
 
-		config := testConfig(nil)
+		config := testAppConfig(nil, bp, nil)
 		if unbundled {
 			config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 		}
 
-		ctx := testAppContext(bp, nil)
+		ctx := testContext()
 
 		run(t, ctx, config)
 

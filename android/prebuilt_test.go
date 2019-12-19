@@ -125,29 +125,30 @@ var prebuiltsTests = []struct {
 }
 
 func TestPrebuilts(t *testing.T) {
-	config := TestConfig(buildDir, nil)
+	fs := map[string][]byte{
+		"prebuilt_file": nil,
+		"source_file":   nil,
+	}
 
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
+			bp := `
+				source {
+					name: "foo",
+					deps: [":bar"],
+				}
+				` + test.modules
+			config := TestConfig(buildDir, nil, bp, fs)
+
 			ctx := NewTestContext()
 			ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
 			ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
 			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 			ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
 			ctx.RegisterModuleType("source", newSourceModule)
-			ctx.Register()
-			ctx.MockFileSystem(map[string][]byte{
-				"prebuilt_file": nil,
-				"source_file":   nil,
-				"Blueprints": []byte(`
-					source {
-						name: "foo",
-						deps: [":bar"],
-					}
-					` + test.modules),
-			})
+			ctx.Register(config)
 
-			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
+			_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 			FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)
 			FailIfErrored(t, errs)

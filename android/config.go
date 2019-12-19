@@ -25,7 +25,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
+	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -115,6 +117,9 @@ type config struct {
 
 	stopBefore bootstrap.StopBefore
 
+	fs         pathtools.FileSystem
+	mockBpList string
+
 	OncePer
 }
 
@@ -200,7 +205,7 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 }
 
 // TestConfig returns a Config object suitable for using for tests
-func TestConfig(buildDir string, env map[string]string) Config {
+func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
 	envCopy := make(map[string]string)
 	for k, v := range env {
 		envCopy[k] = v
@@ -231,6 +236,8 @@ func TestConfig(buildDir string, env map[string]string) Config {
 	}
 	config.TestProductVariables = &config.productVariables
 
+	config.mockFileSystem(bp, fs)
+
 	if err := config.fromEnv(); err != nil {
 		panic(err)
 	}
@@ -238,8 +245,8 @@ func TestConfig(buildDir string, env map[string]string) Config {
 	return Config{config}
 }
 
-func TestArchConfigNativeBridge(buildDir string, env map[string]string) Config {
-	testConfig := TestArchConfig(buildDir, env)
+func TestArchConfigNativeBridge(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
+	testConfig := TestArchConfig(buildDir, env, bp, fs)
 	config := testConfig.config
 
 	config.Targets[Android] = []Target{
@@ -252,8 +259,8 @@ func TestArchConfigNativeBridge(buildDir string, env map[string]string) Config {
 	return testConfig
 }
 
-func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
-	testConfig := TestConfig(buildDir, env)
+func TestArchConfigFuchsia(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
+	testConfig := TestConfig(buildDir, env, bp, fs)
 	config := testConfig.config
 
 	config.Targets = map[OsType][]Target{
@@ -269,8 +276,8 @@ func TestArchConfigFuchsia(buildDir string, env map[string]string) Config {
 }
 
 // TestConfig returns a Config object suitable for using for tests that need to run the arch mutator
-func TestArchConfig(buildDir string, env map[string]string) Config {
-	testConfig := TestConfig(buildDir, env)
+func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
+	testConfig := TestConfig(buildDir, env, bp, fs)
 	config := testConfig.config
 
 	config.Targets = map[OsType][]Target{
@@ -312,6 +319,8 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		srcDir:            srcDir,
 		buildDir:          buildDir,
 		multilibConflicts: make(map[ArchType]bool),
+
+		fs: pathtools.OsFs,
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -385,6 +394,36 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	}
 
 	return Config{config}, nil
+}
+
+// mockFileSystem replaces all reads with accesses to the provided map of
+// filenames to contents stored as a byte slice.
+func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
+	mockFS := map[string][]byte{}
+
+	if _, exists := mockFS["Android.bp"]; !exists {
+		mockFS["Android.bp"] = []byte(bp)
+	}
+
+	for k, v := range fs {
+		mockFS[k] = v
+	}
+
+	// no module list file specified; find every file named Blueprints or Android.bp
+	pathsToParse := []string{}
+	for candidate := range mockFS {
+		base := filepath.Base(candidate)
+		if base == "Blueprints" || base == "Android.bp" {
+			pathsToParse = append(pathsToParse, candidate)
+		}
+	}
+	if len(pathsToParse) < 1 {
+		panic(fmt.Sprintf("No Blueprint or Android.bp files found in mock filesystem: %v\n", mockFS))
+	}
+	mockFS[blueprint.MockModuleListFile] = []byte(strings.Join(pathsToParse, "\n"))
+
+	c.fs = pathtools.MockFs(mockFS)
+	c.mockBpList = blueprint.MockModuleListFile
 }
 
 func (c *config) fromEnv() error {

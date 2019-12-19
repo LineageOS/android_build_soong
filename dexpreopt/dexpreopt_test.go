@@ -61,7 +61,7 @@ func testModuleConfig(ctx android.PathContext, name, partition string) ModuleCon
 }
 
 func TestDexPreopt(t *testing.T) {
-	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil, "", nil))
 	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 	rule, err := GenerateDexpreoptRule(ctx, global, module)
@@ -80,7 +80,7 @@ func TestDexPreopt(t *testing.T) {
 }
 
 func TestDexPreoptSystemOther(t *testing.T) {
-	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil, "", nil))
 	global := GlobalConfigForTests(ctx)
 	systemModule := testSystemModuleConfig(ctx, "Stest")
 	systemProductModule := testSystemProductModuleConfig(ctx, "SPtest")
@@ -138,7 +138,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 }
 
 func TestDexPreoptProfile(t *testing.T) {
-	ctx := android.PathContextForTesting(android.TestConfig("out", nil), nil)
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil, "", nil))
 	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 	module.ProfileClassListing = android.OptionalPathForPath(android.PathForTesting("profile"))
