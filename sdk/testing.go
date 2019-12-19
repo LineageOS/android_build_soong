@@ -68,7 +68,6 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
-	android.RegisterPrebuiltMutators(ctx)
 	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package
@@ -80,7 +79,6 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
-	cc.RegisterPrebuiltBuildComponents(ctx)
 
 	// from apex package
 	ctx.RegisterModuleType("apex", apex.BundleFactory)
