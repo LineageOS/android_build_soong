@@ -35,6 +35,7 @@ type dependencyTag struct {
 type syspropGenProperties struct {
 	Srcs  []string `android:"path"`
 	Scope string
+	Name  *string
 }
 
 type syspropJavaGenRule struct {
@@ -142,6 +143,9 @@ type syspropLibraryProperties struct {
 
 	// list of .sysprop files which defines the properties.
 	Srcs []string `android:"path"`
+
+	// Whether public stub exists or not.
+	Public_stub *bool `blueprint:"mutated"`
 }
 
 var (
@@ -157,16 +161,35 @@ func (m *syspropLibrary) Name() string {
 	return m.BaseModuleName() + "_sysprop_library"
 }
 
+func (m *syspropLibrary) Owner() string {
+	return m.properties.Property_owner
+}
+
 func (m *syspropLibrary) CcModuleName() string {
 	return "lib" + m.BaseModuleName()
+}
+
+func (m *syspropLibrary) JavaPublicStubName() string {
+	if proptools.Bool(m.properties.Public_stub) {
+		return m.BaseModuleName() + "_public"
+	}
+	return ""
 }
 
 func (m *syspropLibrary) javaGenModuleName() string {
 	return m.BaseModuleName() + "_java_gen"
 }
 
+func (m *syspropLibrary) javaGenPublicStubName() string {
+	return m.BaseModuleName() + "_java_gen_public"
+}
+
 func (m *syspropLibrary) BaseModuleName() string {
 	return m.ModuleBase.Name()
+}
+
+func (m *syspropLibrary) HasPublicStub() bool {
+	return proptools.Bool(m.properties.Public_stub)
 }
 
 func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -274,6 +297,36 @@ func syspropLibraryFactory() android.Module {
 	return m
 }
 
+type ccLibraryProperties struct {
+	Name             *string
+	Srcs             []string
+	Soc_specific     *bool
+	Device_specific  *bool
+	Product_specific *bool
+	Sysprop          struct {
+		Platform *bool
+	}
+	Header_libs        []string
+	Shared_libs        []string
+	Required           []string
+	Recovery           *bool
+	Recovery_available *bool
+	Vendor_available   *bool
+}
+
+type javaLibraryProperties struct {
+	Name             *string
+	Srcs             []string
+	Soc_specific     *bool
+	Device_specific  *bool
+	Product_specific *bool
+	Required         []string
+	Sdk_version      *string
+	Installable      *bool
+	Libs             []string
+	Stem             *string
+}
+
 func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	if len(m.properties.Srcs) == 0 {
 		ctx.PropertyErrorf("srcs", "sysprop_library must specify srcs")
@@ -304,120 +357,107 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		return
 	}
 
-	socSpecific := ctx.SocSpecific()
-	deviceSpecific := ctx.DeviceSpecific()
-	productSpecific := ctx.ProductSpecific()
-
-	owner := m.properties.Property_owner
+	// ctx's Platform or Specific functions represent where this sysprop_library installed.
+	installedInSystem := ctx.Platform() || ctx.SystemExtSpecific()
+	installedInVendorOrOdm := ctx.SocSpecific() || ctx.DeviceSpecific()
+	isOwnerPlatform := false
 	stub := "sysprop-library-stub-"
 
-	switch owner {
+	switch m.Owner() {
 	case "Platform":
 		// Every partition can access platform-defined properties
 		stub += "platform"
+		isOwnerPlatform = true
 	case "Vendor":
 		// System can't access vendor's properties
-		if !socSpecific && !deviceSpecific && !productSpecific {
+		if installedInSystem {
 			ctx.ModuleErrorf("None of soc_specific, device_specific, product_specific is true. " +
 				"System can't access sysprop_library owned by Vendor")
 		}
 		stub += "vendor"
 	case "Odm":
 		// Only vendor can access Odm-defined properties
-		if !socSpecific && !deviceSpecific {
+		if !installedInVendorOrOdm {
 			ctx.ModuleErrorf("Neither soc_speicifc nor device_specific is true. " +
 				"Odm-defined properties should be accessed only in Vendor or Odm")
 		}
 		stub += "vendor"
 	default:
 		ctx.PropertyErrorf("property_owner",
-			"Unknown value %s: must be one of Platform, Vendor or Odm", owner)
+			"Unknown value %s: must be one of Platform, Vendor or Odm", m.Owner())
 	}
 
-	ccProps := struct {
-		Name             *string
-		Srcs             []string
-		Soc_specific     *bool
-		Device_specific  *bool
-		Product_specific *bool
-		Sysprop          struct {
-			Platform *bool
-		}
-		Header_libs        []string
-		Shared_libs        []string
-		Required           []string
-		Recovery           *bool
-		Recovery_available *bool
-		Vendor_available   *bool
-	}{}
-
+	ccProps := ccLibraryProperties{}
 	ccProps.Name = proptools.StringPtr(m.CcModuleName())
 	ccProps.Srcs = m.properties.Srcs
-	ccProps.Soc_specific = proptools.BoolPtr(socSpecific)
-	ccProps.Device_specific = proptools.BoolPtr(deviceSpecific)
-	ccProps.Product_specific = proptools.BoolPtr(productSpecific)
-	ccProps.Sysprop.Platform = proptools.BoolPtr(owner == "Platform")
+	ccProps.Soc_specific = proptools.BoolPtr(ctx.SocSpecific())
+	ccProps.Device_specific = proptools.BoolPtr(ctx.DeviceSpecific())
+	ccProps.Product_specific = proptools.BoolPtr(ctx.ProductSpecific())
+	ccProps.Sysprop.Platform = proptools.BoolPtr(isOwnerPlatform)
 	ccProps.Header_libs = []string{"libbase_headers"}
 	ccProps.Shared_libs = []string{"liblog"}
 	ccProps.Recovery_available = m.properties.Recovery_available
 	ccProps.Vendor_available = m.properties.Vendor_available
-
 	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
-	// internal scope contains all properties
-	// public scope only contains public properties
-	// use public if the owner is different from client
 	scope := "internal"
-	isProduct := ctx.ProductSpecific()
-	isVendor := ctx.SocSpecific()
-	isOwnerPlatform := owner == "Platform"
 
-	if isProduct {
-		// product can't own any sysprop_library now, so product must use public scope
+	// We need to only use public version, if the partition where sysprop_library will be installed
+	// is different from owner.
+
+	if ctx.ProductSpecific() {
+		// Currently product partition can't own any sysprop_library.
 		scope = "public"
-	} else if isVendor && isOwnerPlatform {
-		// vendor and odm can only use the public properties from the platform
+	} else if isOwnerPlatform && installedInVendorOrOdm {
+		// Vendor or Odm should use public version of Platform's sysprop_library.
 		scope = "public"
 	}
 
-	javaGenProps := struct {
-		Srcs  []string
-		Scope string
-		Name  *string
-	}{
+	ctx.CreateModule(syspropJavaGenFactory, &syspropGenProperties{
 		Srcs:  m.properties.Srcs,
 		Scope: scope,
 		Name:  proptools.StringPtr(m.javaGenModuleName()),
+	})
+
+	ctx.CreateModule(java.LibraryFactory, &javaLibraryProperties{
+		Name:             proptools.StringPtr(m.BaseModuleName()),
+		Srcs:             []string{":" + m.javaGenModuleName()},
+		Soc_specific:     proptools.BoolPtr(ctx.SocSpecific()),
+		Device_specific:  proptools.BoolPtr(ctx.DeviceSpecific()),
+		Product_specific: proptools.BoolPtr(ctx.ProductSpecific()),
+		Installable:      m.properties.Installable,
+		Sdk_version:      proptools.StringPtr("core_current"),
+		Libs:             []string{stub},
+	})
+
+	// if platform sysprop_library is installed in /system or /system-ext, we regard it as an API
+	// and allow any modules (even from different partition) to link against the sysprop_library.
+	// To do that, we create a public stub and expose it to modules with sdk_version: system_*.
+	if isOwnerPlatform && installedInSystem {
+		m.properties.Public_stub = proptools.BoolPtr(true)
+		ctx.CreateModule(syspropJavaGenFactory, &syspropGenProperties{
+			Srcs:  m.properties.Srcs,
+			Scope: "public",
+			Name:  proptools.StringPtr(m.javaGenPublicStubName()),
+		})
+
+		ctx.CreateModule(java.LibraryFactory, &javaLibraryProperties{
+			Name:        proptools.StringPtr(m.JavaPublicStubName()),
+			Srcs:        []string{":" + m.javaGenPublicStubName()},
+			Installable: proptools.BoolPtr(false),
+			Sdk_version: proptools.StringPtr("core_current"),
+			Libs:        []string{stub},
+			Stem:        proptools.StringPtr(m.BaseModuleName()),
+		})
 	}
-
-	ctx.CreateModule(syspropJavaGenFactory, &javaGenProps)
-
-	javaProps := struct {
-		Name             *string
-		Srcs             []string
-		Soc_specific     *bool
-		Device_specific  *bool
-		Product_specific *bool
-		Required         []string
-		Sdk_version      *string
-		Installable      *bool
-		Libs             []string
-	}{}
-
-	javaProps.Name = proptools.StringPtr(m.BaseModuleName())
-	javaProps.Srcs = []string{":" + *javaGenProps.Name}
-	javaProps.Soc_specific = proptools.BoolPtr(socSpecific)
-	javaProps.Device_specific = proptools.BoolPtr(deviceSpecific)
-	javaProps.Product_specific = proptools.BoolPtr(productSpecific)
-	javaProps.Installable = m.properties.Installable
-	javaProps.Sdk_version = proptools.StringPtr("core_current")
-	javaProps.Libs = []string{stub}
-
-	ctx.CreateModule(java.LibraryFactory, &javaProps)
 }
 
 func syspropDepsMutator(ctx android.BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(*syspropLibrary); ok {
 		ctx.AddReverseDependency(m, nil, m.javaGenModuleName())
+
+		if proptools.Bool(m.properties.Public_stub) {
+			ctx.AddReverseDependency(m, nil, m.javaGenPublicStubName())
+		}
 	}
 }
