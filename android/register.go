@@ -15,6 +15,8 @@
 package android
 
 import (
+	"fmt"
+
 	"github.com/google/blueprint"
 )
 
@@ -122,6 +124,7 @@ func ModuleTypeFactories() map[string]ModuleFactory {
 type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
+	PreArchMutators(f RegisterMutatorFunc)
 }
 
 // Used to register build components from an init() method, e.g.
@@ -140,17 +143,35 @@ type RegistrationContext interface {
 //
 //   ctx := android.NewTestContext()
 //   RegisterBuildComponents(ctx)
-var InitRegistrationContext RegistrationContext = initRegistrationContext{}
+var InitRegistrationContext RegistrationContext = &initRegistrationContext{
+	moduleTypes:    make(map[string]ModuleFactory),
+	singletonTypes: make(map[string]SingletonFactory),
+}
 
 // Make sure the TestContext implements RegistrationContext.
 var _ RegistrationContext = (*TestContext)(nil)
 
-type initRegistrationContext struct{}
+type initRegistrationContext struct {
+	moduleTypes    map[string]ModuleFactory
+	singletonTypes map[string]SingletonFactory
+}
 
-func (ctx initRegistrationContext) RegisterModuleType(name string, factory ModuleFactory) {
+func (ctx *initRegistrationContext) RegisterModuleType(name string, factory ModuleFactory) {
+	if _, present := ctx.moduleTypes[name]; present {
+		panic(fmt.Sprintf("module type %q is already registered", name))
+	}
+	ctx.moduleTypes[name] = factory
 	RegisterModuleType(name, factory)
 }
 
-func (ctx initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
+func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
+	if _, present := ctx.singletonTypes[name]; present {
+		panic(fmt.Sprintf("singleton type %q is already registered", name))
+	}
+	ctx.singletonTypes[name] = factory
 	RegisterSingletonType(name, factory)
+}
+
+func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
+	PreArchMutators(f)
 }

@@ -87,8 +87,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", cc.PrebuiltSharedLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
+	cc.RegisterPrebuiltBuildComponents(ctx)
 	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
