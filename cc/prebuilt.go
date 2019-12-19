@@ -19,9 +19,13 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("cc_prebuilt_library_shared", PrebuiltSharedLibraryFactory)
-	android.RegisterModuleType("cc_prebuilt_library_static", PrebuiltStaticLibraryFactory)
-	android.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
+	RegisterPrebuiltBuildComponents(android.InitRegistrationContext)
+}
+
+func RegisterPrebuiltBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("cc_prebuilt_library_shared", PrebuiltSharedLibraryFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_static", PrebuiltStaticLibraryFactory)
+	ctx.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
 }
 
 type prebuiltLinkerInterface interface {
