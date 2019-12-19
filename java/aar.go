@@ -34,8 +34,12 @@ type AndroidLibraryDependency interface {
 }
 
 func init() {
-	android.RegisterModuleType("android_library_import", AARImportFactory)
-	android.RegisterModuleType("android_library", AndroidLibraryFactory)
+	RegisterAARBuildComponents(android.InitRegistrationContext)
+}
+
+func RegisterAARBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("android_library_import", AARImportFactory)
+	ctx.RegisterModuleType("android_library", AndroidLibraryFactory)
 }
 
 //

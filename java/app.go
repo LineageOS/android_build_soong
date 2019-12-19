@@ -33,16 +33,20 @@ import (
 var supportedDpis = []string{"ldpi", "mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"}
 
 func init() {
-	android.RegisterModuleType("android_app", AndroidAppFactory)
-	android.RegisterModuleType("android_test", AndroidTestFactory)
-	android.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
-	android.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
-	android.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
-	android.RegisterModuleType("override_android_test", OverrideAndroidTestModuleFactory)
-	android.RegisterModuleType("android_app_import", AndroidAppImportFactory)
-	android.RegisterModuleType("android_test_import", AndroidTestImportFactory)
+	RegisterAppBuildComponents(android.InitRegistrationContext)
 
 	initAndroidAppImportVariantGroupTypes()
+}
+
+func RegisterAppBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("android_app", AndroidAppFactory)
+	ctx.RegisterModuleType("android_test", AndroidTestFactory)
+	ctx.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
+	ctx.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
+	ctx.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
+	ctx.RegisterModuleType("override_android_test", OverrideAndroidTestModuleFactory)
+	ctx.RegisterModuleType("android_app_import", AndroidAppImportFactory)
+	ctx.RegisterModuleType("android_test_import", AndroidTestImportFactory)
 }
 
 // AndroidManifest.xml merging
