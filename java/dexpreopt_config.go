@@ -234,12 +234,20 @@ func artBootImageConfig(ctx android.PathContext) bootImageConfig {
 	return *genBootImageConfigs(ctx)[artBootImageName]
 }
 
-func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
+func frameworkBootImageConfig(ctx android.PathContext) bootImageConfig {
 	return *genBootImageConfigs(ctx)[frameworkBootImageName]
 }
 
 func apexBootImageConfig(ctx android.PathContext) bootImageConfig {
 	return *genBootImageConfigs(ctx)[apexBootImageName]
+}
+
+func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
+	if dexpreoptGlobalConfig(ctx).UseApexImage {
+		return apexBootImageConfig(ctx)
+	} else {
+		return frameworkBootImageConfig(ctx)
+	}
 }
 
 func defaultBootclasspath(ctx android.PathContext) []string {
