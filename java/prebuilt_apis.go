@@ -23,9 +23,13 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
+	RegisterPrebuiltApisBuildComponents(android.InitRegistrationContext)
+}
 
-	android.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
+func RegisterPrebuiltApisBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
+
+	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("prebuilt_apis", PrebuiltApisMutator).Parallel()
 	})
 }
