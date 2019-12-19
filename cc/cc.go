@@ -33,9 +33,15 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("cc_defaults", defaultsFactory)
+	RegisterCCBuildComponents(android.InitRegistrationContext)
 
-	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+	pctx.Import("android/soong/cc/config")
+}
+
+func RegisterCCBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("cc_defaults", defaultsFactory)
+
+	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("ndk_api", NdkApiMutator).Parallel()
@@ -45,7 +51,7 @@ func init() {
 		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
 	})
 
-	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("asan_deps", sanitizerDepsMutator(asan))
 		ctx.BottomUp("asan", sanitizerMutator(asan)).Parallel()
 
@@ -79,7 +85,6 @@ func init() {
 	})
 
 	android.RegisterSingletonType("kythe_extract_all", kytheExtractAllFactory)
-	pctx.Import("android/soong/cc/config")
 }
 
 type Deps struct {

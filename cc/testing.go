@@ -26,22 +26,8 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 
 	android.RegisterPrebuiltMutators(ctx)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("vndk", VndkMutator).Parallel()
-		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("ndk_api", NdkApiMutator).Parallel()
-		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
-		ctx.BottomUp("version", VersionMutator).Parallel()
-		ctx.BottomUp("begin", BeginMutator).Parallel()
-		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
-	})
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("fuzzer_deps", sanitizerDepsMutator(fuzzer))
-		ctx.BottomUp("fuzzer", sanitizerMutator(fuzzer)).Parallel()
 
-		ctx.TopDown("sanitize_runtime_deps", sanitizerRuntimeDepsMutator).Parallel()
-		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
-	})
+	RegisterCCBuildComponents(ctx)
 }
 
 func GatherRequiredDepsForTest(os android.OsType) string {
@@ -319,7 +305,6 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 func CreateTestContext() *android.TestContext {
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_defaults", defaultsFactory)
 	ctx.RegisterModuleType("cc_binary", BinaryFactory)
 	ctx.RegisterModuleType("cc_binary_host", binaryHostFactory)
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
@@ -334,9 +319,6 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", VndkLibrariesTxtFactory)
 	RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
-	})
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 
