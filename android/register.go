@@ -125,6 +125,8 @@ type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
 	PreArchMutators(f RegisterMutatorFunc)
+	PreDepsMutators(f RegisterMutatorFunc)
+	PostDepsMutators(f RegisterMutatorFunc)
 }
 
 // Used to register build components from an init() method, e.g.
@@ -174,4 +176,12 @@ func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory S
 
 func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
 	PreArchMutators(f)
+}
+
+func (ctx *initRegistrationContext) PreDepsMutators(f RegisterMutatorFunc) {
+	PreDepsMutators(f)
+}
+
+func (ctx *initRegistrationContext) PostDepsMutators(f RegisterMutatorFunc) {
+	PostDepsMutators(f)
 }
