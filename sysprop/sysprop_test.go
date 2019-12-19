@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -76,7 +77,8 @@ func testContext(config android.Config) *android.TestContext {
 		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
 		ctx.BottomUp("version", cc.VersionMutator).Parallel()
 		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-		ctx.BottomUp("sysprop", cc.SyspropMutator).Parallel()
+		ctx.BottomUp("sysprop_cc", cc.SyspropMutator).Parallel()
+		ctx.BottomUp("sysprop_java", java.SyspropMutator).Parallel()
 	})
 
 	ctx.RegisterModuleType("sysprop_library", syspropLibraryFactory)
@@ -205,6 +207,13 @@ func TestSyspropLibrary(t *testing.T) {
 		}
 
 		java_library {
+			name: "java-platform-private",
+			srcs: ["c.java"],
+			platform_apis: true,
+			libs: ["sysprop-platform"],
+		}
+
+		java_library {
 			name: "java-product",
 			srcs: ["c.java"],
 			sdk_version: "system_current",
@@ -302,6 +311,7 @@ func TestSyspropLibrary(t *testing.T) {
 	}
 
 	ctx.ModuleForTests("sysprop-platform", "android_common")
+	ctx.ModuleForTests("sysprop-platform_public", "android_common")
 	ctx.ModuleForTests("sysprop-vendor", "android_common")
 
 	// Check for exported includes
@@ -354,4 +364,17 @@ func TestSyspropLibrary(t *testing.T) {
 		t.Errorf("flags for vendor must contain %#v and %#v, but was %#v.",
 			platformPublicVendorPath, vendorInternalPath, vendorFlags)
 	}
+
+	// Java modules linking against system API should use public stub
+	javaSystemApiClient := ctx.ModuleForTests("java-platform", "android_common")
+	publicStubFound := false
+	ctx.VisitDirectDeps(javaSystemApiClient.Module(), func(dep blueprint.Module) {
+		if dep.Name() == "sysprop-platform_public" {
+			publicStubFound = true
+		}
+	})
+	if !publicStubFound {
+		t.Errorf("system api client should use public stub")
+	}
+
 }
