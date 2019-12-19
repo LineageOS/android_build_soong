@@ -41,30 +41,11 @@ func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleCon
 	p.configFile = android.PathForModuleOut(ctx, configFileName).OutputPath
 	path := android.PathForModuleSrc(ctx, String(p.properties.Src))
 
-	// Use the empty config if the compat config file idoesn't exist (can happen if @ChangeId
-	// annotation is not used).
-	emptyConfig := `'<?xml version="1.0" encoding="UTF-8" standalone="no"?><config/>'`
-	configPath := `compat/compat_config.xml`
-
 	rule.Command().
-		Text(`unzip`).
-		Flag(`-l`).
+		BuiltTool(ctx, "process-compat-config").
 		Input(path).
-		Text(`| grep`).
-		Flag(`-q`).
-		Text(configPath).
-		Text(`; if [ "$?" = "0" ] ; then`).
-		Text(`unzip`).
-		Flag(`-qp`).
-		Input(path).
-		Text(configPath).
 		Text(`>`).
-		Output(p.configFile).
-		Text(`; else echo `).
-		Text(emptyConfig).
-		Text(`>`).
-		Output(p.configFile).
-		Text(`; fi`)
+		Output(p.configFile)
 
 	p.installDirPath = android.PathForModuleInstall(ctx, "etc", "compatconfig")
 	rule.Build(pctx, ctx, configFileName, "Extract compat/compat_config.xml and install it")
