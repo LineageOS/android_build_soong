@@ -114,3 +114,43 @@ func ModuleTypeFactories() map[string]ModuleFactory {
 	}
 	return ret
 }
+
+// Interface for registering build components.
+//
+// Provided to allow registration of build components to be shared between the runtime
+// and test environments.
+type RegistrationContext interface {
+	RegisterModuleType(name string, factory ModuleFactory)
+	RegisterSingletonType(name string, factory SingletonFactory)
+}
+
+// Used to register build components from an init() method, e.g.
+//
+// init() {
+//   RegisterBuildComponents(android.InitRegistrationContext)
+// }
+//
+// func RegisterBuildComponents(ctx android.RegistrationContext) {
+//   ctx.RegisterModuleType(...)
+//   ...
+// }
+//
+// Extracting the actual registration into a separate RegisterBuildComponents(ctx) function
+// allows it to be used to initialize test context, e.g.
+//
+//   ctx := android.NewTestContext()
+//   RegisterBuildComponents(ctx)
+var InitRegistrationContext RegistrationContext = initRegistrationContext{}
+
+// Make sure the TestContext implements RegistrationContext.
+var _ RegistrationContext = (*TestContext)(nil)
+
+type initRegistrationContext struct{}
+
+func (ctx initRegistrationContext) RegisterModuleType(name string, factory ModuleFactory) {
+	RegisterModuleType(name, factory)
+}
+
+func (ctx initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
+	RegisterSingletonType(name, factory)
+}

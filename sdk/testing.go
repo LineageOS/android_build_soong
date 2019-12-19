@@ -78,10 +78,8 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package
-	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
-	ctx.RegisterModuleType("java_defaults", java.DefaultsFactory)
-	ctx.RegisterModuleType("java_library", java.LibraryFactory)
-	ctx.RegisterModuleType("java_import", java.ImportFactory)
+	java.RegisterJavaBuildComponents(ctx)
+	java.RegisterAppBuildComponents(ctx)
 	ctx.RegisterModuleType("droidstubs", java.DroidstubsFactory)
 	ctx.RegisterModuleType("prebuilt_stubs_sources", java.PrebuiltStubsSourcesFactory)
 
