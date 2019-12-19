@@ -220,15 +220,18 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 		return
 	}
 
-	// Always create the default boot image first, to get a unique profile rule for all images.
-	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
-	if !skipDexpreoptArtBootJars(ctx) {
-		// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
-		d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
-	}
+	// Default boot image is either the framework one, or the JIT-zygote one.
+	// The boot image that is created first is used to get a unique profile rule for all images.
 	if global.GenerateApexImage {
-		// Create boot images for the JIT-zygote experiment.
-		d.otherImages = append(d.otherImages, buildBootImage(ctx, apexBootImageConfig(ctx)))
+		d.defaultBootImage = buildBootImage(ctx, apexBootImageConfig(ctx))
+		d.otherImages = append(d.otherImages, buildBootImage(ctx, frameworkBootImageConfig(ctx)))
+	} else {
+		d.defaultBootImage = buildBootImage(ctx, frameworkBootImageConfig(ctx))
+	}
+
+	// Create the ART boot image.
+	if !skipDexpreoptArtBootJars(ctx) {
+		d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
 	}
 
 	dumpOatRules(ctx, d.defaultBootImage)
