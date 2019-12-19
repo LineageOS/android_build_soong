@@ -1304,12 +1304,6 @@ func (p testPath) String() string {
 	return p.path
 }
 
-type testWritablePath struct {
-	testPath
-}
-
-func (p testPath) writablePath() {}
-
 // PathForTesting returns a Path constructed from joining the elements of paths with '/'.  It should only be used from
 // within tests.
 func PathForTesting(paths ...string) Path {
@@ -1325,27 +1319,6 @@ func PathsForTesting(strs ...string) Paths {
 	p := make(Paths, len(strs))
 	for i, s := range strs {
 		p[i] = PathForTesting(s)
-	}
-
-	return p
-}
-
-// WritablePathForTesting returns a Path constructed from joining the elements of paths with '/'.  It should only be
-// used from within tests.
-func WritablePathForTesting(paths ...string) WritablePath {
-	p, err := validateSafePath(paths...)
-	if err != nil {
-		panic(err)
-	}
-	return testWritablePath{testPath{basePath{path: p, rel: p}}}
-}
-
-// WritablePathsForTesting returns a Path constructed from each element in strs. It should only be used from within
-// tests.
-func WritablePathsForTesting(strs ...string) WritablePaths {
-	p := make(WritablePaths, len(strs))
-	for i, s := range strs {
-		p[i] = WritablePathForTesting(s)
 	}
 
 	return p
