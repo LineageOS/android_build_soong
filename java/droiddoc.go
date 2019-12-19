@@ -223,6 +223,9 @@ type DroiddocProperties struct {
 
 	// if set to true, generate docs through Dokka instead of Doclava.
 	Dokka_enabled *bool
+
+	// Compat config XML. Generates compat change documentation if set.
+	Compat_config *string `android:"path"`
 }
 
 type DroidstubsProperties struct {
@@ -1036,6 +1039,11 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	d.stubsFlags(ctx, cmd, stubsDir)
 
 	cmd.Flag(d.Javadoc.args).Implicits(d.Javadoc.argFiles)
+
+	if d.properties.Compat_config != nil {
+		compatConfig := android.PathForModuleSrc(ctx, String(d.properties.Compat_config))
+		cmd.FlagWithInput("-compatconfig ", compatConfig)
+	}
 
 	var desc string
 	if Bool(d.properties.Dokka_enabled) {
