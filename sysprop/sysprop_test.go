@@ -58,7 +58,8 @@ func testContext(config android.Config) *android.TestContext {
 	ctx := android.NewTestArchContext()
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
-	ctx.RegisterModuleType("java_system_modules", java.SystemModulesFactory)
+	java.RegisterSystemModulesBuildComponents(ctx)
+
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)

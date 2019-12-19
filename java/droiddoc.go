@@ -27,19 +27,8 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("doc_defaults", DocDefaultsFactory)
-	android.RegisterModuleType("stubs_defaults", StubsDefaultsFactory)
-
-	android.RegisterModuleType("droiddoc", DroiddocFactory)
-	android.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
-	android.RegisterModuleType("droiddoc_exported_dir", ExportedDroiddocDirFactory)
-	android.RegisterModuleType("javadoc", JavadocFactory)
-	android.RegisterModuleType("javadoc_host", JavadocHostFactory)
-
-	android.RegisterModuleType("droidstubs", DroidstubsFactory)
-	android.RegisterModuleType("droidstubs_host", DroidstubsHostFactory)
-
-	android.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
+	RegisterDocsBuildComponents(android.InitRegistrationContext)
+	RegisterStubsBuildComponents(android.InitRegistrationContext)
 
 	// Register sdk member type.
 	android.RegisterSdkMemberType(&droidStubsSdkMemberType{
@@ -47,6 +36,25 @@ func init() {
 			PropertyName: "stubs_sources",
 		},
 	})
+}
+
+func RegisterDocsBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("doc_defaults", DocDefaultsFactory)
+
+	ctx.RegisterModuleType("droiddoc", DroiddocFactory)
+	ctx.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
+	ctx.RegisterModuleType("droiddoc_exported_dir", ExportedDroiddocDirFactory)
+	ctx.RegisterModuleType("javadoc", JavadocFactory)
+	ctx.RegisterModuleType("javadoc_host", JavadocHostFactory)
+}
+
+func RegisterStubsBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("stubs_defaults", StubsDefaultsFactory)
+
+	ctx.RegisterModuleType("droidstubs", DroidstubsFactory)
+	ctx.RegisterModuleType("droidstubs_host", DroidstubsHostFactory)
+
+	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
 }
 
 var (
@@ -782,7 +790,7 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		if t, ok := m.(*ExportedDroiddocDir); ok {
 			cmd.FlagWithArg("-templatedir ", t.dir.String()).Implicits(t.deps)
 		} else {
-			ctx.PropertyErrorf("custom_template", "module %q is not a droiddoc_template", ctx.OtherModuleName(m))
+			ctx.PropertyErrorf("custom_template", "module %q is not a droiddoc_exported_dir", ctx.OtherModuleName(m))
 		}
 	})
 

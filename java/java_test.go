@@ -66,17 +66,14 @@ func testContext() *android.TestContext {
 	RegisterJavaBuildComponents(ctx)
 	RegisterAppBuildComponents(ctx)
 	RegisterAARBuildComponents(ctx)
-	ctx.RegisterModuleType("java_system_modules", SystemModulesFactory)
-	ctx.RegisterModuleType("java_genrule", genRuleFactory)
+	RegisterGenRuleBuildComponents(ctx)
+	RegisterSystemModulesBuildComponents(ctx)
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
-	ctx.RegisterModuleType("droiddoc", DroiddocFactory)
-	ctx.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
-	ctx.RegisterModuleType("droiddoc_template", ExportedDroiddocDirFactory)
-	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
-	ctx.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
-	ctx.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
+	RegisterDocsBuildComponents(ctx)
+	RegisterStubsBuildComponents(ctx)
+	RegisterSdkLibraryBuildComponents(ctx)
 	ctx.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
@@ -875,7 +872,7 @@ func TestSharding(t *testing.T) {
 
 func TestDroiddoc(t *testing.T) {
 	ctx, _ := testJava(t, `
-		droiddoc_template {
+		droiddoc_exported_dir {
 		    name: "droiddoc-templates-sdk",
 		    path: ".",
 		}
@@ -1021,7 +1018,7 @@ func TestJavaLibrary(t *testing.T) {
 
 func TestJavaSdkLibrary(t *testing.T) {
 	ctx, _ := testJava(t, `
-		droiddoc_template {
+		droiddoc_exported_dir {
 			name: "droiddoc-templates-sdk",
 			path: ".",
 		}
