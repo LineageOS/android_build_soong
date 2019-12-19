@@ -27,9 +27,10 @@ import (
 type FuzzConfig struct {
 	// Email address of people to CC on bugs or contact about this fuzz target.
 	Cc []string `json:"cc,omitempty"`
-	// Boolean specifying whether to disable the fuzz target from running
-	// automatically in continuous fuzzing infrastructure.
-	Disable *bool `json:"disable,omitempty"`
+	// Specify whether to enable continuous fuzzing on devices. Defaults to true.
+	Fuzz_on_haiku_device *bool `json:"fuzz_on_haiku_device,omitempty"`
+	// Specify whether to enable continuous fuzzing on host. Defaults to true.
+	Fuzz_on_haiku_host *bool `json:"fuzz_on_haiku_host,omitempty"`
 	// Component in Google's bug tracking system that bugs should be filed to.
 	Componentid *int64 `json:"componentid,omitempty"`
 	// Hotlists in Google's bug tracking system that bugs should be marked with.
