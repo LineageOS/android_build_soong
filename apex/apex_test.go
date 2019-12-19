@@ -305,7 +305,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	java.RegisterJavaBuildComponents(ctx)
-	ctx.RegisterModuleType("java_system_modules", java.SystemModulesFactory)
+	java.RegisterSystemModulesBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
