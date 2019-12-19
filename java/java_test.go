@@ -71,10 +71,8 @@ func testContext() *android.TestContext {
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
-	ctx.RegisterModuleType("droiddoc", DroiddocFactory)
-	ctx.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
-	ctx.RegisterModuleType("droiddoc_template", ExportedDroiddocDirFactory)
-	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
+	RegisterDocsBuildComponents(ctx)
+	RegisterStubsBuildComponents(ctx)
 	ctx.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
 	ctx.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
 	ctx.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
@@ -875,7 +873,7 @@ func TestSharding(t *testing.T) {
 
 func TestDroiddoc(t *testing.T) {
 	ctx, _ := testJava(t, `
-		droiddoc_template {
+		droiddoc_exported_dir {
 		    name: "droiddoc-templates-sdk",
 		    path: ".",
 		}
@@ -1021,7 +1019,7 @@ func TestJavaLibrary(t *testing.T) {
 
 func TestJavaSdkLibrary(t *testing.T) {
 	ctx, _ := testJava(t, `
-		droiddoc_template {
+		droiddoc_exported_dir {
 			name: "droiddoc-templates-sdk",
 			path: ".",
 		}
