@@ -72,9 +72,7 @@ func TestPrebuilt(t *testing.T) {
 
 	ctx := CreateTestContext()
 
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", PrebuiltSharedLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_static", PrebuiltStaticLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
+	RegisterPrebuiltBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PostDepsMutators(android.RegisterPrebuiltsPostDepsMutators)
