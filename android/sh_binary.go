@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -74,7 +75,10 @@ type ShBinary struct {
 
 	sourceFilePath Path
 	outputFilePath OutputPath
+	installedFile  InstallPath
 }
+
+var _ HostToolProvider = (*ShBinary)(nil)
 
 type ShTest struct {
 	ShBinary
@@ -84,14 +88,14 @@ type ShTest struct {
 	data Paths
 }
 
+func (s *ShBinary) HostToolPath() OptionalPath {
+	return OptionalPathForPath(s.installedFile)
+}
+
 func (s *ShBinary) DepsMutator(ctx BottomUpMutatorContext) {
 	if s.properties.Src == nil {
 		ctx.PropertyErrorf("src", "missing prebuilt source file")
 	}
-}
-
-func (s *ShBinary) SourceFilePath(ctx ModuleContext) Path {
-	return PathForModuleSrc(ctx, String(s.properties.Src))
 }
 
 func (s *ShBinary) OutputFile() OutputPath {
@@ -110,7 +114,7 @@ func (s *ShBinary) Symlinks() []string {
 	return s.properties.Symlinks
 }
 
-func (s *ShBinary) GenerateAndroidBuildActions(ctx ModuleContext) {
+func (s *ShBinary) generateAndroidBuildActions(ctx ModuleContext) {
 	s.sourceFilePath = PathForModuleSrc(ctx, String(s.properties.Src))
 	filename := String(s.properties.Filename)
 	filename_from_src := Bool(s.properties.Filename_from_src)
@@ -133,6 +137,12 @@ func (s *ShBinary) GenerateAndroidBuildActions(ctx ModuleContext) {
 		Output: s.outputFilePath,
 		Input:  s.sourceFilePath,
 	})
+}
+
+func (s *ShBinary) GenerateAndroidBuildActions(ctx ModuleContext) {
+	s.generateAndroidBuildActions(ctx)
+	installDir := PathForModuleInstall(ctx, "bin", String(s.properties.Sub_dir))
+	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
 }
 
 func (s *ShBinary) AndroidMkEntries() []AndroidMkEntries {
@@ -158,9 +168,24 @@ func (s *ShBinary) customAndroidMkEntries(entries *AndroidMkEntries) {
 }
 
 func (s *ShTest) GenerateAndroidBuildActions(ctx ModuleContext) {
-	s.ShBinary.GenerateAndroidBuildActions(ctx)
+	s.ShBinary.generateAndroidBuildActions(ctx)
+	testDir := "nativetest"
+	if ctx.Target().Arch.ArchType.Multilib == "lib64" {
+		testDir = "nativetest64"
+	}
+	if ctx.Target().NativeBridge == NativeBridgeEnabled {
+		testDir = filepath.Join(testDir, ctx.Target().NativeBridgeRelativePath)
+	} else if !ctx.Host() && ctx.Config().HasMultilibConflict(ctx.Arch().ArchType) {
+		testDir = filepath.Join(testDir, ctx.Arch().ArchType.String())
+	}
+	installDir := PathForModuleInstall(ctx, testDir, String(s.properties.Sub_dir))
+	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
 
 	s.data = PathsForModuleSrc(ctx, s.testProperties.Data)
+}
+
+func (s *ShTest) InstallInData() bool {
+	return true
 }
 
 func (s *ShTest) AndroidMkEntries() []AndroidMkEntries {
