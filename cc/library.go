@@ -174,12 +174,16 @@ type FlagExporterProperties struct {
 }
 
 func init() {
-	android.RegisterModuleType("cc_library_static", LibraryStaticFactory)
-	android.RegisterModuleType("cc_library_shared", LibrarySharedFactory)
-	android.RegisterModuleType("cc_library", LibraryFactory)
-	android.RegisterModuleType("cc_library_host_static", LibraryHostStaticFactory)
-	android.RegisterModuleType("cc_library_host_shared", LibraryHostSharedFactory)
-	android.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
+	RegisterLibraryBuildComponents(android.InitRegistrationContext)
+}
+
+func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("cc_library_static", LibraryStaticFactory)
+	ctx.RegisterModuleType("cc_library_shared", LibrarySharedFactory)
+	ctx.RegisterModuleType("cc_library", LibraryFactory)
+	ctx.RegisterModuleType("cc_library_host_static", LibraryHostStaticFactory)
+	ctx.RegisterModuleType("cc_library_host_shared", LibraryHostSharedFactory)
+	ctx.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
