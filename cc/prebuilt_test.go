@@ -74,8 +74,7 @@ func TestPrebuilt(t *testing.T) {
 
 	RegisterPrebuiltBuildComponents(ctx)
 
-	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
-	ctx.PostDepsMutators(android.RegisterPrebuiltsPostDepsMutators)
+	android.RegisterPrebuiltMutators(ctx)
 
 	ctx.Register(config)
 
