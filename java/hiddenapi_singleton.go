@@ -16,7 +16,6 @@ package java
 
 import (
 	"fmt"
-	"strings"
 
 	"android/soong/android"
 )
@@ -153,23 +152,11 @@ func stubFlagsRule(ctx android.SingletonContext) {
 		// Collect dex jar paths for modules that had hiddenapi encode called on them.
 		if h, ok := module.(hiddenAPIIntf); ok {
 			if jar := h.bootDexJar(); jar != nil {
-				// Don't add multiple variants of the same library to bootDexJars, otherwise
-				// hiddenapi tool will complain about duplicated classes. Such multiple variants
-				// of the same library can happen when the library is included in one or more APEXes.
-				// TODO(b/146308764): remove this heuristic
-				if a, ok := module.(android.ApexModule); ok && android.InAnyApex(module.Name()) {
-					if a.AvailableFor("//apex_available:platform") && !a.IsForPlatform() {
-						// skip the apex variants if the jar is available for the platform
-						return
-					}
-					apexName := a.ApexName()
-					if strings.Contains(apexName, "test") {
-						// skip the if the jar is in test APEX
-						return
-					}
-
-					if strings.Contains(apexName, "com.android.art") && apexName != "com.android.art.release" {
-						// skip the ART APEX variants other than com.android.art.release
+				// For a java lib included in an APEX, only take the one built for
+				// the platform variant, and skip the variants for APEXes.
+				// Otherwise, the hiddenapi tool will complain about duplicated classes
+				if a, ok := module.(android.ApexModule); ok {
+					if android.InAnyApex(module.Name()) && !a.IsForPlatform() {
 						return
 					}
 				}
