@@ -303,14 +303,10 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
-	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("java_library", java.LibraryFactory)
-	ctx.RegisterModuleType("java_import", java.ImportFactory)
+	java.RegisterJavaBuildComponents(ctx)
 	ctx.RegisterModuleType("java_system_modules", java.SystemModulesFactory)
-	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
-	ctx.RegisterModuleType("android_app_import", java.AndroidAppImportFactory)
-	ctx.RegisterModuleType("override_android_app", java.OverrideAndroidAppModuleFactory)
+	java.RegisterAppBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
