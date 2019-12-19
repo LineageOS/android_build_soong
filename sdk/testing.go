@@ -80,8 +80,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	// from java package
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
-	ctx.RegisterModuleType("droidstubs", java.DroidstubsFactory)
-	ctx.RegisterModuleType("prebuilt_stubs_sources", java.PrebuiltStubsSourcesFactory)
+	java.RegisterStubsBuildComponents(ctx)
 
 	// from cc package
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
