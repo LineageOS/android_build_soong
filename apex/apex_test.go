@@ -288,7 +288,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 
 	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
-	cc.RegisterPrebuiltBuildComponents(ctx)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("cc_binary", cc.BinaryFactory)
 	ctx.RegisterModuleType("cc_defaults", func() android.Module {
@@ -305,7 +304,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterAppBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	android.RegisterPrebuiltMutators(ctx)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)

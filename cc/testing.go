@@ -19,11 +19,13 @@ import (
 )
 
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
+	RegisterPrebuiltBuildComponents(ctx)
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("cc_library", LibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 
+	android.RegisterPrebuiltMutators(ctx)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
@@ -32,6 +34,10 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 		ctx.BottomUp("version", VersionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
+	})
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("sanitize_runtime_deps", sanitizerRuntimeDepsMutator).Parallel()
+		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
 	})
 }
 
@@ -112,6 +118,14 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			vendor_available: true,
 			recovery_available: true,
 			src: "",
+		}
+
+		// Needed for sanitizer
+		cc_prebuilt_library_shared {
+			name: "libclang_rt.ubsan_standalone-aarch64-android",
+			vendor_available: true,
+			recovery_available: true,
+			srcs: [""],
 		}
 
 		toolchain_library {
