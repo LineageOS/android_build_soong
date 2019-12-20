@@ -68,13 +68,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
-	})
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
-		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
-	})
+	android.RegisterPrebuiltMutators(ctx)
 	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package

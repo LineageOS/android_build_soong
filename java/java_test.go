@@ -74,8 +74,7 @@ func testContext() *android.TestContext {
 	RegisterDocsBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
-	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
+	android.RegisterPrebuiltMutators(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 
 	RegisterPrebuiltApisBuildComponents(ctx)
