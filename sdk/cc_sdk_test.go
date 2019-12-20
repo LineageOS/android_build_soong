@@ -73,6 +73,10 @@ func TestBasicSdkWithCc(t *testing.T) {
 			native_shared_libs: ["sdkmember"],
 		}
 
+		cc_library_shared {
+			name: "sdkmember",
+		}
+
 		sdk_snapshot {
 			name: "mysdk@1",
 			native_shared_libs: ["sdkmember_mysdk_1"],
@@ -141,6 +145,66 @@ func TestBasicSdkWithCc(t *testing.T) {
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(cpplibForMyApex.Rule("ld").Implicits), sdkMemberV1.String())
 	ensureListContains(t, pathsToStrings(cpplibForMyApex2.Rule("ld").Implicits), sdkMemberV2.String())
+}
+
+// Make sure the sdk can use host specific cc libraries static/shared and both.
+func TestHostSdkWithCc(t *testing.T) {
+	testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			device_supported: false,
+			host_supported: true,
+			native_shared_libs: ["sdkshared"],
+			native_static_libs: ["sdkstatic"],
+		}
+
+		cc_library_host_shared {
+			name: "sdkshared",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library_host_static {
+			name: "sdkstatic",
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+}
+
+// Make sure the sdk can use cc libraries static/shared and both.
+func TestSdkWithCc(t *testing.T) {
+	testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["sdkshared", "sdkboth1"],
+			native_static_libs: ["sdkstatic", "sdkboth2"],
+		}
+
+		cc_library_shared {
+			name: "sdkshared",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library_static {
+			name: "sdkstatic",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "sdkboth1",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "sdkboth2",
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
 }
 
 func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
