@@ -72,10 +72,6 @@ func TestPrebuilt(t *testing.T) {
 
 	ctx := CreateTestContext()
 
-	RegisterPrebuiltBuildComponents(ctx)
-
-	android.RegisterPrebuiltMutators(ctx)
-
 	ctx.Register(config)
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
