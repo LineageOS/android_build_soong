@@ -66,8 +66,6 @@ func testContext(config android.Config) *android.TestContext {
 	})
 
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
-	ctx.RegisterModuleType("cc_library_static", cc.LibraryFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("sysprop_java", java.SyspropMutator).Parallel()
 	})
