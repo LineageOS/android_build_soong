@@ -68,14 +68,18 @@ var (
 // 2) HTML generation
 
 func init() {
-	android.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
-	android.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
+	RegisterSdkLibraryBuildComponents(android.InitRegistrationContext)
 
 	android.RegisterMakeVarsProvider(pctx, func(ctx android.MakeVarsContext) {
 		javaSdkLibraries := javaSdkLibraries(ctx.Config())
 		sort.Strings(*javaSdkLibraries)
 		ctx.Strict("JAVA_SDK_LIBRARIES", strings.Join(*javaSdkLibraries, " "))
 	})
+}
+
+func RegisterSdkLibraryBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
+	ctx.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
 }
 
 type sdkLibraryProperties struct {

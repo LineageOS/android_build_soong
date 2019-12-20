@@ -289,8 +289,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", cc.PrebuiltSharedLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
+	cc.RegisterPrebuiltBuildComponents(ctx)
 	ctx.RegisterModuleType("cc_binary", cc.BinaryFactory)
 	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
 	ctx.RegisterModuleType("cc_defaults", func() android.Module {
@@ -303,14 +302,10 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
-	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("java_library", java.LibraryFactory)
-	ctx.RegisterModuleType("java_import", java.ImportFactory)
-	ctx.RegisterModuleType("java_system_modules", java.SystemModulesFactory)
-	ctx.RegisterModuleType("android_app", java.AndroidAppFactory)
-	ctx.RegisterModuleType("android_app_import", java.AndroidAppImportFactory)
-	ctx.RegisterModuleType("override_android_app", java.OverrideAndroidAppModuleFactory)
+	java.RegisterJavaBuildComponents(ctx)
+	java.RegisterSystemModulesBuildComponents(ctx)
+	java.RegisterAppBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {

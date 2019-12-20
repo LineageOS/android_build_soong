@@ -15,6 +15,8 @@
 package android
 
 import (
+	"fmt"
+
 	"github.com/google/blueprint"
 )
 
@@ -113,4 +115,73 @@ func ModuleTypeFactories() map[string]ModuleFactory {
 		ret[t.name] = t.factory
 	}
 	return ret
+}
+
+// Interface for registering build components.
+//
+// Provided to allow registration of build components to be shared between the runtime
+// and test environments.
+type RegistrationContext interface {
+	RegisterModuleType(name string, factory ModuleFactory)
+	RegisterSingletonType(name string, factory SingletonFactory)
+	PreArchMutators(f RegisterMutatorFunc)
+	PreDepsMutators(f RegisterMutatorFunc)
+	PostDepsMutators(f RegisterMutatorFunc)
+}
+
+// Used to register build components from an init() method, e.g.
+//
+// init() {
+//   RegisterBuildComponents(android.InitRegistrationContext)
+// }
+//
+// func RegisterBuildComponents(ctx android.RegistrationContext) {
+//   ctx.RegisterModuleType(...)
+//   ...
+// }
+//
+// Extracting the actual registration into a separate RegisterBuildComponents(ctx) function
+// allows it to be used to initialize test context, e.g.
+//
+//   ctx := android.NewTestContext()
+//   RegisterBuildComponents(ctx)
+var InitRegistrationContext RegistrationContext = &initRegistrationContext{
+	moduleTypes:    make(map[string]ModuleFactory),
+	singletonTypes: make(map[string]SingletonFactory),
+}
+
+// Make sure the TestContext implements RegistrationContext.
+var _ RegistrationContext = (*TestContext)(nil)
+
+type initRegistrationContext struct {
+	moduleTypes    map[string]ModuleFactory
+	singletonTypes map[string]SingletonFactory
+}
+
+func (ctx *initRegistrationContext) RegisterModuleType(name string, factory ModuleFactory) {
+	if _, present := ctx.moduleTypes[name]; present {
+		panic(fmt.Sprintf("module type %q is already registered", name))
+	}
+	ctx.moduleTypes[name] = factory
+	RegisterModuleType(name, factory)
+}
+
+func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
+	if _, present := ctx.singletonTypes[name]; present {
+		panic(fmt.Sprintf("singleton type %q is already registered", name))
+	}
+	ctx.singletonTypes[name] = factory
+	RegisterSingletonType(name, factory)
+}
+
+func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
+	PreArchMutators(f)
+}
+
+func (ctx *initRegistrationContext) PreDepsMutators(f RegisterMutatorFunc) {
+	PreDepsMutators(f)
+}
+
+func (ctx *initRegistrationContext) PostDepsMutators(f RegisterMutatorFunc) {
+	PostDepsMutators(f)
 }

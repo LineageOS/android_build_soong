@@ -78,20 +78,16 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package
-	ctx.RegisterModuleType("android_app_certificate", java.AndroidAppCertificateFactory)
-	ctx.RegisterModuleType("java_defaults", java.DefaultsFactory)
-	ctx.RegisterModuleType("java_library", java.LibraryFactory)
-	ctx.RegisterModuleType("java_import", java.ImportFactory)
-	ctx.RegisterModuleType("droidstubs", java.DroidstubsFactory)
-	ctx.RegisterModuleType("prebuilt_stubs_sources", java.PrebuiltStubsSourcesFactory)
+	java.RegisterJavaBuildComponents(ctx)
+	java.RegisterAppBuildComponents(ctx)
+	java.RegisterStubsBuildComponents(ctx)
 
 	// from cc package
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_shared", cc.PrebuiltSharedLibraryFactory)
-	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
+	cc.RegisterPrebuiltBuildComponents(ctx)
 	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
 	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {

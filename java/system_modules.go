@@ -28,9 +28,13 @@ import (
 // system modules in a runtime image using the jmod and jlink tools.
 
 func init() {
-	android.RegisterModuleType("java_system_modules", SystemModulesFactory)
+	RegisterSystemModulesBuildComponents(android.InitRegistrationContext)
 
 	pctx.SourcePathVariable("moduleInfoJavaPath", "build/soong/scripts/jars-to-module-info-java.sh")
+}
+
+func RegisterSystemModulesBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("java_system_modules", SystemModulesFactory)
 }
 
 var (

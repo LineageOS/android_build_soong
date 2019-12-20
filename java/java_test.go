@@ -63,44 +63,23 @@ func testConfig(env map[string]string, bp string, fs map[string][]byte) android.
 func testContext() *android.TestContext {
 
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("android_app", AndroidAppFactory)
-	ctx.RegisterModuleType("android_app_certificate", AndroidAppCertificateFactory)
-	ctx.RegisterModuleType("android_app_import", AndroidAppImportFactory)
-	ctx.RegisterModuleType("android_library", AndroidLibraryFactory)
-	ctx.RegisterModuleType("android_test", AndroidTestFactory)
-	ctx.RegisterModuleType("android_test_helper_app", AndroidTestHelperAppFactory)
-	ctx.RegisterModuleType("android_test_import", AndroidTestImportFactory)
-	ctx.RegisterModuleType("java_binary", BinaryFactory)
-	ctx.RegisterModuleType("java_binary_host", BinaryHostFactory)
-	ctx.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
-	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
-	ctx.RegisterModuleType("java_library", LibraryFactory)
-	ctx.RegisterModuleType("java_library_host", LibraryHostFactory)
-	ctx.RegisterModuleType("java_test", TestFactory)
-	ctx.RegisterModuleType("java_import", ImportFactory)
-	ctx.RegisterModuleType("java_import_host", ImportFactoryHost)
-	ctx.RegisterModuleType("java_defaults", DefaultsFactory)
-	ctx.RegisterModuleType("java_system_modules", SystemModulesFactory)
-	ctx.RegisterModuleType("java_genrule", genRuleFactory)
+	RegisterJavaBuildComponents(ctx)
+	RegisterAppBuildComponents(ctx)
+	RegisterAARBuildComponents(ctx)
+	RegisterGenRuleBuildComponents(ctx)
+	RegisterSystemModulesBuildComponents(ctx)
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
-	ctx.RegisterModuleType("dex_import", DexImportFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
-	ctx.RegisterModuleType("droiddoc", DroiddocFactory)
-	ctx.RegisterModuleType("droiddoc_host", DroiddocHostFactory)
-	ctx.RegisterModuleType("droiddoc_template", ExportedDroiddocDirFactory)
-	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
-	ctx.RegisterModuleType("java_sdk_library", SdkLibraryFactory)
-	ctx.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
-	ctx.RegisterModuleType("override_android_app", OverrideAndroidAppModuleFactory)
-	ctx.RegisterModuleType("override_android_test", OverrideAndroidTestModuleFactory)
-	ctx.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
+	RegisterDocsBuildComponents(ctx)
+	RegisterStubsBuildComponents(ctx)
+	RegisterSdkLibraryBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_apis", PrebuiltApisMutator).Parallel()
-	})
+
+	RegisterPrebuiltApisBuildComponents(ctx)
+
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(OverlaySingletonFactory))
 	ctx.RegisterPreSingletonType("sdk_versions", android.SingletonFactoryAdaptor(sdkPreSingletonFactory))
@@ -892,7 +871,7 @@ func TestSharding(t *testing.T) {
 
 func TestDroiddoc(t *testing.T) {
 	ctx, _ := testJava(t, `
-		droiddoc_template {
+		droiddoc_exported_dir {
 		    name: "droiddoc-templates-sdk",
 		    path: ".",
 		}
@@ -1038,7 +1017,7 @@ func TestJavaLibrary(t *testing.T) {
 
 func TestJavaSdkLibrary(t *testing.T) {
 	ctx, _ := testJava(t, `
-		droiddoc_template {
+		droiddoc_exported_dir {
 			name: "droiddoc-templates-sdk",
 			path: ".",
 		}
@@ -1244,7 +1223,7 @@ func TestPatchModule(t *testing.T) {
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		expected := "java.base=.:" + buildDir
 		checkPatchModuleFlag(t, ctx, "bar", expected)
-		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework"), moduleToPath("updatable_media_stubs")}, ":")
+		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework")}, ":")
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
 }

@@ -34,24 +34,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("java_defaults", DefaultsFactory)
-
-	android.RegisterModuleType("java_library", LibraryFactory)
-	android.RegisterModuleType("java_library_static", LibraryStaticFactory)
-	android.RegisterModuleType("java_library_host", LibraryHostFactory)
-	android.RegisterModuleType("java_binary", BinaryFactory)
-	android.RegisterModuleType("java_binary_host", BinaryHostFactory)
-	android.RegisterModuleType("java_test", TestFactory)
-	android.RegisterModuleType("java_test_helper_library", TestHelperLibraryFactory)
-	android.RegisterModuleType("java_test_host", TestHostFactory)
-	android.RegisterModuleType("java_import", ImportFactory)
-	android.RegisterModuleType("java_import_host", ImportFactoryHost)
-	android.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
-	android.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
-	android.RegisterModuleType("dex_import", DexImportFactory)
-
-	android.RegisterSingletonType("logtags", LogtagsSingleton)
-	android.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
+	RegisterJavaBuildComponents(android.InitRegistrationContext)
 
 	// Register sdk member types.
 	android.RegisterSdkMemberType(&headerLibrarySdkMemberType{
@@ -69,6 +52,27 @@ func init() {
 			},
 		},
 	})
+}
+
+func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("java_defaults", DefaultsFactory)
+
+	ctx.RegisterModuleType("java_library", LibraryFactory)
+	ctx.RegisterModuleType("java_library_static", LibraryStaticFactory)
+	ctx.RegisterModuleType("java_library_host", LibraryHostFactory)
+	ctx.RegisterModuleType("java_binary", BinaryFactory)
+	ctx.RegisterModuleType("java_binary_host", BinaryHostFactory)
+	ctx.RegisterModuleType("java_test", TestFactory)
+	ctx.RegisterModuleType("java_test_helper_library", TestHelperLibraryFactory)
+	ctx.RegisterModuleType("java_test_host", TestHostFactory)
+	ctx.RegisterModuleType("java_import", ImportFactory)
+	ctx.RegisterModuleType("java_import_host", ImportFactoryHost)
+	ctx.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
+	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
+	ctx.RegisterModuleType("dex_import", DexImportFactory)
+
+	ctx.RegisterSingletonType("logtags", LogtagsSingleton)
+	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
 
 func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
@@ -594,8 +598,36 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
-	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
+	syspropPublicStubs := syspropPublicStubs(ctx.Config())
+
+	// rewriteSyspropLibs validates if a java module can link against platform's sysprop_library,
+	// and redirects dependency to public stub depending on the link type.
+	rewriteSyspropLibs := func(libs []string, prop string) []string {
+		// make a copy
+		ret := android.CopyOf(libs)
+
+		for idx, lib := range libs {
+			stub, ok := syspropPublicStubs[lib]
+
+			if !ok {
+				continue
+			}
+
+			linkType, _ := j.getLinkType(ctx.ModuleName())
+			if linkType == javaSystem {
+				ret[idx] = stub
+			} else if linkType != javaPlatform {
+				ctx.PropertyErrorf("sdk_version",
+					"can't link against sysprop_library %q from a module using public or core API",
+					lib)
+			}
+		}
+
+		return ret
+	}
+
+	ctx.AddVariationDependencies(nil, libTag, rewriteSyspropLibs(j.properties.Libs, "libs")...)
+	ctx.AddVariationDependencies(nil, staticLibTag, rewriteSyspropLibs(j.properties.Static_libs, "static_libs")...)
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), exportedPluginTag, j.properties.Exported_plugins...)
