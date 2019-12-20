@@ -222,6 +222,14 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 
 	invocationPath := odexPath.ReplaceExtension(ctx, "invocation")
 
+	// TODO(skvadrik): fix this to use boot image location in the module config (currently it is broken
+	// in JIT-zygote builds, because "default" boot image is hard-coded in parts of the module config).
+	bootImage := module.DexPreoptImages[archIdx]
+	var bootImageLocation string
+	if bootImage != nil {
+		bootImageLocation = PathToLocation(bootImage, arch)
+	}
+
 	// The class loader context using paths in the build
 	var classLoaderContextHost android.Paths
 
@@ -349,7 +357,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		Flag("--runtime-arg").FlagWithList("-Xbootclasspath-locations:", module.PreoptBootClassPathDexLocations, ":").
 		Flag("${class_loader_context_arg}").
 		Flag("${stored_class_loader_context_arg}").
-		FlagWithArg("--boot-image=", strings.Join(module.DexPreoptImageLocations, ":")).Implicits(module.DexPreoptImagesDeps[archIdx].Paths()).
+		FlagWithArg("--boot-image=", bootImageLocation).Implicits(module.DexPreoptImagesDeps[archIdx].Paths()).
 		FlagWithInput("--dex-file=", module.DexPath).
 		FlagWithArg("--dex-location=", dexLocationArg).
 		FlagWithOutput("--oat-file=", odexPath).ImplicitOutput(vdexPath).
