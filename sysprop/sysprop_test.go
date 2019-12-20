@@ -60,8 +60,7 @@ func testContext(config android.Config) *android.TestContext {
 	java.RegisterAppBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
 
-	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
+	android.RegisterPrebuiltMutators(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("sysprop_deps", syspropDepsMutator).Parallel()

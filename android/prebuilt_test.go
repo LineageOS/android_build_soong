@@ -141,8 +141,7 @@ func TestPrebuilts(t *testing.T) {
 			config := TestConfig(buildDir, nil, bp, fs)
 
 			ctx := NewTestContext()
-			ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
-			ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
+			RegisterPrebuiltMutators(ctx)
 			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 			ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
 			ctx.RegisterModuleType("source", newSourceModule)
