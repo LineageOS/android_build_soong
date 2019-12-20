@@ -155,11 +155,6 @@ func (b *OverridableModuleBase) setOverridesProperty(overridesProperty *[]string
 
 // Overrides a base module with the given OverrideModule.
 func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule) {
-	// Adds the base module to the overrides property, if exists, of the overriding module. See the
-	// comment on OverridableModuleBase.overridesProperty for details.
-	if b.overridesProperty != nil {
-		*b.overridesProperty = append(*b.overridesProperty, ctx.ModuleName())
-	}
 	for _, p := range b.overridableProperties {
 		for _, op := range o.getOverridingProperties() {
 			if proptools.TypeEqual(p, op) {
@@ -173,6 +168,11 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, o OverrideModule
 				}
 			}
 		}
+	}
+	// Adds the base module to the overrides property, if exists, of the overriding module. See the
+	// comment on OverridableModuleBase.overridesProperty for details.
+	if b.overridesProperty != nil {
+		*b.overridesProperty = append(*b.overridesProperty, ctx.ModuleName())
 	}
 	b.properties.OverriddenBy = o.Name()
 }
