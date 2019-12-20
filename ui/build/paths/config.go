@@ -82,8 +82,6 @@ var Configuration = map[string]PathConfig{
 	"fuser":    Allowed,
 	"getopt":   Allowed,
 	"git":      Allowed,
-	"gzcat":    Allowed,
-	"gzip":     Allowed,
 	"hexdump":  Allowed,
 	"jar":      Allowed,
 	"java":     Allowed,
