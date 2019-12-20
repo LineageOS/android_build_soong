@@ -333,13 +333,6 @@ type apexBundleProperties struct {
 	// also built with the SDKs specified here.
 	Uses_sdks []string
 
-	// Names of modules to be overridden. Listed modules can only be other binaries
-	// (in Make or Soong).
-	// This does not completely prevent installation of the overridden binaries, but if both
-	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
-	// from PRODUCT_PACKAGES.
-	Overrides []string
-
 	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
 	// Should be only used in tests#.
 	Test_only_no_hashtree *bool
@@ -376,6 +369,13 @@ type apexTargetBundleProperties struct {
 type overridableProperties struct {
 	// List of APKs to package inside APEX
 	Apps []string
+
+	// Names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
 }
 
 type apexPackaging int
@@ -1240,7 +1240,7 @@ func newApexBundle() *apexBundle {
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitSdkAwareModule(module)
-	android.InitOverridableModule(module, &module.properties.Overrides)
+	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
 	return module
 }
 
