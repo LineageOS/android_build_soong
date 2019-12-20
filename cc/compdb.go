@@ -27,7 +27,7 @@ import (
 // This singleton generates a compile_commands.json file. It does so for each
 // blueprint Android.bp resulting in a cc.Module when either make, mm, mma, mmm
 // or mmma is called. It will only create a single compile_commands.json file
-// at out/development/ide/compdb/compile_commands.json. It will also symlink it
+// at ${OUT_DIR}/soong/development/ide/compdb/compile_commands.json. It will also symlink it
 // to ${SOONG_LINK_COMPDB_TO} if set. In general this should be created by running
 // make SOONG_GEN_COMPDB=1 nothing to get all targets.
 
@@ -43,7 +43,7 @@ type compdbGeneratorSingleton struct{}
 
 const (
 	compdbFilename                = "compile_commands.json"
-	compdbOutputProjectsDirectory = "out/development/ide/compdb"
+	compdbOutputProjectsDirectory = "development/ide/compdb"
 
 	// Environment variables used to modify behavior of this singleton.
 	envVariableGenerateCompdb          = "SOONG_GEN_COMPDB"
@@ -78,12 +78,12 @@ func (c *compdbGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 	})
 
 	// Create the output file.
-	dir := filepath.Join(getCompdbAndroidSrcRootDirectory(ctx), compdbOutputProjectsDirectory)
-	os.MkdirAll(dir, 0777)
-	compDBFile := filepath.Join(dir, compdbFilename)
-	f, err := os.Create(compdbFilename)
+	dir := android.PathForOutput(ctx, compdbOutputProjectsDirectory)
+	os.MkdirAll(dir.String(), 0777)
+	compDBFile := dir.Join(ctx, compdbFilename)
+	f, err := os.Create(compDBFile.String())
 	if err != nil {
-		log.Fatalf("Could not create file %s: %s", filepath.Join(dir, compdbFilename), err)
+		log.Fatalf("Could not create file %s: %s", compDBFile, err)
 	}
 	defer f.Close()
 
@@ -106,7 +106,7 @@ func (c *compdbGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 	finalLinkPath := filepath.Join(ctx.Config().Getenv(envVariableCompdbLink), compdbFilename)
 	if finalLinkPath != "" {
 		os.Remove(finalLinkPath)
-		if err := os.Symlink(compDBFile, finalLinkPath); err != nil {
+		if err := os.Symlink(compDBFile.String(), finalLinkPath); err != nil {
 			log.Fatalf("Unable to symlink %s to %s: %s", compDBFile, finalLinkPath, err)
 		}
 	}
