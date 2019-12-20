@@ -24,23 +24,26 @@ import (
 
 // This file contains support for using cc library modules within an sdk.
 
+var sharedLibrarySdkMemberType = &librarySdkMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "native_shared_libs",
+	},
+	prebuiltModuleType: "cc_prebuilt_library_shared",
+	linkTypes:          []string{"shared"},
+}
+
+var staticLibrarySdkMemberType = &librarySdkMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "native_static_libs",
+	},
+	prebuiltModuleType: "cc_prebuilt_library_static",
+	linkTypes:          []string{"static"},
+}
+
 func init() {
 	// Register sdk member types.
-	android.RegisterSdkMemberType(&librarySdkMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "native_shared_libs",
-		},
-		prebuiltModuleType: "cc_prebuilt_library_shared",
-		linkTypes:          []string{"shared"},
-	})
-
-	android.RegisterSdkMemberType(&librarySdkMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "native_static_libs",
-		},
-		prebuiltModuleType: "cc_prebuilt_library_static",
-		linkTypes:          []string{"static"},
-	})
+	android.RegisterSdkMemberType(sharedLibrarySdkMemberType)
+	android.RegisterSdkMemberType(staticLibrarySdkMemberType)
 }
 
 type librarySdkMemberType struct {
@@ -72,8 +75,16 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 }
 
 func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*Module)
-	return ok
+	// Check the module to see if it can be used with this module type.
+	if m, ok := module.(*Module); ok {
+		for _, allowableMemberType := range m.sdkMemberTypes {
+			if allowableMemberType == mt {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // copy exported header files and stub *.so files
