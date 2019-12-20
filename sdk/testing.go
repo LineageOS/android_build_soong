@@ -83,20 +83,10 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	java.RegisterStubsBuildComponents(ctx)
 
 	// from cc package
-	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
-	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
 	cc.RegisterPrebuiltBuildComponents(ctx)
-	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
-		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
-		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
-		ctx.BottomUp("version", cc.VersionMutator).Parallel()
-		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-	})
 
 	// from apex package
 	ctx.RegisterModuleType("apex", apex.BundleFactory)
