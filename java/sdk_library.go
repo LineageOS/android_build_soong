@@ -29,12 +29,31 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-var (
+const (
 	sdkStubsLibrarySuffix = ".stubs"
 	sdkSystemApiSuffix    = ".system"
 	sdkTestApiSuffix      = ".test"
 	sdkDocsSuffix         = ".docs"
 	sdkXmlFileSuffix      = ".xml"
+	permissionTemplate    = `<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2018 The Android Open Source Project
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+-->
+<permissions>
+	<library name="%s" file="%s"/>
+</permissions>
+`
 )
 
 type stubsLibraryDependencyTag struct {
@@ -134,6 +153,8 @@ type SdkLibrary struct {
 	publicApiFilePath android.Path
 	systemApiFilePath android.Path
 	testApiFilePath   android.Path
+
+	permissionFile android.Path
 }
 
 var _ Dependency = (*SdkLibrary)(nil)
@@ -162,6 +183,10 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	module.Library.GenerateAndroidBuildActions(ctx)
+
+	if module.ApexName() != "" {
+		module.buildPermissionFile(ctx)
+	}
 
 	// Record the paths to the header jars of the library (stubs and impl).
 	// When this java_sdk_library is dependened from others via "libs" property,
@@ -196,6 +221,21 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			}
 		}
 	})
+}
+
+func (module *SdkLibrary) buildPermissionFile(ctx android.ModuleContext) {
+	xmlContent := strings.ReplaceAll(fmt.Sprintf(permissionTemplate, module.BaseModuleName(), module.implPath()), "\n", "\\n")
+	permissionFile := android.PathForModuleOut(ctx, module.xmlFileName())
+
+	rule := android.NewRuleBuilder()
+	rule.Command().Text("echo -e ").Text(proptools.ShellEscape(xmlContent)).Text(">").Output(permissionFile)
+	rule.Build(pctx, ctx, "gen_permission_xml", "Generate permission")
+
+	module.permissionFile = permissionFile
+}
+
+func (module *SdkLibrary) PermissionFile() android.Path {
+	return module.permissionFile
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -290,6 +330,12 @@ func (module *SdkLibrary) implName() string {
 
 // File path to the runtime implementation library
 func (module *SdkLibrary) implPath() string {
+	if apexName := module.ApexName(); apexName != "" {
+		// TODO(b/146468504): ApexName() is only a soong module name, not apex name.
+		// In most cases, this works fine. But when apex_name is set or override_apex is used
+		// this can be wrong.
+		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apexName, module.implName())
+	}
 	partition := "system"
 	if module.SocSpecific() {
 		partition = "vendor"
@@ -532,31 +578,11 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
-	template := `
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2018 The Android Open Source Project
 
-     Licensed under the Apache License, Version 2.0 (the "License");
-     you may not use this file except in compliance with the License.
-     You may obtain a copy of the License at
-
-          http://www.apache.org/licenses/LICENSE-2.0
-
-     Unless required by applicable law or agreed to in writing, software
-     distributed under the License is distributed on an "AS IS" BASIS,
-     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     See the License for the specific language governing permissions and
-     limitations under the License.
--->
-
-<permissions>
-    <library name="%s" file="%s"/>
-</permissions>
-`
 	// genrule to generate the xml file content from the template above
 	// TODO: preserve newlines in the generate xml file. Newlines are being squashed
 	// in the ninja file. Do we need to have an external tool for this?
-	xmlContent := fmt.Sprintf(template, module.BaseModuleName(), module.implPath())
+	xmlContent := fmt.Sprintf(permissionTemplate, module.BaseModuleName(), module.implPath())
 	genruleProps := struct {
 		Name *string
 		Cmd  *string
@@ -666,10 +692,12 @@ func javaSdkLibraries(config android.Config) *[]string {
 func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 	if len(module.Library.Module.properties.Srcs) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
+		return
 	}
 
 	if len(module.sdkLibraryProperties.Api_packages) == 0 {
 		mctx.PropertyErrorf("api_packages", "java_sdk_library must specify api_packages")
+		return
 	}
 
 	missing_current_api := false
@@ -745,6 +773,7 @@ func (module *SdkLibrary) InitSdkLibraryProperties() {
 func SdkLibraryFactory() android.Module {
 	module := &SdkLibrary{}
 	module.InitSdkLibraryProperties()
+	android.InitApexModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) { module.CreateInternalModules(ctx) })
 	return module
