@@ -20,14 +20,14 @@ import (
 
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterPrebuiltBuildComponents(ctx)
-	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
-	ctx.RegisterModuleType("cc_library", LibraryFactory)
-	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
-	ctx.RegisterModuleType("cc_object", ObjectFactory)
-
 	android.RegisterPrebuiltMutators(ctx)
 
 	RegisterCCBuildComponents(ctx)
+	RegisterLibraryBuildComponents(ctx)
+
+	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
+	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
+	ctx.RegisterModuleType("cc_object", ObjectFactory)
 }
 
 func GatherRequiredDepsForTest(os android.OsType) string {
@@ -308,9 +308,6 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("cc_binary", BinaryFactory)
 	ctx.RegisterModuleType("cc_binary_host", binaryHostFactory)
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
-	ctx.RegisterModuleType("cc_library_shared", LibrarySharedFactory)
-	ctx.RegisterModuleType("cc_library_static", LibraryStaticFactory)
-	ctx.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
 	ctx.RegisterModuleType("llndk_headers", llndkHeadersFactory)
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)

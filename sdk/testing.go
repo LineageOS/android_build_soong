@@ -77,8 +77,6 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 
 	// from cc package
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
-	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 
 	// from apex package
 	ctx.RegisterModuleType("apex", apex.BundleFactory)
