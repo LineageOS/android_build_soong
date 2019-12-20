@@ -22,7 +22,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/java"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -119,7 +118,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			}
 		}
 		if fi.class == javaSharedLib {
-			javaModule := fi.module.(*java.Library)
+			javaModule := fi.module.(javaLibrary)
 			// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
 			// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
 			// we will have foo.jar.jar

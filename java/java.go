@@ -426,10 +426,6 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
-func (j *Module) DexJarFile() android.Path {
-	return j.dexJarFile
-}
-
 var _ android.OutputFileProducer = (*Module)(nil)
 
 type Dependency interface {
