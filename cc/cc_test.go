@@ -2478,7 +2478,7 @@ func TestFuzzTarget(t *testing.T) {
 			srcs: ["foo.c"],
 		}`)
 
-	variant := "android_arm64_armv8-a"
+	variant := "android_arm64_armv8-a_fuzzer"
 	ctx.ModuleForTests("fuzz_smoke_test", variant).Rule("cc")
 }
 

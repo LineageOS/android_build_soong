@@ -36,6 +36,9 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
 	})
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("fuzzer_deps", sanitizerDepsMutator(fuzzer))
+		ctx.BottomUp("fuzzer", sanitizerMutator(fuzzer)).Parallel()
+
 		ctx.TopDown("sanitize_runtime_deps", sanitizerRuntimeDepsMutator).Parallel()
 		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
 	})
