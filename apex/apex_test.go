@@ -290,9 +290,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("cc_binary", cc.BinaryFactory)
-	ctx.RegisterModuleType("cc_defaults", func() android.Module {
-		return cc.DefaultsFactory()
-	})
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
