@@ -55,6 +55,10 @@ func (g *GenruleExtraProperties) CoreVariantNeeded(ctx android.BaseModuleContext
 		return true
 	}
 
+	if ctx.DeviceConfig().ProductVndkVersion() != "" && ctx.ProductSpecific() {
+		return false
+	}
+
 	return Bool(g.Vendor_available) || !(ctx.SocSpecific() || ctx.DeviceSpecific())
 }
 
@@ -67,16 +71,26 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 		return nil
 	}
 
+	var variants []string
 	if Bool(g.Vendor_available) || ctx.SocSpecific() || ctx.DeviceSpecific() {
-		var variants []string
 		variants = append(variants, VendorVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
 		if vndkVersion := ctx.DeviceConfig().VndkVersion(); vndkVersion != "current" {
 			variants = append(variants, VendorVariationPrefix+vndkVersion)
 		}
+	}
+
+	if ctx.DeviceConfig().ProductVndkVersion() == "" {
 		return variants
 	}
 
-	return nil
+	if Bool(g.Vendor_available) || ctx.ProductSpecific() {
+		variants = append(variants, ProductVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
+		if vndkVersion := ctx.DeviceConfig().ProductVndkVersion(); vndkVersion != "current" {
+			variants = append(variants, ProductVariationPrefix+vndkVersion)
+		}
+	}
+
+	return variants
 }
 
 func (g *GenruleExtraProperties) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {

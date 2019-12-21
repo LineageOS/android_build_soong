@@ -25,6 +25,7 @@ import (
 
 var (
 	nativeBridgeSuffix = ".native_bridge"
+	productSuffix      = ".product"
 	vendorSuffix       = ".vendor"
 	recoverySuffix     = ".recovery"
 )
@@ -37,7 +38,7 @@ type AndroidMkContext interface {
 	Os() android.OsType
 	Host() bool
 	UseVndk() bool
-	vndkVersion() string
+	VndkVersion() string
 	static() bool
 	InRecovery() bool
 }
@@ -92,7 +93,7 @@ func (c *Module) AndroidMk() android.AndroidMkData {
 				if c.UseVndk() {
 					fmt.Fprintln(w, "LOCAL_USE_VNDK := true")
 					if c.IsVndk() && !c.static() {
-						fmt.Fprintln(w, "LOCAL_SOONG_VNDK_VERSION := "+c.vndkVersion())
+						fmt.Fprintln(w, "LOCAL_SOONG_VNDK_VERSION := "+c.VndkVersion())
 						// VNDK libraries available to vendor are not installed because
 						// they are packaged in VNDK APEX and installed by APEX packages (apex/apex.go)
 						if !c.isVndkExt() {
