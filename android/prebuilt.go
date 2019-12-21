@@ -25,6 +25,11 @@ import (
 // This file implements common functionality for handling modules that may exist as prebuilts,
 // source, or both.
 
+func RegisterPrebuiltMutators(ctx RegistrationContext) {
+	ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
+	ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
+}
+
 type prebuiltDependencyTag struct {
 	blueprint.BaseDependencyTag
 }

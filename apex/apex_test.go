@@ -286,45 +286,23 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 	ctx.RegisterModuleType("override_apex", overrideApexFactory)
 
-	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
-	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
-	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
-	cc.RegisterPrebuiltBuildComponents(ctx)
+	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("cc_binary", cc.BinaryFactory)
-	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
-	ctx.RegisterModuleType("cc_defaults", func() android.Module {
-		return cc.DefaultsFactory()
-	})
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
-	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
+	ctx.RegisterModuleType("java_sdk_library", java.SdkLibraryFactory)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
-	})
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
-		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
-		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
-		ctx.BottomUp("version", cc.VersionMutator).Parallel()
-		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-	})
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
-		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
-	})
 
 	ctx.Register(config)
 
@@ -3168,12 +3146,14 @@ func TestOverrideApex(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			apps: ["app"],
+			overrides: ["oldapex"],
 		}
 
 		override_apex {
 			name: "override_myapex",
 			base: "myapex",
 			apps: ["override_app"],
+			overrides: ["unknownapex"],
 		}
 
 		apex_key {
@@ -3226,6 +3206,7 @@ func TestOverrideApex(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_MODULE := override_app.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE_STEM := override_myapex.apex")
+	ensureContains(t, androidMk, "LOCAL_OVERRIDES_MODULES := unknownapex myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := app.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := override_app.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex")
@@ -3250,6 +3231,44 @@ func TestLegacyAndroid10Support(t *testing.T) {
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
 	args := module.Rule("apexRule").Args
 	ensureContains(t, args["opt_flags"], "--manifest_json "+module.Output("apex_manifest.json").Output.String())
+}
+
+func TestJavaSDKLibrary(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["foo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+		}
+	`, withFiles(map[string][]byte{
+		"api/current.txt":        nil,
+		"api/removed.txt":        nil,
+		"api/system-current.txt": nil,
+		"api/system-removed.txt": nil,
+		"api/test-current.txt":   nil,
+		"api/test-removed.txt":   nil,
+	}))
+
+	// java_sdk_library installs both impl jar and permission XML
+	ensureExactContents(t, ctx, "myapex", []string{
+		"javalib/foo.jar",
+		"etc/permissions/foo.xml",
+	})
+	// Permission XML should point to the activated path of impl jar of java_sdk_library
+	genXMLCommand := ctx.ModuleForTests("foo", "android_common_myapex").Output("foo.xml").RuleParams.Command
+	ensureContains(t, genXMLCommand, `<library name="foo" file="/apex/myapex/javalib/foo.jar"`)
 }
 
 func TestRejectNonInstallableJavaLibrary(t *testing.T) {

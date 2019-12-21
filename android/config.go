@@ -364,6 +364,8 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		archConfig = getMegaDeviceConfig()
 	} else if config.NdkAbis() {
 		archConfig = getNdkAbisConfig()
+	} else if config.AmlAbis() {
+		archConfig = getAmlAbisConfig()
 	}
 
 	if archConfig != nil {
@@ -946,6 +948,10 @@ func (c *deviceConfig) PlatformVndkVersion() string {
 	return String(c.config.productVariables.Platform_vndk_version)
 }
 
+func (c *deviceConfig) ProductVndkVersion() string {
+	return String(c.config.productVariables.ProductVndkVersion)
+}
+
 func (c *deviceConfig) ExtraVndkVersions() []string {
 	return c.config.productVariables.ExtraVndkVersions
 }
@@ -1120,6 +1126,10 @@ func (c vendorConfig) IsSet(name string) bool {
 
 func (c *config) NdkAbis() bool {
 	return Bool(c.productVariables.Ndk_abis)
+}
+
+func (c *config) AmlAbis() bool {
+	return Bool(c.productVariables.Aml_abis)
 }
 
 func (c *config) ExcludeDraftNdkApis() bool {

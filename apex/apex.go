@@ -333,13 +333,6 @@ type apexBundleProperties struct {
 	// also built with the SDKs specified here.
 	Uses_sdks []string
 
-	// Names of modules to be overridden. Listed modules can only be other binaries
-	// (in Make or Soong).
-	// This does not completely prevent installation of the overridden binaries, but if both
-	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
-	// from PRODUCT_PACKAGES.
-	Overrides []string
-
 	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
 	// Should be only used in tests#.
 	Test_only_no_hashtree *bool
@@ -376,6 +369,13 @@ type apexTargetBundleProperties struct {
 type overridableProperties struct {
 	// List of APKs to package inside APEX
 	Apps []string
+
+	// Names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
 }
 
 type apexPackaging int
@@ -872,10 +872,16 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *android.ShBinary) ap
 	return af
 }
 
-func apexFileForJavaLibrary(ctx android.BaseModuleContext, java *java.Library) apexFile {
+// TODO(b/146586360): replace javaLibrary(in apex/apex.go) with java.Dependency
+type javaLibrary interface {
+	android.Module
+	java.Dependency
+}
+
+func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaLibrary) apexFile {
 	dirInApex := "javalib"
-	fileToCopy := java.DexJarFile()
-	return newApexFile(ctx, fileToCopy, java.Name(), dirInApex, javaSharedLib, java)
+	fileToCopy := lib.DexJar()
+	return newApexFile(ctx, fileToCopy, lib.Name(), dirInApex, javaSharedLib, lib)
 }
 
 func apexFileForPrebuiltJavaLibrary(ctx android.BaseModuleContext, java *java.Import) apexFile {
@@ -1022,6 +1028,21 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}
+				} else if sdkLib, ok := child.(*java.SdkLibrary); ok {
+					af := apexFileForJavaLibrary(ctx, sdkLib)
+					if !af.Ok() {
+						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
+						return false
+					}
+					filesInfo = append(filesInfo, af)
+
+					pf := sdkLib.PermissionFile()
+					if pf == nil {
+						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
+						return false
+					}
+					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
+					return true // track transitive dependencies
 				} else if javaLib, ok := child.(*java.Import); ok {
 					af := apexFileForPrebuiltJavaLibrary(ctx, javaLib)
 					if !af.Ok() {
@@ -1246,7 +1267,7 @@ func newApexBundle() *apexBundle {
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitSdkAwareModule(module)
-	android.InitOverridableModule(module, &module.properties.Overrides)
+	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
 	return module
 }
 

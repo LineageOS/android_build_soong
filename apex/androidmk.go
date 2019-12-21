@@ -22,7 +22,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/java"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -119,7 +118,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			}
 		}
 		if fi.class == javaSharedLib {
-			javaModule := fi.module.(*java.Library)
+			javaModule := fi.module.(javaLibrary)
 			// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
 			// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
 			// we will have foo.jar.jar
@@ -182,7 +181,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.ToMakePath().String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
-				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(a.properties.Overrides, " "))
+				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(a.overridableProperties.Overrides, " "))
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
 				}

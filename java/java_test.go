@@ -74,8 +74,6 @@ func testContext() *android.TestContext {
 	RegisterDocsBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
-	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 
 	RegisterPrebuiltApisBuildComponents(ctx)
@@ -85,15 +83,8 @@ func testContext() *android.TestContext {
 	ctx.RegisterPreSingletonType("sdk_versions", android.SingletonFactoryAdaptor(sdkPreSingletonFactory))
 
 	// Register module types and mutators from cc needed for JNI testing
-	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
-	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
-	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
+	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
-		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-	})
 
 	return ctx
 }

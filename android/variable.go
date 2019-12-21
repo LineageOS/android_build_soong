@@ -288,6 +288,7 @@ type productVariables struct {
 	Exclude_draft_ndk_apis *bool `json:",omitempty"`
 
 	Flatten_apex *bool `json:",omitempty"`
+	Aml_abis     *bool `json:",omitempty"`
 
 	DexpreoptGlobalConfig *string `json:",omitempty"`
 
@@ -305,6 +306,8 @@ type productVariables struct {
 	ProductPublicSepolicyDirs  []string `json:",omitempty"`
 	ProductPrivateSepolicyDirs []string `json:",omitempty"`
 	ProductCompatibleProperty  *bool    `json:",omitempty"`
+
+	ProductVndkVersion *string `json:",omitempty"`
 
 	TargetFSConfigGen []string `json:",omitempty"`
 

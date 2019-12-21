@@ -18,6 +18,18 @@ import (
 	"android/soong/android"
 )
 
+func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
+	RegisterPrebuiltBuildComponents(ctx)
+	android.RegisterPrebuiltMutators(ctx)
+
+	RegisterCCBuildComponents(ctx)
+	RegisterLibraryBuildComponents(ctx)
+
+	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
+	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
+	ctx.RegisterModuleType("cc_object", ObjectFactory)
+}
+
 func GatherRequiredDepsForTest(os android.OsType) string {
 	ret := `
 		toolchain_library {
@@ -95,6 +107,14 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			vendor_available: true,
 			recovery_available: true,
 			src: "",
+		}
+
+		// Needed for sanitizer
+		cc_prebuilt_library_shared {
+			name: "libclang_rt.ubsan_standalone-aarch64-android",
+			vendor_available: true,
+			recovery_available: true,
+			srcs: [""],
 		}
 
 		toolchain_library {
@@ -285,33 +305,17 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 func CreateTestContext() *android.TestContext {
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_defaults", defaultsFactory)
 	ctx.RegisterModuleType("cc_binary", BinaryFactory)
 	ctx.RegisterModuleType("cc_binary_host", binaryHostFactory)
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
-	ctx.RegisterModuleType("cc_library", LibraryFactory)
-	ctx.RegisterModuleType("cc_library_shared", LibrarySharedFactory)
-	ctx.RegisterModuleType("cc_library_static", LibraryStaticFactory)
-	ctx.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
-	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
-	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("llndk_headers", llndkHeadersFactory)
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
 	ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
-	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", VndkLibrariesTxtFactory)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("vndk", VndkMutator).Parallel()
-		ctx.BottomUp("version", VersionMutator).Parallel()
-		ctx.BottomUp("begin", BeginMutator).Parallel()
-	})
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
-	})
+	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 

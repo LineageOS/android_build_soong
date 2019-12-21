@@ -68,13 +68,6 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("prebuilts", android.PrebuiltMutator).Parallel()
-	})
-	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_select", android.PrebuiltSelectModuleMutator).Parallel()
-		ctx.BottomUp("prebuilt_postdeps", android.PrebuiltPostDepsMutator).Parallel()
-	})
 	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package
@@ -83,20 +76,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	java.RegisterStubsBuildComponents(ctx)
 
 	// from cc package
-	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
-	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
-	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
-	ctx.RegisterModuleType("cc_object", cc.ObjectFactory)
-	cc.RegisterPrebuiltBuildComponents(ctx)
-	ctx.RegisterModuleType("llndk_library", cc.LlndkLibraryFactory)
-	ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("link", cc.LinkageMutator).Parallel()
-		ctx.BottomUp("vndk", cc.VndkMutator).Parallel()
-		ctx.BottomUp("test_per_src", cc.TestPerSrcMutator).Parallel()
-		ctx.BottomUp("version", cc.VersionMutator).Parallel()
-		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
-	})
+	cc.RegisterRequiredBuildComponentsForTest(ctx)
 
 	// from apex package
 	ctx.RegisterModuleType("apex", apex.BundleFactory)
