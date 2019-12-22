@@ -2924,6 +2924,36 @@ func TestApexWithAppImports(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt/AppFooPrivPrebuilt.apk")
 }
 
+func TestApexWithTestHelperApp(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: [
+				"TesterHelpAppFoo",
+			],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_test_helper_app {
+			name: "TesterHelpAppFoo",
+			srcs: ["foo/bar/MyClass.java"],
+		}
+
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule := module.Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	ensureContains(t, copyCmds, "image.apex/app/TesterHelpAppFoo/TesterHelpAppFoo.apk")
+}
+
 func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
 	// libfoo's apex_available comes from cc_defaults
 	testApexError(t, `"myapex" .*: requires "libfoo" that is not available for the APEX`, `
