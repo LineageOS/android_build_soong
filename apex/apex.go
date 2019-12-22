@@ -1060,6 +1060,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					return true // track transitive dependencies
 				} else if ap, ok := child.(*java.AndroidAppImport); ok {
 					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap, pkgName))
+				} else if ap, ok := child.(*java.AndroidTestHelperApp); ok {
+					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap, pkgName))
 				} else {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
