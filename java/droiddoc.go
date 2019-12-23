@@ -1948,12 +1948,42 @@ type PrebuiltStubsSources struct {
 
 	properties PrebuiltStubsSourcesProperties
 
-	srcs        android.Paths
+	// The source directories containing stubs source files.
+	srcDirs     android.Paths
 	stubsSrcJar android.ModuleOutPath
 }
 
+func (p *PrebuiltStubsSources) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{p.stubsSrcJar}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.srcs = android.PathsForModuleSrc(ctx, p.properties.Srcs)
+	p.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
+
+	p.srcDirs = android.PathsForModuleSrc(ctx, p.properties.Srcs)
+
+	rule := android.NewRuleBuilder()
+	command := rule.Command().
+		BuiltTool(ctx, "soong_zip").
+		Flag("-write_if_changed").
+		Flag("-jar").
+		FlagWithOutput("-o ", p.stubsSrcJar)
+
+	for _, d := range p.srcDirs {
+		dir := d.String()
+		command.
+			FlagWithArg("-C ", dir).
+			FlagWithInput("-D ", d)
+	}
+
+	rule.Restat()
+
+	rule.Build(pctx, ctx, "zip src", "Create srcjar from prebuilt source")
 }
 
 func (p *PrebuiltStubsSources) Prebuilt() *android.Prebuilt {
@@ -1962,10 +1992,6 @@ func (p *PrebuiltStubsSources) Prebuilt() *android.Prebuilt {
 
 func (p *PrebuiltStubsSources) Name() string {
 	return p.prebuilt.Name(p.ModuleBase.Name())
-}
-
-func (p *PrebuiltStubsSources) Srcs() android.Paths {
-	return append(android.Paths{}, p.srcs...)
 }
 
 // prebuilt_stubs_sources imports a set of java source files as if they were
