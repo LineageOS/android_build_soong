@@ -137,9 +137,6 @@ func createLibcoreRules() []Rule {
 		"external/icu",
 		"external/okhttp",
 		"external/wycheproof",
-
-		// Not really a core library but still needs access to same capabilities.
-		"development",
 	}
 
 	// Core library constraints. The sdk_version: "none" can only be used in core library projects.
