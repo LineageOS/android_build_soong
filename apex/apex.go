@@ -884,18 +884,6 @@ func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaLibrary) apex
 	return newApexFile(ctx, fileToCopy, lib.Name(), dirInApex, javaSharedLib, lib)
 }
 
-func apexFileForPrebuiltJavaLibrary(ctx android.BaseModuleContext, java *java.Import) apexFile {
-	dirInApex := "javalib"
-	// The output is only one, but for some reason, ImplementationJars returns Paths, not Path
-	implJars := java.ImplementationJars()
-	if len(implJars) != 1 {
-		panic(fmt.Errorf("java.ImplementationJars() must return single Path, but got: %s",
-			strings.Join(implJars.Strings(), ", ")))
-	}
-	fileToCopy := implJars[0]
-	return newApexFile(ctx, fileToCopy, java.Name(), dirInApex, javaSharedLib, java)
-}
-
 func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt android.PrebuiltEtcModule, depName string) apexFile {
 	dirInApex := filepath.Join("etc", prebuilt.SubDir())
 	fileToCopy := prebuilt.OutputFile()
@@ -1043,13 +1031,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
 					return true // track transitive dependencies
-				} else if javaLib, ok := child.(*java.Import); ok {
-					af := apexFileForPrebuiltJavaLibrary(ctx, javaLib)
-					if !af.Ok() {
-						ctx.PropertyErrorf("java_libs", "%q does not have a jar output", depName)
-					} else {
-						filesInfo = append(filesInfo, af)
-					}
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 				}
