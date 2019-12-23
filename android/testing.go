@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -410,4 +411,34 @@ func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod bluepr
 	data := p.AndroidMk()
 	data.fillInData(config, bpPath, mod)
 	return data
+}
+
+// Normalize the path for testing.
+//
+// If the path is relative to the build directory then return the relative path
+// to avoid tests having to deal with the dynamically generated build directory.
+//
+// Otherwise, return the supplied path as it is almost certainly a source path
+// that is relative to the root of the source tree.
+//
+// The build and source paths should be distinguishable based on their contents.
+func NormalizePathForTesting(path Path) string {
+	p := path.String()
+	if w, ok := path.(WritablePath); ok {
+		rel, err := filepath.Rel(w.buildDir(), p)
+		if err != nil {
+			panic(err)
+		}
+		return rel
+	}
+	return p
+}
+
+func NormalizePathsForTesting(paths Paths) []string {
+	var result []string
+	for _, path := range paths {
+		relative := NormalizePathForTesting(path)
+		result = append(result, relative)
+	}
+	return result
 }
