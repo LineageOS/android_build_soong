@@ -15,8 +15,18 @@
 
 # The extraction might fail for some source files, so run with -k and then check that
 # sufficiently many files were generated.
-build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java
 declare -r out="${OUT_DIR:-out}"
+# Build extraction files for C++ and Java. Build `merge_zips` which we use later.
+build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java
+#Build extraction file for Go files in build/soong directory.
+(cd build/soong;
+ ../../prebuilts/build-tools/linux-x86/bin/go_extractor \
+    --goroot="${PWD}/../../prebuilts/go/linux-x86" \
+    --rules=vnames.go.json \
+    --canonicalize_package_corpus \
+    --output "${out}/soong/all.go.kzip" \
+    ./... )
+
 declare -r kzip_count=$(find "$out" -name '*.kzip' | wc -l)
 (($kzip_count>100000)) || { printf "Too few kzip files were generated: %d\n" $kzip_count; exit 1; }
 
