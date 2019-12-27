@@ -438,10 +438,19 @@ func TestBasicApex(t *testing.T) {
 			system_modules: "none",
 			compile_dex: true,
 			static_libs: ["myotherjar"],
+			libs: ["mysharedjar"],
 		}
 
 		java_library {
 			name: "myotherjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			compile_dex: true,
+		}
+
+		java_library {
+			name: "mysharedjar",
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
@@ -475,12 +484,17 @@ func TestBasicApex(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/javalib/myjar.jar")
 	// .. but not for java libs
 	ensureNotContains(t, copyCmds, "image.apex/javalib/myotherjar.jar")
+	ensureNotContains(t, copyCmds, "image.apex/javalib/msharedjar.jar")
 
 	// Ensure that the platform variant ends with _shared or _common
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common")
+	ensureListContains(t, ctx.ModuleVariantsForTests("mysharedjar"), "android_common")
+
+	// Ensure that dynamic dependency to java libs are not included
+	ensureListNotContains(t, ctx.ModuleVariantsForTests("mysharedjar"), "android_common_myapex")
 
 	// Ensure that all symlinks are present.
 	found_foo_link_64 := false
@@ -700,9 +714,9 @@ func TestApexWithStubs(t *testing.T) {
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
 
 	// Ensure that mylib is linking with the latest version of stubs for mylib2
-	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_3_myapex/mylib2.so")
+	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_3/mylib2.so")
 	// ... and not linking to the non-stub (impl) variant of mylib2
-	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_myapex/mylib2.so")
+	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared/mylib2.so")
 
 	// Ensure that mylib is linking with the non-stub (impl) of mylib3 (because mylib3 is in the same apex)
 	ensureContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_myapex/mylib3.so")
@@ -714,7 +728,7 @@ func TestApexWithStubs(t *testing.T) {
 	ensureNotContains(t, mylib2Cflags, "-include ")
 
 	// Ensure that genstub is invoked with --apex
-	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3_myapex").Rule("genStubSrc").Args["flags"])
+	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3").Rule("genStubSrc").Args["flags"])
 
 	ensureExactContents(t, ctx, "myapex", []string{
 		"lib64/mylib.so",
@@ -780,11 +794,11 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
 
 	// Ensure that mylib is linking with version 10 of libfoo
-	ensureContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_shared_10_myapex/libfoo.so")
+	ensureContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_shared_10/libfoo.so")
 	// ... and not linking to the non-stub (impl) variant of libfoo
-	ensureNotContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_shared_myapex/libfoo.so")
+	ensureNotContains(t, mylibLdFlags, "libfoo/android_arm64_armv8-a_shared/libfoo.so")
 
-	libFooStubsLdFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_10_myapex").Rule("ld").Args["libFlags"]
+	libFooStubsLdFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_10").Rule("ld").Args["libFlags"]
 
 	// Ensure that libfoo stubs is not linking to libbar (since it is a stubs)
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
@@ -996,9 +1010,9 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 
 	// For dependency to libc
 	// Ensure that mylib is linking with the latest version of stubs
-	ensureContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_shared_29_myapex/libc.so")
+	ensureContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_shared_29/libc.so")
 	// ... and not linking to the non-stub (impl) variant
-	ensureNotContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_shared_myapex/libc.so")
+	ensureNotContains(t, mylibLdFlags, "libc/android_arm64_armv8-a_shared/libc.so")
 	// ... Cflags from stub is correctly exported to mylib
 	ensureContains(t, mylibCFlags, "__LIBC_API__=29")
 	ensureContains(t, mylibSharedCFlags, "__LIBC_API__=29")
@@ -1007,17 +1021,17 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 	// Ensure that mylib is linking with the non-stub (impl) variant
 	ensureContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_shared_myapex/libm.so")
 	// ... and not linking to the stub variant
-	ensureNotContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_shared_29_myapex/libm.so")
+	ensureNotContains(t, mylibLdFlags, "libm/android_arm64_armv8-a_shared_29/libm.so")
 	// ... and is not compiling with the stub
 	ensureNotContains(t, mylibCFlags, "__LIBM_API__=29")
 	ensureNotContains(t, mylibSharedCFlags, "__LIBM_API__=29")
 
 	// For dependency to libdl
 	// Ensure that mylib is linking with the specified version of stubs
-	ensureContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_27_myapex/libdl.so")
+	ensureContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_27/libdl.so")
 	// ... and not linking to the other versions of stubs
-	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_28_myapex/libdl.so")
-	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_29_myapex/libdl.so")
+	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_28/libdl.so")
+	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_29/libdl.so")
 	// ... and not linking to the non-stub (impl) variant
 	ensureNotContains(t, mylibLdFlags, "libdl/android_arm64_armv8-a_shared_myapex/libdl.so")
 	// ... Cflags from stub is correctly exported to mylib
