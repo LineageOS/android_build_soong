@@ -16,7 +16,6 @@ package java
 
 import (
 	"android/soong/android"
-	"android/soong/genrule"
 	"fmt"
 	"io"
 	"path"
@@ -35,25 +34,24 @@ const (
 	sdkTestApiSuffix      = ".test"
 	sdkDocsSuffix         = ".docs"
 	sdkXmlFileSuffix      = ".xml"
-	permissionTemplate    = `<?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2018 The Android Open Source Project
-
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
-
-		http://www.apache.org/licenses/LICENSE-2.0
-
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
--->
-<permissions>
-	<library name="%s" file="%s"/>
-</permissions>
-`
+	permissionsTemplate   = `<?xml version="1.0" encoding="utf-8"?>\n` +
+		`<!-- Copyright (C) 2018 The Android Open Source Project\n` +
+		`\n` +
+		`    Licensed under the Apache License, Version 2.0 (the "License");\n` +
+		`    you may not use this file except in compliance with the License.\n` +
+		`    You may obtain a copy of the License at\n` +
+		`\n` +
+		`        http://www.apache.org/licenses/LICENSE-2.0\n` +
+		`\n` +
+		`    Unless required by applicable law or agreed to in writing, software\n` +
+		`    distributed under the License is distributed on an "AS IS" BASIS,\n` +
+		`    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n` +
+		`    See the License for the specific language governing permissions and\n` +
+		`    limitations under the License.\n` +
+		`-->\n` +
+		`<permissions>\n` +
+		`    <library name="%s" file="%s"/>\n` +
+		`</permissions>\n`
 )
 
 type stubsLibraryDependencyTag struct {
@@ -154,7 +152,7 @@ type SdkLibrary struct {
 	systemApiFilePath android.Path
 	testApiFilePath   android.Path
 
-	permissionFile android.Path
+	permissionsFile android.Path
 }
 
 var _ Dependency = (*SdkLibrary)(nil)
@@ -184,9 +182,7 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	module.Library.GenerateAndroidBuildActions(ctx)
 
-	if module.ApexName() != "" {
-		module.buildPermissionFile(ctx)
-	}
+	module.buildPermissionsFile(ctx)
 
 	// Record the paths to the header jars of the library (stubs and impl).
 	// When this java_sdk_library is dependened from others via "libs" property,
@@ -223,19 +219,28 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	})
 }
 
-func (module *SdkLibrary) buildPermissionFile(ctx android.ModuleContext) {
-	xmlContent := strings.ReplaceAll(fmt.Sprintf(permissionTemplate, module.BaseModuleName(), module.implPath()), "\n", "\\n")
-	permissionFile := android.PathForModuleOut(ctx, module.xmlFileName())
+func (module *SdkLibrary) buildPermissionsFile(ctx android.ModuleContext) {
+	xmlContent := fmt.Sprintf(permissionsTemplate, module.BaseModuleName(), module.implPath())
+	permissionsFile := android.PathForModuleOut(ctx, module.xmlFileName())
 
-	rule := android.NewRuleBuilder()
-	rule.Command().Text("echo -e ").Text(proptools.ShellEscape(xmlContent)).Text(">").Output(permissionFile)
-	rule.Build(pctx, ctx, "gen_permission_xml", "Generate permission")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.WriteFile,
+		Output:      permissionsFile,
+		Description: "Generating " + module.BaseModuleName() + " permissions",
+		Args: map[string]string{
+			"content": xmlContent,
+		},
+	})
 
-	module.permissionFile = permissionFile
+	module.permissionsFile = permissionsFile
 }
 
-func (module *SdkLibrary) PermissionFile() android.Path {
-	return module.permissionFile
+func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case ".xml":
+		return android.Paths{module.permissionsFile}, nil
+	}
+	return module.Library.OutputFiles(tag)
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -578,21 +583,6 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
-
-	// genrule to generate the xml file content from the template above
-	// TODO: preserve newlines in the generate xml file. Newlines are being squashed
-	// in the ninja file. Do we need to have an external tool for this?
-	xmlContent := fmt.Sprintf(permissionTemplate, module.BaseModuleName(), module.implPath())
-	genruleProps := struct {
-		Name *string
-		Cmd  *string
-		Out  []string
-	}{}
-	genruleProps.Name = proptools.StringPtr(module.xmlFileName() + "-gen")
-	genruleProps.Cmd = proptools.StringPtr("echo '" + xmlContent + "' > $(out)")
-	genruleProps.Out = []string{module.xmlFileName()}
-	mctx.CreateModule(genrule.GenRuleFactory, &genruleProps)
-
 	// creates a prebuilt_etc module to actually place the xml file under
 	// <partition>/etc/permissions
 	etcProps := struct {
@@ -605,7 +595,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 		System_ext_specific *bool
 	}{}
 	etcProps.Name = proptools.StringPtr(module.xmlFileName())
-	etcProps.Src = proptools.StringPtr(":" + module.xmlFileName() + "-gen")
+	etcProps.Src = proptools.StringPtr(":" + module.BaseModuleName() + "{.xml}")
 	etcProps.Sub_dir = proptools.StringPtr("permissions")
 	if module.SocSpecific() {
 		etcProps.Soc_specific = proptools.BoolPtr(true)
