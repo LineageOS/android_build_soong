@@ -50,6 +50,9 @@ type configImpl struct {
 	targetDevice    string
 	targetDeviceDir string
 
+	// Autodetected
+	totalRAM uint64
+
 	pdkBuild bool
 
 	brokenDupRules    bool
@@ -95,6 +98,8 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Sane default matching ninja
 	ret.parallel = runtime.NumCPU() + 2
 	ret.keepGoing = 1
+
+	ret.totalRAM = detectTotalRAM(ctx)
 
 	ret.parseArgs(ctx, args)
 
@@ -714,6 +719,10 @@ func (c *configImpl) KatiArgs() []string {
 
 func (c *configImpl) Parallel() int {
 	return c.parallel
+}
+
+func (c *configImpl) TotalRAM() uint64 {
+	return c.totalRAM
 }
 
 func (c *configImpl) UseGoma() bool {
