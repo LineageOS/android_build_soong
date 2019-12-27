@@ -3288,8 +3288,8 @@ func TestJavaSDKLibrary(t *testing.T) {
 		"etc/permissions/foo.xml",
 	})
 	// Permission XML should point to the activated path of impl jar of java_sdk_library
-	genXMLCommand := ctx.ModuleForTests("foo", "android_common_myapex").Output("foo.xml").RuleParams.Command
-	ensureContains(t, genXMLCommand, `<library name="foo" file="/apex/myapex/javalib/foo.jar"`)
+	xml := ctx.ModuleForTests("foo", "android_common_myapex").Output("foo.xml")
+	ensureContains(t, xml.Args["content"], `<library name="foo" file="/apex/myapex/javalib/foo.jar"`)
 }
 
 func TestRejectNonInstallableJavaLibrary(t *testing.T) {
