@@ -185,6 +185,8 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		}
 		variations = append(variations, m.apexVariations...)
 
+		defaultVariation := ""
+		mctx.SetDefaultDependencyVariation(&defaultVariation)
 		modules := mctx.CreateVariations(variations...)
 		for i, m := range modules {
 			if availableForPlatform && i == 0 {

@@ -105,7 +105,8 @@ func apexDepsMutator(mctx android.BottomUpMutatorContext) {
 				android.UpdateApexDependency(apexBundleName, depName, directDep)
 			}
 
-			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() {
+			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
+				(directDep || am.DepIsInSameApex(mctx, child)) {
 				am.BuildForApex(apexBundleName)
 				return true
 			} else {
