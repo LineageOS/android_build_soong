@@ -295,7 +295,14 @@ func checkVndkOutput(t *testing.T, ctx *android.TestContext, output string, expe
 func checkVndkLibrariesOutput(t *testing.T, ctx *android.TestContext, module string, expected []string) {
 	t.Helper()
 	vndkLibraries := ctx.ModuleForTests(module, "")
-	output := insertVndkVersion(module, "VER")
+
+	var output string
+	if module != "vndkcorevariant.libraries.txt" {
+		output = insertVndkVersion(module, "VER")
+	} else {
+		output = module
+	}
+
 	checkWriteFileOutput(t, vndkLibraries.Output(output), expected)
 }
 
