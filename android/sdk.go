@@ -237,6 +237,9 @@ type SdkMemberType interface {
 	// The name of the member type property on an sdk module.
 	SdkPropertyName() string
 
+	// True if the member type supports the sdk/sdk_snapshot, false otherwise.
+	UsableWithSdkAndSdkSnapshot() bool
+
 	// Add dependencies from the SDK module to all the variants the member
 	// contributes to the SDK. The exact set of variants required is determined
 	// by the SDK and its properties. The dependencies must be added with the
@@ -262,12 +265,18 @@ type SdkMemberType interface {
 	BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember)
 }
 
+// Base type for SdkMemberType implementations.
 type SdkMemberTypeBase struct {
 	PropertyName string
+	SupportsSdk  bool
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
 	return b.PropertyName
+}
+
+func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
+	return b.SupportsSdk
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
@@ -279,22 +288,8 @@ type SdkMemberTypesRegistry struct {
 	key OnceKey
 }
 
-func (r *SdkMemberTypesRegistry) RegisteredTypes() []SdkMemberType {
-	return r.list
-}
-
-func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
-	// Use the pointer to the registry as the unique key.
-	return NewCustomOnceKey(r)
-}
-
-// The set of registered SdkMemberTypes.
-var SdkMemberTypes = &SdkMemberTypesRegistry{}
-
-// Register an SdkMemberType object to allow them to be used in the sdk and sdk_snapshot module
-// types.
-func RegisterSdkMemberType(memberType SdkMemberType) {
-	oldList := SdkMemberTypes.list
+func (r *SdkMemberTypesRegistry) copyAndAppend(memberType SdkMemberType) *SdkMemberTypesRegistry {
+	oldList := r.list
 
 	// Copy the slice just in case this is being read while being modified, e.g. when testing.
 	list := make([]SdkMemberType, 0, len(oldList)+1)
@@ -319,8 +314,33 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 	key := NewOnceKey(strings.Join(properties, "|"))
 
 	// Create a new registry so the pointer uniquely identifies the set of registered types.
-	SdkMemberTypes = &SdkMemberTypesRegistry{
+	return &SdkMemberTypesRegistry{
 		list: list,
 		key:  key,
+	}
+}
+
+func (r *SdkMemberTypesRegistry) RegisteredTypes() []SdkMemberType {
+	return r.list
+}
+
+func (r *SdkMemberTypesRegistry) UniqueOnceKey() OnceKey {
+	// Use the pointer to the registry as the unique key.
+	return NewCustomOnceKey(r)
+}
+
+// The set of registered SdkMemberTypes, one for sdk module and one for module_exports.
+var ModuleExportsMemberTypes = &SdkMemberTypesRegistry{}
+var SdkMemberTypes = &SdkMemberTypesRegistry{}
+
+// Register an SdkMemberType object to allow them to be used in the sdk and sdk_snapshot module
+// types.
+func RegisterSdkMemberType(memberType SdkMemberType) {
+	// All member types are usable with module_exports.
+	ModuleExportsMemberTypes = ModuleExportsMemberTypes.copyAndAppend(memberType)
+
+	// Only those that explicitly indicate it are usable with sdk.
+	if memberType.UsableWithSdkAndSdkSnapshot() {
+		SdkMemberTypes = SdkMemberTypes.copyAndAppend(memberType)
 	}
 }

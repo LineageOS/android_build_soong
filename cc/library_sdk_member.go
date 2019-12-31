@@ -27,6 +27,7 @@ import (
 var sharedLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
 		PropertyName: "native_shared_libs",
+		SupportsSdk:  true,
 	},
 	prebuiltModuleType: "cc_prebuilt_library_shared",
 	linkTypes:          []string{"shared"},
@@ -35,6 +36,7 @@ var sharedLibrarySdkMemberType = &librarySdkMemberType{
 var staticLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
 		PropertyName: "native_static_libs",
+		SupportsSdk:  true,
 	},
 	prebuiltModuleType: "cc_prebuilt_library_static",
 	linkTypes:          []string{"static"},

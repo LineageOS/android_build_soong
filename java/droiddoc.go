@@ -34,6 +34,9 @@ func init() {
 	android.RegisterSdkMemberType(&droidStubsSdkMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
 			PropertyName: "stubs_sources",
+			// stubs_sources can be used with sdk to provide the source stubs for APIs provided by
+			// the APEX.
+			SupportsSdk: true,
 		},
 	})
 }

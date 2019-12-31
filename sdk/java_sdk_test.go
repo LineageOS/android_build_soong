@@ -214,8 +214,8 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 
 func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 	result := testSdkWithJava(t, `
-		sdk {
-			name: "mysdk",
+		module_exports {
+			name: "myexports",
 			java_libs: ["myjavalib"],
 		}
 
@@ -232,12 +232,12 @@ func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "android_common", "",
+	result.CheckSnapshot("myexports", "android_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 java_import {
-    name: "mysdk_myjavalib@current",
+    name: "myexports_myjavalib@current",
     sdk_member_name: "myjavalib",
     jars: ["java/myjavalib.jar"],
 }
@@ -248,9 +248,9 @@ java_import {
     jars: ["java/myjavalib.jar"],
 }
 
-sdk_snapshot {
-    name: "mysdk@current",
-    java_libs: ["mysdk_myjavalib@current"],
+module_exports_snapshot {
+    name: "myexports@current",
+    java_libs: ["myexports_myjavalib@current"],
 }
 
 `),
@@ -266,8 +266,8 @@ func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
 	SkipIfNotLinux(t)
 
 	result := testSdkWithJava(t, `
-		sdk {
-			name: "mysdk",
+		module_exports {
+			name: "myexports",
 			device_supported: false,
 			host_supported: true,
 			java_libs: ["myjavalib"],
@@ -287,12 +287,12 @@ func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "linux_glibc_common", "",
+	result.CheckSnapshot("myexports", "linux_glibc_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 java_import {
-    name: "mysdk_myjavalib@current",
+    name: "myexports_myjavalib@current",
     sdk_member_name: "myjavalib",
     device_supported: false,
     host_supported: true,
@@ -307,11 +307,11 @@ java_import {
     jars: ["java/myjavalib.jar"],
 }
 
-sdk_snapshot {
-    name: "mysdk@current",
+module_exports_snapshot {
+    name: "myexports@current",
     device_supported: false,
     host_supported: true,
-    java_libs: ["mysdk_myjavalib@current"],
+    java_libs: ["myexports_myjavalib@current"],
 }
 `),
 		checkAllCopyRules(`
@@ -366,8 +366,8 @@ func TestBasicSdkWithDroidstubs(t *testing.T) {
 
 func TestSnapshotWithDroidstubs(t *testing.T) {
 	result := testSdkWithDroidstubs(t, `
-		sdk {
-			name: "mysdk",
+		module_exports {
+			name: "myexports",
 			stubs_sources: ["myjavaapistubs"],
 		}
 
@@ -379,12 +379,12 @@ func TestSnapshotWithDroidstubs(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "android_common", "",
+	result.CheckSnapshot("myexports", "android_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_stubs_sources {
-    name: "mysdk_myjavaapistubs@current",
+    name: "myexports_myjavaapistubs@current",
     sdk_member_name: "myjavaapistubs",
     srcs: ["java/myjavaapistubs_stubs_sources"],
 }
@@ -395,14 +395,14 @@ prebuilt_stubs_sources {
     srcs: ["java/myjavaapistubs_stubs_sources"],
 }
 
-sdk_snapshot {
-    name: "mysdk@current",
-    stubs_sources: ["mysdk_myjavaapistubs@current"],
+module_exports_snapshot {
+    name: "myexports@current",
+    stubs_sources: ["myexports_myjavaapistubs@current"],
 }
 
 `),
 		checkAllCopyRules(""),
-		checkMergeZip(".intermediates/mysdk/android_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
+		checkMergeZip(".intermediates/myexports/android_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
 	)
 }
 
@@ -411,8 +411,8 @@ func TestHostSnapshotWithDroidstubs(t *testing.T) {
 	SkipIfNotLinux(t)
 
 	result := testSdkWithDroidstubs(t, `
-		sdk {
-			name: "mysdk",
+		module_exports {
+			name: "myexports",
 			device_supported: false,
 			host_supported: true,
 			stubs_sources: ["myjavaapistubs"],
@@ -428,12 +428,12 @@ func TestHostSnapshotWithDroidstubs(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "linux_glibc_common", "",
+	result.CheckSnapshot("myexports", "linux_glibc_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_stubs_sources {
-    name: "mysdk_myjavaapistubs@current",
+    name: "myexports_myjavaapistubs@current",
     sdk_member_name: "myjavaapistubs",
     device_supported: false,
     host_supported: true,
@@ -448,14 +448,14 @@ prebuilt_stubs_sources {
     srcs: ["java/myjavaapistubs_stubs_sources"],
 }
 
-sdk_snapshot {
-    name: "mysdk@current",
+module_exports_snapshot {
+    name: "myexports@current",
     device_supported: false,
     host_supported: true,
-    stubs_sources: ["mysdk_myjavaapistubs@current"],
+    stubs_sources: ["myexports_myjavaapistubs@current"],
 }
 `),
 		checkAllCopyRules(""),
-		checkMergeZip(".intermediates/mysdk/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
+		checkMergeZip(".intermediates/myexports/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
 	)
 }
