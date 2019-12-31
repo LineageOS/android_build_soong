@@ -84,8 +84,10 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx.PostDepsMutators(apex.RegisterPostDepsMutators)
 
 	// from this package
-	ctx.RegisterModuleType("sdk", ModuleFactory)
+	ctx.RegisterModuleType("sdk", SdkModuleFactory)
 	ctx.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
+	ctx.RegisterModuleType("module_exports", ModuleExportsFactory)
+	ctx.RegisterModuleType("module_exports_snapshot", ModuleExportsSnapshotsFactory)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 

@@ -508,11 +508,13 @@ bootstrap_go_package {
     ],
     srcs: [
         "sdk/bp.go",
+        "sdk/exports.go",
         "sdk/sdk.go",
         "sdk/update.go",
     ],
     testSrcs: [
         "sdk/cc_sdk_test.go",
+        "sdk/exports_test.go",
         "sdk/java_sdk_test.go",
         "sdk/sdk_test.go",
         "sdk/testing.go",
