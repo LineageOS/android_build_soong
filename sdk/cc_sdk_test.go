@@ -500,8 +500,8 @@ include/Test.h -> include/include/Test.h
 
 func TestSnapshotWithCcStaticLibrary(t *testing.T) {
 	result := testSdkWithCc(t, `
-		sdk {
-			name: "mysdk",
+		module_exports {
+			name: "myexports",
 			native_static_libs: ["mynativelib"],
 		}
 
@@ -520,12 +520,12 @@ func TestSnapshotWithCcStaticLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "android_common", "",
+	result.CheckSnapshot("myexports", "android_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_static {
-    name: "mysdk_mynativelib@current",
+    name: "myexports_mynativelib@current",
     sdk_member_name: "mynativelib",
     export_include_dirs: ["include/include"],
     arch: {
@@ -560,9 +560,9 @@ cc_prebuilt_library_static {
     system_shared_libs: [],
 }
 
-sdk_snapshot {
-    name: "mysdk@current",
-    native_static_libs: ["mysdk_mynativelib@current"],
+module_exports_snapshot {
+    name: "myexports@current",
+    native_static_libs: ["myexports_mynativelib@current"],
 }
 `),
 		checkAllCopyRules(`
@@ -584,8 +584,8 @@ func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
 	SkipIfNotLinux(t)
 
 	result := testSdkWithCc(t, `
-		sdk {
-			name: "mysdk",
+		module_exports {
+			name: "myexports",
 			device_supported: false,
 			host_supported: true,
 			native_static_libs: ["mynativelib"],
@@ -608,12 +608,12 @@ func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "linux_glibc_common", "",
+	result.CheckSnapshot("myexports", "linux_glibc_common", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
 cc_prebuilt_library_static {
-    name: "mysdk_mynativelib@current",
+    name: "myexports_mynativelib@current",
     sdk_member_name: "mynativelib",
     device_supported: false,
     host_supported: true,
@@ -652,11 +652,11 @@ cc_prebuilt_library_static {
     system_shared_libs: [],
 }
 
-sdk_snapshot {
-    name: "mysdk@current",
+module_exports_snapshot {
+    name: "myexports@current",
     device_supported: false,
     host_supported: true,
-    native_static_libs: ["mysdk_mynativelib@current"],
+    native_static_libs: ["myexports_mynativelib@current"],
 }
 `),
 		checkAllCopyRules(`
