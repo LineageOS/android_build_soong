@@ -2463,14 +2463,6 @@ func (c *Module) installable() bool {
 	return c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid()
 }
 
-func (c *Module) IDEInfo(dpInfo *android.IdeInfo) {
-	outputFiles, err := c.OutputFiles("")
-	if err != nil {
-		panic(err)
-	}
-	dpInfo.Srcs = append(dpInfo.Srcs, outputFiles.Strings()...)
-}
-
 func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
