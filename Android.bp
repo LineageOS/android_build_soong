@@ -155,6 +155,7 @@ bootstrap_go_package {
         "cc/androidmk.go",
         "cc/builder.go",
         "cc/cc.go",
+        "cc/ccdeps.go",
         "cc/check.go",
         "cc/coverage.go",
         "cc/gen.go",
