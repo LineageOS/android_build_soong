@@ -42,7 +42,6 @@ func VndkLibrariesTxtModules(vndkVersion string) []string {
 			vndkCoreLibrariesTxt,
 			vndkSpLibrariesTxt,
 			vndkPrivateLibrariesTxt,
-			vndkUsingCoreVariantLibrariesTxt,
 		}
 	}
 	// Snapshot vndks have their own *.libraries.VER.txt files.
@@ -227,7 +226,7 @@ var (
 	vndkSpLibrariesKey               = android.NewOnceKey("vndkSpLibrarires")
 	llndkLibrariesKey                = android.NewOnceKey("llndkLibrarires")
 	vndkPrivateLibrariesKey          = android.NewOnceKey("vndkPrivateLibrarires")
-	vndkUsingCoreVariantLibrariesKey = android.NewOnceKey("vndkUsingCoreVariantLibrarires")
+	vndkUsingCoreVariantLibrariesKey = android.NewOnceKey("vndkUsingCoreVariantLibraries")
 	vndkMustUseVendorVariantListKey  = android.NewOnceKey("vndkMustUseVendorVariantListKey")
 	vndkLibrariesLock                sync.Mutex
 
@@ -445,7 +444,13 @@ func (txt *vndkLibrariesTxt) GenerateAndroidBuildActions(ctx android.ModuleConte
 		return
 	}
 
-	filename := insertVndkVersion(txt.Name(), ctx.DeviceConfig().PlatformVndkVersion())
+	var filename string
+	if txt.Name() != vndkUsingCoreVariantLibrariesTxt {
+		filename = insertVndkVersion(txt.Name(), ctx.DeviceConfig().PlatformVndkVersion())
+	} else {
+		filename = txt.Name()
+	}
+
 	txt.outputFile = android.PathForModuleOut(ctx, filename).OutputPath
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.WriteFile,
