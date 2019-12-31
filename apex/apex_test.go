@@ -1640,7 +1640,6 @@ func TestVndkApexCurrent(t *testing.T) {
 		"etc/vndkcore.libraries.VER.txt",
 		"etc/vndksp.libraries.VER.txt",
 		"etc/vndkprivate.libraries.VER.txt",
-		"etc/vndkcorevariant.libraries.VER.txt",
 	})
 }
 
@@ -1701,7 +1700,7 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 func vndkLibrariesTxtFiles(vers ...string) (result string) {
 	for _, v := range vers {
 		if v == "current" {
-			for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate", "vndkcorevariant"} {
+			for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate"} {
 				result += `
 					vndk_libraries_txt {
 						name: "` + txt + `.libraries.txt",
