@@ -209,7 +209,13 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 
 	// Create the snapshot module.
 	snapshotName := ctx.ModuleName() + string(android.SdkVersionSeparator) + builder.version
-	snapshotModule := bpFile.newModule("sdk_snapshot")
+	var snapshotModuleType string
+	if s.properties.Module_exports {
+		snapshotModuleType = "module_exports_snapshot"
+	} else {
+		snapshotModuleType = "sdk_snapshot"
+	}
+	snapshotModule := bpFile.newModule(snapshotModuleType)
 	snapshotModule.AddProperty("name", snapshotName)
 
 	// Make sure that the snapshot has the same visibility as the sdk.

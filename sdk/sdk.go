@@ -33,7 +33,7 @@ func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java/config")
 
-	android.RegisterModuleType("sdk", ModuleFactory)
+	android.RegisterModuleType("sdk", SdkModuleFactory)
 	android.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
 	android.PreDepsMutators(RegisterPreDepsMutators)
 	android.PostDepsMutators(RegisterPostDepsMutators)
@@ -60,6 +60,9 @@ type sdk struct {
 
 type sdkProperties struct {
 	Snapshot bool `blueprint:"mutated"`
+
+	// True if this is a module_exports (or module_exports_snapshot) module type.
+	Module_exports bool `blueprint:"mutated"`
 }
 
 type sdkMemberDependencyTag struct {
@@ -130,6 +133,7 @@ func getDynamicSdkMemberTypes(registry *android.SdkMemberTypesRegistry) *dynamic
 // * a dependency tag that identifies the member type of a resolved dependency.
 //
 func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynamicSdkMemberTypes {
+
 	var listProperties []*sdkMemberListProperty
 	var fields []reflect.StructField
 
@@ -182,18 +186,25 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 
 // sdk defines an SDK which is a logical group of modules (e.g. native libs, headers, java libs, etc.)
 // which Mainline modules like APEX can choose to build with.
-func ModuleFactory() android.Module {
+func SdkModuleFactory() android.Module {
+	return newSdkModule(false)
+}
+
+func newSdkModule(moduleExports bool) *sdk {
 	s := &sdk{}
-
+	s.properties.Module_exports = moduleExports
 	// Get the dynamic sdk member type data for the currently registered sdk member types.
-	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(android.SdkMemberTypes)
-
+	var registry *android.SdkMemberTypesRegistry
+	if moduleExports {
+		registry = android.ModuleExportsMemberTypes
+	} else {
+		registry = android.SdkMemberTypes
+	}
+	s.dynamicSdkMemberTypes = getDynamicSdkMemberTypes(registry)
 	// Create an instance of the dynamically created struct that contains all the
 	// properties for the member type specific list properties.
 	s.dynamicMemberTypeListProperties = s.dynamicSdkMemberTypes.createMemberListProperties()
-
 	s.AddProperties(&s.properties, s.dynamicMemberTypeListProperties)
-
 	android.InitAndroidMultiTargetsArchModule(s, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(s)
 	android.AddLoadHook(s, func(ctx android.LoadHookContext) {
@@ -208,8 +219,8 @@ func ModuleFactory() android.Module {
 
 // sdk_snapshot is a versioned snapshot of an SDK. This is an auto-generated module.
 func SnapshotModuleFactory() android.Module {
-	s := ModuleFactory()
-	s.(*sdk).properties.Snapshot = true
+	s := newSdkModule(false)
+	s.properties.Snapshot = true
 	return s
 }
 
