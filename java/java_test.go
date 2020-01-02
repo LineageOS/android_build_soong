@@ -486,6 +486,13 @@ func TestPrebuilts(t *testing.T) {
 			name: "stubs-source",
 			srcs: ["stubs/sources"],
 		}
+
+		java_test_import {
+			name: "test",
+			jars: ["a.jar"],
+			test_suites: ["cts"],
+			test_config: "AndroidTest.xml",
+		}
 		`)
 
 	fooModule := ctx.ModuleForTests("foo", "android_common")
