@@ -24,7 +24,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -53,11 +52,6 @@ const (
 		`    <library name="%s" file="%s"/>\n` +
 		`</permissions>\n`
 )
-
-type stubsLibraryDependencyTag struct {
-	blueprint.BaseDependencyTag
-	name string
-}
 
 var (
 	publicApiStubsTag = dependencyTag{name: "public"}
