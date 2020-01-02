@@ -478,7 +478,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 
 // Creates a droiddoc module that creates stubs source files from the given full source
 // files
-func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiScope) {
+func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiScope apiScope) {
 	props := struct {
 		Name                             *string
 		Srcs                             []string
@@ -728,17 +728,17 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 
 	// for public API stubs
 	module.createStubsLibrary(mctx, apiScopePublic)
-	module.createDocs(mctx, apiScopePublic)
+	module.createStubsSources(mctx, apiScopePublic)
 
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
 		// for system API stubs
 		module.createStubsLibrary(mctx, apiScopeSystem)
-		module.createDocs(mctx, apiScopeSystem)
+		module.createStubsSources(mctx, apiScopeSystem)
 
 		// for test API stubs
 		module.createStubsLibrary(mctx, apiScopeTest)
-		module.createDocs(mctx, apiScopeTest)
+		module.createStubsSources(mctx, apiScopeTest)
 
 		// for runtime
 		module.createXmlFile(mctx)
