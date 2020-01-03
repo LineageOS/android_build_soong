@@ -33,38 +33,14 @@ type LoadHookContext interface {
 	CreateModule(ModuleFactory, ...interface{}) Module
 }
 
-// Arch hooks are run after the module has been split into architecture variants, and can be used
-// to add architecture-specific properties.
-type ArchHookContext interface {
-	BaseModuleContext
-	AppendProperties(...interface{})
-	PrependProperties(...interface{})
-}
-
 func AddLoadHook(m blueprint.Module, hook func(LoadHookContext)) {
 	h := &m.(Module).base().hooks
 	h.load = append(h.load, hook)
 }
 
-func AddArchHook(m blueprint.Module, hook func(ArchHookContext)) {
-	h := &m.(Module).base().hooks
-	h.arch = append(h.arch, hook)
-}
-
 func (x *hooks) runLoadHooks(ctx LoadHookContext, m *ModuleBase) {
 	if len(x.load) > 0 {
 		for _, x := range x.load {
-			x(ctx)
-			if ctx.Failed() {
-				return
-			}
-		}
-	}
-}
-
-func (x *hooks) runArchHooks(ctx ArchHookContext, m *ModuleBase) {
-	if len(x.arch) > 0 {
-		for _, x := range x.arch {
 			x(ctx)
 			if ctx.Failed() {
 				return
@@ -119,7 +95,6 @@ func (x *hooks) runInstallHooks(ctx ModuleContext, path InstallPath, symlink boo
 
 type hooks struct {
 	load    []func(LoadHookContext)
-	arch    []func(ArchHookContext)
 	install []func(InstallHookContext)
 }
 
@@ -135,14 +110,5 @@ func LoadHookMutator(ctx TopDownMutatorContext) {
 		// on *topDownMutatorContext but not exposed through TopDownMutatorContext
 		var loadHookCtx LoadHookContext = ctx.(*topDownMutatorContext)
 		m.base().hooks.runLoadHooks(loadHookCtx, m.base())
-	}
-}
-
-func archHookMutator(ctx TopDownMutatorContext) {
-	if m, ok := ctx.Module().(Module); ok {
-		// Cast through *topDownMutatorContext because AppendProperties is implemented
-		// on *topDownMutatorContext but not exposed through TopDownMutatorContext
-		var archHookCtx ArchHookContext = ctx.(*topDownMutatorContext)
-		m.base().hooks.runArchHooks(archHookCtx, m.base())
 	}
 }
