@@ -15,15 +15,16 @@
 # limitations under the License.
 
 if [[ -z "$1" ]]; then
-  echo "usage: $0 <modulePath>" >&2
+  echo "usage: $0 <modulePath> scopes..." >&2
   exit 1
 fi
 
 api_dir=$1/api
+shift
 
 mkdir -p "$api_dir"
 
-scopes=("" system- test-)
+scopes=("" "$@")
 apis=(current removed)
 
 for scope in "${scopes[@]}"; do
@@ -31,3 +32,4 @@ for scope in "${scopes[@]}"; do
     touch "${api_dir}/${scope}${api}.txt"
   done
 done
+
