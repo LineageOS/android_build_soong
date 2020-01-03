@@ -97,7 +97,10 @@ type sdkLibraryProperties struct {
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
 
-	// list of package names that will be documented and publicized as API
+	// list of package names that will be documented and publicized as API.
+	// This allows the API to be restricted to a subset of the source files provided.
+	// If this is unspecified then all the source files will be treated as being part
+	// of the API.
 	Api_packages []string
 
 	// list of package names that must be hidden from the API
@@ -704,11 +707,6 @@ func javaSdkLibraries(config android.Config) *[]string {
 func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 	if len(module.Library.Module.properties.Srcs) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
-		return
-	}
-
-	if len(module.sdkLibraryProperties.Api_packages) == 0 {
-		mctx.PropertyErrorf("api_packages", "java_sdk_library must specify api_packages")
 		return
 	}
 
