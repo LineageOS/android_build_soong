@@ -34,6 +34,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"GENRULE_NOTICE":         nil,
 		"LIB_NOTICE":             nil,
 		"TOOL_NOTICE":            nil,
+		"AndroidTest.xml":        nil,
 		"java-res/a/a":           nil,
 		"java-res/b/b":           nil,
 		"java-res2/a":            nil,

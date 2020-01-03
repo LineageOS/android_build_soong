@@ -24,7 +24,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -53,11 +52,6 @@ const (
 		`    <library name="%s" file="%s"/>\n` +
 		`</permissions>\n`
 )
-
-type stubsLibraryDependencyTag struct {
-	blueprint.BaseDependencyTag
-	name string
-}
 
 var (
 	publicApiStubsTag = dependencyTag{name: "public"}
@@ -131,6 +125,9 @@ type sdkLibraryProperties struct {
 	// don't create dist rules.
 	No_dist *bool `blueprint:"mutated"`
 
+	// indicates whether system and test apis should be managed.
+	Has_system_and_test_apis bool `blueprint:"mutated"`
+
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
 }
@@ -166,8 +163,7 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	ctx.AddVariationDependencies(nil, publicApiFileTag, module.docsName(apiScopePublic))
 
-	sdkDep := decodeSdkDep(ctx, sdkContext(&module.Library))
-	if sdkDep.hasStandardLibs() {
+	if module.sdkLibraryProperties.Has_system_and_test_apis {
 		if useBuiltStubs {
 			ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
 			ctx.AddVariationDependencies(nil, testApiStubsTag, module.stubsName(apiScopeTest))
@@ -484,7 +480,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 
 // Creates a droiddoc module that creates stubs source files from the given full source
 // files
-func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiScope) {
+func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiScope apiScope) {
 	props := struct {
 		Name                             *string
 		Srcs                             []string
@@ -531,21 +527,36 @@ func (module *SdkLibrary) createDocs(mctx android.LoadHookContext, apiScope apiS
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
 	props.Merge_inclusion_annotations_dirs = module.sdkLibraryProperties.Merge_inclusion_annotations_dirs
 
-	droiddocArgs := " --stub-packages " + strings.Join(module.sdkLibraryProperties.Api_packages, ":") +
-		" " + android.JoinWithPrefix(module.sdkLibraryProperties.Hidden_api_packages, " --hide-package ") +
-		" " + android.JoinWithPrefix(module.sdkLibraryProperties.Droiddoc_options, " ") +
-		" --hide MissingPermission --hide BroadcastBehavior " +
-		"--hide HiddenSuperclass --hide DeprecationMismatch --hide UnavailableSymbol " +
-		"--hide SdkConstant --hide HiddenTypeParameter --hide Todo --hide Typo"
+	droiddocArgs := []string{}
+	if len(module.sdkLibraryProperties.Api_packages) != 0 {
+		droiddocArgs = append(droiddocArgs, "--stub-packages "+strings.Join(module.sdkLibraryProperties.Api_packages, ":"))
+	}
+	if len(module.sdkLibraryProperties.Hidden_api_packages) != 0 {
+		droiddocArgs = append(droiddocArgs,
+			android.JoinWithPrefix(module.sdkLibraryProperties.Hidden_api_packages, " --hide-package "))
+	}
+	droiddocArgs = append(droiddocArgs, module.sdkLibraryProperties.Droiddoc_options...)
+	disabledWarnings := []string{
+		"MissingPermission",
+		"BroadcastBehavior",
+		"HiddenSuperclass",
+		"DeprecationMismatch",
+		"UnavailableSymbol",
+		"SdkConstant",
+		"HiddenTypeParameter",
+		"Todo",
+		"Typo",
+	}
+	droiddocArgs = append(droiddocArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
 	switch apiScope {
 	case apiScopeSystem:
-		droiddocArgs = droiddocArgs + " -showAnnotation android.annotation.SystemApi"
+		droiddocArgs = append(droiddocArgs, "-showAnnotation android.annotation.SystemApi")
 	case apiScopeTest:
-		droiddocArgs = droiddocArgs + " -showAnnotation android.annotation.TestApi"
+		droiddocArgs = append(droiddocArgs, " -showAnnotation android.annotation.TestApi")
 	}
 	props.Arg_files = module.sdkLibraryProperties.Droiddoc_option_files
-	props.Args = proptools.StringPtr(droiddocArgs)
+	props.Args = proptools.StringPtr(strings.Join(droiddocArgs, " "))
 
 	// List of APIs identified from the provided source files are created. They are later
 	// compared against to the not-yet-released (a.k.a current) list of APIs and to the
@@ -690,9 +701,22 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 		return
 	}
 
+	// If this builds against standard libraries (i.e. is not part of the core libraries)
+	// then assume it provides both system and test apis. Otherwise, assume it does not and
+	// also assume it does not contribute to the dist build.
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	hasSystemAndTestApis := sdkDep.hasStandardLibs()
+	module.sdkLibraryProperties.Has_system_and_test_apis = hasSystemAndTestApis
+	module.sdkLibraryProperties.No_dist = proptools.BoolPtr(!hasSystemAndTestApis)
+
+	scopes := []string{""}
+	if hasSystemAndTestApis {
+		scopes = append(scopes, "system-", "test-")
+	}
+
 	missing_current_api := false
 
-	for _, scope := range []string{"", "system-", "test-"} {
+	for _, scope := range scopes {
 		for _, api := range []string{"current.txt", "removed.txt"} {
 			path := path.Join(mctx.ModuleDir(), "api", scope+api)
 			p := android.ExistentPathForSource(mctx, path)
@@ -713,23 +737,23 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 
 		mctx.ModuleErrorf("One or more current api files are missing. "+
 			"You can update them by:\n"+
-			"%s %q && m update-api", script, mctx.ModuleDir())
+			"%s %q %s && m update-api",
+			script, mctx.ModuleDir(), strings.Join(scopes, " "))
 		return
 	}
 
 	// for public API stubs
 	module.createStubsLibrary(mctx, apiScopePublic)
-	module.createDocs(mctx, apiScopePublic)
+	module.createStubsSources(mctx, apiScopePublic)
 
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
-	if sdkDep.hasStandardLibs() {
+	if hasSystemAndTestApis {
 		// for system API stubs
 		module.createStubsLibrary(mctx, apiScopeSystem)
-		module.createDocs(mctx, apiScopeSystem)
+		module.createStubsSources(mctx, apiScopeSystem)
 
 		// for test API stubs
 		module.createStubsLibrary(mctx, apiScopeTest)
-		module.createDocs(mctx, apiScopeTest)
+		module.createStubsSources(mctx, apiScopeTest)
 
 		// for runtime
 		module.createXmlFile(mctx)
