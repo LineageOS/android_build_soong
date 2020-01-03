@@ -112,8 +112,10 @@ func (cp *criticalPath) Flush() {
 		if !cp.start.IsZero() {
 			elapsedTime := cp.end.Sub(cp.start).Round(time.Second)
 			cp.log.Verbosef("elapsed time %s", elapsedTime.String())
-			cp.log.Verbosef("perfect parallelism ratio %d%%",
-				int(float64(criticalTime)/float64(elapsedTime)*100))
+			if elapsedTime > 0 {
+				cp.log.Verbosef("perfect parallelism ratio %d%%",
+					int(float64(criticalTime)/float64(elapsedTime)*100))
+			}
 		}
 		cp.log.Verbose("critical path:")
 		for i := len(criticalPath) - 1; i >= 0; i-- {
