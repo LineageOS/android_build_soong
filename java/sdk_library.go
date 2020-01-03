@@ -125,6 +125,9 @@ type sdkLibraryProperties struct {
 	// don't create dist rules.
 	No_dist *bool `blueprint:"mutated"`
 
+	// indicates whether system and test apis should be managed.
+	Has_system_and_test_apis bool `blueprint:"mutated"`
+
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
 }
@@ -160,8 +163,7 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	ctx.AddVariationDependencies(nil, publicApiFileTag, module.docsName(apiScopePublic))
 
-	sdkDep := decodeSdkDep(ctx, sdkContext(&module.Library))
-	if sdkDep.hasStandardLibs() {
+	if module.sdkLibraryProperties.Has_system_and_test_apis {
 		if useBuiltStubs {
 			ctx.AddVariationDependencies(nil, systemApiStubsTag, module.stubsName(apiScopeSystem))
 			ctx.AddVariationDependencies(nil, testApiStubsTag, module.stubsName(apiScopeTest))
@@ -699,9 +701,22 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 		return
 	}
 
+	// If this builds against standard libraries (i.e. is not part of the core libraries)
+	// then assume it provides both system and test apis. Otherwise, assume it does not and
+	// also assume it does not contribute to the dist build.
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	hasSystemAndTestApis := sdkDep.hasStandardLibs()
+	module.sdkLibraryProperties.Has_system_and_test_apis = hasSystemAndTestApis
+	module.sdkLibraryProperties.No_dist = proptools.BoolPtr(!hasSystemAndTestApis)
+
+	scopes := []string{""}
+	if hasSystemAndTestApis {
+		scopes = append(scopes, "system-", "test-")
+	}
+
 	missing_current_api := false
 
-	for _, scope := range []string{"", "system-", "test-"} {
+	for _, scope := range scopes {
 		for _, api := range []string{"current.txt", "removed.txt"} {
 			path := path.Join(mctx.ModuleDir(), "api", scope+api)
 			p := android.ExistentPathForSource(mctx, path)
@@ -722,7 +737,8 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 
 		mctx.ModuleErrorf("One or more current api files are missing. "+
 			"You can update them by:\n"+
-			"%s %q && m update-api", script, mctx.ModuleDir())
+			"%s %q %s && m update-api",
+			script, mctx.ModuleDir(), strings.Join(scopes, " "))
 		return
 	}
 
@@ -730,8 +746,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 	module.createStubsLibrary(mctx, apiScopePublic)
 	module.createStubsSources(mctx, apiScopePublic)
 
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
-	if sdkDep.hasStandardLibs() {
+	if hasSystemAndTestApis {
 		// for system API stubs
 		module.createStubsLibrary(mctx, apiScopeSystem)
 		module.createStubsSources(mctx, apiScopeSystem)
