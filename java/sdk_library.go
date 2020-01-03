@@ -358,7 +358,7 @@ func (module *SdkLibrary) xmlFileName() string {
 // SDK version that the stubs library is built against. Note that this is always
 // *current. Older stubs library built with a numberd SDK version is created from
 // the prebuilt jar.
-func (module *SdkLibrary) sdkVersion(apiScope apiScope) string {
+func (module *SdkLibrary) sdkVersionForScope(apiScope apiScope) string {
 	switch apiScope {
 	case apiScopePublic:
 		return "current"
@@ -368,6 +368,18 @@ func (module *SdkLibrary) sdkVersion(apiScope apiScope) string {
 		return "test_current"
 	default:
 		return "current"
+	}
+}
+
+// Get the sdk version for use when compiling the stubs library.
+func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.BaseModuleContext, apiScope apiScope) string {
+	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	if sdkDep.hasStandardLibs() {
+		// If building against a standard sdk then use the sdk version appropriate for the scope.
+		return module.sdkVersionForScope(apiScope)
+	} else {
+		// Otherwise, use no system module.
+		return "none"
 	}
 }
 
@@ -419,13 +431,13 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		Name                *string
 		Srcs                []string
 		Sdk_version         *string
+		System_modules      *string
 		Libs                []string
 		Soc_specific        *bool
 		Device_specific     *bool
 		Product_specific    *bool
 		System_ext_specific *bool
 		Compile_dex         *bool
-		System_modules      *string
 		Java_version        *string
 		Product_variables   struct {
 			Unbundled_build struct {
@@ -441,23 +453,18 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		}
 	}{}
 
-	sdkVersion := module.sdkVersion(apiScope)
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
-	if !sdkDep.hasStandardLibs() {
-		sdkVersion = "none"
-	}
-
 	props.Name = proptools.StringPtr(module.stubsName(apiScope))
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.docsName(apiScope)}
+	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
+	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	// Unbundled apps will use the prebult one from /prebuilts/sdk
 	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
 	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
-	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Openjdk9.Srcs = module.Library.Module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.Library.Module.properties.Openjdk9.Javacflags
 	props.Java_version = module.Library.Module.properties.Java_version
@@ -486,6 +493,7 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		Srcs                             []string
 		Installable                      *bool
 		Sdk_version                      *string
+		System_modules                   *string
 		Libs                             []string
 		Arg_files                        []string
 		Args                             *string
@@ -507,6 +515,8 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	}{}
 
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	// Use the platform API if standard libraries were requested, otherwise use
+	// no default libraries.
 	sdkVersion := ""
 	if !sdkDep.hasStandardLibs() {
 		sdkVersion = "none"
@@ -515,6 +525,7 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
+	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
 	// A droiddoc module has only one Libs property and doesn't distinguish between
 	// shared libs and static libs. So we need to add both of these libs to Libs property.
