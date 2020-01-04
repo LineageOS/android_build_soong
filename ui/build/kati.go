@@ -153,6 +153,7 @@ func runKatiBuild(ctx Context, config Config) {
 	runKati(ctx, config, katiBuildSuffix, args, func(env *Environment) {})
 
 	cleanCopyHeaders(ctx, config)
+	cleanOldInstalledFiles(ctx, config)
 }
 
 func cleanCopyHeaders(ctx Context, config Config) {
@@ -190,6 +191,23 @@ func cleanCopyHeaders(ctx Context, config Config) {
 			}
 			return nil
 		})
+}
+
+func cleanOldInstalledFiles(ctx Context, config Config) {
+	ctx.BeginTrace("clean", "clean old installed files")
+	defer ctx.EndTrace()
+
+	// We shouldn't be removing files from one side of the two-step asan builds
+	var suffix string
+	if v, ok := config.Environment().Get("SANITIZE_TARGET"); ok {
+		if sanitize := strings.Fields(v); inList("address", sanitize) {
+			suffix = "_asan"
+		}
+	}
+
+	cleanOldFiles(ctx, config.ProductOut(), ".installable_files"+suffix)
+
+	cleanOldFiles(ctx, config.HostOut(), ".installable_test_files")
 }
 
 func runKatiPackage(ctx Context, config Config) {
