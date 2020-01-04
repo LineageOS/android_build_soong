@@ -93,7 +93,9 @@ func runNinja(ctx Context, config Config) {
 	//
 	// For the majority of cases, either Soong or the makefiles should be replicating any
 	// necessary environment variables in the command line of each action that needs it.
-	if cmd.Environment.IsFalse("ALLOW_NINJA_ENV") {
+	if cmd.Environment.IsEnvTrue("ALLOW_NINJA_ENV") {
+		ctx.Println("Allowing all environment variables during ninja; incremental builds may be unsafe.")
+	} else {
 		cmd.Environment.Allow(append([]string{
 			"ASAN_SYMBOLIZER_PATH",
 			"HOME",
