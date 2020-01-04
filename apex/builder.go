@@ -105,6 +105,7 @@ var (
 			`${apexer} --force --manifest ${manifest} ` +
 			`--file_contexts ${file_contexts} ` +
 			`--canned_fs_config ${canned_fs_config} ` +
+			`--include_build_info ` +
 			`--payload_type image ` +
 			`--key ${key} ${opt_flags} ${image_dir} ${out} `,
 		CommandDeps: []string{"${apexer}", "${avbtool}", "${e2fsdroid}", "${merge_zips}",
@@ -378,7 +379,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeFile.String()))
 		}
 
-		if ctx.ModuleDir() != "system/apex/apexd/apexd_testdata" && a.testOnlyShouldSkipHashtreeGeneration() {
+		if ctx.ModuleDir() != "system/apex/apexd/apexd_testdata" && ctx.ModuleDir() != "system/apex/shim/build" && a.testOnlyShouldSkipHashtreeGeneration() {
 			ctx.PropertyErrorf("test_only_no_hashtree", "not available")
 			return
 		}
