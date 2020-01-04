@@ -55,8 +55,9 @@ type configImpl struct {
 
 	pdkBuild bool
 
-	brokenDupRules    bool
-	brokenUsesNetwork bool
+	brokenDupRules     bool
+	brokenUsesNetwork  bool
+	brokenNinjaEnvVars []string
 
 	pathReplaced bool
 }
@@ -905,6 +906,14 @@ func (c *configImpl) SetBuildBrokenUsesNetwork(val bool) {
 
 func (c *configImpl) BuildBrokenUsesNetwork() bool {
 	return c.brokenUsesNetwork
+}
+
+func (c *configImpl) SetBuildBrokenNinjaUsesEnvVars(val []string) {
+	c.brokenNinjaEnvVars = val
+}
+
+func (c *configImpl) BuildBrokenNinjaUsesEnvVars() []string {
+	return c.brokenNinjaEnvVars
 }
 
 func (c *configImpl) SetTargetDeviceDir(dir string) {
