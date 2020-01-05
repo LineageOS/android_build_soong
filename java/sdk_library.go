@@ -106,6 +106,10 @@ type sdkLibraryProperties struct {
 	// list of package names that must be hidden from the API
 	Hidden_api_packages []string
 
+	// the relative path to the directory containing the api specification files.
+	// Defaults to "api".
+	Api_dir *string
+
 	// local files that are used within user customized droiddoc options.
 	Droiddoc_option_files []string
 
@@ -585,8 +589,9 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		currentApiFileName = "test-" + currentApiFileName
 		removedApiFileName = "test-" + removedApiFileName
 	}
-	currentApiFileName = path.Join("api", currentApiFileName)
-	removedApiFileName = path.Join("api", removedApiFileName)
+	apiDir := module.getApiDir()
+	currentApiFileName = path.Join(apiDir, currentApiFileName)
+	removedApiFileName = path.Join(apiDir, removedApiFileName)
 	// TODO(jiyong): remove these three props
 	props.Api_tag_name = proptools.StringPtr(module.apiTagName(apiScope))
 	props.Api_filename = proptools.StringPtr(currentApiFileName)
@@ -701,6 +706,10 @@ func javaSdkLibraries(config android.Config) *[]string {
 	}).(*[]string)
 }
 
+func (module *SdkLibrary) getApiDir() string {
+	return proptools.StringDefault(module.sdkLibraryProperties.Api_dir, "api")
+}
+
 // For a java_sdk_library module, create internal modules for stubs, docs,
 // runtime libs and xml file. If requested, the stubs and docs are created twice
 // once for public API level and once for system API level
@@ -725,9 +734,10 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 
 	missing_current_api := false
 
+	apiDir := module.getApiDir()
 	for _, scope := range scopes {
 		for _, api := range []string{"current.txt", "removed.txt"} {
-			path := path.Join(mctx.ModuleDir(), "api", scope+api)
+			path := path.Join(mctx.ModuleDir(), apiDir, scope+api)
 			p := android.ExistentPathForSource(mctx, path)
 			if !p.Valid() {
 				mctx.ModuleErrorf("Current api file %#v doesn't exist", path)
@@ -747,7 +757,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 		mctx.ModuleErrorf("One or more current api files are missing. "+
 			"You can update them by:\n"+
 			"%s %q %s && m update-api",
-			script, mctx.ModuleDir(), strings.Join(scopes, " "))
+			script, filepath.Join(mctx.ModuleDir(), apiDir), strings.Join(scopes, " "))
 		return
 	}
 
