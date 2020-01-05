@@ -110,6 +110,9 @@ type sdkLibraryProperties struct {
 	// Defaults to "api".
 	Api_dir *string
 
+	// If set to true there is no runtime library.
+	Api_only *bool
+
 	// local files that are used within user customized droiddoc options.
 	Droiddoc_option_files []string
 
@@ -183,7 +186,10 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	module.Library.GenerateAndroidBuildActions(ctx)
+	// Don't build an implementation library if this is api only.
+	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		module.Library.GenerateAndroidBuildActions(ctx)
+	}
 
 	module.buildPermissionsFile(ctx)
 
@@ -247,6 +253,9 @@ func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	if proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		return nil
+	}
 	entriesList := module.Library.AndroidMkEntries()
 	entries := &entriesList[0]
 	entries.Required = append(entries.Required, module.xmlFileName())
@@ -773,16 +782,18 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 		// for test API stubs
 		module.createStubsLibrary(mctx, apiScopeTest)
 		module.createStubsSources(mctx, apiScopeTest)
-
-		// for runtime
-		module.createXmlFile(mctx)
 	}
 
-	// record java_sdk_library modules so that they are exported to make
-	javaSdkLibraries := javaSdkLibraries(mctx.Config())
-	javaSdkLibrariesLock.Lock()
-	defer javaSdkLibrariesLock.Unlock()
-	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
+	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		// for runtime
+		module.createXmlFile(mctx)
+
+		// record java_sdk_library modules so that they are exported to make
+		javaSdkLibraries := javaSdkLibraries(mctx.Config())
+		javaSdkLibrariesLock.Lock()
+		defer javaSdkLibrariesLock.Unlock()
+		*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
+	}
 }
 
 func (module *SdkLibrary) InitSdkLibraryProperties() {
