@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -65,8 +66,6 @@ func runNinja(ctx Context, config Config) {
 		cmd.Environment.AppendFromKati(config.KatiEnvFile())
 	}
 
-	cmd.Environment.Set("DIST_DIR", config.DistDir())
-
 	// Allow both NINJA_ARGS and NINJA_EXTRA_ARGS, since both have been
 	// used in the past to specify extra ninja arguments.
 	if extra, ok := cmd.Environment.Get("NINJA_ARGS"); ok {
@@ -85,6 +84,71 @@ func runNinja(ctx Context, config Config) {
 			ninjaHeartbeatDuration = overrideDuration
 		}
 	}
+
+	// Filter the environment, as ninja does not rebuild files when environment variables change.
+	//
+	// Anything listed here must not change the output of rules/actions when the value changes,
+	// otherwise incremental builds may be unsafe. Vars explicitly set to stable values
+	// elsewhere in soong_ui are fine.
+	//
+	// For the majority of cases, either Soong or the makefiles should be replicating any
+	// necessary environment variables in the command line of each action that needs it.
+	if cmd.Environment.IsEnvTrue("ALLOW_NINJA_ENV") {
+		ctx.Println("Allowing all environment variables during ninja; incremental builds may be unsafe.")
+	} else {
+		cmd.Environment.Allow(append([]string{
+			"ASAN_SYMBOLIZER_PATH",
+			"HOME",
+			"JAVA_HOME",
+			"LANG",
+			"LC_MESSAGES",
+			"OUT_DIR",
+			"PATH",
+			"PWD",
+			"PYTHONDONTWRITEBYTECODE",
+			"TMPDIR",
+			"USER",
+
+			// TODO: remove these carefully
+			"TARGET_BUILD_APPS",
+			"TARGET_BUILD_VARIANT",
+			"TARGET_PRODUCT",
+
+			// Goma -- gomacc may not need all of these
+			"GOMA_DIR",
+			"GOMA_DISABLED",
+			"GOMA_FAIL_FAST",
+			"GOMA_FALLBACK",
+			"GOMA_GCE_SERVICE_ACCOUNT",
+			"GOMA_TMP_DIR",
+			"GOMA_USE_LOCAL",
+
+			// RBE client
+			"FLAG_exec_root",
+			"FLAG_exec_strategy",
+			"FLAG_invocation_id",
+			"FLAG_log_dir",
+			"FLAG_platform",
+			"FLAG_server_address",
+
+			// ccache settings
+			"CCACHE_COMPILERCHECK",
+			"CCACHE_SLOPPINESS",
+			"CCACHE_BASEDIR",
+			"CCACHE_CPP2",
+		}, config.BuildBrokenNinjaUsesEnvVars()...)...)
+	}
+
+	cmd.Environment.Set("DIST_DIR", config.DistDir())
+	cmd.Environment.Set("SHELL", "/bin/bash")
+
+	ctx.Verboseln("Ninja environment: ")
+	envVars := cmd.Environment.Environ()
+	sort.Strings(envVars)
+	for _, envVar := range envVars {
+		ctx.Verbosef("  %s", envVar)
+	}
+
 	// Poll the ninja log for updates; if it isn't updated enough, then we want to show some diagnostics
 	done := make(chan struct{})
 	defer close(done)
