@@ -110,6 +110,7 @@ func runNinja(ctx Context, config Config) {
 			"USER",
 
 			// TODO: remove these carefully
+			"ASAN_OPTIONS",
 			"TARGET_BUILD_APPS",
 			"TARGET_BUILD_VARIANT",
 			"TARGET_PRODUCT",
