@@ -446,6 +446,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	props := struct {
 		Name                *string
 		Srcs                []string
+		Installable         *bool
 		Sdk_version         *string
 		System_modules      *string
 		Libs                []string
@@ -475,6 +476,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
+	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	// Unbundled apps will use the prebult one from /prebuilts/sdk
 	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
