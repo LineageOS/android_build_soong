@@ -37,8 +37,6 @@ func NewTestContext() *TestContext {
 
 	ctx.SetNameInterface(nameResolver)
 
-	ctx.preArch = append(ctx.preArch, registerLoadHookMutator)
-
 	ctx.postDeps = append(ctx.postDeps, registerPathDepsMutator)
 
 	return ctx
@@ -54,6 +52,7 @@ type TestContext struct {
 	*Context
 	preArch, preDeps, postDeps []RegisterMutatorFunc
 	NameResolver               *NameResolver
+	config                     Config
 }
 
 func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
@@ -76,6 +75,20 @@ func (ctx *TestContext) Register(config Config) {
 	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
+
+	ctx.config = config
+}
+
+func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {
+	// This function adapts the old style ParseFileList calls that are spread throughout the tests
+	// to the new style that takes a config.
+	return ctx.Context.ParseFileList(rootDir, filePaths, ctx.config)
+}
+
+func (ctx *TestContext) ParseBlueprintsFiles(rootDir string) (deps []string, errs []error) {
+	// This function adapts the old style ParseBlueprintsFiles calls that are spread throughout the
+	// tests to the new style that takes a config.
+	return ctx.Context.ParseBlueprintsFiles(rootDir, ctx.config)
 }
 
 func (ctx *TestContext) RegisterModuleType(name string, factory ModuleFactory) {
