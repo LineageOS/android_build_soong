@@ -19,7 +19,12 @@ import (
 )
 
 func init() {
+	android.RegisterSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
 	android.RegisterModuleType("platform_compat_config", platformCompatConfigFactory)
+}
+
+type platformCompatConfigSingleton struct {
+	metadata android.Path
 }
 
 type platformCompatConfigProperties struct {
@@ -33,6 +38,46 @@ type platformCompatConfig struct {
 	installDirPath android.InstallPath
 	configFile     android.OutputPath
 	metadataFile   android.OutputPath
+}
+
+func (p *platformCompatConfig) compatConfigMetadata() android.OutputPath {
+	return p.metadataFile
+}
+
+type platformCompatConfigIntf interface {
+	compatConfigMetadata() android.OutputPath
+}
+
+var _ platformCompatConfigIntf = (*platformCompatConfig)(nil)
+
+// compat singleton rules
+func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+
+	var compatConfigMetadata android.Paths
+
+	ctx.VisitAllModules(func(module android.Module) {
+		if c, ok := module.(platformCompatConfigIntf); ok {
+			metadata := c.compatConfigMetadata()
+			compatConfigMetadata = append(compatConfigMetadata, metadata)
+		}
+	})
+
+	if compatConfigMetadata == nil {
+		// nothing to do.
+		return
+	}
+
+	rule := android.NewRuleBuilder()
+	outputPath := android.PathForOutput(ctx, "compat_config", "merged_compat_config.xml")
+
+	rule.Command().
+		BuiltTool(ctx, "process-compat-config").
+		FlagForEachInput("--xml ", compatConfigMetadata).
+		FlagWithOutput("--merged-config ", outputPath)
+
+	rule.Build(pctx, ctx, "merged-compat-config", "Merge compat config")
+
+	p.metadata = outputPath
 }
 
 func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -67,6 +112,10 @@ func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+func platformCompatConfigSingletonFactory() android.Singleton {
+	return &platformCompatConfigSingleton{}
 }
 
 func platformCompatConfigFactory() android.Module {
