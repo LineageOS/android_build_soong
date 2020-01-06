@@ -388,7 +388,7 @@ func (module *SdkLibrary) sdkVersionForScope(apiScope apiScope) string {
 }
 
 // Get the sdk version for use when compiling the stubs library.
-func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.BaseModuleContext, apiScope apiScope) string {
+func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.LoadHookContext, apiScope apiScope) string {
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
 		// If building against a standard sdk then use the sdk version appropriate for the scope.

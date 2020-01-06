@@ -897,7 +897,7 @@ func (a *AndroidAppImport) processVariants(ctx android.LoadHookContext) {
 	MergePropertiesFromVariant(ctx, &a.properties, archProps, archType.Name)
 }
 
-func MergePropertiesFromVariant(ctx android.BaseModuleContext,
+func MergePropertiesFromVariant(ctx android.EarlyModuleContext,
 	dst interface{}, variantGroup reflect.Value, variant string) {
 	src := variantGroup.FieldByName(proptools.FieldNameForProperty(variant))
 	if !src.IsValid() {
