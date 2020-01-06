@@ -953,7 +953,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	}
 }
 
-func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleKind {
+func determineModuleKind(m *ModuleBase, ctx blueprint.EarlyModuleContext) moduleKind {
 	var socSpecific = Bool(m.commonProperties.Vendor) || Bool(m.commonProperties.Proprietary) || Bool(m.commonProperties.Soc_specific)
 	var deviceSpecific = Bool(m.commonProperties.Device_specific)
 	var productSpecific = Bool(m.commonProperties.Product_specific)
@@ -1012,11 +1012,11 @@ func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 	}
 }
 
-func (m *ModuleBase) earlyModuleContextFactory(ctx blueprint.BaseModuleContext) earlyModuleContext {
+func (m *ModuleBase) earlyModuleContextFactory(ctx blueprint.EarlyModuleContext) earlyModuleContext {
 	return earlyModuleContext{
-		BaseModuleContext: ctx,
-		kind:              determineModuleKind(m, ctx),
-		config:            ctx.Config().(Config),
+		EarlyModuleContext: ctx,
+		kind:               determineModuleKind(m, ctx),
+		config:             ctx.Config().(Config),
 	}
 }
 
@@ -1134,7 +1134,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 }
 
 type earlyModuleContext struct {
-	blueprint.BaseModuleContext
+	blueprint.EarlyModuleContext
 
 	kind   moduleKind
 	config Config
@@ -1157,12 +1157,12 @@ func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Pa
 }
 
 func (e *earlyModuleContext) Module() Module {
-	module, _ := e.BaseModuleContext.Module().(Module)
+	module, _ := e.EarlyModuleContext.Module().(Module)
 	return module
 }
 
 func (e *earlyModuleContext) Config() Config {
-	return e.BaseModuleContext.Config().(Config)
+	return e.EarlyModuleContext.Config().(Config)
 }
 
 func (e *earlyModuleContext) AConfig() Config {
