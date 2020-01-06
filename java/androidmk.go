@@ -613,7 +613,7 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 					fmt.Fprintln(w, dstubs.Name()+"-check-last-released-api:",
 						dstubs.checkLastReleasedApiTimestamp.String())
 
-					if dstubs.Name() == "api-stubs-docs" || dstubs.Name() == "system-api-stubs-docs" {
+					if dstubs.Name() != "android.car-system-stubs-docs" {
 						fmt.Fprintln(w, ".PHONY: checkapi")
 						fmt.Fprintln(w, "checkapi:",
 							dstubs.checkLastReleasedApiTimestamp.String())
