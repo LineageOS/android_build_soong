@@ -28,6 +28,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.audio@4.0",
 	"android.hardware.audio@5.0",
 	"android.hardware.automotive.evs@1.0",
+	"android.hardware.automotive.occupant_awareness-ndk_platform",
 	"android.hardware.automotive.vehicle@2.0",
 	"android.hardware.bluetooth.audio@2.0",
 	"android.hardware.boot@1.0",
