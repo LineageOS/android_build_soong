@@ -19,7 +19,7 @@ if [[ -z "$1" ]]; then
   exit 1
 fi
 
-api_dir=$1/api
+api_dir=$1
 shift
 
 mkdir -p "$api_dir"

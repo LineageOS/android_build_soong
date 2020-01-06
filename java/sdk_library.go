@@ -106,6 +106,13 @@ type sdkLibraryProperties struct {
 	// list of package names that must be hidden from the API
 	Hidden_api_packages []string
 
+	// the relative path to the directory containing the api specification files.
+	// Defaults to "api".
+	Api_dir *string
+
+	// If set to true there is no runtime library.
+	Api_only *bool
+
 	// local files that are used within user customized droiddoc options.
 	Droiddoc_option_files []string
 
@@ -179,7 +186,10 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	module.Library.GenerateAndroidBuildActions(ctx)
+	// Don't build an implementation library if this is api only.
+	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		module.Library.GenerateAndroidBuildActions(ctx)
+	}
 
 	module.buildPermissionsFile(ctx)
 
@@ -243,6 +253,9 @@ func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	if proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		return nil
+	}
 	entriesList := module.Library.AndroidMkEntries()
 	entries := &entriesList[0]
 	entries.Required = append(entries.Required, module.xmlFileName())
@@ -433,6 +446,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	props := struct {
 		Name                *string
 		Srcs                []string
+		Installable         *bool
 		Sdk_version         *string
 		System_modules      *string
 		Libs                []string
@@ -462,6 +476,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
+	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	// Unbundled apps will use the prebult one from /prebuilts/sdk
 	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
@@ -585,8 +600,9 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		currentApiFileName = "test-" + currentApiFileName
 		removedApiFileName = "test-" + removedApiFileName
 	}
-	currentApiFileName = path.Join("api", currentApiFileName)
-	removedApiFileName = path.Join("api", removedApiFileName)
+	apiDir := module.getApiDir()
+	currentApiFileName = path.Join(apiDir, currentApiFileName)
+	removedApiFileName = path.Join(apiDir, removedApiFileName)
 	// TODO(jiyong): remove these three props
 	props.Api_tag_name = proptools.StringPtr(module.apiTagName(apiScope))
 	props.Api_filename = proptools.StringPtr(currentApiFileName)
@@ -701,6 +717,10 @@ func javaSdkLibraries(config android.Config) *[]string {
 	}).(*[]string)
 }
 
+func (module *SdkLibrary) getApiDir() string {
+	return proptools.StringDefault(module.sdkLibraryProperties.Api_dir, "api")
+}
+
 // For a java_sdk_library module, create internal modules for stubs, docs,
 // runtime libs and xml file. If requested, the stubs and docs are created twice
 // once for public API level and once for system API level
@@ -725,9 +745,10 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 
 	missing_current_api := false
 
+	apiDir := module.getApiDir()
 	for _, scope := range scopes {
 		for _, api := range []string{"current.txt", "removed.txt"} {
-			path := path.Join(mctx.ModuleDir(), "api", scope+api)
+			path := path.Join(mctx.ModuleDir(), apiDir, scope+api)
 			p := android.ExistentPathForSource(mctx, path)
 			if !p.Valid() {
 				mctx.ModuleErrorf("Current api file %#v doesn't exist", path)
@@ -747,7 +768,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 		mctx.ModuleErrorf("One or more current api files are missing. "+
 			"You can update them by:\n"+
 			"%s %q %s && m update-api",
-			script, mctx.ModuleDir(), strings.Join(scopes, " "))
+			script, filepath.Join(mctx.ModuleDir(), apiDir), strings.Join(scopes, " "))
 		return
 	}
 
@@ -763,16 +784,18 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
 		// for test API stubs
 		module.createStubsLibrary(mctx, apiScopeTest)
 		module.createStubsSources(mctx, apiScopeTest)
-
-		// for runtime
-		module.createXmlFile(mctx)
 	}
 
-	// record java_sdk_library modules so that they are exported to make
-	javaSdkLibraries := javaSdkLibraries(mctx.Config())
-	javaSdkLibrariesLock.Lock()
-	defer javaSdkLibrariesLock.Unlock()
-	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
+	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		// for runtime
+		module.createXmlFile(mctx)
+
+		// record java_sdk_library modules so that they are exported to make
+		javaSdkLibraries := javaSdkLibraries(mctx.Config())
+		javaSdkLibrariesLock.Lock()
+		defer javaSdkLibrariesLock.Unlock()
+		*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
+	}
 }
 
 func (module *SdkLibrary) InitSdkLibraryProperties() {
