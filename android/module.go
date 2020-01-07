@@ -231,6 +231,10 @@ type Module interface {
 
 	// Get the visibility rules that control the visibility of this module.
 	visibility() []string
+
+	RequiredModuleNames() []string
+	HostRequiredModuleNames() []string
+	TargetRequiredModuleNames() []string
 }
 
 // Qualified id for a module
@@ -895,6 +899,18 @@ func (m *ModuleBase) ImageVariation() blueprint.Variation {
 
 func (m *ModuleBase) InRecovery() bool {
 	return m.base().commonProperties.ImageVariation == RecoveryVariation
+}
+
+func (m *ModuleBase) RequiredModuleNames() []string {
+	return m.base().commonProperties.Required
+}
+
+func (m *ModuleBase) HostRequiredModuleNames() []string {
+	return m.base().commonProperties.Host_required
+}
+
+func (m *ModuleBase) TargetRequiredModuleNames() []string {
+	return m.base().commonProperties.Target_required
 }
 
 func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
@@ -1930,15 +1946,15 @@ func (m *moduleContext) ExpandOptionalSource(srcFile *string, prop string) Optio
 }
 
 func (m *moduleContext) RequiredModuleNames() []string {
-	return m.module.base().commonProperties.Required
+	return m.module.RequiredModuleNames()
 }
 
 func (m *moduleContext) HostRequiredModuleNames() []string {
-	return m.module.base().commonProperties.Host_required
+	return m.module.HostRequiredModuleNames()
 }
 
 func (m *moduleContext) TargetRequiredModuleNames() []string {
-	return m.module.base().commonProperties.Target_required
+	return m.module.TargetRequiredModuleNames()
 }
 
 func init() {
