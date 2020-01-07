@@ -284,6 +284,9 @@ func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", benchmark.testConfig.String())
 		}
 		fmt.Fprintln(w, "LOCAL_NATIVE_BENCHMARK := true")
+		if !BoolDefault(benchmark.Properties.Auto_gen_config, true) {
+			fmt.Fprintln(w, "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true")
+		}
 	})
 
 	androidMkWriteTestData(benchmark.data, ctx, ret)
@@ -303,6 +306,9 @@ func (test *testBinary) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkDa
 		}
 		if test.testConfig != nil {
 			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=", test.testConfig.String())
+		}
+		if !BoolDefault(test.Properties.Auto_gen_config, true) {
+			fmt.Fprintln(w, "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true")
 		}
 	})
 

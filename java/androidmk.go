@@ -141,6 +141,9 @@ func (j *Test) AndroidMkEntries() []android.AndroidMkEntries {
 			entries.SetPath("LOCAL_FULL_TEST_CONFIG", j.testConfig)
 		}
 		androidMkWriteTestData(j.data, entries)
+		if !BoolDefault(j.testProperties.Auto_gen_config, true) {
+			entries.SetString("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", "true")
+		}
 	})
 
 	return entriesList
