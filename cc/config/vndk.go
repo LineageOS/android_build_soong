@@ -74,6 +74,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.power@1.0",
 	"android.hardware.power@1.1",
 	"android.hardware.radio@1.4",
+	"android.hardware.rebootescrow-ndk_platform",
 	"android.hardware.secure_element@1.0",
 	"android.hardware.sensors@1.0",
 	"android.hardware.soundtrigger@2.0",
@@ -84,6 +85,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.thermal@1.0",
 	"android.hardware.tv.cec@1.0",
 	"android.hardware.tv.input@1.0",
+	"android.hardware.vibrator-ndk_platform",
 	"android.hardware.vibrator@1.0",
 	"android.hardware.vibrator@1.1",
 	"android.hardware.vibrator@1.2",
@@ -169,6 +171,4 @@ var VndkMustUseVendorVariantList = []string{
 	"libxml2",
 	"libyuv",
 	"libziparchive",
-	"vintf-rebootescrow-ndk_platform",
-	"vintf-vibrator-ndk_platform",
 }
