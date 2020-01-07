@@ -76,6 +76,10 @@ func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 					p.testConfig.String())
 			}
 		}
+
+		if !BoolDefault(p.binaryProperties.Auto_gen_config, true) {
+			fmt.Fprintln(w, "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true")
+		}
 	})
 	base.subAndroidMk(ret, p.binaryDecorator.pythonInstaller)
 }
