@@ -152,6 +152,27 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 	return moduleNames
 }
 
+func (a *apexBundle) writeRequiredModules(w io.Writer) {
+	var required []string
+	var targetRequired []string
+	var hostRequired []string
+	for _, fi := range a.filesInfo {
+		required = append(required, fi.requiredModuleNames...)
+		targetRequired = append(targetRequired, fi.targetRequiredModuleNames...)
+		hostRequired = append(hostRequired, fi.hostRequiredModuleNames...)
+	}
+
+	if len(required) > 0 {
+		fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(required, " "))
+	}
+	if len(targetRequired) > 0 {
+		fmt.Fprintln(w, "LOCAL_TARGET_REQUIRED_MODULES +=", strings.Join(targetRequired, " "))
+	}
+	if len(hostRequired) > 0 {
+		fmt.Fprintln(w, "LOCAL_HOST_REQUIRED_MODULES +=", strings.Join(hostRequired, " "))
+	}
+}
+
 func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
@@ -170,6 +191,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES :=", strings.Join(moduleNames, " "))
 				}
+				a.writeRequiredModules(w)
 				fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 
 			} else {
@@ -188,6 +210,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(a.externalDeps) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.externalDeps, " "))
 				}
+				a.writeRequiredModules(w)
 				var postInstallCommands []string
 				if a.prebuiltFileToDelete != "" {
 					postInstallCommands = append(postInstallCommands, "rm -rf "+
