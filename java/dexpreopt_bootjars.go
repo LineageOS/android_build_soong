@@ -605,7 +605,6 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
 		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_FILES", strings.Join(image.dexPathsDeps.Strings(), " "))
 		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(image.dexLocationsDeps, " "))
-		ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS", strings.Join(image.imageLocations, ":"))
 
 		var imageNames []string
 		for _, current := range append(d.otherImages, image) {
@@ -618,15 +617,15 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 			sort.Slice(arches, func(i, j int) bool { return arches[i].String() < arches[j].String() })
 
 			for _, arch := range arches {
-				ctx.Strict("DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_"+current.name+"_"+arch.String(), current.vdexInstalls[arch].String())
-				ctx.Strict("DEXPREOPT_IMAGE_"+current.name+"_"+arch.String(), current.images[arch].String())
-				ctx.Strict("DEXPREOPT_IMAGE_DEPS_"+current.name+"_"+arch.String(), strings.Join(current.imagesDeps[arch].Strings(), " "))
-				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+current.name+"_"+arch.String(), current.installs[arch].String())
-				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+current.name+"_"+arch.String(), current.unstrippedInstalls[arch].String())
-				if current.zip != nil {
-				}
+				sfx := current.name + "_" + arch.String()
+				ctx.Strict("DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_"+sfx, current.vdexInstalls[arch].String())
+				ctx.Strict("DEXPREOPT_IMAGE_"+sfx, current.images[arch].String())
+				ctx.Strict("DEXPREOPT_IMAGE_DEPS_"+sfx, strings.Join(current.imagesDeps[arch].Strings(), " "))
+				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+sfx, current.installs[arch].String())
+				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+sfx, current.unstrippedInstalls[arch].String())
 			}
 
+			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_"+current.name, strings.Join(current.imageLocations, ":"))
 			ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+current.name, current.zip.String())
 		}
 		ctx.Strict("DEXPREOPT_IMAGE_NAMES", strings.Join(imageNames, " "))
