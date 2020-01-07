@@ -55,16 +55,51 @@ type BuildParams struct {
 
 type ModuleBuildParams BuildParams
 
+// EarlyModuleContext provides methods that can be called early, as soon as the properties have
+// been parsed into the module and before any mutators have run.
+type EarlyModuleContext interface {
+	Module() Module
+	ModuleName() string
+	ModuleDir() string
+	ModuleType() string
+
+	ContainsProperty(name string) bool
+	Errorf(pos scanner.Position, fmt string, args ...interface{})
+	ModuleErrorf(fmt string, args ...interface{})
+	PropertyErrorf(property, fmt string, args ...interface{})
+	Failed() bool
+
+	AddNinjaFileDeps(deps ...string)
+
+	DeviceSpecific() bool
+	SocSpecific() bool
+	ProductSpecific() bool
+	SystemExtSpecific() bool
+	Platform() bool
+
+	Config() Config
+	DeviceConfig() DeviceConfig
+
+	// Deprecated: use Config()
+	AConfig() Config
+
+	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
+	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
+	// builder whenever a file matching the pattern as added or removed, without rerunning if a
+	// file that does not match the pattern is added to a searched directory.
+	GlobWithDeps(pattern string, excludes []string) ([]string, error)
+
+	Glob(globPattern string, excludes []string) Paths
+	GlobFiles(globPattern string, excludes []string) Paths
+	Fs() pathtools.FileSystem
+}
+
 // BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
 // a Config instead of an interface{}, and some methods have been wrapped to use an android.Module
 // instead of a blueprint.Module, plus some extra methods that return Android-specific information
 // about the current module.
 type BaseModuleContext interface {
-	Module() Module
-	ModuleName() string
-	ModuleDir() string
-	ModuleType() string
-	Config() Config
+	EarlyModuleContext
 
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleDir(m blueprint.Module) string
@@ -91,24 +126,6 @@ type BaseModuleContext interface {
 	// and returns a top-down dependency path from a start module to current child module.
 	GetWalkPath() []Module
 
-	ContainsProperty(name string) bool
-	Errorf(pos scanner.Position, fmt string, args ...interface{})
-	ModuleErrorf(fmt string, args ...interface{})
-	PropertyErrorf(property, fmt string, args ...interface{})
-	Failed() bool
-
-	// GlobWithDeps returns a list of files that match the specified pattern but do not match any
-	// of the patterns in excludes.  It also adds efficient dependencies to rerun the primary
-	// builder whenever a file matching the pattern as added or removed, without rerunning if a
-	// file that does not match the pattern is added to a searched directory.
-	GlobWithDeps(pattern string, excludes []string) ([]string, error)
-
-	Glob(globPattern string, excludes []string) Paths
-	GlobFiles(globPattern string, excludes []string) Paths
-
-	Fs() pathtools.FileSystem
-	AddNinjaFileDeps(deps ...string)
-
 	AddMissingDependencies(missingDeps []string)
 
 	Target() Target
@@ -123,18 +140,11 @@ type BaseModuleContext interface {
 	Windows() bool
 	Debug() bool
 	PrimaryArch() bool
-	Platform() bool
-	DeviceSpecific() bool
-	SocSpecific() bool
-	ProductSpecific() bool
-	SystemExtSpecific() bool
-	AConfig() Config
-	DeviceConfig() DeviceConfig
 }
 
-// Deprecated: use BaseModuleContext instead
+// Deprecated: use EarlyModuleContext instead
 type BaseContext interface {
-	BaseModuleContext
+	EarlyModuleContext
 }
 
 type ModuleContext interface {
@@ -943,7 +953,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	}
 }
 
-func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleKind {
+func determineModuleKind(m *ModuleBase, ctx blueprint.EarlyModuleContext) moduleKind {
 	var socSpecific = Bool(m.commonProperties.Vendor) || Bool(m.commonProperties.Proprietary) || Bool(m.commonProperties.Soc_specific)
 	var deviceSpecific = Bool(m.commonProperties.Device_specific)
 	var productSpecific = Bool(m.commonProperties.Product_specific)
@@ -1002,15 +1012,22 @@ func determineModuleKind(m *ModuleBase, ctx blueprint.BaseModuleContext) moduleK
 	}
 }
 
+func (m *ModuleBase) earlyModuleContextFactory(ctx blueprint.EarlyModuleContext) earlyModuleContext {
+	return earlyModuleContext{
+		EarlyModuleContext: ctx,
+		kind:               determineModuleKind(m, ctx),
+		config:             ctx.Config().(Config),
+	}
+}
+
 func (m *ModuleBase) baseModuleContextFactory(ctx blueprint.BaseModuleContext) baseModuleContext {
 	return baseModuleContext{
-		BaseModuleContext: ctx,
-		os:                m.commonProperties.CompileOS,
-		target:            m.commonProperties.CompileTarget,
-		targetPrimary:     m.commonProperties.CompilePrimary,
-		multiTargets:      m.commonProperties.CompileMultiTargets,
-		kind:              determineModuleKind(m, ctx),
-		config:            ctx.Config().(Config),
+		bp:                 ctx,
+		earlyModuleContext: m.earlyModuleContextFactory(ctx),
+		os:                 m.commonProperties.CompileOS,
+		target:             m.commonProperties.CompileTarget,
+		targetPrimary:      m.commonProperties.CompilePrimary,
+		multiTargets:       m.commonProperties.CompileMultiTargets,
 	}
 }
 
@@ -1116,19 +1133,93 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.variables = ctx.variables
 }
 
+type earlyModuleContext struct {
+	blueprint.EarlyModuleContext
+
+	kind   moduleKind
+	config Config
+}
+
+func (e *earlyModuleContext) Glob(globPattern string, excludes []string) Paths {
+	ret, err := e.GlobWithDeps(globPattern, excludes)
+	if err != nil {
+		e.ModuleErrorf("glob: %s", err.Error())
+	}
+	return pathsForModuleSrcFromFullPath(e, ret, true)
+}
+
+func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Paths {
+	ret, err := e.GlobWithDeps(globPattern, excludes)
+	if err != nil {
+		e.ModuleErrorf("glob: %s", err.Error())
+	}
+	return pathsForModuleSrcFromFullPath(e, ret, false)
+}
+
+func (e *earlyModuleContext) Module() Module {
+	module, _ := e.EarlyModuleContext.Module().(Module)
+	return module
+}
+
+func (e *earlyModuleContext) Config() Config {
+	return e.EarlyModuleContext.Config().(Config)
+}
+
+func (e *earlyModuleContext) AConfig() Config {
+	return e.config
+}
+
+func (e *earlyModuleContext) DeviceConfig() DeviceConfig {
+	return DeviceConfig{e.config.deviceConfig}
+}
+
+func (e *earlyModuleContext) Platform() bool {
+	return e.kind == platformModule
+}
+
+func (e *earlyModuleContext) DeviceSpecific() bool {
+	return e.kind == deviceSpecificModule
+}
+
+func (e *earlyModuleContext) SocSpecific() bool {
+	return e.kind == socSpecificModule
+}
+
+func (e *earlyModuleContext) ProductSpecific() bool {
+	return e.kind == productSpecificModule
+}
+
+func (e *earlyModuleContext) SystemExtSpecific() bool {
+	return e.kind == systemExtSpecificModule
+}
+
 type baseModuleContext struct {
-	blueprint.BaseModuleContext
+	bp blueprint.BaseModuleContext
+	earlyModuleContext
 	os            OsType
 	target        Target
 	multiTargets  []Target
 	targetPrimary bool
 	debug         bool
-	kind          moduleKind
-	config        Config
 
 	walkPath []Module
 
 	strictVisitDeps bool // If true, enforce that all dependencies are enabled
+}
+
+func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string { return b.bp.OtherModuleName(m) }
+func (b *baseModuleContext) OtherModuleDir(m blueprint.Module) string  { return b.bp.OtherModuleDir(m) }
+func (b *baseModuleContext) OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{}) {
+	b.bp.OtherModuleErrorf(m, fmt, args)
+}
+func (b *baseModuleContext) OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag {
+	return b.bp.OtherModuleDependencyTag(m)
+}
+func (b *baseModuleContext) OtherModuleExists(name string) bool        { return b.bp.OtherModuleExists(name) }
+func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string { return b.bp.OtherModuleType(m) }
+
+func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module {
+	return b.bp.GetDirectDepWithTag(name, tag)
 }
 
 type moduleContext struct {
@@ -1245,16 +1336,6 @@ func (m *moduleContext) Build(pctx PackageContext, params BuildParams) {
 
 	m.bp.Build(pctx.PackageContext, convertBuildParams(params))
 }
-
-func (b *baseModuleContext) Module() Module {
-	module, _ := b.BaseModuleContext.Module().(Module)
-	return module
-}
-
-func (b *baseModuleContext) Config() Config {
-	return b.BaseModuleContext.Config().(Config)
-}
-
 func (m *moduleContext) GetMissingDependencies() []string {
 	var missingDeps []string
 	missingDeps = append(missingDeps, m.Module().base().commonProperties.MissingDeps...)
@@ -1302,7 +1383,7 @@ func (b *baseModuleContext) getDirectDepInternal(name string, tag blueprint.Depe
 	var deps []dep
 	b.VisitDirectDepsBlueprint(func(module blueprint.Module) {
 		if aModule, _ := module.(Module); aModule != nil && aModule.base().BaseModuleName() == name {
-			returnedTag := b.BaseModuleContext.OtherModuleDependencyTag(aModule)
+			returnedTag := b.bp.OtherModuleDependencyTag(aModule)
 			if tag == nil || returnedTag == tag {
 				deps = append(deps, dep{aModule, returnedTag})
 			}
@@ -1322,7 +1403,7 @@ func (b *baseModuleContext) GetDirectDepsWithTag(tag blueprint.DependencyTag) []
 	var deps []Module
 	b.VisitDirectDepsBlueprint(func(module blueprint.Module) {
 		if aModule, _ := module.(Module); aModule != nil {
-			if b.BaseModuleContext.OtherModuleDependencyTag(aModule) == tag {
+			if b.bp.OtherModuleDependencyTag(aModule) == tag {
 				deps = append(deps, aModule)
 			}
 		}
@@ -1340,11 +1421,11 @@ func (b *baseModuleContext) GetDirectDep(name string) (blueprint.Module, bluepri
 }
 
 func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {
-	b.BaseModuleContext.VisitDirectDeps(visit)
+	b.bp.VisitDirectDeps(visit)
 }
 
 func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
-	b.BaseModuleContext.VisitDirectDeps(func(module blueprint.Module) {
+	b.bp.VisitDirectDeps(func(module blueprint.Module) {
 		if aModule := b.validateAndroidModule(module, b.strictVisitDeps); aModule != nil {
 			visit(aModule)
 		}
@@ -1352,9 +1433,9 @@ func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
 }
 
 func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
-	b.BaseModuleContext.VisitDirectDeps(func(module blueprint.Module) {
+	b.bp.VisitDirectDeps(func(module blueprint.Module) {
 		if aModule := b.validateAndroidModule(module, b.strictVisitDeps); aModule != nil {
-			if b.BaseModuleContext.OtherModuleDependencyTag(aModule) == tag {
+			if b.bp.OtherModuleDependencyTag(aModule) == tag {
 				visit(aModule)
 			}
 		}
@@ -1362,7 +1443,7 @@ func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, 
 }
 
 func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
-	b.BaseModuleContext.VisitDirectDepsIf(
+	b.bp.VisitDirectDepsIf(
 		// pred
 		func(module blueprint.Module) bool {
 			if aModule := b.validateAndroidModule(module, b.strictVisitDeps); aModule != nil {
@@ -1378,7 +1459,7 @@ func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func
 }
 
 func (b *baseModuleContext) VisitDepsDepthFirst(visit func(Module)) {
-	b.BaseModuleContext.VisitDepsDepthFirst(func(module blueprint.Module) {
+	b.bp.VisitDepsDepthFirst(func(module blueprint.Module) {
 		if aModule := b.validateAndroidModule(module, b.strictVisitDeps); aModule != nil {
 			visit(aModule)
 		}
@@ -1386,7 +1467,7 @@ func (b *baseModuleContext) VisitDepsDepthFirst(visit func(Module)) {
 }
 
 func (b *baseModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
-	b.BaseModuleContext.VisitDepsDepthFirstIf(
+	b.bp.VisitDepsDepthFirstIf(
 		// pred
 		func(module blueprint.Module) bool {
 			if aModule := b.validateAndroidModule(module, b.strictVisitDeps); aModule != nil {
@@ -1402,12 +1483,12 @@ func (b *baseModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit 
 }
 
 func (b *baseModuleContext) WalkDepsBlueprint(visit func(blueprint.Module, blueprint.Module) bool) {
-	b.BaseModuleContext.WalkDeps(visit)
+	b.bp.WalkDeps(visit)
 }
 
 func (b *baseModuleContext) WalkDeps(visit func(Module, Module) bool) {
 	b.walkPath = []Module{b.Module()}
-	b.BaseModuleContext.WalkDeps(func(child, parent blueprint.Module) bool {
+	b.bp.WalkDeps(func(child, parent blueprint.Module) bool {
 		childAndroidModule, _ := child.(Module)
 		parentAndroidModule, _ := parent.(Module)
 		if childAndroidModule != nil && parentAndroidModule != nil {
@@ -1494,34 +1575,6 @@ func (b *baseModuleContext) PrimaryArch() bool {
 		return true
 	}
 	return b.target.Arch.ArchType == b.config.Targets[b.target.Os][0].Arch.ArchType
-}
-
-func (b *baseModuleContext) AConfig() Config {
-	return b.config
-}
-
-func (b *baseModuleContext) DeviceConfig() DeviceConfig {
-	return DeviceConfig{b.config.deviceConfig}
-}
-
-func (b *baseModuleContext) Platform() bool {
-	return b.kind == platformModule
-}
-
-func (b *baseModuleContext) DeviceSpecific() bool {
-	return b.kind == deviceSpecificModule
-}
-
-func (b *baseModuleContext) SocSpecific() bool {
-	return b.kind == socSpecificModule
-}
-
-func (b *baseModuleContext) ProductSpecific() bool {
-	return b.kind == productSpecificModule
-}
-
-func (b *baseModuleContext) SystemExtSpecific() bool {
-	return b.kind == systemExtSpecificModule
 }
 
 // Makes this module a platform module, i.e. not specific to soc, device,
@@ -1886,22 +1939,6 @@ func (m *moduleContext) HostRequiredModuleNames() []string {
 
 func (m *moduleContext) TargetRequiredModuleNames() []string {
 	return m.module.base().commonProperties.Target_required
-}
-
-func (b *baseModuleContext) Glob(globPattern string, excludes []string) Paths {
-	ret, err := b.GlobWithDeps(globPattern, excludes)
-	if err != nil {
-		b.ModuleErrorf("glob: %s", err.Error())
-	}
-	return pathsForModuleSrcFromFullPath(b, ret, true)
-}
-
-func (b *baseModuleContext) GlobFiles(globPattern string, excludes []string) Paths {
-	ret, err := b.GlobWithDeps(globPattern, excludes)
-	if err != nil {
-		b.ModuleErrorf("glob: %s", err.Error())
-	}
-	return pathsForModuleSrcFromFullPath(b, ret, false)
 }
 
 func init() {

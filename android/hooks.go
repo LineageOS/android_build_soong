@@ -15,7 +15,10 @@
 package android
 
 import (
+	"reflect"
+
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // This file implements hooks that external module types can use to inject logic into existing
@@ -26,27 +29,76 @@ import (
 // before the module has been split into architecture variants, and before defaults modules have
 // been applied.
 type LoadHookContext interface {
-	// TODO: a new context that includes Config() but not Target(), etc.?
-	BaseModuleContext
+	EarlyModuleContext
+
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
 	CreateModule(ModuleFactory, ...interface{}) Module
 }
 
 func AddLoadHook(m blueprint.Module, hook func(LoadHookContext)) {
-	h := &m.(Module).base().hooks
-	h.load = append(h.load, hook)
+	blueprint.AddLoadHook(m, func(ctx blueprint.LoadHookContext) {
+		actx := &loadHookContext{
+			earlyModuleContext: m.(Module).base().earlyModuleContextFactory(ctx),
+			bp:                 ctx,
+		}
+		hook(actx)
+	})
 }
 
-func (x *hooks) runLoadHooks(ctx LoadHookContext, m *ModuleBase) {
-	if len(x.load) > 0 {
-		for _, x := range x.load {
-			x(ctx)
-			if ctx.Failed() {
-				return
+type loadHookContext struct {
+	earlyModuleContext
+	bp     blueprint.LoadHookContext
+	module Module
+}
+
+func (l *loadHookContext) AppendProperties(props ...interface{}) {
+	for _, p := range props {
+		err := proptools.AppendMatchingProperties(l.Module().base().customizableProperties,
+			p, nil)
+		if err != nil {
+			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+				l.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+			} else {
+				panic(err)
 			}
 		}
 	}
+}
+
+func (l *loadHookContext) PrependProperties(props ...interface{}) {
+	for _, p := range props {
+		err := proptools.PrependMatchingProperties(l.Module().base().customizableProperties,
+			p, nil)
+		if err != nil {
+			if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+				l.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+			} else {
+				panic(err)
+			}
+		}
+	}
+}
+
+func (l *loadHookContext) CreateModule(factory ModuleFactory, props ...interface{}) Module {
+	inherited := []interface{}{&l.Module().base().commonProperties}
+	module := l.bp.CreateModule(ModuleFactoryAdaptor(factory), append(inherited, props...)...).(Module)
+
+	if l.Module().base().variableProperties != nil && module.base().variableProperties != nil {
+		src := l.Module().base().variableProperties
+		dst := []interface{}{
+			module.base().variableProperties,
+			// Put an empty copy of the src properties into dst so that properties in src that are not in dst
+			// don't cause a "failed to find property to extend" error.
+			proptools.CloneEmptyProperties(reflect.ValueOf(src).Elem()).Interface(),
+		}
+		err := proptools.AppendMatchingProperties(dst, src, nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return module
 }
 
 type InstallHookContext interface {
@@ -94,21 +146,5 @@ func (x *hooks) runInstallHooks(ctx ModuleContext, path InstallPath, symlink boo
 }
 
 type hooks struct {
-	load    []func(LoadHookContext)
 	install []func(InstallHookContext)
-}
-
-func registerLoadHookMutator(ctx RegisterMutatorsContext) {
-	ctx.TopDown("load_hooks", LoadHookMutator).Parallel()
-}
-
-func LoadHookMutator(ctx TopDownMutatorContext) {
-	if m, ok := ctx.Module().(Module); ok {
-		m.base().commonProperties.DebugName = ctx.ModuleName()
-
-		// Cast through *topDownMutatorContext because AppendProperties is implemented
-		// on *topDownMutatorContext but not exposed through TopDownMutatorContext
-		var loadHookCtx LoadHookContext = ctx.(*topDownMutatorContext)
-		m.base().hooks.runLoadHooks(loadHookCtx, m.base())
-	}
 }
