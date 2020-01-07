@@ -84,6 +84,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.thermal@1.0",
 	"android.hardware.tv.cec@1.0",
 	"android.hardware.tv.input@1.0",
+	"android.hardware.vibrator-ndk_platform",
 	"android.hardware.vibrator@1.0",
 	"android.hardware.vibrator@1.1",
 	"android.hardware.vibrator@1.2",
@@ -165,5 +166,4 @@ var VndkMustUseVendorVariantList = []string{
 	"libxml2",
 	"libyuv",
 	"libziparchive",
-	"vintf-vibrator-ndk_platform",
 }
