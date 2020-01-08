@@ -170,6 +170,10 @@ func (d *DeviceHostConverter) SrcJarArgs() ([]string, android.Paths) {
 	return d.srcJarArgs, d.srcJarDeps
 }
 
+func (d *DeviceHostConverter) JacocoReportClassesFile() android.Path {
+	return nil
+}
+
 func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",

@@ -1062,6 +1062,10 @@ func (a *AndroidAppImport) OutputFile() android.Path {
 	return a.outputFile
 }
 
+func (a *AndroidAppImport) JacocoReportClassesFile() android.Path {
+	return nil
+}
+
 var dpiVariantGroupType reflect.Type
 var archVariantGroupType reflect.Type
 
