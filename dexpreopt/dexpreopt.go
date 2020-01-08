@@ -131,7 +131,7 @@ func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleC
 
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
-		Tool(global.Tools.Profman)
+		Tool(global.SoongConfig.Profman)
 
 	if module.ProfileIsTextListing {
 		// The profile is a test listing of classes (used for framework jars).
@@ -170,7 +170,7 @@ func bootProfileCommand(ctx android.PathContext, global GlobalConfig, module Mod
 
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
-		Tool(global.Tools.Profman)
+		Tool(global.SoongConfig.Profman)
 
 	// The profile is a test listing of methods.
 	// We need to generate the actual binary profile.
@@ -299,14 +299,14 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 	if module.EnforceUsesLibraries {
 		if module.ManifestPath != nil {
 			rule.Command().Text(`target_sdk_version="$(`).
-				Tool(global.Tools.ManifestCheck).
+				Tool(global.SoongConfig.ManifestCheck).
 				Flag("--extract-target-sdk-version").
 				Input(module.ManifestPath).
 				Text(`)"`)
 		} else {
 			// No manifest to extract targetSdkVersion from, hope that DexJar is an APK
 			rule.Command().Text(`target_sdk_version="$(`).
-				Tool(global.Tools.Aapt).
+				Tool(global.SoongConfig.Aapt).
 				Flag("dump badging").
 				Input(module.DexPath).
 				Text(`| grep "targetSdkVersion" | sed -n "s/targetSdkVersion:'\(.*\)'/\1/p"`).
@@ -327,7 +327,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 			Implicits(conditionalClassLoaderContextHost29)
 		rule.Command().Textf(`conditional_target_libs_29="%s"`,
 			strings.Join(conditionalClassLoaderContextTarget29, " "))
-		rule.Command().Text("source").Tool(global.Tools.ConstructContext).Input(module.DexPath)
+		rule.Command().Text("source").Tool(global.SoongConfig.ConstructContext).Input(module.DexPath)
 	}
 
 	// Devices that do not have a product partition use a symlink from /product to /system/product.
@@ -340,7 +340,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
-		Tool(global.Tools.Dex2oat).
+		Tool(global.SoongConfig.Dex2oat).
 		Flag("--avoid-storing-invocation").
 		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
 		Flag("--runtime-arg").FlagWithArg("-Xms", global.Dex2oatXms).
@@ -409,7 +409,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		dmInstalledPath := pathtools.ReplaceExtension(module.DexLocation, "dm")
 		tmpPath := module.BuildPath.InSameDir(ctx, "primary.vdex")
 		rule.Command().Text("cp -f").Input(vdexPath).Output(tmpPath)
-		rule.Command().Tool(global.Tools.SoongZip).
+		rule.Command().Tool(global.SoongConfig.SoongZip).
 			FlagWithArg("-L", "9").
 			FlagWithOutput("-o", dmPath).
 			Flag("-j").

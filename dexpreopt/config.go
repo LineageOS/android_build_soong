@@ -22,7 +22,9 @@ import (
 	"android/soong/android"
 )
 
-// GlobalConfig stores the configuration for dex preopting set by the product
+// GlobalConfig stores the configuration for dex preopting. The fields are set
+// from product variables via dex_preopt_config.mk, except for SoongConfig
+// which come from CreateGlobalSoongConfig.
 type GlobalConfig struct {
 	DisablePreopt        bool     // disable preopt for all modules
 	DisablePreoptModules []string // modules with preopt disabled by product-specific config
@@ -82,19 +84,19 @@ type GlobalConfig struct {
 	Dex2oatImageXmx   string               // max heap size for dex2oat for the boot image
 	Dex2oatImageXms   string               // initial heap size for dex2oat for the boot image
 
-	Tools Tools // paths to tools possibly used by the generated commands
+	SoongConfig GlobalSoongConfig // settings read from dexpreopt_soong.config
 }
 
-// Tools contains paths to tools possibly used by the generated commands.  If you add a new tool here you MUST add it
-// to the order-only dependency list in DEXPREOPT_GEN_DEPS.
-type Tools struct {
-	Profman       android.Path
-	Dex2oat       android.Path
-	Aapt          android.Path
-	SoongZip      android.Path
-	Zip2zip       android.Path
-	ManifestCheck android.Path
-
+// GlobalSoongConfig contains the global config that is generated from Soong,
+// stored in dexpreopt_soong.config.
+type GlobalSoongConfig struct {
+	// Paths to tools possibly used by the generated commands.
+	Profman          android.Path
+	Dex2oat          android.Path
+	Aapt             android.Path
+	SoongZip         android.Path
+	Zip2zip          android.Path
+	ManifestCheck    android.Path
 	ConstructContext android.Path
 }
 
@@ -133,6 +135,17 @@ type ModuleConfig struct {
 	PresignedPrebuilt bool
 }
 
+type globalSoongConfigSingleton struct{}
+
+var pctx = android.NewPackageContext("android/soong/dexpreopt")
+
+func init() {
+	pctx.Import("android/soong/android")
+	android.RegisterSingletonType("dexpreopt-soong-config", func() android.Singleton {
+		return &globalSoongConfigSingleton{}
+	})
+}
+
 func constructPath(ctx android.PathContext, path string) android.Path {
 	buildDirPrefix := ctx.Config().BuildDir() + "/"
 	if path == "" {
@@ -167,9 +180,12 @@ func constructWritablePath(ctx android.PathContext, path string) android.Writabl
 	return constructPath(ctx, path).(android.WritablePath)
 }
 
-// LoadGlobalConfig reads the global dexpreopt.config file into a GlobalConfig struct.  It is used directly in Soong
-// and in dexpreopt_gen called from Make to read the $OUT/dexpreopt.config written by Make.
-func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byte, error) {
+// LoadGlobalConfig reads the global dexpreopt.config file into a GlobalConfig
+// struct, except the SoongConfig field which is set from the provided
+// soongConfig argument. LoadGlobalConfig is used directly in Soong and in
+// dexpreopt_gen called from Make to read the $OUT/dexpreopt.config written by
+// Make.
+func LoadGlobalConfig(ctx android.PathContext, path string, soongConfig GlobalSoongConfig) (GlobalConfig, []byte, error) {
 	type GlobalJSONConfig struct {
 		GlobalConfig
 
@@ -177,17 +193,6 @@ func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byt
 		// used to construct the real value manually below.
 		DirtyImageObjects string
 		BootImageProfiles []string
-
-		Tools struct {
-			Profman       string
-			Dex2oat       string
-			Aapt          string
-			SoongZip      string
-			Zip2zip       string
-			ManifestCheck string
-
-			ConstructContext string
-		}
 	}
 
 	config := GlobalJSONConfig{}
@@ -200,13 +205,9 @@ func LoadGlobalConfig(ctx android.PathContext, path string) (GlobalConfig, []byt
 	config.GlobalConfig.DirtyImageObjects = android.OptionalPathForPath(constructPath(ctx, config.DirtyImageObjects))
 	config.GlobalConfig.BootImageProfiles = constructPaths(ctx, config.BootImageProfiles)
 
-	config.GlobalConfig.Tools.Profman = constructPath(ctx, config.Tools.Profman)
-	config.GlobalConfig.Tools.Dex2oat = constructPath(ctx, config.Tools.Dex2oat)
-	config.GlobalConfig.Tools.Aapt = constructPath(ctx, config.Tools.Aapt)
-	config.GlobalConfig.Tools.SoongZip = constructPath(ctx, config.Tools.SoongZip)
-	config.GlobalConfig.Tools.Zip2zip = constructPath(ctx, config.Tools.Zip2zip)
-	config.GlobalConfig.Tools.ManifestCheck = constructPath(ctx, config.Tools.ManifestCheck)
-	config.GlobalConfig.Tools.ConstructContext = constructPath(ctx, config.Tools.ConstructContext)
+	// Set this here to force the caller to provide a value for this struct (from
+	// either CreateGlobalSoongConfig or LoadGlobalSoongConfig).
+	config.GlobalConfig.SoongConfig = soongConfig
 
 	return config.GlobalConfig, data, nil
 }
@@ -251,6 +252,104 @@ func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error
 	config.ModuleConfig.DexPreoptImagesDeps = make([]android.OutputPaths, len(config.ModuleConfig.DexPreoptImages))
 
 	return config.ModuleConfig, nil
+}
+
+// CreateGlobalSoongConfig creates a GlobalSoongConfig from the current context.
+// Should not be used in dexpreopt_gen.
+func CreateGlobalSoongConfig(ctx android.PathContext) GlobalSoongConfig {
+	// Default to debug version to help find bugs.
+	// Set USE_DEX2OAT_DEBUG to false for only building non-debug versions.
+	var dex2oatBinary string
+	if ctx.Config().Getenv("USE_DEX2OAT_DEBUG") == "false" {
+		dex2oatBinary = "dex2oat"
+	} else {
+		dex2oatBinary = "dex2oatd"
+	}
+
+	return GlobalSoongConfig{
+		Profman:          ctx.Config().HostToolPath(ctx, "profman"),
+		Dex2oat:          ctx.Config().HostToolPath(ctx, dex2oatBinary),
+		Aapt:             ctx.Config().HostToolPath(ctx, "aapt"),
+		SoongZip:         ctx.Config().HostToolPath(ctx, "soong_zip"),
+		Zip2zip:          ctx.Config().HostToolPath(ctx, "zip2zip"),
+		ManifestCheck:    ctx.Config().HostToolPath(ctx, "manifest_check"),
+		ConstructContext: android.PathForSource(ctx, "build/make/core/construct_context.sh"),
+	}
+}
+
+type globalJsonSoongConfig struct {
+	Profman          string
+	Dex2oat          string
+	Aapt             string
+	SoongZip         string
+	Zip2zip          string
+	ManifestCheck    string
+	ConstructContext string
+}
+
+// LoadGlobalSoongConfig reads the dexpreopt_soong.config file into a
+// GlobalSoongConfig struct. It is only used in dexpreopt_gen.
+func LoadGlobalSoongConfig(ctx android.PathContext, path string) (GlobalSoongConfig, error) {
+	var jc globalJsonSoongConfig
+
+	_, err := loadConfig(ctx, path, &jc)
+	if err != nil {
+		return GlobalSoongConfig{}, err
+	}
+
+	config := GlobalSoongConfig{
+		Profman:          constructPath(ctx, jc.Profman),
+		Dex2oat:          constructPath(ctx, jc.Dex2oat),
+		Aapt:             constructPath(ctx, jc.Aapt),
+		SoongZip:         constructPath(ctx, jc.SoongZip),
+		Zip2zip:          constructPath(ctx, jc.Zip2zip),
+		ManifestCheck:    constructPath(ctx, jc.ManifestCheck),
+		ConstructContext: constructPath(ctx, jc.ConstructContext),
+	}
+
+	return config, nil
+}
+
+func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	config := CreateGlobalSoongConfig(ctx)
+	jc := globalJsonSoongConfig{
+		Profman:          config.Profman.String(),
+		Dex2oat:          config.Dex2oat.String(),
+		Aapt:             config.Aapt.String(),
+		SoongZip:         config.SoongZip.String(),
+		Zip2zip:          config.Zip2zip.String(),
+		ManifestCheck:    config.ManifestCheck.String(),
+		ConstructContext: config.ConstructContext.String(),
+	}
+
+	data, err := json.Marshal(jc)
+	if err != nil {
+		ctx.Errorf("failed to JSON marshal GlobalSoongConfig: %v", err)
+		return
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.WriteFile,
+		Output: android.PathForOutput(ctx, "dexpreopt_soong.config"),
+		Args: map[string]string{
+			"content": string(data),
+		},
+	})
+}
+
+func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
+	config := CreateGlobalSoongConfig(ctx)
+
+	ctx.Strict("DEX2OAT", config.Dex2oat.String())
+	ctx.Strict("DEXPREOPT_GEN_DEPS", strings.Join([]string{
+		config.Profman.String(),
+		config.Dex2oat.String(),
+		config.Aapt.String(),
+		config.SoongZip.String(),
+		config.Zip2zip.String(),
+		config.ManifestCheck.String(),
+		config.ConstructContext.String(),
+	}, " "))
 }
 
 func loadConfig(ctx android.PathContext, path string, config interface{}) ([]byte, error) {
@@ -312,7 +411,7 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		BootFlags:                          "",
 		Dex2oatImageXmx:                    "",
 		Dex2oatImageXms:                    "",
-		Tools: Tools{
+		SoongConfig: GlobalSoongConfig{
 			Profman:          android.PathForTesting("profman"),
 			Dex2oat:          android.PathForTesting("dex2oat"),
 			Aapt:             android.PathForTesting("aapt"),
