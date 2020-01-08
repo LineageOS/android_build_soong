@@ -127,12 +127,12 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		}
 
 		if !jarPath.Valid() {
-			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", v, jar)
+			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", sdk, jar)
 			return sdkDep{}
 		}
 
 		if !aidlPath.Valid() {
-			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", v, aidl)
+			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", sdk, aidl)
 			return sdkDep{}
 		}
 

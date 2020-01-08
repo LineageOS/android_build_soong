@@ -210,11 +210,6 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 		ctx.ModuleErrorf("PGO specification is missing properties: " + missingProps)
 	}
 
-	// Sampling not supported yet
-	if isSampling {
-		ctx.PropertyErrorf("pgo.sampling", "\"sampling\" is not supported yet)")
-	}
-
 	if isSampling && isInstrumentation {
 		ctx.PropertyErrorf("pgo", "Exactly one of \"instrumentation\" and \"sampling\" properties must be set")
 	}

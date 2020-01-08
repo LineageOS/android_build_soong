@@ -667,7 +667,11 @@ func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, sdkVersion
 	jar := filepath.Join(dir, module.BaseModuleName()+".jar")
 	jarPath := android.ExistentPathForSource(ctx, jar)
 	if !jarPath.Valid() {
-		ctx.PropertyErrorf("sdk_library", "invalid sdk version %q, %q does not exist", v, jar)
+		if ctx.Config().AllowMissingDependencies() {
+			return android.Paths{android.PathForSource(ctx, jar)}
+		} else {
+			ctx.PropertyErrorf("sdk_library", "invalid sdk version %q, %q does not exist", sdkVersion, jar)
+		}
 		return nil
 	}
 	return android.Paths{jarPath.Path()}

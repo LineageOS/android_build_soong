@@ -461,6 +461,10 @@ type apexFile struct {
 	symlinks      []string
 	transitiveDep bool
 	moduleDir     string
+
+	requiredModuleNames       []string
+	targetRequiredModuleNames []string
+	hostRequiredModuleNames   []string
 }
 
 func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
@@ -473,6 +477,9 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleNa
 	}
 	if module != nil {
 		ret.moduleDir = ctx.OtherModuleDir(module)
+		ret.requiredModuleNames = module.RequiredModuleNames()
+		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
+		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
 	}
 	return ret
 }
