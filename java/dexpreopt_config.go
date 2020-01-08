@@ -136,6 +136,10 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		deviceDir := android.PathForOutput(ctx, ctx.Config().DeviceName())
 
 		artModules := global.ArtApexJars
+		// With EMMA_INSTRUMENT_FRAMEWORK=true the Core libraries depend on jacoco.
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			artModules = append(artModules, "jacocoagent")
+		}
 		frameworkModules := android.RemoveListFromList(global.BootJars,
 			concat(artModules, getJarsFromApexJarPairs(global.UpdatableBootJars)))
 
