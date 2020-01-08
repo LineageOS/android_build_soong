@@ -699,6 +699,12 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		javaLibTag, a.properties.Java_libs...)
 
+	// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
+	if a.artApex && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+			javaLibTag, "jacocoagent")
+	}
+
 	if String(a.properties.Key) == "" {
 		ctx.ModuleErrorf("key is missing")
 		return
