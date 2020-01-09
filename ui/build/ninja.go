@@ -127,6 +127,7 @@ func runNinja(ctx Context, config Config) {
 			"GOMA_USE_LOCAL",
 
 			// RBE client
+			"FLAG_compare",
 			"FLAG_exec_root",
 			"FLAG_exec_strategy",
 			"FLAG_invocation_id",
