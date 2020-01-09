@@ -531,9 +531,9 @@ type apexBundle struct {
 	manifestJsonOut android.WritablePath
 	manifestPbOut   android.WritablePath
 
-	// list of commands to create symlinks for backward compatibility
+	// list of commands to create symlinks for backward compatibility.
 	// these commands will be attached as LOCAL_POST_INSTALL_CMD to
-	// apex package itself(for unflattened build) or apex_manifest.json(for flattened build)
+	// apex package itself(for unflattened build) or apex_manifest(for flattened build)
 	// so that compat symlinks are always installed regardless of TARGET_FLATTEN_APEX setting.
 	compatSymlinks []string
 
@@ -1256,8 +1256,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.buildUnflattenedApex(ctx)
 	}
 
-	apexName := proptools.StringDefault(a.properties.Apex_name, a.Name())
-	a.compatSymlinks = makeCompatSymlinks(apexName, ctx)
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 }
 
 func newApexBundle() *apexBundle {
