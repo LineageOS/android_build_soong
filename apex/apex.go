@@ -465,6 +465,8 @@ type apexFile struct {
 	requiredModuleNames       []string
 	targetRequiredModuleNames []string
 	hostRequiredModuleNames   []string
+
+	jacocoReportClassesFile android.Path // only for javalibs and apps
 }
 
 func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
@@ -900,7 +902,9 @@ type javaLibrary interface {
 func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaLibrary) apexFile {
 	dirInApex := "javalib"
 	fileToCopy := lib.DexJar()
-	return newApexFile(ctx, fileToCopy, lib.Name(), dirInApex, javaSharedLib, lib)
+	af := newApexFile(ctx, fileToCopy, lib.Name(), dirInApex, javaSharedLib, lib)
+	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
+	return af
 }
 
 func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt android.PrebuiltEtcModule, depName string) apexFile {
@@ -913,6 +917,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	android.Module
 	Privileged() bool
 	OutputFile() android.Path
+	JacocoReportClassesFile() android.Path
 }, pkgName string) apexFile {
 	appDir := "app"
 	if aapp.Privileged() {
@@ -920,7 +925,9 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	}
 	dirInApex := filepath.Join(appDir, pkgName)
 	fileToCopy := aapp.OutputFile()
-	return newApexFile(ctx, fileToCopy, aapp.Name(), dirInApex, app, aapp)
+	af := newApexFile(ctx, fileToCopy, aapp.Name(), dirInApex, app, aapp)
+	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
+	return af
 }
 
 // Context "decorator", overriding the InstallBypassMake method to always reply `true`.

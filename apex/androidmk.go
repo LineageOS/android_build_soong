@@ -117,6 +117,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 			}
 		}
+		if fi.jacocoReportClassesFile != nil {
+			fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", fi.jacocoReportClassesFile.String())
+		}
 		if fi.class == javaSharedLib {
 			javaModule := fi.module.(javaLibrary)
 			// soong_java_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .jar  Therefore
@@ -128,6 +131,12 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			fmt.Fprintln(w, "LOCAL_SOONG_DEX_JAR :=", fi.builtFile.String())
 			fmt.Fprintln(w, "LOCAL_DEX_PREOPT := false")
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
+		} else if fi.class == app {
+			// soong_app_prebuilt.mk sets LOCAL_MODULE_SUFFIX := .apk  Therefore
+			// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
+			// we will have foo.apk.apk
+			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", strings.TrimSuffix(fi.builtFile.Base(), ".apk"))
+			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_app_prebuilt.mk")
 		} else if fi.class == nativeSharedLib || fi.class == nativeExecutable || fi.class == nativeTest {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
 			if cc, ok := fi.module.(*cc.Module); ok {
