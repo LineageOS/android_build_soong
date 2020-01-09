@@ -33,6 +33,10 @@ type Prebuilt struct {
 	installDir      android.InstallPath
 	installFilename string
 	outputApex      android.WritablePath
+
+	// list of commands to create symlinks for backward compatibility.
+	// these commands will be attached as LOCAL_POST_INSTALL_CMD
+	compatSymlinks []string
 }
 
 type PrebuiltProperties struct {
@@ -178,7 +182,12 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.InstallFile(p.installDir, p.installFilename, p.inputApex)
 	}
 
-	// TODO(b/143192278): Add compat symlinks for prebuilt_apex
+	// in case that prebuilt_apex replaces source apex (using prefer: prop)
+	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx)
+	// or that prebuilt_apex overrides other apexes (using overrides: prop)
+	for _, overridden := range p.properties.Overrides {
+		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
+	}
 }
 
 func (p *Prebuilt) AndroidMkEntries() []android.AndroidMkEntries {
@@ -192,6 +201,9 @@ func (p *Prebuilt) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 				entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.properties.Overrides...)
+				if len(p.compatSymlinks) > 0 {
+					entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(p.compatSymlinks, " && "))
+				}
 			},
 		},
 	}}
