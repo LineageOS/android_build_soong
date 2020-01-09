@@ -30,10 +30,11 @@ import (
 )
 
 var (
-	dexpreoptScriptPath = flag.String("dexpreopt_script", "", "path to output dexpreopt script")
-	globalConfigPath    = flag.String("global", "", "path to global configuration file")
-	moduleConfigPath    = flag.String("module", "", "path to module configuration file")
-	outDir              = flag.String("out_dir", "", "path to output directory")
+	dexpreoptScriptPath   = flag.String("dexpreopt_script", "", "path to output dexpreopt script")
+	globalSoongConfigPath = flag.String("global_soong", "", "path to global configuration file for settings originating from Soong")
+	globalConfigPath      = flag.String("global", "", "path to global configuration file")
+	moduleConfigPath      = flag.String("module", "", "path to module configuration file")
+	outDir                = flag.String("out_dir", "", "path to output directory")
 )
 
 type pathContext struct {
@@ -63,17 +64,27 @@ func main() {
 		usage("path to output dexpreopt script is required")
 	}
 
+	if *globalSoongConfigPath == "" {
+		usage("--global_soong configuration file is required")
+	}
+
 	if *globalConfigPath == "" {
-		usage("path to global configuration file is required")
+		usage("--global configuration file is required")
 	}
 
 	if *moduleConfigPath == "" {
-		usage("path to module configuration file is required")
+		usage("--module configuration file is required")
 	}
 
 	ctx := &pathContext{android.TestConfig(*outDir, nil, "", nil)}
 
-	globalConfig, _, err := dexpreopt.LoadGlobalConfig(ctx, *globalConfigPath)
+	globalSoongConfig, err := dexpreopt.LoadGlobalSoongConfig(ctx, *globalSoongConfigPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading global config %q: %s\n", *globalSoongConfigPath, err)
+		os.Exit(2)
+	}
+
+	globalConfig, _, err := dexpreopt.LoadGlobalConfig(ctx, *globalConfigPath, globalSoongConfig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading global config %q: %s\n", *globalConfigPath, err)
 		os.Exit(2)
@@ -121,7 +132,7 @@ func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module
 		dexpreoptRule.Command().Text("mkdir -p").Flag(filepath.Dir(installPath.String()))
 		dexpreoptRule.Command().Text("cp -f").Input(install.From).Output(installPath)
 	}
-	dexpreoptRule.Command().Tool(global.Tools.SoongZip).
+	dexpreoptRule.Command().Tool(global.SoongConfig.SoongZip).
 		FlagWithArg("-o ", "$2").
 		FlagWithArg("-C ", installDir.String()).
 		FlagWithArg("-D ", installDir.String())

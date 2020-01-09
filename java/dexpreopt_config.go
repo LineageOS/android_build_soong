@@ -37,8 +37,9 @@ type globalConfigAndRaw struct {
 func dexpreoptGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
 	return ctx.Config().Once(dexpreoptGlobalConfigKey, func() interface{} {
 		if f := ctx.Config().DexpreoptGlobalConfig(); f != "" {
+			soongConfig := dexpreopt.CreateGlobalSoongConfig(ctx)
 			ctx.AddNinjaFileDeps(f)
-			globalConfig, data, err := dexpreopt.LoadGlobalConfig(ctx, f)
+			globalConfig, data, err := dexpreopt.LoadGlobalConfig(ctx, f, soongConfig)
 			if err != nil {
 				panic(err)
 			}
@@ -135,6 +136,10 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		deviceDir := android.PathForOutput(ctx, ctx.Config().DeviceName())
 
 		artModules := global.ArtApexJars
+		// With EMMA_INSTRUMENT_FRAMEWORK=true the Core libraries depend on jacoco.
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			artModules = append(artModules, "jacocoagent")
+		}
 		frameworkModules := android.RemoveListFromList(global.BootJars,
 			concat(artModules, getJarsFromApexJarPairs(global.UpdatableBootJars)))
 

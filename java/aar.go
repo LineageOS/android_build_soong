@@ -576,6 +576,10 @@ func (a *AARImport) Name() string {
 	return a.prebuilt.Name(a.ModuleBase.Name())
 }
 
+func (a *AARImport) JacocoReportClassesFile() android.Path {
+	return nil
+}
+
 func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(a))

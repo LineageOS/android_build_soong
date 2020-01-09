@@ -178,12 +178,6 @@ func skipDexpreoptBootJars(ctx android.PathContext) bool {
 	return false
 }
 
-func skipDexpreoptArtBootJars(ctx android.BuilderContext) bool {
-	// with EMMA_INSTRUMENT_FRAMEWORK=true ART boot class path libraries have dependencies on framework,
-	// therefore dexpreopt ART libraries cannot be dexpreopted in isolation => no ART boot image
-	return ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK")
-}
-
 type dexpreoptBootJars struct {
 	defaultBootImage *bootImage
 	otherImages      []*bootImage
@@ -193,7 +187,7 @@ type dexpreoptBootJars struct {
 
 // Accessor function for the apex package. Returns nil if dexpreopt is disabled.
 func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.OutputPaths {
-	if skipDexpreoptBootJars(ctx) || skipDexpreoptArtBootJars(ctx) {
+	if skipDexpreoptBootJars(ctx) {
 		return nil
 	}
 	return artBootImageConfig(ctx).imagesDeps
@@ -222,10 +216,8 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 
 	// Always create the default boot image first, to get a unique profile rule for all images.
 	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
-	if !skipDexpreoptArtBootJars(ctx) {
-		// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
-		d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
-	}
+	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
+	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
 	if global.GenerateApexImage {
 		// Create boot images for the JIT-zygote experiment.
 		d.otherImages = append(d.otherImages, buildBootImage(ctx, apexBootImageConfig(ctx)))
@@ -335,7 +327,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 
 	invocationPath := outputPath.ReplaceExtension(ctx, "invocation")
 
-	cmd.Tool(global.Tools.Dex2oat).
+	cmd.Tool(global.SoongConfig.Dex2oat).
 		Flag("--avoid-storing-invocation").
 		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
 		Flag("--runtime-arg").FlagWithArg("-Xms", global.Dex2oatImageXms).
@@ -444,7 +436,6 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 		return nil
 	}
 	profile := ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
-		tools := global.Tools
 		defaultProfile := "frameworks/base/config/boot-image-profile.txt"
 
 		rule := android.NewRuleBuilder()
@@ -470,7 +461,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 
 		rule.Command().
 			Text(`ANDROID_LOG_TAGS="*:e"`).
-			Tool(tools.Profman).
+			Tool(global.SoongConfig.Profman).
 			FlagWithInput("--create-profile-from=", bootImageProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
 			FlagForEachArg("--dex-location=", image.dexLocationsDeps).
@@ -499,8 +490,6 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImage, mi
 		return nil
 	}
 	return ctx.Config().Once(bootFrameworkProfileRuleKey, func() interface{} {
-		tools := global.Tools
-
 		rule := android.NewRuleBuilder()
 		rule.MissingDeps(missingDeps)
 
@@ -521,7 +510,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImage, mi
 
 		rule.Command().
 			Text(`ANDROID_LOG_TAGS="*:e"`).
-			Tool(tools.Profman).
+			Tool(global.SoongConfig.Profman).
 			Flag("--generate-boot-profile").
 			FlagWithInput("--create-profile-from=", bootFrameworkProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
@@ -598,6 +587,7 @@ func writeGlobalConfigForMake(ctx android.SingletonContext, path android.Writabl
 func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 	if d.dexpreoptConfigForMake != nil {
 		ctx.Strict("DEX_PREOPT_CONFIG_FOR_MAKE", d.dexpreoptConfigForMake.String())
+		ctx.Strict("DEX_PREOPT_SOONG_CONFIG_FOR_MAKE", android.PathForOutput(ctx, "dexpreopt_soong.config").String())
 	}
 
 	image := d.defaultBootImage
