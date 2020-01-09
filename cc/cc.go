@@ -398,6 +398,13 @@ func IsSharedDepTag(depTag blueprint.DependencyTag) bool {
 	return ok && ccDepTag.Shared
 }
 
+func IsStaticDepTag(depTag blueprint.DependencyTag) bool {
+	ccDepTag, ok := depTag.(DependencyTag)
+	return ok && (ccDepTag == staticExportDepTag ||
+		ccDepTag == lateStaticDepTag ||
+		ccDepTag == wholeStaticDepTag)
+}
+
 func IsRuntimeDepTag(depTag blueprint.DependencyTag) bool {
 	ccDepTag, ok := depTag.(DependencyTag)
 	return ok && ccDepTag == runtimeDepTag
@@ -463,6 +470,9 @@ type Module struct {
 	makeLinkType string
 	// Kythe (source file indexer) paths for this compilation module
 	kytheFiles android.Paths
+
+	// name of the modules that are direct or indirect static deps of this module
+	allStaticDeps []string
 }
 
 func (c *Module) Toc() android.OptionalPath {
@@ -1256,6 +1266,15 @@ func orderStaticModuleDeps(module LinkableInterface, staticDeps []LinkableInterf
 	module.SetDepsInLinkOrder(depsInLinkOrder)
 
 	return results
+}
+
+func gatherTransitiveStaticDeps(staticDeps []LinkableInterface) []string {
+	var ret []string
+	for _, dep := range staticDeps {
+		ret = append(ret, dep.Module().Name())
+		ret = append(ret, dep.AllStaticDeps()...)
+	}
+	return android.FirstUniqueStrings(ret)
 }
 
 func (c *Module) IsTestPerSrcAllTestsVariation() bool {
@@ -2328,6 +2347,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		c.sabi.Properties.ReexportedIncludes = android.FirstUniqueStrings(c.sabi.Properties.ReexportedIncludes)
 	}
 
+	c.allStaticDeps = gatherTransitiveStaticDeps(directStaticDeps)
+
 	return depPaths
 }
 
@@ -2461,6 +2482,10 @@ func (c *Module) AvailableFor(what string) bool {
 
 func (c *Module) installable() bool {
 	return c.installer != nil && !c.Properties.PreventInstall && c.IsForPlatform() && c.outputFile.Valid()
+}
+
+func (c *Module) AllStaticDeps() []string {
+	return c.allStaticDeps
 }
 
 func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
