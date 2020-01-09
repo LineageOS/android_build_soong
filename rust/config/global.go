@@ -29,7 +29,6 @@ var (
 	DefaultEdition     = "2018"
 	Stdlibs            = []string{
 		"libstd",
-		"libterm",
 		"libtest",
 	}
 
