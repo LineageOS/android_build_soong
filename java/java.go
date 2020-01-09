@@ -447,6 +447,7 @@ type Dependency interface {
 	ExportedPlugins() (android.Paths, []string)
 	SrcJarArgs() ([]string, android.Paths)
 	BaseModuleName() string
+	JacocoReportClassesFile() android.Path
 }
 
 type SdkLibraryDependency interface {
@@ -1727,6 +1728,10 @@ func (j *Module) Stem() string {
 	return proptools.StringDefault(j.deviceProperties.Stem, j.Name())
 }
 
+func (j *Module) JacocoReportClassesFile() android.Path {
+	return j.jacocoReportClassesFile
+}
+
 //
 // Java libraries (.jar file)
 //
@@ -2301,6 +2306,10 @@ func (j *Import) Name() string {
 
 func (j *Import) Stem() string {
 	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
+}
+
+func (a *Import) JacocoReportClassesFile() android.Path {
+	return nil
 }
 
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
