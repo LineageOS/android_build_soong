@@ -492,14 +492,6 @@ var (
 	usesLibTag            = dependencyTag{name: "uses-library"}
 )
 
-func IsLibDepTag(depTag blueprint.DependencyTag) bool {
-	return depTag == libTag
-}
-
-func IsStaticLibDepTag(depTag blueprint.DependencyTag) bool {
-	return depTag == staticLibTag
-}
-
 type sdkDep struct {
 	useModule, useFiles, useDefaultLibs, invalidVersion bool
 
