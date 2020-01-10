@@ -69,6 +69,7 @@ bootstrap_go_package {
         "android/proto.go",
         "android/register.go",
         "android/rule_builder.go",
+        "android/sandbox.go",
         "android/sdk.go",
         "android/sh_binary.go",
         "android/singleton.go",

@@ -135,12 +135,12 @@ type jsonConfigurable interface {
 }
 
 func loadConfig(config *config) error {
-	err := loadFromConfigFile(&config.FileConfigurableOptions, config.ConfigFileName)
+	err := loadFromConfigFile(&config.FileConfigurableOptions, absolutePath(config.ConfigFileName))
 	if err != nil {
 		return err
 	}
 
-	return loadFromConfigFile(&config.productVariables, config.ProductVariablesFileName)
+	return loadFromConfigFile(&config.productVariables, absolutePath(config.ProductVariablesFileName))
 }
 
 // loads configuration options from a JSON file in the cwd.
@@ -202,6 +202,17 @@ func saveToConfigFile(config jsonConfigurable, filename string) error {
 	os.Rename(f.Name(), filename)
 
 	return nil
+}
+
+// NullConfig returns a mostly empty Config for use by standalone tools like dexpreopt_gen that
+// use the android package.
+func NullConfig(buildDir string) Config {
+	return Config{
+		config: &config{
+			buildDir: buildDir,
+			fs:       pathtools.OsFs,
+		},
+	}
 }
 
 // TestConfig returns a Config object suitable for using for tests
@@ -320,7 +331,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		buildDir:          buildDir,
 		multilibConflicts: make(map[ArchType]bool),
 
-		fs: pathtools.OsFs,
+		fs: pathtools.NewOsFs(absSrcDir),
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -350,7 +361,7 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 	}
 
 	inMakeFile := filepath.Join(buildDir, ".soong.in_make")
-	if _, err := os.Stat(inMakeFile); err == nil {
+	if _, err := os.Stat(absolutePath(inMakeFile)); err == nil {
 		config.inMake = true
 	}
 
@@ -397,6 +408,8 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 
 	return Config{config}, nil
 }
+
+var TestConfigOsFs = map[string][]byte{}
 
 // mockFileSystem replaces all reads with accesses to the provided map of
 // filenames to contents stored as a byte slice.
@@ -901,8 +914,13 @@ func (c *config) BootJars() []string {
 	return c.productVariables.BootJars
 }
 
-func (c *config) DexpreoptGlobalConfig() string {
-	return String(c.productVariables.DexpreoptGlobalConfig)
+func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
+	if c.productVariables.DexpreoptGlobalConfig == nil {
+		return nil, nil
+	}
+	path := absolutePath(*c.productVariables.DexpreoptGlobalConfig)
+	ctx.AddNinjaFileDeps(path)
+	return ioutil.ReadFile(path)
 }
 
 func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
