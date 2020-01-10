@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -204,6 +205,10 @@ type moduleInstallPathContextImpl struct {
 	inSanitizerDir bool
 	inRecovery     bool
 	inRoot         bool
+}
+
+func (moduleInstallPathContextImpl) Fs() pathtools.FileSystem {
+	return pathtools.MockFs(nil)
 }
 
 func (m moduleInstallPathContextImpl) Config() Config {
