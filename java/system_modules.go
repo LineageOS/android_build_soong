@@ -35,6 +35,7 @@ func init() {
 
 func RegisterSystemModulesBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_system_modules", SystemModulesFactory)
+	ctx.RegisterModuleType("java_system_modules_import", systemModulesImportFactory)
 }
 
 var (
@@ -159,4 +160,31 @@ func (system *SystemModules) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, ".PHONY:", name)
 		},
 	}
+}
+
+// A prebuilt version of java_system_modules. It does not import the
+// generated system module, it generates the system module from imported
+// java libraries in the same way that java_system_modules does. It just
+// acts as a prebuilt, i.e. can have the same base name as another module
+// type and the one to use is selected at runtime.
+func systemModulesImportFactory() android.Module {
+	module := &systemModulesImport{}
+	module.AddProperties(&module.properties)
+	android.InitPrebuiltModule(module, &module.properties.Libs)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+type systemModulesImport struct {
+	SystemModules
+	prebuilt android.Prebuilt
+}
+
+func (system *systemModulesImport) Name() string {
+	return system.prebuilt.Name(system.ModuleBase.Name())
+}
+
+func (system *systemModulesImport) Prebuilt() *android.Prebuilt {
+	return &system.prebuilt
 }
