@@ -39,8 +39,7 @@ func dexpreoptGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
 		if data, err := ctx.Config().DexpreoptGlobalConfig(ctx); err != nil {
 			panic(err)
 		} else if data != nil {
-			soongConfig := dexpreopt.CreateGlobalSoongConfig(ctx)
-			globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, data, soongConfig)
+			globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, data)
 			if err != nil {
 				panic(err)
 			}
